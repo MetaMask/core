@@ -8,6 +8,7 @@ import {
   TransactionType,
   type TransactionMeta,
 } from '@metamask/transaction-controller';
+import { v4 as uuid } from 'uuid';
 
 export const getStatusRequestParams = (quoteResponse: QuoteResponse) => {
   return {
@@ -20,7 +21,10 @@ export const getStatusRequestParams = (quoteResponse: QuoteResponse) => {
   };
 };
 
-const getTxMetaFields = (quoteResponse: QuoteResponse & QuoteMetadata) => {
+export const getTxMetaFields = (
+  quoteResponse: QuoteResponse & QuoteMetadata,
+  approvalTxId?: string,
+) => {
   return {
     destinationChainId: formatChainIdToHex(quoteResponse.quote.destChainId),
     sourceTokenAmount: quoteResponse.quote.srcTokenAmount,
@@ -33,15 +37,16 @@ const getTxMetaFields = (quoteResponse: QuoteResponse & QuoteMetadata) => {
     destinationTokenDecimals: quoteResponse.quote.destAsset.decimals,
     destinationTokenAddress: quoteResponse.quote.destAsset.address,
 
+    approvalTxId,
     // this is the decimal (non atomic) amount (not USD value) of source token to swap
     swapTokenValue: quoteResponse.sentAmount.amount,
     // Ensure it's marked as a bridge transaction for UI detection
-    isBridgeTx: true,
+    isBridgeTx: true, // TODO deprecate this and use tx type
   };
 };
 
 export const handleSolanaTxResponse = (
-  snapResponse: string | object,
+  snapResponse: string | { result: Record<string, string> },
   quoteResponse: QuoteResponse & QuoteMetadata,
   snapId: string, // TODO use SnapId type
   selectedAccountAddress: string,
@@ -51,19 +56,13 @@ export const handleSolanaTxResponse = (
   if (typeof snapResponse === 'string') {
     hash = snapResponse;
   } else if (snapResponse && typeof snapResponse === 'object') {
-    // TODO: clean this up.
     // If it's an object with result property, try to get the signature
-    // @ts-expect-error: snapResponse is not typed, need to clean this up later.
     if (snapResponse.result && typeof snapResponse.result === 'object') {
       // Try to extract signature from common locations in response object
       hash =
-        // @ts-expect-error: snapResponse is not typed, need to clean this up later.
         snapResponse.result.signature ||
-        // @ts-expect-error: snapResponse is not typed, need to clean this up later.
         snapResponse.result.txid ||
-        // @ts-expect-error: snapResponse is not typed, need to clean this up later.
         snapResponse.result.hash ||
-        // @ts-expect-error: snapResponse is not typed, need to clean this up later.
         snapResponse.result.txHash;
     }
   }
@@ -71,7 +70,7 @@ export const handleSolanaTxResponse = (
   // Create a transaction meta object with bridge-specific fields
   const txMeta: TransactionMeta = {
     ...getTxMetaFields(quoteResponse),
-    id: crypto.randomUUID(),
+    id: uuid(),
     chainId: formatChainIdToHex(quoteResponse.quote.srcChainId),
     // networkClientId: selectedAccount.id, //TODO optional for solana or no?
     txParams: { from: selectedAccountAddress }, // { data: quoteResponse.trade }, // TODO not reading this for solana
@@ -90,70 +89,70 @@ export const handleSolanaTxResponse = (
 };
 
 // TODO can thsi be removed since QuoteMetadata is already serialized?
-export const serializeQuoteMetadata = (
-  quoteResponse: QuoteResponse & QuoteMetadata,
-): QuoteResponse & QuoteMetadata => {
-  return {
-    ...quoteResponse,
-    sentAmount: {
-      amount: quoteResponse.sentAmount.amount.toString(),
-      valueInCurrency: quoteResponse.sentAmount.valueInCurrency
-        ? quoteResponse.sentAmount.valueInCurrency.toString()
-        : null,
-      usd: quoteResponse.sentAmount.usd
-        ? quoteResponse.sentAmount.usd.toString()
-        : null,
-    },
-    gasFee: {
-      amount: quoteResponse.gasFee.amount.toString(),
-      valueInCurrency: quoteResponse.gasFee.valueInCurrency
-        ? quoteResponse.gasFee.valueInCurrency.toString()
-        : null,
-      usd: quoteResponse.gasFee.usd
-        ? quoteResponse.gasFee.usd.toString()
-        : null,
-    },
-    totalNetworkFee: {
-      amount: quoteResponse.totalNetworkFee.amount.toString(),
-      valueInCurrency: quoteResponse.totalNetworkFee.valueInCurrency
-        ? quoteResponse.totalNetworkFee.valueInCurrency.toString()
-        : null,
-      usd: quoteResponse.totalNetworkFee.usd
-        ? quoteResponse.totalNetworkFee.usd.toString()
-        : null,
-    },
-    totalMaxNetworkFee: {
-      amount: quoteResponse.totalMaxNetworkFee.amount.toString(),
-      valueInCurrency: quoteResponse.totalMaxNetworkFee.valueInCurrency
-        ? quoteResponse.totalMaxNetworkFee.valueInCurrency.toString()
-        : null,
-      usd: quoteResponse.totalMaxNetworkFee.usd
-        ? quoteResponse.totalMaxNetworkFee.usd.toString()
-        : null,
-    },
-    toTokenAmount: {
-      amount: quoteResponse.toTokenAmount.amount.toString(),
-      valueInCurrency: quoteResponse.toTokenAmount.valueInCurrency
-        ? quoteResponse.toTokenAmount.valueInCurrency.toString()
-        : null,
-      usd: quoteResponse.toTokenAmount.usd
-        ? quoteResponse.toTokenAmount.usd.toString()
-        : null,
-    },
-    adjustedReturn: {
-      valueInCurrency: quoteResponse.adjustedReturn.valueInCurrency
-        ? quoteResponse.adjustedReturn.valueInCurrency.toString()
-        : null,
-      usd: quoteResponse.adjustedReturn.usd
-        ? quoteResponse.adjustedReturn.usd.toString()
-        : null,
-    },
-    swapRate: quoteResponse.swapRate.toString(),
-    cost: {
-      valueInCurrency: quoteResponse.cost.valueInCurrency
-        ? quoteResponse.cost.valueInCurrency.toString()
-        : null,
-      usd: quoteResponse.cost.usd ? quoteResponse.cost.usd.toString() : null,
-    },
-  };
-};
+// export const serializeQuoteMetadata = (
+//   quoteResponse: QuoteResponse & QuoteMetadata,
+// ): QuoteResponse & QuoteMetadata => {
+//   return {
+//     ...quoteResponse,
+//     sentAmount: {
+//       amount: quoteResponse.sentAmount.amount.toString(),
+//       valueInCurrency: quoteResponse.sentAmount.valueInCurrency
+//         ? quoteResponse.sentAmount.valueInCurrency.toString()
+//         : null,
+//       usd: quoteResponse.sentAmount.usd
+//         ? quoteResponse.sentAmount.usd.toString()
+//         : null,
+//     },
+//     gasFee: {
+//       amount: quoteResponse.gasFee.amount.toString(),
+//       valueInCurrency: quoteResponse.gasFee.valueInCurrency
+//         ? quoteResponse.gasFee.valueInCurrency.toString()
+//         : null,
+//       usd: quoteResponse.gasFee.usd
+//         ? quoteResponse.gasFee.usd.toString()
+//         : null,
+//     },
+//     totalNetworkFee: {
+//       amount: quoteResponse.totalNetworkFee.amount.toString(),
+//       valueInCurrency: quoteResponse.totalNetworkFee.valueInCurrency
+//         ? quoteResponse.totalNetworkFee.valueInCurrency.toString()
+//         : null,
+//       usd: quoteResponse.totalNetworkFee.usd
+//         ? quoteResponse.totalNetworkFee.usd.toString()
+//         : null,
+//     },
+//     totalMaxNetworkFee: {
+//       amount: quoteResponse.totalMaxNetworkFee.amount.toString(),
+//       valueInCurrency: quoteResponse.totalMaxNetworkFee.valueInCurrency
+//         ? quoteResponse.totalMaxNetworkFee.valueInCurrency.toString()
+//         : null,
+//       usd: quoteResponse.totalMaxNetworkFee.usd
+//         ? quoteResponse.totalMaxNetworkFee.usd.toString()
+//         : null,
+//     },
+//     toTokenAmount: {
+//       amount: quoteResponse.toTokenAmount.amount.toString(),
+//       valueInCurrency: quoteResponse.toTokenAmount.valueInCurrency
+//         ? quoteResponse.toTokenAmount.valueInCurrency.toString()
+//         : null,
+//       usd: quoteResponse.toTokenAmount.usd
+//         ? quoteResponse.toTokenAmount.usd.toString()
+//         : null,
+//     },
+//     adjustedReturn: {
+//       valueInCurrency: quoteResponse.adjustedReturn.valueInCurrency
+//         ? quoteResponse.adjustedReturn.valueInCurrency.toString()
+//         : null,
+//       usd: quoteResponse.adjustedReturn.usd
+//         ? quoteResponse.adjustedReturn.usd.toString()
+//         : null,
+//     },
+//     swapRate: quoteResponse.swapRate.toString(),
+//     cost: {
+//       valueInCurrency: quoteResponse.cost.valueInCurrency
+//         ? quoteResponse.cost.valueInCurrency.toString()
+//         : null,
+//       usd: quoteResponse.cost.usd ? quoteResponse.cost.usd.toString() : null,
+//     },
+//   };
+// };
