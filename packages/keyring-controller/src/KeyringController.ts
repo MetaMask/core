@@ -2234,7 +2234,7 @@ export class KeyringController extends BaseController<
       await this.#restoreSerializedKeyrings(vault);
 
       // The keyrings array and the keyringsMetadata array should
-      // always be the same length while the controller is unlocked.
+      // always have the same length while the controller is unlocked.
       if (this.#keyrings.length !== this.#keyringsMetadata.length) {
         throw new Error(KeyringControllerError.KeyringMetadataLengthMismatch);
       }
