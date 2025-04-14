@@ -71,7 +71,7 @@ export const NON_EVM_TESTNET_IDS: CaipChainId[] = [
   BtcScope.Signet,
   SolScope.Testnet,
   SolScope.Devnet,
-] as const;
+];
 
 /**
  * Metadata for the supported networks.
@@ -112,3 +112,30 @@ export const MULTICHAIN_NETWORK_CONTROLLER_METADATA = {
   selectedMultichainNetworkChainId: { persist: true, anonymous: true },
   isEvmSelected: { persist: true, anonymous: true },
 } satisfies StateMetadata<MultichainNetworkControllerState>;
+
+/**
+ * Multichain network ticker for the supported networks.
+ * TODO: This should be part of the assets-controllers or the snap itself.
+ */
+export const MULTICHAIN_NETWORK_TICKER = {
+  [BtcScope.Mainnet]: 'BTC',
+  [BtcScope.Testnet]: 'tBTC',
+  [BtcScope.Signet]: 'sBTC',
+  [SolScope.Mainnet]: 'SOL',
+  [SolScope.Testnet]: 'tSOL',
+  [SolScope.Devnet]: 'dSOL',
+} as const;
+
+/**
+ * Multichain network asset decimals for the supported networks.
+ * TODO: This should be part of the assets-controllers or the snap itself.
+ */
+export const MULTICHAIN_NETWORK_DECIMAL_PLACES = {
+  [BtcScope.Mainnet]: 8,
+  [BtcScope.Testnet]: 8,
+  [BtcScope.Signet]: 8,
+  [SolScope.Mainnet]: 5,
+  [SolScope.Testnet]: 5,
+  [SolScope.Devnet]: 5,
+} as const;
+
