@@ -1,10 +1,10 @@
 export { MultichainNetworkController } from './MultichainNetworkController';
 export {
-  NON_EVM_TESTNET_IDS,
   getDefaultMultichainNetworkControllerState,
-  AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
+  NON_EVM_TESTNET_IDS,
   MULTICHAIN_NETWORK_TICKER,
   MULTICHAIN_NETWORK_DECIMAL_PLACES,
+  AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
 } from './constants';
 export type {
   MultichainNetworkMetadata,

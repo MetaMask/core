@@ -117,7 +117,7 @@ export const MULTICHAIN_NETWORK_CONTROLLER_METADATA = {
  * Multichain network ticker for the supported networks.
  * TODO: This should be part of the assets-controllers or the snap itself.
  */
-export const MULTICHAIN_NETWORK_TICKER = {
+export const MULTICHAIN_NETWORK_TICKER: Record<CaipChainId, string> = {
   [BtcScope.Mainnet]: 'BTC',
   [BtcScope.Testnet]: 'tBTC',
   [BtcScope.Signet]: 'sBTC',
@@ -130,7 +130,7 @@ export const MULTICHAIN_NETWORK_TICKER = {
  * Multichain network asset decimals for the supported networks.
  * TODO: This should be part of the assets-controllers or the snap itself.
  */
-export const MULTICHAIN_NETWORK_DECIMAL_PLACES = {
+export const MULTICHAIN_NETWORK_DECIMAL_PLACES: Record<CaipChainId, number> = {
   [BtcScope.Mainnet]: 8,
   [BtcScope.Testnet]: 8,
   [BtcScope.Signet]: 8,
