@@ -251,8 +251,8 @@ export type Step = {
   action: ActionTypes;
   srcChainId: ChainId;
   destChainId?: ChainId;
-  srcAsset: BridgeAsset;
-  destAsset: BridgeAsset;
+  srcAsset?: BridgeAsset;
+  destAsset?: BridgeAsset;
   srcAmount: string;
   destAmount: string;
   protocol: Protocol;
@@ -277,10 +277,14 @@ export type Quote = {
   refuel?: RefuelData;
 };
 
-export type QuoteResponse = {
+/**
+ * This is the type for the quote response from the bridge-api
+ * TxDataType can be overriden to be a string when the quote is non-evm
+ */
+export type QuoteResponse<TradeType = TxData, ApprovalType = TxData | null> = {
   quote: Quote;
-  approval?: TxData | null;
-  trade: TxData;
+  approval?: ApprovalType;
+  trade: TradeType;
   estimatedProcessingTimeInSeconds: number;
 };
 
