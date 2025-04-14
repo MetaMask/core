@@ -84,7 +84,7 @@ function createMessengerMock() {
   );
 
   const restrictedMessenger = messenger.getRestricted({
-    name: 'DelegationController',
+    name: `${controllerName}`,
     allowedActions: [
       'AccountsController:getSelectedAccount',
       'KeyringController:signTypedMessage',
@@ -128,7 +128,7 @@ function createController(state?: DelegationControllerState) {
   };
 }
 
-describe('DelegationController', () => {
+describe(`${controllerName}`, () => {
   beforeEach(() => {
     jest.resetAllMocks();
   });
