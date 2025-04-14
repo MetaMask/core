@@ -11,13 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Add new public method `setIsBackupAndSyncFeatureEnabled` to `UserStorageController` ([#5636](https://github.com/MetaMask/core/pull/5636))
   - This replaces `enableProfileSyncing` and `disableProfileSyncing` and will be used as the main method to enable and disable backup and sync features from now on.
-- Add new `isAccountSyncingEnabled` state property to `UserStorageController` ([#5636](https://github.com/MetaMask/core/pull/5636))
+- **BREAKING:** Add new `isAccountSyncingEnabled` state property to `UserStorageController` ([#5636](https://github.com/MetaMask/core/pull/5636))
   - This property is `true` by default.
 
 ### Removed
 
 - **BREAKING:** Remove `isAccountSyncingEnabled` `env` property from `UserStorageController` constructor ([#5629](https://github.com/MetaMask/core/pull/5629))
-- **BREAKING:** Remove unused action handlers: `enableProfileSyncing`, `disableProfileSyncing`, `syncInternalAccountsWithUserStorage` and `saveInternalAccountToUserStorage`. ([#5638](https://github.com/MetaMask/core/pull/5638))
+- **BREAKING:** Remove unused action handlers: `setIsBackupAndSyncFeatureEnabled`, `syncInternalAccountsWithUserStorage` and `saveInternalAccountToUserStorage`. ([#5638](https://github.com/MetaMask/core/pull/5638))
   - These actions should not be callable through the messaging system.
 
 ## [11.0.1]
