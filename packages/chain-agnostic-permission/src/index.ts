@@ -15,7 +15,10 @@ export {
   getSessionScopes,
   getPermittedAccountsForScopes,
 } from './adapters/caip-permission-adapter-session-scopes';
-
+export {
+  getCaipAccountIdsFromScopesObjects,
+  getAllScopesFromScopesObjects,
+} from './scope/validation';
 export type { Caip25Authorization } from './scope/authorization';
 export {
   validateAndNormalizeScopes,
@@ -28,6 +31,7 @@ export {
   KnownWalletNamespaceRpcMethods,
   KnownNotifications,
   KnownWalletScopeString,
+  isKnownSessionPropertyValue,
 } from './scope/constants';
 export { getSupportedScopeObjects } from './scope/filter';
 export type {
