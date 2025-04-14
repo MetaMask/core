@@ -5,27 +5,35 @@ import {
   type NormalizedScopesObject,
   KnownSessionProperties,
 } from '@metamask/chain-agnostic-permission';
-import * as Multichain from '@metamask/chain-agnostic-permission';
+import * as ChainAgnosticPermission from '@metamask/chain-agnostic-permission';
 import { MultichainNetwork } from '@metamask/multichain-transactions-controller';
-import { JsonRpcError } from '@metamask/rpc-errors';
+import { invalidParams } from '@metamask/permission-controller';
+import { JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
 import type { Json, JsonRpcRequest, JsonRpcSuccess } from '@metamask/utils';
 
+import { shouldEmitDappViewedEvent } from './utils';
 import { walletCreateSession } from './wallet-createSession';
 
-jest.mock('../../../util', () => ({
-  ...jest.requireActual('../../../util'),
+jest.mock('@metamask/rpc-errors', () => ({
+  ...jest.requireActual('@metamask/rpc-errors'),
+  rpcErrors: {
+    invalidParams: jest.fn(),
+    internal: jest.fn(),
+  },
+}));
+
+jest.mock('./utils', () => ({
   shouldEmitDappViewedEvent: jest.fn(),
 }));
-const MockUtil = jest.fn(); // TODO: mock shouldEmitDappViewedEvent
 
-jest.mock('@metamask/multichain', () => ({
-  ...jest.requireActual('@metamask/multichain'),
+jest.mock('@metamask/chain-agnostic-permission', () => ({
+  ...jest.requireActual('@metamask/chain-agnostic-permission'),
   validateAndNormalizeScopes: jest.fn(),
   bucketScopes: jest.fn(),
   getSessionScopes: jest.fn(),
   getSupportedScopeObjects: jest.fn(),
 }));
-const MockMultichain = jest.mocked(Multichain);
+const MockChainAgnosticPermission = jest.mocked(ChainAgnosticPermission);
 
 const baseRequest = {
   jsonrpc: '2.0' as const,
@@ -135,11 +143,11 @@ const createMockedHandler = () => {
 
 describe('wallet_createSession', () => {
   beforeEach(() => {
-    MockMultichain.validateAndNormalizeScopes.mockReturnValue({
+    MockChainAgnosticPermission.validateAndNormalizeScopes.mockReturnValue({
       normalizedRequiredScopes: {},
       normalizedOptionalScopes: {},
     });
-    MockMultichain.bucketScopes.mockReturnValue({
+    MockChainAgnosticPermission.bucketScopes.mockReturnValue({
       supportedScopes: {
         'eip155:1': {
           methods: [],
@@ -150,14 +158,26 @@ describe('wallet_createSession', () => {
       supportableScopes: {},
       unsupportableScopes: {},
     });
-    MockMultichain.getSessionScopes.mockReturnValue({});
-    MockMultichain.getSupportedScopeObjects.mockImplementation(
+    MockChainAgnosticPermission.getSessionScopes.mockReturnValue({});
+    MockChainAgnosticPermission.getSupportedScopeObjects.mockImplementation(
       (scopesObject) => scopesObject,
     );
   });
 
   afterEach(() => {
     jest.resetAllMocks();
+  });
+
+  it('throws an error if params is not a plain object', async () => {
+    const { handler, end } = createMockedHandler();
+    const params = ['not_a_plain_object'] as unknown as Caip25Authorization;
+    await handler({
+      ...baseRequest,
+      params,
+    });
+    expect(end).toHaveBeenCalledWith(
+      invalidParams({ data: { request: { ...baseRequest, params } } }),
+    );
   });
 
   it('throws an error when session properties is defined but empty', async () => {
@@ -189,29 +209,30 @@ describe('wallet_createSession', () => {
       },
     });
 
-    expect(MockMultichain.validateAndNormalizeScopes).toHaveBeenCalledWith(
-      baseRequest.params.requiredScopes,
-      {
-        foo: {
-          methods: [],
-          notifications: [],
-        },
+    expect(
+      MockChainAgnosticPermission.validateAndNormalizeScopes,
+    ).toHaveBeenCalledWith(baseRequest.params.requiredScopes, {
+      foo: {
+        methods: [],
+        notifications: [],
       },
-    );
+    });
   });
 
   it('throws an error when processing scopes fails', async () => {
     const { handler, end } = createMockedHandler();
-    MockMultichain.validateAndNormalizeScopes.mockImplementation(() => {
-      throw new Error('failed to process scopes');
-    });
+    MockChainAgnosticPermission.validateAndNormalizeScopes.mockImplementation(
+      () => {
+        throw new Error('failed to process scopes');
+      },
+    );
     await handler(baseRequest);
     expect(end).toHaveBeenCalledWith(new Error('failed to process scopes'));
   });
 
   it('filters the required scopesObjects', async () => {
     const { handler, getNonEvmSupportedMethods } = createMockedHandler();
-    MockMultichain.validateAndNormalizeScopes.mockReturnValue({
+    MockChainAgnosticPermission.validateAndNormalizeScopes.mockReturnValue({
       normalizedRequiredScopes: {
         'eip155:1': {
           methods: ['eth_chainId'],
@@ -223,7 +244,9 @@ describe('wallet_createSession', () => {
     });
     await handler(baseRequest);
 
-    expect(MockMultichain.getSupportedScopeObjects).toHaveBeenNthCalledWith(
+    expect(
+      MockChainAgnosticPermission.getSupportedScopeObjects,
+    ).toHaveBeenNthCalledWith(
       1,
       {
         'eip155:1': {
@@ -240,7 +263,7 @@ describe('wallet_createSession', () => {
 
   it('filters the optional scopesObjects', async () => {
     const { handler, getNonEvmSupportedMethods } = createMockedHandler();
-    MockMultichain.validateAndNormalizeScopes.mockReturnValue({
+    MockChainAgnosticPermission.validateAndNormalizeScopes.mockReturnValue({
       normalizedRequiredScopes: {},
       normalizedOptionalScopes: {
         'eip155:1': {
@@ -252,7 +275,9 @@ describe('wallet_createSession', () => {
     });
     await handler(baseRequest);
 
-    expect(MockMultichain.getSupportedScopeObjects).toHaveBeenNthCalledWith(
+    expect(
+      MockChainAgnosticPermission.getSupportedScopeObjects,
+    ).toHaveBeenNthCalledWith(
       2,
       {
         'eip155:1': {
@@ -270,7 +295,7 @@ describe('wallet_createSession', () => {
   it('buckets the required scopes', async () => {
     const { handler, getNonEvmSupportedMethods, isNonEvmScopeSupported } =
       createMockedHandler();
-    MockMultichain.validateAndNormalizeScopes.mockReturnValue({
+    MockChainAgnosticPermission.validateAndNormalizeScopes.mockReturnValue({
       normalizedRequiredScopes: {
         'eip155:1': {
           methods: ['eth_chainId'],
@@ -282,7 +307,7 @@ describe('wallet_createSession', () => {
     });
     await handler(baseRequest);
 
-    expect(MockMultichain.bucketScopes).toHaveBeenNthCalledWith(
+    expect(MockChainAgnosticPermission.bucketScopes).toHaveBeenNthCalledWith(
       1,
       {
         'eip155:1': {
@@ -300,14 +325,14 @@ describe('wallet_createSession', () => {
     );
 
     const isEvmChainIdSupportedBody =
-      MockMultichain.bucketScopes.mock.calls[0][1].isEvmChainIdSupported.toString();
+      MockChainAgnosticPermission.bucketScopes.mock.calls[0][1].isEvmChainIdSupported.toString();
     expect(isEvmChainIdSupportedBody).toContain('findNetworkClientIdByChainId');
   });
 
   it('buckets the optional scopes', async () => {
     const { handler, getNonEvmSupportedMethods, isNonEvmScopeSupported } =
       createMockedHandler();
-    MockMultichain.validateAndNormalizeScopes.mockReturnValue({
+    MockChainAgnosticPermission.validateAndNormalizeScopes.mockReturnValue({
       normalizedRequiredScopes: {},
       normalizedOptionalScopes: {
         'eip155:100': {
@@ -319,7 +344,7 @@ describe('wallet_createSession', () => {
     });
     await handler(baseRequest);
 
-    expect(MockMultichain.bucketScopes).toHaveBeenNthCalledWith(
+    expect(MockChainAgnosticPermission.bucketScopes).toHaveBeenNthCalledWith(
       2,
       {
         'eip155:100': {
@@ -337,13 +362,13 @@ describe('wallet_createSession', () => {
     );
 
     const isEvmChainIdSupportedBody =
-      MockMultichain.bucketScopes.mock.calls[1][1].isEvmChainIdSupported.toString();
+      MockChainAgnosticPermission.bucketScopes.mock.calls[1][1].isEvmChainIdSupported.toString();
     expect(isEvmChainIdSupportedBody).toContain('findNetworkClientIdByChainId');
   });
 
   it('throws an error when no scopes are supported', async () => {
     const { handler, end } = createMockedHandler();
-    MockMultichain.bucketScopes
+    MockChainAgnosticPermission.bucketScopes
       .mockReturnValueOnce({
         supportedScopes: {},
         supportableScopes: {},
@@ -376,7 +401,7 @@ describe('wallet_createSession', () => {
       { address: '0x3' },
       { address: '0x4' },
     ]);
-    MockMultichain.bucketScopes
+    MockChainAgnosticPermission.bucketScopes
       .mockReturnValueOnce({
         supportedScopes: {},
         supportableScopes: {},
@@ -425,7 +450,7 @@ describe('wallet_createSession', () => {
       { address: '0x3' },
       { address: '0x4' },
     ]);
-    MockMultichain.bucketScopes
+    MockChainAgnosticPermission.bucketScopes
       .mockReturnValueOnce({
         supportedScopes: {
           'eip155:1337': {
@@ -504,7 +529,7 @@ describe('wallet_createSession', () => {
   });
 
   it('emits the dapp viewed metrics event', async () => {
-    MockUtil.shouldEmitDappViewedEvent.mockReturnValue(true);
+    (shouldEmitDappViewedEvent as jest.Mock).mockReturnValue(true);
     const { handler, sendMetrics } = createMockedHandler();
     await handler(baseRequest);
 
@@ -524,7 +549,7 @@ describe('wallet_createSession', () => {
 
   it('returns the known sessionProperties and approved session scopes', async () => {
     const { handler, response } = createMockedHandler();
-    MockMultichain.getSessionScopes.mockReturnValue({
+    MockChainAgnosticPermission.getSessionScopes.mockReturnValue({
       'eip155:5': {
         methods: ['eth_chainId', 'net_version'],
         notifications: ['accountsChanged', 'chainChanged'],
@@ -573,7 +598,7 @@ describe('wallet_createSession', () => {
       { address: '0x3' },
       { address: '0x4' },
     ]);
-    MockMultichain.bucketScopes
+    MockChainAgnosticPermission.bucketScopes
       .mockReturnValueOnce({
         supportedScopes: {
           'eip155:1337': {
@@ -649,7 +674,7 @@ describe('wallet_createSession', () => {
         },
       },
     ]);
-    MockMultichain.getSessionScopes.mockReturnValue({
+    MockChainAgnosticPermission.getSessionScopes.mockReturnValue({
       'eip155:5': {
         methods: ['eth_chainId', 'net_version'],
         notifications: ['accountsChanged', 'chainChanged'],
@@ -680,6 +705,31 @@ describe('wallet_createSession', () => {
     });
   });
 
+  it('calls internal RPC error if approved CAIP-25 permission has no CAIP-25 caveat value', async () => {
+    const { handler, requestPermissionsForOrigin } = createMockedHandler();
+    requestPermissionsForOrigin.mockReturnValue([
+      {
+        [Caip25EndowmentPermissionName]: {
+          caveats: [
+            {
+              type: 'mock',
+              value: {},
+            },
+          ],
+        },
+      },
+    ]);
+
+    await handler({
+      ...baseRequest,
+      params: {
+        ...baseRequest.params,
+      },
+    });
+
+    expect(rpcErrors.internal).toHaveBeenCalled();
+  });
+
   describe('address case sensitivity', () => {
     it('treats EVM addresses as case insensitive but other addresses as case sensitive', async () => {
       const {
@@ -705,7 +755,7 @@ describe('wallet_createSession', () => {
       });
 
       // Test both EVM (case-insensitive) and Solana (case-sensitive) and Bitcoin (case-sensitive) behavior
-      MockMultichain.bucketScopes
+      MockChainAgnosticPermission.bucketScopes
         .mockReturnValueOnce({
           supportedScopes: {
             'eip155:1': {

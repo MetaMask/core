@@ -43,6 +43,7 @@ import type {
   MetaMetricsEventOptions,
   MetaMetricsEventPayload,
 } from './types';
+import { shouldEmitDappViewedEvent } from './utils';
 
 /**
  * Handler for the `wallet_createSession` RPC method which is responsible
@@ -144,6 +145,7 @@ async function walletCreateSessionHandler(
       requiredScopesWithSupportedMethodsAndNotifications,
       {
         isEvmChainIdSupported: networkClientExistsForChainId,
+        // TODO: [ffmcgee] how do I test cover this
         isEvmChainIdSupportable: () => false, // intended for future usage with eip3085 scopedProperties
         getNonEvmSupportedMethods: hooks.getNonEvmSupportedMethods,
         isNonEvmScopeSupported: hooks.isNonEvmScopeSupported,
@@ -154,6 +156,7 @@ async function walletCreateSessionHandler(
       optionalScopesWithSupportedMethodsAndNotifications,
       {
         isEvmChainIdSupported: networkClientExistsForChainId,
+        // TODO: [ffmcgee] how do I test cover this
         isEvmChainIdSupportable: () => false, // intended for future usage with eip3085 scopedProperties
         getNonEvmSupportedMethods: hooks.getNonEvmSupportedMethods,
         isNonEvmScopeSupported: hooks.isNonEvmScopeSupported,
@@ -290,23 +293,3 @@ export const walletCreateSession = {
     getNonEvmAccountAddresses: true,
   },
 };
-
-/**
- * Determines whether to emit a MetaMetrics event for a given metaMetricsId.
- * Relies on the last 4 characters of the metametricsId. Assumes the IDs are evenly distributed.
- * If metaMetricsIds are distributed evenly, this should be a 1% sample rate
- *
- * @param metaMetricsId - The metametricsId to use for the event.
- * @returns Whether to emit the event or not.
- */
-// TODO: this should live somewhere else
-function shouldEmitDappViewedEvent(metaMetricsId: string): boolean {
-  if (metaMetricsId === null) {
-    return false;
-  }
-
-  const lastFourCharacters = metaMetricsId.slice(-4);
-  const lastFourCharactersAsNumber = parseInt(lastFourCharacters, 16);
-
-  return lastFourCharactersAsNumber % 100 === 0;
-}
