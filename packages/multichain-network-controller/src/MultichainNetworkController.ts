@@ -216,7 +216,7 @@ export class MultichainNetworkController extends BaseController<
    * @param account - The account that was changed
    */
   #handleOnSelectedAccountChange(account: InternalAccount) {
-    const { type: accountType, address: accountAddress } = account;
+    const { type: accountType, address: accountAddress, scopes } = account;
     const isEvmAccount = isEvmAccountType(accountType);
 
     // Handle switching to EVM network
@@ -235,16 +235,7 @@ export class MultichainNetworkController extends BaseController<
     }
 
     // Handle switching to non-EVM network
-    const nonEvmChainId = getChainIdForNonEvmAddress(accountAddress);
-    const { namespace: selectedNetworkNamespace } = parseCaipChainId(
-      this.state.selectedMultichainNetworkChainId,
-    );
-    const { namespace: selectAccountNetworkNamespace } =
-      parseCaipChainId(nonEvmChainId);
-    const isSameNonEvmNamespace =
-      selectedNetworkNamespace === selectAccountNetworkNamespace;
-
-    if (isSameNonEvmNamespace) {
+    if (scopes.includes(this.state.selectedMultichainNetworkChainId)) {
       // No need to update if already on the same non-EVM network
       this.update((state) => {
         state.isEvmSelected = false;
@@ -252,6 +243,7 @@ export class MultichainNetworkController extends BaseController<
       return;
     }
 
+    const nonEvmChainId = getChainIdForNonEvmAddress(accountAddress);
     this.update((state) => {
       state.selectedMultichainNetworkChainId = nonEvmChainId;
       state.isEvmSelected = false;

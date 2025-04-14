@@ -440,6 +440,33 @@ describe('MultichainNetworkController', () => {
       );
       expect(controller.state.isEvmSelected).toBe(false);
     });
+
+    it('does not change the active network if the network is part of the account scopes', async () => {
+      // By default, Solana is selected and active
+      const { controller, triggerSelectedAccountChange } = setupController({
+        options: {
+          state: {
+            isEvmSelected: false,
+            selectedMultichainNetworkChainId: SolScope.Devnet,
+          },
+        },
+      });
+
+      // Solana is currently active
+      expect(controller.state.isEvmSelected).toBe(false);
+      expect(controller.state.selectedMultichainNetworkChainId).toBe(
+        SolScope.Devnet,
+      );
+
+      // Switching to Bitcoin account
+      triggerSelectedAccountChange(SolAccountType.DataAccount);
+
+      // Bitcoin is now the selected network
+      expect(controller.state.selectedMultichainNetworkChainId).toBe(
+        SolScope.Devnet,
+      );
+      expect(controller.state.isEvmSelected).toBe(false);
+    });
   });
 
   describe('removeEvmNetwork', () => {
