@@ -57,10 +57,14 @@
   },
   "devDependencies": {
     "@metamask/accounts-controller": "^27.0.0",
+    "@metamask/assets-controllers": "^56.0.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/network-controller": "^23.2.0",
+    "@metamask/preferences-controller": "^17.0.0",
     "@metamask/snaps-controllers": "^9.19.0",
     "@metamask/transaction-controller": "^54.0.0",
+    "@metamask/user-operation-controller": "^31.0.0",
+    "@ts-bridge/cli": "^0.6.3",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
@@ -74,9 +78,12 @@
   },
   "peerDependencies": {
     "@metamask/accounts-controller": "^27.0.0",
+    "@metamask/assets-controllers": "^56.0.0",
     "@metamask/network-controller": "^23.0.0",
+    "@metamask/preferences-controller": "^17.0.0",
     "@metamask/snaps-controllers": "^9.19.0",
-    "@metamask/transaction-controller": "^54.0.0"
+    "@metamask/transaction-controller": "^54.0.0",
+    "@metamask/user-operation-controller": "^31.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

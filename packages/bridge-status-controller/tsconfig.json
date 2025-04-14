@@ -11,7 +11,9 @@
     { "path": "../controller-utils" },
     { "path": "../network-controller" },
     { "path": "../polling-controller" },
-    { "path": "../transaction-controller" }
+    { "path": "../assets-controllers" },
+    { "path": "../transaction-controller" },
+    { "path": "../preferences-controller" }
   ],
   "include": ["../../types", "./src"]
 }

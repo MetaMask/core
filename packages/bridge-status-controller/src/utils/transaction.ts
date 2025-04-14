@@ -11,6 +11,8 @@ import {
 } from '@metamask/transaction-controller';
 import { v4 as uuid } from 'uuid';
 
+export const generateActionId = () => Date.now() + Math.random();
+
 export const getStatusRequestParams = (
   quoteResponse: QuoteResponse<string | TxData>,
 ) => {
@@ -23,6 +25,131 @@ export const getStatusRequestParams = (
     refuel: Boolean(quoteResponse.quote.refuel),
   };
 };
+
+// /**
+//  *
+//  * @param txMeta
+//  */
+// export function updateTransaction(txMeta: TransactionMeta) {
+//   txController.updateTransaction(txMeta);
+
+//   try {
+//     dispatch(updateTransactionParams(txMeta.id, txMeta.txParams));
+//     await forceUpdateMetamaskState(dispatch);
+//     dispatch(showConfTxPage({ id: txMeta.id }));
+//     return txMeta;
+//   } finally {
+//     dispatch(hideLoadingIndication());
+//   }
+// }
+
+// /**
+//  *
+// //  * @param request
+//  */
+// async function addTransactionOrUserOperation(
+//   request: FinalAddTransactionRequest,
+// ) {
+//   const { selectedAccount } = request;
+
+//   const isSmartContractAccount =
+//     selectedAccount.type === EthAccountType.Erc4337;
+
+//   if (isSmartContractAccount) {
+//     return addUserOperationWithController(request);
+//   }
+
+//   return addTransactionWithController(request);
+// }
+
+// /**
+//  *
+//  * @param request
+//  */
+// async function addTransactionWithController(
+//   request: FinalAddTransactionRequest,
+// ) {
+//   const {
+//     transactionController,
+//     transactionOptions,
+//     transactionParams,
+//     networkClientId,
+//   } = request;
+
+//   const { result, transactionMeta } =
+//     await transactionController.addTransaction(transactionParams, {
+//       ...transactionOptions,
+//       networkClientId,
+//     });
+
+//   return {
+//     transactionMeta,
+//     waitForHash: () => result,
+//   };
+// }
+
+// /**
+//  *
+//  * @param request
+//  */
+export const addTransactionOrUserOperation = async (request: unknown) => {
+  //   const { selectedAccount } = request;
+  //   const isSmartContractAccount =
+  //     selectedAccount.type === EthAccountType.Erc4337;
+  //   if (isSmartContractAccount) {
+  //     return addUserOperationWithController(request);
+  //   }
+  //   return addTransactionWithController(request);
+};
+
+// /**
+//  *
+//  * @param request
+//  */
+export const addTransaction = async () => {
+  //   request: AddTransactionRequest,
+  // ): Promise<TransactionMeta> {
+  //   await validateSecurity(request);
+  //   const { transactionMeta, waitForHash } =
+  //     await addTransactionOrUserOperation(request);
+  //   if (!request.waitForSubmit) {
+  //     waitForHash().catch(() => {
+  //       // Not concerned with result.
+  //     });
+  //     return transactionMeta as TransactionMeta;
+  //   }
+  //   const transactionHash = await waitForHash();
+  //   const finalTransactionMeta = getTransactionByHash(
+  //     transactionHash as string,
+  //     request.transactionController,
+  //   );
+  //   return finalTransactionMeta as TransactionMeta;
+};
+
+// export const getAddTransactionRequest = ({
+//   transactionParams,
+//   transactionOptions,
+//   dappRequest,
+//   ...otherParams
+// }) => ({
+//   internalAccounts: this.accountsController.listAccounts(),
+//   dappRequest,
+//   networkClientId:
+//     dappRequest?.networkClientId ?? transactionOptions?.networkClientId,
+//   selectedAccount: this.accountsController.getAccountByAddress(
+//     transactionParams.from,
+//   ),
+//   transactionController: this.txController,
+//   transactionOptions,
+//   transactionParams,
+//   userOperationController: this.userOperationController,
+//   chainId: this.#getGlobalChainId(),
+//   ppomController: this.ppomController,
+//   securityAlertsEnabled:
+//     this.preferencesController.state?.securityAlertsEnabled,
+//   updateSecurityAlertResponse: this.updateSecurityAlertResponse.bind(this),
+//   ...otherParams,
+// });
 
 export const getTxMetaFields = (
   quoteResponse: Omit<QuoteResponse<string | TxData>, 'approval' | 'trade'> &
