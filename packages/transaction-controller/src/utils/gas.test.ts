@@ -18,7 +18,6 @@ import {
 } from './gas';
 import type { SimulationResponse } from './simulation-api';
 import { simulateTransactions } from './simulation-api';
-import { CHAIN_IDS } from '../constants';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import { TransactionEnvelopeType, type TransactionMeta } from '../types';
 import type { AuthorizationList } from '../types';

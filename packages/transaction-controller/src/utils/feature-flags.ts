@@ -5,14 +5,20 @@ import { padHexToEvenLength } from './utils';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 
-export const FEATURE_FLAG_TRANSACTIONS = 'confirmations_transactions';
-export const FEATURE_FLAG_EIP_7702 = 'confirmations_eip_7702';
-
 const DEFAULT_BATCH_SIZE_LIMIT = 10;
 const DEFAULT_ACCELERATED_POLLING_COUNT_MAX = 10;
 const DEFAULT_ACCELERATED_POLLING_INTERVAL_MS = 3 * 1000;
 const DEFAULT_GAS_ESTIMATE_FALLBACK_BLOCK_PERCENT = 35;
 const DEFAULT_GAS_ESTIMATE_BUFFER = 1;
+
+/**
+ * Feature flags supporting the transaction controller.
+ */
+export enum FeatureFlag {
+  EIP7702 = 'confirmations_eip_7702',
+  GasBuffer = 'confirmations_gas_buffer',
+  Transactions = 'confirmations_transactions',
+}
 
 type GasEstimateFallback = {
   /**
@@ -27,7 +33,8 @@ type GasEstimateFallback = {
 };
 
 export type TransactionControllerFeatureFlags = {
-  [FEATURE_FLAG_EIP_7702]?: {
+  /** Feature flags to support EIP-7702 / type-4 transactions. */
+  [FeatureFlag.EIP7702]?: {
     /**
      * All contracts that support EIP-7702 batch transactions.
      * Keyed by chain ID.
@@ -48,7 +55,32 @@ export type TransactionControllerFeatureFlags = {
     supportedChains?: Hex[];
   };
 
-  [FEATURE_FLAG_TRANSACTIONS]?: {
+  /**
+   * Buffers added to gas limit estimations.
+   * Values are multipliers such as `1.5` meaning 150% of the original gas limit.
+   */
+  [FeatureFlag.GasBuffer]?: {
+    /** Buffer for all chains unless overridden. */
+    default?: number;
+
+    /** Buffers for specific chains. */
+    perChainConfig?: {
+      [chainId: Hex]: {
+        /** Buffer for the chain for all transactions. */
+        buffer?: number;
+
+        /**
+         * Buffer for the chain for EIP-7702 / type 4 transactions only.
+         * Only if `data` included and `to` matches `from`.
+         * Overrides the `buffer` if set.
+         */
+        eip7702?: number;
+      };
+    };
+  };
+
+  /** Miscellaneous feature flags to support the transaction controller. */
+  [FeatureFlag.Transactions]?: {
     /** Maximum number of transactions that can be in an external batch. */
     batchSizeLimit?: number;
 
@@ -99,28 +131,6 @@ export type TransactionControllerFeatureFlags = {
        */
       default?: GasEstimateFallback;
     };
-
-    /**
-     * Buffers added to gas limit estimations.
-     * Values are multipliers such as `1.5` meaning 150% of the original gas limit.
-     */
-    gasEstimateBuffer?: {
-      /** Buffer for all chains unless overridden. */
-      default?: number;
-
-      /** Buffers for specific chains. */
-      perChainConfig?: {
-        [chainId: Hex]: {
-          /** Buffer for the chain for all transactions. */
-          buffer?: number;
-
-          /**
-           * Buffer for the chain for EIP-7702 / type 4 transactions only.
-           */
-          eip7702?: number;
-        };
-      };
-    };
   };
 };
 
@@ -136,7 +146,7 @@ export function getEIP7702SupportedChains(
   messenger: TransactionControllerMessenger,
 ): Hex[] {
   const featureFlags = getFeatureFlags(messenger);
-  return featureFlags?.[FEATURE_FLAG_EIP_7702]?.supportedChains ?? [];
+  return featureFlags?.[FeatureFlag.EIP7702]?.supportedChains ?? [];
 }
 
 /**
@@ -155,7 +165,7 @@ export function getEIP7702ContractAddresses(
   const featureFlags = getFeatureFlags(messenger);
 
   const contracts =
-    featureFlags?.[FEATURE_FLAG_EIP_7702]?.contracts?.[
+    featureFlags?.[FeatureFlag.EIP7702]?.contracts?.[
       chainId.toLowerCase() as Hex
     ] ?? [];
 
@@ -198,7 +208,7 @@ export function getBatchSizeLimit(
 ): number {
   const featureFlags = getFeatureFlags(messenger);
   return (
-    featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.batchSizeLimit ??
+    featureFlags?.[FeatureFlag.Transactions]?.batchSizeLimit ??
     DEFAULT_BATCH_SIZE_LIMIT
   );
 }
@@ -217,7 +227,7 @@ export function getAcceleratedPollingParams(
   const featureFlags = getFeatureFlags(messenger);
 
   const acceleratedPollingParams =
-    featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.acceleratedPolling;
+    featureFlags?.[FeatureFlag.Transactions]?.acceleratedPolling;
 
   const countMax =
     acceleratedPollingParams?.perChainConfig?.[chainId]?.countMax ||
@@ -247,7 +257,7 @@ export function getGasFeeRandomisation(
   const featureFlags = getFeatureFlags(messenger);
 
   const gasFeeRandomisation =
-    featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.gasFeeRandomisation || {};
+    featureFlags?.[FeatureFlag.Transactions]?.gasFeeRandomisation || {};
 
   return {
     randomisedGasFeeDigits: gasFeeRandomisation.randomisedGasFeeDigits || {},
@@ -273,7 +283,7 @@ export function getGasEstimateFallback(
   const featureFlags = getFeatureFlags(messenger);
 
   const gasEstimateFallbackFlags =
-    featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.gasEstimateFallback;
+    featureFlags?.[FeatureFlag.Transactions]?.gasEstimateFallback;
 
   const chainFlags = gasEstimateFallbackFlags?.perChainConfig?.[chainId];
 
@@ -302,10 +312,7 @@ export function getGasEstimateBuffer(
   eip7702?: number;
 } {
   const featureFlags = getFeatureFlags(messenger);
-
-  const gasBufferFlags =
-    featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.gasEstimateBuffer;
-
+  const gasBufferFlags = featureFlags?.[FeatureFlag.GasBuffer];
   const chainFlags = gasBufferFlags?.perChainConfig?.[chainId];
 
   const buffer =
