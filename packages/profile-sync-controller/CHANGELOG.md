@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **BREAKING:** Remove `isAccountSyncingEnabled` `env` property from `UserStorageController` constructor ([#5629](https://github.com/MetaMask/core/pull/5629))
+
+## [11.0.1]
+
+### Changed
+
+- Bump accounts dependencies ([#5565](https://github.com/MetaMask/core/pull/5565))
+
+### Fixed
+
+- Update origin used for `SnapController:handleRequest` ([#5616](https://github.com/MetaMask/core/pull/5616))
+
 ## [11.0.0]
 
 ### Changed
@@ -539,7 +553,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@11.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@11.0.1...HEAD
+[11.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@11.0.0...@metamask/profile-sync-controller@11.0.1
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@10.1.0...@metamask/profile-sync-controller@11.0.0
 [10.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@10.0.0...@metamask/profile-sync-controller@10.1.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@9.0.0...@metamask/profile-sync-controller@10.0.0

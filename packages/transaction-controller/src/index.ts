@@ -21,6 +21,7 @@ export type {
   TransactionControllerTransactionStatusUpdatedEvent,
   TransactionControllerTransactionSubmittedEvent,
   TransactionControllerUnapprovedTransactionAddedEvent,
+  TransactionControllerUpdateCustodialTransactionAction,
   TransactionControllerMessenger,
   TransactionControllerOptions,
 } from './TransactionController';
@@ -43,6 +44,9 @@ export type {
   GasPriceGasFeeEstimates,
   GasPriceValue,
   InferTransactionTypeResult,
+  IsAtomicBatchSupportedRequest,
+  IsAtomicBatchSupportedResult,
+  IsAtomicBatchSupportedResultEntry,
   LegacyGasFeeEstimates,
   Log,
   NestedTransactionMetadata,

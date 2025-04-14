@@ -38,6 +38,8 @@ describe('@metamask/chain-agnostic-permission', () => {
         "caip25EndowmentBuilder",
         "Caip25CaveatMutators",
         "generateCaip25Caveat",
+        "KnownSessionProperties",
+        "Caip25Errors",
       ]
     `);
   });

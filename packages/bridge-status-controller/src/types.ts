@@ -1,4 +1,4 @@
-import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
+import type { AccountsControllerGetSelectedMultichainAccountAction } from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -107,6 +107,7 @@ export enum BridgeId {
   AXELAR = 'axelar',
   ACROSS = 'across',
   STARGATE = 'stargate',
+  RELAY = 'relay',
 }
 
 export enum FeeType {
@@ -310,7 +311,7 @@ type AllowedActions =
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
-  | AccountsControllerGetSelectedAccountAction
+  | AccountsControllerGetSelectedMultichainAccountAction
   | TransactionControllerGetStateAction;
 
 /**

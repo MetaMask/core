@@ -53,6 +53,8 @@ const TRANSACTION_SIGNATURE_MOCK = '0xabc';
 const TRANSACTION_SIGNATURE_2_MOCK = '0xdef';
 const ERROR_MESSAGE_MOCK = 'Test error';
 const SECURITY_ALERT_ID_MOCK = '123-456';
+const UPGRADE_CONTRACT_ADDRESS_MOCK =
+  '0xfedfedfedfedfedfedfedfedfedfedfedfedfedf';
 
 const TRANSACTION_META_MOCK = {
   id: BATCH_ID_CUSTOM_MOCK,
@@ -1073,11 +1075,15 @@ describe('Batch Utils', () => {
   });
 
   describe('isAtomicBatchSupported', () => {
-    it('includes feature flag chains if not upgraded or upgraded to supported contract', async () => {
+    it('includes all feature flag chains if chain IDs not specified', async () => {
       getEIP7702SupportedChainsMock.mockReturnValueOnce([
         CHAIN_ID_MOCK,
         CHAIN_ID_2_MOCK,
       ]);
+
+      getEIP7702UpgradeContractAddressMock.mockReturnValue(
+        UPGRADE_CONTRACT_ADDRESS_MOCK,
+      );
 
       isAccountUpgradedToEIP7702Mock
         .mockResolvedValueOnce({
@@ -1096,25 +1102,53 @@ describe('Batch Utils', () => {
         publicKeyEIP7702: PUBLIC_KEY_MOCK,
       });
 
-      expect(result).toStrictEqual([CHAIN_ID_MOCK, CHAIN_ID_2_MOCK]);
+      expect(result).toStrictEqual([
+        {
+          chainId: CHAIN_ID_MOCK,
+          delegationAddress: undefined,
+          isSupported: false,
+          upgradeContractAddress: UPGRADE_CONTRACT_ADDRESS_MOCK,
+        },
+        {
+          chainId: CHAIN_ID_2_MOCK,
+          delegationAddress: CONTRACT_ADDRESS_MOCK,
+          isSupported: true,
+          upgradeContractAddress: UPGRADE_CONTRACT_ADDRESS_MOCK,
+        },
+      ]);
     });
 
-    it('excludes chain if upgraded to different contract', async () => {
-      getEIP7702SupportedChainsMock.mockReturnValueOnce([CHAIN_ID_MOCK]);
+    it('includes only specified chain IDs', async () => {
+      getEIP7702SupportedChainsMock.mockReturnValueOnce([
+        CHAIN_ID_MOCK,
+        CHAIN_ID_2_MOCK,
+      ]);
+
+      getEIP7702UpgradeContractAddressMock.mockReturnValue(
+        UPGRADE_CONTRACT_ADDRESS_MOCK,
+      );
 
       isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
-        isSupported: false,
+        isSupported: true,
         delegationAddress: CONTRACT_ADDRESS_MOCK,
       });
 
       const result = await isAtomicBatchSupported({
         address: FROM_MOCK,
+        chainIds: [CHAIN_ID_2_MOCK, '0xabcdef'],
         getEthQuery: GET_ETH_QUERY_MOCK,
         messenger: MESSENGER_MOCK,
         publicKeyEIP7702: PUBLIC_KEY_MOCK,
       });
 
-      expect(result).toStrictEqual([]);
+      expect(result).toStrictEqual([
+        {
+          chainId: CHAIN_ID_2_MOCK,
+          delegationAddress: CONTRACT_ADDRESS_MOCK,
+          isSupported: true,
+          upgradeContractAddress: UPGRADE_CONTRACT_ADDRESS_MOCK,
+        },
+      ]);
     });
 
     it('throws if no public key', async () => {

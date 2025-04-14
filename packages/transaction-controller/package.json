@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-controller",
-  "version": "52.2.0",
+  "version": "54.0.0",
   "description": "Stores transactions alongside their periodically updated statuses and manages interactions such as approval and cancellation",
   "keywords": [
     "MetaMask",
@@ -55,7 +55,7 @@
     "@ethersproject/providers": "^5.7.0",
     "@ethersproject/wallet": "^5.7.0",
     "@metamask/base-controller": "^8.0.0",
-    "@metamask/controller-utils": "^11.6.0",
+    "@metamask/controller-utils": "^11.7.0",
     "@metamask/eth-query": "^4.0.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
     "@metamask/nonce-tracker": "^6.0.0",
@@ -77,7 +77,7 @@
     "@metamask/eth-json-rpc-provider": "^4.1.8",
     "@metamask/ethjs-provider-http": "^0.3.0",
     "@metamask/gas-fee-controller": "^23.0.0",
-    "@metamask/network-controller": "^23.1.0",
+    "@metamask/network-controller": "^23.2.0",
     "@metamask/remote-feature-flag-controller": "^1.6.0",
     "@types/bn.js": "^5.1.5",
     "@types/jest": "^27.4.1",

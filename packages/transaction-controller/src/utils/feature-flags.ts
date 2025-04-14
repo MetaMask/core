@@ -1,6 +1,7 @@
 import { createModuleLogger, type Hex } from '@metamask/utils';
 
 import { isValidSignature } from './signature';
+import { padHexToEvenLength } from './utils';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 
@@ -8,6 +9,21 @@ export const FEATURE_FLAG_TRANSACTIONS = 'confirmations_transactions';
 export const FEATURE_FLAG_EIP_7702 = 'confirmations_eip_7702';
 
 const DEFAULT_BATCH_SIZE_LIMIT = 10;
+const DEFAULT_ACCELERATED_POLLING_COUNT_MAX = 10;
+const DEFAULT_ACCELERATED_POLLING_INTERVAL_MS = 3 * 1000;
+const DEFAULT_GAS_ESTIMATE_FALLBACK_BLOCK_PERCENT = 35;
+
+type GasEstimateFallback = {
+  /**
+   * The fixed gas estimate fallback for a transaction.
+   */
+  fixed?: number;
+
+  /**
+   * The percentage multiplier gas estimate fallback for a transaction.
+   */
+  percentage?: number;
+};
 
 export type TransactionControllerFeatureFlags = {
   [FEATURE_FLAG_EIP_7702]?: {
@@ -34,6 +50,54 @@ export type TransactionControllerFeatureFlags = {
   [FEATURE_FLAG_TRANSACTIONS]?: {
     /** Maximum number of transactions that can be in an external batch. */
     batchSizeLimit?: number;
+
+    acceleratedPolling?: {
+      /**
+       * Accelerated polling is used to speed up the polling process for
+       * transactions that are not yet confirmed.
+       */
+      perChainConfig?: {
+        /** Accelerated polling parameters on a per-chain basis. */
+        [chainId: Hex]: {
+          /**
+           * Maximum number of polling requests that can be made in a row, before
+           * the normal polling resumes.
+           */
+          countMax?: number;
+
+          /** Interval between polling requests in milliseconds. */
+          intervalMs?: number;
+        };
+      };
+
+      /** Default `countMax` in case no chain-specific parameter is set. */
+      defaultCountMax?: number;
+
+      /** Default `intervalMs` in case no chain-specific parameter is set. */
+      defaultIntervalMs?: number;
+    };
+
+    gasFeeRandomisation?: {
+      /** Randomised gas fee digits per chainId. */
+      randomisedGasFeeDigits?: Record<Hex, number>;
+
+      /** Number of digits to preserve for randomised gas fee digits. */
+      preservedNumberOfDigits?: number;
+    };
+
+    /** Gas estimate fallback is used as a fallback in case of failure to obtain the gas estimate values. */
+    gasEstimateFallback?: {
+      /** Gas estimate fallback per-chain basis. */
+      perChainConfig?: {
+        [chainId: Hex]: GasEstimateFallback;
+      };
+
+      /**
+       * Default gas estimate fallback.
+       * This value is used when no specific gas estimate fallback is found for a chain ID.
+       */
+      default?: GasEstimateFallback;
+    };
   };
 };
 
@@ -75,7 +139,7 @@ export function getEIP7702ContractAddresses(
   return contracts
     .filter((contract) =>
       isValidSignature(
-        [contract.address, chainId],
+        [contract.address, padHexToEvenLength(chainId) as Hex],
         contract.signature,
         publicKey,
       ),
@@ -114,6 +178,90 @@ export function getBatchSizeLimit(
     featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.batchSizeLimit ??
     DEFAULT_BATCH_SIZE_LIMIT
   );
+}
+
+/**
+ * Retrieves the accelerated polling parameters for a given chain ID.
+ *
+ * @param chainId - The chain ID.
+ * @param messenger - The controller messenger instance.
+ * @returns The accelerated polling parameters: `countMax` and `intervalMs`.
+ */
+export function getAcceleratedPollingParams(
+  chainId: Hex,
+  messenger: TransactionControllerMessenger,
+): { countMax: number; intervalMs: number } {
+  const featureFlags = getFeatureFlags(messenger);
+
+  const acceleratedPollingParams =
+    featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.acceleratedPolling;
+
+  const countMax =
+    acceleratedPollingParams?.perChainConfig?.[chainId]?.countMax ||
+    acceleratedPollingParams?.defaultCountMax ||
+    DEFAULT_ACCELERATED_POLLING_COUNT_MAX;
+
+  const intervalMs =
+    acceleratedPollingParams?.perChainConfig?.[chainId]?.intervalMs ||
+    acceleratedPollingParams?.defaultIntervalMs ||
+    DEFAULT_ACCELERATED_POLLING_INTERVAL_MS;
+
+  return { countMax, intervalMs };
+}
+
+/**
+ * Retrieves the gas fee randomisation parameters.
+ *
+ * @param messenger - The controller messenger instance.
+ * @returns The gas fee randomisation parameters.
+ */
+export function getGasFeeRandomisation(
+  messenger: TransactionControllerMessenger,
+): {
+  randomisedGasFeeDigits: Record<Hex, number>;
+  preservedNumberOfDigits: number | undefined;
+} {
+  const featureFlags = getFeatureFlags(messenger);
+
+  const gasFeeRandomisation =
+    featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.gasFeeRandomisation || {};
+
+  return {
+    randomisedGasFeeDigits: gasFeeRandomisation.randomisedGasFeeDigits || {},
+    preservedNumberOfDigits: gasFeeRandomisation.preservedNumberOfDigits,
+  };
+}
+
+/**
+ * Retrieves the gas estimate fallback for a given chain ID.
+ * Defaults to the default gas estimate fallback if not set.
+ *
+ * @param chainId - The chain ID.
+ * @param messenger - The controller messenger instance.
+ * @returns The gas estimate fallback.
+ */
+export function getGasEstimateFallback(
+  chainId: Hex,
+  messenger: TransactionControllerMessenger,
+): {
+  fixed?: number;
+  percentage: number;
+} {
+  const featureFlags = getFeatureFlags(messenger);
+
+  const gasEstimateFallbackFlags =
+    featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.gasEstimateFallback;
+
+  const chainFlags = gasEstimateFallbackFlags?.perChainConfig?.[chainId];
+
+  const percentage =
+    chainFlags?.percentage ??
+    gasEstimateFallbackFlags?.default?.percentage ??
+    DEFAULT_GAS_ESTIMATE_FALLBACK_BLOCK_PERCENT;
+
+  const fixed = chainFlags?.fixed ?? gasEstimateFallbackFlags?.default?.fixed;
+
+  return { fixed, percentage };
 }
 
 /**
