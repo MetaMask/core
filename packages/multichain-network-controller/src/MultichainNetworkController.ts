@@ -2,11 +2,7 @@ import { BaseController } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkClientId } from '@metamask/network-controller';
-import {
-  type CaipChainId,
-  isCaipChainId,
-  parseCaipChainId,
-} from '@metamask/utils';
+import { type CaipChainId, isCaipChainId } from '@metamask/utils';
 
 import {
   AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
