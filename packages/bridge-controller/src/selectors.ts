@@ -353,11 +353,9 @@ export const selectIsQuoteExpired = createBridgeSelector(
  *
  * @example
  * ```ts
- * const bridgeFeesPerGas = useSelector(getGasFeeEstimates);
  * const quotes = useSelector(state => selectBridgeQuotes(
  *   state.metamask,
  *   {
- *     bridgeFeesPerGas,
  *     sortOrder: state.bridge.sortOrder,
  *     selectedQuote: state.bridge.selectedQuote,
  *     featureFlagsKey: BridgeFeatureFlagsKey.EXTENSION_CONFIG,
