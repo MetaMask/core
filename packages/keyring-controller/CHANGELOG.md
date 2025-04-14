@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fixed wrong error message thrown when using the wrong password ([#1234](https://github.com/MetaMask/core/pull/1234))
+- Fixed wrong error message thrown when using the wrong password ([#5627](https://github.com/MetaMask/core/pull/5627))
 
 ## [21.0.2]
 
