@@ -2,7 +2,11 @@ import { BaseController } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkClientId } from '@metamask/network-controller';
-import { type CaipChainId, isCaipChainId } from '@metamask/utils';
+import {
+  type CaipChainId,
+  isCaipChainId,
+  parseCaipChainId,
+} from '@metamask/utils';
 
 import {
   AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
@@ -48,11 +52,10 @@ export class MultichainNetworkController extends BaseController<
       state: {
         ...getDefaultMultichainNetworkControllerState(),
         ...state,
-        multichainNetworkConfigurationsByChainId: {
-          // We can keep the current network as a hardcoded value
-          // since it is not expected to add/remove networks yet.
-          ...AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
-        },
+        // We can keep the current network as a hardcoded value
+        // since it is not expected to add/remove networks yet.
+        multichainNetworkConfigurationsByChainId:
+          AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
       },
     });
 
@@ -233,10 +236,15 @@ export class MultichainNetworkController extends BaseController<
 
     // Handle switching to non-EVM network
     const nonEvmChainId = getChainIdForNonEvmAddress(accountAddress);
-    const isSameNonEvmNetwork =
-      nonEvmChainId === this.state.selectedMultichainNetworkChainId;
+    const { namespace: selectedNetworkNamespace } = parseCaipChainId(
+      this.state.selectedMultichainNetworkChainId,
+    );
+    const { namespace: selectAccountNetworkNamespace } =
+      parseCaipChainId(nonEvmChainId);
+    const isSameNonEvmNamespace =
+      selectedNetworkNamespace === selectAccountNetworkNamespace;
 
-    if (isSameNonEvmNetwork) {
+    if (isSameNonEvmNamespace) {
       // No need to update if already on the same non-EVM network
       this.update((state) => {
         state.isEvmSelected = false;
