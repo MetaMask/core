@@ -5,7 +5,7 @@ import {
   KnownCaipNamespace,
   parseCaipAccountId,
 } from '@metamask/utils';
-import { InternalAccount } from '@metamask/keyring-internal-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { Caip25CaveatValue } from '../caip25Permission';
 import { KnownWalletScopeString } from '../scope/constants';

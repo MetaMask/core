@@ -9,8 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Renamed `setPermittedAccounts` to `setNonSCACaipAccountIdsInCaip25CaveatValue`.
+- **BREAKING:** Renamed `setPermittedChainIds` to `setCaipChainIdsInCaip25CaveatValue`.
 - Bump `@metamask/controller-utils` to `^11.7.0` ([#5583](https://github.com/MetaMask/core/pull/5583))
 - Bump `@metamask/network-controller` to `^23.2.0` ([#5583](https://github.com/MetaMask/core/pull/5583))
+
+### Added
+- Added `getCaipAccountIdsFromScopesObject`, `getCaipAccountIdsFromScopesObjects`, and `getCaipAccountIdsFromCaip25CaveatValue` functions.
+- Added `getAllScopesFromScopesObjects`, `getAllScopesFromCaip25CaveatValue`, `getAllNonWalletNamespacesFromCaip25CaveatValue`, and `getAllScopesFromPermission` 
+functions.
 
 ## [0.3.0]
 
