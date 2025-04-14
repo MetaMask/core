@@ -13,6 +13,7 @@ import {
   getEIP7702UpgradeContractAddress,
   getGasFeeRandomisation,
   getGasEstimateFallback,
+  getGasEstimateBuffer,
 } from './feature-flags';
 import { isValidSignature } from './signature';
 import type { TransactionControllerMessenger } from '..';
@@ -25,10 +26,12 @@ const ADDRESS_MOCK = '0x1234567890abcdef1234567890abcdef12345678' as Hex;
 const ADDRESS_2_MOCK = '0xabcdef1234567890abcdef1234567890abcdef12' as Hex;
 const PUBLIC_KEY_MOCK = '0x321' as Hex;
 const SIGNATURE_MOCK = '0xcba' as Hex;
-
 const DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK = 35;
 const GAS_ESTIMATE_FALLBACK_MOCK = 50;
 const FIXED_GAS_MOCK = 100000;
+const GAS_BUFFER_MOCK = 1.2;
+const GAS_BUFFER_2_MOCK = 1.5;
+const GAS_BUFFER_3_MOCK = 2.0;
 
 describe('Feature Flags Utils', () => {
   let baseMessenger: Messenger<
@@ -549,6 +552,83 @@ describe('Feature Flags Utils', () => {
       ).toStrictEqual({
         fixed: undefined,
         percentage: DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK,
+      });
+    });
+  });
+
+  describe('getGasBufferEstimate', () => {
+    it('returns default if no chain ID override', () => {
+      mockFeatureFlags({
+        [FEATURE_FLAG_TRANSACTIONS]: {
+          gasEstimateBuffer: {
+            default: GAS_BUFFER_MOCK,
+          },
+        },
+      });
+
+      expect(
+        getGasEstimateBuffer(CHAIN_ID_MOCK, controllerMessenger),
+      ).toStrictEqual({
+        buffer: GAS_BUFFER_MOCK,
+        eip7702: undefined,
+      });
+    });
+
+    it('returns chain ID override if defined', () => {
+      mockFeatureFlags({
+        [FEATURE_FLAG_TRANSACTIONS]: {
+          gasEstimateBuffer: {
+            default: GAS_BUFFER_MOCK,
+            perChainConfig: {
+              [CHAIN_ID_MOCK]: {
+                buffer: GAS_BUFFER_2_MOCK,
+              },
+            },
+          },
+        },
+      });
+
+      expect(
+        getGasEstimateBuffer(CHAIN_ID_MOCK, controllerMessenger),
+      ).toStrictEqual({
+        buffer: GAS_BUFFER_2_MOCK,
+        eip7702: undefined,
+      });
+    });
+
+    it('returns eip7702 buffer if defined', () => {
+      mockFeatureFlags({
+        [FEATURE_FLAG_TRANSACTIONS]: {
+          gasEstimateBuffer: {
+            default: GAS_BUFFER_MOCK,
+            perChainConfig: {
+              [CHAIN_ID_MOCK]: {
+                buffer: GAS_BUFFER_2_MOCK,
+                eip7702: GAS_BUFFER_3_MOCK,
+              },
+            },
+          },
+        },
+      });
+
+      expect(
+        getGasEstimateBuffer(CHAIN_ID_MOCK, controllerMessenger),
+      ).toStrictEqual({
+        buffer: GAS_BUFFER_2_MOCK,
+        eip7702: GAS_BUFFER_3_MOCK,
+      });
+    });
+
+    it('returns no buffer if not defined', () => {
+      mockFeatureFlags({
+        [FEATURE_FLAG_TRANSACTIONS]: {},
+      });
+
+      expect(
+        getGasEstimateBuffer(CHAIN_ID_MOCK, controllerMessenger),
+      ).toStrictEqual({
+        buffer: 1.0,
+        eip7702: undefined,
       });
     });
   });

@@ -12,6 +12,7 @@ const DEFAULT_BATCH_SIZE_LIMIT = 10;
 const DEFAULT_ACCELERATED_POLLING_COUNT_MAX = 10;
 const DEFAULT_ACCELERATED_POLLING_INTERVAL_MS = 3 * 1000;
 const DEFAULT_GAS_ESTIMATE_FALLBACK_BLOCK_PERCENT = 35;
+const DEFAULT_GAS_ESTIMATE_BUFFER = 1;
 
 type GasEstimateFallback = {
   /**
@@ -51,13 +52,13 @@ export type TransactionControllerFeatureFlags = {
     /** Maximum number of transactions that can be in an external batch. */
     batchSizeLimit?: number;
 
+    /**
+     * Accelerated polling is used to speed up the polling process for
+     * transactions that are not yet confirmed.
+     */
     acceleratedPolling?: {
-      /**
-       * Accelerated polling is used to speed up the polling process for
-       * transactions that are not yet confirmed.
-       */
+      /** Accelerated polling parameters on a per-chain basis. */
       perChainConfig?: {
-        /** Accelerated polling parameters on a per-chain basis. */
         [chainId: Hex]: {
           /**
            * Maximum number of polling requests that can be made in a row, before
@@ -97,6 +98,28 @@ export type TransactionControllerFeatureFlags = {
        * This value is used when no specific gas estimate fallback is found for a chain ID.
        */
       default?: GasEstimateFallback;
+    };
+
+    /**
+     * Buffers added to gas limit estimations.
+     * Values are multipliers such as `1.5` meaning 150% of the original gas limit.
+     */
+    gasEstimateBuffer?: {
+      /** Buffer for all chains unless overridden. */
+      default?: number;
+
+      /** Buffers for specific chains. */
+      perChainConfig?: {
+        [chainId: Hex]: {
+          /** Buffer for the chain for all transactions. */
+          buffer?: number;
+
+          /**
+           * Buffer for the chain for EIP-7702 / type 4 transactions only.
+           */
+          eip7702?: number;
+        };
+      };
     };
   };
 };
@@ -262,6 +285,37 @@ export function getGasEstimateFallback(
   const fixed = chainFlags?.fixed ?? gasEstimateFallbackFlags?.default?.fixed;
 
   return { fixed, percentage };
+}
+
+/**
+ * Retrieves the gas buffers for a given chain ID.
+ *
+ * @param chainId - The chain ID.
+ * @param messenger - The controller messenger instance.
+ * @returns The gas buffers.
+ */
+export function getGasEstimateBuffer(
+  chainId: Hex,
+  messenger: TransactionControllerMessenger,
+): {
+  buffer: number;
+  eip7702?: number;
+} {
+  const featureFlags = getFeatureFlags(messenger);
+
+  const gasBufferFlags =
+    featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.gasEstimateBuffer;
+
+  const chainFlags = gasBufferFlags?.perChainConfig?.[chainId];
+
+  const buffer =
+    chainFlags?.buffer ??
+    gasBufferFlags?.default ??
+    DEFAULT_GAS_ESTIMATE_BUFFER;
+
+  const eip7702 = chainFlags?.eip7702;
+
+  return { buffer, eip7702 };
 }
 
 /**
