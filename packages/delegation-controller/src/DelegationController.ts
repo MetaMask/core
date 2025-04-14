@@ -231,7 +231,6 @@ export class DelegationController extends BaseController<
     }
 
     const entries = Object.entries(this.state.delegations);
-    let count = 0;
     const nextHashes: Hex[] = [hash];
     const deletedHashes: Hex[] = [];
 
@@ -249,7 +248,6 @@ export class DelegationController extends BaseController<
       });
 
       deletedHashes.push(currentHash);
-      count += 1;
     }
 
     // Delete delegations
@@ -259,6 +257,6 @@ export class DelegationController extends BaseController<
       });
     });
 
-    return count;
+    return deletedHashes.length;
   }
 }
