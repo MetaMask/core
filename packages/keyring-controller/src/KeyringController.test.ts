@@ -2526,240 +2526,228 @@ describe('KeyringController', () => {
   describe('submitPassword', () => {
     [false, true].map((cacheEncryptionKey) =>
       describe(`when cacheEncryptionKey is ${cacheEncryptionKey}`, () => {
-        describe('when using the correct password', () => {
-          it('should submit password and decrypt', async () => {
-            await withController(
-              { cacheEncryptionKey },
-              async ({ controller, initialState }) => {
-                await controller.submitPassword(password);
-                expect(controller.state).toStrictEqual(initialState);
-              },
-            );
-          });
-
-          it('should emit KeyringController:unlock event', async () => {
-            await withController(
-              { cacheEncryptionKey },
-              async ({ controller, messenger }) => {
-                const listener = sinon.spy();
-                messenger.subscribe('KeyringController:unlock', listener);
-                await controller.submitPassword(password);
-                expect(listener.called).toBe(true);
-              },
-            );
-          });
-
-          it('should unlock also with unsupported keyrings', async () => {
-            await withController(
-              {
-                cacheEncryptionKey,
-                skipVaultCreation: true,
-                state: { vault: 'my vault' },
-              },
-              async ({ controller, encryptor }) => {
-                jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
-                  {
-                    type: 'UnsupportedKeyring',
-                    data: '0x1234',
-                  },
-                ]);
-
-                await controller.submitPassword(password);
-
-                expect(controller.state.isUnlocked).toBe(true);
-              },
-            );
-          });
-
-          it('should throw error if vault unlocked has an unexpected shape', async () => {
-            await withController(
-              {
-                cacheEncryptionKey,
-                skipVaultCreation: true,
-                state: { vault: 'my vault' },
-              },
-              async ({ controller, encryptor }) => {
-                jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
-                  {
-                    foo: 'bar',
-                  },
-                ]);
-
-                await expect(
-                  controller.submitPassword(password),
-                ).rejects.toThrow(KeyringControllerError.VaultDataError);
-              },
-            );
-          });
-
-          it('should throw error if vault is missing', async () => {
-            await withController(
-              { skipVaultCreation: true },
-              async ({ controller }) => {
-                await expect(
-                  controller.submitPassword(password),
-                ).rejects.toThrow(KeyringControllerError.VaultError);
-              },
-            );
-          });
-
-          it('should unlock succesfully when the controller is instantiated with an existing `keyringsMetadata`', async () => {
-            await withController(
-              {
-                cacheEncryptionKey,
-                state: { keyringsMetadata: [], vault: 'my vault' },
-                skipVaultCreation: true,
-              },
-              async ({ controller, encryptor }) => {
-                jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
-                  {
-                    type: KeyringTypes.hd,
-                    data: {
-                      accounts: ['0x123'],
-                    },
-                  },
-                ]);
-
-                await controller.submitPassword(password);
-
-                expect(controller.state.keyringsMetadata).toHaveLength(1);
-              },
-            );
-          });
-
-          it('should throw an error when the controller is instantiated with an existing `keyringsMetadata` with too many objects', async () => {
-            await withController(
-              {
-                cacheEncryptionKey,
-                state: {
-                  keyringsMetadata: [
-                    { id: '123', name: '' },
-                    { id: '456', name: '' },
-                  ],
-                  vault: 'my vault',
-                },
-                skipVaultCreation: true,
-              },
-              async ({ controller, encryptor }) => {
-                jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
-                  {
-                    type: KeyringTypes.hd,
-                    data: {
-                      accounts: ['0x123'],
-                    },
-                  },
-                ]);
-
-                await expect(
-                  controller.submitPassword(password),
-                ).rejects.toThrow(
-                  KeyringControllerError.KeyringMetadataLengthMismatch,
-                );
-              },
-            );
-          });
-
-          cacheEncryptionKey &&
-            it('should upgrade the vault encryption if the key encryptor has different parameters', async () => {
-              await withController(
-                {
-                  skipVaultCreation: true,
-                  cacheEncryptionKey,
-                  state: { vault: 'my vault' },
-                },
-                async ({ controller, encryptor }) => {
-                  jest
-                    .spyOn(encryptor, 'isVaultUpdated')
-                    .mockReturnValue(false);
-                  const encryptSpy = jest.spyOn(encryptor, 'encryptWithDetail');
-                  jest
-                    .spyOn(encryptor, 'decryptWithKey')
-                    .mockResolvedValueOnce([
-                      {
-                        type: KeyringTypes.hd,
-                        data: {
-                          accounts: ['0x123'],
-                        },
-                      },
-                    ]);
-
-                  await controller.submitPassword(password);
-
-                  expect(encryptSpy).toHaveBeenCalledTimes(1);
-                },
-              );
-            });
-
-          !cacheEncryptionKey &&
-            it('should upgrade the vault encryption if the generic encryptor has different parameters', async () => {
-              await withController(
-                {
-                  skipVaultCreation: true,
-                  cacheEncryptionKey,
-                  state: { vault: 'my vault' },
-                },
-                async ({ controller, encryptor }) => {
-                  jest
-                    .spyOn(encryptor, 'isVaultUpdated')
-                    .mockReturnValue(false);
-                  const encryptSpy = jest.spyOn(encryptor, 'encrypt');
-                  jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
-                    {
-                      type: KeyringTypes.hd,
-                      data: {
-                        accounts: ['0x123'],
-                      },
-                    },
-                  ]);
-
-                  await controller.submitPassword(password);
-
-                  expect(encryptSpy).toHaveBeenCalledTimes(1);
-                },
-              );
-            });
-
-          !cacheEncryptionKey &&
-            it('should throw error if password is of wrong type', async () => {
-              await withController(
-                { cacheEncryptionKey },
-                async ({ controller }) => {
-                  await expect(
-                    // @ts-expect-error we are testing the case of a user using
-                    // the wrong password type
-                    controller.submitPassword(12341234),
-                  ).rejects.toThrow(KeyringControllerError.WrongPasswordType);
-                },
-              );
-            });
-
-          cacheEncryptionKey &&
-            it('should set encryptionKey and encryptionSalt in state', async () => {
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              withController({ cacheEncryptionKey }, async ({ controller }) => {
-                await controller.submitPassword(password);
-                expect(controller.state.encryptionKey).toBeDefined();
-                expect(controller.state.encryptionSalt).toBeDefined();
-              });
-            });
+        it('should submit password and decrypt', async () => {
+          await withController(
+            { cacheEncryptionKey },
+            async ({ controller, initialState }) => {
+              await controller.submitPassword(password);
+              expect(controller.state).toStrictEqual(initialState);
+            },
+          );
         });
 
-        describe('when using the wrong password', () => {
-          it('should throw error', async () => {
+        it('should emit KeyringController:unlock event', async () => {
+          await withController(
+            { cacheEncryptionKey },
+            async ({ controller, messenger }) => {
+              const listener = sinon.spy();
+              messenger.subscribe('KeyringController:unlock', listener);
+              await controller.submitPassword(password);
+              expect(listener.called).toBe(true);
+            },
+          );
+        });
+
+        it('should unlock also with unsupported keyrings', async () => {
+          await withController(
+            {
+              cacheEncryptionKey,
+              skipVaultCreation: true,
+              state: { vault: 'my vault' },
+            },
+            async ({ controller, encryptor }) => {
+              jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+                {
+                  type: 'UnsupportedKeyring',
+                  data: '0x1234',
+                },
+              ]);
+
+              await controller.submitPassword(password);
+
+              expect(controller.state.isUnlocked).toBe(true);
+            },
+          );
+        });
+
+        it('should throw error if vault unlocked has an unexpected shape', async () => {
+          await withController(
+            {
+              cacheEncryptionKey,
+              skipVaultCreation: true,
+              state: { vault: 'my vault' },
+            },
+            async ({ controller, encryptor }) => {
+              jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+                {
+                  foo: 'bar',
+                },
+              ]);
+
+              await expect(controller.submitPassword(password)).rejects.toThrow(
+                KeyringControllerError.VaultDataError,
+              );
+            },
+          );
+        });
+
+        it('should throw error if vault is missing', async () => {
+          await withController(
+            { skipVaultCreation: true },
+            async ({ controller }) => {
+              await expect(controller.submitPassword(password)).rejects.toThrow(
+                KeyringControllerError.VaultError,
+              );
+            },
+          );
+        });
+
+        it('should unlock succesfully when the controller is instantiated with an existing `keyringsMetadata`', async () => {
+          await withController(
+            {
+              cacheEncryptionKey,
+              state: { keyringsMetadata: [], vault: 'my vault' },
+              skipVaultCreation: true,
+            },
+            async ({ controller, encryptor }) => {
+              jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+                {
+                  type: KeyringTypes.hd,
+                  data: {
+                    accounts: ['0x123'],
+                  },
+                },
+              ]);
+
+              await controller.submitPassword(password);
+
+              expect(controller.state.keyringsMetadata).toHaveLength(1);
+            },
+          );
+        });
+
+        it('should throw an error when the controller is instantiated with an existing `keyringsMetadata` with too many objects', async () => {
+          await withController(
+            {
+              cacheEncryptionKey,
+              state: {
+                keyringsMetadata: [
+                  { id: '123', name: '' },
+                  { id: '456', name: '' },
+                ],
+                vault: 'my vault',
+              },
+              skipVaultCreation: true,
+            },
+            async ({ controller, encryptor }) => {
+              jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+                {
+                  type: KeyringTypes.hd,
+                  data: {
+                    accounts: ['0x123'],
+                  },
+                },
+              ]);
+
+              await expect(controller.submitPassword(password)).rejects.toThrow(
+                KeyringControllerError.KeyringMetadataLengthMismatch,
+              );
+            },
+          );
+        });
+
+        cacheEncryptionKey &&
+          it('should upgrade the vault encryption if the key encryptor has different parameters', async () => {
             await withController(
               {
                 skipVaultCreation: true,
                 cacheEncryptionKey,
                 state: { vault: 'my vault' },
               },
-              async ({ controller }) => {
-                await expect(
-                  controller.submitPassword('wrong password'),
-                ).rejects.toThrow('Incorrect password.');
+              async ({ controller, encryptor }) => {
+                jest.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(false);
+                const encryptSpy = jest.spyOn(encryptor, 'encryptWithDetail');
+                jest.spyOn(encryptor, 'decryptWithKey').mockResolvedValueOnce([
+                  {
+                    type: KeyringTypes.hd,
+                    data: {
+                      accounts: ['0x123'],
+                    },
+                  },
+                ]);
+
+                await controller.submitPassword(password);
+
+                expect(encryptSpy).toHaveBeenCalledTimes(1);
               },
             );
           });
+
+        !cacheEncryptionKey &&
+          it('should upgrade the vault encryption if the generic encryptor has different parameters', async () => {
+            await withController(
+              {
+                skipVaultCreation: true,
+                cacheEncryptionKey,
+                state: { vault: 'my vault' },
+              },
+              async ({ controller, encryptor }) => {
+                jest.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(false);
+                const encryptSpy = jest.spyOn(encryptor, 'encrypt');
+                jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+                  {
+                    type: KeyringTypes.hd,
+                    data: {
+                      accounts: ['0x123'],
+                    },
+                  },
+                ]);
+
+                await controller.submitPassword(password);
+
+                expect(encryptSpy).toHaveBeenCalledTimes(1);
+              },
+            );
+          });
+
+        !cacheEncryptionKey &&
+          it('should throw error if password is of wrong type', async () => {
+            await withController(
+              { cacheEncryptionKey },
+              async ({ controller }) => {
+                await expect(
+                  // @ts-expect-error we are testing the case of a user using
+                  // the wrong password type
+                  controller.submitPassword(12341234),
+                ).rejects.toThrow(KeyringControllerError.WrongPasswordType);
+              },
+            );
+          });
+
+        cacheEncryptionKey &&
+          it('should set encryptionKey and encryptionSalt in state', async () => {
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
+            withController({ cacheEncryptionKey }, async ({ controller }) => {
+              await controller.submitPassword(password);
+              expect(controller.state.encryptionKey).toBeDefined();
+              expect(controller.state.encryptionSalt).toBeDefined();
+            });
+          });
+
+        it('should throw error when using the wrong password', async () => {
+          await withController(
+            {
+              skipVaultCreation: true,
+              cacheEncryptionKey,
+              state: { vault: 'my vault' },
+            },
+            async ({ controller }) => {
+              await expect(
+                controller.submitPassword('wrong password'),
+              ).rejects.toThrow('Incorrect password.');
+            },
+          );
         });
       }),
     );
