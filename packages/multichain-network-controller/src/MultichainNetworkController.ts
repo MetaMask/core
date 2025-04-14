@@ -232,7 +232,7 @@ export class MultichainNetworkController extends BaseController<
 
     // Handle switching to non-EVM network
     if (scopes.includes(this.state.selectedMultichainNetworkChainId)) {
-      // No need to update if already on the same non-EVM network
+      // No need to update if the account's scope includes the active network
       this.update((state) => {
         state.isEvmSelected = false;
       });
