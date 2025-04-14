@@ -12,7 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump dependency bignumber.js to ^9.1.2 ([#5614](https://github.com/MetaMask/core/pull/5614))
 - **BREAKING:** Bump dependency reselect to ^5.1.1 ([#5614](https://github.com/MetaMask/core/pull/5614))
 - **BREAKING:** Bump dependency @metamask/assets-controllers to ^56.0.0 ([#5614](https://github.com/MetaMask/core/pull/5614))
-- **BREAKING:** Bump dependency @metamask/gas-fee-controller to ^23.0.0 ([#5614](https://github.com/MetaMask/core/pull/5614))
 - assetExchangeRates added to BridgeController state to support tokens which are not supported by assets controllers ([#5614](https://github.com/MetaMask/core/pull/5614))
 - selectExchangeRateByChainIdAndAddress selector added, which looks up exchange rates from assets and bridge controller states ([#5614](https://github.com/MetaMask/core/pull/5614))
 - selectBridgeQuotes selector added, which returns sorted quotes including their metadata ([#5614](https://github.com/MetaMask/core/pull/5614))
