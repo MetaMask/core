@@ -14,9 +14,10 @@ import {
 import { waitFor } from './__fixtures__/test-utils';
 import { mockUserStorageMessengerForAccountSyncing } from './account-syncing/__fixtures__/test-utils';
 import * as AccountSyncControllerIntegrationModule from './account-syncing/controller-integration';
+import { BACKUPANDSYNC_FEATURES } from './constants';
 import { MOCK_STORAGE_DATA, MOCK_STORAGE_KEY } from './mocks/mockStorage';
 import * as NetworkSyncIntegrationModule from './network-syncing/controller-integration';
-import { BackupAndSyncFeatures, type UserStorageBaseOptions } from './types';
+import { type UserStorageBaseOptions } from './types';
 import UserStorageController, { defaultState } from './UserStorageController';
 import { USER_STORAGE_FEATURE_NAMES } from '../../shared/storage-schema';
 
@@ -622,7 +623,7 @@ describe('user-storage/user-storage-controller - disableProfileSyncing() tests',
 
     expect(controller.state.isProfileSyncingEnabled).toBe(true);
     await controller.setIsBackupAndSyncFeatureEnabled(
-      BackupAndSyncFeatures.Main,
+      BACKUPANDSYNC_FEATURES.main,
       false,
     );
     expect(controller.state.isProfileSyncingEnabled).toBe(false);
@@ -654,7 +655,7 @@ describe('user-storage/user-storage-controller - setIsBackupAndSyncFeatureEnable
 
     expect(controller.state.isProfileSyncingEnabled).toBe(false);
     await controller.setIsBackupAndSyncFeatureEnabled(
-      BackupAndSyncFeatures.Main,
+      BACKUPANDSYNC_FEATURES.main,
       true,
     );
     expect(controller.state.isProfileSyncingEnabled).toBe(true);
@@ -683,7 +684,7 @@ describe('user-storage/user-storage-controller - setIsBackupAndSyncFeatureEnable
 
     await expect(
       controller.setIsBackupAndSyncFeatureEnabled(
-        BackupAndSyncFeatures.Main,
+        BACKUPANDSYNC_FEATURES.main,
         true,
       ),
     ).rejects.toThrow('error');
@@ -708,7 +709,7 @@ describe('user-storage/user-storage-controller - setIsBackupAndSyncFeatureEnable
 
     expect(controller.state.isProfileSyncingEnabled).toBe(true);
     await controller.setIsBackupAndSyncFeatureEnabled(
-      BackupAndSyncFeatures.AccountSyncing,
+      BACKUPANDSYNC_FEATURES.accountSyncing,
       false,
     );
     expect(controller.state.isAccountSyncingEnabled).toBe(false);
@@ -916,7 +917,7 @@ describe('user-storage/user-storage-controller - error handling edge cases', () 
     });
 
     await controller.setIsBackupAndSyncFeatureEnabled(
-      BackupAndSyncFeatures.Main,
+      BACKUPANDSYNC_FEATURES.main,
       false,
     );
     expect(controller.state.isProfileSyncingEnabled).toBe(false);
@@ -935,7 +936,7 @@ describe('user-storage/user-storage-controller - error handling edge cases', () 
     });
 
     await controller.setIsBackupAndSyncFeatureEnabled(
-      BackupAndSyncFeatures.Main,
+      BACKUPANDSYNC_FEATURES.main,
       true,
     );
     expect(controller.state.isProfileSyncingEnabled).toBe(true);
@@ -951,7 +952,7 @@ describe('user-storage/user-storage-controller - account syncing edge cases', ()
     });
 
     await controller.setIsBackupAndSyncFeatureEnabled(
-      BackupAndSyncFeatures.AccountSyncing,
+      BACKUPANDSYNC_FEATURES.accountSyncing,
       false,
     );
     await controller.syncInternalAccountsWithUserStorage();

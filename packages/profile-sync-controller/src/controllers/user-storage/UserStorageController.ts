@@ -32,11 +32,11 @@ import {
   syncInternalAccountsWithUserStorage,
 } from './account-syncing/controller-integration';
 import { setupAccountSyncingSubscriptions } from './account-syncing/setup-subscriptions';
+import { BACKUPANDSYNC_FEATURES } from './constants';
 import {
   performMainNetworkSync,
   startNetworkSyncing,
 } from './network-syncing/controller-integration';
-import { BackupAndSyncFeatures } from './types';
 import { Env, UserStorage } from '../../sdk';
 import type { UserStorageFeatureKeys } from '../../shared/storage-schema';
 import {
@@ -632,7 +632,7 @@ export default class UserStorageController extends BaseController<
   }
 
   public async setIsBackupAndSyncFeatureEnabled(
-    feature: BackupAndSyncFeatures,
+    feature: keyof typeof BACKUPANDSYNC_FEATURES,
     enabled: boolean,
   ): Promise<void> {
     try {
@@ -647,11 +647,11 @@ export default class UserStorageController extends BaseController<
       }
 
       this.update((state) => {
-        if (feature === BackupAndSyncFeatures.Main) {
+        if (feature === BACKUPANDSYNC_FEATURES.main) {
           state.isProfileSyncingEnabled = enabled;
         }
 
-        if (feature === BackupAndSyncFeatures.AccountSyncing) {
+        if (feature === BACKUPANDSYNC_FEATURES.accountSyncing) {
           state.isAccountSyncingEnabled = enabled;
         }
       });

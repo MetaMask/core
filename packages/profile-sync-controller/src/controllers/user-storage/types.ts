@@ -29,8 +29,3 @@ export type GetUserStorageAllFeatureEntriesResponse = {
   HashedKey: string;
   Data: string;
 }[];
-
-export enum BackupAndSyncFeatures {
-  Main = 'Backup and Sync',
-  AccountSyncing = 'Account Syncing',
-}

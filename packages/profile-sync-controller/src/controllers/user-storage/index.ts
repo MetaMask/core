@@ -5,6 +5,6 @@ export { Controller };
 export default UserStorageController;
 export * from './UserStorageController';
 export * as Mocks from './mocks';
+export * from './constants';
 export * from '../../shared/encryption';
 export * from '../../shared/storage-schema';
-export { BackupAndSyncFeatures } from './types';
