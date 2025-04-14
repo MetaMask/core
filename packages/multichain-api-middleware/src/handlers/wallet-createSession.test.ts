@@ -9,7 +9,12 @@ import * as ChainAgnosticPermission from '@metamask/chain-agnostic-permission';
 import { MultichainNetwork } from '@metamask/multichain-transactions-controller';
 import { invalidParams } from '@metamask/permission-controller';
 import { JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
-import type { Json, JsonRpcRequest, JsonRpcSuccess } from '@metamask/utils';
+import type {
+  Hex,
+  Json,
+  JsonRpcRequest,
+  JsonRpcSuccess,
+} from '@metamask/utils';
 
 import { shouldEmitDappViewedEvent } from './utils';
 import { walletCreateSession } from './wallet-createSession';
@@ -364,6 +369,172 @@ describe('wallet_createSession', () => {
     const isEvmChainIdSupportedBody =
       MockChainAgnosticPermission.bucketScopes.mock.calls[1][1].isEvmChainIdSupported.toString();
     expect(isEvmChainIdSupportedBody).toContain('findNetworkClientIdByChainId');
+  });
+
+  it('tests networkClientExistsForChainId function for both success and error paths', async () => {
+    const { handler, findNetworkClientIdByChainId } = createMockedHandler();
+
+    let capturedNetworkClientExistsForChainId:
+      | ((chainId: Hex) => boolean)
+      | undefined;
+
+    MockChainAgnosticPermission.bucketScopes.mockImplementation(
+      (_, options) => {
+        capturedNetworkClientExistsForChainId = options.isEvmChainIdSupported;
+        return {
+          supportedScopes: {
+            'eip155:1': {
+              methods: [],
+              notifications: [],
+              accounts: ['eip155:1:0x1'],
+            },
+          },
+          supportableScopes: {},
+          unsupportableScopes: {},
+        };
+      },
+    );
+
+    await handler(baseRequest);
+
+    expect(capturedNetworkClientExistsForChainId).toBeDefined();
+
+    findNetworkClientIdByChainId.mockReturnValueOnce('mainnet');
+    const successResult = capturedNetworkClientExistsForChainId?.('0x1');
+    expect(successResult).toBe(true);
+    expect(findNetworkClientIdByChainId).toHaveBeenCalledWith('0x1');
+
+    findNetworkClientIdByChainId.mockImplementationOnce(() => {
+      throw new Error('Network not found');
+    });
+    const errorResult = capturedNetworkClientExistsForChainId?.('0x999');
+    expect(errorResult).toBe(false);
+    expect(findNetworkClientIdByChainId).toHaveBeenCalledWith('0x999');
+  });
+
+  it('tests isEvmChainIdSupportable function for optional scopes', async () => {
+    const { handler } = createMockedHandler();
+
+    let capturedIsEvmChainIdSupportable:
+      | ((chainId: Hex) => boolean)
+      | undefined;
+
+    MockChainAgnosticPermission.bucketScopes.mockImplementation(
+      (scopes, options) => {
+        capturedIsEvmChainIdSupportable = options.isEvmChainIdSupportable;
+        return {
+          supportedScopes: {
+            'eip155:1': {
+              methods: [],
+              notifications: [],
+              accounts: ['eip155:1:0x1'],
+            },
+          },
+          supportableScopes: {},
+          unsupportableScopes: {},
+        };
+      },
+    );
+
+    await handler(baseRequest);
+
+    expect(capturedIsEvmChainIdSupportable).toBeDefined();
+
+    const result = capturedIsEvmChainIdSupportable?.('0x1');
+    expect(result).toBe(false);
+  });
+
+  it('tests isEvmChainIdSupportable function for required scopes', async () => {
+    const { handler } = createMockedHandler();
+
+    let capturedIsEvmChainIdSupportable:
+      | ((chainId: Hex) => boolean)
+      | undefined;
+    let callCount = 0;
+
+    MockChainAgnosticPermission.bucketScopes.mockImplementation(
+      (_, options) => {
+        callCount += 1;
+        if (callCount === 1) {
+          // First call is for required scopes
+          capturedIsEvmChainIdSupportable = options.isEvmChainIdSupportable;
+        }
+        return {
+          supportedScopes: {
+            'eip155:1': {
+              methods: [],
+              notifications: [],
+              accounts: ['eip155:1:0x1'],
+            },
+          },
+          supportableScopes: {},
+          unsupportableScopes: {},
+        };
+      },
+    );
+
+    MockChainAgnosticPermission.validateAndNormalizeScopes.mockReturnValue({
+      normalizedRequiredScopes: {
+        'eip155:1': {
+          methods: ['eth_chainId'],
+          notifications: [],
+          accounts: [],
+        },
+      },
+      normalizedOptionalScopes: {},
+    });
+
+    await handler(baseRequest);
+
+    expect(capturedIsEvmChainIdSupportable).toBeDefined();
+
+    const result = capturedIsEvmChainIdSupportable?.('0x1');
+    expect(result).toBe(false);
+  });
+
+  it('handles undefined requiredScopes and optionalScopes', async () => {
+    const { handler, end } = createMockedHandler();
+
+    const requestWithUndefinedScopes = {
+      ...baseRequest,
+      params: {
+        sessionProperties: {
+          expiry: 'date',
+        },
+      },
+    };
+
+    MockChainAgnosticPermission.validateAndNormalizeScopes.mockImplementation(
+      (req, opt) => {
+        expect(req).toStrictEqual({});
+        expect(opt).toStrictEqual({});
+
+        return {
+          normalizedRequiredScopes: {},
+          normalizedOptionalScopes: {},
+        };
+      },
+    );
+
+    MockChainAgnosticPermission.bucketScopes.mockReturnValue({
+      supportedScopes: {
+        'eip155:1': {
+          methods: [],
+          notifications: [],
+          accounts: ['eip155:1:0x1'],
+        },
+      },
+      supportableScopes: {},
+      unsupportableScopes: {},
+    });
+
+    await handler(requestWithUndefinedScopes as typeof baseRequest);
+
+    expect(
+      MockChainAgnosticPermission.validateAndNormalizeScopes,
+    ).toHaveBeenCalledWith({}, {});
+
+    expect(end).not.toHaveBeenCalledWith(expect.any(Error));
   });
 
   it('throws an error when no scopes are supported', async () => {

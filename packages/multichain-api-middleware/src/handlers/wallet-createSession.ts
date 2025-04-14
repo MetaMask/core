@@ -145,7 +145,6 @@ async function walletCreateSessionHandler(
       requiredScopesWithSupportedMethodsAndNotifications,
       {
         isEvmChainIdSupported: networkClientExistsForChainId,
-        // TODO: [ffmcgee] how do I test cover this
         isEvmChainIdSupportable: () => false, // intended for future usage with eip3085 scopedProperties
         getNonEvmSupportedMethods: hooks.getNonEvmSupportedMethods,
         isNonEvmScopeSupported: hooks.isNonEvmScopeSupported,
@@ -156,7 +155,6 @@ async function walletCreateSessionHandler(
       optionalScopesWithSupportedMethodsAndNotifications,
       {
         isEvmChainIdSupported: networkClientExistsForChainId,
-        // TODO: [ffmcgee] how do I test cover this
         isEvmChainIdSupportable: () => false, // intended for future usage with eip3085 scopedProperties
         getNonEvmSupportedMethods: hooks.getNonEvmSupportedMethods,
         isNonEvmScopeSupported: hooks.isNonEvmScopeSupported,
