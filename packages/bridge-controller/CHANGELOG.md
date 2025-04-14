@@ -9,7 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING:** Bump dependency bignumber.js to ^9.1.2 ([#5614](https://github.com/MetaMask/core/pull/5614))
 - **BREAKING:** Bump dependency reselect to ^5.1.1 ([#5614](https://github.com/MetaMask/core/pull/5614))
 - **BREAKING:** Bump dependency @metamask/assets-controllers to ^56.0.0 ([#5614](https://github.com/MetaMask/core/pull/5614))
 - assetExchangeRates added to BridgeController state to support tokens which are not supported by assets controllers ([#5614](https://github.com/MetaMask/core/pull/5614))
