@@ -177,14 +177,20 @@ describe('Bridge Selectors', () => {
       marketData: {},
       conversionRates: {},
       participateInMetaMetrics: true,
+      gasFeeEstimates: {
+        estimatedBaseFee: '50',
+        medium: {
+          suggestedMaxPriorityFeePerGas: '75',
+          suggestedMaxFeePerGas: '1',
+        },
+        high: {
+          suggestedMaxPriorityFeePerGas: '100',
+          suggestedMaxFeePerGas: '2',
+        },
+      },
     } as unknown as BridgeAppState;
 
     const mockClientParams = {
-      bridgeFeesPerGas: {
-        estimatedBaseFeeInDecGwei: '50',
-        maxPriorityFeePerGasInDecGwei: '2',
-        maxFeePerGasInDecGwei: '100',
-      },
       sortOrder: SortOrder.COST_ASC,
       selectedQuote: null,
       featureFlagsKey: BridgeFeatureFlagsKey.EXTENSION_CONFIG,
