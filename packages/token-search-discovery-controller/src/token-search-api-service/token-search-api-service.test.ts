@@ -131,6 +131,7 @@ describe('TokenSearchApiService', () => {
     it('should handle API errors', async () => {
       nock(TEST_API_URLS.BASE_URL)
         .get('/tokens-search/swappable')
+        .query({ query: 'TEST', limit: '10' })
         .reply(500, 'Server Error');
 
       await expect(
