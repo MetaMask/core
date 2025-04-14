@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - **BREAKING:** Remove `isAccountSyncingEnabled` `env` property from `UserStorageController` constructor ([#5629](https://github.com/MetaMask/core/pull/5629))
+- **BREAKING:** Remove unused action handlers: `enableProfileSyncing`, `disableProfileSyncing`, `syncInternalAccountsWithUserStorage` and `saveInternalAccountToUserStorage`. ([]())
+  - These actions should not be callable through the messaging system.
 
 ## [11.0.1]
 
