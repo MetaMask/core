@@ -1,3 +1,4 @@
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import {
   assertIsStrictHexString,
   type CaipAccountId,
@@ -5,7 +6,6 @@ import {
   KnownCaipNamespace,
   parseCaipAccountId,
 } from '@metamask/utils';
-import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { Caip25CaveatValue } from '../caip25Permission';
 import { KnownWalletScopeString } from '../scope/constants';

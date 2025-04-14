@@ -7,8 +7,8 @@ import type {
   ExternalScopeString,
   NormalizedScopesObject,
 } from './types';
-import { getValidScopes } from './validation';
 import { parseScopeString } from './types';
+import { getValidScopes } from './validation';
 /**
  * Represents the parameters of a [CAIP-25](https://chainagnostic.org/CAIPs/caip-25) request.
  */

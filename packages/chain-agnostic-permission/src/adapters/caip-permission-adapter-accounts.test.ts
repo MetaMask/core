@@ -405,7 +405,7 @@ describe('CAIP-25 eth_accounts adapters', () => {
 
       const result = getCaipAccountIdsFromScopesObjects(scopesObjects);
 
-      expect(result).toEqual([
+      expect(result).toStrictEqual([
         'eip155:1:0x1234567890123456789012345678901234567890',
         'eip155:1:0x2345678901234567890123456789012345678901',
         'eip155:5:0x1234567890123456789012345678901234567890',
@@ -419,14 +419,14 @@ describe('CAIP-25 eth_accounts adapters', () => {
         {},
         {},
       ] as InternalScopesObject[]);
-      expect(result).toEqual([]);
+      expect(result).toStrictEqual([]);
     });
 
     it('returns an empty array if the array of scopes objects is empty', () => {
       const result = getCaipAccountIdsFromScopesObjects(
         [] as InternalScopesObject[],
       );
-      expect(result).toEqual([]);
+      expect(result).toStrictEqual([]);
     });
 
     it('eliminates duplicate accounts across different scopes objects', () => {
@@ -447,7 +447,7 @@ describe('CAIP-25 eth_accounts adapters', () => {
       ] as InternalScopesObject[];
 
       const result = getCaipAccountIdsFromScopesObjects(scopesObjects);
-      expect(result).toEqual([
+      expect(result).toStrictEqual([
         'eip155:1:0x1234567890123456789012345678901234567890',
         'eip155:5:0x3456789012345678901234567890123456789012',
       ]);
@@ -487,7 +487,7 @@ describe('CAIP-25 eth_accounts adapters', () => {
 
       const result = getCaipAccountIdsFromCaip25CaveatValue(caveatValue);
 
-      expect(result).toEqual([
+      expect(result).toStrictEqual([
         'eip155:1:0x1234567890123456789012345678901234567890',
         'eip155:1:0x2345678901234567890123456789012345678901',
         'bip122:000000000019d6689c085ae165831e93:128Lkh3S7CkDTBZ8W7BbpsN3YYizJMp8p6',
@@ -509,7 +509,7 @@ describe('CAIP-25 eth_accounts adapters', () => {
       };
 
       const result = getCaipAccountIdsFromCaip25CaveatValue(caveatValue);
-      expect(result).toEqual([]);
+      expect(result).toStrictEqual([]);
     });
 
     it('returns an empty array if both required and optional scopes are empty', () => {
@@ -521,7 +521,7 @@ describe('CAIP-25 eth_accounts adapters', () => {
       };
 
       const result = getCaipAccountIdsFromCaip25CaveatValue(caveatValue);
-      expect(result).toEqual([]);
+      expect(result).toStrictEqual([]);
     });
 
     it('eliminates duplicate accounts across required and optional scopes', () => {
@@ -544,7 +544,7 @@ describe('CAIP-25 eth_accounts adapters', () => {
       };
 
       const result = getCaipAccountIdsFromCaip25CaveatValue(caveatValue);
-      expect(result).toEqual([
+      expect(result).toStrictEqual([
         'eip155:1:0x1234567890123456789012345678901234567890',
         'eip155:5:0x3456789012345678901234567890123456789012',
       ]);
