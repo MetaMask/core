@@ -1,7 +1,6 @@
 import type {
   AccountsControllerGetAccountByAddressAction,
   AccountsControllerGetSelectedMultichainAccountAction,
-  AccountsControllerListAccountsAction,
 } from '@metamask/accounts-controller';
 import type { TokensControllerAddDetectedTokensAction } from '@metamask/assets-controllers';
 import type {
@@ -28,7 +27,6 @@ import type {
   TransactionControllerGetStateAction,
   TransactionMeta,
 } from '@metamask/transaction-controller';
-import type { UserOperationControllerActions } from '@metamask/user-operation-controller';
 
 import type { BridgeStatusController } from './bridge-status-controller';
 import type { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
@@ -334,9 +332,7 @@ type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | AccountsControllerGetSelectedMultichainAccountAction
   | HandleSnapRequest
-  | AccountsControllerListAccountsAction
   | AccountsControllerGetAccountByAddressAction
-  | UserOperationControllerActions
   | TransactionControllerActions
   | TokensControllerAddDetectedTokensAction
   | PreferencesControllerGetStateAction

@@ -1,7 +1,6 @@
 import type { StateMetadata } from '@metamask/base-controller';
 import {
   formatChainIdToHex,
-  isNativeAddress,
   isSolanaChainId,
   type QuoteResponse,
 } from '@metamask/bridge-controller';
@@ -184,11 +183,17 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       let approvalTxId: string | undefined;
       if (quoteResponse.approval) {
         // TODO need time for metrics
-        const { time, id } = await this.#handleEvmTransaction(
+        const approvalTxMeta = await this.#handleEvmTransaction(
           TransactionType.bridgeApproval,
           quoteResponse.approval,
           quoteResponse,
         );
+        if (!approvalTxMeta) {
+          throw new Error(
+            'Failed to submit bridge tx: approval txMeta is undefined',
+          );
+        }
+        const { time, id } = approvalTxMeta;
         approvalTxId = id;
       }
       if (this.#shouldUseSmartTransactions(isStxEnabledOnClient)) {
@@ -620,9 +625,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   ): Promise<TransactionMeta | undefined> => {
     const actionId = generateActionId().toString();
 
-    const internalAccounts = this.messagingSystem.call(
-      'AccountsController:listAccounts',
-    );
     const selectedAccount = this.messagingSystem.call(
       'AccountsController:getAccountByAddress',
       trade.from,
