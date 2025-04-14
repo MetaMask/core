@@ -22,14 +22,31 @@ export type Caveat = {
   args: Hex;
 };
 
+/**
+ * A delegation is a signed statement that gives a delegate permission to
+ * act on behalf of a delegator. The permissions are defined by a set of caveats.
+ * The caveats are a set of conditions that must be met in order for the delegation
+ * to be valid.
+ *
+ * @see https://docs.gator.metamask.io/concepts/delegation
+ */
 export type Delegation = {
+  /** The address of the delegate. */
   delegate: Hex;
+  /** The address of the delegator. */
   delegator: Hex;
+  /** The hash of the parent delegation, or the root authority if this is the root delegation. */
   authority: Hex;
+  /** The terms of the delegation. */
   caveats: Caveat[];
+  /** The salt used to generate the delegation signature. */
   salt: Hex;
+  /** The signature of the delegation. */
   signature: Hex;
 };
+
+/** An unsigned delegation is a delegation without a signature. */
+export type UnsignedDelegation = Omit<Delegation, 'signature'>;
 
 export type DelegationStruct = Omit<Delegation, 'salt'> & {
   salt: bigint;
@@ -37,13 +54,13 @@ export type DelegationStruct = Omit<Delegation, 'salt'> & {
 
 export type DelegationEntry = {
   tags: string[];
-  chainId: number;
-  data: Delegation;
+  chainId: Hex;
+  delegation: Delegation;
   meta?: string;
 };
 
 export type DelegationFilter = {
-  chainId?: number;
+  chainId?: Hex;
   tags?: string[];
   from?: Address;
 };
@@ -59,20 +76,44 @@ export type DelegationControllerGetStateAction = ControllerGetStateAction<
   DelegationControllerState
 >;
 
+export type DelegationControllerSignDelegationAction = {
+  type: `${typeof controllerName}:signDelegation`;
+  handler: DelegationController['signDelegation'];
+};
+
 export type DelegationControllerStoreAction = {
   type: `${typeof controllerName}:store`;
   handler: DelegationController['store'];
 };
 
-export type DelegationControllerSignAction = {
-  type: `${typeof controllerName}:sign`;
-  handler: DelegationController['sign'];
+export type DelegationControllerListAction = {
+  type: `${typeof controllerName}:list`;
+  handler: DelegationController['list'];
+};
+
+export type DelegationControllerRetrieveAction = {
+  type: `${typeof controllerName}:retrieve`;
+  handler: DelegationController['retrieve'];
+};
+
+export type DelegationControllerChainAction = {
+  type: `${typeof controllerName}:chain`;
+  handler: DelegationController['chain'];
+};
+
+export type DelegationControllerDeleteAction = {
+  type: `${typeof controllerName}:delete`;
+  handler: DelegationController['delete'];
 };
 
 export type DelegationControllerActions =
   | DelegationControllerGetStateAction
+  | DelegationControllerSignDelegationAction
   | DelegationControllerStoreAction
-  | DelegationControllerSignAction;
+  | DelegationControllerListAction
+  | DelegationControllerRetrieveAction
+  | DelegationControllerChainAction
+  | DelegationControllerDeleteAction;
 
 export type DelegationControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,

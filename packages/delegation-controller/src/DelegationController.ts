@@ -1,6 +1,7 @@
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
+import { hexToNumber } from '@metamask/utils';
 
 import { ROOT_AUTHORITY } from './constants';
 import type {
@@ -11,8 +12,9 @@ import type {
   DelegationEntry,
   DelegationFilter,
   Hex,
+  UnsignedDelegation,
 } from './types';
-import { createTypedMessageParams, isAddressEqual } from './utils';
+import { createTypedMessageParams, isHexEqual } from './utils';
 
 export const controllerName = 'DelegationController';
 
@@ -31,7 +33,7 @@ const delegationControllerMetadata = {
  *
  * @returns The default {@link DelegationController} state.
  */
-export function getDefaultDelegationControllerState(): DelegationControllerState {
+function getDefaultDelegationControllerState(): DelegationControllerState {
   return {
     delegations: {},
   };
@@ -46,12 +48,16 @@ export class DelegationController extends BaseController<
   DelegationControllerState,
   DelegationControllerMessenger
 > {
+  private readonly hashDelegation: (delegation: Delegation) => Hex;
+
   constructor({
     messenger,
     state,
+    hashDelegation,
   }: {
     messenger: DelegationControllerMessenger;
     state?: Partial<DelegationControllerState>;
+    hashDelegation: (delegation: Delegation) => Hex;
   }) {
     super({
       messenger,
@@ -62,6 +68,7 @@ export class DelegationController extends BaseController<
         ...state,
       },
     });
+    this.hashDelegation = hashDelegation;
   }
 
   /**
@@ -69,14 +76,14 @@ export class DelegationController extends BaseController<
    *
    * @param params - The parameters for signing the delegation.
    * @param params.delegation - The delegation to sign.
-   * @param params.verifyingContract - The address of the verifying contract (DelegationManager).
    * @param params.chainId - The chainId of the chain to sign the delegation for.
+   * @param params.verifyingContract - The address of the verifying contract (DelegationManager).
    * @returns The signature of the delegation.
    */
-  async sign(params: {
-    delegation: Delegation;
+  async signDelegation(params: {
+    delegation: UnsignedDelegation;
+    chainId: Hex;
     verifyingContract: Address;
-    chainId: number;
   }) {
     const { delegation, verifyingContract, chainId } = params;
 
@@ -85,9 +92,12 @@ export class DelegationController extends BaseController<
     );
 
     const data = createTypedMessageParams({
-      chainId,
+      chainId: hexToNumber(chainId),
       from: account.address as Address,
-      delegation,
+      delegation: {
+        ...delegation,
+        signature: '0x',
+      },
       verifyingContract,
     });
 
@@ -105,15 +115,18 @@ export class DelegationController extends BaseController<
   /**
    * Stores a delegation in storage.
    *
-   * @param hash - The hash of the delegation to store.
-   * @param entry - The delegation entry to store.
+   * @param params - The parameters for storing the delegation.
+   * @param params.entry - The delegation entry to store.
    */
-  store(hash: Hex, entry: DelegationEntry) {
+  store(params: { entry: DelegationEntry }) {
+    const { entry } = params;
+    const hash = this.hashDelegation(entry.delegation);
+
     // If the authority is not the root authority, validate that the
     // parent entry does exist.
     if (
-      !isAddressEqual(entry.data.authority, ROOT_AUTHORITY) &&
-      !this.state.delegations[entry.data.authority]
+      !isHexEqual(entry.delegation.authority, ROOT_AUTHORITY) &&
+      !this.state.delegations[entry.delegation.authority]
     ) {
       throw new Error('Invalid authority');
     }
@@ -138,21 +151,22 @@ export class DelegationController extends BaseController<
 
     if (filter?.from) {
       list = list.filter((entry) =>
-        isAddressEqual(entry.data.delegator, filter.from as Address),
+        isHexEqual(entry.delegation.delegator, filter.from as Address),
       );
     }
 
     if (
       !filter?.from ||
-      (filter?.from && !isAddressEqual(filter.from, requester))
+      (filter?.from && !isHexEqual(filter.from, requester))
     ) {
       list = list.filter((entry) =>
-        isAddressEqual(entry.data.delegate, requester),
+        isHexEqual(entry.delegation.delegate, requester),
       );
     }
 
-    if (filter?.chainId) {
-      list = list.filter((entry) => entry.chainId === filter.chainId);
+    const filterChainId = filter?.chainId;
+    if (filterChainId) {
+      list = list.filter((entry) => isHexEqual(entry.chainId, filterChainId));
     }
 
     const tags = filter?.tags;
@@ -191,13 +205,13 @@ export class DelegationController extends BaseController<
     }
     chain.push(entry);
 
-    for (let _hash = entry.data.authority; _hash !== ROOT_AUTHORITY; ) {
+    for (let _hash = entry.delegation.authority; _hash !== ROOT_AUTHORITY; ) {
       const parent = this.retrieve(_hash);
       if (!parent) {
         throw new Error('Invalid delegation chain');
       }
       chain.push(parent);
-      _hash = parent.data.authority;
+      _hash = parent.delegation.authority;
     }
 
     return chain;
@@ -219,13 +233,14 @@ export class DelegationController extends BaseController<
     const entries = Object.entries(this.state.delegations);
     let count = 0;
     const nextHashes: Hex[] = [hash];
+    const deletedHashes: Hex[] = [];
 
     while (nextHashes.length > 0) {
       const currentHash = nextHashes.pop() as Hex;
 
       // Find all delegations that have this hash as their authority
       const children = entries.filter(
-        ([_, v]) => v.data.authority === currentHash,
+        ([_, v]) => v.delegation.authority === currentHash,
       );
 
       // Add the hashes of all child delegations to be processed next
@@ -233,12 +248,16 @@ export class DelegationController extends BaseController<
         nextHashes.push(k as Hex);
       });
 
-      // Delete the current delegation
-      this.update((state) => {
-        delete state.delegations[currentHash];
-      });
+      deletedHashes.push(currentHash);
       count += 1;
     }
+
+    // Delete delegations
+    this.update((state) => {
+      deletedHashes.forEach((h) => {
+        delete state.delegations[h];
+      });
+    });
 
     return count;
   }

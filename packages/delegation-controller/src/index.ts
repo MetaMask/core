@@ -1,4 +1,10 @@
 export type {
+  DelegationControllerSignDelegationAction,
+  DelegationControllerStoreAction,
+  DelegationControllerListAction,
+  DelegationControllerRetrieveAction,
+  DelegationControllerChainAction,
+  DelegationControllerDeleteAction,
   DelegationControllerActions,
   DelegationControllerEvents,
   DelegationControllerMessenger,
@@ -6,7 +12,4 @@ export type {
   DelegationFilter,
 } from './types';
 
-export {
-  DelegationController,
-  getDefaultDelegationControllerState,
-} from './DelegationController';
+export { DelegationController } from './DelegationController';
