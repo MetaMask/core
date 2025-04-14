@@ -9,8 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING:** Add new public method `setIsBackupAndSyncFeatureEnabled`
+- **BREAKING:** Add new public method `setIsBackupAndSyncFeatureEnabled` to `UserStorageController`
   - This replaces `enableProfileSyncing` and `disableProfileSyncing` and will be used as the main method to enable and disable backup and sync features from now on.
+- Add new `isAccountSyncingEnabled` state property to `UserStorageController`.
+  - This property is `true` by default.
 
 ### Removed
 
