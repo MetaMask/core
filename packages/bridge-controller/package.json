@@ -54,7 +54,7 @@
     "@ethersproject/providers": "^5.7.0",
     "@metamask/base-controller": "^8.0.0",
     "@metamask/controller-utils": "^11.7.0",
-    "@metamask/gas-fee-controller": "^22.0.3",
+    "@metamask/gas-fee-controller": "^23.0.0",
     "@metamask/keyring-api": "^17.4.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
     "@metamask/multichain-network-controller": "^0.3.0",

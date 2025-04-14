@@ -2702,7 +2702,7 @@ __metadata:
     "@metamask/base-controller": "npm:^8.0.0"
     "@metamask/controller-utils": "npm:^11.7.0"
     "@metamask/eth-json-rpc-provider": "npm:^4.1.8"
-    "@metamask/gas-fee-controller": "npm:^22.0.3"
+    "@metamask/gas-fee-controller": "npm:^23.0.0"
     "@metamask/keyring-api": "npm:^17.4.0"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/multichain-network-controller": "npm:^0.3.0"
@@ -2839,7 +2839,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/controller-utils@npm:^11.5.0, @metamask/controller-utils@npm:^11.7.0, @metamask/controller-utils@workspace:packages/controller-utils":
+"@metamask/controller-utils@npm:^11.7.0, @metamask/controller-utils@workspace:packages/controller-utils":
   version: 0.0.0-use.local
   resolution: "@metamask/controller-utils@workspace:packages/controller-utils"
   dependencies:
@@ -3385,27 +3385,6 @@ __metadata:
   peerDependencies:
     "@babel/runtime": ^7.0.0
   checksum: 10/aaecae091dd16362f048cbba27629d67d10530c704facf80f430db546c8ea32fa627cd9560bd3eca1e6ce651d2b7a7df9fdc3677e0ae2814954e3c950cee70da
-  languageName: node
-  linkType: hard
-
-"@metamask/gas-fee-controller@npm:^22.0.3":
-  version: 22.0.3
-  resolution: "@metamask/gas-fee-controller@npm:22.0.3"
-  dependencies:
-    "@metamask/base-controller": "npm:^8.0.0"
-    "@metamask/controller-utils": "npm:^11.5.0"
-    "@metamask/eth-query": "npm:^4.0.0"
-    "@metamask/ethjs-unit": "npm:^0.3.0"
-    "@metamask/polling-controller": "npm:^12.0.3"
-    "@metamask/utils": "npm:^11.1.0"
-    "@types/bn.js": "npm:^5.1.5"
-    "@types/uuid": "npm:^8.3.0"
-    bn.js: "npm:^5.2.1"
-    uuid: "npm:^8.3.2"
-  peerDependencies:
-    "@babel/runtime": ^7.0.0
-    "@metamask/network-controller": ^22.0.0
-  checksum: 10/91d637bed896d69d1b8f7c79bdb9a3d2295d85160c3eae2019d27e07034a51bac32b341e2978531039200df83a33cad7dc3a8c64adf019774eb44a635b31056a
   languageName: node
   linkType: hard
 
@@ -3974,22 +3953,6 @@ __metadata:
     typescript: "npm:~5.2.2"
   languageName: unknown
   linkType: soft
-
-"@metamask/polling-controller@npm:^12.0.3":
-  version: 12.0.3
-  resolution: "@metamask/polling-controller@npm:12.0.3"
-  dependencies:
-    "@metamask/base-controller": "npm:^8.0.0"
-    "@metamask/controller-utils": "npm:^11.5.0"
-    "@metamask/utils": "npm:^11.1.0"
-    "@types/uuid": "npm:^8.3.0"
-    fast-json-stable-stringify: "npm:^2.1.0"
-    uuid: "npm:^8.3.2"
-  peerDependencies:
-    "@metamask/network-controller": ^22.0.0
-  checksum: 10/4eb410beaa6f8ff2e089f9aa9eee9ad730d70a596c839df2f4c1aa873466722f4dc95e9cf1c68c055d89c7222d4476241c1d1c45d9b2583ac245cd8fa08144ab
-  languageName: node
-  linkType: hard
 
 "@metamask/polling-controller@npm:^13.0.0, @metamask/polling-controller@workspace:packages/polling-controller":
   version: 0.0.0-use.local
