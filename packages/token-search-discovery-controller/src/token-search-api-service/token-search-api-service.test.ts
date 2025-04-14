@@ -113,4 +113,32 @@ describe('TokenSearchApiService', () => {
       expect(results[0].logoUrl).toBeUndefined();
     });
   });
+
+  describe('searchSwappableTokens', () => {
+    it('should return search results with all parameters', async () => {
+      nock(TEST_API_URLS.BASE_URL)
+        .get('/tokens-search/swappable')
+        .query({ query: 'TEST', limit: '10' })
+        .reply(200, mockSearchResults);
+
+      const results = await service.searchSwappableTokens({
+        query: 'TEST',
+        limit: '10',
+      });
+      expect(results).toStrictEqual(mockSearchResults);
+    });
+
+    it('should handle API errors', async () => {
+      nock(TEST_API_URLS.BASE_URL)
+        .get('/tokens-search/swappable')
+        .reply(500, 'Server Error');
+
+      await expect(
+        service.searchSwappableTokens({
+          query: 'TEST',
+          limit: '10',
+        }),
+      ).rejects.toThrow('Portfolio API request failed with status: 500');
+    });
+  });
 });

@@ -9,6 +9,11 @@ export type TokenSearchParams = ParamsBase & {
   query?: string;
 };
 
+export type SwappableTokenSearchParams = {
+  limit?: string;
+  query: string;
+};
+
 export type TrendingTokensParams = ParamsBase;
 
 export type TopLosersParams = ParamsBase;
