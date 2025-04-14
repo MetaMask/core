@@ -1,12 +1,17 @@
-import { SignTypedDataVersion } from '@metamask/keyring-controller';
+import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
+import { Messenger } from '@metamask/base-controller';
+import {
+  type KeyringControllerSignTypedMessageAction,
+  SignTypedDataVersion,
+} from '@metamask/keyring-controller';
 import { hexToNumber } from '@metamask/utils';
 
 import { ROOT_AUTHORITY } from './constants';
-import { DelegationController } from './DelegationController';
+import { controllerName, DelegationController } from './DelegationController';
 import type {
   Address,
   Delegation,
-  DelegationControllerMessenger,
+  DelegationControllerEvents,
   DelegationControllerState,
   DelegationEntry,
   Hex,
@@ -54,27 +59,14 @@ class TestDelegationController extends DelegationController {
  * @returns The mock messenger instance plus individual mock functions for each action.
  */
 function createMessengerMock() {
+  const messenger = new Messenger<
+    | KeyringControllerSignTypedMessageAction
+    | AccountsControllerGetSelectedAccountAction,
+    DelegationControllerEvents
+  >();
+
   const accountsControllerGetSelectedAccountMock = jest.fn();
   const keyringControllerSignTypedMessageMock = jest.fn();
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const callMock = (method: string, ...args: any[]) => {
-    switch (method) {
-      case 'AccountsController:getSelectedAccount':
-        return accountsControllerGetSelectedAccountMock(...args);
-      case 'KeyringController:signTypedMessage':
-        return keyringControllerSignTypedMessageMock(...args);
-      default:
-        throw new Error(`Messenger method not recognised: ${method}`);
-    }
-  };
-
-  const messenger = {
-    registerActionHandler: jest.fn(),
-    registerInitialEventPayload: jest.fn(),
-    publish: jest.fn(),
-    call: callMock,
-  } as unknown as jest.Mocked<DelegationControllerMessenger>;
 
   accountsControllerGetSelectedAccountMock.mockReturnValue({
     address: FROM_MOCK,
@@ -82,10 +74,28 @@ function createMessengerMock() {
 
   keyringControllerSignTypedMessageMock.mockResolvedValue(SIGNATURE_HASH_MOCK);
 
+  messenger.registerActionHandler(
+    'AccountsController:getSelectedAccount',
+    accountsControllerGetSelectedAccountMock,
+  );
+  messenger.registerActionHandler(
+    'KeyringController:signTypedMessage',
+    keyringControllerSignTypedMessageMock,
+  );
+
+  const restrictedMessenger = messenger.getRestricted({
+    name: 'DelegationController',
+    allowedActions: [
+      'AccountsController:getSelectedAccount',
+      'KeyringController:signTypedMessage',
+    ],
+    allowedEvents: [],
+  });
+
   return {
     accountsControllerGetSelectedAccountMock,
     keyringControllerSignTypedMessageMock,
-    messenger,
+    messenger: restrictedMessenger,
   };
 }
 
