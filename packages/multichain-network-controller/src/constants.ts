@@ -138,4 +138,3 @@ export const MULTICHAIN_NETWORK_DECIMAL_PLACES = {
   [SolScope.Testnet]: 5,
   [SolScope.Devnet]: 5,
 } as const;
-
