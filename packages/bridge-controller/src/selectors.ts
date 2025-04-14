@@ -4,6 +4,7 @@ import type {
   MultichainAssetsRatesControllerState,
   TokenRatesControllerState,
 } from '@metamask/assets-controllers';
+import type { GasFeeEstimates } from '@metamask/gas-fee-controller';
 import type { CaipAssetType } from '@metamask/utils';
 import { isStrictHexString } from '@metamask/utils';
 import { orderBy } from 'lodash';
@@ -12,6 +13,7 @@ import {
   createStructuredSelector as createStructuredSelector_,
 } from 'reselect';
 
+import { BRIDGE_PREFERRED_GAS_ESTIMATE } from './constants/bridge';
 import type {
   BridgeControllerState,
   BridgeFeatureFlagsKey,
@@ -54,8 +56,9 @@ type ExchangeRateControllerState = MultichainAssetsRatesControllerState &
 /**
  * The state of the bridge controller and all its dependency controllers
  */
-export type BridgeAppState = BridgeControllerState &
-  ExchangeRateControllerState & {
+export type BridgeAppState = BridgeControllerState & {
+  gasFeeEstimates: GasFeeEstimates;
+} & ExchangeRateControllerState & {
     participateInMetaMetrics: boolean;
   };
 /**
@@ -68,18 +71,9 @@ const createStructuredBridgeSelector =
  */
 const createBridgeSelector = createSelector_.withTypes<BridgeAppState>();
 /**
- * The merged client transaction and gas controller estimates for gas
- */
-type BridgeFeesPerGas = {
-  estimatedBaseFeeInDecGwei: string;
-  maxPriorityFeePerGasInDecGwei: string;
-  maxFeePerGasInDecGwei: string;
-};
-/**
  * Required parameters that clients must provide for the bridge quotes selector
  */
 type BridgeQuotesClientParams = {
-  bridgeFeesPerGas: BridgeFeesPerGas;
   sortOrder: SortOrder;
   selectedQuote: (QuoteResponse & QuoteMetadata) | null;
   featureFlagsKey: BridgeFeatureFlagsKey;
@@ -174,11 +168,27 @@ export const selectIsAssetExchangeRateInState = (
   ...params: Parameters<typeof getExchangeRateByChainIdAndAddress>
 ) => Boolean(getExchangeRateByChainIdAndAddress(...params)?.exchangeRate);
 
+/**
+ * Selects the gas fee estimates from the gas fee controller. All potential networks
+ * support EIP1559 gas fees so assume that gasFeeEstimates is of type GasFeeEstimates
+ *
+ * @returns The gas fee estimates in decGWEI
+ */
+const selectBridgeFeesPerGas = createStructuredBridgeSelector({
+  estimatedBaseFeeInDecGwei: ({ gasFeeEstimates }) =>
+    gasFeeEstimates?.estimatedBaseFee,
+  maxPriorityFeePerGasInDecGwei: ({ gasFeeEstimates }) =>
+    gasFeeEstimates?.[BRIDGE_PREFERRED_GAS_ESTIMATE]
+      ?.suggestedMaxPriorityFeePerGas,
+  maxFeePerGasInDecGwei: ({ gasFeeEstimates }) =>
+    gasFeeEstimates?.high?.suggestedMaxFeePerGas,
+});
+
 // Selects cross-chain swap quotes including their metadata
 const selectBridgeQuotesWithMetadata = createBridgeSelector(
   [
     ({ quotes }) => quotes,
-    (_, { bridgeFeesPerGas }: BridgeQuotesClientParams) => bridgeFeesPerGas,
+    selectBridgeFeesPerGas,
     createBridgeSelector(
       [
         (state) => state,
@@ -336,7 +346,6 @@ export const selectIsQuoteExpired = createBridgeSelector(
  * Selects sorted cross-chain swap quotes. By default, the quotes are sorted by cost in ascending order.
  *
  * @param state - The state of the bridge controller and its dependency controllers
- * @param bridgeFeesPerGas - The merged client transaction and gas controller estimates for gas
  * @param sortOrder - The sort order of the quotes
  * @param selectedQuote - The quote that is currently selected by the user, should be cleared by clients when the req params change
  * @param featureFlagsKey - The feature flags key for the client (e.g. `BridgeFeatureFlagsKey.EXTENSION_CONFIG`
