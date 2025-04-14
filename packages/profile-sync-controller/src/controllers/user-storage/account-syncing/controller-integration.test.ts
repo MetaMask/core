@@ -28,6 +28,7 @@ import { MOCK_STORAGE_KEY } from '../mocks';
 
 const baseState = {
   isProfileSyncingEnabled: true,
+  isAccountSyncingEnabled: true,
   isProfileSyncingUpdateLoading: false,
   hasAccountSyncingSyncedAtLeastOnce: false,
   isAccountSyncingReadyToBeDispatched: false,
