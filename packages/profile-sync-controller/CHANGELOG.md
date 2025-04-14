@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add new public method `setIsBackupAndSyncFeatureEnabled` to `UserStorageController` ([#5636](https://github.com/MetaMask/core/pull/5636))
+  - This replaces `enableProfileSyncing` and `disableProfileSyncing` and will be used as the main method to enable and disable backup and sync features from now on.
+- Add new `isAccountSyncingEnabled` state property to `UserStorageController` ([#5636](https://github.com/MetaMask/core/pull/5636))
+  - This property is `true` by default.
+
 ### Removed
 
 - **BREAKING:** Remove `isAccountSyncingEnabled` `env` property from `UserStorageController` constructor ([#5629](https://github.com/MetaMask/core/pull/5629))
