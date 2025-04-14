@@ -340,6 +340,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
         from: asset,
         to: currency,
       })),
+      includeMarketData: true,
     };
   }
 
