@@ -15,9 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/network-controller` to `^23.2.0` ([#5583](https://github.com/MetaMask/core/pull/5583))
 
 ### Added
+
 - Added `getCaipAccountIdsFromScopesObject`, `getCaipAccountIdsFromScopesObjects`, and `getCaipAccountIdsFromCaip25CaveatValue` functions.
-- Added `getAllScopesFromScopesObjects`, `getAllScopesFromCaip25CaveatValue`, `getAllNonWalletNamespacesFromCaip25CaveatValue`, and `getAllScopesFromPermission` 
-functions.
+- Added `getAllScopesFromScopesObjects`, `getAllScopesFromCaip25CaveatValue`, `getAllNonWalletNamespacesFromCaip25CaveatValue`, and `getAllScopesFromPermission`
+  functions.
 
 ## [0.3.0]
 
