@@ -5,6 +5,7 @@ import type { NetworkClientId } from '@metamask/network-controller';
 import { type CaipChainId, isCaipChainId } from '@metamask/utils';
 
 import {
+  AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
   MULTICHAIN_NETWORK_CONTROLLER_METADATA,
   getDefaultMultichainNetworkControllerState,
 } from './constants';
@@ -47,6 +48,11 @@ export class MultichainNetworkController extends BaseController<
       state: {
         ...getDefaultMultichainNetworkControllerState(),
         ...state,
+        multichainNetworkConfigurationsByChainId: {
+          // We can keep the current network as a hardcoded value
+          // since it is not expected to add/remove networks yet.
+          ...AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
+        },
       },
     });
 
@@ -175,6 +181,13 @@ export class MultichainNetworkController extends BaseController<
     this.messagingSystem.call('NetworkController:removeNetwork', hexChainId);
   }
 
+  /**
+   * Removes a non-EVM network from the list of networks.
+   * This method is not supported and throws an error.
+   *
+   * @param _chainId - The chain ID of the network to remove.
+   * @throws - An error indicating that removal of non-EVM networks is not supported.
+   */
   #removeNonEvmNetwork(_chainId: CaipChainId): void {
     throw new Error('Removal of non-EVM networks is not supported');
   }
@@ -188,11 +201,10 @@ export class MultichainNetworkController extends BaseController<
    */
   async removeNetwork(chainId: CaipChainId): Promise<void> {
     if (isEvmCaipChainId(chainId)) {
-      await this.#removeEvmNetwork(chainId);
-      return;
+      return await this.#removeEvmNetwork(chainId);
     }
 
-    this.#removeNonEvmNetwork(chainId);
+    return this.#removeNonEvmNetwork(chainId);
   }
 
   /**
