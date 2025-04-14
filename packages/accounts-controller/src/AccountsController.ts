@@ -360,12 +360,13 @@ export class AccountsController extends BaseController<
    * @param accountId - The ID of the account to be selected.
    */
   setSelectedAccount(accountId: string): void {
-    const account = this.getAccountExpect(accountId);
+    const validatedAccountId = this.validateAccountId(accountId, 'setSelectedAccount');
+    const account = this.getAccountExpect(validatedAccountId);
 
     this.update((currentState: Draft<AccountsControllerState>) => {
-      currentState.internalAccounts.accounts[account.id].metadata.lastSelected =
-        Date.now();
-      currentState.internalAccounts.selectedAccount = account.id;
+      const validatedAccountId = this.validateAccountId(account.id, 'setSelectedAccount - account.id');
+      currentState.internalAccounts.accounts[validatedAccountId].metadata.lastSelected = Date.now();
+      currentState.internalAccounts.selectedAccount = validatedAccountId;
     });
 
     if (isEvmAccountType(account.type)) {
@@ -484,12 +485,17 @@ export class AccountsController extends BaseController<
    */
   loadBackup(backup: AccountsControllerState): void {
     if (backup.internalAccounts) {
+      const validatedSelectedAccount = this.validateAccountId(
+        backup.internalAccounts.selectedAccount,
+        'loadBackup - backup.internalAccounts.selectedAccount'
+      );
+      
       this.update((currentState: Draft<AccountsControllerState>) => {
-        // FIXME: deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
         const newState = deepCloneDraft(currentState);
-
-        newState.internalAccounts = backup.internalAccounts;
-
+        newState.internalAccounts = {
+          ...backup.internalAccounts,
+          selectedAccount: validatedSelectedAccount
+        };
         return newState;
       });
     }
@@ -505,8 +511,13 @@ export class AccountsController extends BaseController<
     address: string,
     type: string,
   ): InternalAccount {
+    const id = this.validateAccountId(
+      getUUIDFromAddressOfNormalAccount(address),
+      'generateInternalAccountForNonSnapAccount - id'
+    );
+    
     return {
-      id: getUUIDFromAddressOfNormalAccount(address),
+      id,
       address,
       options: {},
       methods: [
@@ -568,12 +579,14 @@ export class AccountsController extends BaseController<
 
       const keyringType = (keyring as Keyring<Json>).type;
       if (!isNormalKeyringType(keyringType as KeyringTypes)) {
-        // We only consider "normal accounts" here, so keep looping
         continue;
       }
 
-      const id = getUUIDFromAddressOfNormalAccount(address);
-
+      const id = this.validateAccountId(
+        getUUIDFromAddressOfNormalAccount(address),
+        'listNormalAccounts - id'
+      );
+      
       internalAccounts.push({
         id,
         address,
@@ -901,22 +914,19 @@ export class AccountsController extends BaseController<
         account.address,
       ) as InternalAccount;
 
-      // The snap deleted the account before the keyring controller could add it
       if (!newAccount) {
         return;
       }
     }
 
-    // Get next account name available for this given keyring
+    const validatedAccountId = this.validateAccountId(newAccount.id, 'handleNewAccountAdded - newAccount.id');
     const accountName = this.getNextAvailableAccountName(
       newAccount.metadata.keyring.type,
     );
 
     this.update((currentState: Draft<AccountsControllerState>) => {
-      // FIXME: deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
       const newState = deepCloneDraft(currentState);
-
-      newState.internalAccounts.accounts[newAccount.id] = {
+      newState.internalAccounts.accounts[validatedAccountId] = {
         ...newAccount,
         metadata: {
           ...newAccount.metadata,
@@ -925,11 +935,10 @@ export class AccountsController extends BaseController<
           lastSelected: Date.now(),
         },
       };
-
       return newState;
     });
 
-    this.setSelectedAccount(newAccount.id);
+    this.setSelectedAccount(validatedAccountId);
   }
 
   /**
@@ -1005,5 +1014,12 @@ export class AccountsController extends BaseController<
       `AccountsController:getAccount`,
       this.getAccount.bind(this),
     );
+  }
+
+  private validateAccountId(id: unknown, context: string): string {
+    if (id === undefined || id === null) {
+      throw new Error(`[AccountsController] Invalid accountId in ${context}: ${id}`);
+    }
+    return id as string;
   }
 }
