@@ -32,5 +32,5 @@ export type GetUserStorageAllFeatureEntriesResponse = {
 
 export enum BackupAndSyncFeatures {
   Main = 'Backup and Sync',
-  Account = 'Account Syncing',
+  AccountSyncing = 'Account Syncing',
 }

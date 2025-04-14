@@ -12,6 +12,7 @@ describe('user-storage/account-syncing/sync-utils', () => {
   describe('canPerformAccountSyncing', () => {
     const arrangeMocks = ({
       isProfileSyncingEnabled = true,
+      isAccountSyncingEnabled = true,
       isAccountSyncingInProgress = false,
       messengerCallControllerAndAction = 'AuthenticationController:isSignedIn',
       messengerCallCallback = () => true,
@@ -29,6 +30,7 @@ describe('user-storage/account-syncing/sync-utils', () => {
         getUserStorageControllerInstance: jest.fn().mockReturnValue({
           state: {
             isProfileSyncingEnabled,
+            isAccountSyncingEnabled,
             isAccountSyncingInProgress,
           },
         }),

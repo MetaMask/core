@@ -198,7 +198,8 @@ type ActionsObj = CreateActionsObj<
   | 'performDeleteStorage'
   | 'performBatchDeleteStorage'
   | 'getStorageKey'
-  | 'toggleBackupAndSyncFeature'
+  | 'enableBackupAndSyncFeature'
+  | 'disableBackupAndSyncFeature'
   | 'syncInternalAccountsWithUserStorage'
   | 'saveInternalAccountToUserStorage'
 >;
@@ -222,8 +223,10 @@ export type UserStorageControllerPerformDeleteStorage =
 export type UserStorageControllerPerformBatchDeleteStorage =
   ActionsObj['performBatchDeleteStorage'];
 export type UserStorageControllerGetStorageKey = ActionsObj['getStorageKey'];
-export type UserStorageControllerToggleBackupAndSyncFeature =
-  ActionsObj['toggleBackupAndSyncFeature'];
+export type UserStorageControllerEnableBackupAndSyncFeature =
+  ActionsObj['enableBackupAndSyncFeature'];
+export type UserStorageControllerDisableBackupAndSyncFeature =
+  ActionsObj['disableBackupAndSyncFeature'];
 export type UserStorageControllerSyncInternalAccountsWithUserStorage =
   ActionsObj['syncInternalAccountsWithUserStorage'];
 export type UserStorageControllerSaveInternalAccountToUserStorage =
@@ -454,8 +457,13 @@ export default class UserStorageController extends BaseController<
     );
 
     this.messagingSystem.registerActionHandler(
-      'UserStorageController:toggleBackupAndSyncFeature',
-      this.toggleBackupAndSyncFeature.bind(this),
+      'UserStorageController:enableBackupAndSyncFeature',
+      this.enableBackupAndSyncFeature.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      'UserStorageController:disableBackupAndSyncFeature',
+      this.disableBackupAndSyncFeature.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
@@ -631,25 +639,28 @@ export default class UserStorageController extends BaseController<
     return result;
   }
 
-  private toggleFeature(
+  /**
+   * This is used as a helper to set the local state of the feature.
+   *
+   * @param feature - The feature to set
+   * @param isEnabled - The value to set
+   */
+  private setIsLocalSyncFeatureEnabled(
     feature: BackupAndSyncFeatures,
-    enabled: boolean,
+    isEnabled: boolean,
   ): void {
     this.update((state) => {
-      switch (feature) {
-        case BackupAndSyncFeatures.Main:
-          state.isProfileSyncingEnabled = enabled;
-          break;
-        case BackupAndSyncFeatures.Account:
-          state.isAccountSyncingEnabled = enabled;
-          break;
-        default:
-          break;
+      if (feature === BackupAndSyncFeatures.Main) {
+        state.isProfileSyncingEnabled = isEnabled;
+      }
+
+      if (feature === BackupAndSyncFeatures.AccountSyncing) {
+        state.isAccountSyncingEnabled = isEnabled;
       }
     });
   }
 
-  public async toggleBackupAndSyncFeature(
+  private async setIsSyncFeatureEnabled(
     feature: BackupAndSyncFeatures,
     enabled: boolean,
   ): Promise<void> {
@@ -667,13 +678,14 @@ export default class UserStorageController extends BaseController<
         }
 
         // If Backup and Sync main feature is disabled, we need to enable it
-        if (!isMainFeatureEnabled || feature === BackupAndSyncFeatures.Main) {
-          this.toggleFeature(BackupAndSyncFeatures.Main, true);
-          return;
+        if (!isMainFeatureEnabled) {
+          this.setIsLocalSyncFeatureEnabled(BackupAndSyncFeatures.Main, true);
         }
 
         // We then enable the requested feature
-        this.toggleFeature(feature, true);
+        if (feature !== BackupAndSyncFeatures.Main) {
+          this.setIsLocalSyncFeatureEnabled(feature, true);
+        }
       } else {
         // If the requested feature is the main feature, we need to disable all features
         if (feature === BackupAndSyncFeatures.Main) {
@@ -681,24 +693,52 @@ export default class UserStorageController extends BaseController<
             return;
           }
 
-          this.toggleFeature(BackupAndSyncFeatures.Main, false);
-          this.toggleFeature(BackupAndSyncFeatures.Account, false);
+          this.setIsLocalSyncFeatureEnabled(BackupAndSyncFeatures.Main, false);
+          this.setIsLocalSyncFeatureEnabled(
+            BackupAndSyncFeatures.AccountSyncing,
+            false,
+          );
 
           return;
         }
 
         // If the requested feature is not the main feature, we need to disable it
-        this.toggleFeature(feature, false);
+        this.setIsLocalSyncFeatureEnabled(feature, false);
       }
     } catch (e) {
       // istanbul ignore next
       const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
+      // istanbul ignore next
       throw new Error(
         `${controllerName} - failed to ${enabled ? 'enable' : 'disable'} ${feature} - ${errorMessage}`,
       );
     } finally {
       this.#setIsProfileSyncingUpdateLoading(false);
     }
+  }
+
+  /**
+   * Enables a backup and sync feature.
+   * Enabling a feature will also enable the main feature if it is not already enabled.
+   *
+   * @param feature - The feature to enable
+   */
+  public async enableBackupAndSyncFeature(
+    feature: BackupAndSyncFeatures,
+  ): Promise<void> {
+    await this.setIsSyncFeatureEnabled(feature, true);
+  }
+
+  /**
+   * Disables a backup and sync feature.
+   * Disabling a the main feature will disable all features.
+   *
+   * @param feature - The feature to disable
+   */
+  public async disableBackupAndSyncFeature(
+    feature: BackupAndSyncFeatures,
+  ): Promise<void> {
+    await this.setIsSyncFeatureEnabled(feature, false);
   }
 
   #setIsProfileSyncingUpdateLoading(

@@ -16,7 +16,7 @@ import { mockUserStorageMessengerForAccountSyncing } from './account-syncing/__f
 import * as AccountSyncControllerIntegrationModule from './account-syncing/controller-integration';
 import { MOCK_STORAGE_DATA, MOCK_STORAGE_KEY } from './mocks/mockStorage';
 import * as NetworkSyncIntegrationModule from './network-syncing/controller-integration';
-import type { UserStorageBaseOptions } from './types';
+import { BackupAndSyncFeatures, type UserStorageBaseOptions } from './types';
 import UserStorageController, { defaultState } from './UserStorageController';
 import { USER_STORAGE_FEATURE_NAMES } from '../../shared/storage-schema';
 
@@ -621,19 +621,19 @@ describe('user-storage/user-storage-controller - disableProfileSyncing() tests',
     });
 
     expect(controller.state.isProfileSyncingEnabled).toBe(true);
-    await controller.disableProfileSyncing();
+    await controller.disableBackupAndSyncFeature(BackupAndSyncFeatures.Main);
     expect(controller.state.isProfileSyncingEnabled).toBe(false);
   });
 });
 
-describe('user-storage/user-storage-controller - enableProfileSyncing() tests', () => {
+describe('user-storage/user-storage-controller - setIsBackupAndSyncFeatureEnabled tests', () => {
   const arrangeMocks = async () => {
     return {
       messengerMocks: mockUserStorageMessenger(),
     };
   };
 
-  it('should enable user storage / profile syncing', async () => {
+  it('should enable user storage / backup and sync', async () => {
     const { messengerMocks } = await arrangeMocks();
     messengerMocks.mockAuthIsSignedIn.mockReturnValue(false); // mock that auth is not enabled
 
@@ -642,6 +642,7 @@ describe('user-storage/user-storage-controller - enableProfileSyncing() tests', 
       state: {
         isProfileSyncingEnabled: false,
         isProfileSyncingUpdateLoading: false,
+        isAccountSyncingEnabled: false,
         hasAccountSyncingSyncedAtLeastOnce: false,
         isAccountSyncingReadyToBeDispatched: false,
         isAccountSyncingInProgress: false,
@@ -649,10 +650,32 @@ describe('user-storage/user-storage-controller - enableProfileSyncing() tests', 
     });
 
     expect(controller.state.isProfileSyncingEnabled).toBe(false);
-    await controller.enableProfileSyncing();
+    await controller.enableBackupAndSyncFeature(BackupAndSyncFeatures.Main);
     expect(controller.state.isProfileSyncingEnabled).toBe(true);
     expect(messengerMocks.mockAuthIsSignedIn).toHaveBeenCalled();
     expect(messengerMocks.mockAuthPerformSignIn).toHaveBeenCalled();
+  });
+
+  it('should disable all features when disabling backup and sync', async () => {
+    const { messengerMocks } = await arrangeMocks();
+    messengerMocks.mockAuthIsSignedIn.mockReturnValue(false); // mock that auth is not enabled
+
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      state: {
+        isProfileSyncingEnabled: true,
+        isProfileSyncingUpdateLoading: false,
+        isAccountSyncingEnabled: true,
+        hasAccountSyncingSyncedAtLeastOnce: false,
+        isAccountSyncingReadyToBeDispatched: false,
+        isAccountSyncingInProgress: false,
+      },
+    });
+
+    expect(controller.state.isProfileSyncingEnabled).toBe(true);
+    await controller.disableBackupAndSyncFeature(BackupAndSyncFeatures.Main);
+    expect(controller.state.isProfileSyncingEnabled).toBe(false);
+    expect(controller.state.isAccountSyncingEnabled).toBe(false);
   });
 
   it('should not update state if it throws', async () => {
@@ -664,6 +687,7 @@ describe('user-storage/user-storage-controller - enableProfileSyncing() tests', 
       state: {
         isProfileSyncingEnabled: false,
         isProfileSyncingUpdateLoading: false,
+        isAccountSyncingEnabled: false,
         hasAccountSyncingSyncedAtLeastOnce: false,
         isAccountSyncingReadyToBeDispatched: false,
         isAccountSyncingInProgress: false,
@@ -673,8 +697,58 @@ describe('user-storage/user-storage-controller - enableProfileSyncing() tests', 
     expect(controller.state.isProfileSyncingEnabled).toBe(false);
     messengerMocks.mockAuthPerformSignIn.mockRejectedValue(new Error('error'));
 
-    await expect(controller.enableProfileSyncing()).rejects.toThrow('error');
+    await expect(
+      controller.enableBackupAndSyncFeature(BackupAndSyncFeatures.Main),
+    ).rejects.toThrow('error');
     expect(controller.state.isProfileSyncingEnabled).toBe(false);
+  });
+
+  it('should enable backup and sync when enabling account syncing', async () => {
+    const { messengerMocks } = await arrangeMocks();
+    messengerMocks.mockAuthIsSignedIn.mockReturnValue(false); // mock that auth is not enabled
+
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      state: {
+        isProfileSyncingEnabled: false,
+        isProfileSyncingUpdateLoading: false,
+        isAccountSyncingEnabled: false,
+        hasAccountSyncingSyncedAtLeastOnce: false,
+        isAccountSyncingReadyToBeDispatched: false,
+        isAccountSyncingInProgress: false,
+      },
+    });
+
+    expect(controller.state.isProfileSyncingEnabled).toBe(false);
+    await controller.enableBackupAndSyncFeature(
+      BackupAndSyncFeatures.AccountSyncing,
+    );
+    expect(controller.state.isProfileSyncingEnabled).toBe(true);
+    expect(controller.state.isAccountSyncingEnabled).toBe(true);
+  });
+
+  it('should not disable backup and sync when disabling account syncing', async () => {
+    const { messengerMocks } = await arrangeMocks();
+    messengerMocks.mockAuthIsSignedIn.mockReturnValue(false); // mock that auth is not enabled
+
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      state: {
+        isProfileSyncingEnabled: true,
+        isProfileSyncingUpdateLoading: false,
+        isAccountSyncingEnabled: true,
+        hasAccountSyncingSyncedAtLeastOnce: false,
+        isAccountSyncingReadyToBeDispatched: false,
+        isAccountSyncingInProgress: false,
+      },
+    });
+
+    expect(controller.state.isProfileSyncingEnabled).toBe(true);
+    await controller.disableBackupAndSyncFeature(
+      BackupAndSyncFeatures.AccountSyncing,
+    );
+    expect(controller.state.isAccountSyncingEnabled).toBe(false);
+    expect(controller.state.isProfileSyncingEnabled).toBe(true);
   });
 });
 
@@ -867,7 +941,7 @@ describe('user-storage/user-storage-controller - error handling edge cases', () 
     return { messengerMocks };
   };
 
-  it('handles disableProfileSyncing when already disabled', async () => {
+  it('handles disabling backup & sync when already disabled', async () => {
     const { messengerMocks } = arrangeMocks();
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
@@ -877,11 +951,11 @@ describe('user-storage/user-storage-controller - error handling edge cases', () 
       },
     });
 
-    await controller.disableProfileSyncing();
+    await controller.disableBackupAndSyncFeature(BackupAndSyncFeatures.Main);
     expect(controller.state.isProfileSyncingEnabled).toBe(false);
   });
 
-  it('handles enableProfileSyncing when already enabled and signed in', async () => {
+  it('handles enabling backup & sync when already enabled and signed in', async () => {
     const { messengerMocks } = arrangeMocks();
     messengerMocks.mockAuthIsSignedIn.mockReturnValue(true);
 
@@ -893,7 +967,7 @@ describe('user-storage/user-storage-controller - error handling edge cases', () 
       },
     });
 
-    await controller.enableProfileSyncing();
+    await controller.enableBackupAndSyncFeature(BackupAndSyncFeatures.Main);
     expect(controller.state.isProfileSyncingEnabled).toBe(true);
     expect(messengerMocks.mockAuthPerformSignIn).not.toHaveBeenCalled();
   });
@@ -906,7 +980,9 @@ describe('user-storage/user-storage-controller - account syncing edge cases', ()
       messenger: messengerMocks.messenger,
     });
 
-    await controller.disableProfileSyncing();
+    await controller.disableBackupAndSyncFeature(
+      BackupAndSyncFeatures.AccountSyncing,
+    );
     await controller.syncInternalAccountsWithUserStorage();
 
     // Should not have called the account syncing module
