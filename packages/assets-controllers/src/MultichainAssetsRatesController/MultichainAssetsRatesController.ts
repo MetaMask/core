@@ -299,7 +299,10 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
         const accountRates = await this.#handleSnapRequest({
           snapId: account?.metadata.snap?.id as SnapId,
           handler: HandlerType.OnAssetsConversion,
-          params: conversions,
+          params: {
+            ...conversions,
+            includeMarketData: true,
+          },
         });
 
         // Flatten nested rates if needed
@@ -340,7 +343,6 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
         from: asset,
         to: currency,
       })),
-      includeMarketData: true,
     };
   }
 
