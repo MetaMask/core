@@ -7,15 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release/353.0.0 ([#5612](https://github.com/MetaMask/core/pull/5612))
-- Release 347.0.0 ([#5583](https://github.com/MetaMask/core/pull/5583))
-- chore: bump accounts dependencies ([#5565](https://github.com/MetaMask/core/pull/5565))
-- feat: add `removeNetwork` to `multichain-network-controller` ([#5516](https://github.com/MetaMask/core/pull/5516))
-- Release 343.0.0 ([#5542](https://github.com/MetaMask/core/pull/5542))
-- Release 338.0.0 ([#5518](https://github.com/MetaMask/core/pull/5518))
-
 ### Added
 
 - Testnet asset IDs added as constants ([#5589](https://github.com/MetaMask/core/pull/5589))
