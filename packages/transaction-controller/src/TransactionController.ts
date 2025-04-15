@@ -44,7 +44,12 @@ import type {
 } from '@metamask/nonce-tracker';
 import { NonceTracker } from '@metamask/nonce-tracker';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
-import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
+import {
+  errorCodes,
+  rpcErrors,
+  providerErrors,
+  JsonRpcError,
+} from '@metamask/rpc-errors';
 import type { Hex, Json } from '@metamask/utils';
 import { add0x, hexToNumber, remove0x } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
@@ -153,6 +158,7 @@ import {
   setEnvelopeType,
 } from './utils/utils';
 import {
+  ErrorCode,
   validateParamTo,
   validateTransactionOrigin,
   validateTxParams,
@@ -1197,7 +1203,10 @@ export class TransactionController extends BaseController<
       );
 
     if (isDuplicateBatchId && origin && origin !== ORIGIN_METAMASK) {
-      throw rpcErrors.invalidInput('Batch ID already exists');
+      throw new JsonRpcError(
+        ErrorCode.DuplicateBundleId,
+        'Batch ID already exists',
+      );
     }
 
     const dappSuggestedGasFees = this.generateDappSuggestedGasFees(
