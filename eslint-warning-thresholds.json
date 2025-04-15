@@ -344,6 +344,12 @@
   "packages/multichain/src/scope/validation.ts": {
     "jsdoc/tag-lines": 2
   },
+  "packages/multichain-api-middleware/src/handlers/wallet-createSession.test.ts": {
+    "jest/no-conditional-in-test": 3
+  },
+  "packages/multichain-api-middleware/src/handlers/wallet-createSession.ts": {
+    "@typescript-eslint/no-unused-vars": 1
+  },
   "packages/name-controller/src/NameController.ts": {
     "@typescript-eslint/no-unsafe-enum-comparison": 1,
     "@typescript-eslint/prefer-readonly": 2

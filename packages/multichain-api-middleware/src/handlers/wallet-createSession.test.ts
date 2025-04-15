@@ -16,9 +16,9 @@ import type {
   JsonRpcSuccess,
 } from '@metamask/utils';
 
+import { MetaMetricsEventCategory, MetaMetricsEventName } from './types';
 import { shouldEmitDappViewedEvent } from './utils';
 import { walletCreateSession } from './wallet-createSession';
-import { MetaMetricsEventCategory, MetaMetricsEventName } from './types';
 
 jest.mock('@metamask/rpc-errors', () => ({
   ...jest.requireActual('@metamask/rpc-errors'),

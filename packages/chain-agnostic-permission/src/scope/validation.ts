@@ -1,5 +1,6 @@
 import { type CaipAccountId, isCaipReference } from '@metamask/utils';
 
+import { KnownSessionProperties } from './constants';
 import type {
   ExternalScopeString,
   ExternalScopeObject,
@@ -8,7 +9,6 @@ import type {
   InternalScopeString,
 } from './types';
 import { parseScopeString } from './types';
-import { KnownSessionProperties } from './constants';
 
 /**
  * Validates a scope object according to the [CAIP-217](https://chainagnostic.org/CAIPs/caip-217) spec.
