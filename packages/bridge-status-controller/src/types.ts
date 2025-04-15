@@ -26,7 +26,6 @@ import type {
 import type { PreferencesControllerGetStateAction } from '@metamask/preferences-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type {
-  TransactionControllerActions,
   TransactionControllerGetStateAction,
   TransactionMeta,
 } from '@metamask/transaction-controller';
@@ -334,14 +333,13 @@ type AllowedActions =
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
   | AccountsControllerGetSelectedMultichainAccountAction
-  | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>
   | HandleSnapRequest
+  | TransactionControllerGetStateAction
+  | PreferencesControllerGetStateAction
+  | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>
   | GasFeeControllerActions
   | AccountsControllerGetAccountByAddressAction
-  | TransactionControllerActions
-  | TokensControllerAddDetectedTokensAction
-  | PreferencesControllerGetStateAction
-  | TransactionControllerGetStateAction;
+  | TokensControllerAddDetectedTokensAction;
 
 /**
  * The external events available to the BridgeStatusController.
