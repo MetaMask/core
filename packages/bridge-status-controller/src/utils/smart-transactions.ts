@@ -1,6 +1,5 @@
 import { TransactionType } from '@metamask/transaction-controller';
 
-
 export const isSmartTransactionsEnabled = (
   txType: TransactionType,
   defaultStxPreference: boolean,
