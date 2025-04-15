@@ -182,7 +182,6 @@ describe('gas', () => {
       });
 
       it('to estimate if transaction type is 0x4', async () => {
-        updateGasRequest.isCustomNetwork = false;
         updateGasRequest.txMeta.txParams.type = TransactionEnvelopeType.setCode;
 
         const gasEstimation = Math.ceil(GAS_MOCK * DEFAULT_GAS_MULTIPLIER);
