@@ -1,7 +1,7 @@
 import type {
   AccountsControllerListMultichainAccountsAction,
   AccountsControllerAccountAddedEvent,
-  AccountsControllerGetSelectedAccountAction,
+  AccountsControllerGetSelectedMultichainAccountAction,
 } from '@metamask/accounts-controller';
 import type {
   RestrictedMessenger,
@@ -111,7 +111,7 @@ export type AllowedActions =
   | AccountsControllerListMultichainAccountsAction
   | GetCurrencyRateState
   | MultichainAssetsControllerGetStateAction
-  | AccountsControllerGetSelectedAccountAction;
+  | AccountsControllerGetSelectedMultichainAccountAction;
 
 /**
  * Events that this controller is allowed to subscribe to.
@@ -337,7 +337,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
     to,
   }: OnAssetHistoricalPriceArguments): Promise<OnAssetHistoricalPriceResponse> {
     const selectedAccount = this.messagingSystem.call(
-      'AccountsController:getSelectedAccount',
+      'AccountsController:getSelectedMultichainAccount',
     );
 
     const historicalPrices = await this.#handleSnapRequest({
