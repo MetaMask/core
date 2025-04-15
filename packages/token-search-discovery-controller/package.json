@@ -1,6 +1,6 @@
 {
   "name": "@metamask/token-search-discovery-controller",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "description": "Manages token search and discovery through the Portfolio API",
   "keywords": [
     "MetaMask",

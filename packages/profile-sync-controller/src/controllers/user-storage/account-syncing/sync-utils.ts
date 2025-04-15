@@ -15,14 +15,18 @@ export function canPerformAccountSyncing(
 ): boolean {
   const { getMessenger, getUserStorageControllerInstance } = options;
 
-  const { isProfileSyncingEnabled, isAccountSyncingInProgress } =
-    getUserStorageControllerInstance().state;
+  const {
+    isProfileSyncingEnabled,
+    isAccountSyncingEnabled,
+    isAccountSyncingInProgress,
+  } = getUserStorageControllerInstance().state;
   const isAuthEnabled = getMessenger().call(
     'AuthenticationController:isSignedIn',
   );
 
   if (
     !isProfileSyncingEnabled ||
+    !isAccountSyncingEnabled ||
     !isAuthEnabled ||
     isAccountSyncingInProgress
   ) {
