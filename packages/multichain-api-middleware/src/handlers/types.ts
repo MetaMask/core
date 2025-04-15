@@ -6,6 +6,19 @@ import type {
 import type { Json } from '@metamask/utils';
 
 /**
+ * The name of the event. Event definitions with corresponding properties can be found in the following document:
+ *
+ * @see {@link https://www.notion.so/f2997ab32326441793ff790ba5c60a6a?v=267d984721cd4a26be610b5caa3e25b7&pvs=4}
+ */
+export enum MetaMetricsEventName {
+  DappViewed = 'Dapp Viewed',
+}
+
+export enum MetaMetricsEventCategory {
+  InpageProvider = 'inpage_provider',
+}
+
+/**
  * Multichain API notifications currently supported by/known to the wallet.
  */
 export enum MultichainApiNotifications {

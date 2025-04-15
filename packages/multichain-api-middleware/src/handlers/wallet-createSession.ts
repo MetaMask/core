@@ -38,10 +38,12 @@ import {
   parseCaipAccountId,
 } from '@metamask/utils';
 
-import type {
-  GrantedPermissions,
-  MetaMetricsEventOptions,
-  MetaMetricsEventPayload,
+import {
+  MetaMetricsEventCategory,
+  MetaMetricsEventName,
+  type GrantedPermissions,
+  type MetaMetricsEventOptions,
+  type MetaMetricsEventPayload,
 } from './types';
 import { shouldEmitDappViewedEvent } from './utils';
 
@@ -254,8 +256,8 @@ async function walletCreateSessionHandler(
       const approvedEthAccounts = getEthAccounts(approvedCaip25CaveatValue);
 
       hooks.sendMetrics({
-        event: 'Dapp Viewed', // TODO: metametrics constants... where should these live ?
-        category: 'inpage_provider', // TODO: metametrics constants... where should these live ?
+        event: MetaMetricsEventName.DappViewed,
+        category: MetaMetricsEventCategory.InpageProvider,
         referrer: {
           url: origin,
         },
