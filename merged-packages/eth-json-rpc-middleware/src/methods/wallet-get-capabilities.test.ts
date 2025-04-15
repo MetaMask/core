@@ -7,6 +7,9 @@ import type {
   GetCapabilitiesResult,
 } from './wallet-get-capabilities';
 import { walletGetCapabilities } from './wallet-get-capabilities';
+import type { WalletMiddlewareOptions } from '../wallet';
+
+type GetAccounts = WalletMiddlewareOptions['getAccounts'];
 
 const ADDRESS_MOCK = '0x123abc123abc123abc123abc123abc123abc123a';
 const CHAIN_ID_MOCK = '0x1';
@@ -26,10 +29,12 @@ describe('wallet_getCapabilities', () => {
   let request: JsonRpcRequest;
   let params: GetCapabilitiesParams;
   let response: PendingJsonRpcResponse<GetCapabilitiesResult>;
+  let getAccountsMock: jest.MockedFn<GetAccounts>;
   let getCapabilitiesMock: jest.MockedFunction<GetCapabilitiesHook>;
 
   async function callMethod() {
     return walletGetCapabilities(request, response, {
+      getAccounts: getAccountsMock,
       getCapabilities: getCapabilitiesMock,
     });
   }
@@ -41,6 +46,7 @@ describe('wallet_getCapabilities', () => {
     params = request.params as GetCapabilitiesParams;
     response = {} as PendingJsonRpcResponse<GetCapabilitiesResult>;
 
+    getAccountsMock = jest.fn().mockResolvedValue([ADDRESS_MOCK]);
     getCapabilitiesMock = jest.fn().mockResolvedValue(RESULT_MOCK);
   });
 
@@ -72,7 +78,9 @@ describe('wallet_getCapabilities', () => {
 
   it('throws if no hook', async () => {
     await expect(
-      walletGetCapabilities(request, response, {}),
+      walletGetCapabilities(request, response, {
+        getAccounts: getAccountsMock,
+      }),
     ).rejects.toMatchInlineSnapshot(`[Error: Method not supported.]`);
   });
 
@@ -114,5 +122,13 @@ describe('wallet_getCapabilities', () => {
 
             0 - Expected a string matching \`/^0x[0-9a-fA-F]{40}$/\` but received "0x123"]
           `);
+  });
+
+  it('throws if from is not in accounts', async () => {
+    getAccountsMock.mockResolvedValueOnce([]);
+
+    await expect(callMethod()).rejects.toMatchInlineSnapshot(
+      `[Error: The requested account and/or method has not been authorized by the user.]`,
+    );
   });
 });

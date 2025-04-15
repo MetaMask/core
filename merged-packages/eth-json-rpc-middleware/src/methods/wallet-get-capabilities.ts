@@ -9,7 +9,10 @@ import type {
 } from '@metamask/utils';
 import { StrictHexStruct, HexChecksumAddressStruct } from '@metamask/utils';
 
-import { validateParams } from '../utils/validation';
+import {
+  validateAndNormalizeKeyholder,
+  validateParams,
+} from '../utils/validation';
 
 const GetCapabilitiesStruct = tuple([
   HexChecksumAddressStruct,
@@ -29,8 +32,10 @@ export async function walletGetCapabilities(
   req: JsonRpcRequest,
   res: PendingJsonRpcResponse<Json>,
   {
+    getAccounts,
     getCapabilities,
   }: {
+    getAccounts: (req: JsonRpcRequest) => Promise<string[]>;
     getCapabilities?: GetCapabilitiesHook;
   },
 ): Promise<void> {
@@ -42,6 +47,11 @@ export async function walletGetCapabilities(
 
   const address = req.params[0];
   const chainIds = req.params[1];
+
+  await validateAndNormalizeKeyholder(address, req, {
+    getAccounts,
+  });
+
   const capabilities = await getCapabilities(address, chainIds, req);
 
   res.result = capabilities;

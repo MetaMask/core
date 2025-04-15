@@ -35,8 +35,9 @@ const SendCallsStruct = tuple([
   object({
     version: nonempty(string()),
     id: optional(StrictHexStruct),
-    from: HexChecksumAddressStruct,
+    from: optional(HexChecksumAddressStruct),
     chainId: StrictHexStruct,
+    atomicRequired: boolean(),
     calls: array(
       object({
         to: optional(HexChecksumAddressStruct),
@@ -81,9 +82,11 @@ export async function walletSendCalls(
 
   const params = req.params[0];
 
-  const from = await validateAndNormalizeKeyholder(params.from, req, {
-    getAccounts,
-  });
+  const from = params.from
+    ? await validateAndNormalizeKeyholder(params.from, req, {
+        getAccounts,
+      })
+    : undefined;
 
   const sendCalls: SendCalls = {
     ...params,

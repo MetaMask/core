@@ -28,6 +28,7 @@ export type GetCallsStatusResult = {
   id: Hex;
   chainId: Hex;
   status: number;
+  atomic: boolean;
   receipts?: {
     logs: {
       address: Hex;

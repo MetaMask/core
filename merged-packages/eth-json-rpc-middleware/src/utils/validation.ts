@@ -42,7 +42,7 @@ export function validateParams<ParamsType>(
   const [error] = validate(value, struct);
 
   if (error) {
-    throw rpcErrors.invalidInput(
+    throw rpcErrors.invalidParams(
       formatValidationError(error, `Invalid params`),
     );
   }

@@ -21,6 +21,7 @@ const REQUEST_MOCK = {
       version: '1.0',
       from: ADDRESS_MOCK,
       chainId: HEX_MOCK,
+      atomicRequired: true,
       calls: [
         {
           to: ADDRESS_MOCK,
@@ -123,12 +124,13 @@ describe('wallet_sendCalls', () => {
     params[0].from = undefined as never;
     params[0].chainId = undefined as never;
     params[0].calls = undefined as never;
+    params[0].atomicRequired = undefined as never;
 
     await expect(callMethod()).rejects.toMatchInlineSnapshot(`
             [Error: Invalid params
 
-            0 > from - Expected a string, but received: undefined
             0 > chainId - Expected a string, but received: undefined
+            0 > atomicRequired - Expected a value of type \`boolean\`, but received: \`undefined\`
             0 > calls - Expected an array value, but received: undefined]
           `);
   });
@@ -139,6 +141,7 @@ describe('wallet_sendCalls', () => {
     params[0].chainId = 123 as never;
     params[0].calls = '123' as never;
     params[0].capabilities = '123' as never;
+    params[0].atomicRequired = 123 as never;
 
     await expect(callMethod()).rejects.toMatchInlineSnapshot(`
             [Error: Invalid params
@@ -146,6 +149,7 @@ describe('wallet_sendCalls', () => {
             0 > id - Expected a string, but received: 123
             0 > from - Expected a string matching \`/^0x[0-9a-fA-F]{40}$/\` but received "123"
             0 > chainId - Expected a string, but received: 123
+            0 > atomicRequired - Expected a value of type \`boolean\`, but received: \`123\`
             0 > calls - Expected an array value, but received: "123"
             0 > capabilities - Expected an object, but received: "123"]
           `);

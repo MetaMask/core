@@ -138,7 +138,7 @@ WalletMiddlewareOptions): JsonRpcMiddleware<any, Block> {
 
     // EIP-5792
     wallet_getCapabilities: createAsyncMiddleware(async (params, req) =>
-      walletGetCapabilities(params, req, { getCapabilities }),
+      walletGetCapabilities(params, req, { getAccounts, getCapabilities }),
     ),
     wallet_sendCalls: createAsyncMiddleware(async (params, req) =>
       walletSendCalls(params, req, { getAccounts, processSendCalls }),
