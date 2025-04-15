@@ -17,7 +17,6 @@ import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import {
   TransactionEnvelopeType,
-  TransactionType,
   type TransactionMeta,
   type TransactionParams,
 } from '../types';
