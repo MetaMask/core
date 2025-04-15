@@ -194,7 +194,7 @@ describe('gas', () => {
         );
       });
 
-      it('to estimate if transaction type is batch', async () => {
+      it('to estimate if transaction type is 0x4', async () => {
         updateGasRequest.isCustomNetwork = false;
         updateGasRequest.txMeta.txParams.type = TransactionEnvelopeType.setCode;
 
