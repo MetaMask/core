@@ -17,7 +17,7 @@ import type {
   NetworkControllerRemoveNetworkAction,
   NetworkControllerFindNetworkClientIdByChainIdAction,
 } from '@metamask/network-controller';
-import { KnownCaipNamespace } from '@metamask/utils';
+import { KnownCaipNamespace, type CaipAccountId } from '@metamask/utils';
 import log from 'loglevel';
 
 import { MultichainNetworkController } from './MultichainNetworkController';
@@ -36,13 +36,16 @@ import {
 /**
  * Creates a mock network service for testing.
  *
+ * @param mockResponse - The mock response to return from fetchNetworkActivity
  * @returns A mock network service that implements the MultichainNetworkService interface.
  */
-function createMockNetworkService(): AbstractMultichainNetworkService {
+function createMockNetworkService(
+  mockResponse: ActiveNetworksResponse = { activeNetworks: [] },
+): AbstractMultichainNetworkService {
   return {
     fetchNetworkActivity: jest
-      .fn()
-      .mockResolvedValue({ activeNetworks: [] } as ActiveNetworksResponse),
+      .fn<Promise<ActiveNetworksResponse>, [CaipAccountId[]]>()
+      .mockResolvedValue(mockResponse),
   };
 }
 
@@ -598,15 +601,17 @@ describe('MultichainNetworkController', () => {
     });
 
     it('fetches and formats network activity for EVM accounts', async () => {
-      const mockResponse = {
+      const mockResponse: ActiveNetworksResponse = {
         activeNetworks: [
           `${KnownCaipNamespace.Eip155}:${MOCK_EVM_CHAIN_1}:${MOCK_EVM_ADDRESS}`,
           `${KnownCaipNamespace.Eip155}:${MOCK_EVM_CHAIN_137}:${MOCK_EVM_ADDRESS}`,
         ],
       };
 
-      const mockNetworkService = createMockNetworkService();
-      mockNetworkService.fetchNetworkActivity.mockResolvedValue(mockResponse);
+      const mockNetworkService = createMockNetworkService(mockResponse);
+      await mockNetworkService.fetchNetworkActivity([
+        `${KnownCaipNamespace.Eip155}:${MOCK_EVM_CHAIN_1}:${MOCK_EVM_ADDRESS}`,
+      ]);
 
       const { controller, messenger } = setupController({
         mockNetworkService,
@@ -639,15 +644,18 @@ describe('MultichainNetworkController', () => {
     });
 
     it('formats network activity for mixed EVM and non-EVM accounts', async () => {
-      const mockResponse = {
+      const mockResponse: ActiveNetworksResponse = {
         activeNetworks: [
           `${KnownCaipNamespace.Eip155}:${MOCK_EVM_CHAIN_1}:${MOCK_EVM_ADDRESS}`,
           `${KnownCaipNamespace.Solana}:${MOCK_SOLANA_CHAIN}:${MOCK_SOLANA_ADDRESS}`,
         ],
       };
 
-      const mockNetworkService = createMockNetworkService();
-      mockNetworkService.fetchNetworkActivity.mockResolvedValue(mockResponse);
+      const mockNetworkService = createMockNetworkService(mockResponse);
+      await mockNetworkService.fetchNetworkActivity([
+        `${KnownCaipNamespace.Eip155}:${MOCK_EVM_CHAIN_1}:${MOCK_EVM_ADDRESS}`,
+        `${KnownCaipNamespace.Solana}:${MOCK_SOLANA_CHAIN}:${MOCK_SOLANA_ADDRESS}`,
+      ]);
 
       const { controller, messenger } = setupController({
         mockNetworkService,

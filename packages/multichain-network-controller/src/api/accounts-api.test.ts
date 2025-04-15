@@ -6,9 +6,11 @@ import {
   BtcAccountType,
   SolAccountType,
 } from '@metamask/keyring-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import {
-  type Json,
   type CaipAccountId,
+  type CaipChainId,
+  type CaipReference,
   KnownCaipNamespace,
 } from '@metamask/utils';
 
@@ -55,13 +57,12 @@ describe('toAllowedCaipAccountIds', () => {
   it('formats account with EVM scopes', () => {
     const account = createMockAccount(
       MOCK_ADDRESSES.evm,
-      [EthScope.Eoa, EthScope.Mainnet, EthScope.Testnet],
+      [EthScope.Mainnet, EthScope.Testnet],
       EthAccountType.Eoa,
     );
 
     const result = toAllowedCaipAccountIds(account);
     expect(result).toStrictEqual([
-      `${EthScope.Eoa}:${MOCK_ADDRESSES.evm}`,
       `${EthScope.Mainnet}:${MOCK_ADDRESSES.evm}`,
       `${EthScope.Testnet}:${MOCK_ADDRESSES.evm}`,
     ]);
