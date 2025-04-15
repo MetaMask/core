@@ -1,8 +1,8 @@
 import EthQuery from '@metamask/eth-query';
 
+import { determineTransactionType } from './transaction-type';
 import { FakeProvider } from '../../../../tests/fake-provider';
 import { TransactionType } from '../types';
-import { determineTransactionType } from './transaction-type';
 
 describe('determineTransactionType', () => {
   const FROM_MOCK = '0x9e';

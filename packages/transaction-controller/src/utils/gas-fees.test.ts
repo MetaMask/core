@@ -1,10 +1,9 @@
-/* eslint-disable jsdoc/require-jsdoc */
 import { ORIGIN_METAMASK, query } from '@metamask/controller-utils';
 
+import type { UpdateGasFeesRequest } from './gas-fees';
+import { gweiDecimalToWeiDecimal, updateGasFees } from './gas-fees';
 import type { GasFeeFlow, GasFeeFlowResponse } from '../types';
 import { GasFeeEstimateType, TransactionType, UserFeeLevel } from '../types';
-import type { UpdateGasFeesRequest } from './gas-fees';
-import { updateGasFees } from './gas-fees';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
@@ -53,12 +52,19 @@ const FLOW_RESPONSE_GAS_PRICE_MOCK = {
   },
 } as GasFeeFlowResponse;
 
+/**
+ * Converts a number to a hex string.
+ *
+ * @param value - The number to convert.
+ * @returns The hex string.
+ */
 function toHex(value: number) {
   return `0x${value.toString(16)}`;
 }
 
 /**
  * Creates a mock GasFeeFlow.
+ *
  * @returns The mock GasFeeFlow.
  */
 function createGasFeeFlowMock(): jest.Mocked<GasFeeFlow> {
@@ -73,6 +79,11 @@ describe('gas-fees', () => {
   const queryMock = jest.mocked(query);
   let gasFeeFlowMock: jest.Mocked<GasFeeFlow>;
 
+  /**
+   * Mock the response of the gas fee flow.
+   *
+   * @param response - The response to return.
+   */
   function mockGasFeeFlowMockResponse(response: GasFeeFlowResponse) {
     gasFeeFlowMock.getGasFees.mockResolvedValue(response);
   }
@@ -537,5 +548,31 @@ describe('gas-fees', () => {
         );
       });
     });
+  });
+});
+
+describe('gweiDecimalToWeiDecimal', () => {
+  it('converts string gwei decimal to wei decimal', () => {
+    expect(gweiDecimalToWeiDecimal('1')).toBe('1000000000');
+    expect(gweiDecimalToWeiDecimal('1.5')).toBe('1500000000');
+    expect(gweiDecimalToWeiDecimal('0.1')).toBe('100000000');
+    expect(gweiDecimalToWeiDecimal('123.456')).toBe('123456000000');
+  });
+
+  it('converts number gwei decimal to wei decimal', () => {
+    expect(gweiDecimalToWeiDecimal(1)).toBe('1000000000');
+    expect(gweiDecimalToWeiDecimal(1.5)).toBe('1500000000');
+    expect(gweiDecimalToWeiDecimal(0.1)).toBe('100000000');
+    expect(gweiDecimalToWeiDecimal(123.456)).toBe('123456000000');
+  });
+
+  it('handles zero values', () => {
+    expect(gweiDecimalToWeiDecimal('0')).toBe('0');
+    expect(gweiDecimalToWeiDecimal(0)).toBe('0');
+  });
+
+  it('handles very large values', () => {
+    expect(gweiDecimalToWeiDecimal('1000000')).toBe('1000000000000000');
+    expect(gweiDecimalToWeiDecimal(1000000)).toBe('1000000000000000');
   });
 });

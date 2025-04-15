@@ -25,6 +25,7 @@ import {
   ApprovalType,
   NFT_API_BASE_URL,
   NFT_API_VERSION,
+  convertHexToDecimal,
 } from '@metamask/controller-utils';
 import { type InternalAccount } from '@metamask/keyring-internal-api';
 import type {
@@ -180,6 +181,7 @@ export type NftMetadata = {
   lastSale?: LastSale;
   rarityRank?: string;
   topBid?: TopBid;
+  chainId?: number;
 };
 
 /**
@@ -1019,6 +1021,7 @@ export class NftController extends BaseController<
    * @param options.nftMetadata - The retrieved NFTMetadata from API.
    * @param options.networkClientId - The networkClientId that can be used to identify the network client to use for this request.
    * @param options.source - Whether the NFT was detected, added manually or suggested by a dapp.
+   * @param options.chainIdHex - The chainId to add the NFT contract to.
    * @returns Promise resolving to the current NFT contracts list.
    */
   async #addNftContract({
@@ -1027,20 +1030,22 @@ export class NftController extends BaseController<
     networkClientId,
     source,
     nftMetadata,
+    chainIdHex,
   }: {
     tokenAddress: string;
     userAddress: string;
     nftMetadata: NftMetadata;
     networkClientId?: NetworkClientId;
     source?: Source;
+    chainIdHex?: Hex;
   }): Promise<NftContract[]> {
     const releaseLock = await this.#mutex.acquire();
     try {
       const checksumHexAddress = toChecksumHexAddress(tokenAddress);
       const { allNftContracts } = this.state;
-      const chainId = this.#getCorrectChainId({
-        networkClientId,
-      });
+      // TODO: revisit this with Solana support and instead of passing chainId, make sure chainId is read from nftMetadata when nftMetadata is available
+      const chainId =
+        chainIdHex || this.#getCorrectChainId({ networkClientId });
 
       const nftContracts = allNftContracts[userAddress]?.[chainId] || [];
 
@@ -1494,6 +1499,7 @@ export class NftController extends BaseController<
    * @param options.userAddress - The address of the current user.
    * @param options.source - Whether the NFT was detected, added manually or suggested by a dapp.
    * @param options.networkClientId - The networkClientId that can be used to identify the network client to use for this request.
+   * @param options.chainId - The chain ID to add the NFT to.
    * @returns Promise resolving to the current NFT list.
    */
   async addNft(
@@ -1504,11 +1510,13 @@ export class NftController extends BaseController<
       userAddress,
       source = Source.Custom,
       networkClientId,
+      chainId,
     }: {
       nftMetadata?: NftMetadata;
       userAddress?: string;
       source?: Source;
       networkClientId?: NetworkClientId;
+      chainId?: Hex;
     } = {},
   ) {
     const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
@@ -1518,7 +1526,9 @@ export class NftController extends BaseController<
 
     const checksumHexAddress = toChecksumHexAddress(tokenAddress);
 
-    const chainId = this.#getCorrectChainId({ networkClientId });
+    // TODO: revisit this with Solana support and instead of passing chainId, make sure chainId is read from nftMetadata
+    const chainIdToAddTo =
+      chainId || this.#getCorrectChainId({ networkClientId });
 
     nftMetadata =
       nftMetadata ||
@@ -1534,6 +1544,7 @@ export class NftController extends BaseController<
       networkClientId,
       source,
       nftMetadata,
+      chainIdHex: source === Source.Detected ? chainIdToAddTo : undefined,
     });
 
     // If NFT contract was not added, do not add individual NFT
@@ -1541,6 +1552,10 @@ export class NftController extends BaseController<
       (contract) =>
         contract.address.toLowerCase() === checksumHexAddress.toLowerCase(),
     );
+    // This is the case when the NFT is added manually and not detected automatically
+    if (!nftMetadata.chainId) {
+      nftMetadata.chainId = convertHexToDecimal(chainIdToAddTo);
+    }
 
     // If NFT contract information, add individual NFT
     if (nftContract) {
@@ -1549,7 +1564,7 @@ export class NftController extends BaseController<
         tokenId,
         nftMetadata,
         nftContract,
-        chainId,
+        chainIdToAddTo,
         addressToSearch,
         source,
       );

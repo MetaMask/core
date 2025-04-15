@@ -3,9 +3,9 @@ export type {
   MultichainTransactionsControllerState,
   PaginationOptions,
   TransactionStateEntry,
+  MultichainTransactionsControllerStateChange,
+  MultichainTransactionsControllerGetStateAction,
+  MultichainTransactionsControllerTransactionSubmittedEvent,
+  MultichainTransactionsControllerTransactionConfirmedEvent,
 } from './MultichainTransactionsController';
-export {
-  NETWORK_ASSETS_MAP,
-  MultichainNetwork,
-  MultichainNativeAsset,
-} from './constants';
+export { MultichainNetwork, MultichainNativeAsset } from './constants';

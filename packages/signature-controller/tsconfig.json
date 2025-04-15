@@ -5,6 +5,9 @@
   },
   "references": [
     {
+      "path": "../accounts-controller"
+    },
+    {
       "path": "../approval-controller"
     },
     {

@@ -83,6 +83,10 @@ const setupNetworkController = async ({
     messenger: restrictedMessenger,
     state,
     infuraProjectId,
+    getRpcServiceOptions: () => ({
+      fetch,
+      btoa,
+    }),
   });
 
   nock('https://mainnet.infura.io')
@@ -1017,7 +1021,7 @@ describe('GasFeeController', () => {
         getIsEIP1559Compatible: jest.fn().mockResolvedValue(true),
         networkControllerState: {
           networksMetadata: {
-            goerli: {
+            'linea-sepolia': {
               EIPS: {
                 1559: true,
               },
@@ -1055,7 +1059,7 @@ describe('GasFeeController', () => {
         });
 
         await gasFeeController.fetchGasFeeEstimates({
-          networkClientId: 'goerli',
+          networkClientId: 'sepolia',
         });
 
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith({
@@ -1064,12 +1068,14 @@ describe('GasFeeController', () => {
           fetchGasEstimates,
           // TODO: Either fix this lint violation or explain why it's necessary to ignore.
           // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-          fetchGasEstimatesUrl: 'https://some-eip-1559-endpoint/5',
+          fetchGasEstimatesUrl: `https://some-eip-1559-endpoint/${convertHexToDecimal(
+            ChainId.sepolia,
+          )}`,
           fetchLegacyGasPriceEstimates,
           // TODO: Either fix this lint violation or explain why it's necessary to ignore.
           // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           fetchLegacyGasPriceEstimatesUrl: `https://some-legacy-endpoint/${convertHexToDecimal(
-            ChainId.goerli,
+            ChainId.sepolia,
           )}`,
           fetchEthGasPriceEstimate,
           calculateTimeEstimate,
@@ -1083,12 +1089,12 @@ describe('GasFeeController', () => {
         it('should update the globally selected network state with a fetched set of estimates', async () => {
           await setupGasFeeController({
             ...getDefaultOptions(),
-            getChainId: jest.fn().mockReturnValue(ChainId.goerli),
+            getChainId: jest.fn().mockReturnValue(ChainId.sepolia),
             onNetworkDidChange: jest.fn(),
           });
 
           await gasFeeController.fetchGasFeeEstimates({
-            networkClientId: 'goerli',
+            networkClientId: 'sepolia',
           });
 
           expect(gasFeeController.state).toMatchObject(
@@ -1099,16 +1105,16 @@ describe('GasFeeController', () => {
         it('should update the gasFeeEstimatesByChainId state with a fetched set of estimates', async () => {
           await setupGasFeeController({
             ...getDefaultOptions(),
-            getChainId: jest.fn().mockReturnValue(ChainId.goerli),
+            getChainId: jest.fn().mockReturnValue(ChainId.sepolia),
             onNetworkDidChange: jest.fn(),
           });
 
           await gasFeeController.fetchGasFeeEstimates({
-            networkClientId: 'goerli',
+            networkClientId: 'sepolia',
           });
 
           expect(
-            gasFeeController.state.gasFeeEstimatesByChainId?.[ChainId.goerli],
+            gasFeeController.state.gasFeeEstimatesByChainId?.[ChainId.sepolia],
           ).toMatchObject(mockDetermineGasFeeCalculations);
         });
       });
@@ -1122,7 +1128,7 @@ describe('GasFeeController', () => {
           });
 
           await gasFeeController.fetchGasFeeEstimates({
-            networkClientId: 'goerli',
+            networkClientId: 'sepolia',
           });
 
           expect(gasFeeController.state).toMatchObject({
@@ -1140,11 +1146,11 @@ describe('GasFeeController', () => {
           });
 
           await gasFeeController.fetchGasFeeEstimates({
-            networkClientId: 'goerli',
+            networkClientId: 'sepolia',
           });
 
           expect(
-            gasFeeController.state.gasFeeEstimatesByChainId?.[ChainId.goerli],
+            gasFeeController.state.gasFeeEstimatesByChainId?.[ChainId.sepolia],
           ).toMatchObject(mockDetermineGasFeeCalculations);
         });
       });
@@ -1194,7 +1200,7 @@ describe('GasFeeController', () => {
         EIP1559APIEndpoint: 'https://some-eip-1559-endpoint/<chain_id>',
         networkControllerState: {
           networksMetadata: {
-            goerli: {
+            'linea-sepolia': {
               EIPS: {
                 1559: true,
               },
@@ -1213,7 +1219,7 @@ describe('GasFeeController', () => {
       });
 
       gasFeeController.startPolling({
-        networkClientId: 'goerli',
+        networkClientId: 'linea-sepolia',
       });
       await clock.tickAsync(0);
       expect(mockedDetermineGasFeeCalculations).toHaveBeenNthCalledWith(
@@ -1222,7 +1228,7 @@ describe('GasFeeController', () => {
           // TODO: Either fix this lint violation or explain why it's necessary to ignore.
           // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           fetchGasEstimatesUrl: `https://some-eip-1559-endpoint/${convertHexToDecimal(
-            ChainId.goerli,
+            ChainId['linea-sepolia'],
           )}`,
         }),
       );
@@ -1235,12 +1241,14 @@ describe('GasFeeController', () => {
           // TODO: Either fix this lint violation or explain why it's necessary to ignore.
           // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           fetchGasEstimatesUrl: `https://some-eip-1559-endpoint/${convertHexToDecimal(
-            ChainId.goerli,
+            ChainId['linea-sepolia'],
           )}`,
         }),
       );
       expect(
-        gasFeeController.state.gasFeeEstimatesByChainId?.['0x5'],
+        gasFeeController.state.gasFeeEstimatesByChainId?.[
+          ChainId['linea-sepolia']
+        ],
       ).toStrictEqual(buildMockGasFeeStateFeeMarket());
 
       gasFeeController.startPolling({

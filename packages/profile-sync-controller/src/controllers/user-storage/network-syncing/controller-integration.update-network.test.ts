@@ -96,6 +96,10 @@ describe('network-syncing/controller-integration - dispatchUpdateNetwork()', () 
       messenger: networkControllerMessenger,
       state: networkState,
       infuraProjectId: 'TEST_ID',
+      getRpcServiceOptions: () => ({
+        fetch,
+        btoa,
+      }),
     });
 
     return { networkController, baseMessenger };

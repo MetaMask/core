@@ -5,13 +5,17 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import { toChecksumHexAddress } from '@metamask/controller-utils';
-import type {
-  KeyringControllerGetAccountsAction,
-  KeyringControllerStateChangeEvent,
-  KeyringControllerGetStateAction,
-  KeyringControllerLockEvent,
-  KeyringControllerUnlockEvent,
+import {
+  isValidHexAddress,
+  toChecksumHexAddress,
+} from '@metamask/controller-utils';
+import {
+  type KeyringControllerStateChangeEvent,
+  type KeyringControllerGetStateAction,
+  type KeyringControllerLockEvent,
+  type KeyringControllerUnlockEvent,
+  type KeyringControllerWithKeyringAction,
+  KeyringTypes,
 } from '@metamask/keyring-controller';
 import type {
   AuthenticationController,
@@ -33,33 +37,14 @@ import type {
 import type { OnChainRawNotification } from './types/on-chain-notification/on-chain-notification';
 import type { UserStorage } from './types/user-storage/user-storage';
 import * as Utils from './utils/utils';
-
-// TODO: Fix Circular Type Dependencies
-// This indicates that control flow of messages is everywhere, lets orchestrate these better
-export type NotificationServicesPushControllerEnablePushNotifications = {
-  type: `NotificationServicesPushController:enablePushNotifications`;
-  handler: (UUIDs: string[]) => Promise<void>;
-};
-
-export type NotificationServicesPushControllerDisablePushNotifications = {
-  type: `NotificationServicesPushController:disablePushNotifications`;
-  handler: (UUIDs: string[]) => Promise<void>;
-};
-
-export type NotificationServicesPushControllerUpdateTriggerPushNotifications = {
-  type: `NotificationServicesPushController:updateTriggerPushNotifications`;
-  handler: (UUIDs: string[]) => Promise<void>;
-};
-
-export type NotificationServicesPushControllerSubscribeToNotifications = {
-  type: `NotificationServicesPushController:subscribeToPushNotifications`;
-  handler: () => Promise<void>;
-};
-
-export type NotificationServicesPushControllerOnNewNotification = {
-  type: `NotificationServicesPushController:onNewNotifications`;
-  payload: [INotification];
-};
+import type {
+  NotificationServicesPushControllerEnablePushNotificationsAction,
+  NotificationServicesPushControllerDisablePushNotificationsAction,
+  NotificationServicesPushControllerUpdateTriggerPushNotificationsAction,
+  NotificationServicesPushControllerSubscribeToNotificationsAction,
+  NotificationServicesPushControllerStateChangeEvent,
+  NotificationServicesPushControllerOnNewNotificationEvent,
+} from '../NotificationServicesPushController';
 
 // Unique name for the controller
 const controllerName = 'NotificationServicesController';
@@ -194,12 +179,6 @@ export type NotificationServicesControllerDisableNotificationServices = {
   handler: NotificationServicesController['disableNotificationServices'];
 };
 
-export type NotificationServicesControllerSelectIsNotificationServicesEnabled =
-  {
-    type: `${typeof controllerName}:selectIsNotificationServicesEnabled`;
-    handler: NotificationServicesController['selectIsNotificationServicesEnabled'];
-  };
-
 export type NotificationServicesControllerGetNotificationsByType = {
   type: `${typeof controllerName}:getNotificationsByType`;
   handler: NotificationServicesController['getNotificationsByType'];
@@ -215,14 +194,13 @@ export type Actions =
   | NotificationServicesControllerGetStateAction
   | NotificationServicesControllerUpdateMetamaskNotificationsList
   | NotificationServicesControllerDisableNotificationServices
-  | NotificationServicesControllerSelectIsNotificationServicesEnabled
   | NotificationServicesControllerGetNotificationsByType
   | NotificationServicesControllerDeleteNotificationsById;
 
 // Allowed Actions
 export type AllowedActions =
   // Keyring Controller Requests
-  | KeyringControllerGetAccountsAction
+  | KeyringControllerWithKeyringAction
   | KeyringControllerGetStateAction
   // Auth Controller Requests
   | AuthenticationController.AuthenticationControllerGetBearerToken
@@ -233,10 +211,10 @@ export type AllowedActions =
   | UserStorageController.UserStorageControllerPerformGetStorage
   | UserStorageController.UserStorageControllerPerformSetStorage
   // Push Notifications Controller Requests
-  | NotificationServicesPushControllerEnablePushNotifications
-  | NotificationServicesPushControllerDisablePushNotifications
-  | NotificationServicesPushControllerUpdateTriggerPushNotifications
-  | NotificationServicesPushControllerSubscribeToNotifications;
+  | NotificationServicesPushControllerEnablePushNotificationsAction
+  | NotificationServicesPushControllerDisablePushNotificationsAction
+  | NotificationServicesPushControllerUpdateTriggerPushNotificationsAction
+  | NotificationServicesPushControllerSubscribeToNotificationsAction;
 
 // Events
 export type NotificationServicesControllerStateChangeEvent =
@@ -268,7 +246,8 @@ export type AllowedEvents =
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
   // Push Notification Events
-  | NotificationServicesPushControllerOnNewNotification;
+  | NotificationServicesPushControllerOnNewNotificationEvent
+  | NotificationServicesPushControllerStateChangeEvent;
 
 // Type for the messenger of NotificationServicesController
 export type NotificationServicesControllerMessenger = RestrictedMessenger<
@@ -293,25 +272,17 @@ export default class NotificationServicesController extends BaseController<
   NotificationServicesControllerState,
   NotificationServicesControllerMessenger
 > {
-  // Temporary boolean as push notifications are not yet enabled on mobile
-  readonly #isPushIntegrated: boolean = true;
-
-  // Flag to check is notifications have been setup when the browser/extension is initialized.
-  // We want to re-initialize push notifications when the browser/extension is refreshed
-  // To ensure we subscribe to the most up-to-date notifications
-  #isPushNotificationsSetup = false;
-
-  #isUnlocked = false;
-
   readonly #keyringController = {
+    isUnlocked: false,
+
     setupLockedStateSubscriptions: (onUnlock: () => Promise<void>) => {
       const { isUnlocked } = this.messagingSystem.call(
         'KeyringController:getState',
       );
-      this.#isUnlocked = isUnlocked;
+      this.#keyringController.isUnlocked = isUnlocked;
 
       this.messagingSystem.subscribe('KeyringController:unlock', () => {
-        this.#isUnlocked = true;
+        this.#keyringController.isUnlocked = true;
         // messaging system cannot await promises
         // we don't need to wait for a result on this.
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
@@ -319,7 +290,7 @@ export default class NotificationServicesController extends BaseController<
       });
 
       this.messagingSystem.subscribe('KeyringController:lock', () => {
-        this.#isUnlocked = false;
+        this.#keyringController.isUnlocked = false;
       });
     },
   };
@@ -360,15 +331,17 @@ export default class NotificationServicesController extends BaseController<
   };
 
   readonly #pushNotifications = {
+    // Flag to check is notifications have been setup when the browser/extension is initialized.
+    // We want to re-initialize push notifications when the browser/extension is refreshed
+    // To ensure we subscribe to the most up-to-date notifications
+    isSetup: false,
+
     subscribeToPushNotifications: async () => {
       await this.messagingSystem.call(
         'NotificationServicesPushController:subscribeToPushNotifications',
       );
     },
     enablePushNotifications: async (UUIDs: string[]) => {
-      if (!this.#isPushIntegrated) {
-        return;
-      }
       try {
         await this.messagingSystem.call(
           'NotificationServicesPushController:enablePushNotifications',
@@ -378,23 +351,16 @@ export default class NotificationServicesController extends BaseController<
         log.error('Silently failed to enable push notifications', e);
       }
     },
-    disablePushNotifications: async (UUIDs: string[]) => {
-      if (!this.#isPushIntegrated) {
-        return;
-      }
+    disablePushNotifications: async () => {
       try {
         await this.messagingSystem.call(
           'NotificationServicesPushController:disablePushNotifications',
-          UUIDs,
         );
       } catch (e) {
         log.error('Silently failed to disable push notifications', e);
       }
     },
     updatePushNotifications: async (UUIDs: string[]) => {
-      if (!this.#isPushIntegrated) {
-        return;
-      }
       try {
         await this.messagingSystem.call(
           'NotificationServicesPushController:updateTriggerPushNotifications',
@@ -405,9 +371,6 @@ export default class NotificationServicesController extends BaseController<
       }
     },
     subscribe: () => {
-      if (!this.#isPushIntegrated) {
-        return;
-      }
       this.messagingSystem.subscribe(
         'NotificationServicesPushController:onNewNotifications',
         (notification) => {
@@ -417,34 +380,52 @@ export default class NotificationServicesController extends BaseController<
       );
     },
     initializePushNotifications: async () => {
-      if (!this.#isPushIntegrated) {
-        return;
-      }
       if (!this.state.isNotificationServicesEnabled) {
         return;
       }
-      if (this.#isPushNotificationsSetup) {
+      if (this.#pushNotifications.isSetup) {
         return;
       }
 
       // If wallet is unlocked, we can create a fresh push subscription
       // Otherwise we can subscribe to original subscription
-      if (this.#isUnlocked) {
-        const storage = await this.#getUserStorage();
-        if (!storage) {
-          return;
+      try {
+        if (!this.#keyringController.isUnlocked) {
+          throw new Error('Keyring is locked');
         }
-
-        const uuids = Utils.getAllUUIDs(storage);
-        await this.#pushNotifications.enablePushNotifications(uuids);
-        this.#isPushNotificationsSetup = true;
-      } else {
-        await this.#pushNotifications.subscribeToPushNotifications();
+        await this.enablePushNotifications();
+        this.#pushNotifications.isSetup = true;
+      } catch {
+        await this.#pushNotifications
+          .subscribeToPushNotifications()
+          .catch(() => {
+            // do nothing
+          });
       }
     },
   };
 
   readonly #accounts = {
+    // Flag to ensure we only setup once
+    isNotificationAccountsSetup: false,
+
+    getNotificationAccounts: async () => {
+      const mainHDWalletAccounts = (await this.messagingSystem
+        .call(
+          'KeyringController:withKeyring',
+          {
+            type: KeyringTypes.hd,
+            index: 0,
+          },
+          async ({ keyring }): Promise<string[]> => {
+            return await keyring.getAccounts();
+          },
+        )
+        .catch(() => null)) as string[] | null;
+
+      return mainHDWalletAccounts;
+    },
+
     /**
      * Used to get list of addresses from keyring (wallet addresses)
      *
@@ -452,10 +433,20 @@ export default class NotificationServicesController extends BaseController<
      */
     listAccounts: async () => {
       // Get previous and current account sets
-      const nonChecksumAccounts = await this.messagingSystem.call(
-        'KeyringController:getAccounts',
-      );
-      const accounts = nonChecksumAccounts.map((a) => toChecksumHexAddress(a));
+      const nonChecksumAccounts =
+        await this.#accounts.getNotificationAccounts();
+
+      if (!nonChecksumAccounts) {
+        return {
+          accountsAdded: [],
+          accountsRemoved: [],
+          accounts: [],
+        };
+      }
+
+      const accounts = nonChecksumAccounts
+        .map((a) => toChecksumHexAddress(a))
+        .filter((a) => isValidHexAddress(a));
       const currentAccountsSet = new Set(accounts);
       const prevAccountsSet = new Set(this.state.subscriptionAccountsSeen);
 
@@ -477,7 +468,7 @@ export default class NotificationServicesController extends BaseController<
 
       // Update accounts seen
       this.update((state) => {
-        state.subscriptionAccountsSeen = [...prevAccountsSet, ...accountsAdded];
+        state.subscriptionAccountsSeen = [...currentAccountsSet];
       });
 
       return {
@@ -492,8 +483,14 @@ export default class NotificationServicesController extends BaseController<
      *
      * @returns result from list accounts
      */
-    initialize: () => {
-      return this.#accounts.listAccounts();
+    initialize: async (): Promise<void> => {
+      if (
+        this.#keyringController.isUnlocked &&
+        !this.#accounts.isNotificationAccountsSetup
+      ) {
+        await this.#accounts.listAccounts();
+        this.#accounts.isNotificationAccountsSetup = true;
+      }
     },
 
     /**
@@ -504,7 +501,6 @@ export default class NotificationServicesController extends BaseController<
     subscribe: () => {
       this.messagingSystem.subscribe(
         'KeyringController:stateChange',
-
         async () => {
           if (!this.state.isNotificationServicesEnabled) {
             return;
@@ -557,14 +553,16 @@ export default class NotificationServicesController extends BaseController<
       state: { ...defaultState, ...state },
     });
 
-    this.#isPushIntegrated = env.isPushIntegrated ?? true;
     this.#featureAnnouncementEnv = env.featureAnnouncements;
     this.#registerMessageHandlers();
     this.#clearLoadingStates();
+  }
 
-    this.#keyringController.setupLockedStateSubscriptions(
-      this.#pushNotifications.initializePushNotifications,
-    );
+  init() {
+    this.#keyringController.setupLockedStateSubscriptions(async () => {
+      await this.#accounts.initialize();
+      await this.#pushNotifications.initializePushNotifications();
+    });
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.#accounts.initialize();
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
@@ -582,11 +580,6 @@ export default class NotificationServicesController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:disableNotificationServices`,
       this.disableNotificationServices.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:selectIsNotificationServicesEnabled`,
-      this.selectIsNotificationServicesEnabled.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
@@ -615,6 +608,13 @@ export default class NotificationServicesController extends BaseController<
         state.isNotificationServicesEnabled = false;
       });
       throw new Error('User is not signed in.');
+    }
+  }
+
+  async #enableAuth() {
+    const isSignedIn = this.#auth.isSignedIn();
+    if (!isSignedIn) {
+      await this.#auth.signIn();
     }
   }
 
@@ -658,23 +658,12 @@ export default class NotificationServicesController extends BaseController<
 
     try {
       const userStorage: UserStorage = JSON.parse(userStorageString);
+      Utils.cleanUserStorage(userStorage);
       return userStorage;
     } catch {
       log.error('Unable to parse User Storage');
       return null;
     }
-  }
-
-  /**
-   * Retrieves the current enabled state of MetaMask notifications.
-   *
-   * This method directly returns the boolean value of `isMetamaskNotificationsEnabled`
-   * from the controller's state, indicating whether MetaMask notifications are currently enabled.
-   *
-   * @returns The enabled state of MetaMask notifications.
-   */
-  public selectIsNotificationServicesEnabled(): boolean {
-    return this.state.isNotificationServicesEnabled;
   }
 
   /**
@@ -754,6 +743,26 @@ export default class NotificationServicesController extends BaseController<
           (existingAccount) => !accounts.includes(existingAccount),
         );
     });
+  }
+
+  /**
+   * Public method to expose enabling push notifications
+   */
+  public async enablePushNotifications() {
+    await this.#enableAuth();
+    const storage = await this.#getUserStorage();
+    if (!storage) {
+      throw new Error('Unable to get triggers');
+    }
+    const uuids = Utils.getAllUUIDs(storage);
+    await this.#pushNotifications.enablePushNotifications(uuids);
+  }
+
+  /**
+   * Public method to expose disabling push notifications
+   */
+  public async disablePushNotifications() {
+    await this.#pushNotifications.disablePushNotifications();
   }
 
   public async checkAccountsPresence(
@@ -849,9 +858,12 @@ export default class NotificationServicesController extends BaseController<
         triggers,
       );
 
-      // Create push notifications triggers
+      // Create push notifications triggers in background
       const allUUIDS = Utils.getAllUUIDs(userStorage);
-      await this.#pushNotifications.enablePushNotifications(allUUIDS);
+      // We do not want to wait for this request as it may take a while (e.g. for Firebase to setup)
+      this.#pushNotifications.enablePushNotifications(allUUIDS).catch(() => {
+        // Do Nothing
+      });
 
       // Write the new userStorage (triggers are now "enabled")
       await this.#storage.setNotificationStorage(JSON.stringify(userStorage));
@@ -885,12 +897,7 @@ export default class NotificationServicesController extends BaseController<
   public async enableMetamaskNotifications() {
     try {
       this.#setIsUpdatingMetamaskNotifications(true);
-
-      const isSignedIn = this.#auth.isSignedIn();
-      if (!isSignedIn) {
-        await this.#auth.signIn();
-      }
-
+      await this.#enableAuth();
       await this.createOnChainTriggers();
     } catch (e) {
       log.error('Unable to enable notifications', e);
@@ -909,33 +916,29 @@ export default class NotificationServicesController extends BaseController<
    * @throws {Error} If the user is not authenticated or if there is an error during the process.
    */
   public async disableNotificationServices() {
+    this.#setIsUpdatingMetamaskNotifications(true);
+
+    // Attempt Disable Push Notifications
     try {
-      this.#setIsUpdatingMetamaskNotifications(true);
-
-      // Disable Push Notifications
-      const userStorage = await this.#getUserStorage();
-      this.#assertUserStorage(userStorage);
-      const UUIDs = Utils.getAllUUIDs(userStorage);
-      await this.#pushNotifications.disablePushNotifications(UUIDs);
-
-      const snapNotifications = this.state.metamaskNotificationsList.filter(
-        (notification) => notification.type === TRIGGER_TYPES.SNAP,
-      );
-
-      // Clear Notification States (toggles and list)
-      this.update((state) => {
-        state.isNotificationServicesEnabled = false;
-        state.isFeatureAnnouncementsEnabled = false;
-        // reassigning the notifications list with just snaps
-        // since the disable shouldn't affect snaps notifications
-        state.metamaskNotificationsList = snapNotifications;
-      });
-    } catch (e) {
-      log.error('Unable to disable notifications', e);
-      throw new Error('Unable to disable notifications');
-    } finally {
-      this.#setIsUpdatingMetamaskNotifications(false);
+      await this.#pushNotifications.disablePushNotifications();
+    } catch {
+      // Do nothing
     }
+
+    // Update State: remove non-permitted notifications & disable flags
+    const snapNotifications = this.state.metamaskNotificationsList.filter(
+      (notification) => notification.type === TRIGGER_TYPES.SNAP,
+    );
+    this.update((state) => {
+      state.isNotificationServicesEnabled = false;
+      state.isFeatureAnnouncementsEnabled = false;
+      // reassigning the notifications list with just snaps
+      // since the disable shouldn't affect snaps notifications
+      state.metamaskNotificationsList = snapNotifications;
+    });
+
+    // Finish Updating State
+    this.#setIsUpdatingMetamaskNotifications(false);
   }
 
   /**
@@ -982,8 +985,11 @@ export default class NotificationServicesController extends BaseController<
         UUIDs,
       );
 
-      // Delete these UUIDs from the push notifications
-      await this.#pushNotifications.disablePushNotifications(UUIDs);
+      // Update Push Notifications with new list of IDs
+      const remainingTriggerIds = Utils.getAllUUIDs(userStorage);
+      await this.#pushNotifications.updatePushNotifications(
+        remainingTriggerIds,
+      );
 
       // Update User Storage
       await this.#storage.setNotificationStorage(JSON.stringify(userStorage));

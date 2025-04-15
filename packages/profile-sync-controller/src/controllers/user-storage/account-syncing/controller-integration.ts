@@ -1,4 +1,5 @@
 import { isEvmAccountType } from '@metamask/keyring-api';
+import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import {
@@ -6,9 +7,9 @@ import {
   getInternalAccountsList,
   getUserStorageAccountsList,
 } from './sync-utils';
-import type { AccountSyncingConfig, AccountSyncingOptions } from './types';
+import type { AccountSyncingOptions } from './types';
 import {
-  doesInternalAccountHaveCorrectKeyringType,
+  isInternalAccountFromPrimarySRPHdKeyring,
   isNameDefaultAccountName,
   mapInternalAccountToUserStorageAccount,
 } from './utils';
@@ -18,22 +19,18 @@ import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
  * Saves an individual internal account to the user storage.
  *
  * @param internalAccount - The internal account to save
- * @param config - parameters used for saving the internal account
  * @param options - parameters used for saving the internal account
  */
 export async function saveInternalAccountToUserStorage(
   internalAccount: InternalAccount,
-  config: AccountSyncingConfig,
   options: AccountSyncingOptions,
 ): Promise<void> {
-  const { isAccountSyncingEnabled } = config;
   const { getUserStorageControllerInstance } = options;
 
   if (
-    !isAccountSyncingEnabled ||
-    !canPerformAccountSyncing(config, options) ||
+    !canPerformAccountSyncing(options) ||
     !isEvmAccountType(internalAccount.type) ||
-    !doesInternalAccountHaveCorrectKeyringType(internalAccount)
+    !(await isInternalAccountFromPrimarySRPHdKeyring(internalAccount, options))
   ) {
     return;
   }
@@ -61,19 +58,12 @@ export async function saveInternalAccountToUserStorage(
 /**
  * Saves the list of internal accounts to the user storage.
  *
- * @param config - parameters used for saving the list of internal accounts
  * @param options - parameters used for saving the list of internal accounts
  */
 export async function saveInternalAccountsListToUserStorage(
-  config: AccountSyncingConfig,
   options: AccountSyncingOptions,
 ): Promise<void> {
-  const { isAccountSyncingEnabled } = config;
   const { getUserStorageControllerInstance } = options;
-
-  if (!isAccountSyncingEnabled) {
-    return;
-  }
 
   const internalAccountsList = await getInternalAccountsList(options);
 
@@ -94,7 +84,7 @@ export async function saveInternalAccountsListToUserStorage(
   );
 }
 
-type SyncInternalAccountsWithUserStorageConfig = AccountSyncingConfig & {
+type SyncInternalAccountsWithUserStorageConfig = {
   maxNumberOfAccountsToAdd?: number;
   onAccountAdded?: () => void;
   onAccountNameUpdated?: () => void;
@@ -116,14 +106,12 @@ export async function syncInternalAccountsWithUserStorage(
   config: SyncInternalAccountsWithUserStorageConfig,
   options: AccountSyncingOptions,
 ): Promise<void> {
-  const { isAccountSyncingEnabled } = config;
-
-  if (!canPerformAccountSyncing(config, options) || !isAccountSyncingEnabled) {
+  if (!canPerformAccountSyncing(options)) {
     return;
   }
 
   const {
-    maxNumberOfAccountsToAdd = 100,
+    maxNumberOfAccountsToAdd = Infinity,
     onAccountAdded,
     onAccountNameUpdated,
     onAccountSyncErroneousSituation,
@@ -138,10 +126,7 @@ export async function syncInternalAccountsWithUserStorage(
     const userStorageAccountsList = await getUserStorageAccountsList(options);
 
     if (!userStorageAccountsList || !userStorageAccountsList.length) {
-      await saveInternalAccountsListToUserStorage(
-        { isAccountSyncingEnabled },
-        options,
-      );
+      await saveInternalAccountsListToUserStorage(options);
       await getUserStorageControllerInstance().setHasAccountSyncingSyncedAtLeastOnce(
         true,
       );
@@ -173,8 +158,21 @@ export async function syncInternalAccountsWithUserStorage(
         internalAccountsList.length;
 
       // Create new accounts to match the user storage accounts list
+      // NOTE: we only support the primary SRP HD keyring for now
+      // This is why we are hardcoding the index to 0
+      await getMessenger().call(
+        'KeyringController:withKeyring',
+        {
+          type: KeyringTypes.hd,
+          index: 0,
+        },
+        async ({ keyring }) => {
+          await keyring.addAccounts(numberOfAccountsToAdd);
+        },
+      );
+
+      // TODO: below code is kept for analytics but should probably be re-thought
       for (let i = 0; i < numberOfAccountsToAdd; i++) {
-        await getMessenger().call('KeyringController:addNewAccount');
         onAccountAdded?.();
       }
     }

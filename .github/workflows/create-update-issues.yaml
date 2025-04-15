@@ -14,9 +14,8 @@ jobs:
     steps:
       - name: Checkout head
         uses: actions/checkout@v4
-        with:
-          fetch-tags: true
-
+      - name: Fetch tags
+        run: git fetch --prune --unshallow --tags
       - name: Create Issues
         env:
           GH_TOKEN: ${{ secrets.CORE_CREATE_UPDATE_ISSUES_TOKEN }}

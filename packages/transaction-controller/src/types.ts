@@ -6,11 +6,11 @@ import type { NetworkClientId, Provider } from '@metamask/network-controller';
 import type { Hex, Json } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
+import type { TransactionControllerMessenger } from './TransactionController';
+
 /**
  * Given a record, ensures that each property matches the `Json` type.
  */
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
 type MakeJsonCompatible<T> = T extends Json
   ? T
   : {
@@ -26,23 +26,9 @@ type MakeJsonCompatible<T> = T extends Json
 type JsonCompatibleOperation = MakeJsonCompatible<Operation>;
 
 /**
- * Representation of transaction metadata.
- */
-export type TransactionMeta = TransactionMetaBase &
-  (
-    | {
-        status: Exclude<TransactionStatus, TransactionStatus.failed>;
-      }
-    | {
-        status: TransactionStatus.failed;
-        error: TransactionError;
-      }
-  );
-
-/**
  * Information about a single transaction such as status and block number.
  */
-type TransactionMetaBase = {
+export type TransactionMeta = {
   /**
    * ID of the transaction that approved the swap token transfer.
    */
@@ -57,6 +43,16 @@ type TransactionMetaBase = {
    * Base fee of the block as a hex value, introduced in EIP-1559.
    */
   baseFeePerGas?: Hex;
+
+  /**
+   * ID of the associated transaction batch.
+   */
+  batchId?: Hex;
+
+  /**
+   * Additional transactions that must also be submitted in a batch.
+   */
+  batchTransactions?: BatchTransactionParams[];
 
   /**
    * Number of the block where the transaction has been included.
@@ -83,16 +79,6 @@ type TransactionMetaBase = {
    */
   currentTokenBalance?: string;
 
-  /**
-   * Unique ID for custodian transaction.
-   */
-  custodyId?: string;
-
-  /**
-   * Custodian transaction status.
-   */
-  custodyStatus?: string;
-
   /** The optional custom nonce override as a decimal string. */
   customNonceValue?: string;
 
@@ -115,6 +101,12 @@ type TransactionMetaBase = {
    * The initial gas values set when the transaction was first created.
    */
   defaultGasEstimates?: DefaultGasEstimates;
+
+  /**
+   * Address of the sender's current contract code delegation.
+   * Introduced in EIP-7702.
+   */
+  delegationAddress?: Hex;
 
   /**
    * String to indicate what device the transaction was confirmed on.
@@ -147,6 +139,17 @@ type TransactionMetaBase = {
   destinationTokenSymbol?: string;
 
   /**
+   * Whether to disable the buffer added to gas limit estimations.
+   * Defaults to adding the buffer.
+   */
+  disableGasBuffer?: boolean;
+
+  /**
+   * Error that occurred during the transaction processing.
+   */
+  error?: TransactionError;
+
+  /**
    * The estimated base fee of the transaction.
    */
   estimatedBaseFee?: string;
@@ -172,6 +175,14 @@ type TransactionMetaBase = {
    * The number of the latest block when the transaction submit was first retried.
    */
   firstRetryBlockNumber?: string;
+
+  /** Available tokens that can be used to pay for gas. */
+  gasFeeTokens?: GasFeeToken[];
+
+  /**
+   * Whether the transaction is active.
+   */
+  isActive?: boolean;
 
   /**
    * Whether the transaction is the first time interaction.
@@ -205,6 +216,12 @@ type TransactionMetaBase = {
   id: string;
 
   /**
+   * Whether the transaction is signed externally.
+   * No signing will be performed in the client and the `nonce` will be `undefined`.
+   */
+  isExternalSign?: boolean;
+
+  /**
    * Whether the transaction is a transfer.
    */
   isTransfer?: boolean;
@@ -218,6 +235,12 @@ type TransactionMetaBase = {
    * Additional gas fees to cover the cost of persisting data on layer 1 for layer 2 networks.
    */
   layer1GasFee?: Hex;
+
+  /**
+   * Data for any nested transactions.
+   * For example, in an atomic batch transaction via EIP-7702.
+   */
+  nestedTransactions?: NestedTransactionMetadata[];
 
   /**
    * The ID of the network client used by the transaction.
@@ -326,6 +349,12 @@ type TransactionMetaBase = {
   securityProviderResponse?: Record<string, any>;
 
   /**
+   * The token address of the selected gas fee token.
+   * Corresponds to the `gasFeeTokens` property.
+   */
+  selectedGasFeeToken?: Hex;
+
+  /**
    * An array of entries that describe the user's journey through the send flow.
    * This is purely attached to state logs for troubleshooting and support.
    */
@@ -347,6 +376,9 @@ type TransactionMetaBase = {
       blockGasLimit?: string;
     };
   };
+
+  /** Current status of the transaction. */
+  status: TransactionStatus;
 
   /**
    * The time the transaction was submitted to the network, in Unix epoch time (ms).
@@ -478,70 +510,52 @@ export enum TransactionStatus {
   /**
    * The initial state of a transaction before user approval.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   unapproved = 'unapproved',
 
   /**
    * The transaction has been approved by the user but is not yet signed.
    * This status is usually brief but may be longer for scenarios like hardware wallet usage.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   approved = 'approved',
 
   /**
    * The transaction is signed and in the process of being submitted to the network.
    * This status is typically short-lived but can be longer for certain cases, such as smart transactions.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   signed = 'signed',
 
   /**
    * The transaction has been submitted to the network and is awaiting confirmation.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   submitted = 'submitted',
 
   /**
    * The transaction has been successfully executed and confirmed on the blockchain.
    * This is a final state.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   confirmed = 'confirmed',
 
   /**
    * The transaction encountered an error during execution on the blockchain and failed.
    * This is a final state.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   failed = 'failed',
 
   /**
    * The transaction was superseded by another transaction, resulting in its dismissal.
    * This is a final state.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   dropped = 'dropped',
 
   /**
    * The transaction was rejected by the user and not processed further.
    * This is a final state.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   rejected = 'rejected',
 
   /**
    * @deprecated This status is no longer used.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   cancelled = 'cancelled',
 }
 
@@ -549,20 +563,21 @@ export enum TransactionStatus {
  * Options for wallet device.
  */
 export enum WalletDevice {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   MM_MOBILE = 'metamask_mobile',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   MM_EXTENSION = 'metamask_extension',
   OTHER = 'other_device',
 }
 
-/* eslint-disable @typescript-eslint/naming-convention */
 /**
  * The type of the transaction.
  */
 export enum TransactionType {
+  /**
+   * A batch transaction that includes multiple nested transactions.
+   * Introduced in EIP-7702.
+   */
+  batch = 'batch',
+
   /**
    * A transaction that bridges tokens to a different chain through Metamask Bridge.
    */
@@ -604,6 +619,11 @@ export enum TransactionType {
   ethGetEncryptionPublicKey = 'eth_getEncryptionPublicKey',
 
   /**
+   * Transaction is a token or native transfer to MetaMask to pay for gas fees.
+   */
+  gasPayment = 'gas_payment',
+
+  /**
    * An incoming (deposit) transaction.
    */
   incoming = 'incoming',
@@ -620,6 +640,12 @@ export enum TransactionType {
    * the same nonce and higher gas fees.
    */
   retry = 'retry',
+
+  /**
+   * Remove the code / delegation from an upgraded EOA.
+   * Introduced in EIP-7702.
+   */
+  revokeDelegation = 'revokeDelegation',
 
   /**
    * A transaction sending a network's native asset to a recipient.
@@ -707,7 +733,6 @@ export enum TransactionType {
    */
   tokenMethodIncreaseAllowance = 'increaseAllowance',
 }
-/* eslint-enable @typescript-eslint/naming-convention */
 
 /**
  * Standard data concerning a transaction to be processed by the blockchain.
@@ -719,7 +744,17 @@ export type TransactionParams = {
   accessList?: AccessList;
 
   /**
+   * Array of authorizations to set code on EOA accounts.
+   * Only supported in `setCode` transactions.
+   * Introduced in EIP-7702.
+   */
+  authorizationList?: AuthorizationList;
+
+  /**
    * Network ID as per EIP-155.
+   *
+   * @deprecated Ignored.
+   * Use `networkClientId` when calling `addTransaction`.
    */
   chainId?: Hex;
 
@@ -754,12 +789,14 @@ export type TransactionParams = {
   from: string;
 
   /**
-   * same as gasLimit?
+   * Maximum number of units of gas to use for this transaction.
    */
   gas?: string;
 
   /**
-   * Maxmimum number of units of gas to use for this transaction.
+   * Maximum number of units of gas to use for this transaction.
+   *
+   * @deprecated Use `gas` instead.
    */
   gasLimit?: string;
 
@@ -845,6 +882,9 @@ export type TransactionReceipt = {
    */
   status?: string;
 
+  /** Hash of the associated transaction. */
+  transactionHash?: Hex;
+
   /**
    * The hexadecimal index of this transaction in the list of transactions included in the block this transaction was mined in.
    */
@@ -859,6 +899,10 @@ export type Log = {
    * Address of the contract that generated log.
    */
   address?: string;
+
+  /** Data for the log. */
+  data?: Hex;
+
   /**
    * List of topics for log.
    */
@@ -878,14 +922,9 @@ export interface RemoteTransactionSourceRequest {
   address: Hex;
 
   /**
-   * Numerical cache to optimize fetching transactions.
+   * Cache to optimize fetching transactions.
    */
   cache: Record<string, unknown>;
-
-  /**
-   * The IDs of the chains to query.
-   */
-  chainIds: Hex[];
 
   /**
    * Whether to also include incoming token transfers.
@@ -1009,8 +1048,6 @@ export enum TransactionEnvelopeType {
   /**
    * A legacy transaction, the very first type.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   legacy = '0x0',
 
   /**
@@ -1018,8 +1055,6 @@ export enum TransactionEnvelopeType {
    * specifying the state that a transaction would act upon in advance and
    * theoretically save on gas fees.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   accessList = '0x1',
 
   /**
@@ -1030,9 +1065,14 @@ export enum TransactionEnvelopeType {
    * the maxPriorityFeePerGas (maximum amount of gwei per gas from the
    * transaction fee to distribute to miner).
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   feeMarket = '0x2',
+
+  /**
+   * Adds code to externally owned accounts according to the signed authorizations
+   * in the new `authorizationList` parameter.
+   * Introduced in EIP-7702.
+   */
+  setCode = '0x4',
 }
 
 /**
@@ -1040,8 +1080,6 @@ export enum TransactionEnvelopeType {
  */
 export enum UserFeeLevel {
   CUSTOM = 'custom',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   DAPP_SUGGESTED = 'dappSuggested',
   MEDIUM = 'medium',
 }
@@ -1115,12 +1153,11 @@ export type TransactionError = {
  * Type for security alert response from transaction validator.
  */
 export type SecurityAlertResponse = {
-  reason: string;
   features?: string[];
-  // This is API specific hence naming convention is not followed.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  result_type: string;
   providerRequestsCount?: Record<string, number>;
+  reason: string;
+  result_type: string;
+  securityAlertId?: string;
 };
 
 /** Alternate priority levels for which values are provided in gas fee estimates. */
@@ -1182,6 +1219,9 @@ export type GasFeeFlowRequest = {
   /** Gas fee controller data matching the chain ID of the transaction. */
   gasFeeControllerData: GasFeeState;
 
+  /** The messenger instance. */
+  messenger: TransactionControllerMessenger;
+
   /** The metadata of the transaction to obtain estimates for. */
   transactionMeta: TransactionMeta;
 };
@@ -1196,13 +1236,23 @@ export type GasFeeFlowResponse = {
 export type GasFeeFlow = {
   /**
    * Determine if the gas fee flow supports the specified transaction.
-   * @param transactionMeta - The transaction metadata.
+   *
+   * @param args - The arguments for the matcher function.
+   * @param args.transactionMeta - The transaction metadata.
+   * @param args.messenger - The messenger instance.
    * @returns Whether the gas fee flow supports the transaction.
    */
-  matchesTransaction(transactionMeta: TransactionMeta): boolean;
+  matchesTransaction({
+    transactionMeta,
+    messenger,
+  }: {
+    transactionMeta: TransactionMeta;
+    messenger: TransactionControllerMessenger;
+  }): boolean;
 
   /**
    * Get gas fee estimates for a specific transaction.
+   *
    * @param request - The gas fee flow request.
    * @returns The gas fee flow response containing the gas fee estimates.
    */
@@ -1228,13 +1278,23 @@ export type Layer1GasFeeFlowResponse = {
 export type Layer1GasFeeFlow = {
   /**
    * Determine if the gas fee flow supports the specified transaction.
-   * @param transactionMeta - The transaction metadata.
-   * @returns Whether the layer1 gas fee flow supports the transaction.
+   *
+   * @param args - The arguments for the matcher function.
+   * @param args.transactionMeta - The transaction metadata.
+   * @param args.messenger - The messenger instance.
+   * @returns Whether the gas fee flow supports the transaction.
    */
-  matchesTransaction(transactionMeta: TransactionMeta): boolean;
+  matchesTransaction({
+    transactionMeta,
+    messenger,
+  }: {
+    transactionMeta: TransactionMeta;
+    messenger: TransactionControllerMessenger;
+  }): boolean;
 
   /**
    * Get layer 1 gas fee estimates for a specific transaction.
+   *
    * @param request - The gas fee flow request.
    * @returns The gas fee flow response containing the layer 1 gas fee estimate.
    */
@@ -1260,14 +1320,8 @@ export type SimulationBalanceChange = {
 
 /** Token standards supported by simulation. */
 export enum SimulationTokenStandard {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   erc20 = 'erc20',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   erc721 = 'erc721',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   erc1155 = 'erc1155',
 }
 
@@ -1373,3 +1427,332 @@ export type SubmitHistoryEntry = {
 export type InternalAccount = ReturnType<
   AccountsController['getSelectedAccount']
 >;
+
+/**
+ * An authorization to be included in a `setCode` transaction.
+ * Specifies code to be added to the authorization signer's EOA account.
+ * Introduced in EIP-7702.
+ */
+export type Authorization = {
+  /** Address of a smart contract that contains the code to be set. */
+  address: Hex;
+
+  /**
+   * Specific chain the authorization applies to.
+   * If not provided, defaults to the chain ID of the transaction.
+   */
+  chainId?: Hex;
+
+  /**
+   * Nonce at which the authorization will be valid.
+   * If not provided, defaults to the nonce following the transaction's nonce.
+   */
+  nonce?: Hex;
+
+  /** R component of the signature. */
+  r?: Hex;
+
+  /** S component of the signature. */
+  s?: Hex;
+
+  /** Y parity generated from the signature. */
+  yParity?: Hex;
+};
+
+/**
+ * An array of authorizations to be included in a `setCode` transaction.
+ * Introduced in EIP-7702.
+ */
+export type AuthorizationList = Authorization[];
+
+/**
+ * The parameters of a transaction within an atomic batch.
+ */
+export type BatchTransactionParams = {
+  /** Data used to invoke a function on the target smart contract or EOA. */
+  data?: Hex;
+
+  /**
+   * Maximum number of units of gas to use for the transaction.
+   * Not supported in EIP-7702 batches.
+   */
+  gas?: Hex;
+
+  /**
+   * Maximum amount per gas to pay for the transaction, including the priority fee.
+   * Not supported in EIP-7702 batches.
+   */
+  maxFeePerGas?: Hex;
+
+  /**
+   * Maximum amount per gas to give to validator as incentive.
+   * Not supported in EIP-7702 batches.
+   */
+  maxPriorityFeePerGas?: Hex;
+
+  /** Address of the target contract or EOA. */
+  to?: Hex;
+
+  /** Native balance to transfer with the transaction. */
+  value?: Hex;
+};
+
+/** Metadata for a nested transaction within a standard transaction. */
+export type NestedTransactionMetadata = BatchTransactionParams & {
+  /** Type of the neted transaction. */
+  type?: TransactionType;
+};
+
+/**
+ * Specification for a single transaction within a batch request.
+ */
+export type TransactionBatchSingleRequest = {
+  /** Data if the transaction already exists. */
+  existingTransaction?: {
+    /** ID of the existing transaction. */
+    id: string;
+
+    /** Optional callback to be invoked once the transaction is published. */
+    onPublish?: (request: {
+      /** Hash of the transaction on the network. */
+      transactionHash?: string;
+    }) => void;
+
+    /** Signed transaction data. */
+    signedTransaction: Hex;
+  };
+
+  /** Parameters of the single transaction. */
+  params: BatchTransactionParams;
+
+  /** Type of the transaction. */
+  type?: TransactionType;
+};
+
+/**
+ * Request to submit a batch of transactions.
+ * Currently only atomic batches are supported via EIP-7702.
+ */
+export type TransactionBatchRequest = {
+  batchId?: Hex;
+
+  /** Address of the account to submit the transaction batch. */
+  from: Hex;
+
+  /** ID of the network client to submit the transaction. */
+  networkClientId: NetworkClientId;
+
+  /** Origin of the request, such as a dApp hostname or `ORIGIN_METAMASK` if internal. */
+  origin?: string;
+
+  /** Whether an approval request should be created to require confirmation from the user. */
+  requireApproval?: boolean;
+
+  /** Security alert ID to persist on the transaction. */
+  securityAlertId?: string;
+
+  /** Transactions to be submitted as part of the batch. */
+  transactions: TransactionBatchSingleRequest[];
+
+  /**
+   * Whether to use the publish batch hook to submit the batch.
+   * Defaults to false.
+   */
+  useHook?: boolean;
+
+  /**
+   * Callback to trigger security validation in the client.
+   *
+   * @param request - The JSON-RPC request to validate.
+   * @param chainId - The chain ID of the transaction batch.
+   */
+  validateSecurity?: (
+    request: ValidateSecurityRequest,
+    chainId: Hex,
+  ) => Promise<void>;
+};
+
+/**
+ * Result from submitting a transaction batch.
+ */
+export type TransactionBatchResult = {
+  /** ID of the batch to locate related transactions. */
+  batchId: Hex;
+};
+
+/**
+ * Request parameters for updating a custodial transaction.
+ */
+export type UpdateCustodialTransactionRequest = {
+  /** The ID of the transaction to update. */
+  transactionId: string;
+
+  /** The error message to be assigned in case transaction status update to failed. */
+  errorMessage?: string;
+
+  /** The new hash value to be assigned. */
+  hash?: string;
+
+  /** The new status value to be assigned. */
+  status?: TransactionStatus;
+
+  /** The new gas limit value to be assigned. */
+  gasLimit?: string;
+
+  /** The new gas price value to be assigned. */
+  gasPrice?: string;
+
+  /** The new max fee per gas value to be assigned. */
+  maxFeePerGas?: string;
+
+  /** The new max priority fee per gas value to be assigned. */
+  maxPriorityFeePerGas?: string;
+
+  /** The new nonce value to be assigned. */
+  nonce?: string;
+
+  /** The new transaction type (hardfork) to be assigned. */
+  type?: TransactionEnvelopeType;
+};
+
+/**
+ * Data returned from custom logic to publish a transaction.
+ */
+export type PublishHookResult = {
+  /**
+   * The hash of the transaction on the network.
+   */
+  transactionHash?: string;
+};
+
+/**
+ * Custom logic to publish a transaction.
+ *
+ * @param transactionMeta - The metadata of the transaction to publish.
+ * @param signedTx - The signed transaction data to publish.
+ * @returns The result of the publish operation.
+ */
+export type PublishHook = (
+  transactionMeta: TransactionMeta,
+  signedTx: string,
+) => Promise<PublishHookResult>;
+
+/** Single transaction in a publish batch hook request. */
+export type PublishBatchHookTransaction = {
+  /** ID of the transaction. */
+  id?: string;
+
+  /** Parameters of the nested transaction. */
+  params: BatchTransactionParams;
+
+  /** Signed transaction data to publish. */
+  signedTx: Hex;
+};
+
+/**
+ * Data required to call a publish batch hook.
+ */
+export type PublishBatchHookRequest = {
+  /** Address of the account to submit the transaction batch. */
+  from: Hex;
+
+  /** ID of the network client associated with the transaction batch. */
+  networkClientId: string;
+
+  /** Nested transactions to be submitted as part of the batch. */
+  transactions: PublishBatchHookTransaction[];
+};
+
+/** Result of calling a publish batch hook. */
+export type PublishBatchHookResult =
+  | {
+      /** Result data for each transaction in the batch. */
+      results: {
+        /** Hash of the transaction on the network. */
+        transactionHash: Hex;
+      }[];
+    }
+  | undefined;
+
+/** Custom logic to publish a transaction batch. */
+export type PublishBatchHook = (
+  /** Data required to call the hook. */
+  request: PublishBatchHookRequest,
+) => Promise<PublishBatchHookResult>;
+
+/**
+ * Request to validate security of a transaction in the client.
+ */
+export type ValidateSecurityRequest = {
+  /** JSON-RPC method to validate. */
+  method: string;
+
+  /** Parameters of the JSON-RPC method to validate. */
+  params: unknown[];
+
+  /** Optional EIP-7702 delegation to mock for the transaction sender. */
+  delegationMock?: Hex;
+};
+
+/** Data required to pay for transaction gas using an ERC-20 token. */
+export type GasFeeToken = {
+  /** Amount needed for the gas fee. */
+  amount: Hex;
+
+  /** Current token balance of the sender. */
+  balance: Hex;
+
+  /** Decimals of the token. */
+  decimals: number;
+
+  /** The corresponding gas limit this token fee would equal. */
+  gas: Hex;
+
+  /** The corresponding maxFeePerGas this token fee would equal. */
+  maxFeePerGas: Hex;
+
+  /** The corresponding maxPriorityFeePerGas this token fee would equal. */
+  maxPriorityFeePerGas: Hex;
+
+  /** Conversion rate of 1 token to native WEI. */
+  rateWei: Hex;
+
+  /** Account address to send the token to. */
+  recipient: Hex;
+
+  /** Symbol of the token. */
+  symbol: string;
+
+  /** Address of the token contract. */
+  tokenAddress: Hex;
+};
+
+/** Request to check if atomic batch is supported for an account. */
+export type IsAtomicBatchSupportedRequest = {
+  /** Address of the account to check. */
+  address: Hex;
+
+  /**
+   * IDs of specific chains to check.
+   * If not provided, all supported chains will be checked.
+   */
+  chainIds?: Hex[];
+};
+
+/** Result of checking if atomic batch is supported for an account. */
+export type IsAtomicBatchSupportedResult = IsAtomicBatchSupportedResultEntry[];
+
+/** Info about atomic batch support for a single chain. */
+export type IsAtomicBatchSupportedResultEntry = {
+  /** ID of the chain. */
+  chainId: Hex;
+
+  /** Address of the contract that the account was upgraded to. */
+  delegationAddress?: Hex;
+
+  /** Whether the upgraded contract is supported. */
+  isSupported: boolean;
+
+  /** Address of the contract that the account would be upgraded to. */
+  upgradeContractAddress?: Hex;
+};

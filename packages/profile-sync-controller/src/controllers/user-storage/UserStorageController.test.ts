@@ -11,15 +11,13 @@ import {
   mockEndpointDeleteUserStorage,
   mockEndpointBatchDeleteUserStorage,
 } from './__fixtures__/mockServices';
-import {
-  MOCK_STORAGE_DATA,
-  MOCK_STORAGE_KEY,
-} from './__fixtures__/mockStorage';
 import { waitFor } from './__fixtures__/test-utils';
 import { mockUserStorageMessengerForAccountSyncing } from './account-syncing/__fixtures__/test-utils';
 import * as AccountSyncControllerIntegrationModule from './account-syncing/controller-integration';
+import { BACKUPANDSYNC_FEATURES } from './constants';
+import { MOCK_STORAGE_DATA, MOCK_STORAGE_KEY } from './mocks/mockStorage';
 import * as NetworkSyncIntegrationModule from './network-syncing/controller-integration';
-import type { UserStorageBaseOptions } from './services';
+import { type UserStorageBaseOptions } from './types';
 import UserStorageController, { defaultState } from './UserStorageController';
 import { USER_STORAGE_FEATURE_NAMES } from '../../shared/storage-schema';
 
@@ -45,14 +43,14 @@ describe('user-storage/user-storage-controller - constructor() tests', () => {
       NetworkSyncIntegrationModule,
       'startNetworkSyncing',
     );
-    let storageConfig: UserStorageBaseOptions | null = null;
+    const storageConfig: UserStorageBaseOptions | null = null;
     let isSyncingBlocked: boolean | null = null;
-    mockStartNetworkSyncing.mockImplementation(
-      ({ getStorageConfig, isMutationSyncBlocked }) => {
-        // eslint-disable-next-line no-void
-        void getStorageConfig().then((s) => (storageConfig = s));
 
+    mockStartNetworkSyncing.mockImplementation(
+      ({ isMutationSyncBlocked, getUserStorageControllerInstance }) => {
         isSyncingBlocked = isMutationSyncBlocked();
+        // eslint-disable-next-line no-void
+        void getUserStorageControllerInstance();
       },
     );
 
@@ -535,13 +533,13 @@ describe('user-storage/user-storage-controller - performDeleteStorageAllFeatureE
           new Error('MOCK FAILURE'),
         ),
     ],
-    [
-      'fails when no session identifier is found (auth errors)',
-      (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
-        messengerMocks.mockAuthGetSessionProfile.mockRejectedValue(
-          new Error('MOCK FAILURE'),
-        ),
-    ],
+    // [
+    //   'fails when no session identifier is found (auth errors)',
+    //   (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
+    //     messengerMocks.mockAuthGetSessionProfile.mockRejectedValue(
+    //       new Error('MOCK FAILURE'),
+    //     ),
+    // ],
   ])(
     'rejects on auth failure - %s',
     async (
@@ -624,19 +622,22 @@ describe('user-storage/user-storage-controller - disableProfileSyncing() tests',
     });
 
     expect(controller.state.isProfileSyncingEnabled).toBe(true);
-    await controller.disableProfileSyncing();
+    await controller.setIsBackupAndSyncFeatureEnabled(
+      BACKUPANDSYNC_FEATURES.main,
+      false,
+    );
     expect(controller.state.isProfileSyncingEnabled).toBe(false);
   });
 });
 
-describe('user-storage/user-storage-controller - enableProfileSyncing() tests', () => {
+describe('user-storage/user-storage-controller - setIsBackupAndSyncFeatureEnabled tests', () => {
   const arrangeMocks = async () => {
     return {
       messengerMocks: mockUserStorageMessenger(),
     };
   };
 
-  it('should enable user storage / profile syncing', async () => {
+  it('should enable user storage / backup and sync', async () => {
     const { messengerMocks } = await arrangeMocks();
     messengerMocks.mockAuthIsSignedIn.mockReturnValue(false); // mock that auth is not enabled
 
@@ -645,6 +646,7 @@ describe('user-storage/user-storage-controller - enableProfileSyncing() tests', 
       state: {
         isProfileSyncingEnabled: false,
         isProfileSyncingUpdateLoading: false,
+        isAccountSyncingEnabled: false,
         hasAccountSyncingSyncedAtLeastOnce: false,
         isAccountSyncingReadyToBeDispatched: false,
         isAccountSyncingInProgress: false,
@@ -652,10 +654,66 @@ describe('user-storage/user-storage-controller - enableProfileSyncing() tests', 
     });
 
     expect(controller.state.isProfileSyncingEnabled).toBe(false);
-    await controller.enableProfileSyncing();
+    await controller.setIsBackupAndSyncFeatureEnabled(
+      BACKUPANDSYNC_FEATURES.main,
+      true,
+    );
     expect(controller.state.isProfileSyncingEnabled).toBe(true);
     expect(messengerMocks.mockAuthIsSignedIn).toHaveBeenCalled();
     expect(messengerMocks.mockAuthPerformSignIn).toHaveBeenCalled();
+  });
+
+  it('should not update state if it throws', async () => {
+    const { messengerMocks } = await arrangeMocks();
+    messengerMocks.mockAuthIsSignedIn.mockReturnValue(false); // mock that auth is not enabled
+
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      state: {
+        isProfileSyncingEnabled: false,
+        isProfileSyncingUpdateLoading: false,
+        isAccountSyncingEnabled: false,
+        hasAccountSyncingSyncedAtLeastOnce: false,
+        isAccountSyncingReadyToBeDispatched: false,
+        isAccountSyncingInProgress: false,
+      },
+    });
+
+    expect(controller.state.isProfileSyncingEnabled).toBe(false);
+    messengerMocks.mockAuthPerformSignIn.mockRejectedValue(new Error('error'));
+
+    await expect(
+      controller.setIsBackupAndSyncFeatureEnabled(
+        BACKUPANDSYNC_FEATURES.main,
+        true,
+      ),
+    ).rejects.toThrow('error');
+    expect(controller.state.isProfileSyncingEnabled).toBe(false);
+  });
+
+  it('should not disable backup and sync when disabling account syncing', async () => {
+    const { messengerMocks } = await arrangeMocks();
+    messengerMocks.mockAuthIsSignedIn.mockReturnValue(false); // mock that auth is not enabled
+
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      state: {
+        isProfileSyncingEnabled: true,
+        isProfileSyncingUpdateLoading: false,
+        isAccountSyncingEnabled: true,
+        hasAccountSyncingSyncedAtLeastOnce: false,
+        isAccountSyncingReadyToBeDispatched: false,
+        isAccountSyncingInProgress: false,
+      },
+    });
+
+    expect(controller.state.isProfileSyncingEnabled).toBe(true);
+    await controller.setIsBackupAndSyncFeatureEnabled(
+      BACKUPANDSYNC_FEATURES.accountSyncing,
+      false,
+    );
+    expect(controller.state.isAccountSyncingEnabled).toBe(false);
+    expect(controller.state.isProfileSyncingEnabled).toBe(true);
   });
 });
 
@@ -684,12 +742,9 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       arrangeMocks();
     const controller = new UserStorageController({
       messenger,
-      env: {
-        // We're only verifying that calling this controller method will call the integration module
-        // The actual implementation is tested in the integration tests
-        // This is done to prevent creating unnecessary nock instances in this test
-        isAccountSyncingEnabled: false,
-      },
+      // We're only verifying that calling this controller method will call the integration module
+      // The actual implementation is tested in the integration tests
+      // This is done to prevent creating unnecessary nock instances in this test
       config: {
         accountSyncing: {
           onAccountAdded: jest.fn(),
@@ -745,18 +800,14 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
     const { messenger, mockSaveInternalAccountToUserStorage } = arrangeMocks();
     const controller = new UserStorageController({
       messenger,
-      env: {
-        // We're only verifying that calling this controller method will call the integration module
-        // The actual implementation is tested in the integration tests
-        // This is done to prevent creating unnecessary nock instances in this test
-        isAccountSyncingEnabled: false,
-      },
+      // We're only verifying that calling this controller method will call the integration module
+      // The actual implementation is tested in the integration tests
+      // This is done to prevent creating unnecessary nock instances in this test
     });
 
     mockSaveInternalAccountToUserStorage.mockImplementation(
       async (
         _internalAccount,
-        _config,
         {
           getMessenger = jest.fn(),
           getUserStorageControllerInstance = jest.fn(),
@@ -832,13 +883,12 @@ describe('user-storage/user-storage-controller - syncNetworks() tests', () => {
         onNetworkAdded,
         onNetworkRemoved,
         onNetworkUpdated,
-        getStorageConfig,
+        getUserStorageControllerInstance,
       }) => {
-        const config = await getStorageConfig();
-        expect(config).toBeDefined();
         onNetworkAdded?.('0x1');
         onNetworkRemoved?.('0x1');
         onNetworkUpdated?.('0x1');
+        getUserStorageControllerInstance();
       },
     );
 
@@ -847,5 +897,157 @@ describe('user-storage/user-storage-controller - syncNetworks() tests', () => {
     expect(mockGetSessionProfile).toHaveBeenCalled();
     expect(mockPerformMainNetworkSync).toHaveBeenCalled();
     expect(controller.state.hasNetworkSyncingSyncedAtLeastOnce).toBe(true);
+  });
+});
+
+describe('user-storage/user-storage-controller - error handling edge cases', () => {
+  const arrangeMocks = () => {
+    const messengerMocks = mockUserStorageMessenger();
+    return { messengerMocks };
+  };
+
+  it('handles disabling backup & sync when already disabled', async () => {
+    const { messengerMocks } = arrangeMocks();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      state: {
+        ...defaultState,
+        isProfileSyncingEnabled: false,
+      },
+    });
+
+    await controller.setIsBackupAndSyncFeatureEnabled(
+      BACKUPANDSYNC_FEATURES.main,
+      false,
+    );
+    expect(controller.state.isProfileSyncingEnabled).toBe(false);
+  });
+
+  it('handles enabling backup & sync when already enabled and signed in', async () => {
+    const { messengerMocks } = arrangeMocks();
+    messengerMocks.mockAuthIsSignedIn.mockReturnValue(true);
+
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      state: {
+        ...defaultState,
+        isProfileSyncingEnabled: true,
+      },
+    });
+
+    await controller.setIsBackupAndSyncFeatureEnabled(
+      BACKUPANDSYNC_FEATURES.main,
+      true,
+    );
+    expect(controller.state.isProfileSyncingEnabled).toBe(true);
+    expect(messengerMocks.mockAuthPerformSignIn).not.toHaveBeenCalled();
+  });
+});
+
+describe('user-storage/user-storage-controller - account syncing edge cases', () => {
+  it('handles account syncing disabled case', async () => {
+    const messengerMocks = mockUserStorageMessenger();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+    });
+
+    await controller.setIsBackupAndSyncFeatureEnabled(
+      BACKUPANDSYNC_FEATURES.accountSyncing,
+      false,
+    );
+    await controller.syncInternalAccountsWithUserStorage();
+
+    // Should not have called the account syncing module
+    expect(messengerMocks.mockAccountsListAccounts).not.toHaveBeenCalled();
+  });
+
+  it('handles syncing when not signed in', async () => {
+    const messengerMocks = mockUserStorageMessenger();
+    messengerMocks.mockAuthIsSignedIn.mockReturnValue(false);
+
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+    });
+
+    await controller.syncInternalAccountsWithUserStorage();
+
+    expect(messengerMocks.mockAuthIsSignedIn).toHaveBeenCalled();
+    expect(messengerMocks.mockAuthPerformSignIn).not.toHaveBeenCalled();
+  });
+
+  it('handles saveInternalAccountToUserStorage when disabled', async () => {
+    const messengerMocks = mockUserStorageMessenger();
+
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+    });
+
+    const mockSetStorage = jest.spyOn(controller, 'performSetStorage');
+
+    // Create mock account
+    const mockAccount = {
+      id: '123',
+      address: '0x123',
+      metadata: {
+        name: 'Test',
+        nameLastUpdatedAt: Date.now(),
+      },
+    } as InternalAccount;
+
+    await controller.saveInternalAccountToUserStorage(mockAccount);
+
+    expect(mockSetStorage).not.toHaveBeenCalled();
+  });
+});
+
+describe('user-storage/user-storage-controller - snap handling', () => {
+  it('leverages a cache', async () => {
+    const messengerMocks = mockUserStorageMessenger();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+    });
+
+    expect(await controller.getStorageKey()).toBe(MOCK_STORAGE_KEY);
+    controller.flushStorageKeyCache();
+    expect(await controller.getStorageKey()).toBe(MOCK_STORAGE_KEY);
+  });
+
+  it('throws if the wallet is locked', async () => {
+    const messengerMocks = mockUserStorageMessenger();
+    messengerMocks.mockKeyringGetState.mockReturnValue({
+      isUnlocked: false,
+      keyrings: [],
+      keyringsMetadata: [],
+    });
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+    });
+
+    await expect(controller.getStorageKey()).rejects.toThrow(
+      '#snapSignMessage - unable to call snap, wallet is locked',
+    );
+  });
+
+  it('handles wallet lock state changes', async () => {
+    const messengerMocks = mockUserStorageMessenger();
+
+    messengerMocks.mockKeyringGetState.mockReturnValue({
+      isUnlocked: true,
+      keyrings: [],
+      keyringsMetadata: [],
+    });
+
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+    });
+
+    messengerMocks.baseMessenger.publish('KeyringController:lock');
+
+    await expect(controller.getStorageKey()).rejects.toThrow(
+      '#snapSignMessage - unable to call snap, wallet is locked',
+    );
+
+    messengerMocks.baseMessenger.publish('KeyringController:unlock');
+    expect(await controller.getStorageKey()).toBe(MOCK_STORAGE_KEY);
   });
 });
