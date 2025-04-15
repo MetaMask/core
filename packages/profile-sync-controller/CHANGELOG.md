@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.0]
+
+### Added
+
+- **BREAKING:** Add new public method `setIsBackupAndSyncFeatureEnabled` to `UserStorageController` ([#5636](https://github.com/MetaMask/core/pull/5636))
+  - This replaces `enableProfileSyncing` and `disableProfileSyncing` and will be used as the main method to enable and disable backup and sync features from now on.
+- **BREAKING:** Add new `isAccountSyncingEnabled` state property to `UserStorageController` ([#5636](https://github.com/MetaMask/core/pull/5636))
+  - This property is `true` by default.
+
+### Removed
+
+- **BREAKING:** Remove `isAccountSyncingEnabled` `env` property from `UserStorageController` constructor ([#5629](https://github.com/MetaMask/core/pull/5629))
+- **BREAKING:** Remove unused action handlers: `setIsBackupAndSyncFeatureEnabled`, `syncInternalAccountsWithUserStorage` and `saveInternalAccountToUserStorage`. ([#5638](https://github.com/MetaMask/core/pull/5638))
+  - These actions should not be callable through the messaging system.
+
 ## [11.0.1]
 
 ### Changed
@@ -549,7 +564,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@11.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@12.0.0...HEAD
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@11.0.1...@metamask/profile-sync-controller@12.0.0
 [11.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@11.0.0...@metamask/profile-sync-controller@11.0.1
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@10.1.0...@metamask/profile-sync-controller@11.0.0
 [10.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@10.0.0...@metamask/profile-sync-controller@10.1.0

@@ -1200,6 +1200,7 @@ describe('TransactionController', () => {
         estimatedGas: gasMock,
         blockGasLimit: blockGasLimitMock,
         simulationFails: simulationFailsMock,
+        isUpgradeWithDataToSelf: false,
       });
 
       addGasBufferMock.mockReturnValue(expectedEstimatedGas);

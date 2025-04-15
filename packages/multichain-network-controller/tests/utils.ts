@@ -1,4 +1,7 @@
 import {
+  EthScope,
+  BtcScope,
+  SolScope,
   BtcAccountType,
   EthAccountType,
   SolAccountType,
@@ -6,9 +9,6 @@ import {
   EthMethod,
   SolMethod,
   type KeyringAccountType,
-  BtcScope,
-  EthScope,
-  SolScope,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -78,7 +78,7 @@ export const createMockInternalAccount = ({
         EthMethod.PrepareUserOperation,
         EthMethod.SignUserOperation,
       ];
-      newScopes = [EthScope.Mainnet]; // Assuming we are using mainnet for those Smart Accounts.
+      newScopes = [EthScope.Mainnet];
       break;
     case BtcAccountType.P2wpkh:
       methods = [BtcMethod.SendBitcoin];
@@ -86,7 +86,7 @@ export const createMockInternalAccount = ({
       break;
     case SolAccountType.DataAccount:
       methods = [SolMethod.SendAndConfirmTransaction];
-      newScopes = [SolScope.Mainnet];
+      newScopes = [SolScope.Mainnet, SolScope.Devnet];
       break;
     default:
       throw new Error(`Unknown account type: ${type as string}`);
@@ -97,8 +97,8 @@ export const createMockInternalAccount = ({
     address,
     options: {},
     methods,
-    scopes: newScopes,
     type,
+    scopes: newScopes,
     metadata: {
       name,
       keyring: { type: keyringType },

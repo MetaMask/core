@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add eponymous methods to the `TokenDiscoveryApiService`
   - Add `getTopGainersByChains`
   - Add `getTopLosersByChains`
+- Add swappable token search to the `TokenDiscoveryApiService` ([#5640](https://github.com/MetaMask/core/pull/5640))
 
 ### Changed
 

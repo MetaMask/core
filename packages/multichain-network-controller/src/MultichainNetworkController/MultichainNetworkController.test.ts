@@ -464,6 +464,29 @@ describe('MultichainNetworkController', () => {
       );
       expect(controller.state.isEvmSelected).toBe(false);
     });
+
+    it('does not change the active network if the network is part of the account scope', async () => {
+      const { controller, triggerSelectedAccountChange } = setupController({
+        options: {
+          state: {
+            isEvmSelected: false,
+            selectedMultichainNetworkChainId: SolScope.Devnet,
+          },
+        },
+      });
+
+      expect(controller.state.isEvmSelected).toBe(false);
+      expect(controller.state.selectedMultichainNetworkChainId).toBe(
+        SolScope.Devnet,
+      );
+
+      triggerSelectedAccountChange(SolAccountType.DataAccount);
+
+      expect(controller.state.selectedMultichainNetworkChainId).toBe(
+        SolScope.Devnet,
+      );
+      expect(controller.state.isEvmSelected).toBe(false);
+    });
   });
 
   describe('removeEvmNetwork', () => {

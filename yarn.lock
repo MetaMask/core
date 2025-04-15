@@ -2703,13 +2703,13 @@ __metadata:
     "@metamask/eth-json-rpc-provider": "npm:^4.1.8"
     "@metamask/keyring-api": "npm:^17.4.0"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
-    "@metamask/multichain-network-controller": "npm:^0.3.0"
+    "@metamask/multichain-network-controller": "npm:^0.4.0"
     "@metamask/network-controller": "npm:^23.2.0"
     "@metamask/polling-controller": "npm:^13.0.0"
     "@metamask/snaps-controllers": "npm:^9.19.0"
     "@metamask/snaps-utils": "npm:^8.10.0"
     "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/transaction-controller": "npm:^54.0.0"
+    "@metamask/transaction-controller": "npm:^54.1.0"
     "@metamask/utils": "npm:^11.2.0"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
@@ -2741,7 +2741,7 @@ __metadata:
     "@metamask/network-controller": "npm:^23.2.0"
     "@metamask/polling-controller": "npm:^13.0.0"
     "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/transaction-controller": "npm:^54.0.0"
+    "@metamask/transaction-controller": "npm:^54.1.0"
     "@metamask/utils": "npm:^11.2.0"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
@@ -2962,7 +2962,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^11.7.0"
     "@metamask/network-controller": "npm:^23.2.0"
     "@metamask/stake-sdk": "npm:^1.0.0"
-    "@metamask/transaction-controller": "npm:^54.0.0"
+    "@metamask/transaction-controller": "npm:^54.1.0"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
@@ -3649,7 +3649,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/multichain-network-controller@npm:^0.3.0, @metamask/multichain-network-controller@workspace:packages/multichain-network-controller":
+"@metamask/multichain-network-controller@npm:^0.4.0, @metamask/multichain-network-controller@workspace:packages/multichain-network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/multichain-network-controller@workspace:packages/multichain-network-controller"
   dependencies:
@@ -3828,7 +3828,7 @@ __metadata:
     "@metamask/base-controller": "npm:^8.0.0"
     "@metamask/controller-utils": "npm:^11.7.0"
     "@metamask/keyring-controller": "npm:^21.0.2"
-    "@metamask/profile-sync-controller": "npm:^11.0.1"
+    "@metamask/profile-sync-controller": "npm:^12.0.0"
     "@metamask/utils": "npm:^11.2.0"
     "@types/jest": "npm:^27.4.1"
     "@types/readable-stream": "npm:^2.3.0"
@@ -3847,7 +3847,7 @@ __metadata:
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/keyring-controller": ^21.0.0
-    "@metamask/profile-sync-controller": ^11.0.0
+    "@metamask/profile-sync-controller": ^12.0.0
   languageName: unknown
   linkType: soft
 
@@ -4009,7 +4009,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/profile-sync-controller@npm:^11.0.1, @metamask/profile-sync-controller@workspace:packages/profile-sync-controller":
+"@metamask/profile-sync-controller@npm:^12.0.0, @metamask/profile-sync-controller@workspace:packages/profile-sync-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/profile-sync-controller@workspace:packages/profile-sync-controller"
   dependencies:
@@ -4412,7 +4412,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/transaction-controller@npm:^54.0.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
+"@metamask/transaction-controller@npm:^54.1.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-controller@workspace:packages/transaction-controller"
   dependencies:
@@ -4485,7 +4485,7 @@ __metadata:
     "@metamask/polling-controller": "npm:^13.0.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/transaction-controller": "npm:^54.0.0"
+    "@metamask/transaction-controller": "npm:^54.1.0"
     "@metamask/utils": "npm:^11.2.0"
     "@types/jest": "npm:^27.4.1"
     bn.js: "npm:^5.2.1"
