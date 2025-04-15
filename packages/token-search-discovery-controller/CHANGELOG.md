@@ -9,19 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.0.0]
 
-### Uncategorized
-
-- Add top gainers losers to token discovery service ([#5309](https://github.com/MetaMask/core/pull/5309))
-- feat: add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/core/pull/5301))
-
 ### Added
 
-- All param types (e.g. `TokenSearchParams`, `TrendingTokensParams`, etc.) inherit from `ParamsBase`
-- Add eponymous methods to the `TokenDiscoveryApiService`
-  - Add `getTopGainersByChains`
-  - Add `getTopLosersByChains`
-- Add swappable token search to the `TokenDiscoveryApiService` ([#5640](https://github.com/MetaMask/core/pull/5640))
-- Add support for blue-chip endpoint ([#5588](https://github.com/MetaMask/core/pull/5588))
+- feat: Add swappable token search to the `TokenDiscoveryApiService` ([#5640](https://github.com/MetaMask/core/pull/5640))
+- feat: Add support for blue-chip endpoint ([#5588](https://github.com/MetaMask/core/pull/5588))
+- feat: Add top gainers losers to token discovery service ([#5309](https://github.com/MetaMask/core/pull/5309))
+- feat: add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/core/pull/5301))
+
 
 ### Changed
 
