@@ -11,14 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- feat: Add swappable token search to the `TokenDiscoveryApiService` ([#5640](https://github.com/MetaMask/core/pull/5640))
-- feat: Add support for blue-chip endpoint ([#5588](https://github.com/MetaMask/core/pull/5588))
-- feat: Add top gainers losers to token discovery service ([#5309](https://github.com/MetaMask/core/pull/5309))
-- feat: add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/core/pull/5301))
+- Add swappable token search to the `TokenDiscoveryApiService` ([#5640](https://github.com/MetaMask/core/pull/5640))
+- Add support for blue-chip endpoint ([#5588](https://github.com/MetaMask/core/pull/5588))
+- Add `getTopGainers` and `getTopLosers` to `TokenSearchDiscoveryController` ([#5309](https://github.com/MetaMask/core/pull/5309))
 
 ### Changed
 
 - **BREAKING:** Renamed `TokenTrendingResponseItem` name to `MoralisTokenResponseItem`
+- Bump `@metamask/utils` from `^11.1.0` to `^11.2.0` ([#5301](https://github.com/MetaMask/core/pull/5301))
 
 ## [2.1.0]
 
