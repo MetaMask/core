@@ -1,7 +1,6 @@
 import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
-  getEthAccounts,
   bucketScopes,
   validateAndNormalizeScopes,
   type Caip25Authorization,
@@ -38,14 +37,7 @@ import {
   parseCaipAccountId,
 } from '@metamask/utils';
 
-import {
-  MetaMetricsEventCategory,
-  MetaMetricsEventName,
-  type GrantedPermissions,
-  type MetaMetricsEventOptions,
-  type MetaMetricsEventPayload,
-} from './types';
-import { shouldEmitDappViewedEvent } from './utils';
+import type { GrantedPermissions } from './types';
 
 /**
  * Handler for the `wallet_createSession` RPC method which is responsible
@@ -66,14 +58,10 @@ import { shouldEmitDappViewedEvent } from './utils';
  * @param hooks.listAccounts - The hook that returns an array of the wallet's evm accounts.
  * @param hooks.findNetworkClientIdByChainId - The hook that returns the networkClientId for a chainId.
  * @param hooks.requestPermissionsForOrigin - The hook that approves and grants requested permissions.
- * @param hooks.sendMetrics - The hook that tracks an analytics event.
  * @param hooks.getNonEvmSupportedMethods - The hook that returns the supported methods for a non EVM scope.
  * @param hooks.isNonEvmScopeSupported - The hook that returns true if a non EVM scope is supported.
  * @param hooks.getNonEvmAccountAddresses - The hook that returns a list of CaipAccountIds that are supported for a CaipChainId.
- * @param hooks.metamaskState - The wallet state.
- * @param hooks.metamaskState.metaMetricsId - The analytics id.
- * @param hooks.metamaskState.permissionHistory - The permission history object keyed by origin.
- * @param hooks.metamaskState.accounts - The accounts object keyed by address.
+ * @param hooks.trackSessionCreatedEvent - An optional hook for platform specific logic to run. Can be undefined.
  * @returns A promise with wallet_createSession handler
  */
 async function walletCreateSessionHandler(
@@ -91,21 +79,12 @@ async function walletCreateSessionHandler(
       requestedPermissions: RequestedPermissions,
       metadata?: Record<string, Json>,
     ) => Promise<[GrantedPermissions]>;
-    sendMetrics: (
-      payload: MetaMetricsEventPayload,
-      options?: MetaMetricsEventOptions,
-    ) => void;
     getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
     isNonEvmScopeSupported: (scope: CaipChainId) => boolean;
-    metamaskState: {
-      metaMetricsId: string;
-      permissionHistory: Record<string, unknown>;
-      accounts: Record<string, unknown>;
-    };
     getNonEvmAccountAddresses: (scope: CaipChainId) => CaipAccountId[];
+    trackSessionCreatedEvent?: () => void;
   },
 ) {
-  const { origin } = req;
   if (!isPlainObject(req.params)) {
     return end(invalidParams({ data: { request: req } }));
   }
@@ -244,30 +223,7 @@ async function walletCreateSessionHandler(
     const { sessionProperties: approvedSessionProperties = {} } =
       approvedCaip25CaveatValue;
 
-    // TODO: Contact analytics team for how they would prefer to track this
-    // first time connection to dapp will lead to no log in the permissionHistory
-    // and if user has connected to dapp before, the dapp origin will be included in the permissionHistory state
-    // we will leverage that to identify `is_first_visit` for metrics
-    if (shouldEmitDappViewedEvent(hooks.metamaskState.metaMetricsId)) {
-      const isFirstVisit = !Object.keys(
-        hooks.metamaskState.permissionHistory,
-      ).includes(origin);
-
-      const approvedEthAccounts = getEthAccounts(approvedCaip25CaveatValue);
-
-      hooks.sendMetrics({
-        event: MetaMetricsEventName.DappViewed,
-        category: MetaMetricsEventCategory.InpageProvider,
-        referrer: {
-          url: origin,
-        },
-        properties: {
-          is_first_visit: isFirstVisit,
-          number_of_accounts: Object.keys(hooks.metamaskState.accounts).length,
-          number_of_accounts_connected: approvedEthAccounts.length,
-        },
-      });
-    }
+    hooks.trackSessionCreatedEvent?.();
 
     res.result = {
       sessionScopes,
@@ -286,10 +242,9 @@ export const walletCreateSession = {
     findNetworkClientIdByChainId: true,
     listAccounts: true,
     requestPermissionsForOrigin: true,
-    sendMetrics: true,
-    metamaskState: true,
     getNonEvmSupportedMethods: true,
     isNonEvmScopeSupported: true,
     getNonEvmAccountAddresses: true,
+    trackSessionCreatedEvent: true,
   },
 };

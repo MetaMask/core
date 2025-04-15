@@ -16,8 +16,6 @@ import type {
   JsonRpcSuccess,
 } from '@metamask/utils';
 
-import { MetaMetricsEventCategory, MetaMetricsEventName } from './types';
-import { shouldEmitDappViewedEvent } from './utils';
 import { walletCreateSession } from './wallet-createSession';
 
 jest.mock('@metamask/rpc-errors', () => ({
@@ -26,10 +24,6 @@ jest.mock('@metamask/rpc-errors', () => ({
     invalidParams: jest.fn(),
     internal: jest.fn(),
   },
-}));
-
-jest.mock('./utils', () => ({
-  shouldEmitDappViewedEvent: jest.fn(),
 }));
 
 jest.mock('@metamask/chain-agnostic-permission', () => ({
@@ -96,16 +90,7 @@ const createMockedHandler = () => {
     },
   ]);
   const findNetworkClientIdByChainId = jest.fn().mockReturnValue('mainnet');
-  const sendMetrics = jest.fn();
-  const metamaskState = {
-    permissionHistory: {},
-    metaMetricsId: 'metaMetricsId',
-    accounts: {
-      '0x1': {},
-      '0x2': {},
-      '0x3': {},
-    },
-  };
+  const trackSessionCreatedEvent = jest.fn().mockImplementation(undefined);
   const listAccounts = jest.fn().mockReturnValue([]);
   const getNonEvmSupportedMethods = jest.fn().mockReturnValue([]);
   const isNonEvmScopeSupported = jest.fn().mockReturnValue(false);
@@ -123,22 +108,20 @@ const createMockedHandler = () => {
     walletCreateSession.implementation(request, response, next, end, {
       findNetworkClientIdByChainId,
       requestPermissionsForOrigin,
-      metamaskState,
-      sendMetrics,
       listAccounts,
       getNonEvmSupportedMethods,
       isNonEvmScopeSupported,
       getNonEvmAccountAddresses,
+      trackSessionCreatedEvent,
     });
 
   return {
     response,
     next,
     end,
+    trackSessionCreatedEvent,
     findNetworkClientIdByChainId,
     requestPermissionsForOrigin,
-    metamaskState,
-    sendMetrics,
     listAccounts,
     getNonEvmSupportedMethods,
     isNonEvmScopeSupported,
@@ -731,23 +714,14 @@ describe('wallet_createSession', () => {
     );
   });
 
-  it('emits the dapp viewed metrics event', async () => {
-    (shouldEmitDappViewedEvent as jest.Mock).mockReturnValue(true);
-    const { handler, sendMetrics } = createMockedHandler();
+  it('calls trackSessionCreatedEvent hook if defined', async () => {
+    const { handler, trackSessionCreatedEvent } = createMockedHandler();
+    trackSessionCreatedEvent.mockImplementation(() => {
+      // mock implementation
+    });
     await handler(baseRequest);
 
-    expect(sendMetrics).toHaveBeenCalledWith({
-      event: MetaMetricsEventName.DappViewed,
-      category: MetaMetricsEventCategory.InpageProvider,
-      properties: {
-        is_first_visit: true,
-        number_of_accounts: 3,
-        number_of_accounts_connected: 4,
-      },
-      referrer: {
-        url: 'http://test.com',
-      },
-    });
+    expect(trackSessionCreatedEvent).toHaveBeenCalled();
   });
 
   it('returns the known sessionProperties and approved session scopes', async () => {
