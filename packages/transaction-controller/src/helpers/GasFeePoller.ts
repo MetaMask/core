@@ -339,15 +339,16 @@ export function updateTransactionGasFees({
   txMeta: TransactionMeta;
   gasFeeEstimates?: GasFeeEstimates;
   gasFeeEstimatesLoaded?: boolean;
-  isTxParamsGasFeeUpdatesEnabled: boolean;
+  isTxParamsGasFeeUpdatesEnabled: (transactionMeta: TransactionMeta) => boolean;
   layer1GasFee?: Hex;
 }): void {
   const userFeeLevel = txMeta.userFeeLevel as GasFeeEstimateLevel;
   const isUsingGasFeeEstimateLevel =
     Object.values(GasFeeEstimateLevel).includes(userFeeLevel);
   const { type: gasEstimateType } = gasFeeEstimates ?? {};
+  const shouldUpdateTxParamsGasFees = isTxParamsGasFeeUpdatesEnabled(txMeta);
 
-  if (isTxParamsGasFeeUpdatesEnabled && isUsingGasFeeEstimateLevel) {
+  if (shouldUpdateTxParamsGasFees && isUsingGasFeeEstimateLevel) {
     const isEIP1559Compatible =
       txMeta.txParams.type !== TransactionEnvelopeType.legacy;
 

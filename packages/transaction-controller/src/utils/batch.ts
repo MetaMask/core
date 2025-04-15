@@ -33,6 +33,8 @@ import type {
   PublishHook,
   TransactionBatchRequest,
   ValidateSecurityRequest,
+  IsAtomicBatchSupportedResult,
+  IsAtomicBatchSupportedResultEntry,
 } from '../types';
 import {
   TransactionEnvelopeType,
@@ -57,8 +59,9 @@ type AddTransactionBatchRequest = {
   ) => void;
 };
 
-type IsAtomicBatchSupportedRequest = {
+type IsAtomicBatchSupportedRequestInternal = {
   address: Hex;
+  chainIds?: Hex[];
   getEthQuery: (chainId: Hex) => EthQuery;
   messenger: TransactionControllerMessenger;
   publicKeyEIP7702?: Hex;
@@ -101,6 +104,7 @@ export async function addTransactionBatch(
     transactions,
     useHook,
     validateSecurity,
+    origin,
   } = userRequest;
 
   log('Adding', userRequest);
@@ -200,6 +204,7 @@ export async function addTransactionBatch(
     requireApproval,
     securityAlertResponse,
     type: TransactionType.batch,
+    origin,
   });
 
   // Wait for the transaction to be published.
@@ -217,10 +222,11 @@ export async function addTransactionBatch(
  * @returns The chain IDs that support atomic batch transactions.
  */
 export async function isAtomicBatchSupported(
-  request: IsAtomicBatchSupportedRequest,
-): Promise<Hex[]> {
+  request: IsAtomicBatchSupportedRequestInternal,
+): Promise<IsAtomicBatchSupportedResult> {
   const {
     address,
+    chainIds,
     getEthQuery,
     messenger,
     publicKeyEIP7702: publicKey,
@@ -231,27 +237,42 @@ export async function isAtomicBatchSupported(
   }
 
   const chainIds7702 = getEIP7702SupportedChains(messenger);
-  const chainIds: Hex[] = [];
 
-  for (const chainId of chainIds7702) {
-    const ethQuery = getEthQuery(chainId);
+  const filteredChainIds = chainIds7702.filter(
+    (chainId) => !chainIds || chainIds.includes(chainId),
+  );
 
-    const { isSupported, delegationAddress } = await isAccountUpgradedToEIP7702(
-      address,
-      chainId,
-      publicKey,
-      messenger,
-      ethQuery,
-    );
+  const results: IsAtomicBatchSupportedResultEntry[] = await Promise.all(
+    filteredChainIds.map(async (chainId) => {
+      const ethQuery = getEthQuery(chainId);
 
-    if (!delegationAddress || isSupported) {
-      chainIds.push(chainId);
-    }
-  }
+      const { isSupported, delegationAddress } =
+        await isAccountUpgradedToEIP7702(
+          address,
+          chainId,
+          publicKey,
+          messenger,
+          ethQuery,
+        );
 
-  log('Atomic batch supported chains', chainIds);
+      const upgradeContractAddress = getEIP7702UpgradeContractAddress(
+        chainId,
+        messenger,
+        publicKey,
+      );
 
-  return chainIds;
+      return {
+        chainId,
+        delegationAddress,
+        isSupported,
+        upgradeContractAddress,
+      };
+    }),
+  );
+
+  log('Atomic batch supported results', results);
+
+  return results;
 }
 
 /**

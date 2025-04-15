@@ -466,10 +466,12 @@ export class AccountsController extends BaseController<
     };
 
     this.#update((state) => {
-      // FIXME: Do not remove this comment - This error is flaky: Comment out or restore the `ts-expect-error` directive below as needed.
-      // See: https://github.com/MetaMask/utils/issues/168
-      // // @ts-expect-error Known issue - `Json` causes recursive error in immer `Draft`/`WritableDraft` types
-      state.internalAccounts.accounts[accountId] = internalAccount;
+      // FIXME: Using the state as-is cause the following error: "Type instantiation is excessively
+      // deep and possibly infinite.ts(2589)" (https://github.com/MetaMask/utils/issues/168)
+      // Using a type-cast workaround this error and is slightly better than using a @ts-expect-error
+      // which sometimes fail when compiling locally.
+      (state as AccountsControllerState).internalAccounts.accounts[accountId] =
+        internalAccount;
     });
 
     if (metadata.name) {

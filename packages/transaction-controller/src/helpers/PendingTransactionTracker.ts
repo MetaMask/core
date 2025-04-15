@@ -498,6 +498,7 @@ export class PendingTransactionTracker {
         tx.id !== id &&
         tx.txParams.from === txParams.from &&
         tx.status === TransactionStatus.confirmed &&
+        tx.txParams.nonce &&
         tx.txParams.nonce === txParams.nonce &&
         tx.type !== TransactionType.incoming,
     );
