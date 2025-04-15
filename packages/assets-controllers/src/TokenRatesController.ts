@@ -13,7 +13,6 @@ import {
   toChecksumHexAddress,
   FALL_BACK_VS_CURRENCY,
 } from '@metamask/controller-utils';
-import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
@@ -21,7 +20,6 @@ import type {
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import { createDeferredPromise, type Hex } from '@metamask/utils';
-import { Mutex } from 'async-mutex';
 import { isEqual } from 'lodash';
 
 import { reduceInBatchesSerially, TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
