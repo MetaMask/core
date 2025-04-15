@@ -4,6 +4,7 @@ import {
   type QuoteResponse,
   ChainId,
   FeeType,
+  formatChainIdToCaip,
 } from '@metamask/bridge-controller';
 import {
   TransactionStatus,
@@ -235,7 +236,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         destinationTokenAddress: '0x0000000000000000000000000000000000000000',
         approvalTxId: undefined,
         swapTokenValue: '1.0',
-        isBridgeTx: true,
+        chainId: '0x1',
       });
     });
 
@@ -317,9 +318,20 @@ describe('Bridge Status Controller Transaction Utils', () => {
     });
   });
 
+  const snapId = 'snapId123';
+  const selectedAccountAddress = 'solanaAccountAddress123';
+  const mockSolanaAccount = {
+    metadata: {
+      snap: { id: snapId },
+    },
+    options: { scope: formatChainIdToCaip(ChainId.SOLANA) },
+    id: 'test-account-id',
+    address: selectedAccountAddress,
+  } as never;
+
   describe('handleSolanaTxResponse', () => {
     it('should handle string response format', () => {
-      const mockQuoteResponse: QuoteResponse & QuoteMetadata = {
+      const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
@@ -345,13 +357,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           },
         },
         estimatedProcessingTimeInSeconds: 300,
-        trade: {
-          value: '0x0',
-          gasLimit: '21000',
-        },
-        approval: {
-          gasLimit: '46000',
-        },
+        trade: 'ABCD',
         solanaFeesInLamports: '5000',
         // QuoteMetadata fields
         sentAmount: {
@@ -391,14 +397,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
       } as never;
 
       const signature = 'solanaSignature123';
-      const snapId = 'snapId123';
-      const selectedAccountAddress = 'solanaAccountAddress123';
 
       const result = handleSolanaTxResponse(
         signature,
         mockQuoteResponse,
-        snapId,
-        selectedAccountAddress,
+        mockSolanaAccount,
       );
 
       expect(result).toMatchObject({
@@ -425,7 +428,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
     });
 
     it('should handle object response format with signature', () => {
-      const mockQuoteResponse: QuoteResponse & QuoteMetadata = {
+      const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
@@ -451,13 +454,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           },
         },
         estimatedProcessingTimeInSeconds: 300,
-        trade: {
-          value: '0x0',
-          gasLimit: '21000',
-        },
-        approval: {
-          gasLimit: '46000',
-        },
+        trade: 'ABCD',
         solanaFeesInLamports: '5000',
         // QuoteMetadata fields
         sentAmount: {
@@ -501,21 +498,18 @@ describe('Bridge Status Controller Transaction Utils', () => {
           signature: 'solanaSignature123',
         },
       };
-      const snapId = 'snapId123';
-      const selectedAccountAddress = 'solanaAccountAddress123';
 
       const result = handleSolanaTxResponse(
         snapResponse,
         mockQuoteResponse,
-        snapId,
-        selectedAccountAddress,
+        mockSolanaAccount,
       );
 
       expect(result.hash).toBe('solanaSignature123');
     });
 
     it('should handle object response format with txid', () => {
-      const mockQuoteResponse: QuoteResponse & QuoteMetadata = {
+      const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
@@ -541,13 +535,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           },
         },
         estimatedProcessingTimeInSeconds: 300,
-        trade: {
-          value: '0x0',
-          gasLimit: '21000',
-        },
-        approval: {
-          gasLimit: '46000',
-        },
+        trade: 'ABCD',
         solanaFeesInLamports: '5000',
         // QuoteMetadata fields
         sentAmount: {
@@ -591,21 +579,18 @@ describe('Bridge Status Controller Transaction Utils', () => {
           txid: 'solanaTxId123',
         },
       };
-      const snapId = 'snapId123';
-      const selectedAccountAddress = 'solanaAccountAddress123';
 
       const result = handleSolanaTxResponse(
         snapResponse,
         mockQuoteResponse,
-        snapId,
-        selectedAccountAddress,
+        mockSolanaAccount,
       );
 
       expect(result.hash).toBe('solanaTxId123');
     });
 
     it('should handle object response format with hash', () => {
-      const mockQuoteResponse: QuoteResponse & QuoteMetadata = {
+      const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
@@ -631,13 +616,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           },
         },
         estimatedProcessingTimeInSeconds: 300,
-        trade: {
-          value: '0x0',
-          gasLimit: '21000',
-        },
-        approval: {
-          gasLimit: '46000',
-        },
+        trade: 'ABCD',
         solanaFeesInLamports: '5000',
         // QuoteMetadata fields
         sentAmount: {
@@ -681,21 +660,18 @@ describe('Bridge Status Controller Transaction Utils', () => {
           hash: 'solanaHash123',
         },
       };
-      const snapId = 'snapId123';
-      const selectedAccountAddress = 'solanaAccountAddress123';
 
       const result = handleSolanaTxResponse(
         snapResponse,
         mockQuoteResponse,
-        snapId,
-        selectedAccountAddress,
+        mockSolanaAccount,
       );
 
       expect(result.hash).toBe('solanaHash123');
     });
 
     it('should handle object response format with txHash', () => {
-      const mockQuoteResponse: QuoteResponse & QuoteMetadata = {
+      const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
@@ -721,13 +697,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           },
         },
         estimatedProcessingTimeInSeconds: 300,
-        trade: {
-          value: '0x0',
-          gasLimit: '21000',
-        },
-        approval: {
-          gasLimit: '46000',
-        },
+        trade: 'ABCD',
         solanaFeesInLamports: '5000',
         // QuoteMetadata fields
         sentAmount: {
@@ -771,21 +741,18 @@ describe('Bridge Status Controller Transaction Utils', () => {
           txHash: 'solanaTxHash123',
         },
       };
-      const snapId = 'snapId123';
-      const selectedAccountAddress = 'solanaAccountAddress123';
 
       const result = handleSolanaTxResponse(
         snapResponse,
         mockQuoteResponse,
-        snapId,
-        selectedAccountAddress,
+        mockSolanaAccount,
       );
 
       expect(result.hash).toBe('solanaTxHash123');
     });
 
     it('should handle empty or invalid response', () => {
-      const mockQuoteResponse: QuoteResponse & QuoteMetadata = {
+      const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
@@ -811,13 +778,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           },
         },
         estimatedProcessingTimeInSeconds: 300,
-        trade: {
-          value: '0x0',
-          gasLimit: '21000',
-        },
-        approval: {
-          gasLimit: '46000',
-        },
+        trade: 'ABCD',
         solanaFeesInLamports: '5000',
         // QuoteMetadata fields
         sentAmount: {
@@ -857,14 +818,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
       } as never;
 
       const snapResponse = { result: {} } as { result: Record<string, string> };
-      const snapId = 'snapId123';
-      const selectedAccountAddress = 'solanaAccountAddress123';
 
       const result = handleSolanaTxResponse(
         snapResponse,
         mockQuoteResponse,
-        snapId,
-        selectedAccountAddress,
+        mockSolanaAccount,
       );
 
       expect(result.hash).toBeUndefined();

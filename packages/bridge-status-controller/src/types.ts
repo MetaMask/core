@@ -54,6 +54,16 @@ export enum StatusTypes {
   COMPLETE = 'COMPLETE',
 }
 
+/**
+ * These fields are specific to Solana transactions and can likely be infered from TransactionMeta
+ *
+ * @deprecated these should be removed eventually
+ */
+export type SolanaTransactionMeta = {
+  isSolana: boolean;
+  isBridgeTx: boolean;
+};
+
 export type StatusRequest = {
   bridgeId: string; // lifi, socket, squid
   srcTxHash?: string; // lifi, socket, squid, might be undefined for STX

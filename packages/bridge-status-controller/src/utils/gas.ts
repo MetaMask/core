@@ -27,7 +27,15 @@ const getTransaction1559GasFeeEstimates = (
   };
 };
 
-export const getTxGasEstimates = async ({
+/**
+ * Get the gas fee estimates for a transaction
+ *
+ * @param params - The parameters for the gas fee estimates
+ * @param params.txGasFeeEstimates - The gas fee estimates for the transaction (TransactionController)
+ * @param params.networkGasFeeEstimates - The gas fee estimates for the network (GasFeeController)
+ * @returns The gas fee estimates for the transaction
+ */
+export const getTxGasEstimates = ({
   txGasFeeEstimates,
   networkGasFeeEstimates,
 }: {
