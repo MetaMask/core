@@ -1,8 +1,10 @@
 import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import { remove0x, type Hex } from '@metamask/utils';
+import { cloneDeep } from 'lodash';
 
 import { DELEGATION_PREFIX } from './eip7702';
+import { getGasEstimateBuffer } from './feature-flags';
 import type { UpdateGasRequest } from './gas';
 import {
   addGasBuffer,
@@ -17,7 +19,7 @@ import {
 } from './gas';
 import type { SimulationResponse } from './simulation-api';
 import { simulateTransactions } from './simulation-api';
-import { CHAIN_IDS } from '../constants';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type { AuthorizationList } from '../types';
 import { TransactionEnvelopeType, type TransactionMeta } from '../types';
 
@@ -26,6 +28,7 @@ jest.mock('@metamask/controller-utils', () => ({
   query: jest.fn(),
 }));
 
+jest.mock('./feature-flags');
 jest.mock('./simulation-api');
 
 const GAS_MOCK = 100;
@@ -37,6 +40,12 @@ const MAX_GAS_MULTIPLIER = MAX_GAS_BLOCK_PERCENT / 100;
 const CHAIN_ID_MOCK = '0x123';
 const GAS_2_MOCK = 12345;
 const SIMULATE_GAS_MOCK = 54321;
+
+const MESSENGER_MOCK = {
+  call: jest.fn().mockReturnValue({
+    remoteFeatureFlags: {},
+  }),
+} as unknown as jest.Mocked<TransactionControllerMessenger>;
 
 const AUTHORIZATION_LIST_MOCK: AuthorizationList = [
   {
@@ -58,6 +67,7 @@ const UPDATE_GAS_REQUEST_MOCK = {
   chainId: '0x0',
   isCustomNetwork: false,
   isSimulationEnabled: false,
+  messenger: MESSENGER_MOCK,
   ethQuery: ETH_QUERY_MOCK,
 } as UpdateGasRequest;
 
@@ -74,6 +84,7 @@ function toHex(value: number) {
 describe('gas', () => {
   const queryMock = jest.mocked(query);
   const simulateTransactionsMock = jest.mocked(simulateTransactions);
+  const getGasEstimateBufferMock = jest.mocked(getGasEstimateBuffer);
 
   let updateGasRequest: UpdateGasRequest;
 
@@ -128,8 +139,11 @@ describe('gas', () => {
   }
 
   beforeEach(() => {
-    updateGasRequest = JSON.parse(JSON.stringify(UPDATE_GAS_REQUEST_MOCK));
     jest.resetAllMocks();
+
+    updateGasRequest = cloneDeep(UPDATE_GAS_REQUEST_MOCK);
+
+    getGasEstimateBufferMock.mockReturnValue(1.5);
   });
 
   describe('updateGas', () => {
@@ -151,23 +165,7 @@ describe('gas', () => {
         expectEstimateGasNotCalled();
       });
 
-      it('to estimate if custom network', async () => {
-        updateGasRequest.isCustomNetwork = true;
-
-        mockQuery({
-          getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
-          estimateGasResponse: toHex(GAS_MOCK),
-        });
-
-        await updateGas(updateGasRequest);
-
-        expect(updateGasRequest.txMeta.txParams.gas).toBe(toHex(GAS_MOCK));
-        expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
-          updateGasRequest.txMeta.txParams.gas,
-        );
-      });
-
-      it('to estimate if not custom network and no to parameter', async () => {
+      it('to estimate if no to parameter', async () => {
         updateGasRequest.isCustomNetwork = false;
         const gasEstimation = Math.ceil(GAS_MOCK * DEFAULT_GAS_MULTIPLIER);
         delete updateGasRequest.txMeta.txParams.to;
@@ -208,31 +206,6 @@ describe('gas', () => {
         const estimatedGas = Math.ceil(
           estimatedGasPadded / DEFAULT_GAS_MULTIPLIER,
         );
-
-        mockQuery({
-          getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
-          estimateGasResponse: toHex(estimatedGas),
-        });
-
-        await updateGas(updateGasRequest);
-
-        expect(updateGasRequest.txMeta.txParams.gas).toBe(
-          toHex(estimatedGasPadded),
-        );
-        expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
-          updateGasRequest.txMeta.txParams.gas,
-        );
-        expect(updateGasRequest.txMeta.gasLimitNoBuffer).toBe(
-          toHex(estimatedGas),
-        );
-      });
-
-      it('to padded estimate using chain multiplier if padded estimate less than percentage of block gas limit', async () => {
-        const maxGasLimit = BLOCK_GAS_LIMIT_MOCK * MAX_GAS_MULTIPLIER;
-        const estimatedGasPadded = Math.ceil(maxGasLimit - 10);
-        const estimatedGas = estimatedGasPadded; // Optimism multiplier is 1
-
-        updateGasRequest.chainId = CHAIN_IDS.OPTIMISM;
 
         mockQuery({
           getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
@@ -392,6 +365,7 @@ describe('gas', () => {
         estimatedGas: toHex(GAS_MOCK),
         blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
         simulationFails: undefined,
+        isUpgradeWithDataToSelf: false,
       });
     });
 
@@ -414,6 +388,7 @@ describe('gas', () => {
       expect(result).toStrictEqual({
         estimatedGas: expect.any(String),
         blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+        isUpgradeWithDataToSelf: false,
         simulationFails: {
           reason: 'TestError',
           errorKey: 'TestKey',
@@ -448,6 +423,7 @@ describe('gas', () => {
         estimatedGas: toHex(fallbackGas),
         blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
         simulationFails: expect.any(Object),
+        isUpgradeWithDataToSelf: false,
       });
     });
 
@@ -591,6 +567,7 @@ describe('gas', () => {
           estimatedGas: toHex(GAS_2_MOCK + SIMULATE_GAS_MOCK - INTRINSIC_GAS),
           blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
           simulationFails: undefined,
+          isUpgradeWithDataToSelf: true,
         });
       });
 
@@ -714,6 +691,7 @@ describe('gas', () => {
           estimatedGas: toHex(GAS_2_MOCK),
           blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
           simulationFails: undefined,
+          isUpgradeWithDataToSelf: true,
         });
       });
 
@@ -746,6 +724,7 @@ describe('gas', () => {
         expect(result).toStrictEqual({
           estimatedGas: expect.any(String),
           blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+          isUpgradeWithDataToSelf: true,
           simulationFails: {
             debug: {
               blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),

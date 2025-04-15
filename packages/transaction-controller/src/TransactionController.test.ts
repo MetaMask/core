@@ -1198,6 +1198,7 @@ describe('TransactionController', () => {
         estimatedGas: gasMock,
         blockGasLimit: blockGasLimitMock,
         simulationFails: simulationFailsMock,
+        isUpgradeWithDataToSelf: false,
       });
 
       addGasBufferMock.mockReturnValue(expectedEstimatedGas);
@@ -2009,6 +2010,7 @@ describe('TransactionController', () => {
         ethQuery: expect.any(Object),
         isCustomNetwork: false,
         isSimulationEnabled: true,
+        messenger: expect.anything(),
         txMeta: expect.any(Object),
       });
     });

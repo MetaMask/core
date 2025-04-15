@@ -9,8 +9,9 @@ import type { Hex } from '@metamask/utils';
 import { add0x, createModuleLogger, remove0x } from '@metamask/utils';
 
 import { DELEGATION_PREFIX } from './eip7702';
+import { getGasEstimateBuffer } from './feature-flags';
 import { simulateTransactions } from './simulation-api';
-import { GAS_BUFFER_CHAIN_OVERRIDES } from '../constants';
+import type { TransactionControllerMessenger } from '..';
 import { projectLogger } from '../logger';
 import {
   TransactionEnvelopeType,
@@ -23,6 +24,7 @@ export type UpdateGasRequest = {
   ethQuery: EthQuery;
   isCustomNetwork: boolean;
   isSimulationEnabled: boolean;
+  messenger: TransactionControllerMessenger;
   txMeta: TransactionMeta;
 };
 
@@ -114,8 +116,8 @@ export async function estimateGas({
 
   const isUpgradeWithDataToSelf =
     txParams.type === TransactionEnvelopeType.setCode &&
-    authorizationList?.length &&
-    data &&
+    Boolean(authorizationList?.length) &&
+    Boolean(data) &&
     data !== '0x' &&
     from?.toLowerCase() === to?.toLowerCase();
 
@@ -146,6 +148,7 @@ export async function estimateGas({
   return {
     blockGasLimit,
     estimatedGas,
+    isUpgradeWithDataToSelf,
     simulationFails,
   };
 }
@@ -200,7 +203,8 @@ export function addGasBuffer(
 async function getGas(
   request: UpdateGasRequest,
 ): Promise<[string, TransactionMeta['simulationFails']?, string?]> {
-  const { chainId, isCustomNetwork, isSimulationEnabled, txMeta } = request;
+  const { chainId, isCustomNetwork, isSimulationEnabled, messenger, txMeta } =
+    request;
   const { disableGasBuffer } = txMeta;
 
   if (txMeta.txParams.gas) {
@@ -213,34 +217,50 @@ async function getGas(
     return [FIXED_GAS, undefined, FIXED_GAS];
   }
 
-  const { blockGasLimit, estimatedGas, simulationFails } = await estimateGas({
+  const {
+    blockGasLimit,
+    estimatedGas,
+    isUpgradeWithDataToSelf,
+    simulationFails,
+  } = await estimateGas({
     chainId: request.chainId,
     ethQuery: request.ethQuery,
     isSimulationEnabled,
     txParams: txMeta.txParams,
   });
 
-  if (isCustomNetwork || simulationFails) {
-    log(
-      isCustomNetwork
-        ? 'Using original estimate as custom network'
-        : 'Using original fallback estimate as simulation failed',
-    );
+  log('Original estimated gas', estimatedGas);
+
+  if (simulationFails) {
+    log('Using original fallback estimate as simulation failed');
+  }
+
+  if (disableGasBuffer) {
+    log('Gas buffer disabled');
+  }
+
+  if (simulationFails || disableGasBuffer) {
     return [estimatedGas, simulationFails, estimatedGas];
   }
 
-  let finalGas = estimatedGas;
+  const bufferMultiplier = getGasEstimateBuffer({
+    chainId,
+    isCustomRPC: isCustomNetwork,
+    isUpgradeWithDataToSelf,
+    messenger,
+  });
 
-  if (!disableGasBuffer) {
-    const bufferMultiplier =
-      GAS_BUFFER_CHAIN_OVERRIDES[
-        chainId as keyof typeof GAS_BUFFER_CHAIN_OVERRIDES
-      ] ?? DEFAULT_GAS_MULTIPLIER;
+  log('Buffer', bufferMultiplier);
 
-    finalGas = addGasBuffer(estimatedGas, blockGasLimit, bufferMultiplier);
-  }
+  const bufferedGas = addGasBuffer(
+    estimatedGas,
+    blockGasLimit,
+    bufferMultiplier,
+  );
 
-  return [finalGas, simulationFails, estimatedGas];
+  log('Buffered gas', bufferedGas);
+
+  return [bufferedGas, simulationFails, estimatedGas];
 }
 
 /**
