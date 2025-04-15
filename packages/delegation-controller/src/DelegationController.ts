@@ -49,7 +49,7 @@ export class DelegationController extends BaseController<
   DelegationControllerState,
   DelegationControllerMessenger
 > {
-  private readonly hashDelegation: (delegation: Delegation) => Hex;
+  readonly #hashDelegation: (delegation: Delegation) => Hex;
 
   private readonly getDelegationEnvironment: (
     chainId: Hex,
