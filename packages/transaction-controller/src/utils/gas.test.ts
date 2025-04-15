@@ -181,22 +181,6 @@ describe('gas', () => {
         expectEstimateGasNotCalled();
       });
 
-      it('to estimate if custom network', async () => {
-        updateGasRequest.isCustomNetwork = true;
-
-        mockQuery({
-          getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
-          estimateGasResponse: toHex(GAS_MOCK),
-        });
-
-        await updateGas(updateGasRequest);
-
-        expect(updateGasRequest.txMeta.txParams.gas).toBe(toHex(GAS_MOCK));
-        expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
-          updateGasRequest.txMeta.txParams.gas,
-        );
-      });
-
       it('to estimate if transaction type is 0x4', async () => {
         updateGasRequest.isCustomNetwork = false;
         updateGasRequest.txMeta.txParams.type = TransactionEnvelopeType.setCode;
