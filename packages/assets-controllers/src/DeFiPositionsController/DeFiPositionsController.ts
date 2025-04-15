@@ -113,7 +113,7 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
   readonly #isEnabled: () => boolean;
 
   /**
-   * Tokens controller options
+   * DeFiPositionsController constuctor
    *
    * @param options - Constructor options.
    * @param options.messenger - The controller messenger.
