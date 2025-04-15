@@ -1,9 +1,10 @@
 import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import { remove0x, type Hex } from '@metamask/utils';
+import { cloneDeep } from 'lodash';
 
 import { DELEGATION_PREFIX } from './eip7702';
-import * as featureFlags from './feature-flags';
+import { getGasEstimateBuffer, getGasEstimateFallback } from './feature-flags';
 import type { UpdateGasRequest } from './gas';
 import {
   addGasBuffer,
@@ -17,7 +18,6 @@ import {
 } from './gas';
 import type { SimulationResponse } from './simulation-api';
 import { simulateTransactions } from './simulation-api';
-import { CHAIN_IDS } from '../constants';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import { TransactionEnvelopeType, type TransactionMeta } from '../types';
 import type { AuthorizationList } from '../types';
@@ -27,11 +27,7 @@ jest.mock('@metamask/controller-utils', () => ({
   query: jest.fn(),
 }));
 
-jest.mock('./feature-flags', () => ({
-  ...jest.requireActual('./feature-flags'),
-  getGasEstimateFallback: jest.fn(),
-}));
-
+jest.mock('./feature-flags');
 jest.mock('./simulation-api');
 
 const DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK = 35;
@@ -99,7 +95,8 @@ function toHex(value: number) {
 describe('gas', () => {
   const queryMock = jest.mocked(query);
   const simulateTransactionsMock = jest.mocked(simulateTransactions);
-  const getFeatureFlagsMock = jest.mocked(featureFlags.getGasEstimateFallback);
+  const getGasEstimateFallbackMock = jest.mocked(getGasEstimateFallback);
+  const getGasEstimateBufferMock = jest.mocked(getGasEstimateBuffer);
 
   let updateGasRequest: UpdateGasRequest;
 
@@ -154,9 +151,15 @@ describe('gas', () => {
   }
 
   beforeEach(() => {
-    updateGasRequest = JSON.parse(JSON.stringify(UPDATE_GAS_REQUEST_MOCK));
     jest.resetAllMocks();
-    getFeatureFlagsMock.mockReturnValue(GAS_ESTIMATE_FALLBACK_MULTIPLIER_MOCK);
+
+    updateGasRequest = cloneDeep(UPDATE_GAS_REQUEST_MOCK);
+
+    getGasEstimateFallbackMock.mockReturnValue(
+      GAS_ESTIMATE_FALLBACK_MULTIPLIER_MOCK,
+    );
+
+    getGasEstimateBufferMock.mockReturnValue(1.5);
   });
 
   describe('updateGas', () => {
@@ -213,7 +216,7 @@ describe('gas', () => {
         );
       });
 
-      it('to estimate if not custom network and no to parameter', async () => {
+      it('to estimate if no to parameter', async () => {
         updateGasRequest.txMeta.txParams.type =
           TransactionEnvelopeType.feeMarket;
         const gasEstimation = Math.ceil(GAS_MOCK * DEFAULT_GAS_MULTIPLIER);
@@ -255,31 +258,6 @@ describe('gas', () => {
         const estimatedGas = Math.ceil(
           estimatedGasPadded / DEFAULT_GAS_MULTIPLIER,
         );
-
-        mockQuery({
-          getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
-          estimateGasResponse: toHex(estimatedGas),
-        });
-
-        await updateGas(updateGasRequest);
-
-        expect(updateGasRequest.txMeta.txParams.gas).toBe(
-          toHex(estimatedGasPadded),
-        );
-        expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
-          updateGasRequest.txMeta.txParams.gas,
-        );
-        expect(updateGasRequest.txMeta.gasLimitNoBuffer).toBe(
-          toHex(estimatedGas),
-        );
-      });
-
-      it('to padded estimate using chain multiplier if padded estimate less than percentage of block gas limit', async () => {
-        const maxGasLimit = BLOCK_GAS_LIMIT_MOCK * MAX_GAS_MULTIPLIER;
-        const estimatedGasPadded = Math.ceil(maxGasLimit - 10);
-        const estimatedGas = estimatedGasPadded; // Optimism multiplier is 1
-
-        updateGasRequest.chainId = CHAIN_IDS.OPTIMISM;
 
         mockQuery({
           getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
@@ -383,7 +361,7 @@ describe('gas', () => {
           BLOCK_GAS_LIMIT_MOCK * FALLBACK_MULTIPLIER_35_PERCENT,
         );
 
-        getFeatureFlagsMock.mockReturnValue(
+        getGasEstimateFallbackMock.mockReturnValue(
           GAS_ESTIMATE_FALLBACK_MULTIPLIER_MOCK,
         );
 
@@ -444,6 +422,7 @@ describe('gas', () => {
         estimatedGas: toHex(GAS_MOCK),
         blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
         simulationFails: undefined,
+        isUpgradeWithDataToSelf: false,
       });
     });
 
@@ -467,6 +446,7 @@ describe('gas', () => {
       expect(result).toStrictEqual({
         estimatedGas: expect.any(String),
         blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+        isUpgradeWithDataToSelf: false,
         simulationFails: {
           reason: 'TestError',
           errorKey: 'TestKey',
@@ -502,11 +482,14 @@ describe('gas', () => {
         estimatedGas: toHex(fallbackGas),
         blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
         simulationFails: expect.any(Object),
+        isUpgradeWithDataToSelf: false,
       });
     });
 
     it('returns fixed gas estimate fallback from feature flags on error', async () => {
-      getFeatureFlagsMock.mockReturnValue(GAS_ESTIMATE_FALLBACK_FIXED_MOCK);
+      getGasEstimateFallbackMock.mockReturnValue(
+        GAS_ESTIMATE_FALLBACK_FIXED_MOCK,
+      );
       mockQuery({
         getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
         estimateGasError: { message: 'TestError', errorKey: 'TestKey' },
@@ -524,6 +507,7 @@ describe('gas', () => {
         estimatedGas: toHex(FIXED_ESTIMATE_GAS_MOCK),
         blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
         simulationFails: expect.any(Object),
+        isUpgradeWithDataToSelf: false,
       });
     });
 
@@ -672,6 +656,7 @@ describe('gas', () => {
           estimatedGas: toHex(GAS_2_MOCK + SIMULATE_GAS_MOCK - INTRINSIC_GAS),
           blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
           simulationFails: undefined,
+          isUpgradeWithDataToSelf: true,
         });
       });
 
@@ -798,6 +783,7 @@ describe('gas', () => {
           estimatedGas: toHex(GAS_2_MOCK),
           blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
           simulationFails: undefined,
+          isUpgradeWithDataToSelf: true,
         });
       });
 
@@ -831,6 +817,7 @@ describe('gas', () => {
         expect(result).toStrictEqual({
           estimatedGas: expect.any(String),
           blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+          isUpgradeWithDataToSelf: true,
           simulationFails: {
             debug: {
               blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
