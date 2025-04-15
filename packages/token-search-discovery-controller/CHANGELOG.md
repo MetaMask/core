@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export `SwappableTokenSearchParams` from root of package for use by clients ([#5654](https://github.com/MetaMask/core/pull/5654))
+
 ## [3.0.0]
 
 ### Added
