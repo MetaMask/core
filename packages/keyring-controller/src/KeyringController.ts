@@ -2159,10 +2159,6 @@ export class KeyringController extends BaseController<
     for (const serializedKeyring of serializedKeyrings) {
       await this.#restoreKeyring(serializedKeyring);
     }
-
-    if (this.#keyrings.length !== this.#keyringsMetadata.length) {
-      throw new Error(KeyringControllerError.KeyringMetadataLengthMismatch);
-    }
   }
 
   /**
@@ -2240,6 +2236,13 @@ export class KeyringController extends BaseController<
       }
 
       await this.#restoreSerializedKeyrings(vault);
+
+      // The keyrings array and the keyringsMetadata array should
+      // always have the same length while the controller is unlocked.
+      if (this.#keyrings.length !== this.#keyringsMetadata.length) {
+        throw new Error(KeyringControllerError.KeyringMetadataLengthMismatch);
+      }
+
       const updatedKeyrings = await this.#getUpdatedKeyrings();
 
       this.update((state) => {

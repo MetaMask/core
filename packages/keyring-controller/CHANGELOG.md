@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ExportableKeyEncryptor` is now a generic type with a type parameter `EncryptionKey` ([#5395](https://github.com/MetaMask/core/pull/5395))
   - The type parameter defaults to `unknown`
 
+### Fixed
+
+- Fixed wrong error message thrown when using the wrong password ([#5627](https://github.com/MetaMask/core/pull/5627))
+
 ## [21.0.2]
 
 ### Changed
