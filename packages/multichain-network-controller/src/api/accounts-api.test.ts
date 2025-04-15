@@ -153,11 +153,13 @@ describe('toAllowedCaipAccountIds', () => {
 });
 
 describe('toActiveNetworksByAddress', () => {
+  const SOLANA_MAINNET: CaipReference = '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+
   it('formats EVM network responses', () => {
     const response: ActiveNetworksResponse = {
       activeNetworks: [
-        `eip155:1:${MOCK_ADDRESSES.evm}`,
-        `eip155:137:${MOCK_ADDRESSES.evm}`,
+        `${KnownCaipNamespace.Eip155}:1:${MOCK_ADDRESSES.evm}`,
+        `${KnownCaipNamespace.Eip155}:137:${MOCK_ADDRESSES.evm}`,
       ],
     };
 
@@ -174,7 +176,7 @@ describe('toActiveNetworksByAddress', () => {
   it('formats non-EVM network responses', () => {
     const response: ActiveNetworksResponse = {
       activeNetworks: [
-        `${KnownCaipNamespace.Solana}:1:${MOCK_ADDRESSES.solana}`,
+        `${KnownCaipNamespace.Solana}:${SOLANA_MAINNET}:${MOCK_ADDRESSES.solana}`,
       ],
     };
 
@@ -183,7 +185,7 @@ describe('toActiveNetworksByAddress', () => {
     expect(result).toStrictEqual({
       [MOCK_ADDRESSES.solana]: {
         namespace: KnownCaipNamespace.Solana,
-        activeChains: ['1'],
+        activeChains: [SOLANA_MAINNET],
       },
     });
   });
@@ -191,8 +193,8 @@ describe('toActiveNetworksByAddress', () => {
   it('formats mixed EVM and non-EVM networks', () => {
     const response: ActiveNetworksResponse = {
       activeNetworks: [
-        `eip155:1:${MOCK_ADDRESSES.evm}`,
-        `solana:1:${MOCK_ADDRESSES.solana}`,
+        `${KnownCaipNamespace.Eip155}:1:${MOCK_ADDRESSES.evm}`,
+        `${KnownCaipNamespace.Solana}:${SOLANA_MAINNET}:${MOCK_ADDRESSES.solana}`,
       ],
     };
 
@@ -205,7 +207,7 @@ describe('toActiveNetworksByAddress', () => {
       },
       [MOCK_ADDRESSES.solana]: {
         namespace: KnownCaipNamespace.Solana,
-        activeChains: ['1'],
+        activeChains: [SOLANA_MAINNET],
       },
     });
   });

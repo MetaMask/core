@@ -32,12 +32,13 @@ import {
   type MultichainNetworkControllerAllowedEvents,
   MULTICHAIN_NETWORK_CONTROLLER_NAME,
 } from '../types';
+
 /**
  * Creates a mock network service for testing.
  *
  * @returns A mock network service that implements the MultichainNetworkService interface.
  */
-function createMockNetworkService() {
+function createMockNetworkService(): AbstractMultichainNetworkService {
   return {
     fetchNetworkActivity: jest
       .fn()
@@ -673,7 +674,7 @@ describe('MultichainNetworkController', () => {
 
       expect(mockNetworkService.fetchNetworkActivity).toHaveBeenCalledWith([
         `${KnownCaipNamespace.Eip155}:0:${MOCK_EVM_ADDRESS}`,
-        `${KnownCaipNamespace.Solana}:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:${MOCK_SOLANA_ADDRESS}`,
+        `${KnownCaipNamespace.Solana}:${MOCK_SOLANA_CHAIN}:${MOCK_SOLANA_ADDRESS}`,
       ]);
 
       expect(result).toStrictEqual({

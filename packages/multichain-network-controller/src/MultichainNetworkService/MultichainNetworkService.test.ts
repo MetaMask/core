@@ -11,8 +11,8 @@ import {
 describe('MultichainNetworkService', () => {
   const mockFetch = jest.fn();
   const validAccountIds: CaipAccountId[] = [
-    'eip155:1:0x1234567890123456789012345678901234567890' as CaipAccountId,
-    'solana:1:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as CaipAccountId,
+    'eip155:1:0x1234567890123456789012345678901234567890',
+    'solana:1:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
   ];
 
   describe('constructor', () => {
