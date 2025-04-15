@@ -1,4 +1,3 @@
-import { TokensController } from '@metamask/assets-controllers';
 import type { StateMetadata } from '@metamask/base-controller';
 import {
   ChainId,
@@ -27,7 +26,7 @@ import {
 } from '@metamask/transaction-controller';
 import type { UserOperationController } from '@metamask/user-operation-controller';
 import { createProjectLogger, numberToHex, type Hex } from '@metamask/utils';
-import BigNumber from 'bignumber.js';
+import { BigNumber } from 'bignumber.js';
 import { v4 as uuid } from 'uuid';
 
 import {
