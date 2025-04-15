@@ -1,8 +1,8 @@
+import type { QuoteResponse, TxData } from '@metamask/bridge-controller';
+import { ChainId } from '@metamask/bridge-controller';
 import {
   formatChainIdToHex,
   type QuoteMetadata,
-  type QuoteResponse,
-  ChainId,
   FeeType,
   formatChainIdToCaip,
 } from '@metamask/bridge-controller';
@@ -15,7 +15,9 @@ import {
   getStatusRequestParams,
   getTxMetaFields,
   handleSolanaTxResponse,
+  handleLineaDelay,
 } from './transaction';
+import { LINEA_DELAY_MS } from '../constants';
 
 describe('Bridge Status Controller Transaction Utils', () => {
   describe('getStatusRequestParams', () => {
@@ -826,6 +828,90 @@ describe('Bridge Status Controller Transaction Utils', () => {
       );
 
       expect(result.hash).toBeUndefined();
+    });
+  });
+
+  describe('handleLineaDelay', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.clearAllMocks();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should delay when source chain is Linea', async () => {
+      // Create a minimal mock quote response with Linea as the source chain
+      const mockQuoteResponse = {
+        quote: {
+          srcChainId: ChainId.LINEA,
+          // Other required properties with minimal values
+          requestId: 'test-request-id',
+          srcAsset: { address: '0x123', symbol: 'ETH', decimals: 18 },
+          srcTokenAmount: '1000000000000000000',
+          destChainId: ChainId.ETH,
+          destAsset: { address: '0x456', symbol: 'ETH', decimals: 18 },
+          destTokenAmount: '1000000000000000000',
+          bridgeId: 'test-bridge',
+          bridges: ['test-bridge'],
+          steps: [],
+          feeData: {},
+        },
+        // Required properties for QuoteResponse
+        trade: {} as TxData,
+        estimatedProcessingTimeInSeconds: 60,
+      } as unknown as QuoteResponse;
+
+      // Create a promise that will resolve after the delay
+      const delayPromise = handleLineaDelay(mockQuoteResponse);
+
+      // Verify that the timer was set with the correct delay
+      expect(jest.getTimerCount()).toBe(1);
+
+      // Fast-forward the timer
+      jest.advanceTimersByTime(LINEA_DELAY_MS);
+
+      // Wait for the promise to resolve
+      await delayPromise;
+
+      // Verify that the timer was cleared
+      expect(jest.getTimerCount()).toBe(0);
+    });
+
+    it('should not delay when source chain is not Linea', async () => {
+      // Create a minimal mock quote response with a non-Linea source chain
+      const mockQuoteResponse = {
+        quote: {
+          srcChainId: ChainId.ETH,
+          // Other required properties with minimal values
+          requestId: 'test-request-id',
+          srcAsset: { address: '0x123', symbol: 'ETH', decimals: 18 },
+          srcTokenAmount: '1000000000000000000',
+          destChainId: ChainId.LINEA,
+          destAsset: { address: '0x456', symbol: 'ETH', decimals: 18 },
+          destTokenAmount: '1000000000000000000',
+          bridgeId: 'test-bridge',
+          bridges: ['test-bridge'],
+          steps: [],
+          feeData: {},
+        },
+        // Required properties for QuoteResponse
+        trade: {} as TxData,
+        estimatedProcessingTimeInSeconds: 60,
+      } as unknown as QuoteResponse;
+
+      // Create a promise that will resolve after the delay
+      const delayPromise = handleLineaDelay(mockQuoteResponse);
+
+      // Verify that no timer was set
+      expect(jest.getTimerCount()).toBe(0);
+
+      // Wait for the promise to resolve
+      await delayPromise;
+
+      // Verify that no timer was set
+      expect(jest.getTimerCount()).toBe(0);
     });
   });
 });

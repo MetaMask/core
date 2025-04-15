@@ -682,10 +682,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // const fieldsToAddToTxMeta = getTxMetaFields(quoteResponse, approvalTxId);
     // dispatch(updateTransaction(completeTxMeta);
 
-    if (!transactionMeta) {
-      return undefined;
-    }
-
     return {
       ...transactionMeta,
       ...getTxMetaFields(quoteResponse, approvalTxId),
