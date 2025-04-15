@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 347.0.0 ([#5583](https://github.com/MetaMask/core/pull/5583))
-- chore: remove `goerli` and `linea goerli` from `network-controller` as default network ([#5560](https://github.com/MetaMask/core/pull/5560))
-- Release 338.0.0 ([#5518](https://github.com/MetaMask/core/pull/5518))
-
 ## [22.0.0]
 
 ### Changed
