@@ -5,15 +5,36 @@ import { padHexToEvenLength } from './utils';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 
-export const FEATURE_FLAG_TRANSACTIONS = 'confirmations_transactions';
-export const FEATURE_FLAG_EIP_7702 = 'confirmations_eip_7702';
-
 const DEFAULT_BATCH_SIZE_LIMIT = 10;
 const DEFAULT_ACCELERATED_POLLING_COUNT_MAX = 10;
 const DEFAULT_ACCELERATED_POLLING_INTERVAL_MS = 3 * 1000;
+const DEFAULT_GAS_ESTIMATE_FALLBACK_BLOCK_PERCENT = 35;
+const DEFAULT_GAS_ESTIMATE_BUFFER = 1;
+
+/**
+ * Feature flags supporting the transaction controller.
+ */
+export enum FeatureFlag {
+  EIP7702 = 'confirmations_eip_7702',
+  GasBuffer = 'confirmations_gas_buffer',
+  Transactions = 'confirmations_transactions',
+}
+
+type GasEstimateFallback = {
+  /**
+   * The fixed gas estimate fallback for a transaction.
+   */
+  fixed?: number;
+
+  /**
+   * The percentage multiplier gas estimate fallback for a transaction.
+   */
+  percentage?: number;
+};
 
 export type TransactionControllerFeatureFlags = {
-  [FEATURE_FLAG_EIP_7702]?: {
+  /** Feature flags to support EIP-7702 / type-4 transactions. */
+  [FeatureFlag.EIP7702]?: {
     /**
      * All contracts that support EIP-7702 batch transactions.
      * Keyed by chain ID.
@@ -34,18 +55,57 @@ export type TransactionControllerFeatureFlags = {
     supportedChains?: Hex[];
   };
 
-  [FEATURE_FLAG_TRANSACTIONS]?: {
+  /**
+   * Buffers added to gas limit estimations.
+   * Values are multipliers such as `1.5` meaning 150% of the original gas limit.
+   */
+  [FeatureFlag.GasBuffer]?: {
+    /** Fallback buffer for all chains and transactions. */
+    default?: number;
+
+    /**
+     * Buffer for included network RPCs only and not those added by user.
+     * Takes priority over `default`.
+     */
+    included?: number;
+
+    /** Buffers for specific chains. */
+    perChainConfig?: {
+      [chainId: Hex]: {
+        /**
+         * Buffer for the chain for all transactions.
+         * Takes priority over non-chain `included`.
+         */
+        base?: number;
+
+        /**
+         * Buffer if network RPC is included and not added by user.
+         * Takes priority over `base`.
+         */
+        included?: number;
+
+        /**
+         * Buffer for the chain for EIP-7702 / type 4 transactions only.
+         * Only if `data` included and `to` matches `from`.
+         * Takes priority over `included` and `base`.
+         */
+        eip7702?: number;
+      };
+    };
+  };
+
+  /** Miscellaneous feature flags to support the transaction controller. */
+  [FeatureFlag.Transactions]?: {
     /** Maximum number of transactions that can be in an external batch. */
     batchSizeLimit?: number;
 
+    /**
+     * Accelerated polling is used to speed up the polling process for
+     * transactions that are not yet confirmed.
+     */
     acceleratedPolling?: {
-      /**
-       * Accelerated polling is used to speed up the polling process for
-       * transactions that are not yet confirmed.
-       */
+      /** Accelerated polling parameters on a per-chain basis. */
       perChainConfig?: {
-        /** Accelerated polling parameters on a per-chain basis. */
-
         [chainId: Hex]: {
           /**
            * Maximum number of polling requests that can be made in a row, before
@@ -72,6 +132,20 @@ export type TransactionControllerFeatureFlags = {
       /** Number of digits to preserve for randomised gas fee digits. */
       preservedNumberOfDigits?: number;
     };
+
+    /** Gas estimate fallback is used as a fallback in case of failure to obtain the gas estimate values. */
+    gasEstimateFallback?: {
+      /** Gas estimate fallback per-chain basis. */
+      perChainConfig?: {
+        [chainId: Hex]: GasEstimateFallback;
+      };
+
+      /**
+       * Default gas estimate fallback.
+       * This value is used when no specific gas estimate fallback is found for a chain ID.
+       */
+      default?: GasEstimateFallback;
+    };
   };
 };
 
@@ -87,7 +161,7 @@ export function getEIP7702SupportedChains(
   messenger: TransactionControllerMessenger,
 ): Hex[] {
   const featureFlags = getFeatureFlags(messenger);
-  return featureFlags?.[FEATURE_FLAG_EIP_7702]?.supportedChains ?? [];
+  return featureFlags?.[FeatureFlag.EIP7702]?.supportedChains ?? [];
 }
 
 /**
@@ -106,7 +180,7 @@ export function getEIP7702ContractAddresses(
   const featureFlags = getFeatureFlags(messenger);
 
   const contracts =
-    featureFlags?.[FEATURE_FLAG_EIP_7702]?.contracts?.[
+    featureFlags?.[FeatureFlag.EIP7702]?.contracts?.[
       chainId.toLowerCase() as Hex
     ] ?? [];
 
@@ -149,7 +223,7 @@ export function getBatchSizeLimit(
 ): number {
   const featureFlags = getFeatureFlags(messenger);
   return (
-    featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.batchSizeLimit ??
+    featureFlags?.[FeatureFlag.Transactions]?.batchSizeLimit ??
     DEFAULT_BATCH_SIZE_LIMIT
   );
 }
@@ -168,7 +242,7 @@ export function getAcceleratedPollingParams(
   const featureFlags = getFeatureFlags(messenger);
 
   const acceleratedPollingParams =
-    featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.acceleratedPolling;
+    featureFlags?.[FeatureFlag.Transactions]?.acceleratedPolling;
 
   const countMax =
     acceleratedPollingParams?.perChainConfig?.[chainId]?.countMax ||
@@ -198,12 +272,88 @@ export function getGasFeeRandomisation(
   const featureFlags = getFeatureFlags(messenger);
 
   const gasFeeRandomisation =
-    featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.gasFeeRandomisation || {};
+    featureFlags?.[FeatureFlag.Transactions]?.gasFeeRandomisation || {};
 
   return {
     randomisedGasFeeDigits: gasFeeRandomisation.randomisedGasFeeDigits || {},
     preservedNumberOfDigits: gasFeeRandomisation.preservedNumberOfDigits,
   };
+}
+
+/**
+ * Retrieves the gas estimate fallback for a given chain ID.
+ * Defaults to the default gas estimate fallback if not set.
+ *
+ * @param chainId - The chain ID.
+ * @param messenger - The controller messenger instance.
+ * @returns The gas estimate fallback.
+ */
+export function getGasEstimateFallback(
+  chainId: Hex,
+  messenger: TransactionControllerMessenger,
+): {
+  fixed?: number;
+  percentage: number;
+} {
+  const featureFlags = getFeatureFlags(messenger);
+
+  const gasEstimateFallbackFlags =
+    featureFlags?.[FeatureFlag.Transactions]?.gasEstimateFallback;
+
+  const chainFlags = gasEstimateFallbackFlags?.perChainConfig?.[chainId];
+
+  const percentage =
+    chainFlags?.percentage ??
+    gasEstimateFallbackFlags?.default?.percentage ??
+    DEFAULT_GAS_ESTIMATE_FALLBACK_BLOCK_PERCENT;
+
+  const fixed = chainFlags?.fixed ?? gasEstimateFallbackFlags?.default?.fixed;
+
+  return { fixed, percentage };
+}
+
+/**
+ * Retrieves the gas buffers for a given chain ID.
+ *
+ * @param request - The request object.
+ * @param request.chainId - The chain ID.
+ * @param request.isCustomRPC - Whether the network RPC is added by the user.
+ * @param request.isUpgradeWithDataToSelf - Whether the transaction is an EIP-7702 upgrade with data to self.
+ * @param request.messenger - The controller messenger instance.
+ * @returns The gas buffers.
+ */
+export function getGasEstimateBuffer({
+  chainId,
+  isCustomRPC,
+  isUpgradeWithDataToSelf,
+  messenger,
+}: {
+  chainId: Hex;
+  isCustomRPC: boolean;
+  isUpgradeWithDataToSelf: boolean;
+  messenger: TransactionControllerMessenger;
+}): number {
+  const featureFlags = getFeatureFlags(messenger);
+  const gasBufferFlags = featureFlags?.[FeatureFlag.GasBuffer];
+  const chainFlags = gasBufferFlags?.perChainConfig?.[chainId];
+  const chainIncludedRPCBuffer = isCustomRPC ? undefined : chainFlags?.included;
+
+  const defaultIncludedRPCBuffer = isCustomRPC
+    ? undefined
+    : gasBufferFlags?.included;
+
+  const upgradeBuffer = isUpgradeWithDataToSelf
+    ? chainFlags?.eip7702
+    : undefined;
+
+  return (
+    upgradeBuffer ??
+    chainIncludedRPCBuffer ??
+    chainFlags?.base ??
+    defaultIncludedRPCBuffer ??
+    gasBufferFlags?.default ??
+    DEFAULT_GAS_ESTIMATE_BUFFER
+  );
 }
 
 /**

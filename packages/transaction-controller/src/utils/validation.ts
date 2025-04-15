@@ -1,7 +1,8 @@
 import { Interface } from '@ethersproject/abi';
 import { ORIGIN_METAMASK, isValidHexAddress } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
-import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
+import { JsonRpcError, providerErrors, rpcErrors } from '@metamask/rpc-errors';
+import type { Hex } from '@metamask/utils';
 import { isStrictHexString, remove0x } from '@metamask/utils';
 
 import { isEIP1559Transaction } from './utils';
@@ -11,6 +12,11 @@ import {
   TransactionType,
   type TransactionParams,
 } from '../types';
+
+export enum ErrorCode {
+  DuplicateBundleId = 5720,
+  BundleTooLarge = 5740,
+}
 
 const TRANSACTION_ENVELOPE_TYPES_FEE_MARKET = [
   TransactionEnvelopeType.feeMarket,
@@ -76,6 +82,10 @@ export async function validateTransactionOrigin({
     throw providerErrors.unauthorized({ data: { origin } });
   }
 
+  if (type === TransactionType.batch) {
+    return;
+  }
+
   if (
     isExternal &&
     (authorizationList || envelopeType === TransactionEnvelopeType.setCode)
@@ -92,8 +102,7 @@ export async function validateTransactionOrigin({
     hasData &&
     internalAccounts?.some(
       (account) => account.toLowerCase() === to?.toLowerCase(),
-    ) &&
-    type !== TransactionType.batch
+    )
   ) {
     throw rpcErrors.invalidParams(
       'External transactions to internal accounts cannot include data',
@@ -107,10 +116,12 @@ export async function validateTransactionOrigin({
  *
  * @param txParams - Transaction params object to validate.
  * @param isEIP1559Compatible - whether or not the current network supports EIP-1559 transactions.
+ * @param chainId - The chain ID of the transaction.
  */
 export function validateTxParams(
   txParams: TransactionParams,
   isEIP1559Compatible = true,
+  chainId?: Hex,
 ) {
   validateEnvelopeType(txParams.type);
   validateEIP1559Compatibility(txParams, isEIP1559Compatible);
@@ -118,7 +129,7 @@ export function validateTxParams(
   validateParamRecipient(txParams);
   validateParamValue(txParams.value);
   validateParamData(txParams.data);
-  validateParamChainId(txParams.chainId);
+  validateParamChainId(txParams.chainId, chainId);
   validateGasFeeParams(txParams);
   validateAuthorizationList(txParams);
 }
@@ -273,27 +284,34 @@ export function validateBatchRequest({
   const { origin } = request;
   const isExternal = origin && origin !== ORIGIN_METAMASK;
 
-  const transactionTargetsNormalized = request.transactions.map((tx) =>
-    tx.params.to?.toLowerCase(),
-  );
-
   const internalAccountsNormalized = internalAccounts.map((account) =>
     account.toLowerCase(),
   );
 
   if (
     isExternal &&
-    transactionTargetsNormalized.some((target) =>
-      internalAccountsNormalized.includes(target as string),
-    )
+    request.transactions.some((nestedTransaction) => {
+      const normalizedCallTo =
+        nestedTransaction.params.to?.toLowerCase() as string;
+
+      const callData = nestedTransaction.params.data;
+
+      const isInternalAccount =
+        internalAccountsNormalized.includes(normalizedCallTo);
+
+      const hasData = Boolean(callData && callData !== '0x');
+
+      return isInternalAccount && hasData;
+    })
   ) {
     throw rpcErrors.invalidParams(
-      'Calls to internal accounts are not supported',
+      'External calls to internal accounts cannot include data',
     );
   }
 
   if (isExternal && request.transactions.length > sizeLimit) {
-    throw rpcErrors.invalidParams(
+    throw new JsonRpcError(
+      ErrorCode.BundleTooLarge,
       `Batch size cannot exceed ${sizeLimit}. got: ${request.transactions.length}`,
     );
   }
@@ -325,18 +343,17 @@ function validateParamData(value?: string) {
 /**
  * Validates chainId type.
  *
- * @param chainId - The chainId to validate.
+ * @param chainIdParams - The chain ID to validate.
+ * @param chainIdNetworkClient - The chain ID of the network client.
  */
-function validateParamChainId(chainId: number | string | undefined) {
+function validateParamChainId(chainIdParams?: Hex, chainIdNetworkClient?: Hex) {
   if (
-    chainId !== undefined &&
-    typeof chainId !== 'number' &&
-    typeof chainId !== 'string'
+    chainIdParams &&
+    chainIdNetworkClient &&
+    chainIdParams.toLowerCase?.() !== chainIdNetworkClient.toLowerCase()
   ) {
     throw rpcErrors.invalidParams(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      `Invalid transaction params: chainId is not a Number or hex string. got: (${chainId})`,
+      `Invalid transaction params: chainId must match the network client, got: ${chainIdParams}, expected: ${chainIdNetworkClient}`,
     );
   }
 }

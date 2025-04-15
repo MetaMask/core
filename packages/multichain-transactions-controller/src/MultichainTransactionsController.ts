@@ -14,6 +14,7 @@ import {
   isEvmAccountType,
   type Transaction,
   type AccountTransactionsUpdatedEventPayload,
+  TransactionStatus,
 } from '@metamask/keyring-api';
 import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -66,6 +67,22 @@ export function getDefaultMultichainTransactionsControllerState(): MultichainTra
 }
 
 /**
+ * Event emitted when a transaction is finalized.
+ */
+export type MultichainTransactionsControllerTransactionConfirmedEvent = {
+  type: `${typeof controllerName}:transactionConfirmed`;
+  payload: [Transaction];
+};
+
+/**
+ * Event emitted when a transaction is submitted.
+ */
+export type MultichainTransactionsControllerTransactionSubmittedEvent = {
+  type: `${typeof controllerName}:transactionSubmitted`;
+  payload: [Transaction];
+};
+
+/**
  * Returns the state of the {@link MultichainTransactionsController}.
  */
 export type MultichainTransactionsControllerGetStateAction =
@@ -93,7 +110,9 @@ export type MultichainTransactionsControllerActions =
  * Events emitted by {@link MultichainTransactionsController}.
  */
 export type MultichainTransactionsControllerEvents =
-  MultichainTransactionsControllerStateChange;
+  | MultichainTransactionsControllerStateChange
+  | MultichainTransactionsControllerTransactionConfirmedEvent
+  | MultichainTransactionsControllerTransactionSubmittedEvent;
 
 /**
  * Messenger type for the MultichainTransactionsController.
@@ -348,6 +367,27 @@ export class MultichainTransactionsController extends BaseController<
   }
 
   /**
+   * Publishes transaction update events.
+   *
+   * @param updatedTransaction - The updated transaction.
+   */
+  #publishTransactionUpdateEvent(updatedTransaction: Transaction) {
+    if (updatedTransaction.status === TransactionStatus.Confirmed) {
+      this.messagingSystem.publish(
+        'MultichainTransactionsController:transactionConfirmed',
+        updatedTransaction,
+      );
+    }
+
+    if (updatedTransaction.status === TransactionStatus.Submitted) {
+      this.messagingSystem.publish(
+        'MultichainTransactionsController:transactionSubmitted',
+        updatedTransaction,
+      );
+    }
+  }
+
+  /**
    * Handles transaction updates received from the AccountsController.
    *
    * @param transactionsUpdate - The transaction update event containing new transactions.
@@ -356,6 +396,7 @@ export class MultichainTransactionsController extends BaseController<
     transactionsUpdate: AccountTransactionsUpdatedEventPayload,
   ): void {
     const updatedTransactions: Record<string, Transaction[]> = {};
+    const transactionsToPublish: Transaction[] = [];
 
     if (!transactionsUpdate?.transactions) {
       return;
@@ -381,6 +422,7 @@ export class MultichainTransactionsController extends BaseController<
 
         filteredNewTransactions.forEach((tx) => {
           transactions.set(tx.id, tx);
+          transactionsToPublish.push(tx);
         });
 
         // Sorted by timestamp (newest first). If the timestamp is not provided, those
@@ -401,6 +443,11 @@ export class MultichainTransactionsController extends BaseController<
           };
         },
       );
+    });
+
+    // After we update the state, publish the events for new/updated transactions
+    transactionsToPublish.forEach((tx) => {
+      this.#publishTransactionUpdateEvent(tx);
     });
   }
 

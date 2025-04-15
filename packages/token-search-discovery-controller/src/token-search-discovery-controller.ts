@@ -15,6 +15,7 @@ import type {
   TopGainersParams,
   TopLosersParams,
   BlueChipParams,
+  SwappableTokenSearchParams,
 } from './types';
 
 // === GENERAL ===
@@ -146,6 +147,21 @@ export class TokenSearchDiscoveryController extends BaseController<
   ): Promise<TokenSearchResponseItem[]> {
     const results =
       await this.#tokenSearchService.searchTokens(tokenSearchParams);
+
+    this.update((state) => {
+      state.recentSearches = results;
+      state.lastSearchTimestamp = Date.now();
+    });
+
+    return results;
+  }
+
+  async searchSwappableTokens(
+    swappableTokenSearchParams: SwappableTokenSearchParams,
+  ): Promise<TokenSearchResponseItem[]> {
+    const results = await this.#tokenSearchService.searchSwappableTokens(
+      swappableTokenSearchParams,
+    );
 
     this.update((state) => {
       state.recentSearches = results;

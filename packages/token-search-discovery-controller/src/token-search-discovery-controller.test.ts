@@ -99,6 +99,10 @@ describe('TokenSearchDiscoveryController', () => {
     async searchTokens(): Promise<TokenSearchResponseItem[]> {
       return mockSearchResults;
     }
+
+    async searchSwappableTokens(): Promise<TokenSearchResponseItem[]> {
+      return mockSearchResults;
+    }
   }
 
   class MockTokenDiscoveryService extends AbstractTokenDiscoveryApiService {
@@ -166,6 +170,15 @@ describe('TokenSearchDiscoveryController', () => {
     });
   });
 
+  describe('searchSwappableTokens', () => {
+    it('should return search results', async () => {
+      const results = await mainController.searchSwappableTokens({
+        query: 'te',
+      });
+      expect(results).toStrictEqual(mockSearchResults);
+    });
+  });
+
   describe('getTrendingTokens', () => {
     it('should return trending results', async () => {
       const results = await mainController.getTrendingTokens({});
@@ -196,6 +209,10 @@ describe('TokenSearchDiscoveryController', () => {
   describe('error handling', () => {
     class ErrorTokenSearchService extends AbstractTokenSearchApiService {
       async searchTokens(): Promise<TokenSearchResponseItem[]> {
+        return [];
+      }
+
+      async searchSwappableTokens(): Promise<TokenSearchResponseItem[]> {
         return [];
       }
     }
