@@ -17,6 +17,7 @@ import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import {
   TransactionEnvelopeType,
+  TransactionType,
   type TransactionMeta,
   type TransactionParams,
 } from '../types';
@@ -268,10 +269,15 @@ async function requiresFixedGas({
   isCustomNetwork,
 }: UpdateGasRequest): Promise<boolean> {
   const {
-    txParams: { to, data },
+    txParams: { to, data, type },
   } = txMeta;
 
-  if (isCustomNetwork || !to || data) {
+  if (
+    isCustomNetwork ||
+    !to ||
+    data ||
+    type === TransactionEnvelopeType.setCode
+  ) {
     return false;
   }
 

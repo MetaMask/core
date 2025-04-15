@@ -194,8 +194,28 @@ describe('gas', () => {
         );
       });
 
-      it('to estimate if not custom network and no to parameter', async () => {
+      it('to estimate if transaction type is batch', async () => {
         updateGasRequest.isCustomNetwork = false;
+        updateGasRequest.txMeta.txParams.type = TransactionEnvelopeType.setCode;
+
+        const gasEstimation = Math.ceil(GAS_MOCK * DEFAULT_GAS_MULTIPLIER);
+        delete updateGasRequest.txMeta.txParams.to;
+        mockQuery({
+          getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+          estimateGasResponse: toHex(GAS_MOCK),
+        });
+
+        await updateGas(updateGasRequest);
+
+        expect(updateGasRequest.txMeta.txParams.gas).toBe(toHex(gasEstimation));
+        expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
+          updateGasRequest.txMeta.txParams.gas,
+        );
+      });
+
+      it('to estimate if not custom network and no to parameter', async () => {
+        updateGasRequest.txMeta.txParams.type =
+          TransactionEnvelopeType.feeMarket;
         const gasEstimation = Math.ceil(GAS_MOCK * DEFAULT_GAS_MULTIPLIER);
         delete updateGasRequest.txMeta.txParams.to;
         mockQuery({
