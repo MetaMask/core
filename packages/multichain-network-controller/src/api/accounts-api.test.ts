@@ -34,25 +34,11 @@ const MOCK_CAIP_IDS = {
 } as const;
 
 describe('toAllowedCaipAccountIds', () => {
-  type AccountType = {
-    type: EthAccountType | BtcAccountType | SolAccountType;
-    id: string;
-    options: Record<string, Json>;
-    methods: string[];
-    metadata: {
-      name: string;
-      importTime: number;
-      keyring: { type: string };
-    };
-    address: string;
-    scopes: `${string}:${string}`[];
-  };
-
   const createMockAccount = (
     address: string,
-    scopes: `${string}:${string}`[],
-    type: EthAccountType | BtcAccountType | SolAccountType,
-  ): AccountType => ({
+    scopes: CaipChainId[],
+    type: InternalAccount['type'],
+  ): InternalAccount => ({
     address,
     scopes,
     type,
