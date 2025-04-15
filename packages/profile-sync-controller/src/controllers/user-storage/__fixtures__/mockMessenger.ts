@@ -1,6 +1,6 @@
 import type { NotNamespacedBy } from '@metamask/base-controller';
 import { Messenger } from '@metamask/base-controller';
-import { decrypt, type EthEncryptedData } from '@metamask/eth-sig-util';
+import { decrypt as ERC1024Decrypt, type EthEncryptedData } from '@metamask/eth-sig-util';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 
 import type {
@@ -112,7 +112,7 @@ export function mockUserStorageMessenger(
     Promise.resolve(MOCK_ENCRYPTION_PUBLIC_KEY),
   );
   const mockDecryptMessage = jest.fn((data: EthEncryptedData) => {
-    return decrypt({
+    return ERC1024Decrypt({
       encryptedData: data,
       privateKey: MOCK_ENCRYPTION_PRIVATE_KEY,
     });

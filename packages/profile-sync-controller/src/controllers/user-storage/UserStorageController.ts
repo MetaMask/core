@@ -11,7 +11,7 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import { encrypt } from '@metamask/eth-sig-util';
+import { encrypt as ERC1024Encrypt } from '@metamask/eth-sig-util';
 import {
   type KeyringControllerGetStateAction,
   type KeyringControllerLockEvent,
@@ -386,7 +386,7 @@ export default class UserStorageController extends BaseController<
             return await this.#snapDecryptMessage(ciphertext);
           },
           encryptMessage: async (message: string, publicKeyHex: string) => {
-            const erc1024Payload = encrypt({
+            const erc1024Payload = ERC1024Encrypt({
               // eth-sig-util expects the public key to be in base64 format
               publicKey: byteArrayToBase64(hexToBytes(publicKeyHex)),
               data: message,

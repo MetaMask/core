@@ -160,7 +160,7 @@ export class UserStorage {
       return storageKey;
     }
     // if no cache, fetch raw entry and decrypt using SRP storage key
-    // using the SRP public key as a salt to avoid collisions.
+    // using the SRP encryption public key just as a salt to avoid collisions.
     const srpKey = await this.config.encryption?.getEncryptionPublicKey();
     let profileStorageKeyPath = null;
     if (srpKey) {
