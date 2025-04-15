@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/snaps-utils` from ^8.10.0 to ^9.2.0 ([#5639](https://github.com/MetaMask/core/pull/5639))
+- Bump `@metamask/snaps-controllers` peer dependency from ^9.19.0 to ^11.2.0 ([#5639](https://github.com/MetaMask/core/pull/5639))
+
+### Changed
+
 - Bump `@metamask/multichain-network-controller` peer dependency to `^0.4.0` ([#5649](https://github.com/MetaMask/core/pull/5649))
 
 ## [13.0.0]
