@@ -64,6 +64,14 @@ const fakeEvmAccountWithoutMetadata: InternalAccount = {
   methods: [],
 };
 
+const fakeMarketData = {
+  price: 202.11,
+  priceChange: 0,
+  priceChangePercentage: 0,
+  volume: 0,
+  marketCap: 0,
+};
+
 // A fake conversion rates response returned by the SnapController.
 const fakeAccountRates = {
   conversionRates: {
@@ -71,9 +79,25 @@ const fakeAccountRates = {
       'swift:0/iso4217:USD': {
         rate: '202.11',
         conversionTime: 1738539923277,
+        marketData: fakeMarketData,
       },
     },
   },
+};
+
+const fakeHistoricalPrices = {
+  intervals: {
+    P1D: [
+      [1737542312, '1'],
+      [1737542312, '2'],
+    ],
+    P1W: [
+      [1737542312, '1'],
+      [1737542312, '2'],
+    ],
+  },
+  updateTime: 1737542312,
+  expirationTime: 1737542312,
 };
 
 const setupController = ({
@@ -112,6 +136,11 @@ const setupController = ({
     () => accountsAssets,
   );
 
+  messenger.registerActionHandler(
+    'AccountsController:getSelectedMultichainAccount',
+    () => accountsAssets[0],
+  );
+
   messenger.registerActionHandler('CurrencyRateController:getState', () => ({
     currencyRates: {},
     currentCurrency: 'USD',
@@ -124,6 +153,7 @@ const setupController = ({
       'SnapController:handleRequest',
       'CurrencyRateController:getState',
       'MultichainAssetsController:getState',
+      'AccountsController:getSelectedMultichainAccount',
     ],
     allowedEvents: [
       'AccountsController:accountAdded',
@@ -163,7 +193,7 @@ describe('MultichainAssetsRatesController', () => {
     expect(controller.state).toStrictEqual({ conversionRates: {} });
   });
 
-  it('updates conversion rates for a valid non-EVM account', async () => {
+  it('updates conversion rates for a valid non-EVM account with marketData', async () => {
     const { controller, messenger } = setupController();
 
     // Stub KeyringClient.listAccountAssets so that the controller “discovers” one asset.
@@ -211,6 +241,13 @@ describe('MultichainAssetsRatesController', () => {
           rate: '202.11',
           conversionTime: 1738539923277,
           currency: 'swift:0/iso4217:USD',
+          marketData: {
+            price: 202.11,
+            priceChange: 0,
+            priceChangePercentage: 0,
+            volume: 0,
+            marketCap: 0,
+          },
         },
       },
     );
@@ -413,5 +450,35 @@ describe('MultichainAssetsRatesController', () => {
     await controller.updateAssetsRates();
 
     expect(controller.state.conversionRates).toStrictEqual({});
+  });
+
+  it('calls fetchHistoricalPrices', async () => {
+    const { controller, messenger } = setupController();
+
+    const snapHandler = jest.fn().mockResolvedValue(fakeHistoricalPrices);
+    messenger.registerActionHandler(
+      'SnapController:handleRequest',
+      snapHandler,
+    );
+
+    const result = await controller.fetchHistoricalPrices(
+      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+    );
+
+    expect(snapHandler).toHaveBeenCalledWith({
+      handler: 'onAssetHistoricalPrice',
+      origin: 'metamask',
+      request: {
+        jsonrpc: '2.0',
+        method: 'onAssetHistoricalPrice',
+        params: {
+          from: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+          to: 'swift:0/iso4217:USD',
+        },
+      },
+      snapId: 'test-snap',
+    });
+
+    expect(result).toStrictEqual(fakeHistoricalPrices);
   });
 });
