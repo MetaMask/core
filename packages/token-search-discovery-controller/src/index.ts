@@ -10,6 +10,7 @@ export type {
   TrendingTokensParams,
   TopGainersParams,
   TopLosersParams,
+  BlueChipParams,
 } from './types';
 
 export { AbstractTokenSearchApiService } from './token-search-api-service/abstract-token-search-api-service';
