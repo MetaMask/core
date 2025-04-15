@@ -11,9 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Testnet asset IDs added as constants ([#5589](https://github.com/MetaMask/core/pull/5589))
-- Network specific decimal values and ticker as constants ([#5589](https://github.com/MetaMask/core/pull/5589))
-- New method `removeNetwork` acts as a proxy to remove an EVM network from the `@metamask/network-controller` ([#5516](https://github.com/MetaMask/core/pull/5516))
+- Add Testnet asset IDs as constants ([#5589](https://github.com/MetaMask/core/pull/5589))
+- Add Network specific decimal values and ticker as constants ([#5589](https://github.com/MetaMask/core/pull/5589))
+- Add new method `removeNetwork` that acts as a proxy to remove an EVM network from the `@metamask/network-controller` ([#5516](https://github.com/MetaMask/core/pull/5516))
 
 ### Changed
 
