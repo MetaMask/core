@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Testnet asset IDs added as constants ([#5589](https://github.com/MetaMask/core/pull/5589))
+- Network specific decimal values and ticker as constants ([#5589](https://github.com/MetaMask/core/pull/5589))
+
+### Changed
+
+- The `AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS` now includes non-EVM testnets ([#5589](https://github.com/MetaMask/core/pull/5589))
+
+### Fixed
+
+- Fix the condition to update the active network based on the `AccountsController:selectedAccountChange` event ([#5642](https://github.com/MetaMask/core/pull/5642))
+
 ## [0.3.0]
 
 ### Changed
