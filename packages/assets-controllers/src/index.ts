@@ -198,8 +198,6 @@ export type {
 export { DeFiPositionsController } from './DeFiPositionsController/DeFiPositionsController';
 export type {
   DeFiPositionsControllerState,
-  DeFiPositionsControllerAllowedActions,
-  DeFiPositionsControllerAllowedEvents,
   DeFiPositionsControllerActions,
   DeFiPositionsControllerEvents,
   DeFiPositionsControllerGetStateAction,

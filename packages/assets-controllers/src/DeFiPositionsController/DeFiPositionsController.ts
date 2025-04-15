@@ -75,13 +75,12 @@ export type DeFiPositionsControllerStateChangeEvent =
 /**
  * The external actions available to the {@link DeFiPositionsController}.
  */
-export type DeFiPositionsControllerAllowedActions =
-  AccountsControllerListAccountsAction;
+export type AllowedActions = AccountsControllerListAccountsAction;
 
 /**
  * The external events available to the {@link DeFiPositionsController}.
  */
-export type DeFiPositionsControllerAllowedEvents =
+export type AllowedEvents =
   | KeyringControllerUnlockEvent
   | KeyringControllerLockEvent
   | TransactionControllerTransactionConfirmedEvent
@@ -92,10 +91,10 @@ export type DeFiPositionsControllerAllowedEvents =
  */
 export type DeFiPositionsControllerMessenger = RestrictedMessenger<
   typeof controllerName,
-  DeFiPositionsControllerActions | DeFiPositionsControllerAllowedActions,
-  DeFiPositionsControllerEvents | DeFiPositionsControllerAllowedEvents,
-  DeFiPositionsControllerAllowedActions['type'],
-  DeFiPositionsControllerAllowedEvents['type']
+  DeFiPositionsControllerActions | AllowedActions,
+  DeFiPositionsControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
 >;
 
 /**
@@ -178,11 +177,13 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
       'AccountsController:listAccounts',
     );
 
+    const initialResult: {
+      accountAddress: string;
+      positions: GroupedDeFiPositionsPerChain | null;
+    }[] = [];
+
     const results = await reduceInBatchesSerially({
-      initialResult: [] as {
-        accountAddress: string;
-        positions: GroupedDeFiPositionsPerChain | null;
-      }[],
+      initialResult,
       values: accounts,
       batchSize: FETCH_POSITIONS_BATCH_SIZE,
       eachBatch: async (workingResult, batch) => {
