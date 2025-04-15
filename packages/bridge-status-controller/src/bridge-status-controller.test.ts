@@ -1634,13 +1634,17 @@ describe('BridgeStatusController', () => {
       expect(result).toMatchSnapshot();
 
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
-
       expect(
-        startPollingForBridgeTxStatusSpy.mock.lastCall[0],
+        startPollingForBridgeTxStatusSpy.mock.lastCall[0].statusRequest,
         // eslint-disable-next-line jest/no-restricted-matchers
       ).toMatchSnapshot();
-      // eslint-disable-next-line jest/no-restricted-matchers
-      expect(estimateGasFeeFn.mock.calls).toMatchSnapshot();
+      expect(
+        startPollingForBridgeTxStatusSpy.mock.lastCall[0].bridgeTxMeta,
+      ).toStrictEqual(result);
+      expect(startPollingForBridgeTxStatusSpy.mock.lastCall[0].startTime).toBe(
+        1234567890,
+      );
+
       // eslint-disable-next-line jest/no-restricted-matchers
       expect(addTransactionFn.mock.calls).toMatchSnapshot();
       // eslint-disable-next-line jest/no-restricted-matchers
@@ -1694,16 +1698,22 @@ describe('BridgeStatusController', () => {
 
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
       expect(
-        startPollingForBridgeTxStatusSpy.mock.lastCall[0],
+        startPollingForBridgeTxStatusSpy.mock.lastCall[0].statusRequest,
         // eslint-disable-next-line jest/no-restricted-matchers
       ).toMatchSnapshot();
+      expect(
+        startPollingForBridgeTxStatusSpy.mock.lastCall[0].bridgeTxMeta,
+      ).toStrictEqual(result);
+      expect(startPollingForBridgeTxStatusSpy.mock.lastCall[0].startTime).toBe(
+        1234567890,
+      );
+
       // eslint-disable-next-line jest/no-restricted-matchers
       expect(estimateGasFeeFn.mock.calls).toMatchSnapshot();
       // eslint-disable-next-line jest/no-restricted-matchers
       expect(addTransactionFn.mock.calls).toMatchSnapshot();
       // eslint-disable-next-line jest/no-restricted-matchers
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
-
       expect(addUserOperationFromTransactionFn).not.toHaveBeenCalled();
     });
 
@@ -1745,9 +1755,16 @@ describe('BridgeStatusController', () => {
 
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
       expect(
-        startPollingForBridgeTxStatusSpy.mock.lastCall[0],
+        startPollingForBridgeTxStatusSpy.mock.lastCall[0].statusRequest,
         // eslint-disable-next-line jest/no-restricted-matchers
       ).toMatchSnapshot();
+      expect(
+        startPollingForBridgeTxStatusSpy.mock.lastCall[0].bridgeTxMeta,
+      ).toStrictEqual(result);
+      expect(startPollingForBridgeTxStatusSpy.mock.lastCall[0].startTime).toBe(
+        1234567890,
+      );
+
       // eslint-disable-next-line jest/no-restricted-matchers
       expect(estimateGasFeeFn.mock.calls).toMatchSnapshot();
       // eslint-disable-next-line jest/no-restricted-matchers
@@ -1807,9 +1824,16 @@ describe('BridgeStatusController', () => {
 
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
       expect(
-        startPollingForBridgeTxStatusSpy.mock.lastCall[0],
+        startPollingForBridgeTxStatusSpy.mock.lastCall[0].statusRequest,
         // eslint-disable-next-line jest/no-restricted-matchers
       ).toMatchSnapshot();
+      expect(
+        startPollingForBridgeTxStatusSpy.mock.lastCall[0].bridgeTxMeta,
+      ).toStrictEqual(result);
+      expect(startPollingForBridgeTxStatusSpy.mock.lastCall[0].startTime).toBe(
+        1234567890,
+      );
+
       // eslint-disable-next-line jest/no-restricted-matchers
       expect(estimateGasFeeFn.mock.calls).toMatchSnapshot();
       expect(addTransactionFn).not.toHaveBeenCalled();
@@ -1842,10 +1866,7 @@ describe('BridgeStatusController', () => {
       controller.stopAllPolling();
 
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      expect(estimateGasFeeFn).not.toHaveBeenCalled();
       expect(addTransactionFn).not.toHaveBeenCalled();
-      // eslint-disable-next-line jest/no-restricted-matchers
-      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
       expect(addUserOperationFromTransactionFn).not.toHaveBeenCalled();
     });
 
@@ -1942,18 +1963,23 @@ describe('BridgeStatusController', () => {
       expect(result).toMatchSnapshot();
 
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
-
       expect(
-        startPollingForBridgeTxStatusSpy.mock.lastCall[0],
+        startPollingForBridgeTxStatusSpy.mock.lastCall[0].statusRequest,
         // eslint-disable-next-line jest/no-restricted-matchers
       ).toMatchSnapshot();
+      expect(
+        startPollingForBridgeTxStatusSpy.mock.lastCall[0].bridgeTxMeta,
+      ).toStrictEqual(result);
+      expect(startPollingForBridgeTxStatusSpy.mock.lastCall[0].startTime).toBe(
+        1234567890,
+      );
+
       // eslint-disable-next-line jest/no-restricted-matchers
       expect(estimateGasFeeFn.mock.calls).toMatchSnapshot();
       // eslint-disable-next-line jest/no-restricted-matchers
       expect(addTransactionFn.mock.calls).toMatchSnapshot();
       // eslint-disable-next-line jest/no-restricted-matchers
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
-      expect(addUserOperationFromTransactionFn).not.toHaveBeenCalled();
     });
 
     it('should throw an error if approval tx fails', async () => {
@@ -1981,8 +2007,6 @@ describe('BridgeStatusController', () => {
       ).rejects.toThrow('Approval tx failed');
 
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      // eslint-disable-next-line jest/no-restricted-matchers
-      expect(estimateGasFeeFn.mock.calls).toMatchSnapshot();
       // eslint-disable-next-line jest/no-restricted-matchers
       expect(addTransactionFn.mock.calls).toMatchSnapshot();
       // eslint-disable-next-line jest/no-restricted-matchers
@@ -2027,8 +2051,6 @@ describe('BridgeStatusController', () => {
 
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
       // eslint-disable-next-line jest/no-restricted-matchers
-      expect(estimateGasFeeFn.mock.calls).toMatchSnapshot();
-      // eslint-disable-next-line jest/no-restricted-matchers
       expect(addTransactionFn.mock.calls).toMatchSnapshot();
       // eslint-disable-next-line jest/no-restricted-matchers
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
@@ -2055,7 +2077,7 @@ describe('BridgeStatusController', () => {
         },
       });
 
-      estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
+      estimateGasFeeFn.mockResolvedValue(mockEstimateGasFeeResult);
       addTransactionFn.mockResolvedValueOnce({
         transactionMeta: mockApprovalTxMeta,
         result: Promise.resolve('0xapprovalTxHash'),
@@ -2079,7 +2101,6 @@ describe('BridgeStatusController', () => {
         },
       });
 
-      estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
       addTransactionFn.mockResolvedValueOnce({
         transactionMeta: mockEvmTxMeta,
         result: Promise.resolve('0xevmTxHash'),
@@ -2113,18 +2134,19 @@ describe('BridgeStatusController', () => {
       expect(result).toMatchSnapshot();
 
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
-
       expect(
-        startPollingForBridgeTxStatusSpy.mock.lastCall[0],
+        startPollingForBridgeTxStatusSpy.mock.lastCall[0].statusRequest,
         // eslint-disable-next-line jest/no-restricted-matchers
       ).toMatchSnapshot();
-      // eslint-disable-next-line jest/no-restricted-matchers
-      expect(estimateGasFeeFn.mock.calls).toMatchSnapshot();
-      // eslint-disable-next-line jest/no-restricted-matchers
-      expect(addTransactionFn.mock.calls).toMatchSnapshot();
+      expect(
+        startPollingForBridgeTxStatusSpy.mock.lastCall[0].bridgeTxMeta,
+      ).toStrictEqual(result);
+      expect(startPollingForBridgeTxStatusSpy.mock.lastCall[0].startTime).toBe(
+        1234567890,
+      );
+
       // eslint-disable-next-line jest/no-restricted-matchers
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
-      expect(addUserOperationFromTransactionFn).not.toHaveBeenCalled();
     });
   });
 });

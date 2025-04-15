@@ -2,7 +2,7 @@ import { TransactionType } from '@metamask/transaction-controller';
 
 import { isSmartTransactionsEnabled } from './smart-transactions';
 
-describe('smart-transactions utils', () => {
+describe('Bridge Status Controller smart-transactions utils', () => {
   describe('isSmartTransactionsEnabled', () => {
     it('should return true when all conditions are met for bridge transactions', () => {
       const result = isSmartTransactionsEnabled(
