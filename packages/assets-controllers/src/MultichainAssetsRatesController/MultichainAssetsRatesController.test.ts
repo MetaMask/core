@@ -184,25 +184,24 @@ describe('MultichainAssetsRatesController', () => {
     await controller.updateAssetsRates();
 
     // Check that the Snap request was made with the expected parameters.
-    expect(snapHandler).toHaveBeenCalledWith(
-      expect.objectContaining({
-        handler: 'onAssetsConversion',
-        origin: 'metamask',
-        request: {
-          jsonrpc: '2.0',
-          method: 'onAssetsConversion',
-          params: {
-            conversions: [
-              {
-                from: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
-                to: 'swift:0/iso4217:USD',
-              },
-            ],
-          },
+    expect(snapHandler).toHaveBeenCalledWith({
+      handler: 'onAssetsConversion',
+      origin: 'metamask',
+      request: {
+        jsonrpc: '2.0',
+        method: 'onAssetsConversion',
+        params: {
+          conversions: [
+            {
+              from: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+              to: 'swift:0/iso4217:USD',
+            },
+          ],
+          includeMarketData: true,
         },
-        snapId: 'test-snap',
-      }),
-    );
+      },
+      snapId: 'test-snap',
+    });
 
     // The controller state should now contain the conversion rates returned.
     expect(controller.state.conversionRates).toStrictEqual(

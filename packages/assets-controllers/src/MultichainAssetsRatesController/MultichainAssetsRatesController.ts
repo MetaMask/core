@@ -1,6 +1,7 @@
 import type {
   AccountsControllerListMultichainAccountsAction,
   AccountsControllerAccountAddedEvent,
+  AccountsControllerGetSelectedAccountAction,
 } from '@metamask/accounts-controller';
 import type {
   RestrictedMessenger,
@@ -20,6 +21,8 @@ import type {
   AssetConversion,
   OnAssetsConversionArguments,
   OnAssetsConversionResponse,
+  OnAssetHistoricalPriceArguments,
+  OnAssetHistoricalPriceResponse,
 } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import { Mutex } from 'async-mutex';
@@ -107,7 +110,9 @@ export type AllowedActions =
   | HandleSnapRequest
   | AccountsControllerListMultichainAccountsAction
   | GetCurrencyRateState
-  | MultichainAssetsControllerGetStateAction;
+  | MultichainAssetsControllerGetStateAction
+  | AccountsControllerGetSelectedAccountAction;
+
 /**
  * Events that this controller is allowed to subscribe to.
  */
@@ -296,14 +301,15 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
         const conversions = this.#buildConversions(assets);
 
         // Retrieve rates from Snap
-        const accountRates = await this.#handleSnapRequest({
-          snapId: account?.metadata.snap?.id as SnapId,
-          handler: HandlerType.OnAssetsConversion,
-          params: {
-            ...conversions,
-            includeMarketData: true,
-          },
-        });
+        const accountRates: OnAssetsConversionResponse =
+          (await this.#handleSnapRequest({
+            snapId: account?.metadata.snap?.id as SnapId,
+            handler: HandlerType.OnAssetsConversion,
+            params: {
+              ...conversions,
+              includeMarketData: true,
+            },
+          })) as OnAssetsConversionResponse;
 
         // Flatten nested rates if needed
         const flattenedRates = this.#flattenRates(accountRates);
@@ -316,6 +322,34 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
     })().finally(() => {
       releaseLock();
     });
+  }
+
+  /**
+   * Fetches historical prices for the current account
+   *
+   * @param options - The options for the historical prices.
+   * @param options.from - The asset to convert from.
+   * @param options.to - The user preferenced currency.
+   * @returns The historical prices.
+   */
+  async updateHistoricalPrices({
+    from,
+    to,
+  }: OnAssetHistoricalPriceArguments): Promise<OnAssetHistoricalPriceResponse> {
+    const selectedAccount = this.messagingSystem.call(
+      'AccountsController:getSelectedAccount',
+    );
+
+    const historicalPrices = await this.#handleSnapRequest({
+      snapId: selectedAccount?.metadata.snap?.id as SnapId,
+      handler: HandlerType.OnAssetHistoricalPrice,
+      params: {
+        from,
+        to,
+      },
+    });
+
+    return historicalPrices as OnAssetHistoricalPriceResponse;
   }
 
   /**
@@ -431,8 +465,8 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
   }: {
     snapId: SnapId;
     handler: HandlerType;
-    params: OnAssetsConversionArguments;
-  }): Promise<OnAssetsConversionResponse> {
+    params: OnAssetsConversionArguments | OnAssetHistoricalPriceArguments;
+  }): Promise<OnAssetsConversionResponse | OnAssetHistoricalPriceResponse> {
     return this.messagingSystem.call('SnapController:handleRequest', {
       snapId,
       origin: 'metamask',
@@ -442,6 +476,6 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
         method: handler,
         params,
       },
-    }) as Promise<OnAssetsConversionResponse>;
+    }) as Promise<OnAssetsConversionResponse | OnAssetHistoricalPriceResponse>;
   }
 }
