@@ -11,6 +11,7 @@ import type {
   DelegationControllerState,
   DelegationEntry,
   DelegationFilter,
+  DeleGatorEnvironment,
   Hex,
   UnsignedDelegation,
 } from './types';
@@ -50,14 +51,29 @@ export class DelegationController extends BaseController<
 > {
   private readonly hashDelegation: (delegation: Delegation) => Hex;
 
+  private readonly getDelegationEnvironment: (
+    chainId: Hex,
+  ) => DeleGatorEnvironment;
+
+  /**
+   * Constructs a new {@link DelegationController} instance.
+   *
+   * @param params - The parameters for constructing the controller.
+   * @param params.messenger - The messenger instance to use for the controller.
+   * @param params.state - The initial state for the controller.
+   * @param params.hashDelegation - A function to hash delegations.
+   * @param params.getDelegationEnvironment - A function to get the delegation environment for a given chainId.
+   */
   constructor({
     messenger,
     state,
     hashDelegation,
+    getDelegationEnvironment,
   }: {
     messenger: DelegationControllerMessenger;
     state?: Partial<DelegationControllerState>;
     hashDelegation: (delegation: Delegation) => Hex;
+    getDelegationEnvironment: (chainId: Hex) => DeleGatorEnvironment;
   }) {
     super({
       messenger,
@@ -69,6 +85,7 @@ export class DelegationController extends BaseController<
       },
     });
     this.hashDelegation = hashDelegation;
+    this.getDelegationEnvironment = getDelegationEnvironment;
   }
 
   /**
@@ -77,28 +94,23 @@ export class DelegationController extends BaseController<
    * @param params - The parameters for signing the delegation.
    * @param params.delegation - The delegation to sign.
    * @param params.chainId - The chainId of the chain to sign the delegation for.
-   * @param params.verifyingContract - The address of the verifying contract (DelegationManager).
    * @returns The signature of the delegation.
    */
   async signDelegation(params: {
     delegation: UnsignedDelegation;
     chainId: Hex;
-    verifyingContract: Address;
   }) {
-    const { delegation, verifyingContract, chainId } = params;
-
-    const account = this.messagingSystem.call(
-      'AccountsController:getSelectedAccount',
-    );
+    const { delegation, chainId } = params;
+    const { DelegationManager } = this.getDelegationEnvironment(chainId);
 
     const data = createTypedMessageParams({
       chainId: hexToNumber(chainId),
-      from: account.address as Address,
+      from: delegation.delegator,
       delegation: {
         ...delegation,
         signature: '0x',
       },
-      verifyingContract,
+      verifyingContract: DelegationManager,
     });
 
     // TODO:: Replace with `SignatureController:newUnsignedTypedMessage`.

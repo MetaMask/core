@@ -14,6 +14,7 @@ import type {
   DelegationControllerEvents,
   DelegationControllerState,
   DelegationEntry,
+  DeleGatorEnvironment,
   Hex,
 } from './types';
 import { toDelegationStruct } from './utils';
@@ -24,7 +25,7 @@ const SIGNATURE_HASH_MOCK = '0x123ABC';
 const CHAIN_ID_MOCK = '0xaa36a7';
 
 const VERIFYING_CONTRACT_MOCK: Address =
-  '0x0000000000000000000000000000000000000000';
+  '0x00000000000000000000000000000000000321fde';
 
 const DELEGATION_MOCK: Delegation = {
   delegator: '0x1234567890123456789012345678901234567890' as Address,
@@ -109,6 +110,22 @@ function hashDelegationMock(delegation: Delegation): Hex {
 }
 
 /**
+ * Create a mock getDelegationEnvironment function.
+ *
+ * @param _chainId - The chainId to return the environment for.
+ * @returns The mock environment object.
+ */
+function getDelegationEnvironmentMock(_chainId: Hex): DeleGatorEnvironment {
+  return {
+    DelegationManager: VERIFYING_CONTRACT_MOCK,
+    EntryPoint: VERIFYING_CONTRACT_MOCK,
+    SimpleFactory: VERIFYING_CONTRACT_MOCK,
+    caveatEnforcers: {},
+    implementations: {},
+  };
+}
+
+/**
  * Create a controller instance for testing.
  *
  * @param state - The initial state to use for the controller.
@@ -120,6 +137,7 @@ function createController(state?: DelegationControllerState) {
     messenger,
     state,
     hashDelegation: hashDelegationMock,
+    getDelegationEnvironment: getDelegationEnvironmentMock,
   });
 
   return {
@@ -149,7 +167,6 @@ describe(`${controllerName}`, () => {
 
       const signature = await controller.signDelegation({
         delegation: DELEGATION_MOCK,
-        verifyingContract: VERIFYING_CONTRACT_MOCK,
         chainId: CHAIN_ID_MOCK,
       });
 
@@ -163,11 +180,11 @@ describe(`${controllerName}`, () => {
               chainId: hexToNumber(CHAIN_ID_MOCK),
               name: 'DelegationManager',
               version: '1',
-              verifyingContract: expect.any(String),
+              verifyingContract: VERIFYING_CONTRACT_MOCK,
             }),
             message: toDelegationStruct(DELEGATION_MOCK),
           }),
-          from: FROM_MOCK,
+          from: DELEGATION_MOCK.delegator,
         }),
         SignTypedDataVersion.V4,
       );
@@ -186,7 +203,6 @@ describe(`${controllerName}`, () => {
             ...DELEGATION_MOCK,
             salt: '0x1' as Hex,
           },
-          verifyingContract: VERIFYING_CONTRACT_MOCK,
           chainId: CHAIN_ID_MOCK,
         }),
       ).rejects.toThrow('Signature failed');

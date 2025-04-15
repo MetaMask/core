@@ -16,6 +16,27 @@ type Address = `0x${string}`;
 
 export type { Address, Hex };
 
+/**
+ * A version agnostic blob of contract addresses required for the DeleGator system to function.
+ */
+export type DeleGatorEnvironment = {
+  DelegationManager: Hex;
+  EntryPoint: Hex;
+  SimpleFactory: Hex;
+  implementations: {
+    [implementation: string]: Hex;
+  };
+  caveatEnforcers: {
+    [enforcer: string]: Hex;
+  };
+};
+
+/**
+ * A delegation caveat is a condition that must be met in order for a delegation
+ * to be valid. The caveat is defined by an enforcer, terms, and arguments.
+ *
+ * @see https://docs.gator.metamask.io/concepts/caveat-enforcers
+ */
 export type Caveat = {
   enforcer: Hex;
   terms: Hex;
