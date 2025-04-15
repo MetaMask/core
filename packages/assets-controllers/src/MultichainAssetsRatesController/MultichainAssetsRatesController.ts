@@ -327,25 +327,25 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
   /**
    * Fetches historical prices for the current account
    *
-   * @param options - The options for the historical prices.
-   * @param options.from - The asset to convert from.
-   * @param options.to - The user preferenced currency.
+   * @param asset - The asset to fetch historical prices for.
    * @returns The historical prices.
    */
-  async updateHistoricalPrices({
-    from,
-    to,
-  }: OnAssetHistoricalPriceArguments): Promise<OnAssetHistoricalPriceResponse> {
+  async fetchHistoricalPrices(
+    asset: CaipAssetType,
+  ): Promise<OnAssetHistoricalPriceResponse> {
     const selectedAccount = this.messagingSystem.call(
       'AccountsController:getSelectedMultichainAccount',
     );
+
+    const currentCurrency =
+      MAP_CAIP_CURRENCIES[this.#currentCurrency] ?? MAP_CAIP_CURRENCIES.usd;
 
     const historicalPrices = await this.#handleSnapRequest({
       snapId: selectedAccount?.metadata.snap?.id as SnapId,
       handler: HandlerType.OnAssetHistoricalPrice,
       params: {
-        from,
-        to,
+        from: asset,
+        to: currentCurrency,
       },
     });
 
