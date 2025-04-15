@@ -1,4 +1,7 @@
 import {
+  EthScope,
+  BtcScope,
+  SolScope,
   BtcAccountType,
   EthAccountType,
   SolAccountType,
@@ -51,7 +54,7 @@ export const createMockInternalAccount = ({
   importTime?: number;
   lastSelected?: number;
 } = {}): InternalAccount => {
-  let methods;
+  let methods, scopes;
 
   switch (type) {
     case EthAccountType.Eoa:
@@ -63,6 +66,7 @@ export const createMockInternalAccount = ({
         EthMethod.SignTypedDataV3,
         EthMethod.SignTypedDataV4,
       ];
+      scopes = [EthScope.Eoa];
       break;
     case EthAccountType.Erc4337:
       methods = [
@@ -70,12 +74,15 @@ export const createMockInternalAccount = ({
         EthMethod.PrepareUserOperation,
         EthMethod.SignUserOperation,
       ];
+      scopes = [EthScope.Mainnet];
       break;
     case BtcAccountType.P2wpkh:
       methods = [BtcMethod.SendBitcoin];
+      scopes = [BtcScope.Mainnet];
       break;
     case SolAccountType.DataAccount:
       methods = [SolMethod.SendAndConfirmTransaction];
+      scopes = [SolScope.Mainnet, SolScope.Devnet];
       break;
     default:
       throw new Error(`Unknown account type: ${type as string}`);
@@ -87,6 +94,7 @@ export const createMockInternalAccount = ({
     options: {},
     methods,
     type,
+    scopes,
     metadata: {
       name,
       keyring: { type: keyringType },
