@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Updated state management for network activity ([#5551](https://github.com/MetaMask/core/pull/5551))
+
 ## [0.4.0]
 
 ### Added

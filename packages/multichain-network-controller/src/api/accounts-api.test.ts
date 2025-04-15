@@ -97,12 +97,12 @@ describe('toAllowedCaipAccountIds', () => {
   it('excludes unsupported scopes', () => {
     const account = createMockAccount(
       MOCK_ADDRESSES.evm,
-      [EthScope.Eoa, 'unsupported:123'],
+      [EthScope.Mainnet, 'unsupported:123'],
       EthAccountType.Eoa,
     );
 
     const result = toAllowedCaipAccountIds(account);
-    expect(result).toStrictEqual([`${EthScope.Eoa}:${MOCK_ADDRESSES.evm}`]);
+    expect(result).toStrictEqual([`${EthScope.Mainnet}:${MOCK_ADDRESSES.evm}`]);
   });
 
   it('returns empty array for account with no supported scopes', () => {
