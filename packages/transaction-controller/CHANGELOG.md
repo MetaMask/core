@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Update error codes for duplicate batch ID and batch size limit errors ([#5635](https://github.com/MetaMask/core/pull/5635))
+
 ### Fixed
 
+- Throw if `addTransactionBatch` is called with any nested transaction with `to` matching internal account and including `data` ([#5635](https://github.com/MetaMask/core/pull/5635))
 - Fix incoming transaction support with `queryEntireHistory` set to `false` ([#5582](https://github.com/MetaMask/core/pull/5582))
 
 ## [54.0.0]
