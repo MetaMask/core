@@ -400,11 +400,14 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       const signature = 'solanaSignature123';
 
-      const result = handleSolanaTxResponse(
-        signature,
-        mockQuoteResponse,
-        mockSolanaAccount,
-      );
+      const result = handleSolanaTxResponse(signature, mockQuoteResponse, {
+        metadata: {
+          snap: { id: undefined },
+        },
+        options: { scope: formatChainIdToCaip(ChainId.SOLANA) },
+        id: 'test-account-id',
+        address: selectedAccountAddress,
+      } as never);
 
       expect(result).toMatchObject({
         id: expect.any(String),
@@ -415,7 +418,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         hash: signature,
         isSolana: true,
         isBridgeTx: true,
-        origin: snapId,
+        origin: undefined,
         destinationChainId: formatChainIdToHex(ChainId.POLYGON),
         sourceTokenAmount: '1000000000',
         sourceTokenSymbol: 'SOL',
