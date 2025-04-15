@@ -4,8 +4,6 @@ import type { Hex } from '@metamask/utils';
 
 import type { TransactionControllerFeatureFlags } from './feature-flags';
 import {
-  FEATURE_FLAG_EIP_7702,
-  FEATURE_FLAG_TRANSACTIONS,
   getAcceleratedPollingParams,
   getBatchSizeLimit,
   getEIP7702ContractAddresses,
@@ -13,6 +11,8 @@ import {
   getEIP7702UpgradeContractAddress,
   getGasFeeRandomisation,
   getGasEstimateFallback,
+  getGasEstimateBuffer,
+  FeatureFlag,
 } from './feature-flags';
 import { isValidSignature } from './signature';
 import type { TransactionControllerMessenger } from '..';
@@ -25,10 +25,14 @@ const ADDRESS_MOCK = '0x1234567890abcdef1234567890abcdef12345678' as Hex;
 const ADDRESS_2_MOCK = '0xabcdef1234567890abcdef1234567890abcdef12' as Hex;
 const PUBLIC_KEY_MOCK = '0x321' as Hex;
 const SIGNATURE_MOCK = '0xcba' as Hex;
-
 const DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK = 35;
 const GAS_ESTIMATE_FALLBACK_MOCK = 50;
 const FIXED_GAS_MOCK = 100000;
+const GAS_BUFFER_MOCK = 1.1;
+const GAS_BUFFER_2_MOCK = 1.2;
+const GAS_BUFFER_3_MOCK = 1.3;
+const GAS_BUFFER_4_MOCK = 1.4;
+const GAS_BUFFER_5_MOCK = 1.5;
 
 describe('Feature Flags Utils', () => {
   let baseMessenger: Messenger<
@@ -80,7 +84,7 @@ describe('Feature Flags Utils', () => {
   describe('getEIP7702SupportedChains', () => {
     it('returns value from remote feature flag controller', () => {
       mockFeatureFlags({
-        [FEATURE_FLAG_EIP_7702]: {
+        [FeatureFlag.EIP7702]: {
           supportedChains: [CHAIN_ID_MOCK, CHAIN_ID_2_MOCK],
         },
       });
@@ -100,7 +104,7 @@ describe('Feature Flags Utils', () => {
   describe('getEIP7702ContractAddresses', () => {
     it('returns value from remote feature flag controller', () => {
       mockFeatureFlags({
-        [FEATURE_FLAG_EIP_7702]: {
+        [FeatureFlag.EIP7702]: {
           contracts: {
             [CHAIN_ID_MOCK]: [
               { address: ADDRESS_MOCK, signature: SIGNATURE_MOCK },
@@ -133,7 +137,7 @@ describe('Feature Flags Utils', () => {
 
     it('returns empty array if chain ID not found', () => {
       mockFeatureFlags({
-        [FEATURE_FLAG_EIP_7702]: {
+        [FeatureFlag.EIP7702]: {
           contracts: {
             [CHAIN_ID_2_MOCK]: [
               { address: ADDRESS_MOCK, signature: SIGNATURE_MOCK },
@@ -156,7 +160,7 @@ describe('Feature Flags Utils', () => {
       isValidSignatureMock.mockReturnValueOnce(false).mockReturnValueOnce(true);
 
       mockFeatureFlags({
-        [FEATURE_FLAG_EIP_7702]: {
+        [FeatureFlag.EIP7702]: {
           contracts: {
             [CHAIN_ID_MOCK]: [
               { address: ADDRESS_MOCK, signature: SIGNATURE_MOCK },
@@ -179,7 +183,7 @@ describe('Feature Flags Utils', () => {
       isValidSignatureMock.mockReturnValueOnce(false).mockReturnValueOnce(true);
 
       mockFeatureFlags({
-        [FEATURE_FLAG_EIP_7702]: {
+        [FeatureFlag.EIP7702]: {
           contracts: {
             [CHAIN_ID_MOCK]: [
               { address: ADDRESS_MOCK, signature: undefined as never },
@@ -204,7 +208,7 @@ describe('Feature Flags Utils', () => {
       isValidSignatureMock.mockReturnValueOnce(false).mockReturnValueOnce(true);
 
       mockFeatureFlags({
-        [FEATURE_FLAG_EIP_7702]: {
+        [FeatureFlag.EIP7702]: {
           contracts: {
             [chainId]: [{ address: ADDRESS_MOCK, signature: SIGNATURE_MOCK }],
           },
@@ -228,7 +232,7 @@ describe('Feature Flags Utils', () => {
   describe('getEIP7702UpgradeContractAddress', () => {
     it('returns first contract address for chain', () => {
       mockFeatureFlags({
-        [FEATURE_FLAG_EIP_7702]: {
+        [FeatureFlag.EIP7702]: {
           contracts: {
             [CHAIN_ID_MOCK]: [
               { address: ADDRESS_MOCK, signature: SIGNATURE_MOCK },
@@ -261,7 +265,7 @@ describe('Feature Flags Utils', () => {
 
     it('returns undefined if empty contract addresses', () => {
       mockFeatureFlags({
-        [FEATURE_FLAG_EIP_7702]: {
+        [FeatureFlag.EIP7702]: {
           contracts: {
             [CHAIN_ID_MOCK]: [],
           },
@@ -281,7 +285,7 @@ describe('Feature Flags Utils', () => {
       isValidSignatureMock.mockReturnValueOnce(false).mockReturnValueOnce(true);
 
       mockFeatureFlags({
-        [FEATURE_FLAG_EIP_7702]: {
+        [FeatureFlag.EIP7702]: {
           contracts: {
             [CHAIN_ID_MOCK]: [
               { address: ADDRESS_MOCK, signature: SIGNATURE_MOCK },
@@ -304,7 +308,7 @@ describe('Feature Flags Utils', () => {
   describe('getBatchSizeLimit', () => {
     it('returns value from remote feature flag controller', () => {
       mockFeatureFlags({
-        [FEATURE_FLAG_TRANSACTIONS]: {
+        [FeatureFlag.Transactions]: {
           batchSizeLimit: 5,
         },
       });
@@ -335,7 +339,7 @@ describe('Feature Flags Utils', () => {
 
     it('returns values from chain-specific config when available', () => {
       mockFeatureFlags({
-        [FEATURE_FLAG_TRANSACTIONS]: {
+        [FeatureFlag.Transactions]: {
           acceleratedPolling: {
             perChainConfig: {
               [CHAIN_ID_MOCK]: {
@@ -360,7 +364,7 @@ describe('Feature Flags Utils', () => {
 
     it('returns default values from feature flag when no chain-specific config', () => {
       mockFeatureFlags({
-        [FEATURE_FLAG_TRANSACTIONS]: {
+        [FeatureFlag.Transactions]: {
           acceleratedPolling: {
             defaultCountMax: 15,
             defaultIntervalMs: 4000,
@@ -381,7 +385,7 @@ describe('Feature Flags Utils', () => {
 
     it('uses chain-specific over default values', () => {
       mockFeatureFlags({
-        [FEATURE_FLAG_TRANSACTIONS]: {
+        [FeatureFlag.Transactions]: {
           acceleratedPolling: {
             defaultCountMax: 15,
             defaultIntervalMs: 4000,
@@ -408,7 +412,7 @@ describe('Feature Flags Utils', () => {
 
     it('uses defaults if chain not found in perChainConfig', () => {
       mockFeatureFlags({
-        [FEATURE_FLAG_TRANSACTIONS]: {
+        [FeatureFlag.Transactions]: {
           acceleratedPolling: {
             defaultCountMax: 15,
             defaultIntervalMs: 4000,
@@ -435,7 +439,7 @@ describe('Feature Flags Utils', () => {
 
     it('merges partial chain-specific config with defaults', () => {
       mockFeatureFlags({
-        [FEATURE_FLAG_TRANSACTIONS]: {
+        [FeatureFlag.Transactions]: {
           acceleratedPolling: {
             defaultCountMax: 15,
             defaultIntervalMs: 4000,
@@ -473,7 +477,7 @@ describe('Feature Flags Utils', () => {
 
     it('returns values from feature flags when set', () => {
       mockFeatureFlags({
-        [FEATURE_FLAG_TRANSACTIONS]: {
+        [FeatureFlag.Transactions]: {
           gasFeeRandomisation: {
             randomisedGasFeeDigits: {
               [CHAIN_ID_MOCK]: 3,
@@ -495,7 +499,7 @@ describe('Feature Flags Utils', () => {
 
     it('returns empty randomisedGasFeeDigits if not set in feature flags', () => {
       mockFeatureFlags({
-        [FEATURE_FLAG_TRANSACTIONS]: {
+        [FeatureFlag.Transactions]: {
           gasFeeRandomisation: {
             preservedNumberOfDigits: 2,
           },
@@ -512,7 +516,7 @@ describe('Feature Flags Utils', () => {
   describe('getGasEstimateFallback', () => {
     it('returns gas estimate fallback for specific chain ID from remote feature flag controller', () => {
       mockFeatureFlags({
-        [FEATURE_FLAG_TRANSACTIONS]: {
+        [FeatureFlag.Transactions]: {
           gasEstimateFallback: {
             perChainConfig: {
               [CHAIN_ID_MOCK]: {
@@ -534,7 +538,7 @@ describe('Feature Flags Utils', () => {
 
     it('returns default gas estimate fallback if specific chain ID is not found', () => {
       mockFeatureFlags({
-        [FEATURE_FLAG_TRANSACTIONS]: {
+        [FeatureFlag.Transactions]: {
           gasEstimateFallback: {
             default: {
               fixed: undefined,
@@ -550,6 +554,130 @@ describe('Feature Flags Utils', () => {
         fixed: undefined,
         percentage: DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK,
       });
+    });
+  });
+
+  describe('getGasBufferEstimate', () => {
+    it('returns local default if nothing defined', () => {
+      mockFeatureFlags({
+        [FeatureFlag.GasBuffer]: {},
+      });
+
+      expect(
+        getGasEstimateBuffer({
+          chainId: CHAIN_ID_MOCK,
+          isCustomRPC: false,
+          isUpgradeWithDataToSelf: false,
+          messenger: controllerMessenger,
+        }),
+      ).toBe(1.0);
+    });
+
+    it('returns default if no chain ID override', () => {
+      mockFeatureFlags({
+        [FeatureFlag.GasBuffer]: {
+          default: GAS_BUFFER_MOCK,
+        },
+      });
+
+      expect(
+        getGasEstimateBuffer({
+          chainId: CHAIN_ID_MOCK,
+          isCustomRPC: false,
+          isUpgradeWithDataToSelf: false,
+          messenger: controllerMessenger,
+        }),
+      ).toBe(GAS_BUFFER_MOCK);
+    });
+
+    it('returns default included if not custom network', () => {
+      mockFeatureFlags({
+        [FeatureFlag.GasBuffer]: {
+          default: GAS_BUFFER_MOCK,
+          included: GAS_BUFFER_2_MOCK,
+        },
+      });
+
+      expect(
+        getGasEstimateBuffer({
+          chainId: CHAIN_ID_MOCK,
+          isCustomRPC: false,
+          isUpgradeWithDataToSelf: false,
+          messenger: controllerMessenger,
+        }),
+      ).toBe(GAS_BUFFER_2_MOCK);
+    });
+
+    it('returns chain base if defined', () => {
+      mockFeatureFlags({
+        [FeatureFlag.GasBuffer]: {
+          default: GAS_BUFFER_MOCK,
+          included: GAS_BUFFER_2_MOCK,
+          perChainConfig: {
+            [CHAIN_ID_MOCK]: {
+              base: GAS_BUFFER_3_MOCK,
+            },
+          },
+        },
+      });
+
+      expect(
+        getGasEstimateBuffer({
+          chainId: CHAIN_ID_MOCK,
+          isCustomRPC: false,
+          isUpgradeWithDataToSelf: false,
+          messenger: controllerMessenger,
+        }),
+      ).toBe(GAS_BUFFER_3_MOCK);
+    });
+
+    it('returns chain included if defined and not custom RPC', () => {
+      mockFeatureFlags({
+        [FeatureFlag.GasBuffer]: {
+          default: GAS_BUFFER_MOCK,
+          included: GAS_BUFFER_2_MOCK,
+          perChainConfig: {
+            [CHAIN_ID_MOCK]: {
+              base: GAS_BUFFER_3_MOCK,
+              included: GAS_BUFFER_4_MOCK,
+            },
+          },
+        },
+      });
+
+      expect(
+        getGasEstimateBuffer({
+          chainId: CHAIN_ID_MOCK,
+          isCustomRPC: false,
+          isUpgradeWithDataToSelf: false,
+          messenger: controllerMessenger,
+        }),
+      ).toBe(GAS_BUFFER_4_MOCK);
+    });
+
+    it('returns eip7702 buffer if defined and is upgrade to self', () => {
+      mockFeatureFlags({
+        [FeatureFlag.GasBuffer]: {
+          default: GAS_BUFFER_MOCK,
+          included: GAS_BUFFER_2_MOCK,
+          perChainConfig: {
+            [CHAIN_ID_MOCK]: {
+              base: GAS_BUFFER_3_MOCK,
+              included: GAS_BUFFER_4_MOCK,
+              eip7702: GAS_BUFFER_5_MOCK,
+            },
+          },
+        },
+      });
+
+      expect(
+        getGasEstimateBuffer({
+          chainId: CHAIN_ID_MOCK,
+          isCustomRPC: false,
+          isUpgradeWithDataToSelf: true,
+          messenger: controllerMessenger,
+        }),
+      ).toBe(GAS_BUFFER_5_MOCK);
     });
   });
 });
