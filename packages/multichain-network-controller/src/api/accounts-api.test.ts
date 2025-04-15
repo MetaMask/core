@@ -20,40 +20,18 @@ import {
   MULTICHAIN_ACCOUNTS_BASE_URL,
 } from './accounts-api';
 
-const MOCK_ADDRESSES: {
-  evm: string;
-  solana: string;
-  bitcoin: string;
-} = {
+const MOCK_ADDRESSES = {
   evm: '0x1234567890123456789012345678901234567890',
   solana: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
   bitcoin: 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq',
-};
+} as const;
 
-const MOCK_CAIP_IDS: {
-  evm: CaipAccountId;
-  solana: CaipAccountId;
-  bitcoin: CaipAccountId;
-  invalid: string;
-  invalidEvm: string;
-  invalidSolana: string;
-  invalidBitcoin: string;
-  unsupportedNamespace: string;
-  customNamespace: string;
-  testNamespace: string;
-} = {
-  evm: `${KnownCaipNamespace.Eip155}:1:${MOCK_ADDRESSES.evm}`,
-  solana: `${KnownCaipNamespace.Solana}:1:${MOCK_ADDRESSES.solana}`,
-  bitcoin: `${KnownCaipNamespace.Bip122}:1:${MOCK_ADDRESSES.bitcoin}`,
-  invalid: 'invalid:format:address',
-  invalidEvm: `${KnownCaipNamespace.Eip155}:1:0xinvalid`,
-  invalidSolana: `${KnownCaipNamespace.Solana}:1:invalid`,
-  invalidBitcoin: `${KnownCaipNamespace.Bip122}:1:invalid`,
-  unsupportedNamespace:
-    'cosmos:1:cosmos1hsk6jryyqjfhp5dhc55tc9jtckygx0eph6dd02',
-  customNamespace: `custom:1:${MOCK_ADDRESSES.evm}`,
-  testNamespace: `test:1:${MOCK_ADDRESSES.evm}`,
-};
+const MOCK_CAIP_IDS = {
+  // Use of scope (CAIP-2) to craft a CAIP-10 identifiers.
+  evm: `${EthScope.Mainnet}:${MOCK_ADDRESSES.evm}`,
+  solana: `${SolScope.Mainnet}:${MOCK_ADDRESSES.solana}`,
+  bitcoin: `${BtcScope.Mainnet}:${MOCK_ADDRESSES.bitcoin}`,
+} as const;
 
 describe('toAllowedCaipAccountIds', () => {
   type AccountType = {
