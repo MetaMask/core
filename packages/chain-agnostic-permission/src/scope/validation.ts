@@ -1,12 +1,10 @@
-import { type CaipAccountId, isCaipReference } from '@metamask/utils';
+import { isCaipReference } from '@metamask/utils';
 
 import { KnownSessionProperties } from './constants';
 import type {
   ExternalScopeString,
   ExternalScopeObject,
   ExternalScopesObject,
-  InternalScopesObject,
-  InternalScopeString,
 } from './types';
 import { parseScopeString } from './types';
 
@@ -132,52 +130,6 @@ export const getValidScopes = (
     validOptionalScopes,
   };
 };
-
-/**
- * Gets all accounts from an array of scopes objects
- * This extracts all account IDs from both required and optional scopes
- * and returns a unique set.
- *
- * @param scopesObjects - The scopes objects to extract accounts from
- * @returns Array of unique account IDs
- */
-// TODO: unit test (and confirm where to store this)
-export function getCaipAccountIdsFromScopesObjects(
-  scopesObjects: InternalScopesObject[],
-): CaipAccountId[] {
-  const allAccounts = new Set<CaipAccountId>();
-
-  for (const scopeObject of scopesObjects) {
-    for (const { accounts } of Object.values(scopeObject)) {
-      for (const account of accounts) {
-        allAccounts.add(account);
-      }
-    }
-  }
-
-  return Array.from(allAccounts);
-}
-
-/**
- * Gets all scopes from a CAIP-25 caveat value
- *
- * @param scopesObjects - The scopes objects to get the scopes from.
- * @returns An array of InternalScopeStrings.
- */
-// TODO: unit test (and confirm where to store this)
-export function getAllScopesFromScopesObjects(
-  scopesObjects: InternalScopesObject[],
-): InternalScopeString[] {
-  const scopeSet = new Set<InternalScopeString>();
-
-  for (const scopeObject of scopesObjects) {
-    for (const key of Object.keys(scopeObject)) {
-      scopeSet.add(key as InternalScopeString);
-    }
-  }
-
-  return Array.from(scopeSet);
-}
 
 /**
  * Checks if a given value is a known session property.

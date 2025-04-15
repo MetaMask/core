@@ -1,6 +1,12 @@
 import * as Assert from './assert';
-import { bucketScopesBySupport, getSupportedScopeObjects } from './filter';
+import {
+  bucketScopesBySupport,
+  getAllScopesFromScopesObjects,
+  getCaipAccountIdsFromScopesObjects,
+  getSupportedScopeObjects,
+} from './filter';
 import * as Supported from './supported';
+import type { InternalScopesObject } from './types';
 
 jest.mock('./assert', () => ({
   ...jest.requireActual('./assert'),
@@ -338,6 +344,93 @@ describe('filter', () => {
           accounts: ['eip155:5:0xdeadbeef'],
         },
       });
+    });
+  });
+
+  describe('getCaipAccountIdsFromScopesObjects', () => {
+    it('should extract all unique account IDs from scopes objects', () => {
+      const scopesObjects: InternalScopesObject[] = [
+        {
+          'eip155:1': {
+            accounts: ['eip155:1:0x123', 'eip155:1:0x456', 'eip155:1:0xabc'],
+          },
+          'eip155:137': {
+            accounts: ['eip155:137:0x123', 'eip155:137:0x789'],
+          },
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': {
+            accounts: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:abc123'],
+          },
+        },
+      ];
+
+      const result = getCaipAccountIdsFromScopesObjects(scopesObjects);
+
+      expect(result).toHaveLength(6);
+      expect(result).toContain('eip155:1:0x123');
+      expect(result).toContain('eip155:1:0x456');
+      expect(result).toContain('eip155:1:0xabc');
+      expect(result).toContain('eip155:137:0x123');
+      expect(result).toContain('eip155:137:0x789');
+      expect(result).toContain(
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:abc123',
+      );
+    });
+
+    it('should return empty array when no accounts exist', () => {
+      const scopesObjects: InternalScopesObject[] = [
+        {
+          'eip155:1': {
+            accounts: [],
+          },
+          'eip155:137': {
+            accounts: [],
+          },
+        },
+      ];
+
+      const result = getCaipAccountIdsFromScopesObjects(scopesObjects);
+      expect(result).toEqual([]);
+    });
+
+    it('should handle empty scopes objects', () => {
+      const result = getCaipAccountIdsFromScopesObjects([]);
+      expect(result).toStrictEqual([]);
+    });
+  });
+  describe('getAllScopesFromScopesObjects', () => {
+    it('should extract all unique scope strings from scopes objects', () => {
+      const scopesObjects: InternalScopesObject[] = [
+        {
+          'eip155:1': {
+            accounts: ['eip155:1:0x123', 'eip155:1:0x456', 'eip155:1:0xabc'],
+          },
+          'eip155:137': {
+            accounts: ['eip155:137:0x123', 'eip155:137:0x789'],
+          },
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': {
+            accounts: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:abc123'],
+          },
+        },
+      ];
+
+      const result = getAllScopesFromScopesObjects(scopesObjects);
+
+      expect(result).toHaveLength(3);
+      expect(result).toContain('eip155:1');
+      expect(result).toContain('eip155:137');
+      expect(result).toContain('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp');
+    });
+
+    it('should return empty array when no scopes exist', () => {
+      const scopesObjects: InternalScopesObject[] = [];
+      const result = getAllScopesFromScopesObjects(scopesObjects);
+      expect(result).toStrictEqual([]);
+    });
+
+    it('should handle empty scope objects', () => {
+      const scopesObjects: InternalScopesObject[] = [{}];
+      const result = getAllScopesFromScopesObjects(scopesObjects);
+      expect(result).toStrictEqual([]);
     });
   });
 });
