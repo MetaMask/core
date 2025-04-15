@@ -51,9 +51,7 @@ export class DelegationController extends BaseController<
 > {
   readonly #hashDelegation: (delegation: Delegation) => Hex;
 
-  private readonly getDelegationEnvironment: (
-    chainId: Hex,
-  ) => DeleGatorEnvironment;
+  readonly #getDelegationEnvironment: (chainId: Hex) => DeleGatorEnvironment;
 
   /**
    * Constructs a new {@link DelegationController} instance.
@@ -84,8 +82,8 @@ export class DelegationController extends BaseController<
         ...state,
       },
     });
-    this.hashDelegation = hashDelegation;
-    this.getDelegationEnvironment = getDelegationEnvironment;
+    this.#hashDelegation = hashDelegation;
+    this.#getDelegationEnvironment = getDelegationEnvironment;
   }
 
   /**
@@ -101,7 +99,7 @@ export class DelegationController extends BaseController<
     chainId: Hex;
   }) {
     const { delegation, chainId } = params;
-    const { DelegationManager } = this.getDelegationEnvironment(chainId);
+    const { DelegationManager } = this.#getDelegationEnvironment(chainId);
 
     const data = createTypedMessageParams({
       chainId: hexToNumber(chainId),
@@ -132,7 +130,7 @@ export class DelegationController extends BaseController<
    */
   store(params: { entry: DelegationEntry }) {
     const { entry } = params;
-    const hash = this.hashDelegation(entry.delegation);
+    const hash = this.#hashDelegation(entry.delegation);
 
     // If the authority is not the root authority, validate that the
     // parent entry does exist.
