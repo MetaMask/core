@@ -389,7 +389,7 @@ describe('filter', () => {
       ];
 
       const result = getCaipAccountIdsFromScopesObjects(scopesObjects);
-      expect(result).toEqual([]);
+      expect(result).toStrictEqual([]);
     });
 
     it('should handle empty scopes objects', () => {
