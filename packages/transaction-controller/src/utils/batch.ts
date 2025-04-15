@@ -235,36 +235,38 @@ export async function isAtomicBatchSupported(
   }
 
   const chainIds7702 = getEIP7702SupportedChains(messenger);
-  const results: IsAtomicBatchSupportedResultEntry[] = [];
 
-  for (const chainId of chainIds7702) {
-    if (chainIds && !chainIds.includes(chainId)) {
-      continue;
-    }
+  const filteredChainIds = chainIds7702.filter(
+    (chainId) => !chainIds || chainIds.includes(chainId),
+  );
 
-    const ethQuery = getEthQuery(chainId);
+  const results: IsAtomicBatchSupportedResultEntry[] = await Promise.all(
+    filteredChainIds.map(async (chainId) => {
+      const ethQuery = getEthQuery(chainId);
 
-    const { isSupported, delegationAddress } = await isAccountUpgradedToEIP7702(
-      address,
-      chainId,
-      publicKey,
-      messenger,
-      ethQuery,
-    );
+      const { isSupported, delegationAddress } =
+        await isAccountUpgradedToEIP7702(
+          address,
+          chainId,
+          publicKey,
+          messenger,
+          ethQuery,
+        );
 
-    const upgradeContractAddress = getEIP7702UpgradeContractAddress(
-      chainId,
-      messenger,
-      publicKey,
-    );
+      const upgradeContractAddress = getEIP7702UpgradeContractAddress(
+        chainId,
+        messenger,
+        publicKey,
+      );
 
-    results.push({
-      chainId,
-      delegationAddress,
-      isSupported,
-      upgradeContractAddress,
-    });
-  }
+      return {
+        chainId,
+        delegationAddress,
+        isSupported,
+        upgradeContractAddress,
+      };
+    }),
+  );
 
   log('Atomic batch supported results', results);
 
