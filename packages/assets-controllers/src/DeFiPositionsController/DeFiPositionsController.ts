@@ -240,8 +240,7 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
       const defiPositionsResponse = await this.#fetchPositions(accountAddress);
 
       return groupDeFiPositions(defiPositionsResponse);
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (error) {
+    } catch {
       return null;
     }
   }
