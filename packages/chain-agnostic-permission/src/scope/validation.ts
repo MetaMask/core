@@ -8,6 +8,7 @@ import type {
   InternalScopeString,
 } from './types';
 import { parseScopeString } from './types';
+import { KnownSessionProperties } from './constants';
 
 /**
  * Validates a scope object according to the [CAIP-217](https://chainagnostic.org/CAIPs/caip-217) spec.
@@ -176,4 +177,18 @@ export function getAllScopesFromScopesObjects(
   }
 
   return Array.from(scopeSet);
+}
+
+/**
+ * Checks if a given value is a known session property.
+ *
+ * @param value - The value to check.
+ * @returns `true` if the value is a known session property, otherwise `false`.
+ */
+export function isKnownSessionPropertyValue(
+  value: string,
+): value is KnownSessionProperties {
+  return Object.values(KnownSessionProperties).includes(
+    value as KnownSessionProperties,
+  );
 }
