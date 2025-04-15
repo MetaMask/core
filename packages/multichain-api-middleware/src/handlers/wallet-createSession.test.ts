@@ -528,17 +528,13 @@ describe('wallet_createSession', () => {
       let capturedIsEvmChainIdSupportable:
         | ((chainId: Hex) => boolean)
         | undefined;
-      let callCount = 0;
 
-      MockChainAgnosticPermission.bucketScopes.mockImplementation(
+      /**
+       * We mock implementation once, so we only define hook for first call of bucketScopes, to make sure we test function for required scopes
+       */
+      MockChainAgnosticPermission.bucketScopes.mockImplementationOnce(
         (_, options) => {
-          callCount += 1;
-          if (callCount === 1) {
-            /**
-             * We only define hook for first call of bucketScopes, to make sure we test function for required scopes
-             */
-            capturedIsEvmChainIdSupportable = options.isEvmChainIdSupportable;
-          }
+          capturedIsEvmChainIdSupportable = options.isEvmChainIdSupportable;
           return {
             supportedScopes: {
               'eip155:1': {
@@ -951,15 +947,15 @@ describe('wallet_createSession', () => {
       ]);
 
       // Mocking nonEVM account addresses in the wallet
-      getNonEvmAccountAddresses.mockImplementation((scope) => {
-        if (scope === MultichainNetwork.Solana) {
-          return ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:address1'];
-        }
-        if (scope === MultichainNetwork.Bitcoin) {
-          return ['bip122:000000000019d6689c085ae165831e93:address1'];
-        }
-        return [];
-      });
+      getNonEvmAccountAddresses
+        // First for Solana scope
+        .mockReturnValueOnce([
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:address1',
+        ])
+        // Then for Bitcoin scope
+        .mockReturnValueOnce([
+          'bip122:000000000019d6689c085ae165831e93:address1',
+        ]);
 
       // Test both EVM (case-insensitive) and Solana (case-sensitive) and Bitcoin (case-sensitive) behavior
       MockChainAgnosticPermission.bucketScopes
