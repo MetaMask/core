@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Configure gas estimation buffers using feature flags ([#5637](https://github.com/MetaMask/core/pull/5637))
 - Update error codes for duplicate batch ID and batch size limit errors ([#5635](https://github.com/MetaMask/core/pull/5635))
 
 ### Fixed
