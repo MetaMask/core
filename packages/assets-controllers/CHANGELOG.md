@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `DeFiPositionsControllerStateChangeEvent`
     - `DeFiPositionsControllerMessenger`
     - `GroupedDeFiPositions`
-- **BREAKING** Add `@metamask/transaction-controller` as a peer dependency at `^54.1.0` ([#5400](https://github.com/MetaMask/core/pull/5400))
+- **BREAKING** Add `@metamask/transaction-controller` as a peer dependency at `^54.0.0` ([#5400](https://github.com/MetaMask/core/pull/5400))
 
 ## [56.0.0]
 
