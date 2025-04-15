@@ -2834,7 +2834,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/controller-utils@npm:^11.7.0, @metamask/controller-utils@workspace:packages/controller-utils":
+"@metamask/controller-utils@npm:^11.5.0, @metamask/controller-utils@npm:^11.7.0, @metamask/controller-utils@workspace:packages/controller-utils":
   version: 0.0.0-use.local
   resolution: "@metamask/controller-utils@workspace:packages/controller-utils"
   dependencies:
@@ -3473,6 +3473,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/keyring-api@npm:^17.2.0":
+  version: 17.5.0
+  resolution: "@metamask/keyring-api@npm:17.5.0"
+  dependencies:
+    "@metamask/keyring-utils": "npm:^3.0.0"
+    "@metamask/superstruct": "npm:^3.1.0"
+    "@metamask/utils": "npm:^11.1.0"
+    bech32: "npm:^2.0.0"
+  checksum: 10/b6409b235c02f102f142ec9bf89486591262fdc717341a0a8425454755b625c5ab63f1c5fd745ec743e220772bed51f1315c43e219e88c3e4fbe9d19efce660c
+  languageName: node
+  linkType: hard
+
 "@metamask/keyring-api@npm:^17.4.0":
   version: 17.4.0
   resolution: "@metamask/keyring-api@npm:17.4.0"
@@ -3524,7 +3536,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/keyring-internal-api@npm:^6.0.1":
+"@metamask/keyring-internal-api@npm:^6.0.0, @metamask/keyring-internal-api@npm:^6.0.1":
   version: 6.0.1
   resolution: "@metamask/keyring-internal-api@npm:6.0.1"
   dependencies:
@@ -3547,7 +3559,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-snap-client@npm:^4.1.0":
+"@metamask/keyring-snap-client@npm:^4.0.1, @metamask/keyring-snap-client@npm:^4.1.0":
   version: 4.1.0
   resolution: "@metamask/keyring-snap-client@npm:4.1.0"
   dependencies:
@@ -3629,8 +3641,10 @@ __metadata:
     "@metamask/api-specs": "npm:^0.10.12"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/chain-agnostic-permission": "npm:^0.3.0"
+    "@metamask/controller-utils": "npm:^11.7.0"
     "@metamask/eth-json-rpc-filters": "npm:^9.0.0"
     "@metamask/json-rpc-engine": "npm:^10.0.3"
+    "@metamask/multichain-transactions-controller": "npm:^0.7.2"
     "@metamask/network-controller": "npm:^23.2.0"
     "@metamask/permission-controller": "npm:^11.0.6"
     "@metamask/rpc-errors": "npm:^7.0.2"
@@ -3676,6 +3690,28 @@ __metadata:
     "@metamask/network-controller": ^23.0.0
   languageName: unknown
   linkType: soft
+
+"@metamask/multichain-transactions-controller@npm:^0.7.2":
+  version: 0.7.2
+  resolution: "@metamask/multichain-transactions-controller@npm:0.7.2"
+  dependencies:
+    "@metamask/base-controller": "npm:^8.0.0"
+    "@metamask/keyring-api": "npm:^17.2.0"
+    "@metamask/keyring-internal-api": "npm:^6.0.0"
+    "@metamask/keyring-snap-client": "npm:^4.0.1"
+    "@metamask/polling-controller": "npm:^12.0.3"
+    "@metamask/snaps-sdk": "npm:^6.17.1"
+    "@metamask/snaps-utils": "npm:^8.10.0"
+    "@metamask/utils": "npm:^11.2.0"
+    "@types/uuid": "npm:^8.3.0"
+    immer: "npm:^9.0.6"
+    uuid: "npm:^8.3.2"
+  peerDependencies:
+    "@metamask/accounts-controller": ^26.0.0
+    "@metamask/snaps-controllers": ^9.19.0
+  checksum: 10/0b7c85855fd516827405eb3012d2d99abbbd757611f76389b08674c81c2f3f8fecf72167c84fa9e126987272d9c06158539775f732336cf2518bdaef706f25c3
+  languageName: node
+  linkType: hard
 
 "@metamask/multichain-transactions-controller@workspace:packages/multichain-transactions-controller":
   version: 0.0.0-use.local
@@ -3948,6 +3984,22 @@ __metadata:
     typescript: "npm:~5.2.2"
   languageName: unknown
   linkType: soft
+
+"@metamask/polling-controller@npm:^12.0.3":
+  version: 12.0.3
+  resolution: "@metamask/polling-controller@npm:12.0.3"
+  dependencies:
+    "@metamask/base-controller": "npm:^8.0.0"
+    "@metamask/controller-utils": "npm:^11.5.0"
+    "@metamask/utils": "npm:^11.1.0"
+    "@types/uuid": "npm:^8.3.0"
+    fast-json-stable-stringify: "npm:^2.1.0"
+    uuid: "npm:^8.3.2"
+  peerDependencies:
+    "@metamask/network-controller": ^22.0.0
+  checksum: 10/4eb410beaa6f8ff2e089f9aa9eee9ad730d70a596c839df2f4c1aa873466722f4dc95e9cf1c68c055d89c7222d4476241c1d1c45d9b2583ac245cd8fa08144ab
+  languageName: node
+  linkType: hard
 
 "@metamask/polling-controller@npm:^13.0.0, @metamask/polling-controller@workspace:packages/polling-controller":
   version: 0.0.0-use.local
