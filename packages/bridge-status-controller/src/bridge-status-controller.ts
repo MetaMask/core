@@ -1,23 +1,40 @@
+import { TokensController } from '@metamask/assets-controllers';
 import type { StateMetadata } from '@metamask/base-controller';
 import {
+  ChainId,
   formatChainIdToHex,
+  getEthUsdtResetData,
+  isEthUsdt,
+  isNativeAddress,
   isSolanaChainId,
   type QuoteResponse,
 } from '@metamask/bridge-controller';
-import type { QuoteMetadata, TxData } from '@metamask/bridge-controller';
+import type {
+  BridgeAsset,
+  QuoteMetadata,
+  TxData,
+} from '@metamask/bridge-controller';
+import { toHex } from '@metamask/controller-utils';
+import { EthAccountType } from '@metamask/keyring-api';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import type { TransactionController } from '@metamask/transaction-controller';
+import type {
+  TransactionController,
+  TransactionParams,
+} from '@metamask/transaction-controller';
 import {
   TransactionType,
   type TransactionMeta,
 } from '@metamask/transaction-controller';
-import { numberToHex, type Hex } from '@metamask/utils';
+import type { UserOperationController } from '@metamask/user-operation-controller';
+import { createProjectLogger, numberToHex, type Hex } from '@metamask/utils';
+import BigNumber from 'bignumber.js';
 import { v4 as uuid } from 'uuid';
 
 import {
   BRIDGE_PROD_API_BASE_URL,
   BRIDGE_STATUS_CONTROLLER_NAME,
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
+  LINEA_DELAY_MS,
   REFRESH_INTERVAL_MS,
 } from './constants';
 import { StatusTypes, type BridgeStatusControllerMessenger } from './types';
@@ -31,9 +48,10 @@ import {
   fetchBridgeTxStatus,
   getStatusRequestWithSrcTxHash,
 } from './utils/bridge-status';
+import { getTxGasEstimates } from './utils/gas';
 import {
-  addTransactionOrUserOperation,
   getStatusRequestParams,
+  getTxMetaFields,
   handleSolanaTxResponse,
 } from './utils/transaction';
 import { generateActionId } from './utils/transaction';
@@ -70,28 +88,29 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     smartTransactionsEnabledByDefault: boolean;
   };
 
-  // TODO type this with AddTxRequest
-  readonly #validateRequestSecurityFn?: (request: unknown) => Promise<void>;
-
   readonly #addTransactionFn: typeof TransactionController.prototype.addTransaction;
+
+  readonly #addUserOperationFromTransactionFn: typeof UserOperationController.prototype.addUserOperationFromTransaction;
+
+  readonly #estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee;
 
   constructor({
     messenger,
     state,
     clientId,
     fetchFn,
-    validateRequestSecurityFn,
     addTransactionFn,
+    addUserOperationFromTransactionFn,
+    estimateGasFeeFn,
     config,
   }: {
     messenger: BridgeStatusControllerMessenger;
     state?: Partial<BridgeStatusControllerState>;
     clientId: BridgeClientId;
     fetchFn: FetchFunction;
-    // TODO type this with AddTxRequest
-    validateRequestSecurityFn?: (request: unknown) => Promise<void>;
-    // TODO type with tx controllers
     addTransactionFn: typeof TransactionController.prototype.addTransaction;
+    estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee;
+    addUserOperationFromTransactionFn: typeof UserOperationController.prototype.addUserOperationFromTransaction;
     config: {
       customBridgeApiBaseUrl?: string;
       smartTransactionsEnabledByDefault: boolean;
@@ -110,8 +129,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     this.#clientId = clientId;
     this.#fetchFn = fetchFn;
-    this.#validateRequestSecurityFn = validateRequestSecurityFn;
     this.#addTransactionFn = addTransactionFn;
+    this.#addUserOperationFromTransactionFn = addUserOperationFromTransactionFn;
+    this.#estimateGasFeeFn = estimateGasFeeFn;
     this.#config = {
       customBridgeApiBaseUrl:
         config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
@@ -146,13 +166,78 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     this.#restartPollingForIncompleteHistoryItems();
   }
 
+  readonly #handleUSDTAllowanceReset = async (
+    quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
+  ) => {
+    const hexChainId = formatChainIdToHex(quoteResponse.quote.srcChainId);
+    if (
+      quoteResponse.approval &&
+      isEthUsdt(hexChainId, quoteResponse.quote.srcAsset.address)
+    ) {
+      const allowance = new BigNumber(
+        await this.messagingSystem.call(
+          'BridgeController:getBridgeERC20Allowance',
+          quoteResponse.quote.srcAsset.address,
+          hexChainId,
+        ),
+      );
+      const shouldResetApproval =
+        allowance.lt(quoteResponse.sentAmount.amount) && allowance.gt(0);
+      if (shouldResetApproval) {
+        await this.#handleEvmTransaction(
+          TransactionType.bridgeApproval,
+          { ...quoteResponse.approval, data: getEthUsdtResetData() },
+          quoteResponse,
+        );
+      }
+    }
+  };
+
+  readonly #handleLineaDelay = async (
+    quoteResponse: QuoteResponse<TxData | string>,
+  ) => {
+    if (ChainId.LINEA === quoteResponse.quote.srcChainId) {
+      const debugLog = createProjectLogger('bridge');
+      debugLog(
+        'Delaying submitting bridge tx to make Linea confirmation more likely',
+      );
+      const waitPromise = new Promise((resolve) =>
+        setTimeout(resolve, LINEA_DELAY_MS),
+      );
+      await waitPromise;
+    }
+  };
+
+  readonly #calculateGasFees = async (
+    transactionParams: TransactionParams,
+    networkClientId: string,
+    chainId: Hex,
+  ) => {
+    const { gasFeeEstimates } = this.messagingSystem.call(
+      'GasFeeController:getState',
+    );
+    const { estimates: txGasFeeEstimates } = await this.#estimateGasFeeFn({
+      transactionParams,
+      chainId,
+      networkClientId,
+    });
+    const { maxFeePerGas, maxPriorityFeePerGas } = await getTxGasEstimates({
+      networkGasFeeEstimates: gasFeeEstimates,
+      txGasFeeEstimates,
+    });
+    const maxGasLimit = toHex(transactionParams.gas ?? 0);
+
+    return {
+      maxFeePerGas,
+      maxPriorityFeePerGas,
+      gas: maxGasLimit,
+    };
+  };
+
   /**
    * Submits a cross-chain swap transaction
    *
    * @param quoteResponse - The quote response
-   * @param quoteResponse.quote - The quote
-   * @param quoteResponse.trade - The trade
-   * @param quoteResponse.approval - The approval
    * @param isStxEnabledOnClient - Whether smart transactions are enabled on the client
    * @returns The transaction meta
    */
@@ -176,13 +261,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       txMeta = await this.#handleSolanaTx(trade, partialQuoteResponse);
     }
     // Submit EVM tx
+    let approvalTime: number | undefined;
     if (
       !isSolanaChainId(quoteResponse.quote.srcChainId) &&
       typeof quoteResponse.trade !== 'string'
     ) {
       let approvalTxId: string | undefined;
       if (quoteResponse.approval) {
-        // TODO need time for metrics
+        await this.#handleUSDTAllowanceReset(quoteResponse);
         const approvalTxMeta = await this.#handleEvmTransaction(
           TransactionType.bridgeApproval,
           quoteResponse.approval,
@@ -193,8 +279,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             'Failed to submit bridge tx: approval txMeta is undefined',
           );
         }
-        const { time, id } = approvalTxMeta;
-        approvalTxId = id;
+        approvalTime = approvalTxMeta.time;
+        approvalTxId = approvalTxMeta.id;
+
+        await this.#handleLineaDelay(quoteResponse);
       }
       if (this.#shouldUseSmartTransactions(isStxEnabledOnClient)) {
         txMeta = await this.#handleSmartTransaction(
@@ -210,10 +298,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           approvalTxId,
         );
       }
-      // Only add tokens if the source or dest chain is an EVM chain bc non-evm tokens
-      // are detected by the multichain asset controllers
-      this.#addTokens(quoteResponse);
     }
+
+    this.#addTokens(quoteResponse.quote.srcAsset);
+    this.#addTokens(quoteResponse.quote.destAsset);
 
     if (!txMeta) {
       throw new Error('Failed to submit bridge tx: txMeta is undefined');
@@ -221,16 +309,15 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     // Start polling for bridge tx status
     try {
-      const statusRequestCommon = getStatusRequestParams(quoteResponse);
       this.startPollingForBridgeTxStatus({
         bridgeTxMeta: txMeta, // Only the id field is used by the BridgeStatusController
         statusRequest: {
-          ...statusRequestCommon,
+          ...getStatusRequestParams(quoteResponse),
           srcTxHash: txMeta.hash,
         },
         quoteResponse,
         slippagePercentage: 0, // TODO include slippage provided by quote if using dynamic slippage, or slippage from quote request
-        startTime: Date.now(),
+        startTime: approvalTime ?? Date.now(),
       });
     } catch {
       // Ignore errors here, we don't want to crash the app if this fails and tx submission succeeds
@@ -629,49 +716,60 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       'AccountsController:getAccountByAddress',
       trade.from,
     );
-
     if (!selectedAccount) {
       throw new Error(
         'Failed to submit cross-chain swap transaction: unknown account in trade data',
       );
     }
+    const hexChainId = formatChainIdToHex(trade.chainId);
+    const networkClientId = this.messagingSystem.call(
+      'NetworkController:findNetworkClientIdByChainId',
+      hexChainId,
+    );
 
-    const requestOptions: Parameters<
-      TransactionController['addTransaction']
-    >[1] = {
+    const requestOptions = {
       actionId,
-      networkClientId: 'TODO',
+      networkClientId,
       requireApproval: false,
       type: transactionType,
-      // origin: 'metamask'
-      // internalAccounts,
-      // selectedAccount,
+      origin: 'metamask',
     };
-    await this.#validateRequestSecurityFn?.(requestOptions);
+    const transactionParams = {
+      ...trade,
+      chainId: hexChainId,
+      gasLimit: trade.gasLimit?.toString(),
+      gas: trade.gasLimit?.toString(),
+    };
+    const transactionParamsWithMaxGas: TransactionParams = {
+      ...transactionParams,
+      ...(await this.#calculateGasFees(
+        transactionParams,
+        networkClientId,
+        hexChainId,
+      )),
+    };
 
-    // TODO import Erc4337 const from keyring api
-    const isSmartContractAccount = selectedAccount.type === 'eip155:erc4337';
     let result:
       | Awaited<ReturnType<TransactionController['addTransaction']>>['result']
       | undefined;
     let transactionMeta: TransactionMeta | undefined;
 
+    const isSmartContractAccount =
+      selectedAccount.type === EthAccountType.Erc4337;
     if (isSmartContractAccount) {
-      // TODO call UserOperationController.addUserOperationFromTransaction
-      // const { transactionMeta, result } =
-      // addUserOperationWithController(request);
+      const userOperationResult = await this.#addUserOperationFromTransactionFn(
+        transactionParamsWithMaxGas,
+        requestOptions,
+      );
+
+      // TODO return hash and txMeta from UserOperationController.addUserOperationFromTransaction
+      transactionMeta = {
+        id: userOperationResult.id,
+      } as never;
+      // result = userOperationResult.hash();
     } else {
-      // TODO how to ensure networkClientId from the tx is always passed in
-      // TODO TransactionController should expose addTransaction action
       const addTransactionResult = await this.#addTransactionFn(
-        {
-          ...trade,
-          chainId: formatChainIdToHex(trade.chainId),
-          gasLimit: numberToHex(trade.gasLimit ?? 0),
-          gas: numberToHex(trade.gasLimit ?? 0),
-          // maxFeePerGas,
-          // maxPriorityFeePerGas,
-        },
+        transactionParamsWithMaxGas,
         requestOptions,
       );
       result = addTransactionResult.result;
@@ -680,23 +778,27 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     // Note that updateTransaction doesn't actually error if you add fields that don't conform the to the txMeta type
     // they will be there at runtime, but you just don't get any type safety checks on them
+    const completeTxMeta = {
+      ...transactionMeta,
+      ...getTxMetaFields(quoteResponse, approvalTxId),
+    };
     // TODO why is this needed? Can we skip update and directly pass txMetaFields to TransactionController.addTransctin call
     // const fieldsToAddToTxMeta = getTxMetaFields(quoteResponse, approvalTxId);
-    // dispatch(updateTransaction({ ...txMeta, ...fieldsToAddToTxMeta }));
+    // dispatch(updateTransaction(completeTxMeta);
 
     if (shouldWaitForHash) {
       return await this.#waitForHashAndReturnFinalTxMeta(result);
     }
 
-    return transactionMeta;
+    return completeTxMeta;
   };
 
   readonly #waitForHashAndReturnFinalTxMeta = async (
-    result?: Awaited<
+    hashPromise?: Awaited<
       ReturnType<TransactionController['addTransaction']>
     >['result'],
   ) => {
-    const transactionHash = await result;
+    const transactionHash = await hashPromise;
     const finalTransactionMeta = this.messagingSystem
       .call('TransactionController:getState')
       .transactions.find((tx: TransactionMeta) => tx.hash === transactionHash);
@@ -717,29 +819,41 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     quoteResponse: Omit<QuoteResponse, 'approval' | 'trade'> & QuoteMetadata,
     approvalTxId?: string,
   ) => {
-    // TODO don't wait for publish
     return await this.#handleEvmTransaction(
       TransactionType.bridge,
       trade,
       quoteResponse,
       approvalTxId,
-      false,
+      false, // Set to false to indicate we don't want to wait for hash
     );
   };
 
-  readonly #addTokens = (
-    quoteResponse: Omit<QuoteResponse, 'approval' | 'trade'> & QuoteMetadata,
-  ) => {
-    // Add tokens if not the native gas token
-    // if (!isNativeAddress(quoteResponse.quote.srcAsset.address)) {
-    //   this.messagingSystem.call('')
-    //   tokensController.addToken(quoteResponse.quote.srcAsset);
-    // }
-    // if (
-    //   quoteResponse.quote.destAsset.address !== zeroAddress() &&
-    //   !isSolanaChainId(quoteResponse.quote.destChainId)
-    // ) {
-    //   TokensController.addToken(quoteResponse.quote.destAsset);
-    // }
+  // Only add tokens if the source or dest chain is an EVM chain bc non-evm tokens
+  // are detected by the multichain asset controllers
+  readonly #addTokens = (asset: BridgeAsset) => {
+    // Return early if the asset chain is native or if asset is in the solana chain
+    if (isNativeAddress(asset.address) || isSolanaChainId(asset.chainId)) {
+      return;
+    }
+    this.messagingSystem
+      .call(
+        'TokensController:addDetectedTokens',
+        [
+          {
+            address: asset.address,
+            decimals: asset.decimals,
+            image: asset.iconUrl,
+            name: asset.name,
+            symbol: asset.symbol,
+          },
+        ],
+        {
+          chainId: formatChainIdToHex(asset.chainId),
+          selectedAddress: this.#getMultichainSelectedAccountAddress(),
+        },
+      )
+      .catch(() => {
+        // Ignore errors
+      });
   };
 }

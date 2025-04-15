@@ -13,7 +13,9 @@
     { "path": "../polling-controller" },
     { "path": "../assets-controllers" },
     { "path": "../transaction-controller" },
-    { "path": "../preferences-controller" }
+    { "path": "../gas-fee-controller" },
+    { "path": "../preferences-controller" },
+    { "path": "../user-operation-controller" }
   ],
   "include": ["../../types", "./src"]
 }

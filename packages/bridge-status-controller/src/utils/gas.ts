@@ -1,35 +1,44 @@
-import { Hex } from "@metamask/utils";
-import { BigNumber } from "../../../controller-utils/src/util";
+import type {
+  GasFeeEstimates,
+  GasFeeState,
+} from '@metamask/gas-fee-controller';
+import type {
+  FeeMarketGasFeeEstimates,
+  TransactionController,
+} from '@metamask/transaction-controller';
+import { BigNumber } from 'bignumber.js';
 
-export const getTxGasEstimates = async ({
-  networkAndAccountSupports1559,
-  networkGasFeeEstimates,
-  txParams,
-  hexChainId,
-}: {
-  networkAndAccountSupports1559: boolean;
-  networkGasFeeEstimates: NetworkGasFeeEstimates;
-  txParams: TxData;
-  hexChainId: Hex;
-}) => {
-  if (networkAndAccountSupports1559) {
-    const { estimatedBaseFee = '0' } = networkGasFeeEstimates;
-    const hexEstimatedBaseFee = decGWEIToHexWEI(estimatedBaseFee) as Hex;
-    const txGasFeeEstimates = await getTransaction1559GasFeeEstimates(
-      {
-        ...txParams,
-        chainId: hexChainId,
-        gasLimit: txParams.gasLimit?.toString(),
-      },
-      hexEstimatedBaseFee,
-      hexChainId,
-    );
-    return txGasFeeEstimates;
-  }
+const getTransaction1559GasFeeEstimates = (
+  txGasFeeEstimates: FeeMarketGasFeeEstimates,
+  estimatedBaseFee: string,
+) => {
+  const { maxFeePerGas, maxPriorityFeePerGas } = txGasFeeEstimates?.high ?? {};
+
+  const baseAndPriorityFeePerGas = maxPriorityFeePerGas
+    ? new BigNumber(estimatedBaseFee, 10)
+        .times(10 ** 9)
+        .plus(maxPriorityFeePerGas, 16)
+    : undefined;
 
   return {
-    baseAndPriorityFeePerGas: undefined,
-    maxFeePerGas: undefined,
-    maxPriorityFeePerGas: undefined,
+    baseAndPriorityFeePerGas,
+    maxFeePerGas,
+    maxPriorityFeePerGas,
   };
+};
+
+export const getTxGasEstimates = async ({
+  txGasFeeEstimates,
+  networkGasFeeEstimates,
+}: {
+  txGasFeeEstimates: Awaited<
+    ReturnType<TransactionController['estimateGasFee']>
+  >['estimates'];
+  networkGasFeeEstimates: GasFeeState['gasFeeEstimates'];
+}) => {
+  const { estimatedBaseFee = '0' } = networkGasFeeEstimates as GasFeeEstimates;
+  return getTransaction1559GasFeeEstimates(
+    txGasFeeEstimates as unknown as FeeMarketGasFeeEstimates,
+    estimatedBaseFee,
+  );
 };

@@ -9,12 +9,15 @@ import type {
   RestrictedMessenger,
 } from '@metamask/base-controller';
 import type {
+  BridgeBackgroundAction,
+  BridgeControllerAction,
   ChainId,
   Quote,
   QuoteMetadata,
   QuoteResponse,
   TxData,
 } from '@metamask/bridge-controller';
+import type { GasFeeControllerActions } from '@metamask/gas-fee-controller';
 import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
@@ -331,7 +334,9 @@ type AllowedActions =
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
   | AccountsControllerGetSelectedMultichainAccountAction
+  | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>
   | HandleSnapRequest
+  | GasFeeControllerActions
   | AccountsControllerGetAccountByAddressAction
   | TransactionControllerActions
   | TokensControllerAddDetectedTokensAction
