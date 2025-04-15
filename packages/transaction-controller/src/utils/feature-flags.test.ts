@@ -28,9 +28,11 @@ const SIGNATURE_MOCK = '0xcba' as Hex;
 const DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK = 35;
 const GAS_ESTIMATE_FALLBACK_MOCK = 50;
 const FIXED_GAS_MOCK = 100000;
-const GAS_BUFFER_MOCK = 1.2;
-const GAS_BUFFER_2_MOCK = 1.5;
-const GAS_BUFFER_3_MOCK = 2.0;
+const GAS_BUFFER_MOCK = 1.1;
+const GAS_BUFFER_2_MOCK = 1.2;
+const GAS_BUFFER_3_MOCK = 1.3;
+const GAS_BUFFER_4_MOCK = 1.4;
+const GAS_BUFFER_5_MOCK = 1.5;
 
 describe('Feature Flags Utils', () => {
   let baseMessenger: Messenger<
@@ -556,6 +558,21 @@ describe('Feature Flags Utils', () => {
   });
 
   describe('getGasBufferEstimate', () => {
+    it('returns local default if nothing defined', () => {
+      mockFeatureFlags({
+        [FeatureFlag.GasBuffer]: {},
+      });
+
+      expect(
+        getGasEstimateBuffer({
+          chainId: CHAIN_ID_MOCK,
+          isCustomRPC: false,
+          isUpgradeWithDataToSelf: false,
+          messenger: controllerMessenger,
+        }),
+      ).toBe(1.0);
+    });
+
     it('returns default if no chain ID override', () => {
       mockFeatureFlags({
         [FeatureFlag.GasBuffer]: {
@@ -564,65 +581,103 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(
-        getGasEstimateBuffer(CHAIN_ID_MOCK, controllerMessenger),
-      ).toStrictEqual({
-        buffer: GAS_BUFFER_MOCK,
-        eip7702: undefined,
-      });
+        getGasEstimateBuffer({
+          chainId: CHAIN_ID_MOCK,
+          isCustomRPC: false,
+          isUpgradeWithDataToSelf: false,
+          messenger: controllerMessenger,
+        }),
+      ).toBe(GAS_BUFFER_MOCK);
     });
 
-    it('returns chain ID override if defined', () => {
+    it('returns default included if not custom network', () => {
       mockFeatureFlags({
         [FeatureFlag.GasBuffer]: {
           default: GAS_BUFFER_MOCK,
+          included: GAS_BUFFER_2_MOCK,
+        },
+      });
+
+      expect(
+        getGasEstimateBuffer({
+          chainId: CHAIN_ID_MOCK,
+          isCustomRPC: false,
+          isUpgradeWithDataToSelf: false,
+          messenger: controllerMessenger,
+        }),
+      ).toBe(GAS_BUFFER_2_MOCK);
+    });
+
+    it('returns chain base if defined', () => {
+      mockFeatureFlags({
+        [FeatureFlag.GasBuffer]: {
+          default: GAS_BUFFER_MOCK,
+          included: GAS_BUFFER_2_MOCK,
           perChainConfig: {
             [CHAIN_ID_MOCK]: {
-              buffer: GAS_BUFFER_2_MOCK,
+              base: GAS_BUFFER_3_MOCK,
             },
           },
         },
       });
 
       expect(
-        getGasEstimateBuffer(CHAIN_ID_MOCK, controllerMessenger),
-      ).toStrictEqual({
-        buffer: GAS_BUFFER_2_MOCK,
-        eip7702: undefined,
-      });
+        getGasEstimateBuffer({
+          chainId: CHAIN_ID_MOCK,
+          isCustomRPC: false,
+          isUpgradeWithDataToSelf: false,
+          messenger: controllerMessenger,
+        }),
+      ).toBe(GAS_BUFFER_3_MOCK);
     });
 
-    it('returns eip7702 buffer if defined', () => {
+    it('returns chain included if defined and not custom RPC', () => {
       mockFeatureFlags({
         [FeatureFlag.GasBuffer]: {
           default: GAS_BUFFER_MOCK,
+          included: GAS_BUFFER_2_MOCK,
           perChainConfig: {
             [CHAIN_ID_MOCK]: {
-              buffer: GAS_BUFFER_2_MOCK,
-              eip7702: GAS_BUFFER_3_MOCK,
+              base: GAS_BUFFER_3_MOCK,
+              included: GAS_BUFFER_4_MOCK,
             },
           },
         },
       });
 
       expect(
-        getGasEstimateBuffer(CHAIN_ID_MOCK, controllerMessenger),
-      ).toStrictEqual({
-        buffer: GAS_BUFFER_2_MOCK,
-        eip7702: GAS_BUFFER_3_MOCK,
-      });
+        getGasEstimateBuffer({
+          chainId: CHAIN_ID_MOCK,
+          isCustomRPC: false,
+          isUpgradeWithDataToSelf: false,
+          messenger: controllerMessenger,
+        }),
+      ).toBe(GAS_BUFFER_4_MOCK);
     });
 
-    it('returns no buffer if not defined', () => {
+    it('returns eip7702 buffer if defined and is upgrade to self', () => {
       mockFeatureFlags({
-        [FeatureFlag.GasBuffer]: {},
+        [FeatureFlag.GasBuffer]: {
+          default: GAS_BUFFER_MOCK,
+          included: GAS_BUFFER_2_MOCK,
+          perChainConfig: {
+            [CHAIN_ID_MOCK]: {
+              base: GAS_BUFFER_3_MOCK,
+              included: GAS_BUFFER_4_MOCK,
+              eip7702: GAS_BUFFER_5_MOCK,
+            },
+          },
+        },
       });
 
       expect(
-        getGasEstimateBuffer(CHAIN_ID_MOCK, controllerMessenger),
-      ).toStrictEqual({
-        buffer: 1.0,
-        eip7702: undefined,
-      });
+        getGasEstimateBuffer({
+          chainId: CHAIN_ID_MOCK,
+          isCustomRPC: false,
+          isUpgradeWithDataToSelf: true,
+          messenger: controllerMessenger,
+        }),
+      ).toBe(GAS_BUFFER_5_MOCK);
     });
   });
 });

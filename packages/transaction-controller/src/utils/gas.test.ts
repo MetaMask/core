@@ -159,10 +159,7 @@ describe('gas', () => {
       GAS_ESTIMATE_FALLBACK_MULTIPLIER_MOCK,
     );
 
-    getGasEstimateBufferMock.mockReturnValue({
-      buffer: 1.5,
-      eip7702: 2.0,
-    });
+    getGasEstimateBufferMock.mockReturnValue(1.5);
   });
 
   describe('updateGas', () => {
@@ -280,31 +277,6 @@ describe('gas', () => {
         await updateGas(updateGasRequest);
 
         expect(updateGasRequest.txMeta.txParams.gas).toBe(toHex(GAS_MOCK));
-        expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
-          updateGasRequest.txMeta.txParams.gas,
-        );
-      });
-
-      it('using eip7702 buffer if transaction is type 4 with data to self', async () => {
-        mockQuery({
-          getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
-          estimateGasResponse: toHex(GAS_MOCK),
-        });
-
-        updateGasRequest.txMeta.txParams.authorizationList =
-          AUTHORIZATION_LIST_MOCK;
-
-        updateGasRequest.txMeta.txParams.to =
-          TRANSACTION_META_MOCK.txParams.from;
-
-        updateGasRequest.txMeta.txParams.type = TransactionEnvelopeType.setCode;
-
-        await updateGas(updateGasRequest);
-
-        expect(updateGasRequest.txMeta.txParams.gas).toBe(
-          toHex(GAS_MOCK * 2.0),
-        );
-
         expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
           updateGasRequest.txMeta.txParams.gas,
         );

@@ -209,7 +209,8 @@ export function addGasBuffer(
 async function getGas(
   request: UpdateGasRequest,
 ): Promise<[string, TransactionMeta['simulationFails']?, string?]> {
-  const { chainId, isSimulationEnabled, messenger, txMeta } = request;
+  const { chainId, isCustomNetwork, isSimulationEnabled, messenger, txMeta } =
+    request;
   const { disableGasBuffer } = txMeta;
 
   if (txMeta.txParams.gas) {
@@ -249,12 +250,12 @@ async function getGas(
     return [estimatedGas, simulationFails, estimatedGas];
   }
 
-  const { buffer, eip7702 } = getGasEstimateBuffer(chainId, messenger);
-
-  log('Configured buffers', { buffer, eip7702 });
-
-  const bufferMultiplier =
-    isUpgradeWithDataToSelf && eip7702 ? eip7702 : buffer;
+  const bufferMultiplier = getGasEstimateBuffer({
+    chainId,
+    isCustomRPC: isCustomNetwork,
+    isUpgradeWithDataToSelf,
+    messenger,
+  });
 
   log('Buffer', bufferMultiplier);
 

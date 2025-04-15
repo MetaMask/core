@@ -60,19 +60,34 @@ export type TransactionControllerFeatureFlags = {
    * Values are multipliers such as `1.5` meaning 150% of the original gas limit.
    */
   [FeatureFlag.GasBuffer]?: {
-    /** Buffer for all chains unless overridden. */
+    /** Fallback buffer for all chains and transactions. */
     default?: number;
+
+    /**
+     * Buffer for included network RPCs only and not those added by user.
+     * Takes priority over `default`.
+     */
+    included?: number;
 
     /** Buffers for specific chains. */
     perChainConfig?: {
       [chainId: Hex]: {
-        /** Buffer for the chain for all transactions. */
-        buffer?: number;
+        /**
+         * Buffer for the chain for all transactions.
+         * Takes priority over non-chain `included`.
+         */
+        base?: number;
+
+        /**
+         * Buffer if network RPC is included and not added by user.
+         * Takes priority over `base`.
+         */
+        included?: number;
 
         /**
          * Buffer for the chain for EIP-7702 / type 4 transactions only.
          * Only if `data` included and `to` matches `from`.
-         * Overrides the `buffer` if set.
+         * Takes priority over `included` and `base`.
          */
         eip7702?: number;
       };
@@ -300,29 +315,45 @@ export function getGasEstimateFallback(
 /**
  * Retrieves the gas buffers for a given chain ID.
  *
- * @param chainId - The chain ID.
- * @param messenger - The controller messenger instance.
+ * @param request - The request object.
+ * @param request.chainId - The chain ID.
+ * @param request.isCustomRPC - Whether the network RPC is added by the user.
+ * @param request.isUpgradeWithDataToSelf - Whether the transaction is an EIP-7702 upgrade with data to self.
+ * @param request.messenger - The controller messenger instance.
  * @returns The gas buffers.
  */
-export function getGasEstimateBuffer(
-  chainId: Hex,
-  messenger: TransactionControllerMessenger,
-): {
-  buffer: number;
-  eip7702?: number;
-} {
+export function getGasEstimateBuffer({
+  chainId,
+  isCustomRPC,
+  isUpgradeWithDataToSelf,
+  messenger,
+}: {
+  chainId: Hex;
+  isCustomRPC: boolean;
+  isUpgradeWithDataToSelf: boolean;
+  messenger: TransactionControllerMessenger;
+}): number {
   const featureFlags = getFeatureFlags(messenger);
   const gasBufferFlags = featureFlags?.[FeatureFlag.GasBuffer];
   const chainFlags = gasBufferFlags?.perChainConfig?.[chainId];
+  const chainIncludedRPCBuffer = isCustomRPC ? undefined : chainFlags?.included;
 
-  const buffer =
-    chainFlags?.buffer ??
+  const defaultIncludedRPCBuffer = isCustomRPC
+    ? undefined
+    : gasBufferFlags?.included;
+
+  const upgradeBuffer = isUpgradeWithDataToSelf
+    ? chainFlags?.eip7702
+    : undefined;
+
+  return (
+    upgradeBuffer ??
+    chainIncludedRPCBuffer ??
+    chainFlags?.base ??
+    defaultIncludedRPCBuffer ??
     gasBufferFlags?.default ??
-    DEFAULT_GAS_ESTIMATE_BUFFER;
-
-  const eip7702 = chainFlags?.eip7702;
-
-  return { buffer, eip7702 };
+    DEFAULT_GAS_ESTIMATE_BUFFER
+  );
 }
 
 /**
