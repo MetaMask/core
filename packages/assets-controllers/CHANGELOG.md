@@ -13,8 +13,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Export `DeFiPositionsController`
   - Export the following types
     - `DeFiPositionsControllerState`
-    - `DeFiPositionsControllerAllowedActions`
-    - `DeFiPositionsControllerAllowedEvents`
     - `DeFiPositionsControllerActions`
     - `DeFiPositionsControllerEvents`
     - `DeFiPositionsControllerGetStateAction`
