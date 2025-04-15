@@ -245,12 +245,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
     isStxEnabledOnClient: boolean,
   ) => {
-    this.stopAllPolling();
-
-    if (!isSolanaChainId(quoteResponse.quote.srcChainId)) {
-      throw new Error('Failed to submit bridge tx: only Solana is supported');
-    }
-
     let txMeta: TransactionMeta | undefined;
     // Submit SOLANA tx
     if (
