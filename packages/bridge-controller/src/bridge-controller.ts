@@ -6,11 +6,9 @@ import type { ChainId } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import { type SnapId } from '@metamask/snaps-sdk';
-import { HandlerType } from '@metamask/snaps-utils';
 import type { TransactionParams } from '@metamask/transaction-controller';
-import { numberToHex } from '@metamask/utils';
-import type { Hex } from '@metamask/utils';
+import type { CaipAssetType } from '@metamask/utils';
+import { numberToHex, type Hex } from '@metamask/utils';
 
 import {
   type BridgeClientId,
@@ -21,9 +19,11 @@ import {
   REFRESH_INTERVAL_MS,
 } from './constants/bridge';
 import { CHAIN_IDS } from './constants/chains';
-import type { GenericQuoteRequest, SolanaFees } from './types';
+import { selectIsAssetExchangeRateInState } from './selectors';
 import {
   type L1GasFees,
+  type GenericQuoteRequest,
+  type SolanaFees,
   type QuoteResponse,
   type TxData,
   type BridgeControllerState,
@@ -32,6 +32,7 @@ import {
   BridgeFeatureFlagsKey,
   RequestStatus,
 } from './types';
+import { getAssetIdsForToken, toExchangeRates } from './utils/assets';
 import { hasSufficientBalance } from './utils/balance';
 import {
   getDefaultBridgeControllerState,
@@ -43,7 +44,11 @@ import {
   formatChainIdToCaip,
   formatChainIdToHex,
 } from './utils/caip-formatters';
-import { fetchBridgeFeatureFlags, fetchBridgeQuotes } from './utils/fetch';
+import {
+  fetchAssetPrices,
+  fetchBridgeFeatureFlags,
+  fetchBridgeQuotes,
+} from './utils/fetch';
 import { isValidQuoteRequest } from './utils/quote';
 
 const metadata: StateMetadata<BridgeControllerState> = {
@@ -76,6 +81,10 @@ const metadata: StateMetadata<BridgeControllerState> = {
     anonymous: false,
   },
   quotesRefreshCount: {
+    persist: false,
+    anonymous: false,
+  },
+  assetExchangeRates: {
     persist: false,
     anonymous: false,
   },
@@ -197,6 +206,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         DEFAULT_BRIDGE_CONTROLLER_STATE.quotesInitialLoadTime;
     });
 
+    await this.#fetchAssetExchangeRates(updatedQuoteRequest).catch((error) =>
+      console.warn('Failed to fetch asset exchange rates', error),
+    );
+
     if (isValidQuoteRequest(updatedQuoteRequest)) {
       this.#quotesFirstFetched = Date.now();
       const providerConfig = this.#getSelectedNetworkClient()?.configuration;
@@ -227,6 +240,81 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         },
       });
     }
+  };
+
+  /**
+   * Fetches the exchange rates for the assets in the quote request if they are not already in the state
+   * In addition to the selected tokens, this also fetches the native asset for the source and destination chains
+   *
+   * @param quoteRequest - The quote request
+   * @param quoteRequest.srcChainId - The source chain ID
+   * @param quoteRequest.srcTokenAddress - The source token address
+   * @param quoteRequest.destChainId - The destination chain ID
+   * @param quoteRequest.destTokenAddress - The destination token address
+   */
+  readonly #fetchAssetExchangeRates = async ({
+    srcChainId,
+    srcTokenAddress,
+    destChainId,
+    destTokenAddress,
+  }: Partial<GenericQuoteRequest>) => {
+    const assetIds: Set<CaipAssetType> = new Set([]);
+
+    const exchangeRateSources = {
+      ...this.messagingSystem.call('MultichainAssetsRatesController:getState'),
+      ...this.messagingSystem.call('CurrencyRateController:getState'),
+      ...this.messagingSystem.call('TokenRatesController:getState'),
+      ...this.state,
+    };
+
+    if (
+      srcTokenAddress &&
+      srcChainId &&
+      !selectIsAssetExchangeRateInState(
+        exchangeRateSources,
+        srcChainId,
+        srcTokenAddress,
+      )
+    ) {
+      getAssetIdsForToken(srcTokenAddress, srcChainId).forEach((assetId) =>
+        assetIds.add(assetId),
+      );
+    }
+    if (
+      destTokenAddress &&
+      destChainId &&
+      !selectIsAssetExchangeRateInState(
+        exchangeRateSources,
+        destChainId,
+        destTokenAddress,
+      )
+    ) {
+      getAssetIdsForToken(destTokenAddress, destChainId).forEach((assetId) =>
+        assetIds.add(assetId),
+      );
+    }
+
+    const currency = this.messagingSystem.call(
+      'CurrencyRateController:getState',
+    ).currentCurrency;
+
+    if (assetIds.size === 0) {
+      return;
+    }
+
+    const pricesByAssetId = await fetchAssetPrices({
+      assetIds,
+      currencies: new Set([currency]),
+      clientId: this.#clientId,
+      fetchFn: this.#fetchFn,
+    });
+    const exchangeRates = toExchangeRates(currency, pricesByAssetId);
+    this.update((state) => {
+      state.assetExchangeRates = {
+        ...state.assetExchangeRates,
+        ...exchangeRates,
+      };
+    });
   };
 
   readonly #hasSufficientBalance = async (
@@ -272,6 +360,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       state.quoteFetchError = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError;
       state.quotesRefreshCount =
         DEFAULT_BRIDGE_CONTROLLER_STATE.quotesRefreshCount;
+      state.assetExchangeRates =
+        DEFAULT_BRIDGE_CONTROLLER_STATE.assetExchangeRates;
 
       // Keep feature flags
       const originalFeatureFlags = state.bridgeFeatureFlags;
@@ -449,9 +539,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           const { value: fees } = (await this.messagingSystem.call(
             'SnapController:handleRequest',
             {
-              snapId: selectedAccount.metadata.snap.id as SnapId,
+              // TODO fix these types
+              snapId: selectedAccount.metadata.snap.id as never,
               origin: 'metamask',
-              handler: HandlerType.OnRpcRequest,
+              handler: 'onRpcRequest' as never,
               request: {
                 method: 'getFeeForTransaction',
                 params: {
