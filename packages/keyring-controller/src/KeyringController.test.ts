@@ -2734,6 +2734,21 @@ describe('KeyringController', () => {
               expect(controller.state.encryptionSalt).toBeDefined();
             });
           });
+
+        it('should throw error when using the wrong password', async () => {
+          await withController(
+            {
+              skipVaultCreation: true,
+              cacheEncryptionKey,
+              state: { vault: 'my vault' },
+            },
+            async ({ controller }) => {
+              await expect(
+                controller.submitPassword('wrong password'),
+              ).rejects.toThrow('Incorrect password.');
+            },
+          );
+        });
       }),
     );
   });
