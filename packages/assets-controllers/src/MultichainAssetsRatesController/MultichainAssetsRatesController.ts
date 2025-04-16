@@ -297,6 +297,9 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
     const releaseLock = await this.#mutex.acquire();
 
     return (async () => {
+      if (!this.isActive) {
+        return;
+      }
       const accounts = this.#listAccounts();
 
       for (const account of accounts) {
@@ -342,9 +345,6 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
   async fetchHistoricalPricesForAsset(asset: CaipAssetType): Promise<void> {
     const releaseLock = await this.#mutex.acquire();
     return (async () => {
-      if (!this.isActive) {
-        return;
-      }
       const currentCaipCurrency =
         MAP_CAIP_CURRENCIES[this.#currentCurrency] ?? MAP_CAIP_CURRENCIES.usd;
       // Check if we already have historical prices for this asset and currency
