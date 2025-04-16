@@ -9,13 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING:** Add `uuid` dependency at `^8.3.2` ([#5634](https://github.com/MetaMask/core/pull/5634))
 - **BREAKING:** Add `@metamask/snaps-controllers` peer dependency at `^9.19.0` ([#5634](https://github.com/MetaMask/core/pull/5634))
+- Add `uuid` dependency at `^8.3.2` ([#5634](https://github.com/MetaMask/core/pull/5634))
 - Add `submitTx` handler that submits cross-chain swaps transactions and triggers polling for destination transaction status ([#5634](https://github.com/MetaMask/core/pull/5634))
 
 ### Changed
 
-- **BREAKING:** Require config.customBridgeApiBaseUrl as constructor arg ([#5634](https://github.com/MetaMask/core/pull/5634))
+- Add optional config.customBridgeApiBaseUrl constructor arg to set the bridge-api base URL ([#5634](https://github.com/MetaMask/core/pull/5634))
 
 ### Fixed
 

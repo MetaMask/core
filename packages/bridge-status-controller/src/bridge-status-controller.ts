@@ -461,7 +461,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @returns The transaction meta
    */
   readonly #handleSolanaTx = async (
-    quoteResponse: Omit<QuoteResponse<string>, 'approval'> & QuoteMetadata,
+    quoteResponse: QuoteResponse<string> & QuoteMetadata,
   ) => {
     const selectedAccount = this.#getMultichainSelectedAccount();
 
@@ -787,8 +787,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       typeof quoteResponse.trade === 'string'
     ) {
       txMeta = await this.#handleSolanaTx(
-        quoteResponse as Omit<QuoteResponse<string>, 'approval'> &
-          QuoteMetadata,
+         quoteResponse as QuoteResponse<string> & QuoteMetadata,
       );
     }
     // Submit EVM tx
