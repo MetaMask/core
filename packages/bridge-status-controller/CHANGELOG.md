@@ -9,8 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/bridge-controller` dependency to `^15.0.0` ([#5665](https://github.com/MetaMask/core/pull/5665))
-- Bump `@metamask/bridge-controller` dependency to `^14.0.0` ([#5657](https://github.com/MetaMask/core/pull/5657))
+- Bump `@metamask/bridge-controller` dependency to `^15.0.0` ([#5657](https://github.com/MetaMask/core/pull/5657)), ([#5665](https://github.com/MetaMask/core/pull/5665))
 
 ## [12.0.1]
 
