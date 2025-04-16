@@ -350,7 +350,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
       // Check if we already have historical prices for this asset and currency
       const historicalPriceExpirationTime =
         this.state.historicalPrices[asset]?.[this.#currentCurrency]
-          ?.expirationTime ?? null;
+          ?.expirationTime;
 
       const historicalPriceHasExpired =
         historicalPriceExpirationTime &&
