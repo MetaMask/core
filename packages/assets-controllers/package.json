@@ -88,7 +88,7 @@
     "@metamask/permission-controller": "^11.0.6",
     "@metamask/preferences-controller": "^17.0.0",
     "@metamask/providers": "^21.0.0",
-    "@metamask/snaps-controllers": "^11.2.0",
+    "@metamask/snaps-controllers": "^11.2.1",
     "@metamask/snaps-sdk": "^6.22.0",
     "@types/jest": "^27.4.1",
     "@types/lodash": "^4.14.191",
@@ -112,7 +112,7 @@
     "@metamask/permission-controller": "^11.0.0",
     "@metamask/preferences-controller": "^17.0.0",
     "@metamask/providers": "^21.0.0",
-    "@metamask/snaps-controllers": "^11.2.0",
+    "@metamask/snaps-controllers": "^11.2.1",
     "webextension-polyfill": "^0.10.0 || ^0.11.0 || ^0.12.0"
   },
   "engines": {

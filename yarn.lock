@@ -2441,7 +2441,7 @@ __metadata:
     "@metamask/keyring-utils": "npm:^3.0.0"
     "@metamask/network-controller": "npm:^23.2.0"
     "@metamask/providers": "npm:^21.0.0"
-    "@metamask/snaps-controllers": "npm:^11.2.0"
+    "@metamask/snaps-controllers": "npm:^11.2.1"
     "@metamask/snaps-sdk": "npm:^6.22.0"
     "@metamask/snaps-utils": "npm:^9.2.0"
     "@metamask/utils": "npm:^11.2.0"
@@ -2461,7 +2461,7 @@ __metadata:
     "@metamask/keyring-controller": ^21.0.0
     "@metamask/network-controller": ^23.0.0
     "@metamask/providers": ^21.0.0
-    "@metamask/snaps-controllers": ^11.2.0
+    "@metamask/snaps-controllers": ^11.2.1
     webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
   languageName: unknown
   linkType: soft
@@ -2586,7 +2586,7 @@ __metadata:
     "@metamask/preferences-controller": "npm:^17.0.0"
     "@metamask/providers": "npm:^21.0.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
-    "@metamask/snaps-controllers": "npm:^11.2.0"
+    "@metamask/snaps-controllers": "npm:^11.2.1"
     "@metamask/snaps-sdk": "npm:^6.22.0"
     "@metamask/snaps-utils": "npm:^9.2.0"
     "@metamask/utils": "npm:^11.2.0"
@@ -2621,7 +2621,7 @@ __metadata:
     "@metamask/permission-controller": ^11.0.0
     "@metamask/preferences-controller": ^17.0.0
     "@metamask/providers": ^21.0.0
-    "@metamask/snaps-controllers": ^11.2.0
+    "@metamask/snaps-controllers": ^11.2.1
     webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
   languageName: unknown
   linkType: soft
@@ -2708,7 +2708,7 @@ __metadata:
     "@metamask/multichain-network-controller": "npm:^0.4.0"
     "@metamask/network-controller": "npm:^23.2.0"
     "@metamask/polling-controller": "npm:^13.0.0"
-    "@metamask/snaps-controllers": "npm:^11.2.0"
+    "@metamask/snaps-controllers": "npm:^11.2.1"
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/transaction-controller": "npm:^54.1.0"
     "@metamask/utils": "npm:^11.2.0"
@@ -2728,7 +2728,7 @@ __metadata:
     "@metamask/accounts-controller": ^27.0.0
     "@metamask/assets-controllers": ^56.0.0
     "@metamask/network-controller": ^23.0.0
-    "@metamask/snaps-controllers": ^11.2.0
+    "@metamask/snaps-controllers": ^11.2.1
     "@metamask/transaction-controller": ^54.0.0
   languageName: unknown
   linkType: soft
@@ -3716,7 +3716,7 @@ __metadata:
     "@metamask/keyring-internal-api": "npm:^6.0.1"
     "@metamask/keyring-snap-client": "npm:^4.1.0"
     "@metamask/polling-controller": "npm:^13.0.0"
-    "@metamask/snaps-controllers": "npm:^11.2.0"
+    "@metamask/snaps-controllers": "npm:^11.2.1"
     "@metamask/snaps-sdk": "npm:^6.22.0"
     "@metamask/snaps-utils": "npm:^9.2.0"
     "@metamask/utils": "npm:^11.2.0"
@@ -3732,7 +3732,7 @@ __metadata:
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/accounts-controller": ^27.0.0
-    "@metamask/snaps-controllers": ^11.2.0
+    "@metamask/snaps-controllers": ^11.2.1
   languageName: unknown
   linkType: soft
 
@@ -4046,7 +4046,7 @@ __metadata:
     "@metamask/keyring-internal-api": "npm:^6.0.1"
     "@metamask/network-controller": "npm:^23.2.0"
     "@metamask/providers": "npm:^21.0.0"
-    "@metamask/snaps-controllers": "npm:^11.2.0"
+    "@metamask/snaps-controllers": "npm:^11.2.1"
     "@metamask/snaps-sdk": "npm:^6.22.0"
     "@metamask/snaps-utils": "npm:^9.2.0"
     "@noble/ciphers": "npm:^0.5.2"
@@ -4070,7 +4070,7 @@ __metadata:
     "@metamask/keyring-controller": ^21.0.0
     "@metamask/network-controller": ^23.0.0
     "@metamask/providers": ^21.0.0
-    "@metamask/snaps-controllers": ^11.2.0
+    "@metamask/snaps-controllers": ^11.2.1
     webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
   languageName: unknown
   linkType: soft
@@ -4282,9 +4282,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/snaps-controllers@npm:^11.2.0":
-  version: 11.2.0
-  resolution: "@metamask/snaps-controllers@npm:11.2.0"
+"@metamask/snaps-controllers@npm:^11.2.1":
+  version: 11.2.1
+  resolution: "@metamask/snaps-controllers@npm:11.2.1"
   dependencies:
     "@metamask/approval-controller": "npm:^7.1.3"
     "@metamask/base-controller": "npm:^8.0.0"
@@ -4315,11 +4315,11 @@ __metadata:
     semver: "npm:^7.5.4"
     tar-stream: "npm:^3.1.7"
   peerDependencies:
-    "@metamask/snaps-execution-environments": ^7.2.0
+    "@metamask/snaps-execution-environments": ^7.2.1
   peerDependenciesMeta:
     "@metamask/snaps-execution-environments":
       optional: true
-  checksum: 10/08dc3b333f6537153ad9aeae91ebbe91d7eb5f07373d077398d9cacaa8c5b5b8ee33b836edd941d3c1c7bf08fc26ba64e84cb134f74a2a1fb54b4aa7431505bb
+  checksum: 10/8431172c323e9f6eca7c3a58d113a976b8be35532c377f8ca3418b04c9156f399fe4b1230edacb6fbc36614c8f71e5de8c62e43e1f8559035316dfffc73d20d1
   languageName: node
   linkType: hard
 

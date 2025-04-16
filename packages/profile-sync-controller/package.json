@@ -119,7 +119,7 @@
     "@metamask/keyring-internal-api": "^6.0.1",
     "@metamask/network-controller": "^23.2.0",
     "@metamask/providers": "^21.0.0",
-    "@metamask/snaps-controllers": "^11.2.0",
+    "@metamask/snaps-controllers": "^11.2.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "ethers": "^6.12.0",
@@ -137,7 +137,7 @@
     "@metamask/keyring-controller": "^21.0.0",
     "@metamask/network-controller": "^23.0.0",
     "@metamask/providers": "^21.0.0",
-    "@metamask/snaps-controllers": "^11.2.0",
+    "@metamask/snaps-controllers": "^11.2.1",
     "webextension-polyfill": "^0.10.0 || ^0.11.0 || ^0.12.0"
   },
   "engines": {
