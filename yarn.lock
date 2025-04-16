@@ -2461,7 +2461,7 @@ __metadata:
     "@metamask/keyring-controller": ^21.0.0
     "@metamask/network-controller": ^23.0.0
     "@metamask/providers": ^21.0.0
-    "@metamask/snaps-controllers": ^11.2.1
+    "@metamask/snaps-controllers": ^11.0.0
     webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
   languageName: unknown
   linkType: soft
@@ -2622,7 +2622,7 @@ __metadata:
     "@metamask/permission-controller": ^11.0.0
     "@metamask/preferences-controller": ^17.0.0
     "@metamask/providers": ^21.0.0
-    "@metamask/snaps-controllers": ^11.2.1
+    "@metamask/snaps-controllers": ^11.0.0
     "@metamask/transaction-controller": ^54.0.0
     webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
   languageName: unknown
@@ -2764,7 +2764,7 @@ __metadata:
   peerDependencies:
     "@metamask/accounts-controller": ^27.0.0
     "@metamask/network-controller": ^23.0.0
-    "@metamask/snaps-controllers": ^11.2.1
+    "@metamask/snaps-controllers": ^11.0.0
     "@metamask/transaction-controller": ^54.0.0
   languageName: unknown
   linkType: soft
@@ -3740,7 +3740,7 @@ __metadata:
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/accounts-controller": ^27.0.0
-    "@metamask/snaps-controllers": ^11.2.1
+    "@metamask/snaps-controllers": ^11.0.0
   languageName: unknown
   linkType: soft
 
@@ -4078,7 +4078,7 @@ __metadata:
     "@metamask/keyring-controller": ^21.0.0
     "@metamask/network-controller": ^23.0.0
     "@metamask/providers": ^21.0.0
-    "@metamask/snaps-controllers": ^11.2.1
+    "@metamask/snaps-controllers": ^11.0.0
     webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
   languageName: unknown
   linkType: soft
