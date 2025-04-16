@@ -450,7 +450,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     );
 
     // TODO remove this eventually, just returning it now to match extension behavior
-    // OR if the snap can propagate the snapRequestId or keyringReqId to the ApprovalsControlle, this can return the approvalTxId instead and clients won't need to subscribe to the ApprovalsController state to redirect
+    // OR if the snap can propagate the snapRequestId or keyringReqId to the ApprovalsController, this can return the approvalTxId instead and clients won't need to subscribe to the ApprovalsController state to redirect
     return txMeta;
   };
 
