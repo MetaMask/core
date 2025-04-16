@@ -11,10 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/snaps-controllers` peer dependency from ^9.19.0 to ^11.2.1 ([#5639](https://github.com/MetaMask/core/pull/5639))
 
-### Changed
-
-- Bump `@metamask/snaps-controllers` peer dependency from ^9.19.0 to ^11.2.1 ([#5639](https://github.com/MetaMask/core/pull/5639))
-
 ## [14.0.0]
 
 ### Added
