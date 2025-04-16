@@ -64,7 +64,7 @@ describe('groupDeFiPositions', () => {
         protocols: {
           'aave-v3': {
             protocolDetails: {
-              name: 'AaveV3',
+              name: 'Aave V3',
               iconUrl: 'https://cryptologos.cc/logos/aave-aave-logo.png',
             },
             aggregatedMarketValue: 540,
@@ -209,7 +209,7 @@ describe('groupDeFiPositions', () => {
         protocols: {
           'uniswap-v3': {
             protocolDetails: {
-              name: 'UniswapV3',
+              name: 'Uniswap V3',
               iconUrl:
                 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984/logo.png',
             },
