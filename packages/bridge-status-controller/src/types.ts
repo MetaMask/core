@@ -205,6 +205,7 @@ export type BridgeHistoryItem = {
   targetContractAddress?: string;
   account: string;
   hasApprovalTx: boolean;
+  approvalTxId?: string;
 };
 
 export enum BridgeStatusAction {
@@ -260,6 +261,7 @@ export type StartPollingForBridgeTxStatusArgs = {
   slippagePercentage: BridgeHistoryItem['slippagePercentage'];
   initialDestAssetBalance?: BridgeHistoryItem['initialDestAssetBalance'];
   targetContractAddress?: BridgeHistoryItem['targetContractAddress'];
+  approvalTxId?: BridgeHistoryItem['approvalTxId'];
 };
 
 /**
