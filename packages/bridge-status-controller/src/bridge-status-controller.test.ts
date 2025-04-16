@@ -1540,7 +1540,7 @@ describe('BridgeStatusController', () => {
       });
     };
 
-    const setupBridgeMocks = () => {
+    const setupBridgeMocks = (shouldAddDetectedTokensResolve = true) => {
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum');
       mockMessengerCall.mockReturnValueOnce({
@@ -1554,6 +1554,7 @@ describe('BridgeStatusController', () => {
       mockMessengerCall.mockReturnValueOnce({
         transactions: [mockEvmTxMeta],
       });
+      mockMessengerCall.mockReturnValueOnce(shouldAddDetectedTokensResolve); // addDetectedTokens
     };
 
     it('should successfully submit an EVM bridge transaction with approval', async () => {
@@ -1582,7 +1583,7 @@ describe('BridgeStatusController', () => {
     });
 
     it('should successfully submit an EVM bridge transaction with no approval', async () => {
-      setupBridgeMocks();
+      setupBridgeMocks(false);
 
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
