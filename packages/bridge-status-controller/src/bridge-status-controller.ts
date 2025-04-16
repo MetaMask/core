@@ -566,7 +566,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     return userOperationResult;
   };
 
-  readonly #handleSmartTransaction = async (
+  readonly #handleEvmSmartTransaction = async (
     trade: TxData,
     quoteResponse: Omit<QuoteResponse, 'approval' | 'trade'> & QuoteMetadata,
     approvalTxId?: string,
@@ -805,7 +805,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           isStxEnabledOnClient,
         )
       ) {
-        txMeta = await this.#handleSmartTransaction(
+        txMeta = await this.#handleEvmSmartTransaction(
           quoteResponse.trade,
           quoteResponse,
           approvalTxId,
