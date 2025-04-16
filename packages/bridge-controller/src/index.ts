@@ -80,7 +80,7 @@ export {
   getDefaultBridgeControllerState,
 } from './utils/bridge';
 
-export { isValidQuoteRequest } from './utils/quote';
+export { isValidQuoteRequest, formatEtaInMinutes } from './utils/quote';
 
 export { calcLatestSrcBalance } from './utils/balance';
 
@@ -91,3 +91,17 @@ export {
   formatChainIdToHex,
   formatAddressToCaipReference,
 } from './utils/caip-formatters';
+
+export {
+  selectBridgeQuotes,
+  type BridgeAppState,
+  selectExchangeRateByChainIdAndAddress,
+  /**
+   * Returns whether a quote is expired
+   *
+   * @param state The state of the bridge controller and its dependency controllers
+   * @param currentTimeInMs The current timestamp in milliseconds (e.g. `Date.now()`)
+   * @returns Whether the quote is expired
+   */
+  selectIsQuoteExpired,
+} from './selectors';

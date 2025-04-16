@@ -99,6 +99,10 @@ describe('TokenSearchDiscoveryController', () => {
     async searchTokens(): Promise<TokenSearchResponseItem[]> {
       return mockSearchResults;
     }
+
+    async searchSwappableTokens(): Promise<TokenSearchResponseItem[]> {
+      return mockSearchResults;
+    }
   }
 
   class MockTokenDiscoveryService extends AbstractTokenDiscoveryApiService {
@@ -111,6 +115,10 @@ describe('TokenSearchDiscoveryController', () => {
     }
 
     async getTopLosersByChains(): Promise<MoralisTokenResponseItem[]> {
+      return mockTrendingResults;
+    }
+
+    async getBlueChipTokensByChains(): Promise<MoralisTokenResponseItem[]> {
       return mockTrendingResults;
     }
   }
@@ -162,6 +170,15 @@ describe('TokenSearchDiscoveryController', () => {
     });
   });
 
+  describe('searchSwappableTokens', () => {
+    it('should return search results', async () => {
+      const results = await mainController.searchSwappableTokens({
+        query: 'te',
+      });
+      expect(results).toStrictEqual(mockSearchResults);
+    });
+  });
+
   describe('getTrendingTokens', () => {
     it('should return trending results', async () => {
       const results = await mainController.getTrendingTokens({});
@@ -183,9 +200,19 @@ describe('TokenSearchDiscoveryController', () => {
     });
   });
 
+  describe('getBlueChipTokens', () => {
+    it('should return blue chip tokens results', async () => {
+      const results = await mainController.getBlueChipTokens({});
+      expect(results).toStrictEqual(mockTrendingResults);
+    });
+  });
   describe('error handling', () => {
     class ErrorTokenSearchService extends AbstractTokenSearchApiService {
       async searchTokens(): Promise<TokenSearchResponseItem[]> {
+        return [];
+      }
+
+      async searchSwappableTokens(): Promise<TokenSearchResponseItem[]> {
         return [];
       }
     }
@@ -200,6 +227,10 @@ describe('TokenSearchDiscoveryController', () => {
       }
 
       async getTopLosersByChains(): Promise<MoralisTokenResponseItem[]> {
+        return [];
+      }
+
+      async getBlueChipTokensByChains(): Promise<MoralisTokenResponseItem[]> {
         return [];
       }
     }
