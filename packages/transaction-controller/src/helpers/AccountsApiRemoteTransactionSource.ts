@@ -18,6 +18,8 @@ import type {
 } from '../types';
 import { TransactionStatus, TransactionType } from '../types';
 
+const RECENT_HISTORY_DURATION_MS = 1000 * 60 * 60 * 24; // 1 Day
+
 export const SUPPORTED_CHAIN_IDS: Hex[] = [
   CHAIN_IDS.MAINNET,
   CHAIN_IDS.POLYGON,
@@ -85,32 +87,49 @@ export class AccountsApiRemoteTransactionSource
 
     const cursor = this.#getCacheCursor(cache, SUPPORTED_CHAIN_IDS, address);
 
+    const timestamp = this.#getCacheTimestamp(
+      cache,
+      SUPPORTED_CHAIN_IDS,
+      address,
+    );
+
     if (cursor) {
       log('Using cached cursor', cursor);
+    } else if (timestamp) {
+      log('Using cached timestamp', timestamp);
+    } else {
+      log('No cached cursor or timestamp found');
     }
 
-    return await this.#queryTransactions(request, SUPPORTED_CHAIN_IDS, cursor);
+    return await this.#queryTransactions(
+      request,
+      SUPPORTED_CHAIN_IDS,
+      cursor,
+      timestamp,
+    );
   }
 
   async #queryTransactions(
     request: RemoteTransactionSourceRequest,
     chainIds: Hex[],
     cursor?: string,
+    timestamp?: number,
   ): Promise<TransactionResponse[]> {
-    const { address, queryEntireHistory, updateCache } = request;
+    const { address, queryEntireHistory } = request;
     const transactions: TransactionResponse[] = [];
 
     let hasNextPage = true;
     let currentCursor = cursor;
     let pageCount = 0;
 
-    const startTimestamp =
-      queryEntireHistory || cursor
-        ? undefined
-        : this.#getTimestampSeconds(Date.now());
-
     while (hasNextPage) {
       try {
+        const startTimestamp = this.#getStartTimestamp({
+          cursor: currentCursor,
+          queryEntireHistory,
+          timestamp,
+        });
+
         const response = await getAccountTransactions({
           address,
           chainIds,
@@ -128,15 +147,12 @@ export class AccountsApiRemoteTransactionSource
         hasNextPage = response?.pageInfo?.hasNextPage;
         currentCursor = response?.pageInfo?.cursor;
 
-        if (currentCursor) {
-          // eslint-disable-next-line no-loop-func
-          updateCache((cache) => {
-            const key = this.#getCacheKey(chainIds, address);
-            cache[key] = currentCursor;
-
-            log('Updated cache', { key, newCursor: currentCursor });
-          });
-        }
+        this.#updateCache({
+          chainIds,
+          cursor: currentCursor,
+          request,
+          startTimestamp,
+        });
       } catch (error) {
         log('Error while fetching transactions', error);
         break;
@@ -249,7 +265,64 @@ export class AccountsApiRemoteTransactionSource
     };
   }
 
-  #getCacheKey(chainIds: Hex[], address: Hex): string {
+  #updateCache({
+    chainIds,
+    cursor,
+    request,
+    startTimestamp,
+  }: {
+    chainIds: Hex[];
+    cursor?: string;
+    request: RemoteTransactionSourceRequest;
+    startTimestamp?: number;
+  }) {
+    if (!cursor && !startTimestamp) {
+      log('Cache not updated');
+      return;
+    }
+
+    const { address, updateCache } = request;
+    const cursorCacheKey = this.#getCursorCacheKey(chainIds, address);
+    const timestampCacheKey = this.#getTimestampCacheKey(chainIds, address);
+
+    updateCache((cache) => {
+      if (cursor) {
+        cache[cursorCacheKey] = cursor;
+        delete cache[timestampCacheKey];
+
+        log('Updated cursor in cache', { cursorCacheKey, newCursor: cursor });
+      } else {
+        cache[timestampCacheKey] = startTimestamp;
+
+        log('Updated timestamp in cache', {
+          timestampCacheKey,
+          newTimestamp: startTimestamp,
+        });
+      }
+    });
+  }
+
+  #getStartTimestamp({
+    cursor,
+    queryEntireHistory,
+    timestamp,
+  }: {
+    cursor?: string;
+    queryEntireHistory: boolean;
+    timestamp?: number;
+  }): number | undefined {
+    if (queryEntireHistory || cursor) {
+      return undefined;
+    }
+
+    if (timestamp) {
+      return timestamp;
+    }
+
+    return this.#getTimestampSeconds(Date.now() - RECENT_HISTORY_DURATION_MS);
+  }
+
+  #getCursorCacheKey(chainIds: Hex[], address: Hex): string {
     return `accounts-api#${chainIds.join(',')}#${address}`;
   }
 
@@ -258,8 +331,21 @@ export class AccountsApiRemoteTransactionSource
     chainIds: Hex[],
     address: Hex,
   ): string | undefined {
-    const key = this.#getCacheKey(chainIds, address);
+    const key = this.#getCursorCacheKey(chainIds, address);
     return cache[key] as string | undefined;
+  }
+
+  #getTimestampCacheKey(chainIds: Hex[], address: Hex): string {
+    return `accounts-api#timestamp#${chainIds.join(',')}#${address}`;
+  }
+
+  #getCacheTimestamp(
+    cache: Record<string, unknown>,
+    chainIds: Hex[],
+    address: Hex,
+  ): number | undefined {
+    const key = this.#getTimestampCacheKey(chainIds, address);
+    return cache[key] as number | undefined;
   }
 
   #getTimestampSeconds(timestampMs: number): number {

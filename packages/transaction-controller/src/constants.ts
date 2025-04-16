@@ -33,11 +33,6 @@ export const CHAIN_IDS = {
   SEI: '0x531',
 } as const;
 
-export const GAS_BUFFER_CHAIN_OVERRIDES = {
-  [CHAIN_IDS.OPTIMISM]: 1,
-  [CHAIN_IDS.OPTIMISM_SEPOLIA]: 1,
-};
-
 /** Extract of the Wrapped ERC-20 ABI required for simulation. */
 export const ABI_SIMULATION_ERC20_WRAPPED = [
   {

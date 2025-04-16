@@ -66,6 +66,7 @@ export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState = {
   quotesLoadingStatus: null,
   quoteFetchError: null,
   quotesRefreshCount: 0,
+  assetExchangeRates: {},
 };
 
 export const METABRIDGE_CHAIN_TO_ADDRESS_MAP: Record<Hex, string> = {
