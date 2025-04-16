@@ -542,6 +542,8 @@ export class AccountsController extends BaseController<
     );
 
     this.#update((state) => {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-expect-error
       state.internalAccounts.accounts = accounts;
     });
   }
@@ -637,6 +639,7 @@ export class AccountsController extends BaseController<
     const { keyrings, keyringsMetadata } = await this.messagingSystem.call(
       'KeyringController:getState',
     );
+
     for (let keyringIndex = 0; keyringIndex < keyrings.length; keyringIndex++) {
       const keyring = keyrings[keyringIndex];
       const keyringType = keyring.type;
