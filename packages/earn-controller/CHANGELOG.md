@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0]
+
 ### Uncategorized
 
 - fix: hardcode support for ethereum mainnet temporarily until we refac… ([#5650](https://github.com/MetaMask/core/pull/5650))
@@ -91,7 +93,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.11.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.12.0...HEAD
+[0.12.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.11.0...@metamask/earn-controller@0.12.0
 [0.11.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.10.0...@metamask/earn-controller@0.11.0
 [0.10.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.9.0...@metamask/earn-controller@0.10.0
 [0.9.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.8.0...@metamask/earn-controller@0.9.0
