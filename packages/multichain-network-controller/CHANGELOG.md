@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0]
+
 ### Added
 
 - New method `getNetworksWithTransactionActivityByAccounts` to fetch active networks for multiple accounts in a single request ([#5551](https://github.com/MetaMask/core/pull/5551))
