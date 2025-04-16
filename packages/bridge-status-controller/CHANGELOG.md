@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat: calculate bridge quote metadata in @metamask/bridge-controller ([#5614](https://github.com/MetaMask/core/pull/5614))
-- Release 358.0.0 ([#5648](https://github.com/MetaMask/core/pull/5648))
-
 ## [12.0.1]
 
 ### Fixed
