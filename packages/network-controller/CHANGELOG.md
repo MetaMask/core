@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Fix unmocked block tracker warning in NetworkController tests ([#5289](https://github.com/MetaMask/core/pull/5289))
+
 ## [23.2.0]
 
 ### Added
