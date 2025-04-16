@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Drop `from` validation for internal transactions ([#5648](https://github.com/MetaMask/controllers/pull/5656))
+
 ## [54.1.0]
 
 ### Changed
