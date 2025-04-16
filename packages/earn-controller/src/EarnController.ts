@@ -24,6 +24,7 @@ import {
   type VaultData,
   type VaultDailyApy,
   type VaultApyAverages,
+  ChainId,
 } from '@metamask/stake-sdk';
 import {
   TransactionType,
@@ -353,16 +354,19 @@ export class EarnController extends BaseController<
   }
 
   #getCurrentChainId(): number {
-    const { selectedNetworkClientId } = this.messagingSystem.call(
-      'NetworkController:getState',
-    );
-    const {
-      configuration: { chainId },
-    } = this.messagingSystem.call(
-      'NetworkController:getNetworkClientById',
-      selectedNetworkClientId,
-    );
-    return convertHexToDecimal(chainId);
+    // const { selectedNetworkClientId } = this.messagingSystem.call(
+    //   'NetworkController:getState',
+    // );
+    // const {
+    //   configuration: { chainId },
+    // } = this.messagingSystem.call(
+    //   'NetworkController:getNetworkClientById',
+    //   selectedNetworkClientId,
+    // );
+    // return convertHexToDecimal(chainId);
+
+    // TEMP: Until we update our data-fetching and storage solution to not depend on single selected network.
+    return ChainId.ETHEREUM;
   }
 
   /**
