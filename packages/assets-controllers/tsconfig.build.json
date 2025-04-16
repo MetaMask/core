@@ -14,7 +14,9 @@
     { "path": "../network-controller/tsconfig.build.json" },
     { "path": "../preferences-controller/tsconfig.build.json" },
     { "path": "../polling-controller/tsconfig.build.json" },
-    { "path": "../permission-controller/tsconfig.build.json" }
+    { "path": "../permission-controller/tsconfig.build.json" },
+    { "path": "../transaction-controller/tsconfig.build.json" }
   ],
-  "include": ["../../types", "./src"]
+  "include": ["../../types", "./src"],
+  "exclude": ["**/*.test.ts", "**/__fixtures__/"]
 }
