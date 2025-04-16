@@ -343,49 +343,57 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
    * @returns The historical prices.
    */
   async fetchHistoricalPricesForAsset(asset: CaipAssetType): Promise<void> {
-    const currentCaipCurrency =
-      MAP_CAIP_CURRENCIES[this.#currentCurrency] ?? MAP_CAIP_CURRENCIES.usd;
-    // Check if we already have historical prices for this asset and currency
-    const historicalPriceExpirationTime =
-      this.state.historicalPrices[asset]?.[this.#currentCurrency]
-        ?.expirationTime ?? null;
+    const releaseLock = await this.#mutex.acquire();
+    return (async () => {
+      if (!this.isActive) {
+        return;
+      }
+      const currentCaipCurrency =
+        MAP_CAIP_CURRENCIES[this.#currentCurrency] ?? MAP_CAIP_CURRENCIES.usd;
+      // Check if we already have historical prices for this asset and currency
+      const historicalPriceExpirationTime =
+        this.state.historicalPrices[asset]?.[this.#currentCurrency]
+          ?.expirationTime ?? null;
 
-    const historicalPriceHasExpired =
-      historicalPriceExpirationTime &&
-      historicalPriceExpirationTime < Date.now();
+      const historicalPriceHasExpired =
+        historicalPriceExpirationTime &&
+        historicalPriceExpirationTime < Date.now();
 
-    if (historicalPriceHasExpired === false) {
-      return;
-    }
+      if (historicalPriceHasExpired === false) {
+        return;
+      }
 
-    const selectedAccount = this.messagingSystem.call(
-      'AccountsController:getSelectedMultichainAccount',
-    );
+      const selectedAccount = this.messagingSystem.call(
+        'AccountsController:getSelectedMultichainAccount',
+      );
 
-    const historicalPricesResponse = await this.#handleSnapRequest({
-      snapId: selectedAccount?.metadata.snap?.id as SnapId,
-      handler: HandlerType.OnAssetHistoricalPrice,
-      params: {
-        from: asset,
-        to: currentCaipCurrency,
-      },
-    });
-
-    // skip state update if no historical prices are returned
-    if (!historicalPricesResponse) {
-      return;
-    }
-
-    this.update((state) => {
-      state.historicalPrices = {
-        ...state.historicalPrices,
-        [asset]: {
-          ...state.historicalPrices[asset],
-          [this.#currentCurrency]: (
-            historicalPricesResponse as OnAssetHistoricalPriceResponse
-          )?.historicalPrice,
+      const historicalPricesResponse = await this.#handleSnapRequest({
+        snapId: selectedAccount?.metadata.snap?.id as SnapId,
+        handler: HandlerType.OnAssetHistoricalPrice,
+        params: {
+          from: asset,
+          to: currentCaipCurrency,
         },
-      };
+      });
+
+      // skip state update if no historical prices are returned
+      if (!historicalPricesResponse) {
+        return;
+      }
+
+      this.update((state) => {
+        state.historicalPrices = {
+          ...state.historicalPrices,
+          [asset]: {
+            ...state.historicalPrices[asset],
+            [this.#currentCurrency]: (
+              historicalPricesResponse as OnAssetHistoricalPriceResponse
+            )?.historicalPrice,
+          },
+        };
+      });
+    })().finally(() => {
+      releaseLock();
     });
   }
 
