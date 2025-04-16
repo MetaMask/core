@@ -14,6 +14,7 @@ export const MOCK_DEFI_RESPONSE_MULTI_CHAIN: DefiPositionResponse[] = [
     chainId: 1,
     productId: 'a-token',
     chainName: 'ethereum',
+    protocolDisplayName: 'Aave V3',
     metadata: {
       groupPositions: true,
     },
@@ -54,6 +55,7 @@ export const MOCK_DEFI_RESPONSE_MULTI_CHAIN: DefiPositionResponse[] = [
     chainId: 8453,
     productId: 'a-token',
     chainName: 'base',
+    protocolDisplayName: 'Aave V3',
     metadata: {
       groupPositions: true,
     },
@@ -100,6 +102,7 @@ export const MOCK_DEFI_RESPONSE_FAILED_ENTRY: DefiPositionResponse[] = [
     chainId: 1,
     productId: 'variable-debt-token',
     chainName: 'ethereum',
+    protocolDisplayName: 'Aave V3',
     metadata: {
       groupPositions: true,
     },
@@ -118,6 +121,7 @@ export const MOCK_DEFI_RESPONSE_FAILED_ENTRY: DefiPositionResponse[] = [
     chainId: 1,
     productId: 'a-token',
     chainName: 'ethereum',
+    protocolDisplayName: 'Aave V3',
     metadata: {
       groupPositions: true,
     },
@@ -164,6 +168,7 @@ export const MOCK_DEFI_RESPONSE_NO_PRICES: DefiPositionResponse[] = [
     chainId: 1,
     productId: 'a-token',
     chainName: 'ethereum',
+    protocolDisplayName: 'Aave V3',
     metadata: {
       groupPositions: true,
     },
@@ -233,6 +238,7 @@ export const MOCK_DEFI_RESPONSE_BORROW: DefiPositionResponse[] = [
     chainId: 1,
     productId: 'a-token',
     chainName: 'ethereum',
+    protocolDisplayName: 'Aave V3',
     metadata: {
       groupPositions: true,
     },
@@ -296,6 +302,7 @@ export const MOCK_DEFI_RESPONSE_BORROW: DefiPositionResponse[] = [
     chainId: 1,
     productId: 'variable-debt-token',
     chainName: 'ethereum',
+    protocolDisplayName: 'Aave V3',
     metadata: {
       groupPositions: true,
     },
@@ -342,6 +349,7 @@ export const MOCK_DEFI_RESPONSE_COMPLEX: DefiPositionResponse[] = [
     chainId: 1,
     productId: 'a-token',
     chainName: 'ethereum',
+    protocolDisplayName: 'Aave V3',
     metadata: {
       groupPositions: true,
     },
@@ -405,6 +413,7 @@ export const MOCK_DEFI_RESPONSE_COMPLEX: DefiPositionResponse[] = [
     chainId: 1,
     productId: 'variable-debt-token',
     chainName: 'ethereum',
+    protocolDisplayName: 'Aave V3',
     metadata: {
       groupPositions: true,
     },
@@ -446,6 +455,7 @@ export const MOCK_DEFI_RESPONSE_COMPLEX: DefiPositionResponse[] = [
     chainId: 1,
     productId: 'wst-eth',
     chainName: 'ethereum',
+    protocolDisplayName: 'Lido',
     success: true,
     tokens: [
       {
@@ -498,6 +508,7 @@ export const MOCK_DEFI_RESPONSE_COMPLEX: DefiPositionResponse[] = [
     chainId: 8453,
     productId: 'pool',
     chainName: 'base',
+    protocolDisplayName: 'Uniswap V3',
     success: true,
     tokens: [
       {

@@ -6,6 +6,7 @@ type ProtocolDetails = {
   chainId: number;
   protocolId: string;
   productId: string;
+  protocolDisplayName: string;
   name: string;
   description: string;
   iconUrl: string;
