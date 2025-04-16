@@ -18,7 +18,6 @@ import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
 } from '@metamask/network-controller';
 import { KnownCaipNamespace, type CaipAccountId } from '@metamask/utils';
-import log from 'loglevel';
 
 import { MultichainNetworkController } from './MultichainNetworkController';
 import { createMockInternalAccount } from '../../tests/utils';
@@ -580,10 +579,6 @@ describe('MultichainNetworkController', () => {
     const MOCK_EVM_CHAIN_1 = '1';
     const MOCK_EVM_CHAIN_137 = '137';
     const MOCK_SOLANA_CHAIN = '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
-
-    beforeEach(() => {
-      jest.spyOn(log, 'error').mockImplementation();
-    });
 
     it('returns empty object when no accounts exist', async () => {
       const { controller, messenger } = setupController({
