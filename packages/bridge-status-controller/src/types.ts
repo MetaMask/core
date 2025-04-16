@@ -17,7 +17,7 @@ import type {
   QuoteResponse,
   TxData,
 } from '@metamask/bridge-controller';
-import type { GasFeeControllerActions } from '@metamask/gas-fee-controller';
+import type { GetGasFeeState } from '@metamask/gas-fee-controller';
 import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
@@ -345,7 +345,7 @@ type AllowedActions =
   | HandleSnapRequest
   | TransactionControllerGetStateAction
   | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>
-  | GasFeeControllerActions
+  | GetGasFeeState
   | AccountsControllerGetAccountByAddressAction
   | TokensControllerAddDetectedTokensAction;
 
