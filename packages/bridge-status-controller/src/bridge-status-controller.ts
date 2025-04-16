@@ -657,26 +657,23 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     if (isNativeAddress(asset.address) || isSolanaChainId(asset.chainId)) {
       return;
     }
-    this.messagingSystem
-      .call(
-        'TokensController:addDetectedTokens',
-        [
-          {
-            address: asset.address,
-            decimals: asset.decimals,
-            image: asset.iconUrl,
-            name: asset.name,
-            symbol: asset.symbol,
-          },
-        ],
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    this.messagingSystem.call(
+      'TokensController:addDetectedTokens',
+      [
         {
-          chainId: formatChainIdToHex(asset.chainId),
-          selectedAddress: this.#getMultichainSelectedAccountAddress(),
+          address: asset.address,
+          decimals: asset.decimals,
+          image: asset.iconUrl,
+          name: asset.name,
+          symbol: asset.symbol,
         },
-      )
-      .catch(() => {
-        // Ignore errors
-      });
+      ],
+      {
+        chainId: formatChainIdToHex(asset.chainId),
+        selectedAddress: this.#getMultichainSelectedAccountAddress(),
+      },
+    );
   };
 
   readonly #handleUSDTAllowanceReset = async (
@@ -779,16 +776,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         );
       }
     }
-    // Add tokens to the token list
-    this.#addTokens(quoteResponse.quote.srcAsset);
-    this.#addTokens(quoteResponse.quote.destAsset);
 
     if (!txMeta) {
       throw new Error('Failed to submit bridge tx: txMeta is undefined');
     }
 
-    // Start polling for bridge tx status
     try {
+      // Start polling for bridge tx status
       this.startPollingForBridgeTxStatus({
         bridgeTxMeta: txMeta, // Only the id field is used by the BridgeStatusController
         statusRequest: {
@@ -799,6 +793,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         slippagePercentage: 0, // TODO include slippage provided by quote if using dynamic slippage, or slippage from quote request
         startTime: approvalTime ?? Date.now(),
       });
+      // Add tokens to the token list
+      this.#addTokens(quoteResponse.quote.srcAsset);
+      this.#addTokens(quoteResponse.quote.destAsset);
     } catch {
       // Ignore errors here, we don't want to crash the app if this fails and tx submission succeeds
     }

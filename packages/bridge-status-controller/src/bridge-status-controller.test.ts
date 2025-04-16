@@ -1554,7 +1554,13 @@ describe('BridgeStatusController', () => {
       mockMessengerCall.mockReturnValueOnce({
         transactions: [mockEvmTxMeta],
       });
-      mockMessengerCall.mockReturnValueOnce(shouldAddDetectedTokensResolve); // addDetectedTokens
+
+      // addDetectedTokens
+      if (shouldAddDetectedTokensResolve) {
+        mockMessengerCall.mockReturnValueOnce(true);
+      } else {
+        mockMessengerCall.mockRejectedValueOnce(shouldAddDetectedTokensResolve);
+      }
     };
 
     it('should successfully submit an EVM bridge transaction with approval', async () => {
@@ -1583,12 +1589,31 @@ describe('BridgeStatusController', () => {
     });
 
     it('should successfully submit an EVM bridge transaction with no approval', async () => {
-      setupBridgeMocks(false);
+      setupBridgeMocks(true);
 
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
+      const erc20Token = {
+        address: '0x0000000000000000000000000000000000000032',
+        assetId: `eip155:10/slip44:60` as CaipAssetType,
+        chainId: 10,
+        symbol: 'WETH',
+        decimals: 18,
+        name: 'WETH',
+        coinKey: 'WETH',
+        logoURI:
+          'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png',
+        priceUSD: '2478.63',
+        icon: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png',
+      };
       const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
-      const result = await controller.submitTx(quoteWithoutApproval, false);
+      const result = await controller.submitTx(
+        {
+          ...quoteWithoutApproval,
+          quote: { ...quoteWithoutApproval.quote, destAsset: erc20Token },
+        },
+        false,
+      );
 
       expect(result).toMatchSnapshot();
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(1);

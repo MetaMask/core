@@ -1287,16 +1287,16 @@ Object {
       "across",
     ],
     "destAsset": Object {
-      "address": "0x0000000000000000000000000000000000000000",
+      "address": "0x0000000000000000000000000000000000000032",
       "assetId": "eip155:10/slip44:60",
       "chainId": 10,
-      "coinKey": "ETH",
+      "coinKey": "WETH",
       "decimals": 18,
       "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
       "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-      "name": "ETH",
+      "name": "WETH",
       "priceUSD": "2478.63",
-      "symbol": "ETH",
+      "symbol": "WETH",
     },
     "destChainId": 10,
     "destTokenAmount": "990654755978612",
@@ -1438,6 +1438,25 @@ Array [
   ],
   Array [
     "TransactionController:getState",
+  ],
+  Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
+    "TokensController:addDetectedTokens",
+    Array [
+      Object {
+        "address": "0x0000000000000000000000000000000000000032",
+        "decimals": 18,
+        "image": undefined,
+        "name": "WETH",
+        "symbol": "WETH",
+      },
+    ],
+    Object {
+      "chainId": "0xa",
+      "selectedAddress": "",
+    },
   ],
 ]
 `;
