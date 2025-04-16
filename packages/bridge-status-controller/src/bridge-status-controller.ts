@@ -496,7 +496,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       | Awaited<
           ReturnType<UserOperationController['addUserOperationFromTransaction']>
         >['hash'],
-  ) => {
+  ): Promise<TransactionMeta | undefined> => {
     const transactionHash = await hashPromise;
     const finalTransactionMeta: TransactionMeta | undefined =
       this.messagingSystem
@@ -509,7 +509,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
   readonly #handleApprovalTx = async (
     quoteResponse: QuoteResponse<string | TxData> & QuoteMetadata,
-  ) => {
+  ): Promise<TransactionMeta | undefined> => {
     if (quoteResponse.approval) {
       await this.#handleUSDTAllowanceReset(quoteResponse);
       const approvalTxMeta = await this.#handleEvmTransaction(
@@ -584,6 +584,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       requireApproval: false,
       type: transactionType,
       origin: 'metamask',
+      approvalTxId,
     };
     const transactionParams = {
       ...trade,
@@ -638,15 +639,15 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return await this.#waitForHashAndReturnFinalTxMeta(result);
     }
 
-    // TODO why is this needed? Can we skip update and directly pass txMetaFields to TransactionController.addTransctin call
+    // TODO why is this needed?
     // Note that updateTransaction doesn't actually error if you add fields that don't conform the to the txMeta type
     // they will be there at runtime, but you just don't get any type safety checks on them
     // const fieldsToAddToTxMeta = getTxMetaFields(quoteResponse, approvalTxId);
     // dispatch(updateTransaction(completeTxMeta);
 
     return {
-      ...transactionMeta,
       ...getTxMetaFields(quoteResponse, approvalTxId),
+      ...transactionMeta,
     };
   };
 
