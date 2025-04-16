@@ -238,24 +238,20 @@ Object {
 
 exports[`BridgeStatusController submitTx: EVM should delay after submitting linea approval 1`] = `
 Object {
+  "chainId": "0xa4b1",
   "hash": "0xevmTxHash",
   "id": "test-tx-id",
-  "transactionMeta": Object {
+  "status": "unapproved",
+  "time": 1234567890,
+  "txParams": Object {
     "chainId": "0xa4b1",
-    "hash": "0xevmTxHash",
-    "id": "test-tx-id",
-    "status": "unapproved",
-    "time": 1234567890,
-    "txParams": Object {
-      "chainId": "0xa4b1",
-      "data": "0xdata",
-      "from": "0xaccount1",
-      "gasLimit": "0x5208",
-      "to": "0xbridgeContract",
-      "value": "0x0",
-    },
-    "type": "bridge",
+    "data": "0xdata",
+    "from": "0xaccount1",
+    "gasLimit": "0x5208",
+    "to": "0xbridgeContract",
+    "value": "0x0",
   },
+  "type": "bridge",
 }
 `;
 
@@ -395,24 +391,20 @@ Array [
 
 exports[`BridgeStatusController submitTx: EVM should handle smart accounts (4337) 1`] = `
 Object {
+  "chainId": "0xa4b1",
   "hash": "0xevmTxHash",
   "id": "test-tx-id",
-  "transactionMeta": Object {
+  "status": "unapproved",
+  "time": 1234567890,
+  "txParams": Object {
     "chainId": "0xa4b1",
-    "hash": "0xevmTxHash",
-    "id": "test-tx-id",
-    "status": "unapproved",
-    "time": 1234567890,
-    "txParams": Object {
-      "chainId": "0xa4b1",
-      "data": "0xdata",
-      "from": "0xaccount1",
-      "gasLimit": "0x5208",
-      "to": "0xbridgeContract",
-      "value": "0x0",
-    },
-    "type": "bridge",
+    "data": "0xdata",
+    "from": "0xaccount1",
+    "gasLimit": "0x5208",
+    "to": "0xbridgeContract",
+    "value": "0x0",
   },
+  "type": "bridge",
 }
 `;
 
@@ -572,6 +564,7 @@ Array [
     },
     Object {
       "actionId": "1234567890.456",
+      "approvalTxId": undefined,
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
@@ -748,6 +741,7 @@ Array [
     },
     Object {
       "actionId": "1234567890.456",
+      "approvalTxId": undefined,
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
@@ -775,24 +769,20 @@ Array [
 
 exports[`BridgeStatusController submitTx: EVM should reset USDT allowance 1`] = `
 Object {
+  "chainId": "0xa4b1",
   "hash": "0xevmTxHash",
   "id": "test-tx-id",
-  "transactionMeta": Object {
+  "status": "unapproved",
+  "time": 1234567890,
+  "txParams": Object {
     "chainId": "0xa4b1",
-    "hash": "0xevmTxHash",
-    "id": "test-tx-id",
-    "status": "unapproved",
-    "time": 1234567890,
-    "txParams": Object {
-      "chainId": "0xa4b1",
-      "data": "0xdata",
-      "from": "0xaccount1",
-      "gasLimit": "0x5208",
-      "to": "0xbridgeContract",
-      "value": "0x0",
-    },
-    "type": "bridge",
+    "data": "0xdata",
+    "from": "0xaccount1",
+    "gasLimit": "0x5208",
+    "to": "0xbridgeContract",
+    "value": "0x0",
   },
+  "type": "bridge",
 }
 `;
 
@@ -963,6 +953,7 @@ Array [
     },
     Object {
       "actionId": "1234567890.456",
+      "approvalTxId": undefined,
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
       "requireApproval": false,
@@ -983,6 +974,7 @@ Array [
     },
     Object {
       "actionId": "1234567890.456",
+      "approvalTxId": undefined,
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
       "requireApproval": false,
@@ -1003,6 +995,7 @@ Array [
     },
     Object {
       "actionId": "1234567890.456",
+      "approvalTxId": "test-approval-tx-id",
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
@@ -1066,24 +1059,20 @@ Array [
 
 exports[`BridgeStatusController submitTx: EVM should successfully submit an EVM bridge transaction with approval 1`] = `
 Object {
+  "chainId": "0xa4b1",
   "hash": "0xevmTxHash",
   "id": "test-tx-id",
-  "transactionMeta": Object {
+  "status": "unapproved",
+  "time": 1234567890,
+  "txParams": Object {
     "chainId": "0xa4b1",
-    "hash": "0xevmTxHash",
-    "id": "test-tx-id",
-    "status": "unapproved",
-    "time": 1234567890,
-    "txParams": Object {
-      "chainId": "0xa4b1",
-      "data": "0xdata",
-      "from": "0xaccount1",
-      "gasLimit": "0x5208",
-      "to": "0xbridgeContract",
-      "value": "0x0",
-    },
-    "type": "bridge",
+    "data": "0xdata",
+    "from": "0xaccount1",
+    "gasLimit": "0x5208",
+    "to": "0xbridgeContract",
+    "value": "0x0",
   },
+  "type": "bridge",
 }
 `;
 
@@ -1204,6 +1193,7 @@ Array [
     },
     Object {
       "actionId": "1234567890.456",
+      "approvalTxId": undefined,
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
       "requireApproval": false,
@@ -1224,6 +1214,7 @@ Array [
     },
     Object {
       "actionId": "1234567890.456",
+      "approvalTxId": "test-approval-tx-id",
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
@@ -1268,24 +1259,20 @@ Array [
 
 exports[`BridgeStatusController submitTx: EVM should successfully submit an EVM bridge transaction with no approval 1`] = `
 Object {
+  "chainId": "0xa4b1",
   "hash": "0xevmTxHash",
   "id": "test-tx-id",
-  "transactionMeta": Object {
+  "status": "unapproved",
+  "time": 1234567890,
+  "txParams": Object {
     "chainId": "0xa4b1",
-    "hash": "0xevmTxHash",
-    "id": "test-tx-id",
-    "status": "unapproved",
-    "time": 1234567890,
-    "txParams": Object {
-      "chainId": "0xa4b1",
-      "data": "0xdata",
-      "from": "0xaccount1",
-      "gasLimit": "0x5208",
-      "to": "0xbridgeContract",
-      "value": "0x0",
-    },
-    "type": "bridge",
+    "data": "0xdata",
+    "from": "0xaccount1",
+    "gasLimit": "0x5208",
+    "to": "0xbridgeContract",
+    "value": "0x0",
   },
+  "type": "bridge",
 }
 `;
 
@@ -1426,6 +1413,7 @@ Array [
     },
     Object {
       "actionId": "1234567890.456",
+      "approvalTxId": undefined,
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
@@ -1470,6 +1458,7 @@ Array [
     },
     Object {
       "actionId": "1234567890.456",
+      "approvalTxId": undefined,
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
       "requireApproval": false,
@@ -1511,6 +1500,7 @@ Array [
     },
     Object {
       "actionId": "1234567890.456",
+      "approvalTxId": undefined,
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
       "requireApproval": false,

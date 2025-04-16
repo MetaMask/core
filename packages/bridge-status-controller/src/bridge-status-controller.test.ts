@@ -1536,9 +1536,7 @@ describe('BridgeStatusController', () => {
         result: Promise.resolve('0xapprovalTxHash'),
       });
       mockMessengerCall.mockReturnValueOnce({
-        transactions: [
-          { transactionMeta: mockApprovalTxMeta, hash: '0xapprovalTxHash' },
-        ],
+        transactions: [mockApprovalTxMeta],
       });
     };
 
@@ -1554,13 +1552,7 @@ describe('BridgeStatusController', () => {
         result: Promise.resolve('0xevmTxHash'),
       });
       mockMessengerCall.mockReturnValueOnce({
-        transactions: [
-          {
-            transactionMeta: mockEvmTxMeta,
-            hash: '0xevmTxHash',
-            id: 'test-tx-id',
-          },
-        ],
+        transactions: [mockEvmTxMeta],
       });
     };
 
@@ -1656,13 +1648,7 @@ describe('BridgeStatusController', () => {
         hash: Promise.resolve('0xevmTxHash'),
       });
       mockMessengerCall.mockReturnValueOnce({
-        transactions: [
-          {
-            transactionMeta: mockEvmTxMeta,
-            hash: '0xevmTxHash',
-            id: 'test-tx-id',
-          },
-        ],
+        transactions: [mockEvmTxMeta],
       });
       estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
 
@@ -1776,9 +1762,7 @@ describe('BridgeStatusController', () => {
         result: undefined,
       });
       mockMessengerCall.mockReturnValueOnce({
-        transactions: [
-          { transactionMeta: undefined, hash: '0xapprovalTxHash' },
-        ],
+        transactions: [],
       });
 
       const { controller, startPollingForBridgeTxStatusSpy } =
