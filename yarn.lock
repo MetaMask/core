@@ -3506,14 +3506,14 @@ __metadata:
   linkType: hard
 
 "@metamask/keyring-api@npm:^17.4.0":
-  version: 17.4.0
-  resolution: "@metamask/keyring-api@npm:17.4.0"
+  version: 17.5.0
+  resolution: "@metamask/keyring-api@npm:17.5.0"
   dependencies:
     "@metamask/keyring-utils": "npm:^3.0.0"
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/utils": "npm:^11.1.0"
     bech32: "npm:^2.0.0"
-  checksum: 10/4d7f74579aca158ec82e7fade9f22536a129aeecd3aeba7a2b240c7c68a5e3a410612f362632447c470fef2ef2cad80be027a511bcbf24985f97d3717822b4bb
+  checksum: 10/b6409b235c02f102f142ec9bf89486591262fdc717341a0a8425454755b625c5ab63f1c5fd745ec743e220772bed51f1315c43e219e88c3e4fbe9d19efce660c
   languageName: node
   linkType: hard
 
@@ -3688,9 +3688,12 @@ __metadata:
     "@metamask/accounts-controller": "npm:^27.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.0"
+    "@metamask/controller-utils": "npm:^11.7.0"
     "@metamask/keyring-api": "npm:^17.4.0"
     "@metamask/keyring-controller": "npm:^21.0.3"
+    "@metamask/keyring-internal-api": "npm:^6.0.1"
     "@metamask/network-controller": "npm:^23.2.0"
+    "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/utils": "npm:^11.2.0"
     "@solana/addresses": "npm:^2.0.0"
     "@types/jest": "npm:^27.4.1"

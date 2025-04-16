@@ -5,22 +5,28 @@ import type { NetworkClientId } from '@metamask/network-controller';
 import { type CaipChainId, isCaipChainId } from '@metamask/utils';
 
 import {
+  type ActiveNetworksByAddress,
+  toAllowedCaipAccountIds,
+  toActiveNetworksByAddress,
+} from '../api/accounts-api';
+import {
   AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
   MULTICHAIN_NETWORK_CONTROLLER_METADATA,
   getDefaultMultichainNetworkControllerState,
-} from './constants';
+} from '../constants';
+import type { AbstractMultichainNetworkService } from '../MultichainNetworkService/AbstractMultichainNetworkService';
 import {
   MULTICHAIN_NETWORK_CONTROLLER_NAME,
   type MultichainNetworkControllerState,
   type MultichainNetworkControllerMessenger,
   type SupportedCaipChainId,
-} from './types';
+} from '../types';
 import {
   checkIfSupportedCaipChainId,
   getChainIdForNonEvmAddress,
   convertEvmCaipToHexChainId,
   isEvmCaipChainId,
-} from './utils';
+} from '../utils';
 
 /**
  * The MultichainNetworkController is responsible for fetching and caching account
@@ -31,15 +37,19 @@ export class MultichainNetworkController extends BaseController<
   MultichainNetworkControllerState,
   MultichainNetworkControllerMessenger
 > {
+  readonly #networkService: AbstractMultichainNetworkService;
+
   constructor({
     messenger,
     state,
+    networkService,
   }: {
     messenger: MultichainNetworkControllerMessenger;
     state?: Omit<
       Partial<MultichainNetworkControllerState>,
       'multichainNetworkConfigurationsByChainId'
     >;
+    networkService: AbstractMultichainNetworkService;
   }) {
     super({
       messenger,
@@ -55,6 +65,7 @@ export class MultichainNetworkController extends BaseController<
       },
     });
 
+    this.#networkService = networkService;
     this.#subscribeToMessageEvents();
     this.#registerMessageHandlers();
   }
@@ -142,6 +153,35 @@ export class MultichainNetworkController extends BaseController<
     }
 
     return await this.#setActiveEvmNetwork(id);
+  }
+
+  /**
+   * Returns the active networks for the available EVM addresses (non-EVM networks will be supported in the future).
+   * Fetches the data from the API and caches it in state.
+   *
+   * @returns A promise that resolves to the active networks for the available addresses
+   */
+  async getNetworksWithTransactionActivityByAccounts(): Promise<ActiveNetworksByAddress> {
+    const accounts = this.messagingSystem.call(
+      'AccountsController:listMultichainAccounts',
+    );
+    if (!accounts || accounts.length === 0) {
+      return this.state.networksWithTransactionActivity;
+    }
+
+    const formattedAccounts = accounts
+      .map((account: InternalAccount) => toAllowedCaipAccountIds(account))
+      .flat();
+
+    const activeNetworks =
+      await this.#networkService.fetchNetworkActivity(formattedAccounts);
+    const formattedNetworks = toActiveNetworksByAddress(activeNetworks);
+
+    this.update((state) => {
+      state.networksWithTransactionActivity = formattedNetworks;
+    });
+
+    return this.state.networksWithTransactionActivity;
   }
 
   /**
@@ -267,6 +307,10 @@ export class MultichainNetworkController extends BaseController<
     this.messagingSystem.registerActionHandler(
       'MultichainNetworkController:setActiveNetwork',
       this.setActiveNetwork.bind(this),
+    );
+    this.messagingSystem.registerActionHandler(
+      'MultichainNetworkController:getNetworksWithTransactionActivityByAccounts',
+      this.getNetworksWithTransactionActivityByAccounts.bind(this),
     );
   }
 }
