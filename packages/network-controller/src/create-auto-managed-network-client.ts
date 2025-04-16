@@ -67,6 +67,9 @@ const UNINITIALIZED_TARGET = { __UNINITIALIZED__: true };
  * @param args.getRpcServiceOptions - Factory for constructing RPC service
  * options. See {@link NetworkControllerOptions.getRpcServiceOptions}.
  * @param args.messenger - The network controller messenger.
+ * @param args.rpcFailoverEnabled - Whether or not requests sent to the RPC
+ * endpoint for this network should be automatically diverted to failover RPC
+ * endpoints (if defined).
  * @returns The auto-managed network client.
  */
 export function createAutoManagedNetworkClient<
@@ -75,12 +78,14 @@ export function createAutoManagedNetworkClient<
   networkClientConfiguration,
   getRpcServiceOptions,
   messenger,
+  rpcFailoverEnabled,
 }: {
   networkClientConfiguration: Configuration;
   getRpcServiceOptions: (
     rpcEndpointUrl: string,
   ) => Omit<RpcServiceOptions, 'failoverService' | 'endpointUrl'>;
   messenger: NetworkControllerMessenger;
+  rpcFailoverEnabled: boolean;
 }): AutoManagedNetworkClient<Configuration> {
   let networkClient: NetworkClient | undefined;
 
@@ -96,6 +101,7 @@ export function createAutoManagedNetworkClient<
         configuration: networkClientConfiguration,
         getRpcServiceOptions,
         messenger,
+        rpcFailoverEnabled,
       });
       if (networkClient === undefined) {
         throw new Error(
@@ -137,6 +143,7 @@ export function createAutoManagedNetworkClient<
         configuration: networkClientConfiguration,
         getRpcServiceOptions,
         messenger,
+        rpcFailoverEnabled,
       });
       const { provider } = networkClient;
       return propertyName in provider;
@@ -157,6 +164,7 @@ export function createAutoManagedNetworkClient<
           configuration: networkClientConfiguration,
           getRpcServiceOptions,
           messenger,
+          rpcFailoverEnabled,
         });
         if (networkClient === undefined) {
           throw new Error(
@@ -198,6 +206,7 @@ export function createAutoManagedNetworkClient<
           configuration: networkClientConfiguration,
           getRpcServiceOptions,
           messenger,
+          rpcFailoverEnabled,
         });
         const { blockTracker } = networkClient;
         return propertyName in blockTracker;

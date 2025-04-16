@@ -57,27 +57,31 @@ export type NetworkClient = {
  * options. See {@link NetworkControllerOptions.getRpcServiceOptions}.
  * @param args.messenger - The network controller messenger.
  * See {@link NetworkControllerOptions.getRpcServiceOptions}.
+ * @param args.rpcFailoverEnabled - Whether or not requests sent to the RPC
+ * endpoint for this network should be automatically diverted to failover RPC
+ * endpoints (if defined).
  * @returns The network client.
  */
 export function createNetworkClient({
   configuration,
   getRpcServiceOptions,
   messenger,
+  rpcFailoverEnabled,
 }: {
   configuration: NetworkClientConfiguration;
   getRpcServiceOptions: (
     rpcEndpointUrl: string,
   ) => Omit<RpcServiceOptions, 'failoverService' | 'endpointUrl'>;
   messenger: NetworkControllerMessenger;
+  rpcFailoverEnabled: boolean;
 }): NetworkClient {
   const primaryEndpointUrl =
     configuration.type === NetworkClientType.Infura
       ? `https://${configuration.network}.infura.io/v3/${configuration.infuraProjectId}`
       : configuration.rpcUrl;
-  const availableEndpointUrls = [
-    primaryEndpointUrl,
-    ...(configuration.failoverRpcUrls ?? []),
-  ];
+  const availableEndpointUrls = rpcFailoverEnabled
+    ? [primaryEndpointUrl, ...(configuration.failoverRpcUrls ?? [])]
+    : [primaryEndpointUrl];
   const rpcService = new RpcServiceChain(
     availableEndpointUrls.map((endpointUrl) => ({
       ...getRpcServiceOptions(endpointUrl),
