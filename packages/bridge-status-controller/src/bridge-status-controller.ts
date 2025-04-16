@@ -7,7 +7,6 @@ import type { QuoteMetadata, TxData } from '@metamask/bridge-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { numberToHex, type Hex } from '@metamask/utils';
-import { v4 as uuid } from 'uuid';
 
 import {
   BRIDGE_PROD_API_BASE_URL,
@@ -27,6 +26,7 @@ import {
   getStatusRequestWithSrcTxHash,
 } from './utils/bridge-status';
 import {
+  getKeyringRequest,
   getStatusRequestParams,
   handleSolanaTxResponse,
 } from './utils/transaction';
@@ -122,57 +122,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     this.#restartPollingForIncompleteHistoryItems();
   }
 
-  /**
-   * Submits a cross-chain swap transaction
-   *
-   * @param quoteResponse - The quote response
-   * @param quoteResponse.quote - The quote
-   * @param quoteResponse.trade - The trade
-   * @param quoteResponse.approval - The approval
-   * @returns The transaction meta
-   */
-  submitTx = async (
-    quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
-  ) => {
-    this.stopAllPolling();
-
-    if (!isSolanaChainId(quoteResponse.quote.srcChainId)) {
-      throw new Error('Failed to submit bridge tx: only Solana is supported');
-    }
-
-    let txMeta: TransactionMeta | undefined;
-    // Submit SOLANA tx
-    if (
-      isSolanaChainId(quoteResponse.quote.srcChainId) &&
-      typeof quoteResponse.trade === 'string'
-    ) {
-      const { approval, trade, ...partialQuoteResponse } = quoteResponse;
-      txMeta = await this.#handleSolanaTx(trade, partialQuoteResponse);
-    }
-
-    if (!txMeta) {
-      throw new Error('Failed to submit bridge tx: txMeta is undefined');
-    }
-
-    // Start polling for bridge tx status
-    try {
-      const statusRequestCommon = getStatusRequestParams(quoteResponse);
-      this.startPollingForBridgeTxStatus({
-        bridgeTxMeta: txMeta, // Only the id field is used by the BridgeStatusController
-        statusRequest: {
-          ...statusRequestCommon,
-          srcTxHash: txMeta.hash,
-        },
-        quoteResponse,
-        slippagePercentage: 0, // TODO include slippage provided by quote if using dynamic slippage, or slippage from quote request
-        startTime: Date.now(),
-      });
-    } catch {
-      // Ignore errors here, we don't want to crash the app if this fails and tx submission succeeds
-    }
-    return txMeta;
-  };
-
   resetState = () => {
     this.update((state) => {
       state.txHistory = DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE.txHistory;
@@ -237,7 +186,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * Starts polling for the bridge tx status
    *
    * @param startPollingForBridgeTxStatusArgs - The args to start polling for the bridge tx status
-   * @deprecated Use {@link submitTx} to submit tx and start polling for bridge tx status instead
    */
   startPollingForBridgeTxStatus = (
     startPollingForBridgeTxStatusArgs: StartPollingForBridgeTxStatusArgsSerialized,
@@ -453,17 +401,20 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   /**
+   * ******************************************************
+   * TX SUBMISSION HANDLING
+   *******************************************************
+   */
+
+  /**
    * Submits a solana swap or bridge transaction using the snap controller
    *
-   * @param trade - The trade data to confirm
    * @param quoteResponse - The quote response
    * @param quoteResponse.quote - The quote
    * @returns The transaction meta
    */
   readonly #handleSolanaTx = async (
-    trade: string,
-    quoteResponse: Omit<QuoteResponse<string>, 'approval' | 'trade'> &
-      QuoteMetadata,
+    quoteResponse: QuoteResponse<string> & QuoteMetadata,
   ) => {
     const selectedAccount = this.#getMultichainSelectedAccount();
     if (!selectedAccount) {
@@ -484,38 +435,15 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
      * This adds an approval tx to the ApprovalsController in the background
      * The client needs to handle the approval tx by redirecting to the confirmation page with the approvalTxId in the URL
      */
-    const keyringReqId = uuid();
-    const snapRequestId = uuid();
-    const keyringResponse = await this.messagingSystem.call(
+    const keyringRequest = getKeyringRequest(quoteResponse, selectedAccount);
+    const keyringResponse = (await this.messagingSystem.call(
       'SnapController:handleRequest',
-      {
-        origin: 'metamask',
-        snapId: selectedAccount.metadata.snap.id as never,
-        handler: 'onKeyringRequest' as never,
-        request: {
-          id: keyringReqId,
-          jsonrpc: '2.0',
-          method: 'keyring_submitRequest',
-          params: {
-            request: {
-              params: {
-                account: { address: selectedAccount.address },
-                transaction: trade,
-                scope: selectedAccount.options.scope,
-              },
-              method: 'signAndSendTransaction',
-            },
-            id: snapRequestId,
-            account: selectedAccount.id,
-            scope: selectedAccount.options.scope,
-          },
-        },
-      },
-    );
+      keyringRequest,
+    )) as string | { result: Record<string, string> };
 
     // The extension client actually redirects before it can do anytyhing with this meta
     const txMeta = handleSolanaTxResponse(
-      keyringResponse as never, // This is ok bc the snap response can be different types
+      keyringResponse,
       quoteResponse,
       selectedAccount.metadata.snap.id,
       selectedAccount.address,
@@ -523,10 +451,58 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     // TODO remove this eventually, just returning it now to match extension behavior
     // OR if the snap can propagate the snapRequestId or keyringReqId to the ApprovalsControlle, this can return the approvalTxId instead and clients won't need to subscribe to the ApprovalsController state to redirect
-    return {
-      ...txMeta,
-      keyringReqId,
-      snapRequestId,
-    };
+    return txMeta;
+  };
+
+  /**
+   * Submits a cross-chain swap transaction
+   *
+   * @param quoteResponse - The quote response
+   * @param quoteResponse.quote - The quote
+   * @param quoteResponse.trade - The trade
+   * @param quoteResponse.approval - The approval
+   * @returns The transaction meta
+   */
+  submitTx = async (
+    quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
+  ) => {
+    this.stopAllPolling();
+
+    if (!isSolanaChainId(quoteResponse.quote.srcChainId)) {
+      throw new Error('Failed to submit bridge tx: only Solana is supported');
+    }
+
+    let txMeta: TransactionMeta | undefined;
+    // Submit SOLANA tx
+    if (
+      isSolanaChainId(quoteResponse.quote.srcChainId) &&
+      typeof quoteResponse.trade === 'string'
+    ) {
+      txMeta = await this.#handleSolanaTx(
+        quoteResponse as QuoteResponse<string> & QuoteMetadata,
+      );
+    }
+
+    if (!txMeta) {
+      throw new Error('Failed to submit bridge tx: txMeta is undefined');
+    }
+
+    // Start polling for bridge tx status
+    try {
+      const statusRequestCommon = getStatusRequestParams(quoteResponse);
+      this.startPollingForBridgeTxStatus({
+        bridgeTxMeta: txMeta, // Only the id field is used by the BridgeStatusController
+        statusRequest: {
+          ...statusRequestCommon,
+          srcTxHash: txMeta.hash,
+        },
+        quoteResponse,
+        slippagePercentage: 0, // TODO include slippage provided by quote if using dynamic slippage, or slippage from quote request
+        startTime: Date.now(),
+      });
+    } catch {
+      // Ignore errors here, we don't want to crash the app if this fails and tx submission succeeds
+    }
+    return txMeta;
   };
 }

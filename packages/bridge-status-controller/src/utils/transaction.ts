@@ -1,3 +1,4 @@
+import type { AccountsControllerState } from '@metamask/accounts-controller';
 import type { TxData } from '@metamask/bridge-controller';
 import {
   formatChainIdToHex,
@@ -91,4 +92,36 @@ export const handleSolanaTxResponse = (
   } as never; // TODO remove this override once deprecated fields are removed
 
   return txMeta;
+};
+
+export const getKeyringRequest = (
+  quoteResponse: Omit<QuoteResponse<string>, 'approval'> & QuoteMetadata,
+  selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
+) => {
+  const keyringReqId = uuid();
+  const snapRequestId = uuid();
+
+  return {
+    origin: 'metamask',
+    snapId: selectedAccount.metadata.snap?.id as never,
+    handler: 'onKeyringRequest' as never,
+    request: {
+      id: keyringReqId,
+      jsonrpc: '2.0',
+      method: 'keyring_submitRequest',
+      params: {
+        request: {
+          params: {
+            account: { address: selectedAccount.address },
+            transaction: quoteResponse.trade,
+            scope: selectedAccount.options.scope,
+          },
+          method: 'signAndSendTransaction',
+        },
+        id: snapRequestId,
+        account: selectedAccount.id,
+        scope: selectedAccount.options.scope,
+      },
+    },
+  };
 };
