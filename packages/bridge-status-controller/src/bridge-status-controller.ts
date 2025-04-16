@@ -1,10 +1,15 @@
 import type { StateMetadata } from '@metamask/base-controller';
-import type { BridgeClientId } from '@metamask/bridge-controller';
-import { BRIDGE_PROD_API_BASE_URL } from '@metamask/bridge-controller';
+import {
+  isSolanaChainId,
+  type QuoteResponse,
+} from '@metamask/bridge-controller';
+import type { QuoteMetadata, TxData } from '@metamask/bridge-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import { numberToHex, type Hex } from '@metamask/utils';
 
 import {
+  BRIDGE_PROD_API_BASE_URL,
   BRIDGE_STATUS_CONTROLLER_NAME,
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
   REFRESH_INTERVAL_MS,
@@ -14,11 +19,17 @@ import type {
   BridgeStatusControllerState,
   StartPollingForBridgeTxStatusArgsSerialized,
   FetchFunction,
+  BridgeClientId,
 } from './types';
 import {
   fetchBridgeTxStatus,
   getStatusRequestWithSrcTxHash,
 } from './utils/bridge-status';
+import {
+  getKeyringRequest,
+  getStatusRequestParams,
+  handleSolanaTxResponse,
+} from './utils/transaction';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
   // We want to persist the bridge status state so that we can show the proper data for the Activity list
@@ -48,7 +59,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   readonly #fetchFn: FetchFunction;
 
   readonly #config: {
-    customBridgeApiBaseUrl?: string;
+    customBridgeApiBaseUrl: string;
   };
 
   constructor({
@@ -79,7 +90,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     this.#clientId = clientId;
     this.#fetchFn = fetchFn;
-    this.#config = config ?? {};
+    this.#config = {
+      customBridgeApiBaseUrl:
+        config?.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
+    };
 
     // Register action handlers
     this.messagingSystem.registerActionHandler(
@@ -93,6 +107,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     this.messagingSystem.registerActionHandler(
       `${BRIDGE_STATUS_CONTROLLER_NAME}:resetState`,
       this.resetState.bind(this),
+    );
+    this.messagingSystem.registerActionHandler(
+      `${BRIDGE_STATUS_CONTROLLER_NAME}:submitTx`,
+      this.submitTx.bind(this),
     );
 
     // Set interval
@@ -164,6 +182,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     });
   };
 
+  /**
+   * Starts polling for the bridge tx status
+   *
+   * @param startPollingForBridgeTxStatusArgs - The args to start polling for the bridge tx status
+   */
   startPollingForBridgeTxStatus = (
     startPollingForBridgeTxStatusArgs: StartPollingForBridgeTxStatusArgsSerialized,
   ) => {
@@ -222,12 +245,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     await this.#fetchBridgeTxStatus(pollingInput);
   };
 
-  #getMultichainSelectedAccountAddress() {
-    return (
-      this.messagingSystem.call(
-        'AccountsController:getSelectedMultichainAccount',
-      )?.address ?? ''
+  #getMultichainSelectedAccount() {
+    return this.messagingSystem.call(
+      'AccountsController:getSelectedMultichainAccount',
     );
+  }
+
+  #getMultichainSelectedAccountAddress() {
+    return this.#getMultichainSelectedAccount()?.address ?? '';
   }
 
   readonly #fetchBridgeTxStatus = async ({
@@ -255,7 +280,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         statusRequest,
         this.#clientId,
         this.#fetchFn,
-        this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
+        this.#config.customBridgeApiBaseUrl,
       );
       const newBridgeHistoryItem = {
         ...historyItem,
@@ -373,5 +398,111 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         state.txHistory,
       );
     });
+  };
+
+  /**
+   * ******************************************************
+   * TX SUBMISSION HANDLING
+   *******************************************************
+   */
+
+  /**
+   * Submits a solana swap or bridge transaction using the snap controller
+   *
+   * @param quoteResponse - The quote response
+   * @param quoteResponse.quote - The quote
+   * @returns The transaction meta
+   */
+  readonly #handleSolanaTx = async (
+    quoteResponse: QuoteResponse<string> & QuoteMetadata,
+  ) => {
+    const selectedAccount = this.#getMultichainSelectedAccount();
+    if (!selectedAccount) {
+      throw new Error(
+        'Failed to submit cross-chain swap transaction: undefined multichain account',
+      );
+    }
+    if (
+      !selectedAccount.metadata?.snap?.id ||
+      !selectedAccount.options?.scope
+    ) {
+      throw new Error(
+        'Failed to submit cross-chain swap transaction: undefined snap id or scope',
+      );
+    }
+    /**
+     * Submit the transaction to the snap using the keyring rpc method
+     * This adds an approval tx to the ApprovalsController in the background
+     * The client needs to handle the approval tx by redirecting to the confirmation page with the approvalTxId in the URL
+     */
+    const keyringRequest = getKeyringRequest(quoteResponse, selectedAccount);
+    const keyringResponse = (await this.messagingSystem.call(
+      'SnapController:handleRequest',
+      keyringRequest,
+    )) as string | { result: Record<string, string> };
+
+    // The extension client actually redirects before it can do anytyhing with this meta
+    const txMeta = handleSolanaTxResponse(
+      keyringResponse,
+      quoteResponse,
+      selectedAccount.metadata.snap.id,
+      selectedAccount.address,
+    );
+
+    // TODO remove this eventually, just returning it now to match extension behavior
+    // OR if the snap can propagate the snapRequestId or keyringReqId to the ApprovalsController, this can return the approvalTxId instead and clients won't need to subscribe to the ApprovalsController state to redirect
+    return txMeta;
+  };
+
+  /**
+   * Submits a cross-chain swap transaction
+   *
+   * @param quoteResponse - The quote response
+   * @param quoteResponse.quote - The quote
+   * @param quoteResponse.trade - The trade
+   * @param quoteResponse.approval - The approval
+   * @returns The transaction meta
+   */
+  submitTx = async (
+    quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
+  ) => {
+    this.stopAllPolling();
+
+    if (!isSolanaChainId(quoteResponse.quote.srcChainId)) {
+      throw new Error('Failed to submit bridge tx: only Solana is supported');
+    }
+
+    let txMeta: TransactionMeta | undefined;
+    // Submit SOLANA tx
+    if (
+      isSolanaChainId(quoteResponse.quote.srcChainId) &&
+      typeof quoteResponse.trade === 'string'
+    ) {
+      txMeta = await this.#handleSolanaTx(
+        quoteResponse as QuoteResponse<string> & QuoteMetadata,
+      );
+    }
+
+    if (!txMeta) {
+      throw new Error('Failed to submit bridge tx: txMeta is undefined');
+    }
+
+    // Start polling for bridge tx status
+    try {
+      const statusRequestCommon = getStatusRequestParams(quoteResponse);
+      this.startPollingForBridgeTxStatus({
+        bridgeTxMeta: txMeta, // Only the id field is used by the BridgeStatusController
+        statusRequest: {
+          ...statusRequestCommon,
+          srcTxHash: txMeta.hash,
+        },
+        quoteResponse,
+        slippagePercentage: 0, // TODO include slippage provided by quote if using dynamic slippage, or slippage from quote request
+        startTime: Date.now(),
+      });
+    } catch {
+      // Ignore errors here, we don't want to crash the app if this fails and tx submission succeeds
+    }
+    return txMeta;
   };
 }
