@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Require config.customBridgeApiBaseUrl as constructor arg ([#5634](https://github.com/MetaMask/core/pull/5634))
+- Add optional config.customBridgeApiBaseUrl constructor arg to set the bridge-api base URL ([#5634](https://github.com/MetaMask/core/pull/5634))
 
 ### Fixed
 
