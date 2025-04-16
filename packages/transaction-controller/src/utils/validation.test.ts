@@ -672,41 +672,12 @@ describe('validation', () => {
   });
 
   describe('validateTransactionOrigin', () => {
-    it('throws if internal and from address not selected', async () => {
-      await expect(
-        validateTransactionOrigin({
-          from: FROM_MOCK,
-          origin: ORIGIN_METAMASK,
-          permittedAddresses: undefined,
-          selectedAddress: '0x123',
-          txParams: {} as TransactionParams,
-        }),
-      ).rejects.toThrow(
-        rpcErrors.invalidParams(
-          'Internally initiated transaction is using invalid account.',
-        ),
-      );
-    });
-
-    it('does not throw if internal and from address is selected', async () => {
-      expect(
-        await validateTransactionOrigin({
-          from: FROM_MOCK,
-          origin: ORIGIN_METAMASK,
-          permittedAddresses: undefined,
-          selectedAddress: FROM_MOCK,
-          txParams: {} as TransactionParams,
-        }),
-      ).toBeUndefined();
-    });
-
     it('throws if external and from not permitted', async () => {
       await expect(
         validateTransactionOrigin({
           from: FROM_MOCK,
           origin: ORIGIN_MOCK,
           permittedAddresses: ['0x123', '0x456'],
-          selectedAddress: '0x123',
           txParams: {} as TransactionParams,
         }),
       ).rejects.toThrow(
@@ -722,7 +693,6 @@ describe('validation', () => {
           from: FROM_MOCK,
           origin: ORIGIN_MOCK,
           permittedAddresses: ['0x123', FROM_MOCK],
-          selectedAddress: '0x123',
           txParams: {} as TransactionParams,
         }),
       ).toBeUndefined();
@@ -734,7 +704,6 @@ describe('validation', () => {
           from: FROM_MOCK,
           origin: ORIGIN_MOCK,
           permittedAddresses: [FROM_MOCK],
-          selectedAddress: '0x123',
           txParams: {
             type: TransactionEnvelopeType.setCode,
           } as TransactionParams,
@@ -752,7 +721,6 @@ describe('validation', () => {
           from: FROM_MOCK,
           origin: ORIGIN_MOCK,
           permittedAddresses: [FROM_MOCK],
-          selectedAddress: '0x123',
           txParams: {
             authorizationList: [],
             from: TO_MOCK,
@@ -772,7 +740,6 @@ describe('validation', () => {
           from: FROM_MOCK,
           internalAccounts: [TO_MOCK],
           origin: ORIGIN_MOCK,
-          selectedAddress: '0x123',
           txParams: {
             to: TO_MOCK,
           } as TransactionParams,
@@ -797,7 +764,6 @@ describe('validation', () => {
             from: FROM_MOCK,
             internalAccounts: [TO_MOCK],
             origin: ORIGIN_MOCK,
-            selectedAddress: '0x123',
             txParams: {
               to: TO_MOCK,
             } as TransactionParams,
@@ -812,7 +778,6 @@ describe('validation', () => {
           from: FROM_MOCK,
           internalAccounts: [TO_MOCK],
           origin: ORIGIN_MOCK,
-          selectedAddress: '0x123',
           txParams: {
             to: TO_MOCK,
           } as TransactionParams,

@@ -2762,33 +2762,6 @@ describe('TransactionController', () => {
     });
 
     describe('checks from address origin', () => {
-      it('throws if `from` address is different from current selected address', async () => {
-        const { controller } = setupController();
-        const origin = ORIGIN_METAMASK;
-        const notSelectedFromAddress = ACCOUNT_2_MOCK;
-        await expect(
-          controller.addTransaction(
-            {
-              from: notSelectedFromAddress,
-              to: ACCOUNT_MOCK,
-            },
-            {
-              origin: ORIGIN_METAMASK,
-              networkClientId: NETWORK_CLIENT_ID_MOCK,
-            },
-          ),
-        ).rejects.toThrow(
-          rpcErrors.internal({
-            message: `Internally initiated transaction is using invalid account.`,
-            data: {
-              origin,
-              fromAddress: notSelectedFromAddress,
-              selectedAddress: ACCOUNT_MOCK,
-            },
-          }),
-        );
-      });
-
       it('throws if the origin does not have permissions to initiate transactions from the specified address', async () => {
         const { controller } = setupController();
         const expectedOrigin = 'originMocked';

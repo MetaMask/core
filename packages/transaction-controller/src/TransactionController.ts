@@ -1167,7 +1167,6 @@ export class TransactionController extends BaseController<
         ? undefined
         : await this.getPermittedAccounts?.(origin);
 
-    const selectedAddress = this.#getSelectedAccount().address;
     const internalAccounts = this.#getInternalAccounts();
 
     await validateTransactionOrigin({
@@ -1176,7 +1175,6 @@ export class TransactionController extends BaseController<
       internalAccounts,
       origin,
       permittedAddresses,
-      selectedAddress,
       txParams,
       type,
     });

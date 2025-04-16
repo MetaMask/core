@@ -39,7 +39,6 @@ type GasFieldsToValidate =
  * @param options.internalAccounts - The internal accounts added to the wallet.
  * @param options.origin - The origin or source of the transaction.
  * @param options.permittedAddresses - The permitted accounts for the given origin.
- * @param options.selectedAddress - The currently selected Ethereum address in the wallet.
  * @param options.txParams - The transaction parameters.
  * @param options.type - The transaction type.
  * @throws Throws an error if the transaction is not permitted.
@@ -50,7 +49,6 @@ export async function validateTransactionOrigin({
   internalAccounts,
   origin,
   permittedAddresses,
-  selectedAddress,
   txParams,
   type,
 }: {
@@ -59,24 +57,11 @@ export async function validateTransactionOrigin({
   internalAccounts?: string[];
   origin?: string;
   permittedAddresses?: string[];
-  selectedAddress?: string;
   txParams: TransactionParams;
   type?: TransactionType;
 }) {
-  const isInternal = origin === ORIGIN_METAMASK;
   const isExternal = origin && origin !== ORIGIN_METAMASK;
   const { authorizationList, to, type: envelopeType } = txParams;
-
-  if (isInternal && from !== selectedAddress) {
-    throw rpcErrors.internal({
-      message: `Internally initiated transaction is using invalid account.`,
-      data: {
-        origin,
-        fromAddress: from,
-        selectedAddress,
-      },
-    });
-  }
 
   if (isExternal && permittedAddresses && !permittedAddresses.includes(from)) {
     throw providerErrors.unauthorized({ data: { origin } });
