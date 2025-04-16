@@ -1,6 +1,5 @@
 import { toHex } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
-import { upperFirst, camelCase } from 'lodash';
 
 import type {
   DefiPositionResponse,
@@ -52,7 +51,8 @@ export function groupDeFiPositions(
       continue;
     }
 
-    const { chainId, protocolId, iconUrl, positionType } = position;
+    const { chainId, protocolId, iconUrl, positionType, protocolDisplayName } =
+      position;
 
     const chain = toHex(chainId);
 
@@ -68,7 +68,7 @@ export function groupDeFiPositions(
     if (!chainData.protocols[protocolId]) {
       chainData.protocols[protocolId] = {
         protocolDetails: {
-          name: upperFirst(camelCase(protocolId)),
+          name: protocolDisplayName,
           iconUrl,
         },
         aggregatedMarketValue: 0,
