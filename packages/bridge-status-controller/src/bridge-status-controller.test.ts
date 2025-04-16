@@ -473,9 +473,7 @@ const executePollingWithPendingStatus = async () => {
     addTransactionFn: jest.fn(),
     estimateGasFeeFn: jest.fn(),
     addUserOperationFromTransactionFn: jest.fn(),
-    config: {
-      smartTransactionsEnabledByDefault: true,
-    },
+    config: {},
   });
   const startPollingSpy = jest.spyOn(bridgeStatusController, 'startPolling');
 
@@ -509,10 +507,7 @@ const addTransactionFn = jest.fn();
 const estimateGasFeeFn = jest.fn();
 const addUserOperationFromTransactionFn = jest.fn();
 
-const getController = (
-  call: jest.Mock,
-  smartTransactionsEnabledByDefault = false,
-) => {
+const getController = (call: jest.Mock) => {
   const controller = new BridgeStatusController({
     messenger: {
       call,
@@ -525,9 +520,6 @@ const getController = (
     addTransactionFn,
     estimateGasFeeFn,
     addUserOperationFromTransactionFn,
-    config: {
-      smartTransactionsEnabledByDefault,
-    },
   });
 
   const startPollingForBridgeTxStatusSpy = jest
@@ -551,9 +543,6 @@ describe('BridgeStatusController', () => {
         addTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
         addUserOperationFromTransactionFn: jest.fn(),
-        config: {
-          smartTransactionsEnabledByDefault: true,
-        },
       });
       expect(bridgeStatusController.state).toStrictEqual(EMPTY_INIT_STATE);
     });
@@ -566,9 +555,6 @@ describe('BridgeStatusController', () => {
         addTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
         addUserOperationFromTransactionFn: jest.fn(),
-        config: {
-          smartTransactionsEnabledByDefault: true,
-        },
         state: {
           txHistory: MockTxHistory.getPending(),
         },
@@ -604,10 +590,6 @@ describe('BridgeStatusController', () => {
         fetchFn: jest.fn(),
         addTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
-        addUserOperationFromTransactionFn: jest.fn(),
-        config: {
-          smartTransactionsEnabledByDefault: true,
-        },
       });
       jest.advanceTimersByTime(10000);
       await flushPromises();
@@ -631,9 +613,6 @@ describe('BridgeStatusController', () => {
         addTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
         addUserOperationFromTransactionFn: jest.fn(),
-        config: {
-          smartTransactionsEnabledByDefault: true,
-        },
       });
 
       // Execution
@@ -671,9 +650,6 @@ describe('BridgeStatusController', () => {
         addTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
         addUserOperationFromTransactionFn: jest.fn(),
-        config: {
-          smartTransactionsEnabledByDefault: true,
-        },
       });
       const fetchBridgeTxStatusSpy = jest.spyOn(
         bridgeStatusUtils,
@@ -751,9 +727,6 @@ describe('BridgeStatusController', () => {
         addTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
         addUserOperationFromTransactionFn: jest.fn(),
-        config: {
-          smartTransactionsEnabledByDefault: true,
-        },
       });
 
       // Start polling with args that have no srcTxHash
@@ -793,9 +766,6 @@ describe('BridgeStatusController', () => {
         addTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
         addUserOperationFromTransactionFn: jest.fn(),
-        config: {
-          smartTransactionsEnabledByDefault: true,
-        },
       });
 
       const fetchBridgeTxStatusSpy = jest
@@ -848,9 +818,6 @@ describe('BridgeStatusController', () => {
         addTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
         addUserOperationFromTransactionFn: jest.fn(),
-        config: {
-          smartTransactionsEnabledByDefault: true,
-        },
       });
 
       // Execution
@@ -923,9 +890,6 @@ describe('BridgeStatusController', () => {
         addTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
         addUserOperationFromTransactionFn: jest.fn(),
-        config: {
-          smartTransactionsEnabledByDefault: true,
-        },
       });
 
       // Start polling with no srcTxHash
@@ -1013,9 +977,6 @@ describe('BridgeStatusController', () => {
         addTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
         addUserOperationFromTransactionFn: jest.fn(),
-        config: {
-          smartTransactionsEnabledByDefault: true,
-        },
       });
       const fetchBridgeTxStatusSpy = jest
         .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
@@ -1101,9 +1062,6 @@ describe('BridgeStatusController', () => {
         addTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
         addUserOperationFromTransactionFn: jest.fn(),
-        config: {
-          smartTransactionsEnabledByDefault: true,
-        },
       });
       const fetchBridgeTxStatusSpy = jest
         .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
@@ -1204,9 +1162,6 @@ describe('BridgeStatusController', () => {
         addTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
         addUserOperationFromTransactionFn: jest.fn(),
-        config: {
-          smartTransactionsEnabledByDefault: true,
-        },
       });
       const fetchBridgeTxStatusSpy = jest
         .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
@@ -1665,10 +1620,8 @@ describe('BridgeStatusController', () => {
     it('should handle smart transactions', async () => {
       setupBridgeMocks(true);
 
-      const { controller, startPollingForBridgeTxStatusSpy } = getController(
-        mockMessengerCall,
-        true,
-      );
+      const { controller, startPollingForBridgeTxStatusSpy } =
+        getController(mockMessengerCall);
       const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
       const result = await controller.submitTx(quoteWithoutApproval, true);
       controller.stopAllPolling();

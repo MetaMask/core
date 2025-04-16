@@ -47,7 +47,6 @@ import {
   getStatusRequestWithSrcTxHash,
 } from './utils/bridge-status';
 import { getTxGasEstimates } from './utils/gas';
-import { isSmartTransactionsEnabled } from './utils/smart-transactions';
 import {
   getKeyringRequest,
   getStatusRequestParams,
@@ -86,14 +85,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
   readonly #config: {
     customBridgeApiBaseUrl: string;
-    smartTransactionsEnabledByDefault: boolean;
   };
 
   readonly #addTransactionFn: typeof TransactionController.prototype.addTransaction;
 
   readonly #estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee;
 
-  readonly #addUserOperationFromTransactionFn: typeof UserOperationController.prototype.addUserOperationFromTransaction;
+  readonly #addUserOperationFromTransactionFn?: typeof UserOperationController.prototype.addUserOperationFromTransaction;
 
   constructor({
     messenger,
@@ -111,10 +109,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     fetchFn: FetchFunction;
     addTransactionFn: typeof TransactionController.prototype.addTransaction;
     estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee;
-    addUserOperationFromTransactionFn: typeof UserOperationController.prototype.addUserOperationFromTransaction;
-    config: {
+    addUserOperationFromTransactionFn?: typeof UserOperationController.prototype.addUserOperationFromTransaction;
+    config?: {
       customBridgeApiBaseUrl?: string;
-      smartTransactionsEnabledByDefault: boolean;
     };
   }) {
     super({
@@ -135,9 +132,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     this.#estimateGasFeeFn = estimateGasFeeFn;
     this.#config = {
       customBridgeApiBaseUrl:
-        config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
-      smartTransactionsEnabledByDefault:
-        config.smartTransactionsEnabledByDefault,
+        config?.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
     };
 
     // Register action handlers
@@ -495,22 +490,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     return txMeta;
   };
 
-  readonly #shouldUseSmartTransactions = (
-    txType: TransactionType,
-    isStxEnabledOnClient: boolean,
-  ) => {
-    const preferences = this.messagingSystem.call(
-      'PreferencesController:getState',
-    );
-
-    return isSmartTransactionsEnabled(
-      txType,
-      this.#config.smartTransactionsEnabledByDefault,
-      isStxEnabledOnClient,
-      preferences.smartTransactionsOptInStatus,
-    );
-  };
-
   readonly #waitForHashAndReturnFinalTxMeta = async (
     hashPromise?:
       | Awaited<ReturnType<TransactionController['addTransaction']>>['result']
@@ -548,22 +527,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return approvalTxMeta;
     }
     return undefined;
-  };
-
-  readonly #handleSmartAccountTx = async (
-    transactionParams: Parameters<
-      typeof UserOperationController.prototype.addUserOperationFromTransaction
-    >[0],
-    requestOptions: Parameters<
-      typeof UserOperationController.prototype.addUserOperationFromTransaction
-    >[1],
-  ) => {
-    const userOperationResult = await this.#addUserOperationFromTransactionFn(
-      transactionParams,
-      requestOptions,
-    );
-
-    return userOperationResult;
   };
 
   readonly #handleEvmSmartTransaction = async (
@@ -647,11 +610,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     const isSmartContractAccount =
       selectedAccount.type === EthAccountType.Erc4337;
-    if (isSmartContractAccount) {
-      const smartAccountTxResult = await this.#handleSmartAccountTx(
-        transactionParamsWithMaxGas,
-        requestOptions,
-      );
+    if (isSmartContractAccount && this.#addUserOperationFromTransactionFn) {
+      const smartAccountTxResult =
+        await this.#addUserOperationFromTransactionFn(
+          transactionParamsWithMaxGas,
+          requestOptions,
+        );
       result = smartAccountTxResult.transactionHash;
       transactionMeta = {
         ...requestOptions,
@@ -799,12 +763,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       approvalTime = approvalTxMeta?.time;
       approvalTxId = approvalTxMeta?.id;
       // Handle smart transactions if enabled
-      if (
-        this.#shouldUseSmartTransactions(
-          TransactionType.bridge,
-          isStxEnabledOnClient,
-        )
-      ) {
+      if (isStxEnabledOnClient) {
         txMeta = await this.#handleEvmSmartTransaction(
           quoteResponse.trade,
           quoteResponse,

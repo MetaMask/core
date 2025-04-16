@@ -23,7 +23,6 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
-import type { PreferencesControllerGetStateAction } from '@metamask/preferences-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type {
   TransactionControllerGetStateAction,
@@ -345,7 +344,6 @@ type AllowedActions =
   | AccountsControllerGetSelectedMultichainAccountAction
   | HandleSnapRequest
   | TransactionControllerGetStateAction
-  | PreferencesControllerGetStateAction
   | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>
   | GasFeeControllerActions
   | AccountsControllerGetAccountByAddressAction
