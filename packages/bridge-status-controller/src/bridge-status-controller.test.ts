@@ -1,3 +1,5 @@
+/* eslint-disable jest/no-conditional-in-test */
+/* eslint-disable jest/no-restricted-matchers */
 import type { QuoteResponse, QuoteMetadata } from '@metamask/bridge-controller';
 import { ChainId } from '@metamask/bridge-controller';
 import { ActionTypes, FeeType } from '@metamask/bridge-controller';
@@ -370,7 +372,11 @@ const MockTxHistory = {
       account,
       status: {
         status: StatusTypes.UNKNOWN,
-      } as never,
+        srcChain: {
+          chainId: srcChainId,
+          txHash: srcTxHash,
+        },
+      },
       targetContractAddress: '0x23981fC34e69eeDFE2BD9a0a9fCb0719Fe09DbFC',
       initialDestAssetBalance: undefined,
       pricingData: {
@@ -574,7 +580,7 @@ describe('BridgeStatusController', () => {
       );
 
       // Assertion
-      // eslint-disable-next-line jest/no-restricted-matchers
+
       expect(bridgeStatusController.state.txHistory).toMatchSnapshot();
     });
     it('restarts polling for history items that are not complete', async () => {
@@ -608,7 +614,7 @@ describe('BridgeStatusController', () => {
       await flushPromises();
 
       // Assertions
-      expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
+      expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -637,7 +643,7 @@ describe('BridgeStatusController', () => {
       );
 
       // Assertion
-      // eslint-disable-next-line jest/no-restricted-matchers
+
       expect(bridgeStatusController.state.txHistory).toMatchSnapshot();
     });
     it('starts polling and updates the tx history when the status response is received', async () => {
@@ -1394,41 +1400,35 @@ describe('BridgeStatusController', () => {
 
     beforeEach(() => {
       jest.clearAllMocks();
+      jest.spyOn(Date, 'now').mockReturnValue(1234567890);
     });
 
     it('should successfully submit a Solana transaction', async () => {
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
-
       mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
       mockMessengerCall.mockResolvedValueOnce('signature');
       mockMessengerCall.mockResolvedValueOnce('tokens');
       mockMessengerCall.mockResolvedValueOnce('tokens');
+
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
-
       const result = await controller.submitTx(mockQuoteResponse, false);
       controller.stopAllPolling();
 
-      // eslint-disable-next-line jest/no-restricted-matchers
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
-      // eslint-disable-next-line jest/no-restricted-matchers
       expect(result).toMatchSnapshot();
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
       expect(
         startPollingForBridgeTxStatusSpy.mock.lastCall[0],
-        // eslint-disable-next-line jest/no-restricted-matchers
       ).toMatchSnapshot();
     });
 
     it('should throw error when snap ID is missing', async () => {
       const accountWithoutSnap = {
         ...mockSelectedAccount,
-        metadata: {
-          snap: undefined,
-        },
+        metadata: { snap: undefined },
       };
       mockMessengerCall.mockReturnValueOnce(accountWithoutSnap);
+
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
 
@@ -1442,6 +1442,7 @@ describe('BridgeStatusController', () => {
 
     it('should throw error when account is missing', async () => {
       mockMessengerCall.mockReturnValueOnce(undefined);
+
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
 
@@ -1456,6 +1457,7 @@ describe('BridgeStatusController', () => {
     it('should handle snap controller errors', async () => {
       mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
       mockMessengerCall.mockRejectedValueOnce(new Error('Snap error'));
+
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
 
@@ -1565,54 +1567,42 @@ describe('BridgeStatusController', () => {
 
     beforeEach(() => {
       jest.clearAllMocks();
+      jest.spyOn(Date, 'now').mockReturnValue(1234567890);
+      jest.spyOn(Math, 'random').mockReturnValue(0.456);
     });
 
-    it('should successfully submit an EVM bridge transaction with approval', async () => {
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
-      jest.spyOn(Math, 'random').mockReturnValueOnce(0.456);
-      jest.spyOn(Math, 'random').mockReturnValueOnce(0.456);
-
-      // Approval calls
+    const setupApprovalMocks = () => {
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum-client-id');
       mockMessengerCall.mockReturnValueOnce({
-        gasFeeEstimates: {
-          estimatedBaseFee: '0x1234',
-        },
+        gasFeeEstimates: { estimatedBaseFee: '0x1234' },
       });
-
       estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
       addTransactionFn.mockResolvedValueOnce({
         transactionMeta: mockApprovalTxMeta,
         result: Promise.resolve('0xapprovalTxHash'),
       });
-
       mockMessengerCall.mockReturnValueOnce({
         transactions: [
           { transactionMeta: mockApprovalTxMeta, hash: '0xapprovalTxHash' },
         ],
       });
+    };
 
-      // Bridge calls
+    const setupBridgeMocks = (smartTransactionsEnabled = false) => {
       mockMessengerCall.mockReturnValueOnce({
-        smartTransactionsOptInStatus: false,
+        smartTransactionsOptInStatus: smartTransactionsEnabled,
       });
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum');
       mockMessengerCall.mockReturnValueOnce({
-        gasFeeEstimates: {
-          estimatedBaseFee: '0x1234',
-        },
+        gasFeeEstimates: { estimatedBaseFee: '0x1234' },
       });
-
       estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
       addTransactionFn.mockResolvedValueOnce({
         transactionMeta: mockEvmTxMeta,
         result: Promise.resolve('0xevmTxHash'),
       });
-
       mockMessengerCall.mockReturnValueOnce({
         transactions: [
           {
@@ -1622,21 +1612,21 @@ describe('BridgeStatusController', () => {
           },
         ],
       });
+    };
+
+    it('should successfully submit an EVM bridge transaction with approval', async () => {
+      setupApprovalMocks();
+      setupBridgeMocks();
 
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
-
-      // Execute test
       const result = await controller.submitTx(mockEvmQuoteResponse, false);
       controller.stopAllPolling();
 
-      // eslint-disable-next-line jest/no-restricted-matchers
       expect(result).toMatchSnapshot();
-
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
       expect(
         startPollingForBridgeTxStatusSpy.mock.lastCall[0].statusRequest,
-        // eslint-disable-next-line jest/no-restricted-matchers
       ).toMatchSnapshot();
       expect(
         startPollingForBridgeTxStatusSpy.mock.lastCall[0].bridgeTxMeta,
@@ -1644,62 +1634,23 @@ describe('BridgeStatusController', () => {
       expect(startPollingForBridgeTxStatusSpy.mock.lastCall[0].startTime).toBe(
         1234567890,
       );
-
-      // eslint-disable-next-line jest/no-restricted-matchers
       expect(addTransactionFn.mock.calls).toMatchSnapshot();
-      // eslint-disable-next-line jest/no-restricted-matchers
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
-
       expect(addUserOperationFromTransactionFn).not.toHaveBeenCalled();
     });
 
     it('should successfully submit an EVM bridge transaction with no approval', async () => {
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
-      jest.spyOn(Math, 'random').mockReturnValueOnce(0.456);
-
-      // Bridge calls
-      mockMessengerCall.mockReturnValueOnce({
-        smartTransactionsOptInStatus: false,
-      });
-      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
-      mockMessengerCall.mockReturnValueOnce('arbitrum');
-      mockMessengerCall.mockReturnValueOnce({
-        gasFeeEstimates: {
-          estimatedBaseFee: '0x1234',
-        },
-      });
-
-      estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
-      addTransactionFn.mockResolvedValueOnce({
-        transactionMeta: mockEvmTxMeta,
-        result: Promise.resolve('0xevmTxHash'),
-      });
-
-      mockMessengerCall.mockReturnValueOnce({
-        transactions: [
-          {
-            transactionMeta: mockEvmTxMeta,
-            hash: '0xevmTxHash',
-            id: 'test-tx-id',
-          },
-        ],
-      });
+      setupBridgeMocks();
 
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
-
-      // Execute test
       const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
       const result = await controller.submitTx(quoteWithoutApproval, false);
 
-      // eslint-disable-next-line jest/no-restricted-matchers
       expect(result).toMatchSnapshot();
-
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
       expect(
         startPollingForBridgeTxStatusSpy.mock.lastCall[0].statusRequest,
-        // eslint-disable-next-line jest/no-restricted-matchers
       ).toMatchSnapshot();
       expect(
         startPollingForBridgeTxStatusSpy.mock.lastCall[0].bridgeTxMeta,
@@ -1707,56 +1658,27 @@ describe('BridgeStatusController', () => {
       expect(startPollingForBridgeTxStatusSpy.mock.lastCall[0].startTime).toBe(
         1234567890,
       );
-
-      // eslint-disable-next-line jest/no-restricted-matchers
       expect(estimateGasFeeFn.mock.calls).toMatchSnapshot();
-      // eslint-disable-next-line jest/no-restricted-matchers
       expect(addTransactionFn.mock.calls).toMatchSnapshot();
-      // eslint-disable-next-line jest/no-restricted-matchers
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
       expect(addUserOperationFromTransactionFn).not.toHaveBeenCalled();
     });
 
     it('should handle smart transactions', async () => {
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
-      jest.spyOn(Math, 'random').mockReturnValueOnce(0.456);
-
-      // Bridge calls
-      mockMessengerCall.mockReturnValueOnce({
-        smartTransactionsOptInStatus: true,
-      });
-      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
-      mockMessengerCall.mockReturnValueOnce('arbitrum');
-      mockMessengerCall.mockReturnValueOnce({
-        gasFeeEstimates: {
-          estimatedBaseFee: '0x1234',
-        },
-      });
-
-      estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
-      addTransactionFn.mockResolvedValueOnce({
-        transactionMeta: mockEvmTxMeta,
-        result: Promise.resolve('0xevmTxHash'),
-      });
+      setupBridgeMocks(true);
 
       const { controller, startPollingForBridgeTxStatusSpy } = getController(
         mockMessengerCall,
         true,
       );
-
-      // Execute test
       const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
       const result = await controller.submitTx(quoteWithoutApproval, true);
       controller.stopAllPolling();
 
-      // eslint-disable-next-line jest/no-restricted-matchers
       expect(result).toMatchSnapshot();
-
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
       expect(
         startPollingForBridgeTxStatusSpy.mock.lastCall[0].statusRequest,
-        // eslint-disable-next-line jest/no-restricted-matchers
       ).toMatchSnapshot();
       expect(
         startPollingForBridgeTxStatusSpy.mock.lastCall[0].bridgeTxMeta,
@@ -1764,23 +1686,13 @@ describe('BridgeStatusController', () => {
       expect(startPollingForBridgeTxStatusSpy.mock.lastCall[0].startTime).toBe(
         1234567890,
       );
-
-      // eslint-disable-next-line jest/no-restricted-matchers
       expect(estimateGasFeeFn.mock.calls).toMatchSnapshot();
-      // eslint-disable-next-line jest/no-restricted-matchers
       expect(addTransactionFn.mock.calls).toMatchSnapshot();
-      // eslint-disable-next-line jest/no-restricted-matchers
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
       expect(addUserOperationFromTransactionFn).not.toHaveBeenCalled();
     });
 
     it('should handle smart accounts (4337)', async () => {
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
-      jest.spyOn(Math, 'random').mockReturnValueOnce(0.456);
-
-      // Bridge calls
       mockMessengerCall.mockReturnValueOnce({
         smartTransactionsOptInStatus: false,
       });
@@ -1791,9 +1703,7 @@ describe('BridgeStatusController', () => {
       mockMessengerCall.mockReturnValueOnce('arbitrum');
       estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
       mockMessengerCall.mockReturnValueOnce({
-        gasFeeEstimates: {
-          estimatedBaseFee: '0x1234',
-        },
+        gasFeeEstimates: { estimatedBaseFee: '0x1234' },
       });
       addUserOperationFromTransactionFn.mockResolvedValueOnce({
         id: 'user-op-id',
@@ -1813,19 +1723,14 @@ describe('BridgeStatusController', () => {
 
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
-
-      // Execute test
       const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
       const result = await controller.submitTx(quoteWithoutApproval, false);
       controller.stopAllPolling();
 
-      // eslint-disable-next-line jest/no-restricted-matchers
       expect(result).toMatchSnapshot();
-
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
       expect(
         startPollingForBridgeTxStatusSpy.mock.lastCall[0].statusRequest,
-        // eslint-disable-next-line jest/no-restricted-matchers
       ).toMatchSnapshot();
       expect(
         startPollingForBridgeTxStatusSpy.mock.lastCall[0].bridgeTxMeta,
@@ -1833,21 +1738,13 @@ describe('BridgeStatusController', () => {
       expect(startPollingForBridgeTxStatusSpy.mock.lastCall[0].startTime).toBe(
         1234567890,
       );
-
-      // eslint-disable-next-line jest/no-restricted-matchers
       expect(estimateGasFeeFn.mock.calls).toMatchSnapshot();
       expect(addTransactionFn).not.toHaveBeenCalled();
-      // eslint-disable-next-line jest/no-restricted-matchers
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
-      // eslint-disable-next-line jest/no-restricted-matchers
       expect(addUserOperationFromTransactionFn.mock.calls).toMatchSnapshot();
     });
 
     it('should throw an error if account is not found', async () => {
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
-      jest.spyOn(Math, 'random').mockReturnValueOnce(0.456);
-
-      // Bridge calls
       mockMessengerCall.mockReturnValueOnce({
         smartTransactionsOptInStatus: false,
       });
@@ -1855,9 +1752,8 @@ describe('BridgeStatusController', () => {
 
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
-
-      // Execute test
       const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+
       await expect(
         controller.submitTx(quoteWithoutApproval, false),
       ).rejects.toThrow(
@@ -1871,101 +1767,27 @@ describe('BridgeStatusController', () => {
     });
 
     it('should reset USDT allowance', async () => {
-      // USDT approval reset
       mockIsEthUsdt.mockReturnValueOnce(true);
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
-      jest.spyOn(Math, 'random').mockReturnValueOnce(0.456);
 
+      // USDT approval reset
       mockMessengerCall.mockReturnValueOnce('1');
-      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
-      mockMessengerCall.mockReturnValueOnce('arbitrum-client-id');
-      mockMessengerCall.mockReturnValueOnce({
-        gasFeeEstimates: {
-          estimatedBaseFee: '0x1234',
-        },
-      });
+      setupApprovalMocks();
 
-      estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
-      addTransactionFn.mockResolvedValueOnce({
-        transactionMeta: mockApprovalTxMeta,
-        result: Promise.resolve('0xapprovalTxHash'),
-      });
+      // Approval tx
+      setupApprovalMocks();
 
-      mockMessengerCall.mockReturnValueOnce({
-        transactions: [
-          { transactionMeta: mockApprovalTxMeta, hash: '0xapprovalTxHash' },
-        ],
-      });
-
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
-      jest.spyOn(Math, 'random').mockReturnValueOnce(0.456);
-      jest.spyOn(Math, 'random').mockReturnValueOnce(0.456);
-
-      // Approval calls
-      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
-      mockMessengerCall.mockReturnValueOnce('arbitrum-client-id');
-      mockMessengerCall.mockReturnValueOnce({
-        gasFeeEstimates: {
-          estimatedBaseFee: '0x1234',
-        },
-      });
-
-      estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
-      addTransactionFn.mockResolvedValueOnce({
-        transactionMeta: mockApprovalTxMeta,
-        result: Promise.resolve('0xapprovalTxHash'),
-      });
-
-      mockMessengerCall.mockReturnValueOnce({
-        transactions: [
-          { transactionMeta: mockApprovalTxMeta, hash: '0xapprovalTxHash' },
-        ],
-      });
-
-      // Bridge calls
-      mockMessengerCall.mockReturnValueOnce({
-        smartTransactionsOptInStatus: false,
-      });
-      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
-      mockMessengerCall.mockReturnValueOnce('arbitrum');
-      mockMessengerCall.mockReturnValueOnce({
-        gasFeeEstimates: {
-          estimatedBaseFee: '0x1234',
-        },
-      });
-
-      estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
-      addTransactionFn.mockResolvedValueOnce({
-        transactionMeta: mockEvmTxMeta,
-        result: Promise.resolve('0xevmTxHash'),
-      });
-
-      mockMessengerCall.mockReturnValueOnce({
-        transactions: [
-          {
-            transactionMeta: mockEvmTxMeta,
-            hash: '0xevmTxHash',
-            id: 'test-tx-id',
-          },
-        ],
-      });
+      // Bridge transaction
+      setupBridgeMocks();
 
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
-
-      // Execute test
       const result = await controller.submitTx(mockEvmQuoteResponse, false);
       controller.stopAllPolling();
 
-      // eslint-disable-next-line jest/no-restricted-matchers
       expect(result).toMatchSnapshot();
-
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
       expect(
         startPollingForBridgeTxStatusSpy.mock.lastCall[0].statusRequest,
-        // eslint-disable-next-line jest/no-restricted-matchers
       ).toMatchSnapshot();
       expect(
         startPollingForBridgeTxStatusSpy.mock.lastCall[0].bridgeTxMeta,
@@ -1973,66 +1795,44 @@ describe('BridgeStatusController', () => {
       expect(startPollingForBridgeTxStatusSpy.mock.lastCall[0].startTime).toBe(
         1234567890,
       );
-
-      // eslint-disable-next-line jest/no-restricted-matchers
       expect(estimateGasFeeFn.mock.calls).toMatchSnapshot();
-      // eslint-disable-next-line jest/no-restricted-matchers
       expect(addTransactionFn.mock.calls).toMatchSnapshot();
-      // eslint-disable-next-line jest/no-restricted-matchers
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
     });
 
     it('should throw an error if approval tx fails', async () => {
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
-      jest.spyOn(Math, 'random').mockReturnValueOnce(0.456);
-
-      // Approval calls
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum-client-id');
       mockMessengerCall.mockReturnValueOnce({
-        gasFeeEstimates: {
-          estimatedBaseFee: '0x1234',
-        },
+        gasFeeEstimates: { estimatedBaseFee: '0x1234' },
       });
-
       estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
       addTransactionFn.mockRejectedValueOnce(new Error('Approval tx failed'));
 
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
 
-      // Execute test
       await expect(
         controller.submitTx(mockEvmQuoteResponse, false),
       ).rejects.toThrow('Approval tx failed');
 
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      // eslint-disable-next-line jest/no-restricted-matchers
       expect(addTransactionFn.mock.calls).toMatchSnapshot();
-      // eslint-disable-next-line jest/no-restricted-matchers
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
       expect(addUserOperationFromTransactionFn).not.toHaveBeenCalled();
     });
 
     it('should throw an error if approval tx meta is undefined', async () => {
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
-      jest.spyOn(Math, 'random').mockReturnValueOnce(0.456);
-
-      // Approval calls
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum-client-id');
       mockMessengerCall.mockReturnValueOnce({
-        gasFeeEstimates: {
-          estimatedBaseFee: '0x1234',
-        },
+        gasFeeEstimates: { estimatedBaseFee: '0x1234' },
       });
-
       estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
       addTransactionFn.mockResolvedValueOnce({
         transactionMeta: undefined,
         result: undefined,
       });
-
       mockMessengerCall.mockReturnValueOnce({
         transactions: [
           { transactionMeta: undefined, hash: '0xapprovalTxHash' },
@@ -2042,7 +1842,6 @@ describe('BridgeStatusController', () => {
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
 
-      // Execute test
       await expect(
         controller.submitTx(mockEvmQuoteResponse, false),
       ).rejects.toThrow(
@@ -2050,93 +1849,36 @@ describe('BridgeStatusController', () => {
       );
 
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      // eslint-disable-next-line jest/no-restricted-matchers
       expect(addTransactionFn.mock.calls).toMatchSnapshot();
-      // eslint-disable-next-line jest/no-restricted-matchers
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
       expect(addUserOperationFromTransactionFn).not.toHaveBeenCalled();
     });
 
     it('should delay after submitting linea approval', async () => {
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
-      jest.spyOn(Math, 'random').mockReturnValueOnce(0.456);
-      jest.spyOn(Math, 'random').mockReturnValueOnce(0.456);
-
       const handleLineaDelaySpy = jest
         .spyOn(transactionUtils, 'handleLineaDelay')
         .mockResolvedValueOnce();
 
-      // Approval calls
-      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
-      mockMessengerCall.mockReturnValueOnce('arbitrum-client-id');
-      mockMessengerCall.mockReturnValueOnce({
-        gasFeeEstimates: {
-          estimatedBaseFee: '0x1234',
-        },
-      });
-
-      estimateGasFeeFn.mockResolvedValue(mockEstimateGasFeeResult);
-      addTransactionFn.mockResolvedValueOnce({
-        transactionMeta: mockApprovalTxMeta,
-        result: Promise.resolve('0xapprovalTxHash'),
-      });
-
-      mockMessengerCall.mockReturnValueOnce({
-        transactions: [
-          { transactionMeta: mockApprovalTxMeta, hash: '0xapprovalTxHash' },
-        ],
-      });
-
-      // Bridge calls
-      mockMessengerCall.mockReturnValueOnce({
-        smartTransactionsOptInStatus: false,
-      });
-      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
-      mockMessengerCall.mockReturnValueOnce('arbitrum');
-      mockMessengerCall.mockReturnValueOnce({
-        gasFeeEstimates: {
-          estimatedBaseFee: '0x1234',
-        },
-      });
-
-      addTransactionFn.mockResolvedValueOnce({
-        transactionMeta: mockEvmTxMeta,
-        result: Promise.resolve('0xevmTxHash'),
-      });
-
-      mockMessengerCall.mockReturnValueOnce({
-        transactions: [
-          {
-            transactionMeta: mockEvmTxMeta,
-            hash: '0xevmTxHash',
-            id: 'test-tx-id',
-          },
-        ],
-      });
+      setupApprovalMocks();
+      setupBridgeMocks();
 
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
 
-      // Execute test
       const lineaQuoteResponse = {
         ...mockEvmQuoteResponse,
         quote: { ...mockEvmQuoteResponse.quote, srcChainId: 59144 },
         trade: { ...mockEvmQuoteResponse.trade, gasLimit: undefined } as never,
       };
+
       const result = await controller.submitTx(lineaQuoteResponse, false);
       controller.stopAllPolling();
 
       expect(handleLineaDelaySpy).toHaveBeenCalledTimes(1);
-
-      // eslint-disable-next-line jest/no-restricted-matchers
       expect(result).toMatchSnapshot();
-
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
       expect(
         startPollingForBridgeTxStatusSpy.mock.lastCall[0].statusRequest,
-        // eslint-disable-next-line jest/no-restricted-matchers
       ).toMatchSnapshot();
       expect(
         startPollingForBridgeTxStatusSpy.mock.lastCall[0].bridgeTxMeta,
@@ -2144,8 +1886,6 @@ describe('BridgeStatusController', () => {
       expect(startPollingForBridgeTxStatusSpy.mock.lastCall[0].startTime).toBe(
         1234567890,
       );
-
-      // eslint-disable-next-line jest/no-restricted-matchers
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
     });
   });
