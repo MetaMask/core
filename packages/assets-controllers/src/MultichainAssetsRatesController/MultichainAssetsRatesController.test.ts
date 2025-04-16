@@ -537,7 +537,7 @@ describe('MultichainAssetsRatesController', () => {
       expect(snapHandler).toHaveBeenCalledTimes(1);
     });
 
-    it('calls the snap if historical price does not exist for the current currency', async () => {
+    it('calls the snap if historical price does not exist in state for the current currency', async () => {
       const testCurrency = 'EUR';
       const { controller, messenger } = setupController({
         config: {
