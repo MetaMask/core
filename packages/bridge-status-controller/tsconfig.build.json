@@ -15,7 +15,6 @@
     { "path": "../gas-fee-controller/tsconfig.build.json" },
     { "path": "../polling-controller/tsconfig.build.json" },
     { "path": "../transaction-controller/tsconfig.build.json" },
-    { "path": "../preferences-controller/tsconfig.build.json" },
     { "path": "../user-operation-controller/tsconfig.build.json" }
   ],
   "include": ["../../types", "./src"]
