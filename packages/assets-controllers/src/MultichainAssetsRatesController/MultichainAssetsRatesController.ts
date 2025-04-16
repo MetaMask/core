@@ -362,7 +362,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
       'AccountsController:getSelectedMultichainAccount',
     );
 
-    const historicalPrices = await this.#handleSnapRequest({
+    const historicalPricesResponse = await this.#handleSnapRequest({
       snapId: selectedAccount?.metadata.snap?.id as SnapId,
       handler: HandlerType.OnAssetHistoricalPrice,
       params: {
@@ -371,12 +371,19 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
       },
     });
 
+    // skip state update if no historical prices are returned
+    if (!historicalPricesResponse) {
+      return;
+    }
+
     this.update((state) => {
       state.historicalPrices = {
         ...state.historicalPrices,
         [asset]: {
           ...state.historicalPrices[asset],
-          [this.#currentCurrency]: historicalPrices,
+          [this.#currentCurrency]: (
+            historicalPricesResponse as OnAssetHistoricalPriceResponse
+          )?.historicalPrice,
         },
       };
     });

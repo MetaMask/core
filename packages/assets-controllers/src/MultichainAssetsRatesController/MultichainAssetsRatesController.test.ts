@@ -1,6 +1,7 @@
 import { Messenger } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
+import type { OnAssetHistoricalPriceResponse } from '@metamask/snaps-sdk';
 import { useFakeTimers } from 'sinon';
 
 import { MultichainAssetsRatesController } from '.';
@@ -85,19 +86,21 @@ const fakeAccountRates = {
   },
 };
 
-const fakeHistoricalPrices = {
-  intervals: {
-    P1D: [
-      [1737542312, '1'],
-      [1737542312, '2'],
-    ],
-    P1W: [
-      [1737542312, '1'],
-      [1737542312, '2'],
-    ],
+const fakeHistoricalPrices: OnAssetHistoricalPriceResponse = {
+  historicalPrice: {
+    intervals: {
+      P1D: [
+        [1737542312, '1'],
+        [1737542312, '2'],
+      ],
+      P1W: [
+        [1737542312, '1'],
+        [1737542312, '2'],
+      ],
+    },
+    updateTime: 1737542312,
+    expirationTime: 1737542312,
   },
-  updateTime: 1737542312,
-  expirationTime: 1737542312,
 };
 
 const setupController = ({
@@ -487,6 +490,23 @@ describe('MultichainAssetsRatesController', () => {
       expect(snapHandler).not.toHaveBeenCalled();
     });
 
+    it('does not update state if historical prices return null', async () => {
+      const { controller, messenger } = setupController();
+
+      const snapHandler = jest.fn().mockResolvedValue(null);
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        snapHandler,
+      );
+
+      await controller.fetchHistoricalPricesForAsset(
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+      );
+
+      expect(snapHandler).toHaveBeenCalledTimes(1);
+      expect(controller.state.historicalPrices).toMatchObject({});
+    });
+
     it('calls the snap if historical price does not have an expiration time', async () => {
       const testCurrency = 'USD';
       const { controller, messenger } = setupController({
@@ -547,18 +567,24 @@ describe('MultichainAssetsRatesController', () => {
       expect(snapHandler).toHaveBeenCalledTimes(1);
     });
 
-    it('calls fetchHistoricalPricesForAsset and updates the state', async () => {
+    it('calls fetchHistoricalPricesForAsset once and returns early on subsequent calls', async () => {
       const { controller, messenger } = setupController();
 
-      const snapHandler = jest.fn().mockResolvedValue(fakeHistoricalPrices);
+      const testHistoricalPriceReturn = {
+        ...fakeHistoricalPrices.historicalPrice,
+        expirationTime: Date.now() + 1000,
+      };
+      const testAsset = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501';
+
+      const snapHandler = jest.fn().mockResolvedValue({
+        historicalPrice: testHistoricalPriceReturn,
+      });
       messenger.registerActionHandler(
         'SnapController:handleRequest',
         snapHandler,
       );
 
-      await controller.fetchHistoricalPricesForAsset(
-        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
-      );
+      await controller.fetchHistoricalPricesForAsset(testAsset);
 
       expect(snapHandler).toHaveBeenCalledWith({
         handler: 'onAssetHistoricalPrice',
@@ -567,7 +593,7 @@ describe('MultichainAssetsRatesController', () => {
           jsonrpc: '2.0',
           method: 'onAssetHistoricalPrice',
           params: {
-            from: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+            from: testAsset,
             to: 'swift:0/iso4217:USD',
           },
         },
@@ -575,10 +601,14 @@ describe('MultichainAssetsRatesController', () => {
       });
 
       expect(controller.state.historicalPrices).toMatchObject({
-        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
-          USD: fakeHistoricalPrices,
+        [testAsset]: {
+          USD: testHistoricalPriceReturn,
         },
       });
+
+      await controller.fetchHistoricalPricesForAsset(testAsset);
+
+      expect(snapHandler).toHaveBeenCalledTimes(1);
     });
   });
 });
