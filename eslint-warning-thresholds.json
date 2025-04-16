@@ -104,9 +104,8 @@
     "import-x/order": 3
   },
   "packages/assets-controllers/src/TokenRatesController.ts": {
-    "@typescript-eslint/prefer-readonly": 2,
-    "jsdoc/check-tag-names": 11,
-    "no-unused-private-class-members": 1
+    "@typescript-eslint/prefer-readonly": 1,
+    "jsdoc/check-tag-names": 11
   },
   "packages/assets-controllers/src/TokensController.test.ts": {
     "import-x/namespace": 1,
