@@ -3,6 +3,7 @@ import type {
   TrendingTokensParams,
   TopLosersParams,
   TopGainersParams,
+  BlueChipParams,
 } from '../types';
 
 /**
@@ -25,5 +26,9 @@ export abstract class AbstractTokenDiscoveryApiService {
 
   abstract getTopGainersByChains(
     params?: TopGainersParams,
+  ): Promise<MoralisTokenResponseItem[]>;
+
+  abstract getBlueChipTokensByChains(
+    params?: BlueChipParams,
   ): Promise<MoralisTokenResponseItem[]>;
 }
