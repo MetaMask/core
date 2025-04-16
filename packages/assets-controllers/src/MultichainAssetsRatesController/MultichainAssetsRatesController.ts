@@ -23,6 +23,7 @@ import type {
   OnAssetsConversionResponse,
   OnAssetHistoricalPriceArguments,
   OnAssetHistoricalPriceResponse,
+  HistoricalPriceIntervals,
 } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import { Mutex } from 'async-mutex';
@@ -45,11 +46,21 @@ import type {
  */
 const controllerName = 'MultichainAssetsRatesController';
 
+// This is temporary until its exported from snap
+type HistoricalPrice = {
+  intervals: HistoricalPriceIntervals;
+  // The UNIX timestamp of when the historical price was last updated.
+  updateTime: number;
+  // The UNIX timestamp of when the historical price will expire.
+  expirationTime?: number;
+};
+
 /**
  * State used by the MultichainAssetsRatesController to cache token conversion rates.
  */
 export type MultichainAssetsRatesControllerState = {
   conversionRates: Record<CaipAssetType, AssetConversion>;
+  historicalPrices: Record<CaipAssetType, Record<string, HistoricalPrice>>; // string being the current currency we fetched historical prices for
 };
 
 /**
@@ -78,7 +89,7 @@ export type MultichainAssetsRatesControllerUpdateRatesAction = {
  * @returns The default {@link MultichainAssetsRatesController} state.
  */
 export function getDefaultMultichainAssetsRatesControllerState(): MultichainAssetsRatesControllerState {
-  return { conversionRates: {} };
+  return { conversionRates: {}, historicalPrices: {} };
 }
 
 /**
@@ -143,6 +154,7 @@ export type MultichainAssetsRatesPollingInput = {
 
 const metadata = {
   conversionRates: { persist: true, anonymous: true },
+  historicalPrices: { persist: false, anonymous: true },
 };
 
 /**
@@ -330,26 +342,44 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
    * @param asset - The asset to fetch historical prices for.
    * @returns The historical prices.
    */
-  async fetchHistoricalPrices(
-    asset: CaipAssetType,
-  ): Promise<OnAssetHistoricalPriceResponse> {
+  async fetchHistoricalPricesForAsset(asset: CaipAssetType): Promise<void> {
+    const currentCaipCurrency =
+      MAP_CAIP_CURRENCIES[this.#currentCurrency] ?? MAP_CAIP_CURRENCIES.usd;
+    // Check if we already have historical prices for this asset and currency
+    const historicalPriceExpirationTime =
+      this.state.historicalPrices[asset]?.[this.#currentCurrency]
+        ?.expirationTime ?? null;
+
+    const historicalPriceHasExpired =
+      historicalPriceExpirationTime &&
+      historicalPriceExpirationTime < Date.now();
+
+    if (historicalPriceHasExpired === false) {
+      return;
+    }
+
     const selectedAccount = this.messagingSystem.call(
       'AccountsController:getSelectedMultichainAccount',
     );
-
-    const currentCurrency =
-      MAP_CAIP_CURRENCIES[this.#currentCurrency] ?? MAP_CAIP_CURRENCIES.usd;
 
     const historicalPrices = await this.#handleSnapRequest({
       snapId: selectedAccount?.metadata.snap?.id as SnapId,
       handler: HandlerType.OnAssetHistoricalPrice,
       params: {
         from: asset,
-        to: currentCurrency,
+        to: currentCaipCurrency,
       },
     });
 
-    return historicalPrices as OnAssetHistoricalPriceResponse;
+    this.update((state) => {
+      state.historicalPrices = {
+        ...state.historicalPrices,
+        [asset]: {
+          ...state.historicalPrices[asset],
+          [this.#currentCurrency]: historicalPrices,
+        },
+      };
+    });
   }
 
   /**
