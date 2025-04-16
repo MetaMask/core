@@ -17,7 +17,7 @@ import type { FetchOptions } from './shared';
  * failovers.
  */
 export class RpcServiceChain implements RpcServiceRequestable {
-  readonly #services: RpcService[];
+  #services: RpcService[] = [];
 
   /**
    * Constructs a new RpcServiceChain object.
@@ -27,6 +27,25 @@ export class RpcServiceChain implements RpcServiceRequestable {
    * {@link RpcServiceOptions}.
    */
   constructor(
+    rpcServiceConfigurations: Omit<RpcServiceOptions, 'failoverService'>[],
+  ) {
+    this.updateServices(rpcServiceConfigurations);
+  }
+
+  /**
+   * Replaces the underlying RPC services with a new set constructed from the
+   * given configuration objects.
+   *
+   * This is useful when toggling the RPC failover feature without needing to
+   * reconstruct entire network clients or RPC middleware stacks. (This is
+   * possible because the fetch and Infura middleware take this whole
+   * RpcServiceChain object, not individual RpcService instances.)
+   *
+   * @param rpcServiceConfigurations - The options for the RPC services
+   * that you want to construct. Each object in this array is the same as
+   * {@link RpcServiceOptions}.
+   */
+  updateServices(
     rpcServiceConfigurations: Omit<RpcServiceOptions, 'failoverService'>[],
   ) {
     this.#services = this.#buildRpcServiceChain(rpcServiceConfigurations);

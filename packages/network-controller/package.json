@@ -69,6 +69,7 @@
   "devDependencies": {
     "@json-rpc-specification/meta-schema": "^1.0.6",
     "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/remote-feature-flag-controller": "^1.6.0",
     "@types/jest": "^27.4.1",
     "@types/jest-when": "^2.7.3",
     "@types/lodash": "^4.14.191",
@@ -84,6 +85,9 @@
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.2.2"
+  },
+  "peerDependencies": {
+    "@metamask/remote-feature-flag-controller": "^1.5.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

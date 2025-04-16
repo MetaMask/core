@@ -15,6 +15,120 @@ describe('RpcServiceChain', () => {
     clock.restore();
   });
 
+  describe('updateServices', () => {
+    it('replaces the underlying RPC services with a new set constructed from the given configuration objects', async () => {
+      nock('https://first.chain')
+        .post(
+          '/',
+          {
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'eth_chainId',
+            params: [],
+          },
+          {
+            reqheaders: {},
+          },
+        )
+        .times(15)
+        .reply(503);
+      nock('https://second.chain')
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .times(15)
+        .reply(503);
+      nock('https://third.chain')
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .reply(200, {
+          id: 1,
+          jsonrpc: '2.0',
+          result: 'ok',
+        });
+
+      const rpcServiceChain = new RpcServiceChain([
+        {
+          fetch,
+          btoa,
+          endpointUrl: 'https://some.other.chain',
+        },
+      ]);
+      rpcServiceChain.updateServices([
+        {
+          fetch,
+          btoa,
+          endpointUrl: 'https://first.chain',
+        },
+        {
+          fetch,
+          btoa,
+          endpointUrl: 'https://second.chain',
+          fetchOptions: {
+            headers: {
+              'X-Foo': 'Bar',
+            },
+          },
+        },
+        {
+          fetch,
+          btoa,
+          endpointUrl: 'https://third.chain',
+        },
+      ]);
+      rpcServiceChain.onRetry(() => {
+        // We don't need to await this promise; adding it to the promise
+        // queue is enough to continue.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        clock.nextAsync();
+      });
+
+      const jsonRpcRequest = {
+        id: 1,
+        jsonrpc: '2.0' as const,
+        method: 'eth_chainId',
+        params: [],
+      };
+      // Retry the first endpoint until max retries is hit.
+      await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
+        'Gateway timeout',
+      );
+      // Retry the first endpoint again, until max retries is hit.
+      await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
+        'Gateway timeout',
+      );
+      // Retry the first endpoint for a third time, until max retries is hit.
+      // The circuit will break on the last time, and the second endpoint will
+      // be retried, until max retries is hit.
+      await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
+        'Gateway timeout',
+      );
+      // Try the first endpoint, see that the circuit is broken, and retry the
+      // second endpoint, until max retries is hit.
+      await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
+        'Gateway timeout',
+      );
+      // Try the first endpoint, see that the circuit is broken, and retry the
+      // second endpoint, until max retries is hit.
+      // The circuit will break on the last time, and the third endpoint will
+      // be hit. This is finally a success.
+      const response = await rpcServiceChain.request(jsonRpcRequest);
+
+      expect(response).toStrictEqual({
+        id: 1,
+        jsonrpc: '2.0',
+        result: 'ok',
+      });
+    });
+  });
+
   describe('onRetry', () => {
     it('returns a listener which can be disposed', () => {
       const rpcServiceChain = new RpcServiceChain([

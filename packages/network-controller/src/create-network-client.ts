@@ -46,6 +46,8 @@ export type NetworkClient = {
   provider: Provider;
   blockTracker: BlockTracker;
   destroy: () => void;
+  enableRpcFailover: () => void;
+  disableRpcFailover: () => void;
 };
 
 /**
@@ -57,34 +59,43 @@ export type NetworkClient = {
  * options. See {@link NetworkControllerOptions.getRpcServiceOptions}.
  * @param args.messenger - The network controller messenger.
  * See {@link NetworkControllerOptions.getRpcServiceOptions}.
+ * @param args.isRpcFailoverEnabled - Whether or not requests sent to the RPC
+ * endpoint for this network should be automatically diverted to failover RPC
+ * endpoints (if defined).
  * @returns The network client.
  */
 export function createNetworkClient({
   configuration,
   getRpcServiceOptions,
   messenger,
+  isRpcFailoverEnabled: initialRpcFailoverEnabled,
 }: {
   configuration: NetworkClientConfiguration;
   getRpcServiceOptions: (
     rpcEndpointUrl: string,
   ) => Omit<RpcServiceOptions, 'failoverService' | 'endpointUrl'>;
   messenger: NetworkControllerMessenger;
+  isRpcFailoverEnabled: boolean;
 }): NetworkClient {
+  let isRpcFailoverEnabled = initialRpcFailoverEnabled;
   const primaryEndpointUrl =
     configuration.type === NetworkClientType.Infura
       ? `https://${configuration.network}.infura.io/v3/${configuration.infuraProjectId}`
       : configuration.rpcUrl;
-  const availableEndpointUrls = [
-    primaryEndpointUrl,
-    ...(configuration.failoverRpcUrls ?? []),
-  ];
-  const rpcService = new RpcServiceChain(
+  const determineAvailableEndpointUrls = (givenRpcFailoverEnabled: boolean) => {
+    return givenRpcFailoverEnabled
+      ? [primaryEndpointUrl, ...(configuration.failoverRpcUrls ?? [])]
+      : [primaryEndpointUrl];
+  };
+  const availableEndpointUrls =
+    determineAvailableEndpointUrls(isRpcFailoverEnabled);
+  const rpcServiceChain = new RpcServiceChain(
     availableEndpointUrls.map((endpointUrl) => ({
       ...getRpcServiceOptions(endpointUrl),
       endpointUrl,
     })),
   );
-  rpcService.onBreak(({ endpointUrl, failoverEndpointUrl, ...rest }) => {
+  rpcServiceChain.onBreak(({ endpointUrl, failoverEndpointUrl, ...rest }) => {
     let error: unknown;
     if ('error' in rest) {
       error = rest.error;
@@ -99,28 +110,57 @@ export function createNetworkClient({
       error,
     });
   });
-  rpcService.onDegraded(({ endpointUrl }) => {
+  rpcServiceChain.onDegraded(({ endpointUrl }) => {
     messenger.publish('NetworkController:rpcEndpointDegraded', {
       chainId: configuration.chainId,
       endpointUrl,
     });
   });
-  rpcService.onRetry(({ endpointUrl, attempt }) => {
+  rpcServiceChain.onRetry(({ endpointUrl, attempt }) => {
     messenger.publish('NetworkController:rpcEndpointRequestRetried', {
       endpointUrl,
       attempt,
     });
   });
 
+  const updateRpcServices = () => {
+    rpcServiceChain.updateServices(
+      determineAvailableEndpointUrls(isRpcFailoverEnabled).map(
+        (endpointUrl) => ({
+          ...getRpcServiceOptions(endpointUrl),
+          endpointUrl,
+        }),
+      ),
+    );
+  };
+
+  const enableRpcFailover = () => {
+    if (isRpcFailoverEnabled) {
+      return;
+    }
+
+    isRpcFailoverEnabled = true;
+    updateRpcServices();
+  };
+
+  const disableRpcFailover = () => {
+    if (!isRpcFailoverEnabled) {
+      return;
+    }
+
+    isRpcFailoverEnabled = false;
+    updateRpcServices();
+  };
+
   const rpcApiMiddleware =
     configuration.type === NetworkClientType.Infura
       ? createInfuraMiddleware({
-          rpcService,
+          rpcService: rpcServiceChain,
           options: {
             source: 'metamask',
           },
         })
-      : createFetchMiddleware({ rpcService });
+      : createFetchMiddleware({ rpcService: rpcServiceChain });
 
   const rpcProvider = providerFromMiddleware(rpcApiMiddleware);
 
@@ -159,7 +199,14 @@ export function createNetworkClient({
     blockTracker.destroy();
   };
 
-  return { configuration, provider, blockTracker, destroy };
+  return {
+    configuration,
+    provider,
+    blockTracker,
+    destroy,
+    enableRpcFailover,
+    disableRpcFailover,
+  };
 }
 
 /**

@@ -313,6 +313,7 @@ export type MockOptions = {
   getRpcServiceOptions?: NetworkControllerOptions['getRpcServiceOptions'];
   expectedHeaders?: Record<string, string>;
   messenger?: RootMessenger;
+  isRpcFailoverEnabled?: boolean;
 };
 
 export type MockCommunications = {
@@ -473,6 +474,8 @@ export async function waitForPromiseToBeFulfilledAfterRunningAllTimers(
  * that `providerType` is "custom" (default: "ETH").
  * @param options.getRpcServiceOptions - RPC service options factory.
  * @param options.messenger - The root messenger to use in tests.
+ * @param options.isRpcFailoverEnabled - Whether or not the RPC failover
+ * functionality is enabled.
  * @param fn - A function which will be called with an object that allows
  * interaction with the network client.
  * @returns The return value of the given function.
@@ -487,6 +490,7 @@ export async function withNetworkClient(
     customTicker = 'ETH',
     getRpcServiceOptions = () => ({ fetch, btoa }),
     messenger = buildRootMessenger(),
+    isRpcFailoverEnabled = false,
   }: MockOptions,
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -538,6 +542,7 @@ export async function withNetworkClient(
     configuration: networkClientConfiguration,
     getRpcServiceOptions,
     messenger: networkControllerMessenger,
+    isRpcFailoverEnabled,
   });
   /* eslint-disable-next-line n/no-process-env */
   process.env.IN_TEST = inTest;

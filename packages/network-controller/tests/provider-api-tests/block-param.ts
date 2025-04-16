@@ -753,7 +753,6 @@ export function testsForRpcMethodSupportingBlockParam(
             // The block-ref middleware will make the request as specified
             // except that the block param is replaced with the latest block
             // number.
-
             comms.mockRpcCall({
               request: buildRequestWithReplacedBlockParam(
                 request,

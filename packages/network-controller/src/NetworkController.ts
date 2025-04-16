@@ -18,6 +18,7 @@ import {
   BuiltInNetworkName,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
+import type { RemoteFeatureFlagControllerStateChangeEvent } from '@metamask/remote-feature-flag-controller';
 import { errorCodes } from '@metamask/rpc-errors';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
@@ -497,6 +498,8 @@ export type NetworkControllerEvents =
   | NetworkControllerRpcEndpointDegradedEvent
   | NetworkControllerRpcEndpointRequestRetriedEvent;
 
+export type AllowedEvents = RemoteFeatureFlagControllerStateChangeEvent;
+
 export type NetworkControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   NetworkState
@@ -589,12 +592,14 @@ export type NetworkControllerActions =
   | NetworkControllerRemoveNetworkAction
   | NetworkControllerUpdateNetworkAction;
 
+export type AllowedActions = never;
+
 export type NetworkControllerMessenger = RestrictedMessenger<
   typeof controllerName,
-  NetworkControllerActions,
-  NetworkControllerEvents,
-  never,
-  never
+  NetworkControllerActions | AllowedActions,
+  NetworkControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
 >;
 
 /**
@@ -630,11 +635,15 @@ export type NetworkControllerOptions = {
   getRpcServiceOptions: (
     rpcEndpointUrl: string,
   ) => Omit<RpcServiceOptions, 'failoverService' | 'endpointUrl'>;
-
   /**
    * An array of Hex Chain IDs representing the additional networks to be included as default.
    */
   additionalDefaultNetworks?: AdditionalDefaultNetwork[];
+  /**
+   * Whether or not requests sent to unavailable RPC endpoints should be
+   * automatically diverted to configured failover RPC endpoints.
+   */
+  isRpcFailoverEnabled?: boolean;
 };
 
 /**
@@ -1085,6 +1094,11 @@ export class NetworkController extends BaseController<
     NetworkConfiguration
   >;
 
+  #isRpcFailoverEnabled: Exclude<
+    NetworkControllerOptions['isRpcFailoverEnabled'],
+    undefined
+  >;
+
   /**
    * Constructs a NetworkController.
    *
@@ -1098,6 +1112,7 @@ export class NetworkController extends BaseController<
       log,
       getRpcServiceOptions,
       additionalDefaultNetworks,
+      isRpcFailoverEnabled = false,
     } = options;
     const initialState = {
       ...getDefaultNetworkControllerState(additionalDefaultNetworks),
@@ -1131,6 +1146,7 @@ export class NetworkController extends BaseController<
     this.#infuraProjectId = infuraProjectId;
     this.#log = log;
     this.#getRpcServiceOptions = getRpcServiceOptions;
+    this.#isRpcFailoverEnabled = isRpcFailoverEnabled;
 
     this.#previouslySelectedNetworkClientId =
       this.state.selectedNetworkClientId;
@@ -1227,6 +1243,31 @@ export class NetworkController extends BaseController<
       `${this.name}:updateNetwork`,
       this.updateNetwork.bind(this),
     );
+  }
+
+  enableRpcFailover() {
+    if (this.#isRpcFailoverEnabled) {
+      return;
+    }
+
+    const networkClientsById = this.getNetworkClientRegistry();
+
+    for (const networkClient of Object.values(networkClientsById)) {
+      console.log('networkClient', networkClient.configuration);
+      if (
+        networkClient.configuration.failoverRpcUrls &&
+        networkClient.configuration.failoverRpcUrls.length > 0
+      ) {
+        networkClient.enableRpcFailover();
+      }
+    }
+
+    this.#isRpcFailoverEnabled = true;
+  }
+
+  disableRpcFailover() {
+    // Go through all RPC endpoints with failover RPC URLs defined and call
+    // .enableRpcFailover on the network clients
   }
 
   /**
@@ -2639,6 +2680,7 @@ export class NetworkController extends BaseController<
           },
           getRpcServiceOptions: this.#getRpcServiceOptions,
           messenger: this.messagingSystem,
+          isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
         });
       } else {
         autoManagedNetworkClientRegistry[NetworkClientType.Custom][
@@ -2653,6 +2695,7 @@ export class NetworkController extends BaseController<
           },
           getRpcServiceOptions: this.#getRpcServiceOptions,
           messenger: this.messagingSystem,
+          isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
         });
       }
     }
@@ -2813,6 +2856,7 @@ export class NetworkController extends BaseController<
               },
               getRpcServiceOptions: this.#getRpcServiceOptions,
               messenger: this.messagingSystem,
+              isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
             }),
           ] as const;
         }
@@ -2828,6 +2872,7 @@ export class NetworkController extends BaseController<
             },
             getRpcServiceOptions: this.#getRpcServiceOptions,
             messenger: this.messagingSystem,
+            isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
           }),
         ] as const;
       });

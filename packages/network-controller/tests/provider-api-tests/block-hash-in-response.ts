@@ -410,9 +410,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
           async ({ makeRpcCall }) => makeRpcCall(request),
         );
 
-        await expect(promiseForResult).rejects.toThrow(
-          `Non-200 status code: '${httpStatus}'`,
-        );
+        await expect(promiseForResult).rejects.toThrow(errorMessage);
       });
     });
 

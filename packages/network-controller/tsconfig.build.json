@@ -9,7 +9,8 @@
     { "path": "../base-controller/tsconfig.build.json" },
     { "path": "../controller-utils/tsconfig.build.json" },
     { "path": "../eth-json-rpc-provider/tsconfig.build.json" },
-    { "path": "../json-rpc-engine/tsconfig.build.json" }
+    { "path": "../json-rpc-engine/tsconfig.build.json" },
+    { "path": "../remote-feature-flag-controller/tsconfig.build.json" }
   ],
   "include": ["../../types", "./src"]
 }

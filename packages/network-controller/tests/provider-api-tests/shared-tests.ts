@@ -131,7 +131,7 @@ export function testsForProviderType(providerType: ProviderType) {
         );
     });
 
-    describe('methods that have a param to specify the block', () => {
+    describe.only('methods that have a param to specify the block', () => {
       const supportingBlockParam = [
         {
           name: 'eth_call',

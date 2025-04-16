@@ -3818,6 +3818,7 @@ __metadata:
     "@metamask/eth-json-rpc-provider": "npm:^4.1.8"
     "@metamask/eth-query": "npm:^4.0.0"
     "@metamask/json-rpc-engine": "npm:^10.0.3"
+    "@metamask/remote-feature-flag-controller": "npm:^1.6.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/swappable-obj-proxy": "npm:^2.3.0"
     "@metamask/utils": "npm:^11.2.0"
@@ -3843,6 +3844,8 @@ __metadata:
     typescript: "npm:~5.2.2"
     uri-js: "npm:^4.4.1"
     uuid: "npm:^8.3.2"
+  peerDependencies:
+    "@metamask/remote-feature-flag-controller": ^1.5.0
   languageName: unknown
   linkType: soft
 

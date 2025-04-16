@@ -40,6 +40,8 @@ export type AutoManagedNetworkClient<
   provider: ProxyWithAccessibleTarget<Provider>;
   blockTracker: ProxyWithAccessibleTarget<BlockTracker>;
   destroy: () => void;
+  enableRpcFailover: () => void;
+  disableRpcFailover: () => void;
 };
 
 /**
@@ -67,6 +69,9 @@ const UNINITIALIZED_TARGET = { __UNINITIALIZED__: true };
  * @param args.getRpcServiceOptions - Factory for constructing RPC service
  * options. See {@link NetworkControllerOptions.getRpcServiceOptions}.
  * @param args.messenger - The network controller messenger.
+ * @param args.isRpcFailoverEnabled - Whether or not requests sent to the RPC
+ * endpoint for this network should be automatically diverted to failover RPC
+ * endpoints (if defined).
  * @returns The auto-managed network client.
  */
 export function createAutoManagedNetworkClient<
@@ -75,14 +80,34 @@ export function createAutoManagedNetworkClient<
   networkClientConfiguration,
   getRpcServiceOptions,
   messenger,
+  isRpcFailoverEnabled: initialRpcFailoverEnabled,
 }: {
   networkClientConfiguration: Configuration;
   getRpcServiceOptions: (
     rpcEndpointUrl: string,
   ) => Omit<RpcServiceOptions, 'failoverService' | 'endpointUrl'>;
   messenger: NetworkControllerMessenger;
+  isRpcFailoverEnabled: boolean;
 }): AutoManagedNetworkClient<Configuration> {
+  let isRpcFailoverEnabled = initialRpcFailoverEnabled;
   let networkClient: NetworkClient | undefined;
+
+  const ensureNetworkClientCreated = (): NetworkClient => {
+    networkClient ??= createNetworkClient({
+      configuration: networkClientConfiguration,
+      getRpcServiceOptions,
+      messenger,
+      isRpcFailoverEnabled,
+    });
+
+    if (networkClient === undefined) {
+      throw new Error(
+        "It looks like `createNetworkClient` didn't return anything. Perhaps it's being mocked?",
+      );
+    }
+
+    return networkClient;
+  };
 
   const providerProxy = new Proxy(UNINITIALIZED_TARGET, {
     // TODO: Replace `any` with type
@@ -92,17 +117,7 @@ export function createAutoManagedNetworkClient<
         return networkClient?.provider;
       }
 
-      networkClient ??= createNetworkClient({
-        configuration: networkClientConfiguration,
-        getRpcServiceOptions,
-        messenger,
-      });
-      if (networkClient === undefined) {
-        throw new Error(
-          "It looks like `createNetworkClient` didn't return anything. Perhaps it's being mocked?",
-        );
-      }
-      const { provider } = networkClient;
+      const { provider } = ensureNetworkClientCreated();
 
       if (propertyName in provider) {
         // Typecast: We know that `[propertyName]` is a propertyName on
@@ -133,12 +148,7 @@ export function createAutoManagedNetworkClient<
       if (propertyName === REFLECTIVE_PROPERTY_NAME) {
         return true;
       }
-      networkClient ??= createNetworkClient({
-        configuration: networkClientConfiguration,
-        getRpcServiceOptions,
-        messenger,
-      });
-      const { provider } = networkClient;
+      const { provider } = ensureNetworkClientCreated();
       return propertyName in provider;
     },
   });
@@ -153,17 +163,7 @@ export function createAutoManagedNetworkClient<
           return networkClient?.blockTracker;
         }
 
-        networkClient ??= createNetworkClient({
-          configuration: networkClientConfiguration,
-          getRpcServiceOptions,
-          messenger,
-        });
-        if (networkClient === undefined) {
-          throw new Error(
-            "It looks like createNetworkClient returned undefined. Perhaps it's mocked?",
-          );
-        }
-        const { blockTracker } = networkClient;
+        const { blockTracker } = ensureNetworkClientCreated();
 
         if (propertyName in blockTracker) {
           // Typecast: We know that `[propertyName]` is a propertyName on
@@ -194,12 +194,7 @@ export function createAutoManagedNetworkClient<
         if (propertyName === REFLECTIVE_PROPERTY_NAME) {
           return true;
         }
-        networkClient ??= createNetworkClient({
-          configuration: networkClientConfiguration,
-          getRpcServiceOptions,
-          messenger,
-        });
-        const { blockTracker } = networkClient;
+        const { blockTracker } = ensureNetworkClientCreated();
         return propertyName in blockTracker;
       },
     },
@@ -209,10 +204,28 @@ export function createAutoManagedNetworkClient<
     networkClient?.destroy();
   };
 
+  const enableRpcFailover = () => {
+    if (networkClient) {
+      networkClient.enableRpcFailover();
+    } else {
+      isRpcFailoverEnabled = true;
+    }
+  };
+
+  const disableRpcFailover = () => {
+    if (networkClient) {
+      networkClient.disableRpcFailover();
+    } else {
+      isRpcFailoverEnabled = false;
+    }
+  };
+
   return {
     configuration: networkClientConfiguration,
     provider: providerProxy,
     blockTracker: blockTrackerProxy,
     destroy,
+    enableRpcFailover,
+    disableRpcFailover,
   };
 }

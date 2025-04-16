@@ -1,5 +1,8 @@
 export { RemoteFeatureFlagController } from './remote-feature-flag-controller';
-export type { RemoteFeatureFlagControllerMessenger } from './remote-feature-flag-controller';
+export type {
+  RemoteFeatureFlagControllerMessenger,
+  RemoteFeatureFlagControllerStateChangeEvent,
+} from './remote-feature-flag-controller';
 export {
   ClientType,
   DistributionType,

@@ -25,6 +25,8 @@ import type { AutoManagedNetworkClient } from '../src/create-auto-managed-networ
 import type {
   AddNetworkCustomRpcEndpointFields,
   AddNetworkFields,
+  AllowedActions,
+  AllowedEvents,
   CustomRpcEndpoint,
   InfuraRpcEndpoint,
   NetworkControllerActions,
@@ -40,8 +42,8 @@ import type {
 import { NetworkClientType } from '../src/types';
 
 export type RootMessenger = Messenger<
-  NetworkControllerActions,
-  NetworkControllerEvents
+  NetworkControllerActions | AllowedActions,
+  NetworkControllerEvents | AllowedEvents
 >;
 
 /**
@@ -73,7 +75,7 @@ export const TESTNET = {
  * @returns The messenger.
  */
 export function buildRootMessenger(): RootMessenger {
-  return new Messenger<NetworkControllerActions, NetworkControllerEvents>();
+  return new Messenger();
 }
 
 /**
@@ -88,7 +90,7 @@ export function buildNetworkControllerMessenger(
   return messenger.getRestricted({
     name: 'NetworkController',
     allowedActions: [],
-    allowedEvents: [],
+    allowedEvents: ['RemoteFeatureFlagController:stateChange'],
   });
 }
 
@@ -100,14 +102,25 @@ export function buildNetworkControllerMessenger(
  * @param args.configuration - The desired network client configuration.
  * @param args.providerStubs - Objects that allow for stubbing specific provider
  * requests.
+ * @param args.enableRpcFailover - Override for the `enableRpcFailover` method.
+ * @param args.disableRpcFailover - Override for the `disableRpcFailover`
+ * method.
  * @returns The fake network client.
  */
-function buildFakeNetworkClient({
+export function buildFakeNetworkClient({
   configuration,
   providerStubs = [],
+  enableRpcFailover = () => {
+    // do nothing,
+  },
+  disableRpcFailover = () => {
+    // do nothing,
+  },
 }: {
   configuration: NetworkClientConfiguration;
   providerStubs?: FakeProviderStub[];
+  enableRpcFailover?: () => void;
+  disableRpcFailover?: () => void;
 }): NetworkClient {
   const provider = new FakeProvider({ stubs: providerStubs });
   return {
@@ -117,6 +130,8 @@ function buildFakeNetworkClient({
     destroy: () => {
       // do nothing
     },
+    enableRpcFailover,
+    disableRpcFailover,
   };
 }
 

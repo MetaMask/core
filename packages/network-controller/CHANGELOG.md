@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `rpcFailoverEnabled` option to `NetworkController` constructor (`false` by default) ([#5668](https://github.com/MetaMask/core/pull/5668))
+
 ## [23.2.0]
 
 ### Added
