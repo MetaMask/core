@@ -1,5 +1,9 @@
 import { AbstractTokenSearchApiService } from './abstract-token-search-api-service';
-import type { TokenSearchParams, TokenSearchResponseItem } from '../types';
+import type {
+  SwappableTokenSearchParams,
+  TokenSearchParams,
+  TokenSearchResponseItem,
+} from '../types';
 
 export class TokenSearchApiService extends AbstractTokenSearchApiService {
   readonly #baseUrl: string;
@@ -25,6 +29,32 @@ export class TokenSearchApiService extends AbstractTokenSearchApiService {
     }
     if (tokenSearchParams?.limit) {
       url.searchParams.append('limit', tokenSearchParams.limit);
+    }
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Portfolio API request failed with status: ${response.status}`,
+      );
+    }
+
+    return response.json();
+  }
+
+  async searchSwappableTokens(
+    swappableTokenSearchParams: SwappableTokenSearchParams,
+  ): Promise<TokenSearchResponseItem[]> {
+    const url = new URL('/tokens-search/swappable', this.#baseUrl);
+    url.searchParams.append('query', swappableTokenSearchParams.query);
+
+    if (swappableTokenSearchParams?.limit) {
+      url.searchParams.append('limit', swappableTokenSearchParams.limit);
     }
 
     const response = await fetch(url, {
