@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: hardcode support for ethereum mainnet temporarily until we refac… ([#5650](https://github.com/MetaMask/core/pull/5650))
+- Release 358.0.0 ([#5648](https://github.com/MetaMask/core/pull/5648))
+- Release 354.0.0 ([#5615](https://github.com/MetaMask/core/pull/5615))
+
 ## [0.11.0]
 
 ### Added
