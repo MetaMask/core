@@ -19,5 +19,4 @@ export const ETHERSCAN_SUPPORTED_CHAIN_IDS = {
   MOONBEAM_TESTNET: '0x507',
   MOONRIVER: '0x505',
   GNOSIS: '0x64',
-  SEI: '0x531',
 } as const;
