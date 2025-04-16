@@ -580,7 +580,6 @@ describe('BridgeStatusController', () => {
       );
 
       // Assertion
-
       expect(bridgeStatusController.state.txHistory).toMatchSnapshot();
     });
     it('restarts polling for history items that are not complete', async () => {
@@ -643,7 +642,6 @@ describe('BridgeStatusController', () => {
       );
 
       // Assertion
-
       expect(bridgeStatusController.state.txHistory).toMatchSnapshot();
     });
     it('starts polling and updates the tx history when the status response is received', async () => {

@@ -464,7 +464,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     quoteResponse: QuoteResponse<string> & QuoteMetadata,
   ) => {
     const selectedAccount = this.#getMultichainSelectedAccount();
-
     if (!selectedAccount) {
       throw new Error(
         'Failed to submit cross-chain swap transaction: undefined multichain account',
@@ -478,7 +477,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         'Failed to submit cross-chain swap transaction: undefined snap id or scope',
       );
     }
-
     const keyringRequest = getKeyringRequest(quoteResponse, selectedAccount);
     const keyringResponse = (await this.messagingSystem.call(
       'SnapController:handleRequest',
@@ -787,7 +785,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       typeof quoteResponse.trade === 'string'
     ) {
       txMeta = await this.#handleSolanaTx(
-         quoteResponse as QuoteResponse<string> & QuoteMetadata,
+        quoteResponse as QuoteResponse<string> & QuoteMetadata,
       );
     }
     // Submit EVM tx
