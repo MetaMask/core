@@ -1,16 +1,23 @@
-import type { AccountsControllerGetSelectedMultichainAccountAction } from '@metamask/accounts-controller';
+import type {
+  AccountsControllerGetAccountByAddressAction,
+  AccountsControllerGetSelectedMultichainAccountAction,
+} from '@metamask/accounts-controller';
+import type { TokensControllerAddDetectedTokensAction } from '@metamask/assets-controllers';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   RestrictedMessenger,
 } from '@metamask/base-controller';
 import type {
+  BridgeBackgroundAction,
+  BridgeControllerAction,
   ChainId,
   Quote,
   QuoteMetadata,
   QuoteResponse,
   TxData,
 } from '@metamask/bridge-controller';
+import type { GetGasFeeState } from '@metamask/gas-fee-controller';
 import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
@@ -45,6 +52,16 @@ export enum StatusTypes {
   PENDING = 'PENDING',
   COMPLETE = 'COMPLETE',
 }
+
+/**
+ * These fields are specific to Solana transactions and can likely be infered from TransactionMeta
+ *
+ * @deprecated these should be removed eventually
+ */
+export type SolanaTransactionMeta = {
+  isSolana: boolean;
+  isBridgeTx: boolean;
+};
 
 export type StatusRequest = {
   bridgeId: string; // lifi, socket, squid
@@ -326,7 +343,11 @@ type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | AccountsControllerGetSelectedMultichainAccountAction
   | HandleSnapRequest
-  | TransactionControllerGetStateAction;
+  | TransactionControllerGetStateAction
+  | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>
+  | GetGasFeeState
+  | AccountsControllerGetAccountByAddressAction
+  | TokensControllerAddDetectedTokensAction;
 
 /**
  * The external events available to the BridgeStatusController.

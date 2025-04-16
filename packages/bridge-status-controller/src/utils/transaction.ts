@@ -1,6 +1,7 @@
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import type { TxData } from '@metamask/bridge-controller';
 import {
+  ChainId,
   formatChainIdToHex,
   type QuoteMetadata,
   type QuoteResponse,
@@ -10,7 +11,13 @@ import {
   TransactionType,
   type TransactionMeta,
 } from '@metamask/transaction-controller';
+import { createProjectLogger } from '@metamask/utils';
 import { v4 as uuid } from 'uuid';
+
+import { LINEA_DELAY_MS } from '../constants';
+import type { SolanaTransactionMeta } from '../types';
+
+export const generateActionId = () => (Date.now() + Math.random()).toString();
 
 export const getStatusRequestParams = (
   quoteResponse: QuoteResponse<string | TxData>,
@@ -29,7 +36,10 @@ export const getTxMetaFields = (
   quoteResponse: Omit<QuoteResponse<string | TxData>, 'approval' | 'trade'> &
     QuoteMetadata,
   approvalTxId?: string,
-) => {
+): Omit<
+  TransactionMeta,
+  'networkClientId' | 'status' | 'time' | 'txParams' | 'id'
+> => {
   return {
     destinationChainId: formatChainIdToHex(quoteResponse.quote.destChainId),
     sourceTokenAmount: quoteResponse.quote.srcTokenAmount,
@@ -42,21 +52,20 @@ export const getTxMetaFields = (
     destinationTokenDecimals: quoteResponse.quote.destAsset.decimals,
     destinationTokenAddress: quoteResponse.quote.destAsset.address,
 
+    chainId: formatChainIdToHex(quoteResponse.quote.srcChainId),
     approvalTxId,
     // this is the decimal (non atomic) amount (not USD value) of source token to swap
     swapTokenValue: quoteResponse.sentAmount.amount,
-    // Ensure it's marked as a bridge transaction for UI detection
-    isBridgeTx: true, // TODO deprecate this and use tx type
   };
 };
 
 export const handleSolanaTxResponse = (
   snapResponse: string | { result: Record<string, string> },
-  quoteResponse: Omit<QuoteResponse<string>, 'approval' | 'trade'> &
-    QuoteMetadata,
-  snapId: string, // TODO use SnapId type
-  selectedAccountAddress: string,
-) => {
+  quoteResponse: Omit<QuoteResponse<string>, 'approval'> & QuoteMetadata,
+  selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
+): TransactionMeta & SolanaTransactionMeta => {
+  const selectedAccountAddress = selectedAccount.address;
+  const snapId = selectedAccount.metadata.snap?.id;
   let hash;
   // Handle different response formats
   if (typeof snapResponse === 'string') {
@@ -73,25 +82,38 @@ export const handleSolanaTxResponse = (
     }
   }
 
+  const hexChainId = formatChainIdToHex(quoteResponse.quote.srcChainId);
   // Create a transaction meta object with bridge-specific fields
-  const txMeta: TransactionMeta = {
+  return {
     ...getTxMetaFields(quoteResponse),
+    time: Date.now(),
     id: uuid(),
-    chainId: formatChainIdToHex(quoteResponse.quote.srcChainId),
-    // networkClientId: selectedAccount.id, //TODO optional for solana or no?
-    txParams: { from: selectedAccountAddress }, // { data: quoteResponse.trade }, // TODO not reading this for solana
+    chainId: hexChainId,
+    networkClientId: snapId ?? hexChainId,
+    txParams: { from: selectedAccountAddress, data: quoteResponse.trade },
     type: TransactionType.bridge,
     status: TransactionStatus.submitted,
     hash, // Add the transaction signature as hash
-    // Add an explicit flag to mark this as a Solana transaction
+    origin: snapId,
+    // Add an explicit bridge flag to mark this as a Solana transaction
     isSolana: true, // TODO deprecate this and use chainId
     isBridgeTx: true, // TODO deprecate this and use type
-    // Add key bridge-specific fields for proper categorization
-    // actionId: txType,
-    origin: snapId,
-  } as never; // TODO remove this override once deprecated fields are removed
+  };
+};
 
-  return txMeta;
+export const handleLineaDelay = async (
+  quoteResponse: QuoteResponse<TxData | string>,
+) => {
+  if (ChainId.LINEA === quoteResponse.quote.srcChainId) {
+    const debugLog = createProjectLogger('bridge');
+    debugLog(
+      'Delaying submitting bridge tx to make Linea confirmation more likely',
+    );
+    const waitPromise = new Promise((resolve) =>
+      setTimeout(resolve, LINEA_DELAY_MS),
+    );
+    await waitPromise;
+  }
 };
 
 export const getKeyringRequest = (
