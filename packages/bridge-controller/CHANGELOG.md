@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Bump `@metamask/assets-controllers` peer dependency to `^57.0.0` ([#5665](https://github.com/MetaMask/core/pull/5665))
+- Bump `@metamask/multichain-network-controller` peer dependency to `^0.5.0` ([#5649](https://github.com/MetaMask/core/pull/5649))
 
 ## [14.0.0]
 
