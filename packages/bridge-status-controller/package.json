@@ -52,6 +52,7 @@
     "@metamask/keyring-api": "^17.4.0",
     "@metamask/polling-controller": "^13.0.0",
     "@metamask/superstruct": "^3.1.0",
+    "@metamask/user-operation-controller": "^33.0.0",
     "@metamask/utils": "^11.2.0",
     "bignumber.js": "^9.1.2",
     "uuid": "^8.3.2"
@@ -65,7 +66,6 @@
     "@metamask/network-controller": "^23.2.0",
     "@metamask/snaps-controllers": "^9.19.0",
     "@metamask/transaction-controller": "^54.1.0",
-    "@metamask/user-operation-controller": "^33.0.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
@@ -84,8 +84,7 @@
     "@metamask/gas-fee-controller": "^23.0.0",
     "@metamask/network-controller": "^23.0.0",
     "@metamask/snaps-controllers": "^9.19.0",
-    "@metamask/transaction-controller": "^54.0.0",
-    "@metamask/user-operation-controller": "^33.0.0"
+    "@metamask/transaction-controller": "^54.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

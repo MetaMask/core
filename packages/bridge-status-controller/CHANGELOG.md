@@ -11,7 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Add `@metamask/snaps-controllers` peer dependency at `^9.19.0` ([#5634](https://github.com/MetaMask/core/pull/5634))
 - **BREAKING:** Add `@metamask/gas-fee-controller` peer dependency at `^23.0.0` ([#5643](https://github.com/MetaMask/core/pull/5643))
-- **BREAKING:** Add `@metamask/user-operation-controller` peer dependency at `^33.0.0` ([#5643](https://github.com/MetaMask/core/pull/5643))
 - **BREAKING:** Add `@metamask/assets-controllers` peer dependency at `^57.0.0` ([#5643](https://github.com/MetaMask/core/pull/5643))
 - Add `uuid` dependency at `^8.3.2` ([#5634](https://github.com/MetaMask/core/pull/5634))
 - Add `@metamask/keyring-api` dependency at `^17.4.0` ([#5643](https://github.com/MetaMask/core/pull/5643))
