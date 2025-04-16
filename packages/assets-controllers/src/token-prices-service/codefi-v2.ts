@@ -143,6 +143,8 @@ export const SUPPORTED_CURRENCIES = [
   'bits',
   // Satoshi
   'sats',
+  // Sei
+  'sei',
 ] as const;
 
 /**
