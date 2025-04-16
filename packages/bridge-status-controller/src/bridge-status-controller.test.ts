@@ -1542,10 +1542,7 @@ describe('BridgeStatusController', () => {
       });
     };
 
-    const setupBridgeMocks = (smartTransactionsEnabled = false) => {
-      mockMessengerCall.mockReturnValueOnce({
-        smartTransactionsOptInStatus: smartTransactionsEnabled,
-      });
+    const setupBridgeMocks = () => {
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum');
       mockMessengerCall.mockReturnValueOnce({
@@ -1618,7 +1615,7 @@ describe('BridgeStatusController', () => {
     });
 
     it('should handle smart transactions', async () => {
-      setupBridgeMocks(true);
+      setupBridgeMocks();
 
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
@@ -1644,9 +1641,6 @@ describe('BridgeStatusController', () => {
     });
 
     it('should handle smart accounts (4337)', async () => {
-      mockMessengerCall.mockReturnValueOnce({
-        smartTransactionsOptInStatus: false,
-      });
       mockMessengerCall.mockReturnValueOnce({
         ...mockSelectedAccount,
         type: EthAccountType.Erc4337,
@@ -1696,9 +1690,6 @@ describe('BridgeStatusController', () => {
     });
 
     it('should throw an error if account is not found', async () => {
-      mockMessengerCall.mockReturnValueOnce({
-        smartTransactionsOptInStatus: false,
-      });
       mockMessengerCall.mockReturnValueOnce(undefined);
 
       const { controller, startPollingForBridgeTxStatusSpy } =

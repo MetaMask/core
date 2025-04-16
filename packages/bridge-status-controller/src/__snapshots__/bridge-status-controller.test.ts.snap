@@ -377,9 +377,6 @@ Array [
     "TransactionController:getState",
   ],
   Array [
-    "PreferencesController:getState",
-  ],
-  Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
@@ -542,9 +539,6 @@ Array [
 
 exports[`BridgeStatusController submitTx: EVM should handle smart accounts (4337) 4`] = `
 Array [
-  Array [
-    "PreferencesController:getState",
-  ],
   Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
@@ -765,9 +759,6 @@ Array [
 
 exports[`BridgeStatusController submitTx: EVM should handle smart transactions 5`] = `
 Array [
-  Array [
-    "PreferencesController:getState",
-  ],
   Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
@@ -1057,9 +1048,6 @@ Array [
     "TransactionController:getState",
   ],
   Array [
-    "PreferencesController:getState",
-  ],
-  Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
@@ -1262,9 +1250,6 @@ Array [
     "TransactionController:getState",
   ],
   Array [
-    "PreferencesController:getState",
-  ],
-  Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
@@ -1452,9 +1437,6 @@ Array [
 
 exports[`BridgeStatusController submitTx: EVM should successfully submit an EVM bridge transaction with no approval 5`] = `
 Array [
-  Array [
-    "PreferencesController:getState",
-  ],
   Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
