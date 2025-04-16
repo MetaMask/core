@@ -297,9 +297,6 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
     const releaseLock = await this.#mutex.acquire();
 
     return (async () => {
-      if (!this.isActive) {
-        return;
-      }
       const accounts = this.#listAccounts();
 
       for (const account of accounts) {
