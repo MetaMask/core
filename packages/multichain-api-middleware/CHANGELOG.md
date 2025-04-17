@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `wallet_createSession` handler ([#5647](https://github.com/MetaMask/core/pull/5647))
-- Add `Caip25Errors` from @metamask/chain-agnostic-permission package ([#5566](https://github.com/MetaMask/core/pull/5566))
+- Add `Caip25Errors` from `@metamask/chain-agnostic-permission` package ([#5566](https://github.com/MetaMask/core/pull/5566))
 
 ### Changed
 
