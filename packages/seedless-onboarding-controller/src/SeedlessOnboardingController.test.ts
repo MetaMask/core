@@ -1,3 +1,4 @@
+import { keccak256AndHexify } from '@metamask/auth-network-utils';
 import {
   TOPRFError,
   type ChangeEncryptionKeyResult,
@@ -7,7 +8,6 @@ import {
   type ToprfSecureBackup,
 } from '@metamask/toprf-secure-backup';
 import { base64ToBytes, bytesToBase64, stringToBytes } from '@metamask/utils';
-import { keccak_256 as keccak256 } from '@noble/hashes/sha3';
 
 import {
   Web3AuthNetwork,
@@ -655,7 +655,7 @@ describe('SeedlessOnboardingController', () => {
             MOCK_NODE_AUTH_TOKENS,
           );
           expect(controller.state.backupHashes).toStrictEqual([
-            bytesToBase64(keccak256(stringToBytes(NEW_SEED_PHRASE_1))),
+            keccak256AndHexify(stringToBytes(NEW_SEED_PHRASE_1)),
           ]);
 
           // add another seed phrase backup
@@ -673,8 +673,8 @@ describe('SeedlessOnboardingController', () => {
 
           const { backupHashes } = controller.state;
           expect(backupHashes).toStrictEqual([
-            bytesToBase64(keccak256(stringToBytes(NEW_SEED_PHRASE_1))),
-            bytesToBase64(keccak256(stringToBytes(NEW_SEED_PHRASE_2))),
+            keccak256AndHexify(stringToBytes(NEW_SEED_PHRASE_1)),
+            keccak256AndHexify(stringToBytes(NEW_SEED_PHRASE_2)),
           ]);
 
           // should be able to get the hash of the seed phrase backup from the state
@@ -917,7 +917,7 @@ describe('SeedlessOnboardingController', () => {
           ];
 
           const expectedBackupHashes = SORTED_MOCK_SEED_PHRASES.map(
-            (seedPhrase) => bytesToBase64(keccak256(seedPhrase)),
+            (seedPhrase) => keccak256AndHexify(seedPhrase),
           );
           expect(controller.state.backupHashes).toStrictEqual(
             expectedBackupHashes,

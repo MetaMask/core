@@ -1,3 +1,4 @@
+import { keccak256AndHexify } from '@metamask/auth-network-utils';
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { encrypt, decrypt } from '@metamask/browser-passworder';
@@ -11,11 +12,9 @@ import {
   base64ToBytes,
   bytesToBase64,
   stringToBytes,
-  bytesToHex,
   remove0x,
   bigIntToHex,
 } from '@metamask/utils';
-import { keccak_256 as keccak256 } from '@noble/hashes/sha3';
 import { Mutex } from 'async-mutex';
 
 import {
@@ -123,14 +122,12 @@ export class SeedlessOnboardingController extends BaseController<
     try {
       const { idTokens, authConnectionId, groupedAuthConnectionId, userId } =
         params;
-      const verifier = groupedAuthConnectionId || authConnectionId;
-      const verifierId = userId;
       const hashedIdTokenHexes = idTokens.map((idToken) => {
-        return remove0x(bytesToHex(keccak256(stringToBytes(idToken))));
+        return remove0x(keccak256AndHexify(stringToBytes(idToken)));
       });
       const authenticationResult = await this.toprfClient.authenticate({
-        verifier,
-        verifierId,
+        verifier: groupedAuthConnectionId || authConnectionId,
+        verifierId: userId,
         idTokens: hashedIdTokenHexes,
         singleIdVerifierParams: {
           subVerifier: authConnectionId,
@@ -366,7 +363,7 @@ export class SeedlessOnboardingController extends BaseController<
    */
   getSeedPhraseBackupHash(seedPhrase: Uint8Array): string | undefined {
     return this.state.backupHashes.find((hash) => {
-      return hash === bytesToBase64(keccak256(seedPhrase));
+      return hash === keccak256AndHexify(seedPhrase);
     });
   }
 
@@ -580,12 +577,10 @@ export class SeedlessOnboardingController extends BaseController<
 
       if (Array.isArray(backedUpSeedPhrases)) {
         backedUpHashB64Strings = backedUpSeedPhrases.map((seedPhrase) =>
-          bytesToBase64(keccak256(seedPhrase)),
+          keccak256AndHexify(seedPhrase),
         );
       } else {
-        backedUpHashB64Strings = [
-          bytesToBase64(keccak256(backedUpSeedPhrases)),
-        ];
+        backedUpHashB64Strings = [keccak256AndHexify(backedUpSeedPhrases)];
       }
 
       const existingBackedUpHashes = this.state.backupHashes;

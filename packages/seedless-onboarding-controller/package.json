@@ -47,17 +47,18 @@
     "since-latest-release": "../../scripts/since-latest-release.sh"
   },
   "dependencies": {
+    "@metamask/auth-network-utils": "./auth-network-utils.tgz",
     "@metamask/base-controller": "^8.0.0",
     "@metamask/browser-passworder": "^4.3.0",
     "@metamask/toprf-secure-backup": "./toprf-secure-backup.tgz",
     "@metamask/utils": "^11.2.0",
-    "@noble/hashes": "^1.4.0",
     "async-mutex": "^0.5.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@noble/ciphers": "^0.5.2",
     "@noble/curves": "^1.2.0",
+    "@noble/hashes": "^1.4.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
