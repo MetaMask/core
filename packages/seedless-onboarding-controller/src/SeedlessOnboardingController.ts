@@ -148,7 +148,7 @@ export class SeedlessOnboardingController extends BaseController<
   }
 
   /**
-   * Create a new TopRF key and backup seed phrase.
+   * Create a new TOPRF encryption key using given password and backups the provided seed phrase.
    *
    * @param params - The parameters for backup seed phrase.
    * @param params.authConnectionId - OAuth authConnectionId from dashboard
