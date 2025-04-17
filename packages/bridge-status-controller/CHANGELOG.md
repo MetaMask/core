@@ -7,11 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.0.0]
+
 ### Added
 
-- **BREAKING:** Add `@metamask/snaps-controllers` peer dependency at `^9.19.0` ([#5634](https://github.com/MetaMask/core/pull/5634))
+- **BREAKING:** Add `@metamask/snaps-controllers` peer dependency at `^11.0.0` ([#5634](https://github.com/MetaMask/core/pull/5634), [#5639](https://github.com/MetaMask/core/pull/5639))
 - **BREAKING:** Add `@metamask/gas-fee-controller` peer dependency at `^23.0.0` ([#5643](https://github.com/MetaMask/core/pull/5643))
-- **BREAKING:** Add `@metamask/assets-controllers` peer dependency at `^57.0.0` ([#5643](https://github.com/MetaMask/core/pull/5643))
+- **BREAKING:** Add `@metamask/assets-controllers` peer dependency at `^58.0.0` ([#5643](https://github.com/MetaMask/core/pull/5643), [#5672](https://github.com/MetaMask/core/pull/5672))
 - Add `@metamask/user-operation-controller` dependency at `^33.0.0` ([#5643](https://github.com/MetaMask/core/pull/5643))
 - Add `uuid` dependency at `^8.3.2` ([#5634](https://github.com/MetaMask/core/pull/5634))
 - Add `@metamask/keyring-api` dependency at `^17.4.0` ([#5643](https://github.com/MetaMask/core/pull/5643))
@@ -23,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING** Change `@metamask/bridge-controller` from dependency to peer dependency and bump to `^15.0.0` ([#5643](https://github.com/MetaMask/core/pull/5643))
+- **BREAKING** Change `@metamask/bridge-controller` from dependency to peer dependency and bump to `^16.0.0` ([#5657](https://github.com/MetaMask/core/pull/5657), [#5665](https://github.com/MetaMask/core/pull/5665), [#5643](https://github.com/MetaMask/core/pull/5643) [#5672](https://github.com/MetaMask/core/pull/5672))
 - Add optional config.customBridgeApiBaseUrl constructor arg to set the bridge-api base URL ([#5634](https://github.com/MetaMask/core/pull/5634))
 - Add required `addTransactionFn` and `estimateGasFeeFn` args to the BridgeStatusController constructor to enable calling TransactionController's methods from `submitTx` ([#5643](https://github.com/MetaMask/core/pull/5643))
 - Add optional `addUserOperationFromTransactionFn` arg to the BridgeStatusController constructor to enable submitting txs from smart accounts using the UserOperationController's addUserOperationFromTransaction method ([#5643](https://github.com/MetaMask/core/pull/5643))
@@ -128,7 +130,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@12.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@13.0.0...HEAD
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@12.0.1...@metamask/bridge-status-controller@13.0.0
 [12.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@12.0.0...@metamask/bridge-status-controller@12.0.1
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@11.0.0...@metamask/bridge-status-controller@12.0.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@10.0.0...@metamask/bridge-status-controller@11.0.0
