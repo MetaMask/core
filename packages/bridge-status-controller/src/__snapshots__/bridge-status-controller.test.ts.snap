@@ -4,6 +4,7 @@ exports[`BridgeStatusController constructor rehydrates the tx history state 1`] 
 Object {
   "bridgeTxMetaId1": Object {
     "account": "0xaccount1",
+    "approvalTxId": undefined,
     "estimatedProcessingTimeInSeconds": 15,
     "hasApprovalTx": false,
     "initialDestAssetBalance": undefined,
@@ -122,6 +123,7 @@ exports[`BridgeStatusController startPollingForBridgeTxStatus sets the inital tx
 Object {
   "bridgeTxMetaId1": Object {
     "account": "0xaccount1",
+    "approvalTxId": undefined,
     "estimatedProcessingTimeInSeconds": 15,
     "hasApprovalTx": false,
     "initialDestAssetBalance": undefined,
@@ -564,7 +566,6 @@ Array [
     },
     Object {
       "actionId": "1234567890.456",
-      "approvalTxId": undefined,
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
@@ -741,7 +742,6 @@ Array [
     },
     Object {
       "actionId": "1234567890.456",
-      "approvalTxId": undefined,
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
@@ -953,7 +953,6 @@ Array [
     },
     Object {
       "actionId": "1234567890.456",
-      "approvalTxId": undefined,
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
       "requireApproval": false,
@@ -974,7 +973,6 @@ Array [
     },
     Object {
       "actionId": "1234567890.456",
-      "approvalTxId": undefined,
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
       "requireApproval": false,
@@ -995,7 +993,6 @@ Array [
     },
     Object {
       "actionId": "1234567890.456",
-      "approvalTxId": "test-approval-tx-id",
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
@@ -1193,7 +1190,6 @@ Array [
     },
     Object {
       "actionId": "1234567890.456",
-      "approvalTxId": undefined,
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
       "requireApproval": false,
@@ -1214,7 +1210,6 @@ Array [
     },
     Object {
       "actionId": "1234567890.456",
-      "approvalTxId": "test-approval-tx-id",
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
@@ -1413,7 +1408,6 @@ Array [
     },
     Object {
       "actionId": "1234567890.456",
-      "approvalTxId": undefined,
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
@@ -1477,7 +1471,6 @@ Array [
     },
     Object {
       "actionId": "1234567890.456",
-      "approvalTxId": undefined,
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
       "requireApproval": false,
@@ -1519,7 +1512,6 @@ Array [
     },
     Object {
       "actionId": "1234567890.456",
-      "approvalTxId": undefined,
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
       "requireApproval": false,
@@ -1635,6 +1627,7 @@ Object {
 
 exports[`BridgeStatusController submitTx: Solana should successfully submit a Solana transaction 3`] = `
 Object {
+  "approvalTxId": undefined,
   "bridgeTxMeta": Object {
     "approvalTxId": undefined,
     "chainId": "0x416edef1601be",
