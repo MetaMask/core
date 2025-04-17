@@ -7,11 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add `entropySource` and `derivationPath` to EVM HD account options via `listNormalAccounts` ([#5618](https://github.com/MetaMask/core/pull/5618))
+
 ## [27.0.0]
 
 ### Changed
 
-- Add `entropySource` and `derivationPath` to EVM HD account options via `listNormalAccounts` ([#5618](https://github.com/MetaMask/core/pull/5618))
 - **BREAKING:** Bump peer dependency `@metamask/network-controller` to `^23.0.0` ([#5507](https://github.com/MetaMask/core/pull/5507))
 
 ### Fixed
