@@ -207,6 +207,64 @@ export class SeedlessOnboardingController extends BaseController<
   }
 
   /**
+   * Add a new seed phrase backup to the metadata store.
+   *
+   * @param seedPhrase - The seed phrase to backup.
+   * @param password - The password used to create new wallet and seedphrase
+   * @returns A promise that resolves to the success of the operation.
+   */
+  async addNewSeedPhraseBackup(
+    seedPhrase: Uint8Array,
+    password: string, // TODO: to verify whether we need the password here, check how multi-srp is handled in the keyring first.
+  ): Promise<void> {
+    // verify the password and unlock the vault
+    const { toprfEncryptionKey, toprfAuthKeyPair } =
+      await this.#verifyPassword(password);
+
+    // encrypt and store the seed phrase backup
+    await this.#encryptAndStoreSeedPhraseBackup(
+      seedPhrase,
+      toprfEncryptionKey,
+      toprfAuthKeyPair,
+    );
+  }
+
+  /**
+   * Add array of new seed phrase backups to the metadata store in batch.
+   *
+   * @param seedPhrases - The seed phrases to backup.
+   * @param password - The password used to create new wallet and seedphrase
+   * @returns A promise that resolves to the success of the operation.
+   */
+  async batchAddSeedPhraseBackups(seedPhrases: Uint8Array[], password: string) {
+    const { toprfEncryptionKey, toprfAuthKeyPair } =
+      await this.#verifyPassword(password);
+
+    // prepare seed phrase metadata
+    const seedPhraseMetadataArr =
+      SeedPhraseMetadata.fromBatchSeedPhrases(seedPhrases);
+
+    try {
+      // encrypt and store the seed phrase backups
+      await this.#withPersistedSeedPhraseBackupsState(async () => {
+        await this.toprfClient.batchAddSecretDataItems({
+          secretData: seedPhraseMetadataArr.map((metadata) =>
+            metadata.toBytes(),
+          ),
+          encKey: toprfEncryptionKey,
+          authKeyPair: toprfAuthKeyPair,
+        });
+        return seedPhrases;
+      });
+    } catch (error) {
+      log('Error encrypting and storing seed phrase backups', error);
+      throw new Error(
+        SeedlessOnboardingControllerError.FailedToEncryptAndStoreSeedPhraseBackup,
+      );
+    }
+  }
+
+  /**
    * @description Fetch seed phrase metadata from the metadata store.
    * @param params - The parameters for fetching seed phrase metadata.
    * @param params.authConnectionId - OAuth authConnectionId from dashboard
@@ -298,6 +356,20 @@ export class SeedlessOnboardingController extends BaseController<
       log('Error changing password', error);
       throw new Error(SeedlessOnboardingControllerError.FailedToChangePassword);
     }
+  }
+
+  /**
+   * @description Get the hash of the seed phrase backup for the given seed phrase, from the state.
+   *
+   * If the given seed phrase is not backed up and not found in the state, it will return `undefined`.
+   *
+   * @param seedPhrase - The seed phrase to get the hash of.
+   * @returns A promise that resolves to the hash of the seed phrase backup.
+   */
+  getSeedPhraseBackupHash(seedPhrase: Uint8Array): string | undefined {
+    return this.state.backupHashes.find((hash) => {
+      return hash === bytesToBase64(keccak256(seedPhrase));
+    });
   }
 
   /**

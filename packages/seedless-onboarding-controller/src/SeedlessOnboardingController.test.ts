@@ -1,6 +1,6 @@
 import {
-  type ChangeEncryptionKeyResult,
   TOPRFError,
+  type ChangeEncryptionKeyResult,
   type KeyPair,
   type NodeAuthTokens,
   type RecoverEncryptionKeyResult,
@@ -26,6 +26,9 @@ import {
   handleMockSecretDataAdd,
   handleMockCommitment,
   handleMockAuthenticate,
+  handleMockAcquireMetadataLock,
+  handleMockReleaseMetadataLock,
+  handleMockBatchSecretDataAdd,
 } from '../tests/__fixtures__/topfClient';
 import {
   createMockSecretDataGetResponse,
@@ -597,7 +600,180 @@ describe('SeedlessOnboardingController', () => {
     });
   });
 
-  describe('fetchAllSeedPhrases', () => {
+  describe('addNewSeedPhraseBackup', () => {
+    const MOCK_PASSWORD = 'mock-password';
+    const NEW_SEED_PHRASE_1 = 'new mock seed phrase 1';
+    const NEW_SEED_PHRASE_2 = 'new mock seed phrase 2';
+    const NEW_SEED_PHRASE_3 = 'new mock seed phrase 3';
+    let MOCK_VAULT = '';
+
+    beforeEach(async () => {
+      const mockToprfEncryptor = createMockToprfEncryptor();
+
+      const MOCK_ENCRYPTION_KEY =
+        mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
+      const MOCK_AUTH_KEY_PAIR =
+        mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
+
+      MOCK_VAULT = await createMockVault(
+        MOCK_ENCRYPTION_KEY,
+        MOCK_AUTH_KEY_PAIR,
+        MOCK_PASSWORD,
+        MOCK_NODE_AUTH_TOKENS,
+      );
+    });
+
+    it('should be able to add a new seed phrase backup', async () => {
+      await withController(
+        { state: { vault: MOCK_VAULT, backupHashes: [] } },
+        async ({ controller }) => {
+          // encrypt and store the secret data
+          const mockSecretDataAdd = handleMockSecretDataAdd();
+          await controller.addNewSeedPhraseBackup(
+            stringToBytes(NEW_SEED_PHRASE_1),
+            MOCK_PASSWORD,
+          );
+
+          expect(mockSecretDataAdd.isDone()).toBe(true);
+          expect(controller.state.nodeAuthTokens).toBeDefined();
+          expect(controller.state.nodeAuthTokens).toStrictEqual(
+            MOCK_NODE_AUTH_TOKENS,
+          );
+        },
+      );
+    });
+
+    it('should be able to add a new seed phrase backup to the existing seed phrase backups', async () => {
+      await withController(
+        { state: { vault: MOCK_VAULT, backupHashes: [] } },
+        async ({ controller }) => {
+          // encrypt and store the secret data
+          const mockSecretDataAdd = handleMockSecretDataAdd();
+          await controller.addNewSeedPhraseBackup(
+            stringToBytes(NEW_SEED_PHRASE_1),
+            MOCK_PASSWORD,
+          );
+
+          expect(mockSecretDataAdd.isDone()).toBe(true);
+          expect(controller.state.nodeAuthTokens).toBeDefined();
+          expect(controller.state.nodeAuthTokens).toStrictEqual(
+            MOCK_NODE_AUTH_TOKENS,
+          );
+          expect(controller.state.backupHashes).toStrictEqual([
+            bytesToBase64(keccak256(stringToBytes(NEW_SEED_PHRASE_1))),
+          ]);
+
+          // add another seed phrase backup
+          const mockSecretDataAdd2 = handleMockSecretDataAdd();
+          await controller.addNewSeedPhraseBackup(
+            stringToBytes(NEW_SEED_PHRASE_2),
+            MOCK_PASSWORD,
+          );
+
+          expect(mockSecretDataAdd2.isDone()).toBe(true);
+          expect(controller.state.nodeAuthTokens).toBeDefined();
+          expect(controller.state.nodeAuthTokens).toStrictEqual(
+            MOCK_NODE_AUTH_TOKENS,
+          );
+
+          const { backupHashes } = controller.state;
+          expect(backupHashes).toStrictEqual([
+            bytesToBase64(keccak256(stringToBytes(NEW_SEED_PHRASE_1))),
+            bytesToBase64(keccak256(stringToBytes(NEW_SEED_PHRASE_2))),
+          ]);
+
+          // should be able to get the hash of the seed phrase backup from the state
+          expect(
+            controller.getSeedPhraseBackupHash(
+              stringToBytes(NEW_SEED_PHRASE_1),
+            ),
+          ).toBeDefined();
+
+          // should return undefined if the seed phrase is not backed up
+          expect(
+            controller.getSeedPhraseBackupHash(
+              stringToBytes(NEW_SEED_PHRASE_3),
+            ),
+          ).toBeUndefined();
+        },
+      );
+    });
+  });
+
+  describe('batchAddSeedPhraseBackups', () => {
+    const MOCK_PASSWORD = 'mock-password';
+    const SEED_PHRASES = [
+      'new mock seed phrase one',
+      'new mock seed phrase two',
+      'new mock seed phrase three',
+    ];
+    let MOCK_VAULT = '';
+
+    beforeEach(async () => {
+      const mockToprfEncryptor = createMockToprfEncryptor();
+
+      const MOCK_ENCRYPTION_KEY =
+        mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
+      const MOCK_AUTH_KEY_PAIR =
+        mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
+
+      MOCK_VAULT = await createMockVault(
+        MOCK_ENCRYPTION_KEY,
+        MOCK_AUTH_KEY_PAIR,
+        MOCK_PASSWORD,
+        MOCK_NODE_AUTH_TOKENS,
+      );
+    });
+
+    it('should be able to add array of seed phrase backups in batch', async () => {
+      await withController(
+        { state: { vault: MOCK_VAULT, backupHashes: [] } },
+        async ({ controller }) => {
+          // mock the network calls
+          const mockAcquireMetadataLock = handleMockAcquireMetadataLock();
+          const mockSecretDataBatchAdd = handleMockBatchSecretDataAdd();
+          const mockReleaseMetadataLock = handleMockReleaseMetadataLock();
+
+          await controller.batchAddSeedPhraseBackups(
+            SEED_PHRASES.map(stringToBytes),
+            MOCK_PASSWORD,
+          );
+
+          expect(mockAcquireMetadataLock.isDone()).toBe(true);
+          expect(mockSecretDataBatchAdd.isDone()).toBe(true);
+          expect(mockReleaseMetadataLock.isDone()).toBe(true);
+          expect(controller.state.nodeAuthTokens).toBeDefined();
+          expect(controller.state.nodeAuthTokens).toStrictEqual(
+            MOCK_NODE_AUTH_TOKENS,
+          );
+        },
+      );
+    });
+
+    it('should throw an error if failed to encrypt and store seed phrase backup', async () => {
+      await withController(
+        { state: { vault: MOCK_VAULT, backupHashes: [] } },
+        async ({ controller, toprfClient }) => {
+          jest
+            .spyOn(toprfClient, 'batchAddSecretDataItems')
+            .mockRejectedValueOnce(
+              new Error('Failed to add secret data items in batch'),
+            );
+
+          await expect(
+            controller.batchAddSeedPhraseBackups(
+              SEED_PHRASES.map(stringToBytes),
+              MOCK_PASSWORD,
+            ),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerError.FailedToEncryptAndStoreSeedPhraseBackup,
+          );
+        },
+      );
+    });
+  });
+
+  describe('fetchAndRestoreSeedPhrase', () => {
     const MOCK_PASSWORD = 'mock-password';
 
     it('should be able to restore and login with a seed phrase from metadata', async () => {
