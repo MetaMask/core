@@ -1,7 +1,7 @@
 {
   "name": "@metamask/seedless-onboarding-controller",
   "version": "0.0.0",
-  "description": "Backup and restore SRP",
+  "description": "Backup and rehydrate SRP(s) using social login and password",
   "keywords": [
     "MetaMask",
     "Ethereum"
