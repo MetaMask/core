@@ -111,7 +111,7 @@ export class SeedlessOnboardingController extends BaseController<
    * @param params.authConnectionId - OAuth authConnectionId from dashboard
    * @param params.userId - user email or id from Social login
    * @param params.groupedAuthConnectionId - Optional grouped authConnectionId to be used for the authenticate request.
-   * You can pass this to use aggregate connection.
+   * You can pass this to use aggregate multiple OAuth connections. Useful when you want user to have same account while using different OAuth connections.
    * @returns A promise that resolves to the authentication result.
    */
   async authenticate(params: {
