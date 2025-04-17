@@ -107,7 +107,7 @@ export class SeedlessOnboardingController extends BaseController<
    * @description Authenticate OAuth user using the seedless onboarding flow
    * and determine if the user is already registered or not.
    * @param params - The parameters for authenticate OAuth user.
-   * @param params.idTokens - The ID token from Social login
+   * @param params.idTokens - The ID token(s) issued by OAuth verification service. Currently this array only contains a single idToken which is verified by all the nodes, in future we are considering to issue a unique idToken for each node.
    * @param params.authConnectionId - OAuth authConnectionId from dashboard
    * @param params.userId - user email or id from Social login
    * @param params.groupedAuthConnectionId - Optional grouped authConnectionId to be used for the authenticate request.
