@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/365.0.0 ([#5665](https://github.com/MetaMask/core/pull/5665))
+- Release/362.0.0 ([#5657](https://github.com/MetaMask/core/pull/5657))
+- feat: calculate bridge quote metadata in @metamask/bridge-controller ([#5614](https://github.com/MetaMask/core/pull/5614))
+- Release 358.0.0 ([#5648](https://github.com/MetaMask/core/pull/5648))
+
 ### Added
 
 - **BREAKING:** Add `@metamask/snaps-controllers` peer dependency at `^11.0.0` ([#5634](https://github.com/MetaMask/core/pull/5634), [#5639](https://github.com/MetaMask/core/pull/5639))
