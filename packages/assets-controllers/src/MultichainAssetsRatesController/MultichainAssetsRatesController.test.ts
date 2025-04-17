@@ -459,6 +459,23 @@ describe('MultichainAssetsRatesController', () => {
   });
 
   describe('fetchHistoricalPricesForAsset', () => {
+    it('throws an error if call to snap fails', async () => {
+      const testAsset = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501';
+      const { controller, messenger } = setupController();
+
+      const snapHandler = jest.fn().mockRejectedValue(new Error('test error'));
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        snapHandler,
+      );
+
+      await expect(
+        controller.fetchHistoricalPricesForAsset(testAsset),
+      ).rejects.toThrow(
+        `Failed to fetch historical prices for asset: ${testAsset}`,
+      );
+    });
+
     it('returns early if the historical price has not expired', async () => {
       const testCurrency = 'USD';
       const { controller, messenger } = setupController({

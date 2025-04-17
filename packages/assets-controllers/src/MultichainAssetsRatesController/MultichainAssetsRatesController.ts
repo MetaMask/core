@@ -363,32 +363,38 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
       const selectedAccount = this.messagingSystem.call(
         'AccountsController:getSelectedMultichainAccount',
       );
+      try {
+        const historicalPricesResponse = await this.#handleSnapRequest({
+          snapId: selectedAccount?.metadata.snap?.id as SnapId,
+          handler: HandlerType.OnAssetHistoricalPrice,
+          params: {
+            from: asset,
+            to: currentCaipCurrency,
+          },
+        });
 
-      const historicalPricesResponse = await this.#handleSnapRequest({
-        snapId: selectedAccount?.metadata.snap?.id as SnapId,
-        handler: HandlerType.OnAssetHistoricalPrice,
-        params: {
-          from: asset,
-          to: currentCaipCurrency,
-        },
-      });
+        // skip state update if no historical prices are returned
+        if (!historicalPricesResponse) {
+          return;
+        }
 
-      // skip state update if no historical prices are returned
-      if (!historicalPricesResponse) {
-        return;
+        this.update((state) => {
+          state.historicalPrices = {
+            ...state.historicalPrices,
+            [asset]: {
+              ...state.historicalPrices[asset],
+              [this.#currentCurrency]: (
+                historicalPricesResponse as OnAssetHistoricalPriceResponse
+              )?.historicalPrice,
+            },
+          };
+        });
+      } catch {
+        throw new Error(
+          `Failed to fetch historical prices for asset: ${asset}`,
+        );
       }
 
-      this.update((state) => {
-        state.historicalPrices = {
-          ...state.historicalPrices,
-          [asset]: {
-            ...state.historicalPrices[asset],
-            [this.#currentCurrency]: (
-              historicalPricesResponse as OnAssetHistoricalPriceResponse
-            )?.historicalPrice,
-          },
-        };
-      });
     })().finally(() => {
       releaseLock();
     });
