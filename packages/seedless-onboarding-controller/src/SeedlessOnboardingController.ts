@@ -263,7 +263,7 @@ export class SeedlessOnboardingController extends BaseController<
   }
 
   /**
-   * @description Fetch seed phrase metadata from the metadata store.
+   * @description Fetches encrypted seed phrases and metadata for user's account from the metadata store.
    * @param params - The parameters for fetching seed phrase metadata.
    * @param params.authConnectionId - OAuth authConnectionId from dashboard
    * @param params.groupedAuthConnectionId - Optional grouped authConnectionId to be used for the authenticate request.
