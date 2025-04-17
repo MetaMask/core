@@ -394,7 +394,6 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
           `Failed to fetch historical prices for asset: ${asset}`,
         );
       }
-
     })().finally(() => {
       releaseLock();
     });
