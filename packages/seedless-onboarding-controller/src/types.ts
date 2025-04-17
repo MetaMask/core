@@ -1,9 +1,11 @@
 import type { RestrictedMessenger } from '@metamask/base-controller';
 import type { ControllerGetStateAction } from '@metamask/base-controller';
 import type { ControllerStateChangeEvent } from '@metamask/base-controller';
+import type { NodeAuthTokens } from '@metamask/toprf-secure-backup';
 import type { Json } from '@metamask/utils';
+import type { MutexInterface } from 'async-mutex';
 
-import type { controllerName } from './constants';
+import type { controllerName, Web3AuthNetwork } from './constants';
 
 // State
 export type SeedlessOnboardingControllerState = {
@@ -11,16 +13,20 @@ export type SeedlessOnboardingControllerState = {
    * Encrypted array of serialized keyrings data.
    */
   vault?: string;
+
   /**
-   * Indicates whether the user has already fully/partially completed the Seedless Onboarding flow.
+   * The node auth tokens from OAuth User authentication after the Social login.
    *
-   * An encryption key is generated from user entered password using Threshold OPRF and the seed phrase is encrypted with the key.
-   * During the Seedless Onboarding Authentication step, TOPRF services check whether user has already generated the encryption key.
-   *
-   * If this value is `true`, we can assume that user already has completed the `SeedPhrase` generation step, and user will have to
-   * fetch the `SeedPhrase` with correct password. Otherwise, users will be asked to set up seedphrase and password, first.
+   * This values are used to authenticate users when they go through the Seedless Onboarding flow.
    */
-  isNewUser?: boolean;
+  nodeAuthTokens?: NodeAuthTokens;
+
+  /**
+   * The hashes of the seed phrase backups.
+   *
+   * This is to facilitate the UI to display backup status of the seed phrases.
+   */
+  backupHashes: string[];
 };
 
 // Actions
@@ -90,4 +96,36 @@ export type SeedlessOnboardingControllerOptions = {
    * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
    */
   encryptor?: Encryptor;
+
+  network?: Web3AuthNetwork;
+};
+
+/**
+ * A function executed within a mutually exclusive lock, with
+ * a mutex releaser in its option bag.
+ *
+ * @param releaseLock - A function to release the lock.
+ */
+export type MutuallyExclusiveCallback<Result> = ({
+  releaseLock,
+}: {
+  releaseLock: MutexInterface.Releaser;
+}) => Promise<Result>;
+
+/**
+ * @description The structure of the data which is serialized and stored in the vault.
+ */
+export type VaultData = {
+  /**
+   * The node auth tokens from OAuth User authentication after the Social login.
+   */
+  authTokens: NodeAuthTokens;
+  /**
+   * The encryption key to encrypt the seed phrase.
+   */
+  toprfEncryptionKey: string;
+  /**
+   * The authentication key pair to authenticate the TOPRF.
+   */
+  toprfAuthKeyPair: string;
 };
