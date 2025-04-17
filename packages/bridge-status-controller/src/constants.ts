@@ -10,3 +10,5 @@ export const DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE: BridgeStatusControllerState
   };
 
 export const BRIDGE_PROD_API_BASE_URL = 'https://bridge.api.cx.metamask.io';
+
+export const LINEA_DELAY_MS = 5000;
