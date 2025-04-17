@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `SEI` network support ([#5610](https://github.com/MetaMask/core/pull/5610))
+- Add `SEI` network support ([#5610](https://github.com/MetaMask/core/pull/5610))
 
 ## [54.1.0]
 
