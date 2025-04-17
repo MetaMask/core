@@ -2,6 +2,7 @@
 export {
   REFRESH_INTERVAL_MS,
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
+  BRIDGE_STATUS_CONTROLLER_NAME,
 } from './constants';
 
 export type {
@@ -42,3 +43,5 @@ export {
 } from './types';
 
 export { BridgeStatusController } from './bridge-status-controller';
+
+export { getTxMetaFields } from './utils/transaction';

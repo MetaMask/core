@@ -1,14 +1,10 @@
 import {
-  BridgeClientId,
-  BRIDGE_PROD_API_BASE_URL,
-  FeeType,
-} from '@metamask/bridge-controller';
-
-import {
   fetchBridgeTxStatus,
   getBridgeStatusUrl,
   getStatusRequestDto,
 } from './bridge-status';
+import { BRIDGE_PROD_API_BASE_URL } from '../constants';
+import { BridgeClientId } from '../types';
 import type { StatusRequestWithSrcTxHash, FetchFunction } from '../types';
 
 describe('utils', () => {
@@ -46,7 +42,7 @@ describe('utils', () => {
       },
       destTokenAmount: '',
       feeData: {
-        [FeeType.METABRIDGE]: {
+        metabridge: {
           amount: '100',
           asset: {
             chainId: 1,

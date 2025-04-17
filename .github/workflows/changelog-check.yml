@@ -3,9 +3,6 @@ name: Check Changelog
 on:
   pull_request:
     types: [opened, synchronize, labeled, unlabeled]
-    branches:
-      - '**'
-      - '!release/*'
 
 jobs:
   check_changelog:

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- New method `getNetworksWithTransactionActivityByAccounts` to fetch active networks for multiple accounts in a single request ([#5551](https://github.com/MetaMask/core/pull/5551))
+- New `MultichainNetworkService` for handling network activity fetching ([#5551](https://github.com/MetaMask/core/pull/5551))
+- New types for network activity state and responses ([#5551](https://github.com/MetaMask/core/pull/5551))
+
+### Changed
+
+- Updated state management for network activity ([#5551](https://github.com/MetaMask/core/pull/5551))
+
 ## [0.4.0]
 
 ### Added
