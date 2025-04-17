@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
 - Add `entropySource` and `derivationPath` to EVM HD account options via `listNormalAccounts` ([#5618](https://github.com/MetaMask/core/pull/5618))
 
 ### Changed
