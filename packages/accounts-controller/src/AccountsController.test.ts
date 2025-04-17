@@ -31,6 +31,7 @@ import { AccountsController, EMPTY_ACCOUNT } from './AccountsController';
 import {
   createExpectedInternalAccount,
   createMockInternalAccount,
+  createMockInternalAccountOptions,
   ETH_EOA_METHODS,
 } from './tests/mocks';
 import {
@@ -901,6 +902,7 @@ describe('AccountsController', () => {
             name: 'Account 3',
             address: mockAccount3.address,
             keyringType: KeyringTypes.hd,
+            options: {},
           }),
         ]);
       });
@@ -1744,6 +1746,12 @@ describe('AccountsController', () => {
           keyrings: [
             { type: KeyringTypes.hd, accounts: [mockAddress1, mockAddress2] },
           ],
+          keyringsMetadata: [
+            {
+              id: 'mock-keyring-id-0',
+              name: 'mock-keyring-id-name',
+            },
+          ],
         }),
       );
 
@@ -1772,12 +1780,14 @@ describe('AccountsController', () => {
           id: 'mock-id',
           address: mockAddress1,
           keyringType: KeyringTypes.hd,
+          options: createMockInternalAccountOptions(0, KeyringTypes.hd, 0),
         }),
         createExpectedInternalAccount({
           name: 'Account 2',
           id: 'mock-id2',
           address: mockAddress2,
           keyringType: KeyringTypes.hd,
+          options: createMockInternalAccountOptions(0, KeyringTypes.hd, 1),
         }),
       ];
       mockUUIDWithNormalAccounts(expectedAccounts);
@@ -1798,6 +1808,12 @@ describe('AccountsController', () => {
             {
               type: KeyringTypes.snap,
               accounts: [mockSnapAccount, mockSnapAccount2],
+            },
+          ],
+          keyringsMetadata: [
+            {
+              id: 'mock-keyring-id-1',
+              name: 'mock-keyring-id-name',
             },
           ],
         }),
@@ -1893,6 +1909,12 @@ describe('AccountsController', () => {
           keyrings: [
             { type: KeyringTypes.hd, accounts: [mockAddress1, mockAddress2] },
           ],
+          keyringsMetadata: [
+            {
+              id: 'mock-keyring-id-0',
+              name: 'mock-keyring-id-name',
+            },
+          ],
         }),
       );
 
@@ -1918,12 +1940,16 @@ describe('AccountsController', () => {
         messenger,
       });
       const expectedAccounts = [
-        mockAccount,
+        {
+          ...mockAccount,
+          options: createMockInternalAccountOptions(0, KeyringTypes.hd, 0),
+        },
         createExpectedInternalAccount({
           name: 'Account 2',
           id: 'mock-id2',
           address: mockAddress2,
           keyringType: KeyringTypes.hd,
+          options: createMockInternalAccountOptions(0, KeyringTypes.hd, 1),
         }),
       ];
       mockUUIDWithNormalAccounts(expectedAccounts);
@@ -1957,6 +1983,16 @@ describe('AccountsController', () => {
             { type: KeyringTypes.hd, accounts: [mockAddress1] },
             { type: KeyringTypes.snap, accounts: ['0x1234'] },
           ],
+          keyringsMetadata: [
+            {
+              id: 'mock-keyring-id-0',
+              name: 'mock-keyring-id-name',
+            },
+            {
+              id: 'mock-keyring-id-1',
+              name: 'mock-keyring-id-name2',
+            },
+          ],
         }),
       );
 
@@ -1975,6 +2011,7 @@ describe('AccountsController', () => {
           id: 'mock-id',
           address: mockAddress1,
           keyringType: KeyringTypes.hd,
+          options: createMockInternalAccountOptions(0, KeyringTypes.hd, 0),
         }),
         createExpectedInternalAccount({
           name: 'Snap Account 1', // it is Snap Account 1 because it is the only snap account
@@ -2014,6 +2051,16 @@ describe('AccountsController', () => {
             { type: KeyringTypes.snap, accounts: ['0x1234'] },
             { type: KeyringTypes.hd, accounts: [mockAddress1] },
           ],
+          keyringsMetadata: [
+            {
+              id: 'mock-keyring-id-0',
+              name: 'mock-keyring-id-name',
+            },
+            {
+              id: 'mock-keyring-id-1',
+              name: 'mock-keyring-id-name2',
+            },
+          ],
         }),
       );
 
@@ -2032,6 +2079,7 @@ describe('AccountsController', () => {
           id: 'mock-id',
           address: mockAddress1,
           keyringType: KeyringTypes.hd,
+          options: createMockInternalAccountOptions(1, KeyringTypes.hd, 0),
         }),
         createExpectedInternalAccount({
           name: 'Snap Account 1', // it is Snap Account 1 because it is the only snap account
@@ -2057,7 +2105,6 @@ describe('AccountsController', () => {
       KeyringTypes.ledger,
       KeyringTypes.lattice,
       KeyringTypes.qr,
-      'Custody - JSON - RPC',
     ])('should add accounts for %s type', async (keyringType) => {
       mockUUIDWithNormalAccounts([mockAccount]);
 
@@ -2067,6 +2114,12 @@ describe('AccountsController', () => {
         'KeyringController:getState',
         mockGetState.mockReturnValue({
           keyrings: [{ type: keyringType, accounts: [mockAddress1] }],
+          keyringsMetadata: [
+            {
+              id: 'mock-keyring-id-0',
+              name: 'mock-keyring-id-name',
+            },
+          ],
         }),
       );
 
@@ -2096,6 +2149,7 @@ describe('AccountsController', () => {
           id: 'mock-id',
           address: mockAddress1,
           keyringType: keyringType as KeyringTypes,
+          options: createMockInternalAccountOptions(0, keyringType, 0),
         }),
       ];
 
@@ -2205,6 +2259,16 @@ describe('AccountsController', () => {
             keyrings: [
               { type: KeyringTypes.snap, accounts: ['0x1234'] },
               { type: KeyringTypes.hd, accounts: [mockAddress1] },
+            ],
+            keyringsMetadata: [
+              {
+                id: 'mock-keyring-id-1',
+                name: 'mock-keyring-id-name',
+              },
+              {
+                id: 'mock-keyring-id-2',
+                name: 'mock-keyring-id-name2',
+              },
             ],
           }),
         );
