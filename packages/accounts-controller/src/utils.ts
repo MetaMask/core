@@ -1,4 +1,4 @@
-import { isCustodyKeyring, KeyringTypes } from '@metamask/keyring-controller';
+import { KeyringTypes } from '@metamask/keyring-controller';
 import { hexToBytes } from '@metamask/utils';
 import { sha256 } from 'ethereum-cryptography/sha256';
 import type { V4Options } from 'uuid';
