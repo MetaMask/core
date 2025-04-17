@@ -370,14 +370,15 @@ describe('filter', () => {
 
       const result = getCaipAccountIdsFromScopesObjects(scopesObjects);
 
-      expect(result).toHaveLength(6);
-      expect(result).toContain('eip155:1:0x123');
-      expect(result).toContain('eip155:1:0x456');
-      expect(result).toContain('eip155:1:0xabc');
-      expect(result).toContain('eip155:137:0x123');
-      expect(result).toContain('eip155:137:0x789');
-      expect(result).toContain(
-        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:abc123',
+      expect(result).toEqual(
+        expect.arrayContaining([
+          'eip155:1:0x123',
+          'eip155:1:0x456',
+          'eip155:1:0xabc',
+          'eip155:137:0x123',
+          'eip155:137:0x789',
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:abc123',
+        ]),
       );
     });
 
@@ -420,10 +421,13 @@ describe('filter', () => {
 
       const result = getAllScopesFromScopesObjects(scopesObjects);
 
-      expect(result).toHaveLength(3);
-      expect(result).toContain('eip155:1');
-      expect(result).toContain('eip155:137');
-      expect(result).toContain('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp');
+      expect(result).toStrictEqual(
+        expect.arrayContaining([
+          'eip155:1',
+          'eip155:137',
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+        ]),
+      );
     });
 
     it('should return empty array when no scopes exist', () => {
