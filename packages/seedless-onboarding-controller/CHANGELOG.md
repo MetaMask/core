@@ -17,4 +17,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fetch seed phrase metadata from the metadata store
   - Update the password of the seedless onboarding flow
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@0.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/
