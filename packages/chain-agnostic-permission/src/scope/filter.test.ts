@@ -361,6 +361,11 @@ describe('filter', () => {
             accounts: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:abc123'],
           },
         },
+        {
+          'eip155:1': {
+            accounts: ['eip155:1:0xabc'], // duplicate account ID
+          },
+        },
       ];
 
       const result = getCaipAccountIdsFromScopesObjects(scopesObjects);
