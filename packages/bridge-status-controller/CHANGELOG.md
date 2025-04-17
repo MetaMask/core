@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Add optional `approvalTxId` key to BridgeHistoryItem to associate an approval with a bridge transaction ([5670](https://github.com/MetaMask/core/pull/5670))
+  - Fixes issue where calling `updateTransaction` to associate approvals with bridge transactions could overwrite transaction metadata and put transactions in a bad state
+  - Instead, store the approval transaction ID in the bridge history item, enabling clients to look up bridge transactions by their approval ID without modifying transaction metadata
 
 ## [13.0.0]
 
