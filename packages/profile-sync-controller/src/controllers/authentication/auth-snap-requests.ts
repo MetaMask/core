@@ -41,3 +41,41 @@ export function createSnapSignMessageRequest(
     },
   };
 }
+
+/**
+ * Constructs Request to Message Signing Snap to get Public Key
+ *
+ * @returns Snap getEncryptionPublicKey Key Request
+ */
+export function createSnapEncryptionPublicKeyRequest(): SnapRPCRequest {
+  return {
+    snapId,
+    origin: '',
+    handler: 'onRpcRequest' as any,
+    request: {
+      method: 'getEncryptionPublicKey',
+    },
+  };
+}
+
+/**
+ * Constructs Request to Message Signing Snap to Decrypt a message
+ *
+ * @param ciphertext - The encrypted text to decrypt
+ * @returns Snap decryptMessage Request
+ */
+export function createSnapDecryptMessageRequest(
+  ciphertext: string,
+): SnapRPCRequest {
+  return {
+    snapId,
+    origin: '',
+    handler: 'onRpcRequest' as any,
+    request: {
+      method: 'decryptMessage',
+      params: {
+        data: JSON.parse(ciphertext),
+      },
+    },
+  };
+}
