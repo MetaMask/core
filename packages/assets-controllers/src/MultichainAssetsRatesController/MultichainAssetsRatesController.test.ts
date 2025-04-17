@@ -1,6 +1,7 @@
 import { Messenger } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
+import type { OnAssetHistoricalPriceResponse } from '@metamask/snaps-sdk';
 import { useFakeTimers } from 'sinon';
 
 import { MultichainAssetsRatesController } from '.';
@@ -64,6 +65,14 @@ const fakeEvmAccountWithoutMetadata: InternalAccount = {
   methods: [],
 };
 
+const fakeMarketData = {
+  price: 202.11,
+  priceChange: 0,
+  priceChangePercentage: 0,
+  volume: 0,
+  marketCap: 0,
+};
+
 // A fake conversion rates response returned by the SnapController.
 const fakeAccountRates = {
   conversionRates: {
@@ -71,8 +80,26 @@ const fakeAccountRates = {
       'swift:0/iso4217:USD': {
         rate: '202.11',
         conversionTime: 1738539923277,
+        marketData: fakeMarketData,
       },
     },
+  },
+};
+
+const fakeHistoricalPrices: OnAssetHistoricalPriceResponse = {
+  historicalPrice: {
+    intervals: {
+      P1D: [
+        [1737542312, '1'],
+        [1737542312, '2'],
+      ],
+      P1W: [
+        [1737542312, '1'],
+        [1737542312, '2'],
+      ],
+    },
+    updateTime: 1737542312,
+    expirationTime: 1737542312,
   },
 };
 
@@ -112,6 +139,11 @@ const setupController = ({
     () => accountsAssets,
   );
 
+  messenger.registerActionHandler(
+    'AccountsController:getSelectedMultichainAccount',
+    () => accountsAssets[0],
+  );
+
   messenger.registerActionHandler('CurrencyRateController:getState', () => ({
     currencyRates: {},
     currentCurrency: 'USD',
@@ -124,6 +156,7 @@ const setupController = ({
       'SnapController:handleRequest',
       'CurrencyRateController:getState',
       'MultichainAssetsController:getState',
+      'AccountsController:getSelectedMultichainAccount',
     ],
     allowedEvents: [
       'AccountsController:accountAdded',
@@ -160,10 +193,13 @@ describe('MultichainAssetsRatesController', () => {
 
   it('initializes with an empty conversionRates state', () => {
     const { controller } = setupController();
-    expect(controller.state).toStrictEqual({ conversionRates: {} });
+    expect(controller.state).toStrictEqual({
+      conversionRates: {},
+      historicalPrices: {},
+    });
   });
 
-  it('updates conversion rates for a valid non-EVM account', async () => {
+  it('updates conversion rates for a valid non-EVM account with marketData', async () => {
     const { controller, messenger } = setupController();
 
     // Stub KeyringClient.listAccountAssets so that the controller “discovers” one asset.
@@ -184,25 +220,24 @@ describe('MultichainAssetsRatesController', () => {
     await controller.updateAssetsRates();
 
     // Check that the Snap request was made with the expected parameters.
-    expect(snapHandler).toHaveBeenCalledWith(
-      expect.objectContaining({
-        handler: 'onAssetsConversion',
-        origin: 'metamask',
-        request: {
-          jsonrpc: '2.0',
-          method: 'onAssetsConversion',
-          params: {
-            conversions: [
-              {
-                from: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
-                to: 'swift:0/iso4217:USD',
-              },
-            ],
-          },
+    expect(snapHandler).toHaveBeenCalledWith({
+      handler: 'onAssetsConversion',
+      origin: 'metamask',
+      request: {
+        jsonrpc: '2.0',
+        method: 'onAssetsConversion',
+        params: {
+          conversions: [
+            {
+              from: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+              to: 'swift:0/iso4217:USD',
+            },
+          ],
+          includeMarketData: true,
         },
-        snapId: 'test-snap',
-      }),
-    );
+      },
+      snapId: 'test-snap',
+    });
 
     // The controller state should now contain the conversion rates returned.
     expect(controller.state.conversionRates).toStrictEqual(
@@ -212,6 +247,13 @@ describe('MultichainAssetsRatesController', () => {
           rate: '202.11',
           conversionTime: 1738539923277,
           currency: 'swift:0/iso4217:USD',
+          marketData: {
+            price: 202.11,
+            priceChange: 0,
+            priceChangePercentage: 0,
+            volume: 0,
+            marketCap: 0,
+          },
         },
       },
     );
@@ -414,5 +456,176 @@ describe('MultichainAssetsRatesController', () => {
     await controller.updateAssetsRates();
 
     expect(controller.state.conversionRates).toStrictEqual({});
+  });
+
+  describe('fetchHistoricalPricesForAsset', () => {
+    it('throws an error if call to snap fails', async () => {
+      const testAsset = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501';
+      const { controller, messenger } = setupController();
+
+      const snapHandler = jest.fn().mockRejectedValue(new Error('test error'));
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        snapHandler,
+      );
+
+      await expect(
+        controller.fetchHistoricalPricesForAsset(testAsset),
+      ).rejects.toThrow(
+        `Failed to fetch historical prices for asset: ${testAsset}`,
+      );
+    });
+
+    it('returns early if the historical price has not expired', async () => {
+      const testCurrency = 'USD';
+      const { controller, messenger } = setupController({
+        config: {
+          state: {
+            historicalPrices: {
+              'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+                [testCurrency]: {
+                  intervals: {},
+                  updateTime: Date.now(),
+                  expirationTime: Date.now() + 1000,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const snapHandler = jest.fn().mockResolvedValue(fakeHistoricalPrices);
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        snapHandler,
+      );
+
+      await controller.fetchHistoricalPricesForAsset(
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+      );
+
+      expect(snapHandler).not.toHaveBeenCalled();
+    });
+
+    it('does not update state if historical prices return null', async () => {
+      const { controller, messenger } = setupController();
+
+      const snapHandler = jest.fn().mockResolvedValue(null);
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        snapHandler,
+      );
+
+      await controller.fetchHistoricalPricesForAsset(
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+      );
+
+      expect(snapHandler).toHaveBeenCalledTimes(1);
+      expect(controller.state.historicalPrices).toMatchObject({});
+    });
+
+    it('calls the snap if historical price does not have an expiration time', async () => {
+      const testCurrency = 'USD';
+      const { controller, messenger } = setupController({
+        config: {
+          state: {
+            historicalPrices: {
+              'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+                [testCurrency]: {
+                  intervals: {},
+                  updateTime: Date.now(),
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const snapHandler = jest.fn().mockResolvedValue(fakeHistoricalPrices);
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        snapHandler,
+      );
+
+      await controller.fetchHistoricalPricesForAsset(
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+      );
+
+      expect(snapHandler).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls the snap if historical price does not exist in state for the current currency', async () => {
+      const testCurrency = 'EUR';
+      const { controller, messenger } = setupController({
+        config: {
+          state: {
+            historicalPrices: {
+              'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+                [testCurrency]: {
+                  intervals: {},
+                  updateTime: Date.now(),
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const snapHandler = jest.fn().mockResolvedValue(fakeHistoricalPrices);
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        snapHandler,
+      );
+
+      await controller.fetchHistoricalPricesForAsset(
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+      );
+
+      expect(snapHandler).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls fetchHistoricalPricesForAsset once and returns early on subsequent calls', async () => {
+      const { controller, messenger } = setupController();
+
+      const testHistoricalPriceReturn = {
+        ...fakeHistoricalPrices.historicalPrice,
+        expirationTime: Date.now() + 1000,
+      };
+      const testAsset = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501';
+
+      const snapHandler = jest.fn().mockResolvedValue({
+        historicalPrice: testHistoricalPriceReturn,
+      });
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        snapHandler,
+      );
+
+      await controller.fetchHistoricalPricesForAsset(testAsset);
+
+      expect(snapHandler).toHaveBeenCalledWith({
+        handler: 'onAssetHistoricalPrice',
+        origin: 'metamask',
+        request: {
+          jsonrpc: '2.0',
+          method: 'onAssetHistoricalPrice',
+          params: {
+            from: testAsset,
+            to: 'swift:0/iso4217:USD',
+          },
+        },
+        snapId: 'test-snap',
+      });
+
+      expect(controller.state.historicalPrices).toMatchObject({
+        [testAsset]: {
+          USD: testHistoricalPriceReturn,
+        },
+      });
+
+      await controller.fetchHistoricalPricesForAsset(testAsset);
+
+      expect(snapHandler).toHaveBeenCalledTimes(1);
+    });
   });
 });
