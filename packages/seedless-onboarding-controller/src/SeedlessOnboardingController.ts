@@ -224,40 +224,40 @@ export class SeedlessOnboardingController extends BaseController<
     );
   }
 
-  /**
-   * Add array of new seed phrase backups to the metadata store in batch.
-   *
-   * @param seedPhrases - The seed phrases to backup.
-   * @param password - The password used to create new wallet and seedphrase
-   * @returns A promise that resolves to the success of the operation.
-   */
-  async batchAddSeedPhraseBackups(seedPhrases: Uint8Array[], password: string) {
-    const { toprfEncryptionKey, toprfAuthKeyPair } =
-      await this.#verifyPassword(password);
+  // /**
+  //  * Add array of new seed phrase backups to the metadata store in batch.
+  //  *
+  //  * @param seedPhrases - The seed phrases to backup.
+  //  * @param password - The password used to create new wallet and seedphrase
+  //  * @returns A promise that resolves to the success of the operation.
+  //  */
+  // async batchAddSeedPhraseBackups(seedPhrases: Uint8Array[], password: string) {
+  //   const { toprfEncryptionKey, toprfAuthKeyPair } =
+  //     await this.#verifyPassword(password);
 
-    // prepare seed phrase metadata
-    const seedPhraseMetadataArr =
-      SeedPhraseMetadata.fromBatchSeedPhrases(seedPhrases);
+  //   // prepare seed phrase metadata
+  //   const seedPhraseMetadataArr =
+  //     SeedPhraseMetadata.fromBatchSeedPhrases(seedPhrases);
 
-    try {
-      // encrypt and store the seed phrase backups
-      await this.#withPersistedSeedPhraseBackupsState(async () => {
-        await this.toprfClient.batchAddSecretDataItems({
-          secretData: seedPhraseMetadataArr.map((metadata) =>
-            metadata.toBytes(),
-          ),
-          encKey: toprfEncryptionKey,
-          authKeyPair: toprfAuthKeyPair,
-        });
-        return seedPhrases;
-      });
-    } catch (error) {
-      log('Error encrypting and storing seed phrase backups', error);
-      throw new Error(
-        SeedlessOnboardingControllerError.FailedToEncryptAndStoreSeedPhraseBackup,
-      );
-    }
-  }
+  //   try {
+  //     // encrypt and store the seed phrase backups
+  //     await this.#withPersistedSeedPhraseBackupsState(async () => {
+  //       await this.toprfClient.batchAddSecretDataItems({
+  //         secretData: seedPhraseMetadataArr.map((metadata) =>
+  //           metadata.toBytes(),
+  //         ),
+  //         encKey: toprfEncryptionKey,
+  //         authKeyPair: toprfAuthKeyPair,
+  //       });
+  //       return seedPhrases;
+  //     });
+  //   } catch (error) {
+  //     log('Error encrypting and storing seed phrase backups', error);
+  //     throw new Error(
+  //       SeedlessOnboardingControllerError.FailedToEncryptAndStoreSeedPhraseBackup,
+  //     );
+  //   }
+  // }
 
   /**
    * @description Fetches encrypted seed phrases and metadata for user's account from the metadata store.
