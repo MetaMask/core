@@ -1,11 +1,12 @@
 import {
+  type ChangeEncryptionKeyResult,
   TOPRFError,
   type KeyPair,
   type NodeAuthTokens,
   type RecoverEncryptionKeyResult,
   type ToprfSecureBackup,
 } from '@metamask/toprf-secure-backup';
-import { bytesToBase64, stringToBytes } from '@metamask/utils';
+import { base64ToBytes, bytesToBase64, stringToBytes } from '@metamask/utils';
 import { keccak_256 as keccak256 } from '@noble/hashes/sha3';
 
 import {
@@ -194,6 +195,31 @@ function mockRecoverEncKey(
 }
 
 /**
+ * Mocks the changeEncKey method of the ToprfSecureBackup instance.
+ *
+ * @param toprfClient - The ToprfSecureBackup instance.
+ * @param newPassword - The new password.
+ *
+ * @returns The mock changeEncKey result.
+ */
+function mockChangeEncKey(
+  toprfClient: ToprfSecureBackup,
+  newPassword: string,
+): ChangeEncryptionKeyResult {
+  const mockToprfEncryptor = createMockToprfEncryptor();
+
+  const encKey = mockToprfEncryptor.deriveEncKey(newPassword);
+  const authKeyPair = mockToprfEncryptor.deriveAuthKeyPair(newPassword);
+
+  jest.spyOn(toprfClient, 'changeEncKey').mockResolvedValueOnce({
+    encKey,
+    authKeyPair,
+  });
+
+  return { encKey, authKeyPair };
+}
+
+/**
  * Creates a mock vault.
  *
  * @param encKey - The encryption key.
@@ -226,6 +252,36 @@ async function createMockVault(
   );
 
   return encryptedMockVault;
+}
+
+/**
+ * Decrypts the vault with the given password.
+ *
+ * @param vault - The vault.
+ * @param password - The password.
+ *
+ * @returns The decrypted vault.
+ */
+async function decryptVault(vault: string, password: string) {
+  const encryptor = createMockVaultEncryptor();
+
+  const decryptedVault = await encryptor.decrypt(password, vault);
+
+  const deserializedVault = JSON.parse(decryptedVault as string);
+
+  const toprfEncryptionKey = base64ToBytes(
+    deserializedVault.toprfEncryptionKey,
+  );
+  const parsedToprfAuthKeyPair = JSON.parse(deserializedVault.toprfAuthKeyPair);
+  const toprfAuthKeyPair = {
+    sk: BigInt(parsedToprfAuthKeyPair.sk),
+    pk: base64ToBytes(parsedToprfAuthKeyPair.pk),
+  };
+
+  return {
+    toprfEncryptionKey,
+    toprfAuthKeyPair,
+  };
 }
 
 const authConnectionId = 'seedless-onboarding';
@@ -853,6 +909,324 @@ describe('SeedlessOnboardingController', () => {
             new RecoveryError(
               SeedlessOnboardingControllerError.LoginFailedError,
             ),
+          );
+        },
+      );
+    });
+  });
+
+  describe('changePassword', () => {
+    const MOCK_PASSWORD = 'mock-password';
+    const NEW_MOCK_PASSWORD = 'new-mock-password';
+    const MOCK_VAULT = JSON.stringify({ foo: 'bar' });
+
+    it('should be able to update new password', async () => {
+      await withController(
+        { state: { nodeAuthTokens: MOCK_NODE_AUTH_TOKENS, backupHashes: [] } },
+        async ({ controller, toprfClient }) => {
+          mockCreateLocalEncKey(toprfClient, MOCK_PASSWORD);
+
+          // persist the local enc key
+          jest.spyOn(toprfClient, 'persistOprfKey').mockResolvedValueOnce();
+          // encrypt and store the secret data
+          handleMockSecretDataAdd();
+          await controller.createToprfKeyAndBackupSeedPhrase({
+            authConnectionId,
+            userId,
+            groupedAuthConnectionId,
+            seedPhrase: MOCK_SEED_PHRASE,
+            password: MOCK_PASSWORD,
+          });
+
+          // verify the vault data before update password
+          expect(controller.state.vault).toBeDefined();
+          const vaultBeforeUpdatePassword = controller.state.vault;
+          const {
+            toprfEncryptionKey: oldEncKey,
+            toprfAuthKeyPair: oldAuthKeyPair,
+          } = await decryptVault(
+            vaultBeforeUpdatePassword as string,
+            MOCK_PASSWORD,
+          );
+
+          // mock the recover enc key
+          mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
+
+          // mock the change enc key
+          const { encKey: newEncKey, authKeyPair: newAuthKeyPair } =
+            mockChangeEncKey(toprfClient, NEW_MOCK_PASSWORD);
+
+          await controller.changePassword({
+            authConnectionId,
+            userId,
+            groupedAuthConnectionId,
+            newPassword: NEW_MOCK_PASSWORD,
+            oldPassword: MOCK_PASSWORD,
+          });
+
+          // verify the vault after update password
+          const vaultAfterUpdatePassword = controller.state.vault;
+          const {
+            toprfEncryptionKey: newEncKeyFromVault,
+            toprfAuthKeyPair: newAuthKeyPairFromVault,
+          } = await decryptVault(
+            vaultAfterUpdatePassword as string,
+            NEW_MOCK_PASSWORD,
+          );
+
+          // verify that the encryption key and auth key pair are updated
+          expect(newEncKeyFromVault).not.toStrictEqual(oldEncKey);
+          expect(newAuthKeyPairFromVault.sk).not.toStrictEqual(
+            oldAuthKeyPair.sk,
+          );
+          expect(newAuthKeyPairFromVault.pk).not.toStrictEqual(
+            oldAuthKeyPair.pk,
+          );
+
+          // verify the vault data is updated with the new encryption key and auth key pair
+          expect(newEncKeyFromVault).toStrictEqual(newEncKey);
+          expect(newAuthKeyPairFromVault.sk).toStrictEqual(newAuthKeyPair.sk);
+          expect(newAuthKeyPairFromVault.pk).toStrictEqual(newAuthKeyPair.pk);
+        },
+      );
+    });
+
+    it('should be able to update new password without groupedAuthConnectionId', async () => {
+      await withController(
+        { state: { nodeAuthTokens: MOCK_NODE_AUTH_TOKENS, backupHashes: [] } },
+        async ({ controller, toprfClient }) => {
+          mockCreateLocalEncKey(toprfClient, MOCK_PASSWORD);
+
+          // persist the local enc key
+          jest.spyOn(toprfClient, 'persistOprfKey').mockResolvedValueOnce();
+          // encrypt and store the secret data
+          handleMockSecretDataAdd();
+          await controller.createToprfKeyAndBackupSeedPhrase({
+            authConnectionId,
+            userId,
+            seedPhrase: MOCK_SEED_PHRASE,
+            password: MOCK_PASSWORD,
+          });
+
+          // verify the vault data before update password
+          expect(controller.state.vault).toBeDefined();
+          const vaultBeforeUpdatePassword = controller.state.vault;
+          const {
+            toprfEncryptionKey: oldEncKey,
+            toprfAuthKeyPair: oldAuthKeyPair,
+          } = await decryptVault(
+            vaultBeforeUpdatePassword as string,
+            MOCK_PASSWORD,
+          );
+
+          // mock the recover enc key
+          mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
+
+          // mock the change enc key
+          const { encKey: newEncKey, authKeyPair: newAuthKeyPair } =
+            mockChangeEncKey(toprfClient, NEW_MOCK_PASSWORD);
+
+          await controller.changePassword({
+            authConnectionId,
+            userId,
+            newPassword: NEW_MOCK_PASSWORD,
+            oldPassword: MOCK_PASSWORD,
+          });
+
+          // verify the vault after update password
+          const vaultAfterUpdatePassword = controller.state.vault;
+          const {
+            toprfEncryptionKey: newEncKeyFromVault,
+            toprfAuthKeyPair: newAuthKeyPairFromVault,
+          } = await decryptVault(
+            vaultAfterUpdatePassword as string,
+            NEW_MOCK_PASSWORD,
+          );
+
+          // verify that the encryption key and auth key pair are updated
+          expect(newEncKeyFromVault).not.toStrictEqual(oldEncKey);
+          expect(newAuthKeyPairFromVault.sk).not.toStrictEqual(
+            oldAuthKeyPair.sk,
+          );
+          expect(newAuthKeyPairFromVault.pk).not.toStrictEqual(
+            oldAuthKeyPair.pk,
+          );
+
+          // verify the vault data is updated with the new encryption key and auth key pair
+          expect(newEncKeyFromVault).toStrictEqual(newEncKey);
+          expect(newAuthKeyPairFromVault.sk).toStrictEqual(newAuthKeyPair.sk);
+          expect(newAuthKeyPairFromVault.pk).toStrictEqual(newAuthKeyPair.pk);
+        },
+      );
+    });
+
+    it('should throw an error if vault is missing', async () => {
+      await withController(
+        { state: { nodeAuthTokens: MOCK_NODE_AUTH_TOKENS, backupHashes: [] } },
+        async ({ controller }) => {
+          await expect(
+            controller.changePassword({
+              authConnectionId,
+              userId,
+              groupedAuthConnectionId,
+              newPassword: NEW_MOCK_PASSWORD,
+              oldPassword: MOCK_PASSWORD,
+            }),
+          ).rejects.toThrow(SeedlessOnboardingControllerError.VaultError);
+        },
+      );
+    });
+
+    it('should throw an error if failed to parse vault data', async () => {
+      await withController(
+        {
+          state: {
+            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+            vault: '{ "foo": "bar"',
+            backupHashes: [],
+          },
+        },
+        async ({ controller, encryptor }) => {
+          jest
+            .spyOn(encryptor, 'decrypt')
+            .mockResolvedValueOnce('{ "foo": "bar"');
+          await expect(
+            controller.changePassword({
+              authConnectionId,
+              userId,
+              groupedAuthConnectionId,
+              newPassword: NEW_MOCK_PASSWORD,
+              oldPassword: MOCK_PASSWORD,
+            }),
+          ).rejects.toThrow(SeedlessOnboardingControllerError.InvalidVaultData);
+        },
+      );
+    });
+
+    it('should throw an error if vault unlocked has an unexpected shape', async () => {
+      await withController(
+        {
+          state: {
+            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+            vault: MOCK_VAULT,
+            backupHashes: [],
+          },
+        },
+        async ({ controller, encryptor }) => {
+          jest
+            .spyOn(encryptor, 'decrypt')
+            .mockResolvedValueOnce({ foo: 'bar' });
+          await expect(
+            controller.changePassword({
+              authConnectionId,
+              userId,
+              groupedAuthConnectionId,
+              newPassword: NEW_MOCK_PASSWORD,
+              oldPassword: MOCK_PASSWORD,
+            }),
+          ).rejects.toThrow(SeedlessOnboardingControllerError.InvalidVaultData);
+
+          jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce('null');
+          await expect(
+            controller.changePassword({
+              authConnectionId,
+              userId,
+              groupedAuthConnectionId,
+              newPassword: NEW_MOCK_PASSWORD,
+              oldPassword: MOCK_PASSWORD,
+            }),
+          ).rejects.toThrow(SeedlessOnboardingControllerError.VaultDataError);
+        },
+      );
+    });
+
+    it('should throw an error if vault unlocked has invalid authentication data', async () => {
+      await withController(
+        {
+          state: {
+            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+            vault: MOCK_VAULT,
+            backupHashes: [],
+          },
+        },
+        async ({ controller, encryptor }) => {
+          jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce(MOCK_VAULT);
+          await expect(
+            controller.changePassword({
+              authConnectionId,
+              userId,
+              groupedAuthConnectionId,
+              newPassword: NEW_MOCK_PASSWORD,
+              oldPassword: MOCK_PASSWORD,
+            }),
+          ).rejects.toThrow(SeedlessOnboardingControllerError.VaultDataError);
+        },
+      );
+    });
+
+    it('should throw an error if the old password is incorrect', async () => {
+      await withController(
+        {
+          state: {
+            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+            vault: MOCK_VAULT,
+            backupHashes: [],
+          },
+        },
+        async ({ controller, encryptor }) => {
+          jest
+            .spyOn(encryptor, 'decrypt')
+            .mockRejectedValueOnce(new Error('Incorrect password'));
+          await expect(
+            controller.changePassword({
+              authConnectionId,
+              userId,
+              groupedAuthConnectionId,
+              newPassword: NEW_MOCK_PASSWORD,
+              oldPassword: 'INCORRECT_PASSWORD',
+            }),
+          ).rejects.toThrow('Incorrect password');
+        },
+      );
+    });
+
+    it('should throw an error if failed to change password', async () => {
+      await withController(
+        { state: { nodeAuthTokens: MOCK_NODE_AUTH_TOKENS, backupHashes: [] } },
+        async ({ controller, toprfClient }) => {
+          mockCreateLocalEncKey(toprfClient, MOCK_PASSWORD);
+
+          // persist the local enc key
+          jest.spyOn(toprfClient, 'persistOprfKey').mockResolvedValueOnce();
+          // encrypt and store the secret data
+          handleMockSecretDataAdd();
+          await controller.createToprfKeyAndBackupSeedPhrase({
+            authConnectionId,
+            userId,
+            groupedAuthConnectionId,
+            seedPhrase: MOCK_SEED_PHRASE,
+            password: MOCK_PASSWORD,
+          });
+
+          // mock the recover enc key
+          mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
+
+          jest
+            .spyOn(toprfClient, 'changeEncKey')
+            .mockRejectedValueOnce(
+              new Error('Failed to change encryption key'),
+            );
+
+          await expect(
+            controller.changePassword({
+              authConnectionId,
+              userId,
+              groupedAuthConnectionId,
+              newPassword: NEW_MOCK_PASSWORD,
+              oldPassword: MOCK_PASSWORD,
+            }),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerError.FailedToChangePassword,
           );
         },
       );

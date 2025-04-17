@@ -8,6 +8,7 @@ import type {
 } from '@metamask/toprf-secure-backup';
 import { ToprfSecureBackup } from '@metamask/toprf-secure-backup';
 import {
+  base64ToBytes,
   bytesToBase64,
   stringToBytes,
   bytesToHex,
@@ -31,6 +32,7 @@ import type {
   SeedlessOnboardingControllerMessenger,
   SeedlessOnboardingControllerOptions,
   SeedlessOnboardingControllerState,
+  VaultData,
 } from './types';
 
 const log = createModuleLogger(projectLogger, controllerName);
@@ -259,6 +261,46 @@ export class SeedlessOnboardingController extends BaseController<
   }
 
   /**
+   * @description Update the password of the seedless onboarding flow.
+   *
+   * Changing password will also update the encryption key and metadata store with new encrypted values.
+   *
+   * @param params - The parameters for updating the password.
+   * @param params.authConnectionId - OAuth authConnectionId from dashboard
+   * @param params.groupedAuthConnectionId - Optional grouped authConnectionId to be used for the authenticate request.
+   * You can pass this to use aggregate connection.
+   * @param params.userId - user email or id from Social login
+   * @param params.newPassword - The new password to update.
+   * @param params.oldPassword - The old password to verify.
+   */
+  async changePassword(params: {
+    authConnectionId: string;
+    groupedAuthConnectionId?: string;
+    userId: string;
+    newPassword: string;
+    oldPassword: string;
+  }) {
+    // verify the old password of the encrypted vault
+    await this.#verifyPassword(params.oldPassword);
+
+    try {
+      // update the encryption key with new password and update the Metadata Store
+      const { encKey: newEncKey, authKeyPair: newAuthKeyPair } =
+        await this.#changeEncryptionKey(params);
+
+      // update and encrypt the vault with new password
+      await this.#createNewVaultWithAuthData({
+        password: params.newPassword,
+        rawToprfEncryptionKey: newEncKey,
+        rawToprfAuthKeyPair: newAuthKeyPair,
+      });
+    } catch (error) {
+      log('Error changing password', error);
+      throw new Error(SeedlessOnboardingControllerError.FailedToChangePassword);
+    }
+  }
+
+  /**
    * Persist the encryption key for the seedless onboarding flow.
    *
    * @param params - The parameters for persisting the encryption key.
@@ -328,6 +370,58 @@ export class SeedlessOnboardingController extends BaseController<
   }
 
   /**
+   * Update the encryption key with new password and update the Metadata Store with new encryption key.
+   *
+   * @param params - The parameters for updating the encryption key.
+   * @param params.authConnectionId - OAuth authConnectionId from dashboard
+   * @param params.groupedAuthConnectionId - Optional grouped authConnectionId to be used for the authenticate request.
+   * You can pass this to use aggregate connection.
+   * @param params.userId - user email or id from Social login
+   * @param params.newPassword - The new password to update.
+   * @param params.oldPassword - The old password to verify.
+   * @returns A promise that resolves to new encryption key and authentication key pair.
+   */
+  async #changeEncryptionKey(params: {
+    authConnectionId: string;
+    groupedAuthConnectionId?: string;
+    userId: string;
+    newPassword: string;
+    oldPassword: string;
+  }) {
+    const {
+      authConnectionId,
+      groupedAuthConnectionId,
+      userId,
+      newPassword,
+      oldPassword,
+    } = params;
+
+    const { nodeAuthTokens } = this.state;
+    this.#assertIsValidNodeAuthTokens(nodeAuthTokens);
+
+    const {
+      encKey,
+      authKeyPair,
+      shareKeyIndex: newShareKeyIndex,
+    } = await this.#recoverEncKey({
+      authConnectionId,
+      groupedAuthConnectionId,
+      userId,
+      password: oldPassword,
+    });
+
+    return await this.toprfClient.changeEncKey({
+      nodeAuthTokens,
+      verifier: groupedAuthConnectionId || authConnectionId,
+      verifierId: userId,
+      oldEncKey: encKey,
+      oldAuthKeyPair: authKeyPair,
+      newShareKeyIndex,
+      newPassword,
+    });
+  }
+
+  /**
    * Encrypt and store the seed phrase backup in the metadata store.
    *
    * @param seedPhrase - The seed phrase to store.
@@ -360,6 +454,45 @@ export class SeedlessOnboardingController extends BaseController<
         SeedlessOnboardingControllerError.FailedToEncryptAndStoreSeedPhraseBackup,
       );
     }
+  }
+
+  /**
+   * Verify the password of the encrypted vault.
+   *
+   * Upon successful verification, reterieved the nodeAuthTokens, and updates the state with the restored nodeAuthTokens.
+   *
+   * @param password - The password to verify.
+   * @returns A promise that resolves to the decrypted vault data.
+   * @throws If the password is incorrect, throw 'incorrect password' error from the #encryptor.decrypt
+   */
+  async #verifyPassword(password: string): Promise<{
+    nodeAuthTokens: NodeAuthTokens;
+    toprfEncryptionKey: Uint8Array;
+    toprfAuthKeyPair: KeyPair;
+  }> {
+    return this.#withVaultLock(async () => {
+      assertIsValidPassword(password);
+
+      const encryptedVault = this.state.vault;
+      if (!encryptedVault) {
+        throw new Error(SeedlessOnboardingControllerError.VaultError);
+      }
+
+      const decryptedVaultData = await this.#vaultEncryptor.decrypt(
+        password,
+        encryptedVault,
+      );
+
+      const { nodeAuthTokens, toprfEncryptionKey, toprfAuthKeyPair } =
+        this.#parseVaultData(decryptedVaultData);
+
+      // update the state with the restored nodeAuthTokens
+      this.update((state) => {
+        state.nodeAuthTokens = nodeAuthTokens;
+      });
+
+      return { nodeAuthTokens, toprfEncryptionKey, toprfAuthKeyPair };
+    });
   }
 
   /**
@@ -515,6 +648,47 @@ export class SeedlessOnboardingController extends BaseController<
   }
 
   /**
+   * Parse and deserialize the authentication data from the vault.
+   *
+   * @param data - The decrypted vault data.
+   * @returns The parsed authentication data.
+   * @throws If the vault data is not valid.
+   */
+  #parseVaultData(data: unknown): {
+    nodeAuthTokens: NodeAuthTokens;
+    toprfEncryptionKey: Uint8Array;
+    toprfAuthKeyPair: KeyPair;
+  } {
+    if (typeof data !== 'string') {
+      throw new Error(SeedlessOnboardingControllerError.InvalidVaultData);
+    }
+
+    let parsedVaultData: unknown;
+    try {
+      parsedVaultData = JSON.parse(data);
+    } catch {
+      throw new Error(SeedlessOnboardingControllerError.InvalidVaultData);
+    }
+
+    this.#assertIsValidVaultData(parsedVaultData);
+
+    const rawToprfEncryptionKey = base64ToBytes(
+      parsedVaultData.toprfEncryptionKey,
+    );
+    const parsedToprfAuthKeyPair = JSON.parse(parsedVaultData.toprfAuthKeyPair);
+    const rawToprfAuthKeyPair = {
+      sk: BigInt(parsedToprfAuthKeyPair.sk),
+      pk: base64ToBytes(parsedToprfAuthKeyPair.pk),
+    };
+
+    return {
+      nodeAuthTokens: parsedVaultData.authTokens,
+      toprfEncryptionKey: rawToprfEncryptionKey,
+      toprfAuthKeyPair: rawToprfAuthKeyPair,
+    };
+  }
+
+  /**
    * Check if the provided value is a valid node auth tokens.
    *
    * @param value - The value to check.
@@ -525,6 +699,28 @@ export class SeedlessOnboardingController extends BaseController<
   ): asserts value is NodeAuthTokens {
     if (!Array.isArray(value) || value.length === 0) {
       throw new Error(SeedlessOnboardingControllerError.InsufficientAuthToken);
+    }
+  }
+
+  /**
+   * Check if the provided value is a valid vault data.
+   *
+   * @param value - The value to check.
+   * @throws If the value is not a valid vault data.
+   */
+  #assertIsValidVaultData(value: unknown): asserts value is VaultData {
+    // value is not valid vault data if any of the following conditions are true:
+    if (
+      !value || // value is not defined
+      typeof value !== 'object' || // value is not an object
+      !('authTokens' in value) || // authTokens is not defined
+      typeof value.authTokens !== 'object' || // authTokens is not an object
+      !('toprfEncryptionKey' in value) || // toprfEncryptionKey is not defined
+      typeof value.toprfEncryptionKey !== 'string' || // toprfEncryptionKey is not a string
+      !('toprfAuthKeyPair' in value) || // toprfAuthKeyPair is not defined
+      typeof value.toprfAuthKeyPair !== 'string' // toprfAuthKeyPair is not a string
+    ) {
+      throw new Error(SeedlessOnboardingControllerError.VaultDataError);
     }
   }
 }
