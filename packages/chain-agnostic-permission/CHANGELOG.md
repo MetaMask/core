@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- export Caip25Errors from @metamask/chain-agnostic-permission package ([#5566](https://github.com/MetaMask/core/pull/5566))
+
 ### Added
 
 - Add and Export `isKnownSessionPropertyValue` validation utility function ([#5647](https://github.com/MetaMask/core/pull/5647))
