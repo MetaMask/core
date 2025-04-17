@@ -173,11 +173,9 @@ export class SeedlessOnboardingController extends BaseController<
     seedPhrase: Uint8Array;
   }): Promise<void> {
     // locally evaluate the encryption key from the password
-    const { encKey, authKeyPair, oprfKey } = this.toprfClient.createLocalEncKey(
-      {
-        password,
-      },
-    );
+    const { encKey, authKeyPair, oprfKey } = this.toprfClient.createLocalKey({
+      password,
+    });
 
     // encrypt and store the seed phrase backup
     await this.#encryptAndStoreSeedPhraseBackup(
@@ -395,7 +393,7 @@ export class SeedlessOnboardingController extends BaseController<
     this.#assertIsValidNodeAuthTokens(nodeAuthTokens);
 
     try {
-      await this.toprfClient.persistOprfKey({
+      await this.toprfClient.persistLocalKey({
         nodeAuthTokens,
         verifier: params.groupedAuthConnectionId || params.authConnectionId,
         verifierId: params.userId,
@@ -474,7 +472,7 @@ export class SeedlessOnboardingController extends BaseController<
     const {
       encKey,
       authKeyPair,
-      shareKeyIndex: newShareKeyIndex,
+      keyShareIndex: newKeyShareIndex,
     } = await this.#recoverEncKey({
       authConnectionId,
       groupedAuthConnectionId,
@@ -488,7 +486,7 @@ export class SeedlessOnboardingController extends BaseController<
       verifierId: userId,
       oldEncKey: encKey,
       oldAuthKeyPair: authKeyPair,
-      newShareKeyIndex,
+      newKeyShareIndex,
       newPassword,
     });
   }

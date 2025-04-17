@@ -131,17 +131,14 @@ function createMockToprfEncryptor() {
 }
 
 /**
- * Mocks the createLocalEncKey method of the ToprfSecureBackup instance.
+ * Mocks the createLocalKey method of the ToprfSecureBackup instance.
  *
  * @param toprfClient - The ToprfSecureBackup instance.
  * @param password - The mock password.
  *
- * @returns The mock createLocalEncKey result.
+ * @returns The mock createLocalKey result.
  */
-function mockCreateLocalEncKey(
-  toprfClient: ToprfSecureBackup,
-  password: string,
-) {
+function mockcreateLocalKey(toprfClient: ToprfSecureBackup, password: string) {
   const mockToprfEncryptor = createMockToprfEncryptor();
 
   const encKey = mockToprfEncryptor.deriveEncKey(password);
@@ -149,7 +146,7 @@ function mockCreateLocalEncKey(
   const oprfKey = BigInt(0);
   const seed = stringToBytes(password);
 
-  jest.spyOn(toprfClient, 'createLocalEncKey').mockReturnValue({
+  jest.spyOn(toprfClient, 'createLocalKey').mockReturnValue({
     encKey,
     authKeyPair,
     oprfKey,
@@ -186,14 +183,14 @@ function mockRecoverEncKey(
     encKey,
     authKeyPair,
     rateLimitResetResult,
-    shareKeyIndex: 1,
+    keyShareIndex: 1,
   });
 
   return {
     encKey,
     authKeyPair,
     rateLimitResetResult,
-    shareKeyIndex: 1,
+    keyShareIndex: 1,
   };
 }
 
@@ -457,13 +454,13 @@ describe('SeedlessOnboardingController', () => {
       await withController(
         { state: { nodeAuthTokens: MOCK_NODE_AUTH_TOKENS, backupHashes: [] } },
         async ({ controller, toprfClient, initialState, encryptor }) => {
-          const { encKey, authKeyPair } = mockCreateLocalEncKey(
+          const { encKey, authKeyPair } = mockcreateLocalKey(
             toprfClient,
             MOCK_PASSWORD,
           );
 
           // persist the local enc key
-          jest.spyOn(toprfClient, 'persistOprfKey').mockResolvedValueOnce();
+          jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
           // encrypt and store the secret data
           const mockSecretDataAdd = handleMockSecretDataAdd();
           await controller.createToprfKeyAndBackupSeedPhrase({
@@ -505,11 +502,9 @@ describe('SeedlessOnboardingController', () => {
       await withController(
         { state: { nodeAuthTokens: MOCK_NODE_AUTH_TOKENS, backupHashes: [] } },
         async ({ controller, toprfClient, initialState }) => {
-          jest
-            .spyOn(toprfClient, 'createLocalEncKey')
-            .mockImplementation(() => {
-              throw new Error('Failed to create local encryption key');
-            });
+          jest.spyOn(toprfClient, 'createLocalKey').mockImplementation(() => {
+            throw new Error('Failed to create local encryption key');
+          });
 
           await expect(
             controller.createToprfKeyAndBackupSeedPhrase({
@@ -544,14 +539,14 @@ describe('SeedlessOnboardingController', () => {
       });
     });
 
-    it('should throw an error if persistOprfKey fails', async () => {
+    it('should throw an error if persistLocalKey fails', async () => {
       await withController(
         { state: { nodeAuthTokens: MOCK_NODE_AUTH_TOKENS, backupHashes: [] } },
         async ({ controller, toprfClient }) => {
-          mockCreateLocalEncKey(toprfClient, MOCK_PASSWORD);
+          mockcreateLocalKey(toprfClient, MOCK_PASSWORD);
 
           jest
-            .spyOn(toprfClient, 'persistOprfKey')
+            .spyOn(toprfClient, 'persistLocalKey')
             .mockRejectedValueOnce(
               new Error('Failed to persist local encryption key'),
             );
@@ -577,9 +572,9 @@ describe('SeedlessOnboardingController', () => {
       await withController(
         { state: { nodeAuthTokens: MOCK_NODE_AUTH_TOKENS, backupHashes: [] } },
         async ({ controller, toprfClient }) => {
-          mockCreateLocalEncKey(toprfClient, MOCK_PASSWORD);
+          mockcreateLocalKey(toprfClient, MOCK_PASSWORD);
 
-          jest.spyOn(toprfClient, 'persistOprfKey').mockResolvedValueOnce();
+          jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
 
           jest
             .spyOn(toprfClient, 'addSecretDataItem')
@@ -1100,10 +1095,10 @@ describe('SeedlessOnboardingController', () => {
       await withController(
         { state: { nodeAuthTokens: MOCK_NODE_AUTH_TOKENS, backupHashes: [] } },
         async ({ controller, toprfClient }) => {
-          mockCreateLocalEncKey(toprfClient, MOCK_PASSWORD);
+          mockcreateLocalKey(toprfClient, MOCK_PASSWORD);
 
           // persist the local enc key
-          jest.spyOn(toprfClient, 'persistOprfKey').mockResolvedValueOnce();
+          jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
           // encrypt and store the secret data
           handleMockSecretDataAdd();
           await controller.createToprfKeyAndBackupSeedPhrase({
@@ -1171,10 +1166,10 @@ describe('SeedlessOnboardingController', () => {
       await withController(
         { state: { nodeAuthTokens: MOCK_NODE_AUTH_TOKENS, backupHashes: [] } },
         async ({ controller, toprfClient }) => {
-          mockCreateLocalEncKey(toprfClient, MOCK_PASSWORD);
+          mockcreateLocalKey(toprfClient, MOCK_PASSWORD);
 
           // persist the local enc key
-          jest.spyOn(toprfClient, 'persistOprfKey').mockResolvedValueOnce();
+          jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
           // encrypt and store the secret data
           handleMockSecretDataAdd();
           await controller.createToprfKeyAndBackupSeedPhrase({
@@ -1370,10 +1365,10 @@ describe('SeedlessOnboardingController', () => {
       await withController(
         { state: { nodeAuthTokens: MOCK_NODE_AUTH_TOKENS, backupHashes: [] } },
         async ({ controller, toprfClient }) => {
-          mockCreateLocalEncKey(toprfClient, MOCK_PASSWORD);
+          mockcreateLocalKey(toprfClient, MOCK_PASSWORD);
 
           // persist the local enc key
-          jest.spyOn(toprfClient, 'persistOprfKey').mockResolvedValueOnce();
+          jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
           // encrypt and store the secret data
           handleMockSecretDataAdd();
           await controller.createToprfKeyAndBackupSeedPhrase({
@@ -1446,9 +1441,9 @@ describe('SeedlessOnboardingController', () => {
         { state: { nodeAuthTokens: MOCK_NODE_AUTH_TOKENS, backupHashes: [] } },
         async ({ controller, toprfClient }) => {
           // create the local enc key
-          mockCreateLocalEncKey(toprfClient, MOCK_PASSWORD);
+          mockcreateLocalKey(toprfClient, MOCK_PASSWORD);
           // persist the local enc key
-          jest.spyOn(toprfClient, 'persistOprfKey').mockResolvedValueOnce();
+          jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
           // mock the secret data add
           const mockSecretDataAdd = handleMockSecretDataAdd();
           await expect(
@@ -1473,9 +1468,9 @@ describe('SeedlessOnboardingController', () => {
         { state: { nodeAuthTokens: MOCK_NODE_AUTH_TOKENS, backupHashes: [] } },
         async ({ controller, toprfClient }) => {
           // create the local enc key
-          mockCreateLocalEncKey(toprfClient, MOCK_PASSWORD);
+          mockcreateLocalKey(toprfClient, MOCK_PASSWORD);
           // persist the local enc key
-          jest.spyOn(toprfClient, 'persistOprfKey').mockResolvedValueOnce();
+          jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
           // mock the secret data add
           const mockSecretDataAdd = handleMockSecretDataAdd();
           await expect(
