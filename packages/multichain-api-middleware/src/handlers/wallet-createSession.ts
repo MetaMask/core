@@ -117,7 +117,7 @@ async function walletCreateSessionHandler(
       try {
         hooks.findNetworkClientIdByChainId(chainId);
         return true;
-      } catch (err) {
+      } catch {
         return false;
       }
     };
