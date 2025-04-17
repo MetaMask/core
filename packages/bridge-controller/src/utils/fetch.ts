@@ -1,4 +1,4 @@
-import type { CaipChainId, Hex } from '@metamask/utils';
+import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 import { Duration } from '@metamask/utils';
 
 import {
@@ -167,3 +167,91 @@ export async function fetchBridgeQuotes(
   });
   return filteredQuotes as QuoteResponse[];
 }
+
+const fetchAssetPricesForCurrency = async (request: {
+  currency: string;
+  assetIds: Set<CaipAssetType>;
+  clientId: string;
+  fetchFn: FetchFunction;
+}): Promise<Record<CaipAssetType, { [currency: string]: string }>> => {
+  const { currency, assetIds, clientId, fetchFn } = request;
+  const validAssetIds = Array.from(assetIds).filter(Boolean);
+  if (validAssetIds.length === 0) {
+    return {};
+  }
+
+  const queryParams = new URLSearchParams({
+    assetIds: validAssetIds.filter(Boolean).join(','),
+    vsCurrency: currency,
+  });
+  const url = `https://price.api.cx.metamask.io/v3/spot-prices?${queryParams}`;
+  const priceApiResponse = (await fetchFn(url, {
+    headers: getClientIdHeader(clientId),
+    cacheOptions: { cacheRefreshTime: Number(Duration.Second * 30) },
+    functionName: 'fetchAssetExchangeRates',
+  })) as Record<CaipAssetType, { [currency: string]: number }>;
+
+  if (!priceApiResponse || typeof priceApiResponse !== 'object') {
+    return {};
+  }
+
+  return Object.entries(priceApiResponse).reduce(
+    (acc, [assetId, currencyToPrice]) => {
+      if (!currencyToPrice) {
+        return acc;
+      }
+      if (!acc[assetId as CaipAssetType]) {
+        acc[assetId as CaipAssetType] = {};
+      }
+      if (currencyToPrice[currency]) {
+        acc[assetId as CaipAssetType][currency] =
+          currencyToPrice[currency].toString();
+      }
+      return acc;
+    },
+    {} as Record<CaipAssetType, { [currency: string]: string }>,
+  );
+};
+
+/**
+ * Fetches the asset prices from the price API for multiple currencies
+ *
+ * @param request - The request object
+ * @returns The asset prices by assetId
+ */
+export const fetchAssetPrices = async (
+  request: {
+    currencies: Set<string>;
+  } & Omit<Parameters<typeof fetchAssetPricesForCurrency>[0], 'currency'>,
+): Promise<
+  Record<CaipAssetType, { [currency: string]: string } | undefined>
+> => {
+  const { currencies, ...args } = request;
+
+  const combinedPrices = await Promise.allSettled(
+    Array.from(currencies).map(
+      async (currency) =>
+        await fetchAssetPricesForCurrency({ ...args, currency }),
+    ),
+  ).then((priceApiResponse) => {
+    return priceApiResponse.reduce(
+      (acc, result) => {
+        if (result.status === 'fulfilled') {
+          Object.entries(result.value).forEach(([assetId, currencyToPrice]) => {
+            const existingPrices = acc[assetId as CaipAssetType];
+            if (!existingPrices) {
+              acc[assetId as CaipAssetType] = {};
+            }
+            Object.entries(currencyToPrice).forEach(([currency, price]) => {
+              acc[assetId as CaipAssetType][currency] = price;
+            });
+          });
+        }
+        return acc;
+      },
+      {} as Record<CaipAssetType, { [currency: string]: string }>,
+    );
+  });
+
+  return combinedPrices;
+};

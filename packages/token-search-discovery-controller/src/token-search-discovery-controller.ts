@@ -14,6 +14,8 @@ import type {
   TrendingTokensParams,
   TopGainersParams,
   TopLosersParams,
+  BlueChipParams,
+  SwappableTokenSearchParams,
 } from './types';
 
 // === GENERAL ===
@@ -154,6 +156,21 @@ export class TokenSearchDiscoveryController extends BaseController<
     return results;
   }
 
+  async searchSwappableTokens(
+    swappableTokenSearchParams: SwappableTokenSearchParams,
+  ): Promise<TokenSearchResponseItem[]> {
+    const results = await this.#tokenSearchService.searchSwappableTokens(
+      swappableTokenSearchParams,
+    );
+
+    this.update((state) => {
+      state.recentSearches = results;
+      state.lastSearchTimestamp = Date.now();
+    });
+
+    return results;
+  }
+
   async getTrendingTokens(
     params: TrendingTokensParams,
   ): Promise<MoralisTokenResponseItem[]> {
@@ -170,5 +187,11 @@ export class TokenSearchDiscoveryController extends BaseController<
     params: TopLosersParams,
   ): Promise<MoralisTokenResponseItem[]> {
     return this.#tokenDiscoveryService.getTopLosersByChains(params);
+  }
+
+  async getBlueChipTokens(
+    params: BlueChipParams,
+  ): Promise<MoralisTokenResponseItem[]> {
+    return this.#tokenDiscoveryService.getBlueChipTokensByChains(params);
   }
 }
