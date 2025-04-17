@@ -370,7 +370,7 @@ describe('filter', () => {
 
       const result = getCaipAccountIdsFromScopesObjects(scopesObjects);
 
-      expect(result).toEqual(
+      expect(result).toStrictEqual(
         expect.arrayContaining([
           'eip155:1:0x123',
           'eip155:1:0x456',
