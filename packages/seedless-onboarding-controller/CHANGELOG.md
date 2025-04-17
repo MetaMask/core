@@ -10,12 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial implementation of the seedless onboarding controller.
-- Authenticate OAuth user using the seedless onboarding flow and determine if the user is already registered or not
-- Create a new Toprf key and backup seed phrase
-- Add a new seed phrase backup to the metadata store
-- Add array of new seed phrase backups to the metadata store in batch (useful in multi-srp flow)
-- Fetch seed phrase metadata from the metadata store
-- Update the password of the seedless onboarding flow
+  - Authenticate OAuth user using the seedless onboarding flow and determine if the user is already registered or not
+  - Create a new Toprf key and backup seed phrase
+  - Add a new seed phrase backup to the metadata store
+  - Add array of new seed phrase backups to the metadata store in batch (useful in multi-srp flow)
+  - Fetch seed phrase metadata from the metadata store
+  - Update the password of the seedless onboarding flow
 
-[Unreleased]: https://github.com/MetaMask/core/compare/seedless-onboarding-controller@0.0.0...HEAD
-
+[Unreleased]: https://github.com/MetaMask/core/
