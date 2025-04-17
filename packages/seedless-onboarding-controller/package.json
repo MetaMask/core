@@ -50,7 +50,7 @@
     "@metamask/base-controller": "^8.0.0",
     "@metamask/browser-passworder": "^4.3.0",
     "@metamask/toprf-secure-backup": "./toprf-secure-backup.tgz",
-    "@metamask/utils": "^11.4.0",
+    "@metamask/utils": "^11.2.0",
     "@noble/hashes": "^1.7.2",
     "async-mutex": "^0.5.0"
   },

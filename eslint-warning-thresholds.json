@@ -469,6 +469,12 @@
   "packages/remote-feature-flag-controller/src/utils/user-segmentation-utils.ts": {
     "jsdoc/tag-lines": 2
   },
+  "packages/seedless-onboarding-controller/src/errors.ts": {
+    "@typescript-eslint/no-unsafe-enum-comparison": 1
+  },
+  "packages/seedless-onboarding-controller/jest.environment.js": {
+    "n/no-unsupported-features/node-builtins": 1
+  },
   "packages/selected-network-controller/src/SelectedNetworkController.ts": {
     "@typescript-eslint/prefer-readonly": 1,
     "prettier/prettier": 6
