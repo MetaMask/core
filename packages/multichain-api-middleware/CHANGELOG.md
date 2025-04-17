@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `wallet_createSession` handler ([#5647](https://github.com/MetaMask/core/pull/5647))
+- Add `wallet_createSession` handler ([#5647](https://github.com/MetaMask/core/pull/5647))
 
 ### Changed
 
