@@ -82,7 +82,7 @@ export class SeedlessOnboardingController extends BaseController<
     messenger,
     state,
     encryptor,
-    network = Web3AuthNetwork.Devnet,
+    network = Web3AuthNetwork.Mainnet,
   }: SeedlessOnboardingControllerOptions) {
     super({
       name: controllerName,
@@ -117,8 +117,8 @@ export class SeedlessOnboardingController extends BaseController<
   async authenticate(params: {
     idTokens: string[];
     authConnectionId: string;
-    groupedAuthConnectionId?: string;
     userId: string;
+    groupedAuthConnectionId?: string;
   }) {
     try {
       const { idTokens, authConnectionId, groupedAuthConnectionId, userId } =
