@@ -82,7 +82,9 @@ async function walletCreateSessionHandler(
     getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
     isNonEvmScopeSupported: (scope: CaipChainId) => boolean;
     getNonEvmAccountAddresses: (scope: CaipChainId) => CaipAccountId[];
-    trackSessionCreatedEvent?: () => void;
+    trackSessionCreatedEvent?: (
+      approvedCaip25CaveatValue: Caip25CaveatValue,
+    ) => void;
   },
 ) {
   if (!isPlainObject(req.params)) {
@@ -223,7 +225,7 @@ async function walletCreateSessionHandler(
     const { sessionProperties: approvedSessionProperties = {} } =
       approvedCaip25CaveatValue;
 
-    hooks.trackSessionCreatedEvent?.();
+    hooks.trackSessionCreatedEvent?.(approvedCaip25CaveatValue);
 
     res.result = {
       sessionScopes,

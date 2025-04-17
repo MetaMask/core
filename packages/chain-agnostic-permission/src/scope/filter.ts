@@ -131,17 +131,16 @@ export const getSupportedScopeObjects = (
 export function getCaipAccountIdsFromScopesObjects(
   scopesObjects: InternalScopesObject[],
 ): CaipAccountId[] {
-  const allAccounts = new Set<CaipAccountId>();
-
-  for (const scopeObject of scopesObjects) {
-    for (const { accounts } of Object.values(scopeObject)) {
-      for (const account of accounts) {
-        allAccounts.add(account);
-      }
-    }
+  if (!scopesObjects.length) {
+    return [];
   }
-
-  return Array.from(allAccounts);
+  return Array.from(
+    new Set(
+      scopesObjects.flatMap((scopeObject) =>
+        Object.values(scopeObject).flatMap(({ accounts }) => accounts),
+      ),
+    ),
+  );
 }
 
 /**
@@ -153,13 +152,14 @@ export function getCaipAccountIdsFromScopesObjects(
 export function getAllScopesFromScopesObjects(
   scopesObjects: InternalScopesObject[],
 ): InternalScopeString[] {
-  const scopeSet = new Set<InternalScopeString>();
-
-  for (const scopeObject of scopesObjects) {
-    for (const key of Object.keys(scopeObject)) {
-      scopeSet.add(key as InternalScopeString);
-    }
+  if (!scopesObjects.length) {
+    return [];
   }
-
-  return Array.from(scopeSet);
+  return Array.from(
+    new Set(
+      scopesObjects.flatMap(
+        (scopeObject) => Object.keys(scopeObject) as InternalScopeString[],
+      ),
+    ),
+  );
 }
