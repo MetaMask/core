@@ -39,6 +39,10 @@ jest.mock('@metamask/stake-sdk', () => ({
     getVaultDailyApys: jest.fn(),
     getVaultApyAverages: jest.fn(),
   })),
+  ChainId: {
+    ETHEREUM: 1,
+    HOLESKY: 17000,
+  },
 }));
 
 /**
@@ -378,7 +382,9 @@ describe('EarnController', () => {
       consoleErrorSpy.mockRestore();
     });
 
-    it('reinitializes SDK when network changes', () => {
+    // TEMP: We're hardcoding ETH mainnet since we can't rely on the network picker anymore.
+    // eslint-disable-next-line jest/no-disabled-tests
+    it.skip('reinitializes SDK when network changes', () => {
       const { messenger } = setupController();
 
       messenger.publish(

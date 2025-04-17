@@ -1200,6 +1200,7 @@ describe('TransactionController', () => {
         estimatedGas: gasMock,
         blockGasLimit: blockGasLimitMock,
         simulationFails: simulationFailsMock,
+        isUpgradeWithDataToSelf: false,
       });
 
       addGasBufferMock.mockReturnValue(expectedEstimatedGas);
@@ -2450,6 +2451,45 @@ describe('TransactionController', () => {
         });
 
         expect(publishHook).toHaveBeenCalledTimes(1);
+      });
+
+      it('skips signing if isExternalSign is true', async () => {
+        const { controller, mockTransactionApprovalRequest } =
+          setupController();
+
+        const signSpy = jest.spyOn(controller, 'sign');
+
+        const { result, transactionMeta } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            gas: '0x0',
+            gasPrice: '0x0',
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        mockTransactionApprovalRequest.approve({
+          value: {
+            txMeta: {
+              ...transactionMeta,
+              isExternalSign: true,
+            },
+          },
+        });
+
+        await result;
+
+        expect(signSpy).not.toHaveBeenCalled();
+
+        expect(controller.state.transactions).toMatchObject([
+          expect.objectContaining({
+            status: TransactionStatus.submitted,
+          }),
+        ]);
       });
 
       describe('fails', () => {

@@ -13,7 +13,8 @@
     { "path": "../network-controller" },
     { "path": "../preferences-controller" },
     { "path": "../polling-controller" },
-    { "path": "../permission-controller" }
+    { "path": "../permission-controller" },
+    { "path": "../transaction-controller" }
   ],
   "include": ["../../types", "./src", "../../tests"]
 }
