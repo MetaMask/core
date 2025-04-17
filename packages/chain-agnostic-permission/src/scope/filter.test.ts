@@ -417,6 +417,11 @@ describe('filter', () => {
             accounts: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:abc123'],
           },
         },
+        {
+          'eip155:1': {
+            accounts: ['eip155:1:0x123'], // duplicate accountID
+          },
+        },
       ];
 
       const result = getAllScopesFromScopesObjects(scopesObjects);
