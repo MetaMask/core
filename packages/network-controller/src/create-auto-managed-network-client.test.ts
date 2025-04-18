@@ -45,6 +45,7 @@ describe('createAutoManagedNetworkClient', () => {
             btoa,
           }),
           messenger: getNetworkControllerMessenger(),
+          rpcFailoverEnabled: false,
         });
 
         expect(configuration).toStrictEqual(networkClientConfiguration);
@@ -60,6 +61,7 @@ describe('createAutoManagedNetworkClient', () => {
               btoa,
             }),
             messenger: getNetworkControllerMessenger(),
+            rpcFailoverEnabled: false,
           });
         }).not.toThrow();
       });
@@ -72,6 +74,7 @@ describe('createAutoManagedNetworkClient', () => {
             btoa,
           }),
           messenger: getNetworkControllerMessenger(),
+          rpcFailoverEnabled: false,
         });
 
         // This also tests the `has` trap in the proxy
@@ -118,6 +121,7 @@ describe('createAutoManagedNetworkClient', () => {
             btoa,
           }),
           messenger: getNetworkControllerMessenger(),
+          rpcFailoverEnabled: false,
         });
 
         const result = await provider.request({
@@ -152,21 +156,14 @@ describe('createAutoManagedNetworkClient', () => {
         const getRpcServiceOptions = () => ({
           btoa,
           fetch,
-          fetchOptions: {
-            headers: {
-              'X-Foo': 'Bar',
-            },
-          },
-          policyOptions: {
-            maxRetries: 2,
-            maxConsecutiveFailures: 10,
-          },
         });
+        const messenger = getNetworkControllerMessenger();
 
         const { provider } = createAutoManagedNetworkClient({
           networkClientConfiguration,
           getRpcServiceOptions,
-          messenger: getNetworkControllerMessenger(),
+          messenger,
+          rpcFailoverEnabled: true,
         });
 
         await provider.request({
@@ -182,11 +179,12 @@ describe('createAutoManagedNetworkClient', () => {
           params: [],
         });
         expect(createNetworkClientMock).toHaveBeenCalledTimes(1);
-        expect(createNetworkClientMock).toHaveBeenCalledWith(
-          expect.objectContaining({
-            configuration: networkClientConfiguration,
-          }),
-        );
+        expect(createNetworkClientMock).toHaveBeenCalledWith({
+          configuration: networkClientConfiguration,
+          getRpcServiceOptions,
+          messenger,
+          rpcFailoverEnabled: true,
+        });
       });
 
       it('returns a block tracker proxy that has the same interface as a block tracker', () => {
@@ -197,6 +195,7 @@ describe('createAutoManagedNetworkClient', () => {
             btoa,
           }),
           messenger: getNetworkControllerMessenger(),
+          rpcFailoverEnabled: false,
         });
 
         // This also tests the `has` trap in the proxy
@@ -254,6 +253,7 @@ describe('createAutoManagedNetworkClient', () => {
             btoa,
           }),
           messenger: getNetworkControllerMessenger(),
+          rpcFailoverEnabled: false,
         });
 
         const blockNumberViaLatest = await new Promise((resolve) => {
@@ -309,21 +309,14 @@ describe('createAutoManagedNetworkClient', () => {
         const getRpcServiceOptions = () => ({
           btoa,
           fetch,
-          fetchOptions: {
-            headers: {
-              'X-Foo': 'Bar',
-            },
-          },
-          policyOptions: {
-            maxRetries: 2,
-            maxConsecutiveFailures: 10,
-          },
         });
+        const messenger = getNetworkControllerMessenger();
 
         const { blockTracker } = createAutoManagedNetworkClient({
           networkClientConfiguration,
           getRpcServiceOptions,
-          messenger: getNetworkControllerMessenger(),
+          messenger,
+          rpcFailoverEnabled: true,
         });
 
         await new Promise((resolve) => {
@@ -335,11 +328,12 @@ describe('createAutoManagedNetworkClient', () => {
         await blockTracker.getLatestBlock();
         await blockTracker.checkForLatestBlock();
         expect(createNetworkClientMock).toHaveBeenCalledTimes(1);
-        expect(createNetworkClientMock).toHaveBeenCalledWith(
-          expect.objectContaining({
-            configuration: networkClientConfiguration,
-          }),
-        );
+        expect(createNetworkClientMock).toHaveBeenCalledWith({
+          configuration: networkClientConfiguration,
+          getRpcServiceOptions,
+          messenger,
+          rpcFailoverEnabled: true,
+        });
       });
 
       it('allows the block tracker to be destroyed', () => {
@@ -364,6 +358,7 @@ describe('createAutoManagedNetworkClient', () => {
             btoa,
           }),
           messenger: getNetworkControllerMessenger(),
+          rpcFailoverEnabled: false,
         });
         // Start the block tracker
         blockTracker.on('latest', () => {
