@@ -575,10 +575,8 @@ describe('MultichainNetworkController', () => {
 
   describe('getNetworksWithTransactionActivityByAccounts', () => {
     const MOCK_EVM_ADDRESS = '0x1234567890123456789012345678901234567890';
-    const MOCK_SOLANA_ADDRESS = 'solana123';
     const MOCK_EVM_CHAIN_1 = '1';
     const MOCK_EVM_CHAIN_137 = '137';
-    const MOCK_SOLANA_CHAIN = '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
 
     it('returns empty object when no accounts exist', async () => {
       const { controller, messenger } = setupController({
@@ -634,60 +632,6 @@ describe('MultichainNetworkController', () => {
         [MOCK_EVM_ADDRESS]: {
           namespace: KnownCaipNamespace.Eip155,
           activeChains: [MOCK_EVM_CHAIN_1, MOCK_EVM_CHAIN_137],
-        },
-      });
-    });
-
-    it('formats network activity for mixed EVM and non-EVM accounts', async () => {
-      const mockResponse: ActiveNetworksResponse = {
-        activeNetworks: [
-          `${KnownCaipNamespace.Eip155}:${MOCK_EVM_CHAIN_1}:${MOCK_EVM_ADDRESS}`,
-          `${KnownCaipNamespace.Solana}:${MOCK_SOLANA_CHAIN}:${MOCK_SOLANA_ADDRESS}`,
-        ],
-      };
-
-      const mockNetworkService = createMockNetworkService(mockResponse);
-      await mockNetworkService.fetchNetworkActivity([
-        `${KnownCaipNamespace.Eip155}:${MOCK_EVM_CHAIN_1}:${MOCK_EVM_ADDRESS}`,
-        `${KnownCaipNamespace.Solana}:${MOCK_SOLANA_CHAIN}:${MOCK_SOLANA_ADDRESS}`,
-      ]);
-
-      const { controller, messenger } = setupController({
-        mockNetworkService,
-      });
-
-      messenger.registerActionHandler(
-        'AccountsController:listMultichainAccounts',
-        () => [
-          createMockInternalAccount({
-            type: EthAccountType.Eoa,
-            address: MOCK_EVM_ADDRESS,
-            scopes: [EthScope.Eoa],
-          }),
-          createMockInternalAccount({
-            type: SolAccountType.DataAccount,
-            address: MOCK_SOLANA_ADDRESS,
-            scopes: [SolScope.Mainnet],
-          }),
-        ],
-      );
-
-      const result =
-        await controller.getNetworksWithTransactionActivityByAccounts();
-
-      expect(mockNetworkService.fetchNetworkActivity).toHaveBeenCalledWith([
-        `${KnownCaipNamespace.Eip155}:0:${MOCK_EVM_ADDRESS}`,
-        `${KnownCaipNamespace.Solana}:${MOCK_SOLANA_CHAIN}:${MOCK_SOLANA_ADDRESS}`,
-      ]);
-
-      expect(result).toStrictEqual({
-        [MOCK_EVM_ADDRESS]: {
-          namespace: KnownCaipNamespace.Eip155,
-          activeChains: [MOCK_EVM_CHAIN_1],
-        },
-        [MOCK_SOLANA_ADDRESS]: {
-          namespace: KnownCaipNamespace.Solana,
-          activeChains: [MOCK_SOLANA_CHAIN],
         },
       });
     });
