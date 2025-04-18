@@ -529,7 +529,9 @@ export class SeedlessOnboardingController extends BaseController<
       if (!encryptedVault) {
         throw new Error(SeedlessOnboardingControllerError.VaultError);
       }
-
+      // Note that vault decryption using the password is a very costly operation as it involves deriving the encryption key
+      // from the password using an intentionally slow key derivation function.
+      // We should make sure that we only call it very intentionally.
       const decryptedVaultData = await this.#vaultEncryptor.decrypt(
         password,
         encryptedVault,
@@ -658,6 +660,9 @@ export class SeedlessOnboardingController extends BaseController<
 
       const updatedState: Partial<SeedlessOnboardingControllerState> = {};
 
+      // Note that vault encryption using the password is a very costly operation as it involves deriving the encryption key
+      // from the password using an intentionally slow key derivation function.
+      // We should make sure that we only call it very intentionally.
       updatedState.vault = await this.#vaultEncryptor.encrypt(
         password,
         serializedVaultData,
