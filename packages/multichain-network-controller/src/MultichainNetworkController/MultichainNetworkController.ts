@@ -163,7 +163,7 @@ export class MultichainNetworkController extends BaseController<
    */
   async getNetworksWithTransactionActivityByAccounts(): Promise<ActiveNetworksByAddress> {
     // TODO: We are filtering out non-EVN accounts for now
-    // Support for non-EVM networks will be added in sometime this month
+    // Support for non-EVM networks will be added in the coming weeks
     const evmAccounts = this.messagingSystem
       .call('AccountsController:listMultichainAccounts')
       .filter((account) => isEvmAccountType(account.type));
