@@ -37,6 +37,17 @@ import type {
 const log = createModuleLogger(projectLogger, controllerName);
 
 /**
+ * Get the default state for the Seedless Onboarding Controller.
+ *
+ * @returns The default state for the Seedless Onboarding Controller.
+ */
+export function getDefaultSeedlessOnboardingControllerState(): SeedlessOnboardingControllerState {
+  return {
+    backupHashes: [],
+  };
+}
+
+/**
  * Seedless Onboarding Controller State Metadata.
  *
  * This allows us to choose if fields of the state should be persisted or not
@@ -58,10 +69,6 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       anonymous: true,
     },
   };
-
-export const defaultState: SeedlessOnboardingControllerState = {
-  backupHashes: [],
-};
 
 export class SeedlessOnboardingController extends BaseController<
   typeof controllerName,
@@ -87,7 +94,7 @@ export class SeedlessOnboardingController extends BaseController<
       name: controllerName,
       metadata: seedlessOnboardingMetadata,
       state: {
-        ...defaultState,
+        ...getDefaultSeedlessOnboardingControllerState(),
         ...state,
       },
       messenger,

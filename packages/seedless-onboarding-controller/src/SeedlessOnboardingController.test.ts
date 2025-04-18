@@ -94,17 +94,10 @@ async function withController<ReturnValue>(
   const encryptor = new MockVaultEncryptor();
   const messenger = buildSeedlessOnboardingControllerMessenger();
 
-  const initialState: SeedlessOnboardingControllerState = rest.state || {
-    vault: undefined,
-    nodeAuthTokens: undefined,
-    backupHashes: [],
-  };
-
   const controller = new SeedlessOnboardingController({
     encryptor,
     messenger,
     network: Web3AuthNetwork.Devnet,
-    state: initialState,
     ...rest,
   });
   const { toprfClient } = controller;
