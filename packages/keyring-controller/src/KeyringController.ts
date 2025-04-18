@@ -2587,7 +2587,8 @@ export class KeyringController extends BaseController<
     const accounts = await this.#getAccountsFromKeyrings();
 
     switch (type) {
-      case KeyringTypes.simple: {
+      case KeyringTypes.simple:
+      case KeyringTypes.hd: {
         const isIncluded = Boolean(
           accounts.find(
             (key) =>
