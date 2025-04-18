@@ -26,9 +26,6 @@ import {
   handleMockSecretDataAdd,
   handleMockCommitment,
   handleMockAuthenticate,
-  handleMockAcquireMetadataLock,
-  handleMockReleaseMetadataLock,
-  handleMockBatchSecretDataAdd,
 } from '../tests/__fixtures__/topfClient';
 import {
   createMockSecretDataGetResponse,
@@ -694,79 +691,6 @@ describe('SeedlessOnboardingController', () => {
       );
     });
   });
-
-  // describe('batchAddSeedPhraseBackups', () => {
-  //   const MOCK_PASSWORD = 'mock-password';
-  //   const SEED_PHRASES = [
-  //     'new mock seed phrase one',
-  //     'new mock seed phrase two',
-  //     'new mock seed phrase three',
-  //   ];
-  //   let MOCK_VAULT = '';
-
-  //   beforeEach(async () => {
-  //     const mockToprfEncryptor = createMockToprfEncryptor();
-
-  //     const MOCK_ENCRYPTION_KEY =
-  //       mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
-  //     const MOCK_AUTH_KEY_PAIR =
-  //       mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
-
-  //     MOCK_VAULT = await createMockVault(
-  //       MOCK_ENCRYPTION_KEY,
-  //       MOCK_AUTH_KEY_PAIR,
-  //       MOCK_PASSWORD,
-  //       MOCK_NODE_AUTH_TOKENS,
-  //     );
-  //   });
-
-  //   it('should be able to add array of seed phrase backups in batch', async () => {
-  //     await withController(
-  //       { state: { vault: MOCK_VAULT, backupHashes: [] } },
-  //       async ({ controller }) => {
-  //         // mock the network calls
-  //         const mockAcquireMetadataLock = handleMockAcquireMetadataLock();
-  //         const mockSecretDataBatchAdd = handleMockBatchSecretDataAdd();
-  //         const mockReleaseMetadataLock = handleMockReleaseMetadataLock();
-
-  //         await controller.batchAddSeedPhraseBackups(
-  //           SEED_PHRASES.map(stringToBytes),
-  //           MOCK_PASSWORD,
-  //         );
-
-  //         expect(mockAcquireMetadataLock.isDone()).toBe(true);
-  //         expect(mockSecretDataBatchAdd.isDone()).toBe(true);
-  //         expect(mockReleaseMetadataLock.isDone()).toBe(true);
-  //         expect(controller.state.nodeAuthTokens).toBeDefined();
-  //         expect(controller.state.nodeAuthTokens).toStrictEqual(
-  //           MOCK_NODE_AUTH_TOKENS,
-  //         );
-  //       },
-  //     );
-  //   });
-
-  //   it('should throw an error if failed to encrypt and store seed phrase backup', async () => {
-  //     await withController(
-  //       { state: { vault: MOCK_VAULT, backupHashes: [] } },
-  //       async ({ controller, toprfClient }) => {
-  //         jest
-  //           .spyOn(toprfClient, 'batchAddSecretDataItems')
-  //           .mockRejectedValueOnce(
-  //             new Error('Failed to add secret data items in batch'),
-  //           );
-
-  //         await expect(
-  //           controller.batchAddSeedPhraseBackups(
-  //             SEED_PHRASES.map(stringToBytes),
-  //             MOCK_PASSWORD,
-  //           ),
-  //         ).rejects.toThrow(
-  //           SeedlessOnboardingControllerError.FailedToEncryptAndStoreSeedPhraseBackup,
-  //         );
-  //       },
-  //     );
-  //   });
-  // });
 
   describe('fetchAndRestoreSeedPhrase', () => {
     const MOCK_PASSWORD = 'mock-password';
