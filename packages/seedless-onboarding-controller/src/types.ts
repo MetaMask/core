@@ -30,13 +30,15 @@ export type SeedlessOnboardingControllerState = {
 };
 
 // Actions
-export type SeedlessOnboardingControllerGetStateActions =
+export type SeedlessOnboardingControllerGetStateAction =
   ControllerGetStateAction<
     typeof controllerName,
     SeedlessOnboardingControllerState
   >;
 export type SeedlessOnboardingControllerActions =
-  SeedlessOnboardingControllerGetStateActions;
+  SeedlessOnboardingControllerGetStateAction;
+
+export type AllowedActions = never;
 
 // Events
 export type SeedlessOnboardingControllerStateChangeEvent =
@@ -47,13 +49,15 @@ export type SeedlessOnboardingControllerStateChangeEvent =
 export type SeedlessOnboardingControllerEvents =
   SeedlessOnboardingControllerStateChangeEvent;
 
+export type AllowedEvents = never;
+
 // Messenger
 export type SeedlessOnboardingControllerMessenger = RestrictedMessenger<
   typeof controllerName,
-  SeedlessOnboardingControllerActions,
-  SeedlessOnboardingControllerEvents,
-  SeedlessOnboardingControllerActions['type'],
-  SeedlessOnboardingControllerEvents['type']
+  SeedlessOnboardingControllerActions | AllowedActions,
+  SeedlessOnboardingControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
 >;
 
 /**

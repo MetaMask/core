@@ -3,7 +3,7 @@ export type {
   SeedlessOnboardingControllerState,
   SeedlessOnboardingControllerOptions,
   SeedlessOnboardingControllerMessenger,
-  SeedlessOnboardingControllerGetStateActions,
+  SeedlessOnboardingControllerGetStateAction,
   SeedlessOnboardingControllerStateChangeEvent,
   SeedlessOnboardingControllerActions,
   SeedlessOnboardingControllerEvents,
