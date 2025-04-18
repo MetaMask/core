@@ -214,7 +214,7 @@ export class SeedlessOnboardingController extends BaseController<
   ): Promise<void> {
     // verify the password and unlock the vault
     const { toprfEncryptionKey, toprfAuthKeyPair } =
-      await this.#verifyPassword(password);
+      await this.#unlockVaultWithPassword(password);
 
     // encrypt and store the seed phrase backup
     await this.#encryptAndStoreSeedPhraseBackup(
@@ -334,7 +334,7 @@ export class SeedlessOnboardingController extends BaseController<
     oldPassword: string;
   }) {
     // verify the old password of the encrypted vault
-    await this.#verifyPassword(params.oldPassword);
+    await this.#unlockVaultWithPassword(params.oldPassword);
 
     try {
       // update the encryption key with new password and update the Metadata Store
@@ -524,15 +524,21 @@ export class SeedlessOnboardingController extends BaseController<
   }
 
   /**
-   * Verify the password of the encrypted vault.
+   * Unlocks the encrypted vault using the provided password and returns the decrypted vault data.
+   * This method ensures thread-safety by using a mutex lock when accessing the vault.
    *
-   * Upon successful verification, reterieved the nodeAuthTokens, and updates the state with the restored nodeAuthTokens.
-   *
-   * @param password - The password to verify.
-   * @returns A promise that resolves to the decrypted vault data.
-   * @throws If the password is incorrect, throw 'incorrect password' error from the #encryptor.decrypt
+   * @param password - The password to decrypt the vault.
+   * @returns A promise that resolves to an object containing:
+   * - nodeAuthTokens: Authentication tokens to communicate with the TOPRF service
+   * - toprfEncryptionKey: The decrypted TOPRF encryption key
+   * - toprfAuthKeyPair: The decrypted TOPRF authentication key pair
+   * @throws {Error} If:
+   * - The password is invalid or empty
+   * - The vault is not initialized
+   * - The password is incorrect (from encryptor.decrypt)
+   * - The decrypted vault data is malformed
    */
-  async #verifyPassword(password: string): Promise<{
+  async #unlockVaultWithPassword(password: string): Promise<{
     nodeAuthTokens: NodeAuthTokens;
     toprfEncryptionKey: Uint8Array;
     toprfAuthKeyPair: KeyPair;
