@@ -8,5 +8,5 @@ export type {
   SeedlessOnboardingControllerActions,
   SeedlessOnboardingControllerEvents,
 } from './types';
-export { controllerName, Web3AuthNetwork } from './constants';
+export { Web3AuthNetwork } from './constants';
 export * from './errors';
