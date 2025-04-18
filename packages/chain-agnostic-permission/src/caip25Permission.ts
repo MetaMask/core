@@ -22,8 +22,8 @@ import {
 } from '@metamask/utils';
 import { cloneDeep, isEqual } from 'lodash';
 
-import { setPermittedAccounts } from './adapters/caip-permission-adapter-accounts';
-import { setPermittedChainIds } from './adapters/caip-permission-adapter-permittedChains';
+import { setNonSCACaipAccountIdsInCaip25CaveatValue } from './adapters/caip-permission-adapter-accounts';
+import { overwriteCaipChainIdsInCaip25CaveatValue } from './adapters/caip-permission-adapter-permittedChains';
 import { assertIsInternalScopesObject } from './scope/assert';
 import {
   isSupportedAccount,
@@ -512,12 +512,12 @@ export const generateCaip25Caveat = (
     caveats: [{ type: string; value: Caip25CaveatValue }];
   };
 } => {
-  const caveatValueWithChains = setPermittedChainIds(
+  const caveatValueWithChains = overwriteCaipChainIdsInCaip25CaveatValue(
     caip25CaveatValue,
     chainIds,
   );
 
-  const caveatValueWithAccounts = setPermittedAccounts(
+  const caveatValueWithAccounts = setNonSCACaipAccountIdsInCaip25CaveatValue(
     caveatValueWithChains,
     accountAddresses,
   );
@@ -533,3 +533,26 @@ export const generateCaip25Caveat = (
     },
   };
 };
+
+/**
+ * Helper to get the CAIP-25 caveat from a permission
+ *
+ * @param caip25Permission - The CAIP-25 permission object
+ * @param caip25Permission.caveats - The caveats of the CAIP-25 permission
+ * @returns The CAIP-25 caveat or undefined if not found
+ */
+export function getCaip25CaveatFromPermission(caip25Permission: {
+  caveats: {
+    type: string;
+    value: Caip25CaveatValue;
+  }[];
+}):
+  | {
+      type: string;
+      value: Caip25CaveatValue;
+    }
+  | undefined {
+  return caip25Permission.caveats.find(
+    (caveat) => caveat.type === Caip25CaveatType,
+  );
+}
