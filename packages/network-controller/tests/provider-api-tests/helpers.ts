@@ -73,7 +73,7 @@ function buildScopeForMockingRequests(
 
 // TODO: Replace `any` with type
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Request = { method: string; params?: any[] };
+export type MockRequest = { method: string; params?: any[] };
 type Response = {
   id?: number | string;
   jsonrpc?: '2.0';
@@ -85,11 +85,11 @@ type Response = {
   result?: any;
   httpStatus?: number;
 };
-type BodyOrResponse = { body: JSONRPCResponse | string } | Response;
+export type MockResponse = { body: JSONRPCResponse | string } | Response;
 type CurriedMockRpcCallOptions = {
-  request: Request;
+  request: MockRequest;
   // The response data.
-  response?: BodyOrResponse;
+  response?: MockResponse;
   /**
    * An error to throw while making the request.
    * Takes precedence over `response`.
@@ -285,7 +285,7 @@ async function mockAllBlockTrackerRequests({
  * response if it is successful or rejects with the error from the JSON-RPC
  * response otherwise.
  */
-function makeRpcCall(ethQuery: EthQuery, request: Request) {
+function makeRpcCall(ethQuery: EthQuery, request: MockRequest) {
   return new Promise((resolve, reject) => {
     debug('[makeRpcCall] making request', request);
     // TODO: Replace `any` with type
@@ -393,10 +393,10 @@ type MockNetworkClient = {
   clock: sinon.SinonFakeTimers;
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  makeRpcCall: (request: Request) => Promise<any>;
+  makeRpcCall: (request: MockRequest) => Promise<any>;
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  makeRpcCallsInSeries: (requests: Request[]) => Promise<any[]>;
+  makeRpcCallsInSeries: (requests: MockRequest[]) => Promise<any[]>;
   messenger: RootMessenger;
   chainId: Hex;
   rpcUrl: string;
@@ -545,9 +545,9 @@ export async function withNetworkClient(
   const { provider, blockTracker } = networkClient;
 
   const ethQuery = new EthQuery(provider);
-  const curriedMakeRpcCall = (request: Request) =>
+  const curriedMakeRpcCall = (request: MockRequest) =>
     makeRpcCall(ethQuery, request);
-  const makeRpcCallsInSeries = async (requests: Request[]) => {
+  const makeRpcCallsInSeries = async (requests: MockRequest[]) => {
     const responses = [];
     for (const request of requests) {
       responses.push(await curriedMakeRpcCall(request));
@@ -621,7 +621,7 @@ export function buildMockParams({
  * @returns The updated request object.
  */
 export function buildRequestWithReplacedBlockParam(
-  { method, params = [] }: Request,
+  { method, params = [] }: MockRequest,
   blockParamIndex: number,
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
