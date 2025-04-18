@@ -26,7 +26,7 @@ import { RecoveryError } from './errors';
 import { projectLogger, createModuleLogger } from './logger';
 import { SeedPhraseMetadata } from './SeedPhraseMetadata';
 import type {
-  Encryptor,
+  VaultEncryptor,
   MutuallyExclusiveCallback,
   SeedlessOnboardingControllerMessenger,
   SeedlessOnboardingControllerOptions,
@@ -75,19 +75,25 @@ export class SeedlessOnboardingController extends BaseController<
   SeedlessOnboardingControllerState,
   SeedlessOnboardingControllerMessenger
 > {
-  readonly #vaultEncryptor: Encryptor = {
-    encrypt,
-    decrypt,
-  };
+  readonly #vaultEncryptor: VaultEncryptor;
 
   readonly #vaultOperationMutex = new Mutex();
 
   readonly toprfClient: ToprfSecureBackup;
 
+  /**
+   * Creates a new SeedlessOnboardingController instance.
+   *
+   * @param options - The options for the SeedlessOnboardingController.
+   * @param options.messenger - A restricted messenger.
+   * @param options.state - Initial state to set on this controller.
+   * @param options.encryptor - An optional encryptor to use for encrypting and decrypting seedless onboarding vault.
+   * @param options.network - The network to be used for the Seedless Onboarding flow.
+   */
   constructor({
     messenger,
     state,
-    encryptor,
+    encryptor = { encrypt, decrypt }, // default to `encrypt` and `decrypt` from `@metamask/browser-passworder`
     network = Web3AuthNetwork.Mainnet,
   }: SeedlessOnboardingControllerOptions) {
     super({
@@ -100,10 +106,7 @@ export class SeedlessOnboardingController extends BaseController<
       messenger,
     });
 
-    if (encryptor) {
-      this.#vaultEncryptor = encryptor;
-    }
-
+    this.#vaultEncryptor = encryptor;
     this.toprfClient = new ToprfSecureBackup({
       network,
     });
