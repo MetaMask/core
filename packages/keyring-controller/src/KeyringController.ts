@@ -2574,7 +2574,7 @@ export class KeyringController extends BaseController<
    * Checks for duplicate keypairs, using the the first account in the given
    * array. Rejects if a duplicate is found.
    *
-   * Only supports 'Simple Key Pair'.
+   * Only supports 'Simple Key Pair' and 'HD Key Tree'.
    *
    * @param type - The key pair type to check for.
    * @param newAccountArray - Array of new accounts.
