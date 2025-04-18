@@ -95,7 +95,7 @@ export type SeedlessOnboardingControllerOptions = {
   /**
    * Initial state to set on this controller.
    */
-  state?: SeedlessOnboardingControllerState;
+  state?: Partial<SeedlessOnboardingControllerState>;
 
   /**
    * Encryptor to use for encrypting and decrypting seedless onboarding vault.
@@ -104,6 +104,11 @@ export type SeedlessOnboardingControllerOptions = {
    */
   encryptor?: Encryptor;
 
+  /**
+   * Type of Web3Auth network to be used for the Seedless Onboarding flow.
+   *
+   * @default Web3AuthNetwork.Mainnet
+   */
   network?: Web3AuthNetwork;
 };
 
