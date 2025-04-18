@@ -341,9 +341,8 @@ export class SeedlessOnboardingController extends BaseController<
    * @returns A promise that resolves to the hash of the seed phrase backup.
    */
   getSeedPhraseBackupHash(seedPhrase: Uint8Array): string | undefined {
-    return this.state.backupHashes.find((hash) => {
-      return hash === keccak256AndHexify(seedPhrase);
-    });
+    const seedPhraseHash = keccak256AndHexify(seedPhrase);
+    return this.state.backupHashes.find((hash) => hash === seedPhraseHash);
   }
 
   /**
