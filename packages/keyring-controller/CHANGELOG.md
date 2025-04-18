@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Now check for duplicated addresses when creating new HD keyrings ([#5675](https://github.com/MetaMask/core/pull/5675))
+  - This will prevent creating a new HD keyring when one of its accounts got already imported (using a raw private key).
+
 ## [21.0.3]
 
 ### Changed

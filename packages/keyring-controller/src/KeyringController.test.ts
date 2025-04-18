@@ -416,6 +416,40 @@ describe('KeyringController', () => {
       });
     });
 
+    it('should throw DuplicatedAccount error when adding a new HD keyring that contains an existing HD account', async () => {
+      await withController(async ({ controller, initialState }) => {
+        const existingHdAddress = initialState.keyrings[0].accounts[0];
+
+        // Mock the getAccounts method of the *prototype* of HdKeyring
+        // This ensures that when a *new* HD keyring is created during addNewKeyring,
+        // its getAccounts call (used by #checkForDuplicate) returns the duplicate address.
+        const getAccountsSpy = jest
+          .spyOn(HdKeyring.prototype, 'getAccounts')
+          .mockImplementation((): `0x${string}`[] => {
+            // Return the duplicate address synchronously
+            return [existingHdAddress as `0x${string}`];
+          });
+
+        // Attempt to add a *new* HD keyring
+        await expect(controller.addNewKeyring(KeyringTypes.hd)).rejects.toThrow(
+          KeyringControllerError.DuplicatedAccount,
+        );
+
+        // Verify the mock was called (implicitly verifies #checkForDuplicate ran)
+        expect(getAccountsSpy).toHaveBeenCalled();
+
+        // Restore the original method
+        getAccountsSpy.mockRestore();
+
+        // Verify state hasn't changed unexpectedly
+        const finalAccounts = await controller.getAccounts();
+        expect(finalAccounts).toHaveLength(
+          initialState.keyrings[0].accounts.length,
+        );
+        expect(controller.state.keyrings).toHaveLength(1); // No second keyring added
+      });
+    });
+
     it('should throw error when the controller is locked', async () => {
       await withController(async ({ controller }) => {
         await controller.setLocked();

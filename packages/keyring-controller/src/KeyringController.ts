@@ -2574,7 +2574,7 @@ export class KeyringController extends BaseController<
    * Checks for duplicate keypairs, using the the first account in the given
    * array. Rejects if a duplicate is found.
    *
-   * Only supports 'Simple Key Pair'.
+   * Only supports 'Simple Key Pair' and 'HD Key Tree'.
    *
    * @param type - The key pair type to check for.
    * @param newAccountArray - Array of new accounts.
@@ -2587,7 +2587,8 @@ export class KeyringController extends BaseController<
     const accounts = await this.#getAccountsFromKeyrings();
 
     switch (type) {
-      case KeyringTypes.simple: {
+      case KeyringTypes.simple:
+      case KeyringTypes.hd: {
         const isIncluded = Boolean(
           accounts.find(
             (key) =>
