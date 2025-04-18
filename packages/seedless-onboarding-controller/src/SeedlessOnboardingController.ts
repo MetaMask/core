@@ -563,16 +563,30 @@ export class SeedlessOnboardingController extends BaseController<
   }
 
   /**
-   * Persist the seed phrase backups state with the hashed seed phrase backups returned from the callback.
+   * Executes a callback function that creates or restores seed phrases and persists their hashes in the controller state.
    *
-   * @param callback - The function to execute while the seed phrase backups state is persisted.
-   * @returns A promise that resolves to the success of the operation.
+   * This method:
+   * 1. Executes the provided callback to create/restore seed phrases
+   * 2. Generates keccak256 hashes of the seed phrases
+   * 3. Merges new hashes with existing ones in the state, ensuring uniqueness
+   * 4. Updates the controller state with the combined hashes
+   *
+   * This is a wrapper method that should be used around any operation that creates
+   * or restores seed phrases to ensure their hashes are properly tracked.
+   *
+   * @param createOrRestoreSeedPhraseBackupCallback - function that returns either a single seed phrase
+   * or an array of seed phrases as Uint8Array(s)
+   * @returns The original seed phrase(s) returned by the callback
+   * @throws Rethrows any errors from the callback with additional logging
    */
   async #withPersistedSeedPhraseBackupsState<
     Result extends Uint8Array | Uint8Array[],
-  >(callback: () => Promise<Result>): Promise<Result> {
+  >(
+    createOrRestoreSeedPhraseBackupCallback: () => Promise<Result>,
+  ): Promise<Result> {
     try {
-      const backedUpSeedPhrases = await callback();
+      const backedUpSeedPhrases =
+        await createOrRestoreSeedPhraseBackupCallback();
       let backedUpHashB64Strings: string[] = [];
 
       if (Array.isArray(backedUpSeedPhrases)) {
