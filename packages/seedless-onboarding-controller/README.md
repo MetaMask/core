@@ -1,6 +1,6 @@
 # `@metamask/seedless-onboarding-controller`
 
-Backup and restore SRP
+Backup and rehydrate SRP(s) using social login and password
 
 ## Installation
 
