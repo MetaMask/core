@@ -56,6 +56,9 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
+    "@noble/ciphers": "^0.5.2",
+    "@noble/curves": "^1.2.0",
+    "@noble/hashes": "^1.4.0",
     "@types/elliptic": "^6",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
