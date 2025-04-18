@@ -87,7 +87,7 @@ export type EthPhishingResponse = {
 export type C2DomainBlocklistResponse = {
   recentlyAdded: string[];
   recentlyRemoved: string[];
-  lastFetchedAt: string;
+  lastFetchedAt: number;
 };
 
 /**
@@ -148,10 +148,16 @@ export type HotlistDiff = {
   isRemoval?: boolean;
 };
 
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
+/**
+ * @type DataResultWrapper<T>
+ *
+ * Type for API responses that wrap data (e.g. hotlist)
+ * @property data - The wrapped data
+ * @property lastFetchedAt - Timestamp of the last fetch request
+ */
 export type DataResultWrapper<T> = {
   data: T;
+  lastFetchedAt?: number;
 };
 
 /**
@@ -204,10 +210,12 @@ const metadata = {
   hotlistLastFetched: { persist: true, anonymous: false },
   stalelistLastFetched: { persist: true, anonymous: false },
   c2DomainBlocklistLastFetched: { persist: true, anonymous: false },
+  hotlistLastSuccessTimestamp: { persist: true, anonymous: false },
 };
 
 /**
  * Get a default empty state for the controller.
+ *
  * @returns The default empty state.
  */
 const getDefaultState = (): PhishingControllerState => {
@@ -217,6 +225,7 @@ const getDefaultState = (): PhishingControllerState => {
     hotlistLastFetched: 0,
     stalelistLastFetched: 0,
     c2DomainBlocklistLastFetched: 0,
+    hotlistLastSuccessTimestamp: 0,
   };
 };
 
@@ -233,6 +242,7 @@ export type PhishingControllerState = {
   hotlistLastFetched: number;
   stalelistLastFetched: number;
   c2DomainBlocklistLastFetched: number;
+  hotlistLastSuccessTimestamp: number;
 };
 
 /**
@@ -673,6 +683,7 @@ export class PhishingController extends BaseController<
       this.update((draftState) => {
         draftState.stalelistLastFetched = timeNow;
         draftState.hotlistLastFetched = timeNow;
+        draftState.hotlistLastSuccessTimestamp = timeNow;
         draftState.c2DomainBlocklistLastFetched = timeNow;
       });
     }
@@ -714,6 +725,11 @@ export class PhishingController extends BaseController<
    * this function that prevents redundant configuration updates.
    */
   async #updateHotlist() {
+    if (this.state.hotlistLastSuccessTimestamp === 0) {
+      await this.updateStalelist();
+      return;
+    }
+
     let hotlistResponse: DataResultWrapper<Hotlist> | null;
 
     try {
@@ -721,12 +737,8 @@ export class PhishingController extends BaseController<
         return;
       }
 
-      const lastDiffTimestamp = Math.max(
-        ...this.state.phishingLists.map(({ lastUpdated }) => lastUpdated),
-      );
-
       hotlistResponse = await this.#queryConfig<DataResultWrapper<Hotlist>>(
-        `${METAMASK_HOTLIST_DIFF_URL}/${lastDiffTimestamp}`,
+        `${METAMASK_HOTLIST_DIFF_URL}/${this.state.hotlistLastSuccessTimestamp}`,
       );
     } finally {
       // Set `hotlistLastFetched` even for failed requests to prevent server from being overwhelmed with
@@ -739,6 +751,15 @@ export class PhishingController extends BaseController<
     if (!hotlistResponse?.data) {
       return;
     }
+
+    // Only update the success timestamp when we have a successful response
+    this.update((draftState) => {
+      // We've already verified that hotlistResponse is not null above
+      draftState.hotlistLastSuccessTimestamp =
+        hotlistResponse?.lastFetchedAt ||
+        draftState.hotlistLastSuccessTimestamp;
+    });
+
     const hotlist = hotlistResponse.data;
     const newPhishingLists = this.state.phishingLists.map((phishingList) => {
       const updatedList = applyDiffs(
@@ -792,7 +813,7 @@ export class PhishingController extends BaseController<
     const newPhishingLists = this.state.phishingLists.map((phishingList) => {
       const updatedList = applyDiffs(
         phishingList,
-        [],
+        [], // Proper Hotlist object with empty data array
         phishingListNameKeyMap[phishingList.name],
         recentlyAddedC2Domains,
         recentlyRemovedC2Domains,

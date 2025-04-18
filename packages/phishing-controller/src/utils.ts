@@ -1,11 +1,11 @@
 import { bytesToHex } from '@noble/hashes/utils';
 import { sha256 } from 'ethereum-cryptography/sha256';
 
-import type { Hotlist, PhishingListState } from './PhishingController';
 import { ListKeys, phishingListKeyNameMap } from './PhishingController';
+import type { Hotlist, PhishingListState } from './PhishingController';
 import type {
-  PhishingDetectorList,
   PhishingDetectorConfiguration,
+  PhishingDetectorList,
 } from './PhishingDetector';
 
 const DEFAULT_TOLERANCE = 3;
