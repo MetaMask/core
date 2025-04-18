@@ -57,7 +57,7 @@ export type SeedlessOnboardingControllerMessenger = RestrictedMessenger<
 >;
 
 /**
- * @description Encryptor interface for encrypting and decrypting seedless onboarding vault.
+ * Encryptor interface for encrypting and decrypting seedless onboarding vault.
  */
 export type Encryptor = {
   /**
@@ -89,12 +89,13 @@ export type SeedlessOnboardingControllerOptions = {
   messenger: SeedlessOnboardingControllerMessenger;
 
   /**
-   * @description Initial state to set on this controller.
+   * Initial state to set on this controller.
    */
   state?: SeedlessOnboardingControllerState;
 
   /**
-   * @description Encryptor to use for encrypting and decrypting seedless onboarding vault.
+   * Encryptor to use for encrypting and decrypting seedless onboarding vault.
+   *
    * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
    */
   encryptor?: Encryptor;
@@ -115,7 +116,7 @@ export type MutuallyExclusiveCallback<Result> = ({
 }) => Promise<Result>;
 
 /**
- * @description The structure of the data which is serialized and stored in the vault.
+ * The structure of the data which is serialized and stored in the vault.
  */
 export type VaultData = {
   /**

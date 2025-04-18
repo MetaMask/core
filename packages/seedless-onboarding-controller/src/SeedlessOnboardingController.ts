@@ -110,8 +110,9 @@ export class SeedlessOnboardingController extends BaseController<
   }
 
   /**
-   * @description Authenticate OAuth user using the seedless onboarding flow
+   * Authenticate OAuth user using the seedless onboarding flow
    * and determine if the user is already registered or not.
+   *
    * @param params - The parameters for authenticate OAuth user.
    * @param params.idTokens - The ID token(s) issued by OAuth verification service. Currently this array only contains a single idToken which is verified by all the nodes, in future we are considering to issue a unique idToken for each node.
    * @param params.authConnectionId - OAuth authConnectionId from dashboard
@@ -267,7 +268,10 @@ export class SeedlessOnboardingController extends BaseController<
   // }
 
   /**
-   * @description Fetches encrypted seed phrases and metadata for user's account from the metadata store.
+   * Fetches all encrypted seed phrases and metadata for user's account from the metadata store.
+   *
+   * Decrypts the seed phrases and returns the decrypted seed phrases using the recovered encryption key from the password.
+   *
    * @param params - The parameters for fetching seed phrase metadata.
    * @param params.authConnectionId - OAuth authConnectionId from dashboard
    * @param params.groupedAuthConnectionId - Optional grouped authConnectionId to be used for the authenticate request.
@@ -321,9 +325,9 @@ export class SeedlessOnboardingController extends BaseController<
   }
 
   /**
-   * @description Update the password of the seedless onboarding flow.
+   * Update the password of the seedless onboarding flow.
    *
-   * Changing password will also update the encryption key and metadata store with new encrypted values.
+   * Changing password will also update the encryption key, metadata store and the vault with new encrypted values.
    *
    * @param params - The parameters for updating the password.
    * @param params.authConnectionId - OAuth authConnectionId from dashboard
@@ -361,7 +365,7 @@ export class SeedlessOnboardingController extends BaseController<
   }
 
   /**
-   * @description Get the hash of the seed phrase backup for the given seed phrase, from the state.
+   * Get the hash of the seed phrase backup for the given seed phrase, from the state.
    *
    * If the given seed phrase is not backed up and not found in the state, it will return `undefined`.
    *
@@ -411,7 +415,8 @@ export class SeedlessOnboardingController extends BaseController<
   }
 
   /**
-   * @description Recover the encryption key from password.
+   * Recover the encryption key from password.
+   *
    * @param params - The parameters for recovering the encryption key.
    * @param params.authConnectionId - OAuth authConnectionId from dashboard
    * @param params.groupedAuthConnectionId - Optional grouped authConnectionId to be used for the authenticate request.
@@ -715,7 +720,8 @@ export class SeedlessOnboardingController extends BaseController<
   }
 
   /**
-   * @description Serialize the encryption key and authentication key pair.
+   * Serialize the encryption key and authentication key pair.
+   *
    * @param encKey - The encryption key to serialize.
    * @param authKeyPair - The authentication key pair to serialize.
    * @returns The serialized encryption key and authentication key pair.
