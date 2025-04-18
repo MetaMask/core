@@ -9,7 +9,8 @@
     { "path": "../chain-agnostic-permission" },
     { "path": "../json-rpc-engine" },
     { "path": "../network-controller" },
-    { "path": "../permission-controller" }
+    { "path": "../permission-controller" },
+    { "path": "../multichain-transactions-controller" }
   ],
   "include": ["../../types", "./src"]
 }

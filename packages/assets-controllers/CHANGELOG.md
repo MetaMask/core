@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [58.0.0]
+
+### Added
+
+- Added `includeMarketData` to the params of the `OnAssetsConversion` handler ([#5639](https://github.com/MetaMask/core/pull/5639))
+- Added `fetchHistoricalPricesForAsset` method to `MultichainAssetsRatesController` ([#5639](https://github.com/MetaMask/core/pull/5639))
+- Added `getSelectedMultichainAccount` action to `multichainAssetsRatesController` ([#5639](https://github.com/MetaMask/core/pull/5639))
+- Added new state field `historicalPrices` to `MultichainAssetsRatesController` ([#5639](https://github.com/MetaMask/core/pull/5639))
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/snaps-controllers` peer dependency from ^9.19.0 to ^11.0.0 ([#5639](https://github.com/MetaMask/core/pull/5639))
+- **BREAKING:** Bump `@metamask/providers` peer dependency from ^18.1.0 to ^21.0.0 ([#5639](https://github.com/MetaMask/core/pull/5639))
+- Bump `@metamask/snaps-utils` from ^8.10.0 to ^9.2.0 ([#5639](https://github.com/MetaMask/core/pull/5639))
+
 ## [57.0.0]
 
 ### Added
@@ -1539,7 +1554,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@57.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@58.0.0...HEAD
+[58.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@57.0.0...@metamask/assets-controllers@58.0.0
 [57.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@56.0.0...@metamask/assets-controllers@57.0.0
 [56.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@55.0.1...@metamask/assets-controllers@56.0.0
 [55.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@55.0.0...@metamask/assets-controllers@55.0.1
