@@ -69,9 +69,9 @@ const UNINITIALIZED_TARGET = { __UNINITIALIZED__: true };
  * @param args.getRpcServiceOptions - Factory for constructing RPC service
  * options. See {@link NetworkControllerOptions.getRpcServiceOptions}.
  * @param args.messenger - The network controller messenger.
- * @param args.isRpcFailoverEnabled - Whether or not requests sent to the RPC
- * endpoint for this network should be automatically diverted to failover RPC
- * endpoints (if defined).
+ * @param args.isRpcFailoverEnabled - Whether or not requests sent to the
+ * primary RPC endpoint for this network should be automatically diverted to
+ * provided failover endpoints if the primary is unavailable.
  * @returns The auto-managed network client.
  */
 export function createAutoManagedNetworkClient<

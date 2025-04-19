@@ -57,9 +57,11 @@ export type NetworkClient = {
  * options. See {@link NetworkControllerOptions.getRpcServiceOptions}.
  * @param args.messenger - The network controller messenger.
  * See {@link NetworkControllerOptions.getRpcServiceOptions}.
- * @param args.isRpcFailoverEnabled - Whether or not requests sent to the RPC
- * endpoint for this network should be automatically diverted to failover RPC
- * endpoints (if defined).
+ * @param args.isRpcFailoverEnabled - Whether or not requests sent to the
+ * primary RPC endpoint for this network should be automatically diverted to
+ * provided failover endpoints if the primary is unavailable. This effectively
+ * causes the `failoverRpcUrls` property of the network client configuration
+ * to be honored or ignored.
  * @returns The network client.
  */
 export function createNetworkClient({

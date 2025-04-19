@@ -18,7 +18,6 @@ import {
   BuiltInNetworkName,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
-import type { RemoteFeatureFlagControllerStateChangeEvent } from '@metamask/remote-feature-flag-controller';
 import { errorCodes } from '@metamask/rpc-errors';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
@@ -53,6 +52,7 @@ import type {
   NetworkClientConfiguration,
   AdditionalDefaultNetwork,
 } from './types';
+import { NetworkClient } from './create-network-client';
 
 const debugLog = createModuleLogger(projectLogger, 'NetworkController');
 
@@ -498,8 +498,6 @@ export type NetworkControllerEvents =
   | NetworkControllerRpcEndpointDegradedEvent
   | NetworkControllerRpcEndpointRequestRetriedEvent;
 
-export type AllowedEvents = RemoteFeatureFlagControllerStateChangeEvent;
-
 export type NetworkControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   NetworkState
@@ -592,14 +590,12 @@ export type NetworkControllerActions =
   | NetworkControllerRemoveNetworkAction
   | NetworkControllerUpdateNetworkAction;
 
-export type AllowedActions = never;
-
 export type NetworkControllerMessenger = RestrictedMessenger<
   typeof controllerName,
-  NetworkControllerActions | AllowedActions,
-  NetworkControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  NetworkControllerActions,
+  NetworkControllerEvents,
+  never,
+  never
 >;
 
 /**
@@ -1245,14 +1241,34 @@ export class NetworkController extends BaseController<
     );
   }
 
+  /**
+   * Enables the RPC failover functionality. That is, if any RPC endpoints are
+   * configured with failover URLs, then traffic will automatically be diverted
+   * to them if those RPC endpoints are unavailable.
+   */
   enableRpcFailover() {
     this.#updateRpcFailoverEnabled(true);
   }
 
+  /**
+   * Disables the RPC failover functionality. That is, even if any RPC endpoints
+   * are configured with failover URLs, then traffic will not automatically be
+   * diverted to them if those RPC endpoints are unavailable.
+   */
   disableRpcFailover() {
     this.#updateRpcFailoverEnabled(false);
   }
 
+  /**
+   * Enables or disables the RPC failover functionality, depending on the
+   * boolean given. This is done by reconstructing all network clients that were
+   * originally configured with failover URLs so that those URLs are either
+   * honored or ignored. Network client IDs will be preserved so as not to
+   * invalidate state in other controllers.
+   *
+   * @param newIsRpcFailoverEnabled - Whether or not to enable or disable the
+   * RPC failover functionality.
+   */
   #updateRpcFailoverEnabled(newIsRpcFailoverEnabled: boolean) {
     if (this.#isRpcFailoverEnabled === newIsRpcFailoverEnabled) {
       return;
@@ -1261,41 +1277,27 @@ export class NetworkController extends BaseController<
     const autoManagedNetworkClientRegistry =
       this.#ensureAutoManagedNetworkClientRegistryPopulated();
 
-    const infuraAutoManagedNetworkClientRegistry =
-      autoManagedNetworkClientRegistry[NetworkClientType.Infura];
-    for (const networkClientId of knownKeysOf(
-      infuraAutoManagedNetworkClientRegistry,
+    for (const networkClientsById of Object.values(
+      autoManagedNetworkClientRegistry,
     )) {
-      const networkClient =
-        infuraAutoManagedNetworkClientRegistry[networkClientId];
-      if (
-        networkClient.configuration.failoverRpcUrls &&
-        networkClient.configuration.failoverRpcUrls.length > 0
-      ) {
-        networkClient.destroy();
-        infuraAutoManagedNetworkClientRegistry[networkClientId] =
-          newIsRpcFailoverEnabled
+      for (const networkClientId of Object.keys(networkClientsById)) {
+        // Type assertion: We can assume that `networkClientId` is valid here.
+        const networkClient =
+          networkClientsById[
+            networkClientId as keyof typeof networkClientsById
+          ];
+        if (
+          networkClient.configuration.failoverRpcUrls &&
+          networkClient.configuration.failoverRpcUrls.length > 0
+        ) {
+          networkClient.destroy();
+          const newNetworkClient = newIsRpcFailoverEnabled
             ? networkClient.withRpcFailoverEnabled()
             : networkClient.withRpcFailoverDisabled();
-      }
-    }
-
-    const customAutoManagedNetworkClientRegistry =
-      autoManagedNetworkClientRegistry[NetworkClientType.Custom];
-    for (const networkClientId of knownKeysOf(
-      customAutoManagedNetworkClientRegistry,
-    )) {
-      const networkClient =
-        customAutoManagedNetworkClientRegistry[networkClientId];
-      if (
-        networkClient.configuration.failoverRpcUrls &&
-        networkClient.configuration.failoverRpcUrls.length > 0
-      ) {
-        networkClient.destroy();
-        customAutoManagedNetworkClientRegistry[networkClientId] =
-          newIsRpcFailoverEnabled
-            ? networkClient.withRpcFailoverEnabled()
-            : networkClient.withRpcFailoverDisabled();
+          networkClientsById[
+            networkClientId as keyof typeof networkClientsById
+          ] = newNetworkClient;
+        }
       }
     }
 

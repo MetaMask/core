@@ -90,7 +90,7 @@ export function buildNetworkControllerMessenger(
   return messenger.getRestricted({
     name: 'NetworkController',
     allowedActions: [],
-    allowedEvents: ['RemoteFeatureFlagController:stateChange'],
+    allowedEvents: [],
   });
 }
 
