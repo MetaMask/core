@@ -11,7 +11,6 @@ import { numberToHex } from '@metamask/utils';
 
 import { BridgeStatusController } from './bridge-status-controller';
 import { DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE } from './constants';
-import { StatusTypes } from './types';
 import {
   type BridgeId,
   type StartPollingForBridgeTxStatusArgsSerialized,

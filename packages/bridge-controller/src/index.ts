@@ -28,6 +28,8 @@ export type {
   StatusTypes,
 } from './types';
 
+export { StatusTypes } from './types';
+
 export {
   AssetType,
   SortOrder,

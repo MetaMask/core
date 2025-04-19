@@ -5,6 +5,7 @@ import {
   isEthUsdt,
   isNativeAddress,
   isSolanaChainId,
+  StatusTypes,
   type QuoteResponse,
 } from '@metamask/bridge-controller';
 import type {
@@ -34,7 +35,7 @@ import {
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
   REFRESH_INTERVAL_MS,
 } from './constants';
-import { StatusTypes, type BridgeStatusControllerMessenger } from './types';
+import { type BridgeStatusControllerMessenger } from './types';
 import type {
   BridgeStatusControllerState,
   StartPollingForBridgeTxStatusArgsSerialized,
