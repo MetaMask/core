@@ -393,8 +393,6 @@ type MockNetworkClient = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   blockTracker: any;
   provider: SafeEventEmitterProvider;
-  enableRpcFailover: () => void;
-  disableRpcFailover: () => void;
   clock: sinon.SinonFakeTimers;
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -551,8 +549,7 @@ export async function withNetworkClient(
   /* eslint-disable-next-line n/no-process-env */
   process.env.IN_TEST = inTest;
 
-  const { provider, blockTracker, enableRpcFailover, disableRpcFailover } =
-    networkClient;
+  const { provider, blockTracker } = networkClient;
 
   const ethQuery = new EthQuery(provider);
   const curriedMakeRpcCall = (request: MockRequest) =>
@@ -568,8 +565,6 @@ export async function withNetworkClient(
   const client = {
     blockTracker,
     provider,
-    enableRpcFailover,
-    disableRpcFailover,
     clock,
     makeRpcCall: curriedMakeRpcCall,
     makeRpcCallsInSeries,

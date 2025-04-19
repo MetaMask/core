@@ -102,25 +102,14 @@ export function buildNetworkControllerMessenger(
  * @param args.configuration - The desired network client configuration.
  * @param args.providerStubs - Objects that allow for stubbing specific provider
  * requests.
- * @param args.enableRpcFailover - Override for the `enableRpcFailover` method.
- * @param args.disableRpcFailover - Override for the `disableRpcFailover`
- * method.
  * @returns The fake network client.
  */
 export function buildFakeNetworkClient({
   configuration,
   providerStubs = [],
-  enableRpcFailover = () => {
-    // do nothing,
-  },
-  disableRpcFailover = () => {
-    // do nothing,
-  },
 }: {
   configuration: NetworkClientConfiguration;
   providerStubs?: FakeProviderStub[];
-  enableRpcFailover?: () => void;
-  disableRpcFailover?: () => void;
 }): NetworkClient {
   const provider = new FakeProvider({ stubs: providerStubs });
   return {
@@ -130,8 +119,6 @@ export function buildFakeNetworkClient({
     destroy: () => {
       // do nothing
     },
-    enableRpcFailover,
-    disableRpcFailover,
   };
 }
 

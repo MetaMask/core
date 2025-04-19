@@ -46,8 +46,6 @@ export type NetworkClient = {
   provider: Provider;
   blockTracker: BlockTracker;
   destroy: () => void;
-  enableRpcFailover: () => void;
-  disableRpcFailover: () => void;
 };
 
 /**
@@ -68,7 +66,7 @@ export function createNetworkClient({
   configuration,
   getRpcServiceOptions,
   messenger,
-  isRpcFailoverEnabled: initialRpcFailoverEnabled,
+  isRpcFailoverEnabled,
 }: {
   configuration: NetworkClientConfiguration;
   getRpcServiceOptions: (
@@ -77,18 +75,13 @@ export function createNetworkClient({
   messenger: NetworkControllerMessenger;
   isRpcFailoverEnabled: boolean;
 }): NetworkClient {
-  let isRpcFailoverEnabled = initialRpcFailoverEnabled;
   const primaryEndpointUrl =
     configuration.type === NetworkClientType.Infura
       ? `https://${configuration.network}.infura.io/v3/${configuration.infuraProjectId}`
       : configuration.rpcUrl;
-  const determineAvailableEndpointUrls = (givenRpcFailoverEnabled: boolean) => {
-    return givenRpcFailoverEnabled
-      ? [primaryEndpointUrl, ...(configuration.failoverRpcUrls ?? [])]
-      : [primaryEndpointUrl];
-  };
-  const availableEndpointUrls =
-    determineAvailableEndpointUrls(isRpcFailoverEnabled);
+  const availableEndpointUrls = isRpcFailoverEnabled
+    ? [primaryEndpointUrl, ...(configuration.failoverRpcUrls ?? [])]
+    : [primaryEndpointUrl];
   const rpcServiceChain = new RpcServiceChain(
     availableEndpointUrls.map((endpointUrl) => ({
       ...getRpcServiceOptions(endpointUrl),
@@ -122,37 +115,6 @@ export function createNetworkClient({
       attempt,
     });
   });
-
-  const updateRpcServices = () => {
-    const rpcServiceConfigurations = determineAvailableEndpointUrls(
-      isRpcFailoverEnabled,
-    ).map((endpointUrl) => ({
-      ...getRpcServiceOptions(endpointUrl),
-      endpointUrl,
-    }));
-    console.log('Rebuilding services', rpcServiceConfigurations);
-    rpcServiceChain.updateServices(rpcServiceConfigurations);
-  };
-
-  const enableRpcFailover = () => {
-    if (isRpcFailoverEnabled) {
-      console.log('enableRpcFailover: Already enabled?!');
-      return;
-    }
-
-    isRpcFailoverEnabled = true;
-    console.log('enableRpcFailover: Updating RPC services...');
-    updateRpcServices();
-  };
-
-  const disableRpcFailover = () => {
-    if (!isRpcFailoverEnabled) {
-      return;
-    }
-
-    isRpcFailoverEnabled = false;
-    updateRpcServices();
-  };
 
   const rpcApiMiddleware =
     configuration.type === NetworkClientType.Infura
@@ -201,14 +163,7 @@ export function createNetworkClient({
     blockTracker.destroy();
   };
 
-  return {
-    configuration,
-    provider,
-    blockTracker,
-    destroy,
-    enableRpcFailover,
-    disableRpcFailover,
-  };
+  return { configuration, provider, blockTracker, destroy };
 }
 
 /**

@@ -1246,28 +1246,62 @@ export class NetworkController extends BaseController<
   }
 
   enableRpcFailover() {
-    if (this.#isRpcFailoverEnabled) {
+    this.#updateRpcFailoverEnabled(true);
+  }
+
+  disableRpcFailover() {
+    this.#updateRpcFailoverEnabled(true);
+  }
+
+  #updateRpcFailoverEnabled(newIsRpcFailoverEnabled: boolean) {
+    if (this.#isRpcFailoverEnabled === newIsRpcFailoverEnabled) {
       return;
     }
 
-    const networkClientsById = this.getNetworkClientRegistry();
+    const autoManagedNetworkClientRegistry =
+      this.#ensureAutoManagedNetworkClientRegistryPopulated();
 
-    for (const networkClient of Object.values(networkClientsById)) {
+    const infuraAutoManagedNetworkClientRegistry =
+      autoManagedNetworkClientRegistry[NetworkClientType.Infura];
+    for (const networkClientId of knownKeysOf(
+      infuraAutoManagedNetworkClientRegistry,
+    )) {
+      const networkClient =
+        infuraAutoManagedNetworkClientRegistry[networkClientId];
       console.log('networkClient', networkClient.configuration);
       if (
         networkClient.configuration.failoverRpcUrls &&
         networkClient.configuration.failoverRpcUrls.length > 0
       ) {
-        networkClient.enableRpcFailover();
+        networkClient.destroy();
+        infuraAutoManagedNetworkClientRegistry[networkClientId] =
+          newIsRpcFailoverEnabled
+            ? networkClient.withRpcFailoverEnabled()
+            : networkClient.withRpcFailoverDisabled();
       }
     }
 
-    this.#isRpcFailoverEnabled = true;
-  }
+    const customAutoManagedNetworkClientRegistry =
+      autoManagedNetworkClientRegistry[NetworkClientType.Custom];
+    for (const networkClientId of knownKeysOf(
+      customAutoManagedNetworkClientRegistry,
+    )) {
+      const networkClient =
+        customAutoManagedNetworkClientRegistry[networkClientId];
+      console.log('networkClient', networkClient.configuration);
+      if (
+        networkClient.configuration.failoverRpcUrls &&
+        networkClient.configuration.failoverRpcUrls.length > 0
+      ) {
+        networkClient.destroy();
+        customAutoManagedNetworkClientRegistry[networkClientId] =
+          newIsRpcFailoverEnabled
+            ? networkClient.withRpcFailoverEnabled()
+            : networkClient.withRpcFailoverDisabled();
+      }
+    }
 
-  disableRpcFailover() {
-    // Go through all RPC endpoints with failover RPC URLs defined and call
-    // .enableRpcFailover on the network clients
+    this.#isRpcFailoverEnabled = newIsRpcFailoverEnabled;
   }
 
   /**

@@ -40,8 +40,8 @@ export type AutoManagedNetworkClient<
   provider: ProxyWithAccessibleTarget<Provider>;
   blockTracker: ProxyWithAccessibleTarget<BlockTracker>;
   destroy: () => void;
-  enableRpcFailover: () => void;
-  disableRpcFailover: () => void;
+  withRpcFailoverEnabled: () => AutoManagedNetworkClient<Configuration>;
+  withRpcFailoverDisabled: () => AutoManagedNetworkClient<Configuration>;
 };
 
 /**
@@ -80,7 +80,7 @@ export function createAutoManagedNetworkClient<
   networkClientConfiguration,
   getRpcServiceOptions,
   messenger,
-  isRpcFailoverEnabled: initialRpcFailoverEnabled,
+  isRpcFailoverEnabled,
 }: {
   networkClientConfiguration: Configuration;
   getRpcServiceOptions: (
@@ -89,7 +89,6 @@ export function createAutoManagedNetworkClient<
   messenger: NetworkControllerMessenger;
   isRpcFailoverEnabled: boolean;
 }): AutoManagedNetworkClient<Configuration> {
-  let isRpcFailoverEnabled = initialRpcFailoverEnabled;
   let networkClient: NetworkClient | undefined;
 
   const ensureNetworkClientCreated = (): NetworkClient => {
@@ -204,20 +203,22 @@ export function createAutoManagedNetworkClient<
     networkClient?.destroy();
   };
 
-  const enableRpcFailover = () => {
-    if (networkClient) {
-      networkClient.enableRpcFailover();
-    } else {
-      isRpcFailoverEnabled = true;
-    }
+  const withRpcFailoverEnabled = () => {
+    return createAutoManagedNetworkClient({
+      networkClientConfiguration,
+      getRpcServiceOptions,
+      messenger,
+      isRpcFailoverEnabled: true,
+    });
   };
 
-  const disableRpcFailover = () => {
-    if (networkClient) {
-      networkClient.disableRpcFailover();
-    } else {
-      isRpcFailoverEnabled = false;
-    }
+  const withRpcFailoverDisabled = () => {
+    return createAutoManagedNetworkClient({
+      networkClientConfiguration,
+      getRpcServiceOptions,
+      messenger,
+      isRpcFailoverEnabled: false,
+    });
   };
 
   return {
@@ -225,7 +226,7 @@ export function createAutoManagedNetworkClient<
     provider: providerProxy,
     blockTracker: blockTrackerProxy,
     destroy,
-    enableRpcFailover,
-    disableRpcFailover,
+    withRpcFailoverEnabled,
+    withRpcFailoverDisabled,
   };
 }

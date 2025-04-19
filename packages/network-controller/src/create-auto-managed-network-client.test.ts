@@ -192,7 +192,7 @@ describe('createAutoManagedNetworkClient', () => {
           });
         });
 
-        it('allows for enabling the RPC failover before the network client is initialized', async () => {
+        it('allows for enabling the RPC failover behavior', async () => {
           mockNetwork({
             networkClientConfiguration,
             mocks: [
@@ -223,8 +223,7 @@ describe('createAutoManagedNetworkClient', () => {
             getRpcServiceOptions,
             messenger,
             isRpcFailoverEnabled: false,
-          });
-          autoManagedNetworkClient.enableRpcFailover();
+          }).withRpcFailoverEnabled();
           const { provider } = autoManagedNetworkClient;
 
           await provider.request({
@@ -241,66 +240,7 @@ describe('createAutoManagedNetworkClient', () => {
           });
         });
 
-        it('allows for enabling the RPC failover after the network client is initialized', async () => {
-          const mockNetworkClient = buildFakeNetworkClient({
-            configuration: networkClientConfiguration,
-            providerStubs: [
-              {
-                request: {
-                  method: 'test_method',
-                  params: [],
-                },
-                response: {
-                  result: 'test response',
-                },
-              },
-              {
-                request: {
-                  method: 'test_method',
-                  params: [],
-                },
-                response: {
-                  result: 'test response',
-                },
-              },
-            ],
-          });
-          const enableRpcFailoverMock = jest.spyOn(
-            mockNetworkClient,
-            'enableRpcFailover',
-          );
-          jest
-            .spyOn(createNetworkClientModule, 'createNetworkClient')
-            .mockReturnValue(mockNetworkClient);
-          const autoManagedNetworkClient = createAutoManagedNetworkClient({
-            networkClientConfiguration,
-            getRpcServiceOptions: () => ({
-              btoa,
-              fetch,
-            }),
-            messenger: getNetworkControllerMessenger(),
-            isRpcFailoverEnabled: false,
-          });
-          const { provider } = autoManagedNetworkClient;
-
-          await provider.request({
-            id: 1,
-            jsonrpc: '2.0',
-            method: 'test_method',
-            params: [],
-          });
-          autoManagedNetworkClient.enableRpcFailover();
-          await provider.request({
-            id: 1,
-            jsonrpc: '2.0',
-            method: 'test_method',
-            params: [],
-          });
-
-          expect(enableRpcFailoverMock).toHaveBeenCalled();
-        });
-
-        it('allows for disabling the RPC failover before the network client is initialized', async () => {
+        it('allows for disabling the RPC failover behavior', async () => {
           mockNetwork({
             networkClientConfiguration,
             mocks: [
@@ -331,8 +271,7 @@ describe('createAutoManagedNetworkClient', () => {
             getRpcServiceOptions,
             messenger,
             isRpcFailoverEnabled: true,
-          });
-          autoManagedNetworkClient.disableRpcFailover();
+          }).withRpcFailoverDisabled();
           const { provider } = autoManagedNetworkClient;
 
           await provider.request({
@@ -347,65 +286,6 @@ describe('createAutoManagedNetworkClient', () => {
             messenger,
             isRpcFailoverEnabled: false,
           });
-        });
-
-        it('allows for disabling the RPC failover after the network client is initialized', async () => {
-          const mockNetworkClient = buildFakeNetworkClient({
-            configuration: networkClientConfiguration,
-            providerStubs: [
-              {
-                request: {
-                  method: 'test_method',
-                  params: [],
-                },
-                response: {
-                  result: 'test response',
-                },
-              },
-              {
-                request: {
-                  method: 'test_method',
-                  params: [],
-                },
-                response: {
-                  result: 'test response',
-                },
-              },
-            ],
-          });
-          const disableRpcFailoverMock = jest.spyOn(
-            mockNetworkClient,
-            'disableRpcFailover',
-          );
-          jest
-            .spyOn(createNetworkClientModule, 'createNetworkClient')
-            .mockReturnValue(mockNetworkClient);
-          const autoManagedNetworkClient = createAutoManagedNetworkClient({
-            networkClientConfiguration,
-            getRpcServiceOptions: () => ({
-              btoa,
-              fetch,
-            }),
-            messenger: getNetworkControllerMessenger(),
-            isRpcFailoverEnabled: true,
-          });
-          const { provider } = autoManagedNetworkClient;
-
-          await provider.request({
-            id: 1,
-            jsonrpc: '2.0',
-            method: 'test_method',
-            params: [],
-          });
-          autoManagedNetworkClient.disableRpcFailover();
-          await provider.request({
-            id: 1,
-            jsonrpc: '2.0',
-            method: 'test_method',
-            params: [],
-          });
-
-          expect(disableRpcFailoverMock).toHaveBeenCalled();
         });
       });
 
@@ -559,7 +439,7 @@ describe('createAutoManagedNetworkClient', () => {
           });
         });
 
-        it('allows for enabling the RPC failover before the network client is initialized', async () => {
+        it('allows for enabling the RPC failover behavior', async () => {
           mockNetwork({
             networkClientConfiguration,
             mocks: [
@@ -589,8 +469,7 @@ describe('createAutoManagedNetworkClient', () => {
             getRpcServiceOptions,
             messenger,
             isRpcFailoverEnabled: false,
-          });
-          autoManagedNetworkClient.enableRpcFailover();
+          }).withRpcFailoverEnabled();
           const { blockTracker } = autoManagedNetworkClient;
 
           await new Promise((resolve) => {
@@ -604,60 +483,7 @@ describe('createAutoManagedNetworkClient', () => {
           });
         });
 
-        it('allows for enabling the RPC failover after the network client is initialized', async () => {
-          const mockNetworkClient = buildFakeNetworkClient({
-            configuration: networkClientConfiguration,
-            providerStubs: [
-              {
-                request: {
-                  method: 'eth_blockNumber',
-                  params: [],
-                },
-                response: {
-                  result: '0x1',
-                },
-              },
-              {
-                request: {
-                  method: 'eth_blockNumber',
-                  params: [],
-                },
-                response: {
-                  result: '0x2',
-                },
-              },
-            ],
-          });
-          const enableRpcFailoverMock = jest.spyOn(
-            mockNetworkClient,
-            'enableRpcFailover',
-          );
-          jest
-            .spyOn(createNetworkClientModule, 'createNetworkClient')
-            .mockReturnValue(mockNetworkClient);
-          const autoManagedNetworkClient = createAutoManagedNetworkClient({
-            networkClientConfiguration,
-            getRpcServiceOptions: () => ({
-              btoa,
-              fetch,
-            }),
-            messenger: getNetworkControllerMessenger(),
-            isRpcFailoverEnabled: false,
-          });
-          const { blockTracker } = autoManagedNetworkClient;
-
-          await new Promise((resolve) => {
-            blockTracker.once('latest', resolve);
-          });
-          autoManagedNetworkClient.enableRpcFailover();
-          await new Promise((resolve) => {
-            blockTracker.once('latest', resolve);
-          });
-
-          expect(enableRpcFailoverMock).toHaveBeenCalled();
-        });
-
-        it('allows for disabling the RPC failover before the network client is initialized', async () => {
+        it('allows for disabling the RPC failover behavior', async () => {
           mockNetwork({
             networkClientConfiguration,
             mocks: [
@@ -687,8 +513,7 @@ describe('createAutoManagedNetworkClient', () => {
             getRpcServiceOptions,
             messenger,
             isRpcFailoverEnabled: true,
-          });
-          autoManagedNetworkClient.disableRpcFailover();
+          }).withRpcFailoverDisabled();
           const { blockTracker } = autoManagedNetworkClient;
 
           await new Promise((resolve) => {
@@ -700,59 +525,6 @@ describe('createAutoManagedNetworkClient', () => {
             messenger,
             isRpcFailoverEnabled: false,
           });
-        });
-
-        it('allows for disabling the RPC failover after the network client is initialized', async () => {
-          const mockNetworkClient = buildFakeNetworkClient({
-            configuration: networkClientConfiguration,
-            providerStubs: [
-              {
-                request: {
-                  method: 'eth_blockNumber',
-                  params: [],
-                },
-                response: {
-                  result: '0x1',
-                },
-              },
-              {
-                request: {
-                  method: 'eth_blockNumber',
-                  params: [],
-                },
-                response: {
-                  result: '0x2',
-                },
-              },
-            ],
-          });
-          const disableRpcFailoverMock = jest.spyOn(
-            mockNetworkClient,
-            'disableRpcFailover',
-          );
-          jest
-            .spyOn(createNetworkClientModule, 'createNetworkClient')
-            .mockReturnValue(mockNetworkClient);
-          const autoManagedNetworkClient = createAutoManagedNetworkClient({
-            networkClientConfiguration,
-            getRpcServiceOptions: () => ({
-              btoa,
-              fetch,
-            }),
-            messenger: getNetworkControllerMessenger(),
-            isRpcFailoverEnabled: true,
-          });
-          const { blockTracker } = autoManagedNetworkClient;
-
-          await new Promise((resolve) => {
-            blockTracker.once('latest', resolve);
-          });
-          autoManagedNetworkClient.disableRpcFailover();
-          await new Promise((resolve) => {
-            blockTracker.once('latest', resolve);
-          });
-
-          expect(disableRpcFailoverMock).toHaveBeenCalled();
         });
       });
     });

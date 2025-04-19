@@ -699,7 +699,7 @@ describe('NetworkController', () => {
               .mockImplementation((...args) => {
                 const autoManagedNetworkClient =
                   originalCreateAutoManagedNetworkClient(...args);
-                jest.spyOn(autoManagedNetworkClient, 'enableRpcFailover');
+                jest.spyOn(autoManagedNetworkClient, 'withRpcFailoverEnabled');
                 autoManagedNetworkClients.push(autoManagedNetworkClient);
                 return autoManagedNetworkClient;
               });
@@ -752,7 +752,7 @@ describe('NetworkController', () => {
             expect(autoManagedNetworkClients).toHaveLength(3);
             for (const autoManagedNetworkClient of autoManagedNetworkClients) {
               expect(
-                autoManagedNetworkClient.enableRpcFailover,
+                autoManagedNetworkClient.withRpcFailoverEnabled,
               ).toHaveBeenCalled();
             }
           },
@@ -14974,17 +14974,6 @@ async function withController<ReturnValue>(
  */
 function buildFakeClient(
   provider: Provider = buildFakeProvider(),
-  {
-    enableRpcFailover = () => {
-      // do nothing
-    },
-    disableRpcFailover = () => {
-      // do nothing
-    },
-  }: {
-    enableRpcFailover?: () => void;
-    disableRpcFailover?: () => void;
-  } = {},
 ): NetworkClient {
   return {
     configuration: {
@@ -14999,8 +14988,6 @@ function buildFakeClient(
     destroy: () => {
       // do nothing
     },
-    enableRpcFailover,
-    disableRpcFailover,
   };
 }
 
