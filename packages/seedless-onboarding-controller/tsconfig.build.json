@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.packages.build.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "references": [
+    {
+      "path": "../base-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../message-manager/tsconfig.build.json"
+    }
+  ],
+  "include": ["../../types", "./src"]
+}
