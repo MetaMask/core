@@ -15,6 +15,7 @@ import type {
   Quote,
   QuoteMetadata,
   QuoteResponse,
+  StatusTypes,
   TxData,
 } from '@metamask/bridge-controller';
 import type { GetGasFeeState } from '@metamask/gas-fee-controller';
@@ -45,13 +46,6 @@ export type FetchFunction = (
   init?: RequestInit,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ) => Promise<any>;
-
-export enum StatusTypes {
-  UNKNOWN = 'UNKNOWN',
-  FAILED = 'FAILED',
-  PENDING = 'PENDING',
-  COMPLETE = 'COMPLETE',
-}
 
 /**
  * These fields are specific to Solana transactions and can likely be infered from TransactionMeta

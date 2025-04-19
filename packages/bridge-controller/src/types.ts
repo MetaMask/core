@@ -224,6 +224,13 @@ export type QuoteRequest<
   refuel?: boolean;
 };
 
+export enum StatusTypes {
+  UNKNOWN = 'UNKNOWN',
+  FAILED = 'FAILED',
+  PENDING = 'PENDING',
+  COMPLETE = 'COMPLETE',
+}
+
 /**
  * These are types that components pass in. Since data is a mix of types when coming from the redux store, we need to use a generic type that can cover all the types.
  * Payloads with this type are transformed into QuoteRequest by fetchBridgeQuotes right before fetching quotes
@@ -346,6 +353,7 @@ export enum BridgeBackgroundAction {
   SET_FEATURE_FLAGS = 'setBridgeFeatureFlags',
   RESET_STATE = 'resetState',
   GET_BRIDGE_ERC20_ALLOWANCE = 'getBridgeERC20Allowance',
+  TRACK_METAMETRICS_EVENT = 'trackMetaMetricsEvent',
 }
 
 export type BridgeControllerState = {
@@ -375,6 +383,7 @@ export type BridgeControllerActions =
   | BridgeControllerAction<BridgeBackgroundAction.SET_FEATURE_FLAGS>
   | BridgeControllerAction<BridgeBackgroundAction.RESET_STATE>
   | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>
+  | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>
   | BridgeControllerAction<BridgeUserAction.UPDATE_QUOTE_PARAMS>;
 
 export type BridgeControllerEvents = ControllerStateChangeEvent<

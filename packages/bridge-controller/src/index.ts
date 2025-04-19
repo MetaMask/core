@@ -1,5 +1,6 @@
 export { BridgeController } from './bridge-controller';
 
+export { UnifiedSwapBridgeEventName } from './metrics/payload';
 export type {
   ChainConfiguration,
   L1GasFees,
@@ -24,6 +25,7 @@ export type {
   BridgeControllerActions,
   BridgeControllerEvents,
   BridgeControllerMessenger,
+  StatusTypes,
 } from './types';
 
 export {
