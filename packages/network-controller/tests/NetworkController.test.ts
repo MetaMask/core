@@ -642,14 +642,11 @@ describe('NetworkController', () => {
   });
 
   describe('enableRpcFailover', () => {
-    describe('if the controller was initialized with isRpcFailoverEnabled = true', () => {
-      it.todo('does nothing');
-    });
-
     describe('if the controller was initialized with isRpcFailoverEnabled = false', () => {
-      it.only('calls enableRpcFailover on only the network clients whose RPC endpoints have configured failover URLs', async () => {
+      it.only('calls withRpcFailoverEnabled on only the network clients whose RPC endpoints have configured failover URLs', async () => {
         await withController(
           {
+            isRpcFailoverEnabled: false,
             state: {
               selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
               networkConfigurationsByChainId: {
@@ -703,58 +700,231 @@ describe('NetworkController', () => {
                 autoManagedNetworkClients.push(autoManagedNetworkClient);
                 return autoManagedNetworkClient;
               });
-            /*
-            const fakeAutoManagedNetworkClients = [
-              {
-                enableRpcFailover: jest.fn(),
-              },
-              {
-                enableRpcFailover: jest.fn(),
-              },
-              {
-                enableRpcFailover: jest.fn(),
-              },
-            ];
-            createAutoManagedNetworkClientSpy.mockImplementation(
-              // @ts-expect-error We are intentionally returning partial
-              // AutoManagedCustomNetworkClients.
-              ({ networkClientConfiguration }) => {
-                if (
-                  networkClientConfiguration.type === NetworkClientType.Infura
-                ) {
-                  return fakeAutoManagedNetworkClients[0];
-                }
-                if (
-                  networkClientConfiguration.type ===
-                    NetworkClientType.Custom &&
-                  networkClientConfiguration.rpcUrl === 'https://test.network/1'
-                ) {
-                  return fakeAutoManagedNetworkClients[1];
-                }
-                if (
-                  networkClientConfiguration.type ===
-                    NetworkClientType.Custom &&
-                  networkClientConfiguration.rpcUrl === 'https://test.network/2'
-                ) {
-                  return fakeAutoManagedNetworkClients[2];
-                }
-                throw new Error(
-                  `Unknown network client configuration ${JSON.stringify(
-                    networkClientConfiguration,
-                  )}`,
-                );
-              },
-            );
-            */
 
             controller.enableRpcFailover();
 
             expect(autoManagedNetworkClients).toHaveLength(3);
-            for (const autoManagedNetworkClient of autoManagedNetworkClients) {
-              expect(
-                autoManagedNetworkClient.withRpcFailoverEnabled,
-              ).toHaveBeenCalled();
-            }
+            expect(
+              autoManagedNetworkClients[0].withRpcFailoverEnabled,
+            ).not.toHaveBeenCalled();
+            expect(
+              autoManagedNetworkClients[1].withRpcFailoverEnabled,
+            ).toHaveBeenCalled();
+            expect(
+              autoManagedNetworkClients[2].withRpcFailoverEnabled,
+            ).toHaveBeenCalled();
+          },
+        );
+      });
+    });
+
+    describe('if the controller was initialized with isRpcFailoverEnabled = true', () => {
+      it.only('does not call createAutoManagedNetworkClient at all', async () => {
+        await withController(
+          {
+            isRpcFailoverEnabled: true,
+            state: {
+              selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+              networkConfigurationsByChainId: {
+                [ChainId.mainnet]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.mainnet,
+                  {
+                    rpcEndpoints: [
+                      buildInfuraRpcEndpoint(InfuraNetworkType.mainnet, {
+                        failoverUrls: [],
+                      }),
+                    ],
+                  },
+                ),
+                '0x200': buildCustomNetworkConfiguration({
+                  chainId: '0x200',
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      url: 'https://test.network/1',
+                      failoverUrls: ['https://failover.endpoint/1'],
+                    }),
+                  ],
+                }),
+                '0x300': buildCustomNetworkConfiguration({
+                  chainId: '0x300',
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'BBBB-BBBB-BBBB-BBBB',
+                      url: 'https://test.network/2',
+                      failoverUrls: ['https://failover.endpoint/2'],
+                    }),
+                  ],
+                }),
+              },
+            },
+          },
+          async ({ controller }) => {
+            const originalCreateAutoManagedNetworkClient =
+              createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
+            const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
+              [];
+            jest
+              .spyOn(
+                createAutoManagedNetworkClientModule,
+                'createAutoManagedNetworkClient',
+              )
+              .mockImplementation((...args) => {
+                const autoManagedNetworkClient =
+                  originalCreateAutoManagedNetworkClient(...args);
+                jest.spyOn(autoManagedNetworkClient, 'withRpcFailoverEnabled');
+                autoManagedNetworkClients.push(autoManagedNetworkClient);
+                return autoManagedNetworkClient;
+              });
+
+            controller.enableRpcFailover();
+
+            expect(autoManagedNetworkClients).toHaveLength(0);
+          },
+        );
+      });
+    });
+  });
+
+  describe('disableRpcFailover', () => {
+    describe('if the controller was initialized with isRpcFailoverEnabled = true', () => {
+      it.only('calls withRpcFailoverDisabled on only the network clients whose RPC endpoints have configured failover URLs', async () => {
+        await withController(
+          {
+            isRpcFailoverEnabled: true,
+            state: {
+              selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+              networkConfigurationsByChainId: {
+                [ChainId.mainnet]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.mainnet,
+                  {
+                    rpcEndpoints: [
+                      buildInfuraRpcEndpoint(InfuraNetworkType.mainnet, {
+                        failoverUrls: [],
+                      }),
+                    ],
+                  },
+                ),
+                '0x200': buildCustomNetworkConfiguration({
+                  chainId: '0x200',
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      url: 'https://test.network/1',
+                      failoverUrls: ['https://failover.endpoint/1'],
+                    }),
+                  ],
+                }),
+                '0x300': buildCustomNetworkConfiguration({
+                  chainId: '0x300',
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'BBBB-BBBB-BBBB-BBBB',
+                      url: 'https://test.network/2',
+                      failoverUrls: ['https://failover.endpoint/2'],
+                    }),
+                  ],
+                }),
+              },
+            },
+          },
+          async ({ controller }) => {
+            const originalCreateAutoManagedNetworkClient =
+              createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
+            const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
+              [];
+            jest
+              .spyOn(
+                createAutoManagedNetworkClientModule,
+                'createAutoManagedNetworkClient',
+              )
+              .mockImplementation((...args) => {
+                const autoManagedNetworkClient =
+                  originalCreateAutoManagedNetworkClient(...args);
+                jest.spyOn(autoManagedNetworkClient, 'withRpcFailoverDisabled');
+                autoManagedNetworkClients.push(autoManagedNetworkClient);
+                return autoManagedNetworkClient;
+              });
+
+            controller.disableRpcFailover();
+
+            expect(autoManagedNetworkClients).toHaveLength(3);
+            expect(
+              autoManagedNetworkClients[0].withRpcFailoverDisabled,
+            ).not.toHaveBeenCalled();
+            expect(
+              autoManagedNetworkClients[1].withRpcFailoverDisabled,
+            ).toHaveBeenCalled();
+            expect(
+              autoManagedNetworkClients[2].withRpcFailoverDisabled,
+            ).toHaveBeenCalled();
+          },
+        );
+      });
+    });
+
+    describe('if the controller was initialized with isRpcFailoverEnabled = false', () => {
+      it.only('does not call createAutoManagedNetworkClient at all', async () => {
+        await withController(
+          {
+            isRpcFailoverEnabled: false,
+            state: {
+              selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+              networkConfigurationsByChainId: {
+                [ChainId.mainnet]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.mainnet,
+                  {
+                    rpcEndpoints: [
+                      buildInfuraRpcEndpoint(InfuraNetworkType.mainnet, {
+                        failoverUrls: [],
+                      }),
+                    ],
+                  },
+                ),
+                '0x200': buildCustomNetworkConfiguration({
+                  chainId: '0x200',
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      url: 'https://test.network/1',
+                      failoverUrls: ['https://failover.endpoint/1'],
+                    }),
+                  ],
+                }),
+                '0x300': buildCustomNetworkConfiguration({
+                  chainId: '0x300',
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'BBBB-BBBB-BBBB-BBBB',
+                      url: 'https://test.network/2',
+                      failoverUrls: ['https://failover.endpoint/2'],
+                    }),
+                  ],
+                }),
+              },
+            },
+          },
+          async ({ controller }) => {
+            const originalCreateAutoManagedNetworkClient =
+              createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
+            const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
+              [];
+            jest
+              .spyOn(
+                createAutoManagedNetworkClientModule,
+                'createAutoManagedNetworkClient',
+              )
+              .mockImplementation((...args) => {
+                const autoManagedNetworkClient =
+                  originalCreateAutoManagedNetworkClient(...args);
+                jest.spyOn(autoManagedNetworkClient, 'withRpcFailoverDisabled');
+                autoManagedNetworkClients.push(autoManagedNetworkClient);
+                return autoManagedNetworkClient;
+              });
+
+            controller.disableRpcFailover();
+
+            expect(autoManagedNetworkClients).toHaveLength(0);
           },
         );
       });

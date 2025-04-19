@@ -32,7 +32,7 @@ export function testsForProviderType(providerType: ProviderType) {
   // Ethereum JSON-RPC spec: <https://ethereum.github.io/execution-apis/api-documentation/>
   // Infura documentation: <https://docs.infura.io/infura/networks/ethereum/json-rpc-methods>
   describe('methods included in the Ethereum JSON-RPC spec', () => {
-    describe.skip('methods not handled by middleware', () => {
+    describe('methods not handled by middleware', () => {
       const notHandledByMiddleware = [
         { name: 'eth_newFilter', numberOfParameters: 1 },
         { name: 'eth_getFilterChanges', numberOfParameters: 1 },
@@ -74,7 +74,7 @@ export function testsForProviderType(providerType: ProviderType) {
       });
     });
 
-    describe.skip('methods with block hashes in their result', () => {
+    describe('methods with block hashes in their result', () => {
       const methodsWithBlockHashInResponse = [
         { name: 'eth_getTransactionByHash', numberOfParameters: 1 },
         { name: 'eth_getTransactionReceipt', numberOfParameters: 1 },
@@ -132,7 +132,7 @@ export function testsForProviderType(providerType: ProviderType) {
         );
     });
 
-    describe.skip('methods that have a param to specify the block', () => {
+    describe('methods that have a param to specify the block', () => {
       const supportingBlockParam = [
         {
           name: 'eth_call',
@@ -174,7 +174,7 @@ export function testsForProviderType(providerType: ProviderType) {
       );
     });
 
-    describe.skip('other methods', () => {
+    describe('other methods', () => {
       describe('eth_getTransactionByHash', () => {
         it("refreshes the block tracker's current block if it is less than the block number that comes back in the response", async () => {
           const method = 'eth_getTransactionByHash';
@@ -250,7 +250,7 @@ export function testsForProviderType(providerType: ProviderType) {
     });
   });
 
-  describe.skip('methods not included in the Ethereum JSON-RPC spec', () => {
+  describe('methods not included in the Ethereum JSON-RPC spec', () => {
     describe('methods not handled by middleware', () => {
       const notHandledByMiddleware = [
         { name: 'net_listening', numberOfParameters: 0 },
@@ -270,7 +270,7 @@ export function testsForProviderType(providerType: ProviderType) {
       });
     });
 
-    describe.skip('methods that assume there is no block param', () => {
+    describe('methods that assume there is no block param', () => {
       const assumingNoBlockParam = [
         { name: 'web3_clientVersion', numberOfParameters: 0 },
         { name: 'eth_protocolVersion', numberOfParameters: 0 },
@@ -285,7 +285,7 @@ export function testsForProviderType(providerType: ProviderType) {
       );
     });
 
-    describe.skip('other methods', () => {
+    describe('other methods', () => {
       describe('net_version', () => {
         const networkArgs = {
           providerType,

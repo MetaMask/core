@@ -292,7 +292,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
     });
   });
 
-  describe.skip.each([
+  describe.each([
     [405, 'The method does not exist / is not available.'],
     [429, 'Request is being rate limited.'],
   ])(
@@ -343,7 +343,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
     },
   );
 
-  describe.skip('if the RPC endpoint returns a response that is not 405, 429, 503, or 504', () => {
+  describe('if the RPC endpoint returns a response that is not 405, 429, 503, or 504', () => {
     const httpStatus = 500;
     const errorMessage = `Non-200 status code: '${httpStatus}'`;
 
@@ -391,7 +391,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
     });
   });
 
-  describe.skip.each([503, 504])(
+  describe.each([503, 504])(
     'if the RPC endpoint returns a %d response',
     (httpStatus) => {
       const errorMessage = 'Gateway timeout';
@@ -487,7 +487,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
     },
   );
 
-  describe.skip.each(['ETIMEDOUT', 'ECONNRESET'])(
+  describe.each(['ETIMEDOUT', 'ECONNRESET'])(
     'if a %s error is thrown while making the request',
     (errorCode) => {
       const error = new Error(errorCode);
@@ -579,7 +579,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
     },
   );
 
-  describe.skip('if the RPC endpoint responds with invalid JSON', () => {
+  describe('if the RPC endpoint responds with invalid JSON', () => {
     const errorMessage = 'not valid JSON';
 
     it('retries the request up to 5 times until it responds with valid JSON', async () => {

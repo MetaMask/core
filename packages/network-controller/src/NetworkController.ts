@@ -1250,7 +1250,7 @@ export class NetworkController extends BaseController<
   }
 
   disableRpcFailover() {
-    this.#updateRpcFailoverEnabled(true);
+    this.#updateRpcFailoverEnabled(false);
   }
 
   #updateRpcFailoverEnabled(newIsRpcFailoverEnabled: boolean) {
@@ -1268,7 +1268,6 @@ export class NetworkController extends BaseController<
     )) {
       const networkClient =
         infuraAutoManagedNetworkClientRegistry[networkClientId];
-      console.log('networkClient', networkClient.configuration);
       if (
         networkClient.configuration.failoverRpcUrls &&
         networkClient.configuration.failoverRpcUrls.length > 0
@@ -1288,7 +1287,6 @@ export class NetworkController extends BaseController<
     )) {
       const networkClient =
         customAutoManagedNetworkClientRegistry[networkClientId];
-      console.log('networkClient', networkClient.configuration);
       if (
         networkClient.configuration.failoverRpcUrls &&
         networkClient.configuration.failoverRpcUrls.length > 0

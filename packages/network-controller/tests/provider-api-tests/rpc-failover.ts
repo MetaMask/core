@@ -41,7 +41,7 @@ export function testsForRpcFailoverBehavior({
     : maxConsecutiveFailures;
 
   describe('if RPC failover functionality is enabled', () => {
-    it.only(`fails over to the provided alternate RPC endpoint after ${maxConsecutiveFailures} unsuccessful attempts`, async () => {
+    it(`fails over to the provided alternate RPC endpoint after ${maxConsecutiveFailures} unsuccessful attempts`, async () => {
       await withMockedCommunications({ providerType }, async (primaryComms) => {
         await withMockedCommunications(
           {

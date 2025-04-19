@@ -384,15 +384,10 @@ export class RpcService implements AbstractRpcService {
         completeFetchOptions,
       );
     } catch (error) {
-      console.log('Got error', error);
       if (
         this.#policy.circuitBreakerPolicy.state === CircuitState.Open &&
         this.#failoverService !== undefined
       ) {
-        console.log(
-          'Failing over to',
-          this.#failoverService.endpointUrl.toString(),
-        );
         return await this.#failoverService.request(
           jsonRpcRequest,
           completeFetchOptions,
@@ -486,14 +481,7 @@ export class RpcService implements AbstractRpcService {
     fetchOptions: FetchOptions,
   ): Promise<JsonRpcResponse<Result> | JsonRpcResponse<null>> {
     return await this.#policy.execute(async () => {
-      console.log(
-        'Fetching',
-        this.endpointUrl.toString(),
-        'with',
-        fetchOptions,
-      );
       const response = await this.#fetch(this.endpointUrl, fetchOptions);
-      console.log('Got response from', this.endpointUrl.toString());
 
       if (response.status === 405) {
         throw rpcErrors.methodNotFound();

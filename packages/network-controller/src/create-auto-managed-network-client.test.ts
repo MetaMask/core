@@ -13,10 +13,6 @@ import type {
 } from './types';
 import { NetworkClientType } from './types';
 import { mockNetwork } from '../../../tests/mock-network';
-import {
-  buildCustomNetworkClientConfiguration,
-  buildFakeNetworkClient,
-} from '../tests/helpers';
 
 describe('createAutoManagedNetworkClient', () => {
   const networkClientConfigurations: [
