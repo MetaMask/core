@@ -124,22 +124,24 @@ export function createNetworkClient({
   });
 
   const updateRpcServices = () => {
-    rpcServiceChain.updateServices(
-      determineAvailableEndpointUrls(isRpcFailoverEnabled).map(
-        (endpointUrl) => ({
-          ...getRpcServiceOptions(endpointUrl),
-          endpointUrl,
-        }),
-      ),
-    );
+    const rpcServiceConfigurations = determineAvailableEndpointUrls(
+      isRpcFailoverEnabled,
+    ).map((endpointUrl) => ({
+      ...getRpcServiceOptions(endpointUrl),
+      endpointUrl,
+    }));
+    console.log('Rebuilding services', rpcServiceConfigurations);
+    rpcServiceChain.updateServices(rpcServiceConfigurations);
   };
 
   const enableRpcFailover = () => {
     if (isRpcFailoverEnabled) {
+      console.log('enableRpcFailover: Already enabled?!');
       return;
     }
 
     isRpcFailoverEnabled = true;
+    console.log('enableRpcFailover: Updating RPC services...');
     updateRpcServices();
   };
 

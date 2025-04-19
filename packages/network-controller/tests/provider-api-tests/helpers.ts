@@ -168,7 +168,7 @@ function mockRpcCall({
     ? `/v3/${MOCK_INFURA_PROJECT_ID}`
     : '/';
 
-  debug('Mocking request:', {
+  debug('Nock Mocking Request:', {
     url,
     method,
     params,
@@ -201,6 +201,7 @@ function mockRpcCall({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return nockRequest.reply(httpStatus, (_, requestBody: any) => {
       if (typeof completeResponse === 'string') {
+        debug('Nock Returning Response', completeResponse);
         return completeResponse;
       }
 
@@ -211,11 +212,12 @@ function mockRpcCall({
           completeResponse.id = response.id;
         }
       }
-      debug('Nock returning Response', completeResponse);
+      debug('Nock Returning Response', completeResponse);
       return completeResponse;
     });
   }
-  return nockRequest;
+
+  throw new Error('No reply specified');
 }
 
 type MockBlockTrackerRequestOptions = {
@@ -391,6 +393,8 @@ type MockNetworkClient = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   blockTracker: any;
   provider: SafeEventEmitterProvider;
+  enableRpcFailover: () => void;
+  disableRpcFailover: () => void;
   clock: sinon.SinonFakeTimers;
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -547,13 +551,14 @@ export async function withNetworkClient(
   /* eslint-disable-next-line n/no-process-env */
   process.env.IN_TEST = inTest;
 
-  const { provider, blockTracker } = networkClient;
+  const { provider, blockTracker, enableRpcFailover, disableRpcFailover } =
+    networkClient;
 
   const ethQuery = new EthQuery(provider);
   const curriedMakeRpcCall = (request: MockRequest) =>
     makeRpcCall(ethQuery, request);
   const makeRpcCallsInSeries = async (requests: MockRequest[]) => {
-    const responses = [];
+    const responses: unknown[] = [];
     for (const request of requests) {
       responses.push(await curriedMakeRpcCall(request));
     }
@@ -563,6 +568,8 @@ export async function withNetworkClient(
   const client = {
     blockTracker,
     provider,
+    enableRpcFailover,
+    disableRpcFailover,
     clock,
     makeRpcCall: curriedMakeRpcCall,
     makeRpcCallsInSeries,
