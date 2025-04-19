@@ -16,12 +16,11 @@ import {
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import assert from 'assert';
-import { produceWithPatches, type Patch } from 'immer';
+import type { Patch } from 'immer';
 import { when, resetAllWhenMocks } from 'jest-when';
 import { inspect, isDeepStrictEqual, promisify } from 'util';
 import { v4 as uuidV4 } from 'uuid';
 
-import type { RootMessenger } from './helpers';
 import {
   buildAddNetworkCustomRpcEndpointFields,
   buildAddNetworkFields,
@@ -1327,7 +1326,10 @@ describe('NetworkController', () => {
         {
           messenger,
         }: {
-          messenger: RootMessenger;
+          messenger: Messenger<
+            NetworkControllerActions,
+            NetworkControllerEvents
+          >;
         },
         args: Parameters<NetworkController['findNetworkClientIdByChainId']>,
       ): ReturnType<NetworkController['findNetworkClientIdByChainId']> =>
@@ -3264,7 +3266,13 @@ describe('NetworkController', () => {
     ],
     [
       'NetworkController:getNetworkConfigurationByChainId',
-      ({ messenger, chainId }: { messenger: RootMessenger; chainId: Hex }) =>
+      ({
+        messenger,
+        chainId,
+      }: {
+        messenger: Messenger<NetworkControllerActions, NetworkControllerEvents>;
+        chainId: Hex;
+      }) =>
         messenger.call(
           'NetworkController:getNetworkConfigurationByChainId',
           chainId,
@@ -3377,7 +3385,7 @@ describe('NetworkController', () => {
         messenger,
         networkClientId,
       }: {
-        messenger: RootMessenger;
+        messenger: Messenger<NetworkControllerActions, NetworkControllerEvents>;
         networkClientId: NetworkClientId;
       }) =>
         messenger.call(
@@ -5354,6 +5362,8 @@ describe('NetworkController', () => {
                 const infuraRpcEndpoint: InfuraRpcEndpoint = {
                   failoverUrls: ['https://failover.endpoint'],
                   networkClientId: infuraNetworkType,
+                  // ESLint is mistaken here.
+                  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                   url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                   type: RpcEndpointType.Infura,
                 };
@@ -15091,7 +15101,7 @@ type WithControllerCallback<ReturnValue> = ({
   controller,
 }: {
   controller: NetworkController;
-  messenger: RootMessenger;
+  messenger: Messenger<NetworkControllerActions, NetworkControllerEvents>;
   networkControllerMessenger: NetworkControllerMessenger;
 }) => Promise<ReturnValue> | ReturnValue;
 
@@ -15270,7 +15280,7 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>({
     // do nothing
   },
 }: {
-  messenger: RootMessenger;
+  messenger: Messenger<NetworkControllerActions, NetworkControllerEvents>;
   eventType: E['type'];
   count?: number;
   filter?: (payload: E['payload']) => boolean;
@@ -15401,7 +15411,7 @@ async function waitForStateChanges({
   operation,
   beforeResolving,
 }: {
-  messenger: RootMessenger;
+  messenger: Messenger<NetworkControllerActions, NetworkControllerEvents>;
   propertyPath?: string[];
   count?: number;
   wait?: number;

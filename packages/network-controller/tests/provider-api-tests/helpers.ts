@@ -168,7 +168,7 @@ function mockRpcCall({
     ? `/v3/${MOCK_INFURA_PROJECT_ID}`
     : '/';
 
-  debug('Nock Mocking Request:', {
+  debug('Mocking request:', {
     url,
     method,
     params,
@@ -201,7 +201,6 @@ function mockRpcCall({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return nockRequest.reply(httpStatus, (_, requestBody: any) => {
       if (typeof completeResponse === 'string') {
-        debug('Nock Returning Response', completeResponse);
         return completeResponse;
       }
 
@@ -212,12 +211,11 @@ function mockRpcCall({
           completeResponse.id = response.id;
         }
       }
-      debug('Nock Returning Response', completeResponse);
+      debug('Nock returning Response', completeResponse);
       return completeResponse;
     });
   }
-
-  throw new Error('No reply specified');
+  return nockRequest;
 }
 
 type MockBlockTrackerRequestOptions = {

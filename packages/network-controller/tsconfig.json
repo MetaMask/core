@@ -16,9 +16,6 @@
     },
     {
       "path": "../json-rpc-engine"
-    },
-    {
-      "path": "../remote-feature-flag-controller"
     }
   ],
   "include": ["../../types", "../../tests", "./src", "./tests"]

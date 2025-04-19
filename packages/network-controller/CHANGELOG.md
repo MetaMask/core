@@ -9,7 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `rpcFailoverEnabled` option to `NetworkController` constructor (`false` by default) ([#5668](https://github.com/MetaMask/core/pull/5668))
+- Add optional `rpcFailoverEnabled` option to NetworkController constructor (`false` by default) ([#5668](https://github.com/MetaMask/core/pull/5668))
+- Add `enableRpcFailover` and `disableRpcFailover` methods to NetworkController ([#5668](https://github.com/MetaMask/core/pull/5668))
+
+### Changed
+
+- Disable the RPC failover behavior by default ([#5668](https://github.com/MetaMask/core/pull/5668))
+  - You are free to set the `failoverUrls` property on an RPC endpoint, but it won't have any effect
+  - To enable this behavior, either pass `rpcFailoverEnabled: true` to the constructor or call `enableRpcFailover` after initialization
 
 ## [23.2.0]
 

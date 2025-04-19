@@ -121,7 +121,6 @@ export function testsForProviderType(providerType: ProviderType) {
       ];
       assumingNoBlockParam
         .concat(blockParamIgnored)
-        .slice(0, 1)
         .forEach(({ name, numberOfParameters }) =>
           describe(`method name: ${name}`, () => {
             testsForRpcMethodAssumingNoBlockParam(name, {

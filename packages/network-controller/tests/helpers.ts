@@ -25,8 +25,6 @@ import type { AutoManagedNetworkClient } from '../src/create-auto-managed-networ
 import type {
   AddNetworkCustomRpcEndpointFields,
   AddNetworkFields,
-  AllowedActions,
-  AllowedEvents,
   CustomRpcEndpoint,
   InfuraRpcEndpoint,
   NetworkControllerActions,
@@ -42,8 +40,8 @@ import type {
 import { NetworkClientType } from '../src/types';
 
 export type RootMessenger = Messenger<
-  NetworkControllerActions | AllowedActions,
-  NetworkControllerEvents | AllowedEvents
+  NetworkControllerActions,
+  NetworkControllerEvents
 >;
 
 /**
@@ -75,7 +73,7 @@ export const TESTNET = {
  * @returns The messenger.
  */
 export function buildRootMessenger(): RootMessenger {
-  return new Messenger();
+  return new Messenger<NetworkControllerActions, NetworkControllerEvents>();
 }
 
 /**
@@ -104,7 +102,7 @@ export function buildNetworkControllerMessenger(
  * requests.
  * @returns The fake network client.
  */
-export function buildFakeNetworkClient({
+function buildFakeNetworkClient({
   configuration,
   providerStubs = [],
 }: {
