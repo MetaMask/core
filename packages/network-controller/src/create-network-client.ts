@@ -61,6 +61,11 @@ export type NetworkClient = {
  * @param args.getBlockTrackerOptions - Factory for constructing block tracker
  * options. See {@link NetworkControllerOptions.getBlockTrackerOptions}.
  * @param args.messenger - The network controller messenger.
+ * @param args.isRpcFailoverEnabled - Whether or not requests sent to the
+ * primary RPC endpoint for this network should be automatically diverted to
+ * provided failover endpoints if the primary is unavailable. This effectively
+ * causes the `failoverRpcUrls` property of the network client configuration
+ * to be honored or ignored.
  * @returns The network client.
  */
 export function createNetworkClient({
@@ -68,6 +73,7 @@ export function createNetworkClient({
   getRpcServiceOptions,
   getBlockTrackerOptions,
   messenger,
+  isRpcFailoverEnabled,
 }: {
   configuration: NetworkClientConfiguration;
   getRpcServiceOptions: (
@@ -77,22 +83,22 @@ export function createNetworkClient({
     rpcEndpointUrl: string,
   ) => Omit<PollingBlockTrackerOptions, 'provider'>;
   messenger: NetworkControllerMessenger;
+  isRpcFailoverEnabled: boolean;
 }): NetworkClient {
   const primaryEndpointUrl =
     configuration.type === NetworkClientType.Infura
       ? `https://${configuration.network}.infura.io/v3/${configuration.infuraProjectId}`
       : configuration.rpcUrl;
-  const availableEndpointUrls = [
-    primaryEndpointUrl,
-    ...(configuration.failoverRpcUrls ?? []),
-  ];
-  const rpcService = new RpcServiceChain(
+  const availableEndpointUrls = isRpcFailoverEnabled
+    ? [primaryEndpointUrl, ...(configuration.failoverRpcUrls ?? [])]
+    : [primaryEndpointUrl];
+  const rpcServiceChain = new RpcServiceChain(
     availableEndpointUrls.map((endpointUrl) => ({
       ...getRpcServiceOptions(endpointUrl),
       endpointUrl,
     })),
   );
-  rpcService.onBreak(({ endpointUrl, failoverEndpointUrl, ...rest }) => {
+  rpcServiceChain.onBreak(({ endpointUrl, failoverEndpointUrl, ...rest }) => {
     let error: unknown;
     if ('error' in rest) {
       error = rest.error;
@@ -107,13 +113,13 @@ export function createNetworkClient({
       error,
     });
   });
-  rpcService.onDegraded(({ endpointUrl }) => {
+  rpcServiceChain.onDegraded(({ endpointUrl }) => {
     messenger.publish('NetworkController:rpcEndpointDegraded', {
       chainId: configuration.chainId,
       endpointUrl,
     });
   });
-  rpcService.onRetry(({ endpointUrl, attempt }) => {
+  rpcServiceChain.onRetry(({ endpointUrl, attempt }) => {
     messenger.publish('NetworkController:rpcEndpointRequestRetried', {
       endpointUrl,
       attempt,
@@ -123,12 +129,12 @@ export function createNetworkClient({
   const rpcApiMiddleware =
     configuration.type === NetworkClientType.Infura
       ? createInfuraMiddleware({
-          rpcService,
+          rpcService: rpcServiceChain,
           options: {
             source: 'metamask',
           },
         })
-      : createFetchMiddleware({ rpcService });
+      : createFetchMiddleware({ rpcService: rpcServiceChain });
 
   const rpcProvider = providerFromMiddleware(rpcApiMiddleware);
 
