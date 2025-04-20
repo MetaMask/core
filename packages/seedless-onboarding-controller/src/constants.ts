@@ -7,6 +7,7 @@ export enum Web3AuthNetwork {
 
 export enum SeedlessOnboardingControllerError {
   AuthenticationError = `${controllerName} - Authentication error`,
+  MissingAuthUserInfo = `${controllerName} - Missing authenticated user information`,
   FailedToPersistOprfKey = `${controllerName} - Failed to persist OPRF key`,
   LoginFailedError = `${controllerName} - Login failed`,
   InsufficientAuthToken = `${controllerName} - Insufficient auth token`,

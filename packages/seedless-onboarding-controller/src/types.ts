@@ -7,27 +7,45 @@ import type { MutexInterface } from 'async-mutex';
 
 import type { controllerName, Web3AuthNetwork } from './constants';
 
-// State
-export type SeedlessOnboardingControllerState = {
-  /**
-   * Encrypted array of serialized keyrings data.
-   */
-  vault?: string;
-
+export type AuthenticatedUserDetails = {
   /**
    * The node auth tokens from OAuth User authentication after the Social login.
    *
    * This values are used to authenticate users when they go through the Seedless Onboarding flow.
    */
-  nodeAuthTokens?: NodeAuthTokens;
+  nodeAuthTokens: NodeAuthTokens;
 
   /**
-   * The hashes of the seed phrase backups.
-   *
-   * This is to facilitate the UI to display backup status of the seed phrases.
+   * OAuth connection id from web3auth dashboard.
    */
-  backupHashes: string[];
+  authConnectionId: string;
+
+  /**
+   * The optional grouped authConnectionId to authenticate the user with Web3Auth network.
+   */
+  groupedAuthConnectionId?: string;
+
+  /**
+   * The user email or ID from Social login.
+   */
+  userId: string;
 };
+
+// State
+export type SeedlessOnboardingControllerState =
+  Partial<AuthenticatedUserDetails> & {
+    /**
+     * Encrypted array of serialized keyrings data.
+     */
+    vault?: string;
+
+    /**
+     * The hashes of the seed phrase backups.
+     *
+     * This is to facilitate the UI to display backup status of the seed phrases.
+     */
+    backupHashes: string[];
+  };
 
 // Actions
 export type SeedlessOnboardingControllerGetStateAction =
