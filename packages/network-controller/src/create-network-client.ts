@@ -1,6 +1,9 @@
 import type { InfuraNetworkType } from '@metamask/controller-utils';
 import { ChainId } from '@metamask/controller-utils';
-import { PollingBlockTracker } from '@metamask/eth-block-tracker';
+import {
+  PollingBlockTracker,
+  PollingBlockTrackerOptions,
+} from '@metamask/eth-block-tracker';
 import { createInfuraMiddleware } from '@metamask/eth-json-rpc-infura';
 import {
   createBlockCacheMiddleware,
@@ -55,19 +58,24 @@ export type NetworkClient = {
  * @param args.configuration - The network configuration.
  * @param args.getRpcServiceOptions - Factory for constructing RPC service
  * options. See {@link NetworkControllerOptions.getRpcServiceOptions}.
+ * @param args.getBlockTrackerOptions - Factory for constructing block tracker
+ * options. See {@link NetworkControllerOptions.getBlockTrackerOptions}.
  * @param args.messenger - The network controller messenger.
- * See {@link NetworkControllerOptions.getRpcServiceOptions}.
  * @returns The network client.
  */
 export function createNetworkClient({
   configuration,
   getRpcServiceOptions,
+  getBlockTrackerOptions,
   messenger,
 }: {
   configuration: NetworkClientConfiguration;
   getRpcServiceOptions: (
     rpcEndpointUrl: string,
   ) => Omit<RpcServiceOptions, 'failoverService' | 'endpointUrl'>;
+  getBlockTrackerOptions: (
+    rpcEndpointUrl: string,
+  ) => Omit<PollingBlockTrackerOptions, 'provider'>;
   messenger: NetworkControllerMessenger;
 }): NetworkClient {
   const primaryEndpointUrl =
@@ -124,12 +132,10 @@ export function createNetworkClient({
 
   const rpcProvider = providerFromMiddleware(rpcApiMiddleware);
 
-  const blockTrackerOpts =
-    process.env.IN_TEST && configuration.type === NetworkClientType.Custom
-      ? { pollingInterval: SECOND }
-      : {};
-  const blockTracker = new PollingBlockTracker({
-    ...blockTrackerOpts,
+  const blockTracker = createBlockTracker({
+    networkClientType: configuration.type,
+    endpointUrl: primaryEndpointUrl,
+    getOptions: getBlockTrackerOptions,
     provider: rpcProvider,
   });
 
@@ -160,6 +166,43 @@ export function createNetworkClient({
   };
 
   return { configuration, provider, blockTracker, destroy };
+}
+
+/**
+ * Create the block tracker for the network.
+ *
+ * @param args - The arguments.
+ * @param args.networkClientType - The type of the network client ("infura" or
+ * "custom").
+ * @param args.endpointUrl - The URL of the endpoint.
+ * @param args.getOptions - Factory for the block tracker options.
+ * @param args.provider - The EIP-1193 provider for the network's JSON-RPC
+ * middleware stack.
+ * @returns The created block tracker.
+ */
+function createBlockTracker({
+  networkClientType,
+  endpointUrl,
+  getOptions,
+  provider,
+}: {
+  networkClientType: NetworkClientType;
+  endpointUrl: string;
+  getOptions: (
+    rpcEndpointUrl: string,
+  ) => Omit<PollingBlockTrackerOptions, 'provider'>;
+  provider: SafeEventEmitterProvider;
+}) {
+  const testOptions =
+    process.env.IN_TEST && networkClientType === NetworkClientType.Custom
+      ? { pollingInterval: SECOND }
+      : {};
+
+  return new PollingBlockTracker({
+    ...testOptions,
+    ...getOptions(endpointUrl),
+    provider,
+  });
 }
 
 /**

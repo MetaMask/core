@@ -44,6 +44,7 @@ describe('createAutoManagedNetworkClient', () => {
             fetch,
             btoa,
           }),
+          getBlockTrackerOptions: () => ({}),
           messenger: getNetworkControllerMessenger(),
         });
 
@@ -59,6 +60,7 @@ describe('createAutoManagedNetworkClient', () => {
               fetch,
               btoa,
             }),
+            getBlockTrackerOptions: () => ({}),
             messenger: getNetworkControllerMessenger(),
           });
         }).not.toThrow();
@@ -71,6 +73,7 @@ describe('createAutoManagedNetworkClient', () => {
             fetch,
             btoa,
           }),
+          getBlockTrackerOptions: () => ({}),
           messenger: getNetworkControllerMessenger(),
         });
 
@@ -117,6 +120,7 @@ describe('createAutoManagedNetworkClient', () => {
             fetch,
             btoa,
           }),
+          getBlockTrackerOptions: () => ({}),
           messenger: getNetworkControllerMessenger(),
         });
 
@@ -166,6 +170,7 @@ describe('createAutoManagedNetworkClient', () => {
         const { provider } = createAutoManagedNetworkClient({
           networkClientConfiguration,
           getRpcServiceOptions,
+          getBlockTrackerOptions: () => ({}),
           messenger: getNetworkControllerMessenger(),
         });
 
@@ -196,6 +201,7 @@ describe('createAutoManagedNetworkClient', () => {
             fetch,
             btoa,
           }),
+          getBlockTrackerOptions: () => ({}),
           messenger: getNetworkControllerMessenger(),
         });
 
@@ -253,6 +259,7 @@ describe('createAutoManagedNetworkClient', () => {
             fetch,
             btoa,
           }),
+          getBlockTrackerOptions: () => ({}),
           messenger: getNetworkControllerMessenger(),
         });
 
@@ -323,6 +330,7 @@ describe('createAutoManagedNetworkClient', () => {
         const { blockTracker } = createAutoManagedNetworkClient({
           networkClientConfiguration,
           getRpcServiceOptions,
+          getBlockTrackerOptions: () => ({}),
           messenger: getNetworkControllerMessenger(),
         });
 
@@ -363,6 +371,7 @@ describe('createAutoManagedNetworkClient', () => {
             fetch,
             btoa,
           }),
+          getBlockTrackerOptions: () => ({}),
           messenger: getNetworkControllerMessenger(),
         });
         // Start the block tracker

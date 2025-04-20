@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `getBlockTrackerOptions` argument to NetworkController constructor ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+
 ## [23.2.0]
 
 ### Added
