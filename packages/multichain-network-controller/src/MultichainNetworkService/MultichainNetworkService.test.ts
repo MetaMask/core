@@ -1,4 +1,4 @@
-import type { CaipAccountId } from '@metamask/utils';
+import { KnownCaipNamespace, type CaipAccountId } from '@metamask/utils';
 
 import { MultichainNetworkService } from './MultichainNetworkService';
 import {
@@ -10,9 +10,12 @@ import {
 
 describe('MultichainNetworkService', () => {
   const mockFetch = jest.fn();
+  const MOCK_EVM_ADDRESS = '0x1234567890123456789012345678901234567890';
+  const MOCK_EVM_CHAIN_1 = '1';
+  const MOCK_EVM_CHAIN_137 = '137';
   const validAccountIds: CaipAccountId[] = [
-    'eip155:1:0x1234567890123456789012345678901234567890',
-    'solana:1:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+    `${KnownCaipNamespace.Eip155}:${MOCK_EVM_CHAIN_1}:${MOCK_EVM_ADDRESS}`,
+    `${KnownCaipNamespace.Eip155}:${MOCK_EVM_CHAIN_137}:${MOCK_EVM_ADDRESS}`,
   ];
 
   describe('constructor', () => {
@@ -27,7 +30,10 @@ describe('MultichainNetworkService', () => {
   describe('fetchNetworkActivity', () => {
     it('makes request with correct URL and headers', async () => {
       const mockResponse: ActiveNetworksResponse = {
-        activeNetworks: ['eip155:1:0x1234567890123456789012345678901234567890'],
+        activeNetworks: [
+          `${KnownCaipNamespace.Eip155}:${MOCK_EVM_CHAIN_1}:${MOCK_EVM_ADDRESS}`,
+          `${KnownCaipNamespace.Eip155}:${MOCK_EVM_CHAIN_137}:${MOCK_EVM_ADDRESS}`,
+        ],
       };
 
       mockFetch.mockResolvedValueOnce({
