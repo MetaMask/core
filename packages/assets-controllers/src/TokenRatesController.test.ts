@@ -843,7 +843,7 @@ describe('TokenRatesController', () => {
         );
       });
 
-      it('should update exchange rates when network state changes without adding/removing a new network', async () => {
+      it('should update exchange rates when network state changes without adding a new network', async () => {
         await withController(
           {
             options: {

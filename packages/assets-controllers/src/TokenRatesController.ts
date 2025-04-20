@@ -345,7 +345,6 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
   }
 
   #subscribeToNetworkStateChange() {
-    // TODO HERE: ------------------
     this.messagingSystem.subscribe(
       'NetworkController:stateChange',
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
