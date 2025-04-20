@@ -9,13 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `getBlockTrackerOptions` argument to NetworkController constructor ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
-- Add optional `rpcFailoverEnabled` option to NetworkController constructor (`false` by default) ([#5668](https://github.com/MetaMask/core/pull/5668))
-- Add `enableRpcFailover` and `disableRpcFailover` methods to NetworkController ([#5668](https://github.com/MetaMask/core/pull/5668))
+- Add optional `getBlockTrackerOptions` argument to NetworkController constructor ([#5679](https://github.com/MetaMask/core/pull/5679))
+- Add optional `rpcFailoverEnabled` option to NetworkController constructor (`false` by default) ([#5679](https://github.com/MetaMask/core/pull/5679))
+- Add `enableRpcFailover` and `disableRpcFailover` methods to NetworkController ([#5679](https://github.com/MetaMask/core/pull/5679))
 
 ### Changed
 
-- Disable the RPC failover behavior by default ([#5668](https://github.com/MetaMask/core/pull/5668))
+- Disable the RPC failover behavior by default ([#5679](https://github.com/MetaMask/core/pull/5679))
   - You are free to set the `failoverUrls` property on an RPC endpoint, but it won't have any effect
   - To enable this behavior, either pass `rpcFailoverEnabled: true` to the constructor or call `enableRpcFailover` after initialization
 
