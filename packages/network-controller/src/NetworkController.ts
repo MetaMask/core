@@ -17,6 +17,7 @@ import {
   BUILT_IN_NETWORKS,
   BuiltInNetworkName,
 } from '@metamask/controller-utils';
+import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 import EthQuery from '@metamask/eth-query';
 import { errorCodes } from '@metamask/rpc-errors';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
@@ -52,8 +53,6 @@ import type {
   NetworkClientConfiguration,
   AdditionalDefaultNetwork,
 } from './types';
-import { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
-import { NetworkClient } from './create-network-client';
 
 const debugLog = createModuleLogger(projectLogger, 'NetworkController');
 

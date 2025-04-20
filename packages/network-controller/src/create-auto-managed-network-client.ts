@@ -1,4 +1,5 @@
-import { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
+import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
+
 import type { NetworkClient } from './create-network-client';
 import { createNetworkClient } from './create-network-client';
 import type { NetworkControllerMessenger } from './NetworkController';

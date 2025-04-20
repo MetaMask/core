@@ -1,6 +1,6 @@
 import type { InfuraNetworkType } from '@metamask/controller-utils';
 import { ChainId } from '@metamask/controller-utils';
-import {
+import type {
   PollingBlockTracker,
   PollingBlockTrackerOptions,
 } from '@metamask/eth-block-tracker';
