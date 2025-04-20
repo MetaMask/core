@@ -108,6 +108,9 @@ export function createAutoManagedNetworkClient<
       isRpcFailoverEnabled,
     });
 
+    // We don't need to test this; this itself is to catch an edge case where
+    // `createNetworkClient` is mocked improperly in a test
+    /* istanbul ignore next */
     if (networkClient === undefined) {
       throw new Error(
         "It looks like `createNetworkClient` didn't return anything. Perhaps it's being mocked?",
