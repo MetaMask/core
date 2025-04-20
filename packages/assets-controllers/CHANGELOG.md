@@ -14,6 +14,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - **BREAKING:** Eliminate legacy network dependency handling in `TokenRatesController`. Clients must now pass an array (rather than a single object) for chain IDs and tickers. This change may require updates on the client side to align with the new array-based input ([#5645](https://github.com/MetaMask/core/pull/5645))
+## [58.0.0]
+
+### Added
+
+- Added `includeMarketData` to the params of the `OnAssetsConversion` handler ([#5639](https://github.com/MetaMask/core/pull/5639))
+- Added `fetchHistoricalPricesForAsset` method to `MultichainAssetsRatesController` ([#5639](https://github.com/MetaMask/core/pull/5639))
+- Added `getSelectedMultichainAccount` action to `multichainAssetsRatesController` ([#5639](https://github.com/MetaMask/core/pull/5639))
+- Added new state field `historicalPrices` to `MultichainAssetsRatesController` ([#5639](https://github.com/MetaMask/core/pull/5639))
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/snaps-controllers` peer dependency from ^9.19.0 to ^11.0.0 ([#5639](https://github.com/MetaMask/core/pull/5639))
+- **BREAKING:** Bump `@metamask/providers` peer dependency from ^18.1.0 to ^21.0.0 ([#5639](https://github.com/MetaMask/core/pull/5639))
+- Bump `@metamask/snaps-utils` from ^8.10.0 to ^9.2.0 ([#5639](https://github.com/MetaMask/core/pull/5639))
+
+## [57.0.0]
+
+### Added
+
+- Add a new `DeFiPositionsController` that maintains an updated list of DeFi positions for EVM accounts ([#5400](https://github.com/MetaMask/core/pull/5400))
+  - Export `DeFiPositionsController`
+  - Export the following types
+    - `DeFiPositionsControllerState`
+    - `DeFiPositionsControllerActions`
+    - `DeFiPositionsControllerEvents`
+    - `DeFiPositionsControllerGetStateAction`
+    - `DeFiPositionsControllerStateChangeEvent`
+    - `DeFiPositionsControllerMessenger`
+    - `GroupedDeFiPositions`
+
+### Changed
+
+- **BREAKING** Add `@metamask/transaction-controller` as a peer dependency at `^54.0.0` ([#5400](https://github.com/MetaMask/core/pull/5400))
 
 ## [56.0.0]
 
@@ -1528,7 +1561,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@56.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@58.0.0...HEAD
+[58.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@57.0.0...@metamask/assets-controllers@58.0.0
+[57.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@56.0.0...@metamask/assets-controllers@57.0.0
 [56.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@55.0.1...@metamask/assets-controllers@56.0.0
 [55.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@55.0.0...@metamask/assets-controllers@55.0.1
 [55.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@54.0.0...@metamask/assets-controllers@55.0.0

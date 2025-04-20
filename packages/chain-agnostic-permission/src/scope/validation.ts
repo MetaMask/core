@@ -1,5 +1,6 @@
 import { isCaipReference } from '@metamask/utils';
 
+import { KnownSessionProperties } from './constants';
 import type {
   ExternalScopeString,
   ExternalScopeObject,
@@ -129,3 +130,17 @@ export const getValidScopes = (
     validOptionalScopes,
   };
 };
+
+/**
+ * Checks if a given value is a known session property.
+ *
+ * @param value - The value to check.
+ * @returns `true` if the value is a known session property, otherwise `false`.
+ */
+export function isKnownSessionPropertyValue(
+  value: string,
+): value is KnownSessionProperties {
+  return Object.values(KnownSessionProperties).includes(
+    value as KnownSessionProperties,
+  );
+}
