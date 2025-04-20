@@ -1,9 +1,7 @@
 import type { InfuraNetworkType } from '@metamask/controller-utils';
 import { ChainId } from '@metamask/controller-utils';
-import type {
-  PollingBlockTracker,
-  PollingBlockTrackerOptions,
-} from '@metamask/eth-block-tracker';
+import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
+import { PollingBlockTracker } from '@metamask/eth-block-tracker';
 import { createInfuraMiddleware } from '@metamask/eth-json-rpc-infura';
 import {
   createBlockCacheMiddleware,
