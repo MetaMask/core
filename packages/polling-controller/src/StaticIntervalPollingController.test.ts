@@ -319,7 +319,7 @@ describe('StaticIntervalPollingController', () => {
       const key = getKey(input);
 
       controller.startPolling(input);
-      controller.setKeyDuration(key, TICK_TIME * 2);
+      controller.setKeyDuration(key, TICK_TIME * 2 - 1);
 
       await advanceTime({ clock, duration: 0 });
       expect(controller._executePoll).toHaveBeenCalledTimes(1);
