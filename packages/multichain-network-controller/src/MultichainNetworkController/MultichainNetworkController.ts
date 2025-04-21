@@ -162,14 +162,17 @@ export class MultichainNetworkController extends BaseController<
    * @returns A promise that resolves to the active networks for the available addresses
    */
   async getNetworksWithTransactionActivityByAccounts(): Promise<ActiveNetworksByAddress> {
-    const accounts = this.messagingSystem.call(
-      'AccountsController:listMultichainAccounts',
-    );
-    if (!accounts || accounts.length === 0) {
+    // TODO: We are filtering out non-EVN accounts for now
+    // Support for non-EVM networks will be added in the coming weeks
+    const evmAccounts = this.messagingSystem
+      .call('AccountsController:listMultichainAccounts')
+      .filter((account) => isEvmAccountType(account.type));
+
+    if (!evmAccounts || evmAccounts.length === 0) {
       return this.state.networksWithTransactionActivity;
     }
 
-    const formattedAccounts = accounts
+    const formattedAccounts = evmAccounts
       .map((account: InternalAccount) => toAllowedCaipAccountIds(account))
       .flat();
 

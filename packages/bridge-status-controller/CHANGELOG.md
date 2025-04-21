@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.1.0]
+
 ### Fixed
 
-- Add optional `approvalTxId` key to BridgeHistoryItem to associate an approval with a bridge transaction ([5670](https://github.com/MetaMask/core/pull/5670))
-  - Fixes issue where calling `updateTransaction` to associate approvals with bridge transactions could overwrite transaction metadata and put transactions in a bad state
-  - Instead, store the approval transaction ID in the bridge history item, enabling clients to look up bridge transactions by their approval ID without modifying transaction metadata
+- Add optional `approvalTxId` to `BridgeHistoryItem` to prevent transaction metadata corruption ([#5670](https://github.com/MetaMask/core/pull/5670))
+  - Fixes issue where `updateTransaction` was overwriting transaction metadata when associating approvals
+  - Stores approval transaction ID in bridge history instead of modifying transaction metadata
+  - Reduces duplicate quote data in state
 
 ## [13.0.0]
 
@@ -135,7 +138,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@13.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@13.1.0...HEAD
+[13.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@13.0.0...@metamask/bridge-status-controller@13.1.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@12.0.1...@metamask/bridge-status-controller@13.0.0
 [12.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@12.0.0...@metamask/bridge-status-controller@12.0.1
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@11.0.0...@metamask/bridge-status-controller@12.0.0
