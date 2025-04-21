@@ -19,6 +19,7 @@ This package features the following controllers:
 - [**CollectibleDetectionController**](src/CollectibleDetectionController.ts) keeps a periodically updated list of ERC-721 tokens assigned to the currently selected address.
 - [**CollectiblesController**](src/CollectiblesController.ts) tracks ERC-721 and ERC-1155 tokens assigned to the currently selected address, using OpenSea to retrieve token information.
 - [**CurrencyRateController**](src/CurrencyRateController.ts) keeps a periodically updated value of the exchange rate from the currently selected "native" currency to another (handling testnet tokens specially).
+- [**DeFiPositionsController**](src/DeFiPositionsController/DeFiPositionsController.ts.ts) keeps a periodically updated value of the DeFi positions for the owner EVM addresses.
 - [**RatesController**](src/RatesController/RatesController.ts) keeps a periodically updated value for the exchange rates for different cryptocurrencies. The difference between the `RatesController` and `CurrencyRateController` is that the second one is coupled to the `NetworksController` and is EVM specific, whilst the first one can handle different blockchain currencies like BTC and SOL.
 - [**TokenBalancesController**](src/TokenBalancesController.ts) keeps a periodically updated set of balances for the current set of ERC-20 tokens.
 - [**TokenDetectionController**](src/TokenDetectionController.ts) keeps a periodically updated list of ERC-20 tokens assigned to the currently selected address.

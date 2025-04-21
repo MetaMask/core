@@ -1,7 +1,7 @@
 import { MethodRegistry } from 'eth-method-registry';
 
-import type { MethodData } from '../TransactionController';
 import { MethodDataHelper } from './MethodDataHelper';
+import type { MethodData } from '../TransactionController';
 
 jest.mock('eth-method-registry');
 
@@ -19,6 +19,7 @@ const METHOD_DATA_MOCK: MethodData = {
 
 /**
  * Creates a mock MethodRegistry instance.
+ *
  * @returns The mocked MethodRegistry instance.
  */
 function createMethodRegistryMock() {

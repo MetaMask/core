@@ -1,6 +1,7 @@
 import type { JSONRPCResponse } from '@json-rpc-specification/meta-schema';
 import type { InfuraNetworkType } from '@metamask/controller-utils';
 import { BUILT_IN_NETWORKS } from '@metamask/controller-utils';
+import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import EthQuery from '@metamask/eth-query';
 import type { Hex } from '@metamask/utils';
 import nock from 'nock';
@@ -8,7 +9,14 @@ import type { Scope as NockScope } from 'nock';
 import * as sinon from 'sinon';
 
 import { createNetworkClient } from '../../src/create-network-client';
+import type { NetworkControllerOptions } from '../../src/NetworkController';
+import type { NetworkClientConfiguration } from '../../src/types';
 import { NetworkClientType } from '../../src/types';
+import type { RootMessenger } from '../helpers';
+import {
+  buildNetworkControllerMessenger,
+  buildRootMessenger,
+} from '../helpers';
 
 /**
  * A dummy value for the `infuraProjectId` option that `createInfuraClient`
@@ -22,19 +30,13 @@ const MOCK_INFURA_PROJECT_ID = 'abc123';
  * should not be hit during tests, but just in case, this should also not refer
  * to a real Infura URL.)
  */
-const MOCK_RPC_URL = 'http://foo.com';
+const MOCK_RPC_URL = 'http://foo.com/';
 
 /**
  * A default value for the `eth_blockNumber` request that the block tracker
  * makes.
  */
 const DEFAULT_LATEST_BLOCK_NUMBER = '0x42';
-
-/**
- * A reference to the original `setTimeout` function so that we can use it even
- * when using fake timers.
- */
-const originalSetTimeout = setTimeout;
 
 /**
  * If you're having trouble writing a test and you're wondering why the test
@@ -56,10 +58,14 @@ function debug(...args: any) {
  * Builds a Nock scope object for mocking provider requests.
  *
  * @param rpcUrl - The URL of the RPC endpoint.
+ * @param headers - Headers with which to mock the request.
  * @returns The nock scope.
  */
-function buildScopeForMockingRequests(rpcUrl: string): NockScope {
-  return nock(rpcUrl).filteringRequestBody((body) => {
+function buildScopeForMockingRequests(
+  rpcUrl: string,
+  headers: Record<string, string>,
+): NockScope {
+  return nock(rpcUrl, { reqheaders: headers }).filteringRequestBody((body) => {
     debug('Nock Received Request: ', body);
     return body;
   });
@@ -79,8 +85,7 @@ type Response = {
   result?: any;
   httpStatus?: number;
 };
-type ResponseBody = { body: JSONRPCResponse };
-type BodyOrResponse = ResponseBody | Response;
+type BodyOrResponse = { body: JSONRPCResponse | string } | Response;
 type CurriedMockRpcCallOptions = {
   request: Request;
   // The response data.
@@ -143,7 +148,7 @@ function mockRpcCall({
   // for consistency with makeRpcCall, assume that the `body` contains it
   const { method, params = [], ...rest } = request;
   let httpStatus = 200;
-  let completeResponse: JSONRPCResponse = { id: 2, jsonrpc: '2.0' };
+  let completeResponse: JSONRPCResponse | string = { id: 2, jsonrpc: '2.0' };
   if (response !== undefined) {
     if ('body' in response) {
       completeResponse = response.body;
@@ -195,6 +200,10 @@ function mockRpcCall({
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return nockRequest.reply(httpStatus, (_, requestBody: any) => {
+      if (typeof completeResponse === 'string') {
+        return completeResponse;
+      }
+
       if (response !== undefined && !('body' in response)) {
         if (response.id === undefined) {
           completeResponse.id = requestBody.id;
@@ -296,10 +305,14 @@ export type ProviderType = 'infura' | 'custom';
 
 export type MockOptions = {
   infuraNetwork?: InfuraNetworkType;
+  failoverRpcUrls?: string[];
   providerType: ProviderType;
   customRpcUrl?: string;
   customChainId?: Hex;
   customTicker?: string;
+  getRpcServiceOptions?: NetworkControllerOptions['getRpcServiceOptions'];
+  expectedHeaders?: Record<string, string>;
+  messenger?: RootMessenger;
 };
 
 export type MockCommunications = {
@@ -323,6 +336,7 @@ export type MockCommunications = {
  * assuming that `providerType` is "infura" (default: "mainnet").
  * @param options.customRpcUrl - The URL of the custom RPC endpoint, assuming
  * that `providerType` is "custom".
+ * @param options.expectedHeaders - Headers with which to mock the request.
  * @param fn - A function which will be called with an object that allows
  * interaction with the network client.
  * @returns The return value of the given function.
@@ -332,6 +346,7 @@ export async function withMockedCommunications(
     providerType,
     infuraNetwork = 'mainnet',
     customRpcUrl = MOCK_RPC_URL,
+    expectedHeaders = {},
   }: MockOptions,
   fn: (comms: MockCommunications) => Promise<void>,
 ) {
@@ -341,7 +356,7 @@ export async function withMockedCommunications(
         // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `https://${infuraNetwork}.infura.io`
       : customRpcUrl;
-  const nockScope = buildScopeForMockingRequests(rpcUrl);
+  const nockScope = buildScopeForMockingRequests(rpcUrl, expectedHeaders);
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const curriedMockNextBlockTrackerRequest = (localOptions: any) =>
@@ -374,6 +389,7 @@ type MockNetworkClient = {
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   blockTracker: any;
+  provider: SafeEventEmitterProvider;
   clock: sinon.SinonFakeTimers;
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -381,6 +397,9 @@ type MockNetworkClient = {
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   makeRpcCallsInSeries: (requests: Request[]) => Promise<any[]>;
+  messenger: RootMessenger;
+  chainId: Hex;
+  rpcUrl: string;
 };
 
 /**
@@ -427,9 +446,8 @@ export async function waitForPromiseToBeFulfilledAfterRunningAllTimers(
 
   // `hasPromiseBeenFulfilled` is modified asynchronously.
   /* eslint-disable-next-line no-unmodified-loop-condition */
-  while (!hasPromiseBeenFulfilled && numTimesClockHasBeenAdvanced < 15) {
-    clock.runAll();
-    await new Promise((resolve) => originalSetTimeout(resolve, 10));
+  while (!hasPromiseBeenFulfilled && numTimesClockHasBeenAdvanced < 30) {
+    await clock.runAllAsync();
     numTimesClockHasBeenAdvanced += 1;
   }
 
@@ -443,6 +461,8 @@ export async function waitForPromiseToBeFulfilledAfterRunningAllTimers(
  *
  * @param options - An options bag.
  * @param options.providerType - The type of network client being tested.
+ * @param options.failoverRpcUrls - The list of failover endpoint
+ * URLs to use.
  * @param options.infuraNetwork - The name of the Infura network being tested,
  * assuming that `providerType` is "infura" (default: "mainnet").
  * @param options.customRpcUrl - The URL of the custom RPC endpoint, assuming
@@ -451,6 +471,8 @@ export async function waitForPromiseToBeFulfilledAfterRunningAllTimers(
  * endpoint, assuming that `providerType` is "custom" (default: "0x1").
  * @param options.customTicker - The ticker of the custom RPC endpoint, assuming
  * that `providerType` is "custom" (default: "ETH").
+ * @param options.getRpcServiceOptions - RPC service options factory.
+ * @param options.messenger - The root messenger to use in tests.
  * @param fn - A function which will be called with an object that allows
  * interaction with the network client.
  * @returns The return value of the given function.
@@ -458,10 +480,13 @@ export async function waitForPromiseToBeFulfilledAfterRunningAllTimers(
 export async function withNetworkClient(
   {
     providerType,
+    failoverRpcUrls = [],
     infuraNetwork = 'mainnet',
     customRpcUrl = MOCK_RPC_URL,
     customChainId = '0x1',
     customTicker = 'ETH',
+    getRpcServiceOptions = () => ({ fetch, btoa }),
+    messenger = buildRootMessenger(),
   }: MockOptions,
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -474,6 +499,8 @@ export async function withNetworkClient(
   // depends on `setTimeout`)
   const clock = sinon.useFakeTimers();
 
+  const networkControllerMessenger = buildNetworkControllerMessenger(messenger);
+
   // The JSON-RPC client wraps `eth_estimateGas` so that it takes 2 seconds longer
   // than it usually would to complete. Or at least it should — this doesn't
   // appear to be working correctly. Unset `IN_TEST` on `process.env` to prevent
@@ -482,25 +509,40 @@ export async function withNetworkClient(
   const inTest = process.env.IN_TEST;
   /* eslint-disable-next-line n/no-process-env */
   delete process.env.IN_TEST;
-  const clientUnderTest =
+  const networkClientConfiguration: NetworkClientConfiguration =
     providerType === 'infura'
-      ? createNetworkClient({
+      ? {
           network: infuraNetwork,
+          failoverRpcUrls,
           infuraProjectId: MOCK_INFURA_PROJECT_ID,
           type: NetworkClientType.Infura,
           chainId: BUILT_IN_NETWORKS[infuraNetwork].chainId,
           ticker: BUILT_IN_NETWORKS[infuraNetwork].ticker,
-        })
-      : createNetworkClient({
+        }
+      : {
           chainId: customChainId,
+          failoverRpcUrls,
           rpcUrl: customRpcUrl,
           type: NetworkClientType.Custom,
           ticker: customTicker,
-        });
+        };
+
+  const { chainId } = networkClientConfiguration;
+
+  const rpcUrl =
+    providerType === 'custom'
+      ? customRpcUrl
+      : `https://${infuraNetwork}.infura.io/v3/${MOCK_INFURA_PROJECT_ID}`;
+
+  const networkClient = createNetworkClient({
+    configuration: networkClientConfiguration,
+    getRpcServiceOptions,
+    messenger: networkControllerMessenger,
+  });
   /* eslint-disable-next-line n/no-process-env */
   process.env.IN_TEST = inTest;
 
-  const { provider, blockTracker } = clientUnderTest;
+  const { provider, blockTracker } = networkClient;
 
   const ethQuery = new EthQuery(provider);
   const curriedMakeRpcCall = (request: Request) =>
@@ -515,9 +557,13 @@ export async function withNetworkClient(
 
   const client = {
     blockTracker,
+    provider,
     clock,
     makeRpcCall: curriedMakeRpcCall,
     makeRpcCallsInSeries,
+    messenger,
+    chainId,
+    rpcUrl,
   };
 
   try {

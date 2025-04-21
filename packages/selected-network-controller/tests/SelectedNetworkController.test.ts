@@ -218,11 +218,11 @@ describe('SelectedNetworkController', () => {
     it('can be instantiated with a state', () => {
       const { controller } = setup({
         state: {
-          domains: { networkClientId: 'goerli' },
+          domains: { networkClientId: 'sepolia' },
         },
       });
       expect(controller.state).toStrictEqual({
-        domains: { networkClientId: 'goerli' },
+        domains: { networkClientId: 'sepolia' },
       });
     });
 
@@ -298,7 +298,7 @@ describe('SelectedNetworkController', () => {
     describe('when a network is deleted from the network controller', () => {
       const initialDomains = {
         'not-deleted-network.com': 'linea-mainnet',
-        'deleted-network.com': 'goerli',
+        'deleted-network.com': 'sepolia',
       };
 
       const deleteNetwork = (
@@ -331,7 +331,7 @@ describe('SelectedNetworkController', () => {
 
         const networkControllerState = getDefaultNetworkControllerState();
         deleteNetwork(
-          '0x5',
+          '0xaa36a7',
           networkControllerState,
           messenger,
           mockNetworkControllerGetState,
@@ -352,7 +352,7 @@ describe('SelectedNetworkController', () => {
         };
 
         deleteNetwork(
-          '0x5',
+          '0xaa36a7',
           networkControllerState,
           messenger,
           mockNetworkControllerGetState,
@@ -398,7 +398,7 @@ describe('SelectedNetworkController', () => {
         });
 
         deleteNetwork(
-          '0x5',
+          '0xaa36a7',
           networkControllerState,
           messenger,
           mockNetworkControllerGetState,
@@ -415,7 +415,7 @@ describe('SelectedNetworkController', () => {
       it('redirects domains when the default rpc endpoint is switched', () => {
         const initialDomains = {
           'different-chain.com': 'mainnet',
-          'chain-with-new-default.com': 'goerli',
+          'chain-with-new-default.com': 'sepolia',
         };
 
         const { controller, messenger, mockNetworkControllerGetState } = setup({
@@ -425,12 +425,13 @@ describe('SelectedNetworkController', () => {
 
         const networkControllerState = getDefaultNetworkControllerState();
         const goerliNetwork =
-          networkControllerState.networkConfigurationsByChainId['0x5'];
+          networkControllerState.networkConfigurationsByChainId['0xaa36a7'];
 
         goerliNetwork.defaultRpcEndpointIndex =
           goerliNetwork.rpcEndpoints.push({
             type: RpcEndpointType.Custom,
             url: 'https://new-default.com',
+            failoverUrls: [],
             networkClientId: 'new-default-network-client-id',
           }) - 1;
 
@@ -444,7 +445,7 @@ describe('SelectedNetworkController', () => {
           [
             {
               op: 'replace',
-              path: ['networkConfigurationsByChainId', '0x5'],
+              path: ['networkConfigurationsByChainId', '0xaa36a7'],
             },
           ],
         );
@@ -458,7 +459,7 @@ describe('SelectedNetworkController', () => {
       it('redirects domains when the default rpc endpoint is deleted and replaced', () => {
         const initialDomains = {
           'different-chain.com': 'mainnet',
-          'chain-with-new-default.com': 'goerli',
+          'chain-with-new-default.com': 'sepolia',
         };
 
         const { controller, messenger, mockNetworkControllerGetState } = setup({
@@ -468,12 +469,13 @@ describe('SelectedNetworkController', () => {
 
         const networkControllerState = getDefaultNetworkControllerState();
         const goerliNetwork =
-          networkControllerState.networkConfigurationsByChainId['0x5'];
+          networkControllerState.networkConfigurationsByChainId['0xaa36a7'];
 
         goerliNetwork.rpcEndpoints = [
           {
             type: RpcEndpointType.Custom,
             url: 'https://new-default.com',
+            failoverUrls: [],
             networkClientId: 'new-default-network-client-id',
           },
         ];
@@ -488,7 +490,7 @@ describe('SelectedNetworkController', () => {
           [
             {
               op: 'replace',
-              path: ['networkConfigurationsByChainId', '0x5'],
+              path: ['networkConfigurationsByChainId', '0xaa36a7'],
             },
           ],
         );

@@ -25,6 +25,9 @@ import {
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import type { Hex, Json, JsonRpcParams } from '@metamask/utils';
 
+import type { NetworkControllerMessenger } from './NetworkController';
+import type { RpcServiceOptions } from './rpc-service/rpc-service';
+import { RpcServiceChain } from './rpc-service/rpc-service-chain';
 import type {
   BlockTracker,
   NetworkClientConfiguration,
@@ -48,30 +51,81 @@ export type NetworkClient = {
 /**
  * Create a JSON RPC network client for a specific network.
  *
- * @param networkConfig - The network configuration.
+ * @param args - The arguments.
+ * @param args.configuration - The network configuration.
+ * @param args.getRpcServiceOptions - Factory for constructing RPC service
+ * options. See {@link NetworkControllerOptions.getRpcServiceOptions}.
+ * @param args.messenger - The network controller messenger.
+ * See {@link NetworkControllerOptions.getRpcServiceOptions}.
  * @returns The network client.
  */
-export function createNetworkClient(
-  networkConfig: NetworkClientConfiguration,
-): NetworkClient {
+export function createNetworkClient({
+  configuration,
+  getRpcServiceOptions,
+  messenger,
+}: {
+  configuration: NetworkClientConfiguration;
+  getRpcServiceOptions: (
+    rpcEndpointUrl: string,
+  ) => Omit<RpcServiceOptions, 'failoverService' | 'endpointUrl'>;
+  messenger: NetworkControllerMessenger;
+}): NetworkClient {
+  const primaryEndpointUrl =
+    configuration.type === NetworkClientType.Infura
+      ? `https://${configuration.network}.infura.io/v3/${configuration.infuraProjectId}`
+      : configuration.rpcUrl;
+  const availableEndpointUrls = [
+    primaryEndpointUrl,
+    ...(configuration.failoverRpcUrls ?? []),
+  ];
+  const rpcService = new RpcServiceChain(
+    availableEndpointUrls.map((endpointUrl) => ({
+      ...getRpcServiceOptions(endpointUrl),
+      endpointUrl,
+    })),
+  );
+  rpcService.onBreak(({ endpointUrl, failoverEndpointUrl, ...rest }) => {
+    let error: unknown;
+    if ('error' in rest) {
+      error = rest.error;
+    } else if ('value' in rest) {
+      error = rest.value;
+    }
+
+    messenger.publish('NetworkController:rpcEndpointUnavailable', {
+      chainId: configuration.chainId,
+      endpointUrl,
+      failoverEndpointUrl,
+      error,
+    });
+  });
+  rpcService.onDegraded(({ endpointUrl }) => {
+    messenger.publish('NetworkController:rpcEndpointDegraded', {
+      chainId: configuration.chainId,
+      endpointUrl,
+    });
+  });
+  rpcService.onRetry(({ endpointUrl, attempt }) => {
+    messenger.publish('NetworkController:rpcEndpointRequestRetried', {
+      endpointUrl,
+      attempt,
+    });
+  });
+
   const rpcApiMiddleware =
-    networkConfig.type === NetworkClientType.Infura
+    configuration.type === NetworkClientType.Infura
       ? createInfuraMiddleware({
-          network: networkConfig.network,
-          projectId: networkConfig.infuraProjectId,
-          maxAttempts: 5,
-          source: 'metamask',
+          rpcService,
+          options: {
+            source: 'metamask',
+          },
         })
-      : createFetchMiddleware({
-          btoa: global.btoa,
-          fetch: global.fetch,
-          rpcUrl: networkConfig.rpcUrl,
-        });
+      : createFetchMiddleware({ rpcService });
 
   const rpcProvider = providerFromMiddleware(rpcApiMiddleware);
 
   const blockTrackerOpts =
-    process.env.IN_TEST && networkConfig.type === 'custom'
+    process.env.IN_TEST && configuration.type === NetworkClientType.Custom
       ? { pollingInterval: SECOND }
       : {};
   const blockTracker = new PollingBlockTracker({
@@ -80,16 +134,16 @@ export function createNetworkClient(
   });
 
   const networkMiddleware =
-    networkConfig.type === NetworkClientType.Infura
+    configuration.type === NetworkClientType.Infura
       ? createInfuraNetworkMiddleware({
           blockTracker,
-          network: networkConfig.network,
+          network: configuration.network,
           rpcProvider,
           rpcApiMiddleware,
         })
       : createCustomNetworkMiddleware({
           blockTracker,
-          chainId: networkConfig.chainId,
+          chainId: configuration.chainId,
           rpcApiMiddleware,
         });
 
@@ -105,7 +159,7 @@ export function createNetworkClient(
     blockTracker.destroy();
   };
 
-  return { configuration: networkConfig, provider, blockTracker, destroy };
+  return { configuration, provider, blockTracker, destroy };
 }
 
 /**

@@ -3,6 +3,7 @@ import {
   NetworksTicker,
   ChainId,
   BuiltInNetworkName,
+  BlockExplorerUrl,
 } from './types';
 
 export const RPC = 'rpc';
@@ -48,6 +49,14 @@ export const TESTNET_TICKER_SYMBOLS = {
   SEPOLIA: 'SepoliaETH',
   LINEA_GOERLI: 'LineaETH',
   LINEA_SEPOLIA: 'LineaETH',
+  MEGAETH_TESTNET: 'MegaETH',
+};
+
+/**
+ * Map of all built-in custom networks to their RPC endpoints.
+ */
+export const BUILT_IN_CUSTOM_NETWORKS_RPC = {
+  MEGAETH_TESTNET: 'https://carrot.megaeth.com/rpc',
 };
 
 /**
@@ -58,42 +67,49 @@ export const BUILT_IN_NETWORKS = {
     chainId: ChainId.goerli,
     ticker: NetworksTicker.goerli,
     rpcPrefs: {
-      blockExplorerUrl: `https://${NetworkType.goerli}.etherscan.io`,
+      blockExplorerUrl: BlockExplorerUrl.goerli,
     },
   },
   [NetworkType.sepolia]: {
     chainId: ChainId.sepolia,
     ticker: NetworksTicker.sepolia,
     rpcPrefs: {
-      blockExplorerUrl: `https://${NetworkType.sepolia}.etherscan.io`,
+      blockExplorerUrl: BlockExplorerUrl.sepolia,
     },
   },
   [NetworkType.mainnet]: {
     chainId: ChainId.mainnet,
     ticker: NetworksTicker.mainnet,
     rpcPrefs: {
-      blockExplorerUrl: 'https://etherscan.io',
+      blockExplorerUrl: BlockExplorerUrl.mainnet,
     },
   },
   [NetworkType['linea-goerli']]: {
     chainId: ChainId['linea-goerli'],
     ticker: NetworksTicker['linea-goerli'],
     rpcPrefs: {
-      blockExplorerUrl: 'https://goerli.lineascan.build',
+      blockExplorerUrl: BlockExplorerUrl['linea-goerli'],
     },
   },
   [NetworkType['linea-sepolia']]: {
     chainId: ChainId['linea-sepolia'],
     ticker: NetworksTicker['linea-sepolia'],
     rpcPrefs: {
-      blockExplorerUrl: 'https://sepolia.lineascan.build',
+      blockExplorerUrl: BlockExplorerUrl['linea-sepolia'],
     },
   },
   [NetworkType['linea-mainnet']]: {
     chainId: ChainId['linea-mainnet'],
     ticker: NetworksTicker['linea-mainnet'],
     rpcPrefs: {
-      blockExplorerUrl: 'https://lineascan.build',
+      blockExplorerUrl: BlockExplorerUrl['linea-mainnet'],
+    },
+  },
+  [NetworkType['megaeth-testnet']]: {
+    chainId: ChainId['megaeth-testnet'],
+    ticker: NetworksTicker['megaeth-testnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['megaeth-testnet'],
     },
   },
   [NetworkType.rpc]: {
@@ -143,8 +159,12 @@ export enum ApprovalType {
   WatchAsset = 'wallet_watchAsset',
 }
 
+/**
+ * Mapping of chain IDs to their network names for ENS functionality.
+ * Note: MegaETH-testnet is intentionally excluded from this mapping as it doesn't support ENS.
+ */
 export const CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP: Record<
-  ChainId,
+  string,
   BuiltInNetworkName
 > = {
   [ChainId.goerli]: BuiltInNetworkName.Goerli,

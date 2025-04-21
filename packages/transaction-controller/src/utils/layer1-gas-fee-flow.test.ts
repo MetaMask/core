@@ -1,12 +1,13 @@
 import type { Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
+import { updateTransactionLayer1GasFee } from './layer1-gas-fee-flow';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import {
   TransactionStatus,
   type Layer1GasFeeFlow,
   type TransactionMeta,
 } from '../types';
-import { updateTransactionLayer1GasFee } from './layer1-gas-fee-flow';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
@@ -18,6 +19,7 @@ const LAYER1_GAS_FEE_VALUE_UNMATCH_MOCK: Hex = '0x2';
 
 /**
  * Creates a mock Layer1GasFeeFlow.
+ *
  * @param request - The request bag to create the mock
  * @param request.match - The value to return when calling matchesTransaction
  * @param request.layer1Fee - The value to return when calling getLayer1Fee
@@ -40,6 +42,7 @@ describe('updateTransactionLayer1GasFee', () => {
   let layer1GasFeeFlowsMock: jest.Mocked<Layer1GasFeeFlow[]>;
   let providerMock: Provider;
   let transactionMetaMock: TransactionMeta;
+  let messengerMock: TransactionControllerMessenger;
 
   beforeEach(() => {
     layer1GasFeeFlowsMock = [
@@ -65,11 +68,14 @@ describe('updateTransactionLayer1GasFee', () => {
         from: '0x123',
       },
     };
+
+    messengerMock = {} as TransactionControllerMessenger;
   });
 
   it('updates given transaction layer1GasFee property', async () => {
     await updateTransactionLayer1GasFee({
       layer1GasFeeFlows: layer1GasFeeFlowsMock,
+      messenger: messengerMock,
       provider: providerMock,
       transactionMeta: transactionMetaMock,
     });
@@ -100,6 +106,7 @@ describe('updateTransactionLayer1GasFee', () => {
 
       await updateTransactionLayer1GasFee({
         layer1GasFeeFlows: layer1GasFeeFlowsMock,
+        messenger: messengerMock,
         provider: providerMock,
         transactionMeta: transactionMetaMock,
       });
@@ -120,6 +127,7 @@ describe('updateTransactionLayer1GasFee', () => {
 
       await updateTransactionLayer1GasFee({
         layer1GasFeeFlows: layer1GasFeeFlowsMock,
+        messenger: messengerMock,
         provider: providerMock,
         transactionMeta: transactionMetaMock,
       });

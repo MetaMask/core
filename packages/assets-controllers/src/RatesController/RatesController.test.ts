@@ -170,7 +170,7 @@ describe('RatesController', () => {
       const ratesPosUpdate = ratesController.state.rates;
 
       // checks for the RatesController:stateChange event
-      expect(publishActionSpy).toHaveBeenCalledTimes(2);
+      expect(publishActionSpy).toHaveBeenCalledTimes(3);
       expect(fetchExchangeRateStub).toHaveBeenCalled();
       expect(ratesPosUpdate).toStrictEqual({
         btc: {
@@ -283,27 +283,27 @@ describe('RatesController', () => {
 
       await advanceTime({ clock, duration: 200 });
 
-      expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
+      expect(fetchExchangeRateStub).toHaveBeenCalledTimes(2);
 
       await ratesController.stop();
 
       // check the 3rd call since the 2nd one is for the
       // event stateChange
       expect(publishActionSpy).toHaveBeenNthCalledWith(
-        3,
+        4,
         `${ratesControllerName}:pollingStopped`,
       );
 
       await advanceTime({ clock, duration: 200 });
 
-      expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
+      expect(fetchExchangeRateStub).toHaveBeenCalledTimes(2);
 
       await ratesController.stop();
 
       // check if the stop method is called again, it returns early
       // and no extra logic is executed
       expect(publishActionSpy).not.toHaveBeenNthCalledWith(
-        4,
+        3,
         `${ratesControllerName}:pollingStopped`,
       );
     });

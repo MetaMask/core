@@ -7,6 +7,7 @@ import type {
 } from '@metamask/gas-fee-controller';
 import { type GasFeeState } from '@metamask/gas-fee-controller';
 
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
   FeeMarketGasFeeEstimates,
   GasPriceGasFeeEstimates,
@@ -36,19 +37,22 @@ type MergeGasFeeEstimatesRequest = {
  *
  * @param transactionMeta - The transaction metadata to find a gas fee flow for.
  * @param gasFeeFlows - The gas fee flows to search.
+ * @param messenger - The messenger instance.
  * @returns The first gas fee flow that matches the transaction, or undefined if none match.
  */
 export function getGasFeeFlow(
   transactionMeta: TransactionMeta,
   gasFeeFlows: GasFeeFlow[],
+  messenger: TransactionControllerMessenger,
 ): GasFeeFlow | undefined {
   return gasFeeFlows.find((gasFeeFlow) =>
-    gasFeeFlow.matchesTransaction(transactionMeta),
+    gasFeeFlow.matchesTransaction({ transactionMeta, messenger }),
   );
 }
 
 /**
  * Merge the gas fee estimates from the gas fee controller with the gas fee estimates from a transaction.
+ *
  * @param request - Data required to merge gas fee estimates.
  * @param request.gasFeeControllerEstimates - Gas fee estimates from the GasFeeController.
  * @param request.transactionGasFeeEstimates - Gas fee estimates from the transaction.
@@ -94,6 +98,7 @@ export function mergeGasFeeEstimates({
 
 /**
  * Merge a specific priority level of EIP-1559 gas fee estimates.
+ *
  * @param gasFeeControllerEstimate - The gas fee estimate from the gas fee controller.
  * @param transactionGasFeeEstimate - The gas fee estimate from the transaction.
  * @returns The merged gas fee estimate.
@@ -115,6 +120,7 @@ function mergeFeeMarketEstimate(
 
 /**
  * Generate a specific priority level for a legacy gas fee estimate.
+ *
  * @param transactionGasFeeEstimate - The gas fee estimate from the transaction.
  * @param level - The gas fee estimate level.
  * @returns The legacy gas fee estimate.
@@ -128,6 +134,7 @@ function getLegacyEstimate(
 
 /**
  * Generate the value for a gas price gas fee estimate.
+ *
  * @param transactionGasFeeEstimate - The gas fee estimate from the transaction.
  * @returns The legacy gas fee estimate.
  */

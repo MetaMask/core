@@ -1,5 +1,7 @@
 import type { NetworkClient } from './create-network-client';
 import { createNetworkClient } from './create-network-client';
+import type { NetworkControllerMessenger } from './NetworkController';
+import type { RpcServiceOptions } from './rpc-service/rpc-service';
 import type {
   BlockTracker,
   NetworkClientConfiguration,
@@ -59,15 +61,27 @@ const UNINITIALIZED_TARGET = { __UNINITIALIZED__: true };
  * part of the network client is serving as the receiver. The network client is
  * then cached for subsequent usages.
  *
- * @param networkClientConfiguration - The configuration object that will be
+ * @param args - The arguments.
+ * @param args.networkClientConfiguration - The configuration object that will be
  * used to instantiate the network client when it is needed.
+ * @param args.getRpcServiceOptions - Factory for constructing RPC service
+ * options. See {@link NetworkControllerOptions.getRpcServiceOptions}.
+ * @param args.messenger - The network controller messenger.
  * @returns The auto-managed network client.
  */
 export function createAutoManagedNetworkClient<
   Configuration extends NetworkClientConfiguration,
->(
-  networkClientConfiguration: Configuration,
-): AutoManagedNetworkClient<Configuration> {
+>({
+  networkClientConfiguration,
+  getRpcServiceOptions,
+  messenger,
+}: {
+  networkClientConfiguration: Configuration;
+  getRpcServiceOptions: (
+    rpcEndpointUrl: string,
+  ) => Omit<RpcServiceOptions, 'failoverService' | 'endpointUrl'>;
+  messenger: NetworkControllerMessenger;
+}): AutoManagedNetworkClient<Configuration> {
   let networkClient: NetworkClient | undefined;
 
   const providerProxy = new Proxy(UNINITIALIZED_TARGET, {
@@ -78,7 +92,11 @@ export function createAutoManagedNetworkClient<
         return networkClient?.provider;
       }
 
-      networkClient ??= createNetworkClient(networkClientConfiguration);
+      networkClient ??= createNetworkClient({
+        configuration: networkClientConfiguration,
+        getRpcServiceOptions,
+        messenger,
+      });
       if (networkClient === undefined) {
         throw new Error(
           "It looks like `createNetworkClient` didn't return anything. Perhaps it's being mocked?",
@@ -115,7 +133,11 @@ export function createAutoManagedNetworkClient<
       if (propertyName === REFLECTIVE_PROPERTY_NAME) {
         return true;
       }
-      networkClient ??= createNetworkClient(networkClientConfiguration);
+      networkClient ??= createNetworkClient({
+        configuration: networkClientConfiguration,
+        getRpcServiceOptions,
+        messenger,
+      });
       const { provider } = networkClient;
       return propertyName in provider;
     },
@@ -131,7 +153,11 @@ export function createAutoManagedNetworkClient<
           return networkClient?.blockTracker;
         }
 
-        networkClient ??= createNetworkClient(networkClientConfiguration);
+        networkClient ??= createNetworkClient({
+          configuration: networkClientConfiguration,
+          getRpcServiceOptions,
+          messenger,
+        });
         if (networkClient === undefined) {
           throw new Error(
             "It looks like createNetworkClient returned undefined. Perhaps it's mocked?",
@@ -168,7 +194,11 @@ export function createAutoManagedNetworkClient<
         if (propertyName === REFLECTIVE_PROPERTY_NAME) {
           return true;
         }
-        networkClient ??= createNetworkClient(networkClientConfiguration);
+        networkClient ??= createNetworkClient({
+          configuration: networkClientConfiguration,
+          getRpcServiceOptions,
+          messenger,
+        });
         const { blockTracker } = networkClient;
         return propertyName in blockTracker;
       },

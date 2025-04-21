@@ -9,7 +9,8 @@
     },
     {
       "path": "../keyring-controller"
-    }
+    },
+    { "path": "../network-controller" }
   ],
-  "include": ["../../types", "./src"]
+  "include": ["../../types", "./src", "src/tests"]
 }

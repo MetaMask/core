@@ -9,23 +9,15 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [18.x, 20.x]
+        node-version: [18.x, 20.x, 22.x]
     outputs:
       child-workspace-package-names: ${{ steps.workspace-package-names.outputs.child-workspace-package-names }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Install Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v1
         with:
-          node-version: ${{ matrix.node-version }}
-      - name: Install Yarn
-        run: corepack enable
-      - name: Restore Yarn cache
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: yarn
-      - run: yarn --immutable
+          is-high-risk-environment: false
+          cache-node-modules: ${{ matrix.node-version == '22.x' }}
       - name: Fetch workspace package names
         id: workspace-package-names
         run: |
@@ -38,21 +30,12 @@ jobs:
     needs: prepare
     strategy:
       matrix:
-        node-version: [20.x]
+        node-version: [22.x]
     steps:
-      - uses: actions/checkout@v4
-      - name: Install Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v1
         with:
-          node-version: ${{ matrix.node-version }}
-      - name: Install Yarn
-        run: corepack enable
-      - name: Restore Yarn cache
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: yarn
-      - run: yarn --immutable
+          is-high-risk-environment: false
       - run: yarn lint
       - name: Require clean working directory
         shell: bash
@@ -68,22 +51,13 @@ jobs:
     needs: prepare
     strategy:
       matrix:
-        node-version: [20.x]
+        node-version: [22.x]
         package-name: ${{ fromJson(needs.prepare.outputs.child-workspace-package-names) }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Install Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v1
         with:
-          node-version: ${{ matrix.node-version }}
-      - name: Install Yarn
-        run: corepack enable
-      - name: Restore Yarn cache
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: yarn
-      - run: yarn --immutable
+          is-high-risk-environment: false
       - run: yarn workspace ${{ matrix.package-name }} changelog:validate
       - name: Require clean working directory
         shell: bash
@@ -99,21 +73,12 @@ jobs:
     needs: prepare
     strategy:
       matrix:
-        node-version: [20.x]
+        node-version: [22.x]
     steps:
-      - uses: actions/checkout@v4
-      - name: Install Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v1
         with:
-          node-version: ${{ matrix.node-version }}
-      - name: Install Yarn
-        run: corepack enable
-      - name: Restore Yarn cache
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: yarn
-      - run: yarn --immutable
+          is-high-risk-environment: false
       - run: yarn build
       - name: Require clean working directory
         shell: bash
@@ -129,22 +94,13 @@ jobs:
     needs: prepare
     strategy:
       matrix:
-        node-version: [18.x, 20.x]
+        node-version: [18.x, 20.x, 22.x]
         package-name: ${{ fromJson(needs.prepare.outputs.child-workspace-package-names) }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Install Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v1
         with:
-          node-version: ${{ matrix.node-version }}
-      - name: Install Yarn
-        run: corepack enable
-      - name: Restore Yarn cache
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: yarn
-      - run: yarn --immutable
+          is-high-risk-environment: false
       - run: yarn test:scripts
       - run: yarn workspace ${{ matrix.package-name }} run test
       - name: Require clean working directory

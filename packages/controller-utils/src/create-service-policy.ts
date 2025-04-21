@@ -4,6 +4,7 @@ import {
   EventEmitter as CockatielEventEmitter,
   ConsecutiveBreaker,
   ExponentialBackoff,
+  ConstantBackoff,
   circuitBreaker,
   handleAll,
   handleWhen,
@@ -13,12 +14,20 @@ import {
 import type {
   CircuitBreakerPolicy,
   Event as CockatielEvent,
+  IBackoffFactory,
   IPolicy,
   Policy,
   RetryPolicy,
 } from 'cockatiel';
 
-export { CircuitState, BrokenCircuitError, handleAll, handleWhen };
+export {
+  BrokenCircuitError,
+  CircuitState,
+  ConstantBackoff,
+  ExponentialBackoff,
+  handleAll,
+  handleWhen,
+};
 
 export type { CockatielEvent };
 
@@ -26,6 +35,12 @@ export type { CockatielEvent };
  * The options for `createServicePolicy`.
  */
 export type CreateServicePolicyOptions = {
+  /**
+   * The backoff strategy to use. Mainly useful for testing so that a constant
+   * backoff can be used when mocking timers. Defaults to an instance of
+   * ExponentialBackoff.
+   */
+  backoff?: IBackoffFactory<unknown>;
   /**
    * The length of time (in milliseconds) to pause retries of the action after
    * the number of failures reaches `maxConsecutiveFailures`.
@@ -130,21 +145,8 @@ export const DEFAULT_DEGRADED_THRESHOLD = 5_000;
  * from the [Cockatiel](https://www.npmjs.com/package/cockatiel) library; see
  * there for more.
  *
- * @param options - The options to this function.
- * @param options.maxRetries - The maximum number of times that a failing
- * service should be re-invoked before giving up. Defaults to 3.
- * @param options.retryFilterPolicy - The policy used to control when the
- * service should be retried based on either the result of the servce or an
- * error that it throws. For instance, you could use this to retry only certain
- * errors. See `handleWhen` and friends from Cockatiel for more.
- * @param options.maxConsecutiveFailures - The maximum number of times that the
- * service is allowed to fail before pausing further retries. Defaults to 12.
- * @param options.circuitBreakDuration - The length of time (in milliseconds) to
- * pause retries of the action after the number of failures reaches
- * `maxConsecutiveFailures`.
- * @param options.degradedThreshold - The length of time (in milliseconds) that
- * governs when the service is regarded as degraded (affecting when `onDegraded`
- * is called). Defaults to 5 seconds.
+ * @param options - The options to this function. See
+ * {@link CreateServicePolicyOptions}.
  * @returns The service policy.
  * @example
  * This function is designed to be used in the context of a service class like
@@ -178,20 +180,25 @@ export const DEFAULT_DEGRADED_THRESHOLD = 5_000;
  * }
  * ```
  */
-export function createServicePolicy({
-  maxRetries = DEFAULT_MAX_RETRIES,
-  retryFilterPolicy = handleAll,
-  maxConsecutiveFailures = DEFAULT_MAX_CONSECUTIVE_FAILURES,
-  circuitBreakDuration = DEFAULT_CIRCUIT_BREAK_DURATION,
-  degradedThreshold = DEFAULT_DEGRADED_THRESHOLD,
-}: CreateServicePolicyOptions = {}): ServicePolicy {
+export function createServicePolicy(
+  options: CreateServicePolicyOptions = {},
+): ServicePolicy {
+  const {
+    maxRetries = DEFAULT_MAX_RETRIES,
+    retryFilterPolicy = handleAll,
+    maxConsecutiveFailures = DEFAULT_MAX_CONSECUTIVE_FAILURES,
+    circuitBreakDuration = DEFAULT_CIRCUIT_BREAK_DURATION,
+    degradedThreshold = DEFAULT_DEGRADED_THRESHOLD,
+    backoff = new ExponentialBackoff(),
+  } = options;
+
   const retryPolicy = retry(retryFilterPolicy, {
     // Note that although the option here is called "max attempts", it's really
     // maximum number of *retries* (attempts past the initial attempt).
     maxAttempts: maxRetries,
     // Retries of the service will be executed following ever increasing delays,
     // determined by a backoff formula.
-    backoff: new ExponentialBackoff(),
+    backoff,
   });
   const onRetry = retryPolicy.onRetry.bind(retryPolicy);
 

@@ -21,10 +21,6 @@ export type UserStorageAccount = {
   nlu?: number;
 };
 
-export type AccountSyncingConfig = {
-  isAccountSyncingEnabled: boolean;
-};
-
 export type AccountSyncingOptions = {
   getUserStorageControllerInstance: () => UserStorageController;
   getMessenger: () => UserStorageControllerMessenger;

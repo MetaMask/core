@@ -15,6 +15,7 @@ export enum KeyringControllerError {
   UnsupportedSignTransaction = 'KeyringController - The keyring for the current address does not support the method signTransaction.',
   UnsupportedSignMessage = 'KeyringController - The keyring for the current address does not support the method signMessage.',
   UnsupportedSignPersonalMessage = 'KeyringController - The keyring for the current address does not support the method signPersonalMessage.',
+  UnsupportedSignEip7702Authorization = 'KeyringController - The keyring for the current address does not support the method signEip7702Authorization.',
   UnsupportedGetEncryptionPublicKey = 'KeyringController - The keyring for the current address does not support the method getEncryptionPublicKey.',
   UnsupportedDecryptMessage = 'KeyringController - The keyring for the current address does not support the method decryptMessage.',
   UnsupportedSignTypedMessage = 'KeyringController - The keyring for the current address does not support the method signTypedMessage.',
@@ -23,6 +24,8 @@ export enum KeyringControllerError {
   UnsupportedPrepareUserOperation = 'KeyringController - The keyring for the current address does not support the method prepareUserOperation.',
   UnsupportedPatchUserOperation = 'KeyringController - The keyring for the current address does not support the method patchUserOperation.',
   UnsupportedSignUserOperation = 'KeyringController - The keyring for the current address does not support the method signUserOperation.',
+  UnsupportedVerifySeedPhrase = 'KeyringController - The keyring does not support the method verifySeedPhrase.',
+  MissingEip7702AuthorizationContractAddress = 'KeyringController - The EIP-7702 Authorization is invalid. No contract address provided.',
   NoAccountOnKeychain = "KeyringController - The keychain doesn't have accounts.",
   ControllerLocked = 'KeyringController - The operation cannot be completed while the controller is locked.',
   MissingCredentials = 'KeyringController - Cannot persist vault without password and encryption key',
@@ -32,4 +35,6 @@ export enum KeyringControllerError {
   DataType = 'KeyringController - Incorrect data type provided',
   NoHdKeyring = 'KeyringController - No HD Keyring found',
   ControllerLockRequired = 'KeyringController - attempt to update vault during a non mutually exclusive operation',
+  KeyringMetadataLengthMismatch = 'KeyringController - keyring metadata length mismatch',
+  LastAccountInPrimaryKeyring = 'KeyringController - Last account in primary keyring cannot be removed',
 }

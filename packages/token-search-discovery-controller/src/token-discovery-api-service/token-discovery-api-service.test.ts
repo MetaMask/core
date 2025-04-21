@@ -2,11 +2,11 @@ import nock, { cleanAll } from 'nock';
 
 import { TokenDiscoveryApiService } from './token-discovery-api-service';
 import { TEST_API_URLS } from '../test/constants';
-import type { TokenTrendingResponseItem } from '../types';
+import type { MoralisTokenResponseItem } from '../types';
 
 describe('TokenDiscoveryApiService', () => {
   let service: TokenDiscoveryApiService;
-  const mockTrendingResponse: TokenTrendingResponseItem[] = [
+  const mockTrendingResponse: MoralisTokenResponseItem[] = [
     {
       chain_id: '1',
       token_address: '0x123',
@@ -79,19 +79,19 @@ describe('TokenDiscoveryApiService', () => {
     it.each([
       {
         params: { chains: ['1'], limit: '5' },
-        expectedPath: '/tokens-search/trending-by-chains?chains=1&limit=5',
+        expectedPath: '/tokens-search/trending?chains=1&limit=5',
       },
       {
         params: { chains: ['1', '137'] },
-        expectedPath: '/tokens-search/trending-by-chains?chains=1,137',
+        expectedPath: '/tokens-search/trending?chains=1,137',
       },
       {
         params: { limit: '10' },
-        expectedPath: '/tokens-search/trending-by-chains?limit=10',
+        expectedPath: '/tokens-search/trending?limit=10',
       },
       {
         params: {},
-        expectedPath: '/tokens-search/trending-by-chains',
+        expectedPath: '/tokens-search/trending',
       },
     ])(
       'should construct correct URL for params: $params',
@@ -107,7 +107,7 @@ describe('TokenDiscoveryApiService', () => {
 
     it('should handle API errors', async () => {
       nock(TEST_API_URLS.PORTFOLIO_API)
-        .get('/tokens-search/trending-by-chains')
+        .get('/tokens-search/trending')
         .reply(500, 'Server Error');
 
       await expect(service.getTrendingTokensByChains({})).rejects.toThrow(
@@ -117,11 +117,159 @@ describe('TokenDiscoveryApiService', () => {
 
     it('should return trending results', async () => {
       nock(TEST_API_URLS.PORTFOLIO_API)
-        .get('/tokens-search/trending-by-chains')
+        .get('/tokens-search/trending')
         .reply(200, mockTrendingResponse);
 
       const results = await service.getTrendingTokensByChains({});
       expect(results).toStrictEqual(mockTrendingResponse);
+    });
+  });
+
+  describe('getTopGainersByChains', () => {
+    it('should return top gainers results', async () => {
+      nock(TEST_API_URLS.PORTFOLIO_API)
+        .get('/tokens-search/top-gainers')
+        .reply(200, mockTrendingResponse);
+
+      const results = await service.getTopGainersByChains({});
+      expect(results).toStrictEqual(mockTrendingResponse);
+    });
+
+    it('should handle API errors', async () => {
+      nock(TEST_API_URLS.PORTFOLIO_API)
+        .get('/tokens-search/top-gainers')
+        .reply(500, 'Server Error');
+
+      await expect(service.getTopGainersByChains({})).rejects.toThrow(
+        'Portfolio API request failed with status: 500',
+      );
+    });
+
+    it.each([
+      {
+        params: { chains: ['1'], limit: '5' },
+        expectedPath: '/tokens-search/top-gainers?chains=1&limit=5',
+      },
+      {
+        params: { chains: ['1', '137'] },
+        expectedPath: '/tokens-search/top-gainers?chains=1,137',
+      },
+    ])(
+      'should construct correct URL for params: $params',
+      async ({ params, expectedPath }) => {
+        nock(TEST_API_URLS.PORTFOLIO_API)
+          .get(expectedPath)
+          .reply(200, mockTrendingResponse);
+
+        const result = await service.getTopGainersByChains(params);
+        expect(result).toStrictEqual(mockTrendingResponse);
+      },
+    );
+  });
+
+  describe('getTopLosersByChains', () => {
+    it('should return top losers results', async () => {
+      nock(TEST_API_URLS.PORTFOLIO_API)
+        .get('/tokens-search/top-losers')
+        .reply(200, mockTrendingResponse);
+
+      const results = await service.getTopLosersByChains({});
+      expect(results).toStrictEqual(mockTrendingResponse);
+    });
+
+    it('should handle API errors', async () => {
+      nock(TEST_API_URLS.PORTFOLIO_API)
+        .get('/tokens-search/top-losers')
+        .reply(500, 'Server Error');
+
+      await expect(service.getTopLosersByChains({})).rejects.toThrow(
+        'Portfolio API request failed with status: 500',
+      );
+    });
+
+    it.each([
+      {
+        params: { chains: ['1'], limit: '5' },
+        expectedPath: '/tokens-search/top-losers?chains=1&limit=5',
+      },
+      {
+        params: { chains: ['1', '137'] },
+        expectedPath: '/tokens-search/top-losers?chains=1,137',
+      },
+    ])(
+      'should construct correct URL for params: $params',
+      async ({ params, expectedPath }) => {
+        nock(TEST_API_URLS.PORTFOLIO_API)
+          .get(expectedPath)
+          .reply(200, mockTrendingResponse);
+
+        const result = await service.getTopLosersByChains(params);
+        expect(result).toStrictEqual(mockTrendingResponse);
+      },
+    );
+  });
+
+  describe('getBlueChipTokensByChains', () => {
+    it('should return blue chip tokens results', async () => {
+      nock(TEST_API_URLS.PORTFOLIO_API)
+        .get('/tokens-search/blue-chip')
+        .reply(200, mockTrendingResponse);
+
+      const results = await service.getBlueChipTokensByChains({});
+      expect(results).toStrictEqual(mockTrendingResponse);
+    });
+
+    it('should handle API errors', async () => {
+      nock(TEST_API_URLS.PORTFOLIO_API)
+        .get('/tokens-search/blue-chip')
+        .reply(500, 'Server Error');
+
+      await expect(service.getBlueChipTokensByChains({})).rejects.toThrow(
+        'Portfolio API request failed with status: 500',
+      );
+    });
+
+    it.each([
+      {
+        params: { chains: ['1'], limit: '5' },
+        expectedPath: '/tokens-search/blue-chip?chains=1&limit=5',
+      },
+      {
+        params: { chains: ['1', '137'] },
+        expectedPath: '/tokens-search/blue-chip?chains=1,137',
+      },
+    ])(
+      'should construct correct URL for params: $params',
+      async ({ params, expectedPath }) => {
+        nock(TEST_API_URLS.PORTFOLIO_API)
+          .get(expectedPath)
+          .reply(200, mockTrendingResponse);
+
+        const result = await service.getBlueChipTokensByChains(params);
+        expect(result).toStrictEqual(mockTrendingResponse);
+      },
+    );
+  });
+
+  describe('error handling', () => {
+    it('should handle network errors', async () => {
+      nock(TEST_API_URLS.PORTFOLIO_API)
+        .get('/tokens-search/trending')
+        .reply(500, 'Server Error');
+
+      await expect(service.getTrendingTokensByChains({})).rejects.toThrow(
+        'Portfolio API request failed with status: 500',
+      );
+    });
+
+    it('should handle malformed JSON responses', async () => {
+      nock(TEST_API_URLS.PORTFOLIO_API)
+        .get('/tokens-search/trending')
+        .reply(200, 'invalid json');
+
+      await expect(service.getTrendingTokensByChains({})).rejects.toThrow(
+        'invalid json response body at',
+      );
     });
   });
 });

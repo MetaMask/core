@@ -16,44 +16,21 @@ import {
   createSnapPublicKeyRequest,
   createSnapSignMessageRequest,
 } from './auth-snap-requests';
+import type { LoginResponse, SRPInterface, UserProfile } from '../../sdk';
 import {
-  createLoginRawMessage,
-  getAccessToken,
-  getNonce,
-  login,
-} from './services';
-
-const THIRTY_MIN_MS = 1000 * 60 * 30;
+  assertMessageStartsWithMetamask,
+  AuthType,
+  Env,
+  JwtBearerAuth,
+} from '../../sdk';
+import type { MetaMetricsAuth } from '../../shared/types/services';
 
 const controllerName = 'AuthenticationController';
 
 // State
-type SessionProfile = {
-  identifierId: string;
-  profileId: string;
-};
-
-type SessionData = {
-  /** profile - anonymous profile data for the given logged in user */
-  profile: SessionProfile;
-  /** accessToken - used to make requests authorized endpoints */
-  accessToken: string;
-  /** expiresIn - string date to determine if new access token is required  */
-  expiresIn: string;
-};
-
-type MetaMetricsAuth = {
-  getMetaMetricsId: () => string | Promise<string>;
-  agent: 'extension' | 'mobile';
-};
-
 export type AuthenticationControllerState = {
-  /**
-   * Global isSignedIn state.
-   * Can be used to determine if "Profile Syncing" is enabled.
-   */
   isSignedIn: boolean;
-  sessionData?: SessionData;
+  sessionData?: LoginResponse;
 };
 export const defaultState: AuthenticationControllerState = {
   isSignedIn: false,
@@ -136,6 +113,8 @@ export default class AuthenticationController extends BaseController<
 > {
   readonly #metametrics: MetaMetricsAuth;
 
+  readonly #auth: SRPInterface;
+
   #isUnlocked = false;
 
   readonly #keyringController = {
@@ -181,6 +160,25 @@ export default class AuthenticationController extends BaseController<
 
     this.#metametrics = metametrics;
 
+    this.#auth = new JwtBearerAuth(
+      {
+        env: Env.PRD,
+        platform: metametrics.agent,
+        type: AuthType.SRP,
+      },
+      {
+        storage: {
+          getLoginResponse: this.#getLoginResponseFromState.bind(this),
+          setLoginResponse: this.#setLoginResponseToState.bind(this),
+        },
+        signing: {
+          getIdentifier: this.#snapGetPublicKey.bind(this),
+          signMessage: this.#snapSignMessage.bind(this),
+        },
+        metametrics: this.#metametrics,
+      },
+    );
+
     this.#keyringController.setupLockedStateSubscriptions();
     this.#registerMessageHandlers();
   }
@@ -216,9 +214,37 @@ export default class AuthenticationController extends BaseController<
     );
   }
 
+  async #getLoginResponseFromState(): Promise<LoginResponse | null> {
+    if (!this.state.sessionData) {
+      return null;
+    }
+
+    return this.state.sessionData;
+  }
+
+  async #setLoginResponseToState(loginResponse: LoginResponse) {
+    const metaMetricsId = await this.#metametrics.getMetaMetricsId();
+    this.update((state) => {
+      state.isSignedIn = true;
+      state.sessionData = {
+        ...loginResponse,
+        profile: {
+          ...loginResponse.profile,
+          metaMetricsId,
+        },
+      };
+    });
+  }
+
+  #assertIsUnlocked(methodName: string): void {
+    if (!this.#isUnlocked) {
+      throw new Error(`${methodName} - unable to proceed, wallet is locked`);
+    }
+  }
+
   public async performSignIn(): Promise<string> {
-    const { accessToken } = await this.#performAuthenticationFlow();
-    return accessToken;
+    this.#assertIsUnlocked('performSignIn');
+    return await this.#auth.getAccessToken();
   }
 
   public performSignOut(): void {
@@ -228,128 +254,32 @@ export default class AuthenticationController extends BaseController<
     });
   }
 
+  /**
+   * Will return a bearer token.
+   * Logs a user in if a user is not logged in.
+   *
+   * @returns profile for the session.
+   */
+
   public async getBearerToken(): Promise<string> {
-    this.#assertLoggedIn();
-
-    if (this.#hasValidSession(this.state.sessionData)) {
-      return this.state.sessionData.accessToken;
-    }
-
-    const { accessToken } = await this.#performAuthenticationFlow();
-    return accessToken;
+    this.#assertIsUnlocked('getBearerToken');
+    return await this.#auth.getAccessToken();
   }
 
   /**
    * Will return a session profile.
-   * Throws if a user is not logged in.
+   * Logs a user in if a user is not logged in.
    *
    * @returns profile for the session.
    */
-  public async getSessionProfile(): Promise<SessionProfile> {
-    this.#assertLoggedIn();
-
-    if (this.#hasValidSession(this.state.sessionData)) {
-      return this.state.sessionData.profile;
-    }
-
-    const { profile } = await this.#performAuthenticationFlow();
-    return profile;
+  public async getSessionProfile(): Promise<UserProfile> {
+    this.#assertIsUnlocked('getSessionProfile');
+    return await this.#auth.getUserProfile();
   }
 
   public isSignedIn(): boolean {
     return this.state.isSignedIn;
   }
-
-  #assertLoggedIn(): void {
-    if (!this.state.isSignedIn) {
-      throw new Error(
-        `${controllerName}: Unable to call method, user is not authenticated`,
-      );
-    }
-  }
-
-  async #performAuthenticationFlow(): Promise<{
-    profile: SessionProfile;
-    accessToken: string;
-  }> {
-    try {
-      // 1. Nonce
-      const publicKey = await this.#snapGetPublicKey();
-      const nonce = await getNonce(publicKey);
-      if (!nonce) {
-        throw new Error(`Unable to get nonce`);
-      }
-
-      // 2. Login
-      const rawMessage = createLoginRawMessage(nonce, publicKey);
-      const signature = await this.#snapSignMessage(rawMessage);
-      const loginResponse = await login(rawMessage, signature, {
-        metametricsId: await this.#metametrics.getMetaMetricsId(),
-        agent: this.#metametrics.agent,
-      });
-      if (!loginResponse?.token) {
-        throw new Error(`Unable to login`);
-      }
-
-      const profile: SessionProfile = {
-        identifierId: loginResponse.profile.identifier_id,
-        profileId: loginResponse.profile.profile_id,
-      };
-
-      // 3. Trade for Access Token
-      const accessToken = await getAccessToken(
-        loginResponse.token,
-        this.#metametrics.agent,
-      );
-      if (!accessToken) {
-        throw new Error(`Unable to get Access Token`);
-      }
-
-      // Update Internal State
-      this.update((state) => {
-        state.isSignedIn = true;
-        const expiresIn = new Date();
-        expiresIn.setTime(expiresIn.getTime() + THIRTY_MIN_MS);
-        state.sessionData = {
-          profile,
-          accessToken,
-          expiresIn: expiresIn.toString(),
-        };
-      });
-
-      return {
-        profile,
-        accessToken,
-      };
-    } catch (e) {
-      console.error('Failed to authenticate', e);
-      const errorMessage =
-        e instanceof Error ? e.message : JSON.stringify(e ?? '');
-      throw new Error(
-        `${controllerName}: Failed to authenticate - ${errorMessage}`,
-      );
-    }
-  }
-
-  #hasValidSession(
-    sessionData: SessionData | undefined,
-  ): sessionData is SessionData {
-    if (!sessionData) {
-      return false;
-    }
-
-    const prevDate = Date.parse(sessionData.expiresIn);
-    if (isNaN(prevDate)) {
-      return false;
-    }
-
-    const currentDate = new Date();
-    const diffMs = Math.abs(currentDate.getTime() - prevDate);
-
-    return THIRTY_MIN_MS > diffMs;
-  }
-
-  #_snapPublicKeyCache: string | undefined;
 
   /**
    * Returns the auth snap public key.
@@ -357,22 +287,12 @@ export default class AuthenticationController extends BaseController<
    * @returns The snap public key.
    */
   async #snapGetPublicKey(): Promise<string> {
-    if (this.#_snapPublicKeyCache) {
-      return this.#_snapPublicKeyCache;
-    }
-
-    if (!this.#isUnlocked) {
-      throw new Error(
-        '#snapGetPublicKey - unable to call snap, wallet is locked',
-      );
-    }
+    this.#assertIsUnlocked('#snapGetPublicKey');
 
     const result = (await this.messagingSystem.call(
       'SnapController:handleRequest',
       createSnapPublicKeyRequest(),
     )) as string;
-
-    this.#_snapPublicKeyCache = result;
 
     return result;
   }
@@ -385,16 +305,14 @@ export default class AuthenticationController extends BaseController<
    * @param message - A specific tagged message to sign.
    * @returns A Signature created by the snap.
    */
-  async #snapSignMessage(message: `metamask:${string}`): Promise<string> {
+  async #snapSignMessage(message: string): Promise<string> {
+    assertMessageStartsWithMetamask(message);
+
     if (this.#_snapSignMessageCache[message]) {
       return this.#_snapSignMessageCache[message];
     }
 
-    if (!this.#isUnlocked) {
-      throw new Error(
-        '#snapSignMessage - unable to call snap, wallet is locked',
-      );
-    }
+    this.#assertIsUnlocked('#snapSignMessage');
 
     const result = (await this.messagingSystem.call(
       'SnapController:handleRequest',

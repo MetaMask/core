@@ -3,7 +3,9 @@ import type EthQuery from '@metamask/eth-query';
 import { createModuleLogger, type Hex } from '@metamask/utils';
 import type BN from 'bn.js';
 
+import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
 import { projectLogger } from '../logger';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
   GasFeeEstimates,
   GasFeeFlow,
@@ -12,7 +14,6 @@ import type {
   TransactionMeta,
 } from '../types';
 import { GasFeeEstimateLevel, GasFeeEstimateType } from '../types';
-import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
 
 type LineaEstimateGasResponse = {
   baseFeePerGas: Hex;
@@ -49,7 +50,12 @@ const PRIORITY_FEE_MULTIPLIERS = {
  * - Static multipliers to increase the base and priority fees.
  */
 export class LineaGasFeeFlow implements GasFeeFlow {
-  matchesTransaction(transactionMeta: TransactionMeta): boolean {
+  matchesTransaction({
+    transactionMeta,
+  }: {
+    transactionMeta: TransactionMeta;
+    messenger: TransactionControllerMessenger;
+  }): boolean {
     return LINEA_CHAIN_IDS.includes(transactionMeta.chainId);
   }
 

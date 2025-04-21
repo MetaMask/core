@@ -11,12 +11,14 @@ import {
   Caip25CaveatMutators,
   createCaip25Caveat,
   caip25CaveatBuilder,
+  diffScopesForCaip25CaveatValue,
 } from './caip25Permission';
 import * as ScopeSupported from './scope/supported';
 
 jest.mock('./scope/supported', () => ({
   ...jest.requireActual('./scope/supported'),
   isSupportedScopeString: jest.fn(),
+  isSupportedAccount: jest.fn(),
 }));
 const MockScopeSupported = jest.mocked(ScopeSupported);
 
@@ -475,9 +477,13 @@ describe('caip25EndowmentBuilder', () => {
 describe('caip25CaveatBuilder', () => {
   const findNetworkClientIdByChainId = jest.fn();
   const listAccounts = jest.fn();
-  const { validator } = caip25CaveatBuilder({
+  const isNonEvmScopeSupported = jest.fn();
+  const getNonEvmAccountAddresses = jest.fn();
+  const { validator, merger } = caip25CaveatBuilder({
     findNetworkClientIdByChainId,
     listAccounts,
+    isNonEvmScopeSupported,
+    getNonEvmAccountAddresses,
   });
 
   it('throws an error if the CAIP-25 caveat is malformed', () => {
@@ -528,18 +534,26 @@ describe('caip25CaveatBuilder', () => {
   });
 
   it('asserts the internal required scopeStrings are supported', () => {
+    MockScopeSupported.isSupportedScopeString.mockReturnValue(true);
+
     try {
       validator({
         type: Caip25CaveatType,
         value: {
           requiredScopes: {
             'eip155:1': {
-              accounts: ['eip155:1:0xdead'],
+              accounts: [],
+            },
+            'bip122:000000000019d6689c085ae165831e93': {
+              accounts: [],
             },
           },
           optionalScopes: {
             'eip155:5': {
-              accounts: ['eip155:5:0xbeef'],
+              accounts: [],
+            },
+            'bip122:12a765e31ffd4059bada1e25190f6e98': {
+              accounts: [],
             },
           },
           isMultichainOrigin: true,
@@ -550,26 +564,46 @@ describe('caip25CaveatBuilder', () => {
     }
     expect(MockScopeSupported.isSupportedScopeString).toHaveBeenCalledWith(
       'eip155:1',
-      expect.any(Function),
+      {
+        isEvmChainIdSupported: expect.any(Function),
+        isNonEvmScopeSupported: expect.any(Function),
+      },
+    );
+    expect(MockScopeSupported.isSupportedScopeString).toHaveBeenCalledWith(
+      'bip122:000000000019d6689c085ae165831e93',
+      {
+        isEvmChainIdSupported: expect.any(Function),
+        isNonEvmScopeSupported: expect.any(Function),
+      },
     );
 
-    MockScopeSupported.isSupportedScopeString.mock.calls[0][1]('0x1');
+    MockScopeSupported.isSupportedScopeString.mock.calls[0][1].isEvmChainIdSupported(
+      '0x1',
+    );
     expect(findNetworkClientIdByChainId).toHaveBeenCalledWith('0x1');
   });
 
   it('asserts the internal optional scopeStrings are supported', () => {
+    MockScopeSupported.isSupportedScopeString.mockReturnValue(true);
+
     try {
       validator({
         type: Caip25CaveatType,
         value: {
           requiredScopes: {
             'eip155:1': {
-              accounts: ['eip155:1:0xdead'],
+              accounts: [],
+            },
+            'bip122:000000000019d6689c085ae165831e93': {
+              accounts: [],
             },
           },
           optionalScopes: {
             'eip155:5': {
-              accounts: ['eip155:5:0xbeef'],
+              accounts: [],
+            },
+            'bip122:12a765e31ffd4059bada1e25190f6e98': {
+              accounts: [],
             },
           },
           isMultichainOrigin: true,
@@ -581,14 +615,26 @@ describe('caip25CaveatBuilder', () => {
 
     expect(MockScopeSupported.isSupportedScopeString).toHaveBeenCalledWith(
       'eip155:5',
-      expect.any(Function),
+      {
+        isEvmChainIdSupported: expect.any(Function),
+        isNonEvmScopeSupported: expect.any(Function),
+      },
+    );
+    expect(MockScopeSupported.isSupportedScopeString).toHaveBeenCalledWith(
+      'bip122:12a765e31ffd4059bada1e25190f6e98',
+      {
+        isEvmChainIdSupported: expect.any(Function),
+        isNonEvmScopeSupported: expect.any(Function),
+      },
     );
 
-    MockScopeSupported.isSupportedScopeString.mock.calls[1][1]('0x5');
+    MockScopeSupported.isSupportedScopeString.mock.calls[1][1].isEvmChainIdSupported(
+      '0x5',
+    );
     expect(findNetworkClientIdByChainId).toHaveBeenCalledWith('0x5');
   });
 
-  it('does not throw if unable to find a network client for the chainId', () => {
+  it('does not throw if unable to find a network client for the evm chainId', () => {
     findNetworkClientIdByChainId.mockImplementation(() => {
       throw new Error('unable to find network client');
     });
@@ -598,12 +644,12 @@ describe('caip25CaveatBuilder', () => {
         value: {
           requiredScopes: {
             'eip155:1': {
-              accounts: ['eip155:1:0xdead'],
+              accounts: [],
             },
           },
           optionalScopes: {
             'eip155:5': {
-              accounts: ['eip155:5:0xbeef'],
+              accounts: [],
             },
           },
           isMultichainOrigin: true,
@@ -614,7 +660,9 @@ describe('caip25CaveatBuilder', () => {
     }
 
     expect(
-      MockScopeSupported.isSupportedScopeString.mock.calls[0][1]('0x1'),
+      MockScopeSupported.isSupportedScopeString.mock.calls[0][1].isEvmChainIdSupported(
+        '0x1',
+      ),
     ).toBe(false);
     expect(findNetworkClientIdByChainId).toHaveBeenCalledWith('0x1');
   });
@@ -626,12 +674,18 @@ describe('caip25CaveatBuilder', () => {
         value: {
           requiredScopes: {
             'eip155:1': {
-              accounts: ['eip155:1:0xdead'],
+              accounts: [],
+            },
+            'bip122:000000000019d6689c085ae165831e93': {
+              accounts: [],
             },
           },
           optionalScopes: {
             'eip155:5': {
-              accounts: ['eip155:5:0xbeef'],
+              accounts: [],
+            },
+            'bip122:12a765e31ffd4059bada1e25190f6e98': {
+              accounts: [],
             },
           },
           isMultichainOrigin: true,
@@ -644,9 +698,100 @@ describe('caip25CaveatBuilder', () => {
     );
   });
 
-  it('throws if the eth accounts specified in the internal scopeObjects are not found in the wallet keyring', () => {
+  it('asserts the required accounts are supported', () => {
     MockScopeSupported.isSupportedScopeString.mockReturnValue(true);
-    listAccounts.mockReturnValue([{ address: '0xdead' }]); // missing '0xbeef'
+    MockScopeSupported.isSupportedAccount.mockReturnValue(true);
+
+    try {
+      validator({
+        type: Caip25CaveatType,
+        value: {
+          requiredScopes: {
+            'eip155:1': {
+              accounts: ['eip155:1:0xdead'],
+            },
+            'bip122:000000000019d6689c085ae165831e93': {
+              accounts: ['bip122:000000000019d6689c085ae165831e93:123'],
+            },
+          },
+          optionalScopes: {
+            'eip155:5': {
+              accounts: ['eip155:5:0xbeef'],
+            },
+            'bip122:12a765e31ffd4059bada1e25190f6e98': {
+              accounts: ['bip122:12a765e31ffd4059bada1e25190f6e98:456'],
+            },
+          },
+          isMultichainOrigin: true,
+        },
+      });
+    } catch (err) {
+      // noop
+    }
+    expect(MockScopeSupported.isSupportedAccount).toHaveBeenCalledWith(
+      'eip155:1:0xdead',
+      {
+        getEvmInternalAccounts: expect.any(Function),
+        getNonEvmAccountAddresses: expect.any(Function),
+      },
+    );
+    expect(MockScopeSupported.isSupportedAccount).toHaveBeenCalledWith(
+      'bip122:000000000019d6689c085ae165831e93:123',
+      {
+        getEvmInternalAccounts: expect.any(Function),
+        getNonEvmAccountAddresses: expect.any(Function),
+      },
+    );
+  });
+
+  it('asserts the optional accounts are supported', () => {
+    MockScopeSupported.isSupportedScopeString.mockReturnValue(true);
+    MockScopeSupported.isSupportedAccount.mockReturnValue(true);
+
+    try {
+      validator({
+        type: Caip25CaveatType,
+        value: {
+          requiredScopes: {
+            'eip155:1': {
+              accounts: ['eip155:1:0xdead'],
+            },
+            'bip122:000000000019d6689c085ae165831e93': {
+              accounts: ['bip122:000000000019d6689c085ae165831e93:123'],
+            },
+          },
+          optionalScopes: {
+            'eip155:5': {
+              accounts: ['eip155:5:0xbeef'],
+            },
+            'bip122:12a765e31ffd4059bada1e25190f6e98': {
+              accounts: ['bip122:12a765e31ffd4059bada1e25190f6e98:456'],
+            },
+          },
+          isMultichainOrigin: true,
+        },
+      });
+    } catch (err) {
+      // noop
+    }
+    expect(MockScopeSupported.isSupportedAccount).toHaveBeenCalledWith(
+      'eip155:5:0xbeef',
+      {
+        getEvmInternalAccounts: expect.any(Function),
+        getNonEvmAccountAddresses: expect.any(Function),
+      },
+    );
+    expect(MockScopeSupported.isSupportedAccount).toHaveBeenCalledWith(
+      'bip122:000000000019d6689c085ae165831e93:123',
+      {
+        getEvmInternalAccounts: expect.any(Function),
+        getNonEvmAccountAddresses: expect.any(Function),
+      },
+    );
+  });
+
+  it('throws if the accounts specified in the internal scopeObjects are not supported', () => {
+    MockScopeSupported.isSupportedScopeString.mockReturnValue(true);
 
     expect(() => {
       validator({
@@ -667,17 +812,14 @@ describe('caip25CaveatBuilder', () => {
       });
     }).toThrow(
       new Error(
-        `${Caip25EndowmentPermissionName} error: Received eip155 account value(s) for caveat of type "${Caip25CaveatType}" that were not found in the wallet keyring.`,
+        `${Caip25EndowmentPermissionName} error: Received account value(s) for caveat of type "${Caip25CaveatType}" that are not supported by the wallet.`,
       ),
     );
   });
 
   it('does not throw if the CAIP-25 caveat value is valid', () => {
     MockScopeSupported.isSupportedScopeString.mockReturnValue(true);
-    listAccounts.mockReturnValue([
-      { address: '0xdead' },
-      { address: '0xbeef' },
-    ]);
+    MockScopeSupported.isSupportedAccount.mockReturnValue(true);
 
     expect(
       validator({
@@ -687,15 +829,462 @@ describe('caip25CaveatBuilder', () => {
             'eip155:1': {
               accounts: ['eip155:1:0xdead'],
             },
+            'bip122:000000000019d6689c085ae165831e93': {
+              accounts: ['bip122:000000000019d6689c085ae165831e93:123'],
+            },
           },
           optionalScopes: {
             'eip155:5': {
               accounts: ['eip155:5:0xbeef'],
+            },
+            'bip122:12a765e31ffd4059bada1e25190f6e98': {
+              accounts: ['bip122:12a765e31ffd4059bada1e25190f6e98:456'],
             },
           },
           isMultichainOrigin: true,
         },
       }),
     ).toBeUndefined();
+  });
+
+  describe('permission merger', () => {
+    describe('incremental request an existing scope (requiredScopes), and 2 whole new scopes (optionalScopes) with accounts', () => {
+      it('should return merged scope with previously existing chain and accounts, plus new requested chains with new accounts', () => {
+        const initLeftValue: Caip25CaveatValue = {
+          requiredScopes: {
+            'eip155:1': {
+              accounts: ['eip155:1:0xdead'],
+            },
+          },
+          optionalScopes: {},
+          isMultichainOrigin: false,
+        };
+
+        const rightValue: Caip25CaveatValue = {
+          requiredScopes: {},
+          optionalScopes: {
+            'eip155:1': {
+              accounts: ['eip155:1:0xdead', 'eip155:1:0xbadd'],
+            },
+            'eip155:10': {
+              accounts: ['eip155:10:0xbeef', 'eip155:10:0xbadd'],
+            },
+            'eip155:426161': {
+              accounts: [
+                'eip155:426161:0xdead',
+                'eip155:426161:0xbeef',
+                'eip155:426161:0xbadd',
+              ],
+            },
+          },
+          isMultichainOrigin: false,
+        };
+
+        const expectedMergedValue: Caip25CaveatValue = {
+          requiredScopes: {
+            'eip155:1': { accounts: ['eip155:1:0xdead'] },
+          },
+          optionalScopes: {
+            'eip155:1': { accounts: ['eip155:1:0xdead', 'eip155:1:0xbadd'] },
+            'eip155:10': {
+              accounts: ['eip155:10:0xbeef', 'eip155:10:0xbadd'],
+            },
+            'eip155:426161': {
+              accounts: [
+                'eip155:426161:0xdead',
+                'eip155:426161:0xbeef',
+                'eip155:426161:0xbadd',
+              ],
+            },
+          },
+          isMultichainOrigin: false,
+        };
+        const expectedDiff: Caip25CaveatValue = {
+          requiredScopes: {},
+          optionalScopes: {
+            'eip155:1': { accounts: ['eip155:1:0xdead', 'eip155:1:0xbadd'] },
+            'eip155:10': {
+              accounts: ['eip155:10:0xbeef', 'eip155:10:0xbadd'],
+            },
+            'eip155:426161': {
+              accounts: [
+                'eip155:426161:0xdead',
+                'eip155:426161:0xbeef',
+                'eip155:426161:0xbadd',
+              ],
+            },
+          },
+          isMultichainOrigin: false,
+        };
+        const [newValue, diff] = merger(initLeftValue, rightValue);
+
+        expect(newValue).toStrictEqual(
+          expect.objectContaining(expectedMergedValue),
+        );
+        expect(diff).toStrictEqual(expect.objectContaining(expectedDiff));
+      });
+    });
+  });
+});
+
+describe('diffScopesForCaip25CaveatValue', () => {
+  describe('incremental request existing optional scope with a new account', () => {
+    it('should return scope with existing chain and new requested account', () => {
+      const leftValue: Caip25CaveatValue = {
+        optionalScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead'],
+          },
+        },
+        requiredScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const mergedValue: Caip25CaveatValue = {
+        optionalScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead', 'eip155:1:0xbeef'],
+          },
+        },
+        requiredScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const expectedDiff: Caip25CaveatValue = {
+        optionalScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xbeef'],
+          },
+        },
+        isMultichainOrigin: false,
+        requiredScopes: {},
+      };
+
+      const diff = diffScopesForCaip25CaveatValue(
+        leftValue,
+        mergedValue,
+        'optionalScopes',
+      );
+
+      expect(diff).toStrictEqual(expectedDiff);
+    });
+  });
+
+  describe('incremental request a whole new optional scope without accounts', () => {
+    it('should return scope with new requested chain and no accounts', () => {
+      const leftValue: Caip25CaveatValue = {
+        optionalScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead'],
+          },
+        },
+        requiredScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const mergedValue: Caip25CaveatValue = {
+        optionalScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead'],
+          },
+          'eip155:10': {
+            accounts: [],
+          },
+        },
+        requiredScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const expectedDiff: Caip25CaveatValue = {
+        optionalScopes: {
+          'eip155:10': {
+            accounts: [],
+          },
+        },
+        isMultichainOrigin: false,
+        requiredScopes: {},
+      };
+
+      const diff = diffScopesForCaip25CaveatValue(
+        leftValue,
+        mergedValue,
+        'optionalScopes',
+      );
+
+      expect(diff).toStrictEqual(expectedDiff);
+    });
+  });
+
+  describe('incremental request a whole new optional scope with accounts', () => {
+    it('should return scope with new requested chain and new account', () => {
+      const leftValue: Caip25CaveatValue = {
+        optionalScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead'],
+          },
+        },
+        requiredScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const mergedValue: Caip25CaveatValue = {
+        optionalScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead'],
+          },
+          'eip155:10': {
+            accounts: ['eip155:10:0xbeef'],
+          },
+        },
+        requiredScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const expectedDiff: Caip25CaveatValue = {
+        optionalScopes: {
+          'eip155:10': {
+            accounts: ['eip155:10:0xbeef'],
+          },
+        },
+        isMultichainOrigin: false,
+        requiredScopes: {},
+      };
+
+      const diff = diffScopesForCaip25CaveatValue(
+        leftValue,
+        mergedValue,
+        'optionalScopes',
+      );
+
+      expect(diff).toStrictEqual(expectedDiff);
+    });
+  });
+
+  describe('incremental request an existing optional scope with new accounts, and whole new optional scope with accounts', () => {
+    it('should return scope with previously existing chain and accounts, plus new requested chain with new accounts', () => {
+      const leftValue: Caip25CaveatValue = {
+        optionalScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead'],
+          },
+        },
+        requiredScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const mergedValue: Caip25CaveatValue = {
+        optionalScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead', 'eip155:1:0xbeef'],
+          },
+          'eip155:10': {
+            accounts: ['eip155:10:0xdead', 'eip155:10:0xbeef'],
+          },
+        },
+        requiredScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const expectedDiff: Caip25CaveatValue = {
+        optionalScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xbeef'],
+          },
+          'eip155:10': {
+            accounts: ['eip155:10:0xdead', 'eip155:10:0xbeef'],
+          },
+        },
+        isMultichainOrigin: false,
+        requiredScopes: {},
+      };
+
+      const diff = diffScopesForCaip25CaveatValue(
+        leftValue,
+        mergedValue,
+        'optionalScopes',
+      );
+
+      expect(diff).toStrictEqual(expectedDiff);
+    });
+  });
+
+  describe('incremental request existing required scope with a new account', () => {
+    it('should return scope with existing chain and new requested account', () => {
+      const leftValue: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead'],
+          },
+        },
+        optionalScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const mergedValue: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead', 'eip155:1:0xbeef'],
+          },
+        },
+        optionalScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const expectedDiff: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xbeef'],
+          },
+        },
+        isMultichainOrigin: false,
+        optionalScopes: {},
+      };
+
+      const diff = diffScopesForCaip25CaveatValue(
+        leftValue,
+        mergedValue,
+        'requiredScopes',
+      );
+
+      expect(diff).toStrictEqual(expectedDiff);
+    });
+  });
+
+  describe('incremental request a whole new required scope without accounts', () => {
+    it('should return scope with new requested chain and no accounts', () => {
+      const leftValue: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead'],
+          },
+        },
+        optionalScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const mergedValue: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead'],
+          },
+          'eip155:10': {
+            accounts: [],
+          },
+        },
+        optionalScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const expectedDiff: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:10': {
+            accounts: [],
+          },
+        },
+        isMultichainOrigin: false,
+        optionalScopes: {},
+      };
+
+      const diff = diffScopesForCaip25CaveatValue(
+        leftValue,
+        mergedValue,
+        'requiredScopes',
+      );
+
+      expect(diff).toStrictEqual(expectedDiff);
+    });
+  });
+
+  describe('incremental request a whole new required scope with accounts', () => {
+    it('should return scope with new requested chain and new account', () => {
+      const leftValue: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead'],
+          },
+        },
+        optionalScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const mergedValue: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead'],
+          },
+          'eip155:10': {
+            accounts: ['eip155:10:0xbeef'],
+          },
+        },
+        optionalScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const expectedDiff: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:10': {
+            accounts: ['eip155:10:0xbeef'],
+          },
+        },
+        isMultichainOrigin: false,
+        optionalScopes: {},
+      };
+
+      const diff = diffScopesForCaip25CaveatValue(
+        leftValue,
+        mergedValue,
+        'requiredScopes',
+      );
+
+      expect(diff).toStrictEqual(expectedDiff);
+    });
+  });
+
+  describe('incremental request an existing required scope with new accounts, and whole new required scope with accounts', () => {
+    it('should return scope with previously existing chain and accounts, plus new requested chain with new accounts', () => {
+      const leftValue: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead'],
+          },
+        },
+        optionalScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const mergedValue: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead', 'eip155:1:0xbeef'],
+          },
+          'eip155:10': {
+            accounts: ['eip155:10:0xdead', 'eip155:10:0xbeef'],
+          },
+        },
+        optionalScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const expectedDiff: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xbeef'],
+          },
+          'eip155:10': {
+            accounts: ['eip155:10:0xdead', 'eip155:10:0xbeef'],
+          },
+        },
+        isMultichainOrigin: false,
+        optionalScopes: {},
+      };
+
+      const diff = diffScopesForCaip25CaveatValue(
+        leftValue,
+        mergedValue,
+        'requiredScopes',
+      );
+
+      expect(diff).toStrictEqual(expectedDiff);
+    });
   });
 });

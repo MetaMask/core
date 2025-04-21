@@ -46,7 +46,6 @@ export type TokensChainsCache = {
 };
 
 export type TokenListState = {
-  tokenList: TokenListMap;
   tokensChainsCache: TokensChainsCache;
   preventPollingOnNetworkRestart: boolean;
 };
@@ -78,14 +77,12 @@ export type TokenListControllerMessenger = RestrictedMessenger<
 >;
 
 const metadata = {
-  tokenList: { persist: true, anonymous: true },
   tokensChainsCache: { persist: true, anonymous: true },
   preventPollingOnNetworkRestart: { persist: true, anonymous: true },
 };
 
 export const getDefaultTokenListState = (): TokenListState => {
   return {
-    tokenList: {},
     tokensChainsCache: {},
     preventPollingOnNetworkRestart: false,
   };
@@ -196,14 +193,6 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       this.chainId = chainId;
       if (this.state.preventPollingOnNetworkRestart) {
         this.clearingTokenListData();
-      } else {
-        // Ensure tokenList is referencing data from correct network
-        this.update(() => {
-          return {
-            ...this.state,
-            tokenList: this.state.tokensChainsCache[this.chainId]?.data || {},
-          };
-        });
       }
     }
   }
@@ -339,8 +328,6 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       this.update(() => {
         return {
           ...this.state,
-          tokenList:
-            this.chainId === chainId ? tokenList : this.state.tokenList,
           tokensChainsCache: {
             ...tokensChainsCache,
             [chainId]: {
@@ -382,7 +369,6 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
     this.update(() => {
       return {
         ...this.state,
-        tokenList: {},
         tokensChainsCache: {},
       };
     });

@@ -227,7 +227,7 @@ type RootEvent = ExtractAvailableEvent<MultichainAssetsControllerMessenger>;
  * Constructs the unrestricted messenger. This can be used to call actions and
  * publish events within the tests for this controller.
  *
- * @returns The unrestricted messenger suited for PetNamesController.
+ * @returns The unrestricted messenger suited for MultichainAssetsController.
  */
 function getRootMessenger(): Messenger<RootAction, RootEvent> {
   return new Messenger<RootAction, RootEvent>();
@@ -771,6 +771,51 @@ describe('MultichainAssetsController', () => {
         ],
         [mockSolanaAccountId2]: [],
       });
+    });
+  });
+
+  describe('getAssetMetadata', () => {
+    it('returns the metadata for a given asset', async () => {
+      const { messenger } = setupController({
+        state: {
+          accountsAssets: {
+            [mockSolanaAccount.id]: mockHandleRequestOnAssetsLookupReturnValue,
+          },
+          assetsMetadata: mockGetMetadataReturnValue.assets,
+        } as MultichainAssetsControllerState,
+      });
+
+      const assetId = 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501';
+
+      const metadata = messenger.call(
+        'MultichainAssetsController:getAssetMetadata',
+        assetId,
+      );
+
+      expect(metadata).toStrictEqual(
+        mockGetMetadataReturnValue.assets[assetId],
+      );
+    });
+
+    it('returns undefined if the asset metadata is not found', async () => {
+      const { messenger } = setupController({
+        state: {
+          accountsAssets: {
+            [mockSolanaAccount.id]: mockHandleRequestOnAssetsLookupReturnValue,
+          },
+          assetsMetadata: mockGetMetadataReturnValue.assets,
+        } as MultichainAssetsControllerState,
+      });
+
+      const assetId =
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+
+      const metadata = messenger.call(
+        'MultichainAssetsController:getAssetMetadata',
+        assetId,
+      );
+
+      expect(metadata).toBeUndefined();
     });
   });
 });

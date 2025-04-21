@@ -12,6 +12,10 @@ export {
   getSessionScopes,
 } from './adapters/caip-permission-adapter-session-scopes';
 
+export { getPermissionsHandler } from './handlers/wallet-getPermissions';
+export { requestPermissionsHandler } from './handlers/wallet-requestPermissions';
+export { revokePermissionsHandler } from './handlers/wallet-revokePermissions';
+
 export { walletGetSession } from './handlers/wallet-getSession';
 export { walletInvokeMethod } from './handlers/wallet-invokeMethod';
 export { walletRevokeSession } from './handlers/wallet-revokeSession';
@@ -49,7 +53,8 @@ export { parseScopeString } from './scope/types';
 export {
   normalizeScope,
   mergeScopeObject,
-  mergeScopes,
+  mergeNormalizedScopes,
+  mergeInternalScopes,
   normalizeAndMergeScopes,
 } from './scope/transform';
 

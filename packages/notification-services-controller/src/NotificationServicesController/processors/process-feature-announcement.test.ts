@@ -2,8 +2,8 @@ import {
   isFeatureAnnouncementRead,
   processFeatureAnnouncement,
 } from './process-feature-announcement';
-import { createMockFeatureAnnouncementRaw } from '../__fixtures__/mock-feature-announcements';
 import { TRIGGER_TYPES } from '../constants/notification-schema';
+import { createMockFeatureAnnouncementRaw } from '../mocks/mock-feature-announcements';
 
 describe('process-feature-announcement - isFeatureAnnouncementRead()', () => {
   const MOCK_NOTIFICATION_ID = 'MOCK_NOTIFICATION_ID';

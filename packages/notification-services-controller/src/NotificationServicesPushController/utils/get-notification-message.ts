@@ -239,27 +239,6 @@ function getChainSymbol(chainId: number) {
 }
 
 /**
- * Checks if the given value is an OnChainRawNotification object.
- *
- * @param n - The value to check.
- * @returns True if the value is an OnChainRawNotification object, false otherwise.
- */
-export function isOnChainNotification(
-  n: unknown,
-): n is Types.OnChainRawNotification {
-  const assumed = n as Types.OnChainRawNotification;
-
-  // We don't have a validation/parsing library to check all possible types of an on chain notification
-  // It is safe enough just to check "some" fields, and catch any errors down the line if the shape is bad.
-  const isValidEnoughToBeOnChainNotification = [
-    assumed?.id,
-    assumed?.data,
-    assumed?.trigger_id,
-  ].every((field) => field !== undefined);
-  return isValidEnoughToBeOnChainNotification;
-}
-
-/**
  * Creates a push notification message based on the given on-chain raw notification.
  *
  * @param n - processed notification.

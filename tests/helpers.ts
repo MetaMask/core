@@ -86,3 +86,18 @@ export function buildTestObject<Type extends Record<PropertyKey, unknown>>(
 
   return finalizeObject ? finalizeObject(object) : object;
 }
+
+/**
+ * Some tests involve a rejected promise that is not necessarily the focus of
+ * the test. In these cases we don't want to ignore the error in case the
+ * promise _isn't_ rejected, but we don't want to highlight the assertion,
+ * either.
+ *
+ * @param promiseOrFn - A promise that rejects, or a function that returns a
+ * promise that rejects.
+ */
+export async function ignoreRejection<T>(
+  promiseOrFn: Promise<T> | (() => T | Promise<T>),
+) {
+  await expect(promiseOrFn).rejects.toThrow(expect.any(Error));
+}

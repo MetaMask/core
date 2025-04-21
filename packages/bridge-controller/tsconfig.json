@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "resolveJsonModule": true
+  },
+  "references": [
+    { "path": "../accounts-controller" },
+    { "path": "../base-controller" },
+    { "path": "../controller-utils" },
+    { "path": "../network-controller" },
+    { "path": "../polling-controller" },
+    { "path": "../transaction-controller" },
+    { "path": "../gas-fee-controller" },
+    { "path": "../assets-controllers" },
+    { "path": "../multichain-network-controller" }
+  ],
+  "include": ["../../types", "./src"]
+}

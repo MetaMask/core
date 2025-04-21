@@ -1,6 +1,10 @@
 import { toHex, isEqualCaseInsensitive } from '@metamask/controller-utils';
-import type { CaipAccountId, Hex } from '@metamask/utils';
-import { KnownCaipNamespace, parseCaipAccountId } from '@metamask/utils';
+import type { CaipAccountId, CaipChainId, Hex } from '@metamask/utils';
+import {
+  isCaipChainId,
+  KnownCaipNamespace,
+  parseCaipAccountId,
+} from '@metamask/utils';
 
 import {
   CaipReferenceRegexes,
@@ -14,99 +18,145 @@ import { parseScopeString } from './types';
 
 /**
  * Determines if a scope string is supported.
+ *
  * @param scopeString - The scope string to check.
- * @param isChainIdSupported - A predicate that determines if a chainID is supported.
+ * @param hooks - An object containing the following properties:
+ * @param hooks.isEvmChainIdSupported - A predicate that determines if an EVM chainID is supported.
+ * @param hooks.isNonEvmScopeSupported - A predicate that determines if an non EVM scopeString is supported.
  * @returns A boolean indicating if the scope string is supported.
  */
 export const isSupportedScopeString = (
   scopeString: string,
-  isChainIdSupported: (chainId: Hex) => boolean,
+  {
+    isEvmChainIdSupported,
+    isNonEvmScopeSupported,
+  }: {
+    isEvmChainIdSupported: (chainId: Hex) => boolean;
+    isNonEvmScopeSupported: (scope: CaipChainId) => boolean;
+  },
 ) => {
   const { namespace, reference } = parseScopeString(scopeString);
 
   switch (namespace) {
     case KnownCaipNamespace.Wallet:
-      return !reference || reference === KnownCaipNamespace.Eip155;
+      if (
+        isCaipChainId(scopeString) &&
+        reference !== KnownCaipNamespace.Eip155
+      ) {
+        return isNonEvmScopeSupported(scopeString);
+      }
+      return true;
     case KnownCaipNamespace.Eip155:
       return (
         !reference ||
         (CaipReferenceRegexes.eip155.test(reference) &&
-          isChainIdSupported(toHex(reference)))
+          isEvmChainIdSupported(toHex(reference)))
       );
     default:
-      return false;
+      return isCaipChainId(scopeString)
+        ? isNonEvmScopeSupported(scopeString)
+        : false;
   }
 };
 
 /**
  * Determines if an account is supported by the wallet (i.e. on a keyring known to the wallet).
+ *
  * @param account - The CAIP account ID to check.
- * @param getInternalAccounts - A function that returns the internal accounts.
+ * @param hooks - An object containing the following properties:
+ * @param hooks.getEvmInternalAccounts - A function that returns the EVM internal accounts.
+ * @param hooks.getNonEvmAccountAddresses - A function that returns the supported CAIP-10 account addresses for a non EVM scope.
  * @returns A boolean indicating if the account is supported by the wallet.
  */
 export const isSupportedAccount = (
   account: CaipAccountId,
-  getInternalAccounts: () => { type: string; address: string }[],
+  {
+    getEvmInternalAccounts,
+    getNonEvmAccountAddresses,
+  }: {
+    getEvmInternalAccounts: () => { type: string; address: Hex }[];
+    getNonEvmAccountAddresses: (scope: CaipChainId) => string[];
+  },
 ) => {
   const {
     address,
+    chainId,
     chain: { namespace, reference },
   } = parseCaipAccountId(account);
 
   const isSupportedEip155Account = () =>
-    getInternalAccounts().some(
+    getEvmInternalAccounts().some(
       (internalAccount) =>
         ['eip155:eoa', 'eip155:erc4337'].includes(internalAccount.type) &&
         isEqualCaseInsensitive(address, internalAccount.address),
     );
 
+  const isSupportedNonEvmAccount = () =>
+    getNonEvmAccountAddresses(chainId).includes(account);
+
   switch (namespace) {
     case KnownCaipNamespace.Wallet:
-      return reference === KnownCaipNamespace.Eip155
-        ? isSupportedEip155Account()
-        : false;
+      if (reference === KnownCaipNamespace.Eip155) {
+        return isSupportedEip155Account();
+      }
+      return isSupportedNonEvmAccount();
     case KnownCaipNamespace.Eip155:
       return isSupportedEip155Account();
     default:
-      return false;
+      return isSupportedNonEvmAccount();
   }
 };
 
 /**
  * Determines if a method is supported by the wallet.
+ *
  * @param scopeString - The scope string to check.
  * @param method - The method to check.
+ * @param hooks - An object containing the following properties:
+ * @param hooks.getNonEvmSupportedMethods - A function that returns the supported methods for a non EVM scope.
  * @returns A boolean indicating if the method is supported by the wallet.
  */
 export const isSupportedMethod = (
   scopeString: ExternalScopeString,
   method: string,
+  {
+    getNonEvmSupportedMethods,
+  }: {
+    getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
+  },
 ): boolean => {
   const { namespace, reference } = parseScopeString(scopeString);
 
-  if (!namespace || !isKnownCaipNamespace(namespace)) {
+  if (!namespace) {
     return false;
   }
 
+  const isSupportedNonEvmMethod = () =>
+    isCaipChainId(scopeString) &&
+    getNonEvmSupportedMethods(scopeString).includes(method);
+
   if (namespace === KnownCaipNamespace.Wallet) {
-    if (reference) {
-      if (
-        !isKnownCaipNamespace(reference) ||
-        reference === KnownCaipNamespace.Wallet
-      ) {
-        return false;
-      }
+    if (!reference) {
+      return KnownWalletRpcMethods.includes(method);
+    }
+
+    if (reference === KnownCaipNamespace.Eip155) {
       return KnownWalletNamespaceRpcMethods[reference].includes(method);
     }
 
-    return KnownWalletRpcMethods.includes(method);
+    return isSupportedNonEvmMethod();
   }
 
-  return KnownRpcMethods[namespace].includes(method);
+  if (namespace === KnownCaipNamespace.Eip155) {
+    return KnownRpcMethods[namespace].includes(method);
+  }
+
+  return isSupportedNonEvmMethod();
 };
 
 /**
  * Determines if a notification is supported by the wallet.
+ *
  * @param scopeString - The scope string to check.
  * @param notification - The notification to check.
  * @returns A boolean indicating if the notification is supported by the wallet.
@@ -117,29 +167,9 @@ export const isSupportedNotification = (
 ): boolean => {
   const { namespace } = parseScopeString(scopeString);
 
-  if (
-    !namespace ||
-    !isKnownCaipNamespace(namespace) ||
-    namespace === KnownCaipNamespace.Wallet
-  ) {
-    return false;
+  if (namespace === KnownCaipNamespace.Eip155) {
+    return KnownNotifications[namespace].includes(notification);
   }
 
-  return KnownNotifications[namespace].includes(notification);
+  return false;
 };
-
-/**
- * Checks whether the given namespace is a known CAIP namespace.
- *
- * @param namespace - The namespace to check
- * @returns Whether the given namespace is a known CAIP namespace.
- */
-function isKnownCaipNamespace(
-  namespace: string,
-): namespace is KnownCaipNamespace {
-  const knownNamespaces = Object.keys(KnownCaipNamespace).map((key) =>
-    key.toLowerCase(),
-  );
-
-  return knownNamespaces.includes(namespace);
-}

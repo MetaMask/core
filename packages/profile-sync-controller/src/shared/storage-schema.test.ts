@@ -49,6 +49,15 @@ describe('user-storage/schema.ts', () => {
       );
     });
 
+    it('should not throw errors if validateAgainstSchema is false', () => {
+      const path = 'invalid.feature';
+      expect(() =>
+        getFeatureAndKeyFromPath(path, {
+          validateAgainstSchema: false,
+        }),
+      ).not.toThrow();
+    });
+
     it('should return feature and key from path', () => {
       const result = getFeatureAndKeyFromPath(
         `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
@@ -66,6 +75,16 @@ describe('user-storage/schema.ts', () => {
       expect(result).toStrictEqual({
         feature: USER_STORAGE_FEATURE_NAMES.accounts,
         key: '0x123',
+      });
+    });
+
+    it('should return feature and key from path with arbitrary feature and key when validateAgainstSchema is false', () => {
+      const result = getFeatureAndKeyFromPath('feature.key', {
+        validateAgainstSchema: false,
+      });
+      expect(result).toStrictEqual({
+        feature: 'feature',
+        key: 'key',
       });
     });
   });

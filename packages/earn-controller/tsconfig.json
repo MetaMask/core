@@ -13,6 +13,9 @@
     },
     {
       "path": "../accounts-controller"
+    },
+    {
+      "path": "../transaction-controller"
     }
   ]
 }

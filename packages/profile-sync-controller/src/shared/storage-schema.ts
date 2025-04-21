@@ -41,9 +41,36 @@ export type UserStoragePathWithFeatureAndKey = {
   [K in UserStorageFeatureNames]: `${K}.${UserStorageFeatureKeys<K>}`;
 }[UserStoragePathWithFeatureOnly];
 
-export const getFeatureAndKeyFromPath = (
-  path: UserStoragePathWithFeatureAndKey,
-): UserStorageFeatureAndKey => {
+/**
+ * The below types are mainly used for the SDK.
+ * These exist so that the SDK can be used with arbitrary feature names and keys.
+ *
+ * We only type enforce feature names and keys when using UserStorageController.
+ * This is done so we don't end up with magic strings within the applications.
+ */
+
+export type UserStorageGenericFeatureName = string;
+export type UserStorageGenericFeatureKey = string;
+export type UserStorageGenericPathWithFeatureAndKey =
+  `${UserStorageGenericFeatureName}.${UserStorageGenericFeatureKey}`;
+export type UserStorageGenericPathWithFeatureOnly =
+  UserStorageGenericFeatureName;
+
+type UserStorageGenericFeatureAndKey = {
+  feature: UserStorageGenericFeatureName;
+  key: UserStorageGenericFeatureKey;
+};
+
+export const getFeatureAndKeyFromPath = <T extends boolean>(
+  path: T extends true
+    ? UserStoragePathWithFeatureAndKey
+    : UserStorageGenericPathWithFeatureAndKey,
+  options: {
+    validateAgainstSchema: T;
+  } = { validateAgainstSchema: true as T },
+): T extends true
+  ? UserStorageFeatureAndKey
+  : UserStorageGenericFeatureAndKey => {
   const pathRegex = /^\w+\.\w+$/u;
 
   if (!pathRegex.test(path)) {
@@ -52,29 +79,41 @@ export const getFeatureAndKeyFromPath = (
     );
   }
 
-  const [feature, key] = path.split('.') as [
-    UserStorageFeatureNames,
-    UserStorageFeatureKeys<UserStorageFeatureNames>,
-  ];
+  const [feature, key] = path.split('.');
 
-  if (!(feature in USER_STORAGE_SCHEMA)) {
-    throw new Error(`user-storage - invalid feature provided: ${feature}`);
+  if (options.validateAgainstSchema) {
+    const featureToValidate = feature as UserStorageFeatureNames;
+    const keyToValidate = key as UserStorageFeatureKeys<
+      typeof featureToValidate
+    >;
+
+    if (!(featureToValidate in USER_STORAGE_SCHEMA)) {
+      throw new Error(
+        `user-storage - invalid feature provided: ${featureToValidate}. Valid features: ${Object.keys(
+          USER_STORAGE_SCHEMA,
+        ).join(', ')}`,
+      );
+    }
+
+    const validFeature = USER_STORAGE_SCHEMA[
+      featureToValidate
+    ] as readonly string[];
+
+    if (
+      !validFeature.includes(keyToValidate) &&
+      !validFeature.includes(ALLOW_ARBITRARY_KEYS)
+    ) {
+      const validKeys = USER_STORAGE_SCHEMA[featureToValidate].join(', ');
+
+      throw new Error(
+        `user-storage - invalid key provided for this feature: ${keyToValidate}. Valid keys: ${validKeys}`,
+      );
+    }
   }
 
-  const validFeature = USER_STORAGE_SCHEMA[feature] as readonly string[];
-
-  if (
-    !validFeature.includes(key) &&
-    !validFeature.includes(ALLOW_ARBITRARY_KEYS)
-  ) {
-    const validKeys = USER_STORAGE_SCHEMA[feature].join(', ');
-
-    throw new Error(
-      `user-storage - invalid key provided for this feature: ${key}. Valid keys: ${validKeys}`,
-    );
-  }
-
-  return { feature, key };
+  return { feature, key } as T extends true
+    ? UserStorageFeatureAndKey
+    : UserStorageGenericFeatureAndKey;
 };
 
 export const isPathWithFeatureAndKey = (
@@ -92,13 +131,21 @@ export const isPathWithFeatureAndKey = (
  *
  * @param path - string in the form of `${feature}.${key}` that matches schema
  * @param storageKey - users storage key
+ * @param options - options object
+ * @param options.validateAgainstSchema - whether to validate the path against the schema.
+ * This defaults to true, and should only be set to false when using the SDK with arbitrary feature names and keys.
  * @returns path to store entry
  */
-export function createEntryPath(
-  path: UserStoragePathWithFeatureAndKey,
+export function createEntryPath<T extends boolean>(
+  path: T extends true
+    ? UserStoragePathWithFeatureAndKey
+    : UserStorageGenericPathWithFeatureAndKey,
   storageKey: string,
+  options: {
+    validateAgainstSchema: T;
+  } = { validateAgainstSchema: true as T },
 ): string {
-  const { feature, key } = getFeatureAndKeyFromPath(path);
+  const { feature, key } = getFeatureAndKeyFromPath(path, options);
   const hashedKey = createSHA256Hash(key + storageKey);
 
   return `${feature}/${hashedKey}`;

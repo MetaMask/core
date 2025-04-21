@@ -150,6 +150,15 @@ describe('CryptoCompare', () => {
     expect(conversionRate).toBe(123);
   });
 
+  it('should override currency symbol when the CryptoCompare identifier is different', async () => {
+    nock(cryptoCompareHost)
+      .get('/data/price?fsym=USD&tsyms=MANTLE')
+      .reply(200, { MANTLE: 1234 });
+
+    const { conversionRate } = await fetchExchangeRate('MNT', 'USD');
+    expect(conversionRate).toBe(1234);
+  });
+
   describe('fetchMultiExchangeRate', () => {
     it('should return CAD and USD conversion rate for BTC, ETH, and SOL', async () => {
       nock(cryptoCompareHost)

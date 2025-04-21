@@ -14,7 +14,7 @@ const snapId = 'npm:@metamask/message-signing-snap' as SnapId;
 export function createSnapPublicKeyRequest(): SnapRPCRequest {
   return {
     snapId,
-    origin: '',
+    origin: 'metamask',
     handler: 'onRpcRequest' as any,
     request: {
       method: 'getPublicKey',
@@ -33,7 +33,7 @@ export function createSnapSignMessageRequest(
 ): SnapRPCRequest {
   return {
     snapId,
-    origin: '',
+    origin: 'metamask',
     handler: 'onRpcRequest' as any,
     request: {
       method: 'signMessage',

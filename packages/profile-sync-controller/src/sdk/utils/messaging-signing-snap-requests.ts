@@ -86,3 +86,16 @@ export const MESSAGE_SIGNING_SNAP = {
     return signedMessage;
   },
 };
+
+/**
+ * Asserts that a message starts with "metamask:"
+ *
+ * @param message - The message to check.
+ */
+export function assertMessageStartsWithMetamask(
+  message: string,
+): asserts message is `metamask:${string}` {
+  if (!message.startsWith('metamask:')) {
+    throw new Error('Message must start with "metamask:"');
+  }
+}

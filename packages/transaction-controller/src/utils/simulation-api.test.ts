@@ -1,6 +1,6 @@
-import { CHAIN_IDS } from '../constants';
 import type { SimulationRequest, SimulationResponse } from './simulation-api';
 import { simulateTransactions } from './simulation-api';
+import { CHAIN_IDS } from '../constants';
 
 const CHAIN_ID_MOCK = '0x1';
 const CHAIN_ID_MOCK_DECIMAL = 1;
@@ -56,6 +56,7 @@ describe('Simulation API Utils', () => {
 
   /**
    * Mock a JSON response from fetch.
+   *
    * @param jsonResponse - The response body to return.
    */
   function mockFetchResponse(jsonResponse: unknown) {
@@ -85,9 +86,11 @@ describe('Simulation API Utils', () => {
 
       expect(fetchMock).toHaveBeenCalledTimes(2);
 
-      const requestBody = JSON.parse(
-        fetchMock.mock.calls[1][1]?.body?.toString() ?? '{}',
-      );
+      const request = fetchMock.mock.calls[1][1] as RequestInit;
+
+      // eslint-disable-next-line @typescript-eslint/no-base-to-string
+      const requestBodyRaw = (request.body as BodyInit).toString();
+      const requestBody = JSON.parse(requestBodyRaw);
 
       expect(requestBody.params[0]).toStrictEqual(REQUEST_MOCK);
     });

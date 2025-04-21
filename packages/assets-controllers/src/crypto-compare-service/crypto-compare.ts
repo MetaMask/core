@@ -29,11 +29,9 @@ function getPricingURL(
   nativeCurrency: string,
   includeUSDRate?: boolean,
 ) {
-  nativeCurrency = nativeCurrency.toUpperCase();
-  const fsym = nativeSymbolOverrides.get(nativeCurrency) ?? nativeCurrency;
   return (
     `${CRYPTO_COMPARE_DOMAIN}/data/price?fsym=` +
-    `${fsym}&tsyms=${currentCurrency.toUpperCase()}` +
+    `${nativeCurrency}&tsyms=${currentCurrency}` +
     `${includeUSDRate && currentCurrency.toUpperCase() !== 'USD' ? ',USD' : ''}`
   );
 }
@@ -100,6 +98,11 @@ export async function fetchExchangeRate(
   conversionRate: number;
   usdConversionRate: number;
 }> {
+  currency = currency.toUpperCase();
+  nativeCurrency = nativeCurrency.toUpperCase();
+  currency = nativeSymbolOverrides.get(currency) ?? currency;
+  nativeCurrency = nativeSymbolOverrides.get(nativeCurrency) ?? nativeCurrency;
+
   const json = await handleFetch(
     getPricingURL(currency, nativeCurrency, includeUSDRate),
   );
