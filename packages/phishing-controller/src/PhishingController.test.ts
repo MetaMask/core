@@ -2756,7 +2756,8 @@ describe('PhishingController', () => {
       };
 
       const mockBatch3Response: BulkPhishingDetectionScanResponse = {
-        results: batch3.reduce<Record<string, PhishingDetectionScanResult>>((acc, url) => {
+        results: batch3.reduce<Record<string, PhishingDetectionScanResult>>(
+          (acc, url) => {
             acc[url] = {
               domainName: url.replace('https://', ''),
               recommendedAction: RecommendedAction.None,
