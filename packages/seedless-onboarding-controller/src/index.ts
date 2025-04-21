@@ -1,4 +1,7 @@
-export { SeedlessOnboardingController } from './SeedlessOnboardingController';
+export {
+  SeedlessOnboardingController,
+  getDefaultSeedlessOnboardingControllerState,
+} from './SeedlessOnboardingController';
 export type {
   AuthenticatedUserDetails,
   SeedlessOnboardingControllerState,
