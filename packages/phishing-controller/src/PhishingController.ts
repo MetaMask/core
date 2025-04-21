@@ -660,10 +660,8 @@ export class PhishingController extends BaseController<
       };
     }
 
-    // API has a limit of 50 URLs per request, but we can handle up to 250 by batching
-    const MAX_URLS_PER_BATCH = 50;
+    // we are arbitrarily limiting the number of URLs to 250
     const MAX_TOTAL_URLS = 250;
-
     if (urls.length > MAX_TOTAL_URLS) {
       return {
         results: {},
@@ -685,7 +683,8 @@ export class PhishingController extends BaseController<
       }
     }
 
-    // Split URLs into batches of 50
+    // The API has a limit of 50 URLs per request, so we batch the requests
+    const MAX_URLS_PER_BATCH = 50;
     const batches: string[][] = [];
     for (let i = 0; i < urls.length; i += MAX_URLS_PER_BATCH) {
       batches.push(urls.slice(i, i + MAX_URLS_PER_BATCH));
