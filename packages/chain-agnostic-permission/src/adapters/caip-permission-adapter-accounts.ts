@@ -1,10 +1,10 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import {
   assertIsStrictHexString,
-  CaipAccountAddress,
+  type CaipAccountAddress,
   type CaipAccountId,
-  CaipNamespace,
-  CaipReference,
+  type CaipNamespace,
+  type CaipReference,
   type Hex,
   KnownCaipNamespace,
   parseCaipAccountId,
