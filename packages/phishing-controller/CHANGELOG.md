@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `bulkScanUrls` method to `PhishingController` for scanning multiple URLs for phishing in bulk ([#PR_NUMBER](https://github.com/MetaMask/core/pull/PR_NUMBER))
-- Add `BulkPhishingDetectionScanResponse` type for bulk URL scan results ([#PR_NUMBER](https://github.com/MetaMask/core/pull/PR_NUMBER))
-- Add `PHISHING_DETECTION_BULK_SCAN_ENDPOINT` constant ([#PR_NUMBER](https://github.com/MetaMask/core/pull/PR_NUMBER))
+- Add `bulkScanUrls` method to `PhishingController` for scanning multiple URLs for phishing in bulk ([#5682](https://github.com/MetaMask/core/pull/5682))
+- Add `BulkPhishingDetectionScanResponse` type for bulk URL scan results ([#5682](https://github.com/MetaMask/core/pull/5682))
+- Add `PHISHING_DETECTION_BULK_SCAN_ENDPOINT` constant ([#5682](https://github.com/MetaMask/core/pull/5682))
 
 ### Changed
 
