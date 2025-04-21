@@ -1,7 +1,7 @@
 import type { StateMetadata } from '@metamask/base-controller';
 import type { BridgeClientId } from '@metamask/bridge-controller';
 import { BRIDGE_PROD_API_BASE_URL } from '@metamask/bridge-controller';
-import { StaticIntervalPollingController } from '@metamask/polling-controller';
+import { TimedIntervalPollingController } from '@metamask/polling-controller';
 import { numberToHex, type Hex } from '@metamask/utils';
 
 import {
@@ -9,11 +9,12 @@ import {
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
   REFRESH_INTERVAL_MS,
 } from './constants';
-import { StatusTypes, type BridgeStatusControllerMessenger } from './types';
-import type {
-  BridgeStatusControllerState,
-  StartPollingForBridgeTxStatusArgsSerialized,
-  FetchFunction,
+import {
+  type BridgeStatusControllerState,
+  type StartPollingForBridgeTxStatusArgsSerialized,
+  type FetchFunction,
+  type BridgeStatusControllerMessenger,
+  StatusTypes,
 } from './types';
 import {
   fetchBridgeTxStatus,
@@ -36,7 +37,7 @@ type SrcTxMetaId = string;
 export type FetchBridgeTxStatusArgs = {
   bridgeTxMetaId: string;
 };
-export class BridgeStatusController extends StaticIntervalPollingController<BridgeStatusPollingInput>()<
+export class BridgeStatusController extends TimedIntervalPollingController<BridgeStatusPollingInput>()<
   typeof BRIDGE_STATUS_CONTROLLER_NAME,
   BridgeStatusControllerState,
   BridgeStatusControllerMessenger
