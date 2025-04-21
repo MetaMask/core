@@ -40,6 +40,7 @@ import {
 } from './helpers';
 import type { FakeProviderStub } from '../../../tests/fake-provider';
 import { FakeProvider } from '../../../tests/fake-provider';
+import { flushPromises } from '../../../tests/helpers';
 import { NetworkStatus } from '../src/constants';
 import * as createAutoManagedNetworkClientModule from '../src/create-auto-managed-network-client';
 import type { AutoManagedNetworkClient } from '../src/create-auto-managed-network-client';
@@ -69,7 +70,6 @@ import {
 } from '../src/NetworkController';
 import type { NetworkClientConfiguration, Provider } from '../src/types';
 import { NetworkClientType } from '../src/types';
-import { flushPromises } from '../../../tests/helpers';
 
 jest.mock('../src/create-network-client');
 

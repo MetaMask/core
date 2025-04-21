@@ -1093,10 +1093,7 @@ export class NetworkController extends BaseController<
 
   readonly #getRpcServiceOptions: NetworkControllerOptions['getRpcServiceOptions'];
 
-  readonly #getBlockTrackerOptions: Exclude<
-    NetworkControllerOptions['getBlockTrackerOptions'],
-    undefined
-  >;
+  readonly #getBlockTrackerOptions: NetworkControllerOptions['getBlockTrackerOptions'];
 
   #networkConfigurationsByNetworkClientId: Map<
     NetworkClientId,
@@ -1120,7 +1117,7 @@ export class NetworkController extends BaseController<
       infuraProjectId,
       log,
       getRpcServiceOptions,
-      getBlockTrackerOptions = () => ({}),
+      getBlockTrackerOptions,
       additionalDefaultNetworks,
       isRpcFailoverEnabled = false,
     } = options;

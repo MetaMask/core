@@ -197,6 +197,55 @@ describe('createAutoManagedNetworkClient', () => {
           });
         });
 
+        it('allows block tracker options to be optional', async () => {
+          mockNetwork({
+            networkClientConfiguration,
+            mocks: [
+              {
+                request: {
+                  method: 'test_method',
+                  params: [],
+                },
+                response: {
+                  result: 'test response',
+                },
+                discardAfterMatching: false,
+              },
+            ],
+          });
+          const createNetworkClientMock = jest.spyOn(
+            createNetworkClientModule,
+            'createNetworkClient',
+          );
+          const getRpcServiceOptions = () => ({
+            btoa,
+            fetch,
+          });
+          const messenger = getNetworkControllerMessenger();
+
+          const { provider } = createAutoManagedNetworkClient({
+            networkClientConfiguration,
+            getRpcServiceOptions,
+            messenger,
+            isRpcFailoverEnabled: true,
+          });
+
+          await provider.request({
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'test_method',
+            params: [],
+          });
+          expect(createNetworkClientMock).toHaveBeenCalledTimes(1);
+          expect(createNetworkClientMock).toHaveBeenCalledWith({
+            configuration: networkClientConfiguration,
+            getRpcServiceOptions,
+            getBlockTrackerOptions: expect.any(Function),
+            messenger,
+            isRpcFailoverEnabled: true,
+          });
+        });
+
         it('allows for enabling the RPC failover behavior', async () => {
           mockNetwork({
             networkClientConfiguration,
@@ -456,6 +505,51 @@ describe('createAutoManagedNetworkClient', () => {
             configuration: networkClientConfiguration,
             getRpcServiceOptions,
             getBlockTrackerOptions,
+            messenger,
+            isRpcFailoverEnabled: true,
+          });
+        });
+
+        it('allows block tracker options to be optional', async () => {
+          mockNetwork({
+            networkClientConfiguration,
+            mocks: [
+              {
+                request: {
+                  method: 'eth_blockNumber',
+                  params: [],
+                },
+                response: {
+                  result: '0x1',
+                },
+              },
+            ],
+          });
+          const createNetworkClientMock = jest.spyOn(
+            createNetworkClientModule,
+            'createNetworkClient',
+          );
+          const getRpcServiceOptions = () => ({
+            btoa,
+            fetch,
+          });
+          const messenger = getNetworkControllerMessenger();
+
+          const { blockTracker } = createAutoManagedNetworkClient({
+            networkClientConfiguration,
+            getRpcServiceOptions,
+            messenger,
+            isRpcFailoverEnabled: true,
+          });
+
+          await new Promise((resolve) => {
+            blockTracker.once('latest', resolve);
+          });
+          expect(createNetworkClientMock).toHaveBeenCalledTimes(1);
+          expect(createNetworkClientMock).toHaveBeenCalledWith({
+            configuration: networkClientConfiguration,
+            getRpcServiceOptions,
+            getBlockTrackerOptions: expect.any(Function),
             messenger,
             isRpcFailoverEnabled: true,
           });

@@ -83,7 +83,7 @@ export function createAutoManagedNetworkClient<
 >({
   networkClientConfiguration,
   getRpcServiceOptions,
-  getBlockTrackerOptions,
+  getBlockTrackerOptions = () => ({}),
   messenger,
   isRpcFailoverEnabled,
 }: {
@@ -91,7 +91,7 @@ export function createAutoManagedNetworkClient<
   getRpcServiceOptions: (
     rpcEndpointUrl: string,
   ) => Omit<RpcServiceOptions, 'failoverService' | 'endpointUrl'>;
-  getBlockTrackerOptions: (
+  getBlockTrackerOptions?: (
     rpcEndpointUrl: string,
   ) => Omit<PollingBlockTrackerOptions, 'provider'>;
   messenger: NetworkControllerMessenger;
