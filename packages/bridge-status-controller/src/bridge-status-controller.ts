@@ -22,7 +22,6 @@ import {
   getStatusRequestWithSrcTxHash,
 } from './utils/bridge-status';
 import { getKey } from '../../polling-controller/src/AbstractPollingController';
-import { get } from 'lodash';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
   // We want to persist the bridge status state so that we can show the proper data for the Activity list
