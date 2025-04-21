@@ -13,6 +13,7 @@ import {
   NetworkType,
   toHex,
 } from '@metamask/controller-utils';
+import { PollingBlockTracker } from '@metamask/eth-block-tracker';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import assert from 'assert';
@@ -37,7 +38,6 @@ import {
   INFURA_NETWORKS,
   TESTNET,
 } from './helpers';
-import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import type { FakeProviderStub } from '../../../tests/fake-provider';
 import { FakeProvider } from '../../../tests/fake-provider';
 import { NetworkStatus } from '../src/constants';
@@ -69,6 +69,7 @@ import {
 } from '../src/NetworkController';
 import type { NetworkClientConfiguration, Provider } from '../src/types';
 import { NetworkClientType } from '../src/types';
+import { flushPromises } from '../../../tests/helpers';
 
 jest.mock('../src/create-network-client');
 
@@ -699,6 +700,7 @@ describe('NetworkController', () => {
                 autoManagedNetworkClients.push(autoManagedNetworkClient);
                 return autoManagedNetworkClient;
               });
+            createNetworkClientMock.mockReturnValue(buildFakeClient());
 
             controller.enableRpcFailover();
 
@@ -712,6 +714,230 @@ describe('NetworkController', () => {
             expect(
               autoManagedNetworkClients[2].withRpcFailoverEnabled,
             ).toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('destroys only the existing network clients whose RPC endpoints have configured failover URLs', async () => {
+        await withController(
+          {
+            isRpcFailoverEnabled: false,
+            state: {
+              selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+              networkConfigurationsByChainId: {
+                [ChainId.mainnet]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.mainnet,
+                  {
+                    rpcEndpoints: [
+                      buildInfuraRpcEndpoint(InfuraNetworkType.mainnet, {
+                        failoverUrls: [],
+                      }),
+                    ],
+                  },
+                ),
+                '0x200': buildCustomNetworkConfiguration({
+                  chainId: '0x200',
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      url: 'https://test.network/1',
+                      failoverUrls: ['https://failover.endpoint/1'],
+                    }),
+                  ],
+                }),
+                '0x300': buildCustomNetworkConfiguration({
+                  chainId: '0x300',
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'BBBB-BBBB-BBBB-BBBB',
+                      url: 'https://test.network/2',
+                      failoverUrls: ['https://failover.endpoint/2'],
+                    }),
+                  ],
+                }),
+              },
+            },
+          },
+          async ({ controller }) => {
+            const originalCreateAutoManagedNetworkClient =
+              createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
+            const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
+              [];
+            jest
+              .spyOn(
+                createAutoManagedNetworkClientModule,
+                'createAutoManagedNetworkClient',
+              )
+              .mockImplementation((...args) => {
+                const autoManagedNetworkClient =
+                  originalCreateAutoManagedNetworkClient(...args);
+                jest.spyOn(autoManagedNetworkClient, 'destroy');
+                autoManagedNetworkClients.push(autoManagedNetworkClient);
+                return autoManagedNetworkClient;
+              });
+            createNetworkClientMock.mockReturnValue(buildFakeClient());
+
+            controller.enableRpcFailover();
+            await flushPromises();
+
+            expect(autoManagedNetworkClients).toHaveLength(3);
+            expect(autoManagedNetworkClients[0].destroy).not.toHaveBeenCalled();
+            expect(autoManagedNetworkClients[1].destroy).toHaveBeenCalled();
+            expect(autoManagedNetworkClients[2].destroy).toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('updates the provider proxy to point to the new selected network client if it was recreated', async () => {
+        await withController(
+          {
+            isRpcFailoverEnabled: false,
+            state: {
+              selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+              networkConfigurationsByChainId: {
+                '0x100': buildCustomNetworkConfiguration({
+                  chainId: '0x100',
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      url: 'https://test.network',
+                      failoverUrls: ['https://failover.endpoint'],
+                    }),
+                  ],
+                }),
+              },
+            },
+          },
+          async ({ controller }) => {
+            const fakeProviders = [
+              buildFakeProvider([
+                {
+                  request: {
+                    method: 'test_method',
+                  },
+                  response: {
+                    result: 'response from provider 1',
+                  },
+                },
+              ]),
+              buildFakeProvider([
+                {
+                  request: {
+                    method: 'test_method',
+                  },
+                  response: {
+                    result: 'response from provider 2',
+                  },
+                },
+              ]),
+            ];
+            const fakeNetworkClients = [
+              buildFakeClient(fakeProviders[0]),
+              buildFakeClient(fakeProviders[1]),
+            ];
+            let i = 0;
+            createNetworkClientMock.mockImplementation(({ configuration }) => {
+              if (i === 0) {
+                i += 1;
+                return fakeNetworkClients[0];
+              } else if (i === 1) {
+                i += 1;
+                return fakeNetworkClients[1];
+              }
+              throw new Error(
+                `Unknown network client configuration ${JSON.stringify(
+                  configuration,
+                )}`,
+              );
+            });
+            await controller.initializeProvider();
+
+            controller.enableRpcFailover();
+            await flushPromises();
+
+            const { provider } = controller.getProviderAndBlockTracker();
+            assert(provider, 'Provider is somehow unset');
+            const result = await provider.request({
+              id: '1',
+              jsonrpc: '2.0',
+              method: 'test_method',
+            });
+            expect(result).toBe('response from provider 2');
+          },
+        );
+      });
+
+      it('updates the block tracker proxy to point to the new selected network client if it was recreated', async () => {
+        await withController(
+          {
+            isRpcFailoverEnabled: false,
+            state: {
+              selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+              networkConfigurationsByChainId: {
+                '0x100': buildCustomNetworkConfiguration({
+                  chainId: '0x100',
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      url: 'https://test.network',
+                      failoverUrls: ['https://failover.endpoint'],
+                    }),
+                  ],
+                }),
+              },
+            },
+          },
+          async ({ controller }) => {
+            const fakeProviders = [
+              buildFakeProvider([
+                {
+                  request: {
+                    method: 'eth_blockNumber',
+                  },
+                  response: {
+                    result: '0x100',
+                  },
+                },
+              ]),
+              buildFakeProvider([
+                {
+                  request: {
+                    method: 'eth_blockNumber',
+                  },
+                  response: {
+                    result: '0x200',
+                  },
+                },
+              ]),
+            ];
+            const fakeNetworkClients = [
+              buildFakeClient(fakeProviders[0]),
+              buildFakeClient(fakeProviders[1]),
+            ];
+            let i = 0;
+            createNetworkClientMock.mockImplementation(({ configuration }) => {
+              if (i === 0) {
+                i += 1;
+                return fakeNetworkClients[0];
+              } else if (i === 1) {
+                i += 1;
+                return fakeNetworkClients[1];
+              }
+              throw new Error(
+                `Unknown network client configuration ${JSON.stringify(
+                  configuration,
+                )}`,
+              );
+            });
+            await controller.initializeProvider();
+
+            controller.enableRpcFailover();
+            await flushPromises();
+
+            const { blockTracker } = controller.getProviderAndBlockTracker();
+            assert(blockTracker, 'Block tracker is somehow unset');
+            const latestBlockNumber = await blockTracker.getLatestBlock();
+            expect(latestBlockNumber).toBe('0x200');
           },
         );
       });
@@ -844,6 +1070,7 @@ describe('NetworkController', () => {
                 autoManagedNetworkClients.push(autoManagedNetworkClient);
                 return autoManagedNetworkClient;
               });
+            createNetworkClientMock.mockReturnValue(buildFakeClient());
 
             controller.disableRpcFailover();
 
@@ -857,6 +1084,230 @@ describe('NetworkController', () => {
             expect(
               autoManagedNetworkClients[2].withRpcFailoverDisabled,
             ).toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('destroys only the existing network clients whose RPC endpoints have configured failover URLs', async () => {
+        await withController(
+          {
+            isRpcFailoverEnabled: true,
+            state: {
+              selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+              networkConfigurationsByChainId: {
+                [ChainId.mainnet]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.mainnet,
+                  {
+                    rpcEndpoints: [
+                      buildInfuraRpcEndpoint(InfuraNetworkType.mainnet, {
+                        failoverUrls: [],
+                      }),
+                    ],
+                  },
+                ),
+                '0x200': buildCustomNetworkConfiguration({
+                  chainId: '0x200',
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      url: 'https://test.network/1',
+                      failoverUrls: ['https://failover.endpoint/1'],
+                    }),
+                  ],
+                }),
+                '0x300': buildCustomNetworkConfiguration({
+                  chainId: '0x300',
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'BBBB-BBBB-BBBB-BBBB',
+                      url: 'https://test.network/2',
+                      failoverUrls: ['https://failover.endpoint/2'],
+                    }),
+                  ],
+                }),
+              },
+            },
+          },
+          async ({ controller }) => {
+            const originalCreateAutoManagedNetworkClient =
+              createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
+            const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
+              [];
+            jest
+              .spyOn(
+                createAutoManagedNetworkClientModule,
+                'createAutoManagedNetworkClient',
+              )
+              .mockImplementation((...args) => {
+                const autoManagedNetworkClient =
+                  originalCreateAutoManagedNetworkClient(...args);
+                jest.spyOn(autoManagedNetworkClient, 'destroy');
+                autoManagedNetworkClients.push(autoManagedNetworkClient);
+                return autoManagedNetworkClient;
+              });
+            createNetworkClientMock.mockReturnValue(buildFakeClient());
+
+            controller.disableRpcFailover();
+            await flushPromises();
+
+            expect(autoManagedNetworkClients).toHaveLength(3);
+            expect(autoManagedNetworkClients[0].destroy).not.toHaveBeenCalled();
+            expect(autoManagedNetworkClients[1].destroy).toHaveBeenCalled();
+            expect(autoManagedNetworkClients[2].destroy).toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('updates the provider proxy to point to the new selected network client if it was recreated', async () => {
+        await withController(
+          {
+            isRpcFailoverEnabled: true,
+            state: {
+              selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+              networkConfigurationsByChainId: {
+                '0x100': buildCustomNetworkConfiguration({
+                  chainId: '0x100',
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      url: 'https://test.network',
+                      failoverUrls: ['https://failover.endpoint'],
+                    }),
+                  ],
+                }),
+              },
+            },
+          },
+          async ({ controller }) => {
+            const fakeProviders = [
+              buildFakeProvider([
+                {
+                  request: {
+                    method: 'test_method',
+                  },
+                  response: {
+                    result: 'response from provider 1',
+                  },
+                },
+              ]),
+              buildFakeProvider([
+                {
+                  request: {
+                    method: 'test_method',
+                  },
+                  response: {
+                    result: 'response from provider 2',
+                  },
+                },
+              ]),
+            ];
+            const fakeNetworkClients = [
+              buildFakeClient(fakeProviders[0]),
+              buildFakeClient(fakeProviders[1]),
+            ];
+            let i = 0;
+            createNetworkClientMock.mockImplementation(({ configuration }) => {
+              if (i === 0) {
+                i += 1;
+                return fakeNetworkClients[0];
+              } else if (i === 1) {
+                i += 1;
+                return fakeNetworkClients[1];
+              }
+              throw new Error(
+                `Unknown network client configuration ${JSON.stringify(
+                  configuration,
+                )}`,
+              );
+            });
+            await controller.initializeProvider();
+
+            controller.disableRpcFailover();
+            await flushPromises();
+
+            const { provider } = controller.getProviderAndBlockTracker();
+            assert(provider, 'Provider is somehow unset');
+            const result = await provider.request({
+              id: '1',
+              jsonrpc: '2.0',
+              method: 'test_method',
+            });
+            expect(result).toBe('response from provider 2');
+          },
+        );
+      });
+
+      it('updates the block tracker proxy to point to the new selected network client if it was recreated', async () => {
+        await withController(
+          {
+            isRpcFailoverEnabled: true,
+            state: {
+              selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+              networkConfigurationsByChainId: {
+                '0x100': buildCustomNetworkConfiguration({
+                  chainId: '0x100',
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      url: 'https://test.network',
+                      failoverUrls: ['https://failover.endpoint'],
+                    }),
+                  ],
+                }),
+              },
+            },
+          },
+          async ({ controller }) => {
+            const fakeProviders = [
+              buildFakeProvider([
+                {
+                  request: {
+                    method: 'eth_blockNumber',
+                  },
+                  response: {
+                    result: '0x100',
+                  },
+                },
+              ]),
+              buildFakeProvider([
+                {
+                  request: {
+                    method: 'eth_blockNumber',
+                  },
+                  response: {
+                    result: '0x200',
+                  },
+                },
+              ]),
+            ];
+            const fakeNetworkClients = [
+              buildFakeClient(fakeProviders[0]),
+              buildFakeClient(fakeProviders[1]),
+            ];
+            let i = 0;
+            createNetworkClientMock.mockImplementation(({ configuration }) => {
+              if (i === 0) {
+                i += 1;
+                return fakeNetworkClients[0];
+              } else if (i === 1) {
+                i += 1;
+                return fakeNetworkClients[1];
+              }
+              throw new Error(
+                `Unknown network client configuration ${JSON.stringify(
+                  configuration,
+                )}`,
+              );
+            });
+            await controller.initializeProvider();
+
+            controller.disableRpcFailover();
+            await flushPromises();
+
+            const { blockTracker } = controller.getProviderAndBlockTracker();
+            assert(blockTracker, 'Block tracker is somehow unset');
+            const latestBlockNumber = await blockTracker.getLatestBlock();
+            expect(latestBlockNumber).toBe('0x200');
           },
         );
       });
@@ -920,6 +1371,7 @@ describe('NetworkController', () => {
                 autoManagedNetworkClients.push(autoManagedNetworkClient);
                 return autoManagedNetworkClient;
               });
+            createNetworkClientMock.mockReturnValue(buildFakeClient());
 
             controller.disableRpcFailover();
 
@@ -15234,7 +15686,7 @@ function buildFakeClient(
       rpcUrl: 'https://test.network',
     },
     provider,
-    blockTracker: new FakeBlockTracker({ provider }),
+    blockTracker: new PollingBlockTracker({ provider }),
     destroy: () => {
       // do nothing
     },

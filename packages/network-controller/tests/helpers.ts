@@ -102,7 +102,7 @@ export function buildNetworkControllerMessenger(
  * requests.
  * @returns The fake network client.
  */
-function buildFakeNetworkClient({
+export function buildFakeNetworkClient({
   configuration,
   providerStubs = [],
 }: {

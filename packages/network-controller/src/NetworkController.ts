@@ -1312,6 +1312,8 @@ export class NetworkController extends BaseController<
           networkClientsById[
             networkClientId as keyof typeof networkClientsById
           ] = newNetworkClient;
+
+          this.#setProxies(newNetworkClient);
         }
       }
     }
@@ -3028,25 +3030,32 @@ export class NetworkController extends BaseController<
       updateState?.(state);
     });
 
+    const { providerProxy } = this.#setProxies(this.#autoManagedNetworkClient);
+
+    this.#ethQuery = new EthQuery(providerProxy);
+  }
+
+  #setProxies(
+    networkClient: AutoManagedNetworkClient<NetworkClientConfiguration>,
+  ) {
     if (this.#providerProxy) {
-      this.#providerProxy.setTarget(this.#autoManagedNetworkClient.provider);
+      this.#providerProxy.setTarget(networkClient.provider);
     } else {
-      this.#providerProxy = createEventEmitterProxy(
-        this.#autoManagedNetworkClient.provider,
-      );
+      this.#providerProxy = createEventEmitterProxy(networkClient.provider);
     }
 
     if (this.#blockTrackerProxy) {
-      this.#blockTrackerProxy.setTarget(
-        this.#autoManagedNetworkClient.blockTracker,
-      );
+      this.#blockTrackerProxy.setTarget(networkClient.blockTracker);
     } else {
       this.#blockTrackerProxy = createEventEmitterProxy(
-        this.#autoManagedNetworkClient.blockTracker,
+        networkClient.blockTracker,
         { eventFilter: 'skipInternal' },
       );
     }
 
-    this.#ethQuery = new EthQuery(this.#providerProxy);
+    return {
+      providerProxy: this.#providerProxy,
+      blockTrackerProxy: this.#blockTrackerProxy,
+    };
   }
 }
