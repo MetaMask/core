@@ -2730,7 +2730,8 @@ describe('PhishingController', () => {
 
       // Mock responses for each batch
       const mockBatch1Response: BulkPhishingDetectionScanResponse = {
-        results: batch1.reduce<Record<string, PhishingDetectionScanResult>>((acc, url) => {
+        results: batch1.reduce<Record<string, PhishingDetectionScanResult>>(
+          (acc, url) => {
             acc[url] = {
               domainName: url.replace('https://', ''),
               recommendedAction: RecommendedAction.None,
@@ -2743,7 +2744,8 @@ describe('PhishingController', () => {
       };
 
       const mockBatch2Response: BulkPhishingDetectionScanResponse = {
-        results: batch2.reduce<Record<string, PhishingDetectionScanResult>>((acc, url) => {
+        results: batch2.reduce<Record<string, PhishingDetectionScanResult>>(
+          (acc, url) => {
             acc[url] = {
               domainName: url.replace('https://', ''),
               recommendedAction: RecommendedAction.None,

@@ -287,13 +287,6 @@ export type PhishingControllerMessenger = RestrictedMessenger<
   never
 >;
 
-/**
- * @type BulkPhishingDetectionScanResponse
- *
- * Response from the bulk phishing detection scan API
- * @property results - Map of URLs to scan results
- * @property errors - Map of URLs to error messages
- */
 export type BulkPhishingDetectionScanResponse = {
   results: Record<string, PhishingDetectionScanResult>;
   errors: Record<string, string>;
