@@ -16,13 +16,13 @@ export {
   getAllNonWalletNamespacesFromCaip25CaveatValue,
   getAllScopesFromPermission,
   getAllScopesFromCaip25CaveatValue,
+  getAllScopesFromScopesObjects,
 } from './adapters/caip-permission-adapter-permittedChains';
 export {
   getInternalScopesObject,
   getSessionScopes,
   getPermittedAccountsForScopes,
 } from './adapters/caip-permission-adapter-session-scopes';
-export { isKnownSessionPropertyValue } from './scope/validation';
 export type { Caip25Authorization } from './scope/authorization';
 export {
   validateAndNormalizeScopes,
@@ -40,8 +40,6 @@ export {
 } from './scope/constants';
 export {
   getSupportedScopeObjects,
-  getCaipAccountIdsFromScopesObjects,
-  getAllScopesFromScopesObjects,
 } from './scope/filter';
 export type {
   ExternalScopeString,
