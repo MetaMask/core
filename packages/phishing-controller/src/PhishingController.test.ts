@@ -2651,7 +2651,7 @@ describe('PhishingController', () => {
       expect(response).toStrictEqual({
         results: {},
         errors: {
-          too_many_urls: 'Maximum of 250 URLs allowed per request',
+          too_many_urls: ['Maximum of 250 URLs allowed per request'],
         },
       });
     });
@@ -2662,7 +2662,7 @@ describe('PhishingController', () => {
       expect(response).toStrictEqual({
         results: {},
         errors: {
-          [longUrl]: 'URL length must not exceed 2048 characters',
+          [longUrl]: ['URL length must not exceed 2048 characters'],
         },
       });
     });
@@ -2689,7 +2689,7 @@ describe('PhishingController', () => {
         expect(response).toStrictEqual({
           results: {},
           errors: {
-            api_error: `${statusCode} ${statusText}`,
+            api_error: [`${statusCode} ${statusText}`],
           },
         });
         expect(scope.isDone()).toBe(true);
@@ -2710,7 +2710,7 @@ describe('PhishingController', () => {
       expect(response).toStrictEqual({
         results: {},
         errors: {
-          network_error: 'timeout of 15000ms exceeded',
+          network_error: ['timeout of 15000ms exceeded'],
         },
       });
       expect(scope.isDone()).toBe(false);
@@ -2817,8 +2817,8 @@ describe('PhishingController', () => {
           },
         },
         errors: {
-          'https://example2.com': 'Failed to process URL',
-          'https://example3.com': 'Domain not found',
+          'https://example2.com': ['Failed to process URL'],
+          'https://example3.com': ['Domain not found'],
         },
       };
 

@@ -289,7 +289,7 @@ export type PhishingControllerMessenger = RestrictedMessenger<
 
 export type BulkPhishingDetectionScanResponse = {
   results: Record<string, PhishingDetectionScanResult>;
-  errors: Record<string, string>;
+  errors: Record<string, string[]>;
 };
 
 /**
@@ -666,7 +666,9 @@ export class PhishingController extends BaseController<
       return {
         results: {},
         errors: {
-          too_many_urls: `Maximum of ${MAX_TOTAL_URLS} URLs allowed per request`,
+          too_many_urls: [
+            `Maximum of ${MAX_TOTAL_URLS} URLs allowed per request`,
+          ],
         },
       };
     }
@@ -677,7 +679,7 @@ export class PhishingController extends BaseController<
         return {
           results: {},
           errors: {
-            [url]: `URL length must not exceed ${MAX_URL_LENGTH} characters`,
+            [url]: [`URL length must not exceed ${MAX_URL_LENGTH} characters`],
           },
         };
       }
@@ -752,17 +754,21 @@ export class PhishingController extends BaseController<
       return {
         results: {},
         errors: {
-          network_error: 'timeout of 15000ms exceeded',
+          network_error: ['timeout of 15000ms exceeded'],
         },
       };
     }
 
     // Handle HTTP error responses
-    if ('error' in apiResponse && 'status' in apiResponse && 'statusText' in apiResponse) {
+    if (
+      'error' in apiResponse &&
+      'status' in apiResponse &&
+      'statusText' in apiResponse
+    ) {
       return {
         results: {},
         errors: {
-          api_error: `${apiResponse.status} ${apiResponse.statusText}`,
+          api_error: [`${apiResponse.status} ${apiResponse.statusText}`],
         },
       };
     }
@@ -815,7 +821,6 @@ export class PhishingController extends BaseController<
     }
 
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     const { eth_phishing_detect_config, ...partialState } =
       stalelistResponse.data;
 
