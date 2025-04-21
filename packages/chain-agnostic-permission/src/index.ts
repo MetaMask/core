@@ -3,6 +3,7 @@ export {
   setEthAccounts,
   setNonSCACaipAccountIdsInCaip25CaveatValue,
   getCaipAccountIdsFromScopesObjects,
+  getCaipAccountIdsFromCaip25CaveatValue,
   isInternalAccountInPermittedAccountIds,
   isCaipAccountIdInPermittedAccountIds,
 } from './adapters/caip-permission-adapter-accounts';
