@@ -1,4 +1,7 @@
 import {
+  EthScope,
+  BtcScope,
+  SolScope,
   BtcAccountType,
   EthAccountType,
   SolAccountType,
@@ -26,6 +29,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
  * @param args.snap.name - The name of the snap.
  * @param args.importTime - The import time of the account.
  * @param args.lastSelected - The last selected time of the account.
+ * @param args.scopes - The scopes of the account.
  * @returns A mock internal account.
  */
 export const createMockInternalAccount = ({
@@ -37,6 +41,7 @@ export const createMockInternalAccount = ({
   snap,
   importTime = Date.now(),
   lastSelected = Date.now(),
+  scopes,
 }: {
   id?: string;
   address?: string;
@@ -50,8 +55,10 @@ export const createMockInternalAccount = ({
   };
   importTime?: number;
   lastSelected?: number;
+  scopes?: string[];
 } = {}): InternalAccount => {
   let methods;
+  let newScopes = scopes;
 
   switch (type) {
     case EthAccountType.Eoa:
@@ -63,6 +70,7 @@ export const createMockInternalAccount = ({
         EthMethod.SignTypedDataV3,
         EthMethod.SignTypedDataV4,
       ];
+      newScopes = [EthScope.Eoa];
       break;
     case EthAccountType.Erc4337:
       methods = [
@@ -70,12 +78,15 @@ export const createMockInternalAccount = ({
         EthMethod.PrepareUserOperation,
         EthMethod.SignUserOperation,
       ];
+      newScopes = [EthScope.Mainnet];
       break;
     case BtcAccountType.P2wpkh:
       methods = [BtcMethod.SendBitcoin];
+      newScopes = [BtcScope.Mainnet];
       break;
     case SolAccountType.DataAccount:
       methods = [SolMethod.SendAndConfirmTransaction];
+      newScopes = [SolScope.Mainnet, SolScope.Devnet];
       break;
     default:
       throw new Error(`Unknown account type: ${type as string}`);
@@ -87,6 +98,7 @@ export const createMockInternalAccount = ({
     options: {},
     methods,
     type,
+    scopes: newScopes,
     metadata: {
       name,
       keyring: { type: keyringType },
