@@ -2,6 +2,7 @@ import { Messenger } from '@metamask/base-controller';
 import { createDeferredPromise } from '@metamask/utils';
 import { useFakeTimers } from 'sinon';
 
+import { getKey } from './AbstractPollingController';
 import { StaticIntervalPollingController } from './StaticIntervalPollingController';
 import { advanceTime } from '../../../tests/helpers';
 
@@ -309,6 +310,27 @@ describe('StaticIntervalPollingController', () => {
       await advanceTime({ clock, duration: TICK_TIME });
       expect(controller._executePoll).toHaveBeenCalledTimes(1);
       controller.stopAllPolling();
+    });
+
+    it('should stop polling session if the key is assigned duration and goes beyond it', async () => {
+      const input = {
+        networkClientId: 'mainnet',
+      };
+      const key = getKey(input);
+
+      controller.startPolling(input);
+      controller.setKeyDuration(key, TICK_TIME * 2);
+
+      await advanceTime({ clock, duration: 0 });
+      expect(controller._executePoll).toHaveBeenCalledTimes(1);
+      controller.executePollPromises[0].resolve();
+      await advanceTime({ clock, duration: TICK_TIME });
+      expect(controller._executePoll).toHaveBeenCalledTimes(2);
+      controller.executePollPromises[1].resolve();
+      await advanceTime({ clock, duration: TICK_TIME });
+      expect(controller._executePoll).toHaveBeenCalledTimes(2);
+      await advanceTime({ clock, duration: TICK_TIME });
+      expect(controller._executePoll).toHaveBeenCalledTimes(2);
     });
   });
 

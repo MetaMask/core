@@ -8,9 +8,4 @@ export {
   StaticIntervalPollingController,
 } from './StaticIntervalPollingController';
 
-export {
-  TimedIntervalPollingControllerOnly,
-  TimedIntervalPollingController,
-} from './TimedIntervalPollingController';
-
 export type { IPollingController } from './types';

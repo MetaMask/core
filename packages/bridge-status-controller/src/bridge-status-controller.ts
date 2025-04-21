@@ -1,13 +1,14 @@
 import type { StateMetadata } from '@metamask/base-controller';
 import type { BridgeClientId } from '@metamask/bridge-controller';
 import { BRIDGE_PROD_API_BASE_URL } from '@metamask/bridge-controller';
-import { TimedIntervalPollingController } from '@metamask/polling-controller';
+import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import { numberToHex, type Hex } from '@metamask/utils';
 
 import {
   BRIDGE_STATUS_CONTROLLER_NAME,
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
   REFRESH_INTERVAL_MS,
+  POLLING_DURATION,
 } from './constants';
 import {
   type BridgeStatusControllerState,
@@ -20,6 +21,8 @@ import {
   fetchBridgeTxStatus,
   getStatusRequestWithSrcTxHash,
 } from './utils/bridge-status';
+import { getKey } from '../../polling-controller/src/AbstractPollingController';
+import { get } from 'lodash';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
   // We want to persist the bridge status state so that we can show the proper data for the Activity list
@@ -37,7 +40,7 @@ type SrcTxMetaId = string;
 export type FetchBridgeTxStatusArgs = {
   bridgeTxMetaId: string;
 };
-export class BridgeStatusController extends TimedIntervalPollingController<BridgeStatusPollingInput>()<
+export class BridgeStatusController extends StaticIntervalPollingController<BridgeStatusPollingInput>()<
   typeof BRIDGE_STATUS_CONTROLLER_NAME,
   BridgeStatusControllerState,
   BridgeStatusControllerMessenger
@@ -157,11 +160,13 @@ export class BridgeStatusController extends TimedIntervalPollingController<Bridg
     incompleteHistoryItems.forEach((historyItem) => {
       const bridgeTxMetaId = historyItem.txMetaId;
 
+      const input = {
+        bridgeTxMetaId,
+      };
       // We manually call startPolling() here rather than go through startPollingForBridgeTxStatus()
       // because we don't want to overwrite the existing historyItem in state
-      this.#pollingTokensByTxMetaId[bridgeTxMetaId] = this.startPolling({
-        bridgeTxMetaId,
-      });
+      this.#pollingTokensByTxMetaId[bridgeTxMetaId] = this.startPolling(input);
+      this.setKeyDuration(getKey(input), POLLING_DURATION);
     });
   };
 
@@ -212,9 +217,14 @@ export class BridgeStatusController extends TimedIntervalPollingController<Bridg
       state.txHistory[bridgeTxMeta.id] = txHistoryItem;
     });
 
-    this.#pollingTokensByTxMetaId[bridgeTxMeta.id] = this.startPolling({
+    const input = {
       bridgeTxMetaId: bridgeTxMeta.id,
-    });
+    };
+
+    this.#pollingTokensByTxMetaId[bridgeTxMeta.id] = this.startPolling(input);
+
+    // set the polling max time duration to five minutes
+    this.setKeyDuration(getKey(input), POLLING_DURATION);
   };
 
   // This will be called after you call this.startPolling()
