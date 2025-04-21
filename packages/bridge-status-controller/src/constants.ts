@@ -2,7 +2,7 @@ import type { BridgeStatusControllerState } from './types';
 
 export const REFRESH_INTERVAL_MS = 10 * 1000;
 
-// The time interval for polling the bridge status API
+// The time duration for polling the bridge status API
 // defaults to 5 minutes
 export const POLLING_DURATION = 5 * 60 * 1000;
 
