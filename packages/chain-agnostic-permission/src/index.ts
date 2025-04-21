@@ -69,6 +69,7 @@ export {
   caip25EndowmentBuilder,
   Caip25CaveatMutators,
   generateCaip25Caveat,
+  getCaip25CaveatFromPermission,
 } from './caip25Permission';
 export { KnownSessionProperties } from './scope/constants';
 export { Caip25Errors } from './scope/errors';
