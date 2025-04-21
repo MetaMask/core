@@ -627,7 +627,7 @@ export class PhishingController extends BaseController<
       return {
         domainName: '',
         recommendedAction: RecommendedAction.None,
-        fetchError: 'error fetching phishing detection results',
+        fetchError: 'timeout of 8000ms exceeded',
       };
     } else if ('error' in apiResponse) {
       return {
@@ -735,6 +735,8 @@ export class PhishingController extends BaseController<
         if (!res.ok) {
           return {
             error: `${res.status} ${res.statusText}`,
+            status: res.status,
+            statusText: res.statusText,
           };
         }
 
@@ -750,7 +752,17 @@ export class PhishingController extends BaseController<
       return {
         results: {},
         errors: {
-          network_error: 'error fetching bulk scan results',
+          network_error: 'timeout of 15000ms exceeded',
+        },
+      };
+    }
+
+    // Handle HTTP error responses
+    if ('error' in apiResponse && 'status' in apiResponse && 'statusText' in apiResponse) {
+      return {
+        results: {},
+        errors: {
+          api_error: `${apiResponse.status} ${apiResponse.statusText}`,
         },
       };
     }
