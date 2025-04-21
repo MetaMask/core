@@ -537,11 +537,11 @@ export const generateCaip25Caveat = (
 /**
  * Helper to get the CAIP-25 caveat from a permission
  *
- * @param caip25Permission - The CAIP-25 permission object
+ * @param [caip25Permission] - The CAIP-25 permission object
  * @param caip25Permission.caveats - The caveats of the CAIP-25 permission
  * @returns The CAIP-25 caveat or undefined if not found
  */
-export function getCaip25CaveatFromPermission(caip25Permission: {
+export function getCaip25CaveatFromPermission(caip25Permission?: {
   caveats: {
     type: string;
     value: Caip25CaveatValue;
@@ -552,7 +552,7 @@ export function getCaip25CaveatFromPermission(caip25Permission: {
       value: Caip25CaveatValue;
     }
   | undefined {
-  return caip25Permission.caveats.find(
+  return caip25Permission?.caveats.find(
     (caveat) => caveat.type === Caip25CaveatType,
   );
 }
