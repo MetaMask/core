@@ -542,17 +542,18 @@ export const generateCaip25Caveat = (
  * @returns The CAIP-25 caveat or undefined if not found
  */
 export function getCaip25CaveatFromPermission(caip25Permission?: {
-  caveats: {
+  caveats: ({
     type: string;
+    value: unknown;
+  } | {
+    type: typeof Caip25CaveatType;
     value: Caip25CaveatValue;
-  }[];
-}):
-  | {
-      type: string;
-      value: Caip25CaveatValue;
-    }
-  | undefined {
+  })[];
+}) {
   return caip25Permission?.caveats.find(
-    (caveat) => caveat.type === Caip25CaveatType,
-  );
+    (caveat) => caveat.type === Caip25CaveatType as string,
+  ) as {
+    type: typeof Caip25CaveatType;
+    value: Caip25CaveatValue;
+  } | undefined;
 }
