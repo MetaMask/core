@@ -18,6 +18,12 @@ import {
   RecommendedAction,
 } from './types';
 import {
+  DEFAULT_URL_SCAN_CACHE_MAX_SIZE,
+  DEFAULT_URL_SCAN_CACHE_TTL,
+  UrlScanCache,
+  type UrlScanCacheEntry,
+} from './UrlScanCache';
+import {
   applyDiffs,
   fetchTimeNow,
   getHostnameFromUrl,
@@ -205,6 +211,7 @@ const metadata = {
   hotlistLastFetched: { persist: true, anonymous: false },
   stalelistLastFetched: { persist: true, anonymous: false },
   c2DomainBlocklistLastFetched: { persist: true, anonymous: false },
+  urlScanCache: { persist: true, anonymous: false },
 };
 
 /**
@@ -218,6 +225,7 @@ const getDefaultState = (): PhishingControllerState => {
     hotlistLastFetched: 0,
     stalelistLastFetched: 0,
     c2DomainBlocklistLastFetched: 0,
+    urlScanCache: {},
   };
 };
 
@@ -234,20 +242,25 @@ export type PhishingControllerState = {
   hotlistLastFetched: number;
   stalelistLastFetched: number;
   c2DomainBlocklistLastFetched: number;
+  urlScanCache: Record<string, UrlScanCacheEntry>;
 };
 
 /**
- * @type PhishingControllerOptions
+ * PhishingControllerOptions
  *
  * Phishing controller options
- * @property stalelistRefreshInterval - Polling interval used to fetch stale list.
- * @property hotlistRefreshInterval - Polling interval used to fetch hotlist diff list.
- * @property c2DomainBlocklistRefreshInterval - Polling interval used to fetch c2 domain blocklist.
+ * stalelistRefreshInterval - Polling interval used to fetch stale list.
+ * hotlistRefreshInterval - Polling interval used to fetch hotlist diff list.
+ * c2DomainBlocklistRefreshInterval - Polling interval used to fetch c2 domain blocklist.
+ * urlScanCacheTTL - Time to live in seconds for cached scan results.
+ * urlScanCacheMaxSize - Maximum number of entries in the scan cache.
  */
 export type PhishingControllerOptions = {
   stalelistRefreshInterval?: number;
   hotlistRefreshInterval?: number;
   c2DomainBlocklistRefreshInterval?: number;
+  urlScanCacheTTL?: number;
+  urlScanCacheMaxSize?: number;
   messenger: PhishingControllerMessenger;
   state?: Partial<PhishingControllerState>;
 };
@@ -318,6 +331,8 @@ export class PhishingController extends BaseController<
 
   #c2DomainBlocklistRefreshInterval: number;
 
+  readonly #urlScanCache: UrlScanCache;
+
   #inProgressHotlistUpdate?: Promise<void>;
 
   #inProgressStalelistUpdate?: Promise<void>;
@@ -331,6 +346,8 @@ export class PhishingController extends BaseController<
    * @param config.stalelistRefreshInterval - Polling interval used to fetch stale list.
    * @param config.hotlistRefreshInterval - Polling interval used to fetch hotlist diff list.
    * @param config.c2DomainBlocklistRefreshInterval - Polling interval used to fetch c2 domain blocklist.
+   * @param config.urlScanCacheTTL - Time to live in seconds for cached scan results.
+   * @param config.urlScanCacheMaxSize - Maximum number of entries in the scan cache.
    * @param config.messenger - The controller restricted messenger.
    * @param config.state - Initial state to set on this controller.
    */
@@ -338,6 +355,8 @@ export class PhishingController extends BaseController<
     stalelistRefreshInterval = STALELIST_REFRESH_INTERVAL,
     hotlistRefreshInterval = HOTLIST_REFRESH_INTERVAL,
     c2DomainBlocklistRefreshInterval = C2_DOMAIN_BLOCKLIST_REFRESH_INTERVAL,
+    urlScanCacheTTL = DEFAULT_URL_SCAN_CACHE_TTL,
+    urlScanCacheMaxSize = DEFAULT_URL_SCAN_CACHE_MAX_SIZE,
     messenger,
     state = {},
   }: PhishingControllerOptions) {
@@ -354,6 +373,17 @@ export class PhishingController extends BaseController<
     this.#stalelistRefreshInterval = stalelistRefreshInterval;
     this.#hotlistRefreshInterval = hotlistRefreshInterval;
     this.#c2DomainBlocklistRefreshInterval = c2DomainBlocklistRefreshInterval;
+    this.#urlScanCache = new UrlScanCache({
+      cacheTTL: urlScanCacheTTL,
+      maxCacheSize: urlScanCacheMaxSize,
+      initialCache: this.state.urlScanCache,
+      updateState: (cache) => {
+        this.update((draftState) => {
+          draftState.urlScanCache = cache;
+        });
+      },
+    });
+
     this.#registerMessageHandlers();
 
     this.updatePhishingDetector();
@@ -413,6 +443,31 @@ export class PhishingController extends BaseController<
    */
   setC2DomainBlocklistRefreshInterval(interval: number) {
     this.#c2DomainBlocklistRefreshInterval = interval;
+  }
+
+  /**
+   * Set the time-to-live for URL scan cache entries.
+   *
+   * @param ttl - The TTL in seconds.
+   */
+  setUrlScanCacheTTL(ttl: number) {
+    this.#urlScanCache.setTTL(ttl);
+  }
+
+  /**
+   * Set the maximum number of entries in the URL scan cache.
+   *
+   * @param maxSize - The maximum cache size.
+   */
+  setUrlScanCacheMaxSize(maxSize: number) {
+    this.#urlScanCache.setMaxSize(maxSize);
+  }
+
+  /**
+   * Clear the URL scan cache.
+   */
+  clearUrlScanCache() {
+    this.#urlScanCache.clear();
   }
 
   /**
@@ -607,6 +662,11 @@ export class PhishingController extends BaseController<
       };
     }
 
+    const cachedResult = this.#urlScanCache.get(hostname);
+    if (cachedResult) {
+      return cachedResult;
+    }
+
     const apiResponse = await safelyExecuteWithTimeout(
       async () => {
         const res = await fetch(
@@ -645,10 +705,14 @@ export class PhishingController extends BaseController<
       };
     }
 
-    return {
+    const result = {
       domainName: hostname,
       recommendedAction: apiResponse.recommendedAction,
     } as PhishingDetectionScanResult;
+
+    this.#urlScanCache.add(hostname, result);
+
+    return result;
   };
 
   /**
