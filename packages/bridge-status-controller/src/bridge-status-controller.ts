@@ -65,6 +65,7 @@ import {
   handleSolanaTxResponse,
 } from './utils/transaction';
 import { generateActionId } from './utils/transaction';
+import { MetricsActionType } from '../../bridge-controller/src/utils/metrics/constants';
 import {
   getActionType,
   getSwapType,
@@ -923,14 +924,15 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     const isEthUsdtTx = isEthUsdt(hexChainId, quote.srcAsset.address);
     const allowance_reset_transaction = status.srcChain.txHash
       ? StatusTypes.COMPLETE
-      : StatusTypes.PENDING;
+      : undefined;
     const approval_transaction = status.srcChain.txHash
       ? StatusTypes.COMPLETE
       : StatusTypes.PENDING;
 
     return {
-      allowance_reset_transaction:
-        isEthUsdtTx && hasApprovalTx ? allowance_reset_transaction : undefined,
+      allowance_reset_transaction: isEthUsdtTx
+        ? allowance_reset_transaction
+        : undefined,
       approval_transaction: hasApprovalTx ? approval_transaction : undefined,
       source_transaction,
       destination_transaction:
@@ -950,26 +952,24 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     eventName: T,
     historyItem: BridgeHistoryItem,
   ): Pick<RequiredEventContextFromClient, T>[T] => {
-    const baseProperties = {
-      action_type: getActionType(
-        historyItem.quote.srcChainId,
-        historyItem.quote.destChainId,
-      ),
-    };
     switch (eventName) {
       case UnifiedSwapBridgeEventName.SnapConfirmationViewed:
+        return { action_type: MetricsActionType.CROSSCHAIN_V1 } as never;
       case UnifiedSwapBridgeEventName.Submitted:
       case UnifiedSwapBridgeEventName.Completed:
       case UnifiedSwapBridgeEventName.Failed:
       default:
         return {
+          action_type: getActionType(
+            historyItem.quote.srcChainId,
+            historyItem.quote.destChainId,
+          ),
           ...this.#getRequestParams(historyItem),
           ...this.#getRequestMetadata(historyItem),
           ...this.#getTradeData(historyItem),
           ...this.#getTxStatus(historyItem),
           ...this.#getFinalTxProperties(historyItem),
           error_message: 'error_message',
-          ...baseProperties,
         };
     }
   };
@@ -990,10 +990,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     eventName: T,
     txMetaId: string,
   ) => {
-    const historyItem = this.state.txHistory[txMetaId];
-    if (!historyItem) {
-      return;
-    }
+    const historyItem = this.state.txHistory[txMetaId] ?? {};
     const requiredEventProperties = this.#getEventProperties<T>(
       eventName,
       historyItem,

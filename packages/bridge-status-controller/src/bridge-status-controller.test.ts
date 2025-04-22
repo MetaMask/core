@@ -8,8 +8,8 @@ import {
 import { ChainId } from '@metamask/bridge-controller';
 import { ActionTypes, FeeType } from '@metamask/bridge-controller';
 import { EthAccountType } from '@metamask/keyring-api';
-import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
 import { numberToHex } from '@metamask/utils';
 
@@ -664,8 +664,9 @@ describe('BridgeStatusController', () => {
       jest.spyOn(Date, 'now').mockImplementation(() => {
         return MockTxHistory.getComplete().bridgeTxMetaId1.completionTime ?? 10;
       });
+      const messengerMock = getMessengerMock();
       const bridgeStatusController = new BridgeStatusController({
-        messenger: getMessengerMock(),
+        messenger: messengerMock,
         clientId: BridgeClientId.EXTENSION,
         fetchFn: jest.fn(),
         addTransactionFn: jest.fn(),
@@ -699,6 +700,7 @@ describe('BridgeStatusController', () => {
         MockTxHistory.getComplete(),
       );
 
+      expect(messengerMock.call.mock.calls).toMatchSnapshot();
       // Cleanup
       jest.restoreAllMocks();
     });
@@ -863,6 +865,7 @@ describe('BridgeStatusController', () => {
           }),
         },
       );
+      expect(messengerMock.call.mock.calls).toMatchSnapshot();
 
       // Cleanup
       jest.restoreAllMocks();
@@ -1051,6 +1054,7 @@ describe('BridgeStatusController', () => {
       );
       expect(txHistoryItems).toHaveLength(1);
       expect(txHistoryItems[0].account).toBe('0xaccount2');
+      expect(messengerMock.call.mock.calls).toMatchSnapshot();
     });
     it('wipes the bridge status for all networks if ignoreNetwork is true', () => {
       // Setup
@@ -1382,6 +1386,10 @@ describe('BridgeStatusController', () => {
     it('should successfully submit a Solana transaction', async () => {
       mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
       mockMessengerCall.mockResolvedValueOnce('signature');
+
+      mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
+      mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
+
       mockMessengerCall.mockResolvedValueOnce('tokens');
       mockMessengerCall.mockResolvedValueOnce('tokens');
 

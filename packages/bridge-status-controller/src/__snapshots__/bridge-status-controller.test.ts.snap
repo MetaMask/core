@@ -120,6 +120,53 @@ Object {
 }
 `;
 
+exports[`BridgeStatusController startPollingForBridgeTxStatus emits bridgeTransactionFailed event when the status response is failed 1`] = `
+Array [
+  Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  Array [
+    "BridgeController:trackMetaMetricsEvent",
+    "Unified SwapBridge Failed",
+    Object {
+      "action_type": "crosschain-v1",
+      "actual_time_minutes": 105213.34261666666,
+      "allowance_reset_transaction": undefined,
+      "approval_transaction": undefined,
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
+      "destination_transaction": "FAILED",
+      "error_message": "error_message",
+      "gas_included": false,
+      "is_hardware_wallet": false,
+      "price_impact": 0,
+      "provider": "lifi_across",
+      "quote_vs_execution_ratio": 1,
+      "quoted_time_minutes": 0.25,
+      "quoted_vs_used_gas_ratio": 1,
+      "slippage_limit": 0,
+      "source_transaction": "COMPLETE",
+      "stx_enabled": false,
+      "swap_type": "crosschain",
+      "token_address_destination": "eip155:10/slip44:60",
+      "token_address_source": "eip155:42161/slip44:60",
+      "token_symbol_destination": "ETH",
+      "token_symbol_source": "ETH",
+      "usd_actual_gas": 0,
+      "usd_actual_return": 0,
+      "usd_amount_source": 0,
+      "usd_quoted_gas": 0,
+      "usd_quoted_return": 0,
+    },
+  ],
+]
+`;
+
 exports[`BridgeStatusController startPollingForBridgeTxStatus sets the inital tx history state 1`] = `
 Object {
   "bridgeTxMetaId1": Object {
@@ -238,6 +285,53 @@ Object {
     "txMetaId": "bridgeTxMetaId1",
   },
 }
+`;
+
+exports[`BridgeStatusController startPollingForBridgeTxStatus stops polling when the status response is complete 1`] = `
+Array [
+  Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  Array [
+    "BridgeController:trackMetaMetricsEvent",
+    "Unified SwapBridge Completed",
+    Object {
+      "action_type": "crosschain-v1",
+      "actual_time_minutes": 105213.34261666666,
+      "allowance_reset_transaction": undefined,
+      "approval_transaction": undefined,
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
+      "destination_transaction": "COMPLETE",
+      "error_message": "error_message",
+      "gas_included": false,
+      "is_hardware_wallet": false,
+      "price_impact": 0,
+      "provider": "lifi_across",
+      "quote_vs_execution_ratio": 1,
+      "quoted_time_minutes": 0.25,
+      "quoted_vs_used_gas_ratio": 1,
+      "slippage_limit": 0,
+      "source_transaction": "COMPLETE",
+      "stx_enabled": true,
+      "swap_type": "crosschain",
+      "token_address_destination": "eip155:10/slip44:60",
+      "token_address_source": "eip155:42161/slip44:60",
+      "token_symbol_destination": "ETH",
+      "token_symbol_source": "ETH",
+      "usd_actual_gas": 0,
+      "usd_actual_return": 0,
+      "usd_amount_source": 0,
+      "usd_quoted_gas": 0,
+      "usd_quoted_return": 0,
+    },
+  ],
+]
 `;
 
 exports[`BridgeStatusController submitTx: EVM should delay after submitting linea approval 1`] = `
@@ -1828,11 +1922,18 @@ Array [
     },
   ],
   Array [
+    "BridgeController:trackMetaMetricsEvent",
+    "Unified SwapBridge Snap Confirmation Page Viewed",
+    Object {
+      "action_type": "crosschain-v1",
+    },
+  ],
+  Array [
     "AccountsController:getSelectedMultichainAccount",
   ],
   Array [
     "AccountsController:getAccountByAddress",
-    "",
+    "0x123...",
   ],
   Array [
     "BridgeController:trackMetaMetricsEvent",
@@ -2141,4 +2242,22 @@ Object {
     "srcTxHash": "signature",
   },
 }
+`;
+
+exports[`BridgeStatusController wipeBridgeStatus wipes the bridge status for the given address 1`] = `
+Array [
+  Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
+    "NetworkController:getState",
+  ],
+  Array [
+    "NetworkController:getNetworkClientById",
+    "networkClientId",
+  ],
+]
 `;
