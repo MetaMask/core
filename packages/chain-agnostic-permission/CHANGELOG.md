@@ -11,23 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add and Export `isKnownSessionPropertyValue` validation utility function ([#5647](https://github.com/MetaMask/core/pull/5647))
-- Add and Export `getCaipAccountIdsFromScopesObjects` filtering utility function ([#5647](https://github.com/MetaMask/core/pull/5647))
-- Add and Export `getAllScopesFromScopesObjects` filtering utility function ([#5647](https://github.com/MetaMask/core/pull/5647))
-- Add and Export `getSupportedScopeObjects` filtering utility function ([#5647](https://github.com/MetaMask/core/pull/5647))
+- Added `getCaipAccountIdsFromScopesObjects`, `getCaipAccountIdsFromCaip25CaveatValue`, `isInternalAccountInPermittedAccountIds`, and `isCaipAccountIdInPermittedAccountIds` account id functions. ([#5609](https://github.com/MetaMask/core/pull/5609))
+- Added `getSupportedScopeObjects`, `getAllScopesFromScopesObjects`, `getAllScopesFromCaip25CaveatValue`, `getAllNonWalletNamespacesFromCaip25CaveatValue`, `getAllScopesFromPermission`, `getAllScopesFromCaip25CaveatValue`, and `isNamespaceInScopesObject`
+  scope functions. ([#5609](https://github.com/MetaMask/core/pull/5609))
+- Added `isKnownSessionPropertyValue` and `getCaip25CaveatFromPermission` misc functions. ([#5609](https://github.com/MetaMask/core/pull/5609))
 
 ### Changed
 
-- **BREAKING:** Renamed `setPermittedAccounts` to `setNonSCACaipAccountIdsInCaip25CaveatValue`.
-- **BREAKING:** Renamed `setPermittedChainIds` to `setCaipChainIdsInCaip25CaveatValue`.
+- **BREAKING:** Renamed `setPermittedAccounts` to `setNonSCACaipAccountIdsInCaip25CaveatValue`. ([#5609](https://github.com/MetaMask/core/pull/5609))
+- **BREAKING:** Renamed `setPermittedChainIds` to `overwriteCaipChainIdsInCaip25CaveatValue`. ([#5609](https://github.com/MetaMask/core/pull/5609))
+- **BREAKING:** Renamed `addPermittedChainId` to `addCaipChainIdInCaip25CaveatValue`. ([#5609](https://github.com/MetaMask/core/pull/5609))
 - Bump `@metamask/controller-utils` to `^11.7.0` ([#5583](https://github.com/MetaMask/core/pull/5583))
 - Bump `@metamask/network-controller` to `^23.2.0` ([#5583](https://github.com/MetaMask/core/pull/5583))
-
-### Added
-
-- Added `getCaipAccountIdsFromScopesObject`, `getCaipAccountIdsFromScopesObjects`, and `getCaipAccountIdsFromCaip25CaveatValue` functions.
-- Added `getAllScopesFromScopesObjects`, `getAllScopesFromCaip25CaveatValue`, `getAllNonWalletNamespacesFromCaip25CaveatValue`, and `getAllScopesFromPermission`
-  functions.
 
 ## [0.3.0]
 
