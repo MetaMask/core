@@ -19,6 +19,7 @@ import type {
   RequiredEventContextFromClient,
   TradeData,
   TxData,
+  TxStatusData,
 } from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
 import { EthAccountType } from '@metamask/keyring-api';
@@ -835,9 +836,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       // Add tokens to the token list
       this.#addTokens(quoteResponse.quote.srcAsset);
       this.#addTokens(quoteResponse.quote.destAsset);
-    } catch (error) {
+    } catch {
       // Ignore errors here, we don't want to crash the app if this fails and tx submission succeeds
-      console.error('Error submitting bridge tx', error);
     }
     return txMeta;
   };
@@ -907,6 +907,39 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     };
   };
 
+  readonly #getTxStatus = ({
+    status,
+    hasApprovalTx,
+    quote,
+  }: BridgeHistoryItem): TxStatusData => {
+    const source_transaction = status.srcChain.txHash
+      ? StatusTypes.COMPLETE
+      : StatusTypes.PENDING;
+    const destination_transaction = status.destChain?.txHash
+      ? status.status
+      : StatusTypes.PENDING;
+
+    const hexChainId = formatChainIdToHex(quote.srcChainId);
+    const isEthUsdtTx = isEthUsdt(hexChainId, quote.srcAsset.address);
+    const allowance_reset_transaction = status.srcChain.txHash
+      ? StatusTypes.COMPLETE
+      : StatusTypes.PENDING;
+    const approval_transaction = status.srcChain.txHash
+      ? StatusTypes.COMPLETE
+      : StatusTypes.PENDING;
+
+    return {
+      allowance_reset_transaction:
+        isEthUsdtTx && hasApprovalTx ? allowance_reset_transaction : undefined,
+      approval_transaction: hasApprovalTx ? approval_transaction : undefined,
+      source_transaction,
+      destination_transaction:
+        status.status === StatusTypes.FAILED
+          ? StatusTypes.FAILED
+          : destination_transaction,
+    };
+  };
+
   readonly #getEventProperties = <
     T extends
       | typeof UnifiedSwapBridgeEventName.Submitted
@@ -933,6 +966,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           ...this.#getRequestParams(historyItem),
           ...this.#getRequestMetadata(historyItem),
           ...this.#getTradeData(historyItem),
+          ...this.#getTxStatus(historyItem),
           ...this.#getFinalTxProperties(historyItem),
           error_message: 'error_message',
           ...baseProperties,
@@ -956,26 +990,19 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     eventName: T,
     txMetaId: string,
   ) => {
-    try {
-      const historyItem = this.state.txHistory[txMetaId];
-      if (!historyItem) {
-        return;
-      }
-      const requiredEventProperties = this.#getEventProperties<T>(
-        eventName,
-        historyItem,
-      );
-
-      this.messagingSystem.call(
-        'BridgeController:trackMetaMetricsEvent',
-        eventName,
-        requiredEventProperties,
-      );
-    } catch (error) {
-      console.error(
-        'Error tracking cross-chain swaps MetaMetrics event',
-        error,
-      );
+    const historyItem = this.state.txHistory[txMetaId];
+    if (!historyItem) {
+      return;
     }
+    const requiredEventProperties = this.#getEventProperties<T>(
+      eventName,
+      historyItem,
+    );
+
+    this.messagingSystem.call(
+      'BridgeController:trackMetaMetricsEvent',
+      eventName,
+      requiredEventProperties,
+    );
   };
 }
