@@ -287,6 +287,13 @@ export type PhishingControllerMessenger = RestrictedMessenger<
   never
 >;
 
+/**
+ * @type BulkPhishingDetectionScanResponse
+ *
+ * Response for bulk phishing detection scan requests
+ * @property results - Record of domain names and their corresponding phishing detection scan results
+ * @property errors - Record of domain names and their corresponding errors
+ */
 export type BulkPhishingDetectionScanResponse = {
   results: Record<string, PhishingDetectionScanResult>;
   errors: Record<string, string[]>;
