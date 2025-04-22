@@ -3038,6 +3038,58 @@ describe('URL Scan Cache', () => {
     cleanAll();
   });
 
+  describe('getUrlScanFromCache', () => {
+    it('should return cached scan result when available', async () => {
+      const testDomain = 'example.com';
+      const testUrl = `https://${testDomain}`;
+      const expectedResult = {
+        domainName: testDomain,
+        recommendedAction: RecommendedAction.None,
+      };
+
+      // First cache the result
+      nock(PHISHING_DETECTION_BASE_URL)
+        .get(
+          `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+        )
+        .reply(200, { recommendedAction: RecommendedAction.None });
+
+      const controller = getPhishingController();
+      await controller.scanUrl(testUrl);
+
+      // Then get it from cache
+      const result = controller.getUrlScanFromCache(testUrl);
+
+      expect(result).toMatchObject(expectedResult);
+    });
+
+    it('should return error result for invalid URLs', () => {
+      const invalidUrl = 'not-a-url';
+      const controller = getPhishingController();
+
+      const result = controller.getUrlScanFromCache(invalidUrl);
+
+      expect(result).toMatchObject({
+        domainName: '',
+        recommendedAction: RecommendedAction.None,
+        fetchError: 'url is not a valid web URL',
+      });
+    });
+
+    it('should return error result when URL is not in cache', () => {
+      const uncachedUrl = 'https://not-in-cache.com';
+      const controller = getPhishingController();
+
+      const result = controller.getUrlScanFromCache(uncachedUrl);
+
+      expect(result).toMatchObject({
+        domainName: 'not-in-cache.com',
+        recommendedAction: RecommendedAction.None,
+        fetchError: 'no cached result available',
+      });
+    });
+  });
+
   it('should cache scan results and return them on subsequent calls', async () => {
     const testDomain = 'example.com';
 
