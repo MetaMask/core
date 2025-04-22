@@ -2897,7 +2897,7 @@ describe('PhishingController', () => {
       const expectedPostBody = {
         urls: [uncachedUrl],
       };
-      
+
       const bulkApiResponse: BulkPhishingDetectionScanResponse = {
         results: {
           [uncachedUrl]: {
