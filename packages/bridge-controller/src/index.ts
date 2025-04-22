@@ -2,7 +2,7 @@ export { BridgeController } from './bridge-controller';
 
 export {
   UnifiedSwapBridgeEventName,
-  UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY as METAMETRICS_EVENT_CATEGORY,
+  UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY,
 } from './utils/metrics/constants';
 
 export type {
