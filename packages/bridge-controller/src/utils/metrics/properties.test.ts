@@ -3,8 +3,8 @@ import type { CaipChainId } from '@metamask/utils';
 
 import { MetricsActionType, MetricsSwapType } from './constants';
 import {
-  quoteRequestToInputChangedProperties,
-  quoteRequestToInputChangedPropertyValues,
+  toInputChangedPropertyKey,
+  toInputChangedPropertyValue,
   getActionTypeFromQuoteRequest,
   getSwapTypeFromQuote,
   formatProviderLabel,
@@ -21,26 +21,20 @@ describe('properties', () => {
 
   describe('quoteRequestToInputChangedProperties', () => {
     it('should map quote request properties to input keys', () => {
-      expect(quoteRequestToInputChangedProperties.srcTokenAddress).toBe(
-        'token_source',
-      );
-      expect(quoteRequestToInputChangedProperties.destTokenAddress).toBe(
+      expect(toInputChangedPropertyKey.srcTokenAddress).toBe('token_source');
+      expect(toInputChangedPropertyKey.destTokenAddress).toBe(
         'token_destination',
       );
-      expect(quoteRequestToInputChangedProperties.srcChainId).toBe(
-        'chain_source',
-      );
-      expect(quoteRequestToInputChangedProperties.destChainId).toBe(
-        'chain_destination',
-      );
-      expect(quoteRequestToInputChangedProperties.slippage).toBe('slippage');
+      expect(toInputChangedPropertyKey.srcChainId).toBe('chain_source');
+      expect(toInputChangedPropertyKey.destChainId).toBe('chain_destination');
+      expect(toInputChangedPropertyKey.slippage).toBe('slippage');
     });
   });
 
   describe('quoteRequestToInputChangedPropertyValues', () => {
     it('should format srcTokenAddress correctly', () => {
       const srcTokenAddressFormatter =
-        quoteRequestToInputChangedPropertyValues.srcTokenAddress;
+        toInputChangedPropertyValue.srcTokenAddress;
       const result = srcTokenAddressFormatter?.({
         srcTokenAddress: '0x123',
         srcChainId: '1',
@@ -51,7 +45,7 @@ describe('properties', () => {
 
     it('should format srcTokenAddress when srcAssetId is undefined', () => {
       const srcTokenAddressFormatter =
-        quoteRequestToInputChangedPropertyValues.srcTokenAddress;
+        toInputChangedPropertyValue.srcTokenAddress;
       const result = srcTokenAddressFormatter?.({
         srcTokenAddress: '123',
         srcChainId: '2',
@@ -62,7 +56,7 @@ describe('properties', () => {
 
     it('should format srcTokenAddress when srcTokenAddress is undefined', () => {
       const srcTokenAddressFormatter =
-        quoteRequestToInputChangedPropertyValues.srcTokenAddress;
+        toInputChangedPropertyValue.srcTokenAddress;
       const result = srcTokenAddressFormatter?.({
         srcChainId: '1',
       });
@@ -72,7 +66,7 @@ describe('properties', () => {
 
     it('should return undefined for srcTokenAddress when srcChainId is missing', () => {
       const srcTokenAddressFormatter =
-        quoteRequestToInputChangedPropertyValues.srcTokenAddress;
+        toInputChangedPropertyValue.srcTokenAddress;
       const result = srcTokenAddressFormatter?.({
         srcTokenAddress: '0x123',
       });
@@ -82,7 +76,7 @@ describe('properties', () => {
 
     it('should format destTokenAddress correctly', () => {
       const destTokenAddressFormatter =
-        quoteRequestToInputChangedPropertyValues.destTokenAddress;
+        toInputChangedPropertyValue.destTokenAddress;
       const result = destTokenAddressFormatter?.({
         destTokenAddress: '0x123',
         destChainId: '1',
@@ -93,7 +87,7 @@ describe('properties', () => {
 
     it('should format destTokenAddress correctly when destTokenAddress is undefined', () => {
       const destTokenAddressFormatter =
-        quoteRequestToInputChangedPropertyValues.destTokenAddress;
+        toInputChangedPropertyValue.destTokenAddress;
       const result = destTokenAddressFormatter?.({
         destChainId: '1',
       });
@@ -102,8 +96,7 @@ describe('properties', () => {
     });
 
     it('should format srcChainId correctly', () => {
-      const srcChainIdFormatter =
-        quoteRequestToInputChangedPropertyValues.srcChainId;
+      const srcChainIdFormatter = toInputChangedPropertyValue.srcChainId;
       const result = srcChainIdFormatter?.({
         srcChainId: '1',
       });
@@ -112,16 +105,14 @@ describe('properties', () => {
     });
 
     it('should format srcChainId correctly when srcChainId is undefined', () => {
-      const srcChainIdFormatter =
-        quoteRequestToInputChangedPropertyValues.srcChainId;
+      const srcChainIdFormatter = toInputChangedPropertyValue.srcChainId;
       const result = srcChainIdFormatter?.({});
 
       expect(result).toBeUndefined();
     });
 
     it('should format destChainId correctly', () => {
-      const destChainIdFormatter =
-        quoteRequestToInputChangedPropertyValues.destChainId;
+      const destChainIdFormatter = toInputChangedPropertyValue.destChainId;
       const result = destChainIdFormatter?.({
         destChainId: '1',
       });
@@ -130,8 +121,7 @@ describe('properties', () => {
     });
 
     it('should format slippage correctly', () => {
-      const slippageFormatter =
-        quoteRequestToInputChangedPropertyValues.slippage;
+      const slippageFormatter = toInputChangedPropertyValue.slippage;
       const result = slippageFormatter?.({
         slippage: 0.5,
       });
@@ -140,8 +130,7 @@ describe('properties', () => {
     });
 
     it('should format slippage correctly when slippage is undefined', () => {
-      const slippageFormatter =
-        quoteRequestToInputChangedPropertyValues.slippage;
+      const slippageFormatter = toInputChangedPropertyValue.slippage;
       const result = slippageFormatter?.({});
 
       expect(result).toBeUndefined();
@@ -291,7 +280,7 @@ describe('properties', () => {
 
       expect(result).toStrictEqual({
         chain_id_source: 'eip155:1',
-        chain_id_destination: undefined,
+        chain_id_destination: null,
         token_address_source: 'eip155:1/slip44:60',
         token_address_destination: 'eip155:1/slip44:60',
       });
@@ -328,7 +317,7 @@ describe('properties', () => {
       expect(result).toStrictEqual({
         chain_id_source: 'eip155:1',
         chain_id_destination: 'eip155:2',
-        token_address_destination: undefined,
+        token_address_destination: null,
         token_address_source: 'eip155:1/slip44:60',
       });
     });

@@ -478,7 +478,7 @@ describe('BridgeController', function () {
     expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
     expect(getLayer1GasFeeMock).not.toHaveBeenCalled();
 
-    expect(trackMetaMetricsFn).toHaveBeenCalledTimes(9);
+    expect(trackMetaMetricsFn).toHaveBeenCalledTimes(8);
     // eslint-disable-next-line jest/no-restricted-matchers
     expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
   });
@@ -1213,6 +1213,7 @@ describe('BridgeController', function () {
         {
           location: MetaMetricsSwapsEventSource.MainView,
           token_symbol_source: 'ETH',
+          token_symbol_destination: null,
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -1279,6 +1280,9 @@ describe('BridgeController', function () {
           is_hardware_wallet: false,
           swap_type: MetricsSwapType.CROSSCHAIN,
           action_type: MetricsActionType.CROSSCHAIN_V1,
+          chain_id_destination: formatChainIdToCaip(10),
+          token_symbol_destination: 'USDC',
+          token_address_destination: getNativeAssetForChainId(10).assetId,
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -1313,6 +1317,9 @@ describe('BridgeController', function () {
           usd_quoted_gas: 0,
           quoted_time_minutes: 0,
           usd_quoted_return: 0,
+          chain_id_destination: formatChainIdToCaip(10),
+          token_symbol_destination: 'USDC',
+          token_address_destination: getNativeAssetForChainId(10).assetId,
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -1345,6 +1352,10 @@ describe('BridgeController', function () {
           stx_enabled: false,
           is_hardware_wallet: false,
           swap_type: MetricsSwapType.CROSSCHAIN,
+          chain_id_destination: formatChainIdToCaip(ChainId.SOLANA),
+          token_symbol_destination: 'USDC',
+          token_address_destination: getNativeAssetForChainId(ChainId.SOLANA)
+            .assetId,
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);

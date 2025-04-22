@@ -12,7 +12,7 @@ import {
   formatChainIdToCaip,
 } from '../caip-formatters';
 
-export const quoteRequestToInputChangedProperties: Partial<
+export const toInputChangedPropertyKey: Partial<
   Record<keyof QuoteRequest, InputKeys>
 > = {
   srcTokenAddress: 'token_source',
@@ -22,9 +22,9 @@ export const quoteRequestToInputChangedProperties: Partial<
   slippage: 'slippage',
 };
 
-export const quoteRequestToInputChangedPropertyValues: Partial<
+export const toInputChangedPropertyValue: Partial<
   Record<
-    keyof QuoteRequest,
+    keyof typeof toInputChangedPropertyKey,
     (
       value: Partial<GenericQuoteRequest>,
     ) => InputValues[keyof InputValues] | undefined
@@ -101,16 +101,18 @@ export const getRequestParams = (
 ) => {
   return {
     chain_id_source: srcChainIdCaip,
-    chain_id_destination: destChainId
-      ? formatChainIdToCaip(destChainId)
-      : undefined,
+    chain_id_destination: destChainId ? formatChainIdToCaip(destChainId) : null,
     token_address_source: srcTokenAddress
       ? (formatAddressToAssetId(srcTokenAddress, srcChainIdCaip) ??
-        getNativeAssetForChainId(srcChainIdCaip)?.assetId)
-      : getNativeAssetForChainId(srcChainIdCaip)?.assetId,
+        getNativeAssetForChainId(srcChainIdCaip)?.assetId ??
+        null)
+      : (getNativeAssetForChainId(srcChainIdCaip)?.assetId ?? null),
     token_address_destination: destTokenAddress
-      ? formatAddressToAssetId(destTokenAddress, destChainId ?? srcChainIdCaip)
-      : undefined,
+      ? (formatAddressToAssetId(
+          destTokenAddress,
+          destChainId ?? srcChainIdCaip,
+        ) ?? null)
+      : null,
   };
 };
 

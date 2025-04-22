@@ -13,11 +13,11 @@ import type { SortOrder, StatusTypes } from '../../types';
  */
 export type RequestParams = {
   chain_id_source: CaipChainId;
-  chain_id_destination?: CaipChainId;
+  chain_id_destination: CaipChainId | null;
   token_symbol_source: string;
-  token_symbol_destination?: string;
+  token_symbol_destination: string | null;
   token_address_source: CaipAssetType;
-  token_address_destination?: CaipAssetType;
+  token_address_destination: CaipAssetType | null;
 };
 
 export type RequestMetadata = {
@@ -113,7 +113,6 @@ export type RequiredEventContextFromClient = {
     RequestMetadata,
     'stx_enabled'
   > & {
-    error_message: string;
     token_symbol_source: RequestParams['token_symbol_source'];
     token_symbol_destination: RequestParams['token_symbol_destination'];
     /*
@@ -195,6 +194,7 @@ export type EventPropertiesFromControllerState = {
   [UnifiedSwapBridgeEventName.QuoteError]: RequestParams &
     RequestMetadata & {
       has_sufficient_funds: boolean;
+      error_message: string;
     };
   [UnifiedSwapBridgeEventName.SnapConfirmationViewed]: RequestMetadata &
     RequestParams;

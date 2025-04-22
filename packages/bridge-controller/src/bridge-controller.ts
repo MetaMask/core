@@ -58,8 +58,8 @@ import {
   getSwapTypeFromQuote,
   isCustomSlippage,
   isHardwareWallet,
-  quoteRequestToInputChangedProperties,
-  quoteRequestToInputChangedPropertyValues,
+  toInputChangedPropertyKey,
+  toInputChangedPropertyValue,
 } from './utils/metrics/properties';
 import type {
   QuoteFetchData,
@@ -111,20 +111,25 @@ const metadata: StateMetadata<BridgeControllerState> = {
 
 const RESET_STATE_ABORT_MESSAGE = 'Reset controller state';
 
-/** The input to start polling for the {@link BridgeController} */
+/**
+ * The input to start polling for the {@link BridgeController}
+ *
+ * @param networkClientId - The network client ID of the selected network
+ * @param updatedQuoteRequest - The updated quote request
+ * @param context - The context contains properties that can't be populated by the
+ * controller and need to be provided by the client for analytics
+ */
 type BridgePollingInput = {
   networkClientId: NetworkClientId;
   updatedQuoteRequest: GenericQuoteRequest;
-  context: {
-    stx_enabled: boolean;
-    token_symbol_source: string;
-    token_symbol_destination: string;
-    security_warnings: string[];
-    warnings: string[];
-    provider?: `${string}_${string}`;
-    best_quote_provider?: `${string}_${string}`;
-    usd_amount_source: number;
-  };
+  context: Pick<
+    RequiredEventContextFromClient,
+    UnifiedSwapBridgeEventName.QuoteError
+  >[UnifiedSwapBridgeEventName.QuoteError] &
+    Pick<
+      RequiredEventContextFromClient,
+      UnifiedSwapBridgeEventName.QuotesRequested
+    >[UnifiedSwapBridgeEventName.QuotesRequested];
 };
 
 export class BridgeController extends StaticIntervalPollingController<BridgePollingInput>()<
@@ -238,20 +243,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.stopAllPolling();
     this.#abortController?.abort('Quote request updated');
 
-    Object.keys(paramsToUpdate).forEach((key) => {
-      const input =
-        quoteRequestToInputChangedProperties[key as keyof QuoteRequest];
-      const inputValue =
-        quoteRequestToInputChangedPropertyValues[key as keyof QuoteRequest]?.(
-          paramsToUpdate,
-        );
-      if (input && inputValue) {
-        this.trackMetaMetricsEvent(UnifiedSwapBridgeEventName.InputChanged, {
-          input,
-          value: inputValue,
-        });
-      }
-    });
+    this.#trackInputChangedEvents(paramsToUpdate);
 
     const updatedQuoteRequest = {
       ...DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest,
@@ -519,11 +511,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           error instanceof Error ? error.message : 'Unknown error';
         state.quotesLoadingStatus = RequestStatus.ERROR;
         state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
-        this.trackMetaMetricsEvent(UnifiedSwapBridgeEventName.QuoteError, {
-          error_message: state.quoteFetchError,
-          ...context,
-        });
       });
+      this.trackMetaMetricsEvent(
+        UnifiedSwapBridgeEventName.QuoteError,
+        context,
+      );
       console.log('Failed to fetch bridge quotes', error);
     } finally {
       const { maxRefreshCount } =
@@ -733,6 +725,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         return {
           ...this.#getRequestParams(),
           ...this.#getRequestMetadata(),
+          error_message: this.state.quoteFetchError,
           has_sufficient_funds: !this.state.quoteRequest.insufficientBal,
           ...baseProperties,
         };
@@ -760,6 +753,28 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       default:
         return baseProperties;
     }
+  };
+
+  readonly #trackInputChangedEvents = (
+    paramsToUpdate: Partial<GenericQuoteRequest>,
+  ) => {
+    Object.entries(paramsToUpdate).forEach(([key, value]) => {
+      const inputKey = toInputChangedPropertyKey[key as keyof QuoteRequest];
+      const inputValue =
+        toInputChangedPropertyValue[key as keyof QuoteRequest]?.(
+          paramsToUpdate,
+        );
+      if (
+        inputKey &&
+        inputValue !== undefined &&
+        value !== this.state.quoteRequest[key as keyof GenericQuoteRequest]
+      ) {
+        this.trackMetaMetricsEvent(UnifiedSwapBridgeEventName.InputChanged, {
+          input: inputKey,
+          value: inputValue,
+        });
+      }
+    });
   };
 
   /**
