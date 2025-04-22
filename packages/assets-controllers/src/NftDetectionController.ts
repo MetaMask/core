@@ -63,9 +63,9 @@ export type NftDetectionControllerMessenger = RestrictedMessenger<
 const supportedNftDetectionNetworks: Set<Hex> = new Set([
   // TODO: We should consider passing this constant from the NftDetectionController contructor
   // to reduce the complexity to add further network into this constant
-  "0x1", // Mainnet
-  "0xe708", // Linea Mainnet
-  "0x531", // Sei
+  '0x1', // Mainnet
+  '0xe708', // Linea Mainnet
+  '0x531', // Sei
 ]);
 
 /**
