@@ -642,7 +642,7 @@ describe('NetworkController', () => {
 
   describe('enableRpcFailover', () => {
     describe('if the controller was initialized with isRpcFailoverEnabled = false', () => {
-      it.only('calls withRpcFailoverEnabled on only the network clients whose RPC endpoints have configured failover URLs', async () => {
+      it('calls enableRpcFailover on only the network clients whose RPC endpoints have configured failover URLs', async () => {
         await withController(
           {
             isRpcFailoverEnabled: false,
@@ -695,7 +695,7 @@ describe('NetworkController', () => {
               .mockImplementation((...args) => {
                 const autoManagedNetworkClient =
                   originalCreateAutoManagedNetworkClient(...args);
-                jest.spyOn(autoManagedNetworkClient, 'withRpcFailoverEnabled');
+                jest.spyOn(autoManagedNetworkClient, 'enableRpcFailover');
                 autoManagedNetworkClients.push(autoManagedNetworkClient);
                 return autoManagedNetworkClient;
               });
@@ -704,13 +704,13 @@ describe('NetworkController', () => {
 
             expect(autoManagedNetworkClients).toHaveLength(3);
             expect(
-              autoManagedNetworkClients[0].withRpcFailoverEnabled,
+              autoManagedNetworkClients[0].enableRpcFailover,
             ).not.toHaveBeenCalled();
             expect(
-              autoManagedNetworkClients[1].withRpcFailoverEnabled,
+              autoManagedNetworkClients[1].enableRpcFailover,
             ).toHaveBeenCalled();
             expect(
-              autoManagedNetworkClients[2].withRpcFailoverEnabled,
+              autoManagedNetworkClients[2].enableRpcFailover,
             ).toHaveBeenCalled();
           },
         );
@@ -718,7 +718,7 @@ describe('NetworkController', () => {
     });
 
     describe('if the controller was initialized with isRpcFailoverEnabled = true', () => {
-      it.only('does not call createAutoManagedNetworkClient at all', async () => {
+      it('does not call createAutoManagedNetworkClient at all', async () => {
         await withController(
           {
             isRpcFailoverEnabled: true,
@@ -771,7 +771,7 @@ describe('NetworkController', () => {
               .mockImplementation((...args) => {
                 const autoManagedNetworkClient =
                   originalCreateAutoManagedNetworkClient(...args);
-                jest.spyOn(autoManagedNetworkClient, 'withRpcFailoverEnabled');
+                jest.spyOn(autoManagedNetworkClient, 'enableRpcFailover');
                 autoManagedNetworkClients.push(autoManagedNetworkClient);
                 return autoManagedNetworkClient;
               });
@@ -787,7 +787,7 @@ describe('NetworkController', () => {
 
   describe('disableRpcFailover', () => {
     describe('if the controller was initialized with isRpcFailoverEnabled = true', () => {
-      it.only('calls withRpcFailoverDisabled on only the network clients whose RPC endpoints have configured failover URLs', async () => {
+      it('calls disableRpcFailover on only the network clients whose RPC endpoints have configured failover URLs', async () => {
         await withController(
           {
             isRpcFailoverEnabled: true,
@@ -840,7 +840,7 @@ describe('NetworkController', () => {
               .mockImplementation((...args) => {
                 const autoManagedNetworkClient =
                   originalCreateAutoManagedNetworkClient(...args);
-                jest.spyOn(autoManagedNetworkClient, 'withRpcFailoverDisabled');
+                jest.spyOn(autoManagedNetworkClient, 'disableRpcFailover');
                 autoManagedNetworkClients.push(autoManagedNetworkClient);
                 return autoManagedNetworkClient;
               });
@@ -849,13 +849,13 @@ describe('NetworkController', () => {
 
             expect(autoManagedNetworkClients).toHaveLength(3);
             expect(
-              autoManagedNetworkClients[0].withRpcFailoverDisabled,
+              autoManagedNetworkClients[0].disableRpcFailover,
             ).not.toHaveBeenCalled();
             expect(
-              autoManagedNetworkClients[1].withRpcFailoverDisabled,
+              autoManagedNetworkClients[1].disableRpcFailover,
             ).toHaveBeenCalled();
             expect(
-              autoManagedNetworkClients[2].withRpcFailoverDisabled,
+              autoManagedNetworkClients[2].disableRpcFailover,
             ).toHaveBeenCalled();
           },
         );
@@ -863,7 +863,7 @@ describe('NetworkController', () => {
     });
 
     describe('if the controller was initialized with isRpcFailoverEnabled = false', () => {
-      it.only('does not call createAutoManagedNetworkClient at all', async () => {
+      it('does not call createAutoManagedNetworkClient at all', async () => {
         await withController(
           {
             isRpcFailoverEnabled: false,
@@ -916,7 +916,7 @@ describe('NetworkController', () => {
               .mockImplementation((...args) => {
                 const autoManagedNetworkClient =
                   originalCreateAutoManagedNetworkClient(...args);
-                jest.spyOn(autoManagedNetworkClient, 'withRpcFailoverDisabled');
+                jest.spyOn(autoManagedNetworkClient, 'disableRpcFailover');
                 autoManagedNetworkClients.push(autoManagedNetworkClient);
                 return autoManagedNetworkClient;
               });
@@ -1522,6 +1522,8 @@ describe('NetworkController', () => {
                 },
                 provider: expect.anything(),
                 destroy: expect.any(Function),
+                enableRpcFailover: expect.any(Function),
+                disableRpcFailover: expect.any(Function),
               },
               'linea-sepolia': {
                 blockTracker: expect.anything(),
@@ -1535,6 +1537,8 @@ describe('NetworkController', () => {
                 },
                 provider: expect.anything(),
                 destroy: expect.any(Function),
+                enableRpcFailover: expect.any(Function),
+                disableRpcFailover: expect.any(Function),
               },
               mainnet: {
                 blockTracker: expect.anything(),
@@ -1548,6 +1552,8 @@ describe('NetworkController', () => {
                 },
                 provider: expect.anything(),
                 destroy: expect.any(Function),
+                enableRpcFailover: expect.any(Function),
+                disableRpcFailover: expect.any(Function),
               },
               sepolia: {
                 blockTracker: expect.anything(),
@@ -1561,6 +1567,8 @@ describe('NetworkController', () => {
                 },
                 provider: expect.anything(),
                 destroy: expect.any(Function),
+                enableRpcFailover: expect.any(Function),
+                disableRpcFailover: expect.any(Function),
               },
             });
           },
@@ -1615,6 +1623,8 @@ describe('NetworkController', () => {
                 },
                 provider: expect.anything(),
                 destroy: expect.any(Function),
+                enableRpcFailover: expect.any(Function),
+                disableRpcFailover: expect.any(Function),
               },
               'BBBB-BBBB-BBBB-BBBB': {
                 blockTracker: expect.anything(),
@@ -1627,6 +1637,8 @@ describe('NetworkController', () => {
                 },
                 provider: expect.anything(),
                 destroy: expect.any(Function),
+                enableRpcFailover: expect.any(Function),
+                disableRpcFailover: expect.any(Function),
               },
             });
           },

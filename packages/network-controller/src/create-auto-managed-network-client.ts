@@ -40,8 +40,8 @@ export type AutoManagedNetworkClient<
   provider: ProxyWithAccessibleTarget<Provider>;
   blockTracker: ProxyWithAccessibleTarget<BlockTracker>;
   destroy: () => void;
-  withRpcFailoverEnabled: () => AutoManagedNetworkClient<Configuration>;
-  withRpcFailoverDisabled: () => AutoManagedNetworkClient<Configuration>;
+  enableRpcFailover: () => void;
+  disableRpcFailover: () => void;
 };
 
 /**
@@ -203,22 +203,16 @@ export function createAutoManagedNetworkClient<
     networkClient?.destroy();
   };
 
-  const withRpcFailoverEnabled = () => {
-    return createAutoManagedNetworkClient({
-      networkClientConfiguration,
-      getRpcServiceOptions,
-      messenger,
-      isRpcFailoverEnabled: true,
-    });
+  const enableRpcFailover = () => {
+    isRpcFailoverEnabled = true;
+    destroy();
+    networkClient = undefined;
   };
 
-  const withRpcFailoverDisabled = () => {
-    return createAutoManagedNetworkClient({
-      networkClientConfiguration,
-      getRpcServiceOptions,
-      messenger,
-      isRpcFailoverEnabled: false,
-    });
+  const disableRpcFailover = () => {
+    isRpcFailoverEnabled = false;
+    destroy();
+    networkClient = undefined;
   };
 
   return {
@@ -226,7 +220,7 @@ export function createAutoManagedNetworkClient<
     provider: providerProxy,
     blockTracker: blockTrackerProxy,
     destroy,
-    withRpcFailoverEnabled,
-    withRpcFailoverDisabled,
+    enableRpcFailover,
+    disableRpcFailover,
   };
 }

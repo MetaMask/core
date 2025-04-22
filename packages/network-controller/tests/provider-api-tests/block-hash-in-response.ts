@@ -6,8 +6,8 @@ import {
   withMockedCommunications,
   withNetworkClient,
 } from './helpers';
-import { NetworkClientType } from '../../src/types';
 import { testsForRpcFailoverBehavior } from './rpc-failover';
+import { NetworkClientType } from '../../src/types';
 
 type TestsForRpcMethodThatCheckForBlockHashInResponseOptions = {
   providerType: ProviderType;
