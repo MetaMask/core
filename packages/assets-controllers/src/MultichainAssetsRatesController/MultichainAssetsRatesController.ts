@@ -28,6 +28,7 @@ import type {
 import { HandlerType } from '@metamask/snaps-utils';
 import { Mutex } from 'async-mutex';
 import type { Draft } from 'immer';
+import { isEqual } from 'lodash';
 
 import { MAP_CAIP_CURRENCIES } from './constant';
 import type {
@@ -389,6 +390,8 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
             },
           };
         });
+        // cleanup all historical prices that have expired
+        this.#cleanupHistoricalPrices();
       } catch {
         throw new Error(
           `Failed to fetch historical prices for asset: ${asset}`,
@@ -397,6 +400,45 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
     })().finally(() => {
       releaseLock();
     });
+  }
+
+  #cleanupHistoricalPrices() {
+    const allHistoricalPrices = this.state.historicalPrices;
+    const cleanedHistoricalPrices =
+      this.#removeExpiredEntries(allHistoricalPrices);
+
+    // do not update state if no changes
+    if (isEqual(allHistoricalPrices, cleanedHistoricalPrices)) {
+      return;
+    }
+
+    this.update((state) => {
+      state.historicalPrices = cleanedHistoricalPrices;
+    });
+  }
+
+  #removeExpiredEntries(
+    data: Record<CaipAssetType, Record<string, HistoricalPrice>>,
+  ): Record<CaipAssetType, Record<string, HistoricalPrice>> {
+    const now = Date.now();
+    const result: Record<CaipAssetType, Record<string, HistoricalPrice>> = {};
+
+    Object.entries(data).forEach(([assetId, currencies]) => {
+      const validCurrencies: Record<string, HistoricalPrice> = {};
+
+      Object.entries(currencies).forEach(([currency, details]) => {
+        const exp = details.expirationTime;
+        if (exp === undefined || exp > now) {
+          validCurrencies[currency] = details;
+        }
+      });
+
+      if (Object.keys(validCurrencies).length > 0) {
+        result[assetId as CaipAssetType] = validCurrencies;
+      }
+    });
+
+    return result;
   }
 
   /**

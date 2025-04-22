@@ -99,7 +99,8 @@ const fakeHistoricalPrices: OnAssetHistoricalPriceResponse = {
       ],
     },
     updateTime: 1737542312,
-    expirationTime: 1737542312,
+    // expirationTime is in 1Hour based on current Date.now()
+    expirationTime: Date.now() + 1000 * 60 * 60,
   },
 };
 
@@ -626,6 +627,98 @@ describe('MultichainAssetsRatesController', () => {
       await controller.fetchHistoricalPricesForAsset(testAsset);
 
       expect(snapHandler).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not clean up any of the prices if none of them have expired', async () => {
+      const testCurrency = 'EUR';
+      const testNativeAssetPrices = {
+        intervals: {},
+        updateTime: Date.now(),
+        expirationTime: Date.now() + 1000, // not expired
+      };
+      const testTokenAssetPrices = {
+        intervals: {},
+        updateTime: Date.now(),
+        expirationTime: Date.now() + 1000, // not expired
+      };
+      const { controller, messenger } = setupController({
+        config: {
+          state: {
+            historicalPrices: {
+              'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+                [testCurrency]: testNativeAssetPrices,
+              },
+              'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:testToken1': {
+                [testCurrency]: testTokenAssetPrices,
+              },
+            },
+          },
+        },
+      });
+
+      const snapHandler = jest.fn().mockResolvedValue(fakeHistoricalPrices);
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        snapHandler,
+      );
+
+      await controller.fetchHistoricalPricesForAsset(
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+      );
+
+      expect(snapHandler).toHaveBeenCalledTimes(1);
+      expect(controller.state.historicalPrices).toStrictEqual({
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+          USD: fakeHistoricalPrices.historicalPrice,
+          EUR: testNativeAssetPrices,
+        },
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:testToken1': {
+          EUR: testTokenAssetPrices,
+        },
+      });
+    });
+
+    it('cleans up all historical prices that have expired', async () => {
+      const testCurrency = 'EUR';
+      const { controller, messenger } = setupController({
+        config: {
+          state: {
+            historicalPrices: {
+              'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+                [testCurrency]: {
+                  intervals: {},
+                  updateTime: Date.now(),
+                  expirationTime: Date.now() - 1000, // expired
+                },
+              },
+              'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:testToken1': {
+                [testCurrency]: {
+                  intervals: {},
+                  updateTime: Date.now(),
+                  expirationTime: Date.now() - 1000, // expired
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const snapHandler = jest.fn().mockResolvedValue(fakeHistoricalPrices);
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        snapHandler,
+      );
+
+      await controller.fetchHistoricalPricesForAsset(
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+      );
+
+      expect(snapHandler).toHaveBeenCalledTimes(1);
+      expect(controller.state.historicalPrices).toStrictEqual({
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+          USD: fakeHistoricalPrices.historicalPrice,
+        },
+      });
     });
   });
 });
