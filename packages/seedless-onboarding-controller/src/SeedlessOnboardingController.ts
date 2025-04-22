@@ -133,6 +133,20 @@ export class SeedlessOnboardingController extends BaseController<
   #password?: string;
 
   /**
+   * Note: This lock is not the same as the keyring/wallet lock.
+   *
+   * The `locked` state related to the keyring (wallet) `locked` state.
+   * However, the `unlock` state is not dependent on the keyring lock state
+   *
+   * The reason for this is that, Seedless Onboarding flow can be before/after the keyring generation.
+   *
+   * Example:
+   * - For registration flow, we need to generate the keyring first and then perform the Seedless Onboarding flow and backup the seed phrase.
+   * - For login flow, we need to perform the Seedless Onboarding flow (fetch the seed phrase backup) then we can create the keyring with the recovered seed phrase.
+   */
+  #isUnlocked = false;
+
+  /**
    * Creates a new SeedlessOnboardingController instance.
    *
    * @param options - The options for the SeedlessOnboardingController.
@@ -161,6 +175,10 @@ export class SeedlessOnboardingController extends BaseController<
     this.toprfClient = new ToprfSecureBackup({
       network,
     });
+
+    // setup subscriptions to the keyring lock event
+    // when the keyring is locked (wallet is locked), the controller will be cleared of its credentials
+    this.messagingSystem.subscribe('KeyringController:lock', this.#setLocked);
   }
 
   /**
@@ -319,6 +337,7 @@ export class SeedlessOnboardingController extends BaseController<
    * @param oldPassword - The old password to verify.
    */
   async changePassword(newPassword: string, oldPassword: string) {
+    this.#assertIsUnlocked();
     // verify the old password of the encrypted vault
     await this.#verifyPassword(oldPassword);
 
@@ -350,6 +369,45 @@ export class SeedlessOnboardingController extends BaseController<
   getSeedPhraseBackupHash(seedPhrase: Uint8Array): string | undefined {
     const seedPhraseHash = keccak256AndHexify(seedPhrase);
     return this.state.backupHashes.find((hash) => hash === seedPhraseHash);
+  }
+
+  /**
+   * Submit the password to the controller, verify the password validity and unlock the controller.
+   *
+   * This method will be used especially when user rehydrate/unlock the wallet.
+   * The provided password will be verified against the encrypted vault, encryption key will be derived and saved in the controller state.
+   *
+   * This operation is useful when user performs some actions that requires the user password/encryption key. e.g. add new srp backup
+   *
+   * @param password - The password to submit.
+   */
+  async submitPassword(password: string): Promise<void> {
+    this.#password = password;
+
+    await this.#unlockVaultAndGetBackupEncKey();
+    this.#setUnlocked();
+  }
+
+  /**
+   * Set the controller to locked state, and deallocate the secrets (password,vault encryption key and salt).
+   *
+   * When the controller is locked, the user will not be able to perform any operations on the controller/vault.
+   */
+  #setLocked(): void {
+    this.#assertIsUnlocked();
+
+    this.#password = undefined;
+
+    this.update((state) => {
+      delete state.vaultEncryptionKey;
+      delete state.vaultEncryptionSalt;
+    });
+
+    this.#isUnlocked = false;
+  }
+
+  #setUnlocked(): void {
+    this.#isUnlocked = true;
   }
 
   /**
@@ -514,6 +572,7 @@ export class SeedlessOnboardingController extends BaseController<
       }
 
       let decryptedVaultData: unknown;
+      const updatedState: Partial<SeedlessOnboardingControllerState> = {};
 
       if (password) {
         assertIsValidPassword(password);
@@ -525,6 +584,8 @@ export class SeedlessOnboardingController extends BaseController<
           encryptedVault,
         );
         decryptedVaultData = result.vault;
+        updatedState.vaultEncryptionKey = result.exportedKeyString;
+        updatedState.vaultEncryptionSalt = result.salt;
       } else {
         const parsedEncryptedVault = JSON.parse(encryptedVault);
 
@@ -543,6 +604,8 @@ export class SeedlessOnboardingController extends BaseController<
           key,
           parsedEncryptedVault,
         );
+        updatedState.vaultEncryptionKey = vaultEncryptionKey;
+        updatedState.vaultEncryptionSalt = vaultEncryptionSalt;
       }
 
       const { nodeAuthTokens, toprfEncryptionKey, toprfAuthKeyPair } =
@@ -551,6 +614,8 @@ export class SeedlessOnboardingController extends BaseController<
       // update the state with the restored nodeAuthTokens
       this.update((state) => {
         state.nodeAuthTokens = nodeAuthTokens;
+        state.vaultEncryptionKey = updatedState.vaultEncryptionKey;
+        state.vaultEncryptionSalt = updatedState.vaultEncryptionSalt;
       });
 
       return { nodeAuthTokens, toprfEncryptionKey, toprfAuthKeyPair };
@@ -629,6 +694,7 @@ export class SeedlessOnboardingController extends BaseController<
     rawToprfAuthKeyPair: KeyPair;
   }): Promise<void> {
     this.#assertIsAuthenticatedUser(this.state);
+    this.#setUnlocked();
 
     const { toprfEncryptionKey, toprfAuthKeyPair } = this.#serializeKeyData(
       rawToprfEncryptionKey,
@@ -771,6 +837,12 @@ export class SeedlessOnboardingController extends BaseController<
       toprfEncryptionKey: rawToprfEncryptionKey,
       toprfAuthKeyPair: rawToprfAuthKeyPair,
     };
+  }
+
+  #assertIsUnlocked(): void {
+    if (!this.#isUnlocked) {
+      throw new Error(SeedlessOnboardingControllerError.ControllerLocked);
+    }
   }
 
   /**
