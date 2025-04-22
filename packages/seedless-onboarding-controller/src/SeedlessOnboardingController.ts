@@ -251,6 +251,25 @@ export class SeedlessOnboardingController extends BaseController<
   }
 
   /**
+   * Add a new seed phrase backup to the metadata store.
+   *
+   * @param seedPhrase - The seed phrase to backup.
+   * @returns A promise that resolves to the success of the operation.
+   */
+  async addNewSeedPhraseBackup(seedPhrase: Uint8Array): Promise<void> {
+    // verify the password and unlock the vault
+    const { toprfEncryptionKey, toprfAuthKeyPair } =
+      await this.#unlockVaultAndGetBackupEncKey();
+
+    // encrypt and store the seed phrase backup
+    await this.#encryptAndStoreSeedPhraseBackup(
+      seedPhrase,
+      toprfEncryptionKey,
+      toprfAuthKeyPair,
+    );
+  }
+
+  /**
    * Fetches all encrypted seed phrases and metadata for user's account from the metadata store.
    *
    * Decrypts the seed phrases and returns the decrypted seed phrases using the recovered encryption key from the password.
@@ -473,7 +492,7 @@ export class SeedlessOnboardingController extends BaseController<
    * - The password is incorrect (from encryptor.decrypt)
    * - The decrypted vault data is malformed
    */
-  async #unlockVaultWithPassword(): Promise<{
+  async #unlockVaultAndGetBackupEncKey(): Promise<{
     nodeAuthTokens: NodeAuthTokens;
     toprfEncryptionKey: Uint8Array;
     toprfAuthKeyPair: KeyPair;
