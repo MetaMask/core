@@ -297,7 +297,7 @@ const selectSortedBridgeQuotes = createBridgeSelector(
 
 const selectRecommendedQuote = createBridgeSelector(
   [selectSortedBridgeQuotes],
-  ([recommendedQuote]) => recommendedQuote,
+  (quotes) => (quotes.length > 0 ? quotes[0] : null),
 );
 
 const selectActiveQuote = createBridgeSelector(
