@@ -922,7 +922,7 @@ export interface RemoteTransactionSourceRequest {
   address: Hex;
 
   /**
-   * Numerical cache to optimize fetching transactions.
+   * Cache to optimize fetching transactions.
    */
   cache: Record<string, unknown>;
 

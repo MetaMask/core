@@ -26,11 +26,13 @@ const VALIDATE_BATCH_REQUEST_MOCK = {
       {
         params: {
           to: '0xabc' as Hex,
+          data: '0xcba' as Hex,
         },
       },
       {
         params: {
           to: TO_MOCK,
+          data: '0x321' as Hex,
         },
       },
     ],
@@ -835,18 +837,40 @@ describe('validation', () => {
   });
 
   describe('validateBatchRequest', () => {
-    it('throws if external origin and any transaction target is internal account', () => {
+    it('throws if external origin and any transaction target is internal account with data', () => {
       expect(() =>
         validateBatchRequest({
           ...VALIDATE_BATCH_REQUEST_MOCK,
           internalAccounts: ['0x123', TO_MOCK],
         }),
       ).toThrow(
-        rpcErrors.invalidParams('Calls to internal accounts are not supported'),
+        rpcErrors.invalidParams(
+          'External calls to internal accounts cannot include data',
+        ),
       );
     });
 
-    it('does not throw if no origin and any transaction target is internal account', () => {
+    it('does not throw if external origin and transaction target is internal account but no data', () => {
+      expect(() =>
+        validateBatchRequest({
+          ...VALIDATE_BATCH_REQUEST_MOCK,
+          internalAccounts: ['0x123', TO_MOCK],
+          request: {
+            ...VALIDATE_BATCH_REQUEST_MOCK.request,
+            transactions: [
+              {
+                params: {
+                  to: TO_MOCK,
+                  data: undefined,
+                },
+              },
+            ],
+          },
+        }),
+      ).not.toThrow();
+    });
+
+    it('does not throw if no origin and any transaction target is internal account with data', () => {
       expect(() =>
         validateBatchRequest({
           ...VALIDATE_BATCH_REQUEST_MOCK,
@@ -859,7 +883,7 @@ describe('validation', () => {
       ).not.toThrow();
     });
 
-    it('does not throw if internal origin and any transaction target is internal account', () => {
+    it('does not throw if internal origin and any transaction target is internal account with data', () => {
       expect(() =>
         validateBatchRequest({
           ...VALIDATE_BATCH_REQUEST_MOCK,

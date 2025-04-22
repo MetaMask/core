@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [54.1.0]
+
+### Changed
+
+- Configure gas estimation buffers using feature flags ([#5637](https://github.com/MetaMask/core/pull/5637))
+- Update error codes for duplicate batch ID and batch size limit errors ([#5635](https://github.com/MetaMask/core/pull/5635))
+
+### Fixed
+
+- Do not use fixed gas for type 4 transactions ([#5646](https://github.com/MetaMask/core/pull/5646))
+- Throw if `addTransactionBatch` is called with any nested transaction with `to` matching internal account and including `data` ([#5635](https://github.com/MetaMask/core/pull/5635))
+- Fix incoming transaction support with `queryEntireHistory` set to `false` ([#5582](https://github.com/MetaMask/core/pull/5582))
+
 ## [54.0.0]
 
 ### Added
@@ -1507,7 +1520,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@54.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@54.1.0...HEAD
+[54.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@54.0.0...@metamask/transaction-controller@54.1.0
 [54.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@53.0.0...@metamask/transaction-controller@54.0.0
 [53.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@52.3.0...@metamask/transaction-controller@53.0.0
 [52.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@52.2.0...@metamask/transaction-controller@52.3.0
