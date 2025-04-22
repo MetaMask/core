@@ -70,9 +70,9 @@ export function getDefaultSeedlessOnboardingVaultEncryptor(): VaultEncryptor {
     decrypt,
     decryptWithDetail,
     decryptWithKey,
-    importKey: (key) => {
-      return importKeyBrowserPassworder(key) as Promise<EncryptionKey>;
-    },
+    importKey: importKeyBrowserPassworder as (
+      key: string,
+    ) => Promise<EncryptionKey>,
   };
 }
 
@@ -509,13 +509,23 @@ export class SeedlessOnboardingController extends BaseController<
         throw new Error(SeedlessOnboardingControllerError.VaultError);
       }
 
-      if (!vaultEncryptionKey || !password) {
+      if (!vaultEncryptionKey && !password) {
         throw new Error(SeedlessOnboardingControllerError.MissingCredentials);
       }
 
       let decryptedVaultData: unknown;
 
-      if (vaultEncryptionKey) {
+      if (password) {
+        assertIsValidPassword(password);
+        // Note that vault decryption using the password is a very costly operation as it involves deriving the encryption key
+        // from the password using an intentionally slow key derivation function.
+        // We should make sure that we only call it very intentionally.
+        const result = await this.#vaultEncryptor.decryptWithDetail(
+          password,
+          encryptedVault,
+        );
+        decryptedVaultData = result.vault;
+      } else {
         const parsedEncryptedVault = JSON.parse(encryptedVault);
 
         if (vaultEncryptionSalt !== parsedEncryptedVault.salt) {
@@ -533,16 +543,6 @@ export class SeedlessOnboardingController extends BaseController<
           key,
           parsedEncryptedVault,
         );
-      } else {
-        assertIsValidPassword(password);
-        // Note that vault decryption using the password is a very costly operation as it involves deriving the encryption key
-        // from the password using an intentionally slow key derivation function.
-        // We should make sure that we only call it very intentionally.
-        const result = await this.#vaultEncryptor.decryptWithDetail(
-          password,
-          encryptedVault,
-        );
-        decryptedVaultData = result.vault;
       }
 
       const { nodeAuthTokens, toprfEncryptionKey, toprfAuthKeyPair } =
