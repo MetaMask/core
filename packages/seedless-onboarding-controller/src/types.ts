@@ -45,6 +45,17 @@ export type SeedlessOnboardingControllerState =
      * This is to facilitate the UI to display backup status of the seed phrases.
      */
     backupHashes: string[];
+
+    /**
+     * The encryption key derived from the password and used to encrypt
+     * the vault.
+     */
+    vaultEncryptionKey?: string;
+
+    /**
+     * The salt used to derive the encryption key from the password.
+     */
+    vaultEncryptionSalt?: string;
   };
 
 // Actions

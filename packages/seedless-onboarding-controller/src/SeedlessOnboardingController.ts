@@ -81,6 +81,14 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       persist: true,
       anonymous: true,
     },
+    vaultEncryptionKey: {
+      persist: false,
+      anonymous: true,
+    },
+    vaultEncryptionSalt: {
+      persist: false,
+      anonymous: true,
+    },
   };
 
 export class SeedlessOnboardingController extends BaseController<
