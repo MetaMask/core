@@ -6,6 +6,8 @@ import {
   setNonSCACaipAccountIdsInCaip25CaveatValue,
   getCaipAccountIdsFromScopesObjects,
   getCaipAccountIdsFromCaip25CaveatValue,
+  isCaipAccountIdInPermittedAccountIds,
+  isInternalAccountInPermittedAccountIds,
 } from './caip-permission-adapter-accounts';
 import type { Caip25CaveatValue } from '../caip25Permission';
 import type { InternalScopesObject } from '../scope/types';
@@ -550,4 +552,106 @@ describe('CAIP-25 eth_accounts adapters', () => {
       ]);
     });
   });
+
+  describe('isInternalAccountInPermittedAccountIds', () => {
+    it('returns false if there are no permitted account ids', () => {
+      // @ts-expect-error partial internal account
+      const result = isInternalAccountInPermittedAccountIds({
+        scopes: ['eip155:0'],
+        address: '0xdeadbeef'
+      }, [])
+      expect(result).toStrictEqual(false)
+    })
+
+    it('returns false if there are no exact matching namespaces', () => {
+      // @ts-expect-error partial internal account
+      const result = isInternalAccountInPermittedAccountIds({
+        scopes: ['eip155:1'],
+        address: '0xdeadbeef'
+      }, ['solana:1:0xdeadbeef'])
+      expect(result).toStrictEqual(false)
+    })
+
+    it('returns true if there are exact matching permitted account ids', () => {
+      // @ts-expect-error partial internal account
+      const result = isInternalAccountInPermittedAccountIds({
+        scopes: ['eip155:1'],
+        address: '0xdeadbeef'
+      }, ['eip155:1:0xdeadbeef'])
+      expect(result).toStrictEqual(true)
+    })
+
+    it('returns true if there are exact matching evm references but mismatched address casing', () => {
+      // @ts-expect-error partial internal account
+      const result = isInternalAccountInPermittedAccountIds({
+        scopes: ['eip155:1'],
+        address: '0xdeadbeef'
+      }, ['eip155:1:0xdeadBEEF'])
+      expect(result).toStrictEqual(true)
+    })
+
+    it('returns false if there are exact matching non-evm references but mismatched address casing', () => {
+      // @ts-expect-error partial internal account
+      const result = isInternalAccountInPermittedAccountIds({
+        scopes: ['solana:0'],
+        address: '0xdeadbeef'
+      }, ['solana:1:0xdeadbeef'])
+      expect(result).toStrictEqual(false)
+    })
+
+    it('returns true if there are null reference matching evm references', () => {
+      // @ts-expect-error partial internal account
+      const result = isInternalAccountInPermittedAccountIds({
+        scopes: ['eip155:0'],
+        address: '0xdeadbeef'
+      }, ['eip155:1:0xdeadbeef'])
+      expect(result).toStrictEqual(true)
+    })
+
+    it('returns false if there are no exact matching non-evm references', () => {
+      // @ts-expect-error partial internal account
+      const result = isInternalAccountInPermittedAccountIds({
+        scopes: ['solana:0'],
+        address: '0xdeadbeef'
+      }, ['solana:1:0xdeadbeef'])
+      expect(result).toStrictEqual(false)
+    })
+  })
+
+  describe('isCaipAccountIdInPermittedAccountIds', () => {
+    it('returns false if there are no permitted account ids', () => {
+      const result = isCaipAccountIdInPermittedAccountIds('eip155:1:0xdeadbeef', [])
+      expect(result).toStrictEqual(false)
+    })
+
+    it('returns false if there are no exact matching namespaces', () => {
+      const result = isCaipAccountIdInPermittedAccountIds('eip155:1:0xdeadbeef', ['solana:1:0xdeadbeef'])
+      expect(result).toStrictEqual(false)
+    })
+
+    it('returns true if there are exact matching permitted account ids', () => {
+      const result = isCaipAccountIdInPermittedAccountIds('eip155:1:0xdeadbeef', ['eip155:1:0xdeadbeef'])
+      expect(result).toStrictEqual(true)
+    })
+
+    it('returns true if there are exact matching evm references but mismatched address casing', () => {
+      const result = isCaipAccountIdInPermittedAccountIds('eip155:1:0xdeadbeef', ['eip155:1:0xdeadBEEF'])
+      expect(result).toStrictEqual(true)
+    })
+
+    it('returns false if there are exact matching non-evm references but mismatched address casing', () => {
+      const result = isCaipAccountIdInPermittedAccountIds('solana:1:0xdeadbeef', ['solana:1:0xdeadBEEF'])
+      expect(result).toStrictEqual(false)
+    })
+
+    it('returns true if there are null reference matching evm references', () => {
+      const result = isCaipAccountIdInPermittedAccountIds('eip155:0:0xdeadbeef', ['eip155:1:0xdeadbeef'])
+      expect(result).toStrictEqual(true)
+    })
+
+    it('returns false if there are no exact matching non-evm references', () => {
+      const result = isCaipAccountIdInPermittedAccountIds('solana:0:0xdeadbeef', ['solana:1:0xdeadbeef'])
+      expect(result).toStrictEqual(false)
+    })
+  })
 });

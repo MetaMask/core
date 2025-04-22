@@ -15,6 +15,7 @@ import { KnownWalletScopeString } from '../scope/constants';
 import { getUniqueArrayItems } from '../scope/transform';
 import type { InternalScopeString, InternalScopesObject } from '../scope/types';
 import { parseScopeString } from '../scope/types';
+import { isEqualCaseInsensitive } from '@metamask/controller-utils';
 
 /*
  *
@@ -319,16 +320,18 @@ function isAddressWithParsedScopesInPermittedAccountIds(
 
     return parsedAccountScopes.some(({ namespace, reference }) => {
       if (
-        namespace !== parsedPermittedAccount.chain.namespace ||
-        address !== parsedPermittedAccount.address
+        namespace !== parsedPermittedAccount.chain.namespace
       ) {
         return false;
       }
 
-      return (
-        reference === '0' ||
-        reference === parsedPermittedAccount.chain.reference
-      );
+      // handle eip155:0 case and evm address case insensitivity
+      if (namespace === KnownCaipNamespace.Eip155) {
+        return (reference === '0' || reference === parsedPermittedAccount.chain.reference) &&
+          isEqualCaseInsensitive(address, parsedPermittedAccount.address)
+      } else {
+        return reference === parsedPermittedAccount.chain.reference && address === parsedPermittedAccount.address
+      }
     });
   });
 }
