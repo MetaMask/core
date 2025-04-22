@@ -746,7 +746,7 @@ export class PhishingController extends BaseController<
         return data;
       },
       true,
-      15000, // Increased timeout for bulk requests
+      15000,
     );
 
     // Handle timeout or network errors
