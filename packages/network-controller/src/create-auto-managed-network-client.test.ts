@@ -246,7 +246,7 @@ describe('createAutoManagedNetworkClient', () => {
           });
         });
 
-        it('allows for enabling the RPC failover behavior', async () => {
+        it('allows for enabling the RPC failover behavior, even after having already accessed the provider', async () => {
           mockNetwork({
             networkClientConfiguration,
             mocks: [
@@ -281,7 +281,7 @@ describe('createAutoManagedNetworkClient', () => {
             getBlockTrackerOptions,
             messenger,
             isRpcFailoverEnabled: false,
-          }).withRpcFailoverEnabled();
+          });
           const { provider } = autoManagedNetworkClient;
 
           await provider.request({
@@ -290,16 +290,31 @@ describe('createAutoManagedNetworkClient', () => {
             method: 'test_method',
             params: [],
           });
-          expect(createNetworkClientMock).toHaveBeenCalledWith({
+          autoManagedNetworkClient.enableRpcFailover();
+          await provider.request({
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'test_method',
+            params: [],
+          });
+
+          expect(createNetworkClientMock).toHaveBeenNthCalledWith(1, {
             configuration: networkClientConfiguration,
-            getRpcServiceOptions,
             getBlockTrackerOptions,
+            getRpcServiceOptions,
+            messenger,
+            isRpcFailoverEnabled: false,
+          });
+          expect(createNetworkClientMock).toHaveBeenNthCalledWith(2, {
+            configuration: networkClientConfiguration,
+            getBlockTrackerOptions,
+            getRpcServiceOptions,
             messenger,
             isRpcFailoverEnabled: true,
           });
         });
 
-        it('allows for disabling the RPC failover behavior', async () => {
+        it('allows for disabling the RPC failover behavior, even after having accessed the provider', async () => {
           mockNetwork({
             networkClientConfiguration,
             mocks: [
@@ -334,7 +349,7 @@ describe('createAutoManagedNetworkClient', () => {
             getBlockTrackerOptions,
             messenger,
             isRpcFailoverEnabled: true,
-          }).withRpcFailoverDisabled();
+          });
           const { provider } = autoManagedNetworkClient;
 
           await provider.request({
@@ -343,10 +358,25 @@ describe('createAutoManagedNetworkClient', () => {
             method: 'test_method',
             params: [],
           });
-          expect(createNetworkClientMock).toHaveBeenCalledWith({
+          autoManagedNetworkClient.disableRpcFailover();
+          await provider.request({
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'test_method',
+            params: [],
+          });
+
+          expect(createNetworkClientMock).toHaveBeenNthCalledWith(1, {
             configuration: networkClientConfiguration,
-            getRpcServiceOptions,
             getBlockTrackerOptions,
+            getRpcServiceOptions,
+            messenger,
+            isRpcFailoverEnabled: true,
+          });
+          expect(createNetworkClientMock).toHaveBeenNthCalledWith(2, {
+            configuration: networkClientConfiguration,
+            getBlockTrackerOptions,
+            getRpcServiceOptions,
             messenger,
             isRpcFailoverEnabled: false,
           });
@@ -555,7 +585,7 @@ describe('createAutoManagedNetworkClient', () => {
           });
         });
 
-        it('allows for enabling the RPC failover behavior', async () => {
+        it('allows for enabling the RPC failover behavior, even after having already accessed the provider', async () => {
           mockNetwork({
             networkClientConfiguration,
             mocks: [
@@ -567,6 +597,7 @@ describe('createAutoManagedNetworkClient', () => {
                 response: {
                   result: '0x1',
                 },
+                discardAfterMatching: false,
               },
             ],
           });
@@ -585,17 +616,29 @@ describe('createAutoManagedNetworkClient', () => {
 
           const autoManagedNetworkClient = createAutoManagedNetworkClient({
             networkClientConfiguration,
-            getRpcServiceOptions,
             getBlockTrackerOptions,
+            getRpcServiceOptions,
             messenger,
             isRpcFailoverEnabled: false,
-          }).withRpcFailoverEnabled();
+          });
           const { blockTracker } = autoManagedNetworkClient;
 
           await new Promise((resolve) => {
             blockTracker.once('latest', resolve);
           });
-          expect(createNetworkClientMock).toHaveBeenCalledWith({
+          autoManagedNetworkClient.enableRpcFailover();
+          await new Promise((resolve) => {
+            blockTracker.once('latest', resolve);
+          });
+
+          expect(createNetworkClientMock).toHaveBeenNthCalledWith(1, {
+            configuration: networkClientConfiguration,
+            getBlockTrackerOptions,
+            getRpcServiceOptions,
+            messenger,
+            isRpcFailoverEnabled: false,
+          });
+          expect(createNetworkClientMock).toHaveBeenNthCalledWith(2, {
             configuration: networkClientConfiguration,
             getRpcServiceOptions,
             getBlockTrackerOptions,
@@ -604,7 +647,7 @@ describe('createAutoManagedNetworkClient', () => {
           });
         });
 
-        it('allows for disabling the RPC failover behavior', async () => {
+        it('allows for disabling the RPC failover behavior, even after having already accessed the provider', async () => {
           mockNetwork({
             networkClientConfiguration,
             mocks: [
@@ -616,6 +659,7 @@ describe('createAutoManagedNetworkClient', () => {
                 response: {
                   result: '0x1',
                 },
+                discardAfterMatching: false,
               },
             ],
           });
@@ -638,13 +682,25 @@ describe('createAutoManagedNetworkClient', () => {
             getBlockTrackerOptions,
             messenger,
             isRpcFailoverEnabled: true,
-          }).withRpcFailoverDisabled();
+          });
           const { blockTracker } = autoManagedNetworkClient;
 
           await new Promise((resolve) => {
             blockTracker.once('latest', resolve);
           });
-          expect(createNetworkClientMock).toHaveBeenCalledWith({
+          autoManagedNetworkClient.disableRpcFailover();
+          await new Promise((resolve) => {
+            blockTracker.once('latest', resolve);
+          });
+
+          expect(createNetworkClientMock).toHaveBeenNthCalledWith(1, {
+            configuration: networkClientConfiguration,
+            getBlockTrackerOptions,
+            getRpcServiceOptions,
+            messenger,
+            isRpcFailoverEnabled: true,
+          });
+          expect(createNetworkClientMock).toHaveBeenNthCalledWith(2, {
             configuration: networkClientConfiguration,
             getRpcServiceOptions,
             getBlockTrackerOptions,

@@ -1302,15 +1302,9 @@ export class NetworkController extends BaseController<
           networkClient.configuration.failoverRpcUrls &&
           networkClient.configuration.failoverRpcUrls.length > 0
         ) {
-          networkClient.destroy();
-          const newNetworkClient = newIsRpcFailoverEnabled
-            ? networkClient.withRpcFailoverEnabled()
-            : networkClient.withRpcFailoverDisabled();
-          networkClientsById[
-            networkClientId as keyof typeof networkClientsById
-          ] = newNetworkClient;
-
-          this.#setProxies(newNetworkClient);
+          newIsRpcFailoverEnabled
+            ? networkClient.enableRpcFailover()
+            : networkClient.disableRpcFailover();
         }
       }
     }
