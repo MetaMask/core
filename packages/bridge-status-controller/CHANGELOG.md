@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add analytics tracking for post-tx submission events ([#5684](https://github.com/MetaMask/core/pull/5684))
+- Add optional `isStxEnabled` property to `BridgeHistoryItem` to indicate whether the transaction was submitted as a smart transaction ([#5684](https://github.com/MetaMask/core/pull/5684))
 
 ## [13.1.0]
 
