@@ -1249,6 +1249,96 @@ describe('BridgeController', function () {
       expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
     });
 
+    it('should track the AllQuotesOpened event', () => {
+      bridgeController.trackMetaMetricsEvent(
+        UnifiedSwapBridgeEventName.AllQuotesOpened,
+        {
+          price_impact: 6,
+          token_symbol_source: 'ETH',
+          token_symbol_destination: 'USDC',
+          gas_included: false,
+          stx_enabled: false,
+        },
+      );
+      expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
+      // eslint-disable-next-line jest/no-restricted-matchers
+      expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
+    });
+
+    it('should track the AllQuotesSorted event', () => {
+      bridgeController.trackMetaMetricsEvent(
+        UnifiedSwapBridgeEventName.AllQuotesSorted,
+        {
+          sort_order: SortOrder.COST_ASC,
+          price_impact: 6,
+          gas_included: false,
+          stx_enabled: false,
+          token_symbol_source: 'ETH',
+          best_quote_provider: 'provider_bridge2',
+          token_symbol_destination: 'USDC',
+        },
+      );
+      expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
+      // eslint-disable-next-line jest/no-restricted-matchers
+      expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
+    });
+
+    it('should track the QuoteSelected event', () => {
+      bridgeController.trackMetaMetricsEvent(
+        UnifiedSwapBridgeEventName.QuoteSelected,
+        {
+          is_best_quote: true,
+          usd_quoted_gas: 0,
+          gas_included: false,
+          quoted_time_minutes: 10,
+          usd_quoted_return: 100,
+          price_impact: 0,
+          provider: 'provider_bridge',
+          best_quote_provider: 'provider_bridge2',
+        },
+      );
+      expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
+      // eslint-disable-next-line jest/no-restricted-matchers
+      expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
+    });
+
+    it('should track the QuotesReceived event', () => {
+      bridgeController.trackMetaMetricsEvent(
+        UnifiedSwapBridgeEventName.QuotesReceived,
+        {
+          warnings: ['warning1'],
+          usd_quoted_gas: 0,
+          gas_included: false,
+          quoted_time_minutes: 10,
+          usd_quoted_return: 100,
+          price_impact: 0,
+          provider: 'provider_bridge',
+          best_quote_provider: 'provider_bridge2',
+        },
+      );
+      expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
+      // eslint-disable-next-line jest/no-restricted-matchers
+      expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
+    });
+  });
+
+  describe('trackMetaMetricsEvent bridge-status-controller calls', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      messengerMock.call.mockImplementation(
+        (): ReturnType<BridgeControllerMessenger['call']> => {
+          return {
+            provider: jest.fn() as never,
+            selectedNetworkClientId: 'selectedNetworkClientId',
+            rpcUrl: 'https://mainnet.infura.io/v3/123',
+            configuration: {
+              chainId: 'eip155:1',
+            },
+          } as never;
+        },
+      );
+    });
+
     it('should track the SnapConfirmationViewed event', () => {
       bridgeController.trackMetaMetricsEvent(
         UnifiedSwapBridgeEventName.SnapConfirmationViewed,
@@ -1356,78 +1446,6 @@ describe('BridgeController', function () {
           token_symbol_destination: 'USDC',
           token_address_destination: getNativeAssetForChainId(ChainId.SOLANA)
             .assetId,
-        },
-      );
-      expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
-      // eslint-disable-next-line jest/no-restricted-matchers
-      expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
-    });
-
-    it('should track the AllQuotesOpened event', () => {
-      bridgeController.trackMetaMetricsEvent(
-        UnifiedSwapBridgeEventName.AllQuotesOpened,
-        {
-          price_impact: 6,
-          token_symbol_source: 'ETH',
-          token_symbol_destination: 'USDC',
-          gas_included: false,
-          stx_enabled: false,
-        },
-      );
-      expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
-      // eslint-disable-next-line jest/no-restricted-matchers
-      expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
-    });
-
-    it('should track the AllQuotesSorted event', () => {
-      bridgeController.trackMetaMetricsEvent(
-        UnifiedSwapBridgeEventName.AllQuotesSorted,
-        {
-          sort_order: SortOrder.COST_ASC,
-          price_impact: 6,
-          gas_included: false,
-          stx_enabled: false,
-          token_symbol_source: 'ETH',
-          best_quote_provider: 'provider_bridge2',
-          token_symbol_destination: 'USDC',
-        },
-      );
-      expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
-      // eslint-disable-next-line jest/no-restricted-matchers
-      expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
-    });
-
-    it('should track the QuoteSelected event', () => {
-      bridgeController.trackMetaMetricsEvent(
-        UnifiedSwapBridgeEventName.QuoteSelected,
-        {
-          is_best_quote: true,
-          usd_quoted_gas: 0,
-          gas_included: false,
-          quoted_time_minutes: 10,
-          usd_quoted_return: 100,
-          price_impact: 0,
-          provider: 'provider_bridge',
-          best_quote_provider: 'provider_bridge2',
-        },
-      );
-      expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
-      // eslint-disable-next-line jest/no-restricted-matchers
-      expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
-    });
-
-    it('should track the QuotesReceived event', () => {
-      bridgeController.trackMetaMetricsEvent(
-        UnifiedSwapBridgeEventName.QuotesReceived,
-        {
-          warnings: ['warning1'],
-          usd_quoted_gas: 0,
-          gas_included: false,
-          quoted_time_minutes: 10,
-          usd_quoted_return: 100,
-          price_impact: 0,
-          provider: 'provider_bridge',
-          best_quote_provider: 'provider_bridge2',
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
