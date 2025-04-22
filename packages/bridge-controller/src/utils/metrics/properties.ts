@@ -2,12 +2,7 @@ import type { CaipChainId } from '@metamask/utils';
 
 import { MetricsActionType, MetricsSwapType } from './constants';
 import type { InputKeys, InputValues } from './types';
-import type {
-  BridgeControllerState,
-  Quote,
-  QuoteResponse,
-  TxData,
-} from '../../types';
+import type { BridgeControllerState, QuoteResponse, TxData } from '../../types';
 import { type GenericQuoteRequest, type QuoteRequest } from '../../types';
 import { getNativeAssetForChainId } from '../bridge';
 import {
