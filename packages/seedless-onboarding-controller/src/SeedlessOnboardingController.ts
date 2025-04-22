@@ -213,29 +213,6 @@ export class SeedlessOnboardingController extends BaseController<
   }
 
   /**
-   * Add a new seed phrase backup to the metadata store.
-   *
-   * @param seedPhrase - The seed phrase to backup.
-   * @param password - The password used to create new wallet and seedphrase
-   * @returns A promise that resolves to the success of the operation.
-   */
-  async addNewSeedPhraseBackup(
-    seedPhrase: Uint8Array,
-    password: string, // TODO: to verify whether we need the password here, check how multi-srp is handled in the keyring first.
-  ): Promise<void> {
-    // verify the password and unlock the vault
-    const { toprfEncryptionKey, toprfAuthKeyPair } =
-      await this.#unlockVaultWithPassword(password);
-
-    // encrypt and store the seed phrase backup
-    await this.#encryptAndStoreSeedPhraseBackup(
-      seedPhrase,
-      toprfEncryptionKey,
-      toprfAuthKeyPair,
-    );
-  }
-
-  /**
    * Fetches all encrypted seed phrases and metadata for user's account from the metadata store.
    *
    * Decrypts the seed phrases and returns the decrypted seed phrases using the recovered encryption key from the password.

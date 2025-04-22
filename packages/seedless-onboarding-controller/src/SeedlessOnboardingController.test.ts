@@ -530,6 +530,11 @@ describe('SeedlessOnboardingController', () => {
           );
 
           expect(expectedVaultValue).toStrictEqual(resultedVaultValue);
+
+          // should be able to get the hash of the seed phrase backup from the state
+          expect(
+            controller.getSeedPhraseBackupHash(MOCK_SEED_PHRASE),
+          ).toBeDefined();
         },
       );
     });
@@ -586,6 +591,11 @@ describe('SeedlessOnboardingController', () => {
           );
 
           expect(expectedVaultValue).toStrictEqual(resultedVaultValue);
+
+          // should be able to get the hash of the seed phrase backup from the state
+          expect(
+            controller.getSeedPhraseBackupHash(MOCK_SEED_PHRASE),
+          ).toBeDefined();
         },
       );
     });
@@ -705,106 +715,6 @@ describe('SeedlessOnboardingController', () => {
           ).rejects.toThrow(
             SeedlessOnboardingControllerError.FailedToEncryptAndStoreSeedPhraseBackup,
           );
-        },
-      );
-    });
-  });
-
-  describe('addNewSeedPhraseBackup', () => {
-    const MOCK_PASSWORD = 'mock-password';
-    const NEW_SEED_PHRASE_1 = 'new mock seed phrase 1';
-    const NEW_SEED_PHRASE_2 = 'new mock seed phrase 2';
-    const NEW_SEED_PHRASE_3 = 'new mock seed phrase 3';
-    let MOCK_VAULT = '';
-
-    beforeEach(async () => {
-      const mockToprfEncryptor = createMockToprfEncryptor();
-
-      const MOCK_ENCRYPTION_KEY =
-        mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
-      const MOCK_AUTH_KEY_PAIR =
-        mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
-
-      MOCK_VAULT = await createMockVault(
-        MOCK_ENCRYPTION_KEY,
-        MOCK_AUTH_KEY_PAIR,
-        MOCK_PASSWORD,
-        MOCK_NODE_AUTH_TOKENS,
-      );
-    });
-
-    it('should be able to add a new seed phrase backup', async () => {
-      await withController(
-        { state: getMockInitialControllerState({ vault: MOCK_VAULT }) },
-        async ({ controller }) => {
-          // encrypt and store the secret data
-          const mockSecretDataAdd = handleMockSecretDataAdd();
-          await controller.addNewSeedPhraseBackup(
-            stringToBytes(NEW_SEED_PHRASE_1),
-            MOCK_PASSWORD,
-          );
-
-          expect(mockSecretDataAdd.isDone()).toBe(true);
-          expect(controller.state.nodeAuthTokens).toBeDefined();
-          expect(controller.state.nodeAuthTokens).toStrictEqual(
-            MOCK_NODE_AUTH_TOKENS,
-          );
-        },
-      );
-    });
-
-    it('should be able to add a new seed phrase backup to the existing seed phrase backups', async () => {
-      await withController(
-        { state: getMockInitialControllerState({ vault: MOCK_VAULT }) },
-        async ({ controller }) => {
-          // encrypt and store the secret data
-          const mockSecretDataAdd = handleMockSecretDataAdd();
-          await controller.addNewSeedPhraseBackup(
-            stringToBytes(NEW_SEED_PHRASE_1),
-            MOCK_PASSWORD,
-          );
-
-          expect(mockSecretDataAdd.isDone()).toBe(true);
-          expect(controller.state.nodeAuthTokens).toBeDefined();
-          expect(controller.state.nodeAuthTokens).toStrictEqual(
-            MOCK_NODE_AUTH_TOKENS,
-          );
-          expect(controller.state.backupHashes).toStrictEqual([
-            keccak256AndHexify(stringToBytes(NEW_SEED_PHRASE_1)),
-          ]);
-
-          // add another seed phrase backup
-          const mockSecretDataAdd2 = handleMockSecretDataAdd();
-          await controller.addNewSeedPhraseBackup(
-            stringToBytes(NEW_SEED_PHRASE_2),
-            MOCK_PASSWORD,
-          );
-
-          expect(mockSecretDataAdd2.isDone()).toBe(true);
-          expect(controller.state.nodeAuthTokens).toBeDefined();
-          expect(controller.state.nodeAuthTokens).toStrictEqual(
-            MOCK_NODE_AUTH_TOKENS,
-          );
-
-          const { backupHashes } = controller.state;
-          expect(backupHashes).toStrictEqual([
-            keccak256AndHexify(stringToBytes(NEW_SEED_PHRASE_1)),
-            keccak256AndHexify(stringToBytes(NEW_SEED_PHRASE_2)),
-          ]);
-
-          // should be able to get the hash of the seed phrase backup from the state
-          expect(
-            controller.getSeedPhraseBackupHash(
-              stringToBytes(NEW_SEED_PHRASE_1),
-            ),
-          ).toBeDefined();
-
-          // should return undefined if the seed phrase is not backed up
-          expect(
-            controller.getSeedPhraseBackupHash(
-              stringToBytes(NEW_SEED_PHRASE_3),
-            ),
-          ).toBeUndefined();
         },
       );
     });
