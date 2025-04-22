@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Enhance `bulkScanUrls` method to leverage URL scan cache for improved performance ([#PR_NUMBER](https://github.com/MetaMask/core/pull/PR_NUMBER))
+- Enhance `bulkScanUrls` method to leverage URL scan cache for improved performance ([#5688](https://github.com/MetaMask/core/pull/5688))
   - URLs are now checked against the cache before making API requests
   - Only uncached URLs are sent to the phishing detection API
   - API results are automatically stored in the cache for future use
