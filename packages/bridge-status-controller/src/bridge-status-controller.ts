@@ -240,6 +240,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       initialDestAssetBalance,
       targetContractAddress,
       approvalTxId,
+      isStxEnabled,
     } = startPollingForBridgeTxStatusArgs;
     const accountAddress = this.#getMultichainSelectedAccountAddress();
     // Write all non-status fields to state so we can reference the quote in Activity list without the Bridge API
@@ -271,6 +272,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       },
       hasApprovalTx: Boolean(quoteResponse.approval),
       approvalTxId,
+      isStxEnabled: isStxEnabled ?? false,
     };
     this.update((state) => {
       // Use the txMeta.id as the key so we can reference the txMeta in TransactionController
@@ -795,6 +797,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         },
         quoteResponse,
         slippagePercentage: 0, // TODO include slippage provided by quote if using dynamic slippage, or slippage from quote request
+        isStxEnabled: isStxEnabledOnClient,
         startTime: approvalTime ?? Date.now(),
         approvalTxId,
       });

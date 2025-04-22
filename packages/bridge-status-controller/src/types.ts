@@ -200,6 +200,7 @@ export type BridgeHistoryItem = {
   account: string;
   hasApprovalTx: boolean;
   approvalTxId?: string;
+  isStxEnabled?: boolean;
 };
 
 export enum BridgeStatusAction {
@@ -256,6 +257,7 @@ export type StartPollingForBridgeTxStatusArgs = {
   initialDestAssetBalance?: BridgeHistoryItem['initialDestAssetBalance'];
   targetContractAddress?: BridgeHistoryItem['targetContractAddress'];
   approvalTxId?: BridgeHistoryItem['approvalTxId'];
+  isStxEnabled?: BridgeHistoryItem['isStxEnabled'];
 };
 
 /**
