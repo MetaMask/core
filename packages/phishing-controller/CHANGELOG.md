@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `getUrlScanFromCache` to `PhishingController` ([[#5691]](https://github.com/MetaMask/core/pull/5691))
 - Add URL scan cache functionality to improve performance ([#5625](https://github.com/MetaMask/core/pull/5625))
   - Added `UrlScanCache` class for caching phishing detection scan results
   - Added methods to `PhishingController`: `setUrlScanCacheTTL`, `setUrlScanCacheMaxSize`, `clearUrlScanCache`
