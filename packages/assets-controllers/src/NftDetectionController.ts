@@ -60,7 +60,7 @@ export type NftDetectionControllerMessenger = RestrictedMessenger<
 /**
  * A set of supported networks for NFT detection.
  */
-const supportedNftDetectionNetworks: Set<Hex>() = new Set([
+const supportedNftDetectionNetworks: Set<Hex> = new Set([
   // TODO: We should consider passing this constant from the NftDetectionController contructor
   // to reduce the complexity to add further network into this constant
   "0x1", // Mainnet
