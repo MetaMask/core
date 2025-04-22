@@ -7,14 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.4.0]
-
 ### Added
 
-- Added `getCaipAccountIdsFromScopesObjects`, `getCaipAccountIdsFromCaip25CaveatValue`, `isInternalAccountInPermittedAccountIds`, and `isCaipAccountIdInPermittedAccountIds` account id functions. ([#5609](https://github.com/MetaMask/core/pull/5609))
-- Added `getSupportedScopeObjects`, `getAllScopesFromScopesObjects`, `getAllScopesFromCaip25CaveatValue`, `getAllNonWalletNamespacesFromCaip25CaveatValue`, `getAllScopesFromPermission`, `getAllScopesFromCaip25CaveatValue`, and `isNamespaceInScopesObject`
+- Added `getCaipAccountIdsFromCaip25CaveatValue`, `isInternalAccountInPermittedAccountIds`, and `isCaipAccountIdInPermittedAccountIds` account id functions. ([#5609](https://github.com/MetaMask/core/pull/5609))
+- Added `getAllScopesFromCaip25CaveatValue`, `getAllNonWalletNamespacesFromCaip25CaveatValue`, `getAllScopesFromPermission`, `getAllScopesFromCaip25CaveatValue`, and `isNamespaceInScopesObject`
   scope functions. ([#5609](https://github.com/MetaMask/core/pull/5609))
-- Added `isKnownSessionPropertyValue` and `getCaip25CaveatFromPermission` misc functions. ([#5609](https://github.com/MetaMask/core/pull/5609))
+- Added `getCaip25CaveatFromPermission` misc functions. ([#5609](https://github.com/MetaMask/core/pull/5609))
 
 ### Changed
 
@@ -23,6 +21,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Renamed `addPermittedChainId` to `addCaipChainIdInCaip25CaveatValue`. ([#5609](https://github.com/MetaMask/core/pull/5609))
 - Bump `@metamask/controller-utils` to `^11.7.0` ([#5583](https://github.com/MetaMask/core/pull/5583))
 - Bump `@metamask/network-controller` to `^23.2.0` ([#5583](https://github.com/MetaMask/core/pull/5583))
+
+## [0.4.0]
+
+### Added
+
+- Add and Export `isKnownSessionPropertyValue` validation utility function ([#5647](https://github.com/MetaMask/core/pull/5647))
+- Add and Export `getCaipAccountIdsFromScopesObjects` filtering utility function ([#5647](https://github.com/MetaMask/core/pull/5647))
+- Add and Export `getAllScopesFromScopesObjects` filtering utility function ([#5647](https://github.com/MetaMask/core/pull/5647))
+- Add and Export `getSupportedScopeObjects` filtering utility function ([#5647](https://github.com/MetaMask/core/pull/5647))
 
 ## [0.3.0]
 
