@@ -25,7 +25,6 @@ export type {
   BridgeControllerActions,
   BridgeControllerEvents,
   BridgeControllerMessenger,
-  StatusTypes,
 } from './types';
 
 export { StatusTypes } from './types';
