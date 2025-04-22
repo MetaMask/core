@@ -1,82 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`BridgeController trackMetaMetricsEvent client-side calls should track the AllQuotesOpened event 1`] = `
-Array [
-  Array [
-    "Unified SwapBridge All Quotes Opened",
-    Object {
-      "action_type": "crosschain-v1",
-      "can_submit": false,
-      "chain_id_destination": null,
-      "chain_id_source": "eip155:1",
-      "custom_slippage": false,
-      "gas_included": false,
-      "initial_load_time_all_quotes": 0,
-      "is_hardware_wallet": false,
-      "price_impact": 6,
-      "quotes_count": 0,
-      "quotes_list": Array [],
-      "slippage_limit": undefined,
-      "stx_enabled": false,
-      "swap_type": "crosschain",
-      "token_address_destination": null,
-      "token_address_source": "eip155:1/slip44:60",
-      "token_symbol_destination": "USDC",
-      "token_symbol_source": "ETH",
-    },
-  ],
-]
-`;
-
-exports[`BridgeController trackMetaMetricsEvent client-side calls should track the AllQuotesSorted event 1`] = `
-Array [
-  Array [
-    "Unified SwapBridge All Quotes Sorted",
-    Object {
-      "action_type": "crosschain-v1",
-      "best_quote_provider": "provider_bridge2",
-      "can_submit": false,
-      "chain_id_destination": null,
-      "chain_id_source": "eip155:1",
-      "custom_slippage": false,
-      "gas_included": false,
-      "initial_load_time_all_quotes": 0,
-      "is_hardware_wallet": false,
-      "price_impact": 6,
-      "quotes_count": 0,
-      "quotes_list": Array [],
-      "slippage_limit": undefined,
-      "sort_order": "cost_ascending",
-      "stx_enabled": false,
-      "swap_type": "crosschain",
-      "token_address_destination": null,
-      "token_address_source": "eip155:1/slip44:60",
-      "token_symbol_destination": "USDC",
-      "token_symbol_source": "ETH",
-    },
-  ],
-]
-`;
-
-exports[`BridgeController trackMetaMetricsEvent client-side calls should track the ButtonClicked event 1`] = `
-Array [
-  Array [
-    "Unified SwapBridge Button Clicked",
-    Object {
-      "action_type": "crosschain-v1",
-      "chain_id_destination": null,
-      "chain_id_source": "eip155:1",
-      "location": "Main View",
-      "token_address_destination": null,
-      "token_address_source": "eip155:1/slip44:60",
-      "token_symbol_destination": null,
-      "token_symbol_source": "ETH",
-    },
-  ],
-]
-`;
-
-exports[`BridgeController trackMetaMetricsEvent client-side calls should track the Completed event 1`] = `
+exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller calls should track the Completed event 1`] = `
 Array [
   Array [
     "Unified SwapBridge Completed",
@@ -112,7 +36,7 @@ Array [
 ]
 `;
 
-exports[`BridgeController trackMetaMetricsEvent client-side calls should track the Failed event 1`] = `
+exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller calls should track the Failed event 1`] = `
 Array [
   Array [
     "Unified SwapBridge Failed",
@@ -146,7 +70,130 @@ Array [
 ]
 `;
 
-exports[`BridgeController trackMetaMetricsEvent client-side calls should track the InputSourceDestinationFlipped event 1`] = `
+exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller calls should track the SnapConfirmationViewed event 1`] = `
+Array [
+  Array [
+    "Unified SwapBridge Snap Confirmation Page Viewed",
+    Object {
+      "action_type": "crosschain-v1",
+      "chain_id_destination": null,
+      "chain_id_source": "eip155:1",
+      "custom_slippage": false,
+      "is_hardware_wallet": false,
+      "slippage_limit": undefined,
+      "swap_type": "crosschain",
+      "token_address_destination": null,
+      "token_address_source": "eip155:1/slip44:60",
+    },
+  ],
+]
+`;
+
+exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller calls should track the Submitted event 1`] = `
+Array [
+  Array [
+    "Unified SwapBridge Submitted",
+    Object {
+      "action_type": "crosschain-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:1",
+      "custom_slippage": true,
+      "gas_included": false,
+      "is_hardware_wallet": false,
+      "price_impact": 0,
+      "provider": "provider_bridge",
+      "quoted_time_minutes": 0,
+      "stx_enabled": false,
+      "swap_type": "crosschain",
+      "token_address_destination": "eip155:10/slip44:60",
+      "token_address_source": "eip155:1/slip44:60",
+      "token_symbol_destination": "USDC",
+      "token_symbol_source": "ETH",
+      "usd_amount_source": 100,
+      "usd_quoted_gas": 0,
+      "usd_quoted_return": 0,
+    },
+  ],
+]
+`;
+
+exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the AllQuotesOpened event 1`] = `
+Array [
+  Array [
+    "Unified SwapBridge All Quotes Opened",
+    Object {
+      "action_type": "crosschain-v1",
+      "can_submit": false,
+      "chain_id_destination": null,
+      "chain_id_source": "eip155:1",
+      "custom_slippage": false,
+      "gas_included": false,
+      "initial_load_time_all_quotes": 0,
+      "is_hardware_wallet": false,
+      "price_impact": 6,
+      "quotes_count": 0,
+      "quotes_list": Array [],
+      "slippage_limit": undefined,
+      "stx_enabled": false,
+      "swap_type": "crosschain",
+      "token_address_destination": null,
+      "token_address_source": "eip155:1/slip44:60",
+      "token_symbol_destination": "USDC",
+      "token_symbol_source": "ETH",
+    },
+  ],
+]
+`;
+
+exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the AllQuotesSorted event 1`] = `
+Array [
+  Array [
+    "Unified SwapBridge All Quotes Sorted",
+    Object {
+      "action_type": "crosschain-v1",
+      "best_quote_provider": "provider_bridge2",
+      "can_submit": false,
+      "chain_id_destination": null,
+      "chain_id_source": "eip155:1",
+      "custom_slippage": false,
+      "gas_included": false,
+      "initial_load_time_all_quotes": 0,
+      "is_hardware_wallet": false,
+      "price_impact": 6,
+      "quotes_count": 0,
+      "quotes_list": Array [],
+      "slippage_limit": undefined,
+      "sort_order": "cost_ascending",
+      "stx_enabled": false,
+      "swap_type": "crosschain",
+      "token_address_destination": null,
+      "token_address_source": "eip155:1/slip44:60",
+      "token_symbol_destination": "USDC",
+      "token_symbol_source": "ETH",
+    },
+  ],
+]
+`;
+
+exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the ButtonClicked event 1`] = `
+Array [
+  Array [
+    "Unified SwapBridge Button Clicked",
+    Object {
+      "action_type": "crosschain-v1",
+      "chain_id_destination": null,
+      "chain_id_source": "eip155:1",
+      "location": "Main View",
+      "token_address_destination": null,
+      "token_address_source": "eip155:1/slip44:60",
+      "token_symbol_destination": null,
+      "token_symbol_source": "ETH",
+    },
+  ],
+]
+`;
+
+exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the InputSourceDestinationFlipped event 1`] = `
 Array [
   Array [
     "Unified SwapBridge Source Destination Flipped",
@@ -166,7 +213,7 @@ Array [
 ]
 `;
 
-exports[`BridgeController trackMetaMetricsEvent client-side calls should track the PageViewed event 1`] = `
+exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the PageViewed event 1`] = `
 Array [
   Array [
     "Unified SwapBridge Page Viewed",
@@ -182,7 +229,7 @@ Array [
 ]
 `;
 
-exports[`BridgeController trackMetaMetricsEvent client-side calls should track the QuoteSelected event 1`] = `
+exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the QuoteSelected event 1`] = `
 Array [
   Array [
     "Unified SwapBridge Quote Selected",
@@ -213,7 +260,7 @@ Array [
 ]
 `;
 
-exports[`BridgeController trackMetaMetricsEvent client-side calls should track the QuotesReceived event 1`] = `
+exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the QuotesReceived event 1`] = `
 Array [
   Array [
     "Unified SwapBridge Quotes Received",
@@ -242,53 +289,6 @@ Array [
       "warnings": Array [
         "warning1",
       ],
-    },
-  ],
-]
-`;
-
-exports[`BridgeController trackMetaMetricsEvent client-side calls should track the SnapConfirmationViewed event 1`] = `
-Array [
-  Array [
-    "Unified SwapBridge Snap Confirmation Page Viewed",
-    Object {
-      "action_type": "crosschain-v1",
-      "chain_id_destination": null,
-      "chain_id_source": "eip155:1",
-      "custom_slippage": false,
-      "is_hardware_wallet": false,
-      "slippage_limit": undefined,
-      "swap_type": "crosschain",
-      "token_address_destination": null,
-      "token_address_source": "eip155:1/slip44:60",
-    },
-  ],
-]
-`;
-
-exports[`BridgeController trackMetaMetricsEvent client-side calls should track the Submitted event 1`] = `
-Array [
-  Array [
-    "Unified SwapBridge Submitted",
-    Object {
-      "action_type": "crosschain-v1",
-      "chain_id_destination": "eip155:10",
-      "chain_id_source": "eip155:1",
-      "custom_slippage": true,
-      "gas_included": false,
-      "is_hardware_wallet": false,
-      "price_impact": 0,
-      "provider": "provider_bridge",
-      "quoted_time_minutes": 0,
-      "stx_enabled": false,
-      "swap_type": "crosschain",
-      "token_address_destination": "eip155:10/slip44:60",
-      "token_address_source": "eip155:1/slip44:60",
-      "token_symbol_destination": "USDC",
-      "token_symbol_source": "ETH",
-      "usd_amount_source": 100,
-      "usd_quoted_gas": 0,
-      "usd_quoted_return": 0,
     },
   ],
 ]

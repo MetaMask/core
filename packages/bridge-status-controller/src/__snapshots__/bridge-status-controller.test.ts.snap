@@ -130,7 +130,7 @@ Array [
     "0xaccount1",
   ],
   Array [
-    "BridgeController:trackMetaMetricsEvent",
+    "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
     Object {
       "action_type": "crosschain-v1",
@@ -297,7 +297,7 @@ Array [
     "0xaccount1",
   ],
   Array [
-    "BridgeController:trackMetaMetricsEvent",
+    "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Completed",
     Object {
       "action_type": "crosschain-v1",
@@ -492,7 +492,7 @@ Array [
     "0xaccount1",
   ],
   Array [
-    "BridgeController:trackMetaMetricsEvent",
+    "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
       "action_type": "crosschain-v1",
@@ -693,7 +693,7 @@ Array [
     "",
   ],
   Array [
-    "BridgeController:trackMetaMetricsEvent",
+    "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
       "action_type": "crosschain-v1",
@@ -952,7 +952,7 @@ Array [
     "",
   ],
   Array [
-    "BridgeController:trackMetaMetricsEvent",
+    "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
       "action_type": "crosschain-v1",
@@ -1281,7 +1281,7 @@ Array [
     "0xaccount1",
   ],
   Array [
-    "BridgeController:trackMetaMetricsEvent",
+    "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
       "action_type": "crosschain-v1",
@@ -1521,7 +1521,7 @@ Array [
     "0xaccount1",
   ],
   Array [
-    "BridgeController:trackMetaMetricsEvent",
+    "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
       "action_type": "crosschain-v1",
@@ -1747,7 +1747,7 @@ Array [
     "0xaccount1",
   ],
   Array [
-    "BridgeController:trackMetaMetricsEvent",
+    "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
       "action_type": "crosschain-v1",
@@ -1922,7 +1922,7 @@ Array [
     },
   ],
   Array [
-    "BridgeController:trackMetaMetricsEvent",
+    "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Snap Confirmation Page Viewed",
     Object {},
   ],
@@ -1934,7 +1934,7 @@ Array [
     "0x123...",
   ],
   Array [
-    "BridgeController:trackMetaMetricsEvent",
+    "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
       "action_type": "crosschain-v1",
