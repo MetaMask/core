@@ -1278,6 +1278,7 @@ describe('BridgeController', function () {
           stx_enabled: false,
           is_hardware_wallet: false,
           swap_type: MetricsSwapType.CROSSCHAIN,
+          action_type: MetricsActionType.CROSSCHAIN_V1,
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -1289,6 +1290,7 @@ describe('BridgeController', function () {
       bridgeController.trackMetaMetricsEvent(
         UnifiedSwapBridgeEventName.Completed,
         {
+          action_type: MetricsActionType.CROSSCHAIN_V1,
           approval_transaction: StatusTypes.PENDING,
           source_transaction: StatusTypes.PENDING,
           destination_transaction: StatusTypes.PENDING,
@@ -1322,6 +1324,7 @@ describe('BridgeController', function () {
       bridgeController.trackMetaMetricsEvent(
         UnifiedSwapBridgeEventName.Failed,
         {
+          action_type: MetricsActionType.CROSSCHAIN_V1,
           allowance_reset_transaction: StatusTypes.PENDING,
           approval_transaction: StatusTypes.PENDING,
           source_transaction: StatusTypes.PENDING,

@@ -2,6 +2,8 @@ import type { CaipChainId } from '@metamask/utils';
 
 import { MetricsActionType, MetricsSwapType } from './constants';
 import type { InputKeys, InputValues } from './types';
+import type { AccountsControllerState } from '../../../../accounts-controller/src/AccountsController';
+import { DEFAULT_BRIDGE_CONTROLLER_STATE } from '../../constants/bridge';
 import type { BridgeControllerState, QuoteResponse, TxData } from '../../types';
 import { type GenericQuoteRequest, type QuoteRequest } from '../../types';
 import { getNativeAssetForChainId } from '../bridge';
@@ -110,4 +112,14 @@ export const getRequestParams = (
       ? formatAddressToAssetId(destTokenAddress, destChainId ?? srcChainIdCaip)
       : undefined,
   };
+};
+
+export const isHardwareWallet = (
+  selectedAccount?: AccountsControllerState['internalAccounts']['accounts'][string],
+) => {
+  return selectedAccount?.metadata?.keyring.type?.includes('Hardware') ?? false;
+};
+
+export const isCustomSlippage = (slippage: GenericQuoteRequest['slippage']) => {
+  return slippage !== DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest.slippage;
 };

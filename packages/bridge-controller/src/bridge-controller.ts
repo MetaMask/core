@@ -56,6 +56,8 @@ import {
   getActionTypeFromQuoteRequest,
   getRequestParams,
   getSwapTypeFromQuote,
+  isCustomSlippage,
+  isHardwareWallet,
   quoteRequestToInputChangedProperties,
   quoteRequestToInputChangedPropertyValues,
 } from './utils/metrics/properties';
@@ -645,14 +647,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     );
   }
 
-  #getIsHardwareWallet() {
-    return (
-      this.#getMultichainSelectedAccount()?.metadata?.keyring.type?.includes(
-        'Hardware',
-      ) ?? false
-    );
-  }
-
   #getSelectedNetworkClientId() {
     const { selectedNetworkClientId } = this.messagingSystem.call(
       'NetworkController:getState',
@@ -687,10 +681,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     return {
       slippage_limit: this.state.quoteRequest.slippage,
       swap_type: getSwapTypeFromQuote(this.state.quoteRequest),
-      is_hardware_wallet: this.#getIsHardwareWallet(),
-      custom_slippage:
-        this.state.quoteRequest.slippage !==
-        DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest.slippage,
+      is_hardware_wallet: isHardwareWallet(
+        this.#getMultichainSelectedAccount(),
+      ),
+      custom_slippage: isCustomSlippage(this.state.quoteRequest.slippage),
     };
   };
 
@@ -753,9 +747,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         };
       case UnifiedSwapBridgeEventName.SnapConfirmationViewed:
         return {
+          ...baseProperties,
           ...this.#getRequestParams(),
           ...this.#getRequestMetadata(),
-          ...baseProperties,
         };
       // These are populated by BridgeStatusController
       case UnifiedSwapBridgeEventName.Submitted:

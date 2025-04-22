@@ -19,6 +19,8 @@ export {
   getRequestParams,
   getActionType,
   getSwapType,
+  isHardwareWallet,
+  isCustomSlippage,
 } from './utils/metrics/properties';
 
 export type {

@@ -80,6 +80,7 @@ Array [
   Array [
     "Unified SwapBridge Completed",
     Object {
+      "action_type": "crosschain-v1",
       "actual_time_minutes": 10,
       "approval_transaction": "PENDING",
       "chain_id_source": "eip155:1",
@@ -112,6 +113,7 @@ Array [
   Array [
     "Unified SwapBridge Failed",
     Object {
+      "action_type": "crosschain-v1",
       "actual_time_minutes": 10,
       "allowance_reset_transaction": "PENDING",
       "approval_transaction": "PENDING",
@@ -262,6 +264,7 @@ Array [
   Array [
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "crosschain-v1",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
       "gas_included": false,

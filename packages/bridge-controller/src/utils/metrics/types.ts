@@ -122,12 +122,12 @@ export type RequiredEventContextFromClient = {
     security_warnings: string[]; // TODO standardize warnings
   };
   // Emitted by BridgeStatusController
-  [UnifiedSwapBridgeEventName.SnapConfirmationViewed]: {
-    action_type: MetricsActionType;
-  };
+  [UnifiedSwapBridgeEventName.SnapConfirmationViewed]: object;
   [UnifiedSwapBridgeEventName.Submitted]: RequestParams &
     RequestMetadata &
-    TradeData;
+    TradeData & {
+      action_type: MetricsActionType;
+    };
   [UnifiedSwapBridgeEventName.Completed]: RequestParams &
     RequestMetadata &
     TxStatusData &
@@ -137,6 +137,7 @@ export type RequiredEventContextFromClient = {
       usd_actual_gas: number;
       quote_vs_execution_ratio: number;
       quoted_vs_used_gas_ratio: number;
+      action_type: MetricsActionType;
     };
   [UnifiedSwapBridgeEventName.Failed]: RequestParams &
     RequestMetadata &
@@ -144,6 +145,7 @@ export type RequiredEventContextFromClient = {
     TradeData & {
       actual_time_minutes: number;
       error_message: string;
+      action_type: MetricsActionType;
     };
   // Emitted by clients
   [UnifiedSwapBridgeEventName.AllQuotesOpened]: Pick<
