@@ -8,7 +8,6 @@ import {
   type ToprfSecureBackup,
 } from '@metamask/toprf-secure-backup';
 import { base64ToBytes, bytesToBase64, stringToBytes } from '@metamask/utils';
-import { keccak_256 as keccak256 } from '@noble/hashes/sha3';
 
 import {
   Web3AuthNetwork,
