@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/multichain-network-controller` dependency to `^0.5.1` ([#5678](https://github.com/MetaMask/core/pull/5678))
 - **BREAKING:** trackMetaMetricsFn added to BridgeController constructor to enable clients to pass in a custom analytics handler ([#5684](https://github.com/MetaMask/core/pull/5684))
+- **BREAKING:** added a context argument to `updateBridgeQuoteRequestParams` to provide values required for analytics events ([#5684](https://github.com/MetaMask/core/pull/5684))
 
 ### Added
 
