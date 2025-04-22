@@ -1,7 +1,15 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import { encrypt, decrypt } from '@metamask/browser-passworder';
+import {
+  type EncryptionKey,
+  encrypt,
+  decrypt,
+  decryptWithDetail,
+  encryptWithDetail,
+  decryptWithKey,
+  importKey as importKeyBrowserPassworder,
+} from '@metamask/browser-passworder';
 import type {
   KeyPair,
   NodeAuthTokens,
@@ -45,6 +53,26 @@ const log = createModuleLogger(projectLogger, controllerName);
 export function getDefaultSeedlessOnboardingControllerState(): SeedlessOnboardingControllerState {
   return {
     backupHashes: [],
+  };
+}
+
+/**
+ * Get the default vault encryptor for the Seedless Onboarding Controller.
+ *
+ * By default, we'll use the encryption utilities from `@metamask/browser-passworder`.
+ *
+ * @returns The default vault encryptor for the Seedless Onboarding Controller.
+ */
+export function getDefaultSeedlessOnboardingVaultEncryptor(): VaultEncryptor {
+  return {
+    encrypt,
+    encryptWithDetail,
+    decrypt,
+    decryptWithDetail,
+    decryptWithKey,
+    importKey: (key) => {
+      return importKeyBrowserPassworder(key) as Promise<EncryptionKey>;
+    },
   };
 }
 
@@ -116,7 +144,7 @@ export class SeedlessOnboardingController extends BaseController<
   constructor({
     messenger,
     state,
-    encryptor = { encrypt, decrypt }, // default to `encrypt` and `decrypt` from `@metamask/browser-passworder`
+    encryptor = getDefaultSeedlessOnboardingVaultEncryptor(),
     network = Web3AuthNetwork.Mainnet,
   }: SeedlessOnboardingControllerOptions) {
     super({
@@ -451,20 +479,52 @@ export class SeedlessOnboardingController extends BaseController<
     toprfAuthKeyPair: KeyPair;
   }> {
     return this.#withVaultLock(async () => {
+      const {
+        vault: encryptedVault,
+        vaultEncryptionKey,
+        vaultEncryptionSalt,
+      } = this.state;
       const password = this.#password;
-      assertIsValidPassword(password);
 
-      const encryptedVault = this.state.vault;
       if (!encryptedVault) {
         throw new Error(SeedlessOnboardingControllerError.VaultError);
       }
-      // Note that vault decryption using the password is a very costly operation as it involves deriving the encryption key
-      // from the password using an intentionally slow key derivation function.
-      // We should make sure that we only call it very intentionally.
-      const decryptedVaultData = await this.#vaultEncryptor.decrypt(
-        password,
-        encryptedVault,
-      );
+
+      if (!vaultEncryptionKey || !password) {
+        throw new Error(SeedlessOnboardingControllerError.MissingCredentials);
+      }
+
+      let decryptedVaultData: unknown;
+
+      if (vaultEncryptionKey) {
+        const parsedEncryptedVault = JSON.parse(encryptedVault);
+
+        if (vaultEncryptionSalt !== parsedEncryptedVault.salt) {
+          throw new Error(SeedlessOnboardingControllerError.ExpiredCredentials);
+        }
+
+        if (typeof vaultEncryptionKey !== 'string') {
+          throw new TypeError(
+            SeedlessOnboardingControllerError.WrongPasswordType,
+          );
+        }
+
+        const key = await this.#vaultEncryptor.importKey(vaultEncryptionKey);
+        decryptedVaultData = await this.#vaultEncryptor.decryptWithKey(
+          key,
+          parsedEncryptedVault,
+        );
+      } else {
+        assertIsValidPassword(password);
+        // Note that vault decryption using the password is a very costly operation as it involves deriving the encryption key
+        // from the password using an intentionally slow key derivation function.
+        // We should make sure that we only call it very intentionally.
+        const result = await this.#vaultEncryptor.decryptWithDetail(
+          password,
+          encryptedVault,
+        );
+        decryptedVaultData = result.vault;
+      }
 
       const { nodeAuthTokens, toprfEncryptionKey, toprfAuthKeyPair } =
         this.#parseVaultData(decryptedVaultData);
@@ -591,13 +651,19 @@ export class SeedlessOnboardingController extends BaseController<
       // Note that vault encryption using the password is a very costly operation as it involves deriving the encryption key
       // from the password using an intentionally slow key derivation function.
       // We should make sure that we only call it very intentionally.
-      updatedState.vault = await this.#vaultEncryptor.encrypt(
-        password,
-        serializedVaultData,
-      );
+      const { vault, exportedKeyString } =
+        await this.#vaultEncryptor.encryptWithDetail(
+          password,
+          serializedVaultData,
+        );
+      updatedState.vault = vault;
+      updatedState.vaultEncryptionKey = exportedKeyString;
+      updatedState.vaultEncryptionSalt = JSON.parse(vault).salt;
 
       this.update((state) => {
         state.vault = updatedState.vault;
+        state.vaultEncryptionKey = updatedState.vaultEncryptionKey;
+        state.vaultEncryptionSalt = updatedState.vaultEncryptionSalt;
       });
 
       this.#password = password;

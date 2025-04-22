@@ -11,6 +11,8 @@ export enum SeedlessOnboardingControllerError {
   FailedToPersistOprfKey = `${controllerName} - Failed to persist OPRF key`,
   LoginFailedError = `${controllerName} - Login failed`,
   InsufficientAuthToken = `${controllerName} - Insufficient auth token`,
+  MissingCredentials = `${controllerName} - Cannot unlock vault without password and encryption key`,
+  ExpiredCredentials = `${controllerName} - Encryption key and salt provided are expired`,
   InvalidEmptyPassword = `${controllerName} - Password cannot be empty.`,
   WrongPasswordType = `${controllerName} - Password must be of type string.`,
   InvalidVaultData = `${controllerName} - Invalid vault data`,
