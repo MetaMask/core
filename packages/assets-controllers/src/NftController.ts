@@ -2179,7 +2179,10 @@ export class NftController extends BaseController<
       Object.entries(bulkScanResponse.results).forEach(([url, result]) => {
         if (result.recommendedAction === RecommendedAction.Block) {
           const field = urlFieldMap[url];
-          if (field === 'collection.externalLink' && sanitizedMetadata.collection) {
+          if (
+            field === 'collection.externalLink' &&
+            sanitizedMetadata.collection
+          ) {
             const { collection } = sanitizedMetadata;
             if ('externalLink' in collection) {
               delete (collection as Record<string, unknown>).externalLink;
@@ -2193,7 +2196,10 @@ export class NftController extends BaseController<
       // Handle URLs with errors conservatively (remove them)
       Object.keys(bulkScanResponse.errors).forEach((url) => {
         const field = urlFieldMap[url];
-        if (field === 'collection.externalLink' && sanitizedMetadata.collection) {
+        if (
+          field === 'collection.externalLink' &&
+          sanitizedMetadata.collection
+        ) {
           const { collection } = sanitizedMetadata;
           if ('externalLink' in collection) {
             delete (collection as Record<string, unknown>).externalLink;
