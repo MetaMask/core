@@ -716,6 +716,36 @@ export class PhishingController extends BaseController<
   };
 
   /**
+   * Get URL scan result from cache without making a network request.
+   * If the URL is not in the cache or the cache entry is expired, it will
+   * return a result with a fetchError indicating the result wasn't cached.
+   *
+   * @param url - The URL to check in the cache
+   * @returns The cached scan result or an error result
+   */
+  getUrlScanFromCache = (url: string): PhishingDetectionScanResult => {
+    const [hostname, ok] = getHostnameFromWebUrl(url);
+    if (!ok) {
+      return {
+        domainName: '',
+        recommendedAction: RecommendedAction.None,
+        fetchError: 'url is not a valid web URL',
+      };
+    }
+
+    const cachedResult = this.#urlScanCache.get(hostname);
+    if (!cachedResult) {
+      return {
+        domainName: hostname,
+        recommendedAction: RecommendedAction.None,
+        fetchError: 'no cached result available',
+      };
+    }
+
+    return cachedResult;
+  };
+
+  /**
    * Scan multiple URLs for phishing in bulk. It will only scan the hostnames of the URLs.
    * It also only supports web URLs.
    *
