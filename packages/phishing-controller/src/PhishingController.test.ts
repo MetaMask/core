@@ -2832,5 +2832,42 @@ describe('PhishingController', () => {
       expect(response).toStrictEqual(mixedResponse);
       expect(scope.isDone()).toBe(true);
     });
+
+    it('should have error merging issues when multiple batches return errors with the same key', async () => {
+      // Create enough URLs to need two batches (over 50)
+      const batchSize = 50;
+      const totalUrls = 100;
+      const manyUrls = Array(totalUrls)
+        .fill(0)
+        .map((_, i) => `https://example${i}.com`);
+
+      // The URLs will be split into two batches
+      const batch1 = manyUrls.slice(0, batchSize);
+      const batch2 = manyUrls.slice(batchSize);
+
+      // Setup nock to handle both batch requests with different error responses
+      const scope1 = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+          urls: batch1,
+        })
+        .reply(404, { error: 'Not Found' });
+
+      const scope2 = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+          urls: batch2,
+        })
+        .reply(500, { error: 'Internal Server Error' });
+
+      const response = await controller.bulkScanUrls(manyUrls);
+
+      expect(scope1.isDone()).toBe(true);
+      expect(scope2.isDone()).toBe(true);
+
+      // With the fixed implementation, we should now preserve all errors
+      expect(response.errors).toHaveProperty('api_error');
+      expect(response.errors.api_error).toHaveLength(2);
+      expect(response.errors.api_error).toContain('404 Not Found');
+      expect(response.errors.api_error).toContain('500 Internal Server Error');
+    });
   });
 });

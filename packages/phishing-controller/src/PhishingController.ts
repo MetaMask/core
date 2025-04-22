@@ -705,7 +705,12 @@ export class PhishingController extends BaseController<
     // Merge results and errors from all batches
     batchResults.forEach((batchResponse) => {
       Object.assign(combinedResponse.results, batchResponse.results);
-      Object.assign(combinedResponse.errors, batchResponse.errors);
+      Object.entries(batchResponse.errors).forEach(([key, messages]) => {
+        combinedResponse.errors[key] = [
+          ...(combinedResponse.errors[key] || []),
+          ...messages,
+        ];
+      });
     });
 
     return combinedResponse;
