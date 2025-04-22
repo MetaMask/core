@@ -555,8 +555,8 @@ describe('CAIP-25 eth_accounts adapters', () => {
 
   describe('isInternalAccountInPermittedAccountIds', () => {
     it('returns false if there are no permitted account ids', () => {
-      // @ts-expect-error partial internal account
       const result = isInternalAccountInPermittedAccountIds(
+        // @ts-expect-error partial internal account
         {
           scopes: ['eip155:0'],
           address: '0xdeadbeef',
@@ -567,8 +567,8 @@ describe('CAIP-25 eth_accounts adapters', () => {
     });
 
     it('returns false if there are no exact matching namespaces', () => {
-      // @ts-expect-error partial internal account
       const result = isInternalAccountInPermittedAccountIds(
+        // @ts-expect-error partial internal account
         {
           scopes: ['eip155:1'],
           address: '0xdeadbeef',
@@ -579,8 +579,8 @@ describe('CAIP-25 eth_accounts adapters', () => {
     });
 
     it('returns true if there are exact matching permitted account ids', () => {
-      // @ts-expect-error partial internal account
       const result = isInternalAccountInPermittedAccountIds(
+        // @ts-expect-error partial internal account
         {
           scopes: ['eip155:1'],
           address: '0xdeadbeef',
@@ -591,8 +591,8 @@ describe('CAIP-25 eth_accounts adapters', () => {
     });
 
     it('returns true if there are exact matching evm references but mismatched address casing', () => {
-      // @ts-expect-error partial internal account
       const result = isInternalAccountInPermittedAccountIds(
+        // @ts-expect-error partial internal account
         {
           scopes: ['eip155:1'],
           address: '0xdeadbeef',
@@ -603,8 +603,8 @@ describe('CAIP-25 eth_accounts adapters', () => {
     });
 
     it('returns false if there are exact matching non-evm references but mismatched address casing', () => {
-      // @ts-expect-error partial internal account
       const result = isInternalAccountInPermittedAccountIds(
+        // @ts-expect-error partial internal account
         {
           scopes: ['solana:0'],
           address: '0xdeadbeef',
@@ -615,8 +615,8 @@ describe('CAIP-25 eth_accounts adapters', () => {
     });
 
     it('returns true if there are null reference matching evm references', () => {
-      // @ts-expect-error partial internal account
       const result = isInternalAccountInPermittedAccountIds(
+        // @ts-expect-error partial internal account
         {
           scopes: ['eip155:0'],
           address: '0xdeadbeef',
@@ -627,8 +627,8 @@ describe('CAIP-25 eth_accounts adapters', () => {
     });
 
     it('returns false if there are no exact matching non-evm references', () => {
-      // @ts-expect-error partial internal account
       const result = isInternalAccountInPermittedAccountIds(
+        // @ts-expect-error partial internal account
         {
           scopes: ['solana:0'],
           address: '0xdeadbeef',
