@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add analytics tracking for post-tx submission events ([#5684](https://github.com/MetaMask/core/pull/5684))
+
 ## [13.1.0]
 
 ### Fixed
