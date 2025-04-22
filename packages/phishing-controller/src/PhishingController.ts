@@ -18,6 +18,12 @@ import {
   RecommendedAction,
 } from './types';
 import {
+  DEFAULT_URL_SCAN_CACHE_MAX_SIZE,
+  DEFAULT_URL_SCAN_CACHE_TTL,
+  UrlScanCache,
+  type UrlScanCacheEntry,
+} from './UrlScanCache';
+import {
   applyDiffs,
   fetchTimeNow,
   getHostnameFromUrl,
@@ -37,6 +43,7 @@ export const C2_DOMAIN_BLOCKLIST_ENDPOINT = '/v1/request-blocklist';
 export const PHISHING_DETECTION_BASE_URL =
   'https://dapp-scanning.api.cx.metamask.io';
 export const PHISHING_DETECTION_SCAN_ENDPOINT = 'scan';
+export const PHISHING_DETECTION_BULK_SCAN_ENDPOINT = 'bulk-scan';
 
 export const C2_DOMAIN_BLOCKLIST_REFRESH_INTERVAL = 5 * 60; // 5 mins in seconds
 export const HOTLIST_REFRESH_INTERVAL = 5 * 60; // 5 mins in seconds
@@ -204,6 +211,7 @@ const metadata = {
   hotlistLastFetched: { persist: true, anonymous: false },
   stalelistLastFetched: { persist: true, anonymous: false },
   c2DomainBlocklistLastFetched: { persist: true, anonymous: false },
+  urlScanCache: { persist: true, anonymous: false },
 };
 
 /**
@@ -217,6 +225,7 @@ const getDefaultState = (): PhishingControllerState => {
     hotlistLastFetched: 0,
     stalelistLastFetched: 0,
     c2DomainBlocklistLastFetched: 0,
+    urlScanCache: {},
   };
 };
 
@@ -233,20 +242,25 @@ export type PhishingControllerState = {
   hotlistLastFetched: number;
   stalelistLastFetched: number;
   c2DomainBlocklistLastFetched: number;
+  urlScanCache: Record<string, UrlScanCacheEntry>;
 };
 
 /**
- * @type PhishingControllerOptions
+ * PhishingControllerOptions
  *
  * Phishing controller options
- * @property stalelistRefreshInterval - Polling interval used to fetch stale list.
- * @property hotlistRefreshInterval - Polling interval used to fetch hotlist diff list.
- * @property c2DomainBlocklistRefreshInterval - Polling interval used to fetch c2 domain blocklist.
+ * stalelistRefreshInterval - Polling interval used to fetch stale list.
+ * hotlistRefreshInterval - Polling interval used to fetch hotlist diff list.
+ * c2DomainBlocklistRefreshInterval - Polling interval used to fetch c2 domain blocklist.
+ * urlScanCacheTTL - Time to live in seconds for cached scan results.
+ * urlScanCacheMaxSize - Maximum number of entries in the scan cache.
  */
 export type PhishingControllerOptions = {
   stalelistRefreshInterval?: number;
   hotlistRefreshInterval?: number;
   c2DomainBlocklistRefreshInterval?: number;
+  urlScanCacheTTL?: number;
+  urlScanCacheMaxSize?: number;
   messenger: PhishingControllerMessenger;
   state?: Partial<PhishingControllerState>;
 };
@@ -287,6 +301,19 @@ export type PhishingControllerMessenger = RestrictedMessenger<
 >;
 
 /**
+ * BulkPhishingDetectionScanResponse
+ *
+ * Response for bulk phishing detection scan requests
+ * results - Record of domain names and their corresponding phishing detection scan results
+ *
+ * errors - Record of domain names and their corresponding errors
+ */
+export type BulkPhishingDetectionScanResponse = {
+  results: Record<string, PhishingDetectionScanResult>;
+  errors: Record<string, string[]>;
+};
+
+/**
  * Controller that manages community-maintained lists of approved and unapproved website origins.
  */
 export class PhishingController extends BaseController<
@@ -304,6 +331,8 @@ export class PhishingController extends BaseController<
 
   #c2DomainBlocklistRefreshInterval: number;
 
+  readonly #urlScanCache: UrlScanCache;
+
   #inProgressHotlistUpdate?: Promise<void>;
 
   #inProgressStalelistUpdate?: Promise<void>;
@@ -317,6 +346,8 @@ export class PhishingController extends BaseController<
    * @param config.stalelistRefreshInterval - Polling interval used to fetch stale list.
    * @param config.hotlistRefreshInterval - Polling interval used to fetch hotlist diff list.
    * @param config.c2DomainBlocklistRefreshInterval - Polling interval used to fetch c2 domain blocklist.
+   * @param config.urlScanCacheTTL - Time to live in seconds for cached scan results.
+   * @param config.urlScanCacheMaxSize - Maximum number of entries in the scan cache.
    * @param config.messenger - The controller restricted messenger.
    * @param config.state - Initial state to set on this controller.
    */
@@ -324,6 +355,8 @@ export class PhishingController extends BaseController<
     stalelistRefreshInterval = STALELIST_REFRESH_INTERVAL,
     hotlistRefreshInterval = HOTLIST_REFRESH_INTERVAL,
     c2DomainBlocklistRefreshInterval = C2_DOMAIN_BLOCKLIST_REFRESH_INTERVAL,
+    urlScanCacheTTL = DEFAULT_URL_SCAN_CACHE_TTL,
+    urlScanCacheMaxSize = DEFAULT_URL_SCAN_CACHE_MAX_SIZE,
     messenger,
     state = {},
   }: PhishingControllerOptions) {
@@ -340,6 +373,17 @@ export class PhishingController extends BaseController<
     this.#stalelistRefreshInterval = stalelistRefreshInterval;
     this.#hotlistRefreshInterval = hotlistRefreshInterval;
     this.#c2DomainBlocklistRefreshInterval = c2DomainBlocklistRefreshInterval;
+    this.#urlScanCache = new UrlScanCache({
+      cacheTTL: urlScanCacheTTL,
+      maxCacheSize: urlScanCacheMaxSize,
+      initialCache: this.state.urlScanCache,
+      updateState: (cache) => {
+        this.update((draftState) => {
+          draftState.urlScanCache = cache;
+        });
+      },
+    });
+
     this.#registerMessageHandlers();
 
     this.updatePhishingDetector();
@@ -399,6 +443,31 @@ export class PhishingController extends BaseController<
    */
   setC2DomainBlocklistRefreshInterval(interval: number) {
     this.#c2DomainBlocklistRefreshInterval = interval;
+  }
+
+  /**
+   * Set the time-to-live for URL scan cache entries.
+   *
+   * @param ttl - The TTL in seconds.
+   */
+  setUrlScanCacheTTL(ttl: number) {
+    this.#urlScanCache.setTTL(ttl);
+  }
+
+  /**
+   * Set the maximum number of entries in the URL scan cache.
+   *
+   * @param maxSize - The maximum cache size.
+   */
+  setUrlScanCacheMaxSize(maxSize: number) {
+    this.#urlScanCache.setMaxSize(maxSize);
+  }
+
+  /**
+   * Clear the URL scan cache.
+   */
+  clearUrlScanCache() {
+    this.#urlScanCache.clear();
   }
 
   /**
@@ -593,6 +662,11 @@ export class PhishingController extends BaseController<
       };
     }
 
+    const cachedResult = this.#urlScanCache.get(hostname);
+    if (cachedResult) {
+      return cachedResult;
+    }
+
     const apiResponse = await safelyExecuteWithTimeout(
       async () => {
         const res = await fetch(
@@ -631,10 +705,183 @@ export class PhishingController extends BaseController<
       };
     }
 
-    return {
+    const result = {
       domainName: hostname,
       recommendedAction: apiResponse.recommendedAction,
     } as PhishingDetectionScanResult;
+
+    this.#urlScanCache.add(hostname, result);
+
+    return result;
+  };
+
+  /**
+   * Scan multiple URLs for phishing in bulk. It will only scan the hostnames of the URLs.
+   * It also only supports web URLs.
+   *
+   * @param urls - The URLs to scan.
+   * @returns A mapping of URLs to their phishing detection scan results and errors.
+   */
+  bulkScanUrls = async (
+    urls: string[],
+  ): Promise<BulkPhishingDetectionScanResponse> => {
+    if (!urls || urls.length === 0) {
+      return {
+        results: {},
+        errors: {},
+      };
+    }
+
+    // we are arbitrarily limiting the number of URLs to 250
+    const MAX_TOTAL_URLS = 250;
+    if (urls.length > MAX_TOTAL_URLS) {
+      return {
+        results: {},
+        errors: {
+          too_many_urls: [
+            `Maximum of ${MAX_TOTAL_URLS} URLs allowed per request`,
+          ],
+        },
+      };
+    }
+
+    const MAX_URL_LENGTH = 2048;
+    const combinedResponse: BulkPhishingDetectionScanResponse = {
+      results: {},
+      errors: {},
+    };
+
+    // Extract hostnames from URLs and check for validity and length constraints
+    const urlsToHostnames: Record<string, string> = {};
+    const urlsToFetch: string[] = [];
+
+    for (const url of urls) {
+      if (url.length > MAX_URL_LENGTH) {
+        combinedResponse.errors[url] = [
+          `URL length must not exceed ${MAX_URL_LENGTH} characters`,
+        ];
+        continue;
+      }
+
+      const [hostname, ok] = getHostnameFromWebUrl(url);
+      if (!ok) {
+        combinedResponse.errors[url] = ['url is not a valid web URL'];
+        continue;
+      }
+
+      // Check if result is already in cache
+      const cachedResult = this.#urlScanCache.get(hostname);
+      if (cachedResult) {
+        // Use cached result
+        combinedResponse.results[url] = cachedResult;
+      } else {
+        // Add to list of URLs to fetch
+        urlsToHostnames[url] = hostname;
+        urlsToFetch.push(url);
+      }
+    }
+
+    // If there are URLs to fetch, process them in batches
+    if (urlsToFetch.length > 0) {
+      // The API has a limit of 50 URLs per request, so we batch the requests
+      const MAX_URLS_PER_BATCH = 50;
+      const batches: string[][] = [];
+      for (let i = 0; i < urlsToFetch.length; i += MAX_URLS_PER_BATCH) {
+        batches.push(urlsToFetch.slice(i, i + MAX_URLS_PER_BATCH));
+      }
+
+      // Process each batch in parallel
+      const batchResults = await Promise.all(
+        batches.map((batchUrls) => this.#processBatch(batchUrls)),
+      );
+
+      // Merge results and errors from all batches
+      batchResults.forEach((batchResponse) => {
+        // Add results to cache and combine with response
+        Object.entries(batchResponse.results).forEach(([url, result]) => {
+          const hostname = urlsToHostnames[url];
+          if (hostname) {
+            this.#urlScanCache.add(hostname, result);
+          }
+          combinedResponse.results[url] = result;
+        });
+
+        // Combine errors
+        Object.entries(batchResponse.errors).forEach(([key, messages]) => {
+          combinedResponse.errors[key] = [
+            ...(combinedResponse.errors[key] || []),
+            ...messages,
+          ];
+        });
+      });
+    }
+
+    return combinedResponse;
+  };
+
+  /**
+   * Process a batch of URLs (up to 50) for phishing detection.
+   *
+   * @param urls - A batch of URLs to scan.
+   * @returns The scan results and errors for this batch.
+   */
+  readonly #processBatch = async (
+    urls: string[],
+  ): Promise<BulkPhishingDetectionScanResponse> => {
+    const apiResponse = await safelyExecuteWithTimeout(
+      async () => {
+        const res = await fetch(
+          `${PHISHING_DETECTION_BASE_URL}/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`,
+          {
+            method: 'POST',
+            headers: {
+              Accept: 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ urls }),
+          },
+        );
+
+        if (!res.ok) {
+          return {
+            error: `${res.status} ${res.statusText}`,
+            status: res.status,
+            statusText: res.statusText,
+          };
+        }
+
+        const data = await res.json();
+        return data;
+      },
+      true,
+      15000,
+    );
+
+    // Handle timeout or network errors
+    if (!apiResponse) {
+      return {
+        results: {},
+        errors: {
+          network_error: ['timeout of 15000ms exceeded'],
+        },
+      };
+    }
+
+    // Handle HTTP error responses
+    if (
+      'error' in apiResponse &&
+      'status' in apiResponse &&
+      'statusText' in apiResponse
+    ) {
+      return {
+        results: {},
+        errors: {
+          api_error: [`${apiResponse.status} ${apiResponse.statusText}`],
+        },
+      };
+    }
+
+    return apiResponse as BulkPhishingDetectionScanResponse;
   };
 
   /**
@@ -682,7 +929,6 @@ export class PhishingController extends BaseController<
     }
 
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     const { eth_phishing_detect_config, ...partialState } =
       stalelistResponse.data;
 
@@ -714,12 +960,17 @@ export class PhishingController extends BaseController<
    * this function that prevents redundant configuration updates.
    */
   async #updateHotlist() {
-    const lastDiffTimestamp = Math.max(
-      ...this.state.phishingLists.map(({ lastUpdated }) => lastUpdated),
-    );
     let hotlistResponse: DataResultWrapper<Hotlist> | null;
 
     try {
+      if (this.state.phishingLists.length === 0) {
+        return;
+      }
+
+      const lastDiffTimestamp = Math.max(
+        ...this.state.phishingLists.map(({ lastUpdated }) => lastUpdated),
+      );
+
       hotlistResponse = await this.#queryConfig<DataResultWrapper<Hotlist>>(
         `${METAMASK_HOTLIST_DIFF_URL}/${lastDiffTimestamp}`,
       );

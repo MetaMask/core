@@ -70,7 +70,6 @@ describe('AccountTrackerController', () => {
       },
       ({ controller }) => {
         expect(controller.state).toStrictEqual({
-          accounts: {},
           accountsByChainId: {
             [initialChainId]: {},
           },
@@ -111,10 +110,6 @@ describe('AccountTrackerController', () => {
           {
             options: {
               state: {
-                accounts: {
-                  [checksumAddress1]: { balance: '0x1' },
-                  foo: { balance: '0x2' },
-                },
                 accountsByChainId: {
                   '0x1': {
                     [checksumAddress1]: { balance: '0x1' },
@@ -134,10 +129,6 @@ describe('AccountTrackerController', () => {
           async ({ controller }) => {
             await controller.refresh();
             expect(controller.state).toStrictEqual({
-              accounts: {
-                [checksumAddress1]: { balance: '0x0' },
-                [checksumAddress2]: { balance: '0x0' },
-              },
               accountsByChainId: {
                 '0x1': {
                   [checksumAddress1]: { balance: '0x0' },
@@ -166,11 +157,6 @@ describe('AccountTrackerController', () => {
             await controller.refresh();
 
             expect(controller.state).toStrictEqual({
-              accounts: {
-                [CHECKSUM_ADDRESS_1]: {
-                  balance: '0x10',
-                },
-              },
               accountsByChainId: {
                 '0x1': {
                   [CHECKSUM_ADDRESS_1]: {
@@ -198,10 +184,6 @@ describe('AccountTrackerController', () => {
             await controller.refresh();
 
             expect(controller.state).toStrictEqual({
-              accounts: {
-                [CHECKSUM_ADDRESS_1]: { balance: '0x10' },
-                [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
-              },
               accountsByChainId: {
                 '0x1': {
                   [CHECKSUM_ADDRESS_1]: { balance: '0x10' },
@@ -228,10 +210,6 @@ describe('AccountTrackerController', () => {
             await controller.refresh();
 
             expect(controller.state).toStrictEqual({
-              accounts: {
-                [CHECKSUM_ADDRESS_1]: { balance: '0x11' },
-                [CHECKSUM_ADDRESS_2]: { balance: '0x12' },
-              },
               accountsByChainId: {
                 '0x1': {
                   [CHECKSUM_ADDRESS_1]: { balance: '0x11' },
@@ -262,10 +240,6 @@ describe('AccountTrackerController', () => {
             await controller.refresh();
 
             expect(controller.state).toStrictEqual({
-              accounts: {
-                [CHECKSUM_ADDRESS_1]: { balance: '0x10', stakedBalance: '0x1' },
-                [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
-              },
               accountsByChainId: {
                 '0x1': {
                   [CHECKSUM_ADDRESS_1]: {
@@ -301,10 +275,6 @@ describe('AccountTrackerController', () => {
             await controller.refresh();
 
             expect(controller.state).toStrictEqual({
-              accounts: {
-                [CHECKSUM_ADDRESS_1]: { balance: '0x13' },
-                [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
-              },
               accountsByChainId: {
                 '0x1': {
                   [CHECKSUM_ADDRESS_1]: {
@@ -339,10 +309,6 @@ describe('AccountTrackerController', () => {
             await controller.refresh();
 
             expect(controller.state).toStrictEqual({
-              accounts: {
-                [CHECKSUM_ADDRESS_1]: { balance: '0x11', stakedBalance: '0x1' },
-                [CHECKSUM_ADDRESS_2]: { balance: '0x12', stakedBalance: '0x1' },
-              },
               accountsByChainId: {
                 '0x1': {
                   [CHECKSUM_ADDRESS_1]: {
@@ -378,10 +344,6 @@ describe('AccountTrackerController', () => {
           {
             options: {
               state: {
-                accounts: {
-                  [checksumAddress1]: { balance: '0x1' },
-                  foo: { balance: '0x2' },
-                },
                 accountsByChainId: {
                   '0x1': {
                     [checksumAddress1]: { balance: '0x1' },
@@ -406,10 +368,6 @@ describe('AccountTrackerController', () => {
           async ({ controller }) => {
             await controller.refresh(networkClientId);
             expect(controller.state).toStrictEqual({
-              accounts: {
-                [checksumAddress1]: { balance: '0x1' },
-                [checksumAddress2]: { balance: '0x0' },
-              },
               accountsByChainId: {
                 '0x1': {
                   [checksumAddress1]: { balance: '0x1' },
@@ -448,11 +406,6 @@ describe('AccountTrackerController', () => {
             await controller.refresh(networkClientId);
 
             expect(controller.state).toStrictEqual({
-              accounts: {
-                [CHECKSUM_ADDRESS_1]: {
-                  balance: '0x0',
-                },
-              },
               accountsByChainId: {
                 '0x1': {
                   [CHECKSUM_ADDRESS_1]: {
@@ -491,10 +444,6 @@ describe('AccountTrackerController', () => {
             await controller.refresh(networkClientId);
 
             expect(controller.state).toStrictEqual({
-              accounts: {
-                [CHECKSUM_ADDRESS_1]: { balance: '0x0' },
-                [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
-              },
               accountsByChainId: {
                 '0x1': {
                   [CHECKSUM_ADDRESS_1]: { balance: '0x0' },
@@ -531,10 +480,6 @@ describe('AccountTrackerController', () => {
             await controller.refresh(networkClientId);
 
             expect(controller.state).toStrictEqual({
-              accounts: {
-                [CHECKSUM_ADDRESS_1]: { balance: '0x0' },
-                [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
-              },
               accountsByChainId: {
                 '0x1': {
                   [CHECKSUM_ADDRESS_1]: { balance: '0x0' },
@@ -575,10 +520,6 @@ describe('AccountTrackerController', () => {
             await controller.refresh();
 
             expect(controller.state).toStrictEqual({
-              accounts: {
-                [CHECKSUM_ADDRESS_1]: { balance: '0x10', stakedBalance: '0x1' },
-                [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
-              },
               accountsByChainId: {
                 '0x1': {
                   [CHECKSUM_ADDRESS_1]: {
@@ -620,10 +561,6 @@ describe('AccountTrackerController', () => {
             await controller.refresh();
 
             expect(controller.state).toStrictEqual({
-              accounts: {
-                [CHECKSUM_ADDRESS_1]: { balance: '0x13' },
-                [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
-              },
               accountsByChainId: {
                 '0x1': {
                   [CHECKSUM_ADDRESS_1]: {
@@ -664,10 +601,6 @@ describe('AccountTrackerController', () => {
             await controller.refresh();
 
             expect(controller.state).toStrictEqual({
-              accounts: {
-                [CHECKSUM_ADDRESS_1]: { balance: '0x11', stakedBalance: '0x1' },
-                [CHECKSUM_ADDRESS_2]: { balance: '0x12', stakedBalance: '0x1' },
-              },
               accountsByChainId: {
                 '0x1': {
                   [CHECKSUM_ADDRESS_1]: {
@@ -710,10 +643,6 @@ describe('AccountTrackerController', () => {
             await controller.refresh();
 
             expect(controller.state).toStrictEqual({
-              accounts: {
-                [CHECKSUM_ADDRESS_1]: { balance: '0x11' },
-                [CHECKSUM_ADDRESS_2]: { balance: '0x12' },
-              },
               accountsByChainId: {
                 '0x1': {
                   [CHECKSUM_ADDRESS_1]: {

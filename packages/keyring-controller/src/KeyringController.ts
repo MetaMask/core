@@ -359,62 +359,66 @@ export type GenericEncryptor = {
  * An encryptor interface that supports encrypting and decrypting
  * serializable data with a password, and exporting and importing keys.
  */
-export type ExportableKeyEncryptor = GenericEncryptor & {
-  /**
-   * Encrypts the given object with the given encryption key.
-   *
-   * @param key - The encryption key to encrypt with.
-   * @param object - The object to encrypt.
-   * @returns The encryption result.
-   */
-  encryptWithKey: (
-    key: unknown,
-    object: Json,
-  ) => Promise<encryptorUtils.EncryptionResult>;
-  /**
-   * Encrypts the given object with the given password, and returns the
-   * encryption result and the exported key string.
-   *
-   * @param password - The password to encrypt with.
-   * @param object - The object to encrypt.
-   * @param salt - The optional salt to use for encryption.
-   * @returns The encrypted string and the exported key string.
-   */
-  encryptWithDetail: (
-    password: string,
-    object: Json,
-    salt?: string,
-  ) => Promise<encryptorUtils.DetailedEncryptionResult>;
-  /**
-   * Decrypts the given encrypted string with the given encryption key.
-   *
-   * @param key - The encryption key to decrypt with.
-   * @param encryptedString - The encrypted string to decrypt.
-   * @returns The decrypted object.
-   */
-  decryptWithKey: (key: unknown, encryptedString: string) => Promise<unknown>;
-  /**
-   * Decrypts the given encrypted string with the given password, and returns
-   * the decrypted object and the salt and exported key string used for
-   * encryption.
-   *
-   * @param password - The password to decrypt with.
-   * @param encryptedString - The encrypted string to decrypt.
-   * @returns The decrypted object and the salt and exported key string used for
-   * encryption.
-   */
-  decryptWithDetail: (
-    password: string,
-    encryptedString: string,
-  ) => Promise<encryptorUtils.DetailedDecryptResult>;
-  /**
-   * Generates an encryption key from exported key string.
-   *
-   * @param key - The exported key string.
-   * @returns The encryption key.
-   */
-  importKey: (key: string) => Promise<unknown>;
-};
+export type ExportableKeyEncryptor<EncryptionKey = unknown> =
+  GenericEncryptor & {
+    /**
+     * Encrypts the given object with the given encryption key.
+     *
+     * @param key - The encryption key to encrypt with.
+     * @param object - The object to encrypt.
+     * @returns The encryption result.
+     */
+    encryptWithKey: (
+      key: EncryptionKey,
+      object: Json,
+    ) => Promise<encryptorUtils.EncryptionResult>;
+    /**
+     * Encrypts the given object with the given password, and returns the
+     * encryption result and the exported key string.
+     *
+     * @param password - The password to encrypt with.
+     * @param object - The object to encrypt.
+     * @param salt - The optional salt to use for encryption.
+     * @returns The encrypted string and the exported key string.
+     */
+    encryptWithDetail: (
+      password: string,
+      object: Json,
+      salt?: string,
+    ) => Promise<encryptorUtils.DetailedEncryptionResult>;
+    /**
+     * Decrypts the given encrypted string with the given encryption key.
+     *
+     * @param key - The encryption key to decrypt with.
+     * @param encryptedString - The encrypted string to decrypt.
+     * @returns The decrypted object.
+     */
+    decryptWithKey: (
+      key: EncryptionKey,
+      encryptedString: string,
+    ) => Promise<unknown>;
+    /**
+     * Decrypts the given encrypted string with the given password, and returns
+     * the decrypted object and the salt and exported key string used for
+     * encryption.
+     *
+     * @param password - The password to decrypt with.
+     * @param encryptedString - The encrypted string to decrypt.
+     * @returns The decrypted object and the salt and exported key string used for
+     * encryption.
+     */
+    decryptWithDetail: (
+      password: string,
+      encryptedString: string,
+    ) => Promise<encryptorUtils.DetailedDecryptResult>;
+    /**
+     * Generates an encryption key from exported key string.
+     *
+     * @param key - The exported key string.
+     * @returns The encryption key.
+     */
+    importKey: (key: string) => Promise<EncryptionKey>;
+  };
 
 export type KeyringSelector =
   | {
@@ -620,13 +624,13 @@ export class KeyringController extends BaseController<
 
   readonly #keyringBuilders: { (): EthKeyring; type: string }[];
 
-  readonly #unsupportedKeyrings: SerializedKeyring[];
-
   readonly #encryptor: GenericEncryptor | ExportableKeyEncryptor;
 
   readonly #cacheEncryptionKey: boolean;
 
   #keyrings: EthKeyring[];
+
+  #unsupportedKeyrings: SerializedKeyring[];
 
   #keyringsMetadata: KeyringMetadata[];
 
@@ -677,7 +681,7 @@ export class KeyringController extends BaseController<
 
     this.#encryptor = encryptor;
     this.#keyrings = [];
-    this.#keyringsMetadata = state?.keyringsMetadata ?? [];
+    this.#keyringsMetadata = state?.keyringsMetadata?.slice() ?? [];
     this.#unsupportedKeyrings = [];
 
     // This option allows the controller to cache an exported key
@@ -2232,6 +2236,13 @@ export class KeyringController extends BaseController<
       }
 
       await this.#restoreSerializedKeyrings(vault);
+
+      // The keyrings array and the keyringsMetadata array should
+      // always have the same length while the controller is unlocked.
+      if (this.#keyrings.length !== this.#keyringsMetadata.length) {
+        throw new Error(KeyringControllerError.KeyringMetadataLengthMismatch);
+      }
+
       const updatedKeyrings = await this.#getUpdatedKeyrings();
 
       this.update((state) => {
@@ -2266,7 +2277,15 @@ export class KeyringController extends BaseController<
    */
   #updateVault(): Promise<boolean> {
     return this.#withVaultLock(async () => {
-      const { encryptionKey, encryptionSalt } = this.state;
+      const { encryptionKey, encryptionSalt, vault } = this.state;
+      // READ THIS CAREFULLY:
+      // We do check if the vault is still considered up-to-date, if not, we would not re-use the
+      // cached key and we will re-generate a new one (based on the password).
+      //
+      // This helps doing seamless updates of the vault. Useful in case we change some cryptographic
+      // parameters to the KDF.
+      const useCachedKey =
+        encryptionKey && vault && this.#encryptor.isVaultUpdated?.(vault);
 
       if (!this.#password && !encryptionKey) {
         throw new Error(KeyringControllerError.MissingCredentials);
@@ -2285,7 +2304,7 @@ export class KeyringController extends BaseController<
       if (this.#cacheEncryptionKey) {
         assertIsExportableKeyEncryptor(this.#encryptor);
 
-        if (encryptionKey) {
+        if (useCachedKey) {
           const key = await this.#encryptor.importKey(encryptionKey);
           const vaultJSON = await this.#encryptor.encryptWithKey(
             key,
@@ -2473,6 +2492,7 @@ export class KeyringController extends BaseController<
       await this.#destroyKeyring(keyring);
     }
     this.#keyrings = [];
+    this.#unsupportedKeyrings = [];
   }
 
   /**
@@ -2490,15 +2510,18 @@ export class KeyringController extends BaseController<
     try {
       const { type, data } = serialized;
       const keyring = await this.#createKeyring(type, data);
-      this.#keyrings.push(keyring);
       // If metadata is missing, assume the data is from an installation before
       // we had keyring metadata.
-      if (this.#keyringsMetadata.length < this.#keyrings.length) {
+      if (this.#keyringsMetadata.length <= this.#keyrings.length) {
         console.log(`Adding missing metadata for '${type}' keyring`);
         this.#keyringsMetadata.push(getDefaultKeyringMetadata());
       }
+      // The keyring is added to the keyrings array only if it's successfully restored
+      // and the metadata is successfully added to the controller
+      this.#keyrings.push(keyring);
       return keyring;
-    } catch (_) {
+    } catch (error) {
+      console.error(error);
       this.#unsupportedKeyrings.push(serialized);
       return undefined;
     }
@@ -2597,6 +2620,11 @@ export class KeyringController extends BaseController<
 
     this.update((state) => {
       state.isUnlocked = true;
+      // If new keyringsMetadata was generated during the unlock operation,
+      // we'll have to update the state with the new array
+      if (this.#keyringsMetadata.length > state.keyringsMetadata.length) {
+        state.keyringsMetadata = this.#keyringsMetadata.slice();
+      }
     });
     this.messagingSystem.publish(`${name}:unlock`);
   }
@@ -2651,9 +2679,9 @@ export class KeyringController extends BaseController<
         return await callback({ releaseLock });
       } catch (e) {
         // Keyrings and password are restored to their previous state
-        await this.#restoreSerializedKeyrings(currentSerializedKeyrings);
-        this.#password = currentPassword;
         this.#keyringsMetadata = currentKeyringsMetadata;
+        this.#password = currentPassword;
+        await this.#restoreSerializedKeyrings(currentSerializedKeyrings);
 
         throw e;
       }

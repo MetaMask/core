@@ -1,17 +1,28 @@
+import type { AccountsControllerListMultichainAccountsAction } from '@metamask/accounts-controller';
 import {
   type ControllerGetStateAction,
   type ControllerStateChangeEvent,
   type RestrictedMessenger,
 } from '@metamask/base-controller';
-import type { BtcScope, CaipChainId, SolScope } from '@metamask/keyring-api';
+import type {
+  BtcScope,
+  CaipAssetType,
+  CaipChainId,
+  SolScope,
+} from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
   NetworkStatus,
   NetworkControllerSetActiveNetworkAction,
   NetworkControllerGetStateAction,
+  NetworkControllerRemoveNetworkAction,
+  NetworkControllerGetSelectedChainIdAction,
+  NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkClientId,
 } from '@metamask/network-controller';
-import { type CaipAssetType } from '@metamask/utils';
+
+import type { ActiveNetworksByAddress } from './api/accounts-api';
+import type { MultichainNetworkController } from './MultichainNetworkController/MultichainNetworkController';
 
 export const MULTICHAIN_NETWORK_CONTROLLER_NAME = 'MultichainNetworkController';
 
@@ -20,7 +31,13 @@ export type MultichainNetworkMetadata = {
   status: NetworkStatus;
 };
 
-export type SupportedCaipChainId = SolScope.Mainnet | BtcScope.Mainnet;
+export type SupportedCaipChainId =
+  | BtcScope.Mainnet
+  | BtcScope.Testnet
+  | BtcScope.Signet
+  | SolScope.Mainnet
+  | SolScope.Testnet
+  | SolScope.Devnet;
 
 export type CommonNetworkConfiguration = {
   /**
@@ -94,6 +111,10 @@ export type MultichainNetworkControllerState = {
    * Whether EVM or non-EVM network is selected
    */
   isEvmSelected: boolean;
+  /**
+   * The active networks for the available EVM addresses (non-EVM networks will be supported in the future).
+   */
+  networksWithTransactionActivity: ActiveNetworksByAddress;
 };
 
 /**
@@ -114,6 +135,12 @@ export type MultichainNetworkControllerSetActiveNetworkAction = {
   handler: SetActiveNetworkMethod;
 };
 
+export type MultichainNetworkControllerGetNetworksWithTransactionActivityByAccountsAction =
+  {
+    type: `${typeof MULTICHAIN_NETWORK_CONTROLLER_NAME}:getNetworksWithTransactionActivityByAccounts`;
+    handler: MultichainNetworkController['getNetworksWithTransactionActivityByAccounts'];
+  };
+
 /**
  * Event emitted when the state of the {@link MultichainNetworkController} changes.
  */
@@ -132,7 +159,8 @@ export type MultichainNetworkControllerNetworkDidChangeEvent = {
  */
 export type MultichainNetworkControllerActions =
   | MultichainNetworkControllerGetStateAction
-  | MultichainNetworkControllerSetActiveNetworkAction;
+  | MultichainNetworkControllerSetActiveNetworkAction
+  | MultichainNetworkControllerGetNetworksWithTransactionActivityByAccountsAction;
 
 /**
  * Events emitted by {@link MultichainNetworkController}.
@@ -146,7 +174,11 @@ export type MultichainNetworkControllerEvents =
  */
 export type AllowedActions =
   | NetworkControllerGetStateAction
-  | NetworkControllerSetActiveNetworkAction;
+  | NetworkControllerSetActiveNetworkAction
+  | AccountsControllerListMultichainAccountsAction
+  | NetworkControllerRemoveNetworkAction
+  | NetworkControllerGetSelectedChainIdAction
+  | NetworkControllerFindNetworkClientIdByChainIdAction;
 
 // Re-define event here to avoid circular dependency with AccountsController
 export type AccountsControllerSelectedAccountChangeEvent = {

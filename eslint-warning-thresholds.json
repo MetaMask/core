@@ -1,18 +1,4 @@
 {
-  "examples/example-controllers/src/gas-prices-controller.test.ts": {
-    "import-x/order": 1
-  },
-  "examples/example-controllers/src/gas-prices-controller.ts": {
-    "@typescript-eslint/prefer-readonly": 1,
-    "prettier/prettier": 1
-  },
-  "examples/example-controllers/src/gas-prices-service/gas-prices-service.ts": {
-    "@typescript-eslint/prefer-readonly": 1,
-    "jsdoc/require-returns": 1
-  },
-  "examples/example-controllers/src/pet-names-controller.test.ts": {
-    "import-x/order": 2
-  },
   "packages/accounts-controller/src/AccountsController.test.ts": {
     "import-x/namespace": 1
   },
@@ -35,8 +21,7 @@
     "import-x/namespace": 2
   },
   "packages/assets-controllers/src/AccountTrackerController.ts": {
-    "jsdoc/check-tag-names": 5,
-    "jsdoc/tag-lines": 1
+    "jsdoc/check-tag-names": 5
   },
   "packages/assets-controllers/src/AssetsContractController.test.ts": {
     "import-x/order": 3
@@ -98,7 +83,6 @@
   },
   "packages/assets-controllers/src/TokenDetectionController.test.ts": {
     "import-x/namespace": 11,
-    "import-x/order": 3,
     "jsdoc/tag-lines": 1
   },
   "packages/assets-controllers/src/TokenDetectionController.ts": {
@@ -132,8 +116,8 @@
   "packages/assets-controllers/src/TokensController.ts": {
     "@typescript-eslint/no-unused-vars": 1,
     "@typescript-eslint/prefer-readonly": 1,
-    "jsdoc/check-tag-names": 13,
-    "jsdoc/tag-lines": 3
+    "jsdoc/check-tag-names": 10,
+    "jsdoc/tag-lines": 2
   },
   "packages/assets-controllers/src/assetsUtil.test.ts": {
     "jest/no-conditional-in-test": 2
@@ -247,7 +231,7 @@
   },
   "packages/keyring-controller/src/KeyringController.ts": {
     "@typescript-eslint/no-unsafe-enum-comparison": 5,
-    "@typescript-eslint/no-unused-vars": 2
+    "@typescript-eslint/no-unused-vars": 1
   },
   "packages/keyring-controller/tests/mocks/mockKeyring.ts": {
     "@typescript-eslint/prefer-readonly": 1
@@ -432,12 +416,8 @@
   "packages/permission-log-controller/tests/PermissionLogController.test.ts": {
     "import-x/order": 1
   },
-  "packages/phishing-controller/src/PhishingController.test.ts": {
-    "import-x/no-named-as-default-member": 1,
-    "jsdoc/tag-lines": 1
-  },
   "packages/phishing-controller/src/PhishingController.ts": {
-    "jsdoc/check-tag-names": 42,
+    "jsdoc/check-tag-names": 38,
     "jsdoc/tag-lines": 1
   },
   "packages/phishing-controller/src/PhishingDetector.ts": {
@@ -493,14 +473,8 @@
   "packages/selected-network-controller/tests/SelectedNetworkController.test.ts": {
     "jest/no-conditional-in-test": 1
   },
-  "packages/signature-controller/src/SignatureController.test.ts": {
-    "import-x/order": 1,
-    "jsdoc/tag-lines": 3
-  },
   "packages/signature-controller/src/SignatureController.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": 4,
-    "@typescript-eslint/prefer-readonly": 3,
-    "jsdoc/tag-lines": 8
+    "@typescript-eslint/no-unsafe-enum-comparison": 4
   },
   "packages/signature-controller/src/utils/decoding-api.test.ts": {
     "import-x/order": 1,
@@ -516,13 +490,9 @@
     "@typescript-eslint/no-unused-vars": 1,
     "jsdoc/tag-lines": 2
   },
-  "packages/signature-controller/src/utils/validation.test.ts": {
-    "import-x/order": 1
-  },
   "packages/signature-controller/src/utils/validation.ts": {
     "@typescript-eslint/no-base-to-string": 1,
-    "@typescript-eslint/no-unused-vars": 2,
-    "jsdoc/tag-lines": 4
+    "@typescript-eslint/no-unused-vars": 2
   },
   "packages/user-operation-controller/src/UserOperationController.test.ts": {
     "jsdoc/tag-lines": 4

@@ -1,6 +1,6 @@
 import { Messenger } from '@metamask/base-controller';
 import { strict as assert } from 'assert';
-import nock from 'nock';
+import nock, { cleanAll, isDone, pendingMocks } from 'nock';
 import sinon from 'sinon';
 
 import {
@@ -15,6 +15,8 @@ import {
   C2_DOMAIN_BLOCKLIST_ENDPOINT,
   PHISHING_DETECTION_BASE_URL,
   PHISHING_DETECTION_SCAN_ENDPOINT,
+  PHISHING_DETECTION_BULK_SCAN_ENDPOINT,
+  type BulkPhishingDetectionScanResponse,
 } from './PhishingController';
 import { formatHostnameToUrl } from './tests/utils';
 import type { PhishingDetectionScanResult } from './types';
@@ -39,9 +41,10 @@ function getRestrictedMessenger() {
 }
 
 /**
- * Contruct a Phishing Controller with the given options if any.
+ * Construct a Phishing Controller with the given options if any.
+ *
  * @param options - The Phishing Controller options.
- * @returns The contstructed Phishing Controller.
+ * @returns The constructed Phishing Controller.
  */
 function getPhishingController(options?: Partial<PhishingControllerOptions>) {
   return new PhishingController({
@@ -53,6 +56,7 @@ function getPhishingController(options?: Partial<PhishingControllerOptions>) {
 describe('PhishingController', () => {
   afterEach(() => {
     sinon.restore();
+    cleanAll();
   });
 
   it('should have no default phishing lists', () => {
@@ -183,6 +187,20 @@ describe('PhishingController', () => {
 
     const controller = getPhishingController({
       hotlistRefreshInterval: 10,
+      state: {
+        phishingLists: [
+          {
+            allowlist: [],
+            blocklist: [],
+            c2DomainBlocklist: [],
+            fuzzylist: [],
+            tolerance: 0,
+            lastUpdated: 1,
+            name: ListNames.MetaMask,
+            version: 0,
+          },
+        ],
+      },
     });
     clock.tick(1000 * 10);
     const pendingUpdate = controller.updateHotlist();
@@ -494,6 +512,20 @@ describe('PhishingController', () => {
       const clock = sinon.useFakeTimers();
       const controller = getPhishingController({
         hotlistRefreshInterval: 10,
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [],
+              fuzzylist: [],
+              tolerance: 0,
+              lastUpdated: 1,
+              name: ListNames.MetaMask,
+              version: 0,
+            },
+          ],
+        },
       });
       clock.tick(1000 * 10);
       const pendingUpdate = controller.updateHotlist();
@@ -1647,7 +1679,8 @@ describe('PhishingController', () => {
         },
       ]);
     });
-    it('should not update phishing lists if hotlist fetch returns 400', async () => {
+
+    it('should not update phishing lists if hotlist fetch returns 404', async () => {
       nock(PHISHING_CONFIG_BASE_URL)
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/${0}`)
         .reply(404);
@@ -1677,6 +1710,31 @@ describe('PhishingController', () => {
         },
       ]);
     });
+
+    it('should not make API calls to update hotlist when phishingLists array is empty', async () => {
+      const testBlockedDomain = 'some-test-blocked-url.com';
+      const hotlistNock = nock(PHISHING_CONFIG_BASE_URL)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${0}`)
+        .reply(200, {
+          data: [
+            {
+              targetList: 'eth_phishing_detect_config.blocklist',
+              url: testBlockedDomain,
+              timestamp: 1,
+            },
+          ],
+        });
+
+      const controller = getPhishingController({
+        state: {
+          phishingLists: [],
+        },
+      });
+      await controller.updateHotlist();
+
+      expect(hotlistNock.isDone()).toBe(false);
+    });
+
     it('should handle empty hotlist and request blocklist responses gracefully', async () => {
       nock(PHISHING_CONFIG_BASE_URL)
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/0`)
@@ -2099,7 +2157,7 @@ describe('PhishingController', () => {
 
   describe('PhishingController - isBlockedRequest', () => {
     afterEach(() => {
-      nock.cleanAll();
+      cleanAll();
     });
 
     it('should return false if c2DomainBlocklist is not defined or empty', async () => {
@@ -2531,5 +2589,760 @@ describe('PhishingController', () => {
       expect(response).toMatchObject(mockResponse);
       expect(scope.isDone()).toBe(true);
     });
+  });
+
+  describe('bulkScanUrls', () => {
+    let controller: PhishingController;
+    let clock: sinon.SinonFakeTimers;
+    const testUrls: string[] = [
+      'https://example1.com',
+      'https://example2.com',
+      'https://example3.com',
+    ];
+    const mockResponse: BulkPhishingDetectionScanResponse = {
+      results: {
+        'https://example1.com': {
+          domainName: 'example1.com',
+          recommendedAction: RecommendedAction.None,
+        },
+        'https://example2.com': {
+          domainName: 'example2.com',
+          recommendedAction: RecommendedAction.Block,
+        },
+        'https://example3.com': {
+          domainName: 'example3.com',
+          recommendedAction: RecommendedAction.None,
+        },
+      },
+      errors: {},
+    };
+
+    beforeEach(() => {
+      controller = getPhishingController();
+      clock = sinon.useFakeTimers();
+    });
+
+    afterEach(() => {
+      clock.restore();
+    });
+
+    it('should return the scan results for multiple URLs', async () => {
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+          urls: testUrls,
+        })
+        .reply(200, mockResponse);
+
+      const response = await controller.bulkScanUrls(testUrls);
+      expect(response).toStrictEqual(mockResponse);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('should handle empty URL arrays', async () => {
+      const response = await controller.bulkScanUrls([]);
+      expect(response).toStrictEqual({
+        results: {},
+        errors: {},
+      });
+    });
+
+    it('should enforce maximum URL limit', async () => {
+      const tooManyUrls = Array(251).fill('https://example.com');
+      const response = await controller.bulkScanUrls(tooManyUrls);
+      expect(response).toStrictEqual({
+        results: {},
+        errors: {
+          too_many_urls: ['Maximum of 250 URLs allowed per request'],
+        },
+      });
+    });
+
+    it('should validate URL length', async () => {
+      const longUrl = `https://example.com/${'a'.repeat(2048)}`;
+      const response = await controller.bulkScanUrls([longUrl]);
+      expect(response).toStrictEqual({
+        results: {},
+        errors: {
+          [longUrl]: ['URL length must not exceed 2048 characters'],
+        },
+      });
+    });
+
+    it.each([
+      [400, 'Bad Request'],
+      [401, 'Unauthorized'],
+      [403, 'Forbidden'],
+      [404, 'Not Found'],
+      [500, 'Internal Server Error'],
+      [502, 'Bad Gateway'],
+      [503, 'Service Unavailable'],
+      [504, 'Gateway Timeout'],
+    ])(
+      'should return an error response on %i status code',
+      async (statusCode, statusText) => {
+        const scope = nock(PHISHING_DETECTION_BASE_URL)
+          .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+            urls: testUrls,
+          })
+          .reply(statusCode);
+
+        const response = await controller.bulkScanUrls(testUrls);
+        expect(response).toStrictEqual({
+          results: {},
+          errors: {
+            api_error: [`${statusCode} ${statusText}`],
+          },
+        });
+        expect(scope.isDone()).toBe(true);
+      },
+    );
+
+    it('should handle timeouts correctly', async () => {
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+          urls: testUrls,
+        })
+        .delayConnection(20000)
+        .reply(200, {});
+
+      const promise = controller.bulkScanUrls(testUrls);
+      clock.tick(15000);
+      const response = await promise;
+      expect(response).toStrictEqual({
+        results: {},
+        errors: {
+          network_error: ['timeout of 15000ms exceeded'],
+        },
+      });
+      expect(scope.isDone()).toBe(false);
+    });
+
+    it('should process URLs in batches when more than 50 URLs are provided', async () => {
+      const batchSize = 50;
+      const totalUrls = 120;
+      const manyUrls = Array(totalUrls)
+        .fill(0)
+        .map((_, i) => `https://example${i}.com`);
+
+      // Expected batches
+      const batch1 = manyUrls.slice(0, batchSize);
+      const batch2 = manyUrls.slice(batchSize, 2 * batchSize);
+      const batch3 = manyUrls.slice(2 * batchSize);
+
+      // Mock responses for each batch
+      const mockBatch1Response: BulkPhishingDetectionScanResponse = {
+        results: batch1.reduce<Record<string, PhishingDetectionScanResult>>(
+          (acc, url) => {
+            acc[url] = {
+              domainName: url.replace('https://', ''),
+              recommendedAction: RecommendedAction.None,
+            };
+            return acc;
+          },
+          {},
+        ),
+        errors: {},
+      };
+
+      const mockBatch2Response: BulkPhishingDetectionScanResponse = {
+        results: batch2.reduce<Record<string, PhishingDetectionScanResult>>(
+          (acc, url) => {
+            acc[url] = {
+              domainName: url.replace('https://', ''),
+              recommendedAction: RecommendedAction.None,
+            };
+            return acc;
+          },
+          {},
+        ),
+        errors: {},
+      };
+
+      const mockBatch3Response: BulkPhishingDetectionScanResponse = {
+        results: batch3.reduce<Record<string, PhishingDetectionScanResult>>(
+          (acc, url) => {
+            acc[url] = {
+              domainName: url.replace('https://', ''),
+              recommendedAction: RecommendedAction.None,
+            };
+            return acc;
+          },
+          {},
+        ),
+        errors: {},
+      };
+
+      // Setup nock to handle all three batch requests
+      const scope1 = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+          urls: batch1,
+        })
+        .reply(200, mockBatch1Response);
+
+      const scope2 = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+          urls: batch2,
+        })
+        .reply(200, mockBatch2Response);
+
+      const scope3 = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+          urls: batch3,
+        })
+        .reply(200, mockBatch3Response);
+
+      const response = await controller.bulkScanUrls(manyUrls);
+
+      // Verify all scopes were called
+      expect(scope1.isDone()).toBe(true);
+      expect(scope2.isDone()).toBe(true);
+      expect(scope3.isDone()).toBe(true);
+
+      // Check all results were merged correctly
+      const combinedResults = {
+        ...mockBatch1Response.results,
+        ...mockBatch2Response.results,
+        ...mockBatch3Response.results,
+      };
+
+      expect(Object.keys(response.results)).toHaveLength(totalUrls);
+      expect(response.results).toStrictEqual(combinedResults);
+    });
+
+    it('should handle mixed results with both successful scans and errors', async () => {
+      const mixedResponse: BulkPhishingDetectionScanResponse = {
+        results: {
+          'https://example1.com': {
+            domainName: 'example1.com',
+            recommendedAction: RecommendedAction.None,
+          },
+        },
+        errors: {
+          'https://example2.com': ['Failed to process URL'],
+          'https://example3.com': ['Domain not found'],
+        },
+      };
+
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+          urls: testUrls,
+        })
+        .reply(200, mixedResponse);
+
+      const response = await controller.bulkScanUrls(testUrls);
+      expect(response).toStrictEqual(mixedResponse);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('should have error merging issues when multiple batches return errors with the same key', async () => {
+      // Create enough URLs to need two batches (over 50)
+      const batchSize = 50;
+      const totalUrls = 100;
+      const manyUrls = Array(totalUrls)
+        .fill(0)
+        .map((_, i) => `https://example${i}.com`);
+
+      // The URLs will be split into two batches
+      const batch1 = manyUrls.slice(0, batchSize);
+      const batch2 = manyUrls.slice(batchSize);
+
+      // Setup nock to handle both batch requests with different error responses
+      const scope1 = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+          urls: batch1,
+        })
+        .reply(404, { error: 'Not Found' });
+
+      const scope2 = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+          urls: batch2,
+        })
+        .reply(500, { error: 'Internal Server Error' });
+
+      const response = await controller.bulkScanUrls(manyUrls);
+
+      expect(scope1.isDone()).toBe(true);
+      expect(scope2.isDone()).toBe(true);
+
+      // With the fixed implementation, we should now preserve all errors
+      expect(response.errors).toHaveProperty('api_error');
+      expect(response.errors.api_error).toHaveLength(2);
+      expect(response.errors.api_error).toContain('404 Not Found');
+      expect(response.errors.api_error).toContain('500 Internal Server Error');
+    });
+
+    it('should use cached results for previously scanned URLs and only fetch uncached URLs', async () => {
+      const cachedUrl = 'https://cached-example.com';
+      const uncachedUrl = 'https://uncached-example.com';
+      const mixedUrls = [cachedUrl, uncachedUrl];
+
+      // Set up the cache with a pre-existing result
+      const cachedResult: PhishingDetectionScanResult = {
+        domainName: 'cached-example.com',
+        recommendedAction: RecommendedAction.None,
+      };
+
+      // First cache a result via scanUrl
+      nock(PHISHING_DETECTION_BASE_URL)
+        .get(
+          `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent('cached-example.com')}`,
+        )
+        .reply(200, {
+          recommendedAction: RecommendedAction.None,
+        });
+
+      await controller.scanUrl(cachedUrl);
+
+      // Now set up the mock for the bulk API call with only the uncached URL
+      const expectedPostBody = {
+        urls: [uncachedUrl],
+      };
+
+      const bulkApiResponse: BulkPhishingDetectionScanResponse = {
+        results: {
+          [uncachedUrl]: {
+            domainName: 'uncached-example.com',
+            recommendedAction: RecommendedAction.Warn,
+          },
+        },
+        errors: {},
+      };
+
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, expectedPostBody)
+        .reply(200, bulkApiResponse);
+
+      // Call bulkScanUrls with both URLs
+      const response = await controller.bulkScanUrls(mixedUrls);
+
+      // Verify that only the uncached URL was requested from the API
+      expect(scope.isDone()).toBe(true);
+
+      // Verify the combined results include both the cached and newly fetched results
+      expect(response.results).toStrictEqual({
+        [cachedUrl]: cachedResult,
+        [uncachedUrl]: bulkApiResponse.results[uncachedUrl],
+      });
+
+      // Verify the newly fetched result is now in the cache
+      const newlyCachedResult = await controller.scanUrl(uncachedUrl);
+      expect(newlyCachedResult).toStrictEqual(
+        bulkApiResponse.results[uncachedUrl],
+      );
+
+      // Should not make a new API call for the second scanUrl call
+      // eslint-disable-next-line import-x/no-named-as-default-member
+      expect(nock.pendingMocks()).toHaveLength(0);
+    });
+    it('should handle invalid URLs properly when mixed with valid URLs and cache results correctly', async () => {
+      const validUrl = 'https://valid-example.com';
+      const invalidUrl = 'not-a-url';
+      const mixedUrls = [validUrl, invalidUrl];
+
+      const bulkApiResponse: BulkPhishingDetectionScanResponse = {
+        results: {
+          [validUrl]: {
+            domainName: 'valid-example.com',
+            recommendedAction: RecommendedAction.None,
+          },
+        },
+        errors: {},
+      };
+
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+          urls: [validUrl],
+        })
+        .reply(200, bulkApiResponse);
+
+      // Call bulkScanUrls with both URLs
+      const response = await controller.bulkScanUrls(mixedUrls);
+
+      // Verify that only the valid URL was requested from the API
+      expect(scope.isDone()).toBe(true);
+
+      // Verify the results include the valid URL result and an error for the invalid URL
+      expect(response.results[validUrl]).toStrictEqual(
+        bulkApiResponse.results[validUrl],
+      );
+      expect(response.errors[invalidUrl]).toContain(
+        'url is not a valid web URL',
+      );
+
+      // Verify the valid result is now in the cache
+      const cachedResult = await controller.scanUrl(validUrl);
+      expect(cachedResult).toStrictEqual(bulkApiResponse.results[validUrl]);
+
+      // Should not make a new API call for the cached URL
+      // eslint-disable-next-line import-x/no-named-as-default-member
+      expect(nock.pendingMocks()).toHaveLength(0);
+    });
+
+    it('should use cache for all URLs if all are already cached', async () => {
+      // First cache the results individually
+      const cachedUrls = ['https://domain1.com', 'https://domain2.com'];
+      const cachedResults = [
+        {
+          domainName: 'domain1.com',
+          recommendedAction: RecommendedAction.None,
+        },
+        {
+          domainName: 'domain2.com',
+          recommendedAction: RecommendedAction.Block,
+        },
+      ];
+
+      // Set up nock for individual caching
+      nock(PHISHING_DETECTION_BASE_URL)
+        .get(
+          `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent('domain1.com')}`,
+        )
+        .reply(200, {
+          recommendedAction: RecommendedAction.None,
+        });
+
+      nock(PHISHING_DETECTION_BASE_URL)
+        .get(
+          `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent('domain2.com')}`,
+        )
+        .reply(200, {
+          recommendedAction: RecommendedAction.Block,
+        });
+
+      // Cache the results
+      await controller.scanUrl(cachedUrls[0]);
+      await controller.scanUrl(cachedUrls[1]);
+
+      // No API call should be made for bulkScanUrls
+      const response = await controller.bulkScanUrls(cachedUrls);
+
+      // Verify we got the results from cache
+      expect(response.results[cachedUrls[0]]).toStrictEqual(cachedResults[0]);
+      expect(response.results[cachedUrls[1]]).toStrictEqual(cachedResults[1]);
+
+      // Verify no API calls were made
+      // eslint-disable-next-line import-x/no-named-as-default-member
+      expect(nock.pendingMocks()).toHaveLength(0);
+    });
+  });
+});
+
+describe('URL Scan Cache', () => {
+  let clock: sinon.SinonFakeTimers;
+
+  beforeEach(() => {
+    clock = sinon.useFakeTimers();
+  });
+  afterEach(() => {
+    sinon.restore();
+    cleanAll();
+  });
+
+  it('should cache scan results and return them on subsequent calls', async () => {
+    const testDomain = 'example.com';
+
+    // Spy on the fetch function to track calls
+    const fetchSpy = jest.spyOn(global, 'fetch');
+
+    nock(PHISHING_DETECTION_BASE_URL)
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+      )
+      .reply(200, {
+        recommendedAction: RecommendedAction.None,
+      });
+
+    const controller = getPhishingController();
+
+    const result1 = await controller.scanUrl(`https://${testDomain}`);
+    expect(result1).toStrictEqual({
+      domainName: testDomain,
+      recommendedAction: RecommendedAction.None,
+    });
+
+    const result2 = await controller.scanUrl(`https://${testDomain}`);
+    expect(result2).toStrictEqual({
+      domainName: testDomain,
+      recommendedAction: RecommendedAction.None,
+    });
+
+    // Verify that fetch was called exactly once
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    fetchSpy.mockRestore();
+  });
+
+  it('should expire cache entries after TTL', async () => {
+    const testDomain = 'example.com';
+    const cacheTTL = 300; // 5 minutes
+
+    nock(PHISHING_DETECTION_BASE_URL)
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+      )
+      .reply(200, {
+        recommendedAction: RecommendedAction.None,
+      })
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+      )
+      .reply(200, {
+        recommendedAction: RecommendedAction.None,
+      });
+
+    const controller = getPhishingController({
+      urlScanCacheTTL: cacheTTL,
+    });
+
+    await controller.scanUrl(`https://${testDomain}`);
+
+    // Before TTL expires, should use cache
+    clock.tick((cacheTTL - 10) * 1000);
+    await controller.scanUrl(`https://${testDomain}`);
+    expect(pendingMocks()).toHaveLength(1); // One mock remaining
+
+    // After TTL expires, should fetch again
+    clock.tick(11 * 1000);
+    await controller.scanUrl(`https://${testDomain}`);
+    expect(pendingMocks()).toHaveLength(0); // All mocks used
+  });
+
+  it('should evict oldest entries when cache exceeds max size', async () => {
+    const maxCacheSize = 2;
+    const domains = ['domain1.com', 'domain2.com', 'domain3.com'];
+
+    // Setup nock to respond to all three domains
+    domains.forEach((domain) => {
+      nock(PHISHING_DETECTION_BASE_URL)
+        .get(
+          `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(domain)}`,
+        )
+        .reply(200, {
+          recommendedAction: RecommendedAction.None,
+        });
+    });
+
+    // Setup a second request for the first domain
+    nock(PHISHING_DETECTION_BASE_URL)
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(domains[0])}`,
+      )
+      .reply(200, {
+        recommendedAction: RecommendedAction.Warn,
+      });
+
+    const controller = getPhishingController({
+      urlScanCacheMaxSize: maxCacheSize,
+    });
+
+    // Fill the cache
+    await controller.scanUrl(`https://${domains[0]}`);
+    clock.tick(1000); // Ensure different timestamps
+    await controller.scanUrl(`https://${domains[1]}`);
+
+    // This should evict the oldest entry (domain1)
+    clock.tick(1000);
+    await controller.scanUrl(`https://${domains[2]}`);
+
+    // Now domain1 should not be in cache and require a new fetch
+    await controller.scanUrl(`https://${domains[0]}`);
+
+    // All mocks should be used
+    expect(isDone()).toBe(true);
+  });
+
+  it('should clear the cache when clearUrlScanCache is called', async () => {
+    const testDomain = 'example.com';
+
+    nock(PHISHING_DETECTION_BASE_URL)
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+      )
+      .reply(200, {
+        recommendedAction: RecommendedAction.None,
+      })
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+      )
+      .reply(200, {
+        recommendedAction: RecommendedAction.None,
+      });
+
+    const controller = getPhishingController();
+
+    // First call should fetch from API
+    await controller.scanUrl(`https://${testDomain}`);
+
+    // Clear the cache
+    controller.clearUrlScanCache();
+
+    // Should fetch again
+    await controller.scanUrl(`https://${testDomain}`);
+
+    // All mocks should be used
+    expect(isDone()).toBe(true);
+  });
+
+  it('should allow changing the TTL', async () => {
+    const testDomain = 'example.com';
+    const initialTTL = 300; // 5 minutes
+    const newTTL = 60; // 1 minute
+
+    nock(PHISHING_DETECTION_BASE_URL)
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+      )
+      .reply(200, {
+        recommendedAction: RecommendedAction.None,
+      })
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+      )
+      .reply(200, {
+        recommendedAction: RecommendedAction.None,
+      });
+
+    const controller = getPhishingController({
+      urlScanCacheTTL: initialTTL,
+    });
+
+    // First call should fetch from API
+    await controller.scanUrl(`https://${testDomain}`);
+
+    // Change TTL
+    controller.setUrlScanCacheTTL(newTTL);
+
+    // Before new TTL expires, should use cache
+    clock.tick((newTTL - 10) * 1000);
+    await controller.scanUrl(`https://${testDomain}`);
+    expect(pendingMocks()).toHaveLength(1); // One mock remaining
+
+    // After new TTL expires, should fetch again
+    clock.tick(11 * 1000);
+    await controller.scanUrl(`https://${testDomain}`);
+    expect(pendingMocks()).toHaveLength(0); // All mocks used
+  });
+
+  it('should allow changing the max cache size', async () => {
+    const initialMaxSize = 3;
+    const newMaxSize = 2;
+    const domains = [
+      'domain1.com',
+      'domain2.com',
+      'domain3.com',
+      'domain4.com',
+    ];
+
+    // Setup nock to respond to all domains
+    domains.forEach((domain) => {
+      nock(PHISHING_DETECTION_BASE_URL)
+        .get(
+          `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(domain)}`,
+        )
+        .reply(200, {
+          recommendedAction: RecommendedAction.None,
+        });
+    });
+
+    const controller = getPhishingController({
+      urlScanCacheMaxSize: initialMaxSize,
+    });
+
+    // Fill the cache to initial size
+    await controller.scanUrl(`https://${domains[0]}`);
+    clock.tick(1000); // Ensure different timestamps
+    await controller.scanUrl(`https://${domains[1]}`);
+    clock.tick(1000);
+    await controller.scanUrl(`https://${domains[2]}`);
+
+    // Verify initial cache size
+    expect(Object.keys(controller.state.urlScanCache)).toHaveLength(
+      initialMaxSize,
+    );
+    // Reduce the max size
+    controller.setUrlScanCacheMaxSize(newMaxSize);
+
+    // Add another entry which should trigger eviction
+    await controller.scanUrl(`https://${domains[3]}`);
+
+    // Verify the cache size doesn't exceed new max size
+    expect(
+      Object.keys(controller.state.urlScanCache).length,
+    ).toBeLessThanOrEqual(newMaxSize);
+  });
+
+  it('should handle fetch errors and not cache them', async () => {
+    const testDomain = 'example.com';
+
+    nock(PHISHING_DETECTION_BASE_URL)
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+      )
+      .reply(500, { error: 'Internal Server Error' })
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+      )
+      .reply(200, {
+        recommendedAction: RecommendedAction.None,
+      });
+
+    const controller = getPhishingController();
+
+    // First call should result in an error response
+    const result1 = await controller.scanUrl(`https://${testDomain}`);
+    expect(result1.fetchError).toBeDefined();
+
+    // Second call should try again (not use cache since errors aren't cached)
+    const result2 = await controller.scanUrl(`https://${testDomain}`);
+    expect(result2.fetchError).toBeUndefined();
+    expect(result2.recommendedAction).toBe(RecommendedAction.None);
+
+    // All mocks should be used
+    expect(isDone()).toBe(true);
+  });
+
+  it('should handle timeout errors and not cache them', async () => {
+    const testDomain = 'example.com';
+
+    // First mock a timeout/error response
+    nock(PHISHING_DETECTION_BASE_URL)
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+      )
+      .replyWithError('connection timeout')
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+      )
+      .reply(200, {
+        recommendedAction: RecommendedAction.None,
+      });
+
+    const controller = getPhishingController();
+
+    // First call should result in an error
+    const result1 = await controller.scanUrl(`https://${testDomain}`);
+    expect(result1.fetchError).toBeDefined();
+
+    // Second call should succeed (not use cache since errors aren't cached)
+    const result2 = await controller.scanUrl(`https://${testDomain}`);
+    expect(result2.fetchError).toBeUndefined();
+    expect(result2.recommendedAction).toBe(RecommendedAction.None);
+
+    // All mocks should be used
+    expect(isDone()).toBe(true);
+  });
+
+  it('should handle invalid URLs and not cache them', async () => {
+    const invalidUrl = 'not-a-valid-url';
+
+    const controller = getPhishingController();
+
+    // First call should return an error for invalid URL
+    const result1 = await controller.scanUrl(invalidUrl);
+    expect(result1.fetchError).toBeDefined();
+
+    // Second call should also return an error (not from cache)
+    const result2 = await controller.scanUrl(invalidUrl);
+    expect(result2.fetchError).toBeDefined();
   });
 });

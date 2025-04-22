@@ -1,8 +1,13 @@
 import type { AccountsController } from '@metamask/accounts-controller';
 import { Messenger } from '@metamask/base-controller';
+import { toHex } from '@metamask/controller-utils';
 import { getDefaultNetworkControllerState } from '@metamask/network-controller';
 import { StakeSdk, StakingApiService } from '@metamask/stake-sdk';
 
+import type {
+  EarnControllerGetStateAction,
+  EarnControllerStateChangeEvent,
+} from './EarnController';
 import {
   EarnController,
   type EarnControllerState,
@@ -13,6 +18,11 @@ import {
   type AllowedActions,
   type AllowedEvents,
 } from './EarnController';
+import type { TransactionMeta } from '../../transaction-controller/src';
+import {
+  TransactionStatus,
+  TransactionType,
+} from '../../transaction-controller/src';
 
 jest.mock('@metamask/stake-sdk', () => ({
   StakeSdk: {
@@ -29,6 +39,10 @@ jest.mock('@metamask/stake-sdk', () => ({
     getVaultDailyApys: jest.fn(),
     getVaultApyAverages: jest.fn(),
   })),
+  ChainId: {
+    ETHEREUM: 1,
+    HOLESKY: 17000,
+  },
 }));
 
 /**
@@ -63,6 +77,7 @@ function getEarnControllerMessenger(
     allowedEvents: [
       'NetworkController:stateChange',
       'AccountsController:selectedAccountChange',
+      'TransactionController:transactionConfirmed',
     ],
   });
 }
@@ -98,8 +113,36 @@ const createMockInternalAccount = ({
   };
 };
 
+const mockAccount1Address = '0x1234';
+
+const mockAccount2Address = '0xabc';
+
+const createMockTransaction = ({
+  id = '1',
+  type = TransactionType.stakingDeposit,
+  chainId = toHex(1),
+  networkClientId = 'networkClientIdMock',
+  time = 123456789,
+  status = TransactionStatus.confirmed,
+  txParams = {
+    gasUsed: '0x5208',
+    from: mockAccount1Address,
+    to: mockAccount2Address,
+  },
+}: Partial<TransactionMeta> = {}): TransactionMeta => {
+  return {
+    id,
+    type,
+    chainId,
+    networkClientId,
+    time,
+    status,
+    txParams,
+  };
+};
+
 const mockPooledStakes = {
-  account: '0x1234',
+  account: mockAccount1Address,
   lifetimeRewards: '100',
   assets: '1000',
   exitRequests: [],
@@ -208,7 +251,7 @@ const setupController = ({
   })),
 
   mockGetSelectedAccount = jest.fn(() => ({
-    address: '0x1234',
+    address: mockAccount1Address,
   })),
 }: {
   options?: Partial<ConstructorParameters<typeof EarnController>[0]>;
@@ -339,7 +382,9 @@ describe('EarnController', () => {
       consoleErrorSpy.mockRestore();
     });
 
-    it('reinitializes SDK when network changes', () => {
+    // TEMP: We're hardcoding ETH mainnet since we can't rely on the network picker anymore.
+    // eslint-disable-next-line jest/no-disabled-tests
+    it.skip('reinitializes SDK when network changes', () => {
       const { messenger } = setupController();
 
       messenger.publish(
@@ -389,7 +434,7 @@ describe('EarnController', () => {
       expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
         // First call occurs during setupController()
         2,
-        ['0x1234'],
+        [mockAccount1Address],
         1,
         false,
       );
@@ -397,14 +442,29 @@ describe('EarnController', () => {
 
     it('invalidates cache when refreshing state', async () => {
       const { controller } = setupController();
-      await controller.refreshPooledStakingData(true);
+      await controller.refreshPooledStakingData({ resetCache: true });
 
       expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
         // First call occurs during setupController()
         2,
-        ['0x1234'],
+        [mockAccount1Address],
         1,
         true,
+      );
+    });
+
+    it('refreshes state using options.address', async () => {
+      const { controller } = setupController();
+      await controller.refreshPooledStakingData({
+        address: mockAccount2Address,
+      });
+
+      expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
+        // First call occurs during setupController()
+        2,
+        [mockAccount2Address],
+        1,
+        false,
       );
     });
 
@@ -464,12 +524,12 @@ describe('EarnController', () => {
   describe('refreshPooledStakes', () => {
     it('fetches without resetting cache when resetCache is false', async () => {
       const { controller } = setupController();
-      await controller.refreshPooledStakes(false);
+      await controller.refreshPooledStakes({ resetCache: false });
 
       // Assertion on second call since the first is part of controller setup.
       expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
         2,
-        ['0x1234'],
+        [mockAccount1Address],
         1,
         false,
       );
@@ -482,7 +542,7 @@ describe('EarnController', () => {
       // Assertion on second call since the first is part of controller setup.
       expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
         2,
-        ['0x1234'],
+        [mockAccount1Address],
         1,
         false,
       );
@@ -490,72 +550,211 @@ describe('EarnController', () => {
 
     it('fetches while resetting cache', async () => {
       const { controller } = setupController();
-      await controller.refreshPooledStakes(true);
+      await controller.refreshPooledStakes({ resetCache: true });
 
       // Assertion on second call since the first is part of controller setup.
       expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
         2,
-        ['0x1234'],
+        [mockAccount1Address],
         1,
         true,
       );
     });
+
+    it('fetches using active account (default)', async () => {
+      const { controller } = setupController();
+      await controller.refreshPooledStakes();
+
+      // Assertion on second call since the first is part of controller setup.
+      expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
+        2,
+        [mockAccount1Address],
+        1,
+        false,
+      );
+    });
+
+    it('fetches using options.address override', async () => {
+      const { controller } = setupController();
+      await controller.refreshPooledStakes({ address: mockAccount2Address });
+
+      // Assertion on second call since the first is part of controller setup.
+      expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
+        2,
+        [mockAccount2Address],
+        1,
+        false,
+      );
+    });
+  });
+
+  describe('refreshStakingEligibility', () => {
+    it('fetches staking eligibility using active account (default)', async () => {
+      const { controller } = setupController();
+
+      await controller.refreshStakingEligibility();
+
+      // Assertion on second call since the first is part of controller setup.
+      expect(
+        mockedStakingApiService.getPooledStakingEligibility,
+      ).toHaveBeenNthCalledWith(2, [mockAccount1Address]);
+    });
+
+    it('fetches staking eligibility using options.address override', async () => {
+      const { controller } = setupController();
+      await controller.refreshStakingEligibility({
+        address: mockAccount2Address,
+      });
+
+      // Assertion on second call since the first is part of controller setup.
+      expect(
+        mockedStakingApiService.getPooledStakingEligibility,
+      ).toHaveBeenNthCalledWith(2, [mockAccount2Address]);
+    });
   });
 
   describe('subscription handlers', () => {
-    const firstAccount = createMockInternalAccount({
-      address: '0x1234',
+    const account = createMockInternalAccount({
+      address: mockAccount2Address,
     });
 
-    it('updates vault data when network changes', () => {
-      const { controller, messenger } = setupController();
+    describe('On network change', () => {
+      it('updates vault data when network changes', () => {
+        const { controller, messenger } = setupController();
 
-      jest
-        .spyOn(controller, 'refreshPooledStakingVaultMetadata')
-        .mockResolvedValue();
-      jest
-        .spyOn(controller, 'refreshPooledStakingVaultDailyApys')
-        .mockResolvedValue();
-      jest
-        .spyOn(controller, 'refreshPooledStakingVaultApyAverages')
-        .mockResolvedValue();
+        jest
+          .spyOn(controller, 'refreshPooledStakingVaultMetadata')
+          .mockResolvedValue();
+        jest
+          .spyOn(controller, 'refreshPooledStakingVaultDailyApys')
+          .mockResolvedValue();
+        jest
+          .spyOn(controller, 'refreshPooledStakingVaultApyAverages')
+          .mockResolvedValue();
 
-      jest.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
+        jest.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
 
-      messenger.publish(
-        'NetworkController:stateChange',
-        {
-          ...getDefaultNetworkControllerState(),
-          selectedNetworkClientId: '2',
-        },
-        [],
-      );
+        messenger.publish(
+          'NetworkController:stateChange',
+          {
+            ...getDefaultNetworkControllerState(),
+            selectedNetworkClientId: '2',
+          },
+          [],
+        );
 
-      expect(
-        controller.refreshPooledStakingVaultMetadata,
-      ).toHaveBeenCalledTimes(1);
-      expect(
-        controller.refreshPooledStakingVaultDailyApys,
-      ).toHaveBeenCalledTimes(1);
-      expect(
-        controller.refreshPooledStakingVaultApyAverages,
-      ).toHaveBeenCalledTimes(1);
-      expect(controller.refreshPooledStakes).toHaveBeenCalledTimes(1);
+        expect(
+          controller.refreshPooledStakingVaultMetadata,
+        ).toHaveBeenCalledTimes(1);
+        expect(
+          controller.refreshPooledStakingVaultDailyApys,
+        ).toHaveBeenCalledTimes(1);
+        expect(
+          controller.refreshPooledStakingVaultApyAverages,
+        ).toHaveBeenCalledTimes(1);
+        expect(controller.refreshPooledStakes).toHaveBeenCalledTimes(1);
+      });
     });
 
-    it('updates staking eligibility when selected account changes', () => {
-      const { controller, messenger } = setupController();
+    describe('On selected account change', () => {
+      // TEMP: Workaround for issue: https://github.com/MetaMask/accounts-planning/issues/887
+      it('uses event payload account address to update staking eligibility', () => {
+        const { controller, messenger } = setupController();
 
-      jest.spyOn(controller, 'refreshStakingEligibility').mockResolvedValue();
-      jest.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
+        jest.spyOn(controller, 'refreshStakingEligibility').mockResolvedValue();
+        jest.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
 
-      messenger.publish(
-        'AccountsController:selectedAccountChange',
-        firstAccount,
-      );
+        messenger.publish('AccountsController:selectedAccountChange', account);
 
-      expect(controller.refreshStakingEligibility).toHaveBeenCalledTimes(1);
-      expect(controller.refreshPooledStakes).toHaveBeenCalledTimes(1);
+        expect(controller.refreshStakingEligibility).toHaveBeenNthCalledWith(
+          1,
+          { address: account.address },
+        );
+        expect(controller.refreshPooledStakes).toHaveBeenNthCalledWith(1, {
+          address: account.address,
+        });
+      });
+    });
+
+    describe('On transaction confirmed', () => {
+      let controller: EarnController;
+      let messenger: Messenger<
+        EarnControllerGetStateAction | AllowedActions,
+        EarnControllerStateChangeEvent | AllowedEvents
+      >;
+
+      beforeEach(() => {
+        const earnController = setupController();
+        controller = earnController.controller;
+        messenger = earnController.messenger;
+
+        jest.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
+      });
+
+      it('updates pooled stakes for staking deposit transaction type', () => {
+        const MOCK_CONFIRMED_DEPOSIT_TX = createMockTransaction({
+          type: TransactionType.stakingDeposit,
+          status: TransactionStatus.confirmed,
+        });
+
+        messenger.publish(
+          'TransactionController:transactionConfirmed',
+          MOCK_CONFIRMED_DEPOSIT_TX,
+        );
+
+        expect(controller.refreshPooledStakes).toHaveBeenNthCalledWith(1, {
+          address: MOCK_CONFIRMED_DEPOSIT_TX.txParams.from,
+          resetCache: true,
+        });
+      });
+
+      it('updates pooled stakes for staking unstake transaction type', () => {
+        const MOCK_CONFIRMED_UNSTAKE_TX = createMockTransaction({
+          type: TransactionType.stakingUnstake,
+          status: TransactionStatus.confirmed,
+        });
+
+        messenger.publish(
+          'TransactionController:transactionConfirmed',
+          MOCK_CONFIRMED_UNSTAKE_TX,
+        );
+
+        expect(controller.refreshPooledStakes).toHaveBeenNthCalledWith(1, {
+          address: MOCK_CONFIRMED_UNSTAKE_TX.txParams.from,
+          resetCache: true,
+        });
+      });
+
+      it('updates pooled stakes for staking claim transaction type', () => {
+        const MOCK_CONFIRMED_CLAIM_TX = createMockTransaction({
+          type: TransactionType.stakingClaim,
+          status: TransactionStatus.confirmed,
+        });
+
+        messenger.publish(
+          'TransactionController:transactionConfirmed',
+          MOCK_CONFIRMED_CLAIM_TX,
+        );
+
+        expect(controller.refreshPooledStakes).toHaveBeenNthCalledWith(1, {
+          address: MOCK_CONFIRMED_CLAIM_TX.txParams.from,
+          resetCache: true,
+        });
+      });
+
+      it('ignores non-staking transaction types', () => {
+        const MOCK_CONFIRMED_SWAP_TX = createMockTransaction({
+          type: TransactionType.swap,
+          status: TransactionStatus.confirmed,
+        });
+
+        messenger.publish(
+          'TransactionController:transactionConfirmed',
+          MOCK_CONFIRMED_SWAP_TX,
+        );
+
+        expect(controller.refreshPooledStakes).toHaveBeenCalledTimes(0);
+      });
     });
   });
 });

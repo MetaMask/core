@@ -1,5 +1,4 @@
 import type { Quote } from '@metamask/bridge-controller';
-import { getBridgeApiBaseUrl } from '@metamask/bridge-controller';
 
 import { validateBridgeStatusResponse } from './validators';
 import type {
@@ -13,7 +12,8 @@ export const getClientIdHeader = (clientId: string) => ({
   'X-Client-Id': clientId,
 });
 
-export const BRIDGE_STATUS_BASE_URL = `${getBridgeApiBaseUrl()}/getTxStatus`;
+export const getBridgeStatusUrl = (bridgeApiBaseUrl: string) =>
+  `${bridgeApiBaseUrl}/getTxStatus`;
 
 export const getStatusRequestDto = (
   statusRequest: StatusRequestWithSrcTxHash,
@@ -40,12 +40,13 @@ export const fetchBridgeTxStatus = async (
   statusRequest: StatusRequestWithSrcTxHash,
   clientId: string,
   fetchFn: FetchFunction,
+  bridgeApiBaseUrl: string,
 ): Promise<StatusResponse> => {
   const statusRequestDto = getStatusRequestDto(statusRequest);
   const params = new URLSearchParams(statusRequestDto);
 
   // Fetch
-  const url = `${BRIDGE_STATUS_BASE_URL}?${params.toString()}`;
+  const url = `${getBridgeStatusUrl(bridgeApiBaseUrl)}?${params.toString()}`;
 
   const rawTxStatus: unknown = await fetchFn(url, {
     headers: getClientIdHeader(clientId),
@@ -62,13 +63,14 @@ export const getStatusRequestWithSrcTxHash = (
   quote: Quote,
   srcTxHash: string,
 ): StatusRequestWithSrcTxHash => {
+  const { bridgeId, bridges, srcChainId, destChainId, refuel } = quote;
   return {
-    bridgeId: quote.bridgeId,
+    bridgeId,
     srcTxHash,
-    bridge: quote.bridges[0],
-    srcChainId: quote.srcChainId,
-    destChainId: quote.destChainId,
+    bridge: bridges[0],
+    srcChainId,
+    destChainId,
     quote,
-    refuel: Boolean(quote.refuel),
+    refuel: Boolean(refuel),
   };
 };

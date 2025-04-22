@@ -1,4 +1,5 @@
 import { AddressZero } from '@ethersproject/constants';
+import { SolScope } from '@metamask/keyring-api';
 import type { Hex } from '@metamask/utils';
 
 import { CHAIN_IDS } from './chains';
@@ -16,7 +17,8 @@ export const ALLOWED_BRIDGE_CHAIN_IDS = [
   CHAIN_IDS.ARBITRUM,
   CHAIN_IDS.LINEA_MAINNET,
   CHAIN_IDS.BASE,
-];
+  SolScope.Mainnet,
+] as const;
 
 export type AllowedBridgeChainIds = (typeof ALLOWED_BRIDGE_CHAIN_IDS)[number];
 
@@ -56,7 +58,6 @@ export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState = {
   },
   quoteRequest: {
     srcTokenAddress: AddressZero,
-    slippage: BRIDGE_DEFAULT_SLIPPAGE,
   },
   quotesInitialLoadTime: null,
   quotes: [],
@@ -64,6 +65,7 @@ export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState = {
   quotesLoadingStatus: null,
   quoteFetchError: null,
   quotesRefreshCount: 0,
+  assetExchangeRates: {},
 };
 
 export const METABRIDGE_CHAIN_TO_ADDRESS_MAP: Record<Hex, string> = {

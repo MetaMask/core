@@ -1,12 +1,12 @@
-import type { Hex } from '@metamask/utils';
-
-import { AccountsApiRemoteTransactionSource } from './AccountsApiRemoteTransactionSource';
+import {
+  AccountsApiRemoteTransactionSource,
+  SUPPORTED_CHAIN_IDS,
+} from './AccountsApiRemoteTransactionSource';
 import type {
   GetAccountTransactionsResponse,
   TransactionResponse,
 } from '../api/accounts-api';
 import { getAccountTransactions } from '../api/accounts-api';
-import { CHAIN_IDS } from '../constants';
 import type { RemoteTransactionSourceRequest } from '../types';
 
 jest.mock('../api/accounts-api');
@@ -14,13 +14,14 @@ jest.mock('../api/accounts-api');
 jest.useFakeTimers();
 
 const ADDRESS_MOCK = '0x123';
-const CHAIN_IDS_MOCK = [CHAIN_IDS.MAINNET, CHAIN_IDS.LINEA_MAINNET] as Hex[];
-const NOW_MOCK = 789000;
+const ONE_DAY_MS = 1000 * 60 * 60 * 24;
+const NOW_MOCK = 789000 + ONE_DAY_MS;
 const CURSOR_MOCK = 'abcdef';
+const CACHED_TIMESTAMP_MOCK = 456;
+const INITIAL_TIMESTAMP_MOCK = 789;
 
 const REQUEST_MOCK: RemoteTransactionSourceRequest = {
   address: ADDRESS_MOCK,
-  chainIds: CHAIN_IDS_MOCK,
   cache: {},
   includeTokenTransfers: true,
   queryEntireHistory: true,
@@ -128,7 +129,7 @@ describe('AccountsApiRemoteTransactionSource', () => {
       expect(getAccountTransactionsMock).toHaveBeenCalledTimes(1);
       expect(getAccountTransactionsMock).toHaveBeenCalledWith({
         address: ADDRESS_MOCK,
-        chainIds: CHAIN_IDS_MOCK,
+        chainIds: SUPPORTED_CHAIN_IDS,
         cursor: undefined,
         sortDirection: 'ASC',
       });
@@ -143,7 +144,7 @@ describe('AccountsApiRemoteTransactionSource', () => {
       expect(getAccountTransactionsMock).toHaveBeenCalledTimes(1);
       expect(getAccountTransactionsMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          startTimestamp: 789,
+          startTimestamp: INITIAL_TIMESTAMP_MOCK,
         }),
       );
     });
@@ -152,7 +153,7 @@ describe('AccountsApiRemoteTransactionSource', () => {
       await new AccountsApiRemoteTransactionSource().fetchTransactions({
         ...REQUEST_MOCK,
         cache: {
-          [`accounts-api#${CHAIN_IDS_MOCK.join(',')}#${ADDRESS_MOCK}`]:
+          [`accounts-api#${SUPPORTED_CHAIN_IDS.join(',')}#${ADDRESS_MOCK}`]:
             CURSOR_MOCK,
         },
       });
@@ -161,6 +162,24 @@ describe('AccountsApiRemoteTransactionSource', () => {
       expect(getAccountTransactionsMock).toHaveBeenCalledWith(
         expect.objectContaining({
           cursor: CURSOR_MOCK,
+        }),
+      );
+    });
+
+    it('queries accounts API with timestamp from cache', async () => {
+      await new AccountsApiRemoteTransactionSource().fetchTransactions({
+        ...REQUEST_MOCK,
+        queryEntireHistory: false,
+        cache: {
+          [`accounts-api#timestamp#${SUPPORTED_CHAIN_IDS.join(',')}#${ADDRESS_MOCK}`]:
+            CACHED_TIMESTAMP_MOCK,
+        },
+      });
+
+      expect(getAccountTransactionsMock).toHaveBeenCalledTimes(1);
+      expect(getAccountTransactionsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          startTimestamp: CACHED_TIMESTAMP_MOCK,
         }),
       );
     });
@@ -247,8 +266,60 @@ describe('AccountsApiRemoteTransactionSource', () => {
 
       expect(updateCacheMock).toHaveBeenCalledTimes(2);
       expect(cacheMock).toStrictEqual({
-        [`accounts-api#${CHAIN_IDS_MOCK.join(',')}#${ADDRESS_MOCK}`]:
+        [`accounts-api#${SUPPORTED_CHAIN_IDS.join(',')}#${ADDRESS_MOCK}`]:
           CURSOR_MOCK,
+      });
+    });
+
+    it('removes timestamp cache entry if response has cursor', async () => {
+      getAccountTransactionsMock.mockResolvedValueOnce({
+        data: [RESPONSE_STANDARD_MOCK],
+        pageInfo: { hasNextPage: false, count: 1, cursor: CURSOR_MOCK },
+      });
+
+      const cacheMock = {
+        [`accounts-api#timestamp#${SUPPORTED_CHAIN_IDS.join(',')}#${ADDRESS_MOCK}`]:
+          CACHED_TIMESTAMP_MOCK,
+      };
+
+      const updateCacheMock = jest
+        .fn()
+        .mockImplementation((fn) => fn(cacheMock));
+
+      await new AccountsApiRemoteTransactionSource().fetchTransactions({
+        ...REQUEST_MOCK,
+        updateCache: updateCacheMock,
+      });
+
+      expect(updateCacheMock).toHaveBeenCalledTimes(1);
+      expect(cacheMock).toStrictEqual({
+        [`accounts-api#${SUPPORTED_CHAIN_IDS.join(',')}#${ADDRESS_MOCK}`]:
+          CURSOR_MOCK,
+      });
+    });
+
+    it('updates cache with timestamp if response does not have cursor', async () => {
+      getAccountTransactionsMock.mockResolvedValueOnce({
+        data: [],
+        pageInfo: { hasNextPage: false, count: 0, cursor: undefined },
+      });
+
+      const cacheMock = {};
+
+      const updateCacheMock = jest
+        .fn()
+        .mockImplementation((fn) => fn(cacheMock));
+
+      await new AccountsApiRemoteTransactionSource().fetchTransactions({
+        ...REQUEST_MOCK,
+        queryEntireHistory: false,
+        updateCache: updateCacheMock,
+      });
+
+      expect(updateCacheMock).toHaveBeenCalledTimes(1);
+      expect(cacheMock).toStrictEqual({
+        [`accounts-api#timestamp#${SUPPORTED_CHAIN_IDS.join(',')}#${ADDRESS_MOCK}`]:
+          INITIAL_TIMESTAMP_MOCK,
       });
     });
 

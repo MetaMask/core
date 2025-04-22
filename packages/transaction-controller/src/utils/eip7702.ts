@@ -22,6 +22,12 @@ export const DELEGATION_PREFIX = '0xef0100';
 export const BATCH_FUNCTION_NAME = 'execute';
 export const CALLS_SIGNATURE = '(address,uint256,bytes)[]';
 
+const UNSUPPORTED_PARAMS = [
+  'gas',
+  'maxFeePerGas',
+  'maxPriorityFeePerGas',
+] as const;
+
 const log = createModuleLogger(projectLogger, 'eip-7702');
 
 /**
@@ -44,10 +50,33 @@ export function doesChainSupportEIP7702(
 }
 
 /**
+ * Retrieve the delegation address for an account.
+ *
+ * @param address - The address to check.
+ * @param ethQuery - The EthQuery instance to communicate with the blockchain.
+ * @returns  The delegation address if it exists.
+ */
+export async function getDelegationAddress(
+  address: Hex,
+  ethQuery: EthQuery,
+): Promise<Hex | undefined> {
+  const code = await query(ethQuery, 'eth_getCode', [address]);
+  const normalizedCode = add0x(code?.toLowerCase?.() ?? '');
+
+  const hasDelegation =
+    code?.length === 48 && normalizedCode.startsWith(DELEGATION_PREFIX);
+
+  return hasDelegation
+    ? add0x(normalizedCode.slice(DELEGATION_PREFIX.length))
+    : undefined;
+}
+
+/**
  * Determine if an account has been upgraded to a supported EIP-7702 contract.
  *
  * @param address - The EOA address to check.
  * @param chainId - The chain ID.
+ * @param publicKey - Public key used to validate EIP-7702 contract signatures in feature flags.
  * @param messenger - The messenger instance.
  * @param ethQuery - The EthQuery instance to communicate with the blockchain.
  * @returns An object with the results of the check.
@@ -55,19 +84,17 @@ export function doesChainSupportEIP7702(
 export async function isAccountUpgradedToEIP7702(
   address: Hex,
   chainId: Hex,
+  publicKey: Hex,
   messenger: TransactionControllerMessenger,
   ethQuery: EthQuery,
 ) {
-  const contractAddresses = getEIP7702ContractAddresses(chainId, messenger);
-  const code = await query(ethQuery, 'eth_getCode', [address]);
-  const normalizedCode = add0x(code?.toLowerCase?.() ?? '');
+  const contractAddresses = getEIP7702ContractAddresses(
+    chainId,
+    messenger,
+    publicKey,
+  );
 
-  const hasDelegation =
-    code?.length === 48 && normalizedCode.startsWith(DELEGATION_PREFIX);
-
-  const delegationAddress = hasDelegation
-    ? add0x(normalizedCode.slice(DELEGATION_PREFIX.length))
-    : undefined;
+  const delegationAddress = await getDelegationAddress(address, ethQuery);
 
   const isSupported = Boolean(
     delegationAddress &&
@@ -98,6 +125,20 @@ export function generateEIP7702BatchTransaction(
 
   const calls = transactions.map((transaction) => {
     const { data, to, value } = transaction;
+
+    const unsupported = UNSUPPORTED_PARAMS.filter(
+      (param) => transaction[param] !== undefined,
+    );
+
+    if (unsupported.length) {
+      const errorData = unsupported
+        .map((param) => `${param}: ${transaction[param]}`)
+        .join(', ');
+
+      throw new Error(
+        `EIP-7702 batch transactions do not support gas parameters per call - ${errorData}`,
+      );
+    }
 
     return [
       to ?? '0x0000000000000000000000000000000000000000',

@@ -9,6 +9,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Bump `@metamask/snaps-controllers` peer dependency from ^9.19.0 to ^11.0.0 ([#5639](https://github.com/MetaMask/core/pull/5639))
+- **BREAKING:** Bump `@metamask/providers` peer dependency from ^18.1.1 to ^21.0.0 ([#5639](https://github.com/MetaMask/core/pull/5639))
+- Bump `@metamask/snaps-sdk` from ^6.17.1 to ^6.22.0 ([#5639](https://github.com/MetaMask/core/pull/5639))
+- Bump `@metamask/snaps-utils` from ^8.10.0 to ^9.2.0 ([#5639](https://github.com/MetaMask/core/pull/5639))
+
+## [12.0.0]
+
+### Added
+
+- **BREAKING:** Add new public method `setIsBackupAndSyncFeatureEnabled` to `UserStorageController` ([#5636](https://github.com/MetaMask/core/pull/5636))
+  - This replaces `enableProfileSyncing` and `disableProfileSyncing` and will be used as the main method to enable and disable backup and sync features from now on.
+- **BREAKING:** Add new `isAccountSyncingEnabled` state property to `UserStorageController` ([#5636](https://github.com/MetaMask/core/pull/5636))
+  - This property is `true` by default.
+
+### Removed
+
+- **BREAKING:** Remove `isAccountSyncingEnabled` `env` property from `UserStorageController` constructor ([#5629](https://github.com/MetaMask/core/pull/5629))
+- **BREAKING:** Remove unused action handlers: `setIsBackupAndSyncFeatureEnabled`, `syncInternalAccountsWithUserStorage` and `saveInternalAccountToUserStorage`. ([#5638](https://github.com/MetaMask/core/pull/5638))
+  - These actions should not be callable through the messaging system.
+
+## [11.0.1]
+
+### Changed
+
+- Bump accounts dependencies ([#5565](https://github.com/MetaMask/core/pull/5565))
+
+### Fixed
+
+- Update origin used for `SnapController:handleRequest` ([#5616](https://github.com/MetaMask/core/pull/5616))
+
+## [11.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` to `^27.0.0` ([#5507](https://github.com/MetaMask/core/pull/5507))
+- **BREAKING:** Bump peer dependency `@metamask/network-controller` to `^23.0.0` ([#5507](https://github.com/MetaMask/core/pull/5507))
+
+### Fixed
+
+- Peer dependencies `@metamask/keyring-controller` and `@metamask/network-controller` are no longer also direct dependencies ([#5464](https://github.com/MetaMask/core/pull/5464)))
+
+## [10.1.0]
+
+### Added
+
+- Add primary SRP switching support for `AuthenticationController` and `UserStorageController` ([#5478](https://github.com/MetaMask/core/pull/5478))
+
+## [10.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency to `^21.0.0` ([#5439](https://github.com/MetaMask/core/pull/5439))
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency to `^26.0.0` ([#5439](https://github.com/MetaMask/core/pull/5439))
+- **BREAKING** `UserStorageController` and `AuthenticationController` now use the SDK under the hood ([#5413](https://github.com/MetaMask/core/pull/5413))
+  - **BREAKING** `AuthenticationController` state entry `sessionData` has changed shape to fully reflect the `LoginResponse` SDK type.
+  - **BREAKING** `UserStorageController` cannot use the `AuthenticationController:performSignOut` action anymore.
 - **BREAKING:** Bump `@metamask/keyring-internal-api` from `^5.0.0` to `^6.0.0` ([#5347](https://github.com/MetaMask/core/pull/5347))
 
 ## [9.0.0]
@@ -515,7 +571,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@9.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@12.0.0...HEAD
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@11.0.1...@metamask/profile-sync-controller@12.0.0
+[11.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@11.0.0...@metamask/profile-sync-controller@11.0.1
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@10.1.0...@metamask/profile-sync-controller@11.0.0
+[10.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@10.0.0...@metamask/profile-sync-controller@10.1.0
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@9.0.0...@metamask/profile-sync-controller@10.0.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@8.1.1...@metamask/profile-sync-controller@9.0.0
 [8.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@8.1.0...@metamask/profile-sync-controller@8.1.1
 [8.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@8.0.0...@metamask/profile-sync-controller@8.1.0

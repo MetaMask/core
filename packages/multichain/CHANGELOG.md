@@ -7,6 +7,98 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/controller-utils` to `^11.7.0` ([#5583](https://github.com/MetaMask/core/pull/5583))
+
+## [4.0.0]
+
+### Added
+
+- **BREAKING**: `getSessionScopes()` now expects an additional hooks object as its last param. The hooks object should have a `getNonEvmSupportedMethods` property whose value should be a function that accepts a `CaipChainId` and returns an array of supported methods. ([#5191](https://github.com/MetaMask/core/pull/5191))
+- **BREAKING**: `caip25CaveatBuilder()` now expects two additional properties it's singular param object. The param object should now also have a `isNonEvmScopeSupported` property whose value should be a function that accepts a `CaipChainId` and returns a boolean, and a `getNonEvmAccountAddresses` property whose value should be a function that accepts a `CaipChainId` and returns an array of CAIP-10 account addresses. ([#5191](https://github.com/MetaMask/core/pull/5191))
+  - The CAIP-25 caveat specification now also validates if non-evm scopes and accounts are supported
+- **BREAKING**: The `wallet_getSession` handler now expects `getNonEvmSupportedMethods` to be provided in it's hooks. ([#5191](https://github.com/MetaMask/core/pull/5191))
+  - The handler now resolves methods for non-evm scopes in the returned `sessionScopes` result
+- **BREAKING**: The `wallet_invokeMethod` handler now expects `getNonEvmSupportedMethods` and `handleNonEvmRequestForOrigin` to be provided in it's hooks. ([#5191](https://github.com/MetaMask/core/pull/5191))
+
+  - `handleNonEvmRequestForOrigin` should be a function with the following signature:
+    ```
+     handleNonEvmRequestForOrigin: (params: {
+       connectedAddresses: CaipAccountId[];
+       scope: CaipChainId;
+       request: JsonRpcRequest;
+     }) => Promise<Json>;
+    ```
+
+- **BREAKING**: `assertScopeSupported()` now expects a new hooks object as its last param ([#5191](https://github.com/MetaMask/core/pull/5191))
+  - The new hooks object is:
+    ```
+    {
+      isChainIdSupported: (chainId: Hex) => boolean;
+      isEvmChainIdSupported: (chainId: Hex) => boolean;
+      isNonEvmScopeSupported: (scope: CaipChainId) => boolean;
+      getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
+    }
+    ```
+- **BREAKING**: `assertScopesSupported()` now expects a new hooks object as its last param ([#5191](https://github.com/MetaMask/core/pull/5191))
+  - The new hooks object is:
+    ```
+    {
+      isChainIdSupported: (chainId: Hex) => boolean;
+      isEvmChainIdSupported: (chainId: Hex) => boolean;
+      isNonEvmScopeSupported: (scope: CaipChainId) => boolean;
+      getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
+    }
+    ```
+- **BREAKING**: `bucketScopes()` now expects a new hooks object as its last param ([#5191](https://github.com/MetaMask/core/pull/5191))
+  - The new hooks object is:
+    ```
+    {
+      isEvmChainIdSupported: (chainId: Hex) => boolean;
+      isEvmChainIdSupportable: (chainId: Hex) => boolean;
+      isNonEvmScopeSupported: (scope: CaipChainId) => boolean;
+      getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
+    }
+    ```
+- **BREAKING**: `bucketScopesBySupport()` now expects a new hooks object as its last param ([#5191](https://github.com/MetaMask/core/pull/5191))
+  - The new hooks object is:
+    ```
+    {
+      isEvmChainIdSupported: (chainId: Hex) => boolean;
+      isNonEvmScopeSupported: (scope: CaipChainId) => boolean;
+      getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
+    }
+    ```
+- **BREAKING**: `getSessionScopes()` now expects a hooks object as its last param. The hooks object should have a `getNonEvmSupportedMethods` property whose value should be a function that accepts a `CaipChainId` and returns an array of supported methods. ([#5191](https://github.com/MetaMask/core/pull/5191))
+- **BREAKING**: `isSupportedScopeString()` now expects a new hooks object as its last param ([#5191](https://github.com/MetaMask/core/pull/5191))
+  - The new hooks object is:
+    ```
+    {
+      isEvmChainIdSupported: (chainId: Hex) => boolean;
+      isNonEvmScopeSupported: (scope: CaipChainId) => boolean;
+    }
+    ```
+- **BREAKING**: `isSupportedAccount()` now expects a new hooks object as its last param ([#5191](https://github.com/MetaMask/core/pull/5191))
+  - The new hooks object is:
+    ```
+    {
+      getEvmInternalAccounts: () => { type: string; address: Hex }[];
+      getNonEvmAccountAddresses: (scope: CaipChainId) => string[];
+    }
+    ```
+- **BREAKING**: `isSupportedMethod()` now expects a new hooks object as its last param:
+  - The new hooks object is:
+    ```
+    {
+      getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
+    }
+    ```
+- Added `wallet_invokeMethod` handler now supports non-EVM requests ([#5191](https://github.com/MetaMask/core/pull/5191))
+- Added `wallet_getPermissions` handler (originally migrated from extension repo) ([#5420](https://github.com/MetaMask/core/pull/5420))
+- Added `wallet_requestPermissions` handler (originally migrated from extension repo) ([#5420](https://github.com/MetaMask/core/pull/5420))
+- Added `wallet_revokePermissions` handler (originally migrated from extension repo) ([#5420](https://github.com/MetaMask/core/pull/5420))
+
 ## [3.0.0]
 
 ### Added
@@ -93,7 +185,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#4962](https://github.com/MetaMask/core/pull/4962))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain@3.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain@4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain@3.0.0...@metamask/multichain@4.0.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain@2.2.0...@metamask/multichain@3.0.0
 [2.2.0]: https://github.com/MetaMask/core/compare/@metamask/multichain@2.1.1...@metamask/multichain@2.2.0
 [2.1.1]: https://github.com/MetaMask/core/compare/@metamask/multichain@2.1.0...@metamask/multichain@2.1.1

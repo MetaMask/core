@@ -1,12 +1,21 @@
-import { BtcScope, SolScope, type CaipChainId } from '@metamask/keyring-api';
+import {
+  type CaipChainId,
+  BtcScope,
+  SolScope,
+  EthScope,
+} from '@metamask/keyring-api';
 import { type NetworkConfiguration } from '@metamask/network-controller';
+import { KnownCaipNamespace } from '@metamask/utils';
 
 import {
+  isEvmCaipChainId,
   toEvmCaipChainId,
+  convertEvmCaipToHexChainId,
   getChainIdForNonEvmAddress,
   checkIfSupportedCaipChainId,
   toMultichainNetworkConfiguration,
   toMultichainNetworkConfigurationsByChainId,
+  isKnownCaipNamespace,
 } from './utils';
 
 describe('utils', () => {
@@ -45,6 +54,55 @@ describe('utils', () => {
         nativeCurrency: 'ETH',
         blockExplorerUrls: ['https://etherscan.io'],
         defaultBlockExplorerUrlIndex: 0,
+        rpcEndpoints: [],
+        defaultRpcEndpointIndex: 0,
+      };
+      expect(toMultichainNetworkConfiguration(network)).toStrictEqual({
+        chainId: 'eip155:1',
+        isEvm: true,
+        name: 'Ethereum Mainnet',
+        nativeCurrency: 'ETH',
+        blockExplorerUrls: ['https://etherscan.io'],
+        defaultBlockExplorerUrlIndex: 0,
+      });
+    });
+
+    it('updates the network configuration for a single non-EVM network with undefined name', () => {
+      const network: NetworkConfiguration = {
+        chainId: '0x1',
+        // @ts-expect-error - set as undefined for test case
+        name: undefined,
+        nativeCurrency: 'ETH',
+        blockExplorerUrls: ['https://etherscan.io'],
+        defaultBlockExplorerUrlIndex: 0,
+        rpcEndpoints: [
+          {
+            url: 'https://mainnet.infura.io/',
+            failoverUrls: [],
+            networkClientId: 'random-id',
+            // @ts-expect-error - network-controller does not export RpcEndpointType
+            type: 'custom',
+          },
+        ],
+        defaultRpcEndpointIndex: 0,
+      };
+      expect(toMultichainNetworkConfiguration(network)).toStrictEqual({
+        chainId: 'eip155:1',
+        isEvm: true,
+        name: 'https://mainnet.infura.io/',
+        nativeCurrency: 'ETH',
+        blockExplorerUrls: ['https://etherscan.io'],
+        defaultBlockExplorerUrlIndex: 0,
+      });
+    });
+
+    it('uses default block explorer index when undefined', () => {
+      const network: NetworkConfiguration = {
+        chainId: '0x1',
+        name: 'Ethereum Mainnet',
+        nativeCurrency: 'ETH',
+        blockExplorerUrls: ['https://etherscan.io'],
+        defaultBlockExplorerUrlIndex: undefined,
         rpcEndpoints: [],
         defaultRpcEndpointIndex: 0,
       };
@@ -104,11 +162,51 @@ describe('utils', () => {
     });
   });
 
-  describe('toEvmCaipChainId', () => {
+  describe('convertEvmCaipToHexChainId', () => {
     it('converts a hex chain ID to a CAIP chain ID', () => {
       expect(toEvmCaipChainId('0x1')).toBe('eip155:1');
       expect(toEvmCaipChainId('0xe708')).toBe('eip155:59144');
       expect(toEvmCaipChainId('0x539')).toBe('eip155:1337');
+    });
+  });
+
+  describe('convertCaipToHexChainId', () => {
+    it('converts a CAIP chain ID to a hex chain ID', () => {
+      expect(convertEvmCaipToHexChainId(EthScope.Mainnet)).toBe('0x1');
+      expect(convertEvmCaipToHexChainId('eip155:56')).toBe('0x38');
+      expect(convertEvmCaipToHexChainId('eip155:80094')).toBe('0x138de');
+      expect(convertEvmCaipToHexChainId('eip155:8453')).toBe('0x2105');
+    });
+
+    it('throws an error given a CAIP chain ID with an unsupported namespace', () => {
+      expect(() => convertEvmCaipToHexChainId(BtcScope.Mainnet)).toThrow(
+        'Unsupported CAIP chain ID namespace: bip122. Only eip155 is supported.',
+      );
+      expect(() => convertEvmCaipToHexChainId(SolScope.Mainnet)).toThrow(
+        'Unsupported CAIP chain ID namespace: solana. Only eip155 is supported.',
+      );
+    });
+  });
+
+  describe('isEvmCaipChainId', () => {
+    it('returns true for EVM chain IDs', () => {
+      expect(isEvmCaipChainId(EthScope.Mainnet)).toBe(true);
+      expect(isEvmCaipChainId(SolScope.Mainnet)).toBe(false);
+      expect(isEvmCaipChainId(BtcScope.Mainnet)).toBe(false);
+    });
+  });
+
+  describe('isKnownCaipNamespace', () => {
+    it('returns true for known CAIP namespaces', () => {
+      expect(isKnownCaipNamespace(KnownCaipNamespace.Eip155)).toBe(true);
+      expect(isKnownCaipNamespace(KnownCaipNamespace.Bip122)).toBe(true);
+      expect(isKnownCaipNamespace(KnownCaipNamespace.Solana)).toBe(true);
+    });
+
+    it('returns false for unknown namespaces', () => {
+      expect(isKnownCaipNamespace('unknown')).toBe(false);
+      expect(isKnownCaipNamespace('cosmos')).toBe(false);
+      expect(isKnownCaipNamespace('')).toBe(false);
     });
   });
 });

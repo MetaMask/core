@@ -1,3 +1,4 @@
+import { Messenger } from '@metamask/base-controller';
 import {
   ChainId,
   InfuraNetworkType,
@@ -26,6 +27,9 @@ import type {
   AddNetworkFields,
   CustomRpcEndpoint,
   InfuraRpcEndpoint,
+  NetworkControllerActions,
+  NetworkControllerEvents,
+  NetworkControllerMessenger,
   UpdateNetworkCustomRpcEndpointFields,
 } from '../src/NetworkController';
 import { RpcEndpointType } from '../src/NetworkController';
@@ -34,6 +38,59 @@ import type {
   InfuraNetworkClientConfiguration,
 } from '../src/types';
 import { NetworkClientType } from '../src/types';
+
+export type RootMessenger = Messenger<
+  NetworkControllerActions,
+  NetworkControllerEvents
+>;
+
+/**
+ * A list of active InfuraNetworkType that are used in many tests
+ *
+ * TODO: Base this off of InfuraNetworkType when Goerli is removed.
+ */
+export const INFURA_NETWORKS = [
+  InfuraNetworkType.mainnet,
+  InfuraNetworkType.sepolia,
+  InfuraNetworkType['linea-mainnet'],
+  InfuraNetworkType['linea-sepolia'],
+];
+
+/**
+ * A object that contains the configuration for a network that begining used in many tests
+ */
+export const TESTNET = {
+  networkType: InfuraNetworkType.sepolia,
+  chainId: ChainId.sepolia,
+  name: 'Sepolia',
+  nativeCurrency: 'SepoliaETH',
+};
+
+/**
+ * Build a root messenger that includes all events used by the network
+ * controller.
+ *
+ * @returns The messenger.
+ */
+export function buildRootMessenger(): RootMessenger {
+  return new Messenger<NetworkControllerActions, NetworkControllerEvents>();
+}
+
+/**
+ * Build a restricted messenger for the network controller.
+ *
+ * @param messenger - A messenger.
+ * @returns The network controller restricted messenger.
+ */
+export function buildNetworkControllerMessenger(
+  messenger = buildRootMessenger(),
+): NetworkControllerMessenger {
+  return messenger.getRestricted({
+    name: 'NetworkController',
+    allowedActions: [],
+    allowedEvents: [],
+  });
+}
 
 /**
  * Builds an object that satisfies the NetworkClient shape, but using a fake
@@ -208,7 +265,7 @@ export function buildNetworkConfiguration(
       nativeCurrency: () => 'TOKEN',
       rpcEndpoints: () => [
         defaultRpcEndpointType === RpcEndpointType.Infura
-          ? buildInfuraRpcEndpoint(InfuraNetworkType['linea-goerli'])
+          ? buildInfuraRpcEndpoint(TESTNET.networkType)
           : buildCustomRpcEndpoint({ url: 'https://test.endpoint' }),
       ],
     },

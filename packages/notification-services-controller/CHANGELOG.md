@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/profile-sync-controller` to `^12.0.0` ([#5644](https://github.com/MetaMask/core/pull/5644))
+- Bump `@metamask/controller-utils` to `^11.7.0` ([#5583](https://github.com/MetaMask/core/pull/5583))
+
+## [5.0.1]
+
+### Fixed
+
+- add guard if `KeyringController:withKeyring` fails when called in `NotificationServicesController` ([#5514](https://github.com/MetaMask/core/pull/5514))
+
+## [5.0.0]
+
+### Changed
+
+- Bump peer dependency `@metamask/profile-sync-controller` to `^11.0.0` ([#5507](https://github.com/MetaMask/core/pull/5507))
+
+## [4.0.0]
+
+### Changed
+
+- **BREAKING** split `NotificationServiceController` constructor and initialization methods ([#5504](https://github.com/MetaMask/core/pull/5504))
+  - Now requires calling `.init()` to finalize initialization, making it compatible with the Modular Controller Initialization architecture.
+
+### Fixed
+
+- use `withKeyring` to get main keyring accounts for enabling notifications ([#5459](https://github.com/MetaMask/core/pull/5459))
+- add support for fetching shared announcements cross platforms ([#5441](https://github.com/MetaMask/core/pull/5441))
+
+## [3.0.0]
+
+### Changed
+
+- **BREAKING** Bump `@metamask/keyring-controller` peer dependency to `^21.0.0` ([#5439](https://github.com/MetaMask/core/pull/5439))
+- **BREAKING** Bump `@metamask/profile-sync-controller` peer dependency to `^10.0.0` ([#5439](https://github.com/MetaMask/core/pull/5439))
+
 ## [2.0.0]
 
 ### Added
@@ -348,7 +386,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@2.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@6.0.0...HEAD
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@5.0.1...@metamask/notification-services-controller@6.0.0
+[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@5.0.0...@metamask/notification-services-controller@5.0.1
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@4.0.0...@metamask/notification-services-controller@5.0.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@3.0.0...@metamask/notification-services-controller@4.0.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@2.0.0...@metamask/notification-services-controller@3.0.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@1.0.0...@metamask/notification-services-controller@2.0.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.21.0...@metamask/notification-services-controller@1.0.0
 [0.21.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.20.1...@metamask/notification-services-controller@0.21.0

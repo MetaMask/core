@@ -54,7 +54,7 @@ function createMockTypedTransaction(serializedBuffer: Buffer) {
 }
 
 class MockOracleLayer1GasFeeFlow extends OracleLayer1GasFeeFlow {
-  matchesTransaction(_transactionMeta: TransactionMeta): boolean {
+  matchesTransaction(): boolean {
     return true;
   }
 }
@@ -106,6 +106,7 @@ describe('OracleLayer1GasFeeFlow', () => {
       expect(transactionFactoryMock).toHaveBeenCalledWith(
         {
           from: TRANSACTION_PARAMS_MOCK.from,
+          gas: TRANSACTION_PARAMS_MOCK.gas,
           gasLimit: TRANSACTION_PARAMS_MOCK.gas,
         },
         expect.anything(),
