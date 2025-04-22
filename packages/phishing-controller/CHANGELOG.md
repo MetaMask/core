@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add URL scan cache functionality to improve performance ([#5625](https://github.com/MetaMask/core/pull/5625))
+  - Added `UrlScanCache` class for caching phishing detection scan results
+  - Added methods to `PhishingController`: `setUrlScanCacheTTL`, `setUrlScanCacheMaxSize`, `clearUrlScanCache` 
+  - Added URL scan cache state to `PhishingControllerState`
+  - Added configuration options: `urlScanCacheTTL` and `urlScanCacheMaxSize`
+
 ### Changed
 
 - Bump `@metamask/controller-utils` to `^11.7.0` ([#5583](https://github.com/MetaMask/core/pull/5583))
