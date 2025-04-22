@@ -102,6 +102,8 @@ export class SeedlessOnboardingController extends BaseController<
 
   readonly toprfClient: ToprfSecureBackup;
 
+  #password?: string;
+
   /**
    * Creates a new SeedlessOnboardingController instance.
    *
@@ -271,7 +273,7 @@ export class SeedlessOnboardingController extends BaseController<
    */
   async changePassword(newPassword: string, oldPassword: string) {
     // verify the old password of the encrypted vault
-    await this.#unlockVaultWithPassword(oldPassword);
+    await this.#verifyPassword(oldPassword);
 
     try {
       // update the encryption key with new password and update the Metadata Store
@@ -417,10 +419,22 @@ export class SeedlessOnboardingController extends BaseController<
   }
 
   /**
+   * Verify the password validity by decrypting the vault.
+   *
+   * @param password - The password to verify.
+   * @throws {Error} If the password is invalid or the vault is not initialized.
+   */
+  async #verifyPassword(password: string) {
+    if (!this.state.vault) {
+      throw new Error(SeedlessOnboardingControllerError.VaultError);
+    }
+    await this.#vaultEncryptor.decrypt(password, this.state.vault);
+  }
+
+  /**
    * Unlocks the encrypted vault using the provided password and returns the decrypted vault data.
    * This method ensures thread-safety by using a mutex lock when accessing the vault.
    *
-   * @param password - The password to decrypt the vault.
    * @returns A promise that resolves to an object containing:
    * - nodeAuthTokens: Authentication tokens to communicate with the TOPRF service
    * - toprfEncryptionKey: The decrypted TOPRF encryption key
@@ -431,12 +445,13 @@ export class SeedlessOnboardingController extends BaseController<
    * - The password is incorrect (from encryptor.decrypt)
    * - The decrypted vault data is malformed
    */
-  async #unlockVaultWithPassword(password: string): Promise<{
+  async #unlockVaultWithPassword(): Promise<{
     nodeAuthTokens: NodeAuthTokens;
     toprfEncryptionKey: Uint8Array;
     toprfAuthKeyPair: KeyPair;
   }> {
     return this.#withVaultLock(async () => {
+      const password = this.#password;
       assertIsValidPassword(password);
 
       const encryptedVault = this.state.vault;
@@ -584,6 +599,8 @@ export class SeedlessOnboardingController extends BaseController<
       this.update((state) => {
         state.vault = updatedState.vault;
       });
+
+      this.#password = password;
     });
   }
 
