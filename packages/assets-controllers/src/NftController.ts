@@ -34,10 +34,7 @@ import type {
   NetworkControllerNetworkDidChangeEvent,
   NetworkState,
 } from '@metamask/network-controller';
-import type {
-  PhishingDetectionScanResult,
-  BulkPhishingDetectionScanResponse,
-} from '@metamask/phishing-controller';
+import type { BulkPhishingDetectionScanResponse } from '@metamask/phishing-controller';
 import { RecommendedAction } from '@metamask/phishing-controller';
 import type {
   PreferencesControllerStateChangeEvent,
@@ -237,14 +234,6 @@ export type NftControllerGetStateAction = ControllerGetStateAction<
 export type NftControllerActions = NftControllerGetStateAction;
 
 /**
- * Action type for scanning a URL with PhishingController
- */
-export type PhishingControllerScanUrlAction = {
-  type: 'PhishingController:scanUrl';
-  handler: (url: string) => Promise<PhishingDetectionScanResult>;
-};
-
-/**
  * Action type for bulk scanning URLs with PhishingController
  */
 export type PhishingControllerBulkScanUrlsAction = {
@@ -266,7 +255,6 @@ export type AllowedActions =
   | AssetsContractControllerGetERC721OwnerOfAction
   | AssetsContractControllerGetERC1155BalanceOfAction
   | AssetsContractControllerGetERC1155TokenURIAction
-  | PhishingControllerScanUrlAction
   | PhishingControllerBulkScanUrlsAction;
 
 export type AllowedEvents =
@@ -2132,7 +2120,6 @@ export class NftController extends BaseController<
     // Collect all URL fields that need to be checked
     const urlFieldMap: Record<string, string> = {};
 
-    // Check standard URL fields
     const fieldsToCheck = [
       'externalLink',
       'image',
@@ -2162,7 +2149,6 @@ export class NftController extends BaseController<
       }
     }
 
-    // No URLs to check
     const urlsToCheck = Object.keys(urlFieldMap);
     if (urlsToCheck.length === 0) {
       return sanitizedMetadata;
@@ -2190,22 +2176,6 @@ export class NftController extends BaseController<
           } else {
             delete sanitizedMetadata[field as keyof NftMetadata];
           }
-        }
-      });
-
-      // Handle URLs with errors conservatively (remove them)
-      Object.keys(bulkScanResponse.errors).forEach((url) => {
-        const field = urlFieldMap[url];
-        if (
-          field === 'collection.externalLink' &&
-          sanitizedMetadata.collection
-        ) {
-          const { collection } = sanitizedMetadata;
-          if ('externalLink' in collection) {
-            delete (collection as Record<string, unknown>).externalLink;
-          }
-        } else if (field) {
-          delete sanitizedMetadata[field as keyof NftMetadata];
         }
       });
     } catch (error) {
