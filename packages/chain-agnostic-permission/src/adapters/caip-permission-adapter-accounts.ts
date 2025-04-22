@@ -324,7 +324,7 @@ function isAddressWithParsedScopesInPermittedAccountIds(
       }
 
       // handle eip155:0 case and evm address case insensitivity
-      if (namespace === KnownCaipNamespace.Eip155) {
+      if ((namespace as CaipNamespace) === KnownCaipNamespace.Eip155) {
         return (
           (reference === '0' ||
             reference === parsedPermittedAccount.chain.reference) &&
