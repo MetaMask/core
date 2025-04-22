@@ -1,8 +1,5 @@
 import * as Assert from './assert';
-import {
-  bucketScopesBySupport,
-  getSupportedScopeObjects,
-} from './filter';
+import { bucketScopesBySupport, getSupportedScopeObjects } from './filter';
 import * as Supported from './supported';
 
 jest.mock('./assert', () => ({

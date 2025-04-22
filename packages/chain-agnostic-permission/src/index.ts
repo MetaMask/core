@@ -38,9 +38,7 @@ export {
   KnownWalletScopeString,
   isKnownSessionPropertyValue,
 } from './scope/constants';
-export {
-  getSupportedScopeObjects,
-} from './scope/filter';
+export { getSupportedScopeObjects } from './scope/filter';
 export type {
   ExternalScopeString,
   ExternalScopeObject,

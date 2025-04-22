@@ -1716,44 +1716,46 @@ describe('generateCaip25Caveat', () => {
       const caveat = {
         type: Caip25CaveatType,
         value: {
-            requiredScopes: {},
-            optionalScopes: {
-              'eip155:1': {
-                accounts: []
-              }
+          requiredScopes: {},
+          optionalScopes: {
+            'eip155:1': {
+              accounts: [],
             },
-            sessionProperties: {},
-            isMultichainOrigin: false,
-          }
-        }
+          },
+          sessionProperties: {},
+          isMultichainOrigin: false,
+        },
+      };
       const result = getCaip25CaveatFromPermission({
         caveats: [
           {
             type: 'other',
-            value: 'foo'
+            value: 'foo',
           },
-          caveat
-        ]
-      })
+          caveat,
+        ],
+      });
 
-      expect(result).toStrictEqual(caveat)
-    })
+      expect(result).toStrictEqual(caveat);
+    });
 
     it('returns undefined when the caveat does not exist', () => {
       const result = getCaip25CaveatFromPermission({
-        caveats: [{
-          type: 'other',
-          value: 'foo'
-        }]
-      })
+        caveats: [
+          {
+            type: 'other',
+            value: 'foo',
+          },
+        ],
+      });
 
-      expect(result).toStrictEqual(undefined)
-    })
+      expect(result).toBeUndefined();
+    });
 
     it('returns undefined when the permission is undefined', () => {
-      const result = getCaip25CaveatFromPermission()
+      const result = getCaip25CaveatFromPermission();
 
-      expect(result).toStrictEqual(undefined)
-    })
-  })
+      expect(result).toBeUndefined();
+    });
+  });
 });
