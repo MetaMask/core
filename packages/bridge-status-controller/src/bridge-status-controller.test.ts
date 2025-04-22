@@ -1,6 +1,10 @@
 /* eslint-disable jest/no-conditional-in-test */
 /* eslint-disable jest/no-restricted-matchers */
-import type { QuoteResponse, QuoteMetadata } from '@metamask/bridge-controller';
+import {
+  type QuoteResponse,
+  type QuoteMetadata,
+  StatusTypes,
+} from '@metamask/bridge-controller';
 import { ChainId } from '@metamask/bridge-controller';
 import { ActionTypes, FeeType } from '@metamask/bridge-controller';
 import { EthAccountType } from '@metamask/keyring-api';
@@ -240,6 +244,7 @@ const getMockStartPollingForBridgeTxStatusArgs = ({
   account = '0xaccount1',
   srcChainId = 42161,
   destChainId = 10,
+  isStxEnabled = false,
 } = {}): StartPollingForBridgeTxStatusArgsSerialized => ({
   bridgeTxMeta: {
     id: txMetaId,
@@ -278,6 +283,7 @@ const getMockStartPollingForBridgeTxStatusArgs = ({
   slippagePercentage: 0,
   initialDestAssetBalance: undefined,
   targetContractAddress: '0x23981fC34e69eeDFE2BD9a0a9fCb0719Fe09DbFC',
+  isStxEnabled,
 });
 
 const MockTxHistory = {
@@ -353,6 +359,7 @@ const MockTxHistory = {
         quotedReturnInUsd: undefined,
       },
       approvalTxId: undefined,
+      isStxEnabled: false,
       hasApprovalTx: false,
       completionTime: undefined,
     },
@@ -416,6 +423,7 @@ const MockTxHistory = {
         quotedReturnInUsd: undefined,
       },
       approvalTxId: undefined,
+      isStxEnabled: true,
       hasApprovalTx: false,
     },
   }),
@@ -504,6 +512,11 @@ const mockSelectedAccount = {
   id: 'test-account-id',
   address: '0xaccount1',
   type: 'eth',
+  metadata: {
+    keyring: {
+      type: ['any'],
+    },
+  },
 };
 
 const addTransactionFn = jest.fn();
@@ -525,9 +538,14 @@ const getController = (call: jest.Mock) => {
     addUserOperationFromTransactionFn,
   });
 
+  jest.spyOn(controller, 'startPolling').mockImplementation(jest.fn());
+  const startPollingForBridgeTxStatusFn =
+    controller.startPollingForBridgeTxStatus;
   const startPollingForBridgeTxStatusSpy = jest
     .spyOn(controller, 'startPollingForBridgeTxStatus')
-    .mockImplementation(jest.fn());
+    .mockImplementationOnce((...args) =>
+      startPollingForBridgeTxStatusFn(...args),
+    );
   return { controller, startPollingForBridgeTxStatusSpy };
 };
 
@@ -665,7 +683,9 @@ describe('BridgeStatusController', () => {
 
       // Execution
       bridgeStatusController.startPollingForBridgeTxStatus(
-        getMockStartPollingForBridgeTxStatusArgs(),
+        getMockStartPollingForBridgeTxStatusArgs({
+          isStxEnabled: true,
+        }),
       );
       fetchBridgeTxStatusSpy.mockImplementationOnce(async () => {
         return MockStatusResponse.getComplete();
@@ -1557,6 +1577,9 @@ describe('BridgeStatusController', () => {
       mockMessengerCall.mockReturnValueOnce({
         transactions: [mockEvmTxMeta],
       });
+
+      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
 
       // addDetectedTokens
       if (shouldAddDetectedTokensResolve) {

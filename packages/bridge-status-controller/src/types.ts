@@ -343,6 +343,7 @@ type AllowedActions =
   | HandleSnapRequest
   | TransactionControllerGetStateAction
   | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>
+  | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>
   | GetGasFeeState
   | AccountsControllerGetAccountByAddressAction
   | TokensControllerAddDetectedTokensAction;

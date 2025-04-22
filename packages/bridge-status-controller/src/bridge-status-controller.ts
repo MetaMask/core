@@ -1,16 +1,23 @@
 import type { StateMetadata } from '@metamask/base-controller';
 import {
+  formatChainIdToCaip,
   formatChainIdToHex,
+  formatProviderLabel,
   getEthUsdtResetData,
   isEthUsdt,
   isNativeAddress,
   isSolanaChainId,
   StatusTypes,
+  UnifiedSwapBridgeEventName,
   type QuoteResponse,
 } from '@metamask/bridge-controller';
 import type {
   BridgeAsset,
   QuoteMetadata,
+  RequestMetadata,
+  RequestParams,
+  RequiredEventContextFromClient,
+  TradeData,
   TxData,
 } from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
@@ -42,6 +49,7 @@ import type {
   FetchFunction,
   BridgeClientId,
   SolanaTransactionMeta,
+  BridgeHistoryItem,
 } from './types';
 import {
   fetchBridgeTxStatus,
@@ -56,6 +64,10 @@ import {
   handleSolanaTxResponse,
 } from './utils/transaction';
 import { generateActionId } from './utils/transaction';
+import {
+  getActionType,
+  getSwapType,
+} from '../../bridge-controller/src/utils/metrics/properties';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
   // We want to persist the bridge status state so that we can show the proper data for the Activity list
@@ -359,11 +371,20 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             `${BRIDGE_STATUS_CONTROLLER_NAME}:bridgeTransactionComplete`,
             { bridgeHistoryItem: newBridgeHistoryItem },
           );
+          this.#trackMetaMetricsEvent(
+            UnifiedSwapBridgeEventName.Completed,
+            bridgeTxMetaId,
+          );
         }
         if (status.status === StatusTypes.FAILED) {
           this.messagingSystem.publish(
             `${BRIDGE_STATUS_CONTROLLER_NAME}:bridgeTransactionFailed`,
             { bridgeHistoryItem: newBridgeHistoryItem },
+          );
+
+          this.#trackMetaMetricsEvent(
+            UnifiedSwapBridgeEventName.Failed,
+            bridgeTxMetaId,
           );
         }
       }
@@ -755,6 +776,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       txMeta = await this.#handleSolanaTx(
         quoteResponse as QuoteResponse<string> & QuoteMetadata,
       );
+      this.#trackMetaMetricsEvent(
+        UnifiedSwapBridgeEventName.SnapConfirmationViewed,
+        txMeta.id,
+      );
     }
     // Submit EVM tx
     let approvalTime: number | undefined, approvalTxId: string | undefined;
@@ -801,12 +826,156 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         startTime: approvalTime ?? Date.now(),
         approvalTxId,
       });
+
+      this.#trackMetaMetricsEvent(
+        UnifiedSwapBridgeEventName.Submitted,
+        txMeta.id,
+      );
+
       // Add tokens to the token list
       this.#addTokens(quoteResponse.quote.srcAsset);
       this.#addTokens(quoteResponse.quote.destAsset);
-    } catch {
+    } catch (error) {
       // Ignore errors here, we don't want to crash the app if this fails and tx submission succeeds
+      console.error('Error submitting bridge tx', error);
     }
     return txMeta;
+  };
+
+  readonly #getRequestParams = (
+    historyItem: BridgeHistoryItem,
+  ): RequestParams => {
+    return {
+      chain_id_source: formatChainIdToCaip(historyItem.quote.srcChainId),
+      token_symbol_source: historyItem.quote.srcAsset.symbol,
+      token_address_source: historyItem.quote.srcAsset.assetId,
+      chain_id_destination: formatChainIdToCaip(historyItem.quote.destChainId),
+      token_symbol_destination: historyItem.quote.destAsset.symbol,
+      token_address_destination: historyItem.quote.destAsset.assetId,
+    };
+  };
+
+  readonly #getRequestMetadata = (
+    historyItem: BridgeHistoryItem,
+  ): RequestMetadata => {
+    const selectedAccount = this.messagingSystem.call(
+      'AccountsController:getAccountByAddress',
+      historyItem.account,
+    );
+
+    return {
+      slippage_limit: historyItem.slippagePercentage,
+      custom_slippage: false,
+      usd_amount_source: Number(historyItem.pricingData?.amountSentInUsd ?? 0),
+      swap_type: getSwapType(
+        historyItem.quote.srcChainId,
+        historyItem.quote.destChainId,
+      ),
+      is_hardware_wallet:
+        selectedAccount?.metadata?.keyring?.type?.includes('Hardware') ?? false,
+      stx_enabled: historyItem.isStxEnabled ?? false,
+    };
+  };
+
+  readonly #getTradeData = (historyItem: BridgeHistoryItem): TradeData => {
+    return {
+      usd_quoted_gas: Number(historyItem.pricingData?.quotedGasInUsd ?? 0),
+      gas_included: false,
+      provider: formatProviderLabel(historyItem.quote),
+      quoted_time_minutes: Number(
+        historyItem.estimatedProcessingTimeInSeconds / 60,
+      ),
+      usd_quoted_return: Number(
+        historyItem.pricingData?.quotedReturnInUsd ?? 0,
+      ),
+      price_impact: 0,
+    };
+  };
+
+  readonly #getFinalTxProperties = (historyItem: BridgeHistoryItem) => {
+    return {
+      actual_time_minutes:
+        historyItem.completionTime && historyItem.startTime
+          ? (historyItem.completionTime - historyItem.startTime) / 60000
+          : 0,
+      usd_actual_return: Number(
+        historyItem.pricingData?.quotedReturnInUsd ?? 0,
+      ), // TODO calculate based on USD price at completion time
+      usd_actual_gas: Number(historyItem.pricingData?.quotedGasInUsd ?? 0), // TODO calculate based on USD price at completion time
+      quote_vs_execution_ratio: 1, // TODO calculate based on USD price at completion time
+      quoted_vs_used_gas_ratio: 1, // TODO calculate based on USD price at completion time
+    };
+  };
+
+  readonly #getEventProperties = <
+    T extends
+      | typeof UnifiedSwapBridgeEventName.Submitted
+      | typeof UnifiedSwapBridgeEventName.Failed
+      | typeof UnifiedSwapBridgeEventName.SnapConfirmationViewed
+      | typeof UnifiedSwapBridgeEventName.Completed,
+  >(
+    eventName: T,
+    historyItem: BridgeHistoryItem,
+  ): Pick<RequiredEventContextFromClient, T>[T] => {
+    const baseProperties = {
+      action_type: getActionType(
+        historyItem.quote.srcChainId,
+        historyItem.quote.destChainId,
+      ),
+    };
+    switch (eventName) {
+      case UnifiedSwapBridgeEventName.SnapConfirmationViewed:
+      case UnifiedSwapBridgeEventName.Submitted:
+      case UnifiedSwapBridgeEventName.Completed:
+      case UnifiedSwapBridgeEventName.Failed:
+      default:
+        return {
+          ...this.#getRequestParams(historyItem),
+          ...this.#getRequestMetadata(historyItem),
+          ...this.#getTradeData(historyItem),
+          ...this.#getFinalTxProperties(historyItem),
+          error_message: 'error_message',
+          ...baseProperties,
+        };
+    }
+  };
+
+  /**
+   * Tracks post-submission events for a cross-chain swap based on the history item
+   *
+   * @param eventName - The name of the event to track
+   * @param txMetaId - The txMetaId of the history item to track the event for
+   */
+  readonly #trackMetaMetricsEvent = <
+    T extends
+      | typeof UnifiedSwapBridgeEventName.Submitted
+      | typeof UnifiedSwapBridgeEventName.Failed
+      | typeof UnifiedSwapBridgeEventName.SnapConfirmationViewed
+      | typeof UnifiedSwapBridgeEventName.Completed,
+  >(
+    eventName: T,
+    txMetaId: string,
+  ) => {
+    try {
+      const historyItem = this.state.txHistory[txMetaId];
+      if (!historyItem) {
+        return;
+      }
+      const requiredEventProperties = this.#getEventProperties<T>(
+        eventName,
+        historyItem,
+      );
+
+      this.messagingSystem.call(
+        'BridgeController:trackMetaMetricsEvent',
+        eventName,
+        requiredEventProperties,
+      );
+    } catch (error) {
+      console.error(
+        'Error tracking cross-chain swaps MetaMetrics event',
+        error,
+      );
+    }
   };
 }
