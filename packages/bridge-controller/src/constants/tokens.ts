@@ -53,7 +53,6 @@ const CURRENCY_SYMBOLS = {
   MOONRIVER: 'MOVR',
   ONE: 'ONE',
   SOL: 'SOL',
-  SEI: 'SEI',
 } as const;
 
 const ETH_SWAPS_TOKEN_OBJECT = {
