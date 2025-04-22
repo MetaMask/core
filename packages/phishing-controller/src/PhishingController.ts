@@ -746,44 +746,75 @@ export class PhishingController extends BaseController<
     }
 
     const MAX_URL_LENGTH = 2048;
-    for (const url of urls) {
-      if (url.length > MAX_URL_LENGTH) {
-        return {
-          results: {},
-          errors: {
-            [url]: [`URL length must not exceed ${MAX_URL_LENGTH} characters`],
-          },
-        };
-      }
-    }
-
-    // The API has a limit of 50 URLs per request, so we batch the requests
-    const MAX_URLS_PER_BATCH = 50;
-    const batches: string[][] = [];
-    for (let i = 0; i < urls.length; i += MAX_URLS_PER_BATCH) {
-      batches.push(urls.slice(i, i + MAX_URLS_PER_BATCH));
-    }
-
-    // Process each batch in parallel
-    const batchResults = await Promise.all(
-      batches.map((batchUrls) => this.#processBatch(batchUrls)),
-    );
-
-    // Combine all batch results
     const combinedResponse: BulkPhishingDetectionScanResponse = {
       results: {},
       errors: {},
     };
-    // Merge results and errors from all batches
-    batchResults.forEach((batchResponse) => {
-      Object.assign(combinedResponse.results, batchResponse.results);
-      Object.entries(batchResponse.errors).forEach(([key, messages]) => {
-        combinedResponse.errors[key] = [
-          ...(combinedResponse.errors[key] || []),
-          ...messages,
+
+    // Extract hostnames from URLs and check for validity and length constraints
+    const urlsToHostnames: Record<string, string> = {};
+    const urlsToFetch: string[] = [];
+
+    for (const url of urls) {
+      if (url.length > MAX_URL_LENGTH) {
+        combinedResponse.errors[url] = [
+          `URL length must not exceed ${MAX_URL_LENGTH} characters`,
         ];
+        continue;
+      }
+
+      const [hostname, ok] = getHostnameFromWebUrl(url);
+      if (!ok) {
+        combinedResponse.errors[url] = ['url is not a valid web URL'];
+        continue;
+      }
+
+      // Check if result is already in cache
+      const cachedResult = this.#urlScanCache.get(hostname);
+      if (cachedResult) {
+        // Use cached result
+        combinedResponse.results[url] = cachedResult;
+      } else {
+        // Add to list of URLs to fetch
+        urlsToHostnames[url] = hostname;
+        urlsToFetch.push(url);
+      }
+    }
+
+    // If there are URLs to fetch, process them in batches
+    if (urlsToFetch.length > 0) {
+      // The API has a limit of 50 URLs per request, so we batch the requests
+      const MAX_URLS_PER_BATCH = 50;
+      const batches: string[][] = [];
+      for (let i = 0; i < urlsToFetch.length; i += MAX_URLS_PER_BATCH) {
+        batches.push(urlsToFetch.slice(i, i + MAX_URLS_PER_BATCH));
+      }
+
+      // Process each batch in parallel
+      const batchResults = await Promise.all(
+        batches.map((batchUrls) => this.#processBatch(batchUrls)),
+      );
+
+      // Merge results and errors from all batches
+      batchResults.forEach((batchResponse) => {
+        // Add results to cache and combine with response
+        Object.entries(batchResponse.results).forEach(([url, result]) => {
+          const hostname = urlsToHostnames[url];
+          if (hostname) {
+            this.#urlScanCache.add(hostname, result);
+          }
+          combinedResponse.results[url] = result;
+        });
+
+        // Combine errors
+        Object.entries(batchResponse.errors).forEach(([key, messages]) => {
+          combinedResponse.errors[key] = [
+            ...(combinedResponse.errors[key] || []),
+            ...messages,
+          ];
+        });
       });
-    });
+    }
 
     return combinedResponse;
   };
