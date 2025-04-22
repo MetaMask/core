@@ -25,6 +25,7 @@ import { formatChainIdToCaip } from './utils/caip-formatters';
 import * as fetchUtils from './utils/fetch';
 import {
   MetaMetricsSwapsEventSource,
+  MetricsActionType,
   MetricsSwapType,
   UnifiedSwapBridgeEventName,
 } from './utils/metrics/constants';
@@ -602,6 +603,21 @@ describe('BridgeController', function () {
     );
     const firstFetchTime = bridgeController.state.quotesLastFetched;
     expect(firstFetchTime).toBeGreaterThan(0);
+    bridgeController.trackMetaMetricsEvent(
+      UnifiedSwapBridgeEventName.QuotesReceived,
+      {
+        warnings: ['warning1'],
+        usd_quoted_gas: 0,
+        gas_included: false,
+        quoted_time_minutes: 10,
+        usd_quoted_return: 100,
+        price_impact: 0,
+        provider: 'provider_bridge',
+        best_quote_provider: 'provider_bridge2',
+      },
+    );
+    // eslint-disable-next-line jest/no-restricted-matchers
+    expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
 
     // After 2nd fetch
     jest.advanceTimersByTime(50000);
@@ -1236,12 +1252,7 @@ describe('BridgeController', function () {
       bridgeController.trackMetaMetricsEvent(
         UnifiedSwapBridgeEventName.SnapConfirmationViewed,
         {
-          provider: 'provider_bridge',
-          usd_quoted_gas: 0,
-          gas_included: false,
-          quoted_time_minutes: 0,
-          usd_quoted_return: 0,
-          price_impact: 0,
+          action_type: MetricsActionType.CROSSCHAIN_V1,
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -1259,6 +1270,14 @@ describe('BridgeController', function () {
           quoted_time_minutes: 0,
           usd_quoted_return: 0,
           price_impact: 0,
+          chain_id_source: formatChainIdToCaip(1),
+          token_symbol_source: 'ETH',
+          token_address_source: getNativeAssetForChainId(1).assetId,
+          custom_slippage: true,
+          usd_amount_source: 100,
+          stx_enabled: false,
+          is_hardware_wallet: false,
+          swap_type: MetricsSwapType.CROSSCHAIN,
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);

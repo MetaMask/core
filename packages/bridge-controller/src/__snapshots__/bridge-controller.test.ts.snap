@@ -80,7 +80,6 @@ Array [
   Array [
     "Unified SwapBridge Completed",
     Object {
-      "action_type": "crosschain-v1",
       "actual_time_minutes": 10,
       "approval_transaction": "PENDING",
       "chain_id_source": "eip155:1",
@@ -113,7 +112,6 @@ Array [
   Array [
     "Unified SwapBridge Failed",
     Object {
-      "action_type": "crosschain-v1",
       "actual_time_minutes": 10,
       "allowance_reset_transaction": "PENDING",
       "approval_transaction": "PENDING",
@@ -249,17 +247,11 @@ Array [
       "chain_id_destination": undefined,
       "chain_id_source": "eip155:1",
       "custom_slippage": false,
-      "gas_included": false,
       "is_hardware_wallet": false,
-      "price_impact": 0,
-      "provider": "provider_bridge",
-      "quoted_time_minutes": 0,
       "slippage_limit": undefined,
       "swap_type": "crosschain",
       "token_address_destination": undefined,
       "token_address_source": "eip155:1/slip44:60",
-      "usd_quoted_gas": 0,
-      "usd_quoted_return": 0,
     },
   ],
 ]
@@ -270,21 +262,118 @@ Array [
   Array [
     "Unified SwapBridge Submitted",
     Object {
-      "action_type": "crosschain-v1",
-      "chain_id_destination": undefined,
       "chain_id_source": "eip155:1",
-      "custom_slippage": false,
+      "custom_slippage": true,
       "gas_included": false,
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "provider_bridge",
       "quoted_time_minutes": 0,
-      "slippage_limit": undefined,
+      "stx_enabled": false,
       "swap_type": "crosschain",
-      "token_address_destination": undefined,
       "token_address_source": "eip155:1/slip44:60",
+      "token_symbol_source": "ETH",
+      "usd_amount_source": 100,
       "usd_quoted_gas": 0,
       "usd_quoted_return": 0,
+    },
+  ],
+]
+`;
+
+exports[`BridgeController updateBridgeQuoteRequestParams should only poll once if insufficientBal=true 1`] = `
+Array [
+  Array [
+    "Unified SwapBridge Input Changed",
+    Object {
+      "action_type": "crosschain-v1",
+      "input": "chain_source",
+      "value": "eip155:1",
+    },
+  ],
+  Array [
+    "Unified SwapBridge Input Changed",
+    Object {
+      "action_type": "crosschain-v1",
+      "input": "chain_destination",
+      "value": "eip155:10",
+    },
+  ],
+  Array [
+    "Unified SwapBridge Input Changed",
+    Object {
+      "action_type": "crosschain-v1",
+      "input": "token_source",
+      "value": "eip155:1/slip44:60",
+    },
+  ],
+  Array [
+    "Unified SwapBridge Input Changed",
+    Object {
+      "action_type": "crosschain-v1",
+      "input": "token_destination",
+      "value": "eip155:10/erc20:0x123",
+    },
+  ],
+  Array [
+    "Unified SwapBridge Input Changed",
+    Object {
+      "action_type": "crosschain-v1",
+      "input": "slippage",
+      "value": 0.5,
+    },
+  ],
+  Array [
+    "Unified SwapBridge Quotes Requested",
+    Object {
+      "action_type": "crosschain-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:1",
+      "custom_slippage": true,
+      "has_sufficient_funds": true,
+      "is_hardware_wallet": false,
+      "security_warnings": Array [],
+      "slippage_limit": 0.5,
+      "stx_enabled": true,
+      "swap_type": "crosschain",
+      "token_address_destination": "eip155:10/erc20:0x123",
+      "token_address_source": "eip155:1/slip44:60",
+      "token_symbol_destination": "USDC",
+      "token_symbol_source": "ETH",
+      "usd_amount_source": 100,
+      "warnings": Array [],
+    },
+  ],
+  Array [
+    "Unified SwapBridge Quotes Received",
+    Object {
+      "action_type": "crosschain-v1",
+      "best_quote_provider": "provider_bridge2",
+      "can_submit": true,
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:1",
+      "custom_slippage": true,
+      "gas_included": false,
+      "initial_load_time_all_quotes": 11000,
+      "is_hardware_wallet": false,
+      "price_impact": 0,
+      "provider": "provider_bridge",
+      "quoted_time_minutes": 10,
+      "quotes_count": 2,
+      "quotes_list": Array [
+        "lifi_across",
+        "lifi_celercircle",
+      ],
+      "refresh_count": 1,
+      "slippage_limit": 0.5,
+      "swap_type": "crosschain",
+      "token_address_destination": "eip155:10/erc20:0x123",
+      "token_address_source": "eip155:1/slip44:60",
+      "usd_quoted_gas": 0,
+      "usd_quoted_return": 100,
+      "warnings": Array [
+        "warning1",
+      ],
     },
   ],
 ]

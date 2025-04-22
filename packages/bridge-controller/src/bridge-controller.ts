@@ -53,9 +53,9 @@ import {
 import { UnifiedSwapBridgeEventName } from './utils/metrics/constants';
 import {
   formatProviderLabel,
-  getActionType,
+  getActionTypeFromQuoteRequest,
   getRequestParams,
-  getSwapType,
+  getSwapTypeFromQuote,
   quoteRequestToInputChangedProperties,
   quoteRequestToInputChangedPropertyValues,
 } from './utils/metrics/properties';
@@ -517,10 +517,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           error instanceof Error ? error.message : 'Unknown error';
         state.quotesLoadingStatus = RequestStatus.ERROR;
         state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
-      });
-      this.trackMetaMetricsEvent(UnifiedSwapBridgeEventName.QuoteError, {
-        error_message: error instanceof Error ? error.message : 'Unknown error',
-        ...context,
+        this.trackMetaMetricsEvent(UnifiedSwapBridgeEventName.QuoteError, {
+          error_message: state.quoteFetchError,
+          ...context,
+        });
       });
       console.log('Failed to fetch bridge quotes', error);
     } finally {
@@ -686,7 +686,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   > => {
     return {
       slippage_limit: this.state.quoteRequest.slippage,
-      swap_type: getSwapType(this.state.quoteRequest),
+      swap_type: getSwapTypeFromQuote(this.state.quoteRequest),
       is_hardware_wallet: this.#getIsHardwareWallet(),
       custom_slippage:
         this.state.quoteRequest.slippage !==
@@ -701,7 +701,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     return {
       can_submit: Boolean(this.state.quoteRequest.insufficientBal), // TODO check if balance is sufficient for network fees
       quotes_count: this.state.quotes.length,
-      quotes_list: this.state.quotes.map(formatProviderLabel),
+      quotes_list: this.state.quotes.map(({ quote }) =>
+        formatProviderLabel(quote),
+      ),
       initial_load_time_all_quotes: this.state.quotesInitialLoadTime ?? 0,
     };
   };
@@ -714,7 +716,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     propertiesFromClient: Pick<RequiredEventContextFromClient, T>[T],
   ): CrossChainSwapsEventProperties<T> => {
     const baseProperties = {
-      action_type: getActionType(this.state.quoteRequest),
+      action_type: getActionTypeFromQuoteRequest(this.state.quoteRequest),
       ...propertiesFromClient,
     };
     switch (eventName) {
@@ -740,13 +742,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           has_sufficient_funds: !this.state.quoteRequest.insufficientBal,
           ...baseProperties,
         };
-      case UnifiedSwapBridgeEventName.SnapConfirmationViewed:
-      case UnifiedSwapBridgeEventName.Submitted:
-        return {
-          ...this.#getRequestParams(),
-          ...this.#getRequestMetadata(),
-          ...baseProperties,
-        };
       case UnifiedSwapBridgeEventName.AllQuotesOpened:
       case UnifiedSwapBridgeEventName.AllQuotesSorted:
       case UnifiedSwapBridgeEventName.QuoteSelected:
@@ -756,9 +751,18 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...this.#getQuoteFetchData(),
           ...baseProperties,
         };
-      case UnifiedSwapBridgeEventName.InputChanged:
+      case UnifiedSwapBridgeEventName.SnapConfirmationViewed:
+        return {
+          ...this.#getRequestParams(),
+          ...this.#getRequestMetadata(),
+          ...baseProperties,
+        };
+      // These are populated by BridgeStatusController
+      case UnifiedSwapBridgeEventName.Submitted:
       case UnifiedSwapBridgeEventName.Completed:
       case UnifiedSwapBridgeEventName.Failed:
+        return propertiesFromClient;
+      case UnifiedSwapBridgeEventName.InputChanged:
       default:
         return baseProperties;
     }

@@ -1,6 +1,26 @@
 export { BridgeController } from './bridge-controller';
 
-export { UnifiedSwapBridgeEventName } from './metrics/payload';
+export {
+  UnifiedSwapBridgeEventName,
+  UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY as METAMETRICS_EVENT_CATEGORY,
+} from './utils/metrics/constants';
+
+export type {
+  RequiredEventContextFromClient,
+  CrossChainSwapsEventProperties,
+  TradeData,
+  RequestParams,
+  RequestMetadata,
+  TxStatusData,
+} from './utils/metrics/types';
+
+export {
+  formatProviderLabel,
+  getRequestParams,
+  getActionType,
+  getSwapType,
+} from './utils/metrics/properties';
+
 export type {
   ChainConfiguration,
   L1GasFees,

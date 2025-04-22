@@ -122,8 +122,12 @@ export type RequiredEventContextFromClient = {
     security_warnings: string[]; // TODO standardize warnings
   };
   // Emitted by BridgeStatusController
-  [UnifiedSwapBridgeEventName.SnapConfirmationViewed]: TradeData;
-  [UnifiedSwapBridgeEventName.Submitted]: TradeData;
+  [UnifiedSwapBridgeEventName.SnapConfirmationViewed]: {
+    action_type: MetricsActionType;
+  };
+  [UnifiedSwapBridgeEventName.Submitted]: RequestParams &
+    RequestMetadata &
+    TradeData;
   [UnifiedSwapBridgeEventName.Completed]: RequestParams &
     RequestMetadata &
     TxStatusData &
@@ -190,9 +194,9 @@ export type EventPropertiesFromControllerState = {
     RequestMetadata & {
       has_sufficient_funds: boolean;
     };
-  [UnifiedSwapBridgeEventName.SnapConfirmationViewed]: RequestParams &
-    RequestMetadata;
-  [UnifiedSwapBridgeEventName.Submitted]: RequestParams & RequestMetadata;
+  [UnifiedSwapBridgeEventName.SnapConfirmationViewed]: RequestMetadata &
+    RequestParams;
+  [UnifiedSwapBridgeEventName.Submitted]: null;
   [UnifiedSwapBridgeEventName.Completed]: null;
   [UnifiedSwapBridgeEventName.Failed]: null;
   [UnifiedSwapBridgeEventName.AllQuotesOpened]: RequestParams &
@@ -213,15 +217,6 @@ export type EventPropertiesFromControllerState = {
  * trackMetaMetricsEvent payload properties consist of required properties from the client
  * and properties from the bridge controller
  */
-export type CrossChainSwapsEventPropertie3s<
-  T extends UnifiedSwapBridgeEventName,
-> =
-  | {
-      action_type: MetricsActionType;
-    }
-  | Pick<EventPropertiesFromControllerState, T>[T]
-  | Pick<RequiredEventContextFromClient, T>[T];
-
 export type CrossChainSwapsEventProperties<
   T extends UnifiedSwapBridgeEventName,
 > =

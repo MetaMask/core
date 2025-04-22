@@ -5,8 +5,8 @@ import { MetricsActionType, MetricsSwapType } from './constants';
 import {
   quoteRequestToInputChangedProperties,
   quoteRequestToInputChangedPropertyValues,
-  getActionType,
-  getSwapType,
+  getActionTypeFromQuoteRequest,
+  getSwapTypeFromQuote,
   formatProviderLabel,
   getRequestParams,
 } from './properties';
@@ -150,7 +150,7 @@ describe('properties', () => {
 
   describe('getActionType', () => {
     it('should return SWAPBRIDGE_V1 when srcChainId equals destChainId', () => {
-      const result = getActionType({
+      const result = getActionTypeFromQuoteRequest({
         srcChainId: '1',
         destChainId: '1',
       });
@@ -159,7 +159,7 @@ describe('properties', () => {
     });
 
     it('should return CROSSCHAIN_V1 when srcChainId does not equal destChainId', () => {
-      const result = getActionType({
+      const result = getActionTypeFromQuoteRequest({
         srcChainId: '1',
         destChainId: '2',
       });
@@ -170,7 +170,7 @@ describe('properties', () => {
 
   describe('getSwapType', () => {
     it('should return SINGLE when srcChainId equals destChainId', () => {
-      const result = getSwapType({
+      const result = getSwapTypeFromQuote({
         srcChainId: 1,
         destChainId: 1,
       });
@@ -179,7 +179,7 @@ describe('properties', () => {
     });
 
     it('should return SINGLE when destChainId is undefined', () => {
-      const result = getSwapType({
+      const result = getSwapTypeFromQuote({
         srcChainId: 1,
       });
 
@@ -187,7 +187,7 @@ describe('properties', () => {
     });
 
     it('should return CROSSCHAIN when srcChainId does not equal destChainId', () => {
-      const result = getSwapType({
+      const result = getSwapTypeFromQuote({
         srcChainId: 1,
         destChainId: 10,
       });
@@ -249,7 +249,7 @@ describe('properties', () => {
         estimatedProcessingTimeInSeconds: 60,
       };
 
-      const result = formatProviderLabel(mockQuoteResponse);
+      const result = formatProviderLabel(mockQuoteResponse.quote);
 
       expect(result).toBe('bridge1_bridge1');
     });

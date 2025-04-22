@@ -48,31 +48,50 @@ export const quoteRequestToInputChangedPropertyValues: Partial<
   slippage: ({ slippage }) => (slippage ? Number(slippage) : slippage),
 };
 
-export const getActionType = (quoteRequest: Partial<GenericQuoteRequest>) => {
+export const getActionType = (
+  srcChainId?: GenericQuoteRequest['srcChainId'],
+  destChainId?: GenericQuoteRequest['destChainId'],
+) => {
   if (
-    quoteRequest.srcChainId &&
-    formatChainIdToCaip(quoteRequest.srcChainId) ===
-      formatChainIdToCaip(quoteRequest.destChainId ?? quoteRequest.srcChainId)
+    srcChainId &&
+    formatChainIdToCaip(srcChainId) ===
+      formatChainIdToCaip(destChainId ?? srcChainId)
   ) {
     return MetricsActionType.SWAPBRIDGE_V1;
   }
   return MetricsActionType.CROSSCHAIN_V1;
 };
 
-export const getSwapType = (quoteRequest: Partial<GenericQuoteRequest>) => {
+export const getActionTypeFromQuoteRequest = (
+  quoteRequest: Partial<GenericQuoteRequest>,
+) => {
+  return getActionType(quoteRequest.srcChainId, quoteRequest.destChainId);
+};
+
+export const getSwapType = (
+  srcChainId?: GenericQuoteRequest['srcChainId'],
+  destChainId?: GenericQuoteRequest['destChainId'],
+) => {
   if (
-    quoteRequest.srcChainId &&
-    formatChainIdToCaip(quoteRequest.srcChainId) ===
-      formatChainIdToCaip(quoteRequest.destChainId ?? quoteRequest.srcChainId)
+    srcChainId &&
+    formatChainIdToCaip(srcChainId) ===
+      formatChainIdToCaip(destChainId ?? srcChainId)
   ) {
     return MetricsSwapType.SINGLE;
   }
   return MetricsSwapType.CROSSCHAIN;
 };
 
+export const getSwapTypeFromQuote = (
+  quoteRequest: Partial<GenericQuoteRequest>,
+) => {
+  return getSwapType(quoteRequest.srcChainId, quoteRequest.destChainId);
+};
+
 export const formatProviderLabel = ({
-  quote: { bridgeId, bridges },
-}: QuoteResponse<TxData | string>): `${string}_${string}` =>
+  bridgeId,
+  bridges,
+}: QuoteResponse<TxData | string>['quote']): `${string}_${string}` =>
   `${bridgeId}_${bridges[0]}`;
 
 export const getRequestParams = (
