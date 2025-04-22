@@ -745,23 +745,44 @@ export class PhishingController extends BaseController<
       };
     }
 
+    const urlsToScan: string[] = [];
+    const results: Record<string, PhishingDetectionScanResult> = {};
+    const errors: Record<string, string[]> = {};
+
     const MAX_URL_LENGTH = 2048;
+    // Process each URL: validate and check cache
     for (const url of urls) {
       if (url.length > MAX_URL_LENGTH) {
-        return {
-          results: {},
-          errors: {
-            [url]: [`URL length must not exceed ${MAX_URL_LENGTH} characters`],
-          },
-        };
+        errors[url] = [
+          `URL length must not exceed ${MAX_URL_LENGTH} characters`,
+        ];
+        continue;
       }
+
+      const [hostname, ok] = getHostnameFromWebUrl(url);
+      if (!ok) {
+        errors[url] = ['url is not a valid web URL'];
+        continue;
+      }
+
+      // Check if the result is already cached
+      const cachedResult = this.#urlScanCache.get(hostname);
+      if (cachedResult) {
+        results[hostname] = cachedResult;
+      } else {
+        urlsToScan.push(hostname);
+      }
+    }
+
+    if (urlsToScan.length === 0) {
+      return { results, errors };
     }
 
     // The API has a limit of 50 URLs per request, so we batch the requests
     const MAX_URLS_PER_BATCH = 50;
     const batches: string[][] = [];
-    for (let i = 0; i < urls.length; i += MAX_URLS_PER_BATCH) {
-      batches.push(urls.slice(i, i + MAX_URLS_PER_BATCH));
+    for (let i = 0; i < urlsToScan.length; i += MAX_URLS_PER_BATCH) {
+      batches.push(urlsToScan.slice(i, i + MAX_URLS_PER_BATCH));
     }
 
     // Process each batch in parallel
@@ -771,11 +792,17 @@ export class PhishingController extends BaseController<
 
     // Combine all batch results
     const combinedResponse: BulkPhishingDetectionScanResponse = {
-      results: {},
-      errors: {},
+      results,
+      errors,
     };
+
     // Merge results and errors from all batches
     batchResults.forEach((batchResponse) => {
+      // Add API results to the cache
+      Object.entries(batchResponse.results).forEach(([hostname, result]) => {
+        this.#urlScanCache.add(hostname, result);
+      });
+
       Object.assign(combinedResponse.results, batchResponse.results);
       Object.entries(batchResponse.errors).forEach(([key, messages]) => {
         combinedResponse.errors[key] = [
