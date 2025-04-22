@@ -2164,6 +2164,7 @@ export class NftController extends BaseController<
           });
           return false;
         }
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (e) {
         // If URL parsing fails, consider it unsafe
         this.#urlSafetyCache.set(url, {
