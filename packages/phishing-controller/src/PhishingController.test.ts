@@ -2870,6 +2870,160 @@ describe('PhishingController', () => {
       expect(response.errors.api_error).toContain('404 Not Found');
       expect(response.errors.api_error).toContain('500 Internal Server Error');
     });
+
+    it('should use cached results for previously scanned URLs and only fetch uncached URLs', async () => {
+      const cachedUrl = 'https://cached-example.com';
+      const uncachedUrl = 'https://uncached-example.com';
+      const mixedUrls = [cachedUrl, uncachedUrl];
+
+      // Set up the cache with a pre-existing result
+      const cachedResult: PhishingDetectionScanResult = {
+        domainName: 'cached-example.com',
+        recommendedAction: RecommendedAction.None,
+      };
+
+      // First cache a result via scanUrl
+      nock(PHISHING_DETECTION_BASE_URL)
+        .get(
+          `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent('cached-example.com')}`,
+        )
+        .reply(200, {
+          recommendedAction: RecommendedAction.None,
+        });
+
+      await controller.scanUrl(cachedUrl);
+
+      // Now set up the mock for the bulk API call with only the uncached URL
+      const expectedPostBody = {
+        urls: [uncachedUrl],
+      };
+
+      const bulkApiResponse: BulkPhishingDetectionScanResponse = {
+        results: {
+          [uncachedUrl]: {
+            domainName: 'uncached-example.com',
+            recommendedAction: RecommendedAction.Warn,
+          },
+        },
+        errors: {},
+      };
+
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, expectedPostBody)
+        .reply(200, bulkApiResponse);
+
+      // Call bulkScanUrls with both URLs
+      const response = await controller.bulkScanUrls(mixedUrls);
+
+      // Verify that only the uncached URL was requested from the API
+      expect(scope.isDone()).toBe(true);
+
+      // Verify the combined results include both the cached and newly fetched results
+      expect(response.results).toStrictEqual({
+        [cachedUrl]: cachedResult,
+        [uncachedUrl]: bulkApiResponse.results[uncachedUrl],
+      });
+
+      // Verify the newly fetched result is now in the cache
+      const newlyCachedResult = await controller.scanUrl(uncachedUrl);
+      expect(newlyCachedResult).toStrictEqual(
+        bulkApiResponse.results[uncachedUrl],
+      );
+
+      // Should not make a new API call for the second scanUrl call
+      // eslint-disable-next-line import-x/no-named-as-default-member
+      expect(nock.pendingMocks()).toHaveLength(0);
+    });
+    it('should handle invalid URLs properly when mixed with valid URLs and cache results correctly', async () => {
+      const validUrl = 'https://valid-example.com';
+      const invalidUrl = 'not-a-url';
+      const mixedUrls = [validUrl, invalidUrl];
+
+      const bulkApiResponse: BulkPhishingDetectionScanResponse = {
+        results: {
+          [validUrl]: {
+            domainName: 'valid-example.com',
+            recommendedAction: RecommendedAction.None,
+          },
+        },
+        errors: {},
+      };
+
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+          urls: [validUrl],
+        })
+        .reply(200, bulkApiResponse);
+
+      // Call bulkScanUrls with both URLs
+      const response = await controller.bulkScanUrls(mixedUrls);
+
+      // Verify that only the valid URL was requested from the API
+      expect(scope.isDone()).toBe(true);
+
+      // Verify the results include the valid URL result and an error for the invalid URL
+      expect(response.results[validUrl]).toStrictEqual(
+        bulkApiResponse.results[validUrl],
+      );
+      expect(response.errors[invalidUrl]).toContain(
+        'url is not a valid web URL',
+      );
+
+      // Verify the valid result is now in the cache
+      const cachedResult = await controller.scanUrl(validUrl);
+      expect(cachedResult).toStrictEqual(bulkApiResponse.results[validUrl]);
+
+      // Should not make a new API call for the cached URL
+      // eslint-disable-next-line import-x/no-named-as-default-member
+      expect(nock.pendingMocks()).toHaveLength(0);
+    });
+
+    it('should use cache for all URLs if all are already cached', async () => {
+      // First cache the results individually
+      const cachedUrls = ['https://domain1.com', 'https://domain2.com'];
+      const cachedResults = [
+        {
+          domainName: 'domain1.com',
+          recommendedAction: RecommendedAction.None,
+        },
+        {
+          domainName: 'domain2.com',
+          recommendedAction: RecommendedAction.Block,
+        },
+      ];
+
+      // Set up nock for individual caching
+      nock(PHISHING_DETECTION_BASE_URL)
+        .get(
+          `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent('domain1.com')}`,
+        )
+        .reply(200, {
+          recommendedAction: RecommendedAction.None,
+        });
+
+      nock(PHISHING_DETECTION_BASE_URL)
+        .get(
+          `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent('domain2.com')}`,
+        )
+        .reply(200, {
+          recommendedAction: RecommendedAction.Block,
+        });
+
+      // Cache the results
+      await controller.scanUrl(cachedUrls[0]);
+      await controller.scanUrl(cachedUrls[1]);
+
+      // No API call should be made for bulkScanUrls
+      const response = await controller.bulkScanUrls(cachedUrls);
+
+      // Verify we got the results from cache
+      expect(response.results[cachedUrls[0]]).toStrictEqual(cachedResults[0]);
+      expect(response.results[cachedUrls[1]]).toStrictEqual(cachedResults[1]);
+
+      // Verify no API calls were made
+      // eslint-disable-next-line import-x/no-named-as-default-member
+      expect(nock.pendingMocks()).toHaveLength(0);
+    });
   });
 });
 
