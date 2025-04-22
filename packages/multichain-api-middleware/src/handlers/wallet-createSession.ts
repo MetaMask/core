@@ -193,7 +193,7 @@ async function walletCreateSessionHandler(
     };
 
     const requestedCaip25CaveatValueWithSupportedAccounts =
-    setNonSCACaipAccountIdsInCaip25CaveatValue(
+      setNonSCACaipAccountIdsInCaip25CaveatValue(
         requestedCaip25CaveatValue,
         supportedRequestedAccountAddresses,
       );

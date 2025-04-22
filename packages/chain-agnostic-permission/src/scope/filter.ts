@@ -3,7 +3,6 @@ import type { CaipAccountId, CaipChainId, Hex } from '@metamask/utils';
 import { assertIsInternalScopeString, assertScopeSupported } from './assert';
 import { isSupportedMethod, isSupportedNotification } from './supported';
 import type {
-  InternalScopesObject,
   InternalScopeString,
   NormalizedScopeObject,
   NormalizedScopesObject,
