@@ -34,7 +34,11 @@ import type {
   NetworkControllerNetworkDidChangeEvent,
   NetworkState,
 } from '@metamask/network-controller';
-import type { PhishingDetectionScanResult } from '@metamask/phishing-controller';
+import type {
+  PhishingDetectionScanResult,
+  BulkPhishingDetectionScanResponse,
+} from '@metamask/phishing-controller';
+import { RecommendedAction } from '@metamask/phishing-controller';
 import type {
   PreferencesControllerStateChangeEvent,
   PreferencesState,
@@ -69,7 +73,6 @@ import type {
   GetCollectionsResponse,
   TopBid,
 } from './NftDetectionController';
-import { RecommendedAction } from '../../phishing-controller/src/types';
 
 type NFTStandardType = 'ERC721' | 'ERC1155';
 
@@ -242,6 +245,14 @@ export type PhishingControllerScanUrlAction = {
 };
 
 /**
+ * Action type for bulk scanning URLs with PhishingController
+ */
+export type PhishingControllerBulkScanUrlsAction = {
+  type: 'PhishingController:bulkScanUrls';
+  handler: (urls: string[]) => Promise<BulkPhishingDetectionScanResponse>;
+};
+
+/**
  * The external actions available to the {@link NftController}.
  */
 export type AllowedActions =
@@ -255,7 +266,8 @@ export type AllowedActions =
   | AssetsContractControllerGetERC721OwnerOfAction
   | AssetsContractControllerGetERC1155BalanceOfAction
   | AssetsContractControllerGetERC1155TokenURIAction
-  | PhishingControllerScanUrlAction;
+  | PhishingControllerScanUrlAction
+  | PhishingControllerBulkScanUrlsAction;
 
 export type AllowedEvents =
   | PreferencesControllerStateChangeEvent
@@ -322,20 +334,6 @@ export class NftController extends BaseController<
     standard: string | null;
     source: Source;
   }) => void;
-
-  // Configuration for URL safety checks
-  readonly #urlSafetyConfig = {
-    concurrencyLimit: 10,
-    cacheTTL: 1000 * 60 * 60 * 24, // 1 day in milliseconds
-    allowedProtocols: ['http:', 'https:'],
-    deniedDomains: ['metamask.app.link'],
-  };
-
-  // Cache for URL safety check results
-  readonly #urlSafetyCache: Map<
-    string,
-    { isSafe: boolean; timestamp: number }
-  > = new Map();
 
   /**
    * Creates an NftController instance.
@@ -2123,127 +2121,6 @@ export class NftController extends BaseController<
   }
 
   /**
-   * Checks if an external link is safe by scanning it with PhishingController
-   *
-   * @param url - The URL to check for phishing
-   * @returns Whether the URL is safe (true) or unsafe (false)
-   */
-  async #isExternalLinkSafe(url: string): Promise<boolean> {
-    try {
-      if (!url || !url.startsWith('http')) {
-        return true;
-      }
-
-      // Check cache first
-      const cached = this.#urlSafetyCache.get(url);
-      if (
-        cached &&
-        Date.now() - cached.timestamp < this.#urlSafetyConfig.cacheTTL
-      ) {
-        return cached.isSafe;
-      }
-
-      // Validate URL format and protocol
-      try {
-        const urlObj = new URL(url);
-
-        // Check for allowed protocols
-        if (!this.#urlSafetyConfig.allowedProtocols.includes(urlObj.protocol)) {
-          this.#urlSafetyCache.set(url, {
-            isSafe: false,
-            timestamp: Date.now(),
-          });
-          return false;
-        }
-
-        // Check against denied domains
-        if (this.#urlSafetyConfig.deniedDomains.includes(urlObj.hostname)) {
-          this.#urlSafetyCache.set(url, {
-            isSafe: false,
-            timestamp: Date.now(),
-          });
-          return false;
-        }
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      } catch (e) {
-        // If URL parsing fails, consider it unsafe
-        this.#urlSafetyCache.set(url, {
-          isSafe: false,
-          timestamp: Date.now(),
-        });
-        return false;
-      }
-
-      // Check with phishing controller
-      const scanResult = await this.messagingSystem.call(
-        'PhishingController:scanUrl',
-        url,
-      );
-      const isSafe = scanResult.recommendedAction !== RecommendedAction.Block;
-
-      this.#urlSafetyCache.set(url, { isSafe, timestamp: Date.now() });
-
-      return isSafe;
-    } catch (error) {
-      console.error('Error checking external link safety:', error);
-      return true; // Consider URLs with errors as safe
-    }
-  }
-
-  /**
-   * Processes URL safety checks in parallel with controlled concurrency
-   *
-   * @param urls - Array of {key, url} objects to check
-   * @returns Array of {key, isSafe} results
-   */
-  async #processUrlBatch(
-    urls: { key: string; url: string }[],
-  ): Promise<{ key: string; isSafe: boolean }[]> {
-    // Use set to track unique URLs (avoid checking same URL multiple times)
-    const uniqueUrls = new Map<string, string[]>();
-
-    // Group URLs by their value to avoid duplicate checks
-    for (const { key, url } of urls) {
-      if (!uniqueUrls.has(url)) {
-        uniqueUrls.set(url, [key]);
-      } else {
-        uniqueUrls.get(url)?.push(key);
-      }
-    }
-
-    // Process unique URLs with controlled concurrency
-    const results: { key: string; isSafe: boolean }[] = [];
-    const urlEntries = Array.from(uniqueUrls.entries());
-    let processedCount = 0;
-
-    // Process in chunks of concurrencyLimit
-    while (processedCount < urlEntries.length) {
-      const chunk = urlEntries.slice(
-        processedCount,
-        processedCount + this.#urlSafetyConfig.concurrencyLimit,
-      );
-
-      const chunkPromises = chunk.map(async ([url, keys]) => {
-        try {
-          const isSafe = await this.#isExternalLinkSafe(url);
-          return keys.map((key) => ({ key, isSafe }));
-        } catch (error) {
-          console.error('Error checking external link safety:', error);
-          // If there's an error, treat all associated keys as unsafe
-          return keys.map((key) => ({ key, isSafe: false }));
-        }
-      });
-
-      const chunkResults = await Promise.all(chunkPromises);
-      results.push(...chunkResults.flat());
-
-      processedCount += chunk.length;
-    }
-
-    return results;
-  }
-
-  /**
    * Sanitizes NFT metadata by checking external links against PhishingController
    *
    * @param metadata - The NFT metadata to sanitize
@@ -2253,7 +2130,7 @@ export class NftController extends BaseController<
     const sanitizedMetadata = { ...metadata };
 
     // Collect all URL fields that need to be checked
-    const urlFields: { key: string; url: string }[] = [];
+    const urlFieldMap: Record<string, string> = {};
 
     // Check standard URL fields
     const fieldsToCheck = [
@@ -2269,7 +2146,7 @@ export class NftController extends BaseController<
     for (const field of fieldsToCheck) {
       const url = sanitizedMetadata[field as keyof NftMetadata];
       if (typeof url === 'string' && url && url.startsWith('http')) {
-        urlFields.push({ key: field, url });
+        urlFieldMap[url] = field;
       }
     }
 
@@ -2281,32 +2158,53 @@ export class NftController extends BaseController<
         'externalLink' in collection &&
         typeof collection.externalLink === 'string'
       ) {
-        urlFields.push({
-          key: 'collection.externalLink',
-          url: collection.externalLink,
-        });
+        urlFieldMap[collection.externalLink] = 'collection.externalLink';
       }
     }
 
     // No URLs to check
-    if (urlFields.length === 0) {
+    const urlsToCheck = Object.keys(urlFieldMap);
+    if (urlsToCheck.length === 0) {
       return sanitizedMetadata;
     }
-    // Process URLs in parallel with controlled concurrency
-    const safetyResults = await this.#processUrlBatch(urlFields);
 
-    // Remove any unsafe URLs from metadata
-    for (const { key, isSafe } of safetyResults) {
-      if (!isSafe) {
-        if (key === 'collection.externalLink' && sanitizedMetadata.collection) {
+    try {
+      // Use bulkScanUrls to check all URLs at once
+      const bulkScanResponse = await this.messagingSystem.call(
+        'PhishingController:bulkScanUrls',
+        urlsToCheck,
+      );
+
+      // Remove any unsafe URLs from metadata
+      Object.entries(bulkScanResponse.results).forEach(([url, result]) => {
+        if (result.recommendedAction === RecommendedAction.Block) {
+          const field = urlFieldMap[url];
+          if (field === 'collection.externalLink' && sanitizedMetadata.collection) {
+            const { collection } = sanitizedMetadata;
+            if ('externalLink' in collection) {
+              delete (collection as Record<string, unknown>).externalLink;
+            }
+          } else {
+            delete sanitizedMetadata[field as keyof NftMetadata];
+          }
+        }
+      });
+
+      // Handle URLs with errors conservatively (remove them)
+      Object.keys(bulkScanResponse.errors).forEach((url) => {
+        const field = urlFieldMap[url];
+        if (field === 'collection.externalLink' && sanitizedMetadata.collection) {
           const { collection } = sanitizedMetadata;
           if ('externalLink' in collection) {
             delete (collection as Record<string, unknown>).externalLink;
           }
-        } else {
-          delete sanitizedMetadata[key as keyof NftMetadata];
+        } else if (field) {
+          delete sanitizedMetadata[field as keyof NftMetadata];
         }
-      }
+      });
+    } catch (error) {
+      console.error('Error during bulk URL scanning:', error);
+      // If bulk scan fails, we fall back to keeping all URLs
     }
 
     return sanitizedMetadata;
