@@ -72,6 +72,8 @@ export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID = {
     '0x6aa75276052d96696134252587894ef5ffa520af',
   [SupportedTokenDetectionNetworks.moonriver]:
     '0x6aa75276052d96696134252587894ef5ffa520af',
+  [SupportedTokenDetectionNetworks.berachain]:
+    '0xdDD42f96648A1c1Fdd94b6d0a1A390bb9d85CCB3',
 } as const satisfies Record<Hex, string>;
 
 export const STAKING_CONTRACT_ADDRESS_BY_CHAINID = {
