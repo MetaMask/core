@@ -43,6 +43,7 @@ export const C2_DOMAIN_BLOCKLIST_ENDPOINT = '/v1/request-blocklist';
 export const PHISHING_DETECTION_BASE_URL =
   'https://dapp-scanning.api.cx.metamask.io';
 export const PHISHING_DETECTION_SCAN_ENDPOINT = 'scan';
+export const PHISHING_DETECTION_BULK_SCAN_ENDPOINT = 'bulk-scan';
 
 export const C2_DOMAIN_BLOCKLIST_REFRESH_INTERVAL = 5 * 60; // 5 mins in seconds
 export const HOTLIST_REFRESH_INTERVAL = 5 * 60; // 5 mins in seconds
@@ -298,6 +299,19 @@ export type PhishingControllerMessenger = RestrictedMessenger<
   never,
   never
 >;
+
+/**
+ * BulkPhishingDetectionScanResponse
+ *
+ * Response for bulk phishing detection scan requests
+ * results - Record of domain names and their corresponding phishing detection scan results
+ *
+ * errors - Record of domain names and their corresponding errors
+ */
+export type BulkPhishingDetectionScanResponse = {
+  results: Record<string, PhishingDetectionScanResult>;
+  errors: Record<string, string[]>;
+};
 
 /**
  * Controller that manages community-maintained lists of approved and unapproved website origins.
@@ -702,6 +716,144 @@ export class PhishingController extends BaseController<
   };
 
   /**
+   * Scan multiple URLs for phishing in bulk. It will only scan the hostnames of the URLs.
+   * It also only supports web URLs.
+   *
+   * @param urls - The URLs to scan.
+   * @returns A mapping of URLs to their phishing detection scan results and errors.
+   */
+  bulkScanUrls = async (
+    urls: string[],
+  ): Promise<BulkPhishingDetectionScanResponse> => {
+    if (!urls || urls.length === 0) {
+      return {
+        results: {},
+        errors: {},
+      };
+    }
+
+    // we are arbitrarily limiting the number of URLs to 250
+    const MAX_TOTAL_URLS = 250;
+    if (urls.length > MAX_TOTAL_URLS) {
+      return {
+        results: {},
+        errors: {
+          too_many_urls: [
+            `Maximum of ${MAX_TOTAL_URLS} URLs allowed per request`,
+          ],
+        },
+      };
+    }
+
+    const MAX_URL_LENGTH = 2048;
+    for (const url of urls) {
+      if (url.length > MAX_URL_LENGTH) {
+        return {
+          results: {},
+          errors: {
+            [url]: [`URL length must not exceed ${MAX_URL_LENGTH} characters`],
+          },
+        };
+      }
+    }
+
+    // The API has a limit of 50 URLs per request, so we batch the requests
+    const MAX_URLS_PER_BATCH = 50;
+    const batches: string[][] = [];
+    for (let i = 0; i < urls.length; i += MAX_URLS_PER_BATCH) {
+      batches.push(urls.slice(i, i + MAX_URLS_PER_BATCH));
+    }
+
+    // Process each batch in parallel
+    const batchResults = await Promise.all(
+      batches.map((batchUrls) => this.#processBatch(batchUrls)),
+    );
+
+    // Combine all batch results
+    const combinedResponse: BulkPhishingDetectionScanResponse = {
+      results: {},
+      errors: {},
+    };
+    // Merge results and errors from all batches
+    batchResults.forEach((batchResponse) => {
+      Object.assign(combinedResponse.results, batchResponse.results);
+      Object.entries(batchResponse.errors).forEach(([key, messages]) => {
+        combinedResponse.errors[key] = [
+          ...(combinedResponse.errors[key] || []),
+          ...messages,
+        ];
+      });
+    });
+
+    return combinedResponse;
+  };
+
+  /**
+   * Process a batch of URLs (up to 50) for phishing detection.
+   *
+   * @param urls - A batch of URLs to scan.
+   * @returns The scan results and errors for this batch.
+   */
+  readonly #processBatch = async (
+    urls: string[],
+  ): Promise<BulkPhishingDetectionScanResponse> => {
+    const apiResponse = await safelyExecuteWithTimeout(
+      async () => {
+        const res = await fetch(
+          `${PHISHING_DETECTION_BASE_URL}/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`,
+          {
+            method: 'POST',
+            headers: {
+              Accept: 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ urls }),
+          },
+        );
+
+        if (!res.ok) {
+          return {
+            error: `${res.status} ${res.statusText}`,
+            status: res.status,
+            statusText: res.statusText,
+          };
+        }
+
+        const data = await res.json();
+        return data;
+      },
+      true,
+      15000,
+    );
+
+    // Handle timeout or network errors
+    if (!apiResponse) {
+      return {
+        results: {},
+        errors: {
+          network_error: ['timeout of 15000ms exceeded'],
+        },
+      };
+    }
+
+    // Handle HTTP error responses
+    if (
+      'error' in apiResponse &&
+      'status' in apiResponse &&
+      'statusText' in apiResponse
+    ) {
+      return {
+        results: {},
+        errors: {
+          api_error: [`${apiResponse.status} ${apiResponse.statusText}`],
+        },
+      };
+    }
+
+    return apiResponse as BulkPhishingDetectionScanResponse;
+  };
+
+  /**
    * Update the stalelist configuration.
    *
    * This should only be called from the `updateStalelist` function, which is a wrapper around
@@ -746,7 +898,6 @@ export class PhishingController extends BaseController<
     }
 
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     const { eth_phishing_detect_config, ...partialState } =
       stalelistResponse.data;
 

@@ -15,6 +15,8 @@ import {
   C2_DOMAIN_BLOCKLIST_ENDPOINT,
   PHISHING_DETECTION_BASE_URL,
   PHISHING_DETECTION_SCAN_ENDPOINT,
+  PHISHING_DETECTION_BULK_SCAN_ENDPOINT,
+  type BulkPhishingDetectionScanResponse,
 } from './PhishingController';
 import { formatHostnameToUrl } from './tests/utils';
 import type { PhishingDetectionScanResult } from './types';
@@ -2586,6 +2588,287 @@ describe('PhishingController', () => {
       const response = await controller.scanUrl(urlWithAuth);
       expect(response).toMatchObject(mockResponse);
       expect(scope.isDone()).toBe(true);
+    });
+  });
+
+  describe('bulkScanUrls', () => {
+    let controller: PhishingController;
+    let clock: sinon.SinonFakeTimers;
+    const testUrls: string[] = [
+      'https://example1.com',
+      'https://example2.com',
+      'https://example3.com',
+    ];
+    const mockResponse: BulkPhishingDetectionScanResponse = {
+      results: {
+        'https://example1.com': {
+          domainName: 'example1.com',
+          recommendedAction: RecommendedAction.None,
+        },
+        'https://example2.com': {
+          domainName: 'example2.com',
+          recommendedAction: RecommendedAction.Block,
+        },
+        'https://example3.com': {
+          domainName: 'example3.com',
+          recommendedAction: RecommendedAction.None,
+        },
+      },
+      errors: {},
+    };
+
+    beforeEach(() => {
+      controller = getPhishingController();
+      clock = sinon.useFakeTimers();
+    });
+
+    afterEach(() => {
+      clock.restore();
+    });
+
+    it('should return the scan results for multiple URLs', async () => {
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+          urls: testUrls,
+        })
+        .reply(200, mockResponse);
+
+      const response = await controller.bulkScanUrls(testUrls);
+      expect(response).toStrictEqual(mockResponse);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('should handle empty URL arrays', async () => {
+      const response = await controller.bulkScanUrls([]);
+      expect(response).toStrictEqual({
+        results: {},
+        errors: {},
+      });
+    });
+
+    it('should enforce maximum URL limit', async () => {
+      const tooManyUrls = Array(251).fill('https://example.com');
+      const response = await controller.bulkScanUrls(tooManyUrls);
+      expect(response).toStrictEqual({
+        results: {},
+        errors: {
+          too_many_urls: ['Maximum of 250 URLs allowed per request'],
+        },
+      });
+    });
+
+    it('should validate URL length', async () => {
+      const longUrl = `https://example.com/${'a'.repeat(2048)}`;
+      const response = await controller.bulkScanUrls([longUrl]);
+      expect(response).toStrictEqual({
+        results: {},
+        errors: {
+          [longUrl]: ['URL length must not exceed 2048 characters'],
+        },
+      });
+    });
+
+    it.each([
+      [400, 'Bad Request'],
+      [401, 'Unauthorized'],
+      [403, 'Forbidden'],
+      [404, 'Not Found'],
+      [500, 'Internal Server Error'],
+      [502, 'Bad Gateway'],
+      [503, 'Service Unavailable'],
+      [504, 'Gateway Timeout'],
+    ])(
+      'should return an error response on %i status code',
+      async (statusCode, statusText) => {
+        const scope = nock(PHISHING_DETECTION_BASE_URL)
+          .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+            urls: testUrls,
+          })
+          .reply(statusCode);
+
+        const response = await controller.bulkScanUrls(testUrls);
+        expect(response).toStrictEqual({
+          results: {},
+          errors: {
+            api_error: [`${statusCode} ${statusText}`],
+          },
+        });
+        expect(scope.isDone()).toBe(true);
+      },
+    );
+
+    it('should handle timeouts correctly', async () => {
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+          urls: testUrls,
+        })
+        .delayConnection(20000)
+        .reply(200, {});
+
+      const promise = controller.bulkScanUrls(testUrls);
+      clock.tick(15000);
+      const response = await promise;
+      expect(response).toStrictEqual({
+        results: {},
+        errors: {
+          network_error: ['timeout of 15000ms exceeded'],
+        },
+      });
+      expect(scope.isDone()).toBe(false);
+    });
+
+    it('should process URLs in batches when more than 50 URLs are provided', async () => {
+      const batchSize = 50;
+      const totalUrls = 120;
+      const manyUrls = Array(totalUrls)
+        .fill(0)
+        .map((_, i) => `https://example${i}.com`);
+
+      // Expected batches
+      const batch1 = manyUrls.slice(0, batchSize);
+      const batch2 = manyUrls.slice(batchSize, 2 * batchSize);
+      const batch3 = manyUrls.slice(2 * batchSize);
+
+      // Mock responses for each batch
+      const mockBatch1Response: BulkPhishingDetectionScanResponse = {
+        results: batch1.reduce<Record<string, PhishingDetectionScanResult>>(
+          (acc, url) => {
+            acc[url] = {
+              domainName: url.replace('https://', ''),
+              recommendedAction: RecommendedAction.None,
+            };
+            return acc;
+          },
+          {},
+        ),
+        errors: {},
+      };
+
+      const mockBatch2Response: BulkPhishingDetectionScanResponse = {
+        results: batch2.reduce<Record<string, PhishingDetectionScanResult>>(
+          (acc, url) => {
+            acc[url] = {
+              domainName: url.replace('https://', ''),
+              recommendedAction: RecommendedAction.None,
+            };
+            return acc;
+          },
+          {},
+        ),
+        errors: {},
+      };
+
+      const mockBatch3Response: BulkPhishingDetectionScanResponse = {
+        results: batch3.reduce<Record<string, PhishingDetectionScanResult>>(
+          (acc, url) => {
+            acc[url] = {
+              domainName: url.replace('https://', ''),
+              recommendedAction: RecommendedAction.None,
+            };
+            return acc;
+          },
+          {},
+        ),
+        errors: {},
+      };
+
+      // Setup nock to handle all three batch requests
+      const scope1 = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+          urls: batch1,
+        })
+        .reply(200, mockBatch1Response);
+
+      const scope2 = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+          urls: batch2,
+        })
+        .reply(200, mockBatch2Response);
+
+      const scope3 = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+          urls: batch3,
+        })
+        .reply(200, mockBatch3Response);
+
+      const response = await controller.bulkScanUrls(manyUrls);
+
+      // Verify all scopes were called
+      expect(scope1.isDone()).toBe(true);
+      expect(scope2.isDone()).toBe(true);
+      expect(scope3.isDone()).toBe(true);
+
+      // Check all results were merged correctly
+      const combinedResults = {
+        ...mockBatch1Response.results,
+        ...mockBatch2Response.results,
+        ...mockBatch3Response.results,
+      };
+
+      expect(Object.keys(response.results)).toHaveLength(totalUrls);
+      expect(response.results).toStrictEqual(combinedResults);
+    });
+
+    it('should handle mixed results with both successful scans and errors', async () => {
+      const mixedResponse: BulkPhishingDetectionScanResponse = {
+        results: {
+          'https://example1.com': {
+            domainName: 'example1.com',
+            recommendedAction: RecommendedAction.None,
+          },
+        },
+        errors: {
+          'https://example2.com': ['Failed to process URL'],
+          'https://example3.com': ['Domain not found'],
+        },
+      };
+
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+          urls: testUrls,
+        })
+        .reply(200, mixedResponse);
+
+      const response = await controller.bulkScanUrls(testUrls);
+      expect(response).toStrictEqual(mixedResponse);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('should have error merging issues when multiple batches return errors with the same key', async () => {
+      // Create enough URLs to need two batches (over 50)
+      const batchSize = 50;
+      const totalUrls = 100;
+      const manyUrls = Array(totalUrls)
+        .fill(0)
+        .map((_, i) => `https://example${i}.com`);
+
+      // The URLs will be split into two batches
+      const batch1 = manyUrls.slice(0, batchSize);
+      const batch2 = manyUrls.slice(batchSize);
+
+      // Setup nock to handle both batch requests with different error responses
+      const scope1 = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+          urls: batch1,
+        })
+        .reply(404, { error: 'Not Found' });
+
+      const scope2 = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+          urls: batch2,
+        })
+        .reply(500, { error: 'Internal Server Error' });
+
+      const response = await controller.bulkScanUrls(manyUrls);
+
+      expect(scope1.isDone()).toBe(true);
+      expect(scope2.isDone()).toBe(true);
+
+      // With the fixed implementation, we should now preserve all errors
+      expect(response.errors).toHaveProperty('api_error');
+      expect(response.errors.api_error).toHaveLength(2);
+      expect(response.errors.api_error).toContain('404 Not Found');
+      expect(response.errors.api_error).toContain('500 Internal Server Error');
     });
   });
 });
