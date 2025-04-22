@@ -1,4 +1,11 @@
 import type { StateMetadata } from '@metamask/base-controller';
+import type {
+  BridgeAsset,
+  QuoteMetadata,
+  RequiredEventContextFromClient,
+  TxData,
+  QuoteResponse,
+} from '@metamask/bridge-controller';
 import {
   formatChainIdToHex,
   getEthUsdtResetData,
@@ -7,13 +14,7 @@ import {
   isSolanaChainId,
   StatusTypes,
   UnifiedSwapBridgeEventName,
-  type QuoteResponse,
-} from '@metamask/bridge-controller';
-import type {
-  BridgeAsset,
-  QuoteMetadata,
-  RequiredEventContextFromClient,
-  TxData,
+  getActionType,
 } from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
 import { EthAccountType } from '@metamask/keyring-api';
@@ -66,7 +67,6 @@ import {
   handleSolanaTxResponse,
 } from './utils/transaction';
 import { generateActionId } from './utils/transaction';
-import { getActionType } from '../../bridge-controller/src/utils/metrics/properties';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
   // We want to persist the bridge status state so that we can show the proper data for the Activity list
@@ -370,7 +370,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             `${BRIDGE_STATUS_CONTROLLER_NAME}:bridgeTransactionComplete`,
             { bridgeHistoryItem: newBridgeHistoryItem },
           );
-          this.#trackMetaMetricsEvent(
+          this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Completed,
             bridgeTxMetaId,
           );
@@ -381,7 +381,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             { bridgeHistoryItem: newBridgeHistoryItem },
           );
 
-          this.#trackMetaMetricsEvent(
+          this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Failed,
             bridgeTxMetaId,
           );
@@ -775,7 +775,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       txMeta = await this.#handleSolanaTx(
         quoteResponse as QuoteResponse<string> & QuoteMetadata,
       );
-      this.#trackMetaMetricsEvent(
+      this.#trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.SnapConfirmationViewed,
         txMeta.id,
       );
@@ -826,7 +826,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         approvalTxId,
       });
 
-      this.#trackMetaMetricsEvent(
+      this.#trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.Submitted,
         txMeta.id,
       );
@@ -846,7 +846,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param eventName - The name of the event to track
    * @param txMetaId - The txMetaId of the history item to track the event for
    */
-  readonly #trackMetaMetricsEvent = <
+  readonly #trackUnifiedSwapBridgeEvent = <
     T extends
       | typeof UnifiedSwapBridgeEventName.Submitted
       | typeof UnifiedSwapBridgeEventName.Failed
@@ -860,7 +860,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       this.state.txHistory[txMetaId];
     if (!historyItem) {
       this.messagingSystem.call(
-        'BridgeController:trackMetaMetricsEvent',
+        'BridgeController:trackUnifiedSwapBridgeEvent',
         eventName,
         {},
       );
@@ -893,7 +893,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     }
 
     this.messagingSystem.call(
-      'BridgeController:trackMetaMetricsEvent',
+      'BridgeController:trackUnifiedSwapBridgeEvent',
       eventName,
       requiredEventProperties,
     );

@@ -353,7 +353,7 @@ export enum BridgeBackgroundAction {
   SET_FEATURE_FLAGS = 'setBridgeFeatureFlags',
   RESET_STATE = 'resetState',
   GET_BRIDGE_ERC20_ALLOWANCE = 'getBridgeERC20Allowance',
-  TRACK_METAMETRICS_EVENT = 'trackMetaMetricsEvent',
+  TRACK_METAMETRICS_EVENT = 'trackUnifiedSwapBridgeEvent',
 }
 
 export type BridgeControllerState = {

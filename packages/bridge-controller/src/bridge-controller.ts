@@ -227,8 +227,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       this.getBridgeERC20Allowance.bind(this),
     );
     this.messagingSystem.registerActionHandler(
-      `${BRIDGE_CONTROLLER_NAME}:trackMetaMetricsEvent`,
-      this.trackMetaMetricsEvent.bind(this),
+      `${BRIDGE_CONTROLLER_NAME}:trackUnifiedSwapBridgeEvent`,
+      this.trackUnifiedSwapBridgeEvent.bind(this),
     );
   }
 
@@ -469,7 +469,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#abortController?.abort('New quote request');
     this.#abortController = new AbortController();
 
-    this.trackMetaMetricsEvent(
+    this.trackUnifiedSwapBridgeEvent(
       UnifiedSwapBridgeEventName.QuotesRequested,
       context,
     );
@@ -512,7 +512,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         state.quotesLoadingStatus = RequestStatus.ERROR;
         state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
       });
-      this.trackMetaMetricsEvent(
+      this.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.QuoteError,
         context,
       );
@@ -769,10 +769,13 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         inputValue !== undefined &&
         value !== this.state.quoteRequest[key as keyof GenericQuoteRequest]
       ) {
-        this.trackMetaMetricsEvent(UnifiedSwapBridgeEventName.InputChanged, {
-          input: inputKey,
-          value: inputValue,
-        });
+        this.trackUnifiedSwapBridgeEvent(
+          UnifiedSwapBridgeEventName.InputChanged,
+          {
+            input: inputKey,
+            value: inputValue,
+          },
+        );
       }
     });
   };
@@ -783,11 +786,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    * @param eventName - The name of the event to track
    * @param propertiesFromClient - Properties that can't be calculated from the event name and need to be provided by the client
    * @example
-   * this.trackMetaMetricsEvent(UnifiedSwapBridgeEventName.ActionOpened, {
+   * this.trackUnifiedSwapBridgeEvent(UnifiedSwapBridgeEventName.ActionOpened, {
    *   location: MetaMetricsSwapsEventSource.MainView,
    * });
    */
-  trackMetaMetricsEvent = <
+  trackUnifiedSwapBridgeEvent = <
     T extends
       (typeof UnifiedSwapBridgeEventName)[keyof typeof UnifiedSwapBridgeEventName],
   >(

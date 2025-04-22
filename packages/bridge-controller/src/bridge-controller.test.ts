@@ -603,7 +603,7 @@ describe('BridgeController', function () {
     );
     const firstFetchTime = bridgeController.state.quotesLastFetched;
     expect(firstFetchTime).toBeGreaterThan(0);
-    bridgeController.trackMetaMetricsEvent(
+    bridgeController.trackUnifiedSwapBridgeEvent(
       UnifiedSwapBridgeEventName.QuotesReceived,
       {
         warnings: ['warning1'],
@@ -1190,7 +1190,7 @@ describe('BridgeController', function () {
     },
   );
 
-  describe('trackMetaMetricsEvent client-side calls', () => {
+  describe('trackUnifiedSwapBridgeEvent client-side calls', () => {
     beforeEach(() => {
       jest.clearAllMocks();
       messengerMock.call.mockImplementation(
@@ -1208,7 +1208,7 @@ describe('BridgeController', function () {
     });
 
     it('should track the ButtonClicked event', () => {
-      bridgeController.trackMetaMetricsEvent(
+      bridgeController.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.ButtonClicked,
         {
           location: MetaMetricsSwapsEventSource.MainView,
@@ -1222,7 +1222,7 @@ describe('BridgeController', function () {
     });
 
     it('should track the PageViewed event', () => {
-      bridgeController.trackMetaMetricsEvent(
+      bridgeController.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.PageViewed,
         { abc: 1 },
       );
@@ -1232,7 +1232,7 @@ describe('BridgeController', function () {
     });
 
     it('should track the InputSourceDestinationFlipped event', () => {
-      bridgeController.trackMetaMetricsEvent(
+      bridgeController.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.InputSourceDestinationFlipped,
         {
           token_symbol_destination: 'USDC',
@@ -1250,7 +1250,7 @@ describe('BridgeController', function () {
     });
 
     it('should track the AllQuotesOpened event', () => {
-      bridgeController.trackMetaMetricsEvent(
+      bridgeController.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.AllQuotesOpened,
         {
           price_impact: 6,
@@ -1266,7 +1266,7 @@ describe('BridgeController', function () {
     });
 
     it('should track the AllQuotesSorted event', () => {
-      bridgeController.trackMetaMetricsEvent(
+      bridgeController.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.AllQuotesSorted,
         {
           sort_order: SortOrder.COST_ASC,
@@ -1284,7 +1284,7 @@ describe('BridgeController', function () {
     });
 
     it('should track the QuoteSelected event', () => {
-      bridgeController.trackMetaMetricsEvent(
+      bridgeController.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.QuoteSelected,
         {
           is_best_quote: true,
@@ -1303,7 +1303,7 @@ describe('BridgeController', function () {
     });
 
     it('should track the QuotesReceived event', () => {
-      bridgeController.trackMetaMetricsEvent(
+      bridgeController.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.QuotesReceived,
         {
           warnings: ['warning1'],
@@ -1322,7 +1322,7 @@ describe('BridgeController', function () {
     });
   });
 
-  describe('trackMetaMetricsEvent bridge-status-controller calls', () => {
+  describe('trackUnifiedSwapBridgeEvent bridge-status-controller calls', () => {
     beforeEach(() => {
       jest.clearAllMocks();
       messengerMock.call.mockImplementation(
@@ -1340,7 +1340,7 @@ describe('BridgeController', function () {
     });
 
     it('should track the SnapConfirmationViewed event', () => {
-      bridgeController.trackMetaMetricsEvent(
+      bridgeController.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.SnapConfirmationViewed,
         {
           action_type: MetricsActionType.CROSSCHAIN_V1,
@@ -1352,7 +1352,7 @@ describe('BridgeController', function () {
     });
 
     it('should track the Submitted event', () => {
-      bridgeController.trackMetaMetricsEvent(
+      bridgeController.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.Submitted,
         {
           provider: 'provider_bridge',
@@ -1381,7 +1381,7 @@ describe('BridgeController', function () {
     });
 
     it('should track the Completed event', () => {
-      bridgeController.trackMetaMetricsEvent(
+      bridgeController.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.Completed,
         {
           action_type: MetricsActionType.CROSSCHAIN_V1,
@@ -1418,7 +1418,7 @@ describe('BridgeController', function () {
     });
 
     it('should track the Failed event', () => {
-      bridgeController.trackMetaMetricsEvent(
+      bridgeController.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.Failed,
         {
           action_type: MetricsActionType.CROSSCHAIN_V1,

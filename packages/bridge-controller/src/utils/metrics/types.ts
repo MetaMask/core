@@ -69,7 +69,7 @@ export type InputValues = {
 };
 
 /**
- * Properties that are required to be provided when trackMetaMetricsEvent is called
+ * Properties that are required to be provided when trackUnifiedSwapBridgeEvent is called
  */
 export type RequiredEventContextFromClient = {
   [UnifiedSwapBridgeEventName.ButtonClicked]: {
@@ -216,7 +216,7 @@ export type EventPropertiesFromControllerState = {
 };
 
 /**
- * trackMetaMetricsEvent payload properties consist of required properties from the client
+ * trackUnifiedSwapBridgeEvent payload properties consist of required properties from the client
  * and properties from the bridge controller
  */
 export type CrossChainSwapsEventProperties<
