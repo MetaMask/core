@@ -8,6 +8,7 @@ import {
   type ToprfSecureBackup,
 } from '@metamask/toprf-secure-backup';
 import { base64ToBytes, bytesToBase64, stringToBytes } from '@metamask/utils';
+import { keccak_256 as keccak256 } from '@noble/hashes/sha3';
 
 import {
   Web3AuthNetwork,
@@ -236,12 +237,14 @@ async function createMockVault(
     }),
   });
 
-  const encryptedMockVault = await encryptor.encrypt(
-    MOCK_PASSWORD,
-    serializedKeyData,
-  );
+  const { vault: encryptedMockVault, exportedKeyString } =
+    await encryptor.encryptWithDetail(MOCK_PASSWORD, serializedKeyData);
 
-  return encryptedMockVault;
+  return {
+    encryptedMockVault,
+    vaultEncryptionKey: exportedKeyString,
+    vaultEncryptionSalt: JSON.parse(encryptedMockVault).salt,
+  };
 }
 
 /**
@@ -303,11 +306,15 @@ const MOCK_NODE_AUTH_TOKENS = [
  * @param options - The options.
  * @param options.withMockAuthenticatedUser - Whether to skip the authenticate method and use the mock authenticated user.
  * @param options.vault - The mock vault data.
+ * @param options.vaultEncryptionKey - The mock vault encryption key.
+ * @param options.vaultEncryptionSalt - The mock vault encryption salt.
  * @returns The initial controller state with the mock authenticated user.
  */
 function getMockInitialControllerState(options?: {
   withMockAuthenticatedUser?: boolean;
   vault?: string;
+  vaultEncryptionKey?: string;
+  vaultEncryptionSalt?: string;
 }): Partial<SeedlessOnboardingControllerState> {
   const state: Partial<SeedlessOnboardingControllerState> = {
     backupHashes: [],
@@ -315,6 +322,14 @@ function getMockInitialControllerState(options?: {
 
   if (options?.vault) {
     state.vault = options.vault;
+  }
+
+  if (options?.vaultEncryptionKey) {
+    state.vaultEncryptionKey = options.vaultEncryptionKey;
+  }
+
+  if (options?.vaultEncryptionSalt) {
+    state.vaultEncryptionSalt = options.vaultEncryptionSalt;
   }
 
   if (options?.withMockAuthenticatedUser) {
@@ -513,7 +528,7 @@ describe('SeedlessOnboardingController', () => {
           expect(controller.state.vault).not.toStrictEqual({});
 
           // verify the vault data
-          const encryptedMockVault = await createMockVault(
+          const { encryptedMockVault } = await createMockVault(
             encKey,
             authKeyPair,
             MOCK_PASSWORD,
@@ -574,7 +589,7 @@ describe('SeedlessOnboardingController', () => {
           expect(controller.state.vault).not.toStrictEqual({});
 
           // verify the vault data
-          const encryptedMockVault = await createMockVault(
+          const { encryptedMockVault } = await createMockVault(
             encKey,
             authKeyPair,
             MOCK_PASSWORD,
@@ -720,6 +735,260 @@ describe('SeedlessOnboardingController', () => {
     });
   });
 
+  describe('addNewSeedPhraseBackup', () => {
+    const MOCK_PASSWORD = 'mock-password';
+    const NEW_SEED_PHRASE_1 = 'new mock seed phrase 1';
+    const NEW_SEED_PHRASE_2 = 'new mock seed phrase 2';
+    const NEW_SEED_PHRASE_3 = 'new mock seed phrase 3';
+    let MOCK_VAULT = '';
+    let MOCK_VAULT_ENCRYPTION_KEY = '';
+    let MOCK_VAULT_ENCRYPTION_SALT = '';
+
+    beforeEach(async () => {
+      const mockToprfEncryptor = createMockToprfEncryptor();
+
+      const MOCK_ENCRYPTION_KEY =
+        mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
+      const MOCK_AUTH_KEY_PAIR =
+        mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
+
+      const mockResult = await createMockVault(
+        MOCK_ENCRYPTION_KEY,
+        MOCK_AUTH_KEY_PAIR,
+        MOCK_PASSWORD,
+        MOCK_NODE_AUTH_TOKENS,
+      );
+
+      MOCK_VAULT = mockResult.encryptedMockVault;
+      MOCK_VAULT_ENCRYPTION_KEY = mockResult.vaultEncryptionKey;
+      MOCK_VAULT_ENCRYPTION_SALT = mockResult.vaultEncryptionSalt;
+    });
+
+    it('should be able to add a new seed phrase backup', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            vault: MOCK_VAULT,
+            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
+          }),
+        },
+        async ({ controller }) => {
+          // encrypt and store the secret data
+          const mockSecretDataAdd = handleMockSecretDataAdd();
+          await controller.addNewSeedPhraseBackup(
+            stringToBytes(NEW_SEED_PHRASE_1),
+          );
+
+          expect(mockSecretDataAdd.isDone()).toBe(true);
+          expect(controller.state.nodeAuthTokens).toBeDefined();
+          expect(controller.state.nodeAuthTokens).toStrictEqual(
+            MOCK_NODE_AUTH_TOKENS,
+          );
+        },
+      );
+    });
+
+    it('should be able to add a new seed phrase backup to the existing seed phrase backups', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            vault: MOCK_VAULT,
+            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
+          }),
+        },
+        async ({ controller }) => {
+          // encrypt and store the secret data
+          const mockSecretDataAdd = handleMockSecretDataAdd();
+          await controller.addNewSeedPhraseBackup(
+            stringToBytes(NEW_SEED_PHRASE_1),
+          );
+
+          expect(mockSecretDataAdd.isDone()).toBe(true);
+          expect(controller.state.nodeAuthTokens).toBeDefined();
+          expect(controller.state.nodeAuthTokens).toStrictEqual(
+            MOCK_NODE_AUTH_TOKENS,
+          );
+          expect(controller.state.backupHashes).toStrictEqual([
+            keccak256AndHexify(stringToBytes(NEW_SEED_PHRASE_1)),
+          ]);
+
+          // add another seed phrase backup
+          const mockSecretDataAdd2 = handleMockSecretDataAdd();
+          await controller.addNewSeedPhraseBackup(
+            stringToBytes(NEW_SEED_PHRASE_2),
+          );
+
+          expect(mockSecretDataAdd2.isDone()).toBe(true);
+          expect(controller.state.nodeAuthTokens).toBeDefined();
+          expect(controller.state.nodeAuthTokens).toStrictEqual(
+            MOCK_NODE_AUTH_TOKENS,
+          );
+
+          const { backupHashes } = controller.state;
+          expect(backupHashes).toStrictEqual([
+            keccak256AndHexify(stringToBytes(NEW_SEED_PHRASE_1)),
+            keccak256AndHexify(stringToBytes(NEW_SEED_PHRASE_2)),
+          ]);
+
+          // should be able to get the hash of the seed phrase backup from the state
+          expect(
+            controller.getSeedPhraseBackupHash(
+              stringToBytes(NEW_SEED_PHRASE_1),
+            ),
+          ).toBeDefined();
+
+          // should return undefined if the seed phrase is not backed up
+          expect(
+            controller.getSeedPhraseBackupHash(
+              stringToBytes(NEW_SEED_PHRASE_3),
+            ),
+          ).toBeUndefined();
+        },
+      );
+    });
+
+    it('should throw an error if failed to parse vault data', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            vault: MOCK_VAULT,
+            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
+          }),
+        },
+        async ({ controller, encryptor }) => {
+          jest
+            .spyOn(encryptor, 'decryptWithKey')
+            .mockResolvedValueOnce('{ "foo": "bar"');
+          await expect(
+            controller.addNewSeedPhraseBackup(stringToBytes(NEW_SEED_PHRASE_1)),
+          ).rejects.toThrow(SeedlessOnboardingControllerError.InvalidVaultData);
+        },
+      );
+    });
+
+    it('should throw an error if vault is missing', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.addNewSeedPhraseBackup(stringToBytes(NEW_SEED_PHRASE_1)),
+          ).rejects.toThrow(SeedlessOnboardingControllerError.VaultError);
+        },
+      );
+    });
+
+    it('should throw error if encryptionKey is missing', async () => {
+      await withController(
+        { state: getMockInitialControllerState({ vault: MOCK_VAULT }) },
+        async ({ controller }) => {
+          await expect(
+            controller.addNewSeedPhraseBackup(stringToBytes(NEW_SEED_PHRASE_1)),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerError.MissingCredentials,
+          );
+        },
+      );
+    });
+
+    it('should throw error if encryptionSalt is different from the one in the vault', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            vault: MOCK_VAULT,
+            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+            vaultEncryptionSalt: '0x1234',
+          }),
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.addNewSeedPhraseBackup(stringToBytes(NEW_SEED_PHRASE_1)),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerError.ExpiredCredentials,
+          );
+        },
+      );
+    });
+
+    it('should throw error if encryptionKey is of an unexpected type', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            vault: MOCK_VAULT,
+            // @ts-expect-error intentional test case
+            vaultEncryptionKey: 123,
+            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
+          }),
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.addNewSeedPhraseBackup(stringToBytes(NEW_SEED_PHRASE_1)),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerError.WrongPasswordType,
+          );
+        },
+      );
+    });
+
+    it('should throw an error if vault unlocked has an unexpected shape', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            vault: MOCK_VAULT,
+            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
+          }),
+        },
+        async ({ controller, encryptor }) => {
+          jest
+            .spyOn(encryptor, 'decryptWithKey')
+            .mockResolvedValueOnce({ foo: 'bar' });
+          await expect(
+            controller.addNewSeedPhraseBackup(stringToBytes(NEW_SEED_PHRASE_1)),
+          ).rejects.toThrow(SeedlessOnboardingControllerError.InvalidVaultData);
+
+          jest.spyOn(encryptor, 'decryptWithKey').mockResolvedValueOnce('null');
+          await expect(
+            controller.addNewSeedPhraseBackup(stringToBytes(NEW_SEED_PHRASE_1)),
+          ).rejects.toThrow(SeedlessOnboardingControllerError.VaultDataError);
+        },
+      );
+    });
+
+    it('should throw an error if vault unlocked has invalid authentication data', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            vault: MOCK_VAULT,
+            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
+          }),
+        },
+        async ({ controller, encryptor }) => {
+          jest
+            .spyOn(encryptor, 'decryptWithKey')
+            .mockResolvedValueOnce(MOCK_VAULT);
+          await expect(
+            controller.addNewSeedPhraseBackup(stringToBytes(NEW_SEED_PHRASE_1)),
+          ).rejects.toThrow(SeedlessOnboardingControllerError.VaultDataError);
+        },
+      );
+    });
+  });
+
   describe('fetchAndRestoreSeedPhrase', () => {
     const MOCK_PASSWORD = 'mock-password';
 
@@ -756,7 +1025,7 @@ describe('SeedlessOnboardingController', () => {
           expect(controller.state.vault).not.toStrictEqual({});
 
           // verify the vault data
-          const encryptedMockVault = await createMockVault(
+          const { encryptedMockVault } = await createMockVault(
             encKey,
             authKeyPair,
             MOCK_PASSWORD,
@@ -813,7 +1082,7 @@ describe('SeedlessOnboardingController', () => {
           ]);
 
           // verify the vault data
-          const encryptedMockVault = await createMockVault(
+          const { encryptedMockVault } = await createMockVault(
             encKey,
             authKeyPair,
             MOCK_PASSWORD,
@@ -912,7 +1181,7 @@ describe('SeedlessOnboardingController', () => {
           expect(controller.state.vault).not.toStrictEqual({});
 
           // verify the vault data
-          const encryptedMockVault = await createMockVault(
+          const { encryptedMockVault } = await createMockVault(
             encKey,
             authKeyPair,
             MOCK_PASSWORD,
@@ -1237,63 +1506,6 @@ describe('SeedlessOnboardingController', () => {
           await expect(
             controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
           ).rejects.toThrow(SeedlessOnboardingControllerError.VaultError);
-        },
-      );
-    });
-
-    it('should throw an error if failed to parse vault data', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({ vault: '{ "foo": "bar"' }),
-        },
-        async ({ controller, encryptor }) => {
-          jest
-            .spyOn(encryptor, 'decrypt')
-            .mockResolvedValueOnce('{ "foo": "bar"');
-          await expect(
-            controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
-          ).rejects.toThrow(SeedlessOnboardingControllerError.InvalidVaultData);
-        },
-      );
-    });
-
-    it('should throw an error if vault unlocked has an unexpected shape', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            vault: MOCK_VAULT,
-            withMockAuthenticatedUser: true,
-          }),
-        },
-        async ({ controller, encryptor }) => {
-          jest
-            .spyOn(encryptor, 'decrypt')
-            .mockResolvedValueOnce({ foo: 'bar' });
-          await expect(
-            controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
-          ).rejects.toThrow(SeedlessOnboardingControllerError.InvalidVaultData);
-
-          jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce('null');
-          await expect(
-            controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
-          ).rejects.toThrow(SeedlessOnboardingControllerError.VaultDataError);
-        },
-      );
-    });
-
-    it('should throw an error if vault unlocked has invalid authentication data', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            vault: MOCK_VAULT,
-            withMockAuthenticatedUser: true,
-          }),
-        },
-        async ({ controller, encryptor }) => {
-          jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce(MOCK_VAULT);
-          await expect(
-            controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
-          ).rejects.toThrow(SeedlessOnboardingControllerError.VaultDataError);
         },
       );
     });

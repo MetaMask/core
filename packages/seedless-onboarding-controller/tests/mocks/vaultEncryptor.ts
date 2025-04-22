@@ -5,7 +5,9 @@ import type {
 } from '@metamask/browser-passworder';
 import { webcrypto } from 'node:crypto';
 
-export default class MockVaultEncryptor {
+import type { VaultEncryptor } from '../../src/types';
+
+export default class MockVaultEncryptor implements VaultEncryptor {
   DEFAULT_DERIVATION_PARAMS: KeyDerivationOptions = {
     algorithm: 'PBKDF2',
     params: {
@@ -15,13 +17,55 @@ export default class MockVaultEncryptor {
 
   DEFAULT_SALT = 'RANDOM_SALT';
 
-  async importKey(keyString: string) {
+  async encryptWithDetail(
+    password: string,
+    dataObj: unknown,
+    salt: string = this.DEFAULT_SALT,
+    keyDerivationOptions: KeyDerivationOptions = this.DEFAULT_DERIVATION_PARAMS,
+  ) {
+    const key = await this.keyFromPassword(
+      password,
+      salt,
+      true,
+      keyDerivationOptions,
+    );
+    const exportedKeyString = await this.exportKey(key);
+    const vault = await this.encrypt(password, dataObj, key, salt);
+
+    return {
+      vault,
+      exportedKeyString,
+    };
+  }
+
+  async decryptWithDetail(password: string, text: string) {
+    const payload = JSON.parse(text);
+    const { salt, keyMetadata } = payload;
+    const key = await this.keyFromPassword(password, salt, true, keyMetadata);
+    const exportedKeyString = await this.exportKey(key);
+    const vault = await this.decrypt(password, text, key);
+
+    return {
+      exportedKeyString,
+      vault,
+      salt,
+    };
+  }
+
+  async importKey(keyString: string): Promise<EncryptionKey> {
     try {
       const parsedKey = JSON.parse(keyString);
-      return webcrypto.subtle.importKey('jwk', parsedKey, 'AES-GCM', false, [
-        'encrypt',
-        'decrypt',
-      ]);
+      const key = await webcrypto.subtle.importKey(
+        'jwk',
+        parsedKey,
+        'AES-GCM',
+        false,
+        ['encrypt', 'decrypt'],
+      );
+      return {
+        key,
+        derivationOptions: this.DEFAULT_DERIVATION_PARAMS,
+      };
     } catch (error) {
       console.error(error);
       throw new Error('Failed to import key');
