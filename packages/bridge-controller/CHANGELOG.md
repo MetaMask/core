@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: native EVM exchange rates and snap handler calls ([#5696](https://github.com/MetaMask/core/pull/5696))
+
 ### Added
 
 - Add analytics events for the Unified SwapBridge experience ([#5684](https://github.com/MetaMask/core/pull/5684))
