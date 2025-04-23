@@ -996,9 +996,8 @@ describe('SeedlessOnboardingController', () => {
           jest.spyOn(toprfClient, 'recoverEncKey').mockRejectedValueOnce(
             new TOPRFError(1009, 'Rate limit exceeded', {
               rateLimitDetails: {
-                remainingTime: 10,
-                message: 'Rate limit exceeded',
-                isPermanent: false,
+                remainingTime: 300,
+                message: 'Rate limit in effect',
               },
             }),
           );
@@ -1011,7 +1010,6 @@ describe('SeedlessOnboardingController', () => {
               {
                 remainingTime: 10,
                 message: 'Rate limit exceeded',
-                isPermanent: false,
               },
             ),
           );
