@@ -155,7 +155,7 @@ export class SeedlessOnboardingController extends BaseController<
     authConnectionId: string;
     userId: string;
     groupedAuthConnectionId?: string;
-    socialLoginEmail: string;
+    socialLoginEmail?: string;
   }) {
     try {
       const {
