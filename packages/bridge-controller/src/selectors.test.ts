@@ -28,7 +28,7 @@ describe('Bridge Selectors', () => {
         },
       },
       currencyRates: {
-        eth: {
+        ETH: {
           conversionRate: 1800,
           usdConversionRate: 1800,
         },
@@ -357,7 +357,7 @@ describe('Bridge Selectors', () => {
       },
       assetExchangeRates: {},
       currencyRates: {
-        eth: {
+        ETH: {
           conversionRate: 1800,
           usdConversionRate: 1800,
         },

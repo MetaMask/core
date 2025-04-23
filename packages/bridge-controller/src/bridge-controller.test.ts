@@ -1048,7 +1048,7 @@ describe('BridgeController', function () {
         method: 'getFeeForTransaction',
         params: {
           transaction: trade,
-          scope: 'mainnet',
+          scope: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
         },
       },
     },
