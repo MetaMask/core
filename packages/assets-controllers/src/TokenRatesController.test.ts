@@ -1424,12 +1424,7 @@ describe('TokenRatesController', () => {
         },
         async ({ controller }) => {
           controller.startPolling({
-            chainIdAndNativeCurrency: [
-              {
-                chainId: ChainId.mainnet,
-                nativeCurrency: 'ETH',
-              },
-            ],
+            chainIds: [ChainId.mainnet],
           });
 
           await advanceTime({ clock, duration: 0 });
@@ -1483,12 +1478,7 @@ describe('TokenRatesController', () => {
             },
             async ({ controller }) => {
               controller.startPolling({
-                chainIdAndNativeCurrency: [
-                  {
-                    chainId: ChainId.mainnet,
-                    nativeCurrency: 'ETH',
-                  },
-                ],
+                chainIds: [ChainId.mainnet],
               });
               await advanceTime({ clock, duration: 0 });
 
@@ -1593,12 +1583,7 @@ describe('TokenRatesController', () => {
               },
               async ({ controller }) => {
                 controller.startPolling({
-                  chainIdAndNativeCurrency: [
-                    {
-                      chainId: ChainId.mainnet,
-                      nativeCurrency: 'LOL',
-                    },
-                  ],
+                  chainIds: [ChainId.mainnet],
                 });
                 // flush promises and advance setTimeouts they enqueue 3 times
                 // needed because fetch() doesn't resolve immediately, so any
@@ -1700,12 +1685,7 @@ describe('TokenRatesController', () => {
               },
               async ({ controller }) => {
                 controller.startPolling({
-                  chainIdAndNativeCurrency: [
-                    {
-                      chainId: ChainId.mainnet,
-                      nativeCurrency: 'ETH',
-                    },
-                  ],
+                  chainIds: [ChainId.mainnet],
                 });
                 // flush promises and advance setTimeouts they enqueue 3 times
                 // needed because fetch() doesn't resolve immediately, so any
@@ -1748,12 +1728,7 @@ describe('TokenRatesController', () => {
           },
           async ({ controller }) => {
             const pollingToken = controller.startPolling({
-              chainIdAndNativeCurrency: [
-                {
-                  chainId: ChainId.mainnet,
-                  nativeCurrency: 'ETH',
-                },
-              ],
+              chainIds: [ChainId.mainnet],
             });
             await advanceTime({ clock, duration: 0 });
             expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(
@@ -1860,7 +1835,6 @@ describe('TokenRatesController', () => {
                     currency: 'ETH',
                   },
                 },
-                [toHex(2)]: {},
               },
             });
           },

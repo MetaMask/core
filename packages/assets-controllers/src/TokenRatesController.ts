@@ -220,10 +220,7 @@ export const getDefaultTokenRatesControllerState =
 
 /** The input to start polling for the {@link TokenRatesController} */
 export type TokenRatesPollingInput = {
-  chainIdAndNativeCurrency: {
-    chainId: Hex;
-    nativeCurrency: string;
-  }[];
+  chainIds: Hex[];
 };
 
 /**
@@ -328,13 +325,24 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
         this.#allTokens = allTokens;
         this.#allDetectedTokens = allDetectedTokens;
 
-        const chainIdAndNativeCurrency = chainIdsToUpdate.map((chainId) => {
-          return {
-            chainId: chainId as Hex,
-            nativeCurrency:
-              networkConfigurationsByChainId[chainId]?.nativeCurrency,
-          };
-        });
+        const chainIdAndNativeCurrency = chainIdsToUpdate.reduce<
+          { chainId: Hex; nativeCurrency: string }[]
+        >((acc, chainId) => {
+          const networkConfiguration = networkConfigurationsByChainId[chainId];
+          if (!networkConfiguration) {
+            console.error(
+              `TokenRatesController: No network configuration found for chainId ${chainId}`,
+            );
+            return acc;
+          }
+          return [
+            ...acc,
+            {
+              chainId,
+              nativeCurrency: networkConfiguration.nativeCurrency,
+            },
+          ];
+        }, []);
 
         await this.updateExchangeRatesByChainId(chainIdAndNativeCurrency);
       },
@@ -640,11 +648,32 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
    * Updates token rates for the given networkClientId
    *
    * @param input - The input for the poll.
-   * @param input.chainIdAndNativeCurrency - The chain ids and native currencies to poll token rates on.
+   * @param input.chainIds - The chain ids to poll token rates on.
    */
-  async _executePoll({
-    chainIdAndNativeCurrency,
-  }: TokenRatesPollingInput): Promise<void> {
+  async _executePoll({ chainIds }: TokenRatesPollingInput): Promise<void> {
+    const { networkConfigurationsByChainId } = this.messagingSystem.call(
+      'NetworkController:getState',
+    );
+
+    const chainIdAndNativeCurrency = chainIds.reduce<
+      { chainId: Hex; nativeCurrency: string }[]
+    >((acc, chainId) => {
+      const networkConfiguration = networkConfigurationsByChainId[chainId];
+      if (!networkConfiguration) {
+        console.error(
+          `TokenRatesController: No network configuration found for chainId ${chainId}`,
+        );
+        return acc;
+      }
+      return [
+        ...acc,
+        {
+          chainId,
+          nativeCurrency: networkConfiguration.nativeCurrency,
+        },
+      ];
+    }, []);
+
     await this.updateExchangeRatesByChainId(chainIdAndNativeCurrency);
   }
 
