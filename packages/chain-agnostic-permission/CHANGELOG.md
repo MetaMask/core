@@ -10,14 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added `getCaipAccountIdsFromCaip25CaveatValue`, `isInternalAccountInPermittedAccountIds`, and `isCaipAccountIdInPermittedAccountIds` account id functions. ([#5609](https://github.com/MetaMask/core/pull/5609))
-- Added `getAllScopesFromCaip25CaveatValue`, `getAllNonWalletNamespacesFromCaip25CaveatValue`, `getAllScopesFromPermission`, `getAllScopesFromCaip25CaveatValue`, and `isNamespaceInScopesObject`
+- Added `getAllScopesFromCaip25CaveatValue`, `getAllWalletNamespacesFromCaip25CaveatValue`, `getAllScopesFromPermission`, `getAllScopesFromCaip25CaveatValue`, and `isNamespaceInScopesObject`
   scope functions. ([#5609](https://github.com/MetaMask/core/pull/5609))
 - Added `getCaip25CaveatFromPermission` misc functions. ([#5609](https://github.com/MetaMask/core/pull/5609))
 
 ### Changed
 
 - **BREAKING:** Renamed `setPermittedAccounts` to `setNonSCACaipAccountIdsInCaip25CaveatValue`. ([#5609](https://github.com/MetaMask/core/pull/5609))
-- **BREAKING:** Renamed `setPermittedChainIds` to `overwriteCaipChainIdsInCaip25CaveatValue`. ([#5609](https://github.com/MetaMask/core/pull/5609))
+- **BREAKING:** Renamed `setPermittedChainIds` to `setChainIdinCaip25CaveatValue`. ([#5609](https://github.com/MetaMask/core/pull/5609))
 - **BREAKING:** Renamed `addPermittedChainId` to `addCaipChainIdInCaip25CaveatValue`. ([#5609](https://github.com/MetaMask/core/pull/5609))
 - Bump `@metamask/controller-utils` to `^11.7.0` ([#5583](https://github.com/MetaMask/core/pull/5583))
 - Bump `@metamask/network-controller` to `^23.2.0` ([#5583](https://github.com/MetaMask/core/pull/5583))
