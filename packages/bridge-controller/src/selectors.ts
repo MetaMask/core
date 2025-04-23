@@ -166,7 +166,9 @@ export const selectExchangeRateByChainIdAndAddress = (
  */
 export const selectIsAssetExchangeRateInState = (
   ...params: Parameters<typeof getExchangeRateByChainIdAndAddress>
-) => Boolean(getExchangeRateByChainIdAndAddress(...params)?.exchangeRate);
+) =>
+  Boolean(getExchangeRateByChainIdAndAddress(...params)?.exchangeRate) &&
+  Boolean(getExchangeRateByChainIdAndAddress(...params)?.usdExchangeRate);
 
 /**
  * Selects the gas fee estimates from the gas fee controller. All potential networks
@@ -295,7 +297,7 @@ const selectSortedBridgeQuotes = createBridgeSelector(
 
 const selectRecommendedQuote = createBridgeSelector(
   [selectSortedBridgeQuotes],
-  ([recommendedQuote]) => recommendedQuote,
+  (quotes) => (quotes.length > 0 ? quotes[0] : null),
 );
 
 const selectActiveQuote = createBridgeSelector(

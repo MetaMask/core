@@ -20,6 +20,7 @@ import {
 } from './constants/bridge';
 import { CHAIN_IDS } from './constants/chains';
 import { selectIsAssetExchangeRateInState } from './selectors';
+import type { QuoteRequest } from './types';
 import {
   type L1GasFees,
   type GenericQuoteRequest,
@@ -49,6 +50,24 @@ import {
   fetchBridgeFeatureFlags,
   fetchBridgeQuotes,
 } from './utils/fetch';
+import { UnifiedSwapBridgeEventName } from './utils/metrics/constants';
+import {
+  formatProviderLabel,
+  getActionTypeFromQuoteRequest,
+  getRequestParams,
+  getSwapTypeFromQuote,
+  isCustomSlippage,
+  isHardwareWallet,
+  toInputChangedPropertyKey,
+  toInputChangedPropertyValue,
+} from './utils/metrics/properties';
+import type {
+  QuoteFetchData,
+  RequestMetadata,
+  RequestParams,
+  RequiredEventContextFromClient,
+} from './utils/metrics/types';
+import { type CrossChainSwapsEventProperties } from './utils/metrics/types';
 import { isValidQuoteRequest } from './utils/quote';
 
 const metadata: StateMetadata<BridgeControllerState> = {
@@ -92,10 +111,25 @@ const metadata: StateMetadata<BridgeControllerState> = {
 
 const RESET_STATE_ABORT_MESSAGE = 'Reset controller state';
 
-/** The input to start polling for the {@link BridgeController} */
+/**
+ * The input to start polling for the {@link BridgeController}
+ *
+ * @param networkClientId - The network client ID of the selected network
+ * @param updatedQuoteRequest - The updated quote request
+ * @param context - The context contains properties that can't be populated by the
+ * controller and need to be provided by the client for analytics
+ */
 type BridgePollingInput = {
   networkClientId: NetworkClientId;
   updatedQuoteRequest: GenericQuoteRequest;
+  context: Pick<
+    RequiredEventContextFromClient,
+    UnifiedSwapBridgeEventName.QuoteError
+  >[UnifiedSwapBridgeEventName.QuoteError] &
+    Pick<
+      RequiredEventContextFromClient,
+      UnifiedSwapBridgeEventName.QuotesRequested
+    >[UnifiedSwapBridgeEventName.QuotesRequested];
 };
 
 export class BridgeController extends StaticIntervalPollingController<BridgePollingInput>()<
@@ -116,6 +150,14 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #fetchFn: FetchFunction;
 
+  readonly #trackMetaMetricsFn: <
+    T extends
+      (typeof UnifiedSwapBridgeEventName)[keyof typeof UnifiedSwapBridgeEventName],
+  >(
+    eventName: T,
+    properties: CrossChainSwapsEventProperties<T>,
+  ) => void;
+
   readonly #config: {
     customBridgeApiBaseUrl?: string;
   };
@@ -127,6 +169,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     getLayer1GasFee,
     fetchFn,
     config,
+    trackMetaMetricsFn,
   }: {
     messenger: BridgeControllerMessenger;
     state?: Partial<BridgeControllerState>;
@@ -139,6 +182,13 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     config?: {
       customBridgeApiBaseUrl?: string;
     };
+    trackMetaMetricsFn: <
+      T extends
+        (typeof UnifiedSwapBridgeEventName)[keyof typeof UnifiedSwapBridgeEventName],
+    >(
+      eventName: T,
+      properties: CrossChainSwapsEventProperties<T>,
+    ) => void;
   }) {
     super({
       name: BRIDGE_CONTROLLER_NAME,
@@ -156,6 +206,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#getLayer1GasFee = getLayer1GasFee;
     this.#clientId = clientId;
     this.#fetchFn = fetchFn;
+    this.#trackMetaMetricsFn = trackMetaMetricsFn;
     this.#config = config ?? {};
 
     // Register action handlers
@@ -175,6 +226,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       `${BRIDGE_CONTROLLER_NAME}:getBridgeERC20Allowance`,
       this.getBridgeERC20Allowance.bind(this),
     );
+    this.messagingSystem.registerActionHandler(
+      `${BRIDGE_CONTROLLER_NAME}:trackUnifiedSwapBridgeEvent`,
+      this.trackUnifiedSwapBridgeEvent.bind(this),
+    );
   }
 
   _executePoll = async (pollingInput: BridgePollingInput) => {
@@ -183,9 +238,12 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   updateBridgeQuoteRequestParams = async (
     paramsToUpdate: Partial<GenericQuoteRequest>,
+    context: BridgePollingInput['context'],
   ) => {
     this.stopAllPolling();
     this.#abortController?.abort('Quote request updated');
+
+    this.#trackInputChangedEvents(paramsToUpdate);
 
     const updatedQuoteRequest = {
       ...DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest,
@@ -238,8 +296,18 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...updatedQuoteRequest,
           insufficientBal,
         },
+        context,
       });
     }
+  };
+
+  readonly #getExchangeRateSources = () => {
+    return {
+      ...this.messagingSystem.call('MultichainAssetsRatesController:getState'),
+      ...this.messagingSystem.call('CurrencyRateController:getState'),
+      ...this.messagingSystem.call('TokenRatesController:getState'),
+      ...this.state,
+    };
   };
 
   /**
@@ -259,14 +327,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     destTokenAddress,
   }: Partial<GenericQuoteRequest>) => {
     const assetIds: Set<CaipAssetType> = new Set([]);
-
-    const exchangeRateSources = {
-      ...this.messagingSystem.call('MultichainAssetsRatesController:getState'),
-      ...this.messagingSystem.call('CurrencyRateController:getState'),
-      ...this.messagingSystem.call('TokenRatesController:getState'),
-      ...this.state,
-    };
-
+    const exchangeRateSources = this.#getExchangeRateSources();
     if (
       srcTokenAddress &&
       srcChainId &&
@@ -401,12 +462,17 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   readonly #fetchBridgeQuotes = async ({
     networkClientId: _networkClientId,
     updatedQuoteRequest,
+    context,
   }: BridgePollingInput) => {
     const { bridgeFeatureFlags, quotesInitialLoadTime, quotesRefreshCount } =
       this.state;
     this.#abortController?.abort('New quote request');
     this.#abortController = new AbortController();
 
+    this.trackUnifiedSwapBridgeEvent(
+      UnifiedSwapBridgeEventName.QuotesRequested,
+      context,
+    );
     this.update((state) => {
       state.quotesLoadingStatus = RequestStatus.LOADING;
       state.quoteRequest = updatedQuoteRequest;
@@ -446,6 +512,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         state.quotesLoadingStatus = RequestStatus.ERROR;
         state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
       });
+      this.trackUnifiedSwapBridgeEvent(
+        UnifiedSwapBridgeEventName.QuoteError,
+        context,
+      );
       console.log('Failed to fetch bridge quotes', error);
     } finally {
       const { maxRefreshCount } =
@@ -584,6 +654,163 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     );
     return networkClient;
   }
+
+  readonly #getRequestParams = (): Omit<
+    RequestParams,
+    'token_symbol_source' | 'token_symbol_destination'
+  > => {
+    const srcChainIdCaip = formatChainIdToCaip(
+      this.state.quoteRequest.srcChainId ||
+        this.#getSelectedNetworkClient().configuration.chainId,
+    );
+    return getRequestParams(this.state.quoteRequest, srcChainIdCaip);
+  };
+
+  readonly #getRequestMetadata = (): Omit<
+    RequestMetadata,
+    'stx_enabled' | 'usd_amount_source'
+  > => {
+    return {
+      slippage_limit: this.state.quoteRequest.slippage,
+      swap_type: getSwapTypeFromQuote(this.state.quoteRequest),
+      is_hardware_wallet: isHardwareWallet(
+        this.#getMultichainSelectedAccount(),
+      ),
+      custom_slippage: isCustomSlippage(this.state.quoteRequest.slippage),
+    };
+  };
+
+  readonly #getQuoteFetchData = (): Omit<
+    QuoteFetchData,
+    'best_quote_provider'
+  > => {
+    return {
+      can_submit: Boolean(this.state.quoteRequest.insufficientBal), // TODO check if balance is sufficient for network fees
+      quotes_count: this.state.quotes.length,
+      quotes_list: this.state.quotes.map(({ quote }) =>
+        formatProviderLabel(quote),
+      ),
+      initial_load_time_all_quotes: this.state.quotesInitialLoadTime ?? 0,
+    };
+  };
+
+  readonly #getEventProperties = <
+    T extends
+      (typeof UnifiedSwapBridgeEventName)[keyof typeof UnifiedSwapBridgeEventName],
+  >(
+    eventName: T,
+    propertiesFromClient: Pick<RequiredEventContextFromClient, T>[T],
+  ): CrossChainSwapsEventProperties<T> => {
+    const baseProperties = {
+      action_type: getActionTypeFromQuoteRequest(this.state.quoteRequest),
+      ...propertiesFromClient,
+    };
+    switch (eventName) {
+      case UnifiedSwapBridgeEventName.ButtonClicked:
+      case UnifiedSwapBridgeEventName.PageViewed:
+        return {
+          ...this.#getRequestParams(),
+          ...baseProperties,
+        };
+      case UnifiedSwapBridgeEventName.QuotesReceived:
+        return {
+          ...this.#getRequestParams(),
+          ...this.#getRequestMetadata(),
+          ...this.#getQuoteFetchData(),
+          refresh_count: this.state.quotesRefreshCount,
+          ...baseProperties,
+        };
+      case UnifiedSwapBridgeEventName.QuotesRequested:
+      case UnifiedSwapBridgeEventName.QuoteError:
+        return {
+          ...this.#getRequestParams(),
+          ...this.#getRequestMetadata(),
+          error_message: this.state.quoteFetchError,
+          has_sufficient_funds: !this.state.quoteRequest.insufficientBal,
+          ...baseProperties,
+        };
+      case UnifiedSwapBridgeEventName.AllQuotesOpened:
+      case UnifiedSwapBridgeEventName.AllQuotesSorted:
+      case UnifiedSwapBridgeEventName.QuoteSelected:
+        return {
+          ...this.#getRequestParams(),
+          ...this.#getRequestMetadata(),
+          ...this.#getQuoteFetchData(),
+          ...baseProperties,
+        };
+      case UnifiedSwapBridgeEventName.SnapConfirmationViewed:
+        return {
+          ...baseProperties,
+          ...this.#getRequestParams(),
+          ...this.#getRequestMetadata(),
+        };
+      // These are populated by BridgeStatusController
+      case UnifiedSwapBridgeEventName.Submitted:
+      case UnifiedSwapBridgeEventName.Completed:
+      case UnifiedSwapBridgeEventName.Failed:
+        return propertiesFromClient;
+      case UnifiedSwapBridgeEventName.InputChanged:
+      default:
+        return baseProperties;
+    }
+  };
+
+  readonly #trackInputChangedEvents = (
+    paramsToUpdate: Partial<GenericQuoteRequest>,
+  ) => {
+    Object.entries(paramsToUpdate).forEach(([key, value]) => {
+      const inputKey = toInputChangedPropertyKey[key as keyof QuoteRequest];
+      const inputValue =
+        toInputChangedPropertyValue[key as keyof QuoteRequest]?.(
+          paramsToUpdate,
+        );
+      if (
+        inputKey &&
+        inputValue !== undefined &&
+        value !== this.state.quoteRequest[key as keyof GenericQuoteRequest]
+      ) {
+        this.trackUnifiedSwapBridgeEvent(
+          UnifiedSwapBridgeEventName.InputChanged,
+          {
+            input: inputKey,
+            value: inputValue,
+          },
+        );
+      }
+    });
+  };
+
+  /**
+   * This method tracks cross-chain swaps events
+   *
+   * @param eventName - The name of the event to track
+   * @param propertiesFromClient - Properties that can't be calculated from the event name and need to be provided by the client
+   * @example
+   * this.trackUnifiedSwapBridgeEvent(UnifiedSwapBridgeEventName.ActionOpened, {
+   *   location: MetaMetricsSwapsEventSource.MainView,
+   * });
+   */
+  trackUnifiedSwapBridgeEvent = <
+    T extends
+      (typeof UnifiedSwapBridgeEventName)[keyof typeof UnifiedSwapBridgeEventName],
+  >(
+    eventName: T,
+    propertiesFromClient: Pick<RequiredEventContextFromClient, T>[T],
+  ) => {
+    try {
+      const combinedPropertiesForEvent = this.#getEventProperties<T>(
+        eventName,
+        propertiesFromClient,
+      );
+
+      this.#trackMetaMetricsFn(eventName, combinedPropertiesForEvent);
+    } catch (error) {
+      console.error(
+        'Error tracking cross-chain swaps MetaMetrics event',
+        error,
+      );
+    }
+  };
 
   /**
    *
