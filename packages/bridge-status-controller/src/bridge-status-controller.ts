@@ -489,12 +489,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         'Failed to submit cross-chain swap transaction: undefined multichain account',
       );
     }
-    if (
-      !selectedAccount.metadata?.snap?.id ||
-      !selectedAccount.options?.scope
-    ) {
+    if (!selectedAccount?.metadata?.snap?.id) {
       throw new Error(
-        'Failed to submit cross-chain swap transaction: undefined snap id or scope',
+        'Failed to submit cross-chain swap transaction: undefined snap id',
       );
     }
     const keyringRequest = getKeyringRequest(quoteResponse, selectedAccount);

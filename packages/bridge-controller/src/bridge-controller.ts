@@ -3,6 +3,7 @@ import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import type { StateMetadata } from '@metamask/base-controller';
 import type { ChainId } from '@metamask/controller-utils';
+import { SolScope } from '@metamask/keyring-api';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
@@ -609,15 +610,14 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           const { value: fees } = (await this.messagingSystem.call(
             'SnapController:handleRequest',
             {
-              // TODO fix these types
-              snapId: selectedAccount.metadata.snap.id as never,
+              snapId: selectedAccount.metadata.snap?.id as never,
               origin: 'metamask',
               handler: 'onRpcRequest' as never,
               request: {
                 method: 'getFeeForTransaction',
                 params: {
                   transaction: trade,
-                  scope: selectedAccount.options.scope,
+                  scope: SolScope.Mainnet,
                 },
               },
             },
