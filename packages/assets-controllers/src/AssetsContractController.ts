@@ -303,7 +303,7 @@ export class AssetsContractController {
         networkClientId,
       );
       return new Web3Provider(provider);
-    } catch (err) {
+    } catch {
       throw new Error(MISSING_PROVIDER_ERROR);
     }
   }
