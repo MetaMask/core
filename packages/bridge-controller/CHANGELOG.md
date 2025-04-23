@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [17.0.0]
 
-### Uncategorized
+### Fixed
 
 - fix: native EVM exchange rates and snap handler calls ([#5696](https://github.com/MetaMask/core/pull/5696))
 
