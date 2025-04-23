@@ -1419,7 +1419,7 @@ describe('BridgeStatusController', () => {
       await expect(
         controller.submitTx(mockQuoteResponse, false),
       ).rejects.toThrow(
-        'Failed to submit cross-chain swap transaction: undefined snap id or scope',
+        'Failed to submit cross-chain swap transaction: undefined snap id',
       );
       expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
     });
