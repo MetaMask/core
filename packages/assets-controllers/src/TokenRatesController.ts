@@ -335,13 +335,11 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
             );
             return acc;
           }
-          return [
-            ...acc,
-            {
-              chainId,
-              nativeCurrency: networkConfiguration.nativeCurrency,
-            },
-          ];
+          acc.push({
+            chainId,
+            nativeCurrency: networkConfiguration.nativeCurrency,
+          });
+          return acc;
         }, []);
 
         await this.updateExchangeRatesByChainId(chainIdAndNativeCurrency);
@@ -665,13 +663,11 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
         );
         return acc;
       }
-      return [
-        ...acc,
-        {
-          chainId,
-          nativeCurrency: networkConfiguration.nativeCurrency,
-        },
-      ];
+      acc.push({
+        chainId,
+        nativeCurrency: networkConfiguration.nativeCurrency,
+      });
+      return acc;
     }, []);
 
     await this.updateExchangeRatesByChainId(chainIdAndNativeCurrency);
