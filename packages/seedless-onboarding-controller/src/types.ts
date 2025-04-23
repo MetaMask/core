@@ -5,7 +5,11 @@ import type { NodeAuthTokens } from '@metamask/toprf-secure-backup';
 import type { Json } from '@metamask/utils';
 import type { MutexInterface } from 'async-mutex';
 
-import type { controllerName, Web3AuthNetwork } from './constants';
+import type {
+  AuthConnection,
+  controllerName,
+  Web3AuthNetwork,
+} from './constants';
 
 export type SocialBackupsMetadata = {
   id: string;
@@ -13,6 +17,11 @@ export type SocialBackupsMetadata = {
 };
 
 export type AuthenticatedUserDetails = {
+  /**
+   * Type of social login provider.
+   */
+  authConnection: AuthConnection;
+
   /**
    * The node auth tokens from OAuth User authentication after the Social login.
    *
@@ -34,6 +43,11 @@ export type AuthenticatedUserDetails = {
    * The user email or ID from Social login.
    */
   userId: string;
+
+  /**
+   * The user email from Social login.
+   */
+  socialLoginEmail: string;
 };
 
 // State

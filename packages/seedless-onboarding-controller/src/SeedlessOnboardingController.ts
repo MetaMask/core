@@ -18,6 +18,7 @@ import {
 import { Mutex } from 'async-mutex';
 
 import {
+  type AuthConnection,
   controllerName,
   SeedlessOnboardingControllerError,
   Web3AuthNetwork,
@@ -70,6 +71,10 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       persist: false,
       anonymous: true,
     },
+    authConnection: {
+      persist: true,
+      anonymous: true,
+    },
     authConnectionId: {
       persist: true,
       anonymous: true,
@@ -79,6 +84,10 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       anonymous: true,
     },
     userId: {
+      persist: true,
+      anonymous: true,
+    },
+    socialLoginEmail: {
       persist: true,
       anonymous: true,
     },
@@ -132,21 +141,31 @@ export class SeedlessOnboardingController extends BaseController<
    *
    * @param params - The parameters for authenticate OAuth user.
    * @param params.idTokens - The ID token(s) issued by OAuth verification service. Currently this array only contains a single idToken which is verified by all the nodes, in future we are considering to issue a unique idToken for each node.
+   * @param params.authConnection - The social login provider.
    * @param params.authConnectionId - OAuth authConnectionId from dashboard
    * @param params.userId - user email or id from Social login
    * @param params.groupedAuthConnectionId - Optional grouped authConnectionId to be used for the authenticate request.
+   * @param params.socialLoginEmail - The user email from Social login.
    * You can pass this to use aggregate multiple OAuth connections. Useful when you want user to have same account while using different OAuth connections.
    * @returns A promise that resolves to the authentication result.
    */
   async authenticate(params: {
     idTokens: string[];
+    authConnection: AuthConnection;
     authConnectionId: string;
     userId: string;
     groupedAuthConnectionId?: string;
+    socialLoginEmail: string;
   }) {
     try {
-      const { idTokens, authConnectionId, groupedAuthConnectionId, userId } =
-        params;
+      const {
+        idTokens,
+        authConnectionId,
+        groupedAuthConnectionId,
+        userId,
+        authConnection,
+        socialLoginEmail,
+      } = params;
       const hashedIdTokenHexes = idTokens.map((idToken) => {
         return remove0x(keccak256AndHexify(stringToBytes(idToken)));
       });
@@ -165,6 +184,8 @@ export class SeedlessOnboardingController extends BaseController<
         state.authConnectionId = authConnectionId;
         state.groupedAuthConnectionId = groupedAuthConnectionId;
         state.userId = userId;
+        state.authConnection = authConnection;
+        state.socialLoginEmail = socialLoginEmail;
       });
       return authenticationResult;
     } catch (error) {

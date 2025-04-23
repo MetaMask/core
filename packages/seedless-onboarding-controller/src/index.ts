@@ -16,5 +16,6 @@ export type {
 export {
   Web3AuthNetwork,
   SeedlessOnboardingControllerError,
+  AuthConnection,
 } from './constants';
 export * from './errors';

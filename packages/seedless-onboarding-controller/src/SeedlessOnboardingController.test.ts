@@ -1,3 +1,4 @@
+import { keccak256AndHexify } from '@metamask/auth-network-utils';
 import {
   TOPRFError,
   type ChangeEncryptionKeyResult,
@@ -11,6 +12,7 @@ import { base64ToBytes, bytesToBase64, stringToBytes } from '@metamask/utils';
 import {
   Web3AuthNetwork,
   SeedlessOnboardingControllerError,
+  AuthConnection,
 } from './constants';
 import { RecoveryError } from './errors';
 import {
@@ -35,7 +37,6 @@ import {
 } from '../tests/mocks/toprf';
 import { MockToprfEncryptorDecryptor } from '../tests/mocks/toprfEncryptor';
 import MockVaultEncryptor from '../tests/mocks/vaultEncryptor';
-import { keccak256AndHexify } from '@metamask/auth-network-utils';
 
 type WithControllerCallback<ReturnValue> = ({
   controller,
@@ -277,8 +278,10 @@ async function decryptVault(vault: string, password: string) {
   };
 }
 
+const authConnection = AuthConnection.Google;
+const socialLoginEmail = 'user-test@gmail.com';
 const authConnectionId = 'seedless-onboarding';
-const groupedAuthConnectionId = 'google';
+const groupedAuthConnectionId = 'auth-server';
 const userId = 'user-test@gmail.com';
 const idTokens = ['idToken'];
 
@@ -372,6 +375,8 @@ describe('SeedlessOnboardingController', () => {
           idTokens,
           authConnectionId,
           userId,
+          authConnection,
+          socialLoginEmail,
         });
 
         expect(authResult).toBeDefined();
@@ -384,6 +389,8 @@ describe('SeedlessOnboardingController', () => {
         );
         expect(controller.state.authConnectionId).toBe(authConnectionId);
         expect(controller.state.userId).toBe(userId);
+        expect(controller.state.authConnection).toBe(authConnection);
+        expect(controller.state.socialLoginEmail).toBe(socialLoginEmail);
       });
     });
 
@@ -398,6 +405,8 @@ describe('SeedlessOnboardingController', () => {
           idTokens,
           authConnectionId,
           userId,
+          authConnection,
+          socialLoginEmail,
         });
 
         expect(authResult).toBeDefined();
@@ -410,6 +419,8 @@ describe('SeedlessOnboardingController', () => {
         );
         expect(controller.state.authConnectionId).toBe(authConnectionId);
         expect(controller.state.userId).toBe(userId);
+        expect(controller.state.authConnection).toBe(authConnection);
+        expect(controller.state.socialLoginEmail).toBe(socialLoginEmail);
       });
     });
 
@@ -426,6 +437,8 @@ describe('SeedlessOnboardingController', () => {
           authConnectionId,
           userId,
           groupedAuthConnectionId,
+          authConnection,
+          socialLoginEmail,
         });
 
         expect(authResult).toBeDefined();
@@ -468,6 +481,8 @@ describe('SeedlessOnboardingController', () => {
             authConnectionId,
             groupedAuthConnectionId,
             userId,
+            authConnection,
+            socialLoginEmail,
           }),
         ).rejects.toThrow(
           SeedlessOnboardingControllerError.AuthenticationError,
@@ -554,6 +569,8 @@ describe('SeedlessOnboardingController', () => {
             idTokens,
             authConnectionId,
             userId,
+            authConnection,
+            socialLoginEmail,
           });
 
           const { encKey, authKeyPair } = mockcreateLocalKey(
