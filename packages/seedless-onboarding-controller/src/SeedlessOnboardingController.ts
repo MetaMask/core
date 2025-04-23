@@ -33,6 +33,7 @@ import type {
   SeedlessOnboardingControllerState,
   VaultData,
   AuthenticatedUserDetails,
+  SocialBackupsMetadata,
 } from './types';
 
 const log = createModuleLogger(projectLogger, controllerName);
@@ -44,7 +45,7 @@ const log = createModuleLogger(projectLogger, controllerName);
  */
 export function getDefaultSeedlessOnboardingControllerState(): SeedlessOnboardingControllerState {
   return {
-    backupHashes: [],
+    socialBackupsMetadata: [],
   };
 }
 
@@ -61,7 +62,7 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       persist: true,
       anonymous: false,
     },
-    backupHashes: {
+    socialBackupsMetadata: {
       persist: true,
       anonymous: true,
     },
@@ -177,11 +178,13 @@ export class SeedlessOnboardingController extends BaseController<
    *
    * @param password - The password used to create new wallet and seedphrase
    * @param seedPhrase - The seed phrase to backup
+   * @param keyringId - The keyring id of the backup seed phrase
    * @returns A promise that resolves to the encrypted seed phrase and the encryption key.
    */
   async createToprfKeyAndBackupSeedPhrase(
     password: string,
     seedPhrase: Uint8Array,
+    keyringId: string,
   ): Promise<void> {
     // to make sure that fail fast,
     // assert that the user is authenticated before creating the TOPRF key and backing up the seed phrase
@@ -193,11 +196,12 @@ export class SeedlessOnboardingController extends BaseController<
     });
 
     // encrypt and store the seed phrase backup
-    await this.#encryptAndStoreSeedPhraseBackup(
+    await this.#encryptAndStoreSeedPhraseBackup({
+      keyringId,
       seedPhrase,
       encKey,
       authKeyPair,
-    );
+    });
 
     // store/persist the encryption key shares
     // We store the seed phrase metadata in the metadata store first. If this operation fails,
@@ -240,11 +244,7 @@ export class SeedlessOnboardingController extends BaseController<
         });
       }
 
-      return this.#withPersistedSeedPhraseBackupsState<Uint8Array[]>(() =>
-        Promise.resolve(
-          SeedPhraseMetadata.parseSeedPhraseFromMetadataStore(secretData),
-        ),
-      );
+      return SeedPhraseMetadata.parseSeedPhraseFromMetadataStore(secretData);
     } catch (error) {
       log('Error fetching seed phrase metadata', error);
       throw new Error(
@@ -283,6 +283,29 @@ export class SeedlessOnboardingController extends BaseController<
   }
 
   /**
+   * Update the backup metadata state for the given seed phrase.
+   *
+   * @param keyringId - The keyring id of the backup seed phrase.
+   * @param seedPhrase - The seed phrase to update the backup metadata for.
+   */
+  updateBackupMetadataState(keyringId: string, seedPhrase: Uint8Array) {
+    const newBackupMetadata = {
+      id: keyringId,
+      hash: keccak256AndHexify(seedPhrase),
+    };
+
+    const existingBackup = this.state.socialBackupsMetadata.find(
+      (backup) => backup.id === keyringId,
+    );
+
+    if (!existingBackup) {
+      this.update((state) => {
+        state.socialBackupsMetadata.push(newBackupMetadata);
+      });
+    }
+  }
+
+  /**
    * Get the hash of the seed phrase backup for the given seed phrase, from the state.
    *
    * If the given seed phrase is not backed up and not found in the state, it will return `undefined`.
@@ -290,9 +313,13 @@ export class SeedlessOnboardingController extends BaseController<
    * @param seedPhrase - The seed phrase to get the hash of.
    * @returns A promise that resolves to the hash of the seed phrase backup.
    */
-  getSeedPhraseBackupHash(seedPhrase: Uint8Array): string | undefined {
+  getSeedPhraseBackupHash(
+    seedPhrase: Uint8Array,
+  ): SocialBackupsMetadata | undefined {
     const seedPhraseHash = keccak256AndHexify(seedPhrase);
-    return this.state.backupHashes.find((hash) => hash === seedPhraseHash);
+    return this.state.socialBackupsMetadata.find(
+      (backup) => backup.hash === seedPhraseHash,
+    );
   }
 
   /**
@@ -378,18 +405,23 @@ export class SeedlessOnboardingController extends BaseController<
   /**
    * Encrypt and store the seed phrase backup in the metadata store.
    *
-   * @param seedPhrase - The seed phrase to store.
-   * @param encKey - The encryption key to store.
-   * @param authKeyPair - The authentication key pair to store.
+   * @param params - The parameters for encrypting and storing the seed phrase backup.
+   * @param params.keyringId - The keyring id of the backup seed phrase.
+   * @param params.seedPhrase - The seed phrase to store.
+   * @param params.encKey - The encryption key to store.
+   * @param params.authKeyPair - The authentication key pair to store.
    *
    * @returns A promise that resolves to the success of the operation.
    */
-  async #encryptAndStoreSeedPhraseBackup(
-    seedPhrase: Uint8Array,
-    encKey: Uint8Array,
-    authKeyPair: KeyPair,
-  ): Promise<void> {
+  async #encryptAndStoreSeedPhraseBackup(params: {
+    keyringId: string;
+    seedPhrase: Uint8Array;
+    encKey: Uint8Array;
+    authKeyPair: KeyPair;
+  }): Promise<void> {
     try {
+      const { keyringId, seedPhrase, encKey, authKeyPair } = params;
+
       const seedPhraseMetadata = new SeedPhraseMetadata(seedPhrase);
       const secretData = seedPhraseMetadata.toBytes();
       await this.#withPersistedSeedPhraseBackupsState(async () => {
@@ -398,7 +430,10 @@ export class SeedlessOnboardingController extends BaseController<
           secretData,
           authKeyPair,
         });
-        return seedPhrase;
+        return {
+          id: keyringId,
+          seedPhrase,
+        };
       });
     } catch (error) {
       log('Error encrypting and storing seed phrase backup', error);
@@ -467,40 +502,49 @@ export class SeedlessOnboardingController extends BaseController<
    * This is a wrapper method that should be used around any operation that creates
    * or restores seed phrases to ensure their hashes are properly tracked.
    *
-   * @param createOrRestoreSeedPhraseBackupCallback - function that returns either a single seed phrase
+   * @param createSeedPhraseBackupCallback - function that returns either a single seed phrase
    * or an array of seed phrases as Uint8Array(s)
    * @returns The original seed phrase(s) returned by the callback
    * @throws Rethrows any errors from the callback with additional logging
    */
   async #withPersistedSeedPhraseBackupsState<
-    Result extends Uint8Array | Uint8Array[],
-  >(
-    createOrRestoreSeedPhraseBackupCallback: () => Promise<Result>,
-  ): Promise<Result> {
+    Result extends
+      | { id: string; seedPhrase: Uint8Array }
+      | { id: string; seedPhrase: Uint8Array }[],
+  >(createSeedPhraseBackupCallback: () => Promise<Result>): Promise<Result> {
     try {
-      const backedUpSeedPhrases =
-        await createOrRestoreSeedPhraseBackupCallback();
-      let backedUpHashB64Strings: string[] = [];
+      const existingBackUpMetadata = this.state.socialBackupsMetadata;
 
-      if (Array.isArray(backedUpSeedPhrases)) {
-        backedUpHashB64Strings = backedUpSeedPhrases.map((seedPhrase) =>
-          keccak256AndHexify(seedPhrase),
-        );
+      const backUps = await createSeedPhraseBackupCallback();
+      let newBackupMetadataArr: SocialBackupsMetadata[] = [];
+
+      if (Array.isArray(backUps)) {
+        newBackupMetadataArr = backUps.map((seedPhrase) => ({
+          id: seedPhrase.id,
+          hash: keccak256AndHexify(seedPhrase.seedPhrase),
+        }));
       } else {
-        backedUpHashB64Strings = [keccak256AndHexify(backedUpSeedPhrases)];
+        newBackupMetadataArr = [
+          {
+            id: backUps.id,
+            hash: keccak256AndHexify(backUps.seedPhrase),
+          },
+        ];
       }
 
-      const existingBackedUpHashes = this.state.backupHashes;
-      const uniqueHashesSet = new Set([
-        ...existingBackedUpHashes,
-        ...backedUpHashB64Strings,
-      ]);
+      // filter out the backed up metadata that already exists in the state
+      const filteredBackedUpMetadata = newBackupMetadataArr.filter(
+        (newBackup) =>
+          !existingBackUpMetadata.find(
+            (existingBackup) => existingBackup.id === newBackup.id,
+          ),
+      );
 
       this.update((state) => {
-        state.backupHashes = Array.from(uniqueHashesSet);
+        state.socialBackupsMetadata = filteredBackedUpMetadata;
       });
 
-      return backedUpSeedPhrases;
+      return backUps;
     } catch (error) {
       log('Error persisting seed phrase backups', error);
       throw error;

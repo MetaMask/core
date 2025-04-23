@@ -7,6 +7,11 @@ import type { MutexInterface } from 'async-mutex';
 
 import type { controllerName, Web3AuthNetwork } from './constants';
 
+export type SocialBackupsMetadata = {
+  id: string;
+  hash: string;
+};
+
 export type AuthenticatedUserDetails = {
   /**
    * The node auth tokens from OAuth User authentication after the Social login.
@@ -44,7 +49,7 @@ export type SeedlessOnboardingControllerState =
      *
      * This is to facilitate the UI to display backup status of the seed phrases.
      */
-    backupHashes: string[];
+    socialBackupsMetadata: SocialBackupsMetadata[];
   };
 
 // Actions

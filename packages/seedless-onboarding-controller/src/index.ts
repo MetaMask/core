@@ -4,6 +4,7 @@ export {
 } from './SeedlessOnboardingController';
 export type {
   AuthenticatedUserDetails,
+  SocialBackupsMetadata,
   SeedlessOnboardingControllerState,
   SeedlessOnboardingControllerOptions,
   SeedlessOnboardingControllerMessenger,
