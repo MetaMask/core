@@ -52,6 +52,7 @@ export function testsForRpcFailoverBehavior({
             const request = requestToCall;
             const requestToMock = getRequestToMock(request, blockNumber);
             const additionalMockRpcCallOptions =
+              // This condition is intentional.
               // eslint-disable-next-line jest/no-conditional-in-test
               failure instanceof Error || typeof failure === 'string'
                 ? { error: failure }
@@ -68,9 +69,6 @@ export function testsForRpcFailoverBehavior({
               times: maxConsecutiveFailures,
               ...additionalMockRpcCallOptions,
             });
-            // The block-ref middleware will make the request as
-            // specified except that the block param is replaced with
-            // the latest block number.
             failoverComms.mockRpcCall({
               request: requestToMock,
               response: {
@@ -133,6 +131,7 @@ export function testsForRpcFailoverBehavior({
             const request = requestToCall;
             const requestToMock = getRequestToMock(request, blockNumber);
             const additionalMockRpcCallOptions =
+              // This condition is intentional.
               // eslint-disable-next-line jest/no-conditional-in-test
               failure instanceof Error || typeof failure === 'string'
                 ? { error: failure }
@@ -149,9 +148,6 @@ export function testsForRpcFailoverBehavior({
               times: maxConsecutiveFailures,
               ...additionalMockRpcCallOptions,
             });
-            // The block-ref middleware will make the request as
-            // specified except that the block param is replaced with
-            // the latest block number.
             failoverComms.mockRpcCall({
               request: requestToMock,
               response: {
@@ -226,6 +222,7 @@ export function testsForRpcFailoverBehavior({
             const request = requestToCall;
             const requestToMock = getRequestToMock(request, blockNumber);
             const additionalMockRpcCallOptions =
+              // This condition is intentional.
               // eslint-disable-next-line jest/no-conditional-in-test
               failure instanceof Error || typeof failure === 'string'
                 ? { error: failure }
@@ -242,9 +239,6 @@ export function testsForRpcFailoverBehavior({
               times: maxConsecutiveFailures,
               ...additionalMockRpcCallOptions,
             });
-            // The block-ref middleware will make the request as
-            // specified except that the block param is replaced with
-            // the latest block number.
             failoverComms.mockRpcCall({
               request: requestToMock,
               times: maxConsecutiveFailures,
@@ -339,6 +333,7 @@ export function testsForRpcFailoverBehavior({
               const request = requestToCall;
               const requestToMock = getRequestToMock(request, blockNumber);
               const additionalMockRpcCallOptions =
+                // This condition is intentional.
                 // eslint-disable-next-line jest/no-conditional-in-test
                 failure instanceof Error || typeof failure === 'string'
                   ? { error: failure }
@@ -355,9 +350,6 @@ export function testsForRpcFailoverBehavior({
                 times: customMaxConsecutiveFailures,
                 ...additionalMockRpcCallOptions,
               });
-              // The block-ref middleware will make the request as
-              // specified except that the block param is replaced with
-              // the latest block number.
               failoverComms.mockRpcCall({
                 request: requestToMock,
                 response: {
@@ -443,16 +435,9 @@ export function testsForRpcFailoverBehavior({
             ? { error: failure }
             : { response: failure };
 
-        // The first time a block-cacheable request is made, the
-        // block-cache middleware will request the latest block number
-        // through the block tracker to determine the cache key. Later,
-        // the block-ref middleware will request the latest block number
-        // again to resolve the value of "latest", but the block number is
-        // cached once made, so we only need to mock the request once.
+        // The first time a block-cacheable request is made, the latest block
+        // number is retrieved through the block tracker first.
         comms.mockNextBlockTrackerRequest({ blockNumber });
-        // The block-ref middleware will make the request as specified
-        // except that the block param is replaced with the latest block
-        // number.
         comms.mockRpcCall({
           request: requestToMock,
           times: maxConsecutiveFailures,
