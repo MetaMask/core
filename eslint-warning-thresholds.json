@@ -415,11 +415,8 @@
   "packages/permission-log-controller/tests/PermissionLogController.test.ts": {
     "import-x/order": 1
   },
-  "packages/phishing-controller/src/PhishingController.test.ts": {
-    "import-x/no-named-as-default-member": 1
-  },
   "packages/phishing-controller/src/PhishingController.ts": {
-    "jsdoc/check-tag-names": 42,
+    "jsdoc/check-tag-names": 38,
     "jsdoc/tag-lines": 1
   },
   "packages/phishing-controller/src/PhishingDetector.ts": {

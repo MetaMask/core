@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Eliminate legacy network dependency handling in `TokenRatesController`. Clients must now pass an array (rather than a single object) for chain IDs and tickers. This change may require updates on the client side to align with the new array-based input ([#5645](https://github.com/MetaMask/core/pull/5645))
 
+### Added
+
+- Add `SEI` network support ([#5610](https://github.com/MetaMask/core/pull/5610))
+  - Add token detection support
+  - Add NFT detection support
+
 ## [58.0.0]
 
 ### Added
