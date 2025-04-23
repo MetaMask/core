@@ -35,6 +35,7 @@ import {
 } from '../tests/mocks/toprf';
 import { MockToprfEncryptorDecryptor } from '../tests/mocks/toprfEncryptor';
 import MockVaultEncryptor from '../tests/mocks/vaultEncryptor';
+import { keccak256AndHexify } from '@metamask/auth-network-utils';
 
 type WithControllerCallback<ReturnValue> = ({
   controller,
@@ -1047,6 +1048,56 @@ describe('SeedlessOnboardingController', () => {
               SeedlessOnboardingControllerError.LoginFailedError,
             ),
           );
+        },
+      );
+    });
+  });
+
+  describe('updateBackupMetadataState', () => {
+    it('should be able to update the backup metadata state', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller }) => {
+          controller.updateBackupMetadataState(
+            MOCK_KEYRING_ID,
+            MOCK_SEED_PHRASE,
+          );
+          const MOCK_SEED_PHRASE_HASH = keccak256AndHexify(MOCK_SEED_PHRASE);
+          expect(controller.state.socialBackupsMetadata).toStrictEqual([
+            { id: MOCK_KEYRING_ID, hash: MOCK_SEED_PHRASE_HASH },
+          ]);
+        },
+      );
+    });
+
+    it('should not update the backup metadata state if the provided keyringId is already in the state', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller }) => {
+          controller.updateBackupMetadataState(
+            MOCK_KEYRING_ID,
+            MOCK_SEED_PHRASE,
+          );
+          const MOCK_SEED_PHRASE_HASH = keccak256AndHexify(MOCK_SEED_PHRASE);
+          expect(controller.state.socialBackupsMetadata).toStrictEqual([
+            { id: MOCK_KEYRING_ID, hash: MOCK_SEED_PHRASE_HASH },
+          ]);
+
+          controller.updateBackupMetadataState(
+            MOCK_KEYRING_ID,
+            MOCK_SEED_PHRASE,
+          );
+          expect(controller.state.socialBackupsMetadata).toStrictEqual([
+            { id: MOCK_KEYRING_ID, hash: MOCK_SEED_PHRASE_HASH },
+          ]);
         },
       );
     });

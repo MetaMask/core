@@ -294,15 +294,7 @@ export class SeedlessOnboardingController extends BaseController<
       hash: keccak256AndHexify(seedPhrase),
     };
 
-    const existingBackup = this.state.socialBackupsMetadata.find(
-      (backup) => backup.id === keyringId,
-    );
-
-    if (!existingBackup) {
-      this.update((state) => {
-        state.socialBackupsMetadata.push(newBackupMetadata);
-      });
-    }
+    this.#updateSocialBackupsMetadata(newBackupMetadata);
   }
 
   /**
@@ -507,47 +499,45 @@ export class SeedlessOnboardingController extends BaseController<
    * @returns The original seed phrase(s) returned by the callback
    * @throws Rethrows any errors from the callback with additional logging
    */
-  async #withPersistedSeedPhraseBackupsState<
-    Result extends
-      | { id: string; seedPhrase: Uint8Array }
-      | { id: string; seedPhrase: Uint8Array }[],
-  >(createSeedPhraseBackupCallback: () => Promise<Result>): Promise<Result> {
+  async #withPersistedSeedPhraseBackupsState(
+    createSeedPhraseBackupCallback: () => Promise<{
+      id: string;
+      seedPhrase: Uint8Array;
+    }>,
+  ): Promise<{
+    id: string;
+    seedPhrase: Uint8Array;
+  }> {
     try {
-      const existingBackUpMetadata = this.state.socialBackupsMetadata;
-
       const backUps = await createSeedPhraseBackupCallback();
-      let newBackupMetadataArr: SocialBackupsMetadata[] = [];
+      const newBackupMetadata = {
+        id: backUps.id,
+        hash: keccak256AndHexify(backUps.seedPhrase),
+      };
 
-      if (Array.isArray(backUps)) {
-        newBackupMetadataArr = backUps.map((seedPhrase) => ({
-          id: seedPhrase.id,
-          hash: keccak256AndHexify(seedPhrase.seedPhrase),
-        }));
-      } else {
-        newBackupMetadataArr = [
-          {
-            id: backUps.id,
-            hash: keccak256AndHexify(backUps.seedPhrase),
-          },
-        ];
-      }
-
-      // filter out the backed up metadata that already exists in the state
-      const filteredBackedUpMetadata = newBackupMetadataArr.filter(
-        (newBackup) =>
-          !existingBackUpMetadata.find(
-            (existingBackup) => existingBackup.id === newBackup.id,
-          ),
-      );
-
-      this.update((state) => {
-        state.socialBackupsMetadata = filteredBackedUpMetadata;
-      });
+      this.#updateSocialBackupsMetadata(newBackupMetadata);
 
       return backUps;
     } catch (error) {
       log('Error persisting seed phrase backups', error);
       throw error;
+    }
+  }
+
+  #updateSocialBackupsMetadata(newSocialBackupMetadata: SocialBackupsMetadata) {
+    // filter out the backed up metadata that already exists in the state
+    // to prevent duplicates
+    const existingBackupsMetadata = this.state.socialBackupsMetadata.find(
+      (backup) => backup.id === newSocialBackupMetadata.id,
+    );
+
+    if (!existingBackupsMetadata) {
+      this.update((state) => {
+        state.socialBackupsMetadata = [
+          ...state.socialBackupsMetadata,
+          newSocialBackupMetadata,
+        ];
+      });
     }
   }
 
