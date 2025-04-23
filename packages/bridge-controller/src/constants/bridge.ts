@@ -17,6 +17,7 @@ export const ALLOWED_BRIDGE_CHAIN_IDS = [
   CHAIN_IDS.ARBITRUM,
   CHAIN_IDS.LINEA_MAINNET,
   CHAIN_IDS.BASE,
+  CHAIN_IDS.SEI,
   SolScope.Mainnet,
 ] as const;
 
