@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `SEI` network support ([#5610](https://github.com/MetaMask/core/pull/5610))
+  - Add token detection support
+  - Add NFT detection support
+
 ### Changed
 
 - **UPDATE:** Refactor `TokenRatesController` to support processing multiple chains simultaneously. The controller now accepts an array of chain IDs and tickers instead of a single value, streamlining the polling process by iterating over all chains in one loop ([#5645](https://github.com/MetaMask/core/pull/5645))
@@ -14,12 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - **BREAKING:** Eliminate legacy network dependency handling in `TokenRatesController`. Clients must now pass an array (rather than a single object) for chain IDs and tickers. This change may require updates on the client side to align with the new array-based input ([#5645](https://github.com/MetaMask/core/pull/5645))
-
-### Added
-
-- Add `SEI` network support ([#5610](https://github.com/MetaMask/core/pull/5610))
-  - Add token detection support
-  - Add NFT detection support
 
 ## [58.0.0]
 
