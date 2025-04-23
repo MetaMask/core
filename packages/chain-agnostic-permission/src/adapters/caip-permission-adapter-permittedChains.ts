@@ -213,7 +213,7 @@ export function getAllScopesFromCaip25CaveatValue(
  * @param caip25CaveatValue - The CAIP-25 caveat value to extract namespaces from
  * @returns Array of unique namespace strings
  */
-export function getAllNonWalletNamespacesFromCaip25CaveatValue(
+export function getAllNamespacesFromCaip25CaveatValue(
   caip25CaveatValue: Caip25CaveatValue,
 ): CaipNamespace[] {
   const allScopes = getAllScopesFromCaip25CaveatValue(caip25CaveatValue);
@@ -222,9 +222,7 @@ export function getAllNonWalletNamespacesFromCaip25CaveatValue(
   for (const scope of allScopes) {
     const { namespace, reference } = parseScopeString(scope);
     if (namespace === KnownCaipNamespace.Wallet) {
-      if (reference) {
-        namespaceSet.add(reference);
-      }
+      namespaceSet.add(scope);
     } else if (namespace) {
       namespaceSet.add(namespace);
     }
@@ -295,13 +293,14 @@ export const addCaipChainIdInCaip25CaveatValue = (
 };
 
 /**
- * Sets the permitted CAIP-2 chainIDs for the required and optional scopes.
+ * Sets the CAIP-2 chainIds for the required and optional scopes.
+ * If the caip25CaveatValue contains chainIds not in the chainIds array arg they are filtered out
  *
  * @param caip25CaveatValue - The CAIP-25 caveat value to set the permitted CAIP-2 chainIDs for.
- * @param chainIds - The CAIP-2 chainIDs to set as permitted.
- * @returns The updated CAIP-25 caveat value with the permitted CAIP-2 chainIDs.
+ * @param chainIds - The CAIP-2 chainIDs to set.
+ * @returns The updated CAIP-25 caveat value with the CAIP-2 chainIDs.
  */
-export const overwriteCaipChainIdsInCaip25CaveatValue = (
+export const setChainIdsInCaip25CaveatValue = (
   caip25CaveatValue: Caip25CaveatValue,
   chainIds: CaipChainId[],
 ): Caip25CaveatValue => {

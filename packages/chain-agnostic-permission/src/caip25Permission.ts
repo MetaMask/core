@@ -23,7 +23,7 @@ import {
 import { cloneDeep, isEqual } from 'lodash';
 
 import { setNonSCACaipAccountIdsInCaip25CaveatValue } from './adapters/caip-permission-adapter-accounts';
-import { overwriteCaipChainIdsInCaip25CaveatValue } from './adapters/caip-permission-adapter-permittedChains';
+import { setChainIdsInCaip25CaveatValue } from './adapters/caip-permission-adapter-permittedChains';
 import { assertIsInternalScopesObject } from './scope/assert';
 import {
   isSupportedAccount,
@@ -512,7 +512,7 @@ export const generateCaip25Caveat = (
     caveats: [{ type: string; value: Caip25CaveatValue }];
   };
 } => {
-  const caveatValueWithChains = overwriteCaipChainIdsInCaip25CaveatValue(
+  const caveatValueWithChains = setChainIdsInCaip25CaveatValue(
     caip25CaveatValue,
     chainIds,
   );
