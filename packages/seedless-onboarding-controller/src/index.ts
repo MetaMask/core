@@ -4,6 +4,7 @@ export {
 } from './SeedlessOnboardingController';
 export type {
   AuthenticatedUserDetails,
+  SocialBackupsMetadata,
   SeedlessOnboardingControllerState,
   SeedlessOnboardingControllerOptions,
   SeedlessOnboardingControllerMessenger,
@@ -15,5 +16,6 @@ export type {
 export {
   Web3AuthNetwork,
   SeedlessOnboardingControllerError,
+  AuthConnection,
 } from './constants';
 export * from './errors';

@@ -12,6 +12,7 @@ import { base64ToBytes, bytesToBase64, stringToBytes } from '@metamask/utils';
 import {
   Web3AuthNetwork,
   SeedlessOnboardingControllerError,
+  AuthConnection,
 } from './constants';
 import { RecoveryError } from './errors';
 import {
@@ -218,12 +219,14 @@ function mockChangeEncKey(
  * @param controller - The SeedlessOnboardingController instance.
  * @param password - The mock password.
  * @param seedPhrase - The mock seed phrase.
+ * @param keyringId - The mock keyring id.
  */
 async function mockCreateToprfKeyAndBackupSeedPhrase(
   toprfClient: ToprfSecureBackup,
   controller: SeedlessOnboardingController,
   password: string,
   seedPhrase: Uint8Array,
+  keyringId: string,
 ) {
   mockcreateLocalKey(toprfClient, password);
 
@@ -231,7 +234,11 @@ async function mockCreateToprfKeyAndBackupSeedPhrase(
   jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
   // encrypt and store the secret data
   handleMockSecretDataAdd();
-  await controller.createToprfKeyAndBackupSeedPhrase(password, seedPhrase);
+  await controller.createToprfKeyAndBackupSeedPhrase(
+    password,
+    seedPhrase,
+    keyringId,
+  );
 }
 
 /**
@@ -301,8 +308,10 @@ async function decryptVault(vault: string, password: string) {
   };
 }
 
+const authConnection = AuthConnection.Google;
+const socialLoginEmail = 'user-test@gmail.com';
 const authConnectionId = 'seedless-onboarding';
-const groupedAuthConnectionId = 'google';
+const groupedAuthConnectionId = 'auth-server';
 const userId = 'user-test@gmail.com';
 const idTokens = ['idToken'];
 
@@ -340,9 +349,7 @@ function getMockInitialControllerState(options?: {
   vaultEncryptionKey?: string;
   vaultEncryptionSalt?: string;
 }): Partial<SeedlessOnboardingControllerState> {
-  const state: Partial<SeedlessOnboardingControllerState> = {
-    backupHashes: [],
-  };
+  const state = getDefaultSeedlessOnboardingControllerState();
 
   if (options?.vault) {
     state.vault = options.vault;
@@ -366,6 +373,7 @@ function getMockInitialControllerState(options?: {
   return state;
 }
 
+const MOCK_KEYRING_ID = 'mock-keyring-id';
 const MOCK_SEED_PHRASE = stringToBytes(
   'horror pink muffin canal young photo magnet runway start elder patch until',
 );
@@ -409,6 +417,8 @@ describe('SeedlessOnboardingController', () => {
           idTokens,
           authConnectionId,
           userId,
+          authConnection,
+          socialLoginEmail,
         });
 
         expect(authResult).toBeDefined();
@@ -421,6 +431,8 @@ describe('SeedlessOnboardingController', () => {
         );
         expect(controller.state.authConnectionId).toBe(authConnectionId);
         expect(controller.state.userId).toBe(userId);
+        expect(controller.state.authConnection).toBe(authConnection);
+        expect(controller.state.socialLoginEmail).toBe(socialLoginEmail);
       });
     });
 
@@ -435,6 +447,8 @@ describe('SeedlessOnboardingController', () => {
           idTokens,
           authConnectionId,
           userId,
+          authConnection,
+          socialLoginEmail,
         });
 
         expect(authResult).toBeDefined();
@@ -447,6 +461,8 @@ describe('SeedlessOnboardingController', () => {
         );
         expect(controller.state.authConnectionId).toBe(authConnectionId);
         expect(controller.state.userId).toBe(userId);
+        expect(controller.state.authConnection).toBe(authConnection);
+        expect(controller.state.socialLoginEmail).toBe(socialLoginEmail);
       });
     });
 
@@ -463,6 +479,8 @@ describe('SeedlessOnboardingController', () => {
           authConnectionId,
           userId,
           groupedAuthConnectionId,
+          authConnection,
+          socialLoginEmail,
         });
 
         expect(authResult).toBeDefined();
@@ -505,6 +523,8 @@ describe('SeedlessOnboardingController', () => {
             authConnectionId,
             groupedAuthConnectionId,
             userId,
+            authConnection,
+            socialLoginEmail,
           }),
         ).rejects.toThrow(
           SeedlessOnboardingControllerError.AuthenticationError,
@@ -543,6 +563,7 @@ describe('SeedlessOnboardingController', () => {
           await controller.createToprfKeyAndBackupSeedPhrase(
             MOCK_PASSWORD,
             MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
           );
 
           expect(mockSecretDataAdd.isDone()).toBe(true);
@@ -590,6 +611,8 @@ describe('SeedlessOnboardingController', () => {
             idTokens,
             authConnectionId,
             userId,
+            authConnection,
+            socialLoginEmail,
           });
 
           const { encKey, authKeyPair } = mockcreateLocalKey(
@@ -604,6 +627,7 @@ describe('SeedlessOnboardingController', () => {
           await controller.createToprfKeyAndBackupSeedPhrase(
             MOCK_PASSWORD,
             MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
           );
 
           expect(mockSecretDataAdd.isDone()).toBe(true);
@@ -655,6 +679,7 @@ describe('SeedlessOnboardingController', () => {
             controller.createToprfKeyAndBackupSeedPhrase(
               MOCK_PASSWORD,
               MOCK_SEED_PHRASE,
+              MOCK_KEYRING_ID,
             ),
           ).rejects.toThrow('Failed to create local encryption key');
 
@@ -670,6 +695,7 @@ describe('SeedlessOnboardingController', () => {
           controller.createToprfKeyAndBackupSeedPhrase(
             MOCK_PASSWORD,
             MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
           ),
         ).rejects.toThrow(
           SeedlessOnboardingControllerError.MissingAuthUserInfo,
@@ -688,6 +714,7 @@ describe('SeedlessOnboardingController', () => {
             controller.createToprfKeyAndBackupSeedPhrase(
               MOCK_PASSWORD,
               MOCK_SEED_PHRASE,
+              MOCK_KEYRING_ID,
             ),
           ).rejects.toThrow(
             SeedlessOnboardingControllerError.InsufficientAuthToken,
@@ -720,6 +747,7 @@ describe('SeedlessOnboardingController', () => {
             controller.createToprfKeyAndBackupSeedPhrase(
               MOCK_PASSWORD,
               MOCK_SEED_PHRASE,
+              MOCK_KEYRING_ID,
             ),
           ).rejects.toThrow(
             SeedlessOnboardingControllerError.FailedToPersistOprfKey,
@@ -750,6 +778,7 @@ describe('SeedlessOnboardingController', () => {
             controller.createToprfKeyAndBackupSeedPhrase(
               MOCK_PASSWORD,
               MOCK_SEED_PHRASE,
+              MOCK_KEYRING_ID,
             ),
           ).rejects.toThrow(
             SeedlessOnboardingControllerError.FailedToEncryptAndStoreSeedPhraseBackup,
@@ -761,9 +790,18 @@ describe('SeedlessOnboardingController', () => {
 
   describe('addNewSeedPhraseBackup', () => {
     const MOCK_PASSWORD = 'mock-password';
-    const NEW_SEED_PHRASE_1 = 'new mock seed phrase 1';
-    const NEW_SEED_PHRASE_2 = 'new mock seed phrase 2';
-    const NEW_SEED_PHRASE_3 = 'new mock seed phrase 3';
+    const NEW_KEY_RING_1 = {
+      id: 'new-keyring-1',
+      seedPhrase: stringToBytes('new mock seed phrase 1'),
+    };
+    const NEW_KEY_RING_2 = {
+      id: 'new-keyring-2',
+      seedPhrase: stringToBytes('new mock seed phrase 2'),
+    };
+    const NEW_KEY_RING_3 = {
+      id: 'new-keyring-3',
+      seedPhrase: stringToBytes('new mock seed phrase 3'),
+    };
     let MOCK_VAULT = '';
     let MOCK_VAULT_ENCRYPTION_KEY = '';
     let MOCK_VAULT_ENCRYPTION_SALT = '';
@@ -791,7 +829,10 @@ describe('SeedlessOnboardingController', () => {
     it('should throw an error if the controller is locked', async () => {
       await withController(async ({ controller }) => {
         await expect(
-          controller.addNewSeedPhraseBackup(stringToBytes(NEW_SEED_PHRASE_1)),
+          controller.addNewSeedPhraseBackup(
+            NEW_KEY_RING_1.seedPhrase,
+            NEW_KEY_RING_1.id,
+          ),
         ).rejects.toThrow(SeedlessOnboardingControllerError.ControllerLocked);
       });
     });
@@ -812,7 +853,8 @@ describe('SeedlessOnboardingController', () => {
           // encrypt and store the secret data
           const mockSecretDataAdd = handleMockSecretDataAdd();
           await controller.addNewSeedPhraseBackup(
-            stringToBytes(NEW_SEED_PHRASE_1),
+            NEW_KEY_RING_1.seedPhrase,
+            NEW_KEY_RING_1.id,
           );
 
           expect(mockSecretDataAdd.isDone()).toBe(true);
@@ -840,7 +882,8 @@ describe('SeedlessOnboardingController', () => {
           // encrypt and store the secret data
           const mockSecretDataAdd = handleMockSecretDataAdd();
           await controller.addNewSeedPhraseBackup(
-            stringToBytes(NEW_SEED_PHRASE_1),
+            NEW_KEY_RING_1.seedPhrase,
+            NEW_KEY_RING_1.id,
           );
 
           expect(mockSecretDataAdd.isDone()).toBe(true);
@@ -848,14 +891,18 @@ describe('SeedlessOnboardingController', () => {
           expect(controller.state.nodeAuthTokens).toStrictEqual(
             MOCK_NODE_AUTH_TOKENS,
           );
-          expect(controller.state.backupHashes).toStrictEqual([
-            keccak256AndHexify(stringToBytes(NEW_SEED_PHRASE_1)),
+          expect(controller.state.socialBackupsMetadata).toStrictEqual([
+            {
+              id: NEW_KEY_RING_1.id,
+              hash: keccak256AndHexify(NEW_KEY_RING_1.seedPhrase),
+            },
           ]);
 
           // add another seed phrase backup
           const mockSecretDataAdd2 = handleMockSecretDataAdd();
           await controller.addNewSeedPhraseBackup(
-            stringToBytes(NEW_SEED_PHRASE_2),
+            NEW_KEY_RING_2.seedPhrase,
+            NEW_KEY_RING_2.id,
           );
 
           expect(mockSecretDataAdd2.isDone()).toBe(true);
@@ -864,24 +911,25 @@ describe('SeedlessOnboardingController', () => {
             MOCK_NODE_AUTH_TOKENS,
           );
 
-          const { backupHashes } = controller.state;
-          expect(backupHashes).toStrictEqual([
-            keccak256AndHexify(stringToBytes(NEW_SEED_PHRASE_1)),
-            keccak256AndHexify(stringToBytes(NEW_SEED_PHRASE_2)),
+          const { socialBackupsMetadata } = controller.state;
+          expect(socialBackupsMetadata).toStrictEqual([
+            {
+              id: NEW_KEY_RING_1.id,
+              hash: keccak256AndHexify(NEW_KEY_RING_1.seedPhrase),
+            },
+            {
+              id: NEW_KEY_RING_2.id,
+              hash: keccak256AndHexify(NEW_KEY_RING_2.seedPhrase),
+            },
           ]);
-
           // should be able to get the hash of the seed phrase backup from the state
           expect(
-            controller.getSeedPhraseBackupHash(
-              stringToBytes(NEW_SEED_PHRASE_1),
-            ),
+            controller.getSeedPhraseBackupHash(NEW_KEY_RING_1.seedPhrase),
           ).toBeDefined();
 
           // should return undefined if the seed phrase is not backed up
           expect(
-            controller.getSeedPhraseBackupHash(
-              stringToBytes(NEW_SEED_PHRASE_3),
-            ),
+            controller.getSeedPhraseBackupHash(NEW_KEY_RING_3.seedPhrase),
           ).toBeUndefined();
         },
       );
@@ -904,7 +952,10 @@ describe('SeedlessOnboardingController', () => {
             .spyOn(encryptor, 'decryptWithKey')
             .mockResolvedValueOnce('{ "foo": "bar"');
           await expect(
-            controller.addNewSeedPhraseBackup(stringToBytes(NEW_SEED_PHRASE_1)),
+            controller.addNewSeedPhraseBackup(
+              NEW_KEY_RING_1.seedPhrase,
+              NEW_KEY_RING_1.id,
+            ),
           ).rejects.toThrow(SeedlessOnboardingControllerError.InvalidVaultData);
         },
       );
@@ -934,11 +985,15 @@ describe('SeedlessOnboardingController', () => {
 
           await controller.createToprfKeyAndBackupSeedPhrase(
             MOCK_PASSWORD,
-            stringToBytes(NEW_SEED_PHRASE_1),
+            NEW_KEY_RING_1.seedPhrase,
+            NEW_KEY_RING_1.id,
           );
 
           await expect(
-            controller.addNewSeedPhraseBackup(stringToBytes(NEW_SEED_PHRASE_1)),
+            controller.addNewSeedPhraseBackup(
+              NEW_KEY_RING_2.seedPhrase,
+              NEW_KEY_RING_2.id,
+            ),
           ).rejects.toThrow(
             SeedlessOnboardingControllerError.MissingCredentials,
           );
@@ -959,6 +1014,7 @@ describe('SeedlessOnboardingController', () => {
             controller,
             MOCK_PASSWORD,
             MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
           );
 
           // intentionally mock the JSON.parse to return an object with a different salt
@@ -967,7 +1023,10 @@ describe('SeedlessOnboardingController', () => {
           });
 
           await expect(
-            controller.addNewSeedPhraseBackup(stringToBytes(NEW_SEED_PHRASE_1)),
+            controller.addNewSeedPhraseBackup(
+              NEW_KEY_RING_1.seedPhrase,
+              NEW_KEY_RING_1.id,
+            ),
           ).rejects.toThrow(
             SeedlessOnboardingControllerError.ExpiredCredentials,
           );
@@ -999,11 +1058,15 @@ describe('SeedlessOnboardingController', () => {
 
           await controller.createToprfKeyAndBackupSeedPhrase(
             MOCK_PASSWORD,
-            stringToBytes(NEW_SEED_PHRASE_1),
+            NEW_KEY_RING_1.seedPhrase,
+            NEW_KEY_RING_1.id,
           );
 
           await expect(
-            controller.addNewSeedPhraseBackup(stringToBytes(NEW_SEED_PHRASE_1)),
+            controller.addNewSeedPhraseBackup(
+              NEW_KEY_RING_2.seedPhrase,
+              NEW_KEY_RING_2.id,
+            ),
           ).rejects.toThrow(
             SeedlessOnboardingControllerError.WrongPasswordType,
           );
@@ -1034,19 +1097,26 @@ describe('SeedlessOnboardingController', () => {
 
           await controller.createToprfKeyAndBackupSeedPhrase(
             MOCK_PASSWORD,
-            stringToBytes(NEW_SEED_PHRASE_1),
+            NEW_KEY_RING_1.seedPhrase,
+            NEW_KEY_RING_1.id,
           );
 
           jest
             .spyOn(encryptor, 'decryptWithKey')
             .mockResolvedValueOnce({ foo: 'bar' });
           await expect(
-            controller.addNewSeedPhraseBackup(stringToBytes(NEW_SEED_PHRASE_1)),
+            controller.addNewSeedPhraseBackup(
+              NEW_KEY_RING_2.seedPhrase,
+              NEW_KEY_RING_2.id,
+            ),
           ).rejects.toThrow(SeedlessOnboardingControllerError.InvalidVaultData);
 
           jest.spyOn(encryptor, 'decryptWithKey').mockResolvedValueOnce('null');
           await expect(
-            controller.addNewSeedPhraseBackup(stringToBytes(NEW_SEED_PHRASE_1)),
+            controller.addNewSeedPhraseBackup(
+              NEW_KEY_RING_2.seedPhrase,
+              NEW_KEY_RING_2.id,
+            ),
           ).rejects.toThrow(SeedlessOnboardingControllerError.VaultDataError);
         },
       );
@@ -1075,14 +1145,18 @@ describe('SeedlessOnboardingController', () => {
 
           await controller.createToprfKeyAndBackupSeedPhrase(
             MOCK_PASSWORD,
-            stringToBytes(NEW_SEED_PHRASE_1),
+            NEW_KEY_RING_1.seedPhrase,
+            NEW_KEY_RING_1.id,
           );
 
           jest
             .spyOn(encryptor, 'decryptWithKey')
             .mockResolvedValueOnce(MOCK_VAULT);
           await expect(
-            controller.addNewSeedPhraseBackup(stringToBytes(NEW_SEED_PHRASE_1)),
+            controller.addNewSeedPhraseBackup(
+              NEW_KEY_RING_2.seedPhrase,
+              NEW_KEY_RING_2.id,
+            ),
           ).rejects.toThrow(SeedlessOnboardingControllerError.VaultDataError);
         },
       );
@@ -1199,49 +1273,6 @@ describe('SeedlessOnboardingController', () => {
           );
 
           expect(expectedVaultValue).toStrictEqual(resultedVaultValue);
-        },
-      );
-    });
-
-    it('should be able to overwrite the initial backupHashes', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-          }),
-        },
-        async ({ controller, toprfClient }) => {
-          const MOCK_SEED_PHRASES = [
-            stringToBytes('seedPhrase1'),
-            stringToBytes('seedPhrase2'),
-            stringToBytes('seedPhrase3'),
-          ];
-
-          mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
-
-          jest
-            .spyOn(toprfClient, 'fetchAllSecretDataItems')
-            .mockResolvedValueOnce(
-              SeedPhraseMetadata.fromBatchSeedPhrases(MOCK_SEED_PHRASES).map(
-                (metadata) => metadata.toBytes(),
-              ),
-            );
-
-          await controller.fetchAllSeedPhrases(MOCK_PASSWORD);
-
-          // sort the seed phrases in descending order to make the first seed phrase the latest item in the array
-          const SORTED_MOCK_SEED_PHRASES = [
-            stringToBytes('seedPhrase3'),
-            stringToBytes('seedPhrase2'),
-            stringToBytes('seedPhrase1'),
-          ];
-
-          const expectedBackupHashes = SORTED_MOCK_SEED_PHRASES.map(
-            (seedPhrase) => keccak256AndHexify(seedPhrase),
-          );
-          expect(controller.state.backupHashes).toStrictEqual(
-            expectedBackupHashes,
-          );
         },
       );
     });
@@ -1365,7 +1396,7 @@ describe('SeedlessOnboardingController', () => {
           await expect(
             controller.fetchAllSeedPhrases(MOCK_PASSWORD),
           ).rejects.toThrow(
-            SeedlessOnboardingControllerError.InvalidSeedPhraseMetadata,
+            SeedlessOnboardingControllerError.FailedToFetchSeedPhraseMetadata,
           );
         },
       );
@@ -1382,9 +1413,8 @@ describe('SeedlessOnboardingController', () => {
           jest.spyOn(toprfClient, 'recoverEncKey').mockRejectedValueOnce(
             new TOPRFError(1009, 'Rate limit exceeded', {
               rateLimitDetails: {
-                remainingTime: 10,
-                message: 'Rate limit exceeded',
-                isPermanent: false,
+                remainingTime: 300,
+                message: 'Rate limit in effect',
               },
             }),
           );
@@ -1397,7 +1427,6 @@ describe('SeedlessOnboardingController', () => {
               {
                 remainingTime: 10,
                 message: 'Rate limit exceeded',
-                isPermanent: false,
               },
             ),
           );
@@ -1534,6 +1563,56 @@ describe('SeedlessOnboardingController', () => {
     });
   });
 
+  describe('updateBackupMetadataState', () => {
+    it('should be able to update the backup metadata state', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller }) => {
+          controller.updateBackupMetadataState(
+            MOCK_KEYRING_ID,
+            MOCK_SEED_PHRASE,
+          );
+          const MOCK_SEED_PHRASE_HASH = keccak256AndHexify(MOCK_SEED_PHRASE);
+          expect(controller.state.socialBackupsMetadata).toStrictEqual([
+            { id: MOCK_KEYRING_ID, hash: MOCK_SEED_PHRASE_HASH },
+          ]);
+        },
+      );
+    });
+
+    it('should not update the backup metadata state if the provided keyringId is already in the state', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller }) => {
+          controller.updateBackupMetadataState(
+            MOCK_KEYRING_ID,
+            MOCK_SEED_PHRASE,
+          );
+          const MOCK_SEED_PHRASE_HASH = keccak256AndHexify(MOCK_SEED_PHRASE);
+          expect(controller.state.socialBackupsMetadata).toStrictEqual([
+            { id: MOCK_KEYRING_ID, hash: MOCK_SEED_PHRASE_HASH },
+          ]);
+
+          controller.updateBackupMetadataState(
+            MOCK_KEYRING_ID,
+            MOCK_SEED_PHRASE,
+          );
+          expect(controller.state.socialBackupsMetadata).toStrictEqual([
+            { id: MOCK_KEYRING_ID, hash: MOCK_SEED_PHRASE_HASH },
+          ]);
+        },
+      );
+    });
+  });
+
   describe('changePassword', () => {
     const MOCK_PASSWORD = 'mock-password';
     const NEW_MOCK_PASSWORD = 'new-mock-password';
@@ -1552,6 +1631,7 @@ describe('SeedlessOnboardingController', () => {
             controller,
             MOCK_PASSWORD,
             MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
           );
 
           // verify the vault data before update password
@@ -1616,6 +1696,7 @@ describe('SeedlessOnboardingController', () => {
             controller,
             MOCK_PASSWORD,
             MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
           );
 
           // verify the vault data before update password
@@ -1687,6 +1768,7 @@ describe('SeedlessOnboardingController', () => {
             controller,
             MOCK_PASSWORD,
             MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
           );
 
           jest
@@ -1712,6 +1794,7 @@ describe('SeedlessOnboardingController', () => {
             controller,
             MOCK_PASSWORD,
             MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
           );
 
           // mock the recover enc key
@@ -1779,7 +1862,11 @@ describe('SeedlessOnboardingController', () => {
           // mock the secret data add
           const mockSecretDataAdd = handleMockSecretDataAdd();
           await expect(
-            controller.createToprfKeyAndBackupSeedPhrase('', MOCK_SEED_PHRASE),
+            controller.createToprfKeyAndBackupSeedPhrase(
+              '',
+              MOCK_SEED_PHRASE,
+              MOCK_KEYRING_ID,
+            ),
           ).rejects.toThrow(
             SeedlessOnboardingControllerError.InvalidEmptyPassword,
           );
@@ -1832,12 +1919,16 @@ describe('SeedlessOnboardingController', () => {
             controller,
             MOCK_PASSWORD,
             MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
           );
 
           controller.setLocked();
 
           await expect(
-            controller.addNewSeedPhraseBackup(MOCK_SEED_PHRASE),
+            controller.addNewSeedPhraseBackup(
+              MOCK_SEED_PHRASE,
+              MOCK_KEYRING_ID,
+            ),
           ).rejects.toThrow(SeedlessOnboardingControllerError.ControllerLocked);
         },
       );

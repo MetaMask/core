@@ -26,6 +26,7 @@ import {
 import { Mutex } from 'async-mutex';
 
 import {
+  type AuthConnection,
   controllerName,
   SeedlessOnboardingControllerError,
   Web3AuthNetwork,
@@ -41,6 +42,7 @@ import type {
   SeedlessOnboardingControllerState,
   VaultData,
   AuthenticatedUserDetails,
+  SocialBackupsMetadata,
 } from './types';
 
 const log = createModuleLogger(projectLogger, controllerName);
@@ -52,7 +54,7 @@ const log = createModuleLogger(projectLogger, controllerName);
  */
 export function getDefaultSeedlessOnboardingControllerState(): SeedlessOnboardingControllerState {
   return {
-    backupHashes: [],
+    socialBackupsMetadata: [],
   };
 }
 
@@ -89,12 +91,16 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       persist: true,
       anonymous: false,
     },
-    backupHashes: {
+    socialBackupsMetadata: {
       persist: true,
       anonymous: true,
     },
     nodeAuthTokens: {
       persist: false,
+      anonymous: true,
+    },
+    authConnection: {
+      persist: true,
       anonymous: true,
     },
     authConnectionId: {
@@ -106,6 +112,10 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       anonymous: true,
     },
     userId: {
+      persist: true,
+      anonymous: true,
+    },
+    socialLoginEmail: {
       persist: true,
       anonymous: true,
     },
@@ -187,21 +197,31 @@ export class SeedlessOnboardingController extends BaseController<
    *
    * @param params - The parameters for authenticate OAuth user.
    * @param params.idTokens - The ID token(s) issued by OAuth verification service. Currently this array only contains a single idToken which is verified by all the nodes, in future we are considering to issue a unique idToken for each node.
+   * @param params.authConnection - The social login provider.
    * @param params.authConnectionId - OAuth authConnectionId from dashboard
    * @param params.userId - user email or id from Social login
    * @param params.groupedAuthConnectionId - Optional grouped authConnectionId to be used for the authenticate request.
+   * @param params.socialLoginEmail - The user email from Social login.
    * You can pass this to use aggregate multiple OAuth connections. Useful when you want user to have same account while using different OAuth connections.
    * @returns A promise that resolves to the authentication result.
    */
   async authenticate(params: {
     idTokens: string[];
+    authConnection: AuthConnection;
     authConnectionId: string;
     userId: string;
     groupedAuthConnectionId?: string;
+    socialLoginEmail?: string;
   }) {
     try {
-      const { idTokens, authConnectionId, groupedAuthConnectionId, userId } =
-        params;
+      const {
+        idTokens,
+        authConnectionId,
+        groupedAuthConnectionId,
+        userId,
+        authConnection,
+        socialLoginEmail,
+      } = params;
       const hashedIdTokenHexes = idTokens.map((idToken) => {
         return remove0x(keccak256AndHexify(stringToBytes(idToken)));
       });
@@ -220,6 +240,8 @@ export class SeedlessOnboardingController extends BaseController<
         state.authConnectionId = authConnectionId;
         state.groupedAuthConnectionId = groupedAuthConnectionId;
         state.userId = userId;
+        state.authConnection = authConnection;
+        state.socialLoginEmail = socialLoginEmail;
       });
       return authenticationResult;
     } catch (error) {
@@ -233,11 +255,13 @@ export class SeedlessOnboardingController extends BaseController<
    *
    * @param password - The password used to create new wallet and seedphrase
    * @param seedPhrase - The seed phrase to backup
+   * @param keyringId - The keyring id of the backup seed phrase
    * @returns A promise that resolves to the encrypted seed phrase and the encryption key.
    */
   async createToprfKeyAndBackupSeedPhrase(
     password: string,
     seedPhrase: Uint8Array,
+    keyringId: string,
   ): Promise<void> {
     // to make sure that fail fast,
     // assert that the user is authenticated before creating the TOPRF key and backing up the seed phrase
@@ -249,11 +273,12 @@ export class SeedlessOnboardingController extends BaseController<
     });
 
     // encrypt and store the seed phrase backup
-    await this.#encryptAndStoreSeedPhraseBackup(
+    await this.#encryptAndStoreSeedPhraseBackup({
+      keyringId,
       seedPhrase,
       encKey,
       authKeyPair,
-    );
+    });
 
     // store/persist the encryption key shares
     // We store the seed phrase metadata in the metadata store first. If this operation fails,
@@ -272,20 +297,25 @@ export class SeedlessOnboardingController extends BaseController<
    * Add a new seed phrase backup to the metadata store.
    *
    * @param seedPhrase - The seed phrase to backup.
+   * @param keyringId - The keyring id of the backup seed phrase.
    * @returns A promise that resolves to the success of the operation.
    */
-  async addNewSeedPhraseBackup(seedPhrase: Uint8Array): Promise<void> {
+  async addNewSeedPhraseBackup(
+    seedPhrase: Uint8Array,
+    keyringId: string,
+  ): Promise<void> {
     this.#assertIsUnlocked();
     // verify the password and unlock the vault
     const { toprfEncryptionKey, toprfAuthKeyPair } =
       await this.#unlockVaultAndGetBackupEncKey();
 
     // encrypt and store the seed phrase backup
-    await this.#encryptAndStoreSeedPhraseBackup(
+    await this.#encryptAndStoreSeedPhraseBackup({
+      keyringId,
       seedPhrase,
-      toprfEncryptionKey,
-      toprfAuthKeyPair,
-    );
+      encKey: toprfEncryptionKey,
+      authKeyPair: toprfAuthKeyPair,
+    });
   }
 
   /**
@@ -316,11 +346,7 @@ export class SeedlessOnboardingController extends BaseController<
         });
       }
 
-      return this.#withPersistedSeedPhraseBackupsState<Uint8Array[]>(() =>
-        Promise.resolve(
-          SeedPhraseMetadata.parseSeedPhraseFromMetadataStore(secretData),
-        ),
-      );
+      return SeedPhraseMetadata.parseSeedPhraseFromMetadataStore(secretData);
     } catch (error) {
       log('Error fetching seed phrase metadata', error);
       throw new Error(
@@ -360,6 +386,21 @@ export class SeedlessOnboardingController extends BaseController<
   }
 
   /**
+   * Update the backup metadata state for the given seed phrase.
+   *
+   * @param keyringId - The keyring id of the backup seed phrase.
+   * @param seedPhrase - The seed phrase to update the backup metadata for.
+   */
+  updateBackupMetadataState(keyringId: string, seedPhrase: Uint8Array) {
+    const newBackupMetadata = {
+      id: keyringId,
+      hash: keccak256AndHexify(seedPhrase),
+    };
+
+    this.#updateSocialBackupsMetadata(newBackupMetadata);
+  }
+
+  /**
    * Verify the password validity by decrypting the vault.
    *
    * @param password - The password to verify.
@@ -381,9 +422,13 @@ export class SeedlessOnboardingController extends BaseController<
    * @param seedPhrase - The seed phrase to get the hash of.
    * @returns A promise that resolves to the hash of the seed phrase backup.
    */
-  getSeedPhraseBackupHash(seedPhrase: Uint8Array): string | undefined {
+  getSeedPhraseBackupHash(
+    seedPhrase: Uint8Array,
+  ): SocialBackupsMetadata | undefined {
     const seedPhraseHash = keccak256AndHexify(seedPhrase);
-    return this.state.backupHashes.find((hash) => hash === seedPhraseHash);
+    return this.state.socialBackupsMetadata.find(
+      (backup) => backup.hash === seedPhraseHash,
+    );
   }
 
   /**
@@ -504,18 +549,23 @@ export class SeedlessOnboardingController extends BaseController<
   /**
    * Encrypt and store the seed phrase backup in the metadata store.
    *
-   * @param seedPhrase - The seed phrase to store.
-   * @param encKey - The encryption key to store.
-   * @param authKeyPair - The authentication key pair to store.
+   * @param params - The parameters for encrypting and storing the seed phrase backup.
+   * @param params.keyringId - The keyring id of the backup seed phrase.
+   * @param params.seedPhrase - The seed phrase to store.
+   * @param params.encKey - The encryption key to store.
+   * @param params.authKeyPair - The authentication key pair to store.
    *
    * @returns A promise that resolves to the success of the operation.
    */
-  async #encryptAndStoreSeedPhraseBackup(
-    seedPhrase: Uint8Array,
-    encKey: Uint8Array,
-    authKeyPair: KeyPair,
-  ): Promise<void> {
+  async #encryptAndStoreSeedPhraseBackup(params: {
+    keyringId: string;
+    seedPhrase: Uint8Array;
+    encKey: Uint8Array;
+    authKeyPair: KeyPair;
+  }): Promise<void> {
     try {
+      const { keyringId, seedPhrase, encKey, authKeyPair } = params;
+
       const seedPhraseMetadata = new SeedPhraseMetadata(seedPhrase);
       const secretData = seedPhraseMetadata.toBytes();
       await this.#withPersistedSeedPhraseBackupsState(async () => {
@@ -524,7 +574,10 @@ export class SeedlessOnboardingController extends BaseController<
           secretData,
           authKeyPair,
         });
-        return seedPhrase;
+        return {
+          id: keyringId,
+          seedPhrase,
+        };
       });
     } catch (error) {
       log('Error encrypting and storing seed phrase backup', error);
@@ -632,43 +685,50 @@ export class SeedlessOnboardingController extends BaseController<
    * This is a wrapper method that should be used around any operation that creates
    * or restores seed phrases to ensure their hashes are properly tracked.
    *
-   * @param createOrRestoreSeedPhraseBackupCallback - function that returns either a single seed phrase
+   * @param createSeedPhraseBackupCallback - function that returns either a single seed phrase
    * or an array of seed phrases as Uint8Array(s)
    * @returns The original seed phrase(s) returned by the callback
    * @throws Rethrows any errors from the callback with additional logging
    */
-  async #withPersistedSeedPhraseBackupsState<
-    Result extends Uint8Array | Uint8Array[],
-  >(
-    createOrRestoreSeedPhraseBackupCallback: () => Promise<Result>,
-  ): Promise<Result> {
+  async #withPersistedSeedPhraseBackupsState(
+    createSeedPhraseBackupCallback: () => Promise<{
+      id: string;
+      seedPhrase: Uint8Array;
+    }>,
+  ): Promise<{
+    id: string;
+    seedPhrase: Uint8Array;
+  }> {
     try {
-      const backedUpSeedPhrases =
-        await createOrRestoreSeedPhraseBackupCallback();
-      let backedUpHashB64Strings: string[] = [];
+      const backUps = await createSeedPhraseBackupCallback();
+      const newBackupMetadata = {
+        id: backUps.id,
+        hash: keccak256AndHexify(backUps.seedPhrase),
+      };
 
-      if (Array.isArray(backedUpSeedPhrases)) {
-        backedUpHashB64Strings = backedUpSeedPhrases.map((seedPhrase) =>
-          keccak256AndHexify(seedPhrase),
-        );
-      } else {
-        backedUpHashB64Strings = [keccak256AndHexify(backedUpSeedPhrases)];
-      }
+      this.#updateSocialBackupsMetadata(newBackupMetadata);
 
-      const existingBackedUpHashes = this.state.backupHashes;
-      const uniqueHashesSet = new Set([
-        ...existingBackedUpHashes,
-        ...backedUpHashB64Strings,
-      ]);
-
-      this.update((state) => {
-        state.backupHashes = Array.from(uniqueHashesSet);
-      });
-
-      return backedUpSeedPhrases;
+      return backUps;
     } catch (error) {
       log('Error persisting seed phrase backups', error);
       throw error;
+    }
+  }
+
+  #updateSocialBackupsMetadata(newSocialBackupMetadata: SocialBackupsMetadata) {
+    // filter out the backed up metadata that already exists in the state
+    // to prevent duplicates
+    const existingBackupsMetadata = this.state.socialBackupsMetadata.find(
+      (backup) => backup.id === newSocialBackupMetadata.id,
+    );
+
+    if (!existingBackupsMetadata) {
+      this.update((state) => {
+        state.socialBackupsMetadata = [
+          ...state.socialBackupsMetadata,
+          newSocialBackupMetadata,
+        ];
+      });
     }
   }
 
