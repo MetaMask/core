@@ -299,14 +299,6 @@ export type TransactionControllerOptions = {
   /** Whether to disable additional processing on swaps transactions. */
   disableSwaps: boolean;
 
-  /**
-   * Callback to determine whether gas fee updates should be enabled for a given transaction.
-   * Returns true to enable updates, false to disable them.
-   */
-  isAutomaticGasFeeUpdateEnabled?: (
-    transactionMeta: TransactionMeta,
-  ) => boolean;
-
   /** Whether or not the account supports EIP-1559. */
   getCurrentAccountEIP1559Compatibility?: () => Promise<boolean>;
 
@@ -341,6 +333,19 @@ export type TransactionControllerOptions = {
     /** API keys to be used for Etherscan requests to prevent rate limiting. */
     etherscanApiKeysByChainId?: Record<Hex, string>;
   };
+
+  /**
+   * Callback to determine whether gas fee updates should be enabled for a given transaction.
+   * Returns true to enable updates, false to disable them.
+   */
+  isAutomaticGasFeeUpdateEnabled?: (
+    transactionMeta: TransactionMeta,
+  ) => boolean;
+
+  /** Whether simulation should return EIP-7702 gas fee tokens. */
+  isEIP7702GasFeeTokensEnabled?: (
+    transactionMeta?: TransactionMeta,
+  ) => Promise<boolean>;
 
   /** Whether the first time interaction check is enabled. */
   isFirstTimeInteractionEnabled?: () => boolean;
@@ -722,6 +727,10 @@ export class TransactionController extends BaseController<
     transactionMeta: TransactionMeta,
   ) => boolean;
 
+  readonly #isEIP7702GasFeeTokensEnabled: (
+    transactionMeta: TransactionMeta,
+  ) => Promise<boolean>;
+
   readonly #isFirstTimeInteractionEnabled: () => boolean;
 
   readonly #isHistoryDisabled: boolean;
@@ -786,6 +795,7 @@ export class TransactionController extends BaseController<
       hooks,
       incomingTransactions = {},
       isAutomaticGasFeeUpdateEnabled,
+      isEIP7702GasFeeTokensEnabled,
       isFirstTimeInteractionEnabled,
       isSimulationEnabled,
       messenger,
@@ -833,6 +843,8 @@ export class TransactionController extends BaseController<
     this.#incomingTransactionOptions = incomingTransactions;
     this.#isAutomaticGasFeeUpdateEnabled =
       isAutomaticGasFeeUpdateEnabled ?? ((_txMeta: TransactionMeta) => false);
+    this.#isEIP7702GasFeeTokensEnabled =
+      isEIP7702GasFeeTokensEnabled ?? (() => Promise.resolve(false));
     this.#isFirstTimeInteractionEnabled =
       isFirstTimeInteractionEnabled ?? (() => true);
     this.#isHistoryDisabled = disableHistory ?? false;
@@ -3967,7 +3979,13 @@ export class TransactionController extends BaseController<
       simulationData: prevSimulationData,
     } = transactionMeta;
 
-    const { from, to, value, data } = txParams;
+    const {
+      authorizationList: authorizationListRaw,
+      from,
+      to,
+      value,
+      data,
+    } = txParams;
 
     let simulationData: SimulationData = {
       error: {
@@ -3986,20 +4004,30 @@ export class TransactionController extends BaseController<
         authorizationAddress &&
         ((DELEGATION_PREFIX + remove0x(authorizationAddress)) as Hex);
 
+      const use7702Fees =
+        await this.#isEIP7702GasFeeTokensEnabled(transactionMeta);
+
+      const authorizationList = authorizationListRaw?.map((authorization) => ({
+        address: authorization.address,
+        from: from as Hex,
+      }));
+
       const result = await this.#trace(
         { name: 'Simulate', parentContext: traceContext },
         () =>
           getSimulationData(
             {
+              authorizationList,
               chainId,
+              data: data as Hex,
               from: from as Hex,
               to: to as Hex,
               value: value as Hex,
-              data: data as Hex,
             },
             {
               blockTime,
               senderCode,
+              use7702Fees,
             },
           ),
       );

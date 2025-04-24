@@ -2197,6 +2197,8 @@ describe('TransactionController', () => {
           },
           {
             blockTime: undefined,
+            senderCode: undefined,
+            use7702Fees: false,
           },
         );
 
@@ -2277,9 +2279,12 @@ describe('TransactionController', () => {
 
         await flushPromises();
 
-        expect(getSimulationDataMock).toHaveBeenCalledWith(expect.any(Object), {
-          senderCode: DELEGATION_PREFIX + ACCOUNT_2_MOCK.slice(2),
-        });
+        expect(getSimulationDataMock).toHaveBeenCalledWith(
+          expect.any(Object),
+          expect.objectContaining({
+            senderCode: DELEGATION_PREFIX + ACCOUNT_2_MOCK.slice(2),
+          }),
+        );
       });
     });
 
@@ -6857,6 +6862,8 @@ describe('TransactionController', () => {
         },
         {
           blockTime: 123,
+          senderCode: undefined,
+          use7702Fees: false,
         },
       );
     });
@@ -6896,6 +6903,8 @@ describe('TransactionController', () => {
         },
         {
           blockTime: 123,
+          senderCode: undefined,
+          use7702Fees: false,
         },
       );
     });

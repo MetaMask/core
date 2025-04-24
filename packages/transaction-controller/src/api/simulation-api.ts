@@ -12,6 +12,14 @@ const ENDPOINT_NETWORKS = 'networks';
 
 /** Single transaction to simulate in a simulation API request.  */
 export type SimulationRequestTransaction = {
+  authorizationList?: {
+    /** Address of a smart contract that contains the code to be set. */
+    address: Hex;
+
+    /** Address of the account being upgraded. */
+    from: Hex;
+  }[];
+
   /** Data to send with the transaction. */
   data?: Hex;
 
@@ -65,11 +73,14 @@ export type SimulationRequest = {
    * Whether to include available token fees.
    */
   suggestFees?: {
-    /* Whether to include the native transfer if available. */
-    withTransfer?: boolean;
+    /* Whether to estimate gas for the transaction being submitted via a delegation. */
+    with7702?: boolean;
 
     /* Whether to include the gas fee of the token transfer. */
     withFeeTransfer?: boolean;
+
+    /* Whether to include the native transfer if available. */
+    withTransfer?: boolean;
   };
 
   /**
