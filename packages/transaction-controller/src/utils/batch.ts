@@ -242,32 +242,42 @@ export async function isAtomicBatchSupported(
     (chainId) => !chainIds || chainIds.includes(chainId),
   );
 
-  const results: IsAtomicBatchSupportedResultEntry[] = await Promise.all(
-    filteredChainIds.map(async (chainId) => {
-      const ethQuery = getEthQuery(chainId);
+  const resultsRaw: (IsAtomicBatchSupportedResultEntry | undefined)[] =
+    await Promise.all(
+      filteredChainIds.map(async (chainId) => {
+        try {
+          const ethQuery = getEthQuery(chainId);
 
-      const { isSupported, delegationAddress } =
-        await isAccountUpgradedToEIP7702(
-          address,
-          chainId,
-          publicKey,
-          messenger,
-          ethQuery,
-        );
+          const { isSupported, delegationAddress } =
+            await isAccountUpgradedToEIP7702(
+              address,
+              chainId,
+              publicKey,
+              messenger,
+              ethQuery,
+            );
 
-      const upgradeContractAddress = getEIP7702UpgradeContractAddress(
-        chainId,
-        messenger,
-        publicKey,
-      );
+          const upgradeContractAddress = getEIP7702UpgradeContractAddress(
+            chainId,
+            messenger,
+            publicKey,
+          );
 
-      return {
-        chainId,
-        delegationAddress,
-        isSupported,
-        upgradeContractAddress,
-      };
-    }),
+          return {
+            chainId,
+            delegationAddress,
+            isSupported,
+            upgradeContractAddress,
+          };
+        } catch (error) {
+          log('Error checking atomic batch support', chainId, error);
+          return undefined;
+        }
+      }),
+    );
+
+  const results = resultsRaw.filter(
+    (result): result is IsAtomicBatchSupportedResultEntry => Boolean(result),
   );
 
   log('Atomic batch supported results', results);
