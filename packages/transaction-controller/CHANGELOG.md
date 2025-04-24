@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: remove private syntax in transaction controller ([#5703](https://github.com/MetaMask/core/pull/5703))
+
 ### Added
 
 - Add optional `afterAdd` hook to constructor ([#5692](https://github.com/MetaMask/core/pull/5692))
