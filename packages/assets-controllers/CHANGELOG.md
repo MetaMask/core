@@ -17,10 +17,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Refactor `TokenRatesController` to support processing multiple chains simultaneously ([#5645](https://github.com/MetaMask/core/pull/5645))
   - The controller now accepts an array of chain IDs instead of a single value, streamlining the polling process by iterating over all chains in one loop
+- Refactor `AccountTrackerController` to support processing multiple chains simultaneously ([#5680](https://github.com/MetaMask/core/pull/5680))
+  - The controller now accepts an array of chain IDs instead of a single value, streamlining the polling process by iterating over all chains in one loop
 
 ### Removed
 
 - **BREAKING:** Eliminate legacy network dependency handling in `TokenRatesController` ([#5645](https://github.com/MetaMask/core/pull/5645))
+  - We're no longer relying on the currently selected network.
+- **BREAKING:** Eliminate legacy network dependency handling in `AccountTrackerController` ([#5680](https://github.com/MetaMask/core/pull/5680))
   - We're no longer relying on the currently selected network.
 
 ## [58.0.0]
