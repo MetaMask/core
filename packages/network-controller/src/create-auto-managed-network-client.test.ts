@@ -162,11 +162,16 @@ describe('createAutoManagedNetworkClient', () => {
             maxConsecutiveFailures: 10,
           },
         });
+        const getBlockTrackerOptions = () => ({
+          pollingInterval: 5000,
+        });
+        const messenger = getNetworkControllerMessenger();
 
         const { provider } = createAutoManagedNetworkClient({
           networkClientConfiguration,
           getRpcServiceOptions,
-          messenger: getNetworkControllerMessenger(),
+          getBlockTrackerOptions,
+          messenger,
         });
 
         await provider.request({
@@ -182,11 +187,12 @@ describe('createAutoManagedNetworkClient', () => {
           params: [],
         });
         expect(createNetworkClientMock).toHaveBeenCalledTimes(1);
-        expect(createNetworkClientMock).toHaveBeenCalledWith(
-          expect.objectContaining({
-            configuration: networkClientConfiguration,
-          }),
-        );
+        expect(createNetworkClientMock).toHaveBeenCalledWith({
+          configuration: networkClientConfiguration,
+          getRpcServiceOptions,
+          getBlockTrackerOptions,
+          messenger,
+        });
       });
 
       it('returns a block tracker proxy that has the same interface as a block tracker', () => {
@@ -319,11 +325,16 @@ describe('createAutoManagedNetworkClient', () => {
             maxConsecutiveFailures: 10,
           },
         });
+        const getBlockTrackerOptions = () => ({
+          pollingInterval: 5000,
+        });
+        const messenger = getNetworkControllerMessenger();
 
         const { blockTracker } = createAutoManagedNetworkClient({
           networkClientConfiguration,
           getRpcServiceOptions,
-          messenger: getNetworkControllerMessenger(),
+          getBlockTrackerOptions,
+          messenger,
         });
 
         await new Promise((resolve) => {
@@ -335,11 +346,12 @@ describe('createAutoManagedNetworkClient', () => {
         await blockTracker.getLatestBlock();
         await blockTracker.checkForLatestBlock();
         expect(createNetworkClientMock).toHaveBeenCalledTimes(1);
-        expect(createNetworkClientMock).toHaveBeenCalledWith(
-          expect.objectContaining({
-            configuration: networkClientConfiguration,
-          }),
-        );
+        expect(createNetworkClientMock).toHaveBeenCalledWith({
+          configuration: networkClientConfiguration,
+          getRpcServiceOptions,
+          getBlockTrackerOptions,
+          messenger,
+        });
       });
 
       it('allows the block tracker to be destroyed', () => {
