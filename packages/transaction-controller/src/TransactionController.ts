@@ -110,6 +110,7 @@ import type {
   GasFeeToken,
   IsAtomicBatchSupportedResult,
   IsAtomicBatchSupportedRequest,
+  AfterAddHook,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -377,6 +378,9 @@ export type TransactionControllerOptions = {
 
   /** The controller hooks. */
   hooks: {
+    /** Additional logic to execute after adding a transaction. */
+    afterAdd?: AfterAddHook;
+
     /** Additional logic to execute after signing a transaction. Return false to not change the status to signed. */
     afterSign?: (
       transactionMeta: TransactionMeta,
@@ -662,6 +666,8 @@ export class TransactionController extends BaseController<
   TransactionControllerState,
   TransactionControllerMessenger
 > {
+  readonly #afterAdd: AfterAddHook;
+
   readonly #internalEvents = new EventEmitter();
 
   private readonly isHistoryDisabled: boolean;
@@ -891,6 +897,7 @@ export class TransactionController extends BaseController<
     this.#testGasFeeFlows = testGasFeeFlows === true;
     this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
 
+    this.#afterAdd = hooks?.afterAdd ?? (() => Promise.resolve({}));
     this.afterSign = hooks?.afterSign ?? (() => true);
     this.beforeCheckPendingTransaction =
       /* istanbul ignore next */
@@ -1246,6 +1253,20 @@ export class TransactionController extends BaseController<
           userEditedGasLimit: false,
           verifiedOnBlockchain: false,
         };
+
+    const { updateTransaction } = await this.#afterAdd({
+      transactionMeta: addedTransactionMeta,
+    });
+
+    if (updateTransaction) {
+      log('Updating transaction using afterAdd hook');
+
+      addedTransactionMeta.txParamsOriginal = cloneDeep(
+        addedTransactionMeta.txParams,
+      );
+
+      updateTransaction(addedTransactionMeta);
+    }
 
     await this.#trace(
       { name: 'Estimate Gas Properties', parentContext: traceContext },

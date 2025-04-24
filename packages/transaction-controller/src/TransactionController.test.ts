@@ -2072,6 +2072,98 @@ describe('TransactionController', () => {
       );
     });
 
+    describe('with afterAdd hook', () => {
+      it('calls afterAdd hook', async () => {
+        const afterAddHook = jest.fn().mockResolvedValueOnce({});
+
+        const { controller } = setupController({
+          options: {
+            hooks: {
+              afterAdd: afterAddHook,
+            },
+          },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        expect(afterAddHook).toHaveBeenCalledTimes(1);
+      });
+
+      it('updates transaction if update callback returned', async () => {
+        const updateTransactionMock = jest.fn();
+
+        const afterAddHook = jest
+          .fn()
+          .mockResolvedValueOnce({ updateTransaction: updateTransactionMock });
+
+        const { controller } = setupController({
+          options: {
+            hooks: {
+              afterAdd: afterAddHook,
+            },
+          },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        expect(updateTransactionMock).toHaveBeenCalledTimes(1);
+        expect(updateTransactionMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            id: expect.any(String),
+          }),
+        );
+      });
+
+      it('saves original transaction params if update callback returned', async () => {
+        const updateTransactionMock = jest.fn();
+
+        const afterAddHook = jest
+          .fn()
+          .mockResolvedValueOnce({ updateTransaction: updateTransactionMock });
+
+        const { controller } = setupController({
+          options: {
+            hooks: {
+              afterAdd: afterAddHook,
+            },
+          },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        expect(controller.state.transactions[0].txParamsOriginal).toStrictEqual(
+          expect.objectContaining({
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          }),
+        );
+      });
+    });
+
     describe('updates simulation data', () => {
       it('by default', async () => {
         getSimulationDataMock.mockResolvedValueOnce(

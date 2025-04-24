@@ -28,7 +28,7 @@ describe('Bridge Selectors', () => {
         },
       },
       currencyRates: {
-        eth: {
+        ETH: {
           conversionRate: 1800,
           usdConversionRate: 1800,
         },
@@ -128,10 +128,31 @@ describe('Bridge Selectors', () => {
       conversionRates: {},
     } as unknown as BridgeAppState;
 
-    it('should return true if exchange rate exists', () => {
+    it('should return true if exchange rate exists for both currency and USD', () => {
+      expect(
+        selectIsAssetExchangeRateInState(
+          {
+            ...mockExchangeRateSources,
+            assetExchangeRates: {
+              ...mockExchangeRateSources.assetExchangeRates,
+              'eip155:1/erc20:0x123': {
+                ...mockExchangeRateSources.assetExchangeRates[
+                  'eip155:1/erc20:0x123'
+                ],
+                usdExchangeRate: '1.5',
+              },
+            },
+          },
+          '1',
+          '0x123',
+        ),
+      ).toBe(true);
+    });
+
+    it('should return false if USD exchange rate does not exist', () => {
       expect(
         selectIsAssetExchangeRateInState(mockExchangeRateSources, '1', '0x123'),
-      ).toBe(true);
+      ).toBe(false);
     });
 
     it('should return false if exchange rate does not exist', () => {
@@ -336,7 +357,7 @@ describe('Bridge Selectors', () => {
       },
       assetExchangeRates: {},
       currencyRates: {
-        eth: {
+        ETH: {
           conversionRate: 1800,
           usdConversionRate: 1800,
         },

@@ -31,6 +31,7 @@ export {
   TransactionController,
 } from './TransactionController';
 export type {
+  AfterAddHook,
   Authorization,
   AuthorizationList,
   BatchTransactionParams,

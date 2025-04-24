@@ -2689,7 +2689,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/bridge-controller@npm:^16.0.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
+"@metamask/bridge-controller@npm:^17.0.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-controller@workspace:packages/bridge-controller"
   dependencies:
@@ -2743,7 +2743,7 @@ __metadata:
     "@metamask/assets-controllers": "npm:^58.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.0"
-    "@metamask/bridge-controller": "npm:^16.0.0"
+    "@metamask/bridge-controller": "npm:^17.0.0"
     "@metamask/controller-utils": "npm:^11.7.0"
     "@metamask/gas-fee-controller": "npm:^23.0.0"
     "@metamask/keyring-api": "npm:^17.4.0"
@@ -2769,7 +2769,7 @@ __metadata:
   peerDependencies:
     "@metamask/accounts-controller": ^27.0.0
     "@metamask/assets-controllers": ^58.0.0
-    "@metamask/bridge-controller": ^16.0.0
+    "@metamask/bridge-controller": ^17.0.0
     "@metamask/gas-fee-controller": ^23.0.0
     "@metamask/network-controller": ^23.0.0
     "@metamask/snaps-controllers": ^11.0.0
@@ -2810,6 +2810,7 @@ __metadata:
     "@metamask/api-specs": "npm:^0.10.12"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/controller-utils": "npm:^11.7.0"
+    "@metamask/keyring-internal-api": "npm:^6.0.1"
     "@metamask/network-controller": "npm:^23.2.0"
     "@metamask/permission-controller": "npm:^11.0.6"
     "@metamask/rpc-errors": "npm:^7.0.2"

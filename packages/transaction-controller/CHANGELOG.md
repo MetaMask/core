@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `afterAdd` hook to constructor ([#5692](https://github.com/MetaMask/core/pull/5692))
+  - Add optional `txParamsOriginal` property to `TransactionMeta`.
+  - Add `AfterAddHook` type.
+
+### Fixed
+
+- Handle errors in `isAtomicBatchSupported` method ([#5704](https://github.com/MetaMask/core/pull/5704))
+
 ## [54.1.0]
 
 ### Changed
