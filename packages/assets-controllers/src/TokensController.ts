@@ -168,8 +168,6 @@ export class TokensController extends BaseController<
 > {
   readonly #mutex = new Mutex();
 
-  // #chainId: Hex;
-
   #selectedAccountId: string;
 
   #provider: Provider;
@@ -203,8 +201,6 @@ export class TokensController extends BaseController<
         ...state,
       },
     });
-
-    // this.#chainId = initialChainId;
 
     this.#provider = provider;
 

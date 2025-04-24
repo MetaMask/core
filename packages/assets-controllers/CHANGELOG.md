@@ -18,9 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Refactor `TokenRatesController` to support processing multiple chains simultaneously ([#5645](https://github.com/MetaMask/core/pull/5645))
-  - The controller now accepts an array of chain IDs instead of a single value, streamlining the polling process by iterating over all chains in one loop
+  - The controller now accepts an array of chain IDs instead of a single value, streamlining the polling process by iterating over all chains in one loop.
 - Refactor `AccountTrackerController` to support processing multiple chains simultaneously ([#5680](https://github.com/MetaMask/core/pull/5680))
-  - The controller now accepts an array of chain IDs instead of a single value, streamlining the polling process by iterating over all chains in one loop
+  - The controller now accepts an array of chain IDs instead of a single value, streamlining the polling process by iterating over all chains in one loop.
+- **BREAKING:** Refactor `TokensController` to remove reliance on a single selected network ([#5659](https://github.com/MetaMask/core/pull/5659))
+  - `TokensController` methods now require `networkClientId` as an explicit parameter.
+  - Token management logic is fully parameterized by `chainId`, allowing multi-chain token handling and improving reliability across network changes.
+  - Internal state updates and token metadata fetching are scoped to the corresponding `chainId`.
 
 ### Removed
 
@@ -28,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - We're no longer relying on the currently selected network.
 - **BREAKING:** Eliminate legacy network dependency handling in `AccountTrackerController` ([#5680](https://github.com/MetaMask/core/pull/5680))
   - We're no longer relying on the currently selected network.
+- **BREAKING:** Remove deprecated `chainId` instance property from `TokensController` ([#5659](https://github.com/MetaMask/core/pull/5659))
+  - All chain context is now derived from `networkClientId` at the method level.
 
 ## [58.0.0]
 
