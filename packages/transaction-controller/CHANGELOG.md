@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Remove validation of `from` if `origin` is internal ([#5707](https://github.com/MetaMask/core/pull/5707))
+
 ## [54.2.0]
 
 ### Added
