@@ -30,6 +30,7 @@ import type {
   AssetsContractController,
   StakedBalance,
 } from './AssetsContractController';
+import { reduceInBatchesSerially, TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 
 /**
  * The name of the {@link AccountTrackerController}.
@@ -342,39 +343,51 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
         const accountsForChain = { ...accountsByChainId[chainId] };
 
-        // Create an array of promises for balance and staked balance fetching
-        const balancePromises = accountsToUpdate.map(async (address) => {
-          const balancePromise = this.#getBalanceFromChain(address, ethQuery);
-          const stakedBalancePromise = this.#includeStakedAssets
-            ? this.#getStakedBalanceForChain(address, networkClientId)
-            : Promise.resolve(null);
+        // Process accounts in batches using reduceInBatchesSerially
+        await reduceInBatchesSerially<string, void>({
+          values: accountsToUpdate,
+          batchSize: TOKEN_PRICES_BATCH_SIZE,
+          initialResult: undefined,
+          eachBatch: async (workingResult: void, batch: string[]) => {
+            const balancePromises = batch.map(async (address: string) => {
+              const balancePromise = this.#getBalanceFromChain(
+                address,
+                ethQuery,
+              );
+              const stakedBalancePromise = this.#includeStakedAssets
+                ? this.#getStakedBalanceForChain(address, networkClientId)
+                : Promise.resolve(null);
 
-          const [balanceResult, stakedBalanceResult] = await Promise.allSettled(
-            [balancePromise, stakedBalancePromise],
-          );
+              const [balanceResult, stakedBalanceResult] =
+                await Promise.allSettled([
+                  balancePromise,
+                  stakedBalancePromise,
+                ]);
 
-          // Update account balances
-          if (balanceResult.status === 'fulfilled' && balanceResult.value) {
-            accountsForChain[address] = {
-              balance: balanceResult.value,
-            };
-          }
+              // Update account balances
+              if (balanceResult.status === 'fulfilled' && balanceResult.value) {
+                accountsForChain[address] = {
+                  balance: balanceResult.value,
+                };
+              }
 
-          if (
-            stakedBalanceResult.status === 'fulfilled' &&
-            stakedBalanceResult.value
-          ) {
-            accountsForChain[address] = {
-              ...accountsForChain[address],
-              stakedBalance: stakedBalanceResult.value,
-            };
-          }
+              if (
+                stakedBalanceResult.status === 'fulfilled' &&
+                stakedBalanceResult.value
+              ) {
+                accountsForChain[address] = {
+                  ...accountsForChain[address],
+                  stakedBalance: stakedBalanceResult.value,
+                };
+              }
+            });
+
+            await Promise.allSettled(balancePromises);
+            return workingResult;
+          },
         });
 
-        // Wait for all balance-related promises to settle
-        await Promise.allSettled(balancePromises);
-
-        // After all promises for this networkClientId are settled, return the updated data
+        // After all batches are processed, return the updated data
         return { chainId, accountsForChain };
       });
 
