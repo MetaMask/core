@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add optional `txParamsOriginal` property to `TransactionMeta`.
   - Add `AfterAddHook` type.
 
+### Fixed
+
+- Handle errors in `isAtomicBatchSupported` method ([#5704](https://github.com/MetaMask/core/pull/5704))
+
 ## [54.1.0]
 
 ### Changed
