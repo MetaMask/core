@@ -549,6 +549,7 @@ describe('TransactionController', () => {
   let methodDataHelperMock: jest.Mocked<MethodDataHelper>;
   let timeCounter = 0;
   let signMock: jest.Mock;
+  let isEIP7702GasFeeTokensEnabledMock: jest.Mock;
 
   const incomingTransactionHelperClassMock =
     IncomingTransactionHelper as jest.MockedClass<
@@ -672,6 +673,7 @@ describe('TransactionController', () => {
         mockNetworkClientConfigurationsByNetworkClientId as any,
       getPermittedAccounts: async () => [ACCOUNT_MOCK],
       hooks: {},
+      isEIP7702GasFeeTokensEnabled: isEIP7702GasFeeTokensEnabledMock,
       sign: signMock,
       transactionHistoryLimit: 40,
       ...givenOptions,
@@ -970,6 +972,7 @@ describe('TransactionController', () => {
     });
 
     signMock = jest.fn().mockImplementation(async (transaction) => transaction);
+    isEIP7702GasFeeTokensEnabledMock = jest.fn().mockResolvedValue(false);
   });
 
   describe('constructor', () => {
@@ -2284,6 +2287,77 @@ describe('TransactionController', () => {
           expect.objectContaining({
             senderCode: DELEGATION_PREFIX + ACCOUNT_2_MOCK.slice(2),
           }),
+        );
+      });
+
+      it('with use7702Fees if isEIP7702GasFeeTokensEnabled returns true', async () => {
+        getSimulationDataMock.mockResolvedValueOnce(
+          SIMULATION_DATA_RESULT_MOCK,
+        );
+
+        isEIP7702GasFeeTokensEnabledMock.mockResolvedValueOnce(true);
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(getSimulationDataMock).toHaveBeenCalledWith(
+          expect.any(Object),
+          expect.objectContaining({
+            use7702Fees: true,
+          }),
+        );
+      });
+
+      it('with authorizationList', async () => {
+        getSimulationDataMock.mockResolvedValueOnce(
+          SIMULATION_DATA_RESULT_MOCK,
+        );
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+            authorizationList: [
+              {
+                address: ACCOUNT_2_MOCK,
+                chainId: CHAIN_ID_MOCK,
+                nonce: toHex(NONCE_MOCK),
+                r: '0x1',
+                s: '0x2',
+                yParity: '0x1',
+              },
+            ],
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(getSimulationDataMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            authorizationList: [
+              {
+                address: ACCOUNT_2_MOCK,
+                from: ACCOUNT_MOCK,
+              },
+            ],
+          }),
+          expect.any(Object),
         );
       });
     });
