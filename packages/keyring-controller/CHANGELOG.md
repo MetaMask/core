@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Ensure no duplicate accounts are peristed ([#5710](https://github.com/MetaMask/core/pull/5710))
+- Ensure no duplicate accounts are persisted ([#5710](https://github.com/MetaMask/core/pull/5710))
 
 ## [21.0.3]
 
