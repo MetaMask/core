@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [54.2.0]
+
 ### Added
 
 - Add optional `afterAdd` hook to constructor ([#5692](https://github.com/MetaMask/core/pull/5692))
@@ -1530,7 +1532,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@54.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@54.2.0...HEAD
+[54.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@54.1.0...@metamask/transaction-controller@54.2.0
 [54.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@54.0.0...@metamask/transaction-controller@54.1.0
 [54.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@53.0.0...@metamask/transaction-controller@54.0.0
 [53.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@52.3.0...@metamask/transaction-controller@53.0.0
