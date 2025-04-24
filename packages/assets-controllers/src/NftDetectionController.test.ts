@@ -13,6 +13,7 @@ import type {
   NetworkClient,
   NetworkClientConfiguration,
   NetworkClientId,
+  NetworkController,
   NetworkState,
 } from '@metamask/network-controller';
 import {
@@ -26,7 +27,10 @@ import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { FakeProvider } from '../../../tests/fake-provider';
 import { advanceTime } from '../../../tests/helpers';
 import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
-import { buildMockGetNetworkClientById } from '../../network-controller/tests/helpers';
+import {
+  buildMockGetNetworkClientByChainId,
+  buildMockGetNetworkClientById,
+} from '../../network-controller/tests/helpers';
 import { Source } from './constants';
 import { getDefaultNftControllerState } from './NftController';
 import {
@@ -551,6 +555,7 @@ describe('NftDetectionController', () => {
         expect(mockAddNft).toHaveBeenCalledWith(
           '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
           '2574',
+          'mainnet',
           {
             nftMetadata: {
               description: 'Description 2574',
@@ -562,7 +567,6 @@ describe('NftDetectionController', () => {
             },
             userAddress: selectedAccount.address,
             source: Source.Detected,
-            chainId: '0x1',
           },
         );
       },
@@ -608,6 +612,7 @@ describe('NftDetectionController', () => {
           1,
           '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1e5',
           '2',
+          'linea-mainnet',
           {
             nftMetadata: {
               description: 'Description 2',
@@ -619,13 +624,13 @@ describe('NftDetectionController', () => {
             },
             userAddress: selectedAccount.address,
             source: Source.Detected,
-            chainId: '0xe708',
           },
         );
         expect(mockAddNft).toHaveBeenNthCalledWith(
           2,
           '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
           '2574',
+          'mainnet',
           {
             nftMetadata: {
               description: 'Description 2574',
@@ -637,7 +642,6 @@ describe('NftDetectionController', () => {
             },
             userAddress: selectedAccount.address,
             source: Source.Detected,
-            chainId: '0x1',
           },
         );
       },
@@ -732,6 +736,7 @@ describe('NftDetectionController', () => {
             1,
             '0xtestCollection1',
             '1',
+            'mainnet',
             {
               nftMetadata: {
                 description: 'Description 1',
@@ -746,13 +751,13 @@ describe('NftDetectionController', () => {
               },
               userAddress: selectedAccount.address,
               source: Source.Detected,
-              chainId: '0x1',
             },
           );
           expect(mockAddNft).toHaveBeenNthCalledWith(
             2,
             '0xtestCollection1',
             '2',
+            'mainnet',
             {
               nftMetadata: {
                 description: 'Description 2',
@@ -767,7 +772,6 @@ describe('NftDetectionController', () => {
               },
               userAddress: selectedAccount.address,
               source: Source.Detected,
-              chainId: '0x1',
             },
           );
         },
@@ -805,38 +809,48 @@ describe('NftDetectionController', () => {
           await controller.detectNfts(['0x1']);
 
           // Expect to be called twice
-          expect(mockAddNft).toHaveBeenNthCalledWith(1, '0xtest1', '2574', {
-            nftMetadata: {
-              description: 'Description 2574',
-              image: 'image/2574.png',
-              name: 'ID 2574',
-              standard: 'ERC721',
-              imageOriginal: 'imageOriginal/2574.png',
-              collection: {
-                id: '0xtest1',
+          expect(mockAddNft).toHaveBeenNthCalledWith(
+            1,
+            '0xtest1',
+            '2574',
+            'mainnet',
+            {
+              nftMetadata: {
+                description: 'Description 2574',
+                image: 'image/2574.png',
+                name: 'ID 2574',
+                standard: 'ERC721',
+                imageOriginal: 'imageOriginal/2574.png',
+                collection: {
+                  id: '0xtest1',
+                },
+                chainId: 1,
               },
-              chainId: 1,
+              userAddress: selectedAccount.address,
+              source: Source.Detected,
             },
-            userAddress: selectedAccount.address,
-            source: Source.Detected,
-            chainId: '0x1',
-          });
-          expect(mockAddNft).toHaveBeenNthCalledWith(2, '0xtest2', '2575', {
-            nftMetadata: {
-              description: 'Description 2575',
-              image: 'image/2575.png',
-              name: 'ID 2575',
-              standard: 'ERC721',
-              imageOriginal: 'imageOriginal/2575.png',
-              collection: {
-                id: '0xtest2',
+          );
+          expect(mockAddNft).toHaveBeenNthCalledWith(
+            2,
+            '0xtest2',
+            '2575',
+            'mainnet',
+            {
+              nftMetadata: {
+                description: 'Description 2575',
+                image: 'image/2575.png',
+                name: 'ID 2575',
+                standard: 'ERC721',
+                imageOriginal: 'imageOriginal/2575.png',
+                collection: {
+                  id: '0xtest2',
+                },
+                chainId: 1,
               },
-              chainId: 1,
+              userAddress: selectedAccount.address,
+              source: Source.Detected,
             },
-            userAddress: selectedAccount.address,
-            source: Source.Detected,
-            chainId: '0x1',
-          });
+          );
         },
       );
     });
@@ -916,49 +930,59 @@ describe('NftDetectionController', () => {
           await controller.detectNfts(['0x1']);
 
           // Expect to be called twice
-          expect(mockAddNft).toHaveBeenNthCalledWith(1, '0xtest1', '2574', {
-            nftMetadata: {
-              description: 'Description 2574',
-              image: 'image/2574.png',
-              name: 'ID 2574',
-              standard: 'ERC721',
-              imageOriginal: 'imageOriginal/2574.png',
-              collection: {
-                id: '0xtest1',
-                contractDeployedAt: undefined,
-                creator: '0xcreator1',
-                openseaVerificationStatus: 'verified',
-                ownerCount: undefined,
-                tokenCount: undefined,
-                topBid: testTopBid,
+          expect(mockAddNft).toHaveBeenNthCalledWith(
+            1,
+            '0xtest1',
+            '2574',
+            'mainnet',
+            {
+              nftMetadata: {
+                description: 'Description 2574',
+                image: 'image/2574.png',
+                name: 'ID 2574',
+                standard: 'ERC721',
+                imageOriginal: 'imageOriginal/2574.png',
+                collection: {
+                  id: '0xtest1',
+                  contractDeployedAt: undefined,
+                  creator: '0xcreator1',
+                  openseaVerificationStatus: 'verified',
+                  ownerCount: undefined,
+                  tokenCount: undefined,
+                  topBid: testTopBid,
+                },
+                chainId: 1,
               },
-              chainId: 1,
+              userAddress: selectedAccount.address,
+              source: Source.Detected,
             },
-            userAddress: selectedAccount.address,
-            source: Source.Detected,
-            chainId: '0x1',
-          });
-          expect(mockAddNft).toHaveBeenNthCalledWith(2, '0xtest2', '2575', {
-            nftMetadata: {
-              description: 'Description 2575',
-              image: 'image/2575.png',
-              name: 'ID 2575',
-              standard: 'ERC721',
-              imageOriginal: 'imageOriginal/2575.png',
-              collection: {
-                id: '0xtest2',
-                contractDeployedAt: undefined,
-                creator: '0xcreator2',
-                openseaVerificationStatus: 'verified',
-                ownerCount: undefined,
-                tokenCount: undefined,
+          );
+          expect(mockAddNft).toHaveBeenNthCalledWith(
+            2,
+            '0xtest2',
+            '2575',
+            'mainnet',
+            {
+              nftMetadata: {
+                description: 'Description 2575',
+                image: 'image/2575.png',
+                name: 'ID 2575',
+                standard: 'ERC721',
+                imageOriginal: 'imageOriginal/2575.png',
+                collection: {
+                  id: '0xtest2',
+                  contractDeployedAt: undefined,
+                  creator: '0xcreator2',
+                  openseaVerificationStatus: 'verified',
+                  ownerCount: undefined,
+                  tokenCount: undefined,
+                },
+                chainId: 1,
               },
-              chainId: 1,
+              userAddress: selectedAccount.address,
+              source: Source.Detected,
             },
-            userAddress: selectedAccount.address,
-            source: Source.Detected,
-            chainId: '0x1',
-          });
+          );
         },
       );
     });
@@ -1017,6 +1041,7 @@ describe('NftDetectionController', () => {
             1,
             '0xtestCollection1',
             '1',
+            'mainnet',
             {
               nftMetadata: {
                 description: 'Description 1',
@@ -1036,13 +1061,13 @@ describe('NftDetectionController', () => {
               },
               userAddress: selectedAccount.address,
               source: Source.Detected,
-              chainId: '0x1',
             },
           );
           expect(mockAddNft).toHaveBeenNthCalledWith(
             2,
             '0xtestCollection2',
             '2',
+            'mainnet',
             {
               nftMetadata: {
                 description: 'Description 2',
@@ -1062,7 +1087,6 @@ describe('NftDetectionController', () => {
               },
               userAddress: selectedAccount.address,
               source: Source.Detected,
-              chainId: '0x1',
             },
           );
         },
@@ -1170,6 +1194,7 @@ describe('NftDetectionController', () => {
             1,
             '0xtestCollection1',
             '1',
+            'mainnet',
             {
               nftMetadata: {
                 description: 'Description 1',
@@ -1189,13 +1214,13 @@ describe('NftDetectionController', () => {
               },
               userAddress: selectedAccount.address,
               source: Source.Detected,
-              chainId: '0x1',
             },
           );
           expect(mockAddNft).toHaveBeenNthCalledWith(
             2,
             '0xtestCollection1',
             '2',
+            'mainnet',
             {
               nftMetadata: {
                 description: 'Description 2',
@@ -1215,7 +1240,6 @@ describe('NftDetectionController', () => {
               },
               userAddress: selectedAccount.address,
               source: Source.Detected,
-              chainId: '0x1',
             },
           );
         },
@@ -1297,6 +1321,7 @@ describe('NftDetectionController', () => {
             1,
             '0xtestCollection1',
             '1',
+            'mainnet',
             {
               nftMetadata: {
                 chainId: 1,
@@ -1315,7 +1340,6 @@ describe('NftDetectionController', () => {
               },
               userAddress: selectedAccount.address,
               source: Source.Detected,
-              chainId: '0x1',
             },
           );
         },
@@ -1372,43 +1396,53 @@ describe('NftDetectionController', () => {
           await controller.detectNfts(['0x1']);
 
           // Expect to be called twice
-          expect(mockAddNft).toHaveBeenNthCalledWith(1, '0xtest1', '2574', {
-            nftMetadata: {
-              description: 'Description 2574',
-              image: 'image/2574.png',
-              name: 'ID 2574',
-              standard: 'ERC721',
-              imageOriginal: 'imageOriginal/2574.png',
-              collection: {
-                id: '0xtest1',
-                contractDeployedAt: undefined,
-                creator: '0xcreator1',
-                openseaVerificationStatus: 'verified',
-                ownerCount: undefined,
-                tokenCount: undefined,
+          expect(mockAddNft).toHaveBeenNthCalledWith(
+            1,
+            '0xtest1',
+            '2574',
+            'mainnet',
+            {
+              nftMetadata: {
+                description: 'Description 2574',
+                image: 'image/2574.png',
+                name: 'ID 2574',
+                standard: 'ERC721',
+                imageOriginal: 'imageOriginal/2574.png',
+                collection: {
+                  id: '0xtest1',
+                  contractDeployedAt: undefined,
+                  creator: '0xcreator1',
+                  openseaVerificationStatus: 'verified',
+                  ownerCount: undefined,
+                  tokenCount: undefined,
+                },
+                chainId: 1,
               },
-              chainId: 1,
+              userAddress: selectedAccount.address,
+              source: Source.Detected,
             },
-            userAddress: selectedAccount.address,
-            source: Source.Detected,
-            chainId: '0x1',
-          });
-          expect(mockAddNft).toHaveBeenNthCalledWith(2, '0xtest2', '2575', {
-            nftMetadata: {
-              description: 'Description 2575',
-              image: 'image/2575.png',
-              name: 'ID 2575',
-              standard: 'ERC721',
-              imageOriginal: 'imageOriginal/2575.png',
-              collection: {
-                id: '0xtest2',
+          );
+          expect(mockAddNft).toHaveBeenNthCalledWith(
+            2,
+            '0xtest2',
+            '2575',
+            'mainnet',
+            {
+              nftMetadata: {
+                description: 'Description 2575',
+                image: 'image/2575.png',
+                name: 'ID 2575',
+                standard: 'ERC721',
+                imageOriginal: 'imageOriginal/2575.png',
+                collection: {
+                  id: '0xtest2',
+                },
+                chainId: 1,
               },
-              chainId: 1,
+              userAddress: selectedAccount.address,
+              source: Source.Detected,
             },
-            userAddress: selectedAccount.address,
-            source: Source.Detected,
-            chainId: '0x1',
-          });
+          );
 
           Object.defineProperty(constants, 'MAX_GET_COLLECTION_BATCH_SIZE', {
             value: 20,
@@ -1458,6 +1492,7 @@ describe('NftDetectionController', () => {
         expect(mockAddNft).toHaveBeenCalledWith(
           '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
           '2574',
+          'mainnet',
           {
             nftMetadata: {
               description: 'Description 2574',
@@ -1469,7 +1504,6 @@ describe('NftDetectionController', () => {
             },
             userAddress: '0x9',
             source: Source.Detected,
-            chainId: '0x1',
           },
         );
       },
@@ -1845,6 +1879,9 @@ type WithControllerOptions = {
   mockNetworkState?: Partial<NetworkState>;
   mockPreferencesState?: Partial<PreferencesState>;
   mockGetSelectedAccount?: jest.Mock<AccountsController['getSelectedAccount']>;
+  mockGetNetworkClientIdByChainId?: jest.Mock<
+    NetworkController['getNetworkClientIdByChainId']
+  >;
 };
 
 type WithControllerArgs<ReturnValue> =
@@ -1867,6 +1904,7 @@ async function withController<ReturnValue>(
     {
       options = {},
       mockNetworkClientConfigurationsByNetworkClientId = {},
+      mockGetNetworkClientIdByChainId = {},
       mockNetworkState = {},
       mockPreferencesState = {},
       mockGetSelectedAccount = jest
@@ -1894,9 +1932,18 @@ async function withController<ReturnValue>(
   const getNetworkClientById = buildMockGetNetworkClientById(
     mockNetworkClientConfigurationsByNetworkClientId,
   );
+  const getNetworkClientIdByChainId = buildMockGetNetworkClientByChainId(
+    mockGetNetworkClientIdByChainId,
+  );
+
   messenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
     getNetworkClientById,
+  );
+
+  messenger.registerActionHandler(
+    'NetworkController:getNetworkClientIdByChainId',
+    getNetworkClientIdByChainId,
   );
 
   messenger.registerActionHandler(
@@ -1915,6 +1962,7 @@ async function withController<ReturnValue>(
         'NetworkController:getNetworkClientById',
         'PreferencesController:getState',
         'AccountsController:getSelectedAccount',
+        'NetworkController:getNetworkClientIdByChainId',
       ],
       allowedEvents: [
         'NetworkController:stateChange',

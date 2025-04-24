@@ -34,7 +34,6 @@ import {
   AssetsContractController,
   MISSING_PROVIDER_ERROR,
 } from './AssetsContractController';
-import { SupportedTokenDetectionNetworks } from './assetsUtil';
 
 const ERC20_UNI_ADDRESS = '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984';
 const ERC20_SAI_ADDRESS = '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359';
@@ -192,10 +191,8 @@ describe('AssetsContractController', () => {
   it('should set default config', async () => {
     const { assetsContract, messenger } = await setupAssetContractControllers();
     expect({
-      chainId: assetsContract.chainId,
       ipfsGateway: assetsContract.ipfsGateway,
     }).toStrictEqual({
-      chainId: SupportedTokenDetectionNetworks.mainnet,
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
     });
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
@@ -205,10 +202,8 @@ describe('AssetsContractController', () => {
     const { assetsContract, messenger, triggerPreferencesStateChange } =
       await setupAssetContractControllers();
     expect({
-      chainId: assetsContract.chainId,
       ipfsGateway: assetsContract.ipfsGateway,
     }).toStrictEqual({
-      chainId: SupportedTokenDetectionNetworks.mainnet,
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
     });
 
@@ -218,45 +213,42 @@ describe('AssetsContractController', () => {
     });
 
     expect({
-      chainId: assetsContract.chainId,
       ipfsGateway: assetsContract.ipfsGateway,
     }).toStrictEqual({
       ipfsGateway: 'newIPFSGateWay',
-      chainId: SupportedTokenDetectionNetworks.mainnet,
     });
 
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should throw missing provider error when getting ERC-20 token balance when missing provider', async () => {
-    const { assetsContract, messenger } = await setupAssetContractControllers();
-    assetsContract.setProvider(undefined);
+    const { messenger } = await setupAssetContractControllers();
     await expect(
       messenger.call(
         `AssetsContractController:getERC20BalanceOf`,
         ERC20_UNI_ADDRESS,
         TEST_ACCOUNT_PUBLIC_ADDRESS,
+        undefined as unknown as NetworkClientId,
       ),
     ).rejects.toThrow(MISSING_PROVIDER_ERROR);
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should throw missing provider error when getting ERC-20 token decimal when missing provider', async () => {
-    const { assetsContract, messenger } = await setupAssetContractControllers();
-    assetsContract.setProvider(undefined);
+    const { messenger } = await setupAssetContractControllers();
     await expect(
       messenger.call(
         `AssetsContractController:getERC20TokenDecimals`,
         ERC20_UNI_ADDRESS,
+        undefined as unknown as NetworkClientId,
       ),
     ).rejects.toThrow(MISSING_PROVIDER_ERROR);
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should get balance of ERC-20 token contract correctly', async () => {
-    const { assetsContract, messenger, provider, networkClientConfiguration } =
+    const { messenger, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.setProvider(provider);
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -298,11 +290,13 @@ describe('AssetsContractController', () => {
       `AssetsContractController:getERC20BalanceOf`,
       ERC20_UNI_ADDRESS,
       TEST_ACCOUNT_PUBLIC_ADDRESS,
+      'mainnet',
     );
     const UNINoBalance = await messenger.call(
       `AssetsContractController:getERC20BalanceOf`,
       ERC20_UNI_ADDRESS,
       '0x202637dAAEfbd7f131f90338a4A6c69F6Cd5CE91',
+      'mainnet',
     );
     expect(UNIBalance.toString(16)).not.toBe('0');
     expect(UNINoBalance.toString(16)).toBe('0');
@@ -310,9 +304,8 @@ describe('AssetsContractController', () => {
   });
 
   it('should get ERC-721 NFT tokenId correctly', async () => {
-    const { assetsContract, messenger, provider, networkClientConfiguration } =
+    const { messenger, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.setProvider(provider);
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -339,33 +332,33 @@ describe('AssetsContractController', () => {
       ERC721_GODS_ADDRESS,
       '0x9a90bd8d1149a88b42a99cf62215ad955d6f498a',
       0,
+      'mainnet',
     );
     expect(tokenId).not.toBe(0);
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should throw missing provider error when getting ERC-721 token standard and details when missing provider', async () => {
-    const { assetsContract, messenger } = await setupAssetContractControllers();
-    assetsContract.setProvider(undefined);
+    const { messenger } = await setupAssetContractControllers();
     await expect(
       messenger.call(
         `AssetsContractController:getTokenStandardAndDetails`,
         ERC20_UNI_ADDRESS,
         TEST_ACCOUNT_PUBLIC_ADDRESS,
+        undefined as unknown as NetworkClientId,
       ),
     ).rejects.toThrow(MISSING_PROVIDER_ERROR);
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should throw contract standard error when getting ERC-20 token standard and details when provided with invalid ERC-20 address', async () => {
-    const { assetsContract, messenger, provider } =
-      await setupAssetContractControllers();
-    assetsContract.setProvider(provider);
+    const { messenger } = await setupAssetContractControllers();
     const error = 'Unable to determine contract standard';
     await expect(
       messenger.call(
         `AssetsContractController:getTokenStandardAndDetails`,
         'BaDeRc20AdDrEsS',
+        'mainnet',
         TEST_ACCOUNT_PUBLIC_ADDRESS,
       ),
     ).rejects.toThrow(error);
@@ -373,9 +366,8 @@ describe('AssetsContractController', () => {
   });
 
   it('should get ERC-721 token standard and details', async () => {
-    const { assetsContract, messenger, provider, networkClientConfiguration } =
+    const { messenger, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.setProvider(provider);
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -432,6 +424,7 @@ describe('AssetsContractController', () => {
     const standardAndDetails = await messenger.call(
       `AssetsContractController:getTokenStandardAndDetails`,
       ERC721_GODS_ADDRESS,
+      'mainnet',
       TEST_ACCOUNT_PUBLIC_ADDRESS,
     );
     expect(standardAndDetails.standard).toBe('ERC721');
@@ -439,9 +432,8 @@ describe('AssetsContractController', () => {
   });
 
   it('should get ERC-1155 token standard and details', async () => {
-    const { assetsContract, messenger, provider, networkClientConfiguration } =
+    const { messenger, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.setProvider(provider);
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -514,6 +506,7 @@ describe('AssetsContractController', () => {
     const standardAndDetails = await messenger.call(
       `AssetsContractController:getTokenStandardAndDetails`,
       ERC1155_ADDRESS,
+      'mainnet',
       TEST_ACCOUNT_PUBLIC_ADDRESS,
     );
 
@@ -525,9 +518,8 @@ describe('AssetsContractController', () => {
   });
 
   it('should get ERC-20 token standard and details', async () => {
-    const { assetsContract, messenger, provider, networkClientConfiguration } =
+    const { messenger, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.setProvider(provider);
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -616,6 +608,7 @@ describe('AssetsContractController', () => {
     const standardAndDetails = await messenger.call(
       `AssetsContractController:getTokenStandardAndDetails`,
       ERC20_UNI_ADDRESS,
+      'mainnet',
       TEST_ACCOUNT_PUBLIC_ADDRESS,
     );
     expect(standardAndDetails.standard).toBe('ERC20');
@@ -623,9 +616,8 @@ describe('AssetsContractController', () => {
   });
 
   it('should get ERC-721 NFT tokenURI correctly', async () => {
-    const { assetsContract, messenger, provider, networkClientConfiguration } =
+    const { messenger, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.setProvider(provider);
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -667,15 +659,15 @@ describe('AssetsContractController', () => {
       `AssetsContractController:getERC721TokenURI`,
       ERC721_GODS_ADDRESS,
       '0',
+      'mainnet',
     );
     expect(tokenId).toBe('https://api.godsunchained.com/card/0');
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should not throw an error when address given does not support NFT Metadata interface', async () => {
-    const { assetsContract, messenger, provider, networkClientConfiguration } =
+    const { messenger, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.setProvider(provider);
     const errorLogSpy = jest
       .spyOn(console, 'error')
       .mockImplementationOnce(() => {
@@ -721,6 +713,7 @@ describe('AssetsContractController', () => {
       `AssetsContractController:getERC721TokenURI`,
       '0x0000000000000000000000000000000000000000',
       '0',
+      'mainnet',
     );
     expect(uri).toBe('https://api.godsunchained.com/card/0');
     expect(errorLogSpy).toHaveBeenCalledTimes(1);
@@ -732,9 +725,8 @@ describe('AssetsContractController', () => {
   });
 
   it('should get ERC-721 NFT name', async () => {
-    const { assetsContract, messenger, provider, networkClientConfiguration } =
+    const { messenger, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.setProvider(provider);
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -759,15 +751,15 @@ describe('AssetsContractController', () => {
     const name = await messenger.call(
       `AssetsContractController:getERC721AssetName`,
       ERC721_GODS_ADDRESS,
+      'mainnet',
     );
     expect(name).toBe('Gods Unchained');
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should get ERC-721 NFT symbol', async () => {
-    const { assetsContract, messenger, provider, networkClientConfiguration } =
+    const { messenger, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.setProvider(provider);
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -792,6 +784,7 @@ describe('AssetsContractController', () => {
     const symbol = await messenger.call(
       `AssetsContractController:getERC721AssetSymbol`,
       ERC721_GODS_ADDRESS,
+      'mainnet',
     );
     expect(symbol).toBe('GODS');
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
@@ -803,15 +796,15 @@ describe('AssetsContractController', () => {
       messenger.call(
         `AssetsContractController:getERC721AssetSymbol`,
         ERC721_GODS_ADDRESS,
+        undefined as unknown as string,
       ),
     ).rejects.toThrow(MISSING_PROVIDER_ERROR);
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should get ERC-20 token decimals', async () => {
-    const { assetsContract, messenger, provider, networkClientConfiguration } =
+    const { messenger, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.setProvider(provider);
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -836,15 +829,15 @@ describe('AssetsContractController', () => {
     const decimals = await messenger.call(
       `AssetsContractController:getERC20TokenDecimals`,
       ERC20_SAI_ADDRESS,
+      'mainnet',
     );
     expect(Number(decimals)).toBe(18);
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should get ERC-20 token name', async () => {
-    const { assetsContract, messenger, provider, networkClientConfiguration } =
+    const { messenger, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.setProvider(provider);
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -870,6 +863,7 @@ describe('AssetsContractController', () => {
     const name = await messenger.call(
       `AssetsContractController:getERC20TokenName`,
       ERC20_DAI_ADDRESS,
+      'mainnet',
     );
 
     expect(name).toBe('Dai Stablecoin');
@@ -877,9 +871,8 @@ describe('AssetsContractController', () => {
   });
 
   it('should get ERC-721 NFT ownership', async () => {
-    const { assetsContract, messenger, provider, networkClientConfiguration } =
+    const { messenger, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.setProvider(provider);
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -905,6 +898,7 @@ describe('AssetsContractController', () => {
       `AssetsContractController:getERC721OwnerOf`,
       ERC721_GODS_ADDRESS,
       '148332',
+      'mainnet',
     );
     expect(tokenId).not.toBe('');
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
@@ -917,15 +911,15 @@ describe('AssetsContractController', () => {
         `AssetsContractController:getERC721OwnerOf`,
         ERC721_GODS_ADDRESS,
         '148332',
+        undefined as unknown as string,
       ),
     ).rejects.toThrow(MISSING_PROVIDER_ERROR);
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should get balance of ERC-20 token in a single call on network with token detection support', async () => {
-    const { assetsContract, messenger, provider, networkClientConfiguration } =
+    const { messenger, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.setProvider(provider);
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -951,6 +945,7 @@ describe('AssetsContractController', () => {
       `AssetsContractController:getBalancesInSingleCall`,
       ERC20_SAI_ADDRESS,
       [ERC20_SAI_ADDRESS],
+      'mainnet',
     );
     expect(balances[ERC20_SAI_ADDRESS]).toBeDefined();
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
@@ -1024,20 +1019,19 @@ describe('AssetsContractController', () => {
         },
       ],
     });
-    const { assetsContract, messenger, provider } =
-      await setupAssetContractControllers({
-        options: {
-          chainId: ChainId.mainnet,
-        },
-        useNetworkControllerProvider: true,
-        infuraProjectId,
-      });
-    assetsContract.setProvider(provider);
+    const { messenger } = await setupAssetContractControllers({
+      options: {
+        chainId: ChainId.mainnet,
+      },
+      useNetworkControllerProvider: true,
+      infuraProjectId,
+    });
 
     const balancesOnMainnet = await messenger.call(
       'AssetsContractController:getBalancesInSingleCall',
       ERC20_SAI_ADDRESS,
       [ERC20_SAI_ADDRESS],
+      'mainnet',
     );
     expect(balancesOnMainnet).toStrictEqual({
       [ERC20_SAI_ADDRESS]: BigNumber.from('0x0733ed8ef4c4a0155d09'),
@@ -1052,6 +1046,7 @@ describe('AssetsContractController', () => {
       'AssetsContractController:getBalancesInSingleCall',
       ERC20_SAI_ADDRESS,
       [ERC20_SAI_ADDRESS],
+      'linea-mainnet',
     );
     expect(balancesOnLineaMainnet).toStrictEqual({
       [ERC20_SAI_ADDRESS]: BigNumber.from('0xa0155d09733ed8ef4c4'),
@@ -1060,14 +1055,8 @@ describe('AssetsContractController', () => {
   });
 
   it('should not have balance in a single call after switching to network without token detection support', async () => {
-    const {
-      assetsContract,
-      messenger,
-      network,
-      provider,
-      networkClientConfiguration,
-    } = await setupAssetContractControllers();
-    assetsContract.setProvider(provider);
+    const { messenger, network, networkClientConfiguration } =
+      await setupAssetContractControllers();
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -1125,6 +1114,7 @@ describe('AssetsContractController', () => {
       `AssetsContractController:getBalancesInSingleCall`,
       ERC20_SAI_ADDRESS,
       [ERC20_SAI_ADDRESS],
+      'mainnet',
     );
     expect(balances[ERC20_SAI_ADDRESS]).toBeDefined();
 
@@ -1134,14 +1124,14 @@ describe('AssetsContractController', () => {
       `AssetsContractController:getBalancesInSingleCall`,
       ERC20_SAI_ADDRESS,
       [ERC20_SAI_ADDRESS],
+      'sepolia',
     );
     expect(noBalances).toStrictEqual({});
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should throw missing provider error when transferring single ERC-1155 when missing provider', async () => {
-    const { assetsContract, messenger } = await setupAssetContractControllers();
-    assetsContract.setProvider(undefined);
+    const { messenger } = await setupAssetContractControllers();
     await expect(
       messenger.call(
         `AssetsContractController:transferSingleERC1155`,
@@ -1150,15 +1140,15 @@ describe('AssetsContractController', () => {
         TEST_ACCOUNT_PUBLIC_ADDRESS,
         ERC1155_ID,
         '1',
+        undefined as unknown as string,
       ),
     ).rejects.toThrow(MISSING_PROVIDER_ERROR);
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should throw when ERC1155 function transferSingle is not defined', async () => {
-    const { assetsContract, messenger, provider, networkClientConfiguration } =
+    const { messenger, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.setProvider(provider);
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -1188,15 +1178,15 @@ describe('AssetsContractController', () => {
         TEST_ACCOUNT_PUBLIC_ADDRESS,
         ERC1155_ID,
         '1',
+        'sepolia',
       ),
     ).rejects.toThrow('contract.transferSingle is not a function');
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should get the balance of a ERC-1155 NFT for a given address', async () => {
-    const { assetsContract, messenger, provider, networkClientConfiguration } =
+    const { messenger, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.setProvider(provider);
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -1223,6 +1213,7 @@ describe('AssetsContractController', () => {
       TEST_ACCOUNT_PUBLIC_ADDRESS,
       ERC1155_ADDRESS,
       ERC1155_ID,
+      'sepolia',
     );
     expect(Number(balance)).toBeGreaterThan(0);
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
@@ -1236,15 +1227,15 @@ describe('AssetsContractController', () => {
         TEST_ACCOUNT_PUBLIC_ADDRESS,
         ERC1155_ADDRESS,
         ERC1155_ID,
+        undefined as unknown as string,
       ),
     ).rejects.toThrow(MISSING_PROVIDER_ERROR);
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should get the URI of a ERC-1155 NFT', async () => {
-    const { assetsContract, messenger, provider, networkClientConfiguration } =
+    const { messenger, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.setProvider(provider);
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -1271,15 +1262,15 @@ describe('AssetsContractController', () => {
       `AssetsContractController:getERC1155TokenURI`,
       ERC1155_ADDRESS,
       ERC1155_ID,
+      'mainnet',
     );
     expect(uri.toLowerCase()).toStrictEqual(expectedUri);
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should get the staked ethereum balance for an address', async () => {
-    const { assetsContract, messenger, provider, networkClientConfiguration } =
+    const { assetsContract, messenger, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.setProvider(provider);
 
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
@@ -1323,6 +1314,7 @@ describe('AssetsContractController', () => {
 
     const balance = await assetsContract.getStakedBalanceForChain(
       TEST_ACCOUNT_PUBLIC_ADDRESS,
+      'mainnet',
     );
 
     // exchange rate shares = 1e18
@@ -1339,9 +1331,8 @@ describe('AssetsContractController', () => {
 
   it('should return default of zero hex as staked ethereum balance if user has no shares', async () => {
     const errorSpy = jest.spyOn(console, 'error');
-    const { assetsContract, messenger, provider, networkClientConfiguration } =
+    const { assetsContract, messenger, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.setProvider(provider);
 
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
@@ -1368,6 +1359,7 @@ describe('AssetsContractController', () => {
 
     const balance = await assetsContract.getStakedBalanceForChain(
       TEST_ACCOUNT_PUBLIC_ADDRESS,
+      'mainnet',
     );
 
     expect(balance).toBeDefined();
@@ -1386,12 +1378,11 @@ describe('AssetsContractController', () => {
       .mockImplementationOnce((e) => {
         error = e;
       });
-    const { assetsContract, messenger, provider } =
-      await setupAssetContractControllers();
-    assetsContract.setProvider(provider);
+    const { assetsContract, messenger } = await setupAssetContractControllers();
 
     const balance = await assetsContract.getStakedBalanceForChain(
       TEST_ACCOUNT_PUBLIC_ADDRESS,
+      'mainnet',
     );
 
     expect(balance).toBeDefined();
@@ -1407,7 +1398,10 @@ describe('AssetsContractController', () => {
   it('should throw missing provider error when getting staked ethereum balance and missing provider', async () => {
     const { assetsContract, messenger } = await setupAssetContractControllers();
     await expect(
-      assetsContract.getStakedBalanceForChain(TEST_ACCOUNT_PUBLIC_ADDRESS),
+      assetsContract.getStakedBalanceForChain(
+        TEST_ACCOUNT_PUBLIC_ADDRESS,
+        undefined as unknown as string,
+      ),
     ).rejects.toThrow(MISSING_PROVIDER_ERROR);
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });

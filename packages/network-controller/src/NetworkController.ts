@@ -513,6 +513,11 @@ export type NetworkControllerGetNetworkClientByIdAction = {
   handler: NetworkController['getNetworkClientById'];
 };
 
+export type NetworkControllerGetNetworkClientIdByChainIdAction = {
+  type: `NetworkController:getNetworkClientIdByChainId`;
+  handler: NetworkController['getNetworkClientIdByChainId'];
+};
+
 export type NetworkControllerGetSelectedNetworkClientAction = {
   type: `NetworkController:getSelectedNetworkClient`;
   handler: NetworkController['getSelectedNetworkClient'];
@@ -588,7 +593,8 @@ export type NetworkControllerActions =
   | NetworkControllerGetNetworkConfigurationByNetworkClientId
   | NetworkControllerAddNetworkAction
   | NetworkControllerRemoveNetworkAction
-  | NetworkControllerUpdateNetworkAction;
+  | NetworkControllerUpdateNetworkAction
+  | NetworkControllerGetNetworkClientIdByChainIdAction;
 
 export type NetworkControllerMessenger = RestrictedMessenger<
   typeof controllerName,
@@ -1165,6 +1171,11 @@ export class NetworkController extends BaseController<
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:getNetworkClientById`,
       this.getNetworkClientById.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${this.name}:getNetworkClientIdByChainId`,
+      this.getNetworkClientIdByChainId.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
@@ -1837,6 +1848,16 @@ export class NetworkController extends BaseController<
     chainId: Hex,
   ): NetworkConfiguration | undefined {
     return this.state.networkConfigurationsByChainId[chainId];
+  }
+
+  getNetworkClientIdByChainId(chainId: Hex): NetworkClientId | undefined {
+    const networkConfiguration = this.getNetworkConfigurationByChainId(chainId);
+    if (networkConfiguration) {
+      return networkConfiguration.rpcEndpoints[
+        networkConfiguration.defaultRpcEndpointIndex
+      ]?.networkClientId;
+    }
+    return undefined;
   }
 
   /**
