@@ -1163,5 +1163,38 @@ describe('Batch Utils', () => {
         rpcErrors.internal('EIP-7702 public key not specified'),
       );
     });
+
+    it('does not throw if error getting provider', async () => {
+      getEIP7702SupportedChainsMock.mockReturnValueOnce([
+        CHAIN_ID_MOCK,
+        CHAIN_ID_2_MOCK,
+      ]);
+
+      isAccountUpgradedToEIP7702Mock.mockResolvedValue({
+        isSupported: false,
+        delegationAddress: undefined,
+      });
+
+      const results = await isAtomicBatchSupported({
+        address: FROM_MOCK,
+        getEthQuery: jest
+          .fn()
+          .mockImplementationOnce(() => {
+            throw new Error(ERROR_MESSAGE_MOCK);
+          })
+          .mockReturnValueOnce({}),
+        messenger: MESSENGER_MOCK,
+        publicKeyEIP7702: PUBLIC_KEY_MOCK,
+      });
+
+      expect(results).toStrictEqual([
+        {
+          chainId: CHAIN_ID_2_MOCK,
+          delegationAddress: undefined,
+          isSupported: false,
+          upgradeContractAddress: undefined,
+        },
+      ]);
+    });
   });
 });
