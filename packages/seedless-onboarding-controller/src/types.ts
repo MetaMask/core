@@ -7,7 +7,10 @@ import type {
   EncryptionKey,
   EncryptionResult,
 } from '@metamask/browser-passworder';
-import type { KeyringControllerLockEvent } from '@metamask/keyring-controller';
+import type {
+  KeyringControllerLockEvent,
+  KeyringControllerUnlockEvent,
+} from '@metamask/keyring-controller';
 import type { NodeAuthTokens } from '@metamask/toprf-secure-backup';
 import type { Json } from '@metamask/utils';
 import type { MutexInterface } from 'async-mutex';
@@ -104,7 +107,9 @@ export type SeedlessOnboardingControllerStateChangeEvent =
 export type SeedlessOnboardingControllerEvents =
   SeedlessOnboardingControllerStateChangeEvent;
 
-export type AllowedEvents = KeyringControllerLockEvent;
+export type AllowedEvents =
+  | KeyringControllerLockEvent
+  | KeyringControllerUnlockEvent;
 
 // Messenger
 export type SeedlessOnboardingControllerMessenger = RestrictedMessenger<

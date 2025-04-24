@@ -143,16 +143,7 @@ export class SeedlessOnboardingController extends BaseController<
   /**
    * Controller lock state.
    *
-   * Note: This lock is not the same as the keyring/wallet lock.
-   *
-   * The `locked` state related to the keyring (wallet) `locked` state.
-   * However, the `unlock` state is not dependent on the keyring lock state
-   *
-   * The reason for this is that, Seedless Onboarding flow can be before/after the keyring generation.
-   *
-   * Example:
-   * - For registration flow, we need to generate the keyring first and then perform the Seedless Onboarding flow and backup the seed phrase.
-   * - For login flow, we need to perform the Seedless Onboarding flow (fetch the seed phrase backup) then we can create the keyring with the recovered seed phrase.
+   * The controller lock is synchronized with the keyring lock.
    */
   #isUnlocked = false;
 
@@ -189,6 +180,10 @@ export class SeedlessOnboardingController extends BaseController<
     // setup subscriptions to the keyring lock event
     // when the keyring is locked (wallet is locked), the controller will be cleared of its credentials
     this.messagingSystem.subscribe('KeyringController:lock', this.setLocked);
+    this.messagingSystem.subscribe(
+      'KeyringController:unlock',
+      this.#setUnlocked,
+    );
   }
 
   /**
@@ -580,7 +575,7 @@ export class SeedlessOnboardingController extends BaseController<
         };
       });
     } catch (error) {
-      log('Error encrypting and storing seed phrase backup', error);
+      console.log('Error encrypting and storing seed phrase backup', error);
       throw new Error(
         SeedlessOnboardingControllerError.FailedToEncryptAndStoreSeedPhraseBackup,
       );
