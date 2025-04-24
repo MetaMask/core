@@ -1714,7 +1714,7 @@ export type GasFeeToken = {
   gas: Hex;
 
   /** Estimated gas limit required for fee transfer. */
-  gasTransfer: Hex;
+  gasTransfer?: Hex;
 
   /** The corresponding maxFeePerGas this token fee would equal. */
   maxFeePerGas: Hex;
