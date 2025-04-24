@@ -1,5 +1,4 @@
 /* eslint-disable jest/expect-expect */
-import type { TypedTransaction } from '@ethereumjs/tx';
 import { TransactionFactory } from '@ethereumjs/tx';
 import type {
   AddApprovalRequest,
@@ -548,6 +547,7 @@ describe('TransactionController', () => {
   let gasFeePollerMock: jest.Mocked<GasFeePoller>;
   let methodDataHelperMock: jest.Mocked<MethodDataHelper>;
   let timeCounter = 0;
+  let signMock: jest.Mock;
 
   const incomingTransactionHelperClassMock =
     IncomingTransactionHelper as jest.MockedClass<
@@ -671,7 +671,7 @@ describe('TransactionController', () => {
         mockNetworkClientConfigurationsByNetworkClientId as any,
       getPermittedAccounts: async () => [ACCOUNT_MOCK],
       hooks: {},
-      sign: async (transaction: TypedTransaction) => transaction,
+      sign: signMock,
       transactionHistoryLimit: 40,
       ...givenOptions,
     };
@@ -967,6 +967,8 @@ describe('TransactionController', () => {
     getAccountAddressRelationshipMock.mockResolvedValue({
       count: 1,
     });
+
+    signMock = jest.fn().mockImplementation(async (transaction) => transaction);
   });
 
   describe('constructor', () => {
@@ -1416,7 +1418,6 @@ describe('TransactionController', () => {
         expectedSignCalledTimes,
       ) => {
         const { controller } = setupController();
-        const signSpy = jest.spyOn(controller, 'sign');
 
         const { transactionMeta } = await controller.addTransaction(
           {
@@ -1441,7 +1442,7 @@ describe('TransactionController', () => {
 
         const { transactions } = controller.state;
         expect(transactions).toHaveLength(expectedTransactionCount);
-        expect(signSpy).toHaveBeenCalledTimes(expectedSignCalledTimes);
+        expect(signMock).toHaveBeenCalledTimes(expectedSignCalledTimes);
       },
     );
   });
@@ -2549,8 +2550,6 @@ describe('TransactionController', () => {
         const { controller, mockTransactionApprovalRequest } =
           setupController();
 
-        const signSpy = jest.spyOn(controller, 'sign');
-
         const { result, transactionMeta } = await controller.addTransaction(
           {
             from: ACCOUNT_MOCK,
@@ -2575,7 +2574,7 @@ describe('TransactionController', () => {
 
         await result;
 
-        expect(signSpy).not.toHaveBeenCalled();
+        expect(signMock).not.toHaveBeenCalled();
 
         expect(controller.state.transactions).toMatchObject([
           expect.objectContaining({
@@ -3400,17 +3399,13 @@ describe('TransactionController', () => {
     });
 
     it('rejects unknown transaction', async () => {
-      const { controller } = setupController({
-        network: MOCK_LINEA_SEPOLIA_NETWORK,
-      });
+      const { controller } = setupController();
 
       await controller.stopTransaction('transactionIdMock', {
         gasPrice: '0x1',
       });
 
-      const signSpy = jest.spyOn(controller, 'sign');
-
-      expect(signSpy).toHaveBeenCalledTimes(0);
+      expect(signMock).toHaveBeenCalledTimes(0);
     });
 
     it('throws if no sign method', async () => {
@@ -5284,16 +5279,12 @@ describe('TransactionController', () => {
     });
 
     it('signs transactions and return raw transactions', async () => {
-      const signMock = jest
-        .fn()
-        .mockImplementation(async (transactionParams) =>
-          Promise.resolve(TransactionFactory.fromTxData(transactionParams)),
-        );
-      const { controller } = setupController({
-        options: {
-          sign: signMock,
-        },
-      });
+      signMock.mockImplementation(async (transactionParams) =>
+        Promise.resolve(TransactionFactory.fromTxData(transactionParams)),
+      );
+
+      const { controller } = setupController();
+
       const mockTransactionParam = {
         from: ACCOUNT_MOCK,
         nonce: '0x1',
@@ -5323,11 +5314,10 @@ describe('TransactionController', () => {
     it('throws if error while signing transaction', async () => {
       const mockSignError = 'Error while signing transaction';
 
-      const signMock = jest
-        .fn()
-        .mockImplementation(async () =>
-          Promise.reject(new Error(mockSignError)),
-        );
+      signMock.mockImplementation(async () =>
+        Promise.reject(new Error(mockSignError)),
+      );
+
       const { controller } = setupController({
         options: {
           sign: signMock,
@@ -5449,7 +5439,7 @@ describe('TransactionController', () => {
           },
         },
       });
-      const signSpy = jest.spyOn(controller, 'sign');
+
       const updateTransactionSpy = jest.spyOn(controller, 'updateTransaction');
 
       await controller.addTransaction(paramsMock, {
@@ -5465,7 +5455,7 @@ describe('TransactionController', () => {
 
       const transactionMeta = controller.state.transactions[0];
 
-      expect(signSpy).toHaveBeenCalledTimes(1);
+      expect(signMock).toHaveBeenCalledTimes(1);
 
       expect(transactionMeta.txParams).toStrictEqual(
         expect.objectContaining(paramsMock),
@@ -5482,6 +5472,8 @@ describe('TransactionController', () => {
     });
 
     it('adds a transaction and signing returns undefined', async () => {
+      signMock.mockResolvedValue(undefined);
+
       const { controller, mockTransactionApprovalRequest } = setupController({
         options: {
           hooks: {
@@ -5489,11 +5481,8 @@ describe('TransactionController', () => {
             beforePublish: () => Promise.resolve(false),
             getAdditionalSignArguments: () => [metadataMock],
           },
-          // @ts-expect-error sign intentionally returns undefined
-          sign: async () => undefined,
         },
       });
-      const signSpy = jest.spyOn(controller, 'sign');
 
       await controller.addTransaction(paramsMock, {
         origin: 'origin',
@@ -5506,7 +5495,7 @@ describe('TransactionController', () => {
       });
       await wait(0);
 
-      expect(signSpy).toHaveBeenCalledTimes(1);
+      expect(signMock).toHaveBeenCalledTimes(1);
     });
 
     it('adds a transaction, signs and skips publish the transaction', async () => {
@@ -5519,7 +5508,7 @@ describe('TransactionController', () => {
           },
         },
       });
-      const signSpy = jest.spyOn(controller, 'sign');
+
       const updateTransactionSpy = jest.spyOn(controller, 'updateTransaction');
 
       await controller.addTransaction(paramsMock, {
@@ -5537,7 +5526,7 @@ describe('TransactionController', () => {
         expect.objectContaining(paramsMock),
       );
 
-      expect(signSpy).toHaveBeenCalledTimes(1);
+      expect(signMock).toHaveBeenCalledTimes(1);
       expect(updateTransactionSpy).toHaveBeenCalledTimes(1);
       expect(updateTransactionSpy).toHaveBeenCalledWith(
         expect.objectContaining({
