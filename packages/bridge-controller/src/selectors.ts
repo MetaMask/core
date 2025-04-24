@@ -16,7 +16,6 @@ import {
 import { BRIDGE_PREFERRED_GAS_ESTIMATE } from './constants/bridge';
 import type {
   BridgeControllerState,
-  BridgeFeatureFlagsKey,
   ExchangeRate,
   GenericQuoteRequest,
   QuoteMetadata,
@@ -76,7 +75,6 @@ const createBridgeSelector = createSelector_.withTypes<BridgeAppState>();
 type BridgeQuotesClientParams = {
   sortOrder: SortOrder;
   selectedQuote: (QuoteResponse & QuoteMetadata) | null;
-  featureFlagsKey: BridgeFeatureFlagsKey;
 };
 
 const getExchangeRateByChainIdAndAddress = (
@@ -308,19 +306,14 @@ const selectActiveQuote = createBridgeSelector(
   (recommendedQuote, selectedQuote) => selectedQuote ?? recommendedQuote,
 );
 
-const selectIsQuoteGoingToRefresh = (
-  state: BridgeAppState,
-  { featureFlagsKey }: BridgeQuotesClientParams,
-) =>
+const selectIsQuoteGoingToRefresh = (state: BridgeAppState) =>
   state.quoteRequest.insufficientBal
     ? false
-    : state.quotesRefreshCount <
-      state.bridgeFeatureFlags[featureFlagsKey].maxRefreshCount;
+    : state.quotesRefreshCount < state.bridgeFeatureFlags.maxRefreshCount;
 
 const selectQuoteRefreshRate = createBridgeSelector(
   [
-    ({ bridgeFeatureFlags }, { featureFlagsKey }: BridgeQuotesClientParams) =>
-      bridgeFeatureFlags[featureFlagsKey],
+    ({ bridgeFeatureFlags }) => bridgeFeatureFlags,
     (state) => state.quoteRequest.srcChainId,
   ],
   (featureFlags, srcChainId) =>
@@ -350,7 +343,6 @@ export const selectIsQuoteExpired = createBridgeSelector(
  * @param state - The state of the bridge controller and its dependency controllers
  * @param sortOrder - The sort order of the quotes
  * @param selectedQuote - The quote that is currently selected by the user, should be cleared by clients when the req params change
- * @param featureFlagsKey - The feature flags key for the client (e.g. `BridgeFeatureFlagsKey.EXTENSION_CONFIG`
  * @returns The activeQuote, recommendedQuote, sortedQuotes, and other quote fetching metadata
  *
  * @example
@@ -360,7 +352,6 @@ export const selectIsQuoteExpired = createBridgeSelector(
  *   {
  *     sortOrder: state.bridge.sortOrder,
  *     selectedQuote: state.bridge.selectedQuote,
- *     featureFlagsKey: BridgeFeatureFlagsKey.EXTENSION_CONFIG,
  *   }
  * ));
  * ```

@@ -13,6 +13,7 @@ import type {
   NetworkControllerGetStateAction,
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
+import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type {
   CaipAccountId,
@@ -191,10 +192,7 @@ type FeatureFlagResponsePlatformConfig = {
   chains: Record<string, ChainConfiguration>;
 };
 
-export type FeatureFlagResponse = {
-  [BridgeFlag.EXTENSION_CONFIG]: FeatureFlagResponsePlatformConfig;
-  [BridgeFlag.MOBILE_CONFIG]: FeatureFlagResponsePlatformConfig;
-};
+export type FeatureFlagResponse = FeatureFlagResponsePlatformConfig;
 
 /**
  * This is the interface for the quote request sent to the bridge-api
@@ -329,22 +327,14 @@ export type TxData = {
   data: string;
   gasLimit: number | null;
 };
-export enum BridgeFeatureFlagsKey {
-  EXTENSION_CONFIG = 'extensionConfig',
-  MOBILE_CONFIG = 'mobileConfig',
-}
 
-type FeatureFlagsPlatformConfig = {
+export type FeatureFlagsPlatformConfig = {
   refreshRate: number;
   maxRefreshCount: number;
   support: boolean;
   chains: Record<CaipChainId, ChainConfiguration>;
 };
 
-export type BridgeFeatureFlags = {
-  [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: FeatureFlagsPlatformConfig;
-  [BridgeFeatureFlagsKey.MOBILE_CONFIG]: FeatureFlagsPlatformConfig;
-};
 export enum RequestStatus {
   LOADING,
   FETCHED,
@@ -362,7 +352,7 @@ export enum BridgeBackgroundAction {
 }
 
 export type BridgeControllerState = {
-  bridgeFeatureFlags: BridgeFeatureFlags;
+  bridgeFeatureFlags: FeatureFlagsPlatformConfig;
   quoteRequest: Partial<GenericQuoteRequest>;
   quotes: (QuoteResponse & L1GasFees & SolanaFees)[];
   quotesInitialLoadTime: number | null;
@@ -404,7 +394,8 @@ export type AllowedActions =
   | HandleSnapRequest
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetStateAction
-  | NetworkControllerGetNetworkClientByIdAction;
+  | NetworkControllerGetNetworkClientByIdAction
+  | RemoteFeatureFlagControllerGetStateAction;
 export type AllowedEvents = never;
 
 /**

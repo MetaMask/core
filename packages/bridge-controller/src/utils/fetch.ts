@@ -14,14 +14,14 @@ import {
 import { DEFAULT_FEATURE_FLAG_CONFIG } from '../constants/bridge';
 import type {
   QuoteResponse,
-  BridgeFeatureFlags,
   FetchFunction,
   ChainConfiguration,
   GenericQuoteRequest,
   QuoteRequest,
   BridgeAsset,
+  BridgeControllerMessenger,
+  FeatureFlagsPlatformConfig,
 } from '../types';
-import { BridgeFlag, BridgeFeatureFlagsKey } from '../types';
 
 const CACHE_REFRESH_TEN_MINUTES = 10 * Duration.Minute;
 
@@ -32,24 +32,26 @@ export const getClientIdHeader = (clientId: string) => ({
 /**
  * Fetches the bridge feature flags
  *
- * @param clientId - The client ID for metrics
- * @param fetchFn - The fetch function to use
- * @param bridgeApiBaseUrl - The base URL for the bridge API
+ * @param messenger - The messenger instance
  * @returns The bridge feature flags
  */
 export async function fetchBridgeFeatureFlags(
-  clientId: string,
-  fetchFn: FetchFunction,
-  bridgeApiBaseUrl: string,
-): Promise<BridgeFeatureFlags> {
-  const url = `${bridgeApiBaseUrl}/getAllFeatureFlags`;
-  const rawFeatureFlags: unknown = await fetchFn(url, {
-    headers: getClientIdHeader(clientId),
-    cacheOptions: { cacheRefreshTime: CACHE_REFRESH_TEN_MINUTES },
-    functionName: 'fetchBridgeFeatureFlags',
-  });
+  messenger: BridgeControllerMessenger,
+): Promise<FeatureFlagsPlatformConfig> {
+  // This will return the bridgeConfig for the current platform even without specifying the platform
+  const remoteFeatureFlagControllerState = messenger.call(
+    'RemoteFeatureFlagController:getState',
+  );
 
-  if (validateFeatureFlagsResponse(rawFeatureFlags)) {
+  console.log(
+    'HELLO remoteFeatureFlagControllerState',
+    remoteFeatureFlagControllerState,
+  );
+
+  const rawBridgeConfig =
+    remoteFeatureFlagControllerState?.remoteFeatureFlags?.bridgeConfig;
+
+  if (validateFeatureFlagsResponse(rawBridgeConfig)) {
     const getChainsObj = (chains: Record<number, ChainConfiguration>) =>
       Object.entries(chains).reduce(
         (acc, [chainId, value]) => ({
@@ -60,23 +62,12 @@ export async function fetchBridgeFeatureFlags(
       );
 
     return {
-      [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: {
-        ...rawFeatureFlags[BridgeFlag.EXTENSION_CONFIG],
-        chains: getChainsObj(
-          rawFeatureFlags[BridgeFlag.EXTENSION_CONFIG].chains,
-        ),
-      },
-      [BridgeFeatureFlagsKey.MOBILE_CONFIG]: {
-        ...rawFeatureFlags[BridgeFlag.MOBILE_CONFIG],
-        chains: getChainsObj(rawFeatureFlags[BridgeFlag.MOBILE_CONFIG].chains),
-      },
+      ...rawBridgeConfig,
+      chains: getChainsObj(rawBridgeConfig.chains),
     };
   }
 
-  return {
-    [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: DEFAULT_FEATURE_FLAG_CONFIG,
-    [BridgeFeatureFlagsKey.MOBILE_CONFIG]: DEFAULT_FEATURE_FLAG_CONFIG,
-  };
+  return DEFAULT_FEATURE_FLAG_CONFIG;
 }
 
 /**

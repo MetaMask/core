@@ -31,7 +31,6 @@ import {
   type BridgeControllerState,
   type BridgeControllerMessenger,
   type FetchFunction,
-  BridgeFeatureFlagsKey,
   RequestStatus,
 } from './types';
 import { getAssetIdsForToken, toExchangeRates } from './utils/assets';
@@ -433,9 +432,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   setBridgeFeatureFlags = async () => {
     const bridgeFeatureFlags = await fetchBridgeFeatureFlags(
-      this.#clientId,
-      this.#fetchFn,
-      this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
+      this.messagingSystem,
     );
     this.update((state) => {
       state.bridgeFeatureFlags = bridgeFeatureFlags;
@@ -450,13 +447,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     const { state } = this;
     const { srcChainId } = state.quoteRequest;
     const refreshRateOverride = srcChainId
-      ? state.bridgeFeatureFlags[BridgeFeatureFlagsKey.EXTENSION_CONFIG].chains[
-          formatChainIdToCaip(srcChainId)
-        ]?.refreshRate
+      ? state.bridgeFeatureFlags.chains[formatChainIdToCaip(srcChainId)]
+          ?.refreshRate
       : undefined;
-    const defaultRefreshRate =
-      state.bridgeFeatureFlags[BridgeFeatureFlagsKey.EXTENSION_CONFIG]
-        .refreshRate;
+    const defaultRefreshRate = state.bridgeFeatureFlags.refreshRate;
     this.setIntervalLength(refreshRateOverride ?? defaultRefreshRate);
   };
 
@@ -519,8 +513,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       );
       console.log('Failed to fetch bridge quotes', error);
     } finally {
-      const { maxRefreshCount } =
-        bridgeFeatureFlags[BridgeFeatureFlagsKey.EXTENSION_CONFIG];
+      const { maxRefreshCount } = bridgeFeatureFlags;
 
       const updatedQuotesRefreshCount = quotesRefreshCount + 1;
       // Stop polling if the maximum number of refreshes has been reached

@@ -7,12 +7,7 @@ import {
   selectBridgeQuotes,
   selectIsQuoteExpired,
 } from './selectors';
-import {
-  SortOrder,
-  RequestStatus,
-  BridgeFeatureFlagsKey,
-  ChainId,
-} from './types';
+import { SortOrder, RequestStatus, ChainId } from './types';
 import { formatChainIdToCaip } from './utils/caip-formatters';
 
 describe('Bridge Selectors', () => {
@@ -187,11 +182,9 @@ describe('Bridge Selectors', () => {
       quotesRefreshCount: 0,
       quotesInitialLoadTime: Date.now(),
       bridgeFeatureFlags: {
-        [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: {
-          maxRefreshCount: 5,
-          refreshRate: 30000,
-          chains: {},
-        },
+        maxRefreshCount: 5,
+        refreshRate: 30000,
+        chains: {},
       },
       assetExchangeRates: {},
       currencyRates: {},
@@ -214,7 +207,6 @@ describe('Bridge Selectors', () => {
     const mockClientParams = {
       sortOrder: SortOrder.COST_ASC,
       selectedQuote: null,
-      featureFlagsKey: BridgeFeatureFlagsKey.EXTENSION_CONFIG,
     };
 
     it('should return false when quote is not expired', () => {
@@ -247,14 +239,10 @@ describe('Bridge Selectors', () => {
         quotesRefreshCount: 5,
         quotesLastFetched: Date.now() - 40000, // 40 seconds ago
         bridgeFeatureFlags: {
-          [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: {
-            ...mockState.bridgeFeatureFlags[
-              BridgeFeatureFlagsKey.EXTENSION_CONFIG
-            ],
-            chains: {
-              [formatChainIdToCaip(1)]: {
-                refreshRate: 41000,
-              },
+          ...mockState.bridgeFeatureFlags,
+          chains: {
+            [formatChainIdToCaip(1)]: {
+              refreshRate: 41000,
             },
           },
         },
@@ -278,14 +266,10 @@ describe('Bridge Selectors', () => {
         quotesRefreshCount: 5,
         quotesLastFetched: Date.now() - 40000, // 40 seconds ago
         bridgeFeatureFlags: {
-          [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: {
-            ...mockState.bridgeFeatureFlags[
-              BridgeFeatureFlagsKey.EXTENSION_CONFIG
-            ],
-            chains: {
-              [formatChainIdToCaip(1)]: {
-                refreshRate: 41000,
-              },
+          ...mockState.bridgeFeatureFlags,
+          chains: {
+            [formatChainIdToCaip(1)]: {
+              refreshRate: 41000,
             },
           },
         },
@@ -349,11 +333,9 @@ describe('Bridge Selectors', () => {
       quotesRefreshCount: 0,
       quotesInitialLoadTime: Date.now(),
       bridgeFeatureFlags: {
-        [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: {
-          maxRefreshCount: 5,
-          refreshRate: 30000,
-          chains: {},
-        },
+        maxRefreshCount: 5,
+        refreshRate: 30000,
+        chains: {},
       },
       assetExchangeRates: {},
       currencyRates: {
@@ -375,7 +357,6 @@ describe('Bridge Selectors', () => {
       },
       sortOrder: SortOrder.COST_ASC,
       selectedQuote: null,
-      featureFlagsKey: BridgeFeatureFlagsKey.EXTENSION_CONFIG,
     };
 
     it('should return sorted quotes with metadata', () => {

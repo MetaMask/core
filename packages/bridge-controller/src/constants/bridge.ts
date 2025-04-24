@@ -4,7 +4,6 @@ import type { Hex } from '@metamask/utils';
 
 import { CHAIN_IDS } from './chains';
 import type { BridgeControllerState } from '../types';
-import { BridgeFeatureFlagsKey } from '../types';
 
 // TODO read from feature flags
 export const ALLOWED_BRIDGE_CHAIN_IDS = [
@@ -52,10 +51,7 @@ export const DEFAULT_FEATURE_FLAG_CONFIG = {
 };
 
 export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState = {
-  bridgeFeatureFlags: {
-    [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: DEFAULT_FEATURE_FLAG_CONFIG,
-    [BridgeFeatureFlagsKey.MOBILE_CONFIG]: DEFAULT_FEATURE_FLAG_CONFIG,
-  },
+  bridgeFeatureFlags: DEFAULT_FEATURE_FLAG_CONFIG,
   quoteRequest: {
     srcTokenAddress: AddressZero,
   },

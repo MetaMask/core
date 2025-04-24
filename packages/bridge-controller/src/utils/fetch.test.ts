@@ -10,13 +10,21 @@ import {
 import mockBridgeQuotesErc20Erc20 from '../../tests/mock-quotes-erc20-erc20.json';
 import mockBridgeQuotesNativeErc20 from '../../tests/mock-quotes-native-erc20.json';
 import { BridgeClientId, BRIDGE_PROD_API_BASE_URL } from '../constants/bridge';
+import type { BridgeControllerMessenger } from '../types';
 
 const mockFetchFn = jest.fn();
+
+const mockMessenger = {
+  call: jest.fn(),
+  publish: jest.fn(),
+  registerActionHandler: jest.fn(),
+  registerInitialEventPayload: jest.fn(),
+} as unknown as BridgeControllerMessenger;
 
 describe('fetch', () => {
   describe('fetchBridgeFeatureFlags', () => {
     it('should fetch bridge feature flags successfully', async () => {
-      const commonResponse = {
+      const bridgeConfig = {
         refreshRate: 3,
         maxRefreshCount: 1,
         support: true,
@@ -51,31 +59,59 @@ describe('fetch', () => {
           },
         },
       };
-      const mockResponse = {
-        'extension-config': commonResponse,
-        'mobile-config': commonResponse,
+
+      const remoteFeatureFlagControllerState = {
+        cacheTimestamp: 1745515389440,
+        remoteFeatureFlags: {
+          bridgeConfig,
+          assetsNotificationsEnabled: false,
+          confirmation_redesign: {
+            contract_interaction: false,
+            signatures: false,
+            staking_confirmations: false,
+          },
+          confirmations_eip_7702: {},
+          earnFeatureFlagTemplate: {
+            enabled: false,
+            minimumVersion: '0.0.0',
+          },
+          earnPooledStakingEnabled: {
+            enabled: false,
+            minimumVersion: '0.0.0',
+          },
+          earnPooledStakingServiceInterruptionBannerEnabled: {
+            enabled: false,
+            minimumVersion: '0.0.0',
+          },
+          earnStablecoinLendingEnabled: {
+            enabled: false,
+            minimumVersion: '0.0.0',
+          },
+          earnStablecoinLendingServiceInterruptionBannerEnabled: {
+            enabled: false,
+            minimumVersion: '0.0.0',
+          },
+          mobileMinimumVersions: {
+            androidMinimumAPIVersion: 0,
+            appMinimumBuild: 0,
+            appleMinimumOS: 0,
+          },
+          productSafetyDappScanning: false,
+          testFlagForThreshold: {},
+          tokenSearchDiscoveryEnabled: false,
+          transactionsPrivacyPolicyUpdate: 'no_update',
+          transactionsTxHashInAnalytics: false,
+          walletFrameworkRpcFailoverEnabled: false,
+        },
       };
 
-      mockFetchFn.mockResolvedValue(mockResponse);
+      (mockMessenger.call as jest.Mock).mockImplementation(() => {
+        return remoteFeatureFlagControllerState;
+      });
 
-      const result = await fetchBridgeFeatureFlags(
-        BridgeClientId.EXTENSION,
-        mockFetchFn,
-        BRIDGE_PROD_API_BASE_URL,
-      );
+      const result = await fetchBridgeFeatureFlags(mockMessenger);
 
-      expect(mockFetchFn).toHaveBeenCalledWith(
-        'https://bridge.api.cx.metamask.io/getAllFeatureFlags',
-        {
-          headers: { 'X-Client-Id': 'extension' },
-          cacheOptions: {
-            cacheRefreshTime: 600000,
-          },
-          functionName: 'fetchBridgeFeatureFlags',
-        },
-      );
-
-      const commonExpected = {
+      const expectedBridgeConfig = {
         maxRefreshCount: 1,
         refreshRate: 3,
         support: true,
@@ -111,14 +147,11 @@ describe('fetch', () => {
         },
       };
 
-      expect(result).toStrictEqual({
-        extensionConfig: commonExpected,
-        mobileConfig: commonExpected,
-      });
+      expect(result).toStrictEqual(expectedBridgeConfig);
     });
 
     it('should use fallback bridge feature flags if response is unexpected', async () => {
-      const commonResponse = {
+      const bridgeConfig = {
         refreshRate: 3,
         maxRefreshCount: 1,
         support: 25,
@@ -133,54 +166,64 @@ describe('fetch', () => {
           },
         },
       };
-      const mockResponse = {
-        'extension-config': commonResponse,
-        'mobile-config': commonResponse,
+      const remoteFeatureFlagControllerState = {
+        cacheTimestamp: 1745515389440,
+        remoteFeatureFlags: {
+          bridgeConfig,
+          assetsNotificationsEnabled: false,
+          confirmation_redesign: {
+            contract_interaction: false,
+            signatures: false,
+            staking_confirmations: false,
+          },
+          confirmations_eip_7702: {},
+          earnFeatureFlagTemplate: {
+            enabled: false,
+            minimumVersion: '0.0.0',
+          },
+          earnPooledStakingEnabled: {
+            enabled: false,
+            minimumVersion: '0.0.0',
+          },
+          earnPooledStakingServiceInterruptionBannerEnabled: {
+            enabled: false,
+            minimumVersion: '0.0.0',
+          },
+          earnStablecoinLendingEnabled: {
+            enabled: false,
+            minimumVersion: '0.0.0',
+          },
+          earnStablecoinLendingServiceInterruptionBannerEnabled: {
+            enabled: false,
+            minimumVersion: '0.0.0',
+          },
+          mobileMinimumVersions: {
+            androidMinimumAPIVersion: 0,
+            appMinimumBuild: 0,
+            appleMinimumOS: 0,
+          },
+          productSafetyDappScanning: false,
+          testFlagForThreshold: {},
+          tokenSearchDiscoveryEnabled: false,
+          transactionsPrivacyPolicyUpdate: 'no_update',
+          transactionsTxHashInAnalytics: false,
+          walletFrameworkRpcFailoverEnabled: false,
+        },
       };
 
-      mockFetchFn.mockResolvedValue(mockResponse);
-
-      const result = await fetchBridgeFeatureFlags(
-        BridgeClientId.EXTENSION,
-        mockFetchFn,
-        BRIDGE_PROD_API_BASE_URL,
+      (mockMessenger.call as jest.Mock).mockResolvedValue(
+        remoteFeatureFlagControllerState,
       );
 
-      expect(mockFetchFn).toHaveBeenCalledWith(
-        'https://bridge.api.cx.metamask.io/getAllFeatureFlags',
-        {
-          cacheOptions: {
-            cacheRefreshTime: 600000,
-          },
-          functionName: 'fetchBridgeFeatureFlags',
-          headers: { 'X-Client-Id': 'extension' },
-        },
-      );
+      const result = await fetchBridgeFeatureFlags(mockMessenger);
 
-      const commonExpected = {
+      const expectedBridgeConfig = {
         maxRefreshCount: 5,
         refreshRate: 30000,
         support: false,
         chains: {},
       };
-      expect(result).toStrictEqual({
-        extensionConfig: commonExpected,
-        mobileConfig: commonExpected,
-      });
-    });
-
-    it('should handle fetch error', async () => {
-      const mockError = new Error('Failed to fetch');
-
-      mockFetchFn.mockRejectedValue(mockError);
-
-      await expect(
-        fetchBridgeFeatureFlags(
-          BridgeClientId.EXTENSION,
-          mockFetchFn,
-          BRIDGE_PROD_API_BASE_URL,
-        ),
-      ).rejects.toThrow(mockError);
+      expect(result).toStrictEqual(expectedBridgeConfig);
     });
   });
 
