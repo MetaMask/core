@@ -118,14 +118,21 @@ import {
   TransactionStatus,
   SimulationErrorCode,
 } from './types';
-import { addTransactionBatch, isAtomicBatchSupported } from './utils/batch';
+import {
+  addTransactionBatch,
+  ERROR_MESSAGE_NO_UPGRADE_CONTRACT,
+  isAtomicBatchSupported,
+} from './utils/batch';
 import {
   DELEGATION_PREFIX,
+  doesChainSupportEIP7702,
+  ERROR_MESSGE_PUBLIC_KEY,
   generateEIP7702BatchTransaction,
   getDelegationAddress,
   signAuthorizationList,
 } from './utils/eip7702';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
+import { getEIP7702UpgradeContractAddress } from './utils/feature-flags';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
 import { getGasFeeFlow } from './utils/gas-flow';
@@ -143,6 +150,7 @@ import {
 } from './utils/nonce';
 import { prepareTransaction, serializeTransaction } from './utils/prepare';
 import { getTransactionParamsWithIncreasedGasFee } from './utils/retry';
+import type { GetSimulationDataRequest } from './utils/simulation';
 import { getSimulationData } from './utils/simulation';
 import {
   updatePostTransactionBalance,
@@ -3972,20 +3980,8 @@ export class TransactionController extends BaseController<
       traceContext?: TraceContext;
     } = {},
   ) {
-    const {
-      id: transactionId,
-      chainId,
-      txParams,
-      simulationData: prevSimulationData,
-    } = transactionMeta;
-
-    const {
-      authorizationList: authorizationListRaw,
-      from,
-      to,
-      value,
-      data,
-    } = txParams;
+    const { id: transactionId, simulationData: prevSimulationData } =
+      transactionMeta;
 
     let simulationData: SimulationData = {
       error: {
@@ -3998,39 +3994,11 @@ export class TransactionController extends BaseController<
     let gasFeeTokens: GasFeeToken[] = [];
 
     if (this.#isSimulationEnabled()) {
-      const authorizationAddress = txParams?.authorizationList?.[0]?.address;
-
-      const senderCode =
-        authorizationAddress &&
-        ((DELEGATION_PREFIX + remove0x(authorizationAddress)) as Hex);
-
-      const use7702Fees =
-        await this.#isEIP7702GasFeeTokensEnabled(transactionMeta);
-
-      const authorizationList = authorizationListRaw?.map((authorization) => ({
-        address: authorization.address,
-        from: from as Hex,
-      }));
-
-      const result = await this.#trace(
-        { name: 'Simulate', parentContext: traceContext },
-        () =>
-          getSimulationData(
-            {
-              authorizationList,
-              chainId,
-              data: data as Hex,
-              from: from as Hex,
-              to: to as Hex,
-              value: value as Hex,
-            },
-            {
-              blockTime,
-              senderCode,
-              use7702Fees,
-            },
-          ),
-      );
+      const result = await this.#getSimulationData({
+        blockTime,
+        traceContext,
+        transactionMeta,
+      });
 
       gasFeeTokens = result?.gasFeeTokens;
       simulationData = result?.simulationData;
@@ -4261,5 +4229,90 @@ export class TransactionController extends BaseController<
       `${transactionMeta.id}:finished`,
       newTransactionMeta,
     );
+  }
+
+  async #getSimulationData({
+    blockTime,
+    traceContext,
+    transactionMeta,
+  }: {
+    blockTime?: number;
+    traceContext?: TraceContext;
+    transactionMeta: TransactionMeta;
+  }) {
+    const { chainId, delegationAddress, txParams } = transactionMeta;
+    const { data, from, to, value } = txParams;
+    const authorizationAddress = txParams?.authorizationList?.[0]?.address;
+
+    const senderCode =
+      authorizationAddress &&
+      ((DELEGATION_PREFIX + remove0x(authorizationAddress)) as Hex);
+
+    const is7702GasFeeTokensEnabled =
+      await this.#isEIP7702GasFeeTokensEnabled(transactionMeta);
+
+    const use7702Fees =
+      is7702GasFeeTokensEnabled &&
+      doesChainSupportEIP7702(chainId, this.messagingSystem);
+
+    let authorizationList:
+      | GetSimulationDataRequest['authorizationList']
+      | undefined;
+
+    if (use7702Fees && !delegationAddress) {
+      authorizationList = this.#getSimulationAuthorizationList({
+        chainId,
+        from: from as Hex,
+      });
+    }
+
+    return await this.#trace(
+      { name: 'Simulate', parentContext: traceContext },
+      () =>
+        getSimulationData(
+          {
+            authorizationList,
+            chainId,
+            data: data as Hex,
+            from: from as Hex,
+            to: to as Hex,
+            value: value as Hex,
+          },
+          {
+            blockTime,
+            senderCode,
+            use7702Fees,
+          },
+        ),
+    );
+  }
+
+  #getSimulationAuthorizationList({
+    chainId,
+    from,
+  }: {
+    chainId: Hex;
+    from: Hex;
+  }): GetSimulationDataRequest['authorizationList'] | undefined {
+    if (!this.#publicKeyEIP7702) {
+      throw rpcErrors.internal(ERROR_MESSGE_PUBLIC_KEY);
+    }
+
+    const upgradeAddress = getEIP7702UpgradeContractAddress(
+      chainId,
+      this.messagingSystem,
+      this.#publicKeyEIP7702,
+    );
+
+    if (!upgradeAddress) {
+      throw rpcErrors.internal(ERROR_MESSAGE_NO_UPGRADE_CONTRACT);
+    }
+
+    return [
+      {
+        address: upgradeAddress,
+        from: from as Hex,
+      },
+    ];
   }
 }

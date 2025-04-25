@@ -79,7 +79,12 @@ import {
   WalletDevice,
 } from './types';
 import { addTransactionBatch } from './utils/batch';
-import { DELEGATION_PREFIX, getDelegationAddress } from './utils/eip7702';
+import {
+  DELEGATION_PREFIX,
+  doesChainSupportEIP7702,
+  getDelegationAddress,
+} from './utils/eip7702';
+import { getEIP7702UpgradeContractAddress } from './utils/feature-flags';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
 import { getGasFeeFlow } from './utils/gas-flow';
@@ -125,6 +130,7 @@ jest.mock('./helpers/MultichainTrackingHelper');
 jest.mock('./helpers/PendingTransactionTracker');
 jest.mock('./hooks/ExtraTransactionsPublishHook');
 jest.mock('./utils/batch');
+jest.mock('./utils/feature-flags');
 jest.mock('./utils/gas');
 jest.mock('./utils/gas-fees');
 jest.mock('./utils/gas-flow');
@@ -141,6 +147,7 @@ jest.mock('./helpers/ResimulateHelper', () => ({
 jest.mock('./utils/eip7702', () => ({
   ...jest.requireActual('./utils/eip7702'),
   getDelegationAddress: jest.fn(),
+  doesChainSupportEIP7702: jest.fn(),
 }));
 
 // TODO: Replace `any` with type
@@ -535,6 +542,10 @@ describe('TransactionController', () => {
   const addTransactionBatchMock = jest.mocked(addTransactionBatch);
   const methodDataHelperClassMock = jest.mocked(MethodDataHelper);
   const getDelegationAddressMock = jest.mocked(getDelegationAddress);
+  const doesChainSupportEIP7702Mock = jest.mocked(doesChainSupportEIP7702);
+  const getEIP7702UpgradeContractAddressMock = jest.mocked(
+    getEIP7702UpgradeContractAddress,
+  );
 
   let mockEthQuery: EthQuery;
   let getNonceLockSpy: jest.Mock;
@@ -674,6 +685,7 @@ describe('TransactionController', () => {
       getPermittedAccounts: async () => [ACCOUNT_MOCK],
       hooks: {},
       isEIP7702GasFeeTokensEnabled: isEIP7702GasFeeTokensEnabledMock,
+      publicKeyEIP7702: '0x1234',
       sign: signMock,
       transactionHistoryLimit: 40,
       ...givenOptions,
@@ -2290,12 +2302,14 @@ describe('TransactionController', () => {
         );
       });
 
-      it('with use7702Fees if isEIP7702GasFeeTokensEnabled returns true', async () => {
+      it('with use7702Fees if isEIP7702GasFeeTokensEnabled returns true and chain supports 7702', async () => {
+        isEIP7702GasFeeTokensEnabledMock.mockResolvedValueOnce(true);
+        doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+        getDelegationAddressMock.mockResolvedValueOnce(ACCOUNT_2_MOCK);
+
         getSimulationDataMock.mockResolvedValueOnce(
           SIMULATION_DATA_RESULT_MOCK,
         );
-
-        isEIP7702GasFeeTokensEnabledMock.mockResolvedValueOnce(true);
 
         const { controller } = setupController();
 
@@ -2319,9 +2333,16 @@ describe('TransactionController', () => {
         );
       });
 
-      it('with authorizationList', async () => {
+      it('with authorization list if isEIP7702GasFeeTokensEnabled returns true and no delegation address', async () => {
+        isEIP7702GasFeeTokensEnabledMock.mockResolvedValueOnce(true);
+        doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+
         getSimulationDataMock.mockResolvedValueOnce(
           SIMULATION_DATA_RESULT_MOCK,
+        );
+
+        getEIP7702UpgradeContractAddressMock.mockReturnValueOnce(
+          ACCOUNT_2_MOCK,
         );
 
         const { controller } = setupController();
@@ -2330,16 +2351,6 @@ describe('TransactionController', () => {
           {
             from: ACCOUNT_MOCK,
             to: ACCOUNT_MOCK,
-            authorizationList: [
-              {
-                address: ACCOUNT_2_MOCK,
-                chainId: CHAIN_ID_MOCK,
-                nonce: toHex(NONCE_MOCK),
-                r: '0x1',
-                s: '0x2',
-                yParity: '0x1',
-              },
-            ],
           },
           {
             networkClientId: NETWORK_CLIENT_ID_MOCK,
