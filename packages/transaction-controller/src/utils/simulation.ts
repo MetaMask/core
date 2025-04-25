@@ -4,14 +4,14 @@ import { hexToBN, toHex } from '@metamask/controller-utils';
 import { abiERC20, abiERC721, abiERC1155 } from '@metamask/metamask-eth-abis';
 import { createModuleLogger, type Hex } from '@metamask/utils';
 
-import { simulateTransactions } from './simulation-api';
+import { simulateTransactions } from '../api/simulation-api';
 import type {
   SimulationResponseLog,
   SimulationRequestTransaction,
   SimulationResponse,
   SimulationResponseCallTrace,
   SimulationResponseTransaction,
-} from './simulation-api';
+} from '../api/simulation-api';
 import {
   ABI_SIMULATION_ERC20_WRAPPED,
   ABI_SIMULATION_ERC721_LEGACY,
@@ -744,6 +744,7 @@ function getGasFeeTokens(response: SimulationResponse): GasFeeToken[] {
     balance: tokenFee.currentBalanceToken,
     decimals: tokenFee.token.decimals,
     gas: feeLevel.gas,
+    gasTransfer: tokenFee.transferEstimate,
     maxFeePerGas: feeLevel.maxFeePerGas,
     maxPriorityFeePerGas: feeLevel.maxPriorityFeePerGas,
     rateWei: tokenFee.rateWei,

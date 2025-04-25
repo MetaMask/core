@@ -149,6 +149,9 @@ export type SimulationResponseTokenFee = {
 
   /** Conversation rate of 1 token to native WEI. */
   rateWei: Hex;
+
+  /** Estimated gas limit required for fee transfer. */
+  transferEstimate: Hex;
 };
 
 /** Response from the simulation API for a single transaction. */
