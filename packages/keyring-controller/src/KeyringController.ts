@@ -2277,6 +2277,9 @@ export class KeyringController extends BaseController<
    */
   #updateVault(): Promise<boolean> {
     return this.#withVaultLock(async () => {
+      // Ensure no duplicate accounts are persisted.
+      await this.#assertNoDuplicateAccounts();
+
       const { encryptionKey, encryptionSalt, vault } = this.state;
       // READ THIS CAREFULLY:
       // We do check if the vault is still considered up-to-date, if not, we would not re-use the
@@ -2471,8 +2474,6 @@ export class KeyringController extends BaseController<
       await keyring.addAccounts(1);
     }
 
-    await this.#checkForDuplicate(type, await keyring.getAccounts());
-
     if (type === KeyringTypes.qr) {
       // In case of a QR keyring type, we need to subscribe
       // to its events after creating it
@@ -2571,41 +2572,15 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Checks for duplicate keypairs, using the the first account in the given
-   * array. Rejects if a duplicate is found.
+   * Assert that there are no duplicate accounts in the keyrings.
    *
-   * Only supports 'Simple Key Pair'.
-   *
-   * @param type - The key pair type to check for.
-   * @param newAccountArray - Array of new accounts.
-   * @returns The account, if no duplicate is found.
+   * @throws If there are duplicate accounts.
    */
-  async #checkForDuplicate(
-    type: string,
-    newAccountArray: string[],
-  ): Promise<string[]> {
+  async #assertNoDuplicateAccounts(): Promise<void> {
     const accounts = await this.#getAccountsFromKeyrings();
 
-    switch (type) {
-      case KeyringTypes.simple: {
-        const isIncluded = Boolean(
-          accounts.find(
-            (key) =>
-              newAccountArray[0] &&
-              (key === newAccountArray[0] ||
-                key === remove0x(newAccountArray[0])),
-          ),
-        );
-
-        if (isIncluded) {
-          throw new Error(KeyringControllerError.DuplicatedAccount);
-        }
-        return newAccountArray;
-      }
-
-      default: {
-        return newAccountArray;
-      }
+    if (new Set(accounts).size !== accounts.length) {
+      throw new Error(KeyringControllerError.DuplicatedAccount);
     }
   }
 
