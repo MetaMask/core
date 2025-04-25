@@ -4241,8 +4241,16 @@ export class TransactionController extends BaseController<
     transactionMeta: TransactionMeta;
   }) {
     const { chainId, delegationAddress, txParams } = transactionMeta;
-    const { data, from, to, value } = txParams;
-    const authorizationAddress = txParams?.authorizationList?.[0]?.address;
+
+    const {
+      authorizationList: authorizationListRequest,
+      data,
+      from,
+      to,
+      value,
+    } = txParams;
+
+    const authorizationAddress = authorizationListRequest?.[0]?.address;
 
     const senderCode =
       authorizationAddress &&
@@ -4257,9 +4265,12 @@ export class TransactionController extends BaseController<
 
     let authorizationList:
       | GetSimulationDataRequest['authorizationList']
-      | undefined;
+      | undefined = authorizationListRequest?.map((authorization) => ({
+      address: authorization.address,
+      from: from as Hex,
+    }));
 
-    if (use7702Fees && !delegationAddress) {
+    if (use7702Fees && !delegationAddress && !authorizationList) {
       authorizationList = this.#getSimulationAuthorizationList({
         chainId,
         from: from as Hex,

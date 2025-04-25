@@ -2371,6 +2371,48 @@ describe('TransactionController', () => {
           expect.any(Object),
         );
       });
+
+      it('with authorization list if in transaction params', async () => {
+        getSimulationDataMock.mockResolvedValueOnce(
+          SIMULATION_DATA_RESULT_MOCK,
+        );
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            authorizationList: [
+              {
+                address: ACCOUNT_2_MOCK,
+                chainId: CHAIN_ID_MOCK,
+                nonce: toHex(NONCE_MOCK),
+                r: '0x1',
+                s: '0x2',
+                yParity: '0x1',
+              },
+            ],
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(getSimulationDataMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            authorizationList: [
+              {
+                address: ACCOUNT_2_MOCK,
+                from: ACCOUNT_MOCK,
+              },
+            ],
+          }),
+          expect.any(Object),
+        );
+      });
     });
 
     describe('updates gas fee tokens', () => {
