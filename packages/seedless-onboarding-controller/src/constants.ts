@@ -31,4 +31,7 @@ export enum SeedlessOnboardingControllerError {
   FailedToChangePassword = `${controllerName} - Failed to change password`,
   TooManyLoginAttempts = `${controllerName} - Too many login attempts`,
   IncorrectPassword = `${controllerName} - Incorrect password`,
+  OutdatedPassword = `${controllerName} - Outdated password`,
+  CouldNotRecoverPassword = `${controllerName} - Could not recover password`,
+  SRPNotBackedUpError = `${controllerName} - SRP not backed up`,
 }

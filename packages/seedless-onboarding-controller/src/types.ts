@@ -60,32 +60,42 @@ export type AuthenticatedUserDetails = {
   socialLoginEmail: string;
 };
 
+export type SRPBackedUpUserDetails = {
+  /**
+   * The public key of the authentication key pair in base64 format.
+   *
+   * This value is used to check if the password is outdated compare to the global password and find backed up old password.
+   */
+  authPubKey: string;
+};
+
 // State
 export type SeedlessOnboardingControllerState =
-  Partial<AuthenticatedUserDetails> & {
-    /**
-     * Encrypted array of serialized keyrings data.
-     */
-    vault?: string;
+  Partial<AuthenticatedUserDetails> &
+    Partial<SRPBackedUpUserDetails> & {
+      /**
+       * Encrypted array of serialized keyrings data.
+       */
+      vault?: string;
 
-    /**
-     * The hashes of the seed phrase backups.
-     *
-     * This is to facilitate the UI to display backup status of the seed phrases.
-     */
-    socialBackupsMetadata: SocialBackupsMetadata[];
+      /**
+       * The hashes of the seed phrase backups.
+       *
+       * This is to facilitate the UI to display backup status of the seed phrases.
+       */
+      socialBackupsMetadata: SocialBackupsMetadata[];
 
-    /**
-     * The encryption key derived from the password and used to encrypt
-     * the vault.
-     */
-    vaultEncryptionKey?: string;
+      /**
+       * The encryption key derived from the password and used to encrypt
+       * the vault.
+       */
+      vaultEncryptionKey?: string;
 
-    /**
-     * The salt used to derive the encryption key from the password.
-     */
-    vaultEncryptionSalt?: string;
-  };
+      /**
+       * The salt used to derive the encryption key from the password.
+       */
+      vaultEncryptionSalt?: string;
+    };
 
 // Actions
 export type SeedlessOnboardingControllerGetStateAction =

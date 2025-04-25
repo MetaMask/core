@@ -15,13 +15,14 @@ import type {
   NodeAuthTokens,
   SEC1EncodedPublicKey,
 } from '@metamask/toprf-secure-backup';
-import { ToprfSecureBackup } from '@metamask/toprf-secure-backup';
+import { TOPRFError, ToprfSecureBackup } from '@metamask/toprf-secure-backup';
 import {
   base64ToBytes,
   bytesToBase64,
   stringToBytes,
   remove0x,
   bigIntToHex,
+  bytesToHex,
 } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
@@ -31,7 +32,7 @@ import {
   SeedlessOnboardingControllerError,
   Web3AuthNetwork,
 } from './constants';
-import { RecoveryError } from './errors';
+import { getErrorMessageFromTOPRFErrorCode, RecoveryError } from './errors';
 import { projectLogger, createModuleLogger } from './logger';
 import { SeedPhraseMetadata } from './SeedPhraseMetadata';
 import type {
@@ -43,6 +44,7 @@ import type {
   VaultData,
   AuthenticatedUserDetails,
   SocialBackupsMetadata,
+  SRPBackedUpUserDetails,
 } from './types';
 
 const log = createModuleLogger(projectLogger, controllerName);
@@ -125,6 +127,10 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
     },
     vaultEncryptionSalt: {
       persist: false,
+      anonymous: true,
+    },
+    authPubKey: {
+      persist: true,
       anonymous: true,
     },
   };
@@ -286,6 +292,9 @@ export class SeedlessOnboardingController extends BaseController<
       rawToprfEncryptionKey: encKey,
       rawToprfAuthKeyPair: authKeyPair,
     });
+    this.#persistAuthPubKey({
+      authPubKey: authKeyPair.pk,
+    });
   }
 
   /**
@@ -300,6 +309,8 @@ export class SeedlessOnboardingController extends BaseController<
     keyringId: string,
   ): Promise<void> {
     this.#assertIsUnlocked();
+    await this.#assertPasswordInSync();
+
     // verify the password and unlock the vault
     const { toprfEncryptionKey, toprfAuthKeyPair } =
       await this.#unlockVaultAndGetBackupEncKey();
@@ -339,6 +350,10 @@ export class SeedlessOnboardingController extends BaseController<
           rawToprfEncryptionKey: encKey,
           rawToprfAuthKeyPair: authKeyPair,
         });
+
+        this.#persistAuthPubKey({
+          authPubKey: authKeyPair.pk,
+        });
       }
 
       return SeedPhraseMetadata.parseSeedPhraseFromMetadataStore(secretData);
@@ -362,6 +377,7 @@ export class SeedlessOnboardingController extends BaseController<
     this.#assertIsUnlocked();
     // verify the old password of the encrypted vault
     await this.verifyPassword(oldPassword);
+    await this.#assertPasswordInSync();
 
     try {
       // update the encryption key with new password and update the Metadata Store
@@ -373,6 +389,10 @@ export class SeedlessOnboardingController extends BaseController<
         password: newPassword,
         rawToprfEncryptionKey: newEncKey,
         rawToprfAuthKeyPair: newAuthKeyPair,
+      });
+
+      this.#persistAuthPubKey({
+        authPubKey: newAuthKeyPair.pk,
       });
     } catch (error) {
       log('Error changing password', error);
@@ -457,6 +477,71 @@ export class SeedlessOnboardingController extends BaseController<
     this.#isUnlocked = false;
   }
 
+  /**
+   * @description Fetch the password corresponding to the current authPubKey in state (current device password).
+   *
+   * @param params - The parameters for fetching the password.
+   * @param params.globalPassword - The current global password to verify.
+   * @returns A promise that resolves to the password.
+   */
+  async recoverPassword({
+    globalPassword,
+  }: {
+    globalPassword: string;
+  }): Promise<{ password: string }> {
+    try {
+      const currentDeviceAuthPubKey = this.#recoverAuthPubKey();
+
+      const {
+        encKey: currentGlobalDeviceEncKey,
+        authKeyPair: currentGlobalDeviceAuthKeyPair,
+      } = await this.#recoverEncKey(globalPassword);
+
+      return this.toprfClient.recoverPassword({
+        targetPwPubKey: currentDeviceAuthPubKey,
+        curEncKey: currentGlobalDeviceEncKey,
+        curAuthKeyPair: currentGlobalDeviceAuthKeyPair,
+      });
+    } catch (error) {
+      if (error instanceof TOPRFError) {
+        throw new Error(
+          getErrorMessageFromTOPRFErrorCode(
+            error.code,
+            SeedlessOnboardingControllerError.CouldNotRecoverPassword,
+          ),
+        );
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * @description Check if the current password is outdated compare to the global password.
+   *
+   * @returns A promise that resolves to true if the password is outdated, false otherwise.
+   */
+  async checkPasswordOutdated(): Promise<boolean> {
+    this.#assertIsAuthenticatedUser(this.state);
+    const {
+      nodeAuthTokens,
+      authConnectionId,
+      groupedAuthConnectionId,
+      userId,
+    } = this.state;
+
+    const authPubKey = this.#recoverAuthPubKey();
+
+    const { authPubKey: globalAuthPubKey } =
+      await this.toprfClient.fetchAuthPubKey({
+        nodeAuthTokens,
+        verifier: groupedAuthConnectionId || authConnectionId,
+        verifierId: userId,
+      });
+
+    // TODO: use noble lib to deserialize and compare curve point
+    return bytesToHex(authPubKey) !== bytesToHex(globalAuthPubKey);
+  }
+
   #setUnlocked(): void {
     this.#isUnlocked = true;
   }
@@ -485,6 +570,32 @@ export class SeedlessOnboardingController extends BaseController<
       log('Error persisting local encryption key', error);
       throw new Error(SeedlessOnboardingControllerError.FailedToPersistOprfKey);
     }
+  }
+
+  /**
+   * Persist the authentication public key for the seedless onboarding flow.
+   * convert to suitable format before persisting.
+   *
+   * @param params - The parameters for persisting the authentication public key.
+   * @param params.authPubKey - The authentication public key to be persisted.
+   */
+  #persistAuthPubKey(params: { authPubKey: SEC1EncodedPublicKey }): void {
+    this.update((state) => {
+      state.authPubKey = bytesToBase64(params.authPubKey);
+    });
+  }
+
+  /**
+   * Recover the authentication public key from the state.
+   * convert to pubkey format before recovering.
+   *
+   * @returns The authentication public key.
+   */
+  #recoverAuthPubKey(): SEC1EncodedPublicKey {
+    this.#assertIsSRPBackedUpUser(this.state);
+    const { authPubKey } = this.state;
+
+    return base64ToBytes(authPubKey);
   }
 
   /**
@@ -538,6 +649,7 @@ export class SeedlessOnboardingController extends BaseController<
       oldAuthKeyPair: authKeyPair,
       newKeyShareIndex,
       newPassword,
+      oldPassword,
     });
   }
 
@@ -924,6 +1036,26 @@ export class SeedlessOnboardingController extends BaseController<
       value.nodeAuthTokens.length < 3 // At least 3 auth tokens are required for Threshold OPRF service
     ) {
       throw new Error(SeedlessOnboardingControllerError.InsufficientAuthToken);
+    }
+  }
+
+  #assertIsSRPBackedUpUser(
+    value: unknown,
+  ): asserts value is SRPBackedUpUserDetails {
+    if (!this.state.authPubKey) {
+      throw new Error(SeedlessOnboardingControllerError.SRPNotBackedUpError);
+    }
+  }
+
+  /**
+   * Assert that the password is in sync with the global password.
+   *
+   * @throws If the password is outdated.
+   */
+  async #assertPasswordInSync(): Promise<void> {
+    const isPasswordOutdated = await this.checkPasswordOutdated();
+    if (isPasswordOutdated) {
+      throw new Error(SeedlessOnboardingControllerError.OutdatedPassword);
     }
   }
 
