@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `gasTransfer` property to `GasFeeToken` ([#5681](https://github.com/MetaMask/core/pull/5681))
+
 ## [54.2.0]
 
 ### Added
