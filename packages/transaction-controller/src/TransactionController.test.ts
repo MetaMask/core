@@ -26,7 +26,7 @@ import {
   NetworkStatus,
   getDefaultNetworkControllerState,
 } from '@metamask/network-controller';
-import { errorCodes, providerErrors, rpcErrors } from '@metamask/rpc-errors';
+import { errorCodes, providerErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { createDeferredPromise } from '@metamask/utils';
 import assert from 'assert';
