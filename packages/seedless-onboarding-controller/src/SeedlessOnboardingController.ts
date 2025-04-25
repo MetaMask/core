@@ -15,7 +15,7 @@ import type {
   NodeAuthTokens,
   SEC1EncodedPublicKey,
 } from '@metamask/toprf-secure-backup';
-import { TOPRFError, ToprfSecureBackup } from '@metamask/toprf-secure-backup';
+import { ToprfSecureBackup } from '@metamask/toprf-secure-backup';
 import {
   base64ToBytes,
   bytesToBase64,
@@ -32,7 +32,7 @@ import {
   SeedlessOnboardingControllerError,
   Web3AuthNetwork,
 } from './constants';
-import { getErrorMessageFromTOPRFErrorCode, RecoveryError } from './errors';
+import { PasswordSyncError, RecoveryError } from './errors';
 import { projectLogger, createModuleLogger } from './logger';
 import { SeedPhraseMetadata } from './SeedPhraseMetadata';
 import type {
@@ -478,10 +478,11 @@ export class SeedlessOnboardingController extends BaseController<
   }
 
   /**
-   * @description Fetch the password corresponding to the current authPubKey in state (current device password).
+   * @description Fetch the password corresponding to the current authPubKey in state (current device password which is already out of sync with the current global password).
+   * then we use this recovered old password to unlock the vault and set the password to the new global password.
    *
    * @param params - The parameters for fetching the password.
-   * @param params.globalPassword - The current global password to verify.
+   * @param params.globalPassword - The latest global password.
    * @returns A promise that resolves to the password.
    */
   async recoverPassword({
@@ -489,29 +490,22 @@ export class SeedlessOnboardingController extends BaseController<
   }: {
     globalPassword: string;
   }): Promise<{ password: string }> {
+    const currentDeviceAuthPubKey = this.#recoverAuthPubKey();
+
+    const {
+      encKey: currentGlobalDeviceEncKey,
+      authKeyPair: currentGlobalDeviceAuthKeyPair,
+    } = await this.#recoverEncKey(globalPassword);
+
     try {
-      const currentDeviceAuthPubKey = this.#recoverAuthPubKey();
-
-      const {
-        encKey: currentGlobalDeviceEncKey,
-        authKeyPair: currentGlobalDeviceAuthKeyPair,
-      } = await this.#recoverEncKey(globalPassword);
-
-      return this.toprfClient.recoverPassword({
+      const res = await this.toprfClient.recoverPassword({
         targetPwPubKey: currentDeviceAuthPubKey,
         curEncKey: currentGlobalDeviceEncKey,
         curAuthKeyPair: currentGlobalDeviceAuthKeyPair,
       });
+      return res;
     } catch (error) {
-      if (error instanceof TOPRFError) {
-        throw new Error(
-          getErrorMessageFromTOPRFErrorCode(
-            error.code,
-            SeedlessOnboardingControllerError.CouldNotRecoverPassword,
-          ),
-        );
-      }
-      throw error;
+      throw PasswordSyncError.getInstance(error);
     }
   }
 
@@ -520,7 +514,7 @@ export class SeedlessOnboardingController extends BaseController<
    *
    * @returns A promise that resolves to true if the password is outdated, false otherwise.
    */
-  async checkPasswordOutdated(): Promise<boolean> {
+  async checkIsPasswordOutdated(): Promise<boolean> {
     this.#assertIsAuthenticatedUser(this.state);
     const {
       nodeAuthTokens,
@@ -1053,7 +1047,7 @@ export class SeedlessOnboardingController extends BaseController<
    * @throws If the password is outdated.
    */
   async #assertPasswordInSync(): Promise<void> {
-    const isPasswordOutdated = await this.checkPasswordOutdated();
+    const isPasswordOutdated = await this.checkIsPasswordOutdated();
     if (isPasswordOutdated) {
       throw new Error(SeedlessOnboardingControllerError.OutdatedPassword);
     }

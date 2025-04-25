@@ -8,6 +8,7 @@ import {
   type NodeAuthTokens,
   type RecoverEncryptionKeyResult,
   type ToprfSecureBackup,
+  TOPRFErrorCode,
 } from '@metamask/toprf-secure-backup';
 import { base64ToBytes, bytesToBase64, stringToBytes } from '@metamask/utils';
 
@@ -16,7 +17,7 @@ import {
   SeedlessOnboardingControllerError,
   AuthConnection,
 } from './constants';
-import { RecoveryError } from './errors';
+import { PasswordSyncError, RecoveryError } from './errors';
 import {
   getDefaultSeedlessOnboardingControllerState,
   SeedlessOnboardingController,
@@ -585,7 +586,7 @@ describe('SeedlessOnboardingController', () => {
         },
         async ({ controller, toprfClient }) => {
           mockFetchAuthPubKey(toprfClient, base64ToBytes(MOCK_AUTH_PUB_KEY));
-          const result = await controller.checkPasswordOutdated();
+          const result = await controller.checkIsPasswordOutdated();
           expect(result).toBe(false);
         },
       );
@@ -601,7 +602,7 @@ describe('SeedlessOnboardingController', () => {
         },
         async ({ controller, toprfClient }) => {
           mockFetchAuthPubKey(toprfClient, base64ToBytes(MOCK_AUTH_PUB_KEY));
-          const result = await controller.checkPasswordOutdated();
+          const result = await controller.checkIsPasswordOutdated();
           expect(result).toBe(true);
         },
       );
@@ -615,7 +616,7 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller }) => {
-          await expect(controller.checkPasswordOutdated()).rejects.toThrow(
+          await expect(controller.checkIsPasswordOutdated()).rejects.toThrow(
             SeedlessOnboardingControllerError.SRPNotBackedUpError,
           );
         },
@@ -634,7 +635,7 @@ describe('SeedlessOnboardingController', () => {
           },
         },
         async ({ controller }) => {
-          await expect(controller.checkPasswordOutdated()).rejects.toThrow(
+          await expect(controller.checkIsPasswordOutdated()).rejects.toThrow(
             SeedlessOnboardingControllerError.InsufficientAuthToken,
           );
         },
@@ -2278,14 +2279,21 @@ describe('SeedlessOnboardingController', () => {
           jest
             .spyOn(toprfClient, 'recoverEncKey')
             .mockRejectedValueOnce(
-              new Error('Failed to recover encryption key'),
+              new TOPRFError(
+                TOPRFErrorCode.CouldNotDeriveEncryptionKey,
+                'Could not derive encryption key',
+              ),
             );
 
           await expect(
             controller.recoverPassword({
               globalPassword: GLOBAL_PASSWORD,
             }),
-          ).rejects.toThrow(SeedlessOnboardingControllerError.LoginFailedError);
+          ).rejects.toStrictEqual(
+            new RecoveryError(
+              SeedlessOnboardingControllerError.IncorrectPassword,
+            ),
+          );
         },
       );
     });
@@ -2312,13 +2320,59 @@ describe('SeedlessOnboardingController', () => {
 
           jest
             .spyOn(toprfClient, 'recoverPassword')
-            .mockRejectedValueOnce(new Error('Failed to recover password'));
+            .mockRejectedValueOnce(
+              new TOPRFError(
+                TOPRFErrorCode.CouldNotFetchPassword,
+                'Could not fetch password',
+              ),
+            );
 
           await expect(
             controller.recoverPassword({
               globalPassword: GLOBAL_PASSWORD,
             }),
-          ).rejects.toThrow('Failed to recover password');
+          ).rejects.toStrictEqual(
+            new PasswordSyncError(
+              SeedlessOnboardingControllerError.CouldNotRecoverPassword,
+            ),
+          );
+        },
+      );
+    });
+
+    it('should not propagate unknown errors from #toprfClient.recoverPassword', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          const mockToprfEncryptor = createMockToprfEncryptor();
+          const encKey = mockToprfEncryptor.deriveEncKey(GLOBAL_PASSWORD);
+          const authKeyPair =
+            mockToprfEncryptor.deriveAuthKeyPair(GLOBAL_PASSWORD);
+          jest.spyOn(toprfClient, 'recoverEncKey').mockResolvedValueOnce({
+            encKey,
+            authKeyPair,
+            rateLimitResetResult: Promise.resolve(),
+            keyShareIndex: 1,
+          });
+
+          jest
+            .spyOn(toprfClient, 'recoverPassword')
+            .mockRejectedValueOnce(new Error('Unknown error'));
+
+          await expect(
+            controller.recoverPassword({
+              globalPassword: GLOBAL_PASSWORD,
+            }),
+          ).rejects.toStrictEqual(
+            new PasswordSyncError(
+              SeedlessOnboardingControllerError.CouldNotRecoverPassword,
+            ),
+          );
         },
       );
     });
