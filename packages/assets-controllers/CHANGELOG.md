@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [59.0.0]
 
-### Uncategorized
-
-- Release 374.0.0 ([#5705](https://github.com/MetaMask/core/pull/5705))
-
 ### Added
 
 - Add `SEI` network support ([#5610](https://github.com/MetaMask/core/pull/5610))
