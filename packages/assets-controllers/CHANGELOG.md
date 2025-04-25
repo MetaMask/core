@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add support for 'Sonic Mainnet' chainId in the list of SUPPORTED_CHAIN_IDS. ([#5711](https://github.com/MetaMask/core/pull/5711))
 - Add `SEI` network support ([#5610](https://github.com/MetaMask/core/pull/5610))
   - Add token detection support
   - Add NFT detection support
