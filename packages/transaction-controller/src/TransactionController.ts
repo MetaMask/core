@@ -352,7 +352,7 @@ export type TransactionControllerOptions = {
 
   /** Whether simulation should return EIP-7702 gas fee tokens. */
   isEIP7702GasFeeTokensEnabled?: (
-    transactionMeta?: TransactionMeta,
+    transactionMeta: TransactionMeta,
   ) => Promise<boolean>;
 
   /** Whether the first time interaction check is enabled. */
