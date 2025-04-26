@@ -1,6 +1,5 @@
 import type { StateMetadata } from '@metamask/base-controller';
 import type {
-  BridgeAsset,
   QuoteMetadata,
   RequiredEventContextFromClient,
   TxData,
@@ -10,7 +9,6 @@ import {
   formatChainIdToHex,
   getEthUsdtResetData,
   isEthUsdt,
-  isNativeAddress,
   isSolanaChainId,
   StatusTypes,
   UnifiedSwapBridgeEventName,
@@ -662,41 +660,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return await this.#waitForHashAndReturnFinalTxMeta(result);
     }
 
-    // TODO why is this needed?
-    // Note that updateTransaction doesn't actually error if you add fields that don't conform the to the txMeta type
-    // they will be there at runtime, but you just don't get any type safety checks on them
-    // const fieldsToAddToTxMeta = getTxMetaFields(quoteResponse, approvalTxId);
-    // dispatch(updateTransaction(completeTxMeta);
-
     return {
       ...getTxMetaFields(quoteResponse, approvalTxId),
       ...transactionMeta,
     };
-  };
-
-  // Only adds tokens if the source or dest chain is an EVM chain bc non-evm tokens
-  // are detected by the multichain asset controllers
-  readonly #addTokens = (asset: BridgeAsset) => {
-    if (isNativeAddress(asset.address) || isSolanaChainId(asset.chainId)) {
-      return;
-    }
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    this.messagingSystem.call(
-      'TokensController:addDetectedTokens',
-      [
-        {
-          address: asset.address,
-          decimals: asset.decimals,
-          image: asset.iconUrl,
-          name: asset.name,
-          symbol: asset.symbol,
-        },
-      ],
-      {
-        chainId: formatChainIdToHex(asset.chainId),
-        selectedAddress: this.#getMultichainSelectedAccountAddress(),
-      },
-    );
   };
 
   readonly #handleUSDTAllowanceReset = async (
@@ -827,10 +794,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         UnifiedSwapBridgeEventName.Submitted,
         txMeta.id,
       );
-
-      // Add tokens to the token list
-      this.#addTokens(quoteResponse.quote.srcAsset);
-      this.#addTokens(quoteResponse.quote.destAsset);
     } catch {
       // Ignore errors here, we don't want to crash the app if this fails and tx submission succeeds
     }
