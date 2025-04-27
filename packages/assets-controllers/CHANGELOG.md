@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Updated `NftController` and `NftDetectionController` to eliminate the dependency on the current chain.
-  - All functions that previously accepted networkClientId as an optional parameter now require it as a mandatory parameter
+  - All functions that previously accepted networkClientId as an optional parameter now require it as a mandatory parameter ([#5622](https://github.com/MetaMask/core/pull/5622))
 - Refactor `TokensController` to remove reliance on a single selected network ([#5659](https://github.com/MetaMask/core/pull/5659))
   - `TokensController` methods now require `networkClientId` as an explicit parameter.
   - Token management logic is fully parameterized by `chainId`, allowing multi-chain token handling and improving reliability across network changes.
