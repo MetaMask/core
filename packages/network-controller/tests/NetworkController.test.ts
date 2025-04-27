@@ -1205,6 +1205,7 @@ describe('NetworkController', () => {
       });
     });
   });
+
   describe('getNetworkClientRegistry', () => {
     describe('if no network configurations were specified at initialization', () => {
       it('returns network clients for default RPC endpoints, keyed by network client ID', async () => {
