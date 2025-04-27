@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Updated `NftController` and `NftDetectionController` to eliminate the dependency on the current chain.
+  - All functions that previously accepted networkClientId as an optional parameter now require it as a mandatory parameter
+
 ## [56.0.0]
 
 ### Changed
