@@ -39,7 +39,6 @@ export type {
   NetworkControllerRpcEndpointUnavailableEvent,
   NetworkControllerRpcEndpointDegradedEvent,
   NetworkControllerRpcEndpointRequestRetriedEvent,
-  NetworkControllerGetNetworkClientIdByChainIdAction,
 } from './NetworkController';
 export {
   getDefaultNetworkControllerState,

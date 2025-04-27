@@ -202,12 +202,12 @@ export function buildMockGetNetworkClientById(
  * belongs to a particular network client ID.
  * @returns The mock version of `getNetworkClientIdByChainId`.
  */
-export function buildMockGetNetworkClientByChainId(
+export function buildMockFindNetworkClientIdByChainId(
   mockNetworkClientConfigurationsByNetworkClientId: Record<
     Hex,
     NetworkClientConfiguration
   > = {},
-): NetworkController['getNetworkClientIdByChainId'] {
+): NetworkController['findNetworkClientIdByChainId'] {
   const defaultMockNetworkClientConfigurationsByNetworkClientId = Object.values(
     InfuraNetworkType,
   ).reduce((obj, infuraNetworkType) => {

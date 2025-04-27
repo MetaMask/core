@@ -63,7 +63,7 @@ import type {
 } from '../../base-controller/tests/helpers';
 import {
   buildCustomNetworkClientConfiguration,
-  buildMockGetNetworkClientByChainId,
+  buildMockFindNetworkClientIdByChainId,
   buildMockGetNetworkClientById,
 } from '../../network-controller/tests/helpers';
 
@@ -223,7 +223,7 @@ function setupController({
   const getNetworkClientById = buildMockGetNetworkClientById(
     mockNetworkClientConfigurationsByNetworkClientId,
   );
-  const getNetworkClientIdByChainId = buildMockGetNetworkClientByChainId(
+  const findNetworkClientIdByChainId = buildMockFindNetworkClientIdByChainId(
     mockGetNetworkClientIdByChainId,
   );
   messenger.registerActionHandler(
@@ -231,8 +231,8 @@ function setupController({
     getNetworkClientById,
   );
   messenger.registerActionHandler(
-    'NetworkController:getNetworkClientIdByChainId',
-    getNetworkClientIdByChainId,
+    'NetworkController:findNetworkClientIdByChainId',
+    findNetworkClientIdByChainId,
   );
 
   const mockGetAccount =
@@ -339,7 +339,7 @@ function setupController({
       'AssetsContractController:getERC721OwnerOf',
       'AssetsContractController:getERC1155BalanceOf',
       'AssetsContractController:getERC1155TokenURI',
-      'NetworkController:getNetworkClientIdByChainId',
+      'NetworkController:findNetworkClientIdByChainId',
     ],
     allowedEvents: [
       'AccountsController:selectedAccountChange',

@@ -67,7 +67,7 @@ import type {
   GetCollectionsResponse,
   TopBid,
 } from './NftDetectionController';
-import type { NetworkControllerGetNetworkClientIdByChainIdAction } from '../../network-controller/src/NetworkController';
+import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '../../network-controller/src/NetworkController';
 
 export type NFTStandardType = 'ERC721' | 'ERC1155';
 
@@ -245,7 +245,7 @@ export type AllowedActions =
   | AssetsContractControllerGetERC721OwnerOfAction
   | AssetsContractControllerGetERC1155BalanceOfAction
   | AssetsContractControllerGetERC1155TokenURIAction
-  | NetworkControllerGetNetworkClientIdByChainIdAction;
+  | NetworkControllerFindNetworkClientIdByChainIdAction;
 
 export type AllowedEvents =
   | PreferencesControllerStateChangeEvent
@@ -1554,7 +1554,7 @@ export class NftController extends BaseController<
         nftsWithChecksumAdr.map(async (nft) => {
           // Each NFT should have a chainId; convert nft.chainId to networkClientId
           const networkClientId = this.messagingSystem.call(
-            'NetworkController:getNetworkClientIdByChainId',
+            'NetworkController:findNetworkClientIdByChainId',
             toHex(nft.chainId as number),
           );
           const resMetadata = networkClientId

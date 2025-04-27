@@ -28,7 +28,7 @@ import { FakeProvider } from '../../../tests/fake-provider';
 import { advanceTime } from '../../../tests/helpers';
 import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
 import {
-  buildMockGetNetworkClientByChainId,
+  buildMockFindNetworkClientIdByChainId,
   buildMockGetNetworkClientById,
 } from '../../network-controller/tests/helpers';
 import { Source } from './constants';
@@ -1879,8 +1879,8 @@ type WithControllerOptions = {
   mockNetworkState?: Partial<NetworkState>;
   mockPreferencesState?: Partial<PreferencesState>;
   mockGetSelectedAccount?: jest.Mock<AccountsController['getSelectedAccount']>;
-  mockGetNetworkClientIdByChainId?: jest.Mock<
-    NetworkController['getNetworkClientIdByChainId']
+  mockFindNetworkClientIdByChainId?: jest.Mock<
+    NetworkController['findNetworkClientIdByChainId']
   >;
 };
 
@@ -1904,7 +1904,7 @@ async function withController<ReturnValue>(
     {
       options = {},
       mockNetworkClientConfigurationsByNetworkClientId = {},
-      mockGetNetworkClientIdByChainId = {},
+      mockFindNetworkClientIdByChainId = {},
       mockNetworkState = {},
       mockPreferencesState = {},
       mockGetSelectedAccount = jest
@@ -1932,8 +1932,8 @@ async function withController<ReturnValue>(
   const getNetworkClientById = buildMockGetNetworkClientById(
     mockNetworkClientConfigurationsByNetworkClientId,
   );
-  const getNetworkClientIdByChainId = buildMockGetNetworkClientByChainId(
-    mockGetNetworkClientIdByChainId,
+  const findNetworkClientIdByChainId = buildMockFindNetworkClientIdByChainId(
+    mockFindNetworkClientIdByChainId,
   );
 
   messenger.registerActionHandler(
@@ -1942,8 +1942,8 @@ async function withController<ReturnValue>(
   );
 
   messenger.registerActionHandler(
-    'NetworkController:getNetworkClientIdByChainId',
-    getNetworkClientIdByChainId,
+    'NetworkController:findNetworkClientIdByChainId',
+    findNetworkClientIdByChainId,
   );
 
   messenger.registerActionHandler(
@@ -1962,7 +1962,7 @@ async function withController<ReturnValue>(
         'NetworkController:getNetworkClientById',
         'PreferencesController:getState',
         'AccountsController:getSelectedAccount',
-        'NetworkController:getNetworkClientIdByChainId',
+        'NetworkController:findNetworkClientIdByChainId',
       ],
       allowedEvents: [
         'NetworkController:stateChange',
