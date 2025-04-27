@@ -1,4 +1,8 @@
-import type { TokenSearchParams, TokenSearchResponseItem } from '../types';
+import type {
+  SwappableTokenSearchParams,
+  TokenSearchParams,
+  TokenSearchResponseItem,
+} from '../types';
 
 /**
  * Abstract class for fetching token search results.
@@ -12,5 +16,15 @@ export abstract class AbstractTokenSearchApiService {
    */
   abstract searchTokens(
     tokenSearchParams?: TokenSearchParams,
+  ): Promise<TokenSearchResponseItem[]>;
+
+  /**
+   * Fetches swappable token search results from the portfolio API.
+   *
+   * @param swappableTokenSearchParams - Search parameters including name, and optional limit {@link SwappableTokenSearchParams}
+   * @returns A promise resolving to an array of {@link TokenSearchResponseItem}
+   */
+  abstract searchSwappableTokens(
+    swappableTokenSearchParams: SwappableTokenSearchParams,
   ): Promise<TokenSearchResponseItem[]>;
 }

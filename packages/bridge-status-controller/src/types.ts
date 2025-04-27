@@ -1,20 +1,30 @@
-import type { AccountsControllerGetSelectedMultichainAccountAction } from '@metamask/accounts-controller';
+import type {
+  AccountsControllerGetAccountByAddressAction,
+  AccountsControllerGetSelectedMultichainAccountAction,
+} from '@metamask/accounts-controller';
+import type { TokensControllerAddDetectedTokensAction } from '@metamask/assets-controllers';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   RestrictedMessenger,
 } from '@metamask/base-controller';
 import type {
+  BridgeBackgroundAction,
+  BridgeControllerAction,
   ChainId,
   Quote,
   QuoteMetadata,
   QuoteResponse,
+  StatusTypes,
+  TxData,
 } from '@metamask/bridge-controller';
+import type { GetGasFeeState } from '@metamask/gas-fee-controller';
 import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
+import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type {
   TransactionControllerGetStateAction,
   TransactionMeta,
@@ -26,18 +36,26 @@ import type { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
 // All fields need to be types not interfaces, same with their children fields
 // o/w you get a type error
 
+export enum BridgeClientId {
+  EXTENSION = 'extension',
+  MOBILE = 'mobile',
+}
+
 export type FetchFunction = (
   input: RequestInfo | URL,
   init?: RequestInit,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ) => Promise<any>;
 
-export enum StatusTypes {
-  UNKNOWN = 'UNKNOWN',
-  FAILED = 'FAILED',
-  PENDING = 'PENDING',
-  COMPLETE = 'COMPLETE',
-}
+/**
+ * These fields are specific to Solana transactions and can likely be infered from TransactionMeta
+ *
+ * @deprecated these should be removed eventually
+ */
+export type SolanaTransactionMeta = {
+  isSolana: boolean;
+  isBridgeTx: boolean;
+};
 
 export type StatusRequest = {
   bridgeId: string; // lifi, socket, squid
@@ -108,6 +126,7 @@ export enum BridgeId {
   ACROSS = 'across',
   STARGATE = 'stargate',
   RELAY = 'relay',
+  MAYAN = 'mayan',
 }
 
 export enum FeeType {
@@ -180,6 +199,8 @@ export type BridgeHistoryItem = {
   targetContractAddress?: string;
   account: string;
   hasApprovalTx: boolean;
+  approvalTxId?: string;
+  isStxEnabled?: boolean;
 };
 
 export enum BridgeStatusAction {
@@ -187,6 +208,7 @@ export enum BridgeStatusAction {
   WIPE_BRIDGE_STATUS = 'wipeBridgeStatus',
   GET_STATE = 'getState',
   RESET_STATE = 'resetState',
+  SUBMIT_TX = 'submitTx',
 }
 
 export type TokenAmountValuesSerialized = {
@@ -234,6 +256,8 @@ export type StartPollingForBridgeTxStatusArgs = {
   slippagePercentage: BridgeHistoryItem['slippagePercentage'];
   initialDestAssetBalance?: BridgeHistoryItem['initialDestAssetBalance'];
   targetContractAddress?: BridgeHistoryItem['targetContractAddress'];
+  approvalTxId?: BridgeHistoryItem['approvalTxId'];
+  isStxEnabled?: BridgeHistoryItem['isStxEnabled'];
 };
 
 /**
@@ -245,7 +269,7 @@ export type StartPollingForBridgeTxStatusArgsSerialized = Omit<
   StartPollingForBridgeTxStatusArgs,
   'quoteResponse'
 > & {
-  quoteResponse: QuoteResponse & QuoteMetadataSerialized;
+  quoteResponse: QuoteResponse<string | TxData> & QuoteMetadata;
 };
 
 export type SourceChainTxMetaId = string;
@@ -277,11 +301,15 @@ export type BridgeStatusControllerWipeBridgeStatusAction =
 export type BridgeStatusControllerResetStateAction =
   BridgeStatusControllerAction<BridgeStatusAction.RESET_STATE>;
 
+export type BridgeStatusControllerSubmitTxAction =
+  BridgeStatusControllerAction<BridgeStatusAction.SUBMIT_TX>;
+
 export type BridgeStatusControllerActions =
   | BridgeStatusControllerStartPollingForBridgeTxStatusAction
   | BridgeStatusControllerWipeBridgeStatusAction
   | BridgeStatusControllerResetStateAction
-  | BridgeStatusControllerGetStateAction;
+  | BridgeStatusControllerGetStateAction
+  | BridgeStatusControllerSubmitTxAction;
 
 // Events
 export type BridgeStatusControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -312,7 +340,13 @@ type AllowedActions =
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
   | AccountsControllerGetSelectedMultichainAccountAction
-  | TransactionControllerGetStateAction;
+  | HandleSnapRequest
+  | TransactionControllerGetStateAction
+  | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>
+  | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>
+  | GetGasFeeState
+  | AccountsControllerGetAccountByAddressAction
+  | TokensControllerAddDetectedTokensAction;
 
 /**
  * The external events available to the BridgeStatusController.

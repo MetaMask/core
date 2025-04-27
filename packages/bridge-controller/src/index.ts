@@ -1,5 +1,28 @@
 export { BridgeController } from './bridge-controller';
 
+export {
+  UnifiedSwapBridgeEventName,
+  UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY,
+} from './utils/metrics/constants';
+
+export type {
+  RequiredEventContextFromClient,
+  CrossChainSwapsEventProperties,
+  TradeData,
+  RequestParams,
+  RequestMetadata,
+  TxStatusData,
+} from './utils/metrics/types';
+
+export {
+  formatProviderLabel,
+  getRequestParams,
+  getActionType,
+  getSwapType,
+  isHardwareWallet,
+  isCustomSlippage,
+} from './utils/metrics/properties';
+
 export type {
   ChainConfiguration,
   L1GasFees,
@@ -25,6 +48,8 @@ export type {
   BridgeControllerEvents,
   BridgeControllerMessenger,
 } from './types';
+
+export { StatusTypes } from './types';
 
 export {
   AssetType,
@@ -80,7 +105,7 @@ export {
   getDefaultBridgeControllerState,
 } from './utils/bridge';
 
-export { isValidQuoteRequest } from './utils/quote';
+export { isValidQuoteRequest, formatEtaInMinutes } from './utils/quote';
 
 export { calcLatestSrcBalance } from './utils/balance';
 
@@ -91,3 +116,17 @@ export {
   formatChainIdToHex,
   formatAddressToCaipReference,
 } from './utils/caip-formatters';
+
+export {
+  selectBridgeQuotes,
+  type BridgeAppState,
+  selectExchangeRateByChainIdAndAddress,
+  /**
+   * Returns whether a quote is expired
+   *
+   * @param state The state of the bridge controller and its dependency controllers
+   * @param currentTimeInMs The current timestamp in milliseconds (e.g. `Date.now()`)
+   * @returns Whether the quote is expired
+   */
+  selectIsQuoteExpired,
+} from './selectors';

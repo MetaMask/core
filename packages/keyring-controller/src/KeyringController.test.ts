@@ -260,6 +260,21 @@ describe('KeyringController', () => {
         );
       });
     });
+
+    it('should throw error if the account is duplicated', async () => {
+      jest
+        .spyOn(HdKeyring.prototype, 'addAccounts')
+        .mockResolvedValue(['0x123']);
+      jest.spyOn(HdKeyring.prototype, 'getAccounts').mockReturnValue(['0x123']);
+      await withController(async ({ controller }) => {
+        jest
+          .spyOn(HdKeyring.prototype, 'getAccounts')
+          .mockReturnValue(['0x123', '0x123']);
+        await expect(controller.addNewAccount()).rejects.toThrow(
+          KeyringControllerError.DuplicatedAccount,
+        );
+      });
+    });
   });
 
   describe('addNewAccountForKeyring', () => {
@@ -2734,6 +2749,21 @@ describe('KeyringController', () => {
               expect(controller.state.encryptionSalt).toBeDefined();
             });
           });
+
+        it('should throw error when using the wrong password', async () => {
+          await withController(
+            {
+              skipVaultCreation: true,
+              cacheEncryptionKey,
+              state: { vault: 'my vault' },
+            },
+            async ({ controller }) => {
+              await expect(
+                controller.submitPassword('wrong password'),
+              ).rejects.toThrow('Incorrect password.');
+            },
+          );
+        });
       }),
     );
   });

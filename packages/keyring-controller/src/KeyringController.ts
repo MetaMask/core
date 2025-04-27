@@ -359,62 +359,66 @@ export type GenericEncryptor = {
  * An encryptor interface that supports encrypting and decrypting
  * serializable data with a password, and exporting and importing keys.
  */
-export type ExportableKeyEncryptor = GenericEncryptor & {
-  /**
-   * Encrypts the given object with the given encryption key.
-   *
-   * @param key - The encryption key to encrypt with.
-   * @param object - The object to encrypt.
-   * @returns The encryption result.
-   */
-  encryptWithKey: (
-    key: unknown,
-    object: Json,
-  ) => Promise<encryptorUtils.EncryptionResult>;
-  /**
-   * Encrypts the given object with the given password, and returns the
-   * encryption result and the exported key string.
-   *
-   * @param password - The password to encrypt with.
-   * @param object - The object to encrypt.
-   * @param salt - The optional salt to use for encryption.
-   * @returns The encrypted string and the exported key string.
-   */
-  encryptWithDetail: (
-    password: string,
-    object: Json,
-    salt?: string,
-  ) => Promise<encryptorUtils.DetailedEncryptionResult>;
-  /**
-   * Decrypts the given encrypted string with the given encryption key.
-   *
-   * @param key - The encryption key to decrypt with.
-   * @param encryptedString - The encrypted string to decrypt.
-   * @returns The decrypted object.
-   */
-  decryptWithKey: (key: unknown, encryptedString: string) => Promise<unknown>;
-  /**
-   * Decrypts the given encrypted string with the given password, and returns
-   * the decrypted object and the salt and exported key string used for
-   * encryption.
-   *
-   * @param password - The password to decrypt with.
-   * @param encryptedString - The encrypted string to decrypt.
-   * @returns The decrypted object and the salt and exported key string used for
-   * encryption.
-   */
-  decryptWithDetail: (
-    password: string,
-    encryptedString: string,
-  ) => Promise<encryptorUtils.DetailedDecryptResult>;
-  /**
-   * Generates an encryption key from exported key string.
-   *
-   * @param key - The exported key string.
-   * @returns The encryption key.
-   */
-  importKey: (key: string) => Promise<unknown>;
-};
+export type ExportableKeyEncryptor<EncryptionKey = unknown> =
+  GenericEncryptor & {
+    /**
+     * Encrypts the given object with the given encryption key.
+     *
+     * @param key - The encryption key to encrypt with.
+     * @param object - The object to encrypt.
+     * @returns The encryption result.
+     */
+    encryptWithKey: (
+      key: EncryptionKey,
+      object: Json,
+    ) => Promise<encryptorUtils.EncryptionResult>;
+    /**
+     * Encrypts the given object with the given password, and returns the
+     * encryption result and the exported key string.
+     *
+     * @param password - The password to encrypt with.
+     * @param object - The object to encrypt.
+     * @param salt - The optional salt to use for encryption.
+     * @returns The encrypted string and the exported key string.
+     */
+    encryptWithDetail: (
+      password: string,
+      object: Json,
+      salt?: string,
+    ) => Promise<encryptorUtils.DetailedEncryptionResult>;
+    /**
+     * Decrypts the given encrypted string with the given encryption key.
+     *
+     * @param key - The encryption key to decrypt with.
+     * @param encryptedString - The encrypted string to decrypt.
+     * @returns The decrypted object.
+     */
+    decryptWithKey: (
+      key: EncryptionKey,
+      encryptedString: string,
+    ) => Promise<unknown>;
+    /**
+     * Decrypts the given encrypted string with the given password, and returns
+     * the decrypted object and the salt and exported key string used for
+     * encryption.
+     *
+     * @param password - The password to decrypt with.
+     * @param encryptedString - The encrypted string to decrypt.
+     * @returns The decrypted object and the salt and exported key string used for
+     * encryption.
+     */
+    decryptWithDetail: (
+      password: string,
+      encryptedString: string,
+    ) => Promise<encryptorUtils.DetailedDecryptResult>;
+    /**
+     * Generates an encryption key from exported key string.
+     *
+     * @param key - The exported key string.
+     * @returns The encryption key.
+     */
+    importKey: (key: string) => Promise<EncryptionKey>;
+  };
 
 export type KeyringSelector =
   | {
@@ -2155,10 +2159,6 @@ export class KeyringController extends BaseController<
     for (const serializedKeyring of serializedKeyrings) {
       await this.#restoreKeyring(serializedKeyring);
     }
-
-    if (this.#keyrings.length !== this.#keyringsMetadata.length) {
-      throw new Error(KeyringControllerError.KeyringMetadataLengthMismatch);
-    }
   }
 
   /**
@@ -2236,6 +2236,13 @@ export class KeyringController extends BaseController<
       }
 
       await this.#restoreSerializedKeyrings(vault);
+
+      // The keyrings array and the keyringsMetadata array should
+      // always have the same length while the controller is unlocked.
+      if (this.#keyrings.length !== this.#keyringsMetadata.length) {
+        throw new Error(KeyringControllerError.KeyringMetadataLengthMismatch);
+      }
+
       const updatedKeyrings = await this.#getUpdatedKeyrings();
 
       this.update((state) => {
@@ -2270,6 +2277,9 @@ export class KeyringController extends BaseController<
    */
   #updateVault(): Promise<boolean> {
     return this.#withVaultLock(async () => {
+      // Ensure no duplicate accounts are persisted.
+      await this.#assertNoDuplicateAccounts();
+
       const { encryptionKey, encryptionSalt, vault } = this.state;
       // READ THIS CAREFULLY:
       // We do check if the vault is still considered up-to-date, if not, we would not re-use the
@@ -2464,8 +2474,6 @@ export class KeyringController extends BaseController<
       await keyring.addAccounts(1);
     }
 
-    await this.#checkForDuplicate(type, await keyring.getAccounts());
-
     if (type === KeyringTypes.qr) {
       // In case of a QR keyring type, we need to subscribe
       // to its events after creating it
@@ -2564,41 +2572,15 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Checks for duplicate keypairs, using the the first account in the given
-   * array. Rejects if a duplicate is found.
+   * Assert that there are no duplicate accounts in the keyrings.
    *
-   * Only supports 'Simple Key Pair'.
-   *
-   * @param type - The key pair type to check for.
-   * @param newAccountArray - Array of new accounts.
-   * @returns The account, if no duplicate is found.
+   * @throws If there are duplicate accounts.
    */
-  async #checkForDuplicate(
-    type: string,
-    newAccountArray: string[],
-  ): Promise<string[]> {
+  async #assertNoDuplicateAccounts(): Promise<void> {
     const accounts = await this.#getAccountsFromKeyrings();
 
-    switch (type) {
-      case KeyringTypes.simple: {
-        const isIncluded = Boolean(
-          accounts.find(
-            (key) =>
-              newAccountArray[0] &&
-              (key === newAccountArray[0] ||
-                key === remove0x(newAccountArray[0])),
-          ),
-        );
-
-        if (isIncluded) {
-          throw new Error(KeyringControllerError.DuplicatedAccount);
-        }
-        return newAccountArray;
-      }
-
-      default: {
-        return newAccountArray;
-      }
+    if (new Set(accounts).size !== accounts.length) {
+      throw new Error(KeyringControllerError.DuplicatedAccount);
     }
   }
 

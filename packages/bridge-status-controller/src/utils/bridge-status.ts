@@ -1,4 +1,4 @@
-import type { Quote } from '@metamask/bridge-controller';
+import { type Quote } from '@metamask/bridge-controller';
 
 import { validateBridgeStatusResponse } from './validators';
 import type {
@@ -63,13 +63,14 @@ export const getStatusRequestWithSrcTxHash = (
   quote: Quote,
   srcTxHash: string,
 ): StatusRequestWithSrcTxHash => {
+  const { bridgeId, bridges, srcChainId, destChainId, refuel } = quote;
   return {
-    bridgeId: quote.bridgeId,
+    bridgeId,
     srcTxHash,
-    bridge: quote.bridges[0],
-    srcChainId: quote.srcChainId,
-    destChainId: quote.destChainId,
+    bridge: bridges[0],
+    srcChainId,
+    destChainId,
     quote,
-    refuel: Boolean(quote.refuel),
+    refuel: Boolean(refuel),
   };
 };
