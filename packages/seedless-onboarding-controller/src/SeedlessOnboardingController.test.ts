@@ -1393,12 +1393,12 @@ describe('SeedlessOnboardingController', () => {
           expect(mockSecretDataGet.isDone()).toBe(true);
           expect(secretData).toBeDefined();
 
-          // `fetchAndRestoreSeedPhraseMetadata` should sort the seed phrases by timestamp and return the seed phrases in the correct order
-          // the seed phrases are sorted in descending order, so the firstly created seed phrase is the latest item in the array
+          // `fetchAndRestoreSeedPhraseMetadata` should sort the seed phrases by timestamp in ascending order and return the seed phrases in the correct order
+          // the seed phrases are sorted in ascending order, so the oldest seed phrase is the first item in the array
           expect(secretData).toStrictEqual([
-            stringToBytes('seedPhrase3'),
-            stringToBytes('seedPhrase2'),
             stringToBytes('seedPhrase1'),
+            stringToBytes('seedPhrase2'),
+            stringToBytes('seedPhrase3'),
           ]);
 
           // verify the vault data
@@ -1709,18 +1709,48 @@ describe('SeedlessOnboardingController', () => {
   });
 
   describe('updateBackupMetadataState', () => {
+    const MOCK_PASSWORD = 'mock-password';
+    let MOCK_VAULT: string;
+    let MOCK_VAULT_ENCRYPTION_KEY: string;
+    let MOCK_VAULT_ENCRYPTION_SALT: string;
+
+    beforeEach(async () => {
+      const mockToprfEncryptor = createMockToprfEncryptor();
+
+      const MOCK_ENCRYPTION_KEY =
+        mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
+      const MOCK_AUTH_KEY_PAIR =
+        mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
+
+      const mockResult = await createMockVault(
+        MOCK_ENCRYPTION_KEY,
+        MOCK_AUTH_KEY_PAIR,
+        MOCK_PASSWORD,
+        MOCK_NODE_AUTH_TOKENS,
+      );
+
+      MOCK_VAULT = mockResult.encryptedMockVault;
+      MOCK_VAULT_ENCRYPTION_KEY = mockResult.vaultEncryptionKey;
+      MOCK_VAULT_ENCRYPTION_SALT = mockResult.vaultEncryptionSalt;
+    });
+
     it('should be able to update the backup metadata state', async () => {
       await withController(
         {
           state: getMockInitialControllerState({
             withMockAuthenticatedUser: true,
+            vault: MOCK_VAULT,
+            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
           }),
         },
         async ({ controller }) => {
-          controller.updateBackupMetadataState(
-            MOCK_KEYRING_ID,
-            MOCK_SEED_PHRASE,
-          );
+          await controller.submitPassword(MOCK_PASSWORD);
+
+          controller.updateBackupMetadataState({
+            keyringId: MOCK_KEYRING_ID,
+            seedPhrase: MOCK_SEED_PHRASE,
+          });
           const MOCK_SEED_PHRASE_HASH = keccak256AndHexify(MOCK_SEED_PHRASE);
           expect(controller.state.socialBackupsMetadata).toStrictEqual([
             { id: MOCK_KEYRING_ID, hash: MOCK_SEED_PHRASE_HASH },
@@ -1734,24 +1764,65 @@ describe('SeedlessOnboardingController', () => {
         {
           state: getMockInitialControllerState({
             withMockAuthenticatedUser: true,
+            vault: MOCK_VAULT,
+            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
           }),
         },
         async ({ controller }) => {
-          controller.updateBackupMetadataState(
-            MOCK_KEYRING_ID,
-            MOCK_SEED_PHRASE,
-          );
+          await controller.submitPassword(MOCK_PASSWORD);
+
+          controller.updateBackupMetadataState({
+            keyringId: MOCK_KEYRING_ID,
+            seedPhrase: MOCK_SEED_PHRASE,
+          });
           const MOCK_SEED_PHRASE_HASH = keccak256AndHexify(MOCK_SEED_PHRASE);
           expect(controller.state.socialBackupsMetadata).toStrictEqual([
             { id: MOCK_KEYRING_ID, hash: MOCK_SEED_PHRASE_HASH },
           ]);
 
-          controller.updateBackupMetadataState(
-            MOCK_KEYRING_ID,
-            MOCK_SEED_PHRASE,
-          );
+          controller.updateBackupMetadataState({
+            keyringId: MOCK_KEYRING_ID,
+            seedPhrase: MOCK_SEED_PHRASE,
+          });
           expect(controller.state.socialBackupsMetadata).toStrictEqual([
             { id: MOCK_KEYRING_ID, hash: MOCK_SEED_PHRASE_HASH },
+          ]);
+        },
+      );
+    });
+
+    it('should be able to update the backup metadata state with an array of backups', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            vault: MOCK_VAULT,
+            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
+          }),
+        },
+        async ({ controller }) => {
+          await controller.submitPassword(MOCK_PASSWORD);
+          const MOCK_SEED_PHRASE_2 = stringToBytes('mock-seed-phrase-2');
+          const MOCK_KEYRING_ID_2 = 'mock-keyring-id-2';
+
+          controller.updateBackupMetadataState([
+            {
+              keyringId: MOCK_KEYRING_ID,
+              seedPhrase: MOCK_SEED_PHRASE,
+            },
+            {
+              keyringId: MOCK_KEYRING_ID_2,
+              seedPhrase: MOCK_SEED_PHRASE_2,
+            },
+          ]);
+          const MOCK_SEED_PHRASE_HASH = keccak256AndHexify(MOCK_SEED_PHRASE);
+          const MOCK_SEED_PHRASE_2_HASH =
+            keccak256AndHexify(MOCK_SEED_PHRASE_2);
+          expect(controller.state.socialBackupsMetadata).toStrictEqual([
+            { id: MOCK_KEYRING_ID, hash: MOCK_SEED_PHRASE_HASH },
+            { id: MOCK_KEYRING_ID_2, hash: MOCK_SEED_PHRASE_2_HASH },
           ]);
         },
       );

@@ -403,16 +403,24 @@ export class SeedlessOnboardingController extends BaseController<
   /**
    * Update the backup metadata state for the given seed phrase.
    *
-   * @param keyringId - The keyring id of the backup seed phrase.
-   * @param seedPhrase - The seed phrase to update the backup metadata for.
+   * @param data - The data to backup, can be a single backup or array of backups.
+   * @param data.keyringId - The keyring id associated with the backup seed phrase.
+   * @param data.seedPhrase - The seed phrase to update the backup metadata state.
    */
-  updateBackupMetadataState(keyringId: string, seedPhrase: Uint8Array) {
-    const newBackupMetadata = {
-      id: keyringId,
-      hash: keccak256AndHexify(seedPhrase),
-    };
+  updateBackupMetadataState(
+    data:
+      | {
+          keyringId: string;
+          seedPhrase: Uint8Array;
+        }
+      | {
+          keyringId: string;
+          seedPhrase: Uint8Array;
+        }[],
+  ) {
+    this.#assertIsUnlocked();
 
-    this.#updateSocialBackupsMetadata(newBackupMetadata);
+    this.#filterDupesAndUpdateSocialBackupsMetadata(data);
   }
 
   /**
@@ -676,12 +684,12 @@ export class SeedlessOnboardingController extends BaseController<
           authKeyPair,
         });
         return {
-          id: keyringId,
+          keyringId,
           seedPhrase,
         };
       });
     } catch (error) {
-      console.log('Error encrypting and storing seed phrase backup', error);
+      log('Error encrypting and storing seed phrase backup', error);
       throw new Error(
         SeedlessOnboardingControllerError.FailedToEncryptAndStoreSeedPhraseBackup,
       );
@@ -793,41 +801,72 @@ export class SeedlessOnboardingController extends BaseController<
    */
   async #withPersistedSeedPhraseBackupsState(
     createSeedPhraseBackupCallback: () => Promise<{
-      id: string;
+      keyringId: string;
       seedPhrase: Uint8Array;
     }>,
   ): Promise<{
-    id: string;
+    keyringId: string;
     seedPhrase: Uint8Array;
   }> {
     try {
-      const backUps = await createSeedPhraseBackupCallback();
-      const newBackupMetadata = {
-        id: backUps.id,
-        hash: keccak256AndHexify(backUps.seedPhrase),
-      };
+      const newBackup = await createSeedPhraseBackupCallback();
 
-      this.#updateSocialBackupsMetadata(newBackupMetadata);
+      this.#filterDupesAndUpdateSocialBackupsMetadata(newBackup);
 
-      return backUps;
+      return newBackup;
     } catch (error) {
       log('Error persisting seed phrase backups', error);
       throw error;
     }
   }
 
-  #updateSocialBackupsMetadata(newSocialBackupMetadata: SocialBackupsMetadata) {
+  /**
+   * Updates the social backups metadata state by adding new unique seed phrase backups.
+   * This method ensures no duplicate backups are stored by checking the hash of each seed phrase.
+   *
+   * @param data - The backup data to add to the state
+   * @param data.id - The identifier for the backup
+   * @param data.seedPhrase - The seed phrase to backup as a Uint8Array
+   */
+  #filterDupesAndUpdateSocialBackupsMetadata(
+    data:
+      | {
+          keyringId: string;
+          seedPhrase: Uint8Array;
+        }
+      | {
+          keyringId: string;
+          seedPhrase: Uint8Array;
+        }[],
+  ) {
+    const currentBackupsMetadata = this.state.socialBackupsMetadata;
+
+    const newBackupsMetadata = Array.isArray(data) ? data : [data];
+    const filteredNewBackupsMetadata: SocialBackupsMetadata[] = [];
+
     // filter out the backed up metadata that already exists in the state
     // to prevent duplicates
-    const existingBackupsMetadata = this.state.socialBackupsMetadata.find(
-      (backup) => backup.id === newSocialBackupMetadata.id,
-    );
+    newBackupsMetadata.forEach((item) => {
+      const { keyringId, seedPhrase } = item;
+      const backupHash = keccak256AndHexify(seedPhrase);
 
-    if (!existingBackupsMetadata) {
+      const existingBackupMetadata = currentBackupsMetadata.find(
+        (backup) => backup.hash === backupHash,
+      );
+
+      if (!existingBackupMetadata) {
+        filteredNewBackupsMetadata.push({
+          id: keyringId,
+          hash: backupHash,
+        });
+      }
+    });
+
+    if (filteredNewBackupsMetadata.length > 0) {
       this.update((state) => {
         state.socialBackupsMetadata = [
           ...state.socialBackupsMetadata,
-          newSocialBackupMetadata,
+          ...filteredNewBackupsMetadata,
         ];
       });
     }
