@@ -59,7 +59,6 @@
   },
   "devDependencies": {
     "@metamask/accounts-controller": "^27.0.0",
-    "@metamask/assets-controllers": "^60.0.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/bridge-controller": "^19.0.0",
     "@metamask/gas-fee-controller": "^23.0.0",
@@ -79,8 +78,7 @@
   },
   "peerDependencies": {
     "@metamask/accounts-controller": "^27.0.0",
-    "@metamask/assets-controllers": "^60.0.0",
-    "@metamask/bridge-controller": "^19.0.0",
+    "@metamask/bridge-controller": "^18.0.0",
     "@metamask/gas-fee-controller": "^23.0.0",
     "@metamask/network-controller": "^23.0.0",
     "@metamask/snaps-controllers": "^11.0.0",
