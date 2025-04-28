@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [60.0.0]
 
-### Uncategorized
+### Added
 
-- Release 376.0.0 ([#5713](https://github.com/MetaMask/core/pull/5713))
+- Add support for 'Sonic Mainnet' chainId in the list of SUPPORTED_CHAIN_IDS. ([#5711](https://github.com/MetaMask/core/pull/5711))
 
 ### Changed
 
