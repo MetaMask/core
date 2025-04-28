@@ -46,6 +46,7 @@ export type {
   BridgeControllerActions,
   BridgeControllerEvents,
   BridgeControllerMessenger,
+  FeatureFlagsPlatformConfig,
 } from './types';
 
 export { StatusTypes } from './types';
@@ -127,3 +128,6 @@ export {
    */
   selectIsQuoteExpired,
 } from './selectors';
+
+export { formatFeatureFlags } from './utils/feature-flags';
+export { validateFeatureFlagsResponse } from './utils/validators';

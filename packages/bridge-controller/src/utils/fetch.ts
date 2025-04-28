@@ -3,9 +3,9 @@ import { Duration } from '@metamask/utils';
 
 import {
   formatAddressToCaipReference,
-  formatChainIdToCaip,
   formatChainIdToDec,
 } from './caip-formatters';
+import { formatFeatureFlags } from './feature-flags';
 import {
   validateFeatureFlagsResponse,
   validateQuoteResponse,
@@ -15,7 +15,6 @@ import { DEFAULT_FEATURE_FLAG_CONFIG } from '../constants/bridge';
 import type {
   QuoteResponse,
   FetchFunction,
-  ChainConfiguration,
   GenericQuoteRequest,
   QuoteRequest,
   BridgeAsset,
@@ -47,19 +46,7 @@ export async function fetchBridgeFeatureFlags(
     remoteFeatureFlagControllerState?.remoteFeatureFlags?.bridgeConfig;
 
   if (validateFeatureFlagsResponse(rawBridgeConfig)) {
-    const getChainsObj = (chains: Record<string, ChainConfiguration>) =>
-      Object.entries(chains).reduce(
-        (acc, [chainId, value]) => ({
-          ...acc,
-          [formatChainIdToCaip(chainId)]: value,
-        }),
-        {},
-      );
-
-    return {
-      ...rawBridgeConfig,
-      chains: getChainsObj(rawBridgeConfig.chains),
-    };
+    return formatFeatureFlags(rawBridgeConfig);
   }
 
   return DEFAULT_FEATURE_FLAG_CONFIG;
