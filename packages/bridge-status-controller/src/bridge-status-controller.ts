@@ -45,6 +45,7 @@ import {
   type FetchFunction,
   type BridgeClientId,
   type SolanaTransactionMeta,
+  type BridgeHistoryItem,
 } from './types';
 import {
   fetchBridgeTxStatus,
