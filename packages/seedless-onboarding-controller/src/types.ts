@@ -95,6 +95,11 @@ export type SeedlessOnboardingControllerState =
        * The salt used to derive the encryption key from the password.
        */
       vaultEncryptionSalt?: string;
+
+      /**
+       * Cache for checkIsPasswordOutdated result and timestamp.
+       */
+      passwordOutdatedCache?: { value: boolean; timestamp: number };
     };
 
 // Actions

@@ -29,6 +29,7 @@ import { Mutex } from 'async-mutex';
 import {
   type AuthConnection,
   controllerName,
+  PASSWORD_OUTDATED_CACHE_TTL_MS,
   SeedlessOnboardingControllerError,
   Web3AuthNetwork,
 } from './constants';
@@ -130,6 +131,10 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       anonymous: true,
     },
     authPubKey: {
+      persist: true,
+      anonymous: true,
+    },
+    passwordOutdatedCache: {
       persist: true,
       anonymous: true,
     },
@@ -583,9 +588,24 @@ export class SeedlessOnboardingController extends BaseController<
   /**
    * @description Check if the current password is outdated compare to the global password.
    *
+   * @param options - Optional options object.
+   * @param options.skipCache - If true, bypass the cache and force a fresh check.
    * @returns A promise that resolves to true if the password is outdated, false otherwise.
    */
-  async checkIsPasswordOutdated(): Promise<boolean> {
+  async checkIsPasswordOutdated(options?: {
+    skipCache?: boolean;
+  }): Promise<boolean> {
+    // cache result to reduce load on infra
+    // Check cache first unless skipCache is true
+    const now = Date.now();
+    if (
+      !options?.skipCache &&
+      this.state.passwordOutdatedCache &&
+      now - this.state.passwordOutdatedCache.timestamp <
+        PASSWORD_OUTDATED_CACHE_TTL_MS
+    ) {
+      return this.state.passwordOutdatedCache.value;
+    }
     return this.#withControllerLock(async () => {
       this.#assertIsAuthenticatedUser(this.state);
       const {
@@ -605,7 +625,12 @@ export class SeedlessOnboardingController extends BaseController<
         });
 
       // TODO: use noble lib to deserialize and compare curve point
-      return bytesToHex(authPubKey) !== bytesToHex(globalAuthPubKey);
+      const result = bytesToHex(authPubKey) !== bytesToHex(globalAuthPubKey);
+      // Cache the result in state
+      this.update((state) => {
+        state.passwordOutdatedCache = { value: result, timestamp: Date.now() };
+      });
+      return result;
     });
   }
 

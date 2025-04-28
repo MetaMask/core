@@ -590,9 +590,15 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller, toprfClient }) => {
+          const spy = jest.spyOn(toprfClient, 'fetchAuthPubKey');
           mockFetchAuthPubKey(toprfClient, base64ToBytes(MOCK_AUTH_PUB_KEY));
           const result = await controller.checkIsPasswordOutdated();
           expect(result).toBe(false);
+          // Call again to test cache
+          const result2 = await controller.checkIsPasswordOutdated();
+          expect(result2).toBe(false);
+          // Should only call fetchAuthPubKey once due to cache
+          expect(spy).toHaveBeenCalledTimes(1);
         },
       );
     });
@@ -606,9 +612,40 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller, toprfClient }) => {
+          const spy = jest.spyOn(toprfClient, 'fetchAuthPubKey');
           mockFetchAuthPubKey(toprfClient, base64ToBytes(MOCK_AUTH_PUB_KEY));
           const result = await controller.checkIsPasswordOutdated();
           expect(result).toBe(true);
+          // Call again to test cache
+          const result2 = await controller.checkIsPasswordOutdated();
+          expect(result2).toBe(true);
+          // Should only call fetchAuthPubKey once due to cache
+          expect(spy).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should bypass cache if skipCache is true', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          const spy = jest.spyOn(toprfClient, 'fetchAuthPubKey');
+          mockFetchAuthPubKey(toprfClient, base64ToBytes(MOCK_AUTH_PUB_KEY));
+          const result = await controller.checkIsPasswordOutdated({
+            skipCache: true,
+          });
+          expect(result).toBe(false);
+          // Call again with skipCache: true, should call fetchAuthPubKey again
+          const result2 = await controller.checkIsPasswordOutdated({
+            skipCache: true,
+          });
+          expect(result2).toBe(false);
+          expect(spy).toHaveBeenCalledTimes(2);
         },
       );
     });

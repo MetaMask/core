@@ -1,5 +1,7 @@
 export const controllerName = 'SeedlessOnboardingController';
 
+export const PASSWORD_OUTDATED_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+
 export enum Web3AuthNetwork {
   Mainnet = 'sapphire_mainnet',
   Devnet = 'sapphire_devnet',
