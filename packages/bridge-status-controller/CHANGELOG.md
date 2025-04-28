@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [16.0.0]
+
 ### Changed
 
-- **BREAKING:** Bump `@metamask/bridge-controller` peer dependency to `^19.0.0` ([#5717](https://github.com/MetaMask/core/pull/5717))
+- **BREAKING:** Bump `@metamask/bridge-controller` peer dependency to `^18.0.0` ([#5717](https://github.com/MetaMask/core/pull/5717))
 - Remove `@metamask/assets-controllers` peer dependency ([#5716](https://github.com/MetaMask/core/pull/5716))
 
 ### Fixed
