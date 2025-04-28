@@ -412,6 +412,7 @@ export class SeedlessOnboardingController extends BaseController<
         this.#persistAuthPubKey({
           authPubKey: newAuthKeyPair.pk,
         });
+        this.#resetPasswordOutdatedCache();
       } catch (error) {
         log('Error changing password', error);
         throw new Error(
@@ -548,6 +549,7 @@ export class SeedlessOnboardingController extends BaseController<
       this.#persistAuthPubKey({
         authPubKey: authKeyPair.pk,
       });
+      this.#resetPasswordOutdatedCache();
     });
   }
 
@@ -1202,6 +1204,12 @@ export class SeedlessOnboardingController extends BaseController<
     if (isPasswordOutdated) {
       throw new Error(SeedlessOnboardingControllerError.OutdatedPassword);
     }
+  }
+
+  #resetPasswordOutdatedCache(): void {
+    this.update((state) => {
+      delete state.passwordOutdatedCache;
+    });
   }
 
   /**
