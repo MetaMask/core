@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Bridge status controller now sets the polling duration to 5 minutes ([#5683](https://github.com/MetaMask/core/pull/5683))
+
 ## [15.0.0]
 
 ### Changed

@@ -589,6 +589,7 @@ describe('BridgeStatusController', () => {
       // Assertion
       expect(bridgeStatusController.state.txHistory).toMatchSnapshot();
     });
+
     it('restarts polling for history items that are not complete', async () => {
       // Setup
       jest.useFakeTimers();
@@ -625,7 +626,7 @@ describe('BridgeStatusController', () => {
       jest.clearAllMocks();
     });
 
-    it('sets the inital tx history state', async () => {
+    it('sets the initial tx history state', async () => {
       // Setup
       const bridgeStatusController = new BridgeStatusController({
         messenger: getMessengerMock(),

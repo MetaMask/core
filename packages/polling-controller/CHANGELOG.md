@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/controller-utils` to `^11.7.0` ([#5583](https://github.com/MetaMask/core/pull/5583))
+- StaticIntervalPollingController now allows to set duration to key ([#5683](https://github.com/MetaMask/core/pull/5683))
 
 ## [13.0.0]
 
