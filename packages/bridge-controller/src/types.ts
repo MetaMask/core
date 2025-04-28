@@ -178,10 +178,6 @@ export type BridgeToken = {
   occurrences?: number;
 };
 
-export enum BridgeFlag {
-  EXTENSION_CONFIG = 'extension-config',
-  MOBILE_CONFIG = 'mobile-config',
-}
 type DecimalChainId = string;
 export type GasMultiplierByChainId = Record<DecimalChainId, number>;
 

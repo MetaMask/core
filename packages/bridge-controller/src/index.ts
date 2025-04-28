@@ -53,7 +53,6 @@ export { StatusTypes } from './types';
 export {
   AssetType,
   SortOrder,
-  BridgeFlag,
   ActionTypes,
   ChainId,
   RequestStatus,

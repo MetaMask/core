@@ -17,11 +17,10 @@ import { isStrictHexString } from '@metamask/utils';
 
 import type {
   BridgeAsset,
-  FeatureFlagResponse,
   FeatureFlagsPlatformConfig,
   QuoteResponse,
 } from '../types';
-import { ActionTypes, BridgeFlag, FeeType } from '../types';
+import { ActionTypes, FeeType } from '../types';
 
 const HexAddressSchema = define('HexAddress', (v: unknown) =>
   isValidHexAddress(v as string, { allowNonPrefixed: false }),
