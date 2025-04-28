@@ -30,6 +30,7 @@ import type {
   AssetsContractController,
   StakedBalance,
 } from './AssetsContractController';
+import { reduceInBatchesSerially, TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 
 /**
  * The name of the {@link AccountTrackerController}.
@@ -124,7 +125,7 @@ export type AccountTrackerControllerMessenger = RestrictedMessenger<
 
 /** The input to start polling for the {@link AccountTrackerController} */
 type AccountTrackerPollingInput = {
-  networkClientId: NetworkClientId;
+  networkClientIds: NetworkClientId[];
 };
 
 /**
@@ -194,7 +195,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       'AccountsController:selectedEvmAccountChange',
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      () => this.refresh(),
+      () => this.refresh(this.#getNetworkClientIds()),
     );
   }
 
@@ -283,17 +284,34 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   }
 
   /**
+   * Retrieves the list of network client IDs.
+   *
+   * @returns An array of network client IDs.
+   */
+  #getNetworkClientIds(): NetworkClientId[] {
+    const { networkConfigurationsByChainId } = this.messagingSystem.call(
+      'NetworkController:getState',
+    );
+    return Object.values(networkConfigurationsByChainId).flatMap(
+      (networkConfiguration) =>
+        networkConfiguration.rpcEndpoints.map(
+          (rpcEndpoint) => rpcEndpoint.networkClientId,
+        ),
+    );
+  }
+
+  /**
    * Refreshes the balances of the accounts using the networkClientId
    *
    * @param input - The input for the poll.
-   * @param input.networkClientId - The network client ID used to get balances.
+   * @param input.networkClientIds - The network client IDs used to get balances.
    */
   async _executePoll({
-    networkClientId,
+    networkClientIds,
   }: AccountTrackerPollingInput): Promise<void> {
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    this.refresh(networkClientId);
+    this.refresh(networkClientIds);
   }
 
   /**
@@ -301,50 +319,89 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
    * If multi-account is disabled, only updates the selected account balance.
    * If multi-account is enabled, updates balances for all accounts.
    *
-   * @param networkClientId - Optional networkClientId to fetch a network client with
+   * @param networkClientIds - Optional network client IDs to fetch a network client with
    */
-  async refresh(networkClientId?: NetworkClientId) {
+  async refresh(networkClientIds: NetworkClientId[]) {
     const selectedAccount = this.messagingSystem.call(
       'AccountsController:getSelectedAccount',
     );
     const releaseLock = await this.#refreshMutex.acquire();
     try {
-      const { chainId, ethQuery } =
-        this.#getCorrectNetworkClient(networkClientId);
-      this.syncAccounts(chainId);
-      const { accountsByChainId } = this.state;
-      const { isMultiAccountBalancesEnabled } = this.messagingSystem.call(
-        'PreferencesController:getState',
-      );
+      // Create an array of promises for each networkClientId
+      const updatePromises = networkClientIds.map(async (networkClientId) => {
+        const { chainId, ethQuery } =
+          this.#getCorrectNetworkClient(networkClientId);
+        this.syncAccounts(chainId);
+        const { accountsByChainId } = this.state;
+        const { isMultiAccountBalancesEnabled } = this.messagingSystem.call(
+          'PreferencesController:getState',
+        );
 
-      const accountsToUpdate = isMultiAccountBalancesEnabled
-        ? Object.keys(accountsByChainId[chainId])
-        : [toChecksumHexAddress(selectedAccount.address)];
+        const accountsToUpdate = isMultiAccountBalancesEnabled
+          ? Object.keys(accountsByChainId[chainId])
+          : [toChecksumHexAddress(selectedAccount.address)];
 
-      const accountsForChain = { ...accountsByChainId[chainId] };
-      for (const address of accountsToUpdate) {
-        const balance = await this.#getBalanceFromChain(address, ethQuery);
-        if (balance) {
-          accountsForChain[address] = {
-            balance,
-          };
+        const accountsForChain = { ...accountsByChainId[chainId] };
+
+        // Process accounts in batches using reduceInBatchesSerially
+        await reduceInBatchesSerially<string, void>({
+          values: accountsToUpdate,
+          batchSize: TOKEN_PRICES_BATCH_SIZE,
+          initialResult: undefined,
+          eachBatch: async (workingResult: void, batch: string[]) => {
+            const balancePromises = batch.map(async (address: string) => {
+              const balancePromise = this.#getBalanceFromChain(
+                address,
+                ethQuery,
+              );
+              const stakedBalancePromise = this.#includeStakedAssets
+                ? this.#getStakedBalanceForChain(address, networkClientId)
+                : Promise.resolve(null);
+
+              const [balanceResult, stakedBalanceResult] =
+                await Promise.allSettled([
+                  balancePromise,
+                  stakedBalancePromise,
+                ]);
+
+              // Update account balances
+              if (balanceResult.status === 'fulfilled' && balanceResult.value) {
+                accountsForChain[address] = {
+                  balance: balanceResult.value,
+                };
+              }
+
+              if (
+                stakedBalanceResult.status === 'fulfilled' &&
+                stakedBalanceResult.value
+              ) {
+                accountsForChain[address] = {
+                  ...accountsForChain[address],
+                  stakedBalance: stakedBalanceResult.value,
+                };
+              }
+            });
+
+            await Promise.allSettled(balancePromises);
+            return workingResult;
+          },
+        });
+
+        // After all batches are processed, return the updated data
+        return { chainId, accountsForChain };
+      });
+
+      // Wait for all networkClientId updates to settle in parallel
+      const allResults = await Promise.allSettled(updatePromises);
+
+      // Update the state once all networkClientId updates are completed
+      allResults.forEach((result) => {
+        if (result.status === 'fulfilled') {
+          const { chainId, accountsForChain } = result.value;
+          this.update((state) => {
+            state.accountsByChainId[chainId] = accountsForChain;
+          });
         }
-        if (this.#includeStakedAssets) {
-          const stakedBalance = await this.#getStakedBalanceForChain(
-            address,
-            networkClientId,
-          );
-          if (stakedBalance) {
-            accountsForChain[address] = {
-              ...accountsForChain[address],
-              stakedBalance,
-            };
-          }
-        }
-      }
-
-      this.update((state) => {
-        state.accountsByChainId[chainId] = accountsForChain;
       });
     } finally {
       releaseLock();

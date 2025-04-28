@@ -311,6 +311,7 @@ export type MockOptions = {
   customChainId?: Hex;
   customTicker?: string;
   getRpcServiceOptions?: NetworkControllerOptions['getRpcServiceOptions'];
+  getBlockTrackerOptions?: NetworkControllerOptions['getBlockTrackerOptions'];
   expectedHeaders?: Record<string, string>;
   messenger?: RootMessenger;
 };
@@ -472,6 +473,7 @@ export async function waitForPromiseToBeFulfilledAfterRunningAllTimers(
  * @param options.customTicker - The ticker of the custom RPC endpoint, assuming
  * that `providerType` is "custom" (default: "ETH").
  * @param options.getRpcServiceOptions - RPC service options factory.
+ * @param options.getBlockTrackerOptions - Block tracker options factory.
  * @param options.messenger - The root messenger to use in tests.
  * @param fn - A function which will be called with an object that allows
  * interaction with the network client.
@@ -486,6 +488,7 @@ export async function withNetworkClient(
     customChainId = '0x1',
     customTicker = 'ETH',
     getRpcServiceOptions = () => ({ fetch, btoa }),
+    getBlockTrackerOptions = () => ({}),
     messenger = buildRootMessenger(),
   }: MockOptions,
   // TODO: Replace `any` with type
@@ -537,6 +540,7 @@ export async function withNetworkClient(
   const networkClient = createNetworkClient({
     configuration: networkClientConfiguration,
     getRpcServiceOptions,
+    getBlockTrackerOptions,
     messenger: networkControllerMessenger,
   });
   /* eslint-disable-next-line n/no-process-env */

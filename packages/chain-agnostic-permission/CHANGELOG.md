@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0]
+
+### Added
+
+- Added `getCaipAccountIdsFromCaip25CaveatValue`, `isInternalAccountInPermittedAccountIds`, and `isCaipAccountIdInPermittedAccountIds` account id functions. ([#5609](https://github.com/MetaMask/core/pull/5609))
+- Added `getAllScopesFromCaip25CaveatValue`, `getAllWalletNamespacesFromCaip25CaveatValue`, `getAllScopesFromPermission`, `getAllScopesFromCaip25CaveatValue`, and `isNamespaceInScopesObject`
+  scope functions. ([#5609](https://github.com/MetaMask/core/pull/5609))
+- Added `getCaip25CaveatFromPermission` misc functions. ([#5609](https://github.com/MetaMask/core/pull/5609))
+
+### Changed
+
+- **BREAKING:** Renamed `setPermittedAccounts` to `setNonSCACaipAccountIdsInCaip25CaveatValue`. ([#5609](https://github.com/MetaMask/core/pull/5609))
+- **BREAKING:** Renamed `setPermittedChainIds` to `setChainIdinCaip25CaveatValue`. ([#5609](https://github.com/MetaMask/core/pull/5609))
+- **BREAKING:** Renamed `addPermittedChainId` to `addCaipChainIdInCaip25CaveatValue`. ([#5609](https://github.com/MetaMask/core/pull/5609))
+- Bump `@metamask/controller-utils` to `^11.7.0` ([#5583](https://github.com/MetaMask/core/pull/5583))
+- Bump `@metamask/network-controller` to `^23.2.0` ([#5583](https://github.com/MetaMask/core/pull/5583))
+
 ## [0.4.0]
 
 ### Added
@@ -15,11 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add and Export `getCaipAccountIdsFromScopesObjects` filtering utility function ([#5647](https://github.com/MetaMask/core/pull/5647))
 - Add and Export `getAllScopesFromScopesObjects` filtering utility function ([#5647](https://github.com/MetaMask/core/pull/5647))
 - Add and Export `getSupportedScopeObjects` filtering utility function ([#5647](https://github.com/MetaMask/core/pull/5647))
-
-### Changed
-
-- Bump `@metamask/controller-utils` to `^11.7.0` ([#5583](https://github.com/MetaMask/core/pull/5583))
-- Bump `@metamask/network-controller` to `^23.2.0` ([#5583](https://github.com/MetaMask/core/pull/5583))
 
 ## [0.3.0]
 
@@ -57,7 +69,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@0.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@0.5.0...HEAD
+[0.5.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@0.4.0...@metamask/chain-agnostic-permission@0.5.0
 [0.4.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@0.3.0...@metamask/chain-agnostic-permission@0.4.0
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@0.2.0...@metamask/chain-agnostic-permission@0.3.0
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@0.1.0...@metamask/chain-agnostic-permission@0.2.0
