@@ -43,11 +43,6 @@ export async function fetchBridgeFeatureFlags(
     'RemoteFeatureFlagController:getState',
   );
 
-  console.log(
-    'HELLO remoteFeatureFlagControllerState',
-    remoteFeatureFlagControllerState,
-  );
-
   const rawBridgeConfig =
     remoteFeatureFlagControllerState?.remoteFeatureFlags?.bridgeConfig;
 
