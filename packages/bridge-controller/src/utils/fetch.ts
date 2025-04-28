@@ -47,7 +47,7 @@ export async function fetchBridgeFeatureFlags(
     remoteFeatureFlagControllerState?.remoteFeatureFlags?.bridgeConfig;
 
   if (validateFeatureFlagsResponse(rawBridgeConfig)) {
-    const getChainsObj = (chains: Record<number, ChainConfiguration>) =>
+    const getChainsObj = (chains: Record<string, ChainConfiguration>) =>
       Object.entries(chains).reduce(
         (acc, [chainId, value]) => ({
           ...acc,
