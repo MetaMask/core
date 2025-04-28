@@ -6,23 +6,22 @@ import {
   isNativeAddress,
   isSolanaChainId,
   type QuoteResponse,
-} from '@metamask/bridge-controller';
-import type {
-  BridgeAsset,
-  QuoteMetadata,
-  TxData,
+  type BridgeAsset,
+  type QuoteMetadata,
+  type TxData,
 } from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
 import { EthAccountType } from '@metamask/keyring-api';
-import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import type {
-  TransactionController,
-  TransactionParams,
-} from '@metamask/transaction-controller';
+import {
+  StaticIntervalPollingController,
+  getKey,
+} from '@metamask/polling-controller';
 import {
   TransactionStatus,
   TransactionType,
   type TransactionMeta,
+  type TransactionController,
+  type TransactionParams,
 } from '@metamask/transaction-controller';
 import type { UserOperationController } from '@metamask/user-operation-controller';
 import { numberToHex, type Hex } from '@metamask/utils';
@@ -57,7 +56,6 @@ import {
   handleSolanaTxResponse,
   generateActionId,
 } from './utils/transaction';
-import { getKey } from '../../polling-controller/src/AbstractPollingController';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
   // We want to persist the bridge status state so that we can show the proper data for the Activity list

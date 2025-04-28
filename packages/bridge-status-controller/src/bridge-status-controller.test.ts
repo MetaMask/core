@@ -1,8 +1,7 @@
 /* eslint-disable jest/no-conditional-in-test */
 /* eslint-disable jest/no-restricted-matchers */
 import type { QuoteResponse, QuoteMetadata } from '@metamask/bridge-controller';
-import { ChainId } from '@metamask/bridge-controller';
-import { ActionTypes, FeeType } from '@metamask/bridge-controller';
+import { ChainId, ActionTypes, FeeType } from '@metamask/bridge-controller';
 import { EthAccountType } from '@metamask/keyring-api';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
@@ -572,6 +571,7 @@ describe('BridgeStatusController', () => {
       // Assertion
       expect(bridgeStatusController.state.txHistory).toMatchSnapshot();
     });
+
     it('restarts polling for history items that are not complete', async () => {
       // Setup
       jest.useFakeTimers();
@@ -608,7 +608,7 @@ describe('BridgeStatusController', () => {
       jest.clearAllMocks();
     });
 
-    it('sets the inital tx history state', async () => {
+    it('sets the initial tx history state', async () => {
       // Setup
       const bridgeStatusController = new BridgeStatusController({
         messenger: getMessengerMock(),
