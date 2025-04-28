@@ -111,6 +111,7 @@
     "@metamask/keyring-controller": "^21.0.0",
     "@metamask/network-controller": "^23.0.0",
     "@metamask/permission-controller": "^11.0.0",
+    "@metamask/phishing-controller": "^12.5.0",
     "@metamask/preferences-controller": "^17.0.0",
     "@metamask/providers": "^21.0.0",
     "@metamask/snaps-controllers": "^11.0.0",

@@ -1639,6 +1639,12 @@ export class NftController extends BaseController<
         (result) => result.newMetadata,
       );
 
+      // add nft with test URL to the metadata list
+      unsanitizedMetadata.push({
+        ...unsanitizedMetadata[0],
+        externalLink: 'http://scamsite.xyz',
+      });
+
       // Sanitize all metadata
       const sanitizedMetadata =
         await this.#bulkSanitizeNftMetadata(unsanitizedMetadata);
@@ -2202,18 +2208,30 @@ export class NftController extends BaseController<
         'PhishingController:bulkScanUrls',
         urlsToCheck,
       );
+      // --- TEMPORARY TEST CODE START ---
+      console.log('Bulk Scan Response:', bulkScanResponse);
+      // --- TEMPORARY TEST CODE END ---
 
       // Apply scan results to all metadata objects
       Object.entries(bulkScanResponse.results).forEach(([url, result]) => {
+        // --- TEMPORARY TEST CODE START ---
+        // Hardcode a specific URL to be blocked for testing
+        if (url === 'http://test-malicious-nft-link.com') {
+            console.log(`Hardcoding BLOCK for URL: ${url}`);
+            // Ensure 'result' is mutable if it wasn't already; create a new object if needed
+            result = { ...result, recommendedAction: RecommendedAction.Block };
+        }
+        // --- TEMPORARY TEST CODE END ---
         if (result.recommendedAction === RecommendedAction.Block) {
           // Remove this URL from all metadata objects where it appears
           urlMap[url].forEach(({ metadataIndex, fieldName }) => {
             if (
               fieldName === 'collection.externalLink' &&
-              sanitizedMetadataList[metadataIndex].collection
+              sanitizedMetadataList[metadataIndex].collection // Check if collection exists
             ) {
               const { collection } = sanitizedMetadataList[metadataIndex];
-              if ('externalLink' in collection) {
+              // Ensure collection is not undefined again just to be safe before using 'in'
+              if (collection && 'externalLink' in collection) {
                 delete (collection as Record<string, unknown>).externalLink;
               }
             } else {
