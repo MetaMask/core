@@ -1191,10 +1191,14 @@ export class SeedlessOnboardingController extends BaseController<
   /**
    * Assert that the password is in sync with the global password.
    *
+   * @param options - The options for asserting the password is in sync.
+   * @param options.skipCache - Whether to skip the cache check.
    * @throws If the password is outdated.
    */
-  async #assertPasswordInSync(): Promise<void> {
-    const isPasswordOutdated = await this.checkIsPasswordOutdated();
+  async #assertPasswordInSync(options?: {
+    skipCache?: boolean;
+  }): Promise<void> {
+    const isPasswordOutdated = await this.checkIsPasswordOutdated(options);
     if (isPasswordOutdated) {
       throw new Error(SeedlessOnboardingControllerError.OutdatedPassword);
     }
