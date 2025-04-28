@@ -1781,25 +1781,6 @@ Array [
       "usd_quoted_return": 0,
     },
   ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
-  ],
-  Array [
-    "TokensController:addDetectedTokens",
-    Array [
-      Object {
-        "address": "0x0000000000000000000000000000000000000032",
-        "decimals": 18,
-        "image": undefined,
-        "name": "WETH",
-        "symbol": "WETH",
-      },
-    ],
-    Object {
-      "chainId": "0xa",
-      "selectedAddress": "",
-    },
-  ],
 ]
 `;
 
@@ -1966,25 +1947,6 @@ Array [
       "usd_amount_source": 100,
       "usd_quoted_gas": 5,
       "usd_quoted_return": 1000,
-    },
-  ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
-  ],
-  Array [
-    "TokensController:addDetectedTokens",
-    Array [
-      Object {
-        "address": "0x...",
-        "decimals": 18,
-        "image": undefined,
-        "name": "Ethereum",
-        "symbol": "ETH",
-      },
-    ],
-    Object {
-      "chainId": "0x1",
-      "selectedAddress": "",
     },
   ],
 ]
