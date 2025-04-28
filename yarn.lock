@@ -2681,6 +2681,7 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     immer: "npm:^9.0.6"
     jest: "npm:^27.5.1"
+    lodash: "npm:^4.17.21"
     sinon: "npm:^9.2.4"
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
