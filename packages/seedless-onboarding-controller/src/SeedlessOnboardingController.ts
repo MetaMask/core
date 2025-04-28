@@ -511,6 +511,42 @@ export class SeedlessOnboardingController extends BaseController<
   }
 
   /**
+   * Sync the latest global password to the controller.
+   * reset vault with latest globalPassword,
+   * persist the latest global password authPubKey
+   *
+   * @param params - The parameters for syncing the latest global password.
+   * @param params.oldPassword - The old password to verify.
+   * @param params.globalPassword - The latest global password.
+   * @returns A promise that resolves to the success of the operation.
+   */
+  async syncLatestGlobalPassword({
+    oldPassword,
+    globalPassword,
+  }: {
+    oldPassword: string;
+    globalPassword: string;
+  }) {
+    // verify correct old password
+    await this.verifyPassword(oldPassword);
+    // NOTE don't include verifyPassword in #withControllerLock since verifyPassword already acquires the controller lock
+    return this.#withControllerLock(async () => {
+      // update vault with latest globalPassword
+      const { encKey, authKeyPair } = await this.#recoverEncKey(globalPassword);
+      // update and encrypt the vault with new password
+      await this.#createNewVaultWithAuthData({
+        password: globalPassword,
+        rawToprfEncryptionKey: encKey,
+        rawToprfAuthKeyPair: authKeyPair,
+      });
+      // persist the latest global password authPubKey
+      this.#persistAuthPubKey({
+        authPubKey: authKeyPair.pk,
+      });
+    });
+  }
+
+  /**
    * @description Fetch the password corresponding to the current authPubKey in state (current device password which is already out of sync with the current global password).
    * then we use this recovered old password to unlock the vault and set the password to the new global password.
    *
