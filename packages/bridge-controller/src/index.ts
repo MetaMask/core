@@ -127,7 +127,5 @@ export {
    * @returns Whether the quote is expired
    */
   selectIsQuoteExpired,
+  selectBridgeFeatureFlags,
 } from './selectors';
-
-export { formatFeatureFlags } from './utils/feature-flags';
-export { validateFeatureFlagsResponse } from './utils/validators';

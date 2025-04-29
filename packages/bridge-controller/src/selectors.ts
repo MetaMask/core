@@ -13,10 +13,14 @@ import {
   createStructuredSelector as createStructuredSelector_,
 } from 'reselect';
 
-import { BRIDGE_PREFERRED_GAS_ESTIMATE } from './constants/bridge';
+import {
+  BRIDGE_PREFERRED_GAS_ESTIMATE,
+  DEFAULT_BRIDGE_CONTROLLER_STATE,
+} from './constants/bridge';
 import type {
   BridgeControllerState,
   ExchangeRate,
+  FeatureFlagsPlatformConfig,
   GenericQuoteRequest,
   QuoteMetadata,
   QuoteResponse,
@@ -32,6 +36,7 @@ import {
   formatChainIdToCaip,
   formatChainIdToHex,
 } from './utils/caip-formatters';
+import { formatFeatureFlags } from './utils/feature-flags';
 import {
   calcAdjustedReturn,
   calcCost,
@@ -44,6 +49,7 @@ import {
   calcTotalEstimatedNetworkFee,
   calcTotalMaxNetworkFee,
 } from './utils/quote';
+import { validateFeatureFlagsResponse } from './utils/validators';
 
 /**
  * The controller states that provide exchange rates
@@ -367,3 +373,38 @@ export const selectBridgeQuotes = createStructuredBridgeSelector({
   quotesInitialLoadTimeMs: (state) => state.quotesInitialLoadTime,
   isQuoteGoingToRefresh: selectIsQuoteGoingToRefresh,
 });
+
+const createFeatureFlagsSelector = createSelector_.withTypes<{
+  bridgeConfig: unknown;
+}>();
+
+/**
+ * Selects the bridge feature flags
+ *
+ * @param state - The state of the bridge controller
+ * @returns The bridge feature flags
+ *
+ * @example
+ * ```ts
+ * const featureFlags = useSelector(state => selectBridgeFeatureFlags({ bridgeConfig: state.remoteFeatureFlags.bridgeConfig }));
+ *
+ * Or
+ *
+ * export const selectBridgeFeatureFlags = createSelector(
+ * selectRemoteFeatureFlags,
+ *  (remoteFeatureFlags) =>
+ *    selectBridgeFeatureFlagsBase({
+ *      bridgeConfig: remoteFeatureFlags.bridgeConfig,
+ *    }),
+ * );
+ * ```
+ */
+export const selectBridgeFeatureFlags = createFeatureFlagsSelector(
+  [(state) => state.bridgeConfig],
+  (bridgeConfig): FeatureFlagsPlatformConfig => {
+    if (validateFeatureFlagsResponse(bridgeConfig)) {
+      return formatFeatureFlags(bridgeConfig);
+    }
+    return DEFAULT_BRIDGE_CONTROLLER_STATE.bridgeFeatureFlags;
+  },
+);
