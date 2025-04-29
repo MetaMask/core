@@ -2,17 +2,11 @@ import type { RestrictedMessenger } from '@metamask/base-controller';
 import type { ControllerGetStateAction } from '@metamask/base-controller';
 import type { ControllerStateChangeEvent } from '@metamask/base-controller';
 import type {
-  DetailedDecryptResult,
-  DetailedEncryptionResult,
-  EncryptionKey,
-  EncryptionResult,
-} from '@metamask/browser-passworder';
-import type {
+  ExportableKeyEncryptor,
   KeyringControllerLockEvent,
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
 import type { NodeAuthTokens } from '@metamask/toprf-secure-backup';
-import type { Json } from '@metamask/utils';
 import type { MutexInterface } from 'async-mutex';
 
 import type {
@@ -123,70 +117,7 @@ export type SeedlessOnboardingControllerMessenger = RestrictedMessenger<
 /**
  * Encryptor interface for encrypting and decrypting seedless onboarding vault.
  */
-export type VaultEncryptor = {
-  /**
-   * Encrypts the given object with the given password.
-   *
-   * @param password - The password to encrypt with.
-   * @param object - The object to encrypt.
-   * @returns The encrypted string.
-   */
-  encrypt: (password: string, object: Json) => Promise<string>;
-  /**
-   * Encrypts the given object with the given password, and returns the
-   * encryption result and the exported key string.
-   *
-   * @param password - The password to encrypt with.
-   * @param object - The object to encrypt.
-   * @param salt - The optional salt to use for encryption.
-   * @returns The encrypted string and the exported key string.
-   */
-  encryptWithDetail: (
-    password: string,
-    object: Json,
-    salt?: string,
-  ) => Promise<DetailedEncryptionResult>;
-  /**
-   * Decrypts the given encrypted string with the given password.
-   *
-   * @param password - The password to decrypt with.
-   * @param encryptedString - The encrypted string to decrypt.
-   * @returns The decrypted object.
-   */
-  decrypt: (password: string, encryptedString: string) => Promise<unknown>;
-  /**
-   * Decrypts the given encrypted string with the given password, and returns
-   * the decrypted object and the salt and exported key string used for
-   * encryption.
-   *
-   * @param password - The password to decrypt with.
-   * @param encryptedString - The encrypted string to decrypt.
-   * @returns The decrypted object and the salt and exported key string used for
-   * encryption.
-   */
-  decryptWithDetail: (
-    password: string,
-    encryptedString: string,
-  ) => Promise<DetailedDecryptResult>;
-  /**
-   * Decrypts the given encrypted string with the given encryption key.
-   *
-   * @param key - The encryption key to decrypt with.
-   * @param encryptedString - The encrypted string to decrypt.
-   * @returns The decrypted object.
-   */
-  decryptWithKey: (
-    key: EncryptionKey,
-    encryptedString: EncryptionResult,
-  ) => Promise<unknown>;
-  /**
-   * Generates an encryption key from exported key string.
-   *
-   * @param key - The exported key string.
-   * @returns The encryption key.
-   */
-  importKey: (key: string) => Promise<EncryptionKey>;
-};
+export type VaultEncryptor = Omit<ExportableKeyEncryptor, 'encryptWithKey'>;
 
 /**
  * Seedless Onboarding Controller Options.

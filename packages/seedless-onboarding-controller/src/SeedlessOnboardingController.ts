@@ -2,12 +2,11 @@ import { keccak256AndHexify } from '@metamask/auth-network-utils';
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import {
-  type EncryptionKey,
   encrypt,
   decrypt,
   decryptWithDetail,
   encryptWithDetail,
-  decryptWithKey,
+  decryptWithKey as decryptWithKeyBrowserPassworder,
   importKey as importKeyBrowserPassworder,
 } from '@metamask/browser-passworder';
 import type {
@@ -35,7 +34,6 @@ import { RecoveryError } from './errors';
 import { projectLogger, createModuleLogger } from './logger';
 import { SeedPhraseMetadata } from './SeedPhraseMetadata';
 import type {
-  VaultEncryptor,
   MutuallyExclusiveCallback,
   SeedlessOnboardingControllerMessenger,
   SeedlessOnboardingControllerOptions,
@@ -43,6 +41,7 @@ import type {
   VaultData,
   AuthenticatedUserDetails,
   SocialBackupsMetadata,
+  VaultEncryptor,
 } from './types';
 
 const log = createModuleLogger(projectLogger, controllerName);
@@ -71,10 +70,11 @@ export function getDefaultSeedlessOnboardingVaultEncryptor(): VaultEncryptor {
     encryptWithDetail,
     decrypt,
     decryptWithDetail,
-    decryptWithKey,
-    importKey: importKeyBrowserPassworder as (
-      key: string,
-    ) => Promise<EncryptionKey>,
+    decryptWithKey: decryptWithKeyBrowserPassworder as (
+      key: unknown,
+      payload: unknown,
+    ) => Promise<unknown>,
+    importKey: importKeyBrowserPassworder,
   };
 }
 

@@ -24,6 +24,7 @@ import type {
   SeedlessOnboardingControllerMessenger,
   SeedlessOnboardingControllerOptions,
   SeedlessOnboardingControllerState,
+  VaultEncryptor,
 } from './types';
 import {
   handleMockSecretDataGet,
@@ -45,7 +46,7 @@ type WithControllerCallback<ReturnValue> = ({
   messenger,
 }: {
   controller: SeedlessOnboardingController;
-  encryptor: MockVaultEncryptor;
+  encryptor: VaultEncryptor;
   initialState: SeedlessOnboardingControllerState;
   messenger: SeedlessOnboardingControllerMessenger;
   toprfClient: ToprfSecureBackup;
@@ -95,7 +96,7 @@ async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ) {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
-  const encryptor = new MockVaultEncryptor();
+  const encryptor: VaultEncryptor = new MockVaultEncryptor();
   const messenger = buildSeedlessOnboardingControllerMessenger();
 
   const controller = new SeedlessOnboardingController({
@@ -393,7 +394,7 @@ describe('SeedlessOnboardingController', () => {
 
     it('should be able to instantiate with an encryptor', () => {
       const messenger = buildSeedlessOnboardingControllerMessenger();
-      const encryptor = createMockVaultEncryptor();
+      const encryptor: VaultEncryptor = createMockVaultEncryptor();
 
       expect(
         () =>

@@ -146,13 +146,18 @@ export default class MockVaultEncryptor implements VaultEncryptor {
     return encryptionResult;
   }
 
-  async decryptWithKey(
-    encryptionKey: EncryptionKey | webcrypto.CryptoKey,
-    encData: EncryptionResult,
-  ) {
+  async decryptWithKey(encryptionKey: unknown, payload: string) {
+    let encData: EncryptionResult;
+    if (typeof payload === 'string') {
+      encData = JSON.parse(payload);
+    } else {
+      encData = payload;
+    }
+
     const encryptedData = Buffer.from(encData.data, 'base64');
     const vector = Buffer.from(encData.iv, 'base64');
-    const key = 'key' in encryptionKey ? encryptionKey.key : encryptionKey;
+    const encKey = encryptionKey as EncryptionKey | webcrypto.CryptoKey;
+    const key = 'key' in encKey ? encKey.key : encKey;
 
     const result = await webcrypto.subtle.decrypt(
       { name: 'AES-GCM', iv: vector },
