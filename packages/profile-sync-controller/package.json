@@ -100,7 +100,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^8.0.0",
+    "@metamask/base-controller": "^8.0.1",
     "@metamask/keyring-api": "^17.4.0",
     "@metamask/snaps-sdk": "^6.22.0",
     "@metamask/snaps-utils": "^9.2.0",
@@ -115,7 +115,7 @@
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/accounts-controller": "^27.0.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^21.0.3",
+    "@metamask/keyring-controller": "^21.0.4",
     "@metamask/keyring-internal-api": "^6.0.1",
     "@metamask/network-controller": "^23.2.0",
     "@metamask/providers": "^21.0.0",
