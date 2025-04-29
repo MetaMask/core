@@ -682,7 +682,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #getQuoteFetchData = (): Omit<
     QuoteFetchData,
-    'best_quote_provider'
+    'best_quote_provider' | 'price_impact'
   > => {
     return {
       can_submit: Boolean(this.state.quoteRequest.insufficientBal), // TODO check if balance is sufficient for network fees

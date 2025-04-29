@@ -35,6 +35,7 @@ export type QuoteFetchData = {
   quotes_count: number;
   quotes_list: `${string}_${string}`[];
   initial_load_time_all_quotes: number;
+  price_impact: number;
 };
 
 export type TradeData = {
@@ -43,7 +44,6 @@ export type TradeData = {
   quoted_time_minutes: number;
   usd_quoted_return: number;
   provider: `${string}_${string}`;
-  price_impact: number;
 };
 
 export type TxStatusData = {
@@ -108,6 +108,7 @@ export type RequiredEventContextFromClient = {
   [UnifiedSwapBridgeEventName.QuotesReceived]: TradeData & {
     warnings: string[]; // TODO standardize warnings
     best_quote_provider: QuoteFetchData['best_quote_provider'];
+    price_impact: QuoteFetchData['price_impact'];
   };
   [UnifiedSwapBridgeEventName.QuoteError]: Pick<
     RequestMetadata,
@@ -121,15 +122,23 @@ export type RequiredEventContextFromClient = {
     security_warnings: string[]; // TODO standardize warnings
   };
   // Emitted by BridgeStatusController
-  [UnifiedSwapBridgeEventName.SnapConfirmationViewed]: object;
+  [UnifiedSwapBridgeEventName.SnapConfirmationViewed]: Pick<
+    QuoteFetchData,
+    'price_impact'
+  > &
+    TradeData & {
+      action_type: MetricsActionType;
+    };
   [UnifiedSwapBridgeEventName.Submitted]: RequestParams &
     RequestMetadata &
+    Pick<QuoteFetchData, 'price_impact'> &
     TradeData & {
       action_type: MetricsActionType;
     };
   [UnifiedSwapBridgeEventName.Completed]: RequestParams &
     RequestMetadata &
     TxStatusData &
+    Pick<QuoteFetchData, 'price_impact'> &
     TradeData & {
       actual_time_minutes: number;
       usd_actual_return: number;
@@ -140,6 +149,7 @@ export type RequiredEventContextFromClient = {
     };
   [UnifiedSwapBridgeEventName.Failed]: RequestParams &
     RequestMetadata &
+    Pick<QuoteFetchData, 'price_impact'> &
     TxStatusData &
     TradeData & {
       actual_time_minutes: number;
@@ -149,25 +159,28 @@ export type RequiredEventContextFromClient = {
   // Emitted by clients
   [UnifiedSwapBridgeEventName.AllQuotesOpened]: Pick<
     TradeData,
-    'price_impact' | 'gas_included'
-  > & {
-    stx_enabled: RequestMetadata['stx_enabled'];
-    token_symbol_source: RequestParams['token_symbol_source'];
-    token_symbol_destination: RequestParams['token_symbol_destination'];
-  };
+    'gas_included'
+  > &
+    Pick<QuoteFetchData, 'price_impact'> & {
+      stx_enabled: RequestMetadata['stx_enabled'];
+      token_symbol_source: RequestParams['token_symbol_source'];
+      token_symbol_destination: RequestParams['token_symbol_destination'];
+    };
   [UnifiedSwapBridgeEventName.AllQuotesSorted]: Pick<
     TradeData,
-    'price_impact' | 'gas_included'
-  > & {
-    stx_enabled: RequestMetadata['stx_enabled'];
-    token_symbol_source: RequestParams['token_symbol_source'];
-    token_symbol_destination: RequestParams['token_symbol_destination'];
-    sort_order: SortOrder;
-    best_quote_provider: QuoteFetchData['best_quote_provider'];
-  };
+    'gas_included'
+  > &
+    Pick<QuoteFetchData, 'price_impact'> & {
+      stx_enabled: RequestMetadata['stx_enabled'];
+      token_symbol_source: RequestParams['token_symbol_source'];
+      token_symbol_destination: RequestParams['token_symbol_destination'];
+      sort_order: SortOrder;
+      best_quote_provider: QuoteFetchData['best_quote_provider'];
+    };
   [UnifiedSwapBridgeEventName.QuoteSelected]: TradeData & {
     is_best_quote: boolean;
     best_quote_provider: QuoteFetchData['best_quote_provider'];
+    price_impact: QuoteFetchData['price_impact'];
   };
 };
 
@@ -188,7 +201,8 @@ export type EventPropertiesFromControllerState = {
     };
   [UnifiedSwapBridgeEventName.QuotesReceived]: RequestParams &
     RequestMetadata &
-    QuoteFetchData & {
+    QuoteFetchData &
+    TradeData & {
       refresh_count: number; // starts from 0
     };
   [UnifiedSwapBridgeEventName.QuoteError]: RequestParams &
@@ -197,18 +211,20 @@ export type EventPropertiesFromControllerState = {
       error_message: string;
     };
   [UnifiedSwapBridgeEventName.SnapConfirmationViewed]: RequestMetadata &
-    RequestParams;
+    RequestParams &
+    QuoteFetchData &
+    TradeData;
   [UnifiedSwapBridgeEventName.Submitted]: null;
   [UnifiedSwapBridgeEventName.Completed]: null;
   [UnifiedSwapBridgeEventName.Failed]: null;
   [UnifiedSwapBridgeEventName.AllQuotesOpened]: RequestParams &
     RequestMetadata &
-    QuoteFetchData &
-    Pick<TradeData, 'price_impact'>;
+    TradeData &
+    QuoteFetchData;
   [UnifiedSwapBridgeEventName.AllQuotesSorted]: RequestParams &
     RequestMetadata &
-    QuoteFetchData &
-    Pick<TradeData, 'price_impact'>;
+    TradeData &
+    QuoteFetchData;
   [UnifiedSwapBridgeEventName.QuoteSelected]: RequestParams &
     RequestMetadata &
     QuoteFetchData &

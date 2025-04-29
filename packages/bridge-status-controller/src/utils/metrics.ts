@@ -86,7 +86,6 @@ export const getTradeDataFromHistory = (
       historyItem.estimatedProcessingTimeInSeconds / 60,
     ),
     usd_quoted_return: Number(historyItem.pricingData?.quotedReturnInUsd ?? 0),
-    price_impact: 0,
   };
 };
 
