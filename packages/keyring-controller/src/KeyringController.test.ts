@@ -127,6 +127,92 @@ describe('KeyringController', () => {
         },
       );
     });
+
+    it('allows removing a keyring builder without bricking the wallet when metadata was already generated', async () => {
+      await withController(
+        {
+          skipVaultCreation: true,
+          state: {
+            vault: 'my vault',
+            keyringsMetadata: [
+              { id: 'hd', name: '' },
+              // This keyring is unsupported
+              { id: 'unsupported', name: '' },
+              { id: 'hd2', name: '' },
+            ],
+          },
+        },
+        async ({ controller, encryptor }) => {
+          jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+            {
+              type: KeyringTypes.hd,
+              data: '',
+            },
+            {
+              type: 'Unsupported',
+              data: '',
+            },
+            {
+              type: KeyringTypes.hd,
+              data: '',
+            },
+          ]);
+
+          await controller.submitPassword(password);
+
+          expect(controller.state.keyrings).toHaveLength(2);
+          expect(controller.state.keyrings[0].type).toBe(KeyringTypes.hd);
+          expect(controller.state.keyrings[1].type).toBe(KeyringTypes.hd);
+          expect(controller.state.keyringsMetadata).toStrictEqual([
+            { id: 'hd', name: '' },
+            { id: 'hd2', name: '' },
+          ]);
+        },
+      );
+    });
+
+    it('allows removing a keyring builder without bricking the wallet when metadata was not yet generated', async () => {
+      await withController(
+        {
+          skipVaultCreation: true,
+          state: {
+            vault: 'my vault',
+            keyringsMetadata: [
+              { id: 'hd', name: '' },
+              { id: 'hd2', name: '' },
+            ],
+          },
+        },
+        async ({ controller, encryptor }) => {
+          jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+            {
+              type: 'HD Key Tree',
+              data: '',
+            },
+            {
+              type: 'HD Key Tree',
+              data: '',
+            },
+            // This keyring was already unsupported
+            // (no metadata, and is at the end of the array)
+            {
+              type: MockKeyring.type,
+              data: 'unsupported',
+            },
+          ]);
+
+          await controller.submitPassword(password);
+
+          expect(controller.state.keyrings).toHaveLength(2);
+          expect(controller.state.keyrings[0].type).toBe(KeyringTypes.hd);
+          expect(controller.state.keyrings[1].type).toBe(KeyringTypes.hd);
+          expect(controller.state.keyringsMetadata).toStrictEqual([
+            { id: 'hd', name: '' },
+            { id: 'hd2', name: '' },
+          ]);
+        },
+      );
+    });
   });
 
   describe('addNewAccount', () => {

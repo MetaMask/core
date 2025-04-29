@@ -2247,6 +2247,7 @@ export class KeyringController extends BaseController<
 
       this.update((state) => {
         state.keyrings = updatedKeyrings;
+        state.keyringsMetadata = this.#keyringsMetadata.slice();
         if (updatedState.encryptionKey || updatedState.encryptionSalt) {
           state.encryptionKey = updatedState.encryptionKey;
           state.encryptionSalt = updatedState.encryptionSalt;
@@ -2524,6 +2525,11 @@ export class KeyringController extends BaseController<
     } catch (error) {
       console.error(error);
       this.#unsupportedKeyrings.push(serialized);
+      if (this.#keyringsMetadata.length > this.#keyrings.length) {
+        // There was already a metadata entry for the keyring, so
+        // we need to remove it
+        this.#keyringsMetadata.splice(this.#keyrings.length, 1);
+      }
       return undefined;
     }
   }
