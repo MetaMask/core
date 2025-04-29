@@ -117,7 +117,10 @@ export type SeedlessOnboardingControllerMessenger = RestrictedMessenger<
 /**
  * Encryptor interface for encrypting and decrypting seedless onboarding vault.
  */
-export type VaultEncryptor = Omit<ExportableKeyEncryptor, 'encryptWithKey'>;
+export type VaultEncryptor<EncryptionKey> = Omit<
+  ExportableKeyEncryptor<EncryptionKey>,
+  'encryptWithKey'
+>;
 
 /**
  * Seedless Onboarding Controller Options.
@@ -126,7 +129,7 @@ export type VaultEncryptor = Omit<ExportableKeyEncryptor, 'encryptWithKey'>;
  * @param state - The initial state to set on this controller.
  * @param encryptor - The encryptor to use for encrypting and decrypting seedless onboarding vault.
  */
-export type SeedlessOnboardingControllerOptions = {
+export type SeedlessOnboardingControllerOptions<EncryptionKey> = {
   messenger: SeedlessOnboardingControllerMessenger;
 
   /**
@@ -139,7 +142,7 @@ export type SeedlessOnboardingControllerOptions = {
    *
    * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
    */
-  encryptor?: VaultEncryptor;
+  encryptor: VaultEncryptor<EncryptionKey>;
 
   /**
    * Type of Web3Auth network to be used for the Seedless Onboarding flow.

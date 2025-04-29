@@ -64,7 +64,7 @@ export function getDefaultSeedlessOnboardingControllerState(): SeedlessOnboardin
  *
  * @returns The default vault encryptor for the Seedless Onboarding Controller.
  */
-export function getDefaultSeedlessOnboardingVaultEncryptor(): VaultEncryptor {
+export function getDefaultSeedlessOnboardingVaultEncryptor() {
   return {
     encrypt,
     encryptWithDetail,
@@ -129,12 +129,12 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
     },
   };
 
-export class SeedlessOnboardingController extends BaseController<
+export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   typeof controllerName,
   SeedlessOnboardingControllerState,
   SeedlessOnboardingControllerMessenger
 > {
-  readonly #vaultEncryptor: VaultEncryptor;
+  readonly #vaultEncryptor: VaultEncryptor<EncryptionKey>;
 
   readonly #vaultOperationMutex = new Mutex();
 
@@ -159,9 +159,9 @@ export class SeedlessOnboardingController extends BaseController<
   constructor({
     messenger,
     state,
-    encryptor = getDefaultSeedlessOnboardingVaultEncryptor(),
+    encryptor,
     network = Web3AuthNetwork.Mainnet,
-  }: SeedlessOnboardingControllerOptions) {
+  }: SeedlessOnboardingControllerOptions<EncryptionKey>) {
     super({
       name: controllerName,
       metadata: seedlessOnboardingMetadata,

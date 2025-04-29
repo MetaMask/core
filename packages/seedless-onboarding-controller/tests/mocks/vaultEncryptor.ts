@@ -3,11 +3,14 @@ import type {
   EncryptionResult,
   KeyDerivationOptions,
 } from '@metamask/browser-passworder';
+import type { Json } from '@metamask/utils';
 import { webcrypto } from 'node:crypto';
 
 import type { VaultEncryptor } from '../../src/types';
 
-export default class MockVaultEncryptor implements VaultEncryptor {
+export default class MockVaultEncryptor
+  implements VaultEncryptor<EncryptionKey | webcrypto.CryptoKey>
+{
   DEFAULT_DERIVATION_PARAMS: KeyDerivationOptions = {
     algorithm: 'PBKDF2',
     params: {
@@ -19,7 +22,7 @@ export default class MockVaultEncryptor implements VaultEncryptor {
 
   async encryptWithDetail(
     password: string,
-    dataObj: unknown,
+    dataObj: Json,
     salt: string = this.DEFAULT_SALT,
     keyDerivationOptions: KeyDerivationOptions = this.DEFAULT_DERIVATION_PARAMS,
   ) {
@@ -146,7 +149,10 @@ export default class MockVaultEncryptor implements VaultEncryptor {
     return encryptionResult;
   }
 
-  async decryptWithKey(encryptionKey: unknown, payload: string) {
+  async decryptWithKey(
+    encryptionKey: EncryptionKey | webcrypto.CryptoKey,
+    payload: string,
+  ) {
     let encData: EncryptionResult;
     if (typeof payload === 'string') {
       encData = JSON.parse(payload);
@@ -156,8 +162,7 @@ export default class MockVaultEncryptor implements VaultEncryptor {
 
     const encryptedData = Buffer.from(encData.data, 'base64');
     const vector = Buffer.from(encData.iv, 'base64');
-    const encKey = encryptionKey as EncryptionKey | webcrypto.CryptoKey;
-    const key = 'key' in encKey ? encKey.key : encKey;
+    const key = 'key' in encryptionKey ? encryptionKey.key : encryptionKey;
 
     const result = await webcrypto.subtle.decrypt(
       { name: 'AES-GCM', iv: vector },
@@ -172,9 +177,9 @@ export default class MockVaultEncryptor implements VaultEncryptor {
     return decryptedObj;
   }
 
-  async encrypt<R>(
+  async encrypt(
     password: string,
-    dataObj: R,
+    dataObj: Json,
     // eslint-disable-next-line n/no-unsupported-features/node-builtins
     key?: EncryptionKey | CryptoKey,
     salt: string = this.DEFAULT_SALT,
