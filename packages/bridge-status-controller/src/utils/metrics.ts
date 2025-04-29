@@ -102,5 +102,6 @@ export const getRequestMetadataFromHistory = (
     swap_type: getSwapType(quote.srcChainId, quote.destChainId),
     is_hardware_wallet: isHardwareWallet(account),
     stx_enabled: isStxEnabled ?? false,
+    security_warnings: [],
   };
 };

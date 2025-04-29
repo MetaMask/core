@@ -668,7 +668,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #getRequestMetadata = (): Omit<
     RequestMetadata,
-    'stx_enabled' | 'usd_amount_source'
+    'stx_enabled' | 'usd_amount_source' | 'security_warnings'
   > => {
     return {
       slippage_limit: this.state.quoteRequest.slippage,

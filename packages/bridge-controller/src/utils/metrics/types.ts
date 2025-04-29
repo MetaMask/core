@@ -27,6 +27,7 @@ export type RequestMetadata = {
   stx_enabled: boolean;
   is_hardware_wallet: boolean;
   swap_type: MetricsSwapType;
+  security_warnings: string[];
 };
 
 export type QuoteFetchData = {
@@ -93,11 +94,7 @@ export type RequiredEventContextFromClient = {
     token_address_destination: RequestParams['token_address_destination'];
     chain_id_source: RequestParams['chain_id_source'];
     chain_id_destination: RequestParams['chain_id_destination'];
-    /*
-    Only needed for non-EVM chains
-    */
-    security_warnings: string[]; // TODO standardize warnings
-  };
+  } & Pick<RequestMetadata, 'security_warnings'>;
   [UnifiedSwapBridgeEventName.QuotesRequested]: Pick<
     RequestMetadata,
     'stx_enabled'
@@ -116,11 +113,7 @@ export type RequiredEventContextFromClient = {
   > & {
     token_symbol_source: RequestParams['token_symbol_source'];
     token_symbol_destination: RequestParams['token_symbol_destination'];
-    /*
-    Only needed for non-EVM chains
-    */
-    security_warnings: string[]; // TODO standardize warnings
-  };
+  } & Pick<RequestMetadata, 'security_warnings'>;
   // Emitted by BridgeStatusController
   [UnifiedSwapBridgeEventName.SnapConfirmationViewed]: Pick<
     QuoteFetchData,
