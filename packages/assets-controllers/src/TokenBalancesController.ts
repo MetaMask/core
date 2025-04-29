@@ -341,14 +341,15 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
     );
     const currentTokenBalances = currentTokenBalancesState.tokenBalances;
     const currentAllTokens = this.#allTokens;
+    const chainIdsSet = new Set(chainIds);
 
     // first we check if the state change was due to a token being removed
-    const accKeys = Object.keys(currentTokenBalances);
-    for (const currentAccount of accKeys) {
+    for (const currentAccount of Object.keys(currentTokenBalances)) {
       const allChains = currentTokenBalances[currentAccount as `0x${string}`];
-      const chainsArray = Object.keys(allChains);
-
-      for (const currentChain of chainsArray) {
+      for (const currentChain of Object.keys(allChains)) {
+        if (chainIds?.length && !chainIdsSet.has(currentChain as Hex)) {
+          continue;
+        }
         const tokensObject = allChains[currentChain as Hex];
         const allCurrentTokens = Object.keys(tokensObject);
         const existingTokensInState =
@@ -373,12 +374,13 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
 
     // then we check if the state change was due to a token being added
     let shouldUpdate = false;
-    const allTokensStateChains = Object.keys(currentAllTokens);
-    for (const currentChain of allTokensStateChains) {
+    for (const currentChain of Object.keys(currentAllTokens)) {
+      if (chainIds?.length && !chainIdsSet.has(currentChain as Hex)) {
+        continue;
+      }
       const accountsPerChain = currentAllTokens[currentChain as Hex];
-      const allAccounts = Object.keys(accountsPerChain);
 
-      for (const currentAccount of allAccounts) {
+      for (const currentAccount of Object.keys(accountsPerChain)) {
         const tokensList = accountsPerChain[currentAccount as `0x${string}`];
         const tokenBalancesObject =
           currentTokenBalances[currentAccount as `0x${string}`]?.[
