@@ -1,7 +1,6 @@
 import { AddressZero } from '@ethersproject/constants';
 import type { CaipAssetType } from '@metamask/utils';
 
-import { getBridgeFeatureFlags } from './feature-flags';
 import {
   fetchBridgeQuotes,
   fetchBridgeTokens,
