@@ -16,6 +16,7 @@ import {
   type KeyringControllerUnlockEvent,
   type KeyringControllerWithKeyringAction,
   KeyringTypes,
+  type KeyringControllerState,
 } from '@metamask/keyring-controller';
 import type {
   AuthenticationController,
@@ -501,8 +502,12 @@ export default class NotificationServicesController extends BaseController<
     subscribe: () => {
       this.messagingSystem.subscribe(
         'KeyringController:stateChange',
-        async () => {
-          if (!this.state.isNotificationServicesEnabled) {
+        async (totalAccounts, prevTotalAccounts) => {
+          const hasTotalAccountsChanged = totalAccounts !== prevTotalAccounts;
+          if (
+            !this.state.isNotificationServicesEnabled ||
+            !hasTotalAccountsChanged
+          ) {
             return;
           }
 
@@ -517,6 +522,12 @@ export default class NotificationServicesController extends BaseController<
             promises.push(this.deleteOnChainTriggersByAccount(accountsRemoved));
           }
           await Promise.all(promises);
+        },
+        (state: KeyringControllerState) => {
+          return (
+            state?.keyrings?.flatMap?.((keyring) => keyring.accounts)?.length ??
+            0
+          );
         },
       );
     },
