@@ -34,13 +34,7 @@ export type {
   QuoteMetadataSerialized,
 } from './types';
 
-export {
-  StatusTypes,
-  BridgeId,
-  FeeType,
-  ActionTypes,
-  BridgeStatusAction,
-} from './types';
+export { BridgeId, FeeType, ActionTypes, BridgeStatusAction } from './types';
 
 export { BridgeStatusController } from './bridge-status-controller';
 

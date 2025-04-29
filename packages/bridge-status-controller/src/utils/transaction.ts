@@ -6,6 +6,7 @@ import {
   type QuoteMetadata,
   type QuoteResponse,
 } from '@metamask/bridge-controller';
+import { SolScope } from '@metamask/keyring-api';
 import {
   TransactionStatus,
   TransactionType,
@@ -142,7 +143,7 @@ export const getKeyringRequest = (
         },
         id: snapRequestId,
         account: selectedAccount.id,
-        scope: selectedAccount.options.scope,
+        scope: SolScope.Mainnet,
       },
     },
   };

@@ -13,9 +13,13 @@ import { keccak_256 as keccak256 } from '@noble/hashes/sha3';
 import {
   Web3AuthNetwork,
   SeedlessOnboardingControllerError,
+  AuthConnection,
 } from './constants';
 import { RecoveryError } from './errors';
-import { SeedlessOnboardingController } from './SeedlessOnboardingController';
+import {
+  getDefaultSeedlessOnboardingControllerState,
+  SeedlessOnboardingController,
+} from './SeedlessOnboardingController';
 import { SeedPhraseMetadata } from './SeedPhraseMetadata';
 import type {
   SeedlessOnboardingControllerMessenger,
@@ -277,8 +281,10 @@ async function decryptVault(vault: string, password: string) {
   };
 }
 
+const authConnection = AuthConnection.Google;
+const socialLoginEmail = 'user-test@gmail.com';
 const authConnectionId = 'seedless-onboarding';
-const groupedAuthConnectionId = 'google';
+const groupedAuthConnectionId = 'auth-server';
 const userId = 'user-test@gmail.com';
 const idTokens = ['idToken'];
 
@@ -316,9 +322,7 @@ function getMockInitialControllerState(options?: {
   vaultEncryptionKey?: string;
   vaultEncryptionSalt?: string;
 }): Partial<SeedlessOnboardingControllerState> {
-  const state: Partial<SeedlessOnboardingControllerState> = {
-    backupHashes: [],
-  };
+  const state = getDefaultSeedlessOnboardingControllerState();
 
   if (options?.vault) {
     state.vault = options.vault;
@@ -342,6 +346,7 @@ function getMockInitialControllerState(options?: {
   return state;
 }
 
+const MOCK_KEYRING_ID = 'mock-keyring-id';
 const MOCK_SEED_PHRASE = stringToBytes(
   'horror pink muffin canal young photo magnet runway start elder patch until',
 );
@@ -355,7 +360,7 @@ describe('SeedlessOnboardingController', () => {
       });
       expect(controller).toBeDefined();
       expect(controller.state).toStrictEqual({
-        backupHashes: [],
+        socialBackupsMetadata: [],
       });
     });
 
@@ -385,6 +390,8 @@ describe('SeedlessOnboardingController', () => {
           idTokens,
           authConnectionId,
           userId,
+          authConnection,
+          socialLoginEmail,
         });
 
         expect(authResult).toBeDefined();
@@ -397,6 +404,8 @@ describe('SeedlessOnboardingController', () => {
         );
         expect(controller.state.authConnectionId).toBe(authConnectionId);
         expect(controller.state.userId).toBe(userId);
+        expect(controller.state.authConnection).toBe(authConnection);
+        expect(controller.state.socialLoginEmail).toBe(socialLoginEmail);
       });
     });
 
@@ -411,6 +420,8 @@ describe('SeedlessOnboardingController', () => {
           idTokens,
           authConnectionId,
           userId,
+          authConnection,
+          socialLoginEmail,
         });
 
         expect(authResult).toBeDefined();
@@ -423,6 +434,8 @@ describe('SeedlessOnboardingController', () => {
         );
         expect(controller.state.authConnectionId).toBe(authConnectionId);
         expect(controller.state.userId).toBe(userId);
+        expect(controller.state.authConnection).toBe(authConnection);
+        expect(controller.state.socialLoginEmail).toBe(socialLoginEmail);
       });
     });
 
@@ -439,6 +452,8 @@ describe('SeedlessOnboardingController', () => {
           authConnectionId,
           userId,
           groupedAuthConnectionId,
+          authConnection,
+          socialLoginEmail,
         });
 
         expect(authResult).toBeDefined();
@@ -481,6 +496,8 @@ describe('SeedlessOnboardingController', () => {
             authConnectionId,
             groupedAuthConnectionId,
             userId,
+            authConnection,
+            socialLoginEmail,
           }),
         ).rejects.toThrow(
           SeedlessOnboardingControllerError.AuthenticationError,
@@ -519,6 +536,7 @@ describe('SeedlessOnboardingController', () => {
           await controller.createToprfKeyAndBackupSeedPhrase(
             MOCK_PASSWORD,
             MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
           );
 
           expect(mockSecretDataAdd.isDone()).toBe(true);
@@ -566,6 +584,8 @@ describe('SeedlessOnboardingController', () => {
             idTokens,
             authConnectionId,
             userId,
+            authConnection,
+            socialLoginEmail,
           });
 
           const { encKey, authKeyPair } = mockcreateLocalKey(
@@ -580,6 +600,7 @@ describe('SeedlessOnboardingController', () => {
           await controller.createToprfKeyAndBackupSeedPhrase(
             MOCK_PASSWORD,
             MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
           );
 
           expect(mockSecretDataAdd.isDone()).toBe(true);
@@ -631,6 +652,7 @@ describe('SeedlessOnboardingController', () => {
             controller.createToprfKeyAndBackupSeedPhrase(
               MOCK_PASSWORD,
               MOCK_SEED_PHRASE,
+              MOCK_KEYRING_ID,
             ),
           ).rejects.toThrow('Failed to create local encryption key');
 
@@ -646,6 +668,7 @@ describe('SeedlessOnboardingController', () => {
           controller.createToprfKeyAndBackupSeedPhrase(
             MOCK_PASSWORD,
             MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
           ),
         ).rejects.toThrow(
           SeedlessOnboardingControllerError.MissingAuthUserInfo,
@@ -664,6 +687,7 @@ describe('SeedlessOnboardingController', () => {
             controller.createToprfKeyAndBackupSeedPhrase(
               MOCK_PASSWORD,
               MOCK_SEED_PHRASE,
+              MOCK_KEYRING_ID,
             ),
           ).rejects.toThrow(
             SeedlessOnboardingControllerError.InsufficientAuthToken,
@@ -696,6 +720,7 @@ describe('SeedlessOnboardingController', () => {
             controller.createToprfKeyAndBackupSeedPhrase(
               MOCK_PASSWORD,
               MOCK_SEED_PHRASE,
+              MOCK_KEYRING_ID,
             ),
           ).rejects.toThrow(
             SeedlessOnboardingControllerError.FailedToPersistOprfKey,
@@ -726,6 +751,7 @@ describe('SeedlessOnboardingController', () => {
             controller.createToprfKeyAndBackupSeedPhrase(
               MOCK_PASSWORD,
               MOCK_SEED_PHRASE,
+              MOCK_KEYRING_ID,
             ),
           ).rejects.toThrow(
             SeedlessOnboardingControllerError.FailedToEncryptAndStoreSeedPhraseBackup,
@@ -1103,49 +1129,6 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
-    it('should be able to overwrite the initial backupHashes', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-          }),
-        },
-        async ({ controller, toprfClient }) => {
-          const MOCK_SEED_PHRASES = [
-            stringToBytes('seedPhrase1'),
-            stringToBytes('seedPhrase2'),
-            stringToBytes('seedPhrase3'),
-          ];
-
-          mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
-
-          jest
-            .spyOn(toprfClient, 'fetchAllSecretDataItems')
-            .mockResolvedValueOnce(
-              SeedPhraseMetadata.fromBatchSeedPhrases(MOCK_SEED_PHRASES).map(
-                (metadata) => metadata.toBytes(),
-              ),
-            );
-
-          await controller.fetchAllSeedPhrases(MOCK_PASSWORD);
-
-          // sort the seed phrases in descending order to make the first seed phrase the latest item in the array
-          const SORTED_MOCK_SEED_PHRASES = [
-            stringToBytes('seedPhrase3'),
-            stringToBytes('seedPhrase2'),
-            stringToBytes('seedPhrase1'),
-          ];
-
-          const expectedBackupHashes = SORTED_MOCK_SEED_PHRASES.map(
-            (seedPhrase) => keccak256AndHexify(seedPhrase),
-          );
-          expect(controller.state.backupHashes).toStrictEqual(
-            expectedBackupHashes,
-          );
-        },
-      );
-    });
-
     it('should be able to restore seed phrase backup without groupedAuthConnectionId', async () => {
       await withController(
         {
@@ -1265,7 +1248,7 @@ describe('SeedlessOnboardingController', () => {
           await expect(
             controller.fetchAllSeedPhrases(MOCK_PASSWORD),
           ).rejects.toThrow(
-            SeedlessOnboardingControllerError.InvalidSeedPhraseMetadata,
+            SeedlessOnboardingControllerError.FailedToFetchSeedPhraseMetadata,
           );
         },
       );
@@ -1282,9 +1265,8 @@ describe('SeedlessOnboardingController', () => {
           jest.spyOn(toprfClient, 'recoverEncKey').mockRejectedValueOnce(
             new TOPRFError(1009, 'Rate limit exceeded', {
               rateLimitDetails: {
-                remainingTime: 10,
-                message: 'Rate limit exceeded',
-                isPermanent: false,
+                remainingTime: 300,
+                message: 'Rate limit in effect',
               },
             }),
           );
@@ -1297,7 +1279,6 @@ describe('SeedlessOnboardingController', () => {
               {
                 remainingTime: 10,
                 message: 'Rate limit exceeded',
-                isPermanent: false,
               },
             ),
           );
@@ -1356,6 +1337,56 @@ describe('SeedlessOnboardingController', () => {
     });
   });
 
+  describe('updateBackupMetadataState', () => {
+    it('should be able to update the backup metadata state', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller }) => {
+          controller.updateBackupMetadataState(
+            MOCK_KEYRING_ID,
+            MOCK_SEED_PHRASE,
+          );
+          const MOCK_SEED_PHRASE_HASH = keccak256AndHexify(MOCK_SEED_PHRASE);
+          expect(controller.state.socialBackupsMetadata).toStrictEqual([
+            { id: MOCK_KEYRING_ID, hash: MOCK_SEED_PHRASE_HASH },
+          ]);
+        },
+      );
+    });
+
+    it('should not update the backup metadata state if the provided keyringId is already in the state', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller }) => {
+          controller.updateBackupMetadataState(
+            MOCK_KEYRING_ID,
+            MOCK_SEED_PHRASE,
+          );
+          const MOCK_SEED_PHRASE_HASH = keccak256AndHexify(MOCK_SEED_PHRASE);
+          expect(controller.state.socialBackupsMetadata).toStrictEqual([
+            { id: MOCK_KEYRING_ID, hash: MOCK_SEED_PHRASE_HASH },
+          ]);
+
+          controller.updateBackupMetadataState(
+            MOCK_KEYRING_ID,
+            MOCK_SEED_PHRASE,
+          );
+          expect(controller.state.socialBackupsMetadata).toStrictEqual([
+            { id: MOCK_KEYRING_ID, hash: MOCK_SEED_PHRASE_HASH },
+          ]);
+        },
+      );
+    });
+  });
+
   describe('changePassword', () => {
     const MOCK_PASSWORD = 'mock-password';
     const NEW_MOCK_PASSWORD = 'new-mock-password';
@@ -1378,6 +1409,7 @@ describe('SeedlessOnboardingController', () => {
           await controller.createToprfKeyAndBackupSeedPhrase(
             MOCK_PASSWORD,
             MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
           );
 
           // verify the vault data before update password
@@ -1446,6 +1478,7 @@ describe('SeedlessOnboardingController', () => {
           await controller.createToprfKeyAndBackupSeedPhrase(
             MOCK_PASSWORD,
             MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
           );
 
           // verify the vault data before update password
@@ -1546,6 +1579,7 @@ describe('SeedlessOnboardingController', () => {
           await controller.createToprfKeyAndBackupSeedPhrase(
             MOCK_PASSWORD,
             MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
           );
 
           // mock the recover enc key
@@ -1613,7 +1647,11 @@ describe('SeedlessOnboardingController', () => {
           // mock the secret data add
           const mockSecretDataAdd = handleMockSecretDataAdd();
           await expect(
-            controller.createToprfKeyAndBackupSeedPhrase('', MOCK_SEED_PHRASE),
+            controller.createToprfKeyAndBackupSeedPhrase(
+              '',
+              MOCK_SEED_PHRASE,
+              MOCK_KEYRING_ID,
+            ),
           ).rejects.toThrow(
             SeedlessOnboardingControllerError.InvalidEmptyPassword,
           );

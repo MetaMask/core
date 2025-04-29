@@ -3605,6 +3605,9 @@ describe('NetworkController', () => {
               maxConsecutiveFailures: 10,
             },
           });
+          const getBlockTrackerOptions = () => ({
+            pollingInterval: 2000,
+          });
 
           await withController(
             {
@@ -3624,6 +3627,7 @@ describe('NetworkController', () => {
                 }),
               infuraProjectId,
               getRpcServiceOptions,
+              getBlockTrackerOptions,
             },
             ({ controller, networkControllerMessenger }) => {
               const defaultRpcEndpoint: InfuraRpcEndpoint = {
@@ -3672,6 +3676,7 @@ describe('NetworkController', () => {
                     type: NetworkClientType.Infura,
                   },
                   getRpcServiceOptions,
+                  getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                 },
               );
@@ -3686,6 +3691,7 @@ describe('NetworkController', () => {
                     type: NetworkClientType.Custom,
                   },
                   getRpcServiceOptions,
+                  getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                 },
               );
@@ -3700,6 +3706,7 @@ describe('NetworkController', () => {
                     type: NetworkClientType.Custom,
                   },
                   getRpcServiceOptions,
+                  getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                 },
               );
@@ -5040,6 +5047,9 @@ describe('NetworkController', () => {
                 maxConsecutiveFailures: 10,
               },
             });
+            const getBlockTrackerOptions = () => ({
+              pollingInterval: 2000,
+            });
 
             await withController(
               {
@@ -5061,6 +5071,7 @@ describe('NetworkController', () => {
                 },
                 infuraProjectId,
                 getRpcServiceOptions,
+                getBlockTrackerOptions,
               },
               async ({ controller, networkControllerMessenger }) => {
                 const infuraRpcEndpoint: InfuraRpcEndpoint = {
@@ -5093,6 +5104,7 @@ describe('NetworkController', () => {
                     type: NetworkClientType.Infura,
                   },
                   getRpcServiceOptions,
+                  getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                 });
 
@@ -5267,6 +5279,9 @@ describe('NetworkController', () => {
                 maxConsecutiveFailures: 10,
               },
             });
+            const getBlockTrackerOptions = () => ({
+              pollingInterval: 2000,
+            });
 
             await withController(
               {
@@ -5288,6 +5303,7 @@ describe('NetworkController', () => {
                 },
                 infuraProjectId: 'some-infura-project-id',
                 getRpcServiceOptions,
+                getBlockTrackerOptions,
               },
               async ({ controller, networkControllerMessenger }) => {
                 const [rpcEndpoint1, rpcEndpoint2] = [
@@ -5320,6 +5336,7 @@ describe('NetworkController', () => {
                     type: NetworkClientType.Custom,
                   },
                   getRpcServiceOptions,
+                  getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                 });
                 expect(
@@ -5333,6 +5350,7 @@ describe('NetworkController', () => {
                     type: NetworkClientType.Custom,
                   },
                   getRpcServiceOptions,
+                  getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                 });
 
@@ -6252,6 +6270,9 @@ describe('NetworkController', () => {
                 maxConsecutiveFailures: 10,
               },
             });
+            const getBlockTrackerOptions = () => ({
+              pollingInterval: 2000,
+            });
 
             await withController(
               {
@@ -6272,6 +6293,7 @@ describe('NetworkController', () => {
                   selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
                 },
                 getRpcServiceOptions,
+                getBlockTrackerOptions,
               },
               async ({ controller, networkControllerMessenger }) => {
                 createNetworkClientMock.mockReturnValue(buildFakeClient());
@@ -6298,6 +6320,7 @@ describe('NetworkController', () => {
                     type: NetworkClientType.Custom,
                   },
                   getRpcServiceOptions,
+                  getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                 });
                 const networkConfigurationsByNetworkClientId =
@@ -7110,6 +7133,9 @@ describe('NetworkController', () => {
               maxConsecutiveFailures: 10,
             },
           });
+          const getBlockTrackerOptions = () => ({
+            pollingInterval: 2000,
+          });
 
           await withController(
             {
@@ -7130,6 +7156,7 @@ describe('NetworkController', () => {
                 selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
               },
               getRpcServiceOptions,
+              getBlockTrackerOptions,
             },
             async ({ controller, networkControllerMessenger }) => {
               await controller.updateNetwork('0x1337', {
@@ -7161,6 +7188,7 @@ describe('NetworkController', () => {
                     type: NetworkClientType.Custom,
                   },
                   getRpcServiceOptions,
+                  getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                 },
               );
@@ -7175,6 +7203,7 @@ describe('NetworkController', () => {
                     type: NetworkClientType.Custom,
                   },
                   getRpcServiceOptions,
+                  getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                 },
               );
@@ -8094,6 +8123,9 @@ describe('NetworkController', () => {
               maxConsecutiveFailures: 10,
             },
           });
+          const getBlockTrackerOptions = () => ({
+            pollingInterval: 2000,
+          });
 
           await withController(
             {
@@ -8114,6 +8146,7 @@ describe('NetworkController', () => {
                 selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
               },
               getRpcServiceOptions,
+              getBlockTrackerOptions,
             },
             async ({ controller, networkControllerMessenger }) => {
               createNetworkClientMock.mockImplementation(
@@ -8153,6 +8186,7 @@ describe('NetworkController', () => {
                   type: NetworkClientType.Custom,
                 },
                 getRpcServiceOptions,
+                getBlockTrackerOptions,
                 messenger: networkControllerMessenger,
               });
               expect(
@@ -9256,6 +9290,9 @@ describe('NetworkController', () => {
                 maxConsecutiveFailures: 10,
               },
             });
+            const getBlockTrackerOptions = () => ({
+              pollingInterval: 2000,
+            });
 
             await withController(
               {
@@ -9276,6 +9313,7 @@ describe('NetworkController', () => {
                   selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
                 },
                 getRpcServiceOptions,
+                getBlockTrackerOptions,
               },
               async ({ controller, networkControllerMessenger }) => {
                 createNetworkClientMock.mockImplementation(
@@ -9310,6 +9348,7 @@ describe('NetworkController', () => {
                     type: NetworkClientType.Custom,
                   },
                   getRpcServiceOptions,
+                  getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                 });
                 expect(
@@ -9323,6 +9362,7 @@ describe('NetworkController', () => {
                     type: NetworkClientType.Custom,
                   },
                   getRpcServiceOptions,
+                  getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                 });
 
@@ -9964,6 +10004,9 @@ describe('NetworkController', () => {
                 maxConsecutiveFailures: 10,
               },
             });
+            const getBlockTrackerOptions = () => ({
+              pollingInterval: 2000,
+            });
 
             await withController(
               {
@@ -9984,6 +10027,7 @@ describe('NetworkController', () => {
                   selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
                 },
                 getRpcServiceOptions,
+                getBlockTrackerOptions,
               },
               async ({ controller, networkControllerMessenger }) => {
                 createNetworkClientMock.mockImplementation(
@@ -10023,6 +10067,7 @@ describe('NetworkController', () => {
                     type: NetworkClientType.Custom,
                   },
                   getRpcServiceOptions,
+                  getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                 });
                 expect(createAutoManagedNetworkClientSpy).toHaveBeenCalledWith({
@@ -10034,6 +10079,7 @@ describe('NetworkController', () => {
                     type: NetworkClientType.Custom,
                   },
                   getRpcServiceOptions,
+                  getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                 });
 
@@ -10692,6 +10738,9 @@ describe('NetworkController', () => {
                 maxConsecutiveFailures: 10,
               },
             });
+            const getBlockTrackerOptions = () => ({
+              pollingInterval: 2000,
+            });
 
             await withController(
               {
@@ -10713,6 +10762,7 @@ describe('NetworkController', () => {
                 },
                 infuraProjectId: 'some-infura-project-id',
                 getRpcServiceOptions,
+                getBlockTrackerOptions,
               },
               async ({ controller, networkControllerMessenger }) => {
                 createNetworkClientMock.mockImplementation(
@@ -10751,6 +10801,7 @@ describe('NetworkController', () => {
                     type: NetworkClientType.Custom,
                   },
                   getRpcServiceOptions,
+                  getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                 });
                 expect(
@@ -10764,6 +10815,7 @@ describe('NetworkController', () => {
                     type: NetworkClientType.Custom,
                   },
                   getRpcServiceOptions,
+                  getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                 });
 
@@ -11387,6 +11439,9 @@ describe('NetworkController', () => {
             maxConsecutiveFailures: 10,
           },
         });
+        const getBlockTrackerOptions = () => ({
+          pollingInterval: 2000,
+        });
 
         await withController(
           {
@@ -11407,6 +11462,7 @@ describe('NetworkController', () => {
               selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
             },
             getRpcServiceOptions,
+            getBlockTrackerOptions,
           },
           async ({ controller, networkControllerMessenger }) => {
             createNetworkClientMock.mockImplementation(({ configuration }) => {
@@ -11439,6 +11495,7 @@ describe('NetworkController', () => {
                   type: NetworkClientType.Custom,
                 },
                 getRpcServiceOptions,
+                getBlockTrackerOptions,
                 messenger: networkControllerMessenger,
               },
             );
@@ -11453,6 +11510,7 @@ describe('NetworkController', () => {
                   type: NetworkClientType.Custom,
                 },
                 getRpcServiceOptions,
+                getBlockTrackerOptions,
                 messenger: networkControllerMessenger,
               },
             );

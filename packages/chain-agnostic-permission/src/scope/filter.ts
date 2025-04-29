@@ -1,9 +1,8 @@
-import type { CaipAccountId, CaipChainId, Hex } from '@metamask/utils';
+import type { CaipChainId, Hex } from '@metamask/utils';
 
 import { assertIsInternalScopeString, assertScopeSupported } from './assert';
 import { isSupportedMethod, isSupportedNotification } from './supported';
 import type {
-  InternalScopesObject,
   InternalScopeString,
   NormalizedScopeObject,
   NormalizedScopesObject,
@@ -119,47 +118,3 @@ export const getSupportedScopeObjects = (
 
   return filteredScopesObject;
 };
-
-/**
- * Gets all accounts from an array of scopes objects
- * This extracts all account IDs from both required and optional scopes
- * and returns a unique set.
- *
- * @param scopesObjects - The scopes objects to extract accounts from
- * @returns Array of unique account IDs
- */
-export function getCaipAccountIdsFromScopesObjects(
-  scopesObjects: InternalScopesObject[],
-): CaipAccountId[] {
-  if (!scopesObjects.length) {
-    return [];
-  }
-  return Array.from(
-    new Set(
-      scopesObjects.flatMap((scopeObject) =>
-        Object.values(scopeObject).flatMap(({ accounts }) => accounts),
-      ),
-    ),
-  );
-}
-
-/**
- * Gets all scopes from a CAIP-25 caveat value
- *
- * @param scopesObjects - The scopes objects to get the scopes from.
- * @returns An array of InternalScopeStrings.
- */
-export function getAllScopesFromScopesObjects(
-  scopesObjects: InternalScopesObject[],
-): InternalScopeString[] {
-  if (!scopesObjects.length) {
-    return [];
-  }
-  return Array.from(
-    new Set(
-      scopesObjects.flatMap(
-        (scopeObject) => Object.keys(scopeObject) as InternalScopeString[],
-      ),
-    ),
-  );
-}

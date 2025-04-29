@@ -1,4 +1,8 @@
-import { bucketScopes, validateAndNormalizeScopes } from './authorization';
+import {
+  bucketScopes,
+  isNamespaceInScopesObject,
+  validateAndNormalizeScopes,
+} from './authorization';
 import * as Filter from './filter';
 import * as Transform from './transform';
 import type { ExternalScopeObject } from './types';
@@ -230,6 +234,32 @@ describe('Scope Authorization', () => {
           },
         },
       });
+    });
+  });
+
+  describe('isNamespaceInScopesObject', () => {
+    it('returns true if the namespace is in the scopes object', () => {
+      expect(
+        isNamespaceInScopesObject(
+          {
+            'eip155:1': { methods: [], notifications: [], accounts: [] },
+            'solana:1': { methods: [], notifications: [], accounts: [] },
+          },
+          'eip155',
+        ),
+      ).toBe(true);
+    });
+
+    it('returns false if the namespace is not in the scopes object', () => {
+      expect(
+        isNamespaceInScopesObject(
+          {
+            'eip155:1': { methods: [], notifications: [], accounts: [] },
+            'eip155:5': { methods: [], notifications: [], accounts: [] },
+          },
+          'solana',
+        ),
+      ).toBe(false);
     });
   });
 });

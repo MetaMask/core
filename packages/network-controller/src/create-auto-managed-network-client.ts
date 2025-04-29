@@ -1,3 +1,5 @@
+import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
+
 import type { NetworkClient } from './create-network-client';
 import { createNetworkClient } from './create-network-client';
 import type { NetworkControllerMessenger } from './NetworkController';
@@ -66,6 +68,8 @@ const UNINITIALIZED_TARGET = { __UNINITIALIZED__: true };
  * used to instantiate the network client when it is needed.
  * @param args.getRpcServiceOptions - Factory for constructing RPC service
  * options. See {@link NetworkControllerOptions.getRpcServiceOptions}.
+ * @param args.getBlockTrackerOptions - Factory for constructing block tracker
+ * options. See {@link NetworkControllerOptions.getBlockTrackerOptions}.
  * @param args.messenger - The network controller messenger.
  * @returns The auto-managed network client.
  */
@@ -74,12 +78,16 @@ export function createAutoManagedNetworkClient<
 >({
   networkClientConfiguration,
   getRpcServiceOptions,
+  getBlockTrackerOptions = () => ({}),
   messenger,
 }: {
   networkClientConfiguration: Configuration;
   getRpcServiceOptions: (
     rpcEndpointUrl: string,
   ) => Omit<RpcServiceOptions, 'failoverService' | 'endpointUrl'>;
+  getBlockTrackerOptions?: (
+    rpcEndpointUrl: string,
+  ) => Omit<PollingBlockTrackerOptions, 'provider'>;
   messenger: NetworkControllerMessenger;
 }): AutoManagedNetworkClient<Configuration> {
   let networkClient: NetworkClient | undefined;
@@ -95,6 +103,7 @@ export function createAutoManagedNetworkClient<
       networkClient ??= createNetworkClient({
         configuration: networkClientConfiguration,
         getRpcServiceOptions,
+        getBlockTrackerOptions,
         messenger,
       });
       if (networkClient === undefined) {
@@ -136,6 +145,7 @@ export function createAutoManagedNetworkClient<
       networkClient ??= createNetworkClient({
         configuration: networkClientConfiguration,
         getRpcServiceOptions,
+        getBlockTrackerOptions,
         messenger,
       });
       const { provider } = networkClient;
@@ -156,6 +166,7 @@ export function createAutoManagedNetworkClient<
         networkClient ??= createNetworkClient({
           configuration: networkClientConfiguration,
           getRpcServiceOptions,
+          getBlockTrackerOptions,
           messenger,
         });
         if (networkClient === undefined) {
@@ -197,6 +208,7 @@ export function createAutoManagedNetworkClient<
         networkClient ??= createNetworkClient({
           configuration: networkClientConfiguration,
           getRpcServiceOptions,
+          getBlockTrackerOptions,
           messenger,
         });
         const { blockTracker } = networkClient;

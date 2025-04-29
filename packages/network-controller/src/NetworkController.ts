@@ -17,6 +17,7 @@ import {
   BUILT_IN_NETWORKS,
   BuiltInNetworkName,
 } from '@metamask/controller-utils';
+import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 import EthQuery from '@metamask/eth-query';
 import { errorCodes } from '@metamask/rpc-errors';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
@@ -621,16 +622,23 @@ export type NetworkControllerOptions = {
    */
   log?: Logger;
   /**
-   * A function that can be used to customize the options passed to a
-   * RPC service constructed for an RPC endpoint. The object that the function
-   * should return is the same as {@link RpcServiceOptions}, except that
-   * `failoverService` and `endpointUrl` are not accepted (as they are filled in
-   * automatically).
+   * A function that can be used to customize a RPC service constructed for an
+   * RPC endpoint. The function takes the URL of the endpoint and should return
+   * an object with type {@link RpcServiceOptions}, minus `failoverService`
+   * and `endpointUrl` (as they are filled in automatically).
    */
   getRpcServiceOptions: (
     rpcEndpointUrl: string,
   ) => Omit<RpcServiceOptions, 'failoverService' | 'endpointUrl'>;
-
+  /**
+   * A function that can be used to customize a block tracker constructed for an
+   * RPC endpoint. The function takes the URL of the endpoint and should return
+   * an object of type {@link PollingBlockTrackerOptions}, minus `provider` (as
+   * it is filled in automatically).
+   */
+  getBlockTrackerOptions?: (
+    rpcEndpointUrl: string,
+  ) => Omit<PollingBlockTrackerOptions, 'provider'>;
   /**
    * An array of Hex Chain IDs representing the additional networks to be included as default.
    */
@@ -1080,6 +1088,8 @@ export class NetworkController extends BaseController<
 
   readonly #getRpcServiceOptions: NetworkControllerOptions['getRpcServiceOptions'];
 
+  readonly #getBlockTrackerOptions: NetworkControllerOptions['getBlockTrackerOptions'];
+
   #networkConfigurationsByNetworkClientId: Map<
     NetworkClientId,
     NetworkConfiguration
@@ -1097,6 +1107,7 @@ export class NetworkController extends BaseController<
       infuraProjectId,
       log,
       getRpcServiceOptions,
+      getBlockTrackerOptions,
       additionalDefaultNetworks,
     } = options;
     const initialState = {
@@ -1131,6 +1142,7 @@ export class NetworkController extends BaseController<
     this.#infuraProjectId = infuraProjectId;
     this.#log = log;
     this.#getRpcServiceOptions = getRpcServiceOptions;
+    this.#getBlockTrackerOptions = getBlockTrackerOptions;
 
     this.#previouslySelectedNetworkClientId =
       this.state.selectedNetworkClientId;
@@ -2638,6 +2650,7 @@ export class NetworkController extends BaseController<
             ticker: networkFields.nativeCurrency,
           },
           getRpcServiceOptions: this.#getRpcServiceOptions,
+          getBlockTrackerOptions: this.#getBlockTrackerOptions,
           messenger: this.messagingSystem,
         });
       } else {
@@ -2652,6 +2665,7 @@ export class NetworkController extends BaseController<
             ticker: networkFields.nativeCurrency,
           },
           getRpcServiceOptions: this.#getRpcServiceOptions,
+          getBlockTrackerOptions: this.#getBlockTrackerOptions,
           messenger: this.messagingSystem,
         });
       }
@@ -2812,6 +2826,7 @@ export class NetworkController extends BaseController<
                 ticker: networkConfiguration.nativeCurrency,
               },
               getRpcServiceOptions: this.#getRpcServiceOptions,
+              getBlockTrackerOptions: this.#getBlockTrackerOptions,
               messenger: this.messagingSystem,
             }),
           ] as const;
@@ -2827,6 +2842,7 @@ export class NetworkController extends BaseController<
               ticker: networkConfiguration.nativeCurrency,
             },
             getRpcServiceOptions: this.#getRpcServiceOptions,
+            getBlockTrackerOptions: this.#getBlockTrackerOptions,
             messenger: this.messagingSystem,
           }),
         ] as const;

@@ -1,6 +1,11 @@
+import { isEqualCaseInsensitive } from '@metamask/controller-utils';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import {
   assertIsStrictHexString,
+  type CaipAccountAddress,
   type CaipAccountId,
+  type CaipNamespace,
+  type CaipReference,
   type Hex,
   KnownCaipNamespace,
   parseCaipAccountId,
@@ -12,7 +17,16 @@ import { getUniqueArrayItems } from '../scope/transform';
 import type { InternalScopeString, InternalScopesObject } from '../scope/types';
 import { parseScopeString } from '../scope/types';
 
+/*
+ *
+ *
+ * EVM SPECIFIC GETTERS AND SETTERS
+ *
+ *
+ */
+
 /**
+ *
  * Checks if a scope string is either an EIP155 or wallet namespaced scope string.
  *
  * @param scopeString - The scope string to check.
@@ -140,70 +154,232 @@ export const setEthAccounts = (
   };
 };
 
-/**
- * Sets the permitted accounts to scopes with matching namespaces in the given scopes object.
+/*
  *
- * @param scopesObject - The scopes object to set the permitted accounts for.
- * @param accounts - The permitted accounts to add to the appropriate scopes.
- * @returns The updated scopes object with the permitted accounts set.
+ *
+ * GENERALIZED GETTERS AND SETTERS
+ *
+ *
  */
-const setPermittedAccountsForScopesObject = (
+
+/**
+ *
+ * Getters
+ *
+ */
+
+/**
+ * Gets all accounts from an array of scopes objects
+ * This extracts all account IDs from both required and optional scopes
+ * and returns a unique set.
+ *
+ * @param scopesObjects - The scopes objects to extract accounts from
+ * @returns Array of unique account IDs
+ */
+export function getCaipAccountIdsFromScopesObjects(
+  scopesObjects: InternalScopesObject[],
+): CaipAccountId[] {
+  const allAccounts = new Set<CaipAccountId>();
+
+  for (const scopeObject of scopesObjects) {
+    for (const { accounts } of Object.values(scopeObject)) {
+      for (const account of accounts) {
+        allAccounts.add(account);
+      }
+    }
+  }
+
+  return Array.from(allAccounts);
+}
+
+/**
+ * Gets all permitted accounts from a CAIP-25 caveat
+ * This extracts all account IDs from both required and optional scopes
+ * and returns a unique set.
+ *
+ * @param caip25CaveatValue - The CAIP-25 caveat value to extract accounts from
+ * @returns Array of unique account IDs
+ */
+export function getCaipAccountIdsFromCaip25CaveatValue(
+  caip25CaveatValue: Caip25CaveatValue,
+): CaipAccountId[] {
+  return getCaipAccountIdsFromScopesObjects([
+    caip25CaveatValue.requiredScopes,
+    caip25CaveatValue.optionalScopes,
+  ]);
+}
+
+/**
+ *
+ * Setters
+ *
+ */
+
+/**
+ * Sets the CAIP account IDs to scopes with matching namespaces in the given scopes object.
+ * This function should not be used with Smart Contract Accounts (SCA) because
+ * it adds the same account ID to all the scopes that have the same namespace.
+ *
+ * @param scopesObject - The scopes object to set the CAIP account IDs for.
+ * @param accounts - The CAIP account IDs to add to the appropriate scopes.
+ * @returns The updated scopes object with the CAIP account IDs set.
+ */
+const setNonSCACaipAccountIdsInScopesObject = (
   scopesObject: InternalScopesObject,
   accounts: CaipAccountId[],
 ) => {
-  const updatedScopesObject: InternalScopesObject = {};
-  Object.entries(scopesObject).forEach(([key, scopeObject]) => {
-    // Cast needed because index type is returned as `string` by `Object.entries`
-    const scopeString = key as keyof typeof scopesObject;
-    const { namespace, reference } = parseScopeString(scopeString);
+  const accountsByNamespace = new Map<string, Set<string>>();
 
-    let caipAccounts: CaipAccountId[] = [];
-    if (namespace && reference) {
-      caipAccounts = accounts.reduce<CaipAccountId[]>((acc, account) => {
-        const {
-          chain: { namespace: accountNamespace },
-          address: accountAddress,
-        } = parseCaipAccountId(account);
-        // If the account namespace is the same as the scope namespace, add the account to the scope
-        // This will, for example, distribute all EIP155 accounts, regardless of reference, to all EIP155 scopes
-        if (namespace === accountNamespace) {
-          acc.push(`${namespace}:${reference}:${accountAddress}`);
-        }
-        return acc;
-      }, []);
+  for (const account of accounts) {
+    const {
+      chain: { namespace },
+      address,
+    } = parseCaipAccountId(account);
+
+    if (!accountsByNamespace.has(namespace)) {
+      accountsByNamespace.set(namespace, new Set());
     }
 
-    const uniqueCaipAccounts = getUniqueArrayItems(caipAccounts);
+    accountsByNamespace.get(namespace)?.add(address);
+  }
 
-    updatedScopesObject[scopeString] = {
+  const updatedScopesObject: InternalScopesObject = {};
+
+  for (const [scopeString, scopeObject] of Object.entries(scopesObject)) {
+    const { namespace, reference } = parseScopeString(scopeString as string);
+
+    let caipAccounts: CaipAccountId[] = [];
+
+    if (namespace && reference && accountsByNamespace.has(namespace)) {
+      const addressSet = accountsByNamespace.get(namespace);
+      if (addressSet) {
+        caipAccounts = Array.from(addressSet).map(
+          (address) => `${namespace}:${reference}:${address}` as CaipAccountId,
+        );
+      }
+    }
+
+    updatedScopesObject[scopeString as keyof typeof scopesObject] = {
       ...scopeObject,
-      accounts: uniqueCaipAccounts,
+      accounts: getUniqueArrayItems(caipAccounts),
     };
-  });
+  }
 
   return updatedScopesObject;
 };
 
 /**
  * Sets the permitted accounts to scopes with matching namespaces in the given CAIP-25 caveat value.
+ * This function should not be used with Smart Contract Accounts (SCA) because
+ * it adds the same account ID to all scopes that have the same namespace as the account.
  *
  * @param caip25CaveatValue - The CAIP-25 caveat value to set the permitted accounts for.
  * @param accounts - The permitted accounts to add to the appropriate scopes.
  * @returns The updated CAIP-25 caveat value with the permitted accounts set.
  */
-export const setPermittedAccounts = (
+export const setNonSCACaipAccountIdsInCaip25CaveatValue = (
   caip25CaveatValue: Caip25CaveatValue,
   accounts: CaipAccountId[],
 ): Caip25CaveatValue => {
   return {
     ...caip25CaveatValue,
-    requiredScopes: setPermittedAccountsForScopesObject(
+    requiredScopes: setNonSCACaipAccountIdsInScopesObject(
       caip25CaveatValue.requiredScopes,
       accounts,
     ),
-    optionalScopes: setPermittedAccountsForScopesObject(
+    optionalScopes: setNonSCACaipAccountIdsInScopesObject(
       caip25CaveatValue.optionalScopes,
       accounts,
     ),
   };
 };
+
+/**
+ * Checks if an address and list of parsed scopes are connected to any of
+ * the permitted accounts based on scope matching
+ *
+ * @param address - The CAIP account address to check against permitted accounts
+ * @param parsedAccountScopes - The list of parsed CAIP chain ID to check against permitted accounts
+ * @param permittedAccounts - Array of CAIP account IDs that are permitted
+ * @returns True if the address and any account scope is connected to any permitted account
+ */
+function isAddressWithParsedScopesInPermittedAccountIds(
+  address: CaipAccountAddress,
+  parsedAccountScopes: {
+    namespace?: CaipNamespace;
+    reference?: CaipReference;
+  }[],
+  permittedAccounts: CaipAccountId[],
+) {
+  if (!address || !parsedAccountScopes.length || !permittedAccounts.length) {
+    return false;
+  }
+
+  return permittedAccounts.some((account) => {
+    const parsedPermittedAccount = parseCaipAccountId(account);
+
+    return parsedAccountScopes.some(({ namespace, reference }) => {
+      if (namespace !== parsedPermittedAccount.chain.namespace) {
+        return false;
+      }
+
+      // handle eip155:0 case and insensitive evm address comparison
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+      if (namespace === KnownCaipNamespace.Eip155) {
+        return (
+          (reference === '0' ||
+            reference === parsedPermittedAccount.chain.reference) &&
+          isEqualCaseInsensitive(address, parsedPermittedAccount.address)
+        );
+      }
+      return (
+        reference === parsedPermittedAccount.chain.reference &&
+        address === parsedPermittedAccount.address
+      );
+    });
+  });
+}
+
+/**
+ * Checks if an internal account is connected to any of the permitted accounts
+ * based on scope matching
+ *
+ * @param internalAccount - The internal account to check against permitted accounts
+ * @param permittedAccounts - Array of CAIP account IDs that are permitted
+ * @returns True if the account is connected to any permitted account
+ */
+export function isInternalAccountInPermittedAccountIds(
+  internalAccount: InternalAccount,
+  permittedAccounts: CaipAccountId[],
+): boolean {
+  const parsedInteralAccountScopes = internalAccount.scopes.map((scope) => {
+    return parseScopeString(scope);
+  });
+
+  return isAddressWithParsedScopesInPermittedAccountIds(
+    internalAccount.address,
+    parsedInteralAccountScopes,
+    permittedAccounts,
+  );
+}
+
+/**
+ * Checks if an CAIP account ID is connected to any of the permitted accounts
+ * based on scope matching
+ *
+ * @param accountId - The CAIP account ID to check against permitted accounts
+ * @param permittedAccounts - Array of CAIP account IDs that are permitted
+ * @returns True if the account is connected to any permitted account
+ */
+export function isCaipAccountIdInPermittedAccountIds(
+  accountId: CaipAccountId,
+  permittedAccounts: CaipAccountId[],
+): boolean {
+  const { address, chain } = parseCaipAccountId(accountId);
+
+  return isAddressWithParsedScopesInPermittedAccountIds(
+    address,
+    [chain],
+    permittedAccounts,
+  );
+}

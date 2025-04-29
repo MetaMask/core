@@ -79,14 +79,11 @@ export class RecoveryError extends Error {
       'remainingTime' in error.meta.rateLimitDetails &&
       typeof error.meta.rateLimitDetails.remainingTime === 'number' &&
       'message' in error.meta.rateLimitDetails &&
-      typeof error.meta.rateLimitDetails.message === 'string' &&
-      'isPermanent' in error.meta.rateLimitDetails &&
-      typeof error.meta.rateLimitDetails.isPermanent === 'boolean'
+      typeof error.meta.rateLimitDetails.message === 'string'
     ) {
       return {
         remainingTime: error.meta.rateLimitDetails.remainingTime,
         message: error.meta.rateLimitDetails.message,
-        isPermanent: error.meta.rateLimitDetails.isPermanent,
       };
     }
     return undefined;

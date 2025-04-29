@@ -104,9 +104,8 @@
     "import-x/order": 3
   },
   "packages/assets-controllers/src/TokenRatesController.ts": {
-    "@typescript-eslint/prefer-readonly": 2,
-    "jsdoc/check-tag-names": 11,
-    "no-unused-private-class-members": 1
+    "@typescript-eslint/prefer-readonly": 1,
+    "jsdoc/check-tag-names": 11
   },
   "packages/assets-controllers/src/TokensController.test.ts": {
     "import-x/namespace": 1,
@@ -416,11 +415,8 @@
   "packages/permission-log-controller/tests/PermissionLogController.test.ts": {
     "import-x/order": 1
   },
-  "packages/phishing-controller/src/PhishingController.test.ts": {
-    "import-x/no-named-as-default-member": 1
-  },
   "packages/phishing-controller/src/PhishingController.ts": {
-    "jsdoc/check-tag-names": 42,
+    "jsdoc/check-tag-names": 38,
     "jsdoc/tag-lines": 1
   },
   "packages/phishing-controller/src/PhishingDetector.ts": {
