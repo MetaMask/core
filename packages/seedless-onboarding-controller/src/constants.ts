@@ -12,11 +12,14 @@ export enum AuthConnection {
 }
 
 export enum SeedlessOnboardingControllerError {
+  ControllerLocked = `${controllerName} - The operation cannot be completed while the controller is locked.`,
   AuthenticationError = `${controllerName} - Authentication error`,
   MissingAuthUserInfo = `${controllerName} - Missing authenticated user information`,
   FailedToPersistOprfKey = `${controllerName} - Failed to persist OPRF key`,
   LoginFailedError = `${controllerName} - Login failed`,
   InsufficientAuthToken = `${controllerName} - Insufficient auth token`,
+  MissingCredentials = `${controllerName} - Cannot unlock vault without password or encryption key.`,
+  ExpiredCredentials = `${controllerName} - Encryption key and salt provided are expired`,
   InvalidEmptyPassword = `${controllerName} - Password cannot be empty.`,
   WrongPasswordType = `${controllerName} - Password must be of type string.`,
   InvalidVaultData = `${controllerName} - Invalid vault data`,

@@ -1,8 +1,12 @@
 import type { RestrictedMessenger } from '@metamask/base-controller';
 import type { ControllerGetStateAction } from '@metamask/base-controller';
 import type { ControllerStateChangeEvent } from '@metamask/base-controller';
+import type {
+  ExportableKeyEncryptor,
+  KeyringControllerLockEvent,
+  KeyringControllerUnlockEvent,
+} from '@metamask/keyring-controller';
 import type { NodeAuthTokens } from '@metamask/toprf-secure-backup';
-import type { Json } from '@metamask/utils';
 import type { MutexInterface } from 'async-mutex';
 
 import type {
@@ -64,6 +68,17 @@ export type SeedlessOnboardingControllerState =
      * This is to facilitate the UI to display backup status of the seed phrases.
      */
     socialBackupsMetadata: SocialBackupsMetadata[];
+
+    /**
+     * The encryption key derived from the password and used to encrypt
+     * the vault.
+     */
+    vaultEncryptionKey?: string;
+
+    /**
+     * The salt used to derive the encryption key from the password.
+     */
+    vaultEncryptionSalt?: string;
   };
 
 // Actions
@@ -86,7 +101,9 @@ export type SeedlessOnboardingControllerStateChangeEvent =
 export type SeedlessOnboardingControllerEvents =
   SeedlessOnboardingControllerStateChangeEvent;
 
-export type AllowedEvents = never;
+export type AllowedEvents =
+  | KeyringControllerLockEvent
+  | KeyringControllerUnlockEvent;
 
 // Messenger
 export type SeedlessOnboardingControllerMessenger = RestrictedMessenger<
@@ -100,24 +117,10 @@ export type SeedlessOnboardingControllerMessenger = RestrictedMessenger<
 /**
  * Encryptor interface for encrypting and decrypting seedless onboarding vault.
  */
-export type VaultEncryptor = {
-  /**
-   * Encrypts the given object with the given password.
-   *
-   * @param password - The password to encrypt with.
-   * @param object - The object to encrypt.
-   * @returns The encrypted string.
-   */
-  encrypt: (password: string, object: Json) => Promise<string>;
-  /**
-   * Decrypts the given encrypted string with the given password.
-   *
-   * @param password - The password to decrypt with.
-   * @param encryptedString - The encrypted string to decrypt.
-   * @returns The decrypted object.
-   */
-  decrypt: (password: string, encryptedString: string) => Promise<unknown>;
-};
+export type VaultEncryptor<EncryptionKey> = Omit<
+  ExportableKeyEncryptor<EncryptionKey>,
+  'encryptWithKey'
+>;
 
 /**
  * Seedless Onboarding Controller Options.
@@ -126,7 +129,7 @@ export type VaultEncryptor = {
  * @param state - The initial state to set on this controller.
  * @param encryptor - The encryptor to use for encrypting and decrypting seedless onboarding vault.
  */
-export type SeedlessOnboardingControllerOptions = {
+export type SeedlessOnboardingControllerOptions<EncryptionKey> = {
   messenger: SeedlessOnboardingControllerMessenger;
 
   /**
@@ -139,7 +142,7 @@ export type SeedlessOnboardingControllerOptions = {
    *
    * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
    */
-  encryptor?: VaultEncryptor;
+  encryptor: VaultEncryptor<EncryptionKey>;
 
   /**
    * Type of Web3Auth network to be used for the Seedless Onboarding flow.
