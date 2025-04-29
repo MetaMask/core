@@ -100,7 +100,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^8.0.0",
+    "@metamask/base-controller": "^8.0.1",
     "@metamask/keyring-api": "^17.4.0",
     "@metamask/snaps-sdk": "^6.22.0",
     "@metamask/snaps-utils": "^9.2.0",
