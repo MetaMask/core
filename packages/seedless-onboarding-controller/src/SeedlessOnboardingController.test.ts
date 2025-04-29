@@ -105,7 +105,7 @@ async function withController<ReturnValue>(
   const messenger = buildSeedlessOnboardingControllerMessenger();
 
   const controller = new SeedlessOnboardingController({
-    encryptor: encryptor as VaultEncryptor<EncryptionKey | webcrypto.CryptoKey>,
+    encryptor,
     messenger,
     network: Web3AuthNetwork.Devnet,
     ...rest,
