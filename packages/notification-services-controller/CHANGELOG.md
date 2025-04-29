@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 376.0.0 ([#5713](https://github.com/MetaMask/controllers.git/pull/5713))
+- Release 363.0.0 ([#5658](https://github.com/MetaMask/controllers.git/pull/5658))
+
 ## [6.0.0]
 
 ### Changed
@@ -386,41 +391,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@6.0.0...HEAD
-[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@5.0.1...@metamask/notification-services-controller@6.0.0
-[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@5.0.0...@metamask/notification-services-controller@5.0.1
-[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@4.0.0...@metamask/notification-services-controller@5.0.0
-[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@3.0.0...@metamask/notification-services-controller@4.0.0
-[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@2.0.0...@metamask/notification-services-controller@3.0.0
-[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@1.0.0...@metamask/notification-services-controller@2.0.0
-[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.21.0...@metamask/notification-services-controller@1.0.0
-[0.21.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.20.1...@metamask/notification-services-controller@0.21.0
-[0.20.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.20.0...@metamask/notification-services-controller@0.20.1
-[0.20.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.19.0...@metamask/notification-services-controller@0.20.0
-[0.19.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.18.0...@metamask/notification-services-controller@0.19.0
-[0.18.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.17.0...@metamask/notification-services-controller@0.18.0
-[0.17.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.16.0...@metamask/notification-services-controller@0.17.0
-[0.16.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.15.0...@metamask/notification-services-controller@0.16.0
-[0.15.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.14.0...@metamask/notification-services-controller@0.15.0
-[0.14.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.13.0...@metamask/notification-services-controller@0.14.0
-[0.13.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.12.1...@metamask/notification-services-controller@0.13.0
-[0.12.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.12.0...@metamask/notification-services-controller@0.12.1
-[0.12.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.11.0...@metamask/notification-services-controller@0.12.0
-[0.11.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.10.0...@metamask/notification-services-controller@0.11.0
-[0.10.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.9.0...@metamask/notification-services-controller@0.10.0
-[0.9.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.8.2...@metamask/notification-services-controller@0.9.0
-[0.8.2]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.8.1...@metamask/notification-services-controller@0.8.2
-[0.8.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.8.0...@metamask/notification-services-controller@0.8.1
-[0.8.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.7.0...@metamask/notification-services-controller@0.8.0
-[0.7.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.6.0...@metamask/notification-services-controller@0.7.0
-[0.6.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.5.1...@metamask/notification-services-controller@0.6.0
-[0.5.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.5.0...@metamask/notification-services-controller@0.5.1
-[0.5.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.4.1...@metamask/notification-services-controller@0.5.0
-[0.4.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.4.0...@metamask/notification-services-controller@0.4.1
-[0.4.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.3.0...@metamask/notification-services-controller@0.4.0
-[0.3.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.2.1...@metamask/notification-services-controller@0.3.0
-[0.2.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.2.0...@metamask/notification-services-controller@0.2.1
-[0.2.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.1.2...@metamask/notification-services-controller@0.2.0
-[0.1.2]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.1.1...@metamask/notification-services-controller@0.1.2
-[0.1.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.1.0...@metamask/notification-services-controller@0.1.1
-[0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/notification-services-controller@0.1.0
+[Unreleased]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@6.0.0...HEAD
+[6.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@5.0.1...@metamask/notification-services-controller@6.0.0
+[5.0.1]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@5.0.0...@metamask/notification-services-controller@5.0.1
+[5.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@4.0.0...@metamask/notification-services-controller@5.0.0
+[4.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@3.0.0...@metamask/notification-services-controller@4.0.0
+[3.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@2.0.0...@metamask/notification-services-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@1.0.0...@metamask/notification-services-controller@2.0.0
+[1.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@0.21.0...@metamask/notification-services-controller@1.0.0
+[0.21.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@0.20.1...@metamask/notification-services-controller@0.21.0
+[0.20.1]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@0.20.0...@metamask/notification-services-controller@0.20.1
+[0.20.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@0.19.0...@metamask/notification-services-controller@0.20.0
+[0.19.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@0.18.0...@metamask/notification-services-controller@0.19.0
+[0.18.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@0.17.0...@metamask/notification-services-controller@0.18.0
+[0.17.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@0.16.0...@metamask/notification-services-controller@0.17.0
+[0.16.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@0.15.0...@metamask/notification-services-controller@0.16.0
+[0.15.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@0.14.0...@metamask/notification-services-controller@0.15.0
+[0.14.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@0.13.0...@metamask/notification-services-controller@0.14.0
+[0.13.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@0.12.1...@metamask/notification-services-controller@0.13.0
+[0.12.1]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@0.12.0...@metamask/notification-services-controller@0.12.1
+[0.12.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@0.11.0...@metamask/notification-services-controller@0.12.0
+[0.11.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@0.10.0...@metamask/notification-services-controller@0.11.0
+[0.10.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@0.9.0...@metamask/notification-services-controller@0.10.0
+[0.9.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@0.8.2...@metamask/notification-services-controller@0.9.0
+[0.8.2]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@0.8.1...@metamask/notification-services-controller@0.8.2
+[0.8.1]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@0.8.0...@metamask/notification-services-controller@0.8.1
+[0.8.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@0.7.0...@metamask/notification-services-controller@0.8.0
+[0.7.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@0.6.0...@metamask/notification-services-controller@0.7.0
+[0.6.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@0.5.1...@metamask/notification-services-controller@0.6.0
+[0.5.1]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@0.5.0...@metamask/notification-services-controller@0.5.1
+[0.5.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@0.4.1...@metamask/notification-services-controller@0.5.0
+[0.4.1]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@0.4.0...@metamask/notification-services-controller@0.4.1
+[0.4.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@0.3.0...@metamask/notification-services-controller@0.4.0
+[0.3.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@0.2.1...@metamask/notification-services-controller@0.3.0
+[0.2.1]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@0.2.0...@metamask/notification-services-controller@0.2.1
+[0.2.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@0.1.2...@metamask/notification-services-controller@0.2.0
+[0.1.2]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@0.1.1...@metamask/notification-services-controller@0.1.2
+[0.1.1]: https://github.com/MetaMask/controllers.git/compare/@metamask/notification-services-controller@0.1.0...@metamask/notification-services-controller@0.1.1
+[0.1.0]: https://github.com/MetaMask/controllers.git/releases/tag/@metamask/notification-services-controller@0.1.0

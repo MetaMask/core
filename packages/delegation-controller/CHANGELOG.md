@@ -7,11 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 376.0.0 ([#5713](https://github.com/MetaMask/controllers.git/pull/5713))
+
 ## [0.1.0]
 
 ### Added
 
 - Initial release ([#5592](https://github.com/MetaMask/core/pull/5592))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@0.1.0...HEAD
-[0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/delegation-controller@0.1.0
+[Unreleased]: https://github.com/MetaMask/controllers.git/compare/@metamask/delegation-controller@0.1.0...HEAD
+[0.1.0]: https://github.com/MetaMask/controllers.git/releases/tag/@metamask/delegation-controller@0.1.0
