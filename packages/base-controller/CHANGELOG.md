@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.1]
+
 ### Uncategorized
 
 - perf: Don't emit `:stateChange` from `BaseController` unnecessarily ([#5480](https://github.com/MetaMask/controllers.git/pull/5480))
@@ -309,7 +311,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/controllers.git/compare/@metamask/base-controller@8.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers.git/compare/@metamask/base-controller@8.0.1...HEAD
+[8.0.1]: https://github.com/MetaMask/controllers.git/compare/@metamask/base-controller@8.0.0...@metamask/base-controller@8.0.1
 [8.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/base-controller@7.1.1...@metamask/base-controller@8.0.0
 [7.1.1]: https://github.com/MetaMask/controllers.git/compare/@metamask/base-controller@7.1.0...@metamask/base-controller@7.1.1
 [7.1.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/base-controller@7.0.2...@metamask/base-controller@7.1.0

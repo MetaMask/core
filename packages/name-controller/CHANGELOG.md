@@ -7,14 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 319.0.0 ([#5439](https://github.com/MetaMask/controllers.git/pull/5439))
-- Revert "Release 319.0.0 (#5437)" ([#5437](https://github.com/MetaMask/controllers.git/pull/5437))
-- Release 319.0.0 ([#5437](https://github.com/MetaMask/controllers.git/pull/5437))
-- fix: typos in documentation files ([#5114](https://github.com/MetaMask/controllers.git/pull/5114))
-- feat: add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/controllers.git/pull/5301))
-
 ### Changed
 
 - Bump `@metamask/controller-utils` to `^11.7.0` ([#5583](https://github.com/MetaMask/core/pull/5583))
@@ -174,20 +166,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1647](https://github.com/MetaMask/core/pull/1647))
 
-[Unreleased]: https://github.com/MetaMask/controllers.git/compare/@metamask/name-controller@8.0.3...HEAD
-[8.0.3]: https://github.com/MetaMask/controllers.git/compare/@metamask/name-controller@8.0.2...@metamask/name-controller@8.0.3
-[8.0.2]: https://github.com/MetaMask/controllers.git/compare/@metamask/name-controller@8.0.1...@metamask/name-controller@8.0.2
-[8.0.1]: https://github.com/MetaMask/controllers.git/compare/@metamask/name-controller@8.0.0...@metamask/name-controller@8.0.1
-[8.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/name-controller@7.0.0...@metamask/name-controller@8.0.0
-[7.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/name-controller@6.0.1...@metamask/name-controller@7.0.0
-[6.0.1]: https://github.com/MetaMask/controllers.git/compare/@metamask/name-controller@6.0.0...@metamask/name-controller@6.0.1
-[6.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/name-controller@5.0.0...@metamask/name-controller@6.0.0
-[5.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/name-controller@4.2.0...@metamask/name-controller@5.0.0
-[4.2.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/name-controller@4.1.0...@metamask/name-controller@4.2.0
-[4.1.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/name-controller@4.0.1...@metamask/name-controller@4.1.0
-[4.0.1]: https://github.com/MetaMask/controllers.git/compare/@metamask/name-controller@4.0.0...@metamask/name-controller@4.0.1
-[4.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/name-controller@3.0.1...@metamask/name-controller@4.0.0
-[3.0.1]: https://github.com/MetaMask/controllers.git/compare/@metamask/name-controller@3.0.0...@metamask/name-controller@3.0.1
-[3.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/name-controller@2.0.0...@metamask/name-controller@3.0.0
-[2.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/name-controller@1.0.0...@metamask/name-controller@2.0.0
-[1.0.0]: https://github.com/MetaMask/controllers.git/releases/tag/@metamask/name-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/name-controller@8.0.3...HEAD
+[8.0.3]: https://github.com/MetaMask/core/compare/@metamask/name-controller@8.0.2...@metamask/name-controller@8.0.3
+[8.0.2]: https://github.com/MetaMask/core/compare/@metamask/name-controller@8.0.1...@metamask/name-controller@8.0.2
+[8.0.1]: https://github.com/MetaMask/core/compare/@metamask/name-controller@8.0.0...@metamask/name-controller@8.0.1
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/name-controller@7.0.0...@metamask/name-controller@8.0.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/name-controller@6.0.1...@metamask/name-controller@7.0.0
+[6.0.1]: https://github.com/MetaMask/core/compare/@metamask/name-controller@6.0.0...@metamask/name-controller@6.0.1
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/name-controller@5.0.0...@metamask/name-controller@6.0.0
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/name-controller@4.2.0...@metamask/name-controller@5.0.0
+[4.2.0]: https://github.com/MetaMask/core/compare/@metamask/name-controller@4.1.0...@metamask/name-controller@4.2.0
+[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/name-controller@4.0.1...@metamask/name-controller@4.1.0
+[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/name-controller@4.0.0...@metamask/name-controller@4.0.1
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/name-controller@3.0.1...@metamask/name-controller@4.0.0
+[3.0.1]: https://github.com/MetaMask/core/compare/@metamask/name-controller@3.0.0...@metamask/name-controller@3.0.1
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/name-controller@2.0.0...@metamask/name-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/name-controller@1.0.0...@metamask/name-controller@2.0.0
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/name-controller@1.0.0

@@ -52,7 +52,7 @@
     "@ethersproject/constants": "^5.7.0",
     "@ethersproject/contracts": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
-    "@metamask/base-controller": "^8.0.0",
+    "@metamask/base-controller": "^8.0.1",
     "@metamask/controller-utils": "^11.7.0",
     "@metamask/gas-fee-controller": "^23.0.0",
     "@metamask/keyring-api": "^17.4.0",

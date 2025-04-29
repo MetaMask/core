@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat: add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/controllers.git/pull/5301))
-
 ## [3.0.3]
 
 ### Changed
@@ -85,13 +81,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#3577](https://github.com/MetaMask/core/pull/3577) [#3588](https://github.com/MetaMask/core/pull/3588))
 
-[Unreleased]: https://github.com/MetaMask/controllers.git/compare/@metamask/build-utils@3.0.3...HEAD
-[3.0.3]: https://github.com/MetaMask/controllers.git/compare/@metamask/build-utils@3.0.2...@metamask/build-utils@3.0.3
-[3.0.2]: https://github.com/MetaMask/controllers.git/compare/@metamask/build-utils@3.0.1...@metamask/build-utils@3.0.2
-[3.0.1]: https://github.com/MetaMask/controllers.git/compare/@metamask/build-utils@3.0.0...@metamask/build-utils@3.0.1
-[3.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/build-utils@2.0.1...@metamask/build-utils@3.0.0
-[2.0.1]: https://github.com/MetaMask/controllers.git/compare/@metamask/build-utils@2.0.0...@metamask/build-utils@2.0.1
-[2.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/build-utils@1.0.2...@metamask/build-utils@2.0.0
-[1.0.2]: https://github.com/MetaMask/controllers.git/compare/@metamask/build-utils@1.0.1...@metamask/build-utils@1.0.2
-[1.0.1]: https://github.com/MetaMask/controllers.git/compare/@metamask/build-utils@1.0.0...@metamask/build-utils@1.0.1
-[1.0.0]: https://github.com/MetaMask/controllers.git/releases/tag/@metamask/build-utils@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.3...HEAD
+[3.0.3]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.2...@metamask/build-utils@3.0.3
+[3.0.2]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.1...@metamask/build-utils@3.0.2
+[3.0.1]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.0...@metamask/build-utils@3.0.1
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/build-utils@2.0.1...@metamask/build-utils@3.0.0
+[2.0.1]: https://github.com/MetaMask/core/compare/@metamask/build-utils@2.0.0...@metamask/build-utils@2.0.1
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/build-utils@1.0.2...@metamask/build-utils@2.0.0
+[1.0.2]: https://github.com/MetaMask/core/compare/@metamask/build-utils@1.0.1...@metamask/build-utils@1.0.2
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/build-utils@1.0.0...@metamask/build-utils@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/build-utils@1.0.0
