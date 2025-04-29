@@ -96,7 +96,7 @@ export class SeedPhraseMetadata implements ISeedPhraseMetadata {
   /**
    * Parse the seed phrase metadata from the metadata store and return the array of raw seed phrases.
    *
-   * This method also sorts the seed phrases by timestamp in descending order, i.e. the newest seed phrase will be the first element in the array.
+   * This method also sorts the seed phrases by timestamp in ascending order, i.e. the oldest seed phrase will be the first element in the array.
    *
    * @param seedPhraseMetadataArr - The array of SeedPhrase Metadata from the metadata store.
    * @returns The array of raw seed phrases.
@@ -141,7 +141,7 @@ export class SeedPhraseMetadata implements ISeedPhraseMetadata {
    */
   static sort(
     seedPhrases: SeedPhraseMetadata[],
-    order: 'asc' | 'desc' = 'desc',
+    order: 'asc' | 'desc' = 'asc',
   ): SeedPhraseMetadata[] {
     return seedPhrases.sort((a, b) => {
       if (order === 'asc') {
