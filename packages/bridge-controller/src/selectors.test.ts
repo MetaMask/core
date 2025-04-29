@@ -6,6 +6,7 @@ import {
   selectIsAssetExchangeRateInState,
   selectBridgeQuotes,
   selectIsQuoteExpired,
+  selectBridgeFeatureFlags,
 } from './selectors';
 import { SortOrder, RequestStatus, ChainId } from './types';
 import { formatChainIdToCaip } from './utils/caip-formatters';
@@ -467,6 +468,131 @@ describe('Bridge Selectors', () => {
 
       const result = selectBridgeQuotes(solanaState, mockClientParams);
       expect(result.sortedQuotes).toHaveLength(1);
+    });
+  });
+
+  describe('selectBridgeFeatureFlags', () => {
+    const mockValidBridgeConfig = {
+      refreshRate: 3,
+      maxRefreshCount: 1,
+      support: true,
+      chains: {
+        '1': {
+          isActiveSrc: true,
+          isActiveDest: true,
+        },
+        '10': {
+          isActiveSrc: true,
+          isActiveDest: false,
+        },
+        '59144': {
+          isActiveSrc: true,
+          isActiveDest: true,
+        },
+        '120': {
+          isActiveSrc: true,
+          isActiveDest: false,
+        },
+        '137': {
+          isActiveSrc: false,
+          isActiveDest: true,
+        },
+        '11111': {
+          isActiveSrc: false,
+          isActiveDest: true,
+        },
+        '1151111081099710': {
+          isActiveSrc: true,
+          isActiveDest: true,
+        },
+      },
+    };
+
+    const mockInvalidBridgeConfig = {
+      maxRefreshCount: 'invalid', // Should be a number
+      refreshRate: 'invalid', // Should be a number
+      chains: 'invalid', // Should be an object
+    };
+
+    it('should return formatted feature flags when valid config is provided', () => {
+      const result = selectBridgeFeatureFlags({
+        bridgeConfig: mockValidBridgeConfig,
+      });
+
+      expect(result).toStrictEqual({
+        refreshRate: 3,
+        maxRefreshCount: 1,
+        support: true,
+        chains: {
+          'eip155:1': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+          'eip155:10': {
+            isActiveSrc: true,
+            isActiveDest: false,
+          },
+          'eip155:59144': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+          'eip155:120': {
+            isActiveSrc: true,
+            isActiveDest: false,
+          },
+          'eip155:137': {
+            isActiveSrc: false,
+            isActiveDest: true,
+          },
+          'eip155:11111': {
+            isActiveSrc: false,
+            isActiveDest: true,
+          },
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+        },
+      });
+    });
+
+    it('should return default feature flags when invalid config is provided', () => {
+      const result = selectBridgeFeatureFlags({
+        bridgeConfig: mockInvalidBridgeConfig,
+      });
+
+      expect(result).toStrictEqual({
+        maxRefreshCount: 5,
+        refreshRate: 30000,
+        chains: {},
+        support: false,
+      });
+    });
+
+    it('should return default feature flags when bridgeConfig is undefined', () => {
+      const result = selectBridgeFeatureFlags({
+        bridgeConfig: undefined,
+      });
+
+      expect(result).toStrictEqual({
+        maxRefreshCount: 5,
+        refreshRate: 30000,
+        chains: {},
+        support: false,
+      });
+    });
+
+    it('should return default feature flags when bridgeConfig is null', () => {
+      const result = selectBridgeFeatureFlags({
+        bridgeConfig: null,
+      });
+
+      expect(result).toStrictEqual({
+        maxRefreshCount: 5,
+        refreshRate: 30000,
+        chains: {},
+        support: false,
+      });
     });
   });
 });
