@@ -5,7 +5,14 @@ export enum Web3AuthNetwork {
   Devnet = 'sapphire_devnet',
 }
 
+// user social login provider
+export enum AuthConnection {
+  Google = 'google',
+  Apple = 'apple',
+}
+
 export enum SeedlessOnboardingControllerError {
+  ControllerLocked = `${controllerName} - The operation cannot be completed while the controller is locked.`,
   AuthenticationError = `${controllerName} - Authentication error`,
   MissingAuthUserInfo = `${controllerName} - Missing authenticated user information`,
   FailedToPersistOprfKey = `${controllerName} - Failed to persist OPRF key`,
