@@ -254,7 +254,9 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
 
     this.#allTokens = allTokens;
     this.#allDetectedTokens = allDetectedTokens;
-    this.updateBalances({ chainIds: chainIdsToUpdate }).catch(console.error);
+    this.#handleTokensControllerStateChange({
+      chainIds: chainIdsToUpdate,
+    }).catch(console.error);
   };
 
   /**
@@ -331,36 +333,67 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
     );
   }
 
-  #cleanupCurrentTokenBalances(
-    accountTokenPairs: { accountAddress: Hex; tokenAddress: Hex }[],
-    chainId: Hex,
-  ) {
-    // TODO move this to a private fct
-    const currentTokenBalances = this.messagingSystem.call(
+  async #handleTokensControllerStateChange({
+    chainIds,
+  }: { chainIds?: Hex[] } = {}) {
+    const currentTokenBalancesState = this.messagingSystem.call(
       'TokenBalancesController:getState',
     );
+    const currentTokenBalances = currentTokenBalancesState.tokenBalances;
+    const currentAllTokens = this.#allTokens;
 
-    // in case currentTokenBalances has a token that is not in accountTokenPairs, we will remove it from currentTokenBalances
-    // loop through currentTokenBalances.tokenBalances, for each account loop though the account[chainId] array of tokens and check if the token is in accountTokenPairs
-    // if not, remove it from currentTokenBalances
-    for (const accountAddress of Object.keys(
-      currentTokenBalances.tokenBalances,
-    )) {
-      for (const tokenAddress of Object.keys(
-        currentTokenBalances.tokenBalances[accountAddress as `0x${string}`][
-          chainId
-        ],
-      )) {
-        if (
-          !accountTokenPairs.some((pair) => pair.tokenAddress === tokenAddress)
-        ) {
-          this.update((state) => {
-            delete state.tokenBalances[accountAddress as Hex][chainId as Hex][
-              tokenAddress as `0x${string}`
-            ];
-          });
+    // first we check if the state change was due to a token being removed
+    const accKeys = Object.keys(currentTokenBalances);
+    for (const currentAccount of accKeys) {
+      const allChains = currentTokenBalances[currentAccount as `0x${string}`];
+      const chainsArray = Object.keys(allChains);
+
+      for (const currentChain of chainsArray) {
+        const tokensObject = allChains[currentChain as Hex];
+        const allCurrentTokens = Object.keys(tokensObject);
+        const existingTokensInState =
+          currentAllTokens[currentChain as Hex]?.[
+            currentAccount as `0x${string}`
+          ] || [];
+        const existingSet = new Set(
+          existingTokensInState.map((elm) => elm.address),
+        );
+
+        for (const singleToken of allCurrentTokens) {
+          if (!existingSet.has(singleToken)) {
+            this.update((state) => {
+              delete state.tokenBalances[currentAccount as Hex][
+                currentChain as Hex
+              ][singleToken as `0x${string}`];
+            });
+          }
         }
       }
+    }
+
+    // then we check if the state change was due to a token being added
+    let shouldUpdate = false;
+    const allTokensStateChains = Object.keys(currentAllTokens);
+    for (const currentChain of allTokensStateChains) {
+      const accountsPerChain = currentAllTokens[currentChain as Hex];
+      const allAccounts = Object.keys(accountsPerChain);
+
+      for (const currentAccount of allAccounts) {
+        const tokensList = accountsPerChain[currentAccount as `0x${string}`];
+        const tokenBalancesObject =
+          currentTokenBalances[currentAccount as `0x${string}`]?.[
+            currentChain as Hex
+          ] || {};
+        for (const singleToken of tokensList) {
+          if (!tokenBalancesObject?.[singleToken.address as `0x${string}`]) {
+            shouldUpdate = true;
+            break;
+          }
+        }
+      }
+    }
+    if (shouldUpdate) {
+      await this.updateBalances({ chainIds }).catch(console.error);
     }
   }
 
@@ -396,8 +429,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
 
     let results: MulticallResult[] = [];
 
-    // in case currentTokenBalances has a token that is not in accountTokenPairs, we will remove it from currentTokenBalances
-    this.#cleanupCurrentTokenBalances(accountTokenPairs, chainId);
     const currentTokenBalances = this.messagingSystem.call(
       'TokenBalancesController:getState',
     );
