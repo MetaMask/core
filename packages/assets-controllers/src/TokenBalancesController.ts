@@ -333,6 +333,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
 
   #cleanupCurrentTokenBalances(
     accountTokenPairs: { accountAddress: Hex; tokenAddress: Hex }[],
+    chainId: Hex,
   ) {
     // TODO move this to a private fct
     const currentTokenBalances = this.messagingSystem.call(
@@ -345,25 +346,19 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
     for (const accountAddress of Object.keys(
       currentTokenBalances.tokenBalances,
     )) {
-      for (const chainIdProperty of Object.keys(
-        currentTokenBalances.tokenBalances[accountAddress as `0x${string}`],
+      for (const tokenAddress of Object.keys(
+        currentTokenBalances.tokenBalances[accountAddress as `0x${string}`][
+          chainId
+        ],
       )) {
-        for (const tokenAddress of Object.keys(
-          currentTokenBalances.tokenBalances[accountAddress as `0x${string}`][
-            chainIdProperty as Hex
-          ],
-        )) {
-          if (
-            !accountTokenPairs.some(
-              (pair) => pair.tokenAddress === tokenAddress,
-            )
-          ) {
-            this.update((state) => {
-              delete state.tokenBalances[accountAddress as Hex][
-                chainIdProperty as Hex
-              ][tokenAddress as `0x${string}`];
-            });
-          }
+        if (
+          !accountTokenPairs.some((pair) => pair.tokenAddress === tokenAddress)
+        ) {
+          this.update((state) => {
+            delete state.tokenBalances[accountAddress as Hex][chainId as Hex][
+              tokenAddress as `0x${string}`
+            ];
+          });
         }
       }
     }
@@ -402,7 +397,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
     let results: MulticallResult[] = [];
 
     // in case currentTokenBalances has a token that is not in accountTokenPairs, we will remove it from currentTokenBalances
-    this.#cleanupCurrentTokenBalances(accountTokenPairs);
+    this.#cleanupCurrentTokenBalances(accountTokenPairs, chainId);
     const currentTokenBalances = this.messagingSystem.call(
       'TokenBalancesController:getState',
     );
