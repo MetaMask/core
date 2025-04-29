@@ -382,7 +382,7 @@ export const selectIsQuoteExpired = createBridgeSelector(
  * @example
  * ```ts
  * const quotes = useSelector(state => selectBridgeQuotes(
- *   state.metamask,
+ *   { ...state.metamask, bridgeConfig: remoteFeatureFlags.bridgeConfig },
  *   {
  *     sortOrder: state.bridge.sortOrder,
  *     selectedQuote: state.bridge.selectedQuote,
