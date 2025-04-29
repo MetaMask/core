@@ -2,6 +2,7 @@
 export {
   REFRESH_INTERVAL_MS,
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
+  BRIDGE_STATUS_CONTROLLER_NAME,
 } from './constants';
 
 export type {
@@ -33,12 +34,8 @@ export type {
   QuoteMetadataSerialized,
 } from './types';
 
-export {
-  StatusTypes,
-  BridgeId,
-  FeeType,
-  ActionTypes,
-  BridgeStatusAction,
-} from './types';
+export { BridgeId, FeeType, ActionTypes, BridgeStatusAction } from './types';
 
 export { BridgeStatusController } from './bridge-status-controller';
+
+export { getTxMetaFields } from './utils/transaction';

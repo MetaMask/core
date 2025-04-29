@@ -7,6 +7,84 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
+
+## [60.0.0]
+
+### Added
+
+- Add support for 'Sonic Mainnet' chainId in the list of SUPPORTED_CHAIN_IDS. ([#5711](https://github.com/MetaMask/core/pull/5711))
+
+### Changed
+
+- Refactor `TokensController` to remove reliance on a single selected network ([#5659](https://github.com/MetaMask/core/pull/5659))
+  - `TokensController` methods now require `networkClientId` as an explicit parameter.
+  - Token management logic is fully parameterized by `chainId`, allowing multi-chain token handling and improving reliability across network changes.
+  - Internal state updates and token metadata fetching are scoped to the corresponding `chainId`
+
+### Removed
+
+- **BREAKING:** Remove deprecated `chainId` instance property from `TokensController` ([#5659](https://github.com/MetaMask/core/pull/5659))
+  - All chain context is now derived from `networkClientId` at the method level.
+
+## [59.0.0]
+
+### Added
+
+- Add `SEI` network support ([#5610](https://github.com/MetaMask/core/pull/5610))
+  - Add token detection support
+  - Add NFT detection support
+
+### Changed
+
+- Refactor `TokenRatesController` to support processing multiple chains simultaneously ([#5645](https://github.com/MetaMask/core/pull/5645))
+  - The controller now supports an array of chain IDs rather than a single value, simplifying the polling process by allowing iteration over all chains in a single loop
+- Refactor `AccountTrackerController` to support processing multiple chains simultaneously ([#5680](https://github.com/MetaMask/core/pull/5680))
+  - The controller now accepts an array of chain IDs instead of a single value, streamlining the polling process by iterating over all chains in one loop
+
+### Removed
+
+- **BREAKING:** Eliminate legacy network dependency handling in `TokenRatesController` ([#5645](https://github.com/MetaMask/core/pull/5645))
+  - We're no longer relying on the currently selected network.
+- **BREAKING:** Eliminate legacy network dependency handling in `AccountTrackerController` ([#5680](https://github.com/MetaMask/core/pull/5680))
+  - We're no longer relying on the currently selected network.
+
+## [58.0.0]
+
+### Added
+
+- Added `includeMarketData` to the params of the `OnAssetsConversion` handler ([#5639](https://github.com/MetaMask/core/pull/5639))
+- Added `fetchHistoricalPricesForAsset` method to `MultichainAssetsRatesController` ([#5639](https://github.com/MetaMask/core/pull/5639))
+- Added `getSelectedMultichainAccount` action to `multichainAssetsRatesController` ([#5639](https://github.com/MetaMask/core/pull/5639))
+- Added new state field `historicalPrices` to `MultichainAssetsRatesController` ([#5639](https://github.com/MetaMask/core/pull/5639))
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/snaps-controllers` peer dependency from ^9.19.0 to ^11.0.0 ([#5639](https://github.com/MetaMask/core/pull/5639))
+- **BREAKING:** Bump `@metamask/providers` peer dependency from ^18.1.0 to ^21.0.0 ([#5639](https://github.com/MetaMask/core/pull/5639))
+- Bump `@metamask/snaps-utils` from ^8.10.0 to ^9.2.0 ([#5639](https://github.com/MetaMask/core/pull/5639))
+
+## [57.0.0]
+
+### Added
+
+- Add a new `DeFiPositionsController` that maintains an updated list of DeFi positions for EVM accounts ([#5400](https://github.com/MetaMask/core/pull/5400))
+  - Export `DeFiPositionsController`
+  - Export the following types
+    - `DeFiPositionsControllerState`
+    - `DeFiPositionsControllerActions`
+    - `DeFiPositionsControllerEvents`
+    - `DeFiPositionsControllerGetStateAction`
+    - `DeFiPositionsControllerStateChangeEvent`
+    - `DeFiPositionsControllerMessenger`
+    - `GroupedDeFiPositions`
+
+### Changed
+
+- **BREAKING** Add `@metamask/transaction-controller` as a peer dependency at `^54.0.0` ([#5400](https://github.com/MetaMask/core/pull/5400))
+
 ## [56.0.0]
 
 ### Changed
@@ -21,9 +99,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Remove deprecated state fields scoped to the current chain ([#5310](https://github.com/MetaMask/core/pull/5310))
   - This change removes the following state fields from the following controllers:
     - `TokensControllerState`
-      - `detectedTokens` (replaced by `detectedTokensByChainId`)
-      - `ignoredTokens` (replaced by `ignoredTokensByChainId`)
-      - `tokens` (replaced by `tokensByChainId`)
+      - `detectedTokens` (replaced by `allDetectedTokens`)
+      - `ignoredTokens` (replaced by `allIgnoredTokens`)
+      - `tokens` (replaced by `allTokens`)
     - `TokenListControllerState`
       - `tokenList` (replaced by `tokensChainsCache`)
     - `AccountTrackerControllerState`
@@ -1520,7 +1598,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@56.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@60.0.0...HEAD
+[60.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@59.0.0...@metamask/assets-controllers@60.0.0
+[59.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@58.0.0...@metamask/assets-controllers@59.0.0
+[58.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@57.0.0...@metamask/assets-controllers@58.0.0
+[57.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@56.0.0...@metamask/assets-controllers@57.0.0
 [56.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@55.0.1...@metamask/assets-controllers@56.0.0
 [55.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@55.0.0...@metamask/assets-controllers@55.0.1
 [55.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@54.0.0...@metamask/assets-controllers@55.0.0
