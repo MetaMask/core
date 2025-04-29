@@ -36,7 +36,6 @@ import type {
   TokensControllerState,
   TokensControllerStateChangeEvent,
 } from './TokensController';
-import { InternalAccount } from '@metamask/keyring-internal-api';
 
 const DEFAULT_INTERVAL = 180000;
 
