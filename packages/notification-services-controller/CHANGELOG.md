@@ -7,16 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
+
 ### Fixed
 
 - add a check inside the `KeyringController:stateChange` subscription inside `NotificationServicesController` to prevent infinite updates ([#5731](https://github.com/MetaMask/core/pull/5731))
   - As we invoke a `KeyringController:withKeyring` inside the `KeyringController:stateChange` event subscription,
     we are causing many infinite updates which block other controllers from performing state updates.
   - We now check the size of keyrings from the `KeyringController:stateChange` to better assume when keyrings have been added
-
-### Changed
-
-- Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
 
 ## [6.0.0]
 
