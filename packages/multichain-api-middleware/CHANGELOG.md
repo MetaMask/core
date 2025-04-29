@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/377.0.0 ([#5715](https://github.com/MetaMask/core/pull/5715))
+- feat: Add more chain-agnostic-permission utility functions from sip-26 usage ([#5609](https://github.com/MetaMask/core/pull/5609))
+
 ## [0.2.0]
 
 ### Added
