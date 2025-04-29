@@ -5,21 +5,13 @@ import {
   formatAddressToCaipReference,
   formatChainIdToDec,
 } from './caip-formatters';
-import { formatFeatureFlags } from './feature-flags';
-import {
-  validateFeatureFlagsResponse,
-  validateQuoteResponse,
-  validateSwapsTokenObject,
-} from './validators';
-import { DEFAULT_FEATURE_FLAG_CONFIG } from '../constants/bridge';
+import { validateQuoteResponse, validateSwapsTokenObject } from './validators';
 import type {
   QuoteResponse,
   FetchFunction,
   GenericQuoteRequest,
   QuoteRequest,
   BridgeAsset,
-  BridgeControllerMessenger,
-  FeatureFlagsPlatformConfig,
 } from '../types';
 
 const CACHE_REFRESH_TEN_MINUTES = 10 * Duration.Minute;
@@ -27,30 +19,6 @@ const CACHE_REFRESH_TEN_MINUTES = 10 * Duration.Minute;
 export const getClientIdHeader = (clientId: string) => ({
   'X-Client-Id': clientId,
 });
-
-/**
- * Fetches the bridge feature flags
- *
- * @param messenger - The messenger instance
- * @returns The bridge feature flags
- */
-export async function fetchBridgeFeatureFlags(
-  messenger: BridgeControllerMessenger,
-): Promise<FeatureFlagsPlatformConfig> {
-  // This will return the bridgeConfig for the current platform even without specifying the platform
-  const remoteFeatureFlagControllerState = messenger.call(
-    'RemoteFeatureFlagController:getState',
-  );
-
-  const rawBridgeConfig =
-    remoteFeatureFlagControllerState?.remoteFeatureFlags?.bridgeConfig;
-
-  if (validateFeatureFlagsResponse(rawBridgeConfig)) {
-    return formatFeatureFlags(rawBridgeConfig);
-  }
-
-  return DEFAULT_FEATURE_FLAG_CONFIG;
-}
 
 /**
  * Returns a list of enabled (unblocked) tokens
