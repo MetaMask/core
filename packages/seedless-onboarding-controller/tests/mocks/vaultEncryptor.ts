@@ -3,11 +3,14 @@ import type {
   EncryptionResult,
   KeyDerivationOptions,
 } from '@metamask/browser-passworder';
+import type { Json } from '@metamask/utils';
 import { webcrypto } from 'node:crypto';
 
 import type { VaultEncryptor } from '../../src/types';
 
-export default class MockVaultEncryptor implements VaultEncryptor {
+export default class MockVaultEncryptor
+  implements VaultEncryptor<EncryptionKey | webcrypto.CryptoKey>
+{
   DEFAULT_DERIVATION_PARAMS: KeyDerivationOptions = {
     algorithm: 'PBKDF2',
     params: {
@@ -19,7 +22,7 @@ export default class MockVaultEncryptor implements VaultEncryptor {
 
   async encryptWithDetail(
     password: string,
-    dataObj: unknown,
+    dataObj: Json,
     salt: string = this.DEFAULT_SALT,
     keyDerivationOptions: KeyDerivationOptions = this.DEFAULT_DERIVATION_PARAMS,
   ) {
@@ -148,8 +151,15 @@ export default class MockVaultEncryptor implements VaultEncryptor {
 
   async decryptWithKey(
     encryptionKey: EncryptionKey | webcrypto.CryptoKey,
-    encData: EncryptionResult,
+    payload: string,
   ) {
+    let encData: EncryptionResult;
+    if (typeof payload === 'string') {
+      encData = JSON.parse(payload);
+    } else {
+      encData = payload;
+    }
+
     const encryptedData = Buffer.from(encData.data, 'base64');
     const vector = Buffer.from(encData.iv, 'base64');
     const key = 'key' in encryptionKey ? encryptionKey.key : encryptionKey;
@@ -167,9 +177,9 @@ export default class MockVaultEncryptor implements VaultEncryptor {
     return decryptedObj;
   }
 
-  async encrypt<R>(
+  async encrypt(
     password: string,
-    dataObj: R,
+    dataObj: Json,
     // eslint-disable-next-line n/no-unsupported-features/node-builtins
     key?: EncryptionKey | CryptoKey,
     salt: string = this.DEFAULT_SALT,
