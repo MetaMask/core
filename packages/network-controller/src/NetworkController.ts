@@ -727,15 +727,16 @@ function getDefaultCustomNetworkConfigurationsByChainId(): Record<
     Record<Hex, NetworkConfiguration>
   >((obj, customNetworkType) => {
     const chainId = ChainId[customNetworkType];
-    const { ticker, rpcPrefs } =
-      BUILT_IN_NETWORKS[customNetworkType];
+    const { ticker, rpcPrefs } = BUILT_IN_NETWORKS[customNetworkType];
     // It converts client id to upper case and replace '-' with '_'
     // to match the key in BUILT_IN_CUSTOM_NETWORKS_RPC
     // e.g. 'megaeth-testnet' to 'MEGAETH_TESTNET'
     // e.g. 'monad-testnet' to 'MONAD_TESTNET'
     // TODO: Refactor controller-utils to use the same format as others
-    const rpcEndpointUrlKey = customNetworkType.toUpperCase().replace('-','_') as keyof typeof BUILT_IN_CUSTOM_NETWORKS_RPC;
-    
+    const rpcEndpointUrlKey = customNetworkType
+      .toUpperCase()
+      .replace('-', '_') as keyof typeof BUILT_IN_CUSTOM_NETWORKS_RPC;
+
     const networkConfiguration: NetworkConfiguration = {
       blockExplorerUrls: [rpcPrefs.blockExplorerUrl],
       chainId: ChainId[customNetworkType],

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add optional `getBlockTrackerOptions` argument to NetworkController constructor ([#5702](https://github.com/MetaMask/core/pull/5702))
+- Add Monad Testnet as default network ([#5724](https://github.com/MetaMask/core/pull/5724))
 
 ### Changed
 
