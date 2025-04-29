@@ -45,11 +45,8 @@ import {
   formatChainIdToCaip,
   formatChainIdToHex,
 } from './utils/caip-formatters';
-import {
-  fetchAssetPrices,
-  fetchBridgeFeatureFlags,
-  fetchBridgeQuotes,
-} from './utils/fetch';
+import { getBridgeFeatureFlags } from './utils/feature-flags';
+import { fetchAssetPrices, fetchBridgeQuotes } from './utils/fetch';
 import { UnifiedSwapBridgeEventName } from './utils/metrics/constants';
 import {
   formatProviderLabel,
@@ -71,10 +68,6 @@ import { type CrossChainSwapsEventProperties } from './utils/metrics/types';
 import { isValidQuoteRequest } from './utils/quote';
 
 const metadata: StateMetadata<BridgeControllerState> = {
-  bridgeFeatureFlags: {
-    persist: false,
-    anonymous: false,
-  },
   quoteRequest: {
     persist: false,
     anonymous: false,
@@ -211,8 +204,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
     // Register action handlers
     this.messagingSystem.registerActionHandler(
-      `${BRIDGE_CONTROLLER_NAME}:setBridgeFeatureFlags`,
-      this.setBridgeFeatureFlags.bind(this),
+      `${BRIDGE_CONTROLLER_NAME}:setChainIntervalLength`,
+      this.setChainIntervalLength.bind(this),
     );
     this.messagingSystem.registerActionHandler(
       `${BRIDGE_CONTROLLER_NAME}:updateBridgeQuoteRequestParams`,
@@ -289,7 +282,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
       const networkClientId = this.#getSelectedNetworkClientId();
       // Set refresh rate based on the source chain before starting polling
-      this.#setIntervalLength();
+      this.setChainIntervalLength();
       this.startPolling({
         networkClientId,
         updatedQuoteRequest: {
@@ -423,34 +416,21 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         DEFAULT_BRIDGE_CONTROLLER_STATE.quotesRefreshCount;
       state.assetExchangeRates =
         DEFAULT_BRIDGE_CONTROLLER_STATE.assetExchangeRates;
-
-      // Keep feature flags
-      const originalFeatureFlags = state.bridgeFeatureFlags;
-      state.bridgeFeatureFlags = originalFeatureFlags;
     });
-  };
-
-  setBridgeFeatureFlags = async () => {
-    const bridgeFeatureFlags = await fetchBridgeFeatureFlags(
-      this.messagingSystem,
-    );
-    this.update((state) => {
-      state.bridgeFeatureFlags = bridgeFeatureFlags;
-    });
-    this.#setIntervalLength();
   };
 
   /**
    * Sets the interval length based on the source chain
    */
-  readonly #setIntervalLength = () => {
+  setChainIntervalLength = () => {
     const { state } = this;
     const { srcChainId } = state.quoteRequest;
+    const bridgeFeatureFlags = getBridgeFeatureFlags(this.messagingSystem);
+
     const refreshRateOverride = srcChainId
-      ? state.bridgeFeatureFlags.chains[formatChainIdToCaip(srcChainId)]
-          ?.refreshRate
+      ? bridgeFeatureFlags.chains[formatChainIdToCaip(srcChainId)]?.refreshRate
       : undefined;
-    const defaultRefreshRate = state.bridgeFeatureFlags.refreshRate;
+    const defaultRefreshRate = bridgeFeatureFlags.refreshRate;
     this.setIntervalLength(refreshRateOverride ?? defaultRefreshRate);
   };
 
@@ -459,8 +439,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     updatedQuoteRequest,
     context,
   }: BridgePollingInput) => {
-    const { bridgeFeatureFlags, quotesInitialLoadTime, quotesRefreshCount } =
-      this.state;
+    const { quotesInitialLoadTime, quotesRefreshCount } = this.state;
     this.#abortController?.abort('New quote request');
     this.#abortController = new AbortController();
 
@@ -513,6 +492,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       );
       console.log('Failed to fetch bridge quotes', error);
     } finally {
+      const bridgeFeatureFlags = getBridgeFeatureFlags(this.messagingSystem);
       const { maxRefreshCount } = bridgeFeatureFlags;
 
       const updatedQuotesRefreshCount = quotesRefreshCount + 1;

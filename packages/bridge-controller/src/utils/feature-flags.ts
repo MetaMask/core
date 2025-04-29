@@ -8,7 +8,7 @@ import type {
 } from '../types';
 
 export const formatFeatureFlags = (
-  bridgeConfig: FeatureFlagsPlatformConfig,
+  bridgeFeatureFlags: FeatureFlagsPlatformConfig,
 ) => {
   const getChainsObj = (chains: Record<string, ChainConfiguration>) =>
     Object.entries(chains).reduce(
@@ -20,16 +20,16 @@ export const formatFeatureFlags = (
     );
 
   return {
-    ...bridgeConfig,
-    chains: getChainsObj(bridgeConfig.chains),
+    ...bridgeFeatureFlags,
+    chains: getChainsObj(bridgeFeatureFlags.chains),
   };
 };
 
 export const processFeatureFlags = (
-  bridgeConfig: unknown,
+  bridgeFeatureFlags: unknown,
 ): FeatureFlagsPlatformConfig => {
-  if (validateFeatureFlagsResponse(bridgeConfig)) {
-    return formatFeatureFlags(bridgeConfig);
+  if (validateFeatureFlagsResponse(bridgeFeatureFlags)) {
+    return formatFeatureFlags(bridgeFeatureFlags);
   }
   return DEFAULT_FEATURE_FLAG_CONFIG;
 };

@@ -9,7 +9,6 @@ import {
   selectBridgeFeatureFlags,
 } from './selectors';
 import { SortOrder, RequestStatus, ChainId } from './types';
-import { formatChainIdToCaip } from './utils/caip-formatters';
 
 describe('Bridge Selectors', () => {
   describe('selectExchangeRateByChainIdAndAddress', () => {
@@ -182,10 +181,11 @@ describe('Bridge Selectors', () => {
       quoteFetchError: null,
       quotesRefreshCount: 0,
       quotesInitialLoadTime: Date.now(),
-      bridgeFeatureFlags: {
+      bridgeConfig: {
         maxRefreshCount: 5,
         refreshRate: 30000,
         chains: {},
+        support: true,
       },
       assetExchangeRates: {},
       currencyRates: {},
@@ -239,11 +239,14 @@ describe('Bridge Selectors', () => {
         ...mockState,
         quotesRefreshCount: 5,
         quotesLastFetched: Date.now() - 40000, // 40 seconds ago
-        bridgeFeatureFlags: {
-          ...mockState.bridgeFeatureFlags,
+        bridgeConfig: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...(mockState.bridgeConfig as any),
           chains: {
-            [formatChainIdToCaip(1)]: {
+            '1': {
               refreshRate: 41000,
+              isActiveSrc: true,
+              isActiveDest: true,
             },
           },
         },
@@ -266,11 +269,14 @@ describe('Bridge Selectors', () => {
         },
         quotesRefreshCount: 5,
         quotesLastFetched: Date.now() - 40000, // 40 seconds ago
-        bridgeFeatureFlags: {
-          ...mockState.bridgeFeatureFlags,
+        bridgeConfig: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...(mockState.bridgeConfig as any),
           chains: {
-            [formatChainIdToCaip(1)]: {
+            '1': {
               refreshRate: 41000,
+              isActiveSrc: true,
+              isActiveDest: true,
             },
           },
         },
@@ -333,10 +339,11 @@ describe('Bridge Selectors', () => {
       quoteFetchError: null,
       quotesRefreshCount: 0,
       quotesInitialLoadTime: Date.now(),
-      bridgeFeatureFlags: {
+      bridgeConfig: {
         maxRefreshCount: 5,
         refreshRate: 30000,
         chains: {},
+        support: true,
       },
       assetExchangeRates: {},
       currencyRates: {

@@ -230,7 +230,7 @@ describe('feature-flags', () => {
         return remoteFeatureFlagControllerState;
       });
 
-      const result = await getBridgeFeatureFlags(mockMessenger);
+      const result = getBridgeFeatureFlags(mockMessenger);
 
       const expectedBridgeConfig = {
         maxRefreshCount: 1,
@@ -336,7 +336,7 @@ describe('feature-flags', () => {
         remoteFeatureFlagControllerState,
       );
 
-      const result = await getBridgeFeatureFlags(mockMessenger);
+      const result = getBridgeFeatureFlags(mockMessenger);
 
       const expectedBridgeConfig = {
         maxRefreshCount: 5,

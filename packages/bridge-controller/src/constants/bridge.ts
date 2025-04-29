@@ -51,7 +51,6 @@ export const DEFAULT_FEATURE_FLAG_CONFIG = {
 };
 
 export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState = {
-  bridgeFeatureFlags: DEFAULT_FEATURE_FLAG_CONFIG,
   quoteRequest: {
     srcTokenAddress: AddressZero,
   },

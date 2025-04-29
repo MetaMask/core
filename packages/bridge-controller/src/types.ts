@@ -341,14 +341,13 @@ export enum BridgeUserAction {
   UPDATE_QUOTE_PARAMS = 'updateBridgeQuoteRequestParams',
 }
 export enum BridgeBackgroundAction {
-  SET_FEATURE_FLAGS = 'setBridgeFeatureFlags',
+  SET_CHAIN_INTERVAL_LENGTH = 'setChainIntervalLength',
   RESET_STATE = 'resetState',
   GET_BRIDGE_ERC20_ALLOWANCE = 'getBridgeERC20Allowance',
   TRACK_METAMETRICS_EVENT = 'trackUnifiedSwapBridgeEvent',
 }
 
 export type BridgeControllerState = {
-  bridgeFeatureFlags: FeatureFlagsPlatformConfig;
   quoteRequest: Partial<GenericQuoteRequest>;
   quotes: (QuoteResponse & L1GasFees & SolanaFees)[];
   quotesInitialLoadTime: number | null;
@@ -371,7 +370,7 @@ export type BridgeControllerAction<
 
 // Maps to BridgeController function names
 export type BridgeControllerActions =
-  | BridgeControllerAction<BridgeBackgroundAction.SET_FEATURE_FLAGS>
+  | BridgeControllerAction<BridgeBackgroundAction.SET_CHAIN_INTERVAL_LENGTH>
   | BridgeControllerAction<BridgeBackgroundAction.RESET_STATE>
   | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>
   | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>

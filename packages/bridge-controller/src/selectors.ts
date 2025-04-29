@@ -5,7 +5,7 @@ import type {
   TokenRatesControllerState,
 } from '@metamask/assets-controllers';
 import type { GasFeeEstimates } from '@metamask/gas-fee-controller';
-import type { CaipAssetType } from '@metamask/utils';
+import type { CaipAssetType, Json } from '@metamask/utils';
 import { isStrictHexString } from '@metamask/utils';
 import { orderBy } from 'lodash';
 import {
@@ -13,14 +13,10 @@ import {
   createStructuredSelector as createStructuredSelector_,
 } from 'reselect';
 
-import {
-  BRIDGE_PREFERRED_GAS_ESTIMATE,
-  DEFAULT_BRIDGE_CONTROLLER_STATE,
-} from './constants/bridge';
+import { BRIDGE_PREFERRED_GAS_ESTIMATE } from './constants/bridge';
 import type {
   BridgeControllerState,
   ExchangeRate,
-  FeatureFlagsPlatformConfig,
   GenericQuoteRequest,
   QuoteMetadata,
   QuoteResponse,
@@ -36,7 +32,7 @@ import {
   formatChainIdToCaip,
   formatChainIdToHex,
 } from './utils/caip-formatters';
-import { formatFeatureFlags } from './utils/feature-flags';
+import { processFeatureFlags } from './utils/feature-flags';
 import {
   calcAdjustedReturn,
   calcCost,
@@ -49,7 +45,6 @@ import {
   calcTotalEstimatedNetworkFee,
   calcTotalMaxNetworkFee,
 } from './utils/quote';
-import { validateFeatureFlagsResponse } from './utils/validators';
 
 /**
  * The controller states that provide exchange rates
@@ -65,7 +60,8 @@ export type BridgeAppState = BridgeControllerState & {
   gasFeeEstimates: GasFeeEstimates;
 } & ExchangeRateControllerState & {
     participateInMetaMetrics: boolean;
-  };
+  } & { bridgeConfig: Json };
+
 /**
  * Creates a structured selector for the bridge controller
  */
@@ -82,6 +78,36 @@ type BridgeQuotesClientParams = {
   sortOrder: SortOrder;
   selectedQuote: (QuoteResponse & QuoteMetadata) | null;
 };
+
+const createFeatureFlagsSelector = createSelector_.withTypes<{
+  bridgeConfig: unknown;
+}>();
+
+/**
+ * Selects the bridge feature flags
+ *
+ * @param state - The state of the bridge controller
+ * @returns The bridge feature flags
+ *
+ * @example
+ * ```ts
+ * const featureFlags = useSelector(state => selectBridgeFeatureFlags(state));
+ *
+ * Or
+ *
+ * export const selectBridgeFeatureFlags = createSelector(
+ * selectRemoteFeatureFlags,
+ *  (remoteFeatureFlags) =>
+ *    selectBridgeFeatureFlagsBase({
+ *      bridgeConfig: remoteFeatureFlags.bridgeConfig,
+ *    }),
+ * );
+ * ```
+ */
+export const selectBridgeFeatureFlags = createFeatureFlagsSelector(
+  [(state) => state.bridgeConfig],
+  (bridgeConfig: unknown) => processFeatureFlags(bridgeConfig),
+);
 
 const getExchangeRateByChainIdAndAddress = (
   exchangeRateSources: ExchangeRateControllerState,
@@ -312,16 +338,18 @@ const selectActiveQuote = createBridgeSelector(
   (recommendedQuote, selectedQuote) => selectedQuote ?? recommendedQuote,
 );
 
-const selectIsQuoteGoingToRefresh = (state: BridgeAppState) =>
-  state.quoteRequest.insufficientBal
-    ? false
-    : state.quotesRefreshCount < state.bridgeFeatureFlags.maxRefreshCount;
+const selectIsQuoteGoingToRefresh = createBridgeSelector(
+  [
+    selectBridgeFeatureFlags,
+    (state) => state.quoteRequest.insufficientBal,
+    (state) => state.quotesRefreshCount,
+  ],
+  (featureFlags, insufficientBal, quotesRefreshCount) =>
+    insufficientBal ? false : featureFlags.maxRefreshCount > quotesRefreshCount,
+);
 
 const selectQuoteRefreshRate = createBridgeSelector(
-  [
-    ({ bridgeFeatureFlags }) => bridgeFeatureFlags,
-    (state) => state.quoteRequest.srcChainId,
-  ],
+  [selectBridgeFeatureFlags, (state) => state.quoteRequest.srcChainId],
   (featureFlags, srcChainId) =>
     (srcChainId
       ? featureFlags.chains[formatChainIdToCaip(srcChainId)]?.refreshRate
@@ -373,38 +401,3 @@ export const selectBridgeQuotes = createStructuredBridgeSelector({
   quotesInitialLoadTimeMs: (state) => state.quotesInitialLoadTime,
   isQuoteGoingToRefresh: selectIsQuoteGoingToRefresh,
 });
-
-const createFeatureFlagsSelector = createSelector_.withTypes<{
-  bridgeConfig: unknown;
-}>();
-
-/**
- * Selects the bridge feature flags
- *
- * @param state - The state of the bridge controller
- * @returns The bridge feature flags
- *
- * @example
- * ```ts
- * const featureFlags = useSelector(state => selectBridgeFeatureFlags({ bridgeConfig: state.remoteFeatureFlags.bridgeConfig }));
- *
- * Or
- *
- * export const selectBridgeFeatureFlags = createSelector(
- * selectRemoteFeatureFlags,
- *  (remoteFeatureFlags) =>
- *    selectBridgeFeatureFlagsBase({
- *      bridgeConfig: remoteFeatureFlags.bridgeConfig,
- *    }),
- * );
- * ```
- */
-export const selectBridgeFeatureFlags = createFeatureFlagsSelector(
-  [(state) => state.bridgeConfig],
-  (bridgeConfig): FeatureFlagsPlatformConfig => {
-    if (validateFeatureFlagsResponse(bridgeConfig)) {
-      return formatFeatureFlags(bridgeConfig);
-    }
-    return DEFAULT_BRIDGE_CONTROLLER_STATE.bridgeFeatureFlags;
-  },
-);

@@ -188,11 +188,11 @@ describe('BridgeController', function () {
       refreshRate: 3,
       support: true,
       chains: {
-        'eip155:10': { isActiveSrc: true, isActiveDest: false },
-        'eip155:534352': { isActiveSrc: true, isActiveDest: false },
-        'eip155:137': { isActiveSrc: false, isActiveDest: true },
-        'eip155:42161': { isActiveSrc: false, isActiveDest: true },
-        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': {
+        '10': { isActiveSrc: true, isActiveDest: false },
+        '534352': { isActiveSrc: true, isActiveDest: false },
+        '137': { isActiveSrc: false, isActiveDest: true },
+        '42161': { isActiveSrc: false, isActiveDest: true },
+        [ChainId.SOLANA]: {
           isActiveSrc: true,
           isActiveDest: true,
         },
@@ -253,23 +253,10 @@ describe('BridgeController', function () {
       return remoteFeatureFlagControllerState;
     });
 
-    await bridgeController.setBridgeFeatureFlags();
-    expect(bridgeController.state.bridgeFeatureFlags).toStrictEqual(
-      bridgeConfig,
-    );
+    bridgeController.setChainIntervalLength();
+
     expect(setIntervalLengthSpy).toHaveBeenCalledTimes(1);
     expect(setIntervalLengthSpy).toHaveBeenCalledWith(3);
-
-    bridgeController.resetState();
-    expect(bridgeController.state).toStrictEqual(
-      expect.objectContaining({
-        bridgeFeatureFlags: bridgeConfig,
-        quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
-        quotesLastFetched: DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLastFetched,
-        quotesLoadingStatus:
-          DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLoadingStatus,
-      }),
-    );
   });
 
   const metricsContext = {
