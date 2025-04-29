@@ -7,6 +7,7 @@ import { BaseController } from '@metamask/base-controller';
 import type { Partialize } from '@metamask/controller-utils';
 import {
   InfuraNetworkType,
+  CustomNetworkType,
   NetworkType,
   isSafeChainId,
   isInfuraNetworkType,
@@ -15,7 +16,6 @@ import {
   NetworkNickname,
   BUILT_IN_CUSTOM_NETWORKS_RPC,
   BUILT_IN_NETWORKS,
-  BuiltInNetworkName,
 } from '@metamask/controller-utils';
 import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 import EthQuery from '@metamask/eth-query';
@@ -723,26 +723,38 @@ function getDefaultCustomNetworkConfigurationsByChainId(): Record<
   Hex,
   NetworkConfiguration
 > {
-  const { ticker, rpcPrefs } =
-    BUILT_IN_NETWORKS[BuiltInNetworkName.MegaETHTestnet];
-  return {
-    [ChainId[BuiltInNetworkName.MegaETHTestnet]]: {
+  return Object.values(CustomNetworkType).reduce<
+    Record<Hex, NetworkConfiguration>
+  >((obj, customNetworkType) => {
+    const chainId = ChainId[customNetworkType];
+    const { ticker, rpcPrefs } =
+      BUILT_IN_NETWORKS[customNetworkType];
+    // It converts client id to upper case and replace '-' with '_'
+    // to match the key in BUILT_IN_CUSTOM_NETWORKS_RPC
+    // e.g. 'megaeth-testnet' to 'MEGAETH_TESTNET'
+    // e.g. 'monad-testnet' to 'MONAD_TESTNET'
+    // TODO: Refactor controller-utils to use the same format as others
+    const rpcEndpointUrlKey = customNetworkType.toUpperCase().replace('-','_') as keyof typeof BUILT_IN_CUSTOM_NETWORKS_RPC;
+    
+    const networkConfiguration: NetworkConfiguration = {
       blockExplorerUrls: [rpcPrefs.blockExplorerUrl],
-      chainId: ChainId[BuiltInNetworkName.MegaETHTestnet],
+      chainId: ChainId[customNetworkType],
       defaultRpcEndpointIndex: 0,
       defaultBlockExplorerUrlIndex: 0,
-      name: NetworkNickname[BuiltInNetworkName.MegaETHTestnet],
+      name: NetworkNickname[customNetworkType],
       nativeCurrency: ticker,
       rpcEndpoints: [
         {
           failoverUrls: [],
-          networkClientId: BuiltInNetworkName.MegaETHTestnet,
+          networkClientId: customNetworkType,
           type: RpcEndpointType.Custom,
-          url: BUILT_IN_CUSTOM_NETWORKS_RPC.MEGAETH_TESTNET,
+          url: BUILT_IN_CUSTOM_NETWORKS_RPC[rpcEndpointUrlKey],
         },
       ],
-    },
-  };
+    };
+
+    return { ...obj, [chainId]: networkConfiguration };
+  }, {});
 }
 
 /**
