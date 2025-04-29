@@ -42,6 +42,7 @@ const setupController = ({
       'NetworkController:stateChange',
       'PreferencesController:stateChange',
       'TokensController:stateChange',
+      'AccountsController:accountRemoved',
     ],
   });
 
@@ -78,12 +79,15 @@ const setupController = ({
     'NetworkController:getNetworkClientById',
     jest.fn().mockReturnValue({ provider: jest.fn() }),
   );
+  const controller = new TokenBalancesController({
+    messenger: tokenBalancesMessenger,
+    ...config,
+  });
+  const updateSpy = jest.spyOn(controller, 'update' as never);
 
   return {
-    controller: new TokenBalancesController({
-      messenger: tokenBalancesMessenger,
-      ...config,
-    }),
+    controller,
+    updateSpy,
     messenger,
   };
 };
@@ -355,6 +359,128 @@ describe('TokenBalancesController', () => {
         },
       },
     });
+  });
+
+  it('does not update balances when multi-account balances is enabled and all returned values did not change', async () => {
+    const chainId = '0x1';
+    const account1 = '0x0000000000000000000000000000000000000001';
+    const account2 = '0x0000000000000000000000000000000000000002';
+    const tokenAddress = '0x0000000000000000000000000000000000000003';
+
+    const tokens = {
+      allDetectedTokens: {},
+      allTokens: {
+        [chainId]: {
+          [account1]: [{ address: tokenAddress, symbol: 's', decimals: 0 }],
+          [account2]: [{ address: tokenAddress, symbol: 's', decimals: 0 }],
+        },
+      },
+    };
+
+    const { controller, messenger, updateSpy } = setupController({ tokens });
+
+    // Enable multi account balances
+    messenger.publish(
+      'PreferencesController:stateChange',
+      { isMultiAccountBalancesEnabled: true } as PreferencesState,
+      [],
+    );
+
+    const balance1 = 100;
+    const balance2 = 200;
+    jest.spyOn(multicall, 'multicallOrFallback').mockResolvedValue([
+      { success: true, value: new BN(balance1) },
+      { success: true, value: new BN(balance2) },
+    ]);
+
+    await controller._executePoll({ chainId });
+
+    expect(controller.state.tokenBalances).toStrictEqual({
+      [account1]: {
+        [chainId]: {
+          [tokenAddress]: toHex(balance1),
+        },
+      },
+      [account2]: {
+        [chainId]: {
+          [tokenAddress]: toHex(balance2),
+        },
+      },
+    });
+
+    await controller._executePoll({ chainId });
+
+    expect(updateSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('updates balances when multi-account balances is enabled and some returned values changed', async () => {
+    const chainId = '0x1';
+    const account1 = '0x0000000000000000000000000000000000000001';
+    const account2 = '0x0000000000000000000000000000000000000002';
+    const tokenAddress = '0x0000000000000000000000000000000000000003';
+
+    const tokens = {
+      allDetectedTokens: {},
+      allTokens: {
+        [chainId]: {
+          [account1]: [{ address: tokenAddress, symbol: 's', decimals: 0 }],
+          [account2]: [{ address: tokenAddress, symbol: 's', decimals: 0 }],
+        },
+      },
+    };
+
+    const { controller, messenger, updateSpy } = setupController({ tokens });
+
+    // Enable multi account balances
+    messenger.publish(
+      'PreferencesController:stateChange',
+      { isMultiAccountBalancesEnabled: true } as PreferencesState,
+      [],
+    );
+
+    const balance1 = 100;
+    const balance2 = 200;
+    const balance3 = 300;
+    jest.spyOn(multicall, 'multicallOrFallback').mockResolvedValueOnce([
+      { success: true, value: new BN(balance1) },
+      { success: true, value: new BN(balance2) },
+    ]);
+    jest.spyOn(multicall, 'multicallOrFallback').mockResolvedValueOnce([
+      { success: true, value: new BN(balance1) },
+      { success: true, value: new BN(balance3) },
+    ]);
+
+    await controller._executePoll({ chainId });
+
+    expect(controller.state.tokenBalances).toStrictEqual({
+      [account1]: {
+        [chainId]: {
+          [tokenAddress]: toHex(balance1),
+        },
+      },
+      [account2]: {
+        [chainId]: {
+          [tokenAddress]: toHex(balance2),
+        },
+      },
+    });
+
+    await controller._executePoll({ chainId });
+
+    expect(controller.state.tokenBalances).toStrictEqual({
+      [account1]: {
+        [chainId]: {
+          [tokenAddress]: toHex(balance1),
+        },
+      },
+      [account2]: {
+        [chainId]: {
+          [tokenAddress]: toHex(balance3),
+        },
+      },
+    });
+
+    expect(updateSpy).toHaveBeenCalledTimes(2);
   });
 
   it('only updates selected account balance when multi-account balances is disabled', async () => {

@@ -1,6 +1,9 @@
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
-import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
+import type {
+  AccountsControllerAccountRemovedEvent,
+  AccountsControllerGetSelectedAccountAction,
+} from '@metamask/accounts-controller';
 import type {
   RestrictedMessenger,
   ControllerGetStateAction,
@@ -33,6 +36,7 @@ import type {
   TokensControllerState,
   TokensControllerStateChangeEvent,
 } from './TokensController';
+import { InternalAccount } from '@metamask/keyring-internal-api';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -94,7 +98,8 @@ export type TokenBalancesControllerEvents =
 export type AllowedEvents =
   | TokensControllerStateChangeEvent
   | PreferencesControllerStateChangeEvent
-  | NetworkControllerStateChangeEvent;
+  | NetworkControllerStateChangeEvent
+  | AccountsControllerAccountRemovedEvent;
 
 export type TokenBalancesControllerMessenger = RestrictedMessenger<
   typeof controllerName,
@@ -185,6 +190,14 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
       'NetworkController:stateChange',
       this.#onNetworkStateChange.bind(this),
     );
+
+    // subscribe to account removed event to cleanup stale balances
+
+    this.messagingSystem.subscribe(
+      'AccountsController:accountRemoved',
+      (accountAddress: string) =>
+        this.#handleOnAccountRemoved(accountAddress as Hex),
+    );
   }
 
   /**
@@ -242,7 +255,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
 
     this.#allTokens = allTokens;
     this.#allDetectedTokens = allDetectedTokens;
-
     this.updateBalances({ chainIds: chainIdsToUpdate }).catch(console.error);
   };
 
@@ -267,6 +279,17 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
         });
       }
     }
+  }
+
+  /**
+   * Handles changes when an account has been removed.
+   *
+   * @param accountAddress - The account address being removed.
+   */
+  #handleOnAccountRemoved(accountAddress: Hex) {
+    this.update((state) => {
+      delete state.tokenBalances[accountAddress];
+    });
   }
 
   /**
@@ -309,6 +332,44 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
     );
   }
 
+  #cleanupCurrentTokenBalances(
+    accountTokenPairs: { accountAddress: Hex; tokenAddress: Hex }[],
+  ) {
+    // TODO move this to a private fct
+    const currentTokenBalances = this.messagingSystem.call(
+      'TokenBalancesController:getState',
+    );
+
+    // in case currentTokenBalances has a token that is not in accountTokenPairs, we will remove it from currentTokenBalances
+    // loop through currentTokenBalances.tokenBalances, for each account loop though the account[chainId] array of tokens and check if the token is in accountTokenPairs
+    // if not, remove it from currentTokenBalances
+    for (const accountAddress of Object.keys(
+      currentTokenBalances.tokenBalances,
+    )) {
+      for (const chainIdProperty of Object.keys(
+        currentTokenBalances.tokenBalances[accountAddress as `0x${string}`],
+      )) {
+        for (const tokenAddress of Object.keys(
+          currentTokenBalances.tokenBalances[accountAddress as `0x${string}`][
+            chainIdProperty as Hex
+          ],
+        )) {
+          if (
+            !accountTokenPairs.some(
+              (pair) => pair.tokenAddress === tokenAddress,
+            )
+          ) {
+            this.update((state) => {
+              delete state.tokenBalances[accountAddress as Hex][
+                chainIdProperty as Hex
+              ][tokenAddress as `0x${string}`];
+            });
+          }
+        }
+      }
+    }
+  }
+
   /**
    * Updates token balances for the given chain id.
    * @param input - The input for the update.
@@ -341,6 +402,12 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
 
     let results: MulticallResult[] = [];
 
+    // in case currentTokenBalances has a token that is not in accountTokenPairs, we will remove it from currentTokenBalances
+    this.#cleanupCurrentTokenBalances(accountTokenPairs);
+    const currentTokenBalances = this.messagingSystem.call(
+      'TokenBalancesController:getState',
+    );
+
     if (accountTokenPairs.length > 0) {
       const provider = new Web3Provider(
         this.#getNetworkClient(chainId).provider,
@@ -357,18 +424,36 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
       results = await multicallOrFallback(calls, chainId, provider);
     }
 
+    const updatedResults: (MulticallResult & {
+      isTokenBalanceValueChanged?: boolean;
+    })[] = [...results];
+
+    for (let i = 0; i < results.length; i++) {
+      const { value } = results[i];
+      const { accountAddress, tokenAddress } = accountTokenPairs[i];
+      const currentTokenBalanceValueForAccount =
+        currentTokenBalances.tokenBalances?.[accountAddress]?.[chainId]?.[
+          tokenAddress
+        ];
+      const isTokenBalanceValueChanged =
+        currentTokenBalanceValueForAccount !== toHex(value as BN);
+      updatedResults[i] = {
+        ...results[i],
+        isTokenBalanceValueChanged,
+      };
+    }
+
+    // if all values of isTokenBalanceValueChanged are false, return
+    if (updatedResults.every((result) => !result.isTokenBalanceValueChanged)) {
+      return;
+    }
+
     this.update((state) => {
-      // Reset so that when accounts or tokens are removed,
-      // their balances are removed rather than left stale.
-      for (const accountAddress of Object.keys(state.tokenBalances)) {
-        state.tokenBalances[accountAddress as Hex][chainId] = {};
-      }
-
-      for (let i = 0; i < results.length; i++) {
-        const { success, value } = results[i];
+      for (let i = 0; i < updatedResults.length; i++) {
+        const { success, value, isTokenBalanceValueChanged } =
+          updatedResults[i];
         const { accountAddress, tokenAddress } = accountTokenPairs[i];
-
-        if (success) {
+        if (success && isTokenBalanceValueChanged) {
           ((state.tokenBalances[accountAddress] ??= {})[chainId] ??= {})[
             tokenAddress
           ] = toHex(value as BN);
