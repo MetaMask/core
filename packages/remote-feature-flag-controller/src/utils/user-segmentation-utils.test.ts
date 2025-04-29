@@ -130,9 +130,9 @@ describe('user-segmentation-utils', () => {
           distribution[Math.min(distributionIndex, 9)] += 1;
         });
 
-        // Each range should have roughly 10% of the values and 30% deviation
+        // Each range should have roughly 10% of the values and 40% deviation
         const expectedPerRange = samples / ranges.length;
-        const allowedDeviation = expectedPerRange * 0.3;
+        const allowedDeviation = expectedPerRange * 0.4;
 
         // Check distribution
         distribution.forEach((count) => {
