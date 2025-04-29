@@ -47,7 +47,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^8.0.0",
+    "@metamask/base-controller": "^8.0.1",
     "@metamask/keyring-api": "^17.4.0",
     "@metamask/keyring-internal-api": "^6.0.1",
     "@metamask/keyring-snap-client": "^4.1.0",
