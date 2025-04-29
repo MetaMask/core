@@ -2719,6 +2719,116 @@ describe('AccountsController', () => {
     });
   });
 
+  describe('setAccountNameAndSelect', () => {
+    const newAccountName = 'New Account Name';
+    const mockState = {
+      initialState: {
+        internalAccounts: {
+          accounts: { [mockAccount.id]: mockAccount },
+          selectedAccount: mockAccount.id,
+        },
+      },
+    };
+
+    it('sets the name of an existing account', () => {
+      const { accountsController } = setupAccountsController(mockState);
+
+      accountsController.setAccountNameAndSelectAccount(
+        mockAccount.id,
+        newAccountName,
+      );
+
+      expect(
+        accountsController.getAccountExpect(mockAccount.id).metadata.name,
+      ).toBe(newAccountName);
+      expect(accountsController.state.internalAccounts.selectedAccount).toBe(
+        mockAccount.id,
+      );
+    });
+
+    it('sets the name of an existing account and select the account', () => {
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockAccount.id]: mockAccount,
+              [mockAccount2.id]: mockAccount2,
+            },
+            selectedAccount: mockAccount.id,
+          },
+        },
+      });
+
+      accountsController.setAccountNameAndSelectAccount(
+        mockAccount2.id,
+        newAccountName,
+      );
+
+      expect(
+        accountsController.getAccountExpect(mockAccount2.id).metadata.name,
+      ).toBe(newAccountName);
+      expect(accountsController.state.internalAccounts.selectedAccount).toBe(
+        mockAccount2.id,
+      );
+    });
+
+    it('sets the nameLastUpdatedAt timestamp when setting the name of an existing account', () => {
+      const expectedTimestamp = Number(new Date('2024-01-02'));
+
+      jest.spyOn(Date, 'now').mockImplementation(() => expectedTimestamp);
+
+      const { accountsController } = setupAccountsController(mockState);
+
+      accountsController.setAccountNameAndSelectAccount(
+        mockAccount.id,
+        newAccountName,
+      );
+
+      expect(
+        accountsController.getAccountExpect(mockAccount.id).metadata
+          .nameLastUpdatedAt,
+      ).toBe(expectedTimestamp);
+    });
+
+    it('publishes the accountRenamed event', () => {
+      const { accountsController, messenger } =
+        setupAccountsController(mockState);
+
+      const messengerSpy = jest.spyOn(messenger, 'publish');
+
+      accountsController.setAccountNameAndSelectAccount(
+        mockAccount.id,
+        newAccountName,
+      );
+
+      expect(messengerSpy).toHaveBeenCalledWith(
+        'AccountsController:accountRenamed',
+        accountsController.getAccountExpect(mockAccount.id),
+      );
+    });
+
+    it('throw an error if the account name already exists', () => {
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockAccount.id]: mockAccount,
+              [mockAccount2.id]: mockAccount2,
+            },
+            selectedAccount: mockAccount.id,
+          },
+        },
+      });
+
+      expect(() =>
+        accountsController.setAccountNameAndSelectAccount(
+          mockAccount.id,
+          mockAccount2.metadata.name,
+        ),
+      ).toThrow('Account name already exists');
+    });
+  });
+
   describe('setAccountName', () => {
     it('sets the name of an existing account', () => {
       const { accountsController } = setupAccountsController({
@@ -3033,6 +3143,10 @@ describe('AccountsController', () => {
       jest.spyOn(AccountsController.prototype, 'getAccountByAddress');
       jest.spyOn(AccountsController.prototype, 'getSelectedAccount');
       jest.spyOn(AccountsController.prototype, 'getAccount');
+      jest.spyOn(
+        AccountsController.prototype,
+        'setAccountNameAndSelectAccount',
+      );
     });
 
     describe('setSelectedAccount', () => {
@@ -3138,6 +3252,37 @@ describe('AccountsController', () => {
         expect(accountsController.setAccountName).toHaveBeenCalledWith(
           'mock-id',
           'new name',
+        );
+      });
+    });
+
+    describe('setAccountNameAndSelectAccount', () => {
+      it('set the account name and select the account', async () => {
+        const messenger = buildMessenger();
+        const { accountsController } = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+                [mockAccount2.id]: mockAccount2,
+              },
+              selectedAccount: mockAccount.id,
+            },
+          },
+          messenger,
+        });
+
+        const newAccountName = 'New Account Name';
+        messenger.call(
+          'AccountsController:setAccountNameAndSelectAccount',
+          mockAccount2.id,
+          newAccountName,
+        );
+        expect(
+          accountsController.setAccountNameAndSelectAccount,
+        ).toHaveBeenCalledWith(mockAccount2.id, newAccountName);
+        expect(accountsController.state.internalAccounts.selectedAccount).toBe(
+          mockAccount2.id,
         );
       });
     });
