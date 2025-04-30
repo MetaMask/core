@@ -3427,12 +3427,14 @@ async function withController<ReturnValue>(
       'NetworkController:getNetworkClientById',
       'AccountsController:getAccount',
       'AccountsController:getSelectedAccount',
+      'AccountsController:listAccounts',
     ],
     allowedEvents: [
       'NetworkController:networkDidChange',
       'NetworkController:stateChange',
       'AccountsController:selectedEvmAccountChange',
       'TokenListController:stateChange',
+      'AccountsController:accountRemoved',
     ],
   });
 

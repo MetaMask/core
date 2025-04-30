@@ -37,6 +37,7 @@ const setupController = ({
       'PreferencesController:getState',
       'TokensController:getState',
       'AccountsController:getSelectedAccount',
+      'AccountsController:listAccounts',
     ],
     allowedEvents: [
       'NetworkController:stateChange',
