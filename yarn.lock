@@ -2689,7 +2689,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/bridge-controller@npm:^19.0.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
+"@metamask/bridge-controller@npm:^20.0.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-controller@workspace:packages/bridge-controller"
   dependencies:
@@ -2710,6 +2710,7 @@ __metadata:
     "@metamask/multichain-network-controller": "npm:^0.5.1"
     "@metamask/network-controller": "npm:^23.3.0"
     "@metamask/polling-controller": "npm:^13.0.0"
+    "@metamask/remote-feature-flag-controller": "npm:^1.6.0"
     "@metamask/snaps-controllers": "npm:^11.2.1"
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/transaction-controller": "npm:^54.3.0"
@@ -2730,6 +2731,7 @@ __metadata:
     "@metamask/accounts-controller": ^27.0.0
     "@metamask/assets-controllers": ^60.0.0
     "@metamask/network-controller": ^23.0.0
+    "@metamask/remote-feature-flag-controller": ^1.6.0
     "@metamask/snaps-controllers": ^11.0.0
     "@metamask/transaction-controller": ^54.0.0
   languageName: unknown
@@ -2742,7 +2744,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^27.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.1"
-    "@metamask/bridge-controller": "npm:^19.0.0"
+    "@metamask/bridge-controller": "npm:^20.0.0"
     "@metamask/controller-utils": "npm:^11.7.0"
     "@metamask/gas-fee-controller": "npm:^23.0.0"
     "@metamask/keyring-api": "npm:^17.4.0"
@@ -2767,7 +2769,7 @@ __metadata:
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/accounts-controller": ^27.0.0
-    "@metamask/bridge-controller": ^19.0.0
+    "@metamask/bridge-controller": ^20.0.0
     "@metamask/gas-fee-controller": ^23.0.0
     "@metamask/network-controller": ^23.0.0
     "@metamask/snaps-controllers": ^11.0.0
