@@ -3,6 +3,7 @@ import { Web3Provider } from '@ethersproject/providers';
 import type {
   AccountsControllerAccountRemovedEvent,
   AccountsControllerGetSelectedAccountAction,
+  AccountsControllerListAccountsAction,
 } from '@metamask/accounts-controller';
 import type {
   RestrictedMessenger,
@@ -83,7 +84,8 @@ export type AllowedActions =
   | NetworkControllerGetStateAction
   | TokensControllerGetStateAction
   | PreferencesControllerGetStateAction
-  | AccountsControllerGetSelectedAccountAction;
+  | AccountsControllerGetSelectedAccountAction
+  | AccountsControllerListAccountsAction;
 
 export type TokenBalancesControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -194,8 +196,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
 
     this.messagingSystem.subscribe(
       'AccountsController:accountRemoved',
-      (accountAddress: string) =>
-        this.#handleOnAccountRemoved(accountAddress as Hex),
+      (accountId: string) => this.#handleOnAccountRemoved(accountId),
     );
   }
 
@@ -285,11 +286,21 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
   /**
    * Handles changes when an account has been removed.
    *
-   * @param accountAddress - The account address being removed.
+   * @param accountId - The account id being removed.
    */
-  #handleOnAccountRemoved(accountAddress: Hex) {
+  #handleOnAccountRemoved(accountId: string) {
+    const accounts = this.messagingSystem.call(
+      'AccountsController:listAccounts',
+    );
+    const accountAddress = accounts.find(
+      (account) => account.id === accountId,
+    )?.address;
+    if (!accountAddress) {
+      return;
+    }
+
     this.update((state) => {
-      delete state.tokenBalances[accountAddress];
+      delete state.tokenBalances[accountAddress as `0x${string}`];
     });
   }
 
@@ -453,10 +464,8 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
 
     const updatedResults: (MulticallResult & {
       isTokenBalanceValueChanged?: boolean;
-    })[] = [...results];
-
-    for (let i = 0; i < results.length; i++) {
-      const { value } = results[i];
+    })[] = results.map((res, i) => {
+      const { value } = res;
       const { accountAddress, tokenAddress } = accountTokenPairs[i];
       const currentTokenBalanceValueForAccount =
         currentTokenBalances.tokenBalances?.[accountAddress]?.[chainId]?.[
@@ -464,11 +473,11 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
         ];
       const isTokenBalanceValueChanged =
         currentTokenBalanceValueForAccount !== toHex(value as BN);
-      updatedResults[i] = {
-        ...results[i],
+      return {
+        ...res,
         isTokenBalanceValueChanged,
       };
-    }
+    });
 
     // if all values of isTokenBalanceValueChanged are false, return
     if (updatedResults.every((result) => !result.isTokenBalanceValueChanged)) {

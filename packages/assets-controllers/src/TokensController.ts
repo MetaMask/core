@@ -1,8 +1,10 @@
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import type {
+  AccountsControllerAccountRemovedEvent,
   AccountsControllerGetAccountAction,
   AccountsControllerGetSelectedAccountAction,
+  AccountsControllerListAccountsAction,
   AccountsControllerSelectedEvmAccountChangeEvent,
 } from '@metamask/accounts-controller';
 import type { AddApprovalRequest } from '@metamask/approval-controller';
@@ -124,7 +126,8 @@ export type AllowedActions =
   | AddApprovalRequest
   | NetworkControllerGetNetworkClientByIdAction
   | AccountsControllerGetAccountAction
-  | AccountsControllerGetSelectedAccountAction;
+  | AccountsControllerGetSelectedAccountAction
+  | AccountsControllerListAccountsAction;
 
 export type TokensControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -137,7 +140,8 @@ export type AllowedEvents =
   | NetworkControllerStateChangeEvent
   | NetworkControllerNetworkDidChangeEvent
   | TokenListStateChange
-  | AccountsControllerSelectedEvmAccountChangeEvent;
+  | AccountsControllerSelectedEvmAccountChangeEvent
+  | AccountsControllerAccountRemovedEvent;
 
 /**
  * The messenger of the {@link TokensController}.
@@ -224,6 +228,12 @@ export class TokensController extends BaseController<
     );
 
     this.messagingSystem.subscribe(
+      'AccountsController:accountRemoved',
+      (accountAddress: string) =>
+        this.#handleOnAccountRemoved(accountAddress as Hex),
+    );
+
+    this.messagingSystem.subscribe(
       'TokenListController:stateChange',
       ({ tokensChainsCache }) => {
         const { allTokens } = this.state;
@@ -258,6 +268,48 @@ export class TokensController extends BaseController<
         });
       },
     );
+  }
+
+  #handleOnAccountRemoved(accountId: string) {
+    // find the account address in allTokens, allDetectedTokens, allIgnoredTokens
+    const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
+    const accounts = this.messagingSystem.call(
+      'AccountsController:listAccounts',
+    );
+    const accountAddress = accounts.find(
+      (account) => account.id === accountId,
+    )?.address;
+
+    if (!accountAddress) {
+      return;
+    }
+    const newAllTokens = cloneDeep(allTokens);
+    const newAllDetectedTokens = cloneDeep(allDetectedTokens);
+    const newAllIgnoredTokens = cloneDeep(allIgnoredTokens);
+
+    for (const chainId of Object.keys(newAllTokens)) {
+      if (newAllTokens[chainId as Hex][accountAddress]) {
+        delete newAllTokens[chainId as Hex][accountAddress];
+      }
+    }
+
+    for (const chainId of Object.keys(newAllDetectedTokens)) {
+      if (newAllDetectedTokens[chainId as Hex][accountAddress]) {
+        delete newAllDetectedTokens[chainId as Hex][accountAddress];
+      }
+    }
+
+    for (const chainId of Object.keys(newAllIgnoredTokens)) {
+      if (newAllIgnoredTokens[chainId as Hex][accountAddress]) {
+        delete newAllIgnoredTokens[chainId as Hex][accountAddress];
+      }
+    }
+
+    this.update((state) => {
+      state.allTokens = newAllTokens;
+      state.allIgnoredTokens = newAllIgnoredTokens;
+      state.allDetectedTokens = newAllDetectedTokens;
+    });
   }
 
   /**
