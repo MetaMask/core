@@ -37,6 +37,7 @@ export const createMockInternalAccount = ({
   scopes,
   importTime = Date.now(),
   lastSelected = Date.now(),
+  options,
 }: {
   id?: string;
   address?: string;
@@ -52,6 +53,7 @@ export const createMockInternalAccount = ({
   };
   importTime?: number;
   lastSelected?: number;
+  options?: Record<string, unknown>;
 } = {}): InternalAccount => {
   const getInternalAccountDefaults = () => {
     switch (type) {
@@ -80,7 +82,7 @@ export const createMockInternalAccount = ({
   return {
     id,
     address,
-    options: {},
+    options: options ?? {},
     methods: methods ?? defaults.methods,
     scopes: scopes ?? defaults.scopes,
     type,
@@ -103,4 +105,19 @@ export const createExpectedInternalAccount = (
     importTime: expect.any(Number),
     lastSelected: expect.any(Number),
   });
+};
+
+export const createMockInternalAccountOptions = (
+  keyringIndex: number,
+  keyringType: KeyringTypes,
+  groupIndex: number,
+): Record<string, string> => {
+  if (keyringType === KeyringTypes.hd) {
+    return {
+      entropySource: `mock-keyring-id-${keyringIndex}`,
+      derivationPath: `m/44'/60'/0'/0/${groupIndex}`,
+    };
+  }
+
+  return {};
 };
