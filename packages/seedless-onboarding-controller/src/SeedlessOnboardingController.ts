@@ -150,11 +150,12 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
 
     // setup subscriptions to the keyring lock event
     // when the keyring is locked (wallet is locked), the controller will be cleared of its credentials
-    this.messagingSystem.subscribe('KeyringController:lock', this.setLocked);
-    this.messagingSystem.subscribe(
-      'KeyringController:unlock',
-      this.setUnlocked,
-    );
+    this.messagingSystem.subscribe('KeyringController:lock', () => {
+      this.setLocked();
+    });
+    this.messagingSystem.subscribe('KeyringController:unlock', () => {
+      this.#setUnlocked();
+    });
   }
 
   /**
@@ -417,7 +418,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    */
   async submitPassword(password: string): Promise<void> {
     await this.#unlockVaultAndGetBackupEncKey(password);
-    this.setUnlocked();
+    this.#setUnlocked();
   }
 
   /**
@@ -436,7 +437,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     this.#isUnlocked = false;
   }
 
-  setUnlocked(): void {
+  #setUnlocked(): void {
     this.#isUnlocked = true;
   }
 
@@ -757,7 +758,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     rawToprfAuthKeyPair: KeyPair;
   }): Promise<void> {
     this.#assertIsAuthenticatedUser(this.state);
-    this.setUnlocked();
+    this.#setUnlocked();
 
     const { toprfEncryptionKey, toprfAuthKeyPair } = this.#serializeKeyData(
       rawToprfEncryptionKey,
