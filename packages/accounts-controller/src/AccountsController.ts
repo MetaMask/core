@@ -684,24 +684,18 @@ export class AccountsController extends BaseController<
    */
   async #listNormalAccounts(): Promise<InternalAccount[]> {
     const internalAccounts: InternalAccount[] = [];
-    const { keyrings, keyringsMetadata } = await this.messagingSystem.call(
+    const { keyrings, keyringsMetadata } = this.messagingSystem.call(
       'KeyringController:getState',
     );
 
-    for (let keyringIndex = 0; keyringIndex < keyrings.length; keyringIndex++) {
-      const keyring = keyrings[keyringIndex];
+    for (const [keyringIndex, keyring] of keyrings.entries()) {
       const keyringType = keyring.type;
       if (!isNormalKeyringType(keyringType as KeyringTypes)) {
         // We only consider "normal accounts" here, so keep looping
         continue;
       }
 
-      for (
-        let accountIndex = 0;
-        accountIndex < keyring.accounts.length;
-        accountIndex++
-      ) {
-        const address = keyring.accounts[accountIndex];
+      for (const [accountIndex, address] of keyring.accounts.entries()) {
         const id = getUUIDFromAddressOfNormalAccount(address);
 
         let options = {};
