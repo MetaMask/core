@@ -481,6 +481,7 @@ const GAS_FEE_TOKEN_MOCK: GasFeeToken = {
   balance: '0x2',
   decimals: 18,
   gas: '0x3',
+  gasTransfer: '0x4',
   maxFeePerGas: '0x4',
   maxPriorityFeePerGas: '0x5',
   rateWei: '0x6',
