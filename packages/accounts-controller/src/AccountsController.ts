@@ -703,6 +703,9 @@ export class AccountsController extends BaseController<
         if (isHdKeyringType(keyring.type as KeyringTypes)) {
           options = {
             entropySource: keyringsMetadata[keyringIndex].id,
+            // NOTE: We are not using the `hdPath` from the associated keyring here and
+            // getting the keyring instance here feels a bit overkill.
+            // This will be naturally fixed once every keyring start using `KeyringAccount` and implement the keyring API.
             derivationPath: getDerivationPathForIndex(accountIndex),
           };
         }
