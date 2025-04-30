@@ -620,14 +620,16 @@ export class SeedlessOnboardingController extends BaseController<
   }): Promise<boolean> {
     // cache result to reduce load on infra
     // Check cache first unless skipCache is true
-    const now = Date.now();
-    if (
-      !options?.skipCache &&
-      this.state.passwordOutdatedCache &&
-      now - this.state.passwordOutdatedCache.timestamp <
-        PASSWORD_OUTDATED_CACHE_TTL_MS
-    ) {
-      return this.state.passwordOutdatedCache.isExpiredPwd;
+    if (!options?.skipCache) {
+      const { passwordOutdatedCache } = this.state;
+      const now = Date.now();
+      const isCacheValid =
+        passwordOutdatedCache &&
+        now - passwordOutdatedCache.timestamp < PASSWORD_OUTDATED_CACHE_TTL_MS;
+
+      if (isCacheValid) {
+        return passwordOutdatedCache.isExpiredPwd;
+      }
     }
     return this.#withControllerLock(async () => {
       this.#assertIsAuthenticatedUser(this.state);
@@ -638,7 +640,7 @@ export class SeedlessOnboardingController extends BaseController<
         userId,
       } = this.state;
 
-      const authPubKey = this.#recoverAuthPubKey();
+      const currentDeviceAuthPubKey = this.#recoverAuthPubKey();
 
       const { authPubKey: globalAuthPubKey } =
         await this.toprfClient.fetchAuthPubKey({
