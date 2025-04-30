@@ -1715,7 +1715,7 @@ describe('SeedlessOnboardingController', () => {
           jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce('MOCK_VAULT');
 
           expect(async () => {
-            await controller.verifyPassword(MOCK_PASSWORD);
+            await controller.verifyVaultPassword(MOCK_PASSWORD);
           }).not.toThrow();
         },
       );
@@ -1735,7 +1735,7 @@ describe('SeedlessOnboardingController', () => {
             .mockRejectedValueOnce(new Error('Incorrect password'));
 
           await expect(
-            controller.verifyPassword(MOCK_PASSWORD),
+            controller.verifyVaultPassword(MOCK_PASSWORD),
           ).rejects.toThrow('Incorrect password');
         },
       );
@@ -1743,9 +1743,9 @@ describe('SeedlessOnboardingController', () => {
 
     it('should throw an error if the vault is missing', async () => {
       await withController(async ({ controller }) => {
-        await expect(controller.verifyPassword(MOCK_PASSWORD)).rejects.toThrow(
-          SeedlessOnboardingControllerError.VaultError,
-        );
+        await expect(
+          controller.verifyVaultPassword(MOCK_PASSWORD),
+        ).rejects.toThrow(SeedlessOnboardingControllerError.VaultError);
       });
     });
   });
@@ -2541,7 +2541,10 @@ describe('SeedlessOnboardingController', () => {
           // We'll use the key/salt implicitly by not providing password to unlockVaultAndGetBackupEncKey
           await controller.submitPassword(OLD_PASSWORD); // Unlock using the standard method
 
-          const verifyPasswordSpy = jest.spyOn(controller, 'verifyPassword');
+          const verifyPasswordSpy = jest.spyOn(
+            controller,
+            'verifyVaultPassword',
+          );
           const recoverEncKeySpy = jest.spyOn(toprfClient, 'recoverEncKey');
           const encryptorSpy = jest.spyOn(encryptor, 'encryptWithDetail');
 
@@ -2612,7 +2615,7 @@ describe('SeedlessOnboardingController', () => {
           await controller.submitPassword(OLD_PASSWORD);
 
           const verifyPasswordSpy = jest
-            .spyOn(controller, 'verifyPassword')
+            .spyOn(controller, 'verifyVaultPassword')
             .mockRejectedValueOnce(new Error('Incorrect old password'));
 
           await expect(
@@ -2643,7 +2646,7 @@ describe('SeedlessOnboardingController', () => {
           await controller.submitPassword(OLD_PASSWORD);
 
           const verifyPasswordSpy = jest
-            .spyOn(controller, 'verifyPassword')
+            .spyOn(controller, 'verifyVaultPassword')
             .mockResolvedValueOnce();
           const recoverEncKeySpy = jest
             .spyOn(toprfClient, 'recoverEncKey')
@@ -2684,7 +2687,7 @@ describe('SeedlessOnboardingController', () => {
           await controller.submitPassword(OLD_PASSWORD);
 
           const verifyPasswordSpy = jest
-            .spyOn(controller, 'verifyPassword')
+            .spyOn(controller, 'verifyVaultPassword')
             .mockResolvedValueOnce();
           const recoverEncKeySpy = jest.spyOn(toprfClient, 'recoverEncKey');
           const encryptorSpy = jest

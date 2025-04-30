@@ -392,7 +392,7 @@ export class SeedlessOnboardingController extends BaseController<
   async changePassword(newPassword: string, oldPassword: string) {
     this.#assertIsUnlocked();
     // verify the old password of the encrypted vault
-    await this.verifyPassword(oldPassword);
+    await this.verifyVaultPassword(oldPassword);
     await this.#assertPasswordInSync();
 
     // NOTE don't include verifyPassword and #assertPasswordInSync in #withControllerLock since verifyPassword and #assertPasswordInSync already acquires the controller lock
@@ -452,7 +452,7 @@ export class SeedlessOnboardingController extends BaseController<
    * @returns A promise that resolves to the success of the operation.
    * @throws {Error} If the password is invalid or the vault is not initialized.
    */
-  async verifyPassword(password: string): Promise<void> {
+  async verifyVaultPassword(password: string): Promise<void> {
     return this.#withControllerLock(async () => {
       if (!this.state.vault) {
         throw new Error(SeedlessOnboardingControllerError.VaultError);
@@ -534,7 +534,7 @@ export class SeedlessOnboardingController extends BaseController<
     globalPassword: string;
   }) {
     // verify correct old password
-    await this.verifyPassword(oldPassword);
+    await this.verifyVaultPassword(oldPassword);
     // NOTE don't include verifyPassword in #withControllerLock since verifyPassword already acquires the controller lock
     return this.#withControllerLock(async () => {
       // update vault with latest globalPassword
@@ -627,7 +627,7 @@ export class SeedlessOnboardingController extends BaseController<
       now - this.state.passwordOutdatedCache.timestamp <
         PASSWORD_OUTDATED_CACHE_TTL_MS
     ) {
-      return this.state.passwordOutdatedCache.value;
+      return this.state.passwordOutdatedCache.isExpiredPwd;
     }
     return this.#withControllerLock(async () => {
       this.#assertIsAuthenticatedUser(this.state);
@@ -648,12 +648,13 @@ export class SeedlessOnboardingController extends BaseController<
         });
 
       // TODO: use noble lib to deserialize and compare curve point
-      const result = bytesToHex(authPubKey) !== bytesToHex(globalAuthPubKey);
+      const isExpiredPwd =
+        bytesToHex(authPubKey) !== bytesToHex(globalAuthPubKey);
       // Cache the result in state
       this.update((state) => {
-        state.passwordOutdatedCache = { value: result, timestamp: Date.now() };
+        state.passwordOutdatedCache = { isExpiredPwd, timestamp: Date.now() };
       });
-      return result;
+      return isExpiredPwd;
     });
   }
 

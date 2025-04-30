@@ -99,7 +99,7 @@ export type SeedlessOnboardingControllerState =
       /**
        * Cache for checkIsPasswordOutdated result and timestamp.
        */
-      passwordOutdatedCache?: { value: boolean; timestamp: number };
+      passwordOutdatedCache?: { isExpiredPwd: boolean; timestamp: number };
     };
 
 // Actions
