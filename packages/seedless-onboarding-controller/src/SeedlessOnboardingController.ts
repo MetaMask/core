@@ -561,30 +561,53 @@ export class SeedlessOnboardingController extends BaseController<
    * @param params.globalPassword - The latest global password.
    * @returns A promise that resolves to the password corresponding to the current authPubKey in state.
    */
-  async recoverPassword({
+  async recoverCurrentDevicePassword({
     globalPassword,
   }: {
     globalPassword: string;
   }): Promise<{ password: string }> {
     return this.#withControllerLock(async () => {
       const currentDeviceAuthPubKey = this.#recoverAuthPubKey();
-
-      const {
-        encKey: currentGlobalDeviceEncKey,
-        authKeyPair: currentGlobalDeviceAuthKeyPair,
-      } = await this.#recoverEncKey(globalPassword);
-
-      try {
-        const res = await this.toprfClient.recoverPassword({
-          targetPwPubKey: currentDeviceAuthPubKey,
-          curEncKey: currentGlobalDeviceEncKey,
-          curAuthKeyPair: currentGlobalDeviceAuthKeyPair,
-        });
-        return res;
-      } catch (error) {
-        throw PasswordSyncError.getInstance(error);
-      }
+      const { password: currentDevicePassword } = await this.#recoverPassword({
+        targetPwPubKey: currentDeviceAuthPubKey,
+        globalPassword,
+      });
+      return {
+        password: currentDevicePassword,
+      };
     });
+  }
+
+  /**
+   * @description Fetch the password corresponding to the targetPwPubKey.
+   *
+   * @param params - The parameters for fetching the password.
+   * @param params.targetPwPubKey - The target public key of the password to recover.
+   * @param params.globalPassword - The latest global password.
+   * @returns A promise that resolves to the password corresponding to the current authPubKey in state.
+   */
+  async #recoverPassword({
+    targetPwPubKey,
+    globalPassword,
+  }: {
+    targetPwPubKey: SEC1EncodedPublicKey;
+    globalPassword: string;
+  }): Promise<{ password: string }> {
+    const {
+      encKey: currentGlobalDeviceEncKey,
+      authKeyPair: currentGlobalDeviceAuthKeyPair,
+    } = await this.#recoverEncKey(globalPassword);
+
+    try {
+      const res = await this.toprfClient.recoverPassword({
+        targetPwPubKey,
+        curEncKey: currentGlobalDeviceEncKey,
+        curAuthKeyPair: currentGlobalDeviceAuthKeyPair,
+      });
+      return res;
+    } catch (error) {
+      throw PasswordSyncError.getInstance(error);
+    }
   }
 
   /**

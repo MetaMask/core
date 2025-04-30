@@ -2322,7 +2322,7 @@ describe('SeedlessOnboardingController', () => {
     });
   });
 
-  describe('recoverPassword', () => {
+  describe('recoverCurrentDevicePassword', () => {
     const GLOBAL_PASSWORD = 'global-password';
     const RECOVERED_PASSWORD = 'recovered-password';
 
@@ -2352,7 +2352,7 @@ describe('SeedlessOnboardingController', () => {
             password: RECOVERED_PASSWORD,
           });
 
-          const result = await controller.recoverPassword({
+          const result = await controller.recoverCurrentDevicePassword({
             globalPassword: GLOBAL_PASSWORD,
           });
 
@@ -2370,7 +2370,7 @@ describe('SeedlessOnboardingController', () => {
         },
         async ({ controller }) => {
           await expect(
-            controller.recoverPassword({
+            controller.recoverCurrentDevicePassword({
               globalPassword: GLOBAL_PASSWORD,
             }),
           ).rejects.toThrow(
@@ -2399,7 +2399,7 @@ describe('SeedlessOnboardingController', () => {
             );
 
           await expect(
-            controller.recoverPassword({
+            controller.recoverCurrentDevicePassword({
               globalPassword: GLOBAL_PASSWORD,
             }),
           ).rejects.toStrictEqual(
@@ -2441,7 +2441,7 @@ describe('SeedlessOnboardingController', () => {
             );
 
           await expect(
-            controller.recoverPassword({
+            controller.recoverCurrentDevicePassword({
               globalPassword: GLOBAL_PASSWORD,
             }),
           ).rejects.toStrictEqual(
@@ -2478,7 +2478,7 @@ describe('SeedlessOnboardingController', () => {
             .mockRejectedValueOnce(new Error('Unknown error'));
 
           await expect(
-            controller.recoverPassword({
+            controller.recoverCurrentDevicePassword({
               globalPassword: GLOBAL_PASSWORD,
             }),
           ).rejects.toStrictEqual(
