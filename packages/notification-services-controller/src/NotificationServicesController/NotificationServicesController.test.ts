@@ -103,50 +103,30 @@ describe('metamask-notifications - init()', () => {
   const actPublishKeyringStateChange = async (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     messenger: any,
+    accounts: string[] = ['0x111', '0x222'],
   ) => {
     messenger.publish(
       'KeyringController:stateChange',
-      {} as KeyringControllerState,
+      {
+        keyrings: [{ accounts }],
+      } as KeyringControllerState,
       [],
     );
   };
 
-  it('keyring Change Event but feature not enabled will not add or remove triggers', async () => {
-    const { messenger, globalMessenger, mockWithKeyring } = arrangeMocks();
-
-    // initialize controller with 1 address
-    mockWithKeyring.mockResolvedValueOnce([ADDRESS_1]);
-    const controller = new NotificationServicesController({
-      messenger,
-      env: { featureAnnouncements: featureAnnouncementsEnv },
-    });
-    controller.init();
-
-    const mockUpdate = jest
-      .spyOn(controller, 'updateOnChainTriggersByAccount')
-      .mockResolvedValue({} as UserStorage);
-    const mockDelete = jest
-      .spyOn(controller, 'deleteOnChainTriggersByAccount')
-      .mockResolvedValue({} as UserStorage);
-
-    // listAccounts has a new address
-    mockWithKeyring.mockResolvedValueOnce([ADDRESS_1, ADDRESS_2]);
-    await actPublishKeyringStateChange(globalMessenger);
-
-    expect(mockUpdate).not.toHaveBeenCalled();
-    expect(mockDelete).not.toHaveBeenCalled();
-  });
-
-  it('keyring Change Event with new triggers will update triggers correctly', async () => {
-    const { messenger, globalMessenger, mockWithKeyring } = arrangeMocks();
-
+  const arrangeActAssertKeyringTest = async (
+    controllerState?: Partial<NotificationServicesControllerState>,
+  ) => {
+    const mocks = arrangeMocks();
+    const { messenger, globalMessenger, mockWithKeyring } = mocks;
     // initialize controller with 1 address
     const controller = new NotificationServicesController({
       messenger,
       env: { featureAnnouncements: featureAnnouncementsEnv },
       state: {
         isNotificationServicesEnabled: true,
-        subscriptionAccountsSeen: [ADDRESS_1],
+        subscriptionAccountsSeen: [],
+        ...controllerState,
       },
     });
     controller.init();
@@ -160,7 +140,7 @@ describe('metamask-notifications - init()', () => {
 
     const act = async (addresses: string[], assertion: () => void) => {
       mockWithKeyring.mockResolvedValueOnce(addresses);
-      await actPublishKeyringStateChange(globalMessenger);
+      await actPublishKeyringStateChange(globalMessenger, addresses);
       await waitFor(() => {
         assertion();
       });
@@ -169,6 +149,26 @@ describe('metamask-notifications - init()', () => {
       mockUpdate.mockClear();
       mockDelete.mockClear();
     };
+
+    return { act, mockUpdate, mockDelete };
+  };
+
+  it('event KeyringController:stateChange will not add or remove triggers when feature is disabled', async () => {
+    const { act, mockUpdate, mockDelete } = await arrangeActAssertKeyringTest({
+      isNotificationServicesEnabled: false,
+    });
+
+    // listAccounts has a new address
+    await act([ADDRESS_1, ADDRESS_2], () => {
+      expect(mockUpdate).not.toHaveBeenCalled();
+      expect(mockDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  it('event KeyringController:stateChange will update notification triggers when keyring accounts change', async () => {
+    const { act, mockUpdate, mockDelete } = await arrangeActAssertKeyringTest({
+      subscriptionAccountsSeen: [ADDRESS_1],
+    });
 
     // Act - if list accounts has been seen, then will not update
     await act([ADDRESS_1], () => {
@@ -191,6 +191,22 @@ describe('metamask-notifications - init()', () => {
     // If the address is added back to the list, we will perform an update
     await act([ADDRESS_1, ADDRESS_2], () => {
       expect(mockUpdate).toHaveBeenCalled();
+      expect(mockDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  it('event KeyringController:stateChange will update only once when if the number of keyring accounts do not change', async () => {
+    const { act, mockUpdate, mockDelete } = await arrangeActAssertKeyringTest();
+
+    // Act - First list of items, so will update
+    await act([ADDRESS_1, ADDRESS_2], () => {
+      expect(mockUpdate).toHaveBeenCalled();
+      expect(mockDelete).not.toHaveBeenCalled();
+    });
+
+    // Act - Since number of addresses in keyring has not changed, will not update
+    await act([ADDRESS_1, ADDRESS_2], () => {
+      expect(mockUpdate).not.toHaveBeenCalled();
       expect(mockDelete).not.toHaveBeenCalled();
     });
   });
