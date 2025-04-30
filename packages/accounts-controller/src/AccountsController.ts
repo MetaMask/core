@@ -44,6 +44,7 @@ import {
   isNormalKeyringType,
   keyringTypeToName,
 } from './utils';
+import { kill } from 'process';
 
 const controllerName = 'AccountsController';
 
@@ -242,6 +243,10 @@ export const EMPTY_ACCOUNT = {
   },
 };
 
+type AddressToUUIDCache = {
+  [address: string]: string;
+};
+
 /**
  * Controller that manages internal accounts.
  * The accounts controller is responsible for creating and managing internal accounts.
@@ -255,6 +260,8 @@ export class AccountsController extends BaseController<
   AccountsControllerState,
   AccountsControllerMessenger
 > {
+  #addressToUUIDCache: AddressToUUIDCache = {};
+
   /**
    * Constructor for AccountsController.
    *
@@ -620,8 +627,15 @@ export class AccountsController extends BaseController<
     address: string,
     type: string,
   ): InternalAccount {
+    if (!this.#addressToUUIDCache[address]) {
+      this.#addressToUUIDCache[address] =
+        getUUIDFromAddressOfNormalAccount(address);
+    }
+
+    const id = this.#addressToUUIDCache[address];
+
     return {
-      id: getUUIDFromAddressOfNormalAccount(address),
+      id,
       address,
       options: {},
       methods: [
