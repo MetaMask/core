@@ -1344,6 +1344,12 @@ describe('BridgeController', function () {
         UnifiedSwapBridgeEventName.SnapConfirmationViewed,
         {
           action_type: MetricsActionType.CROSSCHAIN_V1,
+          price_impact: 0,
+          usd_quoted_gas: 0,
+          gas_included: false,
+          quoted_time_minutes: 0,
+          usd_quoted_return: 0,
+          provider: 'provider_bridge',
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -1373,6 +1379,7 @@ describe('BridgeController', function () {
           chain_id_destination: formatChainIdToCaip(10),
           token_symbol_destination: 'USDC',
           token_address_destination: getNativeAssetForChainId(10).assetId,
+          security_warnings: [],
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -1410,6 +1417,7 @@ describe('BridgeController', function () {
           chain_id_destination: formatChainIdToCaip(10),
           token_symbol_destination: 'USDC',
           token_address_destination: getNativeAssetForChainId(10).assetId,
+          security_warnings: [],
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -1446,6 +1454,7 @@ describe('BridgeController', function () {
           token_symbol_destination: 'USDC',
           token_address_destination: getNativeAssetForChainId(ChainId.SOLANA)
             .assetId,
+          security_warnings: [],
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
