@@ -183,50 +183,80 @@ describe('BridgeController', function () {
   });
 
   it('setBridgeFeatureFlags should fetch and set the bridge feature flags', async function () {
-    const commonConfig = {
+    const bridgeConfig = {
       maxRefreshCount: 3,
       refreshRate: 3,
       support: true,
       chains: {
-        'eip155:10': { isActiveSrc: true, isActiveDest: false },
-        'eip155:534352': { isActiveSrc: true, isActiveDest: false },
-        'eip155:137': { isActiveSrc: false, isActiveDest: true },
-        'eip155:42161': { isActiveSrc: false, isActiveDest: true },
-        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': {
+        '10': { isActiveSrc: true, isActiveDest: false },
+        '534352': { isActiveSrc: true, isActiveDest: false },
+        '137': { isActiveSrc: false, isActiveDest: true },
+        '42161': { isActiveSrc: false, isActiveDest: true },
+        [ChainId.SOLANA]: {
           isActiveSrc: true,
           isActiveDest: true,
         },
       },
     };
-
-    const expectedFeatureFlagsResponse = {
-      extensionConfig: commonConfig,
-      mobileConfig: commonConfig,
+    const remoteFeatureFlagControllerState = {
+      cacheTimestamp: 1745515389440,
+      remoteFeatureFlags: {
+        bridgeConfig,
+        assetsNotificationsEnabled: false,
+        confirmation_redesign: {
+          contract_interaction: false,
+          signatures: false,
+          staking_confirmations: false,
+        },
+        confirmations_eip_7702: {},
+        earnFeatureFlagTemplate: {
+          enabled: false,
+          minimumVersion: '0.0.0',
+        },
+        earnPooledStakingEnabled: {
+          enabled: false,
+          minimumVersion: '0.0.0',
+        },
+        earnPooledStakingServiceInterruptionBannerEnabled: {
+          enabled: false,
+          minimumVersion: '0.0.0',
+        },
+        earnStablecoinLendingEnabled: {
+          enabled: false,
+          minimumVersion: '0.0.0',
+        },
+        earnStablecoinLendingServiceInterruptionBannerEnabled: {
+          enabled: false,
+          minimumVersion: '0.0.0',
+        },
+        mobileMinimumVersions: {
+          androidMinimumAPIVersion: 0,
+          appMinimumBuild: 0,
+          appleMinimumOS: 0,
+        },
+        productSafetyDappScanning: false,
+        testFlagForThreshold: {},
+        tokenSearchDiscoveryEnabled: false,
+        transactionsPrivacyPolicyUpdate: 'no_update',
+        transactionsTxHashInAnalytics: false,
+        walletFrameworkRpcFailoverEnabled: false,
+      },
     };
+
     expect(bridgeController.state).toStrictEqual(EMPTY_INIT_STATE);
 
     const setIntervalLengthSpy = jest.spyOn(
       bridgeController,
       'setIntervalLength',
     );
+    (messengerMock.call as jest.Mock).mockImplementation(() => {
+      return remoteFeatureFlagControllerState;
+    });
 
-    await bridgeController.setBridgeFeatureFlags();
-    expect(bridgeController.state.bridgeFeatureFlags).toStrictEqual(
-      expectedFeatureFlagsResponse,
-    );
+    bridgeController.setChainIntervalLength();
+
     expect(setIntervalLengthSpy).toHaveBeenCalledTimes(1);
     expect(setIntervalLengthSpy).toHaveBeenCalledWith(3);
-
-    bridgeController.resetState();
-    expect(bridgeController.state).toStrictEqual(
-      expect.objectContaining({
-        bridgeFeatureFlags: expectedFeatureFlagsResponse,
-        quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
-        quotesLastFetched: DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLastFetched,
-        quotesLoadingStatus:
-          DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLoadingStatus,
-      }),
-    );
   });
 
   const metricsContext = {

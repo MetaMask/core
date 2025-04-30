@@ -41,12 +41,12 @@ export type {
   QuoteResponse,
   FeeData,
   TxData,
-  BridgeFeatureFlags,
   BridgeControllerState,
   BridgeControllerAction,
   BridgeControllerActions,
   BridgeControllerEvents,
   BridgeControllerMessenger,
+  FeatureFlagsPlatformConfig,
 } from './types';
 
 export { StatusTypes } from './types';
@@ -54,10 +54,8 @@ export { StatusTypes } from './types';
 export {
   AssetType,
   SortOrder,
-  BridgeFlag,
   ActionTypes,
   ChainId,
-  BridgeFeatureFlagsKey,
   RequestStatus,
   BridgeUserAction,
   BridgeBackgroundAction,
@@ -129,4 +127,5 @@ export {
    * @returns Whether the quote is expired
    */
   selectIsQuoteExpired,
+  selectBridgeFeatureFlags,
 } from './selectors';
