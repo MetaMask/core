@@ -593,16 +593,14 @@ export class SeedlessOnboardingController extends BaseController<
     targetPwPubKey: SEC1EncodedPublicKey;
     globalPassword: string;
   }): Promise<{ password: string }> {
-    const {
-      encKey: currentGlobalDeviceEncKey,
-      authKeyPair: currentGlobalDeviceAuthKeyPair,
-    } = await this.#recoverEncKey(globalPassword);
+    const { encKey: latestPwEncKey, authKeyPair: latestPwAuthKeyPair } =
+      await this.#recoverEncKey(globalPassword);
 
     try {
       const res = await this.toprfClient.recoverPassword({
         targetPwPubKey,
-        curEncKey: currentGlobalDeviceEncKey,
-        curAuthKeyPair: currentGlobalDeviceAuthKeyPair,
+        curEncKey: latestPwEncKey,
+        curAuthKeyPair: latestPwAuthKeyPair,
       });
       return res;
     } catch (error) {
