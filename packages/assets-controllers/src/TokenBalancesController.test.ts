@@ -16,13 +16,17 @@ import type {
 } from './TokenBalancesController';
 import { TokenBalancesController } from './TokenBalancesController';
 import type { TokensControllerState } from './TokensController';
+import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
+import type { InternalAccount } from '../../transaction-controller/src/types';
 
 const setupController = ({
   config,
   tokens = { allTokens: {}, allDetectedTokens: {} },
+  listAccounts = [],
 }: {
   config?: Partial<ConstructorParameters<typeof TokenBalancesController>[0]>;
   tokens?: Partial<TokensControllerState>;
+  listAccounts?: InternalAccount[];
 } = {}) => {
   const messenger = new Messenger<
     TokenBalancesControllerActions | AllowedActions,
@@ -67,6 +71,12 @@ const setupController = ({
   messenger.registerActionHandler(
     'TokensController:getState',
     jest.fn().mockImplementation(() => tokens),
+  );
+
+  const mockListAccounts = jest.fn().mockReturnValue(listAccounts);
+  messenger.registerActionHandler(
+    'AccountsController:listAccounts',
+    mockListAccounts,
   );
 
   messenger.registerActionHandler(
@@ -595,6 +605,85 @@ describe('TokenBalancesController', () => {
 
       expect(controller.state).toStrictEqual({
         tokenBalances: {},
+      });
+    });
+  });
+
+  describe('when accountRemoved is published', () => {
+    it('removes the balances for the removed account', async () => {
+      const chainId = '0x1';
+      const accountAddress = '0x0000000000000000000000000000000000000000';
+      const accountAddress2 = '0x0000000000000000000000000000000000000002';
+      const tokenAddress = '0x0000000000000000000000000000000000000001';
+      const tokenAddress2 = '0x0000000000000000000000000000000000000022';
+      const account = createMockInternalAccount({
+        address: accountAddress,
+      });
+      const account2 = createMockInternalAccount({
+        address: accountAddress2,
+      });
+
+      const tokens = {
+        allDetectedTokens: {},
+        allTokens: {
+          [chainId]: {
+            [accountAddress]: [
+              { address: tokenAddress, symbol: 's', decimals: 0 },
+            ],
+            [accountAddress2]: [
+              { address: tokenAddress2, symbol: 't', decimals: 0 },
+            ],
+          },
+        },
+      };
+
+      const { controller, messenger } = setupController({
+        tokens,
+        listAccounts: [account, account2],
+      });
+      // Enable multi account balances
+      messenger.publish(
+        'PreferencesController:stateChange',
+        { isMultiAccountBalancesEnabled: true } as PreferencesState,
+        [],
+      );
+      expect(controller.state.tokenBalances).toStrictEqual({});
+
+      const balance = 123456;
+      const balance2 = 200;
+      jest.spyOn(multicall, 'multicallOrFallback').mockResolvedValue([
+        {
+          success: true,
+          value: new BN(balance),
+        },
+        { success: true, value: new BN(balance2) },
+      ]);
+
+      await controller._executePoll({ chainId });
+
+      expect(controller.state.tokenBalances).toStrictEqual({
+        [accountAddress]: {
+          [chainId]: {
+            [tokenAddress]: toHex(balance),
+          },
+        },
+        [accountAddress2]: {
+          [chainId]: {
+            [tokenAddress2]: toHex(balance2),
+          },
+        },
+      });
+
+      messenger.publish('AccountsController:accountRemoved', account.id);
+
+      await advanceTime({ clock, duration: 1 });
+
+      expect(controller.state.tokenBalances).toStrictEqual({
+        [accountAddress2]: {
+          [chainId]: {
+            [tokenAddress2]: toHex(balance2),
+          },
+        },
       });
     });
   });
