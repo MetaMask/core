@@ -178,7 +178,6 @@ export type AccountsControllerAccountAssetListUpdatedEvent = {
 };
 
 export type AllowedEvents =
-  | SnapStateChange
   | KeyringControllerStateChangeEvent
   | SnapKeyringAccountAssetListUpdatedEvent
   | SnapKeyringAccountBalancesUpdatedEvent

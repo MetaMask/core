@@ -49,8 +49,6 @@ const mockSolanaAccount: InternalAccount = {
     },
     snap: {
       id: 'local:http://localhost:8080',
-      name: 'Solana',
-      enabled: true,
     },
     lastSelected: 0,
   },
@@ -67,8 +65,6 @@ const mockEthAccount: InternalAccount = {
     },
     snap: {
       id: 'mock-eth-snap',
-      name: 'mock-eth-snap',
-      enabled: true,
     },
     lastSelected: 0,
   },
