@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 381.0.0 ([#5729](https://github.com/MetaMask/core/pull/5729))
+- Release 376.0.0 ([#5713](https://github.com/MetaMask/core/pull/5713))
+- Release 363.0.0 ([#5658](https://github.com/MetaMask/core/pull/5658))
+- Release/353.0.0 ([#5612](https://github.com/MetaMask/core/pull/5612))
+- refactor(accounts-controller): use type-cast instead of `@ts-expect-error` ([#5568](https://github.com/MetaMask/core/pull/5568))
+- Release 347.0.0 ([#5583](https://github.com/MetaMask/core/pull/5583))
+- fix(accounts-controller): do not fire events during `update` blocks ([#5555](https://github.com/MetaMask/core/pull/5555))
+- chore: bump accounts dependencies ([#5565](https://github.com/MetaMask/core/pull/5565))
+- Release 343.0.0 ([#5542](https://github.com/MetaMask/core/pull/5542))
+- Release 338.0.0 ([#5518](https://github.com/MetaMask/core/pull/5518))
+
 ### Added
 
 - Add new `setAccountNameAndSelectAccount` action ([#5714](https://github.com/MetaMask/core/pull/5714))
