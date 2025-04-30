@@ -38,6 +38,7 @@ import type { MutexInterface } from 'async-mutex';
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
 import type { Patch } from 'immer';
 // When generating a ULID within the same millisecond, monotonicFactory provides some guarantees regarding sort order.
+import { isEqual } from 'lodash';
 import { ulid } from 'ulid';
 
 import { KeyringControllerError } from './constants';
@@ -1551,8 +1552,9 @@ export class KeyringController extends BaseController<
   ): Promise<CallbackResult> {
     this.#assertIsUnlocked();
 
-    return this.#persistOrRollback(async () => {
+    return this.#withRollback(async () => {
       let keyring: SelectedKeyring | undefined;
+      let forceUpdate = false;
 
       if ('address' in selector) {
         keyring = (await this.getKeyringForAccount(selector.address)) as
@@ -1568,6 +1570,9 @@ export class KeyringController extends BaseController<
             selector.type,
             options.createWithData,
           )) as SelectedKeyring;
+
+          // This is a new keyring, so we force the vault update in that case.
+          forceUpdate = true;
         }
       } else if ('id' in selector) {
         keyring = this.#getKeyringById(selector.id) as SelectedKeyring;
@@ -1576,6 +1581,8 @@ export class KeyringController extends BaseController<
       if (!keyring) {
         throw new Error(KeyringControllerError.KeyringNotFound);
       }
+
+      const oldKeyringState = await keyring.serialize();
 
       const result = await operation({
         keyring,
@@ -1588,6 +1595,11 @@ export class KeyringController extends BaseController<
         // This error is thrown to prevent consumers using `withKeyring`
         // as a way to get a reference to a keyring instance.
         throw new Error(KeyringControllerError.UnsafeDirectKeyringAccess);
+      }
+
+      if (forceUpdate || !isEqual(oldKeyringState, await keyring.serialize())) {
+        // Keyring has been updated, we need to update the vault.
+        await this.#updateVault();
       }
 
       return result;
