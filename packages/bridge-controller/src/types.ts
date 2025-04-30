@@ -282,6 +282,11 @@ export type Quote = {
   bridges: string[];
   steps: Step[];
   refuel?: RefuelData;
+  bridgePriceData?: {
+    totalFromAmountUsd?: string;
+    totalToAmountUsd?: string;
+    priceImpact?: string;
+  };
 };
 
 /**
