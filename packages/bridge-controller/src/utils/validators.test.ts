@@ -22,6 +22,7 @@ describe('validators', () => {
           support: true,
         },
         type: 'all evm chains active',
+        expected: true,
       },
       {
         response: {
@@ -31,6 +32,7 @@ describe('validators', () => {
           support: false,
         },
         type: 'bridge disabled',
+        expected: true,
       },
       {
         response: {
@@ -93,11 +95,23 @@ describe('validators', () => {
           support: true,
         },
         type: 'evm and solana chain config',
+        expected: true,
+      },
+      {
+        response: undefined,
+        type: 'no response',
+        expected: false,
       },
     ])(
-      'should return true if the response is valid: $type',
-      ({ response }: { response: FeatureFlagsPlatformConfig }) => {
-        expect(validateFeatureFlagsResponse(response)).toBe(true);
+      'should return $expected if the response is valid: $type',
+      ({
+        response,
+        expected,
+      }: {
+        response: FeatureFlagsPlatformConfig | undefined;
+        expected: boolean;
+      }) => {
+        expect(validateFeatureFlagsResponse(response)).toBe(expected);
       },
     );
   });

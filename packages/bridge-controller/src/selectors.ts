@@ -56,16 +56,16 @@ type ExchangeRateControllerState = MultichainAssetsRatesControllerState &
 /**
  * The state of the bridge controller and all its dependency controllers
  */
+type RemoteFeatureFlagControllerState = {
+  remoteFeatureFlags: {
+    bridgeConfig: unknown;
+  };
+};
 export type BridgeAppState = BridgeControllerState & {
   gasFeeEstimates: GasFeeEstimates;
 } & ExchangeRateControllerState & {
     participateInMetaMetrics: boolean;
-  } & { bridgeConfig: Json };
-  } & {
-    remoteFeatureFlags: {
-      bridgeConfig: Json;
-    };
-  };
+  } & RemoteFeatureFlagControllerState;
 /**
  * Creates a structured selector for the bridge controller
  */
@@ -83,9 +83,8 @@ type BridgeQuotesClientParams = {
   selectedQuote: (QuoteResponse & QuoteMetadata) | null;
 };
 
-const createFeatureFlagsSelector = createSelector_.withTypes<{
-  bridgeConfig: unknown;
-}>();
+const createFeatureFlagsSelector =
+  createSelector_.withTypes<RemoteFeatureFlagControllerState>();
 
 /**
  * Selects the bridge feature flags
@@ -109,7 +108,7 @@ const createFeatureFlagsSelector = createSelector_.withTypes<{
  * ```
  */
 export const selectBridgeFeatureFlags = createFeatureFlagsSelector(
-  [(state) => state.bridgeConfig],
+  [(state) => state.remoteFeatureFlags.bridgeConfig],
   (bridgeConfig: unknown) => processFeatureFlags(bridgeConfig),
 );
 

@@ -181,11 +181,13 @@ describe('Bridge Selectors', () => {
       quoteFetchError: null,
       quotesRefreshCount: 0,
       quotesInitialLoadTime: Date.now(),
-      bridgeConfig: {
-        maxRefreshCount: 5,
-        refreshRate: 30000,
-        chains: {},
-        support: true,
+      remoteFeatureFlags: {
+        bridgeConfig: {
+          maxRefreshCount: 5,
+          refreshRate: 30000,
+          chains: {},
+          support: true,
+        },
       },
       assetExchangeRates: {},
       currencyRates: {},
@@ -239,14 +241,16 @@ describe('Bridge Selectors', () => {
         ...mockState,
         quotesRefreshCount: 5,
         quotesLastFetched: Date.now() - 40000, // 40 seconds ago
-        bridgeConfig: {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ...(mockState.bridgeConfig as any),
-          chains: {
-            '1': {
-              refreshRate: 41000,
-              isActiveSrc: true,
-              isActiveDest: true,
+        remoteFeatureFlags: {
+          bridgeConfig: {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ...(mockState.remoteFeatureFlags.bridgeConfig as any),
+            chains: {
+              '1': {
+                refreshRate: 41000,
+                isActiveSrc: true,
+                isActiveDest: true,
+              },
             },
           },
         },
@@ -269,14 +273,16 @@ describe('Bridge Selectors', () => {
         },
         quotesRefreshCount: 5,
         quotesLastFetched: Date.now() - 40000, // 40 seconds ago
-        bridgeConfig: {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ...(mockState.bridgeConfig as any),
-          chains: {
-            '1': {
-              refreshRate: 41000,
-              isActiveSrc: true,
-              isActiveDest: true,
+        remoteFeatureFlags: {
+          bridgeConfig: {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ...(mockState.remoteFeatureFlags.bridgeConfig as any),
+            chains: {
+              '1': {
+                refreshRate: 41000,
+                isActiveSrc: true,
+                isActiveDest: true,
+              },
             },
           },
         },
@@ -339,11 +345,13 @@ describe('Bridge Selectors', () => {
       quoteFetchError: null,
       quotesRefreshCount: 0,
       quotesInitialLoadTime: Date.now(),
-      bridgeConfig: {
-        maxRefreshCount: 5,
-        refreshRate: 30000,
-        chains: {},
-        support: true,
+      remoteFeatureFlags: {
+        bridgeConfig: {
+          maxRefreshCount: 5,
+          refreshRate: 30000,
+          chains: {},
+          support: true,
+        },
       },
       assetExchangeRates: {},
       currencyRates: {
@@ -523,7 +531,9 @@ describe('Bridge Selectors', () => {
 
     it('should return formatted feature flags when valid config is provided', () => {
       const result = selectBridgeFeatureFlags({
-        bridgeConfig: mockValidBridgeConfig,
+        remoteFeatureFlags: {
+          bridgeConfig: mockValidBridgeConfig,
+        },
       });
 
       expect(result).toStrictEqual({
@@ -565,7 +575,9 @@ describe('Bridge Selectors', () => {
 
     it('should return default feature flags when invalid config is provided', () => {
       const result = selectBridgeFeatureFlags({
-        bridgeConfig: mockInvalidBridgeConfig,
+        remoteFeatureFlags: {
+          bridgeConfig: mockInvalidBridgeConfig,
+        },
       });
 
       expect(result).toStrictEqual({
@@ -578,7 +590,8 @@ describe('Bridge Selectors', () => {
 
     it('should return default feature flags when bridgeConfig is undefined', () => {
       const result = selectBridgeFeatureFlags({
-        bridgeConfig: undefined,
+        // @ts-expect-error - This is a test case
+        remoteFeatureFlags: {},
       });
 
       expect(result).toStrictEqual({
@@ -591,7 +604,9 @@ describe('Bridge Selectors', () => {
 
     it('should return default feature flags when bridgeConfig is null', () => {
       const result = selectBridgeFeatureFlags({
-        bridgeConfig: null,
+        remoteFeatureFlags: {
+          bridgeConfig: null,
+        },
       });
 
       expect(result).toStrictEqual({
