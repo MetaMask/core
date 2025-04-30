@@ -14,8 +14,6 @@ import {
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkClientId } from '@metamask/network-controller';
-import type { SnapControllerState } from '@metamask/snaps-controllers';
-import { SnapStatus } from '@metamask/snaps-utils';
 import type { CaipChainId } from '@metamask/utils';
 import * as uuid from 'uuid';
 import type { V4Options } from 'uuid';
@@ -95,9 +93,7 @@ const mockAccount3: InternalAccount = {
     name: '',
     keyring: { type: KeyringTypes.snap },
     snap: {
-      enabled: true,
       id: 'mock-snap-id',
-      name: 'snap-name',
     },
     importTime: 1691565967600,
     lastSelected: 1955565967656,
@@ -115,9 +111,7 @@ const mockAccount4: InternalAccount = {
     name: 'Custom Name',
     keyring: { type: KeyringTypes.snap },
     snap: {
-      enabled: true,
       id: 'mock-snap-id',
-      name: 'snap-name',
     },
     importTime: 1955565967656,
     lastSelected: 1955565967656,
@@ -202,7 +196,6 @@ function buildAccountsControllerMessenger(messenger = buildMessenger()) {
   return messenger.getRestricted({
     name: 'AccountsController',
     allowedEvents: [
-      'SnapController:stateChange',
       'KeyringController:stateChange',
       'SnapKeyring:accountAssetListUpdated',
       'SnapKeyring:accountBalancesUpdated',
@@ -277,146 +270,6 @@ describe('AccountsController', () => {
     address: 'mock-address-2',
     keyringType: KeyringTypes.hd,
     lastSelected: 22222,
-  });
-
-  describe('onSnapStateChange', () => {
-    it('be used enable an account if the Snap is enabled and not blocked', async () => {
-      const messenger = buildMessenger();
-      const mockSnapAccount = createMockInternalAccount({
-        id: 'mock-id',
-        name: 'Snap Account 1',
-        address: '0x0',
-        keyringType: KeyringTypes.snap,
-        snap: {
-          id: 'mock-snap',
-          name: 'mock-snap-name',
-          enabled: false,
-        },
-      });
-      const mockSnapChangeState = {
-        snaps: {
-          'mock-snap': {
-            enabled: true,
-            id: 'mock-snap',
-            blocked: false,
-            status: SnapStatus.Running,
-          },
-        },
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any as SnapControllerState;
-      const { accountsController } = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {
-              [mockSnapAccount.id]: mockSnapAccount,
-            },
-            selectedAccount: mockSnapAccount.id,
-          },
-        },
-        messenger,
-      });
-
-      messenger.publish('SnapController:stateChange', mockSnapChangeState, []);
-
-      const updatedAccount = accountsController.getAccountExpect(
-        mockSnapAccount.id,
-      );
-
-      expect(updatedAccount.metadata.snap?.enabled).toBe(true);
-    });
-
-    it('be used disable an account if the Snap is disabled', async () => {
-      const messenger = buildMessenger();
-      const mockSnapAccount = createMockInternalAccount({
-        id: 'mock-id',
-        name: 'Snap Account 1',
-        address: '0x0',
-        keyringType: KeyringTypes.snap,
-        snap: {
-          id: 'mock-snap',
-          name: 'mock-snap-name',
-          enabled: true,
-        },
-      });
-      const mockSnapChangeState = {
-        snaps: {
-          'mock-snap': {
-            enabled: false,
-            id: 'mock-snap',
-            blocked: false,
-            status: SnapStatus.Running,
-          },
-        },
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any as SnapControllerState;
-      const { accountsController } = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {
-              [mockSnapAccount.id]: mockSnapAccount,
-            },
-            selectedAccount: mockSnapAccount.id,
-          },
-        },
-        messenger,
-      });
-
-      messenger.publish('SnapController:stateChange', mockSnapChangeState, []);
-
-      const updatedAccount = accountsController.getAccountExpect(
-        mockSnapAccount.id,
-      );
-
-      expect(updatedAccount.metadata.snap?.enabled).toBe(false);
-    });
-
-    it('be used disable an account if the Snap is blocked', async () => {
-      const messenger = buildMessenger();
-      const mockSnapAccount = createMockInternalAccount({
-        id: 'mock-id',
-        name: 'Snap Account 1',
-        address: '0x0',
-        keyringType: KeyringTypes.snap,
-        snap: {
-          id: 'mock-snap',
-          name: 'mock-snap-name',
-          enabled: true,
-        },
-      });
-      const mockSnapChangeState = {
-        snaps: {
-          'mock-snap': {
-            enabled: true,
-            id: 'mock-snap',
-            blocked: true,
-            status: SnapStatus.Running,
-          },
-        },
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any as SnapControllerState;
-      const { accountsController } = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {
-              [mockSnapAccount.id]: mockSnapAccount,
-            },
-            selectedAccount: mockSnapAccount.id,
-          },
-        },
-        messenger,
-      });
-
-      messenger.publish('SnapController:stateChange', mockSnapChangeState, []);
-
-      const updatedAccount = accountsController.getAccountExpect(
-        mockSnapAccount.id,
-      );
-
-      expect(updatedAccount.metadata.snap?.enabled).toBe(false);
-    });
   });
 
   describe('onKeyringStateChange', () => {
@@ -1530,8 +1383,6 @@ describe('AccountsController', () => {
         keyringType: KeyringTypes.snap,
         snap: {
           id: 'mock-snap',
-          name: 'mock-snap-name',
-          enabled: true,
         },
         type: BtcAccountType.P2wpkh,
       });
@@ -2743,8 +2594,6 @@ describe('AccountsController', () => {
         keyringType: KeyringTypes.snap,
         snap: {
           id: 'mock-non-evm-snap',
-          name: 'mock-non-evm-snap-name',
-          enabled: true,
         },
         type: BtcAccountType.P2wpkh,
       });

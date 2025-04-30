@@ -48,8 +48,6 @@ export const createMockInternalAccount = ({
   methods?: (EthMethod | BtcMethod)[];
   snap?: {
     id: string;
-    enabled: boolean;
-    name: string;
   };
   importTime?: number;
   lastSelected?: number;

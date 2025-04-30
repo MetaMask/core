@@ -27,12 +27,6 @@ import {
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { isScopeEqualToAny } from '@metamask/keyring-utils';
 import type { NetworkClientId } from '@metamask/network-controller';
-import type {
-  SnapControllerState,
-  SnapStateChange,
-} from '@metamask/snaps-controllers';
-import type { SnapId } from '@metamask/snaps-sdk';
-import type { Snap } from '@metamask/snaps-utils';
 import { type CaipChainId, isCaipChainId } from '@metamask/utils';
 import type { WritableDraft } from 'immer/dist/internal.js';
 
@@ -186,7 +180,6 @@ export type AccountsControllerAccountAssetListUpdatedEvent = {
 };
 
 export type AllowedEvents =
-  | SnapStateChange
   | KeyringControllerStateChangeEvent
   | SnapKeyringAccountAssetListUpdatedEvent
   | SnapKeyringAccountBalancesUpdatedEvent
@@ -981,34 +974,6 @@ export class AccountsController extends BaseController<
   }
 
   /**
-   * Handles the change in SnapControllerState by updating the metadata of accounts that have a snap enabled.
-   *
-   * @param snapState - The new SnapControllerState.
-   */
-  #handleOnSnapStateChange(snapState: SnapControllerState) {
-    // only check if snaps changed in status
-    const { snaps } = snapState;
-    const accounts = this.listMultichainAccounts().filter(
-      (account) => account.metadata.snap,
-    );
-
-    this.update((currentState) => {
-      accounts.forEach((account) => {
-        const currentAccount =
-          currentState.internalAccounts.accounts[account.id];
-        if (currentAccount.metadata.snap) {
-          const snapId = currentAccount.metadata.snap.id;
-          const storedSnap: Snap = snaps[snapId as SnapId];
-          if (storedSnap) {
-            currentAccount.metadata.snap.enabled =
-              storedSnap.enabled && !storedSnap.blocked;
-          }
-        }
-      });
-    });
-  }
-
-  /**
    * Returns the list of accounts for a given keyring type.
    *
    * @param keyringType - The type of keyring.
@@ -1194,11 +1159,6 @@ export class AccountsController extends BaseController<
    * Subscribes to message events.
    */
   #subscribeToMessageEvents() {
-    this.messagingSystem.subscribe(
-      'SnapController:stateChange',
-      (snapStateState) => this.#handleOnSnapStateChange(snapStateState),
-    );
-
     this.messagingSystem.subscribe(
       'KeyringController:stateChange',
       (keyringState) => this.#handleOnKeyringStateChange(keyringState),
