@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [23.3.0]
+
 ### Added
 
 - Add optional `getBlockTrackerOptions` argument to NetworkController constructor ([#5702](https://github.com/MetaMask/core/pull/5702))
@@ -827,7 +829,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.3.0...HEAD
+[23.3.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.2.0...@metamask/network-controller@23.3.0
 [23.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.1.0...@metamask/network-controller@23.2.0
 [23.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.0.0...@metamask/network-controller@23.1.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.2.1...@metamask/network-controller@23.0.0

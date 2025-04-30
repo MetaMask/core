@@ -77,7 +77,7 @@
     "@metamask/eth-json-rpc-provider": "^4.1.8",
     "@metamask/ethjs-provider-http": "^0.3.0",
     "@metamask/gas-fee-controller": "^23.0.0",
-    "@metamask/network-controller": "^23.2.0",
+    "@metamask/network-controller": "^23.3.0",
     "@metamask/remote-feature-flag-controller": "^1.6.0",
     "@types/bn.js": "^5.1.5",
     "@types/jest": "^27.4.1",
