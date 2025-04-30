@@ -50,7 +50,6 @@ export const TESTNET_TICKER_SYMBOLS = {
   LINEA_GOERLI: 'LineaETH',
   LINEA_SEPOLIA: 'LineaETH',
   MEGAETH_TESTNET: 'MegaETH',
-  MONAD_TESTNET: 'MON',
 };
 
 /**
