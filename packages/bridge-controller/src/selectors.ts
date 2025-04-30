@@ -5,7 +5,7 @@ import type {
   TokenRatesControllerState,
 } from '@metamask/assets-controllers';
 import type { GasFeeEstimates } from '@metamask/gas-fee-controller';
-import type { CaipAssetType, Json } from '@metamask/utils';
+import type { CaipAssetType } from '@metamask/utils';
 import { isStrictHexString } from '@metamask/utils';
 import { orderBy } from 'lodash';
 import {
