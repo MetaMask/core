@@ -280,7 +280,7 @@ describe('AccountsController', () => {
   });
 
   describe('onSnapStateChange', () => {
-    it('be used enable an account if the Snap is enabled and not blocked', async () => {
+    it('enables an account if the Snap is enabled and not blocked', async () => {
       const messenger = buildMessenger();
       const mockSnapAccount = createMockInternalAccount({
         id: 'mock-id',
@@ -326,7 +326,7 @@ describe('AccountsController', () => {
       expect(updatedAccount.metadata.snap?.enabled).toBe(true);
     });
 
-    it('be used disable an account if the Snap is disabled', async () => {
+    it('disables an account if the Snap is disabled', async () => {
       const messenger = buildMessenger();
       const mockSnapAccount = createMockInternalAccount({
         id: 'mock-id',
@@ -372,7 +372,7 @@ describe('AccountsController', () => {
       expect(updatedAccount.metadata.snap?.enabled).toBe(false);
     });
 
-    it('be used disable an account if the Snap is blocked', async () => {
+    it('disables an account if the Snap is blocked', async () => {
       const messenger = buildMessenger();
       const mockSnapAccount = createMockInternalAccount({
         id: 'mock-id',
@@ -416,6 +416,61 @@ describe('AccountsController', () => {
       );
 
       expect(updatedAccount.metadata.snap?.enabled).toBe(false);
+    });
+
+    it('does not trigger any unnecessary updates', async () => {
+      const messenger = buildMessenger();
+      const mockSnapAccount = createMockInternalAccount({
+        id: 'mock-id',
+        name: 'Snap Account 1',
+        address: '0x0',
+        keyringType: KeyringTypes.snap,
+        snap: {
+          id: 'mock-snap',
+          name: 'mock-snap-name',
+          enabled: false, // Will be enabled later by a `SnapController:stateChange`.
+        },
+      });
+      const mockSnapChangeState = {
+        snaps: {
+          'mock-snap': {
+            enabled: true,
+            id: 'mock-snap',
+            blocked: false,
+            status: SnapStatus.Running,
+          },
+        },
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any as SnapControllerState;
+      const mockStateChange = jest.fn();
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockSnapAccount.id]: mockSnapAccount,
+            },
+            selectedAccount: mockSnapAccount.id,
+          },
+        },
+        messenger,
+      });
+
+      messenger.subscribe('AccountsController:stateChange', mockStateChange);
+
+      // First update will update the account's metadata, thus triggering a `AccountsController:stateChange`.
+      messenger.publish('SnapController:stateChange', mockSnapChangeState, []);
+      const updatedAccount = accountsController.getAccountExpect(
+        mockSnapAccount.id,
+      );
+      expect(updatedAccount.metadata.snap?.enabled).toBe(true);
+      expect(mockStateChange).toHaveBeenCalled();
+
+      // Second update is the same, thus the account does not need any update, and SHOULD NOT trigger a `AccountsController:stateChange`.
+      mockStateChange.mockReset();
+      messenger.publish('SnapController:stateChange', mockSnapChangeState, []);
+      expect(updatedAccount.metadata.snap?.enabled).toBe(true);
+      expect(mockStateChange).not.toHaveBeenCalled();
     });
   });
 
