@@ -41,7 +41,6 @@ import MockEncryptor, {
 } from '../tests/mocks/mockEncryptor';
 import { MockErc4337Keyring } from '../tests/mocks/mockErc4337Keyring';
 import { MockKeyring } from '../tests/mocks/mockKeyring';
-import { MockMutableKeyring } from '../tests/mocks/mockMutableKeyring';
 import MockShallowGetAccountsKeyring from '../tests/mocks/mockShallowGetAccountsKeyring';
 import { buildMockTransaction } from '../tests/mocks/mockTransaction';
 
@@ -3083,10 +3082,21 @@ describe('KeyringController', () => {
         });
 
         it('should update the vault if the keyring is being updated', async () => {
+          const mockAddress = '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4';
+          stubKeyringClassWithAccount(MockKeyring, mockAddress);
           await withController(
-            { keyringBuilders: [keyringBuilderFactory(MockMutableKeyring)] },
+            { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
             async ({ controller, messenger }) => {
-              const selector = { type: MockMutableKeyring.type };
+              const selector = { type: MockKeyring.type };
+
+              await controller.addNewKeyring(MockKeyring.type);
+              const serializeSpy = jest.spyOn(
+                MockKeyring.prototype,
+                'serialize',
+              );
+              serializeSpy.mockResolvedValueOnce({
+                foo: 'bar', // Initial keyring state.
+              });
 
               const mockStateChange = jest.fn();
               messenger.subscribe(
@@ -3094,27 +3104,33 @@ describe('KeyringController', () => {
                 mockStateChange,
               );
 
-              await controller.withKeyring(
-                selector,
-                async ({ keyring }) => {
-                  (keyring as MockMutableKeyring).update(); // Update the keyring state.
-                },
-                {
-                  createIfMissing: true,
-                },
-              );
+              await controller.withKeyring(selector, async () => {
+                serializeSpy.mockResolvedValueOnce({
+                  foo: 'zzz', // Mock keyring state change.
+                });
+              });
 
               expect(mockStateChange).toHaveBeenCalled();
-              expect(controller.state.keyrings).toHaveLength(2);
             },
           );
         });
 
         it('should not update the vault if the keyring has not been updated', async () => {
+          const mockAddress = '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4';
+          stubKeyringClassWithAccount(MockKeyring, mockAddress);
           await withController(
-            { keyringBuilders: [keyringBuilderFactory(MockMutableKeyring)] },
+            { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
             async ({ controller, messenger }) => {
-              const selector = { type: MockMutableKeyring.type };
+              const selector = { type: MockKeyring.type };
+
+              await controller.addNewKeyring(MockKeyring.type);
+              const serializeSpy = jest.spyOn(
+                MockKeyring.prototype,
+                'serialize',
+              );
+              serializeSpy.mockResolvedValue({
+                foo: 'bar', // Initial keyring state.
+              });
 
               const mockStateChange = jest.fn();
               messenger.subscribe(
@@ -3122,22 +3138,6 @@ describe('KeyringController', () => {
                 mockStateChange,
               );
 
-              // First create the reading before reading from it.
-              await controller.withKeyring(
-                selector,
-                async () => {
-                  // No-op, but the keyring will still be persisted since we
-                  // used `createIfMissing`.
-                },
-                {
-                  createIfMissing: true,
-                },
-              );
-
-              expect(mockStateChange).toHaveBeenCalled();
-              expect(controller.state.keyrings).toHaveLength(2);
-
-              mockStateChange.mockReset();
               await controller.withKeyring(selector, async () => {
                 // No-op, keyring state won't be updated.
               });
