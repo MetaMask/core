@@ -1,14 +1,6 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import {
-  encrypt,
-  decrypt,
-  decryptWithDetail,
-  encryptWithDetail,
-  decryptWithKey as decryptWithKeyBrowserPassworder,
-  importKey as importKeyBrowserPassworder,
-} from '@metamask/browser-passworder';
 import type {
   KeyPair,
   NodeAuthTokens,
@@ -54,27 +46,6 @@ const log = createModuleLogger(projectLogger, controllerName);
 export function getDefaultSeedlessOnboardingControllerState(): SeedlessOnboardingControllerState {
   return {
     socialBackupsMetadata: [],
-  };
-}
-
-/**
- * Get the default vault encryptor for the Seedless Onboarding Controller.
- *
- * By default, we'll use the encryption utilities from `@metamask/browser-passworder`.
- *
- * @returns The default vault encryptor for the Seedless Onboarding Controller.
- */
-export function getDefaultSeedlessOnboardingVaultEncryptor() {
-  return {
-    encrypt,
-    encryptWithDetail,
-    decrypt,
-    decryptWithDetail,
-    decryptWithKey: decryptWithKeyBrowserPassworder as (
-      key: unknown,
-      payload: unknown,
-    ) => Promise<unknown>,
-    importKey: importKeyBrowserPassworder,
   };
 }
 
