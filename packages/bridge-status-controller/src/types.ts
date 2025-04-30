@@ -2,7 +2,6 @@ import type {
   AccountsControllerGetAccountByAddressAction,
   AccountsControllerGetSelectedMultichainAccountAction,
 } from '@metamask/accounts-controller';
-import type { TokensControllerAddDetectedTokensAction } from '@metamask/assets-controllers';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -15,6 +14,7 @@ import type {
   Quote,
   QuoteMetadata,
   QuoteResponse,
+  StatusTypes,
   TxData,
 } from '@metamask/bridge-controller';
 import type { GetGasFeeState } from '@metamask/gas-fee-controller';
@@ -45,13 +45,6 @@ export type FetchFunction = (
   init?: RequestInit,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ) => Promise<any>;
-
-export enum StatusTypes {
-  UNKNOWN = 'UNKNOWN',
-  FAILED = 'FAILED',
-  PENDING = 'PENDING',
-  COMPLETE = 'COMPLETE',
-}
 
 /**
  * These fields are specific to Solana transactions and can likely be infered from TransactionMeta
@@ -205,6 +198,8 @@ export type BridgeHistoryItem = {
   targetContractAddress?: string;
   account: string;
   hasApprovalTx: boolean;
+  approvalTxId?: string;
+  isStxEnabled?: boolean;
 };
 
 export enum BridgeStatusAction {
@@ -260,6 +255,8 @@ export type StartPollingForBridgeTxStatusArgs = {
   slippagePercentage: BridgeHistoryItem['slippagePercentage'];
   initialDestAssetBalance?: BridgeHistoryItem['initialDestAssetBalance'];
   targetContractAddress?: BridgeHistoryItem['targetContractAddress'];
+  approvalTxId?: BridgeHistoryItem['approvalTxId'];
+  isStxEnabled?: BridgeHistoryItem['isStxEnabled'];
 };
 
 /**
@@ -345,9 +342,9 @@ type AllowedActions =
   | HandleSnapRequest
   | TransactionControllerGetStateAction
   | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>
+  | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>
   | GetGasFeeState
-  | AccountsControllerGetAccountByAddressAction
-  | TokensControllerAddDetectedTokensAction;
+  | AccountsControllerGetAccountByAddressAction;
 
 /**
  * The external events available to the BridgeStatusController.

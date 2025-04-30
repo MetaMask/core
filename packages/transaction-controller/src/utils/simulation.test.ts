@@ -10,18 +10,18 @@ import {
 import type {
   SimulationResponseLog,
   SimulationResponseTransaction,
-} from './simulation-api';
+} from '../api/simulation-api';
 import {
   simulateTransactions,
   type SimulationResponse,
-} from './simulation-api';
+} from '../api/simulation-api';
 import {
   SimulationInvalidResponseError,
   SimulationRevertedError,
 } from '../errors';
 import { SimulationErrorCode, SimulationTokenStandard } from '../types';
 
-jest.mock('./simulation-api');
+jest.mock('../api/simulation-api');
 
 // Utility function to encode addresses and values to 32-byte ABI format
 const encodeTo32ByteHex = (value: string | number): Hex => {
@@ -951,6 +951,7 @@ describe('Simulation Utils', () => {
                       currentBalanceToken: '0x5',
                       feeRecipient: '0x6',
                       rateWei: '0x7',
+                      transferEstimate: '0x7a',
                     },
                     {
                       token: {
@@ -962,6 +963,7 @@ describe('Simulation Utils', () => {
                       currentBalanceToken: '0x9',
                       feeRecipient: '0xa',
                       rateWei: '0xb',
+                      transferEstimate: '0xba',
                     },
                   ],
                 },
@@ -979,6 +981,7 @@ describe('Simulation Utils', () => {
             balance: '0x5',
             decimals: 3,
             gas: '0x1',
+            gasTransfer: '0x7a',
             maxFeePerGas: '0x2',
             maxPriorityFeePerGas: '0x3',
             rateWei: '0x7',
@@ -991,6 +994,7 @@ describe('Simulation Utils', () => {
             balance: '0x9',
             decimals: 4,
             gas: '0x1',
+            gasTransfer: '0xba',
             maxFeePerGas: '0x2',
             maxPriorityFeePerGas: '0x3',
             rateWei: '0xb',
@@ -1021,6 +1025,7 @@ describe('Simulation Utils', () => {
                       currentBalanceToken: '0x5',
                       feeRecipient: '0x6',
                       rateWei: '0x7',
+                      transferEstimate: '0x7a',
                     },
                   ],
                 },
@@ -1039,6 +1044,7 @@ describe('Simulation Utils', () => {
                       currentBalanceToken: '0xc',
                       feeRecipient: '0xd',
                       rateWei: '0xe',
+                      transferEstimate: '0xee',
                     },
                   ],
                 },
@@ -1056,6 +1062,7 @@ describe('Simulation Utils', () => {
             balance: '0x5',
             decimals: 3,
             gas: '0x1',
+            gasTransfer: '0x7a',
             maxFeePerGas: '0x2',
             maxPriorityFeePerGas: '0x3',
             rateWei: '0x7',

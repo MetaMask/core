@@ -447,6 +447,11 @@ export type TransactionMeta = {
   txParams: TransactionParams;
 
   /**
+   * Initial transaction parameters before `afterAdd` hook was invoked.
+   */
+  txParamsOriginal?: TransactionParams;
+
+  /**
    * Transaction receipt.
    */
   txReceipt?: TransactionReceipt;
@@ -1705,8 +1710,11 @@ export type GasFeeToken = {
   /** Decimals of the token. */
   decimals: number;
 
-  /** The corresponding gas limit this token fee would equal. */
+  /** Estimated gas limit required for original transaction. */
   gas: Hex;
+
+  /** Estimated gas limit required for fee transfer. */
+  gasTransfer?: Hex;
 
   /** The corresponding maxFeePerGas this token fee would equal. */
   maxFeePerGas: Hex;
@@ -1756,3 +1764,13 @@ export type IsAtomicBatchSupportedResultEntry = {
   /** Address of the contract that the account would be upgraded to. */
   upgradeContractAddress?: Hex;
 };
+
+/**
+ * Custom logic to be executed after a transaction is added.
+ * Can optionally update the transaction by returning the `updateTransaction` callback.
+ */
+export type AfterAddHook = (request: {
+  transactionMeta: TransactionMeta;
+}) => Promise<{
+  updateTransaction?: (transaction: TransactionMeta) => void;
+}>;

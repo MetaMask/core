@@ -1,3 +1,4 @@
+export { walletCreateSession } from './handlers/wallet-createSession';
 export { walletGetSession } from './handlers/wallet-getSession';
 export { walletInvokeMethod } from './handlers/wallet-invokeMethod';
 export { walletRevokeSession } from './handlers/wallet-revokeSession';

@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
+
+## [12.5.0]
+
+### Added
+
+- Add URL scan cache functionality to improve performance ([#5625](https://github.com/MetaMask/core/pull/5625))
+  - Added `UrlScanCache` class for caching phishing detection scan results
+  - Added methods to `PhishingController`: `setUrlScanCacheTTL`, `setUrlScanCacheMaxSize`, `clearUrlScanCache`
+  - Added URL scan cache state to `PhishingControllerState`
+  - Added configuration options: `urlScanCacheTTL` and `urlScanCacheMaxSize`
+- Add `bulkScanUrls` method to `PhishingController` for scanning multiple URLs for phishing in bulk ([#5682](https://github.com/MetaMask/core/pull/5682))
+- Add `BulkPhishingDetectionScanResponse` type for bulk URL scan results ([#5682](https://github.com/MetaMask/core/pull/5682))
+- Add `PHISHING_DETECTION_BULK_SCAN_ENDPOINT` constant ([#5682](https://github.com/MetaMask/core/pull/5682))
+
+### Changed
+
+- Enhance `bulkScanUrls` method to leverage URL scan cache for improved performance ([#5688](https://github.com/MetaMask/core/pull/5688))
+  - URLs are now checked against the cache before making API requests
+  - Only uncached URLs are sent to the phishing detection API
+  - API results are automatically stored in the cache for future use
 - Bump `@metamask/controller-utils` to `^11.7.0` ([#5583](https://github.com/MetaMask/core/pull/5583))
 
 ## [12.4.1]
@@ -348,7 +369,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.4.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.5.0...HEAD
+[12.5.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.4.1...@metamask/phishing-controller@12.5.0
 [12.4.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.4.0...@metamask/phishing-controller@12.4.1
 [12.4.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.3.2...@metamask/phishing-controller@12.4.0
 [12.3.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.3.1...@metamask/phishing-controller@12.3.2
