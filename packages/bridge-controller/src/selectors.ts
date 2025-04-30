@@ -61,7 +61,11 @@ export type BridgeAppState = BridgeControllerState & {
 } & ExchangeRateControllerState & {
     participateInMetaMetrics: boolean;
   } & { bridgeConfig: Json };
-
+  } & {
+    remoteFeatureFlags: {
+      bridgeConfig: Json;
+    };
+  };
 /**
  * Creates a structured selector for the bridge controller
  */
