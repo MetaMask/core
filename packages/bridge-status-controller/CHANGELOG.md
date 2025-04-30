@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [17.0.0]
 
-### Uncategorized
-
-- Release 381.0.0 ([#5729](https://github.com/MetaMask/core/pull/5729))
-- Release 380.0.0 ([#5728](https://github.com/MetaMask/core/pull/5728))
-
 ### Changed
 
 - Includes submitted quote's `priceImpact` as a property in analytics events ([#5721](https://github.com/MetaMask/core/pull/5721))
