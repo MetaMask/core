@@ -76,8 +76,9 @@ const MOCK_SEED_PHRASE = stringToBytes(
   'horror pink muffin canal young photo magnet runway start elder patch until',
 );
 
-const MOCK_AUTH_PUB_KEY = 'dGVzdFB1YktleQ==';
-const MOCK_AUTH_PUB_KEY_OUTDATED = 'YXV0aHB1YmtleW91dGRhdGVk';
+const MOCK_AUTH_PUB_KEY = 'A09CwPHdl/qo2AjBOHen5d4QORaLedxOrSdgReq8IhzQ';
+const MOCK_AUTH_PUB_KEY_OUTDATED =
+  'Ao2sa8imX7SD4KE4fJLoJ/iBufmaBxSFygG1qUhW2qAb';
 
 type WithControllerCallback<ReturnValue> = ({
   controller,

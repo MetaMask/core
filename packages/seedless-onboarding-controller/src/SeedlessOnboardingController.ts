@@ -22,8 +22,8 @@ import {
   stringToBytes,
   remove0x,
   bigIntToHex,
-  bytesToHex,
 } from '@metamask/utils';
+import { secp256k1 } from '@noble/curves/secp256k1';
 import { Mutex } from 'async-mutex';
 
 import {
@@ -649,9 +649,10 @@ export class SeedlessOnboardingController extends BaseController<
           verifierId: userId,
         });
 
-      // TODO: use noble lib to deserialize and compare curve point
-      const isExpiredPwd =
-        bytesToHex(authPubKey) !== bytesToHex(globalAuthPubKey);
+      // use noble lib to deserialize and compare curve point
+      const isExpiredPwd = !secp256k1.ProjectivePoint.fromHex(
+        currentDeviceAuthPubKey,
+      ).equals(secp256k1.ProjectivePoint.fromHex(globalAuthPubKey));
       // Cache the result in state
       this.update((state) => {
         state.passwordOutdatedCache = { isExpiredPwd, timestamp: Date.now() };
