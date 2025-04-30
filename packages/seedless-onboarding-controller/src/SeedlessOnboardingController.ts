@@ -2,12 +2,11 @@ import { keccak256AndHexify } from '@metamask/auth-network-utils';
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import {
-  type EncryptionKey,
   encrypt,
   decrypt,
   decryptWithDetail,
   encryptWithDetail,
-  decryptWithKey,
+  decryptWithKey as decryptWithKeyBrowserPassworder,
   importKey as importKeyBrowserPassworder,
 } from '@metamask/browser-passworder';
 import type {
@@ -37,7 +36,6 @@ import { PasswordSyncError, RecoveryError } from './errors';
 import { projectLogger, createModuleLogger } from './logger';
 import { SeedPhraseMetadata } from './SeedPhraseMetadata';
 import type {
-  VaultEncryptor,
   MutuallyExclusiveCallback,
   SeedlessOnboardingControllerMessenger,
   SeedlessOnboardingControllerOptions,
@@ -46,6 +44,7 @@ import type {
   AuthenticatedUserDetails,
   SocialBackupsMetadata,
   SRPBackedUpUserDetails,
+  VaultEncryptor,
 } from './types';
 
 const log = createModuleLogger(projectLogger, controllerName);
@@ -68,16 +67,17 @@ export function getDefaultSeedlessOnboardingControllerState(): SeedlessOnboardin
  *
  * @returns The default vault encryptor for the Seedless Onboarding Controller.
  */
-export function getDefaultSeedlessOnboardingVaultEncryptor(): VaultEncryptor {
+export function getDefaultSeedlessOnboardingVaultEncryptor() {
   return {
     encrypt,
     encryptWithDetail,
     decrypt,
     decryptWithDetail,
-    decryptWithKey,
-    importKey: importKeyBrowserPassworder as (
-      key: string,
-    ) => Promise<EncryptionKey>,
+    decryptWithKey: decryptWithKeyBrowserPassworder as (
+      key: unknown,
+      payload: unknown,
+    ) => Promise<unknown>,
+    importKey: importKeyBrowserPassworder,
   };
 }
 
@@ -140,12 +140,12 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
     },
   };
 
-export class SeedlessOnboardingController extends BaseController<
+export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   typeof controllerName,
   SeedlessOnboardingControllerState,
   SeedlessOnboardingControllerMessenger
 > {
-  readonly #vaultEncryptor: VaultEncryptor;
+  readonly #vaultEncryptor: VaultEncryptor<EncryptionKey>;
 
   readonly #controllerOperationMutex = new Mutex();
 
@@ -172,9 +172,9 @@ export class SeedlessOnboardingController extends BaseController<
   constructor({
     messenger,
     state,
-    encryptor = getDefaultSeedlessOnboardingVaultEncryptor(),
+    encryptor,
     network = Web3AuthNetwork.Mainnet,
-  }: SeedlessOnboardingControllerOptions) {
+  }: SeedlessOnboardingControllerOptions<EncryptionKey>) {
     super({
       name: controllerName,
       metadata: seedlessOnboardingMetadata,
