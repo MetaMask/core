@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Added a hardcoded `SolScope.Mainnet` value to ensure the `signAndSendTransaction` params are always valid. Discovered Solana accounts may have an undefined `options.scope`, which causes `handleRequest` calls to throw a JSON-RPC validation error ([#])()
+
 ## [17.0.0]
 
 ### Changed

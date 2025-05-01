@@ -137,7 +137,7 @@ export const getKeyringRequest = (
           params: {
             account: { address: selectedAccount.address },
             transaction: quoteResponse.trade,
-            scope: selectedAccount.options.scope,
+            scope: SolScope.Mainnet,
           },
           method: 'signAndSendTransaction',
         },
