@@ -312,7 +312,7 @@ describe('GasFeeController', () => {
     );
   });
 
-  afterEach(async () => {
+  afterEach(() => {
     gasFeeController.destroy();
     const { blockTracker } = networkController.getProviderAndBlockTracker();
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
