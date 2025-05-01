@@ -2681,8 +2681,8 @@ describe('KeyringController', () => {
               },
               async ({ controller, encryptor }) => {
                 jest.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(false);
-                const encryptSpy = jest.spyOn(encryptor, 'encryptWithDetail');
-                jest.spyOn(encryptor, 'decryptWithKey').mockResolvedValueOnce([
+                const encryptSpy = jest.spyOn(encryptor, 'encrypt');
+                jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
                   {
                     type: KeyringTypes.hd,
                     data: {
