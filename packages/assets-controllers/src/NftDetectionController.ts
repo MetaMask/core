@@ -56,10 +56,17 @@ export type NftDetectionControllerMessenger = RestrictedMessenger<
   AllowedActions['type'],
   AllowedEvents['type']
 >;
-const supportedNftDetectionNetworks: Hex[] = [
-  ChainId.mainnet,
-  ChainId['linea-mainnet'],
-];
+
+/**
+ * A set of supported networks for NFT detection.
+ */
+const supportedNftDetectionNetworks: Set<Hex> = new Set([
+  // TODO: We should consider passing this constant from the NftDetectionController contructor
+  // to reduce the complexity to add further network into this constant
+  '0x1', // Mainnet
+  '0xe708', // Linea Mainnet
+  '0x531', // Sei
+]);
 
 /**
  * @type ApiNft
@@ -587,7 +594,7 @@ export class NftDetectionController extends BaseController<
 
     // filter out unsupported chainIds
     const supportedChainIds = chainIds.filter((chainId) =>
-      supportedNftDetectionNetworks.includes(chainId),
+      supportedNftDetectionNetworks.has(chainId),
     );
     /* istanbul ignore if */
     if (supportedChainIds.length === 0 || this.#disabled) {

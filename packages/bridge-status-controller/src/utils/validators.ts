@@ -1,3 +1,4 @@
+import { StatusTypes } from '@metamask/bridge-controller';
 import {
   object,
   string,
@@ -10,8 +11,6 @@ import {
   nullable,
   assert,
 } from '@metamask/superstruct';
-
-import { BridgeId, StatusTypes } from '../types';
 
 export const validateBridgeStatusResponse = (data: unknown) => {
   const ChainIdSchema = union([number(), string()]);
@@ -47,7 +46,7 @@ export const validateBridgeStatusResponse = (data: unknown) => {
     status: enums(Object.values(StatusTypes)),
     srcChain: SrcChainStatusSchema,
     destChain: optional(DestChainStatusSchema),
-    bridge: optional(enums(Object.values(BridgeId))),
+    bridge: optional(string()),
     isExpectedToken: optional(boolean()),
     isUnrecognizedRouterAddress: optional(boolean()),
     refuel: optional(RefuelStatusResponseSchema),

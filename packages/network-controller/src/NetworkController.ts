@@ -17,6 +17,7 @@ import {
   BUILT_IN_NETWORKS,
   BuiltInNetworkName,
 } from '@metamask/controller-utils';
+import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 import EthQuery from '@metamask/eth-query';
 import { errorCodes } from '@metamask/rpc-errors';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
@@ -621,20 +622,32 @@ export type NetworkControllerOptions = {
    */
   log?: Logger;
   /**
-   * A function that can be used to customize the options passed to a
-   * RPC service constructed for an RPC endpoint. The object that the function
-   * should return is the same as {@link RpcServiceOptions}, except that
-   * `failoverService` and `endpointUrl` are not accepted (as they are filled in
-   * automatically).
+   * A function that can be used to customize a RPC service constructed for an
+   * RPC endpoint. The function takes the URL of the endpoint and should return
+   * an object with type {@link RpcServiceOptions}, minus `failoverService`
+   * and `endpointUrl` (as they are filled in automatically).
    */
   getRpcServiceOptions: (
     rpcEndpointUrl: string,
   ) => Omit<RpcServiceOptions, 'failoverService' | 'endpointUrl'>;
-
+  /**
+   * A function that can be used to customize a block tracker constructed for an
+   * RPC endpoint. The function takes the URL of the endpoint and should return
+   * an object of type {@link PollingBlockTrackerOptions}, minus `provider` (as
+   * it is filled in automatically).
+   */
+  getBlockTrackerOptions?: (
+    rpcEndpointUrl: string,
+  ) => Omit<PollingBlockTrackerOptions, 'provider'>;
   /**
    * An array of Hex Chain IDs representing the additional networks to be included as default.
    */
   additionalDefaultNetworks?: AdditionalDefaultNetwork[];
+  /**
+   * Whether or not requests sent to unavailable RPC endpoints should be
+   * automatically diverted to configured failover RPC endpoints.
+   */
+  isRpcFailoverEnabled?: boolean;
 };
 
 /**
@@ -1080,9 +1093,16 @@ export class NetworkController extends BaseController<
 
   readonly #getRpcServiceOptions: NetworkControllerOptions['getRpcServiceOptions'];
 
+  readonly #getBlockTrackerOptions: NetworkControllerOptions['getBlockTrackerOptions'];
+
   #networkConfigurationsByNetworkClientId: Map<
     NetworkClientId,
     NetworkConfiguration
+  >;
+
+  #isRpcFailoverEnabled: Exclude<
+    NetworkControllerOptions['isRpcFailoverEnabled'],
+    undefined
   >;
 
   /**
@@ -1097,7 +1117,9 @@ export class NetworkController extends BaseController<
       infuraProjectId,
       log,
       getRpcServiceOptions,
+      getBlockTrackerOptions,
       additionalDefaultNetworks,
+      isRpcFailoverEnabled = false,
     } = options;
     const initialState = {
       ...getDefaultNetworkControllerState(additionalDefaultNetworks),
@@ -1131,6 +1153,8 @@ export class NetworkController extends BaseController<
     this.#infuraProjectId = infuraProjectId;
     this.#log = log;
     this.#getRpcServiceOptions = getRpcServiceOptions;
+    this.#getBlockTrackerOptions = getBlockTrackerOptions;
+    this.#isRpcFailoverEnabled = isRpcFailoverEnabled;
 
     this.#previouslySelectedNetworkClientId =
       this.state.selectedNetworkClientId;
@@ -1227,6 +1251,65 @@ export class NetworkController extends BaseController<
       `${this.name}:updateNetwork`,
       this.updateNetwork.bind(this),
     );
+  }
+
+  /**
+   * Enables the RPC failover functionality. That is, if any RPC endpoints are
+   * configured with failover URLs, then traffic will automatically be diverted
+   * to them if those RPC endpoints are unavailable.
+   */
+  enableRpcFailover() {
+    this.#updateRpcFailoverEnabled(true);
+  }
+
+  /**
+   * Disables the RPC failover functionality. That is, even if any RPC endpoints
+   * are configured with failover URLs, then traffic will not automatically be
+   * diverted to them if those RPC endpoints are unavailable.
+   */
+  disableRpcFailover() {
+    this.#updateRpcFailoverEnabled(false);
+  }
+
+  /**
+   * Enables or disables the RPC failover functionality, depending on the
+   * boolean given. This is done by reconstructing all network clients that were
+   * originally configured with failover URLs so that those URLs are either
+   * honored or ignored. Network client IDs will be preserved so as not to
+   * invalidate state in other controllers.
+   *
+   * @param newIsRpcFailoverEnabled - Whether or not to enable or disable the
+   * RPC failover functionality.
+   */
+  #updateRpcFailoverEnabled(newIsRpcFailoverEnabled: boolean) {
+    if (this.#isRpcFailoverEnabled === newIsRpcFailoverEnabled) {
+      return;
+    }
+
+    const autoManagedNetworkClientRegistry =
+      this.#ensureAutoManagedNetworkClientRegistryPopulated();
+
+    for (const networkClientsById of Object.values(
+      autoManagedNetworkClientRegistry,
+    )) {
+      for (const networkClientId of Object.keys(networkClientsById)) {
+        // Type assertion: We can assume that `networkClientId` is valid here.
+        const networkClient =
+          networkClientsById[
+            networkClientId as keyof typeof networkClientsById
+          ];
+        if (
+          networkClient.configuration.failoverRpcUrls &&
+          networkClient.configuration.failoverRpcUrls.length > 0
+        ) {
+          newIsRpcFailoverEnabled
+            ? networkClient.enableRpcFailover()
+            : networkClient.disableRpcFailover();
+        }
+      }
+    }
+
+    this.#isRpcFailoverEnabled = newIsRpcFailoverEnabled;
   }
 
   /**
@@ -2638,7 +2721,9 @@ export class NetworkController extends BaseController<
             ticker: networkFields.nativeCurrency,
           },
           getRpcServiceOptions: this.#getRpcServiceOptions,
+          getBlockTrackerOptions: this.#getBlockTrackerOptions,
           messenger: this.messagingSystem,
+          isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
         });
       } else {
         autoManagedNetworkClientRegistry[NetworkClientType.Custom][
@@ -2652,7 +2737,9 @@ export class NetworkController extends BaseController<
             ticker: networkFields.nativeCurrency,
           },
           getRpcServiceOptions: this.#getRpcServiceOptions,
+          getBlockTrackerOptions: this.#getBlockTrackerOptions,
           messenger: this.messagingSystem,
+          isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
         });
       }
     }
@@ -2812,7 +2899,9 @@ export class NetworkController extends BaseController<
                 ticker: networkConfiguration.nativeCurrency,
               },
               getRpcServiceOptions: this.#getRpcServiceOptions,
+              getBlockTrackerOptions: this.#getBlockTrackerOptions,
               messenger: this.messagingSystem,
+              isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
             }),
           ] as const;
         }
@@ -2827,7 +2916,9 @@ export class NetworkController extends BaseController<
               ticker: networkConfiguration.nativeCurrency,
             },
             getRpcServiceOptions: this.#getRpcServiceOptions,
+            getBlockTrackerOptions: this.#getBlockTrackerOptions,
             messenger: this.messagingSystem,
+            isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
           }),
         ] as const;
       });

@@ -11,8 +11,10 @@
     { "path": "../bridge-controller/tsconfig.build.json" },
     { "path": "../controller-utils/tsconfig.build.json" },
     { "path": "../network-controller/tsconfig.build.json" },
+    { "path": "../gas-fee-controller/tsconfig.build.json" },
     { "path": "../polling-controller/tsconfig.build.json" },
-    { "path": "../transaction-controller/tsconfig.build.json" }
+    { "path": "../transaction-controller/tsconfig.build.json" },
+    { "path": "../user-operation-controller/tsconfig.build.json" }
   ],
   "include": ["../../types", "./src"]
 }

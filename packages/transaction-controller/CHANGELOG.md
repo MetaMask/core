@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [54.4.0]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^23.2.0` to `^23.3.0` ([#5729](https://github.com/MetaMask/core/pull/5729))
+- Remove validation of `from` if `origin` is internal ([#5707](https://github.com/MetaMask/core/pull/5707))
+
+## [54.3.0]
+
+### Added
+
+- Add optional `gasTransfer` property to `GasFeeToken` ([#5681](https://github.com/MetaMask/core/pull/5681))
+
+### Changed
+
+- Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
+
+## [54.2.0]
+
+### Added
+
+- Add optional `afterAdd` hook to constructor ([#5692](https://github.com/MetaMask/core/pull/5692))
+  - Add optional `txParamsOriginal` property to `TransactionMeta`.
+  - Add `AfterAddHook` type.
+
+### Fixed
+
+- Handle errors in `isAtomicBatchSupported` method ([#5704](https://github.com/MetaMask/core/pull/5704))
+
 ## [54.1.0]
 
 ### Changed
@@ -1520,7 +1549,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@54.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@54.4.0...HEAD
+[54.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@54.3.0...@metamask/transaction-controller@54.4.0
+[54.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@54.2.0...@metamask/transaction-controller@54.3.0
+[54.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@54.1.0...@metamask/transaction-controller@54.2.0
 [54.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@54.0.0...@metamask/transaction-controller@54.1.0
 [54.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@53.0.0...@metamask/transaction-controller@54.0.0
 [53.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@52.3.0...@metamask/transaction-controller@53.0.0

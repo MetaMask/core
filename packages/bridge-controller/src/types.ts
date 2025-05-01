@@ -1,5 +1,10 @@
 import type { AccountsControllerGetSelectedMultichainAccountAction } from '@metamask/accounts-controller';
 import type {
+  GetCurrencyRateState,
+  MultichainAssetsRatesControllerGetStateAction,
+  TokenRatesControllerGetStateAction,
+} from '@metamask/assets-controllers';
+import type {
   ControllerStateChangeEvent,
   RestrictedMessenger,
 } from '@metamask/base-controller';
@@ -8,14 +13,15 @@ import type {
   NetworkControllerGetStateAction,
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
+import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type {
   CaipAccountId,
   CaipAssetId,
+  CaipAssetType,
   CaipChainId,
   Hex,
 } from '@metamask/utils';
-import type { BigNumber } from 'bignumber.js';
 
 import type { BridgeController } from './bridge-controller';
 import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge';
@@ -69,13 +75,33 @@ export type SolanaFees = {
 };
 
 /**
- * valueInCurrency values are calculated based on the user's selected currency
+ * The types of values for the token amount and its values when converted to the user's selected currency and USD
  */
 export type TokenAmountValues = {
-  amount: BigNumber;
-  valueInCurrency: BigNumber | null;
-  usd: BigNumber | null;
+  /**
+   * The amount of the token
+   *
+   * @example "1000000000000000000"
+   */
+  amount: string;
+  /**
+   * The amount of the token in the user's selected currency
+   *
+   * @example "4.55"
+   */
+  valueInCurrency: string | null;
+  /**
+   * The amount of the token in USD
+   *
+   * @example "1.234"
+   */
+  usd: string | null;
 };
+
+/**
+ * Asset exchange rate values for a given chain and address
+ */
+export type ExchangeRate = { exchangeRate?: string; usdExchangeRate?: string };
 
 /**
  * Values derived from the quote response
@@ -87,7 +113,7 @@ export type QuoteMetadata = {
   toTokenAmount: TokenAmountValues;
   adjustedReturn: Omit<TokenAmountValues, 'amount'>; // destTokenAmount - totalNetworkFee
   sentAmount: TokenAmountValues; // srcTokenAmount + metabridgeFee
-  swapRate: BigNumber; // destTokenAmount / sentAmount
+  swapRate: string; // destTokenAmount / sentAmount
   cost: Omit<TokenAmountValues, 'amount'>; // sentAmount - adjustedReturn
 };
 
@@ -132,7 +158,7 @@ export type BridgeAsset = {
   /**
    * The assetId of the token
    */
-  assetId: string;
+  assetId: CaipAssetType;
 };
 
 /**
@@ -152,10 +178,6 @@ export type BridgeToken = {
   occurrences?: number;
 };
 
-export enum BridgeFlag {
-  EXTENSION_CONFIG = 'extension-config',
-  MOBILE_CONFIG = 'mobile-config',
-}
 type DecimalChainId = string;
 export type GasMultiplierByChainId = Record<DecimalChainId, number>;
 
@@ -166,10 +188,7 @@ type FeatureFlagResponsePlatformConfig = {
   chains: Record<string, ChainConfiguration>;
 };
 
-export type FeatureFlagResponse = {
-  [BridgeFlag.EXTENSION_CONFIG]: FeatureFlagResponsePlatformConfig;
-  [BridgeFlag.MOBILE_CONFIG]: FeatureFlagResponsePlatformConfig;
-};
+export type FeatureFlagResponse = FeatureFlagResponsePlatformConfig;
 
 /**
  * This is the interface for the quote request sent to the bridge-api
@@ -199,6 +218,13 @@ export type QuoteRequest<
   refuel?: boolean;
 };
 
+export enum StatusTypes {
+  UNKNOWN = 'UNKNOWN',
+  FAILED = 'FAILED',
+  PENDING = 'PENDING',
+  COMPLETE = 'COMPLETE',
+}
+
 /**
  * These are types that components pass in. Since data is a mix of types when coming from the redux store, we need to use a generic type that can cover all the types.
  * Payloads with this type are transformed into QuoteRequest by fetchBridgeQuotes right before fetching quotes
@@ -226,8 +252,8 @@ export type Step = {
   action: ActionTypes;
   srcChainId: ChainId;
   destChainId?: ChainId;
-  srcAsset: BridgeAsset;
-  destAsset: BridgeAsset;
+  srcAsset?: BridgeAsset;
+  destAsset?: BridgeAsset;
   srcAmount: string;
   destAmount: string;
   protocol: Protocol;
@@ -250,12 +276,21 @@ export type Quote = {
   bridges: string[];
   steps: Step[];
   refuel?: RefuelData;
+  bridgePriceData?: {
+    totalFromAmountUsd?: string;
+    totalToAmountUsd?: string;
+    priceImpact?: string;
+  };
 };
 
-export type QuoteResponse = {
+/**
+ * This is the type for the quote response from the bridge-api
+ * TxDataType can be overriden to be a string when the quote is non-evm
+ */
+export type QuoteResponse<TradeType = TxData, ApprovalType = TxData | null> = {
   quote: Quote;
-  approval?: TxData | null;
-  trade: TxData;
+  approval?: ApprovalType;
+  trade: TradeType;
   estimatedProcessingTimeInSeconds: number;
 };
 
@@ -288,22 +323,14 @@ export type TxData = {
   data: string;
   gasLimit: number | null;
 };
-export enum BridgeFeatureFlagsKey {
-  EXTENSION_CONFIG = 'extensionConfig',
-  MOBILE_CONFIG = 'mobileConfig',
-}
 
-type FeatureFlagsPlatformConfig = {
+export type FeatureFlagsPlatformConfig = {
   refreshRate: number;
   maxRefreshCount: number;
   support: boolean;
   chains: Record<CaipChainId, ChainConfiguration>;
 };
 
-export type BridgeFeatureFlags = {
-  [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: FeatureFlagsPlatformConfig;
-  [BridgeFeatureFlagsKey.MOBILE_CONFIG]: FeatureFlagsPlatformConfig;
-};
 export enum RequestStatus {
   LOADING,
   FETCHED,
@@ -314,13 +341,13 @@ export enum BridgeUserAction {
   UPDATE_QUOTE_PARAMS = 'updateBridgeQuoteRequestParams',
 }
 export enum BridgeBackgroundAction {
-  SET_FEATURE_FLAGS = 'setBridgeFeatureFlags',
+  SET_CHAIN_INTERVAL_LENGTH = 'setChainIntervalLength',
   RESET_STATE = 'resetState',
   GET_BRIDGE_ERC20_ALLOWANCE = 'getBridgeERC20Allowance',
+  TRACK_METAMETRICS_EVENT = 'trackUnifiedSwapBridgeEvent',
 }
 
 export type BridgeControllerState = {
-  bridgeFeatureFlags: BridgeFeatureFlags;
   quoteRequest: Partial<GenericQuoteRequest>;
   quotes: (QuoteResponse & L1GasFees & SolanaFees)[];
   quotesInitialLoadTime: number | null;
@@ -328,6 +355,10 @@ export type BridgeControllerState = {
   quotesLoadingStatus: RequestStatus | null;
   quoteFetchError: string | null;
   quotesRefreshCount: number;
+  /**
+   * Asset exchange rates for EVM and multichain assets that are not indexed by the assets controllers
+   */
+  assetExchangeRates: Record<CaipAssetType, ExchangeRate>;
 };
 
 export type BridgeControllerAction<
@@ -339,9 +370,10 @@ export type BridgeControllerAction<
 
 // Maps to BridgeController function names
 export type BridgeControllerActions =
-  | BridgeControllerAction<BridgeBackgroundAction.SET_FEATURE_FLAGS>
+  | BridgeControllerAction<BridgeBackgroundAction.SET_CHAIN_INTERVAL_LENGTH>
   | BridgeControllerAction<BridgeBackgroundAction.RESET_STATE>
   | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>
+  | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>
   | BridgeControllerAction<BridgeUserAction.UPDATE_QUOTE_PARAMS>;
 
 export type BridgeControllerEvents = ControllerStateChangeEvent<
@@ -351,10 +383,14 @@ export type BridgeControllerEvents = ControllerStateChangeEvent<
 
 export type AllowedActions =
   | AccountsControllerGetSelectedMultichainAccountAction
+  | GetCurrencyRateState
+  | TokenRatesControllerGetStateAction
+  | MultichainAssetsRatesControllerGetStateAction
   | HandleSnapRequest
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetStateAction
-  | NetworkControllerGetNetworkClientByIdAction;
+  | NetworkControllerGetNetworkClientByIdAction
+  | RemoteFeatureFlagControllerGetStateAction;
 export type AllowedEvents = never;
 
 /**
