@@ -2361,6 +2361,7 @@ export class KeyringController extends BaseController<
    * @returns A promise resolving to `void`.
    */
   async #upgradeVaultEncryptionParams(): Promise<void> {
+    this.#assertControllerMutexIsLocked();
     const { vault } = this.state;
 
     if (
