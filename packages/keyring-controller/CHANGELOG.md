@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
 
+### Fixed
+
+- The vault encryption upgrade fails grecefully during login ([#5740](https://github.com/MetaMask/core/pull/5740))
+
 ## [21.0.4]
 
 ### Fixed
