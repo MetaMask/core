@@ -2671,6 +2671,41 @@ describe('KeyringController', () => {
           );
         });
 
+        it('should unlock the wallet if the state has a duplicate account and the encryption parameters are outdated', async () => {
+          stubKeyringClassWithAccount(MockKeyring, '0x123');
+          // @ts-expect-error HdKeyring is not yet compatible with Keyring type.
+          stubKeyringClassWithAccount(HdKeyring, '0x123');
+          await withController(
+            {
+              skipVaultCreation: true,
+              cacheEncryptionKey,
+              state: { vault: 'my vault' },
+              keyringBuilders: [keyringBuilderFactory(MockKeyring)],
+            },
+            async ({ controller, encryptor, messenger }) => {
+              const unlockListener = jest.fn();
+              messenger.subscribe('KeyringController:unlock', unlockListener);
+              jest.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(false);
+              jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+                {
+                  type: KeyringTypes.hd,
+                  data: {},
+                },
+                {
+                  type: MockKeyring.type,
+                  data: {},
+                },
+              ]);
+
+              await controller.submitPassword(password);
+
+              expect(controller.state.keyrings).toHaveLength(2);
+              expect(controller.state.isUnlocked).toBe(true);
+              expect(unlockListener).toHaveBeenCalledTimes(1);
+            },
+          );
+        });
+
         cacheEncryptionKey &&
           it('should upgrade the vault encryption if the key encryptor has different parameters', async () => {
             await withController(
@@ -2694,42 +2729,6 @@ describe('KeyringController', () => {
                 await controller.submitPassword(password);
 
                 expect(encryptSpy).toHaveBeenCalledTimes(1);
-              },
-            );
-          });
-
-        !cacheEncryptionKey &&
-          it('should unlock the wallet if the state has a duplicate account and the encryption parameters are outdated', async () => {
-            stubKeyringClassWithAccount(MockKeyring, '0x123');
-            // @ts-expect-error HdKeyring is not yet compatible with Keyring type.
-            stubKeyringClassWithAccount(HdKeyring, '0x123');
-            await withController(
-              {
-                skipVaultCreation: true,
-                cacheEncryptionKey,
-                state: { vault: 'my vault' },
-                keyringBuilders: [keyringBuilderFactory(MockKeyring)],
-              },
-              async ({ controller, encryptor, messenger }) => {
-                const unlockListener = jest.fn();
-                messenger.subscribe('KeyringController:unlock', unlockListener);
-                jest.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(false);
-                jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
-                  {
-                    type: KeyringTypes.hd,
-                    data: {},
-                  },
-                  {
-                    type: MockKeyring.type,
-                    data: {},
-                  },
-                ]);
-
-                await controller.submitPassword(password);
-
-                expect(controller.state.keyrings).toHaveLength(2);
-                expect(controller.state.isUnlocked).toBe(true);
-                expect(unlockListener).toHaveBeenCalledTimes(1);
               },
             );
           });
