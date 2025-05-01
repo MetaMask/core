@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- The vault encryption upgrade fails grecefully during login ([#5740](https://github.com/MetaMask/core/pull/5740))
+- The vault encryption upgrade fails gracefully during login ([#5740](https://github.com/MetaMask/core/pull/5740))
 
 ## [21.0.4]
 
