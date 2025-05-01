@@ -1452,7 +1452,7 @@ export class KeyringController extends BaseController<
 
     try {
       // If there are stronger encryption params available, we
-      // can attempt to upgrade the vault encryption params.
+      // can attempt to upgrade the vault.
       await this.#withRollback(async () =>
         this.#upgradeVaultEncryptionParams(),
       );
