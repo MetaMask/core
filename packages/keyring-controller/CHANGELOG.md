@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [21.0.5]
+
 ### Changed
 
 - Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
@@ -762,7 +764,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.5...HEAD
+[21.0.5]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.4...@metamask/keyring-controller@21.0.5
 [21.0.4]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.3...@metamask/keyring-controller@21.0.4
 [21.0.3]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.2...@metamask/keyring-controller@21.0.3
 [21.0.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.1...@metamask/keyring-controller@21.0.2
