@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: update bridge-status-controller's changelog ([#5738](https://github.com/MetaMask/core/pull/5738))
-
 ## [17.0.0]
 
 ### Changed
