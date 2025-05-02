@@ -124,7 +124,7 @@ export async function getSimulationData(
   request: GetSimulationDataRequest,
   options: GetSimulationDataOptions = {},
 ): Promise<GetSimulationDataResult> {
-  const { chainId, from, to, value, data } = request;
+  const { authorizationList, chainId, from, to, value, data } = request;
   const { use7702Fees } = options;
 
   log('Getting simulation data', { request, options });
@@ -145,6 +145,7 @@ export async function getSimulationData(
       },
       transactions: [
         {
+          authorizationList,
           data,
           from,
           to,
