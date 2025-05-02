@@ -28,12 +28,14 @@ export async function saveInternalAccountToUserStorage(
   const { getUserStorageControllerInstance } = options;
 
   if (
-    !canPerformAccountSyncing(options) ||
-    !isEvmAccountType(internalAccount.type) ||
-    !(await isInternalAccountFromPrimarySRPHdKeyring(internalAccount, options))
+    !canPerformAccountSyncing(options)
+    || !isEvmAccountType(internalAccount.type) // filter against solana
+    || !(await isInternalAccountFromPrimarySRPHdKeyring(internalAccount, options)) // filter against multi-srp
   ) {
     return;
   }
+
+  const entropySourceId = internalAccount.options?.entropySource?.toString();
 
   try {
     // Map the internal account to the user storage account schema
@@ -45,6 +47,7 @@ export async function saveInternalAccountToUserStorage(
 
       `${USER_STORAGE_FEATURE_NAMES.accounts}.${internalAccount.address}`,
       JSON.stringify(mappedAccount),
+      entropySourceId
     );
   } catch (e) {
     // istanbul ignore next
@@ -59,13 +62,16 @@ export async function saveInternalAccountToUserStorage(
  * Saves the list of internal accounts to the user storage.
  *
  * @param options - parameters used for saving the list of internal accounts
+ * @param entropySourceId - The entropy source ID used to derive the key,
+ * when multiple sources are available (Multi-SRP).
  */
 export async function saveInternalAccountsListToUserStorage(
   options: AccountSyncingOptions,
+  entropySourceId?: string
 ): Promise<void> {
   const { getUserStorageControllerInstance } = options;
 
-  const internalAccountsList = await getInternalAccountsList(options);
+  const internalAccountsList = await getInternalAccountsList(options, entropySourceId);
 
   if (!internalAccountsList?.length) {
     return;
@@ -81,6 +87,7 @@ export async function saveInternalAccountsListToUserStorage(
       account.a,
       JSON.stringify(account),
     ]),
+    entropySourceId
   );
 }
 

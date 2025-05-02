@@ -84,7 +84,7 @@ export async function isInternalAccountFromPrimarySRPHdKeyring(
   account: InternalAccount,
   options: AccountSyncingOptions,
 ): Promise<boolean> {
-  if (account.metadata.keyring.type !== KeyringTypes.hd) {
+  if (account.metadata.keyring.type !== KeyringTypes.hd.toString()) {
     return false;
   }
 

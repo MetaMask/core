@@ -30,7 +30,8 @@ const controllerName = 'AuthenticationController';
 // State
 export type AuthenticationControllerState = {
   isSignedIn: boolean;
-  sessionData?: LoginResponse;
+  sessionData?: LoginResponse; // TODO: deprecate this
+  srpSessionData?: Record<string, LoginResponse>;
 };
 export const defaultState: AuthenticationControllerState = {
   isSignedIn: false,
@@ -41,6 +42,10 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
     anonymous: true,
   },
   sessionData: {
+    persist: true,
+    anonymous: false,
+  },
+  srpSessionData: {
     persist: true,
     anonymous: false,
   },
@@ -214,7 +219,18 @@ export default class AuthenticationController extends BaseController<
     );
   }
 
-  async #getLoginResponseFromState(): Promise<LoginResponse | null> {
+  async #getLoginResponseFromState(
+    entropySourceId?: string,
+  ): Promise<LoginResponse | null> {
+    if (entropySourceId) {
+      if (
+        !this.state.srpSessionData ||
+        !this.state.srpSessionData[entropySourceId]
+      ) {
+        return null;
+      }
+      return this.state.srpSessionData[entropySourceId];
+    }
     if (!this.state.sessionData) {
       return null;
     }
@@ -222,17 +238,33 @@ export default class AuthenticationController extends BaseController<
     return this.state.sessionData;
   }
 
-  async #setLoginResponseToState(loginResponse: LoginResponse) {
+  async #setLoginResponseToState(
+    loginResponse: LoginResponse,
+    entropySourceId?: string,
+  ) {
     const metaMetricsId = await this.#metametrics.getMetaMetricsId();
     this.update((state) => {
       state.isSignedIn = true;
-      state.sessionData = {
-        ...loginResponse,
-        profile: {
-          ...loginResponse.profile,
-          metaMetricsId,
-        },
-      };
+      if (entropySourceId) {
+        if (!state.srpSessionData) {
+          state.srpSessionData = {};
+        }
+        state.srpSessionData[entropySourceId] = {
+          ...loginResponse,
+          profile: {
+            ...loginResponse.profile,
+            metaMetricsId,
+          },
+        };
+      } else {
+        state.sessionData = {
+          ...loginResponse,
+          profile: {
+            ...loginResponse.profile,
+            metaMetricsId,
+          },
+        };
+      }
     });
   }
 
@@ -242,9 +274,9 @@ export default class AuthenticationController extends BaseController<
     }
   }
 
-  public async performSignIn(): Promise<string> {
+  public async performSignIn(entropySourceId?: string): Promise<string> {
     this.#assertIsUnlocked('performSignIn');
-    return await this.#auth.getAccessToken();
+    return await this.#auth.getAccessToken(entropySourceId);
   }
 
   public performSignOut(): void {
@@ -261,20 +293,24 @@ export default class AuthenticationController extends BaseController<
    * @returns profile for the session.
    */
 
-  public async getBearerToken(): Promise<string> {
+  public async getBearerToken(entropySourceId?: string): Promise<string> {
     this.#assertIsUnlocked('getBearerToken');
-    return await this.#auth.getAccessToken();
+    return await this.#auth.getAccessToken(entropySourceId);
   }
 
   /**
    * Will return a session profile.
    * Logs a user in if a user is not logged in.
    *
+   * @param entropySourceId - The entropy source ID used to derive the key,
+   * when multiple sources are available (Multi-SRP).
    * @returns profile for the session.
    */
-  public async getSessionProfile(): Promise<UserProfile> {
+  public async getSessionProfile(
+    entropySourceId?: string,
+  ): Promise<UserProfile> {
     this.#assertIsUnlocked('getSessionProfile');
-    return await this.#auth.getUserProfile();
+    return await this.#auth.getUserProfile(entropySourceId);
   }
 
   public isSignedIn(): boolean {
@@ -284,14 +320,16 @@ export default class AuthenticationController extends BaseController<
   /**
    * Returns the auth snap public key.
    *
+   * @param entropySourceId - The entropy source ID used to derive the key,
+   * when multiple sources are available (Multi-SRP).
    * @returns The snap public key.
    */
-  async #snapGetPublicKey(): Promise<string> {
+  async #snapGetPublicKey(entropySourceId?: string): Promise<string> {
     this.#assertIsUnlocked('#snapGetPublicKey');
 
     const result = (await this.messagingSystem.call(
       'SnapController:handleRequest',
-      createSnapPublicKeyRequest(),
+      createSnapPublicKeyRequest(entropySourceId),
     )) as string;
 
     return result;
@@ -303,9 +341,14 @@ export default class AuthenticationController extends BaseController<
    * Signs a specific message using an underlying auth snap.
    *
    * @param message - A specific tagged message to sign.
+   * @param entropySourceId - The entropy source ID used to derive the key,
+   * when multiple sources are available (Multi-SRP).
    * @returns A Signature created by the snap.
    */
-  async #snapSignMessage(message: string): Promise<string> {
+  async #snapSignMessage(
+    message: string,
+    entropySourceId?: string,
+  ): Promise<string> {
     assertMessageStartsWithMetamask(message);
 
     if (this.#_snapSignMessageCache[message]) {
@@ -316,7 +359,7 @@ export default class AuthenticationController extends BaseController<
 
     const result = (await this.messagingSystem.call(
       'SnapController:handleRequest',
-      createSnapSignMessageRequest(message),
+      createSnapSignMessageRequest(message, entropySourceId),
     )) as string;
 
     this.#_snapSignMessageCache[message] = result;
