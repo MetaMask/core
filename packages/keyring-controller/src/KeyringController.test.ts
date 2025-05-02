@@ -4,7 +4,6 @@ import { TransactionFactory } from '@ethereumjs/tx';
 import { CryptoHDKey, ETHSignature } from '@keystonehq/bc-ur-registry-eth';
 import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-keyring';
 import { Messenger } from '@metamask/base-controller';
-import type { HDKeyringState } from '@metamask/eth-hd-keyring';
 import { HdKeyring } from '@metamask/eth-hd-keyring';
 import {
   normalize,
