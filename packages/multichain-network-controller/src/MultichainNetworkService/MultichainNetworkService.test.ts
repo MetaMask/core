@@ -28,7 +28,18 @@ describe('MultichainNetworkService', () => {
   });
 
   describe('fetchNetworkActivity', () => {
-    it('makes request with correct URL and headers', async () => {
+    it('returns empty response for empty account list without making network requests', async () => {
+      const service = new MultichainNetworkService({
+        fetch: mockFetch,
+      });
+
+      const result = await service.fetchNetworkActivity([]);
+
+      expect(mockFetch).not.toHaveBeenCalled();
+      expect(result).toStrictEqual({ activeNetworks: [] });
+    });
+
+    it('makes request with correct URL and headers for single batch', async () => {
       const mockResponse: ActiveNetworksResponse = {
         activeNetworks: [
           `${KnownCaipNamespace.Eip155}:${MOCK_EVM_CHAIN_1}:${MOCK_EVM_ADDRESS}`,
@@ -57,6 +68,42 @@ describe('MultichainNetworkService', () => {
         },
       );
       expect(result).toStrictEqual(mockResponse);
+    });
+
+    it('batches requests when account IDs exceed batch size', async () => {
+      const manyAccountIds: CaipAccountId[] = [];
+      for (let i = 1; i <= 30; i++) {
+        manyAccountIds.push(
+          `${KnownCaipNamespace.Eip155}:${i}:${MOCK_EVM_ADDRESS}` as CaipAccountId,
+        );
+      }
+
+      const firstBatchResponse = {
+        activeNetworks: manyAccountIds.slice(0, 20),
+      };
+      const secondBatchResponse = { activeNetworks: manyAccountIds.slice(20) };
+
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(firstBatchResponse),
+        })
+        .mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve(secondBatchResponse),
+        });
+
+      const service = new MultichainNetworkService({
+        fetch: mockFetch,
+      });
+
+      const result = await service.fetchNetworkActivity(manyAccountIds);
+
+      expect(mockFetch).toHaveBeenCalled();
+
+      for (const accountId of manyAccountIds) {
+        expect(result.activeNetworks).toContain(accountId);
+      }
     });
 
     it('throws error for non-200 response', async () => {
