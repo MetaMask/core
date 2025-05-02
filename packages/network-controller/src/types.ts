@@ -1,4 +1,8 @@
-import type { InfuraNetworkType, ChainId } from '@metamask/controller-utils';
+import type { 
+  InfuraNetworkType,
+  CustomNetworkType,
+  ChainId
+} from '@metamask/controller-utils';
 import type { BlockTracker as BaseBlockTracker } from '@metamask/eth-block-tracker';
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import type { Hex } from '@metamask/utils';
@@ -57,6 +61,4 @@ export type NetworkClientConfiguration =
 /**
  * The Chain ID representing the additional networks to be included as default.
  */
-export type AdditionalDefaultNetwork =
-  | (typeof ChainId)['megaeth-testnet']
-  | (typeof ChainId)['monad-testnet'];
+export type AdditionalDefaultNetwork = (typeof ChainId)[keyof typeof  CustomNetworkType];
