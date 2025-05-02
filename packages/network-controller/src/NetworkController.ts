@@ -728,39 +728,63 @@ function getDefaultCustomNetworkConfigurationsByChainId(): Record<
   Hex,
   NetworkConfiguration
 > {
-  return Object.values(CustomNetworkType).reduce<
-    Record<Hex, NetworkConfiguration>
-  >((obj, customNetworkType) => {
-    const chainId = ChainId[customNetworkType];
-    const { ticker, rpcPrefs } = BUILT_IN_NETWORKS[customNetworkType];
-    // It converts client id to upper case and replace '-' with '_'
-    // to match the key in BUILT_IN_CUSTOM_NETWORKS_RPC
-    // e.g. 'megaeth-testnet' to 'MEGAETH_TESTNET'
-    // e.g. 'monad-testnet' to 'MONAD_TESTNET'
-    // TODO: Refactor controller-utils to use the same format as others
-    const rpcEndpointUrlKey = customNetworkType
-      .toUpperCase()
-      .replace('-', '_') as keyof typeof BUILT_IN_CUSTOM_NETWORKS_RPC;
+  // Create the `networkConfigurationsByChainId` objects explicitly,
+  // Because it is not always guaranteed that the custom networks are included in the
+  // default networks.
+  return {
+    [ChainId['megaeth-testnet']]: getCustomNetworkConfiguration(
+      CustomNetworkType['megaeth-testnet'],
+    ),
+    [ChainId['monad-testnet']]: getCustomNetworkConfiguration(
+      CustomNetworkType['monad-testnet'],
+    ),
+  }
+}
 
-    const networkConfiguration: NetworkConfiguration = {
-      blockExplorerUrls: [rpcPrefs.blockExplorerUrl],
-      chainId: ChainId[customNetworkType],
-      defaultRpcEndpointIndex: 0,
-      defaultBlockExplorerUrlIndex: 0,
-      name: NetworkNickname[customNetworkType],
-      nativeCurrency: ticker,
-      rpcEndpoints: [
-        {
-          failoverUrls: [],
-          networkClientId: customNetworkType,
-          type: RpcEndpointType.Custom,
-          url: BUILT_IN_CUSTOM_NETWORKS_RPC[rpcEndpointUrlKey],
-        },
-      ],
-    };
+/**
+ * Constructs a `NetworkConfiguration` object by `CustomNetworkType`.
+ *
+ * @param customNetworkType - The type of the custom network.
+ * @returns The `NetworkConfiguration` object.
+ */
+function getCustomNetworkConfiguration(customNetworkType:CustomNetworkType): NetworkConfiguration {
+  const chainId = ChainId[customNetworkType];
+  const { ticker, rpcPrefs } = BUILT_IN_NETWORKS[customNetworkType];
+  const rpcEndpointUrl = getCustomNetworkRpcEndpointUrl(chainId);
 
-    return { ...obj, [chainId]: networkConfiguration };
-  }, {});
+  return  {
+    blockExplorerUrls: [rpcPrefs.blockExplorerUrl],
+    chainId: ChainId[customNetworkType],
+    defaultRpcEndpointIndex: 0,
+    defaultBlockExplorerUrlIndex: 0,
+    name: NetworkNickname[customNetworkType],
+    nativeCurrency: ticker,
+    rpcEndpoints: [
+      {
+        failoverUrls: [],
+        networkClientId: customNetworkType,
+        type: RpcEndpointType.Custom,
+        url: rpcEndpointUrl,
+      },
+    ],
+  };
+}
+
+/**
+ * Get the RPC endpoint URL for a custom network by supported chain ID.
+ * 
+ * @param chainId - The chain ID of the custom network.
+ * @returns The RPC endpoint URL.
+ */
+function getCustomNetworkRpcEndpointUrl(chainId: AdditionalDefaultNetwork): string {
+  switch (chainId) {
+    case ChainId['megaeth-testnet']:
+      return BUILT_IN_CUSTOM_NETWORKS_RPC.MEGAETH_TESTNET;
+    case ChainId['monad-testnet']:
+      return BUILT_IN_CUSTOM_NETWORKS_RPC.MONAD_TESTNET;
+    default:
+      throw new Error(`Unsupported chain ID: ${chainId}`);
+  }
 }
 
 /**
