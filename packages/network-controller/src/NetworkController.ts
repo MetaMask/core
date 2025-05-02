@@ -738,7 +738,7 @@ function getDefaultCustomNetworkConfigurationsByChainId(): Record<
     [ChainId['monad-testnet']]: getCustomNetworkConfiguration(
       CustomNetworkType['monad-testnet'],
     ),
-  }
+  };
 }
 
 /**
@@ -747,12 +747,14 @@ function getDefaultCustomNetworkConfigurationsByChainId(): Record<
  * @param customNetworkType - The type of the custom network.
  * @returns The `NetworkConfiguration` object.
  */
-function getCustomNetworkConfiguration(customNetworkType:CustomNetworkType): NetworkConfiguration {
+function getCustomNetworkConfiguration(
+  customNetworkType: CustomNetworkType,
+): NetworkConfiguration {
   const chainId = ChainId[customNetworkType];
   const { ticker, rpcPrefs } = BUILT_IN_NETWORKS[customNetworkType];
   const rpcEndpointUrl = getCustomNetworkRpcEndpointUrl(chainId);
 
-  return  {
+  return {
     blockExplorerUrls: [rpcPrefs.blockExplorerUrl],
     chainId: ChainId[customNetworkType],
     defaultRpcEndpointIndex: 0,
@@ -772,11 +774,13 @@ function getCustomNetworkConfiguration(customNetworkType:CustomNetworkType): Net
 
 /**
  * Get the RPC endpoint URL for a custom network by supported chain ID.
- * 
+ *
  * @param chainId - The chain ID of the custom network.
  * @returns The RPC endpoint URL.
  */
-function getCustomNetworkRpcEndpointUrl(chainId: AdditionalDefaultNetwork): string {
+function getCustomNetworkRpcEndpointUrl(
+  chainId: AdditionalDefaultNetwork,
+): string {
   switch (chainId) {
     case ChainId['megaeth-testnet']:
       return BUILT_IN_CUSTOM_NETWORKS_RPC.MEGAETH_TESTNET;
