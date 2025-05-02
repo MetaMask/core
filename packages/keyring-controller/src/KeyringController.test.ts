@@ -4,6 +4,7 @@ import { TransactionFactory } from '@ethereumjs/tx';
 import { CryptoHDKey, ETHSignature } from '@keystonehq/bc-ur-registry-eth';
 import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-keyring';
 import { Messenger } from '@metamask/base-controller';
+import type { HDKeyringState } from '@metamask/eth-hd-keyring';
 import { HdKeyring } from '@metamask/eth-hd-keyring';
 import {
   normalize,
@@ -262,14 +263,26 @@ describe('KeyringController', () => {
     });
 
     it('should throw error if the account is duplicated', async () => {
-      jest
-        .spyOn(HdKeyring.prototype, 'addAccounts')
-        .mockResolvedValue(['0x123']);
-      jest.spyOn(HdKeyring.prototype, 'getAccounts').mockReturnValue(['0x123']);
+      const mockAddress = '0x123';
+      const addAccountsSpy = jest.spyOn(HdKeyring.prototype, 'addAccounts');
+      const getAccountsSpy = jest.spyOn(HdKeyring.prototype, 'getAccounts');
+      const serializeSpy = jest.spyOn(HdKeyring.prototype, 'serialize');
+
+      addAccountsSpy.mockResolvedValue([mockAddress]);
+      getAccountsSpy.mockReturnValue([mockAddress]);
       await withController(async ({ controller }) => {
-        jest
-          .spyOn(HdKeyring.prototype, 'getAccounts')
-          .mockReturnValue(['0x123', '0x123']);
+        getAccountsSpy.mockReturnValue([mockAddress, mockAddress]);
+        serializeSpy
+          .mockResolvedValueOnce({
+            mnemonic: '',
+            numberOfAccounts: 1,
+            hdPath: "m/44'/60'/0'/0",
+          })
+          .mockResolvedValueOnce({
+            mnemonic: '',
+            numberOfAccounts: 2,
+            hdPath: "m/44'/60'/0'/0",
+          });
         await expect(controller.addNewAccount()).rejects.toThrow(
           KeyringControllerError.DuplicatedAccount,
         );
@@ -314,6 +327,11 @@ describe('KeyringController', () => {
             const mockKeyring = controller.getKeyringsByType(
               MockShallowGetAccountsKeyring.type,
             )[0] as EthKeyring;
+
+            jest
+              .spyOn(mockKeyring, 'serialize')
+              .mockResolvedValueOnce({ numberOfAccounts: 1 })
+              .mockResolvedValueOnce({ numberOfAccounts: 2 });
 
             const addedAccountAddress =
               await controller.addNewAccountForKeyring(mockKeyring);
@@ -3119,7 +3137,9 @@ describe('KeyringController', () => {
           const mockAddress = '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4';
           stubKeyringClassWithAccount(MockKeyring, mockAddress);
           await withController(
-            { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
+            {
+              keyringBuilders: [keyringBuilderFactory(MockKeyring)],
+            },
             async ({ controller, messenger }) => {
               const selector = { type: MockKeyring.type };
 

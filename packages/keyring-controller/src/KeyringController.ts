@@ -322,6 +322,13 @@ export type SerializedKeyring = {
 };
 
 /**
+ * A serialized keyring and metadata object.
+ */
+export type SerializedKeyringAndMetadata = SerializedKeyring & {
+  metadata?: KeyringMetadata;
+};
+
+/**
  * A generic encryptor interface that supports encrypting and decrypting
  * serializable data with a password.
  */
@@ -1029,7 +1036,8 @@ export class KeyringController extends BaseController<
    */
   async persistAllKeyrings(): Promise<boolean> {
     this.#assertIsUnlocked();
-    return this.#persistOrRollback(async () => true);
+
+    return this.#persistOrRollback(async () => true, { forceUpdate: true });
   }
 
   /**
@@ -1400,20 +1408,24 @@ export class KeyringController extends BaseController<
    */
   changePassword(password: string): Promise<void> {
     this.#assertIsUnlocked();
-    return this.#persistOrRollback(async () => {
-      assertIsValidPassword(password);
 
-      this.#password = password;
-      // We need to clear encryption key and salt from state
-      // to force the controller to re-encrypt the vault using
-      // the new password.
-      if (this.#cacheEncryptionKey) {
-        this.update((state) => {
-          delete state.encryptionKey;
-          delete state.encryptionSalt;
-        });
-      }
-    });
+    return this.#persistOrRollback(
+      async () => {
+        assertIsValidPassword(password);
+
+        this.#password = password;
+        // We need to clear encryption key and salt from state
+        // to force the controller to re-encrypt the vault using
+        // the new password.
+        if (this.#cacheEncryptionKey) {
+          this.update((state) => {
+            delete state.encryptionKey;
+            delete state.encryptionSalt;
+          });
+        }
+      },
+      { forceUpdate: true },
+    );
   }
 
   /**
@@ -1552,9 +1564,8 @@ export class KeyringController extends BaseController<
   ): Promise<CallbackResult> {
     this.#assertIsUnlocked();
 
-    return this.#withRollback(async () => {
+    return this.#persistOrRollback(async () => {
       let keyring: SelectedKeyring | undefined;
-      let forceUpdate = false;
 
       if ('address' in selector) {
         keyring = (await this.getKeyringForAccount(selector.address)) as
@@ -1570,9 +1581,6 @@ export class KeyringController extends BaseController<
             selector.type,
             options.createWithData,
           )) as SelectedKeyring;
-
-          // This is a new keyring, so we force the vault update in that case.
-          forceUpdate = true;
         }
       } else if ('id' in selector) {
         keyring = this.#getKeyringById(selector.id) as SelectedKeyring;
@@ -1581,8 +1589,6 @@ export class KeyringController extends BaseController<
       if (!keyring) {
         throw new Error(KeyringControllerError.KeyringNotFound);
       }
-
-      const oldKeyringState = await keyring.serialize();
 
       const result = await operation({
         keyring,
@@ -1595,11 +1601,6 @@ export class KeyringController extends BaseController<
         // This error is thrown to prevent consumers using `withKeyring`
         // as a way to get a reference to a keyring instance.
         throw new Error(KeyringControllerError.UnsafeDirectKeyringAccess);
-      }
-
-      if (forceUpdate || !isEqual(oldKeyringState, await keyring.serialize())) {
-        // Keyring has been updated, we need to update the vault.
-        await this.#updateVault();
       }
 
       return result;
@@ -2159,6 +2160,38 @@ export class KeyringController extends BaseController<
   }
 
   /**
+   * Serialize the current array of keyring instances and their metadata,
+   * including unsupported keyrings by default.
+   *
+   * @param options - Method options.
+   * @param options.includeUnsupported - Whether to include unsupported keyrings.
+   * @returns The serialized keyrings.
+   */
+  async #getSerializedKeyringsAndMetadata(
+    { includeUnsupported }: { includeUnsupported: boolean } = {
+      includeUnsupported: true,
+    },
+  ): Promise<SerializedKeyringAndMetadata[]> {
+    const serializedKeyrings = await this.#getSerializedKeyrings({
+      includeUnsupported,
+    });
+
+    const serializedKeyringsAndMetadata: SerializedKeyringAndMetadata[] =
+      serializedKeyrings.map((serialized, index) => {
+        return {
+          ...serialized,
+          metadata: this.#keyringsMetadata[index],
+        };
+      });
+
+    if (includeUnsupported) {
+      serializedKeyringsAndMetadata.push(...this.#unsupportedKeyrings);
+    }
+
+    return serializedKeyringsAndMetadata;
+  }
+
+  /**
    * Restore a serialized keyrings array.
    *
    * @param serializedKeyrings - The serialized keyrings array.
@@ -2629,19 +2662,31 @@ export class KeyringController extends BaseController<
 
   /**
    * Execute the given function after acquiring the controller lock
-   * and save the keyrings to state after it, or rollback to their
+   * and save the vault to state after it (only if needed), or rollback to their
    * previous state in case of error.
    *
    * @param callback - The function to execute.
+   * @param options - Options.
+   * @param options.forceUpdate - Force the vault update.
    * @returns The result of the function.
    */
   async #persistOrRollback<Result>(
     callback: MutuallyExclusiveCallback<Result>,
+    { forceUpdate }: { forceUpdate: boolean } = { forceUpdate: false },
   ): Promise<Result> {
     return this.#withRollback(async ({ releaseLock }) => {
+      const oldState = !forceUpdate
+        ? await this.#getSerializedKeyringsAndMetadata()
+        : []; // No need to serialize anything when forcing the update.
       const callbackResult = await callback({ releaseLock });
-      // State is committed only if the operation is successful
-      await this.#updateVault();
+      const newState = !forceUpdate
+        ? await this.#getSerializedKeyringsAndMetadata()
+        : []; // Same.
+
+      // State is committed only if the operation is successful and need to trigger a vault update.
+      if (forceUpdate || !isEqual(oldState, newState)) {
+        await this.#updateVault();
+      }
 
       return callbackResult;
     });
