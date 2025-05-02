@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `isEIP7702GasFeeTokensEnabled` constructor callback ([#5706](https://github.com/MetaMask/core/pull/5706))
+
 ## [54.4.0]
 
 ### Changed
@@ -18,7 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `isEIP7702GasFeeTokensEnabled` constructor callback ([#5706](https://github.com/MetaMask/core/pull/5706))
 - Add optional `gasTransfer` property to `GasFeeToken` ([#5681](https://github.com/MetaMask/core/pull/5681))
 
 ### Changed
