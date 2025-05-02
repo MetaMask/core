@@ -62,7 +62,7 @@ export const BUILT_IN_CUSTOM_NETWORKS_RPC = {
   MEGAETH_TESTNET: 'https://carrot.megaeth.com/rpc',
   'megaeth-testnet': 'https://carrot.megaeth.com/rpc',
   'monad-testnet': 'https://testnet-rpc.monad.xyz',
-}
+};
 
 /**
  * Map of all build-in Infura networks to their network, ticker and chain IDs.
