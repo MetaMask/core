@@ -28,7 +28,8 @@ import type {
   SimulationData,
   SimulationTokenBalanceChange,
   SimulationToken,
-  GasFeeToken,
+  TransactionParams,
+  AuthorizationList,
 } from '../types';
 import { SimulationTokenStandard } from '../types';
 
@@ -42,18 +43,10 @@ export enum SupportedToken {
 
 type ABI = Fragment[];
 
-export type GetSimulationDataRequest = {
-  authorizationList?: SimulationRequestTransaction['authorizationList'];
+export type GetBalanceChangesRequest = {
+  blockTime?: number;
   chainId: Hex;
-  data?: Hex;
-  from: Hex;
-  to?: Hex;
-  value?: Hex;
-};
-
-export type GetSimulationDataResult = {
-  gasFeeTokens: GasFeeToken[];
-  simulationData: SimulationData;
+  txParams: TransactionParams;
 };
 
 type ParsedEvent = {
@@ -64,13 +57,7 @@ type ParsedEvent = {
   abi: ABI;
 };
 
-type GetSimulationDataOptions = {
-  blockTime?: number;
-  senderCode?: Hex;
-  use7702Fees?: boolean;
-};
-
-const log = createModuleLogger(projectLogger, 'simulation');
+const log = createModuleLogger(projectLogger, 'balance-changes');
 
 const SUPPORTED_EVENTS = [
   'Transfer',
@@ -116,36 +103,32 @@ type BalanceTransactionMap = Map<SimulationToken, SimulationRequestTransaction>;
  * @param request.to - The recipient of the transaction.
  * @param request.value - The value of the transaction.
  * @param request.data - The data of the transaction.
- * @param options - Additional options.
- * @param options.blockTime - An optional block time to simulate the transaction at.
  * @returns The simulation data.
  */
-export async function getSimulationData(
-  request: GetSimulationDataRequest,
-  options: GetSimulationDataOptions = {},
-): Promise<GetSimulationDataResult> {
-  const { authorizationList, chainId, from, to, value, data } = request;
-  const { use7702Fees } = options;
+export async function getBalanceChanges(
+  request: GetBalanceChangesRequest,
+): Promise<SimulationData> {
+  const { blockTime, chainId, txParams } = request;
+  const { authorizationList } = txParams;
+  const data = txParams.data as Hex;
+  const from = txParams.from as Hex;
+  const to = txParams.to as Hex;
+  const value = txParams.value as Hex;
 
-  log('Getting simulation data', { request, options });
+  log('Request', request);
 
   try {
     const response = await baseRequest({
+      authorizationList,
+      blockTime,
       chainId,
       from,
-      options,
       params: {
-        suggestFees: {
-          withFeeTransfer: true,
-          withTransfer: true,
-          ...(use7702Fees ? { with7702: true } : {}),
-        },
         withCallTrace: true,
         withLogs: true,
       },
       transactions: [
         {
-          authorizationList,
           data,
           from,
           to,
@@ -160,36 +143,21 @@ export async function getSimulationData(
       throw new SimulationError(transactionError);
     }
 
-    const nativeBalanceChange = getNativeBalanceChange(request.from, response);
+    const nativeBalanceChange = getNativeBalanceChange(from, response);
     const events = getEvents(response);
 
     log('Parsed events', events);
 
-    const tokenBalanceChanges = await getTokenBalanceChanges(
-      request,
-      events,
-      options,
-    );
+    const tokenBalanceChanges = await getTokenBalanceChanges(request, events);
 
     const simulationData = {
       nativeBalanceChange,
       tokenBalanceChanges,
     };
 
-    let gasFeeTokens: GasFeeToken[] = [];
-
-    try {
-      gasFeeTokens = getGasFeeTokens(response);
-    } catch (error) {
-      log('Failed to parse gas fee tokens', error, response);
-    }
-
-    return {
-      gasFeeTokens,
-      simulationData,
-    };
+    return simulationData;
   } catch (error) {
-    log('Failed to get simulation data', error, request);
+    log('Failed to get balance changes', error, request);
 
     let simulationError = error as SimulationError;
 
@@ -204,13 +172,10 @@ export async function getSimulationData(
     const { code, message } = simulationError;
 
     return {
-      gasFeeTokens: [],
-      simulationData: {
-        tokenBalanceChanges: [],
-        error: {
-          code,
-          message,
-        },
+      tokenBalanceChanges: [],
+      error: {
+        code,
+        message,
       },
     };
   }
@@ -251,7 +216,7 @@ function getNativeBalanceChange(
  * @param response - The simulation response.
  * @returns The parsed events.
  */
-export function getEvents(response: SimulationResponse): ParsedEvent[] {
+function getEvents(response: SimulationResponse): ParsedEvent[] {
   /* istanbul ignore next */
   const logs = extractLogs(
     response.transactions[0]?.callTrace ?? ({} as SimulationResponseCallTrace),
@@ -345,23 +310,31 @@ function normalizeEventArgValue(value: any): any {
  *
  * @param request - The transaction that was simulated.
  * @param events - The parsed events.
- * @param options - Additional options.
- * @param options.blockTime - An optional block time to simulate the transaction at.
  * @returns An array of token balance changes.
  */
 async function getTokenBalanceChanges(
-  request: GetSimulationDataRequest,
+  request: GetBalanceChangesRequest,
   events: ParsedEvent[],
-  options: GetSimulationDataOptions,
 ): Promise<SimulationTokenBalanceChange[]> {
-  const { chainId, from } = request;
+  const { blockTime, chainId, txParams } = request;
+  const data = txParams.data as Hex;
+  const from = txParams.from as Hex;
+  const to = txParams.to as Hex;
+  const value = txParams.value as Hex;
   const balanceTxs = getTokenBalanceTransactions(request, events);
 
   log('Generated balance transactions', [...balanceTxs.after.values()]);
 
-  const transactions = [
+  const userTransaction: SimulationRequestTransaction = {
+    data,
+    from,
+    to,
+    value,
+  };
+
+  const transactions: SimulationRequestTransaction[] = [
     ...balanceTxs.before.values(),
-    request,
+    userTransaction,
     ...balanceTxs.after.values(),
   ];
 
@@ -370,9 +343,9 @@ async function getTokenBalanceChanges(
   }
 
   const response = await baseRequest({
+    blockTime,
     chainId,
     from,
-    options,
     transactions,
   });
 
@@ -389,14 +362,14 @@ async function getTokenBalanceChanges(
       const previousBalance = previousBalanceCheckSkipped
         ? '0x0'
         : getAmountFromBalanceTransactionResult(
-            request.from,
+            from,
             token,
             // eslint-disable-next-line no-plusplus
             response.transactions[prevBalanceTxIndex++],
           );
 
       const newBalance = getAmountFromBalanceTransactionResult(
-        request.from,
+        from,
         token,
         response.transactions[index + balanceTxs.before.size + 1],
       );
@@ -426,7 +399,7 @@ async function getTokenBalanceChanges(
  * @returns A map of token balance transactions keyed by token.
  */
 function getTokenBalanceTransactions(
-  request: GetSimulationDataRequest,
+  request: GetBalanceChangesRequest,
   events: ParsedEvent[],
 ): {
   before: BalanceTransactionMap;
@@ -435,9 +408,10 @@ function getTokenBalanceTransactions(
   const tokenKeys = new Set();
   const before = new Map();
   const after = new Map();
+  const from = request.txParams.from as Hex;
 
   const userEvents = events.filter((event) =>
-    [event.args.from, event.args.to].includes(request.from),
+    [event.args.from, event.args.to].includes(from),
   );
 
   log('Filtered user events', userEvents);
@@ -468,12 +442,12 @@ function getTokenBalanceTransactions(
 
       const data = getBalanceTransactionData(
         event.tokenStandard,
-        request.from,
+        from,
         tokenId,
       );
 
       const transaction: SimulationRequestTransaction = {
-        from: request.from,
+        from,
         to: event.contractAddress,
         data,
       };
@@ -716,74 +690,49 @@ function getContractInterfaces(): Map<SupportedToken, Interface> {
 }
 
 /**
- * Extract gas fee tokens from a simulation response.
- *
- * @param response - The simulation response.
- * @returns An array of gas fee tokens.
- */
-function getGasFeeTokens(response: SimulationResponse): GasFeeToken[] {
-  const feeLevel = response.transactions?.[0]
-    ?.fees?.[0] as Required<SimulationResponseTransaction>['fees'][0];
-
-  const tokenFees = feeLevel?.tokenFees ?? [];
-
-  return tokenFees.map((tokenFee) => ({
-    amount: tokenFee.balanceNeededToken,
-    balance: tokenFee.currentBalanceToken,
-    decimals: tokenFee.token.decimals,
-    gas: feeLevel.gas,
-    gasTransfer: tokenFee.transferEstimate,
-    maxFeePerGas: feeLevel.maxFeePerGas,
-    maxPriorityFeePerGas: feeLevel.maxPriorityFeePerGas,
-    rateWei: tokenFee.rateWei,
-    recipient: tokenFee.feeRecipient,
-    symbol: tokenFee.token.symbol,
-    tokenAddress: tokenFee.token.address,
-  }));
-}
-
-/**
  * Base request to simulation API.
  *
  * @param request - The request object.
+ * @param request.authorizationList - List of authorizations for the transaction.
+ * @param request.blockTime - Block time for the simulation.
  * @param request.chainId - Chain ID of the transaction.
- * @param request.from - Address of the sender.
- * @param request.options - Options for the simulation.
+ * @param request.from - The sender of the transactions.
  * @param request.params - Additional parameters for the request.
  * @param request.transactions - Transactions to simulate.
  * @returns The simulation response.
  */
 async function baseRequest({
+  authorizationList,
+  blockTime,
   chainId,
   from,
-  options,
   params,
   transactions,
 }: {
+  authorizationList?: AuthorizationList;
+  blockTime?: number;
   chainId: Hex;
   from: Hex;
-  options: GetSimulationDataOptions;
   params?: Partial<SimulationRequest>;
   transactions: SimulationRequestTransaction[];
 }): Promise<SimulationResponse> {
-  const { blockTime, senderCode } = options;
+  const authorizationListFinal = authorizationList?.map((authorization) => ({
+    address: authorization.address,
+    from,
+  }));
 
-  return await simulateTransactions(chainId as Hex, {
-    transactions,
+  const transactionsFinal = transactions.map((transaction) => ({
+    ...transaction,
+    authorizationList: authorizationListFinal,
+  }));
+
+  return await simulateTransactions(chainId, {
     ...params,
+    transactions: transactionsFinal,
     ...(blockTime && {
       blockOverrides: {
         ...params?.blockOverrides,
         time: toHex(blockTime),
-      },
-    }),
-    ...(senderCode && {
-      overrides: {
-        ...params?.overrides,
-        [from]: {
-          ...params?.overrides?.[from],
-          code: senderCode,
-        },
       },
     }),
   });
