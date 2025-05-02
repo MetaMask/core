@@ -750,9 +750,8 @@ function getDefaultCustomNetworkConfigurationsByChainId(): Record<
 function getCustomNetworkConfiguration(
   customNetworkType: CustomNetworkType,
 ): NetworkConfiguration {
-  const chainId = ChainId[customNetworkType];
   const { ticker, rpcPrefs } = BUILT_IN_NETWORKS[customNetworkType];
-  const rpcEndpointUrl = getCustomNetworkRpcEndpointUrl(chainId);
+  const rpcEndpointUrl = BUILT_IN_CUSTOM_NETWORKS_RPC[customNetworkType];
 
   return {
     blockExplorerUrls: [rpcPrefs.blockExplorerUrl],
@@ -770,25 +769,6 @@ function getCustomNetworkConfiguration(
       },
     ],
   };
-}
-
-/**
- * Get the RPC endpoint URL for a custom network by supported chain ID.
- *
- * @param chainId - The chain ID of the custom network.
- * @returns The RPC endpoint URL.
- */
-function getCustomNetworkRpcEndpointUrl(
-  chainId: AdditionalDefaultNetwork,
-): string {
-  switch (chainId) {
-    case ChainId['megaeth-testnet']:
-      return BUILT_IN_CUSTOM_NETWORKS_RPC.MEGAETH_TESTNET;
-    case ChainId['monad-testnet']:
-      return BUILT_IN_CUSTOM_NETWORKS_RPC.MONAD_TESTNET;
-    default:
-      throw new Error(`Unsupported chain ID: ${chainId}`);
-  }
 }
 
 /**
