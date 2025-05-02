@@ -63,6 +63,8 @@ export class PollingBlockTracker
 
   #pendingLatestBlock?: Omit<DeferredPromise<string>, 'resolve'>;
 
+  #pendingFetch?: Omit<DeferredPromise<string>, 'resolve'>;
+
   constructor(opts: PollingBlockTrackerOptions = {}) {
     // parse + validate args
     if (!opts.provider) {
@@ -114,7 +116,9 @@ export class PollingBlockTracker
     // return if available
     if (this._currentBlock) {
       return this._currentBlock;
-    } else if (this.#pendingLatestBlock) {
+    }
+
+    if (this.#pendingLatestBlock) {
       return await this.#pendingLatestBlock.promise;
     }
 
@@ -123,15 +127,32 @@ export class PollingBlockTracker
     });
     this.#pendingLatestBlock = { reject, promise };
 
-    // wait for a new latest block
-    const onLatestBlock = (value: string) => {
-      this.#removeInternalListener(onLatestBlock);
-      resolve(value);
+    try {
+      // If tracker isn't running, just fetch directly
+      if (!this._isRunning) {
+        const latestBlock = await this._fetchLatestBlock();
+        this._newPotentialLatest(latestBlock);
+        resolve(latestBlock);
+        return latestBlock;
+      }
+
+      // If tracker is running, wait for next block with timeout
+      const onLatestBlock = (value: string) => {
+        this.#removeInternalListener(onLatestBlock);
+        this.removeListener('latest', onLatestBlock);
+        resolve(value);
+      };
+
+      this.#addInternalListener(onLatestBlock);
+      this.once('latest', onLatestBlock);
+
+      return await promise;
+    } catch (error) {
+      reject(error);
+      throw error;
+    } finally {
       this.#pendingLatestBlock = undefined;
-    };
-    this.#addInternalListener(onLatestBlock);
-    this.once('latest', onLatestBlock);
-    return await promise;
+    }
   }
 
   // dont allow module consumer to remove our internal event listeners
@@ -266,7 +287,6 @@ export class PollingBlockTracker
     this._currentBlock = null;
   }
 
-  // trigger block polling
   async checkForLatestBlock() {
     await this._updateLatestBlock();
     return await this.getLatestBlock();
@@ -289,24 +309,40 @@ export class PollingBlockTracker
   }
 
   private async _fetchLatestBlock(): Promise<string> {
-    const req: ExtendedJsonRpcRequest = {
-      jsonrpc: '2.0',
-      id: createRandomId(),
-      method: 'eth_blockNumber',
-      params: [] as [],
-    };
-    if (this._setSkipCacheFlag) {
-      req.skipCache = true;
+    // If there's already a pending fetch, reuse it
+    if (this.#pendingFetch) {
+      return await this.#pendingFetch.promise;
     }
 
-    log('Making request', req);
+    // Create a new deferred promise for this request
+    const { promise, resolve, reject } = createDeferredPromise<string>({
+      suppressUnhandledRejection: true,
+    });
+    this.#pendingFetch = { reject, promise };
+
     try {
+      const req: ExtendedJsonRpcRequest = {
+        jsonrpc: '2.0',
+        id: createRandomId(),
+        method: 'eth_blockNumber',
+        params: [] as [],
+      };
+      if (this._setSkipCacheFlag) {
+        req.skipCache = true;
+      }
+
+      log('Making request', req);
       const result = await this._provider.request<[], string>(req);
       log('Got result', result);
+      resolve(result);
       return result;
     } catch (error) {
       log('Encountered error fetching block', getErrorMessage(error));
+      reject(error);
+      this.#rejectPendingLatestBlock(error);
       throw error;
+    } finally {
+      this.#pendingFetch = undefined;
     }
   }
 
