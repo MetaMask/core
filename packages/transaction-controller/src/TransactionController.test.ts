@@ -86,12 +86,7 @@ import {
 } from './types';
 import { getBalanceChanges } from './utils/balance-changes';
 import { addTransactionBatch } from './utils/batch';
-import {
-  DELEGATION_PREFIX,
-  doesChainSupportEIP7702,
-  getDelegationAddress,
-} from './utils/eip7702';
-import { getEIP7702UpgradeContractAddress } from './utils/feature-flags';
+import { getDelegationAddress } from './utils/eip7702';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { getGasFeeTokens } from './utils/gas-fee-tokens';
 import { updateGasFees } from './utils/gas-fees';
@@ -551,10 +546,6 @@ describe('TransactionController', () => {
   const addTransactionBatchMock = jest.mocked(addTransactionBatch);
   const methodDataHelperClassMock = jest.mocked(MethodDataHelper);
   const getDelegationAddressMock = jest.mocked(getDelegationAddress);
-  const doesChainSupportEIP7702Mock = jest.mocked(doesChainSupportEIP7702);
-  const getEIP7702UpgradeContractAddressMock = jest.mocked(
-    getEIP7702UpgradeContractAddress,
-  );
 
   let mockEthQuery: EthQuery;
   let getNonceLockSpy: jest.Mock;

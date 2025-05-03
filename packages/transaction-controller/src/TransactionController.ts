@@ -4087,6 +4087,19 @@ export class TransactionController extends BaseController<
       });
     }
 
+    const finalTransactionMeta = this.#getTransaction(transactionId);
+
+    /* istanbul ignore if */
+    if (!finalTransactionMeta) {
+      log(
+        'Cannot update simulation data as transaction not found',
+        transactionId,
+        simulationData,
+      );
+
+      return;
+    }
+
     this.#updateTransactionInternal(
       {
         transactionId,
