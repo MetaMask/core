@@ -60,7 +60,7 @@ export async function getGasFeeTokens({
   const is7702GasFeeTokensEnabled =
     await isEIP7702GasFeeTokensEnabled(transactionMeta);
 
-  const use7702Fees =
+  const with7702 =
     is7702GasFeeTokensEnabled && doesChainSupportEIP7702(chainId, messenger);
 
   let authorizationList:
@@ -70,7 +70,7 @@ export async function getGasFeeTokens({
     from: from as Hex,
   }));
 
-  if (use7702Fees && !delegationAddress && !authorizationList) {
+  if (with7702 && !delegationAddress && !authorizationList) {
     authorizationList = buildAuthorizationList({
       chainId,
       from: from as Hex,
@@ -93,6 +93,7 @@ export async function getGasFeeTokens({
       suggestFees: {
         withTransfer: true,
         withFeeTransfer: true,
+        with7702,
       },
     });
 

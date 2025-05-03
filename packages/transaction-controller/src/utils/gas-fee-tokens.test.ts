@@ -1,17 +1,26 @@
+import { doesChainSupportEIP7702 } from './eip7702';
+import { getEIP7702UpgradeContractAddress } from './feature-flags';
 import type { GetGasFeeTokensRequest } from './gas-fee-tokens';
 import { getGasFeeTokens } from './gas-fee-tokens';
 import type { TransactionControllerMessenger, TransactionMeta } from '..';
 import { simulateTransactions } from '../api/simulation-api';
+import { cloneDeep } from 'lodash';
 
 jest.mock('../api/simulation-api');
+jest.mock('./eip7702');
+jest.mock('./feature-flags');
 
+const CHAIN_ID_MOCK = '0x1';
 const TOKEN_ADDRESS_1_MOCK = '0x1234567890abcdef1234567890abcdef12345678';
 const TOKEN_ADDRESS_2_MOCK = '0xabcdef1234567890abcdef1234567890abcdef12';
+const UPGRADE_CONTRACT_ADDRESS_MOCK =
+  '0xabcdefabcdefabcdefabcdefabcdefabcdefabcdef';
 
 const REQUEST_MOCK: GetGasFeeTokensRequest = {
-  chainId: '0x1',
+  chainId: CHAIN_ID_MOCK,
   isEIP7702GasFeeTokensEnabled: jest.fn().mockResolvedValue(true),
   messenger: {} as TransactionControllerMessenger,
+  publicKeyEIP7702: '0x123',
   transactionMeta: {
     txParams: {
       from: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcdef',
@@ -24,6 +33,18 @@ const REQUEST_MOCK: GetGasFeeTokensRequest = {
 
 describe('Gas Fee Tokens Utils', () => {
   const simulateTransactionsMock = jest.mocked(simulateTransactions);
+  const doesChainSupportEIP7702Mock = jest.mocked(doesChainSupportEIP7702);
+  const getEIP7702UpgradeContractAddressMock = jest.mocked(
+    getEIP7702UpgradeContractAddress,
+  );
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+
+    getEIP7702UpgradeContractAddressMock.mockReturnValue(
+      UPGRADE_CONTRACT_ADDRESS_MOCK,
+    );
+  });
 
   describe('getGasFeeTokens', () => {
     it('returns tokens using simulation API', async () => {
@@ -176,6 +197,118 @@ describe('Gas Fee Tokens Utils', () => {
       const result = await getGasFeeTokens(REQUEST_MOCK);
 
       expect(result).toStrictEqual([]);
+    });
+
+    it('with 7702 if isEIP7702GasFeeTokensEnabled and chain supports EIP-7702', async () => {
+      jest
+        .mocked(REQUEST_MOCK.isEIP7702GasFeeTokensEnabled)
+        .mockResolvedValue(true);
+
+      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+
+      simulateTransactionsMock.mockResolvedValueOnce({
+        transactions: [],
+      });
+
+      await getGasFeeTokens(REQUEST_MOCK);
+
+      expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        CHAIN_ID_MOCK,
+        expect.objectContaining({
+          suggestFees: expect.objectContaining({
+            with7702: true,
+          }),
+        }),
+      );
+    });
+
+    it('without 7702 if isEIP7702GasFeeTokensEnabled but chain does not support EIP-7702', async () => {
+      jest
+        .mocked(REQUEST_MOCK.isEIP7702GasFeeTokensEnabled)
+        .mockResolvedValue(true);
+
+      doesChainSupportEIP7702Mock.mockReturnValueOnce(false);
+
+      simulateTransactionsMock.mockResolvedValueOnce({
+        transactions: [],
+      });
+
+      await getGasFeeTokens(REQUEST_MOCK);
+
+      expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        CHAIN_ID_MOCK,
+        expect.objectContaining({
+          suggestFees: expect.objectContaining({
+            with7702: false,
+          }),
+        }),
+      );
+    });
+
+    it('with authorizationList if isEIP7702GasFeeTokensEnabled and chain supports EIP-7702 and no delegation address', async () => {
+      jest
+        .mocked(REQUEST_MOCK.isEIP7702GasFeeTokensEnabled)
+        .mockResolvedValue(true);
+
+      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+
+      simulateTransactionsMock.mockResolvedValueOnce({
+        transactions: [],
+      });
+
+      await getGasFeeTokens(REQUEST_MOCK);
+
+      expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        CHAIN_ID_MOCK,
+        expect.objectContaining({
+          transactions: [
+            expect.objectContaining({
+              authorizationList: [
+                {
+                  address: UPGRADE_CONTRACT_ADDRESS_MOCK,
+                  from: REQUEST_MOCK.transactionMeta.txParams.from,
+                },
+              ],
+            }),
+          ],
+        }),
+      );
+    });
+
+    it('with authorizationList if in transaction params', async () => {
+      jest
+        .mocked(REQUEST_MOCK.isEIP7702GasFeeTokensEnabled)
+        .mockResolvedValue(false);
+
+      simulateTransactionsMock.mockResolvedValueOnce({
+        transactions: [],
+      });
+
+      const request = cloneDeep(REQUEST_MOCK);
+
+      request.transactionMeta.txParams.authorizationList = [
+        {
+          address: TOKEN_ADDRESS_2_MOCK,
+        },
+      ];
+
+      await getGasFeeTokens(request);
+
+      expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        CHAIN_ID_MOCK,
+        expect.objectContaining({
+          transactions: [
+            expect.objectContaining({
+              authorizationList: [
+                {
+                  address: TOKEN_ADDRESS_2_MOCK,
+                  from: REQUEST_MOCK.transactionMeta.txParams.from,
+                },
+              ],
+            }),
+          ],
+        }),
+      );
     });
   });
 });
