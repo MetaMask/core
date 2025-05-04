@@ -102,7 +102,7 @@ jobs:
         with:
           is-high-risk-environment: false
       - run: yarn test:scripts
-      - run: yarn workspace ${{ matrix.package-name }} run test --coverage
+      - run: yarn workspace ${{ matrix.package-name }} run test --collectCoverage=true
       - name: Transform package name
         id: transform-package-name
         run: |
