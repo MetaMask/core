@@ -102,7 +102,17 @@ jobs:
         with:
           is-high-risk-environment: false
       - run: yarn test:scripts
-      - run: yarn workspace ${{ matrix.package-name }} run test
+      - run: yarn workspace ${{ matrix.package-name }} run test --coverage
+      - name: Transform package name
+        id: transform-package-name
+        run: |
+          echo "package-folder-name=$(echo ${{ matrix.package-name }} | sed 's/@metamask\///')" >> "$GITHUB_OUTPUT"
+        shell: bash
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v2
+        with:
+          name: coverage-${{ matrix.package-name }}-${{ github.event.pull_request.number || github.sha }}
+          path: ./packages/${{ steps.transform-package-name.outputs.package-folder-name }}/coverage/lcov.info
       - name: Require clean working directory
         shell: bash
         run: |
