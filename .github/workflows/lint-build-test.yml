@@ -111,7 +111,7 @@ jobs:
       - name: Upload coverage reports
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-${{ matrix.package-name }}-${{ github.event.pull_request.number || github.sha }}
+          name: coverage-${{ steps.transform-package-name.outputs.package-folder-name }}-${{ github.event.pull_request.number || github.sha }}
           path: ./packages/${{ steps.transform-package-name.outputs.package-folder-name }}/coverage/lcov.info
       - name: Require clean working directory
         shell: bash
