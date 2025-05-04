@@ -57,4 +57,4 @@ jobs:
             -Dsonar.test.inclusions=**/*.test.ts
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
             -Dsonar.coverage.exclusions=**/*.test.ts
-            -Dsonar.coverage.minimum=80 
+            -Dsonar.coverage.minimum=80
