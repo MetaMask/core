@@ -109,7 +109,7 @@ jobs:
           echo "package-folder-name=$(echo ${{ matrix.package-name }} | sed 's/@metamask\///')" >> "$GITHUB_OUTPUT"
         shell: bash
       - name: Upload coverage reports
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-${{ matrix.package-name }}-${{ github.event.pull_request.number || github.sha }}
           path: ./packages/${{ steps.transform-package-name.outputs.package-folder-name }}/coverage/lcov.info

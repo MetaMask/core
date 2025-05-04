@@ -38,7 +38,7 @@ jobs:
           echo "package-folder-name=$(echo ${{ matrix.package-name }} | sed 's/@metamask\///')" >> "$GITHUB_OUTPUT"
         shell: bash
       - name: Download coverage reports
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: coverage-${{ matrix.package-name }}-${{ github.event.pull_request.number || github.sha }}
           path: ./packages/${{ steps.transform-package-name.outputs.package-folder-name }}/coverage
