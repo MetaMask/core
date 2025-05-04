@@ -43,7 +43,7 @@ jobs:
           name: coverage-${{ matrix.package-name }}-${{ github.event.pull_request.number || github.sha }}
           path: ./packages/${{ steps.transform-package-name.outputs.package-folder-name }}/coverage
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@v5.0.0
+        uses: SonarSource/sonarcloud-github-action@5875562561d22a34be0c657405578705a169af6c
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
