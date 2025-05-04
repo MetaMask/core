@@ -109,7 +109,7 @@ jobs:
           echo "package-folder-name=$(echo ${{ matrix.package-name }} | sed 's/@metamask\///')" >> "$GITHUB_OUTPUT"
         shell: bash
       - name: Upload coverage reports
-        if: matrix.node-version == matrix.node-version[0]
+        if: matrix.node-version == '22.x'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-${{ steps.transform-package-name.outputs.package-folder-name }}-${{ github.event.pull_request.number || github.sha }}
