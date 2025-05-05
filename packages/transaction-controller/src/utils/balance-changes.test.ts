@@ -1022,6 +1022,33 @@ describe('Simulation Utils', () => {
         );
       });
 
+      it('legacy gas fee', async () => {
+        queryMock.mockResolvedValue('0xc1f3d');
+
+        await getBalanceChanges({
+          ...REQUEST_MOCK,
+          txParams: {
+            ...REQUEST_MOCK.txParams,
+            gasPrice: '0x123',
+            maxFeePerGas: undefined,
+            maxPriorityFeePerGas: undefined,
+            value: '0x0',
+          },
+        });
+
+        expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
+        expect(simulateTransactionsMock).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            overrides: {
+              [USER_ADDRESS_MOCK]: {
+                balance: '0xc1f3e',
+              },
+            },
+          }),
+        );
+      });
+
       it('value', async () => {
         queryMock.mockResolvedValue('0x122');
 
