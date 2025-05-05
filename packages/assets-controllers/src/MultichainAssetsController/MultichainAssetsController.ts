@@ -56,6 +56,19 @@ export type AssetMetadataResponse = {
     [asset: CaipAssetType]: FungibleAssetMetadata;
   };
 };
+export type AccountId = string;
+export type NewAccountAssets = {
+  accountId: AccountId;
+  assets: CaipAssetType[];
+}[];
+export type MultichainAssetsControllerNewAccountAssetsEvent = {
+  type: `${typeof controllerName}:newAccountAssets`;
+  payload: [
+    {
+      newAccountAssets: NewAccountAssets;
+    },
+  ];
+};
 
 /**
  * Constructs the default {@link MultichainAssetsController} state. This allows
@@ -102,7 +115,8 @@ export type MultichainAssetsControllerActions =
  * Events emitted by {@link MultichainAssetsController}.
  */
 export type MultichainAssetsControllerEvents =
-  MultichainAssetsControllerStateChangeEvent;
+  | MultichainAssetsControllerStateChangeEvent
+  | MultichainAssetsControllerNewAccountAssetsEvent;
 
 /**
  * A function executed within a mutually exclusive lock, with
@@ -317,6 +331,14 @@ export class MultichainAssetsController extends BaseController<
       await this.#refreshAssetsMetadata(assets);
       this.update((state) => {
         state.accountsAssets[account.id] = assets;
+      });
+      this.messagingSystem.publish(`${controllerName}:newAccountAssets`, {
+        newAccountAssets: [
+          {
+            accountId: account.id,
+            assets,
+          },
+        ],
       });
     }
   }

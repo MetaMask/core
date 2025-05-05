@@ -483,14 +483,6 @@ describe('MultichainBalancesController', () => {
       const mockSolanaAccountId1 = mockListSolanaAccounts[0].id;
       const mockSolanaAccountId2 = mockListSolanaAccounts[1].id;
 
-      const existingBalancesState = {
-        [mockSolanaAccountId1]: {
-          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken55': {
-            amount: '5.00000000',
-            unit: 'SOL',
-          },
-        },
-      };
       const { controller, messenger, mockSnapHandleRequest } = setupController({
         state: {
           balances: {},

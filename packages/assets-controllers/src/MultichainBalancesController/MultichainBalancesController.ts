@@ -27,8 +27,10 @@ import { HandlerType } from '@metamask/snaps-utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 import type { Draft } from 'immer';
 
+
 import type {
   MultichainAssetsControllerGetStateAction,
+  MultichainAssetsControllerNewAccountAssetsEvent,
   MultichainAssetsControllerState,
   MultichainAssetsControllerStateChangeEvent,
 } from '../MultichainAssetsController';
@@ -108,7 +110,8 @@ type AllowedEvents =
   | AccountsControllerAccountRemovedEvent
   | AccountsControllerAccountBalancesUpdatesEvent
   | MultichainAssetsControllerStateChangeEvent
-  | AccountsControllerAccountAssetListUpdatedEvent;
+  | AccountsControllerAccountAssetListUpdatedEvent
+  | MultichainAssetsControllerNewAccountAssetsEvent;
 /**
  * Messenger type for the MultichainBalancesController.
  */
@@ -177,7 +180,7 @@ export class MultichainBalancesController extends BaseController<
         this.#handleOnAccountBalancesUpdated(balanceUpdate),
     );
     // We only care about new added assets to fetch balances for.
-    this.messagingSystem.subscribe(
+    /*     this.messagingSystem.subscribe(
       'AccountsController:accountAssetListUpdated',
       async (event: AccountAssetListUpdatedEventPayload) => {
         const assetsToUpdate = event.assets;
@@ -190,6 +193,13 @@ export class MultichainBalancesController extends BaseController<
         if (accountsAndAssetsToUpdate.length > 0) {
           await this.#updateBalancesForAccounts(accountsAndAssetsToUpdate);
         }
+      },
+    ); */
+
+    this.messagingSystem.subscribe(
+      'MultichainAssetsController:newAccountAssets',
+      async ({ newAccountAssets }) => {
+        console.log('🚀 ~ newAccountAssets:', newAccountAssets);
       },
     );
   }
