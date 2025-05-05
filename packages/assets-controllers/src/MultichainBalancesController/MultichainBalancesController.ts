@@ -3,6 +3,7 @@ import type {
   AccountsControllerAccountRemovedEvent,
   AccountsControllerListMultichainAccountsAction,
   AccountsControllerAccountBalancesUpdatesEvent,
+  AccountsControllerAccountAssetListUpdatedEvent,
 } from '@metamask/accounts-controller';
 import {
   BaseController,
@@ -15,6 +16,7 @@ import type {
   Balance,
   CaipAssetType,
   AccountBalancesUpdatedEventPayload,
+  AccountAssetListUpdatedEventPayload,
 } from '@metamask/keyring-api';
 import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -105,8 +107,8 @@ type AllowedEvents =
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent
   | AccountsControllerAccountBalancesUpdatesEvent
-  | MultichainAssetsControllerStateChangeEvent;
-
+  | MultichainAssetsControllerStateChangeEvent
+  | AccountsControllerAccountAssetListUpdatedEvent;
 /**
  * Messenger type for the MultichainBalancesController.
  */
@@ -174,20 +176,75 @@ export class MultichainBalancesController extends BaseController<
       (balanceUpdate: AccountBalancesUpdatedEventPayload) =>
         this.#handleOnAccountBalancesUpdated(balanceUpdate),
     );
-    // TODO: Maybe add a MultichainAssetsController:accountAssetListUpdated event instead of using the entire state.
-    // Since MultichainAssetsController already listens for the AccountsController:accountAdded, we can rely in it for that event
-    // and not listen for it also here, in this controller, since it would be redundant
+    // We only care about new added assets to fetch balances for.
     this.messagingSystem.subscribe(
-      'MultichainAssetsController:stateChange',
-      async (assetsState: MultichainAssetsControllerState) => {
-        for (const accountId of Object.keys(assetsState.accountsAssets)) {
-          await this.#updateBalance(
+      'AccountsController:accountAssetListUpdated',
+      async (event: AccountAssetListUpdatedEventPayload) => {
+        const assetsToUpdate = event.assets;
+        const accountsAndAssetsToUpdate = Object.entries(assetsToUpdate).map(
+          ([accountId, { added }]) => ({
             accountId,
-            assetsState.accountsAssets[accountId],
-          );
-        }
+            assets: added,
+          }),
+        );
+
+        await this.#updateBalancesForAccounts(accountsAndAssetsToUpdate);
       },
     );
+  }
+
+  /**
+   * Updates the balances for the given accounts.
+   *
+   * @param accounts - The accounts to update the balances for.
+   */
+  async #updateBalancesForAccounts(
+    accounts: {
+      accountId: string;
+      assets: CaipAssetType[];
+    }[],
+  ): Promise<void> {
+    const { isUnlocked } = this.messagingSystem.call(
+      'KeyringController:getState',
+    );
+
+    if (!isUnlocked) {
+      return;
+    }
+    const balancesToUpdate: MultichainBalancesControllerState['balances'] = {};
+
+    for (const { accountId, assets } of accounts) {
+      const account = this.#getAccount(accountId);
+      if (account.metadata.snap) {
+        const accountBalance = await this.#getBalances(
+          account.id,
+          account.metadata.snap.id,
+          assets,
+        );
+        balancesToUpdate[accountId] = accountBalance;
+      }
+    }
+
+    this.update((state: Draft<MultichainBalancesControllerState>) => {
+      for (const [accountId, accountBalances] of Object.entries(
+        balancesToUpdate,
+      )) {
+        if (
+          !state.balances[accountId] ||
+          Object.keys(state.balances[accountId]).length === 0
+        ) {
+          state.balances[accountId] = { ...accountBalances };
+        } else {
+          for (const assetId in accountBalances) {
+            if (!state.balances[accountId][assetId]) {
+              state.balances[accountId][assetId] = {
+                ...accountBalances[assetId],
+              };
+            }
+          }
+        }
+      }
+    });
   }
 
   /**
@@ -262,7 +319,6 @@ export class MultichainBalancesController extends BaseController<
    */
   #listAccounts(): InternalAccount[] {
     const accounts = this.#listMultichainAccounts();
-
     return accounts.filter((account) => this.#isNonEvmAccount(account));
   }
 
