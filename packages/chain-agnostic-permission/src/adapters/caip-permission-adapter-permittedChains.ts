@@ -220,9 +220,9 @@ export function getAllNamespacesFromCaip25CaveatValue(
   const namespaceSet = new Set<CaipNamespace>();
 
   for (const scope of allScopes) {
-    const { namespace } = parseScopeString(scope);
+    const { namespace, reference } = parseScopeString(scope);
     if (namespace === KnownCaipNamespace.Wallet) {
-      namespaceSet.add(scope);
+      namespaceSet.add(reference ?? namespace);
     } else if (namespace) {
       namespaceSet.add(namespace);
     }

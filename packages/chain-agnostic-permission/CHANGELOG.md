@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Fix `getAllNamespacesFromCaip25CaveatValue` to return the reference instead of full scope when passed in values are `wallet` namespaced ([#5759](https://github.com/MetaMask/core/pull/5759))
 - Bump `@metamask/network-controller` to `^23.3.0` ([#5789](https://github.com/MetaMask/core/pull/5789))
 
 ## [0.5.0]
