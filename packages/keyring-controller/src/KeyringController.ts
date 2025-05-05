@@ -322,11 +322,12 @@ export type SerializedKeyring = {
 };
 
 /**
- * A serialized keyring and metadata object.
+ * State/data that can be updated during a `withKeyring` operation.
  */
-export type SerializedKeyringAndMetadata = {
-  keyring: SerializedKeyring;
-  metadata?: KeyringMetadata;
+type UpdatableState = {
+  keyrings: SerializedKeyring[];
+  keyringsMetadata: KeyringMetadata[];
+  password?: string;
 };
 
 /**
@@ -1413,23 +1414,20 @@ export class KeyringController extends BaseController<
   changePassword(password: string): Promise<void> {
     this.#assertIsUnlocked();
 
-    return this.#persistOrRollback(
-      async () => {
-        assertIsValidPassword(password);
+    return this.#persistOrRollback(async () => {
+      assertIsValidPassword(password);
 
-        this.#password = password;
-        // We need to clear encryption key and salt from state
-        // to force the controller to re-encrypt the vault using
-        // the new password.
-        if (this.#cacheEncryptionKey) {
-          this.update((state) => {
-            delete state.encryptionKey;
-            delete state.encryptionSalt;
-          });
-        }
-      },
-      { alwaysUpdate: true },
-    );
+      this.#password = password;
+      // We need to clear encryption key and salt from state
+      // to force the controller to re-encrypt the vault using
+      // the new password.
+      if (this.#cacheEncryptionKey) {
+        this.update((state) => {
+          delete state.encryptionKey;
+          delete state.encryptionSalt;
+        });
+      }
+    });
   }
 
   /**
@@ -2164,39 +2162,16 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Serialize the current array of keyring instances and their metadata,
-   * including unsupported keyrings by default.
+   * Get a snapshot of data that can be updated during a `withKeyring` operation.
    *
-   * @param options - Method options.
-   * @param options.includeUnsupported - Whether to include unsupported keyrings.
-   * @returns The serialized keyrings.
+   * @returns Snapshot of updatable data.
    */
-  async #getSerializedKeyringsAndMetadata(
-    { includeUnsupported }: { includeUnsupported: boolean } = {
-      includeUnsupported: true,
-    },
-  ): Promise<SerializedKeyringAndMetadata[]> {
-    const serializedKeyrings = await this.#getSerializedKeyrings({
-      includeUnsupported,
-    });
-
-    const serializedKeyringsAndMetadata: SerializedKeyringAndMetadata[] =
-      serializedKeyrings.map((serialized, index) => {
-        return {
-          keyring: serialized,
-          metadata: this.#keyringsMetadata[index],
-        };
-      });
-
-    if (includeUnsupported) {
-      for (const unsupportedKeyring of this.#unsupportedKeyrings) {
-        serializedKeyringsAndMetadata.push({
-          keyring: unsupportedKeyring,
-        });
-      }
-    }
-
-    return serializedKeyringsAndMetadata;
+  async #getUpdatableState(): Promise<UpdatableState> {
+    return {
+      keyrings: await this.#getSerializedKeyrings(),
+      keyringsMetadata: this.#keyringsMetadata.slice(), // Force copy.
+      password: this.#password,
+    };
   }
 
   /**
@@ -2674,27 +2649,18 @@ export class KeyringController extends BaseController<
    * previous state in case of error.
    *
    * @param callback - The function to execute.
-   * @param options - Options.
-   * @param options.alwaysUpdate - Always trigger vault update.
    * @returns The result of the function.
    */
   async #persistOrRollback<Result>(
     callback: MutuallyExclusiveCallback<Result>,
-    { alwaysUpdate }: { alwaysUpdate: boolean } = {
-      alwaysUpdate: false,
-    },
   ): Promise<Result> {
     return this.#withRollback(async ({ releaseLock }) => {
-      const oldState = !alwaysUpdate
-        ? await this.#getSerializedKeyringsAndMetadata()
-        : []; // No need to serialize anything when forcing the update.
+      const oldState = await this.#getUpdatableState();
       const callbackResult = await callback({ releaseLock });
-      const newState = !alwaysUpdate
-        ? await this.#getSerializedKeyringsAndMetadata()
-        : []; // Same.
+      const newState = await this.#getUpdatableState();
 
       // State is committed only if the operation is successful and need to trigger a vault update.
-      if (alwaysUpdate || !isEqual(oldState, newState)) {
+      if (!isEqual(oldState, newState)) {
         await this.#updateVault();
       }
 
