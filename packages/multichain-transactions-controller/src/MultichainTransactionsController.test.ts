@@ -228,7 +228,7 @@ describe('MultichainTransactionsController', () => {
 
     await waitForAllPromises();
 
-    const chain = mockTransactionResult.data[0].chain;
+    const { chain } = mockTransactionResult.data[0];
     expect(
       controller.state.nonEvmTransactions[mockBtcAccount.id][chain],
     ).toStrictEqual({
@@ -244,7 +244,7 @@ describe('MultichainTransactionsController', () => {
 
     await controller.updateTransactionsForAccount(mockBtcAccount.id);
 
-    const chain = mockTransactionResult.data[0].chain;
+    const { chain } = mockTransactionResult.data[0];
     expect(
       controller.state.nonEvmTransactions[mockBtcAccount.id][chain],
     ).toStrictEqual({
@@ -279,7 +279,7 @@ describe('MultichainTransactionsController', () => {
     const { controller } = setupController();
     await controller.updateTransactionsForAccount(mockBtcAccount.id);
 
-    const chain = mockTransactionResult.data[0].chain;
+    const { chain } = mockTransactionResult.data[0];
     expect(
       controller.state.nonEvmTransactions[mockBtcAccount.id][chain],
     ).toStrictEqual({
@@ -481,7 +481,7 @@ describe('MultichainTransactionsController', () => {
       id: TEST_ACCOUNT_ID,
     };
 
-    const chain = mockTransactionResult.data[0].chain;
+    const { chain } = mockTransactionResult.data[0];
     const existingTransaction = {
       ...mockTransactionResult.data[0],
       id: '123',
@@ -535,7 +535,7 @@ describe('MultichainTransactionsController', () => {
   });
 
   it('handles empty transaction updates gracefully', async () => {
-    const chain = mockTransactionResult.data[0].chain;
+    const { chain } = mockTransactionResult.data[0];
     const { controller, messenger } = setupController({
       state: {
         nonEvmTransactions: {
@@ -566,7 +566,7 @@ describe('MultichainTransactionsController', () => {
   });
 
   it('initializes new accounts with empty transactions array when receiving updates', async () => {
-    const chain = mockTransactionResult.data[0].chain;
+    const { chain } = mockTransactionResult.data[0];
 
     const { controller, messenger } = setupController({
       state: {
@@ -591,7 +591,7 @@ describe('MultichainTransactionsController', () => {
   });
 
   it('handles undefined transactions in update payload', async () => {
-    const chain = mockTransactionResult.data[0].chain;
+    const { chain } = mockTransactionResult.data[0];
     const { controller, messenger } = setupController({
       state: {
         nonEvmTransactions: {
@@ -634,7 +634,7 @@ describe('MultichainTransactionsController', () => {
   });
 
   it('sorts transactions by timestamp (newest first)', async () => {
-    const chain = mockTransactionResult.data[0].chain;
+    const { chain } = mockTransactionResult.data[0];
     const olderTransaction = {
       ...mockTransactionResult.data[0],
       id: '123',
@@ -677,7 +677,7 @@ describe('MultichainTransactionsController', () => {
   });
 
   it('sorts transactions by timestamp and handles null timestamps', async () => {
-    const chain = mockTransactionResult.data[0].chain;
+    const { chain } = mockTransactionResult.data[0];
     const nullTimestampTx1 = {
       ...mockTransactionResult.data[0],
       id: '123',
@@ -739,7 +739,7 @@ describe('MultichainTransactionsController', () => {
 
     await controller.updateTransactionsForAccount(mockBtcAccount.id);
 
-    const chain = mockTransactionResult.data[0].chain;
+    const { chain } = mockTransactionResult.data[0];
     expect(
       controller.state.nonEvmTransactions[mockBtcAccount.id][chain],
     ).toStrictEqual({

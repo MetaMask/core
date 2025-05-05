@@ -22,15 +22,8 @@ import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
-import {
-  KnownCaipNamespace,
-  parseCaipChainId,
-  type Json,
-  type JsonRpcRequest,
-} from '@metamask/utils';
+import { type Json, type JsonRpcRequest } from '@metamask/utils';
 import type { Draft } from 'immer';
-
-import { MultichainNetwork } from './constants';
 
 const controllerName = 'MultichainTransactionsController';
 
