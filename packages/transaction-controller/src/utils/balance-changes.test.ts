@@ -960,5 +960,125 @@ describe('Simulation Utils', () => {
         });
       });
     });
+
+    it('includes authorization list in API request if in params', async () => {
+      await getBalanceChanges({
+        ...REQUEST_MOCK,
+        txParams: {
+          ...REQUEST_MOCK.txParams,
+          authorizationList: [
+            {
+              address: CONTRACT_ADDRESS_2_MOCK,
+              chainId: '0x321',
+              nonce: '0x1',
+              r: '0x2',
+              s: '0x3',
+              yParity: '0x1',
+            },
+          ],
+        },
+      });
+
+      expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
+      expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          transactions: [
+            expect.objectContaining({
+              authorizationList: [
+                {
+                  address: CONTRACT_ADDRESS_2_MOCK,
+                  from: USER_ADDRESS_MOCK,
+                },
+              ],
+            }),
+          ],
+        }),
+      );
+    });
+
+    describe('overrides balance in API request if insufficient balance due to', () => {
+      it('gas fee', async () => {
+        queryMock.mockResolvedValue('0x7d182d');
+
+        await getBalanceChanges({
+          ...REQUEST_MOCK,
+          txParams: {
+            ...REQUEST_MOCK.txParams,
+            value: '0x0',
+          },
+        });
+
+        expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
+        expect(simulateTransactionsMock).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            overrides: {
+              [USER_ADDRESS_MOCK]: {
+                balance: '0x7d182e',
+              },
+            },
+          }),
+        );
+      });
+
+      it('value', async () => {
+        queryMock.mockResolvedValue('0x122');
+
+        await getBalanceChanges({
+          ...REQUEST_MOCK,
+          txParams: {
+            ...REQUEST_MOCK.txParams,
+            gas: '0x0',
+            value: '0x123',
+          },
+        });
+
+        expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
+        expect(simulateTransactionsMock).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            overrides: {
+              [USER_ADDRESS_MOCK]: {
+                balance: '0x123',
+              },
+            },
+          }),
+        );
+      });
+
+      it('nested transaction value', async () => {
+        queryMock.mockResolvedValue('0x332');
+
+        await getBalanceChanges({
+          ...REQUEST_MOCK,
+          nestedTransactions: [
+            {
+              value: '0x111',
+            },
+            {
+              value: '0x222',
+            },
+          ],
+          txParams: {
+            ...REQUEST_MOCK.txParams,
+            gas: '0x0',
+            value: '0x0',
+          },
+        });
+
+        expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
+        expect(simulateTransactionsMock).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            overrides: {
+              [USER_ADDRESS_MOCK]: {
+                balance: '0x333',
+              },
+            },
+          }),
+        );
+      });
+    });
   });
 });
