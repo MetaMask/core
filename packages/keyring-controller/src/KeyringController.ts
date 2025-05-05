@@ -37,8 +37,8 @@ import { Mutex } from 'async-mutex';
 import type { MutexInterface } from 'async-mutex';
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
 import type { Patch } from 'immer';
-// When generating a ULID within the same millisecond, monotonicFactory provides some guarantees regarding sort order.
 import { isEqual } from 'lodash';
+// When generating a ULID within the same millisecond, monotonicFactory provides some guarantees regarding sort order.
 import { ulid } from 'ulid';
 
 import { KeyringControllerError } from './constants';
