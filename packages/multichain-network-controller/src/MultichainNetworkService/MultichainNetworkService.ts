@@ -1,5 +1,6 @@
 import { assert } from '@metamask/superstruct';
 import type { CaipAccountId } from '@metamask/utils';
+import { chunk } from 'lodash';
 
 import {
   type ActiveNetworksResponse,
@@ -40,11 +41,7 @@ export class MultichainNetworkService {
       return this.#fetchNetworkActivityBatch(accountIds);
     }
 
-    const batches: CaipAccountId[][] = [];
-    for (let i = 0; i < accountIds.length; i += this.BATCH_SIZE) {
-      batches.push(accountIds.slice(i, i + this.BATCH_SIZE));
-    }
-
+    const batches = chunk(accountIds, this.BATCH_SIZE);
     const batchResults = await Promise.all(
       batches.map((batch) => this.#fetchNetworkActivityBatch(batch)),
     );

@@ -1,4 +1,5 @@
 import { KnownCaipNamespace, type CaipAccountId } from '@metamask/utils';
+import { chunk } from 'lodash';
 
 import { MultichainNetworkService } from './MultichainNetworkService';
 import {
@@ -78,10 +79,15 @@ describe('MultichainNetworkService', () => {
         );
       }
 
+      const BATCH_SIZE = 20;
+      const batches = chunk(manyAccountIds, BATCH_SIZE);
+
       const firstBatchResponse = {
-        activeNetworks: manyAccountIds.slice(0, 20),
+        activeNetworks: batches[0],
       };
-      const secondBatchResponse = { activeNetworks: manyAccountIds.slice(20) };
+      const secondBatchResponse = {
+        activeNetworks: batches[1],
+      };
 
       mockFetch
         .mockResolvedValueOnce({
