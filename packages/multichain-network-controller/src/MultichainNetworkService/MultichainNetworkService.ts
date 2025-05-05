@@ -16,10 +16,17 @@ import {
 export class MultichainNetworkService {
   readonly #fetch: typeof fetch;
 
-  private readonly BATCH_SIZE = 20;
+  readonly #batchSize: number;
 
-  constructor({ fetch: fetchFunction }: { fetch: typeof fetch }) {
+  constructor({
+    fetch: fetchFunction,
+    batchSize,
+  }: {
+    fetch: typeof fetch;
+    batchSize?: number;
+  }) {
     this.#fetch = fetchFunction;
+    this.#batchSize = batchSize ?? 20;
   }
 
   /**
@@ -37,11 +44,11 @@ export class MultichainNetworkService {
       return { activeNetworks: [] };
     }
 
-    if (accountIds.length <= this.BATCH_SIZE) {
+    if (accountIds.length <= this.#batchSize) {
       return this.#fetchNetworkActivityBatch(accountIds);
     }
 
-    const batches = chunk(accountIds, this.BATCH_SIZE);
+    const batches = chunk(accountIds, this.#batchSize);
     const batchResults = await Promise.all(
       batches.map((batch) => this.#fetchNetworkActivityBatch(batch)),
     );
