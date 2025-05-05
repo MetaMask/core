@@ -1008,6 +1008,10 @@ export class TransactionController extends BaseController<
       publicKeyEIP7702: this.#publicKeyEIP7702,
       request,
       updateTransaction: this.#updateTransactionInternal.bind(this),
+      publishTransaction: (
+        ethQuery: EthQuery,
+        transactionMeta: TransactionMeta,
+      ) => this.#publishTransaction(ethQuery, transactionMeta) as Promise<Hex>,
     });
   }
 
