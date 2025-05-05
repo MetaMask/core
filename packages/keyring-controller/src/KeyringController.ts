@@ -324,7 +324,8 @@ export type SerializedKeyring = {
 /**
  * A serialized keyring and metadata object.
  */
-export type SerializedKeyringAndMetadata = SerializedKeyring & {
+export type SerializedKeyringAndMetadata = {
+  keyring: SerializedKeyring;
   metadata?: KeyringMetadata;
 };
 
@@ -2179,13 +2180,17 @@ export class KeyringController extends BaseController<
     const serializedKeyringsAndMetadata: SerializedKeyringAndMetadata[] =
       serializedKeyrings.map((serialized, index) => {
         return {
-          ...serialized,
+          keyring: serialized,
           metadata: this.#keyringsMetadata[index],
         };
       });
 
     if (includeUnsupported) {
-      serializedKeyringsAndMetadata.push(...this.#unsupportedKeyrings);
+      for (const unsupportedKeyring of this.#unsupportedKeyrings) {
+        serializedKeyringsAndMetadata.push({
+          keyring: unsupportedKeyring,
+        });
+      }
     }
 
     return serializedKeyringsAndMetadata;
