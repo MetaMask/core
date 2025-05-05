@@ -1,5 +1,7 @@
 import type { LogDescription } from '@ethersproject/abi';
 import { Interface } from '@ethersproject/abi';
+import { query } from '@metamask/controller-utils';
+import type EthQuery from '@metamask/eth-query';
 import { type Hex } from '@metamask/utils';
 
 import type { GetBalanceChangesRequest } from './balance-changes';
@@ -19,6 +21,11 @@ import {
 import { SimulationErrorCode, SimulationTokenStandard } from '../types';
 
 jest.mock('../api/simulation-api');
+
+jest.mock('@metamask/controller-utils', () => ({
+  ...jest.requireActual('@metamask/controller-utils'),
+  query: jest.fn(),
+}));
 
 // Utility function to encode addresses and values to 32-byte ABI format
 const encodeTo32ByteHex = (value: string | number): Hex => {
@@ -53,8 +60,16 @@ const USER_ADDRESS_WITH_LEADING_ZERO =
 
 const REQUEST_MOCK: GetBalanceChangesRequest = {
   chainId: '0x1',
+  ethQuery: {
+    sendAsync: jest.fn(),
+  } as EthQuery,
   txParams: {
+    data: '0x123',
     from: USER_ADDRESS_MOCK,
+    gas: '0xaaa',
+    maxFeePerGas: '0xbbb',
+    maxPriorityFeePerGas: '0xabc',
+    value: '0xddd',
   },
 };
 
@@ -256,10 +271,12 @@ function mockParseLog({
 
 describe('Simulation Utils', () => {
   const simulateTransactionsMock = jest.mocked(simulateTransactions);
+  const queryMock = jest.mocked(query);
 
   beforeEach(() => {
     jest.resetAllMocks();
     jest.spyOn(Interface.prototype, 'encodeFunctionData').mockReturnValue('');
+    queryMock.mockResolvedValue('0xFFFFFFFFFFFF');
   });
 
   describe('getBalanceChanges', () => {
@@ -404,10 +421,8 @@ describe('Simulation Utils', () => {
             );
 
           const result = await getBalanceChanges({
-            chainId: '0x1',
-            txParams: {
-              from,
-            },
+            ...REQUEST_MOCK,
+            txParams: { ...REQUEST_MOCK.txParams, from },
           });
 
           expect(result).toStrictEqual({
@@ -637,7 +652,13 @@ describe('Simulation Utils', () => {
               // Minting ERC-721 token.
               {
                 authorizationList: undefined,
+                data: REQUEST_MOCK.txParams.data,
                 from: REQUEST_MOCK.txParams.from,
+                gas: REQUEST_MOCK.txParams.gas,
+                maxFeePerGas: REQUEST_MOCK.txParams.maxFeePerGas,
+                maxPriorityFeePerGas:
+                  REQUEST_MOCK.txParams.maxPriorityFeePerGas,
+                value: REQUEST_MOCK.txParams.value,
               },
               // ERC-721 owner after minting.
               {
@@ -654,6 +675,8 @@ describe('Simulation Utils', () => {
                 data: expect.any(String),
               },
             ],
+            withDefaultBlockOverrides: true,
+            withGas: true,
           },
         );
         expect(result).toStrictEqual({

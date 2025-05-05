@@ -3975,6 +3975,8 @@ export class TransactionController extends BaseController<
     const {
       chainId,
       id: transactionId,
+      nestedTransactions,
+      networkClientId,
       simulationData: prevSimulationData,
       txParams,
     } = transactionMeta;
@@ -3996,6 +3998,8 @@ export class TransactionController extends BaseController<
           getBalanceChanges({
             blockTime,
             chainId,
+            ethQuery: this.#getEthQuery({ networkClientId }),
+            nestedTransactions,
             txParams,
           }),
       );
