@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add optional `isEIP7702GasFeeTokensEnabled` constructor callback ([#5706](https://github.com/MetaMask/core/pull/5706))
 - Add `lendingDeposit` `TransactionType` ([#5747](https://github.com/MetaMask/core/pull/5747))
 
+### Changed
+
+- Include gas limit and gas fees in simulation requests ([#5754](https://github.com/MetaMask/core/pull/5754))
+
 ## [54.4.0]
 
 ### Changed
