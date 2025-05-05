@@ -324,7 +324,7 @@ export type SerializedKeyring = {
 /**
  * State/data that can be updated during a `withKeyring` operation.
  */
-type UpdatableState = {
+type SessionState = {
   keyrings: SerializedKeyring[];
   keyringsMetadata: KeyringMetadata[];
   password?: string;
@@ -2167,13 +2167,14 @@ export class KeyringController extends BaseController<
    * @returns An object with serialized keyrings, keyrings metadata,
    * and the user password.
    */
-  async #getControllerSessionState(): Promise<SessionState> {
+  async #getSessionState(): Promise<SessionState> {
     return {
       keyrings: await this.#getSerializedKeyrings(),
       keyringsMetadata: this.#keyringsMetadata.slice(), // Force copy.
       password: this.#password,
     };
   }
+
   /**
    * Restore a serialized keyrings array.
    *
@@ -2655,9 +2656,9 @@ export class KeyringController extends BaseController<
     callback: MutuallyExclusiveCallback<Result>,
   ): Promise<Result> {
     return this.#withRollback(async ({ releaseLock }) => {
-      const oldState = await this.#getUpdatableState();
+      const oldState = await this.#getSessionState();
       const callbackResult = await callback({ releaseLock });
-      const newState = await this.#getUpdatableState();
+      const newState = await this.#getSessionState();
 
       // State is committed only if the operation is successful and need to trigger a vault update.
       if (!isEqual(oldState, newState)) {
