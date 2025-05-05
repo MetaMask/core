@@ -1037,7 +1037,7 @@ export class KeyringController extends BaseController<
   async persistAllKeyrings(): Promise<boolean> {
     this.#assertIsUnlocked();
 
-    return this.#persistOrRollback(async () => true, { forceUpdate: true });
+    return this.#persistOrRollback(async () => true, { alwaysUpdate: true });
   }
 
   /**
@@ -1424,7 +1424,7 @@ export class KeyringController extends BaseController<
           });
         }
       },
-      { forceUpdate: true },
+      { alwaysUpdate: true },
     );
   }
 
@@ -2667,24 +2667,26 @@ export class KeyringController extends BaseController<
    *
    * @param callback - The function to execute.
    * @param options - Options.
-   * @param options.forceUpdate - Force the vault update.
+   * @param options.alwaysUpdate - Always trigger vault update.
    * @returns The result of the function.
    */
   async #persistOrRollback<Result>(
     callback: MutuallyExclusiveCallback<Result>,
-    { forceUpdate }: { forceUpdate: boolean } = { forceUpdate: false },
+    { alwaysUpdate }: { alwaysUpdate: boolean } = {
+      alwaysUpdate: false,
+    },
   ): Promise<Result> {
     return this.#withRollback(async ({ releaseLock }) => {
-      const oldState = !forceUpdate
+      const oldState = !alwaysUpdate
         ? await this.#getSerializedKeyringsAndMetadata()
         : []; // No need to serialize anything when forcing the update.
       const callbackResult = await callback({ releaseLock });
-      const newState = !forceUpdate
+      const newState = !alwaysUpdate
         ? await this.#getSerializedKeyringsAndMetadata()
         : []; // Same.
 
       // State is committed only if the operation is successful and need to trigger a vault update.
-      if (forceUpdate || !isEqual(oldState, newState)) {
+      if (alwaysUpdate || !isEqual(oldState, newState)) {
         await this.#updateVault();
       }
 
