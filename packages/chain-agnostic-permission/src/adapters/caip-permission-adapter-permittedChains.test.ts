@@ -684,7 +684,7 @@ describe('CAIP-25 permittedChains adapters', () => {
       expect(result).toStrictEqual(['eip155', 'bip122', 'solana', 'wallet']);
     });
 
-    it('returns only reference for wallet namespace scopes', () => {
+    it('returns only reference for `wallet:<namespace>` type scopes', () => {
       const result = getAllNamespacesFromCaip25CaveatValue({
         requiredScopes: {
           'wallet:eip155': { accounts: [] },
