@@ -2162,18 +2162,18 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Get a snapshot of data that can be updated during a `withKeyring` operation.
+   * Get a snapshot of session data held by class variables.
    *
-   * @returns Snapshot of updatable data.
+   * @returns An object with serialized keyrings, keyrings metadata,
+   * and the user password.
    */
-  async #getUpdatableState(): Promise<UpdatableState> {
+  async #getControllerSessionState(): Promise<SessionState> {
     return {
       keyrings: await this.#getSerializedKeyrings(),
       keyringsMetadata: this.#keyringsMetadata.slice(), // Force copy.
       password: this.#password,
     };
   }
-
   /**
    * Restore a serialized keyrings array.
    *
