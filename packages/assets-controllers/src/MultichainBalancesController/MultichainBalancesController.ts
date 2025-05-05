@@ -187,8 +187,9 @@ export class MultichainBalancesController extends BaseController<
             assets: added,
           }),
         );
-
-        await this.#updateBalancesForAccounts(accountsAndAssetsToUpdate);
+        if (accountsAndAssetsToUpdate.length > 0) {
+          await this.#updateBalancesForAccounts(accountsAndAssetsToUpdate);
+        }
       },
     );
   }
