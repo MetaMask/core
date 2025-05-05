@@ -200,6 +200,7 @@ export class MultichainBalancesController extends BaseController<
       'MultichainAssetsController:newAccountAssets',
       async ({ newAccountAssets }) => {
         console.log('🚀 ~ newAccountAssets:', newAccountAssets);
+        await this.#updateBalancesForAccounts(newAccountAssets);
       },
     );
   }
