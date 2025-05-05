@@ -697,8 +697,9 @@ async function baseRequest({
     data: txParams.data as Hex,
     from: txParams.from as Hex,
     gas: txParams.gas as Hex,
-    maxFeePerGas: txParams.maxFeePerGas as Hex,
-    maxPriorityFeePerGas: txParams.maxPriorityFeePerGas as Hex,
+    maxFeePerGas: (txParams.maxFeePerGas ?? txParams.gasPrice) as Hex,
+    maxPriorityFeePerGas: (txParams.maxPriorityFeePerGas ??
+      txParams.gasPrice) as Hex,
     to: txParams.to as Hex,
     value: txParams.value as Hex,
   };
