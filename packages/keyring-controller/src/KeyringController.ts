@@ -702,9 +702,8 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to the added account address.
    */
   async addNewAccount(accountCount?: number): Promise<string> {
-    this.#assertIsUnlocked();
-
     return this.#persistOrRollback(async () => {
+      this.#assertIsUnlocked();
       const primaryKeyring = this.getKeyringsByType('HD Key Tree')[0] as
         | EthKeyring
         | undefined;
@@ -749,9 +748,8 @@ export class KeyringController extends BaseController<
     // We still uses `Hex` here, since we are not using this method when creating
     // and account using a "Snap Keyring". This function assume the `keyring` is
     // ethereum compatible, but "Snap Keyring" might not be.
-    this.#assertIsUnlocked();
-
     return this.#persistOrRollback(async () => {
+      this.#assertIsUnlocked();
       const oldAccounts = await this.#getAccountsFromKeyrings();
 
       if (accountCount && oldAccounts.length !== accountCount) {
@@ -1045,8 +1043,8 @@ export class KeyringController extends BaseController<
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     args: any[],
   ): Promise<string> {
-    this.#assertIsUnlocked();
     return this.#persistOrRollback(async () => {
+      this.#assertIsUnlocked();
       let privateKey;
       switch (strategy) {
         case AccountImportStrategy.privateKey:
@@ -1102,9 +1100,8 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving when the account is removed.
    */
   async removeAccount(address: string): Promise<void> {
-    this.#assertIsUnlocked();
-
     await this.#persistOrRollback(async () => {
+      this.#assertIsUnlocked();
       const keyring = (await this.getKeyringForAccount(address)) as EthKeyring;
 
       const keyringIndex = this.state.keyrings.findIndex((kr) =>
@@ -1145,9 +1142,8 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving when the operation completes.
    */
   async setLocked(): Promise<void> {
-    this.#assertIsUnlocked();
-
     return this.#withRollback(async () => {
+      this.#assertIsUnlocked();
       this.#unsubscribeFromQRKeyringsEvents();
 
       this.#password = undefined;
@@ -1398,8 +1394,8 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving when the operation completes.
    */
   changePassword(password: string): Promise<void> {
-    this.#assertIsUnlocked();
     return this.#persistOrRollback(async () => {
+      this.#assertIsUnlocked();
       assertIsValidPassword(password);
 
       this.#password = password;
@@ -1470,11 +1466,10 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to the seed phrase as Uint8Array.
    */
   async verifySeedPhrase(keyringId?: string): Promise<Uint8Array> {
-    this.#assertIsUnlocked();
-
-    return this.#withControllerLock(async () =>
-      this.#verifySeedPhrase(keyringId),
-    );
+    return this.#withControllerLock(async () => {
+      this.#assertIsUnlocked();
+      return this.#verifySeedPhrase(keyringId);
+    });
   }
 
   /**
@@ -1561,9 +1556,8 @@ export class KeyringController extends BaseController<
       createIfMissing: false,
     },
   ): Promise<CallbackResult> {
-    this.#assertIsUnlocked();
-
     return this.#persistOrRollback(async () => {
+      this.#assertIsUnlocked();
       let keyring: SelectedKeyring | undefined;
 
       if ('address' in selector) {
@@ -1627,11 +1621,12 @@ export class KeyringController extends BaseController<
    * @deprecated Use `addNewKeyring` and `withKeyring` instead.
    */
   async getOrAddQRKeyring(): Promise<QRKeyring> {
-    this.#assertIsUnlocked();
-
     return (
       this.getQRKeyring() ||
-      (await this.#persistOrRollback(async () => this.#addQRKeyring()))
+      (await this.#persistOrRollback(async () => {
+        this.#assertIsUnlocked();
+        return this.#addQRKeyring();
+      }))
     );
   }
 
@@ -1757,9 +1752,8 @@ export class KeyringController extends BaseController<
   async connectQRHardware(
     page: number,
   ): Promise<{ balance: string; address: string; index: number }[]> {
-    this.#assertIsUnlocked();
-
     return this.#persistOrRollback(async () => {
+      this.#assertIsUnlocked();
       try {
         const keyring = this.getQRKeyring() || (await this.#addQRKeyring());
         let accounts;
@@ -1799,9 +1793,8 @@ export class KeyringController extends BaseController<
    * @deprecated Use `withKeyring` instead.
    */
   async unlockQRHardwareWalletAccount(index: number): Promise<void> {
-    this.#assertIsUnlocked();
-
     return this.#persistOrRollback(async () => {
+      this.#assertIsUnlocked();
       const keyring = this.getQRKeyring() || (await this.#addQRKeyring());
 
       keyring.setAccountToUnlock(index);
@@ -1826,9 +1819,8 @@ export class KeyringController extends BaseController<
     removedAccounts: string[];
     remainingAccounts: string[];
   }> {
-    this.#assertIsUnlocked();
-
     return this.#persistOrRollback(async () => {
+      this.#assertIsUnlocked();
       const keyring = this.getQRKeyring();
 
       if (!keyring) {
