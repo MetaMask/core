@@ -1,8 +1,10 @@
 import type { Fragment, LogDescription, Result } from '@ethersproject/abi';
 import { Interface } from '@ethersproject/abi';
-import { hexToBN, toHex } from '@metamask/controller-utils';
+import { hexToBN, query, toHex } from '@metamask/controller-utils';
+import type EthQuery from '@metamask/eth-query';
 import { abiERC20, abiERC721, abiERC1155 } from '@metamask/metamask-eth-abis';
 import { createModuleLogger, type Hex } from '@metamask/utils';
+import BN from 'bn.js';
 
 import { simulateTransactions } from '../api/simulation-api';
 import type {
@@ -29,7 +31,7 @@ import type {
   SimulationTokenBalanceChange,
   SimulationToken,
   TransactionParams,
-  AuthorizationList,
+  NestedTransactionMetadata,
 } from '../types';
 import { SimulationTokenStandard } from '../types';
 
@@ -46,6 +48,8 @@ type ABI = Fragment[];
 export type GetBalanceChangesRequest = {
   blockTime?: number;
   chainId: Hex;
+  ethQuery: EthQuery;
+  nestedTransactions?: NestedTransactionMetadata[];
   txParams: TransactionParams;
 };
 
@@ -108,33 +112,15 @@ type BalanceTransactionMap = Map<SimulationToken, SimulationRequestTransaction>;
 export async function getBalanceChanges(
   request: GetBalanceChangesRequest,
 ): Promise<SimulationData> {
-  const { blockTime, chainId, txParams } = request;
-  const { authorizationList } = txParams;
-  const data = txParams.data as Hex;
-  const from = txParams.from as Hex;
-  const to = txParams.to as Hex;
-  const value = txParams.value as Hex;
-
   log('Request', request);
 
   try {
     const response = await baseRequest({
-      authorizationList,
-      blockTime,
-      chainId,
-      from,
+      request,
       params: {
         withCallTrace: true,
         withLogs: true,
       },
-      transactions: [
-        {
-          data,
-          from,
-          to,
-          value,
-        },
-      ],
     });
 
     const transactionError = response.transactions?.[0]?.error;
@@ -143,7 +129,7 @@ export async function getBalanceChanges(
       throw new SimulationError(transactionError);
     }
 
-    const nativeBalanceChange = getNativeBalanceChange(from, response);
+    const nativeBalanceChange = getNativeBalanceChange(request, response);
     const events = getEvents(response);
 
     log('Parsed events', events);
@@ -184,12 +170,12 @@ export async function getBalanceChanges(
 /**
  * Extract the native balance change from a simulation response.
  *
- * @param userAddress - The user's account address.
- * @param response - The simulation response.
- * @returns The native balance change or undefined if unchanged.
+ * @param request - Simulation request.
+ * @param response - Simulation response.
+ * @returns Native balance change or undefined if unchanged.
  */
 function getNativeBalanceChange(
-  userAddress: Hex,
+  request: GetBalanceChangesRequest,
   response: SimulationResponse,
 ): SimulationBalanceChange | undefined {
   const transactionResponse = response.transactions[0];
@@ -199,6 +185,8 @@ function getNativeBalanceChange(
     return undefined;
   }
 
+  const { txParams } = request;
+  const userAddress = txParams.from as Hex;
   const { stateDiff } = transactionResponse;
   const previousBalance = stateDiff?.pre?.[userAddress]?.balance;
   const newBalance = stateDiff?.post?.[userAddress]?.balance;
@@ -316,42 +304,27 @@ async function getTokenBalanceChanges(
   request: GetBalanceChangesRequest,
   events: ParsedEvent[],
 ): Promise<SimulationTokenBalanceChange[]> {
-  const { blockTime, chainId, txParams } = request;
-  const data = txParams.data as Hex;
+  const { txParams } = request;
   const from = txParams.from as Hex;
-  const to = txParams.to as Hex;
-  const value = txParams.value as Hex;
   const balanceTxs = getTokenBalanceTransactions(request, events);
 
   log('Generated balance transactions', [...balanceTxs.after.values()]);
 
-  const userTransaction: SimulationRequestTransaction = {
-    data,
-    from,
-    to,
-    value,
-  };
+  const transactionCount = balanceTxs.before.size + balanceTxs.after.size + 1;
 
-  const transactions: SimulationRequestTransaction[] = [
-    ...balanceTxs.before.values(),
-    userTransaction,
-    ...balanceTxs.after.values(),
-  ];
-
-  if (transactions.length === 1) {
+  if (transactionCount === 1) {
     return [];
   }
 
   const response = await baseRequest({
-    blockTime,
-    chainId,
-    from,
-    transactions,
+    request,
+    before: [...balanceTxs.before.values()],
+    after: [...balanceTxs.after.values()],
   });
 
   log('Balance simulation response', response);
 
-  if (response.transactions.length !== transactions.length) {
+  if (response.transactions.length !== transactionCount) {
     throw new SimulationInvalidResponseError();
   }
 
@@ -692,48 +665,99 @@ function getContractInterfaces(): Map<SupportedToken, Interface> {
 /**
  * Base request to simulation API.
  *
- * @param request - The request object.
- * @param request.authorizationList - List of authorizations for the transaction.
- * @param request.blockTime - Block time for the simulation.
- * @param request.chainId - Chain ID of the transaction.
- * @param request.from - The sender of the transactions.
- * @param request.params - Additional parameters for the request.
- * @param request.transactions - Transactions to simulate.
+ * @param options - Options bag.
+ * @param options.after - Transactions to simulate after user's transaction.
+ * @param options.before - Transactions to simulate before user's transaction.
+ * @param options.params - Additional parameters for the request.
+ * @param options.request - Original request object.
  * @returns The simulation response.
  */
 async function baseRequest({
-  authorizationList,
-  blockTime,
-  chainId,
-  from,
+  request,
   params,
-  transactions,
+  before = [],
+  after = [],
 }: {
-  authorizationList?: AuthorizationList;
-  blockTime?: number;
-  chainId: Hex;
-  from: Hex;
+  request: GetBalanceChangesRequest;
   params?: Partial<SimulationRequest>;
-  transactions: SimulationRequestTransaction[];
+  before?: SimulationRequestTransaction[];
+  after?: SimulationRequestTransaction[];
 }): Promise<SimulationResponse> {
+  const { blockTime, chainId, ethQuery, txParams } = request;
+  const { authorizationList } = txParams;
+  const from = txParams.from as Hex;
+
   const authorizationListFinal = authorizationList?.map((authorization) => ({
     address: authorization.address,
     from,
   }));
 
-  const transactionsFinal = transactions.map((transaction) => ({
-    ...transaction,
+  const userTransaction: SimulationRequestTransaction = {
     authorizationList: authorizationListFinal,
-  }));
+    data: txParams.data as Hex,
+    from: txParams.from as Hex,
+    gas: txParams.gas as Hex,
+    maxFeePerGas: txParams.maxFeePerGas as Hex,
+    maxPriorityFeePerGas: txParams.maxPriorityFeePerGas as Hex,
+    to: txParams.to as Hex,
+    value: txParams.value as Hex,
+  };
+
+  const transactions = [...before, userTransaction, ...after];
+  const requiredBalanceBN = getRequiredBalance(request);
+  const requiredBalanceHex = toHex(requiredBalanceBN);
+
+  log('Required balance', requiredBalanceHex);
+
+  const currentBalanceHex = (await query(ethQuery, 'getBalance', [
+    from,
+    'latest',
+  ])) as Hex;
+
+  const currentBalanceBN = hexToBN(currentBalanceHex);
+
+  log('Current balance', currentBalanceHex);
+
+  const isInsufficientBalance = currentBalanceBN.lt(requiredBalanceBN);
 
   return await simulateTransactions(chainId, {
     ...params,
-    transactions: transactionsFinal,
+    transactions,
+    withGas: true,
+    withDefaultBlockOverrides: true,
     ...(blockTime && {
       blockOverrides: {
         ...params?.blockOverrides,
         time: toHex(blockTime),
       },
     }),
+    ...(isInsufficientBalance && {
+      overrides: {
+        ...params?.overrides,
+        [from]: {
+          ...params?.overrides?.[from],
+          balance: requiredBalanceHex,
+        },
+      },
+    }),
   });
+}
+
+/**
+ * Calculate the required minimum balance for a transaction.
+ *
+ * @param request - The transaction request.
+ * @returns The minimal balance as a BN.
+ */
+function getRequiredBalance(request: GetBalanceChangesRequest): BN {
+  const { txParams } = request;
+  const gasLimit = hexToBN(txParams.gas ?? '0x0');
+  const gasPrice = hexToBN(txParams.maxFeePerGas ?? txParams.gasPrice ?? '0x0');
+  const value = hexToBN(txParams.value ?? '0x0');
+
+  const nestedValue = (request.nestedTransactions ?? [])
+    .map((tx) => hexToBN(tx.value ?? '0x0'))
+    .reduce((acc, val) => acc.add(val), new BN(0));
+
+  return gasLimit.mul(gasPrice).add(value).add(nestedValue);
 }
