@@ -1036,9 +1036,12 @@ export class KeyringController extends BaseController<
    * operation completes.
    */
   async persistAllKeyrings(): Promise<boolean> {
-    this.#assertIsUnlocked();
+    return this.#withRollback(async () => {
+      this.#assertIsUnlocked();
 
-    return this.#persistOrRollback(async () => true, { alwaysUpdate: true });
+      await this.#updateVault();
+      return true;
+    });
   }
 
   /**
