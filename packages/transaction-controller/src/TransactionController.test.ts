@@ -2205,6 +2205,8 @@ describe('TransactionController', () => {
         expect(getBalanceChangesMock).toHaveBeenCalledWith({
           blockTime: undefined,
           chainId: MOCK_NETWORK.chainId,
+          ethQuery: expect.any(Object),
+          nestedTransactions: undefined,
           txParams: {
             data: undefined,
             from: ACCOUNT_MOCK,
@@ -7082,7 +7084,10 @@ describe('TransactionController', () => {
       expect(getBalanceChangesMock).toHaveBeenCalledTimes(1);
       expect(getBalanceChangesMock).toHaveBeenCalledWith({
         blockTime: 123,
+        ethQuery: expect.any(Object),
+        nestedTransactions: undefined,
         txParams: {
+          data: undefined,
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
           value: TRANSACTION_META_MOCK.txParams.value,
@@ -7119,7 +7124,10 @@ describe('TransactionController', () => {
       expect(getBalanceChangesMock).toHaveBeenCalledTimes(1);
       expect(getBalanceChangesMock).toHaveBeenCalledWith({
         blockTime: 123,
+        ethQuery: expect.any(Object),
+        nestedTransactions: undefined,
         txParams: {
+          data: undefined,
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
           value: TRANSACTION_META_MOCK.txParams.value,

@@ -44,12 +44,6 @@ export type SimulationRequestTransaction = {
 
 /** Request to the simulation API to simulate transactions. */
 export type SimulationRequest = {
-  /**
-   * Transactions to be sequentially simulated.
-   * State changes impact subsequent transactions in the list.
-   */
-  transactions: SimulationRequestTransaction[];
-
   blockOverrides?: {
     time?: Hex;
   };
@@ -84,10 +78,28 @@ export type SimulationRequest = {
   };
 
   /**
+   * Transactions to be sequentially simulated.
+   * State changes impact subsequent transactions in the list.
+   */
+  transactions: SimulationRequestTransaction[];
+
+  /**
    * Whether to include call traces in the response.
    * Defaults to false.
    */
   withCallTrace?: boolean;
+
+  /**
+   * Whether to include the default block data in the simulation.
+   * Defaults to false.
+   */
+  withDefaultBlockOverrides?: boolean;
+
+  /**
+   * Whether to use the gas fees in the simulation.
+   * Defaults to false.
+   */
+  withGas?: boolean;
 
   /**
    * Whether to include event logs in the response.
