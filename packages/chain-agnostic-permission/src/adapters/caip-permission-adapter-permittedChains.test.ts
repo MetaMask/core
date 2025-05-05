@@ -684,24 +684,18 @@ describe('CAIP-25 permittedChains adapters', () => {
       expect(result).toStrictEqual(['eip155', 'bip122', 'solana', 'wallet']);
     });
 
-    it('returns full scopeString for wallet namespace scopes', () => {
+    it('returns only reference for wallet namespace scopes', () => {
       const result = getAllNamespacesFromCaip25CaveatValue({
         requiredScopes: {
           'wallet:eip155': { accounts: [] },
           'wallet:bip122': { accounts: [] },
         },
-        optionalScopes: {
-          wallet: { accounts: [] },
-        },
+        optionalScopes: {},
         sessionProperties: {},
         isMultichainOrigin: false,
       });
 
-      expect(result).toStrictEqual([
-        'wallet:eip155',
-        'wallet:bip122',
-        'wallet',
-      ]);
+      expect(result).toStrictEqual(['eip155', 'bip122']);
     });
 
     it('returns an empty array when given empty scope objects', () => {
