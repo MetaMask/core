@@ -228,14 +228,13 @@ describe('MultichainTransactionsController', () => {
 
     await waitForAllPromises();
 
-    expect(controller.state).toStrictEqual({
-      nonEvmTransactions: {
-        [mockBtcAccount.id]: {
-          transactions: mockTransactionResult.data,
-          next: null,
-          lastUpdated: expect.any(Number),
-        },
-      },
+    const chain = mockTransactionResult.data[0].chain;
+    expect(
+      controller.state.nonEvmTransactions[mockBtcAccount.id][chain],
+    ).toStrictEqual({
+      transactions: mockTransactionResult.data,
+      next: null,
+      lastUpdated: expect.any(Number),
     });
   });
 
@@ -244,22 +243,20 @@ describe('MultichainTransactionsController', () => {
       setupController();
 
     await controller.updateTransactionsForAccount(mockBtcAccount.id);
-    expect(controller.state).toStrictEqual({
-      nonEvmTransactions: {
-        [mockBtcAccount.id]: {
-          transactions: mockTransactionResult.data,
-          next: null,
-          lastUpdated: expect.any(Number),
-        },
-      },
+
+    const chain = mockTransactionResult.data[0].chain;
+    expect(
+      controller.state.nonEvmTransactions[mockBtcAccount.id][chain],
+    ).toStrictEqual({
+      transactions: mockTransactionResult.data,
+      next: null,
+      lastUpdated: expect.any(Number),
     });
 
     messenger.publish('AccountsController:accountRemoved', mockBtcAccount.id);
     mockListMultichainAccounts.mockReturnValue([]);
 
-    expect(controller.state).toStrictEqual({
-      nonEvmTransactions: {},
-    });
+    expect(controller.state.nonEvmTransactions).toStrictEqual({});
   });
 
   it('does not track balances for EVM accounts', async () => {
@@ -282,8 +279,9 @@ describe('MultichainTransactionsController', () => {
     const { controller } = setupController();
     await controller.updateTransactionsForAccount(mockBtcAccount.id);
 
+    const chain = mockTransactionResult.data[0].chain;
     expect(
-      controller.state.nonEvmTransactions[mockBtcAccount.id],
+      controller.state.nonEvmTransactions[mockBtcAccount.id][chain],
     ).toStrictEqual({
       transactions: mockTransactionResult.data,
       next: null,
@@ -291,7 +289,7 @@ describe('MultichainTransactionsController', () => {
     });
   });
 
-  it('filters out non-mainnet Solana transactions', async () => {
+  it('stores transactions by chain for accounts', async () => {
     const mockSolTransaction = {
       account: mockSolAccount.id,
       type: 'send' as const,
@@ -327,10 +325,6 @@ describe('MultichainTransactionsController', () => {
       ],
       next: null,
     };
-    // First transaction must be the mainnet one (for the test), so we assert this.
-    expect(mockSolTransactions.data[0].chain).toStrictEqual(
-      MultichainNetwork.Solana,
-    );
 
     const { controller, mockSnapHandleRequest } = setupController({
       mocks: {
@@ -341,10 +335,42 @@ describe('MultichainTransactionsController', () => {
 
     await controller.updateTransactionsForAccount(mockSolAccount.id);
 
-    const { transactions } =
-      controller.state.nonEvmTransactions[mockSolAccount.id];
-    expect(transactions).toHaveLength(1);
-    expect(transactions[0]).toStrictEqual(mockSolTransactions.data[0]); // First transaction is the mainnet one.
+    expect(
+      Object.keys(controller.state.nonEvmTransactions[mockSolAccount.id]),
+    ).toHaveLength(4);
+
+    expect(
+      controller.state.nonEvmTransactions[mockSolAccount.id][
+        MultichainNetwork.Solana
+      ].transactions,
+    ).toHaveLength(1);
+    expect(
+      controller.state.nonEvmTransactions[mockSolAccount.id][
+        MultichainNetwork.Solana
+      ].transactions[0],
+    ).toStrictEqual(mockSolTransactions.data[0]);
+
+    expect(
+      controller.state.nonEvmTransactions[mockSolAccount.id][
+        MultichainNetwork.SolanaTestnet
+      ].transactions,
+    ).toHaveLength(1);
+    expect(
+      controller.state.nonEvmTransactions[mockSolAccount.id][
+        MultichainNetwork.SolanaTestnet
+      ].transactions[0],
+    ).toStrictEqual(mockSolTransactions.data[1]);
+
+    expect(
+      controller.state.nonEvmTransactions[mockSolAccount.id][
+        MultichainNetwork.SolanaDevnet
+      ].transactions,
+    ).toHaveLength(1);
+    expect(
+      controller.state.nonEvmTransactions[mockSolAccount.id][
+        MultichainNetwork.SolanaDevnet
+      ].transactions[0],
+    ).toStrictEqual(mockSolTransactions.data[2]);
   });
 
   it('handles pagination when fetching transactions', async () => {
@@ -455,31 +481,37 @@ describe('MultichainTransactionsController', () => {
       id: TEST_ACCOUNT_ID,
     };
 
+    const chain = mockTransactionResult.data[0].chain;
     const existingTransaction = {
       ...mockTransactionResult.data[0],
       id: '123',
       status: 'confirmed' as const,
+      chain,
     };
 
     const newTransaction = {
       ...mockTransactionResult.data[0],
       id: '456',
       status: 'submitted' as const,
+      chain,
     };
 
     const updatedExistingTransaction = {
       ...mockTransactionResult.data[0],
       id: '123',
       status: 'failed' as const,
+      chain,
     };
 
     const { controller, messenger } = setupController({
       state: {
         nonEvmTransactions: {
           [mockSolAccountWithId.id]: {
-            transactions: [existingTransaction],
-            next: null,
-            lastUpdated: Date.now(),
+            [chain]: {
+              transactions: [existingTransaction],
+              next: null,
+              lastUpdated: Date.now(),
+            },
           },
         },
       },
@@ -494,7 +526,8 @@ describe('MultichainTransactionsController', () => {
     await waitForAllPromises();
 
     const finalTransactions =
-      controller.state.nonEvmTransactions[mockSolAccountWithId.id].transactions;
+      controller.state.nonEvmTransactions[mockSolAccountWithId.id][chain]
+        .transactions;
     expect(finalTransactions).toStrictEqual([
       updatedExistingTransaction,
       newTransaction,
@@ -502,13 +535,16 @@ describe('MultichainTransactionsController', () => {
   });
 
   it('handles empty transaction updates gracefully', async () => {
+    const chain = mockTransactionResult.data[0].chain;
     const { controller, messenger } = setupController({
       state: {
         nonEvmTransactions: {
           [TEST_ACCOUNT_ID]: {
-            transactions: [],
-            next: null,
-            lastUpdated: Date.now(),
+            [chain]: {
+              transactions: [],
+              next: null,
+              lastUpdated: Date.now(),
+            },
           },
         },
       },
@@ -520,7 +556,9 @@ describe('MultichainTransactionsController', () => {
 
     await waitForAllPromises();
 
-    expect(controller.state.nonEvmTransactions[TEST_ACCOUNT_ID]).toStrictEqual({
+    expect(
+      controller.state.nonEvmTransactions[TEST_ACCOUNT_ID][chain],
+    ).toStrictEqual({
       transactions: [],
       next: null,
       lastUpdated: expect.any(Number),
@@ -528,6 +566,8 @@ describe('MultichainTransactionsController', () => {
   });
 
   it('initializes new accounts with empty transactions array when receiving updates', async () => {
+    const chain = mockTransactionResult.data[0].chain;
+
     const { controller, messenger } = setupController({
       state: {
         nonEvmTransactions: {},
@@ -541,21 +581,26 @@ describe('MultichainTransactionsController', () => {
     });
 
     await waitForAllPromises();
-
-    expect(controller.state.nonEvmTransactions[NEW_ACCOUNT_ID]).toStrictEqual({
+    expect(
+      controller.state.nonEvmTransactions[NEW_ACCOUNT_ID][chain],
+    ).toStrictEqual({
       transactions: mockTransactionResult.data,
+      next: null,
       lastUpdated: expect.any(Number),
     });
   });
 
   it('handles undefined transactions in update payload', async () => {
+    const chain = mockTransactionResult.data[0].chain;
     const { controller, messenger } = setupController({
       state: {
         nonEvmTransactions: {
           [TEST_ACCOUNT_ID]: {
-            transactions: [],
-            next: null,
-            lastUpdated: Date.now(),
+            [chain]: {
+              transactions: [],
+              next: null,
+              lastUpdated: Date.now(),
+            },
           },
         },
       },
@@ -570,8 +615,10 @@ describe('MultichainTransactionsController', () => {
 
     const initialStateSnapshot = {
       [TEST_ACCOUNT_ID]: {
-        ...controller.state.nonEvmTransactions[TEST_ACCOUNT_ID],
-        lastUpdated: expect.any(Number),
+        [chain]: {
+          ...controller.state.nonEvmTransactions[TEST_ACCOUNT_ID][chain],
+          lastUpdated: expect.any(Number),
+        },
       },
     };
 
@@ -587,6 +634,7 @@ describe('MultichainTransactionsController', () => {
   });
 
   it('sorts transactions by timestamp (newest first)', async () => {
+    const chain = mockTransactionResult.data[0].chain;
     const olderTransaction = {
       ...mockTransactionResult.data[0],
       id: '123',
@@ -602,9 +650,11 @@ describe('MultichainTransactionsController', () => {
       state: {
         nonEvmTransactions: {
           [TEST_ACCOUNT_ID]: {
-            transactions: [olderTransaction],
-            next: null,
-            lastUpdated: Date.now(),
+            [chain]: {
+              transactions: [olderTransaction],
+              next: null,
+              lastUpdated: Date.now(),
+            },
           },
         },
       },
@@ -619,7 +669,7 @@ describe('MultichainTransactionsController', () => {
     await waitForAllPromises();
 
     const finalTransactions =
-      controller.state.nonEvmTransactions[TEST_ACCOUNT_ID].transactions;
+      controller.state.nonEvmTransactions[TEST_ACCOUNT_ID][chain].transactions;
     expect(finalTransactions).toStrictEqual([
       newerTransaction,
       olderTransaction,
@@ -627,6 +677,7 @@ describe('MultichainTransactionsController', () => {
   });
 
   it('sorts transactions by timestamp and handles null timestamps', async () => {
+    const chain = mockTransactionResult.data[0].chain;
     const nullTimestampTx1 = {
       ...mockTransactionResult.data[0],
       id: '123',
@@ -647,9 +698,11 @@ describe('MultichainTransactionsController', () => {
       state: {
         nonEvmTransactions: {
           [TEST_ACCOUNT_ID]: {
-            transactions: [nullTimestampTx1],
-            next: null,
-            lastUpdated: Date.now(),
+            [chain]: {
+              transactions: [nullTimestampTx1],
+              next: null,
+              lastUpdated: Date.now(),
+            },
           },
         },
       },
@@ -664,7 +717,7 @@ describe('MultichainTransactionsController', () => {
     await waitForAllPromises();
 
     const finalTransactions =
-      controller.state.nonEvmTransactions[TEST_ACCOUNT_ID].transactions;
+      controller.state.nonEvmTransactions[TEST_ACCOUNT_ID][chain].transactions;
     expect(finalTransactions).toStrictEqual([
       withTimestampTx,
       nullTimestampTx1,
@@ -685,8 +738,10 @@ describe('MultichainTransactionsController', () => {
     mockGetKeyringState.mockReturnValue({ isUnlocked: true });
 
     await controller.updateTransactionsForAccount(mockBtcAccount.id);
+
+    const chain = mockTransactionResult.data[0].chain;
     expect(
-      controller.state.nonEvmTransactions[mockBtcAccount.id],
+      controller.state.nonEvmTransactions[mockBtcAccount.id][chain],
     ).toStrictEqual({
       transactions: mockTransactionResult.data,
       next: null,
@@ -694,7 +749,7 @@ describe('MultichainTransactionsController', () => {
     });
   });
 
-  it('filters out non-mainnet Solana transactions in transaction updates', async () => {
+  it('updates transactions by chain when receiving transaction updates', async () => {
     const mockSolAccountWithId = {
       ...mockSolAccount,
       id: TEST_ACCOUNT_ID,
@@ -732,9 +787,11 @@ describe('MultichainTransactionsController', () => {
       state: {
         nonEvmTransactions: {
           [mockSolAccountWithId.id]: {
-            transactions: [],
-            next: null,
-            lastUpdated: Date.now(),
+            [MultichainNetwork.Solana]: {
+              transactions: [],
+              next: null,
+              lastUpdated: Date.now(),
+            },
           },
         },
       },
@@ -748,11 +805,31 @@ describe('MultichainTransactionsController', () => {
 
     await waitForAllPromises();
 
-    const finalTransactions =
-      controller.state.nonEvmTransactions[mockSolAccountWithId.id].transactions;
+    expect(
+      Object.keys(controller.state.nonEvmTransactions[mockSolAccountWithId.id]),
+    ).toHaveLength(2);
 
-    expect(finalTransactions).toHaveLength(1);
-    expect(finalTransactions[0]).toBe(mainnetTransaction);
+    expect(
+      controller.state.nonEvmTransactions[mockSolAccountWithId.id][
+        MultichainNetwork.Solana
+      ].transactions,
+    ).toHaveLength(1);
+    expect(
+      controller.state.nonEvmTransactions[mockSolAccountWithId.id][
+        MultichainNetwork.Solana
+      ].transactions[0],
+    ).toBe(mainnetTransaction);
+
+    expect(
+      controller.state.nonEvmTransactions[mockSolAccountWithId.id][
+        MultichainNetwork.SolanaDevnet
+      ].transactions,
+    ).toHaveLength(1);
+    expect(
+      controller.state.nonEvmTransactions[mockSolAccountWithId.id][
+        MultichainNetwork.SolanaDevnet
+      ].transactions[0],
+    ).toBe(devnetTransaction);
   });
 
   it('publishes transactionConfirmed event when transaction is confirmed', async () => {
