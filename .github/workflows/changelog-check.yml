@@ -6,9 +6,9 @@ on:
 
 jobs:
   check_changelog:
-    uses: MetaMask/github-tools/.github/workflows/changelog-check.yml@5af9094a52045afa865077e2ccfb854f41bb4789
+    uses: MetaMask/github-tools/.github/workflows/changelog-check.yml@85fffce169c0fd35028ecde6b38dfb3f932882ec
     with:
-      action-sha: 5af9094a52045afa865077e2ccfb854f41bb4789
+      action-sha: 85fffce169c0fd35028ecde6b38dfb3f932882ec
       base-branch: ${{ github.event.pull_request.base.ref }}
       head-ref: ${{ github.head_ref }}
       labels: ${{ toJSON(github.event.pull_request.labels) }}
