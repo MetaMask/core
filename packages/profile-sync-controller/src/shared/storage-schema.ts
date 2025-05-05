@@ -13,7 +13,10 @@ export const USER_STORAGE_FEATURE_NAMES = {
   notifications: 'notifications',
   accounts: 'accounts_v2',
   networks: 'networks',
+  keys: 'keys',
 } as const;
+
+export const PROFILE_STORAGE_KEY = 'profile_storage_key';
 
 export type UserStorageFeatureNames =
   (typeof USER_STORAGE_FEATURE_NAMES)[keyof typeof USER_STORAGE_FEATURE_NAMES];
@@ -22,6 +25,7 @@ export const USER_STORAGE_SCHEMA = {
   [USER_STORAGE_FEATURE_NAMES.notifications]: ['notification_settings'],
   [USER_STORAGE_FEATURE_NAMES.accounts]: [ALLOW_ARBITRARY_KEYS], // keyed by account addresses
   [USER_STORAGE_FEATURE_NAMES.networks]: [ALLOW_ARBITRARY_KEYS], // keyed by chains/networks
+  [USER_STORAGE_FEATURE_NAMES.keys]: [PROFILE_STORAGE_KEY],
 } as const;
 
 type UserStorageSchema = typeof USER_STORAGE_SCHEMA;
@@ -144,7 +148,7 @@ export function createEntryPath<T extends boolean>(
   options: {
     validateAgainstSchema: T;
   } = { validateAgainstSchema: true as T },
-): string {
+): `${string}/${string}` {
   const { feature, key } = getFeatureAndKeyFromPath(path, options);
   const hashedKey = createSHA256Hash(key + storageKey);
 

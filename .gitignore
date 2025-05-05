@@ -11,6 +11,7 @@ package-lock.json
 .eslintcache
 
 .DS_STORE
+.idea/
 
 # Build preview message
 preview-build-message.txt
