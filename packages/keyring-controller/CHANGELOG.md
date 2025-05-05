@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `withReadonlyKeyring` action ([#5727](https://github.com/MetaMask/core/pull/5727))
+
 ### Changed
 
 - Prevent emitting `:stateChange` from `withKeyring` unnecessarily ([#5732](https://github.com/MetaMask/core/pull/5732))

@@ -193,6 +193,11 @@ export type KeyringControllerWithKeyringAction = {
   handler: KeyringController['withKeyring'];
 };
 
+export type KeyringControllerWithReadonlyKeyringAction = {
+  type: `${typeof name}:withReadonlyKeyring`;
+  handler: KeyringController['withReadonlyKeyring'];
+};
+
 export type KeyringControllerStateChangeEvent = {
   type: `${typeof name}:stateChange`;
   payload: [KeyringControllerState, Patch[]];
@@ -234,7 +239,8 @@ export type KeyringControllerActions =
   | KeyringControllerPatchUserOperationAction
   | KeyringControllerSignUserOperationAction
   | KeyringControllerAddNewAccountAction
-  | KeyringControllerWithKeyringAction;
+  | KeyringControllerWithKeyringAction
+  | KeyringControllerWithReadonlyKeyringAction;
 
 export type KeyringControllerEvents =
   | KeyringControllerStateChangeEvent
@@ -1493,6 +1499,74 @@ export class KeyringController extends BaseController<
   }
 
   /**
+   * Execute an operation on the selected keyring.
+   *
+   * @param selector - Keyring selector object.
+   * @param operation - Function to execute with the selected keyring.
+   * @param options - Additional options.
+   * @returns Promise resolving to the result of the function execution.
+   * @template SelectedKeyring - The type of the selected keyring.
+   * @template CallbackResult - The type of the value resolved by the callback function.
+   */
+  async #executeWithKeyring<
+    SelectedKeyring extends EthKeyring = EthKeyring,
+    CallbackResult = void,
+  >(
+    selector: KeyringSelector,
+    operation: ({
+      keyring,
+      metadata,
+    }: {
+      keyring: SelectedKeyring;
+      metadata: KeyringMetadata;
+    }) => Promise<CallbackResult>,
+
+    options:
+      | { createIfMissing?: false }
+      | { createIfMissing: true; createWithData?: unknown },
+  ): Promise<CallbackResult> {
+    let keyring: SelectedKeyring | undefined;
+
+    if ('address' in selector) {
+      keyring = (await this.getKeyringForAccount(selector.address)) as
+        | SelectedKeyring
+        | undefined;
+    } else if ('type' in selector) {
+      keyring = this.getKeyringsByType(selector.type)[selector.index || 0] as
+        | SelectedKeyring
+        | undefined;
+
+      if (!keyring && options.createIfMissing) {
+        keyring = (await this.#newKeyring(
+          selector.type,
+          options.createWithData,
+        )) as SelectedKeyring;
+      }
+    } else if ('id' in selector) {
+      keyring = this.#getKeyringById(selector.id) as SelectedKeyring;
+    }
+
+    if (!keyring) {
+      throw new Error(KeyringControllerError.KeyringNotFound);
+    }
+
+    const result = await operation({
+      keyring,
+      metadata: this.#getKeyringMetadata(keyring),
+    });
+
+    if (Object.is(result, keyring)) {
+      // Access to a keyring instance outside of controller safeguards
+      // should be discouraged, as it can lead to unexpected behavior.
+      // This error is thrown to prevent consumers using `withKeyring`
+      // as a way to get a reference to a keyring instance.
+      throw new Error(KeyringControllerError.UnsafeDirectKeyringAccess);
+    }
+
+    return result;
+  }
+
+  /**
    * Select a keyring and execute the given operation with
    * the selected keyring, as a mutually exclusive atomic
    * operation.
@@ -1579,45 +1653,60 @@ export class KeyringController extends BaseController<
     this.#assertIsUnlocked();
 
     return this.#persistOrRollback(async () => {
-      let keyring: SelectedKeyring | undefined;
+      return await this.#executeWithKeyring(selector, operation, options);
+    });
+  }
 
-      if ('address' in selector) {
-        keyring = (await this.getKeyringForAccount(selector.address)) as
-          | SelectedKeyring
-          | undefined;
-      } else if ('type' in selector) {
-        keyring = this.getKeyringsByType(selector.type)[selector.index || 0] as
-          | SelectedKeyring
-          | undefined;
+  /**
+   * Select a keyring and execute the given operation with
+   * the selected keyring, as a mutually exclusive atomic
+   * operation.
+   *
+   * The method won't persists changes at the end of the
+   * function execution.
+   *
+   * @param selector - Keyring selector object.
+   * @param operation - Function to execute with the selected keyring.
+   * @returns Promise resolving to the result of the function execution.
+   * @template SelectedKeyring - The type of the selected keyring.
+   * @template CallbackResult - The type of the value resolved by the callback function.
+   */
+  async withReadonlyKeyring<
+    SelectedKeyring extends EthKeyring = EthKeyring,
+    CallbackResult = void,
+  >(
+    selector: KeyringSelector,
+    operation: ({
+      keyring,
+      metadata,
+    }: {
+      keyring: Readonly<SelectedKeyring>;
+      metadata: KeyringMetadata;
+    }) => Promise<CallbackResult>,
+  ): Promise<CallbackResult>;
 
-        if (!keyring && options.createIfMissing) {
-          keyring = (await this.#newKeyring(
-            selector.type,
-            options.createWithData,
-          )) as SelectedKeyring;
-        }
-      } else if ('id' in selector) {
-        keyring = this.#getKeyringById(selector.id) as SelectedKeyring;
-      }
+  async withReadonlyKeyring<
+    SelectedKeyring extends EthKeyring = EthKeyring,
+    CallbackResult = void,
+  >(
+    selector: KeyringSelector,
+    operation: ({
+      keyring,
+      metadata,
+    }: {
+      keyring: Readonly<SelectedKeyring>;
+      metadata: KeyringMetadata;
+    }) => Promise<CallbackResult>,
+    options:
+      | { createIfMissing?: false }
+      | { createIfMissing: true; createWithData?: unknown } = {
+      createIfMissing: false,
+    },
+  ): Promise<CallbackResult> {
+    this.#assertIsUnlocked();
 
-      if (!keyring) {
-        throw new Error(KeyringControllerError.KeyringNotFound);
-      }
-
-      const result = await operation({
-        keyring,
-        metadata: this.#getKeyringMetadata(keyring),
-      });
-
-      if (Object.is(result, keyring)) {
-        // Access to a keyring instance outside of controller safeguards
-        // should be discouraged, as it can lead to unexpected behavior.
-        // This error is thrown to prevent consumers using `withKeyring`
-        // as a way to get a reference to a keyring instance.
-        throw new Error(KeyringControllerError.UnsafeDirectKeyringAccess);
-      }
-
-      return result;
+    return this.#withControllerLock(async () => {
+      return await this.#executeWithKeyring(selector, operation, options);
     });
   }
 
@@ -1939,6 +2028,11 @@ export class KeyringController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${name}:withKeyring`,
       this.withKeyring.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:withReadonlyKeyring`,
+      this.withReadonlyKeyring.bind(this),
     );
   }
 
