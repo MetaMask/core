@@ -1460,10 +1460,22 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving when the operation completes.
    */
   async submitPassword(password: string): Promise<void> {
-    return this.#withRollback(async () => {
+    await this.#withRollback(async () => {
       this.#keyrings = await this.#unlockKeyrings(password);
       this.#setUnlocked();
     });
+
+    try {
+      // If there are stronger encryption params available, we
+      // can attempt to upgrade the vault.
+      await this.#withRollback(async () =>
+        this.#upgradeVaultEncryptionParams(),
+      );
+    } catch (error) {
+      // We don't want to throw an error if the upgrade fails
+      // since the controller is already unlocked.
+      console.error('Failed to upgrade vault encryption params:', error);
+    }
   }
 
   /**
@@ -2204,7 +2216,7 @@ export class KeyringController extends BaseController<
     encryptionKey?: string,
     encryptionSalt?: string,
   ): Promise<EthKeyring[]> {
-    return this.#withVaultLock(async ({ releaseLock }) => {
+    return this.#withVaultLock(async () => {
       const encryptedVault = this.state.vault;
       if (!encryptedVault) {
         throw new Error(KeyringControllerError.VaultError);
@@ -2281,19 +2293,6 @@ export class KeyringController extends BaseController<
           state.encryptionSalt = updatedState.encryptionSalt;
         }
       });
-
-      if (
-        this.#password &&
-        (!this.#cacheEncryptionKey || !encryptionKey) &&
-        this.#encryptor.isVaultUpdated &&
-        !this.#encryptor.isVaultUpdated(encryptedVault)
-      ) {
-        // The lock needs to be released before persisting the keyrings
-        // to avoid deadlock
-        releaseLock();
-        // Re-encrypt the vault with safer method if one is available
-        await this.#updateVault();
-      }
 
       return this.#keyrings;
     });
@@ -2383,6 +2382,25 @@ export class KeyringController extends BaseController<
 
       return true;
     });
+  }
+
+  /**
+   * Upgrade the vault encryption parameters if needed.
+   *
+   * @returns A promise resolving to `void`.
+   */
+  async #upgradeVaultEncryptionParams(): Promise<void> {
+    this.#assertControllerMutexIsLocked();
+    const { vault } = this.state;
+
+    if (
+      vault &&
+      this.#password &&
+      this.#encryptor.isVaultUpdated &&
+      !this.#encryptor.isVaultUpdated(vault)
+    ) {
+      await this.#updateVault();
+    }
   }
 
   /**

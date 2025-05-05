@@ -21,6 +21,7 @@ import type {
 export const DELEGATION_PREFIX = '0xef0100';
 export const BATCH_FUNCTION_NAME = 'execute';
 export const CALLS_SIGNATURE = '(address,uint256,bytes)[]';
+export const ERROR_MESSGE_PUBLIC_KEY = 'EIP-7702 public key not specified';
 
 const UNSUPPORTED_PARAMS = [
   'gas',
