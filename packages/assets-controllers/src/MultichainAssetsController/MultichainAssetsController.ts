@@ -56,16 +56,24 @@ export type AssetMetadataResponse = {
     [asset: CaipAssetType]: FungibleAssetMetadata;
   };
 };
-export type AccountId = string;
-export type NewAccountAssets = {
-  accountId: AccountId;
-  assets: CaipAssetType[];
-}[];
-export type MultichainAssetsControllerNewAccountAssetsEvent = {
-  type: `${typeof controllerName}:newAccountAssets`;
+
+export type MultichainAssetsControllerAccountAssetListUpdatedEvent = {
+  type: `${typeof controllerName}:accountAssetListUpdated`;
   payload: [
     {
-      newAccountAssets: NewAccountAssets;
+      assets: Record<
+        string,
+        {
+          added: (
+            | `${string}:${string}/${string}:${string}`
+            | `${string}:${string}/${string}:${string}/${string}`
+          )[];
+          removed: (
+            | `${string}:${string}/${string}:${string}`
+            | `${string}:${string}/${string}:${string}/${string}`
+          )[];
+        }
+      >;
     },
   ];
 };
@@ -116,7 +124,7 @@ export type MultichainAssetsControllerActions =
  */
 export type MultichainAssetsControllerEvents =
   | MultichainAssetsControllerStateChangeEvent
-  | MultichainAssetsControllerNewAccountAssetsEvent;
+  | MultichainAssetsControllerAccountAssetListUpdatedEvent;
 
 /**
  * A function executed within a mutually exclusive lock, with
@@ -268,44 +276,68 @@ export class MultichainAssetsController extends BaseController<
   ) {
     this.#assertControllerMutexIsLocked();
 
-    const assetsToUpdate = event.assets;
-    let assetsForMetadataRefresh = new Set<CaipAssetType>([]);
-    for (const accountId in assetsToUpdate) {
-      if (hasProperty(assetsToUpdate, accountId)) {
-        const { added, removed } = assetsToUpdate[accountId];
-        if (added.length > 0 || removed.length > 0) {
-          const existing = this.state.accountsAssets[accountId] || [];
-          const assets = new Set<CaipAssetType>([
-            ...existing,
-            ...added.filter((asset) => isCaipAssetType(asset)),
-          ]);
-          for (const removedAsset of removed) {
-            assets.delete(removedAsset);
-          }
-          assetsForMetadataRefresh = new Set([
-            ...assetsForMetadataRefresh,
-            ...assets,
-          ]);
-          this.update((state) => {
-            state.accountsAssets[accountId] = Array.from(assets);
-          });
+    const assetsForMetadataRefresh = new Set<CaipAssetType>([]);
+    const accountsAndAssetsToUpdate: AccountAssetListUpdatedEventPayload['assets'] =
+      {};
+    for (const [accountId, { added, removed }] of Object.entries(
+      event.assets,
+    )) {
+      if (added.length > 0 || removed.length > 0) {
+        const existing = this.state.accountsAssets[accountId] || [];
+
+        // In case accountsAndAssetsToUpdate event is fired with "added" assets that already exist, we don't want to add them again
+        const filteredToBeAddedAssets = added.filter(
+          (asset) => !existing.includes(asset) && isCaipAssetType(asset),
+        );
+
+        // In case accountsAndAssetsToUpdate event is fired with "removed" assets that don't exist, we don't want to remove them
+        const filteredToBeRemovedAssets = removed.filter(
+          (asset) => existing.includes(asset) && isCaipAssetType(asset),
+        );
+
+        if (
+          filteredToBeAddedAssets.length > 0 ||
+          filteredToBeRemovedAssets.length > 0
+        ) {
+          accountsAndAssetsToUpdate[accountId] = {
+            added: filteredToBeAddedAssets,
+            removed: filteredToBeRemovedAssets,
+          };
+        }
+
+        for (const asset of existing) {
+          assetsForMetadataRefresh.add(asset);
+        }
+        for (const asset of filteredToBeAddedAssets) {
+          assetsForMetadataRefresh.add(asset);
+        }
+        for (const asset of filteredToBeRemovedAssets) {
+          assetsForMetadataRefresh.delete(asset);
         }
       }
     }
 
+    this.update((state) => {
+      for (const [accountId, { added, removed }] of Object.entries(
+        accountsAndAssetsToUpdate,
+      )) {
+        const assets = new Set([
+          ...(state.accountsAssets[accountId] || []),
+          ...added,
+        ]);
+        for (const asset of removed) {
+          assets.delete(asset);
+        }
+
+        state.accountsAssets[accountId] = Array.from(assets);
+      }
+    });
+
     // Trigger fetching metadata for new assets
     await this.#refreshAssetsMetadata(Array.from(assetsForMetadataRefresh));
 
-    // Trigger balances update for new assets
-    const accountsAndAssetsToUpdate = Object.entries(assetsToUpdate).map(
-      ([accountId, { added }]) => ({
-        accountId,
-        assets: added,
-      }),
-    );
-
-    this.messagingSystem.publish(`${controllerName}:newAccountAssets`, {
-      newAccountAssets: accountsAndAssetsToUpdate,
+    this.messagingSystem.publish(`${controllerName}:accountAssetListUpdated`, {
+      assets: accountsAndAssetsToUpdate,
     });
   }
 
@@ -345,14 +377,17 @@ export class MultichainAssetsController extends BaseController<
       this.update((state) => {
         state.accountsAssets[account.id] = assets;
       });
-      this.messagingSystem.publish(`${controllerName}:newAccountAssets`, {
-        newAccountAssets: [
-          {
-            accountId: account.id,
-            assets,
+      this.messagingSystem.publish(
+        `${controllerName}:accountAssetListUpdated`,
+        {
+          assets: {
+            [account.id]: {
+              added: assets,
+              removed: [],
+            },
           },
-        ],
-      });
+        },
+      );
     }
   }
 

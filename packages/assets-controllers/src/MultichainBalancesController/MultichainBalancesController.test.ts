@@ -141,7 +141,7 @@ function getRestrictedMessenger(
       'AccountsController:accountAdded',
       'AccountsController:accountRemoved',
       'AccountsController:accountBalancesUpdated',
-      'MultichainAssetsController:newAccountAssets',
+      'MultichainAssetsController:accountAssetListUpdated',
     ],
   });
 }
@@ -503,18 +503,17 @@ describe('MultichainBalancesController', () => {
             unit: 'SOL',
           },
         });
-
-      messenger.publish('MultichainAssetsController:newAccountAssets', {
-        newAccountAssets: [
-          {
-            accountId: mockSolanaAccountId1,
-            assets: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken'],
+      messenger.publish('MultichainAssetsController:accountAssetListUpdated', {
+        assets: {
+          [mockSolanaAccountId1]: {
+            added: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken'],
+            removed: [],
           },
-          {
-            accountId: mockSolanaAccountId2,
-            assets: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken3'],
+          [mockSolanaAccountId2]: {
+            added: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken3'],
+            removed: [] as `${string}:${string}/${string}:${string}`[],
           },
-        ],
+        },
       });
 
       await waitForAllPromises();
@@ -637,17 +636,17 @@ describe('MultichainBalancesController', () => {
           },
         });
 
-      messenger.publish('MultichainAssetsController:newAccountAssets', {
-        newAccountAssets: [
-          {
-            accountId: mockSolanaAccountId1,
-            assets: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken'],
+      messenger.publish('MultichainAssetsController:accountAssetListUpdated', {
+        assets: {
+          [mockSolanaAccountId1]: {
+            added: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken'],
+            removed: [],
           },
-          {
-            accountId: mockSolanaAccountId2,
-            assets: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken3'],
+          [mockSolanaAccountId2]: {
+            added: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken3'],
+            removed: [],
           },
-        ],
+        },
       });
 
       await waitForAllPromises();

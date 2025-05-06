@@ -28,7 +28,7 @@ import type { Draft } from 'immer';
 
 import type {
   MultichainAssetsControllerGetStateAction,
-  MultichainAssetsControllerNewAccountAssetsEvent,
+  MultichainAssetsControllerAccountAssetListUpdatedEvent,
   MultichainAssetsControllerStateChangeEvent,
 } from '../MultichainAssetsController';
 
@@ -108,7 +108,7 @@ type AllowedEvents =
   | AccountsControllerAccountBalancesUpdatesEvent
   | MultichainAssetsControllerStateChangeEvent
   | AccountsControllerAccountAssetListUpdatedEvent
-  | MultichainAssetsControllerNewAccountAssetsEvent;
+  | MultichainAssetsControllerAccountAssetListUpdatedEvent;
 /**
  * Messenger type for the MultichainBalancesController.
  */
@@ -178,8 +178,14 @@ export class MultichainBalancesController extends BaseController<
     );
 
     this.messagingSystem.subscribe(
-      'MultichainAssetsController:newAccountAssets',
-      async ({ newAccountAssets }) => {
+      'MultichainAssetsController:accountAssetListUpdated',
+      async ({ assets }) => {
+        const newAccountAssets = Object.entries(assets).map(
+          ([accountId, { added }]) => ({
+            accountId,
+            assets: [...added],
+          }),
+        );
         await this.#updateBalancesForAccounts(newAccountAssets);
       },
     );

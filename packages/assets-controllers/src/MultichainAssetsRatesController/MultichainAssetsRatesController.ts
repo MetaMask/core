@@ -37,7 +37,7 @@ import type {
 } from '../CurrencyRateController';
 import type {
   MultichainAssetsControllerGetStateAction,
-  MultichainAssetsControllerNewAccountAssetsEvent,
+  MultichainAssetsControllerAccountAssetListUpdatedEvent,
   MultichainAssetsControllerState,
   MultichainAssetsControllerStateChangeEvent,
 } from '../MultichainAssetsController';
@@ -134,7 +134,7 @@ export type AllowedEvents =
   | AccountsControllerAccountAddedEvent
   | CurrencyRateStateChange
   | MultichainAssetsControllerStateChangeEvent
-  | MultichainAssetsControllerNewAccountAssetsEvent;
+  | MultichainAssetsControllerAccountAssetListUpdatedEvent;
 /**
  * Messenger type for the MultichainAssetsRatesController.
  */
@@ -230,8 +230,15 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
     );
 
     this.messagingSystem.subscribe(
-      'MultichainAssetsController:newAccountAssets',
-      async ({ newAccountAssets }) => {
+      'MultichainAssetsController:accountAssetListUpdated',
+      async ({ assets }) => {
+        const newAccountAssets = Object.entries(assets).map(
+          ([accountId, { added }]) => ({
+            accountId,
+            assets: [...added],
+          }),
+        );
+        // TODO; removed can be used in future for further cleanup
         await this.#updateAssetsRatesForNewAssets(newAccountAssets);
       },
     );

@@ -169,7 +169,7 @@ const setupController = ({
       'KeyringController:lock',
       'KeyringController:unlock',
       'CurrencyRateController:stateChange',
-      'MultichainAssetsController:newAccountAssets',
+      'MultichainAssetsController:accountAssetListUpdated',
     ],
   });
 
@@ -418,17 +418,17 @@ describe('MultichainAssetsRatesController', () => {
       });
     messenger.registerActionHandler('SnapController:handleRequest', snapSpy);
 
-    messenger.publish('MultichainAssetsController:newAccountAssets', {
-      newAccountAssets: [
-        {
-          accountId: testAccounts[0].id,
-          assets: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
+    messenger.publish('MultichainAssetsController:accountAssetListUpdated', {
+      assets: {
+        [testAccounts[0].id]: {
+          added: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
+          removed: [],
         },
-        {
-          accountId: testAccounts[1].id,
-          assets: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token1:501'],
+        [testAccounts[1].id]: {
+          added: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token1:501'],
+          removed: [],
         },
-      ],
+      },
     });
     // Wait for the asynchronous subscriber to run.
     await Promise.resolve();
