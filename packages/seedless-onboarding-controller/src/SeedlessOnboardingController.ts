@@ -427,8 +427,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * When the controller is locked, the user will not be able to perform any operations on the controller/vault.
    */
   setLocked(): void {
-    this.#assertIsUnlocked();
-
     this.update((state) => {
       delete state.vaultEncryptionKey;
       delete state.vaultEncryptionSalt;
