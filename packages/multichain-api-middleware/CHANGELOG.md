@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/387.0.0 ([#5760](https://github.com/MetaMask/core/pull/5760))
+- Release 381.0.0 ([#5729](https://github.com/MetaMask/core/pull/5729))
+- Release/377.0.0 ([#5715](https://github.com/MetaMask/core/pull/5715))
+- feat: Add more chain-agnostic-permission utility functions from sip-26 usage ([#5609](https://github.com/MetaMask/core/pull/5609))
+
 ### Changed
 
 - Bump `@metamask/network-controller` to `^23.3.0` ([#5789](https://github.com/MetaMask/core/pull/5789))
