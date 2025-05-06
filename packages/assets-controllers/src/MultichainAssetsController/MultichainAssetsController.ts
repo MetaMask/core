@@ -292,8 +292,21 @@ export class MultichainAssetsController extends BaseController<
         }
       }
     }
+
     // Trigger fetching metadata for new assets
     await this.#refreshAssetsMetadata(Array.from(assetsForMetadataRefresh));
+
+    // Trigger balances update for new assets
+    const accountsAndAssetsToUpdate = Object.entries(assetsToUpdate).map(
+      ([accountId, { added }]) => ({
+        accountId,
+        assets: added,
+      }),
+    );
+
+    this.messagingSystem.publish(`${controllerName}:newAccountAssets`, {
+      newAccountAssets: accountsAndAssetsToUpdate,
+    });
   }
 
   /**
