@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Monad Testnet as default network ([#5724](https://github.com/MetaMask/core/pull/5724))
+
 ## [23.3.0]
 
 ### Added
