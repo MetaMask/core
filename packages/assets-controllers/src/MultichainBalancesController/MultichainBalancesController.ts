@@ -180,7 +180,6 @@ export class MultichainBalancesController extends BaseController<
     this.messagingSystem.subscribe(
       'MultichainAssetsController:newAccountAssets',
       async ({ newAccountAssets }) => {
-        console.log('🚀 ~ newAccountAssets:', newAccountAssets);
         await this.#updateBalancesForAccounts(newAccountAssets);
       },
     );
