@@ -221,12 +221,12 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         return remove0x(keccak256AndHexify(stringToBytes(idToken)));
       });
       const authenticationResult = await this.toprfClient.authenticate({
-        verifier: groupedAuthConnectionId || authConnectionId,
-        verifierId: userId,
+        authConnectionId: groupedAuthConnectionId || authConnectionId,
+        userId,
         idTokens: hashedIdTokenHexes,
-        singleIdVerifierParams: {
-          subVerifier: authConnectionId,
-          subVerifierIdTokens: idTokens,
+        groupedAuthConnectionParams: {
+          authConnectionId,
+          idTokens,
         },
       });
       // update the state with the authenticated user info
@@ -478,14 +478,14 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    */
   async #persistOprfKey(oprfKey: bigint, authPubKey: SEC1EncodedPublicKey) {
     this.#assertIsAuthenticatedUser(this.state);
-    const verifier =
+    const authConnectionId =
       this.state.groupedAuthConnectionId || this.state.authConnectionId;
 
     try {
       await this.toprfClient.persistLocalKey({
         nodeAuthTokens: this.state.nodeAuthTokens,
-        verifier,
-        verifierId: this.state.userId,
+        authConnectionId,
+        userId: this.state.userId,
         oprfKey,
         authPubKey,
       });
@@ -504,15 +504,15 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    */
   async #recoverEncKey(password: string) {
     this.#assertIsAuthenticatedUser(this.state);
-    const verifier =
+    const authConnectionId =
       this.state.groupedAuthConnectionId || this.state.authConnectionId;
 
     try {
       const recoverEncKeyResult = await this.toprfClient.recoverEncKey({
         nodeAuthTokens: this.state.nodeAuthTokens,
         password,
-        verifier,
-        verifierId: this.state.userId,
+        authConnectionId,
+        userId: this.state.userId,
       });
       return recoverEncKeyResult;
     } catch (error) {
@@ -529,7 +529,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    */
   async #changeEncryptionKey(newPassword: string, oldPassword: string) {
     this.#assertIsAuthenticatedUser(this.state);
-    const verifier =
+    const authConnectionId =
       this.state.groupedAuthConnectionId || this.state.authConnectionId;
 
     const {
@@ -540,11 +540,12 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
 
     return await this.toprfClient.changeEncKey({
       nodeAuthTokens: this.state.nodeAuthTokens,
-      verifier,
-      verifierId: this.state.userId,
+      authConnectionId,
+      userId: this.state.userId,
       oldEncKey: encKey,
       oldAuthKeyPair: authKeyPair,
       newKeyShareIndex,
+      oldPassword,
       newPassword,
     });
   }

@@ -2628,20 +2628,20 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/auth-network-utils@file:./packages/seedless-onboarding-controller/auth-network-utils.tgz::locator=%40metamask%2Fcore-monorepo%40workspace%3A.":
-  version: 0.0.0
-  resolution: "@metamask/auth-network-utils@file:./packages/seedless-onboarding-controller/auth-network-utils.tgz#./packages/seedless-onboarding-controller/auth-network-utils.tgz::hash=71b1b4&locator=%40metamask%2Fcore-monorepo%40workspace%3A."
+"@metamask/auth-network-utils@npm:^0.1.0":
+  version: 0.1.0
+  resolution: "@metamask/auth-network-utils@npm:0.1.0"
   dependencies:
     "@noble/curves": "npm:^1.8.1"
     "@noble/hashes": "npm:^1.7.1"
     "@toruslabs/bs58": "npm:^1.0.0"
     "@toruslabs/constants": "npm:^15.0.0"
-    "@toruslabs/eccrypto": "npm:^6.0.2"
+    "@toruslabs/eccrypto": "npm:^6.1.0"
     bn.js: "npm:^5.2.1"
     elliptic: "npm:^6.6.1"
     json-stable-stringify: "npm:^1.2.1"
     loglevel: "npm:^1.9.2"
-  checksum: 10/b3e5d557b6a9adcaca4cb6cb45f1c3ca59ac12c05601dff701272b2765c60d36235a9ea566064d4437f45cfb1de2888c35e61cd1bf34b2f909ac47e7e7a5d775
+  checksum: 10/5becc59a4fbb76be0411a50118ca67bbf9d15dcf3552062c6c873dd1662a2f1ff438a7c0afa3f9112a7a539a0c1e5a5d853bf69b3e35219ac54889cefb895d9c
   languageName: node
   linkType: hard
 
@@ -4253,12 +4253,12 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/seedless-onboarding-controller@workspace:packages/seedless-onboarding-controller"
   dependencies:
-    "@metamask/auth-network-utils": ./auth-network-utils.tgz
+    "@metamask/auth-network-utils": "npm:^0.1.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.0"
     "@metamask/browser-passworder": "npm:^4.3.0"
     "@metamask/keyring-controller": "npm:^21.0.3"
-    "@metamask/toprf-secure-backup": ./toprf-secure-backup.tgz
+    "@metamask/toprf-secure-backup": "npm:^0.1.0"
     "@metamask/utils": "npm:^11.2.0"
     "@noble/ciphers": "npm:^0.5.2"
     "@noble/curves": "npm:^1.2.0"
@@ -4501,21 +4501,21 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/toprf-secure-backup@file:./toprf-secure-backup.tgz::locator=%40metamask%2Fseedless-onboarding-controller%40workspace%3Apackages%2Fseedless-onboarding-controller":
-  version: 0.0.0
-  resolution: "@metamask/toprf-secure-backup@file:./toprf-secure-backup.tgz#./toprf-secure-backup.tgz::hash=928fb2&locator=%40metamask%2Fseedless-onboarding-controller%40workspace%3Apackages%2Fseedless-onboarding-controller"
+"@metamask/toprf-secure-backup@npm:^0.1.0":
+  version: 0.1.0
+  resolution: "@metamask/toprf-secure-backup@npm:0.1.0"
   dependencies:
-    "@metamask/auth-network-utils": "npm:^0.0.0"
+    "@metamask/auth-network-utils": "npm:^0.1.0"
     "@noble/ciphers": "npm:^1.2.1"
     "@noble/curves": "npm:^1.8.1"
     "@noble/hashes": "npm:^1.7.1"
     "@sentry/core": "npm:^9.10.0"
     "@toruslabs/constants": "npm:^15.0.0"
-    "@toruslabs/eccrypto": "npm:^6.0.2"
+    "@toruslabs/eccrypto": "npm:^6.1.0"
     "@toruslabs/fetch-node-details": "npm:^15.0.0"
     "@toruslabs/http-helpers": "npm:^8.1.1"
     bn.js: "npm:^5.2.1"
-  checksum: 10/e61959c0711a4b9478a59438d887129c30cb4153158b75ca1db3c06e0501b014a4f68bc011f99e41c374751a8d3782e5fd04f97c053aff8fb1208f1937ff7a74
+  checksum: 10/ef6d1cfabe13b793807398c1bd00a27c0eb20f84411d54425da49c5742dffee83b3cf0d12daa7af170d4175eeca4b2eceecbf1465992ba3a35f4ace77d49e4c1
   languageName: node
   linkType: hard
 
@@ -5248,12 +5248,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@toruslabs/eccrypto@npm:^6.0.2":
-  version: 6.0.2
-  resolution: "@toruslabs/eccrypto@npm:6.0.2"
+"@toruslabs/eccrypto@npm:^6.1.0":
+  version: 6.1.0
+  resolution: "@toruslabs/eccrypto@npm:6.1.0"
   dependencies:
     elliptic: "npm:^6.6.1"
-  checksum: 10/a9444da5a65186b3b361095df2fbfd66aa09ffe5723610c71636165e2798942cfc74d89a5bf63507aacf2518baee453bcf04ff353c5e2978a32c29db276a2c41
+  checksum: 10/8f79621ec4bd712eb12e70c0385353aa70221fe2b501ee674718c74a4147f82ede3ff38a045254b9da4bc9a5d1f891b87025904b7de8f6b8962791681ee65837
   languageName: node
   linkType: hard
 
