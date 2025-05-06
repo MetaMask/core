@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add event `MultichainAssetsController:newAccountAssets` in MultichainAssetsController to notify when new assets are detected for an account ([#5761](https://github.com/MetaMask/core/pull/5761))
+
 ### Changed
 
+- **BREAKING:** remove subscription to `MultichainAssetsController:stateChange` in `MultichainAssetsRatesController` and add subscription to `MultichainAssetsController:newAccountAssets` ([#5761](https://github.com/MetaMask/core/pull/5761))
+- **BREAKING:** remove subscription to `MultichainAssetsController:stateChange` in `MultichainBalancesController` and add subscription to `MultichainAssetsController:newAccountAssets` ([#5761](https://github.com/MetaMask/core/pull/5761))
 - Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
 
 ## [60.0.0]
