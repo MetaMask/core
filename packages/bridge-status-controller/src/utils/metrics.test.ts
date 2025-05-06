@@ -340,7 +340,6 @@ describe('metrics utils', () => {
         provider: 'across_across',
         quoted_time_minutes: 15,
         usd_quoted_return: 1980,
-        price_impact: 0,
       });
     });
 
@@ -416,6 +415,7 @@ describe('metrics utils', () => {
       expect(result).toStrictEqual({
         slippage_limit: 0.5,
         custom_slippage: true,
+        security_warnings: [],
         usd_amount_source: 2000,
         swap_type: 'crosschain',
         is_hardware_wallet: false,
@@ -505,7 +505,7 @@ describe('metrics utils', () => {
       };
       const sameChainResult =
         getRequestMetadataFromHistory(sameChainHistoryItem);
-      expect(sameChainResult.swap_type).toBe('single chain');
+      expect(sameChainResult.swap_type).toBe('single_chain');
 
       // Cross chain swap (already tested in the main test)
       expect(mockHistoryItem.quote.srcChainId).not.toBe(
