@@ -447,6 +447,10 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
         allNewRates = { ...allNewRates, ...updatedRates };
       }
 
+      if (Object.keys(allNewRates).length === 0) {
+        return;
+      }
+
       this.update((state: Draft<MultichainAssetsRatesControllerState>) => {
         state.conversionRates = {
           ...state.conversionRates,
