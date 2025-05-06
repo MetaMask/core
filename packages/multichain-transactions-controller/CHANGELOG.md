@@ -11,9 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Updates the support for Solana devnnet chain and txs data structure ([#5756](https://github.com/MetaMask/core/pull/5756))
 - **BREAKING:** Bump `@metamask/accounts-controllers` peer dependency to `^28.0.0` ([#5763](https://github.com/MetaMask/core/pull/5763))
 - **BREAKING:** Bump `@metamask/snaps-controllers` peer dependency to `^11.0.0` ([#5639](https://github.com/MetaMask/core/pull/5639))
-- **BREAKING:** Updates the support for Solana devnnet chain and txs data structure ([#5756](https://github.com/MetaMask/core/pull/5756))
 - Bump `@metamask/base-controller` from `^8.0.0` to `^8.0.1` ([#5722](https://github.com/MetaMask/core/pull/5722))
 - Bump `@metamask/snaps-sdk` from `^6.17.1` to `^6.22.0` ([#5639](https://github.com/MetaMask/core/pull/5639))
 - Bump `@metamask/snaps-utils` from `^8.10.0` to `^9.2.0` ([#5639](https://github.com/MetaMask/core/pull/5639))
