@@ -35,12 +35,6 @@ class MockMessenger<Event extends EventName> {
   }
 }
 
-/**
- *
- * @param opts
- * @param opts.events
- * @param opts.handlers
- */
 function setup<Event extends EventName>(opts: {
   events: readonly Event[];
   handlers?: Handlers;
@@ -85,15 +79,15 @@ describe('EventChangeDetector', () => {
   });
 
   it('detects event sent with the same values', () => {
-    const { messenger, handlers } = setup({ events });
+    const { messenger, detector, handlers } = setup({ events });
 
     const payload = { foobar: true };
     messenger.publish(events[0], payload);
     messenger.publish(events[0], payload);
 
     expect(handlers.onSameEventValues).toHaveBeenCalledWith(
+      detector,
       events[0],
-      expect.any(EventStats),
       payload,
     );
   });
@@ -156,7 +150,7 @@ describe('EventChangeDetector', () => {
     const badEvent = events[1];
     // @ts-expect-error - Testing error case that's not type-safe.
     expect(() => detector.getStats(badEvent)).toThrow(
-      `Missing stats for: "${badEvent}"`,
+      `Unknown event: "${badEvent}"`,
     );
   });
 

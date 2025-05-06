@@ -10,9 +10,9 @@ export type EventMessenger<Event extends EventName> = {
 };
 
 export type Handlers = {
-  onSameEventValues: (
+  onSameEventValues: <Event extends EventName>(
+    data: EventAnalyzedData<Event>,
     event: EventName,
-    stats: EventStats,
     ...values: unknown[]
   ) => void;
 };
@@ -56,18 +56,33 @@ export class EventStats {
   }
 }
 
+export type EventInfo = {
+  handler: EventHandler;
+  value?: unknown[];
+  stats: EventStats;
+};
+
+export type EventAnalyzedData<Event extends EventName> = {
+  getStats(event: Event): EventStats;
+  getEvents(): Event[];
+};
+
 /**
  * Default handlers for `onSameEventValues`.
  *
+ * @param data - Analyzed data.
  * @param event - Event name.
- * @param stats - Event stats.
  * @param values - Event values (or payload).
  */
-export const onSameEventValuesLogHandler: Handlers['onSameEventValues'] = (
-  event: EventName,
-  stats: EventStats,
+export const onSameEventValuesLogHandler: Handlers['onSameEventValues'] = <
+  Event extends EventName,
+>(
+  data: EventAnalyzedData<Event>,
+  event: Event,
   ...values: unknown[]
 ) => {
+  const stats = data.getStats(event);
+
   console.log(`! ${event} (no-diff) ${stats.pprint()}:\n${pprint(values)}`);
 };
 
@@ -76,12 +91,10 @@ export const DEFAULT_HANDLERS: Handlers = {
   onSameEventValues: onSameEventValuesLogHandler,
 };
 
-export class EventChangeDetector<Event extends EventName> {
-  readonly #events: Map<Event, EventHandler>;
-
-  readonly #values: Map<Event, unknown[]>;
-
-  readonly #stats: Map<Event, EventStats>;
+export class EventChangeDetector<Event extends EventName>
+  implements EventAnalyzedData<Event>
+{
+  readonly #events: Map<Event, EventInfo>;
 
   readonly #handlers: Handlers;
 
@@ -97,8 +110,6 @@ export class EventChangeDetector<Event extends EventName> {
     this.#messenger = messenger;
     this.#handlers = handlers;
     this.#events = new Map();
-    this.#values = new Map();
-    this.#stats = new Map();
   }
 
   static from<Event extends EventName>({
@@ -125,19 +136,31 @@ export class EventChangeDetector<Event extends EventName> {
       };
 
       this.#messenger.subscribe(event, handler);
-      this.#events.set(event, handler);
-      this.#stats.set(event, new EventStats());
+      this.#events.set(event, {
+        handler,
+        stats: new EventStats(),
+      });
     }
   }
 
   unsubscribe(event: Event) {
-    const handler = this.#events.get(event);
+    const info = this.#events.get(event);
 
-    if (handler) {
+    if (info) {
+      const { handler } = info;
+
       this.#messenger.unsubscribe(event, handler);
       this.#events.delete(event);
-      this.#stats.delete(event);
     }
+  }
+
+  #get(event: Event): EventInfo {
+    const info = this.#events.get(event);
+
+    if (!info) {
+      throw new Error(`Unknown event: "${event}"`);
+    }
+    return info;
   }
 
   getEvents(): Event[] {
@@ -145,33 +168,21 @@ export class EventChangeDetector<Event extends EventName> {
   }
 
   getStats(event: Event): EventStats {
-    const stats = this.#stats.get(event);
-
-    if (!stats) {
-      throw new Error(`Missing stats for: "${event}"`);
-    }
-    return stats;
-  }
-
-  #isSameEventValues(event: Event, ...newValues: unknown[]) {
-    if (this.#values.has(event)) {
-      const oldValues = this.#values.get(event);
-
-      return deepEqual(oldValues, newValues);
-    }
-    return false;
+    return this.#get(event).stats;
   }
 
   #handleEvent(event: Event, ...newValues: unknown[]) {
-    const stats = this.getStats(event);
-    const isSame = this.#isSameEventValues(event, ...newValues);
+    const info = this.#get(event);
+    const { stats, value } = info;
+
+    const isSame = value !== undefined && deepEqual(value, newValues);
 
     stats.update({ isSame });
     if (isSame) {
-      this.#handlers.onSameEventValues(event, stats, ...newValues);
+      this.#handlers.onSameEventValues(this, event, ...newValues);
     }
 
     // Keep track of the new event values.
-    this.#values.set(event, newValues);
+    info.value = newValues;
   }
 }
