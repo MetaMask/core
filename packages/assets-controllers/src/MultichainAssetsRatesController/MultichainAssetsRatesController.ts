@@ -309,31 +309,39 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
           continue;
         }
 
-        // Build the conversions array
-        const conversions = this.#buildConversions(assets);
-
-        // Retrieve rates from Snap
-        const accountRates: OnAssetsConversionResponse =
-          (await this.#handleSnapRequest({
-            snapId: account?.metadata.snap?.id as SnapId,
-            handler: HandlerType.OnAssetsConversion,
-            params: {
-              ...conversions,
-              includeMarketData: true,
-            },
-          })) as OnAssetsConversionResponse;
-
-        // Flatten nested rates if needed
-        const flattenedRates = this.#flattenRates(accountRates);
-
-        // Build the updatedRates object for these assets
-        const updatedRates = this.#buildUpdatedRates(assets, flattenedRates);
+        const rates = await this.#getUpdatedRatesFor(account, assets);
         // Apply these updated rates to controller state
-        this.#applyUpdatedRates(updatedRates);
+        this.#applyUpdatedRates(rates);
       }
     })().finally(() => {
       releaseLock();
     });
+  }
+
+  async #getUpdatedRatesFor(
+    account: InternalAccount,
+    assets: CaipAssetType[],
+  ): Promise<Record<string, AssetConversion & { currency: CaipAssetType }>> {
+    // Build the conversions array
+    const conversions = this.#buildConversions(assets);
+
+    // Retrieve rates from Snap
+    const accountRates: OnAssetsConversionResponse =
+      (await this.#handleSnapRequest({
+        snapId: account?.metadata.snap?.id as SnapId,
+        handler: HandlerType.OnAssetsConversion,
+        params: {
+          ...conversions,
+          includeMarketData: true,
+        },
+      })) as OnAssetsConversionResponse;
+
+    // Flatten nested rates if needed
+    const flattenedRates = this.#flattenRates(accountRates);
+
+    // Build the updatedRates object for these assets
+    const updatedRates = this.#buildUpdatedRates(assets, flattenedRates);
+    return updatedRates;
   }
 
   /**
@@ -417,7 +425,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
       if (!this.isActive) {
         return;
       }
-      let allNewRates: Record<
+      const allNewRates: Record<
         string,
         { rate: string | null; conversionTime: number | null }
       > = {};
@@ -425,38 +433,14 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
       for (const { accountId, assets } of accounts) {
         const account = this.#getAccount(accountId);
 
-        // Build the conversions array
-        const conversions = this.#buildConversions(assets);
-
-        // Retrieve rates from Snap
-        const accountRates: OnAssetsConversionResponse =
-          (await this.#handleSnapRequest({
-            snapId: account?.metadata.snap?.id as SnapId,
-            handler: HandlerType.OnAssetsConversion,
-            params: {
-              ...conversions,
-              includeMarketData: true,
-            },
-          })) as OnAssetsConversionResponse;
-
-        // Flatten nested rates if needed
-        const flattenedRates = this.#flattenRates(accountRates);
-
-        // Build the updatedRates object for these assets
-        const updatedRates = this.#buildUpdatedRates(assets, flattenedRates);
-        allNewRates = { ...allNewRates, ...updatedRates };
+        const rates = await this.#getUpdatedRatesFor(account, assets);
+        // Track new rates
+        for (const [asset, rate] of Object.entries(rates)) {
+          allNewRates[asset] = rate;
+        }
       }
 
-      if (Object.keys(allNewRates).length === 0) {
-        return;
-      }
-
-      this.update((state: Draft<MultichainAssetsRatesControllerState>) => {
-        state.conversionRates = {
-          ...state.conversionRates,
-          ...allNewRates,
-        };
-      });
+      this.#applyUpdatedRates(allNewRates);
     })().finally(() => {
       releaseLock();
     });
@@ -569,6 +553,9 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
       { rate: string | null; conversionTime: number | null }
     >,
   ): void {
+    if (Object.keys(updatedRates).length === 0) {
+      return;
+    }
     this.update((state: Draft<MultichainAssetsRatesControllerState>) => {
       state.conversionRates = {
         ...state.conversionRates,
