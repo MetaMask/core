@@ -10,6 +10,10 @@ import {
 } from '../api/accounts-api';
 
 describe('MultichainNetworkService', () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+  });
+
   const mockFetch = jest.fn();
   const MOCK_EVM_ADDRESS = '0x1234567890123456789012345678901234567890';
   const MOCK_EVM_CHAIN_1 = '1';
@@ -82,8 +86,6 @@ describe('MultichainNetworkService', () => {
     });
 
     it('batches requests when account IDs exceed the default batch size', async () => {
-      mockFetch.mockClear();
-
       const manyAccountIds: CaipAccountId[] = [];
       for (let i = 1; i <= 30; i++) {
         manyAccountIds.push(
@@ -124,8 +126,6 @@ describe('MultichainNetworkService', () => {
     });
 
     it('batches requests with custom batch size', async () => {
-      mockFetch.mockClear();
-
       const customBatchSize = 10;
       const manyAccountIds: CaipAccountId[] = [];
       for (let i = 1; i <= 30; i++) {
