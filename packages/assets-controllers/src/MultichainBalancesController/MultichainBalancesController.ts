@@ -235,13 +235,11 @@ export class MultichainBalancesController extends BaseController<
           !state.balances[accountId] ||
           Object.keys(state.balances[accountId]).length === 0
         ) {
-          state.balances[accountId] = { ...accountBalances };
+          state.balances[accountId] = accountBalances;
         } else {
           for (const assetId in accountBalances) {
             if (!state.balances[accountId][assetId]) {
-              state.balances[accountId][assetId] = {
-                ...accountBalances[assetId],
-              };
+              state.balances[accountId][assetId] = accountBalances[assetId];
             }
           }
         }

@@ -426,53 +426,52 @@ describe('MultichainBalancesController', () => {
     expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual({});
   });
 
-  describe('when MultichainAssetsController:newAccountAssets is fired', () => {
-    it('updates balances when receiving "MultichainAssetsController:newAccountAssets" event and state is empty', async () => {
-      const mockListSolanaAccounts = [
-        {
-          address: 'EBBYfhQzVzurZiweJ2keeBWpgGLs1cbWYcz28gjGgi5x',
-          id: uuidv4(),
-          metadata: {
-            name: 'Solana Account 1',
-            importTime: Date.now(),
-            keyring: {
-              type: KeyringTypes.snap,
-            },
-            snap: {
-              id: 'mock-sol-snap',
-              name: 'mock-sol-snap',
-              enabled: true,
-            },
-            lastSelected: 0,
+  describe('when "MultichainAssetsController:accountAssetListUpdated" is fired', () => {
+    const mockListSolanaAccounts = [
+      {
+        address: 'EBBYfhQzVzurZiweJ2keeBWpgGLs1cbWYcz28gjGgi5x',
+        id: uuidv4(),
+        metadata: {
+          name: 'Solana Account 1',
+          importTime: Date.now(),
+          keyring: {
+            type: KeyringTypes.snap,
           },
-          scopes: [SolScope.Devnet],
-          options: {},
-          methods: [SolMethod.SendAndConfirmTransaction],
-          type: SolAccountType.DataAccount,
-        },
-        {
-          address: 'GMTYfhQzVzurZiweJ2keeBWpgGLs1cbWYcz28gjGgi5x',
-          id: uuidv4(),
-          metadata: {
-            name: 'Solana Account 2',
-            importTime: Date.now(),
-            keyring: {
-              type: KeyringTypes.snap,
-            },
-            snap: {
-              id: 'mock-sol-snap',
-              name: 'mock-sol-snap',
-              enabled: true,
-            },
-            lastSelected: 0,
+          snap: {
+            id: 'mock-sol-snap',
+            name: 'mock-sol-snap',
+            enabled: true,
           },
-          scopes: [SolScope.Devnet],
-          options: {},
-          methods: [SolMethod.SendAndConfirmTransaction],
-          type: SolAccountType.DataAccount,
+          lastSelected: 0,
         },
-      ];
-
+        scopes: [SolScope.Devnet],
+        options: {},
+        methods: [SolMethod.SendAndConfirmTransaction],
+        type: SolAccountType.DataAccount,
+      },
+      {
+        address: 'GMTYfhQzVzurZiweJ2keeBWpgGLs1cbWYcz28gjGgi5x',
+        id: uuidv4(),
+        metadata: {
+          name: 'Solana Account 2',
+          importTime: Date.now(),
+          keyring: {
+            type: KeyringTypes.snap,
+          },
+          snap: {
+            id: 'mock-sol-snap',
+            name: 'mock-sol-snap',
+            enabled: true,
+          },
+          lastSelected: 0,
+        },
+        scopes: [SolScope.Devnet],
+        options: {},
+        methods: [SolMethod.SendAndConfirmTransaction],
+        type: SolAccountType.DataAccount,
+      },
+    ];
+    it('updates balances when receiving "MultichainAssetsController:accountAssetListUpdated" event and state is empty', async () => {
       const mockSolanaAccountId1 = mockListSolanaAccounts[0].id;
       const mockSolanaAccountId2 = mockListSolanaAccounts[1].id;
 
@@ -534,52 +533,7 @@ describe('MultichainBalancesController', () => {
       });
     });
 
-    it('updates balances when receiving "MultichainAssetsController:newAccountAssets" event and state has existing balances', async () => {
-      const mockListSolanaAccounts = [
-        {
-          address: 'EBBYfhQzVzurZiweJ2keeBWpgGLs1cbWYcz28gjGgi5x',
-          id: uuidv4(),
-          metadata: {
-            name: 'Solana Account 1',
-            importTime: Date.now(),
-            keyring: {
-              type: KeyringTypes.snap,
-            },
-            snap: {
-              id: 'mock-sol-snap',
-              name: 'mock-sol-snap',
-              enabled: true,
-            },
-            lastSelected: 0,
-          },
-          scopes: [SolScope.Devnet],
-          options: {},
-          methods: [SolMethod.SendAndConfirmTransaction],
-          type: SolAccountType.DataAccount,
-        },
-        {
-          address: 'GMTYfhQzVzurZiweJ2keeBWpgGLs1cbWYcz28gjGgi5x',
-          id: uuidv4(),
-          metadata: {
-            name: 'Solana Account 2',
-            importTime: Date.now(),
-            keyring: {
-              type: KeyringTypes.snap,
-            },
-            snap: {
-              id: 'mock-sol-snap',
-              name: 'mock-sol-snap',
-              enabled: true,
-            },
-            lastSelected: 0,
-          },
-          scopes: [SolScope.Devnet],
-          options: {},
-          methods: [SolMethod.SendAndConfirmTransaction],
-          type: SolAccountType.DataAccount,
-        },
-      ];
-
+    it('updates balances when receiving "MultichainAssetsController:accountAssetListUpdated" event and state has existing balances', async () => {
       const mockSolanaAccountId1 = mockListSolanaAccounts[0].id;
       const mockSolanaAccountId2 = mockListSolanaAccounts[1].id;
 

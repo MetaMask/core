@@ -58,23 +58,7 @@ export type AssetMetadataResponse = {
 
 export type MultichainAssetsControllerAccountAssetListUpdatedEvent = {
   type: `${typeof controllerName}:accountAssetListUpdated`;
-  payload: [
-    {
-      assets: Record<
-        string,
-        {
-          added: (
-            | `${string}:${string}/${string}:${string}`
-            | `${string}:${string}/${string}:${string}/${string}`
-          )[];
-          removed: (
-            | `${string}:${string}/${string}:${string}`
-            | `${string}:${string}/${string}:${string}/${string}`
-          )[];
-        }
-      >;
-    },
-  ];
+  payload: AccountsControllerAccountAssetListUpdatedEvent['payload'];
 };
 
 /**
