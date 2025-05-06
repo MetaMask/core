@@ -471,6 +471,7 @@ describe('MultichainBalancesController', () => {
         type: SolAccountType.DataAccount,
       },
     ];
+
     it('updates balances when receiving "MultichainAssetsController:accountAssetListUpdated" event and state is empty', async () => {
       const mockSolanaAccountId1 = mockListSolanaAccounts[0].id;
       const mockSolanaAccountId2 = mockListSolanaAccounts[1].id;

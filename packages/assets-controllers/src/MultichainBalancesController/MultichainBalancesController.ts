@@ -186,7 +186,7 @@ export class MultichainBalancesController extends BaseController<
             assets: [...added],
           }),
         );
-        await this.#updateBalancesForAccounts(newAccountAssets);
+        await this.#handleOnAccountAssetListUpdated(newAccountAssets);
       },
     );
   }
@@ -196,7 +196,7 @@ export class MultichainBalancesController extends BaseController<
    *
    * @param accounts - The accounts to update the balances for.
    */
-  async #updateBalancesForAccounts(
+  async #handleOnAccountAssetListUpdated(
     accounts: {
       accountId: string;
       assets: CaipAssetType[];
