@@ -1,7 +1,7 @@
 import {
   type RateLimitErrorData,
   TOPRFError,
-  TORPFErrorCode,
+  TOPRFErrorCode,
 } from '@metamask/toprf-secure-backup';
 
 import { SeedlessOnboardingControllerError } from './constants';
@@ -14,13 +14,13 @@ import { SeedlessOnboardingControllerError } from './constants';
  * @returns The error message.
  */
 function getErrorMessageFromTOPRFErrorCode(
-  errorCode: TORPFErrorCode,
+  errorCode: TOPRFErrorCode,
   defaultMessage: string,
 ): string {
   switch (errorCode) {
-    case TORPFErrorCode.RateLimitExceeded:
+    case TOPRFErrorCode.RateLimitExceeded:
       return SeedlessOnboardingControllerError.TooManyLoginAttempts;
-    case TORPFErrorCode.CouldNotDeriveEncryptionKey:
+    case TOPRFErrorCode.CouldNotDeriveEncryptionKey:
       return SeedlessOnboardingControllerError.IncorrectPassword;
     default:
       return defaultMessage;
@@ -73,7 +73,7 @@ export class RecoveryError extends Error {
   ): RateLimitErrorData | undefined {
     if (
       error.meta && // error metadata must be present
-      error.code === TORPFErrorCode.RateLimitExceeded &&
+      error.code === TOPRFErrorCode.RateLimitExceeded &&
       typeof error.meta.rateLimitDetails === 'object' &&
       error.meta.rateLimitDetails !== null &&
       'remainingTime' in error.meta.rateLimitDetails &&
