@@ -97,6 +97,10 @@ describe('Batch Utils', () => {
       AddBatchTransactionOptions['updateTransaction']
     >;
 
+    let publishTransactionMock: jest.MockedFn<
+      AddBatchTransactionOptions['publishTransaction']
+    >;
+
     let request: AddBatchTransactionOptions;
 
     beforeEach(() => {
@@ -104,6 +108,7 @@ describe('Batch Utils', () => {
       addTransactionMock = jest.fn();
       getChainIdMock = jest.fn();
       updateTransactionMock = jest.fn();
+      publishTransactionMock = jest.fn();
 
       determineTransactionTypeMock.mockResolvedValue({
         type: TransactionType.simpleSend,
@@ -141,6 +146,7 @@ describe('Batch Utils', () => {
           ],
         },
         updateTransaction: updateTransactionMock,
+        publishTransaction: publishTransactionMock,
       };
     });
 

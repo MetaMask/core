@@ -23,6 +23,7 @@ import {
   type TransactionMeta,
 } from '..';
 import { CollectPublishHook } from '../hooks/CollectPublishHook';
+import { SequentialPublishBatchHook } from '../hooks/SequentialPublishBatchHook';
 import { projectLogger } from '../logger';
 import type {
   NestedTransactionMetadata,
@@ -42,7 +43,6 @@ import {
   type TransactionParams,
   TransactionType,
 } from '../types';
-import { SequentialPublishBatchHook } from 'src/hooks/SequentialPublishBatchHook';
 
 type AddTransactionBatchRequest = {
   addTransaction: TransactionController['addTransaction'];
