@@ -1,3 +1,5 @@
+import { isEvmAccountType } from '@metamask/keyring-api';
+import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { AccountSyncingOptions, UserStorageAccount } from './types';
@@ -42,18 +44,27 @@ export function canPerformAccountSyncing(
  * and are from the HD keyring
  *
  * @param options - parameters used for getting the list of internal accounts
+ * @param entropySourceId - The entropy source ID used to derive the key,
+ * when multiple sources are available (Multi-SRP).
  * @returns the list of internal accounts
  */
 export async function getInternalAccountsList(
   options: AccountSyncingOptions,
+  entropySourceId?: string,
 ): Promise<InternalAccount[]> {
   const { getMessenger } = options;
 
-  // eslint-disable-next-line @typescript-eslint/await-thenable
-  const internalAccountsList = await getMessenger().call(
+  const internalAccountsList = getMessenger().call(
     'AccountsController:listAccounts',
   );
 
+  if (entropySourceId) {
+    return internalAccountsList.filter(
+      (account) =>
+        entropySourceId === account.options?.entropySourceId &&
+        isEvmAccountType(account.type), // TODO: remove solana filtering
+    );
+  }
   return await mapInternalAccountsListToPrimarySRPHdKeyringInternalAccountsList(
     internalAccountsList,
     options,
@@ -61,22 +72,54 @@ export async function getInternalAccountsList(
 }
 
 /**
+ * Lists all the available HD keyring metadata IDs.
+ * These IDs can be used in a multi-SRP context to segregate data specific to different SRPs.
+ *
+ * @param options - An object including a controller messenger getter.
+ * @returns A promise that resolves to an array of HD keyring metadata IDs.
+ */
+export async function listEntropySources(options: AccountSyncingOptions) {
+  const { getMessenger } = options;
+
+  const { keyrings, keyringsMetadata } = getMessenger().call(
+    'KeyringController:getState',
+  );
+  return keyrings
+    .filter((keyring) => keyring.type === KeyringTypes.hd.toString())
+    .map((_, keyringIndex) => keyringsMetadata[keyringIndex].id);
+}
+
+/**
  * Get the list of user storage accounts
  *
  * @param options - parameters used for getting the list of user storage accounts
+ * @param entropySourceId - The entropy source ID used to derive the storage key,
+ * when multiple sources are available (Multi-SRP).
  * @returns the list of user storage accounts
  */
 export async function getUserStorageAccountsList(
   options: AccountSyncingOptions,
+  entropySourceId?: string,
 ): Promise<UserStorageAccount[] | null> {
   const { getUserStorageControllerInstance } = options;
 
   const rawAccountsListResponse =
     await getUserStorageControllerInstance().performGetStorageAllFeatureEntries(
       USER_STORAGE_FEATURE_NAMES.accounts,
+      entropySourceId,
     );
 
   return (
     rawAccountsListResponse?.map((rawAccount) => JSON.parse(rawAccount)) ?? null
   );
+}
+
+/**
+ * Type guard to check if a value is defined (not null or undefined)
+ *
+ * @param arg - The value to check
+ * @returns True if the value is neither null nor undefined
+ */
+function isDefined<T>(arg: T): arg is Exclude<T, null | undefined> {
+  return arg !== null && typeof arg !== 'undefined';
 }

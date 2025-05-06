@@ -359,17 +359,22 @@ export default class UserStorageController extends BaseController<
       {
         env: Env.PRD,
         auth: {
-          getAccessToken: () =>
+          getAccessToken: (entropySourceId?: string) =>
             this.messagingSystem.call(
               'AuthenticationController:getBearerToken',
+              entropySourceId,
             ),
-          getUserProfile: async () => {
+          getUserProfile: async (entropySourceId?: string) => {
             return await this.messagingSystem.call(
               'AuthenticationController:getSessionProfile',
+              entropySourceId,
             );
           },
-          signMessage: (message) =>
-            this.#snapSignMessage(message as `metamask:${string}`),
+          signMessage: (message: string, entropySourceId?: string) =>
+            this.#snapSignMessage(
+              message as `metamask:${string}`,
+              entropySourceId,
+            ),
         },
       },
       {
@@ -450,14 +455,17 @@ export default class UserStorageController extends BaseController<
    * Developers can extend the entry path and entry name through the `schema.ts` file.
    *
    * @param path - string in the form of `${feature}.${key}` that matches schema
+   * @param entropySourceId - The entropy source ID used to generate the encryption key.
    * @returns the decrypted string contents found from user storage (or null if not found)
    */
   public async performGetStorage(
     path: UserStoragePathWithFeatureAndKey,
+    entropySourceId?: string,
   ): Promise<string | null> {
     return await this.#userStorage.getItem(path, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
       validateAgainstSchema: true,
+      entropySourceId,
     });
   }
 
@@ -466,14 +474,17 @@ export default class UserStorageController extends BaseController<
    * Developers can extend the entry path through the `schema.ts` file.
    *
    * @param path - string in the form of `${feature}` that matches schema
+   * @param entropySourceId - The entropy source ID used to generate the encryption key.
    * @returns the array of decrypted string contents found from user storage (or null if not found)
    */
   public async performGetStorageAllFeatureEntries(
     path: UserStoragePathWithFeatureOnly,
+    entropySourceId?: string,
   ): Promise<string[] | null> {
     return await this.#userStorage.getAllFeatureItems(path, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
       validateAgainstSchema: true,
+      entropySourceId,
     });
   }
 
@@ -483,15 +494,18 @@ export default class UserStorageController extends BaseController<
    *
    * @param path - string in the form of `${feature}.${key}` that matches schema
    * @param value - The string data you want to store.
+   * @param entropySourceId - The entropy source ID used to generate the encryption key.
    * @returns nothing. NOTE that an error is thrown if fails to store data.
    */
   public async performSetStorage(
     path: UserStoragePathWithFeatureAndKey,
     value: string,
+    entropySourceId?: string,
   ): Promise<void> {
     return await this.#userStorage.setItem(path, value, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
       validateAgainstSchema: true,
+      entropySourceId,
     });
   }
 
@@ -501,6 +515,7 @@ export default class UserStorageController extends BaseController<
    *
    * @param path - string in the form of `${feature}` that matches schema
    * @param values - data to store, in the form of an array of `[entryKey, entryValue]` pairs
+   * @param entropySourceId - The entropy source ID used to generate the encryption key.
    * @returns nothing. NOTE that an error is thrown if fails to store data.
    */
   public async performBatchSetStorage<
@@ -508,10 +523,12 @@ export default class UserStorageController extends BaseController<
   >(
     path: FeatureName,
     values: [UserStorageFeatureKeys<FeatureName>, string][],
+    entropySourceId?: string,
   ): Promise<void> {
     return await this.#userStorage.batchSetItems(path, values, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
       validateAgainstSchema: true,
+      entropySourceId,
     });
   }
 
@@ -519,14 +536,17 @@ export default class UserStorageController extends BaseController<
    * Allows deletion of user data. Developers can extend the entry path and entry name through the `schema.ts` file.
    *
    * @param path - string in the form of `${feature}.${key}` that matches schema
+   * @param entropySourceId - The entropy source ID used to generate the encryption key.
    * @returns nothing. NOTE that an error is thrown if fails to delete data.
    */
   public async performDeleteStorage(
     path: UserStoragePathWithFeatureAndKey,
+    entropySourceId?: string,
   ): Promise<void> {
     return await this.#userStorage.deleteItem(path, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
       validateAgainstSchema: true,
+      entropySourceId,
     });
   }
 
@@ -584,9 +604,15 @@ export default class UserStorageController extends BaseController<
    * Signs a specific message using an underlying auth snap.
    *
    * @param message - A specific tagged message to sign.
+   * @param entropySourceId - The entropy source ID used to derive the key,
+   * when multiple sources are available (Multi-SRP).
    * @returns A Signature created by the snap.
    */
-  async #snapSignMessage(message: `metamask:${string}`): Promise<string> {
+  async #snapSignMessage(
+    message: `metamask:${string}`,
+    entropySourceId?: string,
+  ): Promise<string> {
+    // the message is SRP specific already, so there's no need to use the entropySourceId in the cache
     if (this.#_snapSignMessageCache[message]) {
       return this.#_snapSignMessageCache[message];
     }
@@ -599,7 +625,7 @@ export default class UserStorageController extends BaseController<
 
     const result = (await this.messagingSystem.call(
       'SnapController:handleRequest',
-      createSnapSignMessageRequest(message),
+      createSnapSignMessageRequest(message, entropySourceId),
     )) as string;
 
     this.#_snapSignMessageCache[message] = result;

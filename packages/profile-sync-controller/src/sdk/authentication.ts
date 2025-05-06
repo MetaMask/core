@@ -51,8 +51,8 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
     this.#sdk.setCustomProvider(provider);
   }
 
-  async getAccessToken(): Promise<string> {
-    return await this.#sdk.getAccessToken();
+  async getAccessToken(entropySourceId?: string): Promise<string> {
+    return await this.#sdk.getAccessToken(entropySourceId);
   }
 
   async connectSnap(): Promise<string> {
@@ -65,16 +65,16 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
     return this.#sdk.isSnapConnected();
   }
 
-  async getUserProfile(): Promise<UserProfile> {
-    return await this.#sdk.getUserProfile();
+  async getUserProfile(entropySourceId?: string): Promise<UserProfile> {
+    return await this.#sdk.getUserProfile(entropySourceId);
   }
 
-  async getIdentifier(): Promise<string> {
-    return await this.#sdk.getIdentifier();
+  async getIdentifier(entropySourceId?: string): Promise<string> {
+    return await this.#sdk.getIdentifier(entropySourceId);
   }
 
-  async signMessage(message: string): Promise<string> {
-    return await this.#sdk.signMessage(message);
+  async signMessage(message: string, entropySourceId?: string): Promise<string> {
+    return await this.#sdk.signMessage(message, entropySourceId);
   }
 
   async pairIdentifiers(pairing: Pair[]): Promise<void> {
