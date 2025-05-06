@@ -9,16 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [61.0.0]
 
-### Uncategorized
-
-- Release 384.0.0 ([#5749](https://github.com/MetaMask/core/pull/5749))
-- Release 383.0.0 ([#5743](https://github.com/MetaMask/core/pull/5743))
-- Release 381.0.0 ([#5729](https://github.com/MetaMask/core/pull/5729))
-- Release 380.0.0 ([#5728](https://github.com/MetaMask/core/pull/5728))
-
 ### Changed
 
-- Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency to `^28.0.0` ([#5763](https://github.com/MetaMask/core/pull/5763))
+- **BREAKING:** Bump `@metamask/transaction-controller` peer dependency to `^55.0.0` ([#5763](https://github.com/MetaMask/core/pull/5763))
+- Bump `@metamask/base-controller` from `^8.0.0` to `^8.0.1` ([#5722](https://github.com/MetaMask/core/pull/5722))
 
 ## [60.0.0]
 

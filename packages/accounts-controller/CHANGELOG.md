@@ -9,20 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [28.0.0]
 
-### Uncategorized
-
-- Release 384.0.0 ([#5749](https://github.com/MetaMask/core/pull/5749))
-- Release 381.0.0 ([#5729](https://github.com/MetaMask/core/pull/5729))
-- Release 376.0.0 ([#5713](https://github.com/MetaMask/core/pull/5713))
-- Release 363.0.0 ([#5658](https://github.com/MetaMask/core/pull/5658))
-- Release/353.0.0 ([#5612](https://github.com/MetaMask/core/pull/5612))
-- refactor(accounts-controller): use type-cast instead of `@ts-expect-error` ([#5568](https://github.com/MetaMask/core/pull/5568))
-- Release 347.0.0 ([#5583](https://github.com/MetaMask/core/pull/5583))
-- fix(accounts-controller): do not fire events during `update` blocks ([#5555](https://github.com/MetaMask/core/pull/5555))
-- chore: bump accounts dependencies ([#5565](https://github.com/MetaMask/core/pull/5565))
-- Release 343.0.0 ([#5542](https://github.com/MetaMask/core/pull/5542))
-- Release 338.0.0 ([#5518](https://github.com/MetaMask/core/pull/5518))
-
 ### Added
 
 - Add new `setAccountNameAndSelectAccount` action ([#5714](https://github.com/MetaMask/core/pull/5714))
@@ -30,12 +16,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
-- **BREAKING:** Bump `@metamask/snaps-controllers` peer dependency from ^9.19.0 to ^11.0.0 ([#5639](https://github.com/MetaMask/core/pull/5639))
-- **BREAKING:** Bump `@metamask/providers` peer dependency from ^18.1.0 to ^21.0.0 ([#5639](https://github.com/MetaMask/core/pull/5639))
-- Bump `@metamask/snaps-sdk` from ^6.17.1 to ^6.22.0 ([#5639](https://github.com/MetaMask/core/pull/5639))
-- Bump `@metamask/snaps-utils` from ^8.10.0 to ^9.2.0 ([#5639](https://github.com/MetaMask/core/pull/5639))
-- Prevent unnecasary state updates when updating `InternalAccount.metadata.snap` ([#5735](https://github.com/MetaMask/core/pull/5735))
+- **BREAKING:** Bump `@metamask/snaps-controllers` peer dependency from `^9.19.0` to `^11.0.0` ([#5639](https://github.com/MetaMask/core/pull/5639))
+- **BREAKING:** Bump `@metamask/providers` peer dependency from `^18.1.0` to `^21.0.0` ([#5639](https://github.com/MetaMask/core/pull/5639))
+- Bump `@metamask/base-controller` from `^8.0.0` to `^8.0.1` ([#5722](https://github.com/MetaMask/core/pull/5722))
+- Bump `@metamask/snaps-sdk` from `^6.17.1` to `^6.22.0` ([#5639](https://github.com/MetaMask/core/pull/5639))
+- Bump `@metamask/snaps-utils` from `^8.10.0` to `^9.2.0` ([#5639](https://github.com/MetaMask/core/pull/5639))
+- Bump `@metamask/eth-snap-keyring` from `^12.0.0` to `^12.1.1` ([#5565](https://github.com/MetaMask/core/pull/5565))
+- Bump `@metamask/keyring-api` from `^17.2.0` to `^17.4.0` ([#5565](https://github.com/MetaMask/core/pull/5565))
+- Bump `@metamask/keyring-internal-api` from `^6.0.0` to `^6.0.1` ([#5565](https://github.com/MetaMask/core/pull/5565))
+
+### Fixed
+
+- Do not fire events during `update` blocks ([#5555](https://github.com/MetaMask/core/pull/5555))
+- Prevent unnecessary state updates when updating `InternalAccount.metadata.snap` ([#5735](https://github.com/MetaMask/core/pull/5735))
 
 ## [27.0.0]
 
