@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [55.0.0]
+
+### Added
+
+- Add optional `isEIP7702GasFeeTokensEnabled` constructor callback ([#5706](https://github.com/MetaMask/core/pull/5706))
+- Add `lendingDeposit` `TransactionType` ([#5747](https://github.com/MetaMask/core/pull/5747))
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency to `^28.0.0` ([#5763](https://github.com/MetaMask/core/pull/5763))
+
+## [54.4.0]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^23.2.0` to `^23.3.0` ([#5729](https://github.com/MetaMask/core/pull/5729))
+- Remove validation of `from` if `origin` is internal ([#5707](https://github.com/MetaMask/core/pull/5707))
+
 ## [54.3.0]
 
 ### Added
@@ -1542,7 +1560,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@54.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@55.0.0...HEAD
+[55.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@54.4.0...@metamask/transaction-controller@55.0.0
+[54.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@54.3.0...@metamask/transaction-controller@54.4.0
 [54.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@54.2.0...@metamask/transaction-controller@54.3.0
 [54.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@54.1.0...@metamask/transaction-controller@54.2.0
 [54.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@54.0.0...@metamask/transaction-controller@54.1.0

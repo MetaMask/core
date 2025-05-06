@@ -262,14 +262,26 @@ describe('KeyringController', () => {
     });
 
     it('should throw error if the account is duplicated', async () => {
-      jest
-        .spyOn(HdKeyring.prototype, 'addAccounts')
-        .mockResolvedValue(['0x123']);
-      jest.spyOn(HdKeyring.prototype, 'getAccounts').mockReturnValue(['0x123']);
+      const mockAddress = '0x123';
+      const addAccountsSpy = jest.spyOn(HdKeyring.prototype, 'addAccounts');
+      const getAccountsSpy = jest.spyOn(HdKeyring.prototype, 'getAccounts');
+      const serializeSpy = jest.spyOn(HdKeyring.prototype, 'serialize');
+
+      addAccountsSpy.mockResolvedValue([mockAddress]);
+      getAccountsSpy.mockReturnValue([mockAddress]);
       await withController(async ({ controller }) => {
-        jest
-          .spyOn(HdKeyring.prototype, 'getAccounts')
-          .mockReturnValue(['0x123', '0x123']);
+        getAccountsSpy.mockReturnValue([mockAddress, mockAddress]);
+        serializeSpy
+          .mockResolvedValueOnce({
+            mnemonic: '',
+            numberOfAccounts: 1,
+            hdPath: "m/44'/60'/0'/0",
+          })
+          .mockResolvedValueOnce({
+            mnemonic: '',
+            numberOfAccounts: 2,
+            hdPath: "m/44'/60'/0'/0",
+          });
         await expect(controller.addNewAccount()).rejects.toThrow(
           KeyringControllerError.DuplicatedAccount,
         );
@@ -314,6 +326,11 @@ describe('KeyringController', () => {
             const mockKeyring = controller.getKeyringsByType(
               MockShallowGetAccountsKeyring.type,
             )[0] as EthKeyring;
+
+            jest
+              .spyOn(mockKeyring, 'serialize')
+              .mockResolvedValueOnce({ numberOfAccounts: 1 })
+              .mockResolvedValueOnce({ numberOfAccounts: 2 });
 
             const addedAccountAddress =
               await controller.addNewAccountForKeyring(mockKeyring);
@@ -2671,6 +2688,41 @@ describe('KeyringController', () => {
           );
         });
 
+        it('should unlock the wallet if the state has a duplicate account and the encryption parameters are outdated', async () => {
+          stubKeyringClassWithAccount(MockKeyring, '0x123');
+          // @ts-expect-error HdKeyring is not yet compatible with Keyring type.
+          stubKeyringClassWithAccount(HdKeyring, '0x123');
+          await withController(
+            {
+              skipVaultCreation: true,
+              cacheEncryptionKey,
+              state: { vault: 'my vault' },
+              keyringBuilders: [keyringBuilderFactory(MockKeyring)],
+            },
+            async ({ controller, encryptor, messenger }) => {
+              const unlockListener = jest.fn();
+              messenger.subscribe('KeyringController:unlock', unlockListener);
+              jest.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(false);
+              jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+                {
+                  type: KeyringTypes.hd,
+                  data: {},
+                },
+                {
+                  type: MockKeyring.type,
+                  data: {},
+                },
+              ]);
+
+              await controller.submitPassword(password);
+
+              expect(controller.state.keyrings).toHaveLength(2);
+              expect(controller.state.isUnlocked).toBe(true);
+              expect(unlockListener).toHaveBeenCalledTimes(1);
+            },
+          );
+        });
+
         cacheEncryptionKey &&
           it('should upgrade the vault encryption if the key encryptor has different parameters', async () => {
             await withController(
@@ -2681,8 +2733,8 @@ describe('KeyringController', () => {
               },
               async ({ controller, encryptor }) => {
                 jest.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(false);
-                const encryptSpy = jest.spyOn(encryptor, 'encryptWithDetail');
-                jest.spyOn(encryptor, 'decryptWithKey').mockResolvedValueOnce([
+                const encryptSpy = jest.spyOn(encryptor, 'encrypt');
+                jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
                   {
                     type: KeyringTypes.hd,
                     data: {
@@ -3077,6 +3129,74 @@ describe('KeyringController', () => {
 
               expect(fn).toHaveBeenCalled();
               expect(controller.state.keyrings).toHaveLength(2);
+            },
+          );
+        });
+
+        it('should update the vault if the keyring is being updated', async () => {
+          const mockAddress = '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4';
+          stubKeyringClassWithAccount(MockKeyring, mockAddress);
+          await withController(
+            { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
+            async ({ controller, messenger }) => {
+              const selector = { type: MockKeyring.type };
+
+              await controller.addNewKeyring(MockKeyring.type);
+              const serializeSpy = jest.spyOn(
+                MockKeyring.prototype,
+                'serialize',
+              );
+              serializeSpy.mockResolvedValueOnce({
+                foo: 'bar', // Initial keyring state.
+              });
+
+              const mockStateChange = jest.fn();
+              messenger.subscribe(
+                'KeyringController:stateChange',
+                mockStateChange,
+              );
+
+              await controller.withKeyring(selector, async () => {
+                serializeSpy.mockResolvedValueOnce({
+                  foo: 'zzz', // Mock keyring state change.
+                });
+              });
+
+              expect(mockStateChange).toHaveBeenCalled();
+            },
+          );
+        });
+
+        it('should not update the vault if the keyring has not been updated', async () => {
+          const mockAddress = '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4';
+          stubKeyringClassWithAccount(MockKeyring, mockAddress);
+          await withController(
+            {
+              keyringBuilders: [keyringBuilderFactory(MockKeyring)],
+            },
+            async ({ controller, messenger }) => {
+              const selector = { type: MockKeyring.type };
+
+              await controller.addNewKeyring(MockKeyring.type);
+              const serializeSpy = jest.spyOn(
+                MockKeyring.prototype,
+                'serialize',
+              );
+              serializeSpy.mockResolvedValue({
+                foo: 'bar', // Initial keyring state.
+              });
+
+              const mockStateChange = jest.fn();
+              messenger.subscribe(
+                'KeyringController:stateChange',
+                mockStateChange,
+              );
+
+              await controller.withKeyring(selector, async () => {
+                // No-op, keyring state won't be updated.
+              });
+
+              expect(mockStateChange).not.toHaveBeenCalled();
             },
           );
         });

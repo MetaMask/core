@@ -1,6 +1,6 @@
 {
   "name": "@metamask/accounts-controller",
-  "version": "27.0.0",
+  "version": "28.0.0",
   "description": "Manages internal accounts",
   "keywords": [
     "MetaMask",
@@ -63,7 +63,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^21.0.4",
+    "@metamask/keyring-controller": "^21.0.6",
     "@metamask/network-controller": "^23.3.0",
     "@metamask/providers": "^21.0.0",
     "@metamask/snaps-controllers": "^11.2.1",
