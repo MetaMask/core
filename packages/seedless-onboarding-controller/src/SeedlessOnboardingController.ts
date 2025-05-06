@@ -294,7 +294,9 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     keyringId: string,
   ): Promise<void> {
     this.#assertIsUnlocked();
-    await this.#assertPasswordInSync();
+    await this.#assertPasswordInSync({
+      skipCache: true,
+    });
     // NOTE don't include #assertPasswordInSync in #withControllerLock since #assertPasswordInSync already acquires the controller lock
     return this.#withControllerLock(async () => {
       // verify the password and unlock the vault
@@ -367,7 +369,9 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     this.#assertIsUnlocked();
     // verify the old password of the encrypted vault
     await this.verifyVaultPassword(oldPassword);
-    await this.#assertPasswordInSync();
+    await this.#assertPasswordInSync({
+      skipCache: true,
+    });
 
     // NOTE don't include verifyPassword and #assertPasswordInSync in #withControllerLock since verifyPassword and #assertPasswordInSync already acquires the controller lock
     return this.#withControllerLock(async () => {
