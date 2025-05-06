@@ -1,9 +1,18 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
+import type { Messenger } from '@metamask/base-controller';
 import type { EncryptionKey } from '@metamask/browser-passworder';
 import {
+  encrypt,
+  decrypt,
+  decryptWithDetail,
+  encryptWithDetail,
+  decryptWithKey as decryptWithKeyBrowserPassworder,
+  importKey as importKeyBrowserPassworder,
+} from '@metamask/browser-passworder';
+import {
+  TOPRFError,
   type FetchAuthPubKeyResult,
   type SEC1EncodedPublicKey,
-  TOPRFError,
   type ChangeEncryptionKeyResult,
   type KeyPair,
   type NodeAuthTokens,
@@ -27,16 +36,18 @@ import {
 import { PasswordSyncError, RecoveryError } from './errors';
 import {
   getDefaultSeedlessOnboardingControllerState,
-  getDefaultSeedlessOnboardingVaultEncryptor,
   SeedlessOnboardingController,
 } from './SeedlessOnboardingController';
 import { SeedPhraseMetadata } from './SeedPhraseMetadata';
 import type {
+  AllowedActions,
+  AllowedEvents,
   SeedlessOnboardingControllerMessenger,
   SeedlessOnboardingControllerOptions,
   SeedlessOnboardingControllerState,
   VaultEncryptor,
 } from './types';
+import { mockSeedlessOnboardingMessenger } from '../tests/__fixtures__/mockMessenger';
 import {
   handleMockSecretDataGet,
   handleMockSecretDataAdd,
@@ -94,6 +105,7 @@ type WithControllerCallback<ReturnValue, EKey> = ({
   encryptor: VaultEncryptor<EKey>;
   initialState: SeedlessOnboardingControllerState;
   messenger: SeedlessOnboardingControllerMessenger;
+  baseMessenger: Messenger<AllowedActions, AllowedEvents>;
   toprfClient: ToprfSecureBackup;
 }) => Promise<ReturnValue> | ReturnValue;
 
@@ -106,18 +118,24 @@ type WithControllerArgs<ReturnValue, EKey> =
   | [WithControllerOptions<EKey>, WithControllerCallback<ReturnValue, EKey>];
 
 /**
- * Creates a mock user operation messenger.
+ * Get the default vault encryptor for the Seedless Onboarding Controller.
  *
- * @returns The mock user operation messenger.
+ * By default, we'll use the encryption utilities from `@metamask/browser-passworder`.
+ *
+ * @returns The default vault encryptor for the Seedless Onboarding Controller.
  */
-function buildSeedlessOnboardingControllerMessenger() {
+function getDefaultSeedlessOnboardingVaultEncryptor() {
   return {
-    call: jest.fn(),
-    publish: jest.fn(),
-    registerActionHandler: jest.fn(),
-    registerInitialEventPayload: jest.fn(),
-    subscribe: jest.fn(),
-  } as unknown as jest.Mocked<SeedlessOnboardingControllerMessenger>;
+    encrypt,
+    encryptWithDetail,
+    decrypt,
+    decryptWithDetail,
+    decryptWithKey: decryptWithKeyBrowserPassworder as (
+      key: unknown,
+      payload: unknown,
+    ) => Promise<unknown>,
+    importKey: importKeyBrowserPassworder,
+  };
 }
 
 /**
@@ -144,7 +162,7 @@ async function withController<ReturnValue>(
 ) {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
   const encryptor = new MockVaultEncryptor();
-  const messenger = buildSeedlessOnboardingControllerMessenger();
+  const { messenger, baseMessenger } = mockSeedlessOnboardingMessenger();
 
   const controller = new SeedlessOnboardingController({
     encryptor,
@@ -158,6 +176,7 @@ async function withController<ReturnValue>(
     encryptor,
     initialState: controller.state,
     messenger,
+    baseMessenger,
     toprfClient,
   });
 }
@@ -428,7 +447,7 @@ function getMockInitialControllerState(options?: {
 describe('SeedlessOnboardingController', () => {
   describe('constructor', () => {
     it('should be able to instantiate', () => {
-      const messenger = buildSeedlessOnboardingControllerMessenger();
+      const { messenger } = mockSeedlessOnboardingMessenger();
       const controller = new SeedlessOnboardingController({
         messenger,
         encryptor: getDefaultSeedlessOnboardingVaultEncryptor(),
@@ -440,7 +459,7 @@ describe('SeedlessOnboardingController', () => {
     });
 
     it('should be able to instantiate with an encryptor', () => {
-      const messenger = buildSeedlessOnboardingControllerMessenger();
+      const { messenger } = mockSeedlessOnboardingMessenger();
       const encryptor = createMockVaultEncryptor();
 
       expect(
@@ -2246,6 +2265,66 @@ describe('SeedlessOnboardingController', () => {
               MOCK_KEYRING_ID,
             ),
           ).rejects.toThrow(SeedlessOnboardingControllerError.ControllerLocked);
+        },
+      );
+    });
+
+    it('should lock the controller when the keyring is locked', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller, baseMessenger, toprfClient }) => {
+          await mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            MOCK_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+
+          baseMessenger.publish('KeyringController:lock');
+
+          await expect(
+            controller.addNewSeedPhraseBackup(
+              MOCK_SEED_PHRASE,
+              MOCK_KEYRING_ID,
+            ),
+          ).rejects.toThrow(SeedlessOnboardingControllerError.ControllerLocked);
+        },
+      );
+    });
+
+    it('should unlock the controller when the keyring is unlocked', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller, baseMessenger }) => {
+          await expect(
+            controller.addNewSeedPhraseBackup(
+              MOCK_SEED_PHRASE,
+              MOCK_KEYRING_ID,
+            ),
+          ).rejects.toThrow(SeedlessOnboardingControllerError.ControllerLocked);
+
+          baseMessenger.publish('KeyringController:unlock');
+
+          await new Promise((resolve) => setTimeout(resolve, 100));
+
+          controller.updateBackupMetadataState({
+            keyringId: MOCK_KEYRING_ID,
+            seedPhrase: MOCK_SEED_PHRASE,
+          });
+
+          const MOCK_SEED_PHRASE_HASH = keccak256AndHexify(MOCK_SEED_PHRASE);
+          expect(controller.state.socialBackupsMetadata).toStrictEqual([
+            { id: MOCK_KEYRING_ID, hash: MOCK_SEED_PHRASE_HASH },
+          ]);
         },
       );
     });
