@@ -99,7 +99,7 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       anonymous: true,
     },
     nodeAuthTokens: {
-      persist: false,
+      persist: true,
       anonymous: true,
     },
     authConnection: {
