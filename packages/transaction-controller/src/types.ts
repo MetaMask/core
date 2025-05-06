@@ -634,6 +634,11 @@ export enum TransactionType {
   incoming = 'incoming',
 
   /**
+   * A transaction that deposits tokens into a lending contract.
+   */
+  lendingDeposit = 'lendingDeposit',
+
+  /**
    * A transaction for personal sign.
    */
   personalSign = 'personal_sign',
