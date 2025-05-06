@@ -50,7 +50,6 @@ export async function validateTransactionOrigin({
   internalAccounts,
   origin,
   permittedAddresses,
-  selectedAddress,
   txParams,
   type,
 }: {
@@ -63,22 +62,15 @@ export async function validateTransactionOrigin({
   txParams: TransactionParams;
   type?: TransactionType;
 }) {
-  const isInternal = origin === ORIGIN_METAMASK;
-  const isExternal = origin && origin !== ORIGIN_METAMASK;
-  const { authorizationList, to, type: envelopeType } = txParams;
+  const isInternal = !origin || origin === ORIGIN_METAMASK;
 
-  if (isInternal && from !== selectedAddress) {
-    throw rpcErrors.internal({
-      message: `Internally initiated transaction is using invalid account.`,
-      data: {
-        origin,
-        fromAddress: from,
-        selectedAddress,
-      },
-    });
+  if (isInternal) {
+    return;
   }
 
-  if (isExternal && permittedAddresses && !permittedAddresses.includes(from)) {
+  const { authorizationList, to, type: envelopeType } = txParams;
+
+  if (permittedAddresses && !permittedAddresses.includes(from)) {
     throw providerErrors.unauthorized({ data: { origin } });
   }
 
@@ -86,10 +78,7 @@ export async function validateTransactionOrigin({
     return;
   }
 
-  if (
-    isExternal &&
-    (authorizationList || envelopeType === TransactionEnvelopeType.setCode)
-  ) {
+  if (authorizationList || envelopeType === TransactionEnvelopeType.setCode) {
     throw rpcErrors.invalidParams(
       'External EIP-7702 transactions are not supported',
     );
@@ -98,7 +87,6 @@ export async function validateTransactionOrigin({
   const hasData = Boolean(data && data !== '0x');
 
   if (
-    isExternal &&
     hasData &&
     internalAccounts?.some(
       (account) => account.toLowerCase() === to?.toLowerCase(),

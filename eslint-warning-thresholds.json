@@ -229,7 +229,7 @@
     "jest/no-conditional-in-test": 8
   },
   "packages/keyring-controller/src/KeyringController.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": 5,
+    "@typescript-eslint/no-unsafe-enum-comparison": 4,
     "@typescript-eslint/no-unused-vars": 1
   },
   "packages/keyring-controller/tests/mocks/mockKeyring.ts": {
