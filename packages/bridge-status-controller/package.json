@@ -52,7 +52,7 @@
     "@metamask/keyring-api": "^17.4.0",
     "@metamask/polling-controller": "^13.0.0",
     "@metamask/superstruct": "^3.1.0",
-    "@metamask/user-operation-controller": "^33.0.0",
+    "@metamask/user-operation-controller": "^34.0.0",
     "@metamask/utils": "^11.2.0",
     "bignumber.js": "^9.1.2",
     "uuid": "^8.3.2"
