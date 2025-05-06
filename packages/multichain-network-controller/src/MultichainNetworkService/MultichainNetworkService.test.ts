@@ -82,6 +82,8 @@ describe('MultichainNetworkService', () => {
     });
 
     it('batches requests when account IDs exceed the default batch size', async () => {
+      mockFetch.mockClear();
+
       const manyAccountIds: CaipAccountId[] = [];
       for (let i = 1; i <= 30; i++) {
         manyAccountIds.push(
@@ -114,7 +116,7 @@ describe('MultichainNetworkService', () => {
 
       const result = await service.fetchNetworkActivity(manyAccountIds);
 
-      expect(mockFetch).toHaveBeenCalled();
+      expect(mockFetch).toHaveBeenCalledTimes(2);
 
       for (const accountId of manyAccountIds) {
         expect(result.activeNetworks).toContain(accountId);
