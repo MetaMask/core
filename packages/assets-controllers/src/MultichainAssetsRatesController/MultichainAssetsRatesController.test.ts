@@ -433,8 +433,20 @@ describe('MultichainAssetsRatesController', () => {
     // Wait for the asynchronous subscriber to run.
     await Promise.resolve();
     await advanceTime({ clock, duration: 10 });
-    // TODO fix this unit test
-    // expect(updateSpy).toHaveBeenCalledTimes(1);
+
+    expect(updateSpy).toHaveBeenCalledTimes(1);
+    expect(controller.state.conversionRates).toMatchObject({
+      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+        rate: '100',
+        conversionTime: 1738539923277,
+        currency: 'swift:0/iso4217:USD',
+      },
+      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token1:501': {
+        rate: '200',
+        conversionTime: 1738539923277,
+        currency: 'swift:0/iso4217:USD',
+      },
+    });
   });
 
   it('handles partial or empty Snap responses gracefully', async () => {
