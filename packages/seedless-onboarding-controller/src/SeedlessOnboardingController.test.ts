@@ -1,6 +1,14 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
 import type { EncryptionKey } from '@metamask/browser-passworder';
 import {
+  encrypt,
+  decrypt,
+  decryptWithDetail,
+  encryptWithDetail,
+  decryptWithKey as decryptWithKeyBrowserPassworder,
+  importKey as importKeyBrowserPassworder,
+} from '@metamask/browser-passworder';
+import {
   TOPRFError,
   type ChangeEncryptionKeyResult,
   type KeyPair,
@@ -19,7 +27,6 @@ import {
 import { RecoveryError } from './errors';
 import {
   getDefaultSeedlessOnboardingControllerState,
-  getDefaultSeedlessOnboardingVaultEncryptor,
   SeedlessOnboardingController,
 } from './SeedlessOnboardingController';
 import { SeedPhraseMetadata } from './SeedPhraseMetadata';
@@ -62,6 +69,27 @@ type WithControllerOptions<EKey> = Partial<
 type WithControllerArgs<ReturnValue, EKey> =
   | [WithControllerCallback<ReturnValue, EKey>]
   | [WithControllerOptions<EKey>, WithControllerCallback<ReturnValue, EKey>];
+
+/**
+ * Get the default vault encryptor for the Seedless Onboarding Controller.
+ *
+ * By default, we'll use the encryption utilities from `@metamask/browser-passworder`.
+ *
+ * @returns The default vault encryptor for the Seedless Onboarding Controller.
+ */
+function getDefaultSeedlessOnboardingVaultEncryptor() {
+  return {
+    encrypt,
+    encryptWithDetail,
+    decrypt,
+    decryptWithDetail,
+    decryptWithKey: decryptWithKeyBrowserPassworder as (
+      key: unknown,
+      payload: unknown,
+    ) => Promise<unknown>,
+    importKey: importKeyBrowserPassworder,
+  };
+}
 
 /**
  * Creates a mock user operation messenger.
