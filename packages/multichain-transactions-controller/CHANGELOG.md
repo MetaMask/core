@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
 - **BREAKING:** Updates the support for Solana devnnet chain and txs data structure ([#5756](https://github.com/MetaMask/core/pull/5756))
 
 ## [0.10.0]
