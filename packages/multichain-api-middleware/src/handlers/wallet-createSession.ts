@@ -12,7 +12,7 @@ import {
   isKnownSessionPropertyValue,
   getCaipAccountIdsFromScopesObjects,
   getAllScopesFromScopesObjects,
-  setPermittedAccounts,
+  setNonSCACaipAccountIdsInCaip25CaveatValue,
 } from '@metamask/chain-agnostic-permission';
 import { isEqualCaseInsensitive } from '@metamask/controller-utils';
 import type {
@@ -193,7 +193,7 @@ async function walletCreateSessionHandler(
     };
 
     const requestedCaip25CaveatValueWithSupportedAccounts =
-      setPermittedAccounts(
+      setNonSCACaipAccountIdsInCaip25CaveatValue(
         requestedCaip25CaveatValue,
         supportedRequestedAccountAddresses,
       );

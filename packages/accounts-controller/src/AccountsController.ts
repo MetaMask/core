@@ -38,7 +38,9 @@ import type { WritableDraft } from 'immer/dist/internal.js';
 
 import type { MultichainNetworkControllerNetworkDidChangeEvent } from './types';
 import {
+  getDerivationPathForIndex,
   getUUIDFromAddressOfNormalAccount,
+  isHdKeyringType,
   isNormalKeyringType,
   keyringTypeToName,
 } from './utils';
@@ -67,6 +69,11 @@ export type AccountsControllerSetSelectedAccountAction = {
 export type AccountsControllerSetAccountNameAction = {
   type: `${typeof controllerName}:setAccountName`;
   handler: AccountsController['setAccountName'];
+};
+
+export type AccountsControllerSetAccountNameAndSelectAccountAction = {
+  type: `${typeof controllerName}:setAccountNameAndSelectAccount`;
+  handler: AccountsController['setAccountNameAndSelectAccount'];
 };
 
 export type AccountsControllerListAccountsAction = {
@@ -124,6 +131,7 @@ export type AccountsControllerActions =
   | AccountsControllerListAccountsAction
   | AccountsControllerListMultichainAccountsAction
   | AccountsControllerSetAccountNameAction
+  | AccountsControllerSetAccountNameAndSelectAccountAction
   | AccountsControllerUpdateAccountsAction
   | AccountsControllerGetAccountByAddressAction
   | AccountsControllerGetSelectedAccountAction
@@ -438,6 +446,57 @@ export class AccountsController extends BaseController<
   }
 
   /**
+   * Sets the name of the account with the given ID and select it.
+   *
+   * @param accountId - The ID of the account to set the name for and select.
+   * @param accountName - The new name for the account.
+   * @throws An error if an account with the same name already exists.
+   */
+  setAccountNameAndSelectAccount(accountId: string, accountName: string): void {
+    const account = this.getAccountExpect(accountId);
+
+    this.#assertAccountCanBeRenamed(account, accountName);
+
+    const internalAccount = {
+      ...account,
+      metadata: {
+        ...account.metadata,
+        name: accountName,
+        nameLastUpdatedAt: Date.now(),
+        lastSelected: this.#getLastSelectedIndex(),
+      },
+    };
+
+    this.#update((state) => {
+      // FIXME: Using the state as-is cause the following error: "Type instantiation is excessively
+      // deep and possibly infinite.ts(2589)" (https://github.com/MetaMask/utils/issues/168)
+      // Using a type-cast workaround this error and is slightly better than using a @ts-expect-error
+      // which sometimes fail when compiling locally.
+      (state as AccountsControllerState).internalAccounts.accounts[account.id] =
+        internalAccount;
+      (state as AccountsControllerState).internalAccounts.selectedAccount =
+        account.id;
+    });
+
+    this.messagingSystem.publish(
+      'AccountsController:accountRenamed',
+      internalAccount,
+    );
+  }
+
+  #assertAccountCanBeRenamed(account: InternalAccount, accountName: string) {
+    if (
+      this.listMultichainAccounts().find(
+        (internalAccount) =>
+          internalAccount.metadata.name === accountName &&
+          internalAccount.id !== account.id,
+      )
+    ) {
+      throw new Error('Account name already exists');
+    }
+  }
+
+  /**
    * Updates the metadata of the account with the given ID.
    *
    * @param accountId - The ID of the account for which the metadata will be updated.
@@ -449,15 +508,8 @@ export class AccountsController extends BaseController<
   ): void {
     const account = this.getAccountExpect(accountId);
 
-    if (
-      metadata.name &&
-      this.listMultichainAccounts().find(
-        (internalAccount) =>
-          internalAccount.metadata.name === metadata.name &&
-          internalAccount.id !== accountId,
-      )
-    ) {
-      throw new Error('Account name already exists');
+    if (metadata.name) {
+      this.#assertAccountCanBeRenamed(account, metadata.name);
     }
 
     const internalAccount = {
@@ -632,18 +684,31 @@ export class AccountsController extends BaseController<
    */
   async #listNormalAccounts(): Promise<InternalAccount[]> {
     const internalAccounts: InternalAccount[] = [];
-    const { keyrings } = await this.messagingSystem.call(
+    const { keyrings, keyringsMetadata } = this.messagingSystem.call(
       'KeyringController:getState',
     );
-    for (const keyring of keyrings) {
+
+    for (const [keyringIndex, keyring] of keyrings.entries()) {
       const keyringType = keyring.type;
       if (!isNormalKeyringType(keyringType as KeyringTypes)) {
         // We only consider "normal accounts" here, so keep looping
         continue;
       }
 
-      for (const address of keyring.accounts) {
+      for (const [accountIndex, address] of keyring.accounts.entries()) {
         const id = getUUIDFromAddressOfNormalAccount(address);
+
+        let options = {};
+
+        if (isHdKeyringType(keyring.type as KeyringTypes)) {
+          options = {
+            entropySource: keyringsMetadata[keyringIndex].id,
+            // NOTE: We are not using the `hdPath` from the associated keyring here and
+            // getting the keyring instance here feels a bit overkill.
+            // This will be naturally fixed once every keyring start using `KeyringAccount` and implement the keyring API.
+            derivationPath: getDerivationPathForIndex(accountIndex),
+          };
+        }
 
         const nameLastUpdatedAt = this.#populateExistingMetadata(
           id,
@@ -653,7 +718,7 @@ export class AccountsController extends BaseController<
         internalAccounts.push({
           id,
           address,
-          options: {},
+          options,
           methods: [
             EthMethod.PersonalSign,
             EthMethod.Sign,
@@ -923,24 +988,31 @@ export class AccountsController extends BaseController<
   #handleOnSnapStateChange(snapState: SnapControllerState) {
     // only check if snaps changed in status
     const { snaps } = snapState;
-    const accounts = this.listMultichainAccounts().filter(
-      (account) => account.metadata.snap,
-    );
 
-    this.update((currentState) => {
-      accounts.forEach((account) => {
-        const currentAccount =
-          currentState.internalAccounts.accounts[account.id];
-        if (currentAccount.metadata.snap) {
-          const snapId = currentAccount.metadata.snap.id;
-          const storedSnap: Snap = snaps[snapId as SnapId];
-          if (storedSnap) {
-            currentAccount.metadata.snap.enabled =
-              storedSnap.enabled && !storedSnap.blocked;
+    const accounts: { id: string; enabled: boolean }[] = [];
+    for (const account of this.listMultichainAccounts()) {
+      if (account.metadata.snap) {
+        const snap: Snap = snaps[account.metadata.snap.id as SnapId];
+        const enabled = snap.enabled && !snap.blocked;
+        const metadata = account.metadata.snap;
+
+        if (metadata.enabled !== enabled) {
+          accounts.push({ id: account.id, enabled });
+        }
+      }
+    }
+
+    if (accounts.length > 0) {
+      this.update((state) => {
+        for (const { id, enabled } of accounts) {
+          const account = state.internalAccounts.accounts[id];
+
+          if (account.metadata.snap) {
+            account.metadata.snap.enabled = enabled;
           }
         }
       });
-    });
+    }
   }
 
   /**
@@ -1195,6 +1267,11 @@ export class AccountsController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:setAccountName`,
       this.setAccountName.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:setAccountNameAndSelectAccount`,
+      this.setAccountNameAndSelectAccount.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
