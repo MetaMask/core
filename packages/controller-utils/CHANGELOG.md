@@ -10,8 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add Monad Testnet to various constants, enums, and types ([#5724](https://github.com/MetaMask/core/pull/5724))
-  - Add `MONAD_TESTNET` to `TESTNET_TICKER_SYMBOLS`
   - Add `monad-testnet` to `BUILT_IN_NETWORKS`
+  - Add `monad-testnet` and `megaeth-testnet` to `BUILT_IN_CUSTOM_NETWORKS_RPC`
   - Add `MonadTestnet` to `BuiltInNetworkName` enum
   - Add `monad-testnet` to `ChainId` type
   - Add `MonadTestnet` to `NetworksTicker` enum
