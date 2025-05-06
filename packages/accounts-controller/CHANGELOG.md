@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [28.0.0]
+
 ### Uncategorized
 
 - Release 384.0.0 ([#5749](https://github.com/MetaMask/core/pull/5749))
@@ -533,7 +535,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@27.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@28.0.0...HEAD
+[28.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@27.0.0...@metamask/accounts-controller@28.0.0
 [27.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@26.1.0...@metamask/accounts-controller@27.0.0
 [26.1.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@26.0.0...@metamask/accounts-controller@26.1.0
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@25.0.0...@metamask/accounts-controller@26.0.0
