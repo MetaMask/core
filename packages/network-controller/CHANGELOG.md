@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [23.4.0]
+
 ### Added
 
 - Add Monad Testnet as default network ([#5724](https://github.com/MetaMask/core/pull/5724))
@@ -833,7 +835,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@23.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@23.4.0...HEAD
+[23.4.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@23.3.0...@metamask/network-controller@23.4.0
 [23.3.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@23.2.0...@metamask/network-controller@23.3.0
 [23.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@23.1.0...@metamask/network-controller@23.2.0
 [23.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@23.0.0...@metamask/network-controller@23.1.0
