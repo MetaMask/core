@@ -14,7 +14,6 @@ import {
   type KeyringControllerGetStateAction,
   type KeyringControllerLockEvent,
   type KeyringControllerUnlockEvent,
-  type KeyringControllerWithKeyringAction,
   KeyringTypes,
   type KeyringControllerState,
 } from '@metamask/keyring-controller';
@@ -201,7 +200,6 @@ export type Actions =
 // Allowed Actions
 export type AllowedActions =
   // Keyring Controller Requests
-  | KeyringControllerWithKeyringAction
   | KeyringControllerGetStateAction
   // Auth Controller Requests
   | AuthenticationController.AuthenticationControllerGetBearerToken
@@ -411,20 +409,14 @@ export default class NotificationServicesController extends BaseController<
     isNotificationAccountsSetup: false,
 
     getNotificationAccounts: async () => {
-      const mainHDWalletAccounts = (await this.messagingSystem
-        .call(
-          'KeyringController:withKeyring',
-          {
-            type: KeyringTypes.hd,
-            index: 0,
-          },
-          async ({ keyring }): Promise<string[]> => {
-            return await keyring.getAccounts();
-          },
-        )
-        .catch(() => null)) as string[] | null;
-
-      return mainHDWalletAccounts;
+      const { keyrings } = this.messagingSystem.call(
+        'KeyringController:getState',
+      );
+      const firstHDKeyring = keyrings.find(
+        (k) => k.type === KeyringTypes.hd.toString(),
+      );
+      const keyringAccounts = firstHDKeyring?.accounts ?? null;
+      return keyringAccounts;
     },
 
     /**
