@@ -217,6 +217,10 @@ export class MultichainBalancesController extends BaseController<
       }
     }
 
+    if (Object.keys(balancesToUpdate).length === 0) {
+      return;
+    }
+
     this.update((state: Draft<MultichainBalancesControllerState>) => {
       for (const [accountId, accountBalances] of Object.entries(
         balancesToUpdate,
