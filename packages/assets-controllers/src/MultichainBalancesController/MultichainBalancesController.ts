@@ -3,7 +3,6 @@ import type {
   AccountsControllerAccountRemovedEvent,
   AccountsControllerListMultichainAccountsAction,
   AccountsControllerAccountBalancesUpdatesEvent,
-  AccountsControllerAccountAssetListUpdatedEvent,
 } from '@metamask/accounts-controller';
 import {
   BaseController,
@@ -29,7 +28,6 @@ import type { Draft } from 'immer';
 import type {
   MultichainAssetsControllerGetStateAction,
   MultichainAssetsControllerAccountAssetListUpdatedEvent,
-  MultichainAssetsControllerStateChangeEvent,
 } from '../MultichainAssetsController';
 
 const controllerName = 'MultichainBalancesController';
@@ -106,8 +104,6 @@ type AllowedEvents =
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent
   | AccountsControllerAccountBalancesUpdatesEvent
-  | MultichainAssetsControllerStateChangeEvent
-  | AccountsControllerAccountAssetListUpdatedEvent
   | MultichainAssetsControllerAccountAssetListUpdatedEvent;
 /**
  * Messenger type for the MultichainBalancesController.

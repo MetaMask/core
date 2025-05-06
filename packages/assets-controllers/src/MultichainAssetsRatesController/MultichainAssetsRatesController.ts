@@ -39,7 +39,6 @@ import type {
   MultichainAssetsControllerGetStateAction,
   MultichainAssetsControllerAccountAssetListUpdatedEvent,
   MultichainAssetsControllerState,
-  MultichainAssetsControllerStateChangeEvent,
 } from '../MultichainAssetsController';
 
 /**
@@ -133,7 +132,6 @@ export type AllowedEvents =
   | KeyringControllerUnlockEvent
   | AccountsControllerAccountAddedEvent
   | CurrencyRateStateChange
-  | MultichainAssetsControllerStateChangeEvent
   | MultichainAssetsControllerAccountAssetListUpdatedEvent;
 /**
  * Messenger type for the MultichainAssetsRatesController.
