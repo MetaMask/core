@@ -16,7 +16,6 @@ import type {
   Balance,
   CaipAssetType,
   AccountBalancesUpdatedEventPayload,
-  AccountAssetListUpdatedEventPayload,
 } from '@metamask/keyring-api';
 import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -27,11 +26,9 @@ import { HandlerType } from '@metamask/snaps-utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 import type { Draft } from 'immer';
 
-
 import type {
   MultichainAssetsControllerGetStateAction,
   MultichainAssetsControllerNewAccountAssetsEvent,
-  MultichainAssetsControllerState,
   MultichainAssetsControllerStateChangeEvent,
 } from '../MultichainAssetsController';
 
@@ -179,22 +176,6 @@ export class MultichainBalancesController extends BaseController<
       (balanceUpdate: AccountBalancesUpdatedEventPayload) =>
         this.#handleOnAccountBalancesUpdated(balanceUpdate),
     );
-    // We only care about new added assets to fetch balances for.
-    /*     this.messagingSystem.subscribe(
-      'AccountsController:accountAssetListUpdated',
-      async (event: AccountAssetListUpdatedEventPayload) => {
-        const assetsToUpdate = event.assets;
-        const accountsAndAssetsToUpdate = Object.entries(assetsToUpdate).map(
-          ([accountId, { added }]) => ({
-            accountId,
-            assets: added,
-          }),
-        );
-        if (accountsAndAssetsToUpdate.length > 0) {
-          await this.#updateBalancesForAccounts(accountsAndAssetsToUpdate);
-        }
-      },
-    ); */
 
     this.messagingSystem.subscribe(
       'MultichainAssetsController:newAccountAssets',

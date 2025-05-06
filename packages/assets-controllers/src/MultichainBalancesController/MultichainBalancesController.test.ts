@@ -1,9 +1,5 @@
 import { Messenger } from '@metamask/base-controller';
-import type {
-  AccountAssetListUpdatedEventPayload,
-  Balance,
-  CaipAssetType,
-} from '@metamask/keyring-api';
+import type { Balance, CaipAssetType } from '@metamask/keyring-api';
 import {
   BtcAccountType,
   BtcMethod,
@@ -147,8 +143,7 @@ function getRestrictedMessenger(
       'AccountsController:accountAdded',
       'AccountsController:accountRemoved',
       'AccountsController:accountBalancesUpdated',
-      // 'MultichainAssetsController:stateChange',
-      'AccountsController:accountAssetListUpdated',
+      'MultichainAssetsController:newAccountAssets',
     ],
   });
 }
@@ -433,8 +428,8 @@ describe('MultichainBalancesController', () => {
     expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual({});
   });
 
-  describe('when AccountsController:accountAssetListUpdated is fired', () => {
-    it('updates balances when receiving "AccountsController:accountAssetListUpdated" event and state is empty', async () => {
+  describe('when MultichainAssetsController:newAccountAssets is fired', () => {
+    it('updates balances when receiving "MultichainAssetsController:newAccountAssets" event and state is empty', async () => {
       const mockListSolanaAccounts = [
         {
           address: 'EBBYfhQzVzurZiweJ2keeBWpgGLs1cbWYcz28gjGgi5x',
@@ -511,23 +506,18 @@ describe('MultichainBalancesController', () => {
           },
         });
 
-      const updatedAssetsList: AccountAssetListUpdatedEventPayload = {
-        assets: {
-          [mockSolanaAccountId1]: {
-            added: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken'],
-            removed: [],
+      messenger.publish('MultichainAssetsController:newAccountAssets', {
+        newAccountAssets: [
+          {
+            accountId: mockSolanaAccountId1,
+            assets: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken'],
           },
-          [mockSolanaAccountId2]: {
-            added: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken3'],
-            removed: [],
+          {
+            accountId: mockSolanaAccountId2,
+            assets: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken3'],
           },
-        },
-      };
-
-      messenger.publish(
-        'AccountsController:accountAssetListUpdated',
-        updatedAssetsList,
-      );
+        ],
+      });
 
       await waitForAllPromises();
 
@@ -547,7 +537,7 @@ describe('MultichainBalancesController', () => {
       });
     });
 
-    it('updates balances when receiving "AccountsController:accountAssetListUpdated" event and state has existing balances', async () => {
+    it('updates balances when receiving "MultichainAssetsController:newAccountAssets" event and state has existing balances', async () => {
       const mockListSolanaAccounts = [
         {
           address: 'EBBYfhQzVzurZiweJ2keeBWpgGLs1cbWYcz28gjGgi5x',
@@ -649,23 +639,18 @@ describe('MultichainBalancesController', () => {
           },
         });
 
-      const updatedAssetsList: AccountAssetListUpdatedEventPayload = {
-        assets: {
-          [mockSolanaAccountId1]: {
-            added: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken'],
-            removed: [],
+      messenger.publish('MultichainAssetsController:newAccountAssets', {
+        newAccountAssets: [
+          {
+            accountId: mockSolanaAccountId1,
+            assets: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken'],
           },
-          [mockSolanaAccountId2]: {
-            added: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken3'],
-            removed: [],
+          {
+            accountId: mockSolanaAccountId2,
+            assets: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken3'],
           },
-        },
-      };
-
-      messenger.publish(
-        'AccountsController:accountAssetListUpdated',
-        updatedAssetsList,
-      );
+        ],
+      });
 
       await waitForAllPromises();
 
