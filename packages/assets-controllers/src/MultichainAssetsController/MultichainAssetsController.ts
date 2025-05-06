@@ -30,7 +30,6 @@ import type {
 import type { FungibleAssetMetadata, Snap, SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import {
-  hasProperty,
   isCaipAssetType,
   parseCaipAssetType,
   type CaipChainId,
