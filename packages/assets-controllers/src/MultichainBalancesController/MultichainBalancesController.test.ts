@@ -25,8 +25,6 @@ import type {
   ExtractAvailableAction,
   ExtractAvailableEvent,
 } from '../../../base-controller/tests/helpers';
-import { KeyringClient } from '@metamask/keyring-snap-client';
-import { MultichainAssetsControllerState } from 'src/MultichainAssetsController';
 
 const mockBtcAccount = {
   address: 'bc1qssdcp5kvwh6nghzg9tuk99xsflwkdv4hgvq58q',

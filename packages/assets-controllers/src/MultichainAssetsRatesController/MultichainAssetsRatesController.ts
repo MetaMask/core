@@ -172,7 +172,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
 
   #currentCurrency: CurrencyRateState['currentCurrency'];
 
-  #accountsAssets: MultichainAssetsControllerState['accountsAssets'];
+  readonly #accountsAssets: MultichainAssetsControllerState['accountsAssets'];
 
   #isUnlocked = true;
 
