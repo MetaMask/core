@@ -312,7 +312,7 @@ export class MultichainTransactionsController extends BaseController<
           }
 
           chainUpdates.forEach(({ chain, entry }) => {
-            state.nonEvmTransactions[account.id][chain as CaipChainId] = entry;
+            state.nonEvmTransactions[account.id][chain] = entry;
           });
         });
       }
