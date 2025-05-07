@@ -4259,7 +4259,7 @@ __metadata:
   dependencies:
     "@metamask/auth-network-utils": "npm:^0.1.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
-    "@metamask/base-controller": "npm:^8.0.0"
+    "@metamask/base-controller": "npm:^8.0.1"
     "@metamask/browser-passworder": "npm:^4.3.0"
     "@metamask/toprf-secure-backup": "npm:^0.1.0"
     "@metamask/utils": "npm:^11.2.0"

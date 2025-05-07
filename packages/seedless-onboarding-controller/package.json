@@ -48,7 +48,7 @@
   },
   "dependencies": {
     "@metamask/auth-network-utils": "^0.1.0",
-    "@metamask/base-controller": "^8.0.0",
+    "@metamask/base-controller": "^8.0.1",
     "@metamask/browser-passworder": "^4.3.0",
     "@metamask/toprf-secure-backup": "^0.1.0",
     "@metamask/utils": "^11.2.0",
