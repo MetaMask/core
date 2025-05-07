@@ -58,6 +58,7 @@ export const validateFeatureFlagsResponse = (
     isActiveDest: boolean(),
     refreshRate: optional(number()),
     topAssets: optional(array(string())),
+    isUnifiedUIEnabled: optional(boolean()),
   });
 
   const PlatformConfigSchema = type({
