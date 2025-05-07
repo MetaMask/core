@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING** `keyringsMetadata` has been removed from the controller state ([#5725](https://github.com/MetaMask/core/pull/5725))
   - The metadata is now stored in each keyring object in the `state.keyrings` array.
 
+### Fixed
+
+- Discard keyrings with duplicate accounts when unlock the wallet ([#5775](https://github.com/MetaMask/core/pull/5775))
+
 ## [21.0.6]
 
 ### Changed
