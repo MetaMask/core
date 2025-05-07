@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Metadata for unsupported keyring is removed on unlock ([#5725](https://github.com/MetaMask/core/pull/5725))
+
 ## [21.0.6]
 
 ### Changed
