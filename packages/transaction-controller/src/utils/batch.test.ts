@@ -58,6 +58,7 @@ const TRANSACTION_SIGNATURE_MOCK = '0xabc';
 const TRANSACTION_SIGNATURE_2_MOCK = '0xdef';
 const ERROR_MESSAGE_MOCK = 'Test error';
 const SECURITY_ALERT_ID_MOCK = '123-456';
+const ORIGIN_MOCK = 'test.com';
 const UPGRADE_CONTRACT_ADDRESS_MOCK =
   '0xfedfedfedfedfedfedfedfedfedfedfedfedfedf';
 
@@ -127,6 +128,7 @@ describe('Batch Utils', () => {
         request: {
           from: FROM_MOCK,
           networkClientId: NETWORK_CLIENT_ID_MOCK,
+          origin: ORIGIN_MOCK,
           requireApproval: true,
           transactions: [
             {
@@ -230,6 +232,7 @@ describe('Batch Utils', () => {
         },
         expect.objectContaining({
           networkClientId: NETWORK_CLIENT_ID_MOCK,
+          origin: ORIGIN_MOCK,
           requireApproval: true,
         }),
       );

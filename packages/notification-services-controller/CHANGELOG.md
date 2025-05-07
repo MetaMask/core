@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- replaced `KeyringController:withKeyring` with `KeyringController:getState` to get the first HD keyring for notifications ([#5764](https://github.com/MetaMask/core/pull/5764))
+- Bump `@metamask/controller-utils` to `^11.8.0` ([#5765](https://github.com/MetaMask/core/pull/5765))
+
+### Removed
+
+- **BREAKING** removed `KeyringController:withKeyring` allowed action in `NotificationServicesController` ([#5764](https://github.com/MetaMask/core/pull/5764))
+
 ## [7.0.0]
 
 ### Changed
