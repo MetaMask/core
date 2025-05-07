@@ -26,12 +26,21 @@ import type {
   NetworkControllerUpdateNetworkAction,
 } from '@metamask/network-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+import type {
+  AddressBookControllerContactUpdatedEvent,
+  AddressBookControllerContactDeletedEvent,
+  AddressBookControllerGetStateAction,
+} from '@metamask/address-book-controller';
 
 import {
   saveInternalAccountToUserStorage,
   syncInternalAccountsWithUserStorage,
 } from './account-syncing/controller-integration';
 import { setupAccountSyncingSubscriptions } from './account-syncing/setup-subscriptions';
+import {
+  syncAddressBookWithUserStorage,
+} from './address-book-syncing/controller-integration';
+import { setupAddressBookSyncingSubscriptions } from './address-book-syncing/setup-subscriptions';
 import { BACKUPANDSYNC_FEATURES } from './constants';
 import {
   performMainNetworkSync,
@@ -69,6 +78,10 @@ export type UserStorageControllerState = {
    */
   isAccountSyncingEnabled: boolean;
   /**
+   * Condition used by UI to determine if contact syncing is enabled.
+   */
+  isAddressBookSyncingEnabled: boolean;
+  /**
    * Condition used to determine if account syncing has been dispatched at least once.
    * This is used for event listeners to determine if they should be triggered.
    * This is also used in E2E tests for verification purposes.
@@ -92,6 +105,7 @@ export const defaultState: UserStorageControllerState = {
   isProfileSyncingEnabled: true,
   isProfileSyncingUpdateLoading: false,
   isAccountSyncingEnabled: true,
+  isAddressBookSyncingEnabled: true,  
   hasAccountSyncingSyncedAtLeastOnce: false,
   isAccountSyncingReadyToBeDispatched: false,
   isAccountSyncingInProgress: false,
@@ -107,6 +121,10 @@ const metadata: StateMetadata<UserStorageControllerState> = {
     anonymous: false,
   },
   isAccountSyncingEnabled: {
+    persist: true,
+    anonymous: true,
+  },
+  isAddressBookSyncingEnabled: {
     persist: true,
     anonymous: true,
   },
@@ -153,7 +171,29 @@ type ControllerConfig = {
       sentryContext?: Record<string, unknown>,
     ) => void;
   };
+  addressBookSyncing?: {
+    /**
+     * Callback that fires when address book sync updates a contact.
+     * This is used for analytics.
+     */
+    onContactUpdated?: (profileId: string) => void;
 
+    /**
+     * Callback that fires when address book sync deletes a contact.
+     * This is used for analytics.
+     */
+    onContactDeleted?: (profileId: string) => void;
+
+    /**
+     * Callback that fires when an erroneous situation happens during address book sync.
+     * This is used for analytics.
+     */
+    onAddressBookSyncErroneousSituation?: (
+      profileId: string,
+      situationMessage: string,
+      sentryContext?: Record<string, unknown>,
+    ) => void;
+  };
   networkSyncing?: {
     maxNumberOfNetworksToAdd?: number;
     /**
@@ -256,7 +296,10 @@ export type AllowedEvents =
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRenamedEvent
   // Network Syncing Events
-  | NetworkControllerNetworkRemovedEvent;
+  | NetworkControllerNetworkRemovedEvent
+  // Address Book Events
+  | AddressBookControllerContactUpdatedEvent
+  | AddressBookControllerContactDeletedEvent;
 
 // Messenger
 export type UserStorageControllerMessenger = RestrictedMessenger<
@@ -389,6 +432,12 @@ export default class UserStorageController extends BaseController<
 
     // Account Syncing
     setupAccountSyncingSubscriptions({
+      getUserStorageControllerInstance: () => this,
+      getMessenger: () => this.messagingSystem,
+    });
+
+    // Address Book Syncing
+    setupAddressBookSyncingSubscriptions({
       getUserStorageControllerInstance: () => this,
       getMessenger: () => this.messagingSystem,
     });
@@ -630,6 +679,10 @@ export default class UserStorageController extends BaseController<
         if (feature === BACKUPANDSYNC_FEATURES.accountSyncing) {
           state.isAccountSyncingEnabled = enabled;
         }
+
+        if (feature === BACKUPANDSYNC_FEATURES.contactSyncing) {
+          state.isAddressBookSyncingEnabled = enabled;
+        }
       });
     } catch (e) {
       // istanbul ignore next
@@ -743,5 +796,33 @@ export default class UserStorageController extends BaseController<
     this.update((s) => {
       s.hasNetworkSyncingSyncedAtLeastOnce = true;
     });
+  }
+
+  /**
+   * Syncs the address book list with the user storage address book list.
+   * This method is used to make sure that the address book list is up-to-date with the user storage address book list and vice-versa.
+   * It will add new contacts to the address book list, update/merge conflicting contacts and re-upload the results in some cases to the user storage.
+   */
+  async syncAddressBookWithUserStorage(): Promise<void> {
+    const profileId = await this.#auth.getProfileId();
+
+    await syncAddressBookWithUserStorage(
+      {
+        onContactUpdated: () =>
+          this.#config?.addressBookSyncing?.onContactUpdated?.(profileId),
+        onContactDeleted: () =>
+          this.#config?.addressBookSyncing?.onContactDeleted?.(profileId),
+        onAddressBookSyncErroneousSituation: (situationMessage, sentryContext) =>
+          this.#config?.accountSyncing?.onAccountSyncErroneousSituation?.(
+            profileId,
+            situationMessage,
+            sentryContext,
+          ),
+      },
+      {
+        getMessenger: () => this.messagingSystem,
+        getUserStorageControllerInstance: () => this,
+      },
+    );
   }
 }
