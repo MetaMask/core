@@ -284,7 +284,7 @@ export class MultichainTransactionsController extends BaseController<
           { limit: 10 },
         );
 
-        const transactionsByChain: Record<string, Transaction[]> = {};
+        const transactionsByChain: Record<CaipChainId, Transaction[]> = {};
 
         response.data.forEach((transaction) => {
           const { chain } = transaction;
