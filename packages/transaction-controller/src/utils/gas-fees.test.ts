@@ -257,12 +257,14 @@ describe('gas-fees', () => {
       it('to medium if no request maxFeePerGas or maxPriorityFeePerGas but suggested gasPrice available', async () => {
         delete updateGasFeeRequest.txMeta.txParams.maxFeePerGas;
         delete updateGasFeeRequest.txMeta.txParams.maxPriorityFeePerGas;
-        
+
         mockGasFeeFlowMockResponse(FLOW_RESPONSE_GAS_PRICE_MOCK);
-      
+
         await updateGasFees(updateGasFeeRequest);
-      
-        expect(updateGasFeeRequest.txMeta.userFeeLevel).toBe(UserFeeLevel.MEDIUM);
+
+        expect(updateGasFeeRequest.txMeta.userFeeLevel).toBe(
+          UserFeeLevel.MEDIUM,
+        );
       });
 
       it('to suggested medium maxFeePerGas if request gas price and request maxPriorityFeePerGas', async () => {
