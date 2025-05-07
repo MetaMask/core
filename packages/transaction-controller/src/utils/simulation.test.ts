@@ -10,18 +10,18 @@ import {
 import type {
   SimulationResponseLog,
   SimulationResponseTransaction,
-} from './simulation-api';
+} from '../api/simulation-api';
 import {
   simulateTransactions,
   type SimulationResponse,
-} from './simulation-api';
+} from '../api/simulation-api';
 import {
   SimulationInvalidResponseError,
   SimulationRevertedError,
 } from '../errors';
 import { SimulationErrorCode, SimulationTokenStandard } from '../types';
 
-jest.mock('./simulation-api');
+jest.mock('../api/simulation-api');
 
 // Utility function to encode addresses and values to 32-byte ABI format
 const encodeTo32ByteHex = (value: string | number): Hex => {
@@ -49,6 +49,7 @@ const TOKEN_ID_MOCK = '0x5' as Hex;
 const OTHER_TOKEN_ID_MOCK = '0x6' as Hex;
 const ERROR_CODE_MOCK = 123;
 const ERROR_MESSAGE_MOCK = 'Test Error';
+const SENDER_CODE_MOCK = '0x1234' as Hex;
 
 // Regression test – leading zero in user address
 const USER_ADDRESS_WITH_LEADING_ZERO =
@@ -263,6 +264,34 @@ describe('Simulation Utils', () => {
   });
 
   describe('getSimulationData', () => {
+    it('includes code override in request if senderCode provided', async () => {
+      await getSimulationData(REQUEST_MOCK, { senderCode: SENDER_CODE_MOCK });
+
+      expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          overrides: {
+            [REQUEST_MOCK.from]: {
+              code: SENDER_CODE_MOCK,
+            },
+          },
+        }),
+      );
+    });
+
+    it('includes with7702 in request if use7702Fees set', async () => {
+      await getSimulationData(REQUEST_MOCK, { use7702Fees: true });
+
+      expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          suggestFees: expect.objectContaining({
+            with7702: true,
+          }),
+        }),
+      );
+    });
+
     describe('returns native balance change', () => {
       it.each([
         ['increased', BALANCE_1_MOCK, BALANCE_2_MOCK, false],
@@ -951,6 +980,7 @@ describe('Simulation Utils', () => {
                       currentBalanceToken: '0x5',
                       feeRecipient: '0x6',
                       rateWei: '0x7',
+                      transferEstimate: '0x7a',
                     },
                     {
                       token: {
@@ -962,6 +992,7 @@ describe('Simulation Utils', () => {
                       currentBalanceToken: '0x9',
                       feeRecipient: '0xa',
                       rateWei: '0xb',
+                      transferEstimate: '0xba',
                     },
                   ],
                 },
@@ -979,6 +1010,7 @@ describe('Simulation Utils', () => {
             balance: '0x5',
             decimals: 3,
             gas: '0x1',
+            gasTransfer: '0x7a',
             maxFeePerGas: '0x2',
             maxPriorityFeePerGas: '0x3',
             rateWei: '0x7',
@@ -991,6 +1023,7 @@ describe('Simulation Utils', () => {
             balance: '0x9',
             decimals: 4,
             gas: '0x1',
+            gasTransfer: '0xba',
             maxFeePerGas: '0x2',
             maxPriorityFeePerGas: '0x3',
             rateWei: '0xb',
@@ -1021,6 +1054,7 @@ describe('Simulation Utils', () => {
                       currentBalanceToken: '0x5',
                       feeRecipient: '0x6',
                       rateWei: '0x7',
+                      transferEstimate: '0x7a',
                     },
                   ],
                 },
@@ -1039,6 +1073,7 @@ describe('Simulation Utils', () => {
                       currentBalanceToken: '0xc',
                       feeRecipient: '0xd',
                       rateWei: '0xe',
+                      transferEstimate: '0xee',
                     },
                   ],
                 },
@@ -1056,6 +1091,7 @@ describe('Simulation Utils', () => {
             balance: '0x5',
             decimals: 3,
             gas: '0x1',
+            gasTransfer: '0x7a',
             maxFeePerGas: '0x2',
             maxPriorityFeePerGas: '0x3',
             rateWei: '0x7',
