@@ -13,7 +13,9 @@ import {
   StatusTypes,
   UnifiedSwapBridgeEventName,
   getActionType,
+  formatChainIdToCaip,
 } from '@metamask/bridge-controller';
+import type { TraceCallback } from '@metamask/controller-utils';
 import { toHex } from '@metamask/controller-utils';
 import { EthAccountType } from '@metamask/keyring-api';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
@@ -35,6 +37,7 @@ import {
   BRIDGE_STATUS_CONTROLLER_NAME,
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
   REFRESH_INTERVAL_MS,
+  TraceName,
 } from './constants';
 import { type BridgeStatusControllerMessenger } from './types';
 import type {
@@ -103,6 +106,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
   readonly #addUserOperationFromTransactionFn?: typeof UserOperationController.prototype.addUserOperationFromTransaction;
 
+  readonly #trace: TraceCallback;
+
   constructor({
     messenger,
     state,
@@ -112,6 +117,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     addUserOperationFromTransactionFn,
     estimateGasFeeFn,
     config,
+    traceFn,
   }: {
     messenger: BridgeStatusControllerMessenger;
     state?: Partial<BridgeStatusControllerState>;
@@ -123,6 +129,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     config?: {
       customBridgeApiBaseUrl?: string;
     };
+    traceFn?: TraceCallback;
   }) {
     super({
       name: BRIDGE_STATUS_CONTROLLER_NAME,
@@ -144,6 +151,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       customBridgeApiBaseUrl:
         config?.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
     };
+    this.#trace = traceFn ?? (((_request, fn) => fn?.()) as TraceCallback);
 
     // Register action handlers
     this.messagingSystem.registerActionHandler(
@@ -736,8 +744,16 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       isSolanaChainId(quoteResponse.quote.srcChainId) &&
       typeof quoteResponse.trade === 'string'
     ) {
-      txMeta = await this.#handleSolanaTx(
-        quoteResponse as QuoteResponse<string> & QuoteMetadata,
+      txMeta =await this.#trace(
+        {
+          name: TraceName.BridgeTransactionCompleted,
+          data: {
+            srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
+            stxEnabled: false,
+          },
+        },
+        async () =>
+          await this.#handleSolanaTx(quoteResponse as QuoteResponse<string> & QuoteMetadata)
       );
       this.#trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.SnapConfirmationViewed,
@@ -751,24 +767,54 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       typeof quoteResponse.trade !== 'string'
     ) {
       // Set approval time and id if an approval tx is needed
-      const approvalTxMeta = await this.#handleApprovalTx(quoteResponse);
+      const approvalTxMeta = await this.#trace(
+        {
+          name: TraceName.BridgeTransactionApprovalCompleted,
+            data: {
+              srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
+              stxEnabled: false,
+            },
+        },
+        async () => await this.#handleApprovalTx(quoteResponse),
+      );
       approvalTime = approvalTxMeta?.time;
       approvalTxId = approvalTxMeta?.id;
       // Handle smart transactions if enabled
       if (isStxEnabledOnClient) {
-        txMeta = await this.#handleEvmSmartTransaction(
-          quoteResponse.trade,
-          quoteResponse,
-          approvalTxId,
+        txMeta = await this.#trace(
+          {
+            name: TraceName.BridgeTransactionCompleted,
+            data: {
+              srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
+              stxEnabled: true,
+            },
+            parentContext:approvalTxMeta
+          },
+          async () =>
+            await this.#handleEvmSmartTransaction(
+              quoteResponse.trade as TxData,
+              quoteResponse,
+              approvalTxId,
+            ),
         );
       } else {
-        txMeta = await this.#handleEvmTransaction(
-          TransactionType.bridge,
-          quoteResponse.trade,
-          quoteResponse,
-          approvalTxId,
+        txMeta =  await this.#trace(
+          {
+            name: TraceName.BridgeTransactionCompleted,
+            data: {
+              srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
+              stxEnabled: false,
+            },
+            parentContext:approvalTxMeta
+          },
+          async () =>
+            await this.#handleEvmTransaction(
+              TransactionType.bridge,
+              quoteResponse.trade as TxData,
+              quoteResponse,
+              approvalTxId,
+            ),
         );
-      }
     }
 
     if (!txMeta) {
