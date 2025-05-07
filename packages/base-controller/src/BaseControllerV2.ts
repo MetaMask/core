@@ -1,6 +1,7 @@
 import type { Json, PublicInterface } from '@metamask/utils';
 import { enablePatches, produceWithPatches, applyPatches, freeze } from 'immer';
 import type { Draft, Patch } from 'immer';
+import { isEqual, get as getValueFromPath } from 'lodash';
 
 import type { ActionConstraint, EventConstraint } from './Messenger';
 import type {
@@ -245,6 +246,28 @@ export class BaseController<
   }
 
   /**
+   * Checks if the list of patches would produce the same state (current state).
+   *
+   * @param patches - List of state patches.
+   * @returns True if the patches would produce the same state, false otherwise.
+   */
+  #isSameState(patches: Patch[]) {
+    for (const { op, path, value: newValue } of patches) {
+      if (op === 'replace') {
+        const oldValue = getValueFromPath(this.state, path);
+
+        if (!isEqual(oldValue, newValue)) {
+          return false;
+        }
+      } else {
+        // Any other operation would really update the state (removing/adding).
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
    * Updates controller state. Accepts a callback that is passed a draft copy
    * of the controller state. If a value is returned, it is set as the new
    * state. Otherwise, any changes made within that callback to the draft are
@@ -272,7 +295,7 @@ export class BaseController<
     )(this.#internalState, callback);
 
     // Protect against unnecessary state updates when there is no state diff.
-    if (patches.length > 0) {
+    if (patches.length > 0 && !this.#isSameState(patches)) {
       this.#internalState = nextState;
       this.messagingSystem.publish(
         `${this.name}:stateChange`,
