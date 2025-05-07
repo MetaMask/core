@@ -304,6 +304,42 @@ export const calcCost = (
       : null,
 });
 
+/**
+ * Calculates the slippage absolute value percentage based on the adjusted return and sent amount.
+ *
+ * @param adjustedReturn - Adjusted return value
+ * @param sentAmount - Sent amount value
+ * @returns the slippage in percentage
+ */
+export const calcSlippagePercentage = (
+  adjustedReturn: ReturnType<typeof calcAdjustedReturn>,
+  sentAmount: ReturnType<typeof calcSentAmount>,
+) => {
+  const cost = calcCost(adjustedReturn, sentAmount);
+  return {
+    percentageInCurrency:
+      cost.valueInCurrency && sentAmount.valueInCurrency
+        ? parseFloat(
+            new BigNumber(cost.valueInCurrency)
+              .div(sentAmount.valueInCurrency)
+              .times(100)
+              .abs()
+              .toFixed(2),
+          )
+        : null,
+    percentageInUsd:
+      cost.usd && sentAmount.usd
+        ? parseFloat(
+            new BigNumber(cost.usd)
+              .div(sentAmount.usd)
+              .times(100)
+              .abs()
+              .toFixed(2),
+          )
+        : null,
+  };
+};
+
 export const formatEtaInMinutes = (
   estimatedProcessingTimeInSeconds: number,
 ) => {

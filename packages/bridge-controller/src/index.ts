@@ -103,7 +103,11 @@ export {
   getDefaultBridgeControllerState,
 } from './utils/bridge';
 
-export { isValidQuoteRequest, formatEtaInMinutes } from './utils/quote';
+export {
+  isValidQuoteRequest,
+  formatEtaInMinutes,
+  calcSlippagePercentage,
+} from './utils/quote';
 
 export { calcLatestSrcBalance } from './utils/balance';
 
