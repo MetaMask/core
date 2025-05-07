@@ -22,7 +22,7 @@ import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
-import { type Json, type JsonRpcRequest } from '@metamask/utils';
+import { CaipChainId, type Json, type JsonRpcRequest } from '@metamask/utils';
 import type { Draft } from 'immer';
 
 const controllerName = 'MultichainTransactionsController';
@@ -284,6 +284,7 @@ export class MultichainTransactionsController extends BaseController<
 
         response.data.forEach((transaction) => {
           const { chain } = transaction;
+
           if (!transactionsByChain[chain]) {
             transactionsByChain[chain] = [];
           }
@@ -307,7 +308,7 @@ export class MultichainTransactionsController extends BaseController<
           }
 
           chainUpdates.forEach(({ chain, entry }) => {
-            state.nonEvmTransactions[account.id][chain] = entry;
+            state.nonEvmTransactions[account.id][chain as CaipChainId] = entry;
           });
         });
       }
@@ -417,8 +418,8 @@ export class MultichainTransactionsController extends BaseController<
           ([chain, chainTransactions]) => {
             // Account might not have any transactions yet, so use `[]` in that case.
             const oldTransactions =
-              this.state.nonEvmTransactions[accountId]?.[chain]?.transactions ??
-              [];
+              this.state.nonEvmTransactions[accountId]?.[chain as CaipChainId]
+                ?.transactions ?? [];
 
             // Uses a `Map` to deduplicate transactions by ID, ensuring we keep the latest version
             // of each transaction while preserving older transactions and transactions from other accounts.
@@ -450,8 +451,7 @@ export class MultichainTransactionsController extends BaseController<
         }
 
         Object.entries(chainsData).forEach(([chain, transactions]) => {
-          state.nonEvmTransactions[accountId][chain] = {
-            ...state.nonEvmTransactions[accountId][chain],
+          state.nonEvmTransactions[accountId][chain as CaipChainId] = {
             transactions,
             next: null,
             lastUpdated: Date.now(),
