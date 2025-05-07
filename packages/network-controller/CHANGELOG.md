@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Improved handling of HTTP status codes to prevent unnecessary circuit breaker triggers ([#5767](https://github.com/MetaMask/core/pull/5767))
+  - 405 (Method Not Allowed) now returns a JSON-RPC error with code -32601 (Method not found)
+  - 429 (Too Many Requests) now returns a JSON-RPC error with code -32005 (Request rate limit exceeded)
+  - Added retry delay information in 429 error responses when available via Retry-After header
+  - These status codes no longer trigger the circuit breaker, preventing unnecessary failover to backup endpoints
+
 ## [23.2.0]
 
 ### Added
