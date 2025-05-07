@@ -2596,6 +2596,14 @@ export class KeyringController extends BaseController<
         keyring,
         metadata,
       });
+      try {
+        await this.#assertNoDuplicateAccounts();
+      } catch (error) {
+        // If the keyring includes duplicated accounts, we need to remove it
+        // from the keyrings array
+        this.#keyrings.pop();
+        throw error;
+      }
       return { keyring, metadata, newMetadata };
     } catch (error) {
       console.error(error);
