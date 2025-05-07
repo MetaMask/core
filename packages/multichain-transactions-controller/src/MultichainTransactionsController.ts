@@ -312,7 +312,7 @@ export class MultichainTransactionsController extends BaseController<
           }
 
           chainUpdates.forEach(({ chain, entry }) => {
-            state.nonEvmTransactions[account.id][chain] = entry;
+            state.nonEvmTransactions[account.id][chain as CaipChainId] = entry;
           });
         });
       }
@@ -440,7 +440,7 @@ export class MultichainTransactionsController extends BaseController<
 
             // Sorted by timestamp (newest first). If the timestamp is not provided, those
             // transactions will be put in the end of this list.
-            updatedTransactions[accountId][chain] = Array.from(
+            updatedTransactions[accountId][chain as CaipChainId] = Array.from(
               transactions.values(),
             ).sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
           },
