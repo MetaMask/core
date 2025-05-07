@@ -47,8 +47,8 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^8.0.0",
-    "@metamask/controller-utils": "^11.7.0",
+    "@metamask/base-controller": "^8.0.1",
+    "@metamask/controller-utils": "^11.8.0",
     "@metamask/json-rpc-engine": "^10.0.3",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/swappable-obj-proxy": "^2.3.0",
@@ -56,7 +56,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/network-controller": "^23.2.0",
+    "@metamask/network-controller": "^23.4.0",
     "@metamask/selected-network-controller": "^22.0.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",

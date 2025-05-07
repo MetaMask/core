@@ -1,7 +1,12 @@
 import { rpcErrors } from '@metamask/rpc-errors';
 
-import { addTransactionBatch, isAtomicBatchSupported } from './batch';
 import {
+  ERROR_MESSAGE_NO_UPGRADE_CONTRACT,
+  addTransactionBatch,
+  isAtomicBatchSupported,
+} from './batch';
+import {
+  ERROR_MESSGE_PUBLIC_KEY,
   doesChainSupportEIP7702,
   generateEIP7702BatchTransaction,
   isAccountUpgradedToEIP7702,
@@ -371,9 +376,7 @@ describe('Batch Utils', () => {
 
       await expect(
         addTransactionBatch({ ...request, publicKeyEIP7702: undefined }),
-      ).rejects.toThrow(
-        rpcErrors.internal('EIP-7702 public key not specified'),
-      );
+      ).rejects.toThrow(rpcErrors.internal(ERROR_MESSGE_PUBLIC_KEY));
     });
 
     it('throws if account upgraded to unsupported contract', async () => {
@@ -399,7 +402,7 @@ describe('Batch Utils', () => {
       getEIP7702UpgradeContractAddressMock.mockReturnValueOnce(undefined);
 
       await expect(addTransactionBatch(request)).rejects.toThrow(
-        rpcErrors.internal('Upgrade contract address not found'),
+        rpcErrors.internal(ERROR_MESSAGE_NO_UPGRADE_CONTRACT),
       );
     });
 
@@ -1159,9 +1162,7 @@ describe('Batch Utils', () => {
           messenger: MESSENGER_MOCK,
           publicKeyEIP7702: undefined,
         }),
-      ).rejects.toThrow(
-        rpcErrors.internal('EIP-7702 public key not specified'),
-      );
+      ).rejects.toThrow(rpcErrors.internal(ERROR_MESSGE_PUBLIC_KEY));
     });
 
     it('does not throw if error getting provider', async () => {

@@ -37,6 +37,7 @@ import { Mutex } from 'async-mutex';
 import type { MutexInterface } from 'async-mutex';
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
 import type { Patch } from 'immer';
+import { isEqual } from 'lodash';
 // When generating a ULID within the same millisecond, monotonicFactory provides some guarantees regarding sort order.
 import { ulid } from 'ulid';
 
@@ -318,6 +319,15 @@ export enum SignTypedDataVersion {
 export type SerializedKeyring = {
   type: string;
   data: Json;
+};
+
+/**
+ * State/data that can be updated during a `withKeyring` operation.
+ */
+type SessionState = {
+  keyrings: SerializedKeyring[];
+  keyringsMetadata: KeyringMetadata[];
+  password?: string;
 };
 
 /**
@@ -1027,8 +1037,12 @@ export class KeyringController extends BaseController<
    * operation completes.
    */
   async persistAllKeyrings(): Promise<boolean> {
-    this.#assertIsUnlocked();
-    return this.#persistOrRollback(async () => true);
+    return this.#withRollback(async () => {
+      this.#assertIsUnlocked();
+
+      await this.#updateVault();
+      return true;
+    });
   }
 
   /**
@@ -1399,6 +1413,7 @@ export class KeyringController extends BaseController<
    */
   changePassword(password: string): Promise<void> {
     this.#assertIsUnlocked();
+
     return this.#persistOrRollback(async () => {
       assertIsValidPassword(password);
 
@@ -1445,10 +1460,22 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving when the operation completes.
    */
   async submitPassword(password: string): Promise<void> {
-    return this.#withRollback(async () => {
+    await this.#withRollback(async () => {
       this.#keyrings = await this.#unlockKeyrings(password);
       this.#setUnlocked();
     });
+
+    try {
+      // If there are stronger encryption params available, we
+      // can attempt to upgrade the vault.
+      await this.#withRollback(async () =>
+        this.#upgradeVaultEncryptionParams(),
+      );
+    } catch (error) {
+      // We don't want to throw an error if the upgrade fails
+      // since the controller is already unlocked.
+      console.error('Failed to upgrade vault encryption params:', error);
+    }
   }
 
   /**
@@ -2147,6 +2174,20 @@ export class KeyringController extends BaseController<
   }
 
   /**
+   * Get a snapshot of session data held by class variables.
+   *
+   * @returns An object with serialized keyrings, keyrings metadata,
+   * and the user password.
+   */
+  async #getSessionState(): Promise<SessionState> {
+    return {
+      keyrings: await this.#getSerializedKeyrings(),
+      keyringsMetadata: this.#keyringsMetadata.slice(), // Force copy.
+      password: this.#password,
+    };
+  }
+
+  /**
    * Restore a serialized keyrings array.
    *
    * @param serializedKeyrings - The serialized keyrings array.
@@ -2175,7 +2216,7 @@ export class KeyringController extends BaseController<
     encryptionKey?: string,
     encryptionSalt?: string,
   ): Promise<EthKeyring[]> {
-    return this.#withVaultLock(async ({ releaseLock }) => {
+    return this.#withVaultLock(async () => {
       const encryptedVault = this.state.vault;
       if (!encryptedVault) {
         throw new Error(KeyringControllerError.VaultError);
@@ -2253,19 +2294,6 @@ export class KeyringController extends BaseController<
           state.encryptionSalt = updatedState.encryptionSalt;
         }
       });
-
-      if (
-        this.#password &&
-        (!this.#cacheEncryptionKey || !encryptionKey) &&
-        this.#encryptor.isVaultUpdated &&
-        !this.#encryptor.isVaultUpdated(encryptedVault)
-      ) {
-        // The lock needs to be released before persisting the keyrings
-        // to avoid deadlock
-        releaseLock();
-        // Re-encrypt the vault with safer method if one is available
-        await this.#updateVault();
-      }
 
       return this.#keyrings;
     });
@@ -2355,6 +2383,25 @@ export class KeyringController extends BaseController<
 
       return true;
     });
+  }
+
+  /**
+   * Upgrade the vault encryption parameters if needed.
+   *
+   * @returns A promise resolving to `void`.
+   */
+  async #upgradeVaultEncryptionParams(): Promise<void> {
+    this.#assertControllerMutexIsLocked();
+    const { vault } = this.state;
+
+    if (
+      vault &&
+      this.#password &&
+      this.#encryptor.isVaultUpdated &&
+      !this.#encryptor.isVaultUpdated(vault)
+    ) {
+      await this.#updateVault();
+    }
   }
 
   /**
@@ -2623,7 +2670,7 @@ export class KeyringController extends BaseController<
 
   /**
    * Execute the given function after acquiring the controller lock
-   * and save the keyrings to state after it, or rollback to their
+   * and save the vault to state after it (only if needed), or rollback to their
    * previous state in case of error.
    *
    * @param callback - The function to execute.
@@ -2633,9 +2680,14 @@ export class KeyringController extends BaseController<
     callback: MutuallyExclusiveCallback<Result>,
   ): Promise<Result> {
     return this.#withRollback(async ({ releaseLock }) => {
+      const oldState = await this.#getSessionState();
       const callbackResult = await callback({ releaseLock });
-      // State is committed only if the operation is successful
-      await this.#updateVault();
+      const newState = await this.#getSessionState();
+
+      // State is committed only if the operation is successful and need to trigger a vault update.
+      if (!isEqual(oldState, newState)) {
+        await this.#updateVault();
+      }
 
       return callbackResult;
     });

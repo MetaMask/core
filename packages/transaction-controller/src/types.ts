@@ -634,6 +634,11 @@ export enum TransactionType {
   incoming = 'incoming',
 
   /**
+   * A transaction that deposits tokens into a lending contract.
+   */
+  lendingDeposit = 'lendingDeposit',
+
+  /**
    * A transaction for personal sign.
    */
   personalSign = 'personal_sign',
@@ -1710,8 +1715,11 @@ export type GasFeeToken = {
   /** Decimals of the token. */
   decimals: number;
 
-  /** The corresponding gas limit this token fee would equal. */
+  /** Estimated gas limit required for original transaction. */
   gas: Hex;
+
+  /** Estimated gas limit required for fee transfer. */
+  gasTransfer?: Hex;
 
   /** The corresponding maxFeePerGas this token fee would equal. */
   maxFeePerGas: Hex;

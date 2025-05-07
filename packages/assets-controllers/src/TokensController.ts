@@ -168,13 +168,11 @@ export class TokensController extends BaseController<
 > {
   readonly #mutex = new Mutex();
 
-  #chainId: Hex;
-
   #selectedAccountId: string;
 
   #provider: Provider;
 
-  #abortController: AbortController;
+  readonly #abortController: AbortController;
 
   /**
    * Tokens controller options
@@ -185,7 +183,6 @@ export class TokensController extends BaseController<
    * @param options.messenger - The messenger.
    */
   constructor({
-    chainId: initialChainId,
     provider,
     state,
     messenger,
@@ -205,8 +202,6 @@ export class TokensController extends BaseController<
       },
     });
 
-    this.#chainId = initialChainId;
-
     this.#provider = provider;
 
     this.#selectedAccountId = this.#getSelectedAccount().id;
@@ -221,11 +216,6 @@ export class TokensController extends BaseController<
     this.messagingSystem.subscribe(
       'AccountsController:selectedEvmAccountChange',
       this.#onSelectedAccountChange.bind(this),
-    );
-
-    this.messagingSystem.subscribe(
-      'NetworkController:networkDidChange',
-      this.#onNetworkDidChange.bind(this),
     );
 
     this.messagingSystem.subscribe(
@@ -271,24 +261,6 @@ export class TokensController extends BaseController<
   }
 
   /**
-   * Handles the event when the network changes.
-   *
-   * @param networkState - The changed network state.
-   * @param networkState.selectedNetworkClientId - The ID of the currently
-   * selected network client.
-   */
-  #onNetworkDidChange({ selectedNetworkClientId }: NetworkState) {
-    const selectedNetworkClient = this.messagingSystem.call(
-      'NetworkController:getNetworkClientById',
-      selectedNetworkClientId,
-    );
-    const { chainId } = selectedNetworkClient.configuration;
-    this.#abortController.abort();
-    this.#abortController = new AbortController();
-    this.#chainId = chainId;
-  }
-
-  /**
    * Handles the event when the network state changes.
    * @param _ - The network state.
    * @param patches - An array of patch operations performed on the network state.
@@ -324,14 +296,16 @@ export class TokensController extends BaseController<
    * Fetch metadata for a token.
    *
    * @param tokenAddress - The address of the token.
+   * @param chainId - The chain ID of the network on which the token is detected.
    * @returns The token metadata.
    */
   async #fetchTokenMetadata(
     tokenAddress: string,
+    chainId: Hex,
   ): Promise<TokenListToken | undefined> {
     try {
       const token = await fetchTokenMetadata<TokenListToken>(
-        this.#chainId,
+        chainId,
         tokenAddress,
         this.#abortController.signal,
       );
@@ -375,43 +349,32 @@ export class TokensController extends BaseController<
     name?: string;
     image?: string;
     interactingAddress?: string;
-    networkClientId?: NetworkClientId;
+    networkClientId: NetworkClientId;
   }): Promise<Token[]> {
-    // TODO: remove this once this method is fully parameterized by chainId
-    const chainId = this.#chainId;
-
     const releaseLock = await this.#mutex.acquire();
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
-    let currentChainId = chainId;
-    if (networkClientId) {
-      currentChainId = this.messagingSystem.call(
-        'NetworkController:getNetworkClientById',
-        networkClientId,
-      ).configuration.chainId;
-    }
+
+    const chainIdToUse = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      networkClientId,
+    ).configuration.chainId;
 
     const accountAddress =
       this.#getAddressOrSelectedAddress(interactingAddress);
 
     try {
       address = toChecksumHexAddress(address);
-      const tokens = allTokens[currentChainId]?.[accountAddress] || [];
+      const tokens = allTokens[chainIdToUse]?.[accountAddress] || [];
       const ignoredTokens =
-        allIgnoredTokens[currentChainId]?.[accountAddress] || [];
+        allIgnoredTokens[chainIdToUse]?.[accountAddress] || [];
       const detectedTokens =
-        allDetectedTokens[currentChainId]?.[accountAddress] || [];
+        allDetectedTokens[chainIdToUse]?.[accountAddress] || [];
       const newTokens: Token[] = [...tokens];
       const [isERC721, tokenMetadata] = await Promise.all([
         this.#detectIsERC721(address, networkClientId),
         // TODO parameterize the token metadata fetch by networkClientId
-        this.#fetchTokenMetadata(address),
+        this.#fetchTokenMetadata(address, chainIdToUse),
       ]);
-      // TODO remove this once this method is fully parameterized by networkClientId
-      if (!networkClientId && currentChainId !== this.#chainId) {
-        throw new Error(
-          'TokensController Error: Switched networks while adding token',
-        );
-      }
       const newEntry: Token = {
         address,
         symbol,
@@ -419,7 +382,7 @@ export class TokensController extends BaseController<
         image:
           image ||
           formatIconUrlWithProxy({
-            chainId: currentChainId,
+            chainId: chainIdToUse,
             tokenAddress: address,
           }),
         isERC721,
@@ -448,7 +411,7 @@ export class TokensController extends BaseController<
           newIgnoredTokens,
           newDetectedTokens,
           interactingAddress: accountAddress,
-          interactingChainId: currentChainId,
+          interactingChainId: chainIdToUse,
         });
 
       const newState: Partial<TokensControllerState> = {
@@ -472,18 +435,15 @@ export class TokensController extends BaseController<
    * @param tokensToImport - Array of tokens to import.
    * @param networkClientId - Optional network client ID used to determine interacting chain ID.
    */
-  async addTokens(tokensToImport: Token[], networkClientId?: NetworkClientId) {
+  async addTokens(tokensToImport: Token[], networkClientId: NetworkClientId) {
     const releaseLock = await this.#mutex.acquire();
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
     const importedTokensMap: { [key: string]: true } = {};
 
-    let interactingChainId: Hex = this.#chainId;
-    if (networkClientId) {
-      interactingChainId = this.messagingSystem.call(
-        'NetworkController:getNetworkClientById',
-        networkClientId,
-      ).configuration.chainId;
-    }
+    const interactingChainId = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      networkClientId,
+    ).configuration.chainId;
 
     // Used later to dedupe imported tokens
     const newTokensMap = [
@@ -516,11 +476,9 @@ export class TokensController extends BaseController<
       });
       const newTokens = Object.values(newTokensMap);
 
-      const newIgnoredTokens = allIgnoredTokens[
-        interactingChainId ?? this.#chainId
-      ]?.[this.#getSelectedAddress()]?.filter(
-        (tokenAddress) => !newTokensMap[tokenAddress.toLowerCase()],
-      );
+      const newIgnoredTokens = allIgnoredTokens[interactingChainId]?.[
+        this.#getSelectedAddress()
+      ]?.filter((tokenAddress) => !newTokensMap[tokenAddress.toLowerCase()]);
 
       const detectedTokensForGivenChain = interactingChainId
         ? allDetectedTokens?.[interactingChainId]?.[this.#getSelectedAddress()]
@@ -556,33 +514,24 @@ export class TokensController extends BaseController<
    */
   ignoreTokens(
     tokenAddressesToIgnore: string[],
-    networkClientId?: NetworkClientId,
+    networkClientId: NetworkClientId,
   ) {
-    let interactingChainId = this.#chainId;
-    if (networkClientId) {
-      interactingChainId = this.messagingSystem.call(
-        'NetworkController:getNetworkClientById',
-        networkClientId,
-      ).configuration.chainId;
-    }
+    const interactingChainId = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      networkClientId,
+    ).configuration.chainId;
 
     const { allTokens, allDetectedTokens, allIgnoredTokens } = this.state;
     const ignoredTokensMap: { [key: string]: true } = {};
     const ignoredTokens =
-      allIgnoredTokens[interactingChainId ?? this.#chainId]?.[
-        this.#getSelectedAddress()
-      ] || [];
+      allIgnoredTokens[interactingChainId]?.[this.#getSelectedAddress()] || [];
     let newIgnoredTokens: string[] = [...ignoredTokens];
 
     const tokens =
-      allTokens[interactingChainId ?? this.#chainId]?.[
-        this.#getSelectedAddress()
-      ] || [];
+      allTokens[interactingChainId]?.[this.#getSelectedAddress()] || [];
 
     const detectedTokens =
-      allDetectedTokens[interactingChainId ?? this.#chainId]?.[
-        this.#getSelectedAddress()
-      ] || [];
+      allDetectedTokens[interactingChainId]?.[this.#getSelectedAddress()] || [];
 
     const checksummedTokenAddresses = tokenAddressesToIgnore.map((address) => {
       const checksumAddress = toChecksumHexAddress(address);
@@ -622,11 +571,11 @@ export class TokensController extends BaseController<
    */
   async addDetectedTokens(
     incomingDetectedTokens: Token[],
-    detectionDetails?: { selectedAddress: string; chainId: Hex },
+    detectionDetails: { selectedAddress?: string; chainId: Hex },
   ) {
     const releaseLock = await this.#mutex.acquire();
 
-    const chainId = detectionDetails?.chainId ?? this.#chainId;
+    const { chainId } = detectionDetails;
     // Previously selectedAddress could be an empty string. This is to preserve the behaviour
     const accountAddress =
       detectionDetails?.selectedAddress ?? this.#getSelectedAddress();
@@ -700,9 +649,9 @@ export class TokensController extends BaseController<
       // Re-point `tokens` and `detectedTokens` to keep them referencing the current chain/account.
       const selectedAddress = this.#getSelectedAddress();
 
-      newTokens = newAllTokens?.[this.#chainId]?.[selectedAddress] || [];
+      newTokens = newAllTokens?.[chainId]?.[selectedAddress] || [];
       newDetectedTokens =
-        newAllDetectedTokens?.[this.#chainId]?.[selectedAddress] || [];
+        newAllDetectedTokens?.[chainId]?.[selectedAddress] || [];
 
       this.update((state) => {
         state.allTokens = newAllTokens;
@@ -718,20 +667,28 @@ export class TokensController extends BaseController<
    * were previously added which do not yet had isERC721 field.
    *
    * @param tokenAddress - The contract address of the token requiring the isERC721 field added.
+   * @param networkClientId - The network client ID of the network on which the token is detected.
    * @returns The new token object with the added isERC721 field.
    */
-  async updateTokenType(tokenAddress: string) {
-    const isERC721 = await this.#detectIsERC721(tokenAddress);
-    const chainId = this.#chainId;
+  async updateTokenType(
+    tokenAddress: string,
+    networkClientId: NetworkClientId,
+  ) {
+    const chainIdToUse = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      networkClientId,
+    ).configuration.chainId;
+
+    const isERC721 = await this.#detectIsERC721(tokenAddress, networkClientId);
     const accountAddress = this.#getSelectedAddress();
-    const tokens = [...this.state.allTokens[chainId][accountAddress]];
+    const tokens = [...this.state.allTokens[chainIdToUse][accountAddress]];
     const tokenIndex = tokens.findIndex((token) => {
       return token.address.toLowerCase() === tokenAddress.toLowerCase();
     });
     const updatedToken = { ...tokens[tokenIndex], isERC721 };
     tokens[tokenIndex] = updatedToken;
     this.update((state) => {
-      state.allTokens[chainId][accountAddress] = tokens;
+      state.allTokens[chainIdToUse][accountAddress] = tokens;
     });
     return updatedToken;
   }
@@ -818,7 +775,7 @@ export class TokensController extends BaseController<
     asset: Token;
     type: string;
     interactingAddress?: string;
-    networkClientId?: NetworkClientId;
+    networkClientId: NetworkClientId;
   }): Promise<void> {
     if (type !== ERC20) {
       throw new Error(`Asset of type ${type} not supported`);
@@ -969,7 +926,7 @@ export class TokensController extends BaseController<
     newIgnoredTokens?: string[];
     newDetectedTokens?: Token[];
     interactingAddress?: string;
-    interactingChainId?: Hex;
+    interactingChainId: Hex;
   }) {
     const {
       newTokens,
@@ -983,24 +940,22 @@ export class TokensController extends BaseController<
     const userAddressToAddTokens =
       this.#getAddressOrSelectedAddress(interactingAddress);
 
-    const chainIdToAddTokens = interactingChainId ?? this.#chainId;
-
     let newAllTokens = allTokens;
     if (
       newTokens?.length ||
       (newTokens &&
         allTokens &&
-        allTokens[chainIdToAddTokens] &&
-        allTokens[chainIdToAddTokens][userAddressToAddTokens])
+        allTokens[interactingChainId] &&
+        allTokens[interactingChainId][userAddressToAddTokens])
     ) {
-      const networkTokens = allTokens[chainIdToAddTokens];
+      const networkTokens = allTokens[interactingChainId];
       const newNetworkTokens = {
         ...networkTokens,
         ...{ [userAddressToAddTokens]: newTokens },
       };
       newAllTokens = {
         ...allTokens,
-        ...{ [chainIdToAddTokens]: newNetworkTokens },
+        ...{ [interactingChainId]: newNetworkTokens },
       };
     }
 
@@ -1009,17 +964,17 @@ export class TokensController extends BaseController<
       newIgnoredTokens?.length ||
       (newIgnoredTokens &&
         allIgnoredTokens &&
-        allIgnoredTokens[chainIdToAddTokens] &&
-        allIgnoredTokens[chainIdToAddTokens][userAddressToAddTokens])
+        allIgnoredTokens[interactingChainId] &&
+        allIgnoredTokens[interactingChainId][userAddressToAddTokens])
     ) {
-      const networkIgnoredTokens = allIgnoredTokens[chainIdToAddTokens];
+      const networkIgnoredTokens = allIgnoredTokens[interactingChainId];
       const newIgnoredNetworkTokens = {
         ...networkIgnoredTokens,
         ...{ [userAddressToAddTokens]: newIgnoredTokens },
       };
       newAllIgnoredTokens = {
         ...allIgnoredTokens,
-        ...{ [chainIdToAddTokens]: newIgnoredNetworkTokens },
+        ...{ [interactingChainId]: newIgnoredNetworkTokens },
       };
     }
 
@@ -1028,17 +983,17 @@ export class TokensController extends BaseController<
       newDetectedTokens?.length ||
       (newDetectedTokens &&
         allDetectedTokens &&
-        allDetectedTokens[chainIdToAddTokens] &&
-        allDetectedTokens[chainIdToAddTokens][userAddressToAddTokens])
+        allDetectedTokens[interactingChainId] &&
+        allDetectedTokens[interactingChainId][userAddressToAddTokens])
     ) {
-      const networkDetectedTokens = allDetectedTokens[chainIdToAddTokens];
+      const networkDetectedTokens = allDetectedTokens[interactingChainId];
       const newDetectedNetworkTokens = {
         ...networkDetectedTokens,
         ...{ [userAddressToAddTokens]: newDetectedTokens },
       };
       newAllDetectedTokens = {
         ...allDetectedTokens,
-        ...{ [chainIdToAddTokens]: newDetectedNetworkTokens },
+        ...{ [interactingChainId]: newDetectedNetworkTokens },
       };
     }
     return { newAllTokens, newAllIgnoredTokens, newAllDetectedTokens };

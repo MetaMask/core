@@ -56,8 +56,7 @@ export type Balance = {
 };
 
 // TODO: Update with prod API URL when available
-export const DEFI_POSITIONS_API_URL =
-  'https://defiadapters.dev-api.cx.metamask.io';
+export const DEFI_POSITIONS_API_URL = 'https://defiadapters.api.cx.metamask.io';
 
 /**
  * Builds a function that fetches DeFi positions for a given account address

@@ -672,34 +672,6 @@ describe('validation', () => {
   });
 
   describe('validateTransactionOrigin', () => {
-    it('throws if internal and from address not selected', async () => {
-      await expect(
-        validateTransactionOrigin({
-          from: FROM_MOCK,
-          origin: ORIGIN_METAMASK,
-          permittedAddresses: undefined,
-          selectedAddress: '0x123',
-          txParams: {} as TransactionParams,
-        }),
-      ).rejects.toThrow(
-        rpcErrors.invalidParams(
-          'Internally initiated transaction is using invalid account.',
-        ),
-      );
-    });
-
-    it('does not throw if internal and from address is selected', async () => {
-      expect(
-        await validateTransactionOrigin({
-          from: FROM_MOCK,
-          origin: ORIGIN_METAMASK,
-          permittedAddresses: undefined,
-          selectedAddress: FROM_MOCK,
-          txParams: {} as TransactionParams,
-        }),
-      ).toBeUndefined();
-    });
-
     it('throws if external and from not permitted', async () => {
       await expect(
         validateTransactionOrigin({
