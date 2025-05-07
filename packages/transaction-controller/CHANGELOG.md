@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Validate correct origin in EIP-7702 transaction ([#5771](https://github.com/MetaMask/core/pull/5771))
+- Set `userLevelFee` to `medium` instead of `dappSuggested` when gasPrice is suggested ([#5773](https://github.com/MetaMask/core/5773))
 
 ## [55.0.0]
 
