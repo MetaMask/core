@@ -744,7 +744,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       isSolanaChainId(quoteResponse.quote.srcChainId) &&
       typeof quoteResponse.trade === 'string'
     ) {
-      txMeta =await this.#trace(
+      txMeta = await this.#trace(
         {
           name: TraceName.BridgeTransactionCompleted,
           data: {
@@ -753,7 +753,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           },
         },
         async () =>
-          await this.#handleSolanaTx(quoteResponse as QuoteResponse<string> & QuoteMetadata)
+          await this.#handleSolanaTx(
+            quoteResponse as QuoteResponse<string> & QuoteMetadata,
+          ),
       );
       this.#trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.SnapConfirmationViewed,
@@ -770,10 +772,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       const approvalTxMeta = await this.#trace(
         {
           name: TraceName.BridgeTransactionApprovalCompleted,
-            data: {
-              srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
-              stxEnabled: false,
-            },
+          data: {
+            srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
+            stxEnabled: false,
+          },
         },
         async () => await this.#handleApprovalTx(quoteResponse),
       );
@@ -788,7 +790,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
               stxEnabled: true,
             },
-            parentContext:approvalTxMeta
+            parentContext: approvalTxMeta,
           },
           async () =>
             await this.#handleEvmSmartTransaction(
@@ -798,14 +800,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             ),
         );
       } else {
-        txMeta =  await this.#trace(
+        txMeta = await this.#trace(
           {
             name: TraceName.BridgeTransactionCompleted,
             data: {
               srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
               stxEnabled: false,
             },
-            parentContext:approvalTxMeta
+            parentContext: approvalTxMeta,
           },
           async () =>
             await this.#handleEvmTransaction(
@@ -815,6 +817,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               approvalTxId,
             ),
         );
+      }
     }
 
     if (!txMeta) {
