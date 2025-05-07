@@ -395,7 +395,7 @@ export class MultichainTransactionsController extends BaseController<
   ): void {
     const updatedTransactions: Record<
       string,
-      Record<string, Transaction[]>
+      Record<CaipChainId, Transaction[]>
     > = {};
     const transactionsToPublish: Transaction[] = [];
 
