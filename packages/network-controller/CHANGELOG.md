@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add Monad Testnet as default network ([#5724](https://github.com/MetaMask/core/pull/5724))
 
+### Changed
+
+- Bump `@metamask/controller-utils` to `^11.8.0` ([#5565](https://github.com/MetaMask/core/pull/5565))
+
 ## [23.3.0]
 
 ### Added
