@@ -1,4 +1,4 @@
-import type { Quote } from '@metamask/bridge-controller';
+import { type Quote } from '@metamask/bridge-controller';
 
 import { validateBridgeStatusResponse } from './validators';
 import type {
