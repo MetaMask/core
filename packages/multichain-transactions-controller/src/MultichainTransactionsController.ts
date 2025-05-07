@@ -45,7 +45,7 @@ export type PaginationOptions = {
 export type MultichainTransactionsControllerState = {
   nonEvmTransactions: {
     [accountId: string]: {
-      [chain: string]: TransactionStateEntry;
+      [chain: CaipChainId]: TransactionStateEntry;
     };
   };
 };
@@ -283,7 +283,7 @@ export class MultichainTransactionsController extends BaseController<
         const transactionsByChain: Record<string, Transaction[]> = {};
 
         response.data.forEach((transaction) => {
-          const chain = transaction.chain as string;
+          const { chain } = transaction;
           if (!transactionsByChain[chain]) {
             transactionsByChain[chain] = [];
           }
@@ -403,7 +403,7 @@ export class MultichainTransactionsController extends BaseController<
         updatedTransactions[accountId] = {};
 
         newTransactions.forEach((tx) => {
-          const chain = tx.chain as string;
+          const { chain } = tx;
 
           if (!updatedTransactions[accountId][chain]) {
             updatedTransactions[accountId][chain] = [];
