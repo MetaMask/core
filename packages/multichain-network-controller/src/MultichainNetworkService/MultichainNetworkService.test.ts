@@ -1,4 +1,5 @@
 import { KnownCaipNamespace, type CaipAccountId } from '@metamask/utils';
+import { chunk } from 'lodash';
 
 import { MultichainNetworkService } from './MultichainNetworkService';
 import {
@@ -9,10 +10,15 @@ import {
 } from '../api/accounts-api';
 
 describe('MultichainNetworkService', () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+  });
+
   const mockFetch = jest.fn();
   const MOCK_EVM_ADDRESS = '0x1234567890123456789012345678901234567890';
   const MOCK_EVM_CHAIN_1 = '1';
   const MOCK_EVM_CHAIN_137 = '137';
+  const DEFAULT_BATCH_SIZE = 20;
   const validAccountIds: CaipAccountId[] = [
     `${KnownCaipNamespace.Eip155}:${MOCK_EVM_CHAIN_1}:${MOCK_EVM_ADDRESS}`,
     `${KnownCaipNamespace.Eip155}:${MOCK_EVM_CHAIN_137}:${MOCK_EVM_ADDRESS}`,
@@ -25,10 +31,30 @@ describe('MultichainNetworkService', () => {
       });
       expect(service).toBeInstanceOf(MultichainNetworkService);
     });
+
+    it('accepts a custom batch size', () => {
+      const customBatchSize = 10;
+      const service = new MultichainNetworkService({
+        fetch: mockFetch,
+        batchSize: customBatchSize,
+      });
+      expect(service).toBeInstanceOf(MultichainNetworkService);
+    });
   });
 
   describe('fetchNetworkActivity', () => {
-    it('makes request with correct URL and headers', async () => {
+    it('returns empty response for empty account list without making network requests', async () => {
+      const service = new MultichainNetworkService({
+        fetch: mockFetch,
+      });
+
+      const result = await service.fetchNetworkActivity([]);
+
+      expect(mockFetch).not.toHaveBeenCalled();
+      expect(result).toStrictEqual({ activeNetworks: [] });
+    });
+
+    it('makes request with correct URL and headers for single batch', async () => {
       const mockResponse: ActiveNetworksResponse = {
         activeNetworks: [
           `${KnownCaipNamespace.Eip155}:${MOCK_EVM_CHAIN_1}:${MOCK_EVM_ADDRESS}`,
@@ -57,6 +83,90 @@ describe('MultichainNetworkService', () => {
         },
       );
       expect(result).toStrictEqual(mockResponse);
+    });
+
+    it('batches requests when account IDs exceed the default batch size', async () => {
+      const manyAccountIds: CaipAccountId[] = [];
+      for (let i = 1; i <= 30; i++) {
+        manyAccountIds.push(
+          `${KnownCaipNamespace.Eip155}:${i}:${MOCK_EVM_ADDRESS}` as CaipAccountId,
+        );
+      }
+
+      const batches = chunk(manyAccountIds, DEFAULT_BATCH_SIZE);
+
+      const firstBatchResponse = {
+        activeNetworks: batches[0],
+      };
+      const secondBatchResponse = {
+        activeNetworks: batches[1],
+      };
+
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(firstBatchResponse),
+        })
+        .mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve(secondBatchResponse),
+        });
+
+      const service = new MultichainNetworkService({
+        fetch: mockFetch,
+      });
+
+      const result = await service.fetchNetworkActivity(manyAccountIds);
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+
+      for (const accountId of manyAccountIds) {
+        expect(result.activeNetworks).toContain(accountId);
+      }
+    });
+
+    it('batches requests with custom batch size', async () => {
+      const customBatchSize = 10;
+      const manyAccountIds: CaipAccountId[] = [];
+      for (let i = 1; i <= 30; i++) {
+        manyAccountIds.push(
+          `${KnownCaipNamespace.Eip155}:${i}:${MOCK_EVM_ADDRESS}` as CaipAccountId,
+        );
+      }
+
+      const batches = chunk(manyAccountIds, customBatchSize);
+      expect(batches).toHaveLength(3);
+
+      const batchResponses = batches.map((batch) => ({
+        activeNetworks: batch,
+      }));
+
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(batchResponses[0]),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(batchResponses[1]),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(batchResponses[2]),
+        });
+
+      const service = new MultichainNetworkService({
+        fetch: mockFetch,
+        batchSize: customBatchSize,
+      });
+
+      const result = await service.fetchNetworkActivity(manyAccountIds);
+
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+
+      for (const accountId of manyAccountIds) {
+        expect(result.activeNetworks).toContain(accountId);
+      }
     });
 
     it('throws error for non-200 response', async () => {
