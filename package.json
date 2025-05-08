@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "371.0.0",
+  "version": "388.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -46,8 +46,7 @@
   "resolutions": {
     "elliptic@6.5.4": "^6.5.7",
     "fast-xml-parser@^4.3.4": "^4.4.1",
-    "ws@7.4.6": "^7.5.10",
-    "@metamask/auth-network-utils": "file:./packages/seedless-onboarding-controller/auth-network-utils.tgz"
+    "ws@7.4.6": "^7.5.10"
   },
   "devDependencies": {
     "@babel/core": "^7.23.5",

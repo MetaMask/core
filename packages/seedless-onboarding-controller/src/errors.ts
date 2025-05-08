@@ -13,7 +13,7 @@ import { SeedlessOnboardingControllerError } from './constants';
  * @param defaultMessage - The default error message if the error code is not found.
  * @returns The error message.
  */
-export function getErrorMessageFromTOPRFErrorCode(
+function getErrorMessageFromTOPRFErrorCode(
   errorCode: TOPRFErrorCode,
   defaultMessage: string,
 ): string {

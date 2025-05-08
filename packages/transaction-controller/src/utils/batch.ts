@@ -5,6 +5,7 @@ import { bytesToHex, createModuleLogger } from '@metamask/utils';
 import { parse, v4 } from 'uuid';
 
 import {
+  ERROR_MESSGE_PUBLIC_KEY,
   doesChainSupportEIP7702,
   generateEIP7702BatchTransaction,
   isAccountUpgradedToEIP7702,
@@ -69,6 +70,9 @@ type IsAtomicBatchSupportedRequestInternal = {
 
 const log = createModuleLogger(projectLogger, 'batch');
 
+export const ERROR_MESSAGE_NO_UPGRADE_CONTRACT =
+  'Upgrade contract address not found';
+
 /**
  * Add a batch transaction.
  *
@@ -78,15 +82,7 @@ const log = createModuleLogger(projectLogger, 'batch');
 export async function addTransactionBatch(
   request: AddTransactionBatchRequest,
 ): Promise<TransactionBatchResult> {
-  const {
-    addTransaction,
-    getChainId,
-    getInternalAccounts,
-    messenger,
-    publicKeyEIP7702,
-    request: userRequest,
-  } = request;
-
+  const { getInternalAccounts, messenger, request: userRequest } = request;
   const sizeLimit = getBatchSizeLimit(messenger);
 
   validateBatchRequest({
@@ -95,23 +91,151 @@ export async function addTransactionBatch(
     sizeLimit,
   });
 
-  const {
-    batchId: batchIdOverride,
-    from,
-    networkClientId,
-    requireApproval,
-    securityAlertId,
-    transactions,
-    useHook,
-    validateSecurity,
-    origin,
-  } = userRequest;
+  const { useHook } = userRequest;
 
   log('Adding', userRequest);
 
   if (useHook) {
     return await addTransactionBatchWithHook(request);
   }
+
+  return await addTransactionBatchWith7702(request);
+}
+
+/**
+ * Determine which chains support atomic batch transactions for the given account.
+ *
+ * @param request - The request object including the account address and necessary callbacks.
+ * @returns The chain IDs that support atomic batch transactions.
+ */
+export async function isAtomicBatchSupported(
+  request: IsAtomicBatchSupportedRequestInternal,
+): Promise<IsAtomicBatchSupportedResult> {
+  const {
+    address,
+    chainIds,
+    getEthQuery,
+    messenger,
+    publicKeyEIP7702: publicKey,
+  } = request;
+
+  if (!publicKey) {
+    throw rpcErrors.internal(ERROR_MESSGE_PUBLIC_KEY);
+  }
+
+  const chainIds7702 = getEIP7702SupportedChains(messenger);
+
+  const filteredChainIds = chainIds7702.filter(
+    (chainId) => !chainIds || chainIds.includes(chainId),
+  );
+
+  const resultsRaw: (IsAtomicBatchSupportedResultEntry | undefined)[] =
+    await Promise.all(
+      filteredChainIds.map(async (chainId) => {
+        try {
+          const ethQuery = getEthQuery(chainId);
+
+          const { isSupported, delegationAddress } =
+            await isAccountUpgradedToEIP7702(
+              address,
+              chainId,
+              publicKey,
+              messenger,
+              ethQuery,
+            );
+
+          const upgradeContractAddress = getEIP7702UpgradeContractAddress(
+            chainId,
+            messenger,
+            publicKey,
+          );
+
+          return {
+            chainId,
+            delegationAddress,
+            isSupported,
+            upgradeContractAddress,
+          };
+        } catch (error) {
+          log('Error checking atomic batch support', chainId, error);
+          return undefined;
+        }
+      }),
+    );
+
+  const results = resultsRaw.filter(
+    (result): result is IsAtomicBatchSupportedResultEntry => Boolean(result),
+  );
+
+  log('Atomic batch supported results', results);
+
+  return results;
+}
+
+/**
+ * Generate a tranasction batch ID.
+ *
+ * @returns  A unique batch ID as a hexadecimal string.
+ */
+function generateBatchId(): Hex {
+  const idString = v4();
+  const idBytes = new Uint8Array(parse(idString));
+  return bytesToHex(idBytes);
+}
+
+/**
+ * Generate the metadata for a nested transaction.
+ *
+ * @param request - The batch request.
+ * @param singleRequest - The request for a single transaction.
+ * @param ethQuery - The EthQuery instance used to interact with the Ethereum blockchain.
+ * @returns The metadata for the nested transaction.
+ */
+async function getNestedTransactionMeta(
+  request: TransactionBatchRequest,
+  singleRequest: TransactionBatchSingleRequest,
+  ethQuery: EthQuery,
+): Promise<NestedTransactionMetadata> {
+  const { from } = request;
+  const { params } = singleRequest;
+
+  const { type } = await determineTransactionType(
+    { from, ...params },
+    ethQuery,
+  );
+
+  return {
+    ...params,
+    type,
+  };
+}
+
+/**
+ * Process a batch transaction using an EIP-7702 transaction.
+ *
+ * @param request - The request object including the user request and necessary callbacks.
+ * @returns The batch result object including the batch ID.
+ */
+async function addTransactionBatchWith7702(
+  request: AddTransactionBatchRequest,
+) {
+  const {
+    addTransaction,
+    getChainId,
+    messenger,
+    publicKeyEIP7702,
+    request: userRequest,
+  } = request;
+
+  const {
+    batchId: batchIdOverride,
+    from,
+    networkClientId,
+    requireApproval,
+    transactions,
+    validateSecurity,
+    securityAlertId,
+  } = userRequest;
 
   const chainId = getChainId(networkClientId);
   const ethQuery = request.getEthQuery(networkClientId);
@@ -123,7 +247,7 @@ export async function addTransactionBatch(
   }
 
   if (!publicKeyEIP7702) {
-    throw rpcErrors.internal('EIP-7702 public key not specified');
+    throw rpcErrors.internal(ERROR_MESSGE_PUBLIC_KEY);
   }
 
   const { delegationAddress, isSupported } = await isAccountUpgradedToEIP7702(
@@ -162,7 +286,7 @@ export async function addTransactionBatch(
     );
 
     if (!upgradeContractAddress) {
-      throw rpcErrors.internal('Upgrade contract address not found');
+      throw rpcErrors.internal(ERROR_MESSAGE_NO_UPGRADE_CONTRACT);
     }
 
     txParams.type = TransactionEnvelopeType.setCode;
@@ -212,104 +336,6 @@ export async function addTransactionBatch(
 
   return {
     batchId,
-  };
-}
-
-/**
- * Determine which chains support atomic batch transactions for the given account.
- *
- * @param request - The request object including the account address and necessary callbacks.
- * @returns The chain IDs that support atomic batch transactions.
- */
-export async function isAtomicBatchSupported(
-  request: IsAtomicBatchSupportedRequestInternal,
-): Promise<IsAtomicBatchSupportedResult> {
-  const {
-    address,
-    chainIds,
-    getEthQuery,
-    messenger,
-    publicKeyEIP7702: publicKey,
-  } = request;
-
-  if (!publicKey) {
-    throw rpcErrors.internal('EIP-7702 public key not specified');
-  }
-
-  const chainIds7702 = getEIP7702SupportedChains(messenger);
-
-  const filteredChainIds = chainIds7702.filter(
-    (chainId) => !chainIds || chainIds.includes(chainId),
-  );
-
-  const results: IsAtomicBatchSupportedResultEntry[] = await Promise.all(
-    filteredChainIds.map(async (chainId) => {
-      const ethQuery = getEthQuery(chainId);
-
-      const { isSupported, delegationAddress } =
-        await isAccountUpgradedToEIP7702(
-          address,
-          chainId,
-          publicKey,
-          messenger,
-          ethQuery,
-        );
-
-      const upgradeContractAddress = getEIP7702UpgradeContractAddress(
-        chainId,
-        messenger,
-        publicKey,
-      );
-
-      return {
-        chainId,
-        delegationAddress,
-        isSupported,
-        upgradeContractAddress,
-      };
-    }),
-  );
-
-  log('Atomic batch supported results', results);
-
-  return results;
-}
-
-/**
- * Generate a tranasction batch ID.
- *
- * @returns  A unique batch ID as a hexadecimal string.
- */
-function generateBatchId(): Hex {
-  const idString = v4();
-  const idBytes = new Uint8Array(parse(idString));
-  return bytesToHex(idBytes);
-}
-
-/**
- * Generate the metadata for a nested transaction.
- *
- * @param request - The batch request.
- * @param singleRequest - The request for a single transaction.
- * @param ethQuery - The EthQuery instance used to interact with the Ethereum blockchain.
- * @returns The metadata for the nested transaction.
- */
-async function getNestedTransactionMeta(
-  request: TransactionBatchRequest,
-  singleRequest: TransactionBatchSingleRequest,
-  ethQuery: EthQuery,
-): Promise<NestedTransactionMetadata> {
-  const { from } = request;
-  const { params } = singleRequest;
-
-  const { type } = await determineTransactionType(
-    { from, ...params },
-    ethQuery,
-  );
-
-  return {
-    ...params,
-    type,
   };
 }
 

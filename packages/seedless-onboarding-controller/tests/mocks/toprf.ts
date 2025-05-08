@@ -77,6 +77,7 @@ export function createMockSecretDataGetResponse<
   T extends Uint8Array | { seedPhrase: Uint8Array; timestamp: number },
 >(secretDataArr: T[], password: string) {
   const mockToprfEncryptor = new MockToprfEncryptorDecryptor();
+  const ids: string[] = [];
 
   const encryptedSecretData = secretDataArr.map((secretData) => {
     let b64SecretData: string;
@@ -102,7 +103,7 @@ export function createMockSecretDataGetResponse<
   const jsonData = {
     success: true,
     data: encryptedSecretData,
-    ids: secretDataArr.map((_, index) => index),
+    ids,
   };
 
   return jsonData;

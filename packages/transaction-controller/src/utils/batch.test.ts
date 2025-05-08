@@ -1,7 +1,12 @@
 import { rpcErrors } from '@metamask/rpc-errors';
 
-import { addTransactionBatch, isAtomicBatchSupported } from './batch';
 import {
+  ERROR_MESSAGE_NO_UPGRADE_CONTRACT,
+  addTransactionBatch,
+  isAtomicBatchSupported,
+} from './batch';
+import {
+  ERROR_MESSGE_PUBLIC_KEY,
   doesChainSupportEIP7702,
   generateEIP7702BatchTransaction,
   isAccountUpgradedToEIP7702,
@@ -371,9 +376,7 @@ describe('Batch Utils', () => {
 
       await expect(
         addTransactionBatch({ ...request, publicKeyEIP7702: undefined }),
-      ).rejects.toThrow(
-        rpcErrors.internal('EIP-7702 public key not specified'),
-      );
+      ).rejects.toThrow(rpcErrors.internal(ERROR_MESSGE_PUBLIC_KEY));
     });
 
     it('throws if account upgraded to unsupported contract', async () => {
@@ -399,7 +402,7 @@ describe('Batch Utils', () => {
       getEIP7702UpgradeContractAddressMock.mockReturnValueOnce(undefined);
 
       await expect(addTransactionBatch(request)).rejects.toThrow(
-        rpcErrors.internal('Upgrade contract address not found'),
+        rpcErrors.internal(ERROR_MESSAGE_NO_UPGRADE_CONTRACT),
       );
     });
 
@@ -1159,9 +1162,40 @@ describe('Batch Utils', () => {
           messenger: MESSENGER_MOCK,
           publicKeyEIP7702: undefined,
         }),
-      ).rejects.toThrow(
-        rpcErrors.internal('EIP-7702 public key not specified'),
-      );
+      ).rejects.toThrow(rpcErrors.internal(ERROR_MESSGE_PUBLIC_KEY));
+    });
+
+    it('does not throw if error getting provider', async () => {
+      getEIP7702SupportedChainsMock.mockReturnValueOnce([
+        CHAIN_ID_MOCK,
+        CHAIN_ID_2_MOCK,
+      ]);
+
+      isAccountUpgradedToEIP7702Mock.mockResolvedValue({
+        isSupported: false,
+        delegationAddress: undefined,
+      });
+
+      const results = await isAtomicBatchSupported({
+        address: FROM_MOCK,
+        getEthQuery: jest
+          .fn()
+          .mockImplementationOnce(() => {
+            throw new Error(ERROR_MESSAGE_MOCK);
+          })
+          .mockReturnValueOnce({}),
+        messenger: MESSENGER_MOCK,
+        publicKeyEIP7702: PUBLIC_KEY_MOCK,
+      });
+
+      expect(results).toStrictEqual([
+        {
+          chainId: CHAIN_ID_2_MOCK,
+          delegationAddress: undefined,
+          isSupported: false,
+          upgradeContractAddress: undefined,
+        },
+      ]);
     });
   });
 });

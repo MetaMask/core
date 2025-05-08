@@ -16,8 +16,8 @@ import {
   INTRINSIC_GAS,
   DUMMY_AUTHORIZATION_SIGNATURE,
 } from './gas';
-import type { SimulationResponse } from './simulation-api';
-import { simulateTransactions } from './simulation-api';
+import type { SimulationResponse } from '../api/simulation-api';
+import { simulateTransactions } from '../api/simulation-api';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import { TransactionEnvelopeType, type TransactionMeta } from '../types';
 import type { AuthorizationList } from '../types';
@@ -28,7 +28,7 @@ jest.mock('@metamask/controller-utils', () => ({
 }));
 
 jest.mock('./feature-flags');
-jest.mock('./simulation-api');
+jest.mock('../api/simulation-api');
 
 const DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK = 35;
 const FIXED_ESTIMATE_GAS_MOCK = 100000;
