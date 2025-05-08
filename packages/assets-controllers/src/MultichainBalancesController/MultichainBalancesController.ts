@@ -156,13 +156,6 @@ export class MultichainBalancesController extends BaseController<
       },
     });
 
-    // Fetch initial balances for all non-EVM accounts
-    for (const account of this.#listAccounts()) {
-      // Fetching the balance is asynchronous and we cannot use `await` here.
-      // eslint-disable-next-line no-void
-      void this.updateBalance(account.id);
-    }
-
     this.messagingSystem.subscribe(
       'AccountsController:accountRemoved',
       (account: string) => this.#handleOnAccountRemoved(account),
@@ -185,6 +178,21 @@ export class MultichainBalancesController extends BaseController<
         await this.#handleOnAccountAssetListUpdated(newAccountAssets);
       },
     );
+  }
+
+  /**
+   * Initialize the controller by fetching initial balances for all non-EVM accounts.
+   * This method should be called after the controller is constructed.
+   */
+  async initialize(): Promise<void> {
+    for (const account of this.#listAccounts()) {
+      this.updateBalance(account.id).catch((error) => {
+        console.error(
+          `Failed to fetch initial balances for account ${account.id}:`,
+          error,
+        );
+      });
+    }
   }
 
   /**
