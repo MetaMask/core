@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add sequential batch support when `publishBatchHook` is not defined ([#5762](https://github.com/MetaMask/core/pull/5762))
+
 ## [54.4.0]
 
 ### Changed
