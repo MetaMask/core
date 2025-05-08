@@ -16,4 +16,6 @@ export const LINEA_DELAY_MS = 5000;
 export enum TraceName {
   BridgeTransactionApprovalCompleted = 'Bridge Transaction Approval Completed',
   BridgeTransactionCompleted = 'Bridge Transaction Completed',
+  SwapTransactionApprovalCompleted = 'Swap Transaction Approval Completed',
+  SwapTransactionCompleted = 'Swap Transaction Completed',
 }

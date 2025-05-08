@@ -14,6 +14,7 @@ import {
   UnifiedSwapBridgeEventName,
   getActionType,
   formatChainIdToCaip,
+  isCrossChainTx,
 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { toHex } from '@metamask/controller-utils';
@@ -536,12 +537,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   readonly #handleApprovalTx = async (
+    isBridgeTx: boolean,
     quoteResponse: QuoteResponse<string | TxData> & QuoteMetadata,
   ): Promise<TransactionMeta | undefined> => {
     if (quoteResponse.approval) {
       return await this.#trace(
         {
-          name: TraceName.BridgeTransactionApprovalCompleted,
+          name: isBridgeTx ? TraceName.BridgeTransactionApprovalCompleted : TraceName.SwapTransactionApprovalCompleted,
           data: {
             srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
             stxEnabled: false,
@@ -753,6 +755,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     isStxEnabledOnClient: boolean,
   ) => {
     let txMeta: (TransactionMeta & Partial<SolanaTransactionMeta>) | undefined;
+
+    const isBridgeTx = isCrossChainTx(quoteResponse.quote.srcChainId, quoteResponse.quote.destChainId);
+
     // Submit SOLANA tx
     if (
       isSolanaChainId(quoteResponse.quote.srcChainId) &&
@@ -760,7 +765,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     ) {
       txMeta = await this.#trace(
         {
-          name: TraceName.BridgeTransactionCompleted,
+          name: isBridgeTx ? TraceName.BridgeTransactionCompleted : TraceName.SwapTransactionCompleted,
           data: {
             srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
             stxEnabled: false,
@@ -783,14 +788,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       typeof quoteResponse.trade !== 'string'
     ) {
       // Set approval time and id if an approval tx is needed
-      const approvalTxMeta = await this.#handleApprovalTx(quoteResponse);
+      const approvalTxMeta = await this.#handleApprovalTx(isBridgeTx,quoteResponse);
       approvalTime = approvalTxMeta?.time;
       approvalTxId = approvalTxMeta?.id;
       // Handle smart transactions if enabled
       if (isStxEnabledOnClient) {
         txMeta = await this.#trace(
           {
-            name: TraceName.BridgeTransactionCompleted,
+            name: isBridgeTx ? TraceName.BridgeTransactionCompleted : TraceName.SwapTransactionCompleted,
             data: {
               srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
               stxEnabled: true,
@@ -806,7 +811,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       } else {
         txMeta = await this.#trace(
           {
-            name: TraceName.BridgeTransactionCompleted,
+            name: isBridgeTx ? TraceName.BridgeTransactionCompleted : TraceName.SwapTransactionCompleted,
             data: {
               srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
               stxEnabled: false,
