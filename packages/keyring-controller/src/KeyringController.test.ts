@@ -2768,42 +2768,126 @@ describe('KeyringController', () => {
           );
         });
 
-        it('should generate new metadata when there is no metadata in the vault', async () => {
-          // @ts-expect-error HdKeyring is not yet compatible with Keyring type.
-          stubKeyringClassWithAccount(HdKeyring, '0x123');
-          await withController(
-            {
-              cacheEncryptionKey,
-              state: {
-                vault: 'my vault',
+        !cacheEncryptionKey &&
+          it('should generate new metadata when there is no metadata in the vault and cacheEncryptionKey is enabled', async () => {
+            const hdKeyringSerializeSpy = jest.spyOn(
+              HdKeyring.prototype,
+              'serialize',
+            );
+            await withController(
+              {
+                cacheEncryptionKey: true,
+                state: {
+                  vault: 'my vault',
+                },
+                skipVaultCreation: true,
               },
-              skipVaultCreation: true,
-            },
-            async ({ controller, encryptor }) => {
-              jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
-                {
-                  type: KeyringTypes.hd,
-                  data: {
-                    accounts: ['0x123'],
+              async ({ controller, encryptor }) => {
+                const encryptWithKeySpy = jest.spyOn(
+                  encryptor,
+                  'encryptWithKey',
+                );
+                jest
+                  .spyOn(encryptor, 'importKey')
+                  // @ts-expect-error we are assigning a mock value
+                  .mockResolvedValue('imported key');
+                jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+                  {
+                    type: KeyringTypes.hd,
+                    data: {
+                      accounts: ['0x123'],
+                    },
                   },
-                },
-              ]);
-
-              await controller.submitPassword(password);
-
-              expect(controller.state.keyrings).toStrictEqual([
-                {
-                  type: KeyringTypes.hd,
+                ]);
+                hdKeyringSerializeSpy.mockResolvedValue({
+                  // @ts-expect-error we are assigning a mock value
                   accounts: ['0x123'],
-                  metadata: {
-                    id: expect.any(String),
-                    name: '',
+                });
+
+                await controller.submitPassword(password);
+
+                expect(controller.state.keyrings).toStrictEqual([
+                  {
+                    type: KeyringTypes.hd,
+                    accounts: expect.any(Array),
+                    metadata: {
+                      id: expect.any(String),
+                      name: '',
+                    },
                   },
+                ]);
+                expect(encryptWithKeySpy).toHaveBeenCalledWith('imported key', [
+                  {
+                    type: KeyringTypes.hd,
+                    data: {
+                      accounts: ['0x123'],
+                    },
+                    metadata: {
+                      id: expect.any(String),
+                      name: '',
+                    },
+                  },
+                ]);
+              },
+            );
+          });
+
+        !cacheEncryptionKey &&
+          it('should generate new metadata when there is no metadata in the vault and cacheEncryptionKey is disabled', async () => {
+            const hdKeyringSerializeSpy = jest.spyOn(
+              HdKeyring.prototype,
+              'serialize',
+            );
+            await withController(
+              {
+                cacheEncryptionKey: false,
+                state: {
+                  vault: 'my vault',
                 },
-              ]);
-            },
-          );
-        });
+                skipVaultCreation: true,
+              },
+              async ({ controller, encryptor }) => {
+                const encryptSpy = jest.spyOn(encryptor, 'encrypt');
+                jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+                  {
+                    type: KeyringTypes.hd,
+                    data: {
+                      accounts: ['0x123'],
+                    },
+                  },
+                ]);
+                hdKeyringSerializeSpy.mockResolvedValue({
+                  // @ts-expect-error we are assigning a mock value
+                  accounts: ['0x123'],
+                });
+
+                await controller.submitPassword(password);
+
+                expect(controller.state.keyrings).toStrictEqual([
+                  {
+                    type: KeyringTypes.hd,
+                    accounts: expect.any(Array),
+                    metadata: {
+                      id: expect.any(String),
+                      name: '',
+                    },
+                  },
+                ]);
+                expect(encryptSpy).toHaveBeenCalledWith(password, [
+                  {
+                    type: KeyringTypes.hd,
+                    data: {
+                      accounts: ['0x123'],
+                    },
+                    metadata: {
+                      id: expect.any(String),
+                      name: '',
+                    },
+                  },
+                ]);
+              },
+            );
+          });
 
         it('should unlock the wallet if the state has a duplicate account and the encryption parameters are outdated', async () => {
           stubKeyringClassWithAccount(MockKeyring, '0x123');
