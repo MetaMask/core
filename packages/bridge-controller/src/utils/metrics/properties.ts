@@ -6,7 +6,7 @@ import type { AccountsControllerState } from '../../../../accounts-controller/sr
 import { DEFAULT_BRIDGE_CONTROLLER_STATE } from '../../constants/bridge';
 import type { BridgeControllerState, QuoteResponse, TxData } from '../../types';
 import { type GenericQuoteRequest, type QuoteRequest } from '../../types';
-import { getNativeAssetForChainId, isCrossChainTx } from '../bridge';
+import { getNativeAssetForChainId, isCrossChain } from '../bridge';
 import {
   formatAddressToAssetId,
   formatChainIdToCaip,
@@ -51,7 +51,7 @@ export const getActionType = (
 ) => {
   if (
     srcChainId &&
-   ! isCrossChainTx(srcChainId, destChainId ?? srcChainId)
+   ! isCrossChain(srcChainId, destChainId ?? srcChainId)
   ) {
     return MetricsActionType.SWAPBRIDGE_V1; 
   }
@@ -70,7 +70,7 @@ export const getSwapType = (
 ) => {
   if (
     srcChainId &&
-    !isCrossChainTx(srcChainId, destChainId ?? srcChainId)
+    !isCrossChain(srcChainId, destChainId ?? srcChainId)
   ) {
     return MetricsSwapType.SINGLE;
   }

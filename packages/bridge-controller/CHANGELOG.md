@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Sentry traces for `BridgeQuotesFetched` and `SwapQuotesFetched` events ([#5780](https://github.com/MetaMask/core/pull/5780))
-- Export `isCrossChainTx` utility ([#5780](https://github.com/MetaMask/core/pull/5780))
+- Export `isCrossChain` utility ([#5780](https://github.com/MetaMask/core/pull/5780))
 
 ### Changed
 

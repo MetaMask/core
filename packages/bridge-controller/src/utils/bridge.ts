@@ -187,7 +187,7 @@ export const isSolanaChainId = (
  * @param destChainId - The destination chainId
  * @returns Whether the transaction is a cross-chain transaction
  */
-export const isCrossChainTx = (
+export const isCrossChain = (
   srcChainId: GenericQuoteRequest['srcChainId'],
   destChainId?: GenericQuoteRequest['destChainId'],
 ) => {

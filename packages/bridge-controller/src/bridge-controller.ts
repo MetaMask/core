@@ -41,7 +41,7 @@ import { getAssetIdsForToken, toExchangeRates } from './utils/assets';
 import { hasSufficientBalance } from './utils/balance';
 import {
   getDefaultBridgeControllerState,
-  isCrossChainTx,
+  isCrossChain,
   isSolanaChainId,
   sumHexes,
 } from './utils/bridge';
@@ -488,7 +488,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     try {
       await this.#trace(
         {
-          name: isCrossChainTx(
+          name: isCrossChain(
             updatedQuoteRequest.srcChainId,
             updatedQuoteRequest.destChainId,
           )

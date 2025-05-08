@@ -14,7 +14,7 @@ import {
   UnifiedSwapBridgeEventName,
   getActionType,
   formatChainIdToCaip,
-  isCrossChainTx,
+  isCrossChain,
 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { toHex } from '@metamask/controller-utils';
@@ -759,7 +759,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   ) => {
     let txMeta: (TransactionMeta & Partial<SolanaTransactionMeta>) | undefined;
 
-    const isBridgeTx = isCrossChainTx(quoteResponse.quote.srcChainId, quoteResponse.quote.destChainId);
+    const isBridgeTx = isCrossChain(quoteResponse.quote.srcChainId, quoteResponse.quote.destChainId);
 
     // Submit SOLANA tx
     if (
