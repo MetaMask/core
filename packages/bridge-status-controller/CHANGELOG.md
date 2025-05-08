@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Replace `bridgePriceData` with `priceData` from QuoteResponse object
+
 ## [19.0.0]
 
 ### Changed

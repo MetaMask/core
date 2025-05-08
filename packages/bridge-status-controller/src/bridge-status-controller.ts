@@ -850,7 +850,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           ...getFinalizedTxProperties(historyItem),
           error_message: 'error_message',
           price_impact: Number(
-            historyItem.quote.bridgePriceData?.priceImpact ?? '0',
+            historyItem.quote.priceData?.priceImpact ?? '0',
           ),
         };
     }

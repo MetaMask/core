@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING** Rename `QuoteResponse.bridgePriceData` to `priceData`
+
 ## [22.0.0]
 
 ### Changed
