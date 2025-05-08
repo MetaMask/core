@@ -811,7 +811,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
               stxEnabled: false,
             },
-            parentContext: approvalTxMeta,
           },
           async () =>
             await this.#handleEvmTransaction(
