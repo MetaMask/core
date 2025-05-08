@@ -141,7 +141,7 @@ function getRestrictedMessenger(
       'AccountsController:accountAdded',
       'AccountsController:accountRemoved',
       'AccountsController:accountBalancesUpdated',
-      'MultichainAssetsController:stateChange',
+      'MultichainAssetsController:accountAssetListUpdated',
     ],
   });
 }
@@ -154,6 +154,11 @@ const setupController = ({
   mocks?: {
     listMultichainAccounts?: InternalAccount[];
     handleRequestReturnValue?: Record<CaipAssetType, Balance>;
+    handleMockGetAssetsState?: {
+      accountsAssets: {
+        [account: string]: CaipAssetType[];
+      };
+    };
   };
 } = {}) => {
   const messenger = getRootMessenger();
@@ -175,11 +180,13 @@ const setupController = ({
     ),
   );
 
-  const mockGetAssetsState = jest.fn().mockReturnValue({
-    accountsAssets: {
-      [mockBtcAccount.id]: [mockBtcNativeAsset],
+  const mockGetAssetsState = jest.fn().mockReturnValue(
+    mocks?.handleMockGetAssetsState ?? {
+      accountsAssets: {
+        [mockBtcAccount.id]: [mockBtcNativeAsset],
+      },
     },
-  });
+  );
   messenger.registerActionHandler(
     'MultichainAssetsController:getState',
     mockGetAssetsState,
@@ -221,7 +228,7 @@ async function waitForAllPromises(): Promise<void> {
   await new Promise(process.nextTick);
 }
 
-describe('BalancesController', () => {
+describe('MultichainBalancesController', () => {
   it('initialize with default state', () => {
     const messenger = getRootMessenger();
     const multichainBalancesMessenger = getRestrictedMessenger(messenger);
@@ -419,25 +426,205 @@ describe('BalancesController', () => {
     expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual({});
   });
 
-  it('updates balances when receiving "MultichainAssetsController:stateChange" event', async () => {
-    const { controller, messenger } = setupController();
-
-    messenger.publish(
-      'MultichainAssetsController:stateChange',
+  describe('when "MultichainAssetsController:accountAssetListUpdated" is fired', () => {
+    const mockListSolanaAccounts = [
       {
-        assetsMetadata: {},
-        accountsAssets: {
-          [mockBtcAccount.id]: [mockBtcNativeAsset],
+        address: 'EBBYfhQzVzurZiweJ2keeBWpgGLs1cbWYcz28gjGgi5x',
+        id: uuidv4(),
+        metadata: {
+          name: 'Solana Account 1',
+          importTime: Date.now(),
+          keyring: {
+            type: KeyringTypes.snap,
+          },
+          snap: {
+            id: 'mock-sol-snap',
+            name: 'mock-sol-snap',
+            enabled: true,
+          },
+          lastSelected: 0,
         },
+        scopes: [SolScope.Devnet],
+        options: {},
+        methods: [SolMethod.SendAndConfirmTransaction],
+        type: SolAccountType.DataAccount,
       },
-      [],
-    );
+      {
+        address: 'GMTYfhQzVzurZiweJ2keeBWpgGLs1cbWYcz28gjGgi5x',
+        id: uuidv4(),
+        metadata: {
+          name: 'Solana Account 2',
+          importTime: Date.now(),
+          keyring: {
+            type: KeyringTypes.snap,
+          },
+          snap: {
+            id: 'mock-sol-snap',
+            name: 'mock-sol-snap',
+            enabled: true,
+          },
+          lastSelected: 0,
+        },
+        scopes: [SolScope.Devnet],
+        options: {},
+        methods: [SolMethod.SendAndConfirmTransaction],
+        type: SolAccountType.DataAccount,
+      },
+    ];
 
-    await waitForAllPromises();
+    it('updates balances when receiving "MultichainAssetsController:accountAssetListUpdated" event and state is empty', async () => {
+      const mockSolanaAccountId1 = mockListSolanaAccounts[0].id;
+      const mockSolanaAccountId2 = mockListSolanaAccounts[1].id;
 
-    expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual(
-      mockBalanceResult,
-    );
+      const { controller, messenger, mockSnapHandleRequest } = setupController({
+        state: {
+          balances: {},
+        },
+        mocks: {
+          handleMockGetAssetsState: {
+            accountsAssets: {},
+          },
+          handleRequestReturnValue: {},
+          listMultichainAccounts: mockListSolanaAccounts,
+        },
+      });
+
+      mockSnapHandleRequest.mockReset();
+      mockSnapHandleRequest
+        .mockResolvedValueOnce({
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken': {
+            amount: '1.00000000',
+            unit: 'SOL',
+          },
+        })
+        .mockResolvedValueOnce({
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken3': {
+            amount: '3.00000000',
+            unit: 'SOL',
+          },
+        });
+      messenger.publish('MultichainAssetsController:accountAssetListUpdated', {
+        assets: {
+          [mockSolanaAccountId1]: {
+            added: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken'],
+            removed: [],
+          },
+          [mockSolanaAccountId2]: {
+            added: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken3'],
+            removed: [] as `${string}:${string}/${string}:${string}`[],
+          },
+        },
+      });
+
+      await waitForAllPromises();
+
+      expect(controller.state.balances).toStrictEqual({
+        [mockSolanaAccountId1]: {
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken': {
+            amount: '1.00000000',
+            unit: 'SOL',
+          },
+        },
+        [mockSolanaAccountId2]: {
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken3': {
+            amount: '3.00000000',
+            unit: 'SOL',
+          },
+        },
+      });
+    });
+
+    it('updates balances when receiving "MultichainAssetsController:accountAssetListUpdated" event and state has existing balances', async () => {
+      const mockSolanaAccountId1 = mockListSolanaAccounts[0].id;
+      const mockSolanaAccountId2 = mockListSolanaAccounts[1].id;
+
+      const existingBalancesState = {
+        [mockSolanaAccountId1]: {
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken55': {
+            amount: '5.00000000',
+            unit: 'SOL',
+          },
+        },
+      };
+      const {
+        controller,
+        messenger,
+        mockSnapHandleRequest,
+        mockListMultichainAccounts,
+      } = setupController({
+        state: {
+          balances: existingBalancesState,
+        },
+        mocks: {
+          handleMockGetAssetsState: {
+            accountsAssets: {
+              [mockSolanaAccountId1]: [
+                'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken55',
+              ],
+            },
+          },
+          handleRequestReturnValue: {
+            'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken55': {
+              amount: '55.00000000',
+              unit: 'SOL',
+            },
+          },
+          listMultichainAccounts: [mockListSolanaAccounts[0]],
+        },
+      });
+
+      mockSnapHandleRequest.mockReset();
+      mockListMultichainAccounts.mockReset();
+
+      mockListMultichainAccounts.mockReturnValue(mockListSolanaAccounts);
+      mockSnapHandleRequest
+        .mockResolvedValueOnce({
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken': {
+            amount: '1.00000000',
+            unit: 'SOL',
+          },
+        })
+        .mockResolvedValueOnce({
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken3': {
+            amount: '3.00000000',
+            unit: 'SOL',
+          },
+        });
+
+      messenger.publish('MultichainAssetsController:accountAssetListUpdated', {
+        assets: {
+          [mockSolanaAccountId1]: {
+            added: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken'],
+            removed: [],
+          },
+          [mockSolanaAccountId2]: {
+            added: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken3'],
+            removed: [],
+          },
+        },
+      });
+
+      await waitForAllPromises();
+
+      expect(controller.state.balances).toStrictEqual({
+        [mockSolanaAccountId1]: {
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken': {
+            amount: '1.00000000',
+            unit: 'SOL',
+          },
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken55': {
+            amount: '55.00000000',
+            unit: 'SOL',
+          },
+        },
+        [mockSolanaAccountId2]: {
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken3': {
+            amount: '3.00000000',
+            unit: 'SOL',
+          },
+        },
+      });
+    });
   });
 
   it('resumes updating balances after unlocking KeyringController', async () => {

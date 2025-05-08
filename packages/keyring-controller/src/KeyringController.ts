@@ -2211,7 +2211,7 @@ export class KeyringController extends BaseController<
    * Restore a serialized keyrings array.
    *
    * @param serializedKeyrings - The serialized keyrings array.
-   * @returns A promise resolving to the restored keyrings.
+   * @returns The restored keyrings.
    */
   async #restoreSerializedKeyrings(
     serializedKeyrings: SerializedKeyring[],

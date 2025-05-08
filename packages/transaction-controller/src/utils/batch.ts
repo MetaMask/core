@@ -231,10 +231,11 @@ async function addTransactionBatchWith7702(
     batchId: batchIdOverride,
     from,
     networkClientId,
+    origin,
     requireApproval,
+    securityAlertId,
     transactions,
     validateSecurity,
-    securityAlertId,
   } = userRequest;
 
   const chainId = getChainId(networkClientId);
@@ -325,10 +326,10 @@ async function addTransactionBatchWith7702(
     batchId,
     nestedTransactions,
     networkClientId,
+    origin,
     requireApproval,
     securityAlertResponse,
     type: TransactionType.batch,
-    origin,
   });
 
   // Wait for the transaction to be published.
