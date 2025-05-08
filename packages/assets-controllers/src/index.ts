@@ -169,6 +169,7 @@ export type {
   MultichainAssetsControllerStateChangeEvent,
   MultichainAssetsControllerActions,
   MultichainAssetsControllerEvents,
+  MultichainAssetsControllerAccountAssetListUpdatedEvent,
   MultichainAssetsControllerMessenger,
 } from './MultichainAssetsController';
 
