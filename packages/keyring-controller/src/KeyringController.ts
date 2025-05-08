@@ -22,7 +22,6 @@ import type { KeyringClass } from '@metamask/keyring-utils';
 import type { Eip1024EncryptedData, Hex, Json } from '@metamask/utils';
 import {
   add0x,
-  assert,
   assertIsStrictHexString,
   bytesToHex,
   hasProperty,
