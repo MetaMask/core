@@ -24,6 +24,7 @@ import {
   type TransactionMeta,
 } from '..';
 import { CollectPublishHook } from '../hooks/CollectPublishHook';
+import { SequentialPublishBatchHook } from '../hooks/SequentialPublishBatchHook';
 import { projectLogger } from '../logger';
 import type {
   NestedTransactionMetadata,
@@ -58,6 +59,10 @@ type AddTransactionBatchRequest = {
     options: { transactionId: string },
     callback: (transactionMeta: TransactionMeta) => void,
   ) => void;
+  publishTransaction: (
+    _ethQuery: EthQuery,
+    transactionMeta: TransactionMeta,
+  ) => Promise<Hex>;
 };
 
 type IsAtomicBatchSupportedRequestInternal = {
@@ -349,7 +354,8 @@ async function addTransactionBatchWith7702(
 async function addTransactionBatchWithHook(
   request: AddTransactionBatchRequest,
 ): Promise<TransactionBatchResult> {
-  const { publishBatchHook, request: userRequest } = request;
+  const { publishBatchHook: initialPublishBatchHook, request: userRequest } =
+    request;
 
   const {
     from,
@@ -359,10 +365,14 @@ async function addTransactionBatchWithHook(
 
   log('Adding transaction batch using hook', userRequest);
 
-  if (!publishBatchHook) {
-    log('No publish batch hook provided');
-    throw new Error('No publish batch hook provided');
-  }
+  const sequentialPublishBatchHook = new SequentialPublishBatchHook({
+    publishTransaction: request.publishTransaction,
+    getTransaction: request.getTransaction,
+    getEthQuery: request.getEthQuery,
+  });
+
+  const publishBatchHook =
+    initialPublishBatchHook ?? sequentialPublishBatchHook.getHook();
 
   const batchId = generateBatchId();
   const transactionCount = nestedTransactions.length;
