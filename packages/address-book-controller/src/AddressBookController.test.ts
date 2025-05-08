@@ -4,6 +4,7 @@ import { toHex } from '@metamask/controller-utils';
 import type {
   AddressBookControllerActions,
   AddressBookControllerEvents,
+  AddressBookEntry,
 } from './AddressBookController';
 import {
   AddressBookController,
@@ -11,16 +12,30 @@ import {
   controllerName,
 } from './AddressBookController';
 
+// Define allowed events type for testing
+type AllowedEvents = 
+  | 'AddressBookController:contactUpdated'
+  | 'AddressBookController:contactDeleted';
+
+/**
+ * Constructs a controller messenger for testing.
+ *
+ * @returns A controller messenger.
+ */
+function getMessenger() {
+  return new Messenger<
+    AddressBookControllerActions,
+    AddressBookControllerEvents
+  >();
+}
+
 /**
  * Constructs a restricted controller messenger.
  *
  * @returns A restricted controller messenger.
  */
 function getRestrictedMessenger() {
-  const messenger = new Messenger<
-    AddressBookControllerActions,
-    AddressBookControllerEvents
-  >();
+  const messenger = getMessenger();
   return messenger.getRestricted({
     name: controllerName,
     allowedActions: [],
@@ -391,6 +406,97 @@ describe('AddressBookController', () => {
           },
         },
       },
+    });
+  });
+
+  describe('events', () => {
+    it('should emit contactUpdated event when a contact is added', () => {
+      const messenger = getMessenger();
+      const controller = new AddressBookController({
+        messenger: messenger.getRestricted({
+          name: controllerName,
+          allowedActions: [],
+          allowedEvents: [],
+        }),
+      });
+      
+      const contactUpdatedListener = jest.fn();
+      messenger.subscribe('AddressBookController:contactUpdated', contactUpdatedListener);
+      
+      // Add a contact
+      controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
+      
+      // Verify event was emitted with correct payload
+      expect(contactUpdatedListener).toHaveBeenCalledWith({
+        address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+        chainId: toHex(1),
+        isEns: false,
+        memo: '',
+        name: 'foo',
+        addressType: undefined,
+      });
+    });
+    
+    it('should emit contactUpdated event when a contact is updated', () => {
+      const messenger = getMessenger();
+      const controller = new AddressBookController({
+        messenger: messenger.getRestricted({
+          name: controllerName,
+          allowedActions: [],
+          allowedEvents: [],
+        }),
+      });
+      
+      // Add a contact first
+      controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
+      
+      // Set up event listener using any to bypass type checking
+      const contactUpdatedListener = jest.fn();
+      messenger.subscribe('AddressBookController:contactUpdated', contactUpdatedListener);
+      
+      // Update the contact
+      controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'bar');
+      
+      // Verify event was emitted with correct payload
+      expect(contactUpdatedListener).toHaveBeenCalledWith({
+        address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+        chainId: toHex(1),
+        isEns: false,
+        memo: '',
+        name: 'bar',
+        addressType: undefined,
+      });
+    });
+    
+    it('should emit contactDeleted event when a contact is deleted', () => {
+      const messenger = getMessenger();
+      const controller = new AddressBookController({
+        messenger: messenger.getRestricted({
+          name: controllerName,
+          allowedActions: [],
+          allowedEvents: [],
+        }),
+      });
+      
+      // Add a contact first
+      controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
+      
+      // Set up event listener using any to bypass type checking
+      const contactDeletedListener = jest.fn();
+      messenger.subscribe('AddressBookController:contactDeleted', contactDeletedListener);
+      
+      // Delete the contact
+      controller.delete(toHex(1), '0x32Be343B94f860124dC4fEe278FDCBD38C102D88');
+      
+      // Verify event was emitted with correct payload
+      expect(contactDeletedListener).toHaveBeenCalledWith({
+        address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+        chainId: toHex(1),
+        isEns: false,
+        memo: '',
+        name: 'foo',
+        addressType: undefined,
+      });
     });
   });
 });
