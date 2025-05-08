@@ -15,11 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Keyrings with duplicate accounts are skipped as unsupported on unlock ([#5725](https://github.com/MetaMask/core/pull/5725))
-
-### Fixed
-
-- Discard keyrings with duplicate accounts when unlock the wallet ([#5775](https://github.com/MetaMask/core/pull/5775))
+- Keyrings with duplicate accounts are skipped as unsupported on unlock ([#5775](https://github.com/MetaMask/core/pull/5775))
 
 ## [21.0.6]
 
