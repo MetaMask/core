@@ -273,7 +273,6 @@
     "import-x/order": 1
   },
   "packages/multichain/src/adapters/caip-permission-adapter-eth-accounts.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": 1,
     "jsdoc/tag-lines": 5
   },
   "packages/multichain/src/adapters/caip-permission-adapter-permittedChains.test.ts": {
@@ -338,7 +337,7 @@
     "jsdoc/require-returns": 1
   },
   "packages/multichain/src/scope/supported.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": 6
+    "@typescript-eslint/no-unsafe-enum-comparison": 3
   },
   "packages/multichain/src/scope/validation.ts": {
     "jsdoc/tag-lines": 2
