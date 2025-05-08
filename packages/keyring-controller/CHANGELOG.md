@@ -7,9 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
+### Changed
 
-- Metadata for unsupported keyring is removed on unlock ([#5725](https://github.com/MetaMask/core/pull/5725))
+- **BREAKING** `keyringsMetadata` has been removed from the controller state ([#5725](https://github.com/MetaMask/core/pull/5725))
+  - The metadata is now stored in each keyring object in the `state.keyrings` array.
 
 ## [21.0.6]
 
