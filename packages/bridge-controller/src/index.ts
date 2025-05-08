@@ -100,6 +100,7 @@ export {
   isSolanaChainId,
   getNativeAssetForChainId,
   getDefaultBridgeControllerState,
+  isCrossChainTx
 } from './utils/bridge';
 
 export { isValidQuoteRequest, formatEtaInMinutes } from './utils/quote';
