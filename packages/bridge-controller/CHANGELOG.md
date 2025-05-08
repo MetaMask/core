@@ -9,13 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [22.0.0]
 
-### Uncategorized
-
-- Release/390.0.0 ([#5777](https://github.com/MetaMask/core/pull/5777))
-
 ### Changed
 
 - Bump `@metamask/controller-utils` to `^11.8.0` ([#5765](https://github.com/MetaMask/core/pull/5765))
+- **BREAKING:** Bump `@metamask/assets-controller` peer dependency to `^62.0.0` ([#5778](https://github.com/MetaMask/core/pull/5778))
 
 ## [21.0.0]
 
