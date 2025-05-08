@@ -37,8 +37,8 @@ import type {
 } from '../CurrencyRateController';
 import type {
   MultichainAssetsControllerGetStateAction,
+  MultichainAssetsControllerAccountAssetListUpdatedEvent,
   MultichainAssetsControllerState,
-  MultichainAssetsControllerStateChangeEvent,
 } from '../MultichainAssetsController';
 
 /**
@@ -132,8 +132,7 @@ export type AllowedEvents =
   | KeyringControllerUnlockEvent
   | AccountsControllerAccountAddedEvent
   | CurrencyRateStateChange
-  | MultichainAssetsControllerStateChangeEvent;
-
+  | MultichainAssetsControllerAccountAssetListUpdatedEvent;
 /**
  * Messenger type for the MultichainAssetsRatesController.
  */
@@ -171,7 +170,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
 
   #currentCurrency: CurrencyRateState['currentCurrency'];
 
-  #accountsAssets: MultichainAssetsControllerState['accountsAssets'];
+  readonly #accountsAssets: MultichainAssetsControllerState['accountsAssets'];
 
   #isUnlocked = true;
 
@@ -229,10 +228,16 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
     );
 
     this.messagingSystem.subscribe(
-      'MultichainAssetsController:stateChange',
-      async (multichainAssetsState: MultichainAssetsControllerState) => {
-        this.#accountsAssets = multichainAssetsState.accountsAssets;
-        await this.updateAssetsRates();
+      'MultichainAssetsController:accountAssetListUpdated',
+      async ({ assets }) => {
+        const newAccountAssets = Object.entries(assets).map(
+          ([accountId, { added }]) => ({
+            accountId,
+            assets: [...added],
+          }),
+        );
+        // TODO; removed can be used in future for further cleanup
+        await this.#updateAssetsRatesForNewAssets(newAccountAssets);
       },
     );
   }
@@ -309,31 +314,39 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
           continue;
         }
 
-        // Build the conversions array
-        const conversions = this.#buildConversions(assets);
-
-        // Retrieve rates from Snap
-        const accountRates: OnAssetsConversionResponse =
-          (await this.#handleSnapRequest({
-            snapId: account?.metadata.snap?.id as SnapId,
-            handler: HandlerType.OnAssetsConversion,
-            params: {
-              ...conversions,
-              includeMarketData: true,
-            },
-          })) as OnAssetsConversionResponse;
-
-        // Flatten nested rates if needed
-        const flattenedRates = this.#flattenRates(accountRates);
-
-        // Build the updatedRates object for these assets
-        const updatedRates = this.#buildUpdatedRates(assets, flattenedRates);
+        const rates = await this.#getUpdatedRatesFor(account, assets);
         // Apply these updated rates to controller state
-        this.#applyUpdatedRates(updatedRates);
+        this.#applyUpdatedRates(rates);
       }
     })().finally(() => {
       releaseLock();
     });
+  }
+
+  async #getUpdatedRatesFor(
+    account: InternalAccount,
+    assets: CaipAssetType[],
+  ): Promise<Record<string, AssetConversion & { currency: CaipAssetType }>> {
+    // Build the conversions array
+    const conversions = this.#buildConversions(assets);
+
+    // Retrieve rates from Snap
+    const accountRates: OnAssetsConversionResponse =
+      (await this.#handleSnapRequest({
+        snapId: account?.metadata.snap?.id as SnapId,
+        handler: HandlerType.OnAssetsConversion,
+        params: {
+          ...conversions,
+          includeMarketData: true,
+        },
+      })) as OnAssetsConversionResponse;
+
+    // Flatten nested rates if needed
+    const flattenedRates = this.#flattenRates(accountRates);
+
+    // Build the updatedRates object for these assets
+    const updatedRates = this.#buildUpdatedRates(assets, flattenedRates);
+    return updatedRates;
   }
 
   /**
@@ -397,6 +410,63 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
     })().finally(() => {
       releaseLock();
     });
+  }
+
+  /**
+   * Updates the conversion rates for new assets.
+   *
+   * @param accounts - The accounts to update the conversion rates for.
+   * @returns A promise that resolves when the rates are updated.
+   */
+  async #updateAssetsRatesForNewAssets(
+    accounts: {
+      accountId: string;
+      assets: CaipAssetType[];
+    }[],
+  ): Promise<void> {
+    const releaseLock = await this.#mutex.acquire();
+
+    return (async () => {
+      if (!this.isActive) {
+        return;
+      }
+      const allNewRates: Record<
+        string,
+        { rate: string | null; conversionTime: number | null }
+      > = {};
+
+      for (const { accountId, assets } of accounts) {
+        const account = this.#getAccount(accountId);
+
+        const rates = await this.#getUpdatedRatesFor(account, assets);
+        // Track new rates
+        for (const [asset, rate] of Object.entries(rates)) {
+          allNewRates[asset] = rate;
+        }
+      }
+
+      this.#applyUpdatedRates(allNewRates);
+    })().finally(() => {
+      releaseLock();
+    });
+  }
+
+  /**
+   * Get a non-EVM account from its ID.
+   *
+   * @param accountId - The account ID.
+   * @returns The non-EVM account.
+   */
+  #getAccount(accountId: string): InternalAccount {
+    const account: InternalAccount | undefined = this.#listAccounts().find(
+      (multichainAccount) => multichainAccount.id === accountId,
+    );
+
+    if (!account) {
+      throw new Error(`Unknown account: ${accountId}`);
+    }
+
+    return account;
   }
 
   /**
@@ -488,6 +558,9 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
       { rate: string | null; conversionTime: number | null }
     >,
   ): void {
+    if (Object.keys(updatedRates).length === 0) {
+      return;
+    }
     this.update((state: Draft<MultichainAssetsRatesControllerState>) => {
       state.conversionRates = {
         ...state.conversionRates,
