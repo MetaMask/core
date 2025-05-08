@@ -3119,6 +3119,57 @@ describe('KeyringController', () => {
       );
     });
 
+    it('should update the vault if new metadata is created while unlocking', async () => {
+      jest.spyOn(HdKeyring.prototype, 'serialize').mockResolvedValue({
+        // @ts-expect-error we are assigning a mock value
+        accounts: ['0x123'],
+      });
+      await withController(
+        {
+          cacheEncryptionKey: true,
+          skipVaultCreation: true,
+          state: {
+            vault: JSON.stringify({ data: '0x123', salt: 'my salt' }),
+            // @ts-expect-error we want to force the controller to have an
+            // encryption salt equal to the one in the vault
+            encryptionSalt: 'my salt',
+          },
+        },
+        async ({ controller, initialState, encryptor }) => {
+          const encryptWithKeySpy = jest.spyOn(encryptor, 'encryptWithKey');
+          jest
+            .spyOn(encryptor, 'importKey')
+            // @ts-expect-error we are assigning a mock value
+            .mockResolvedValue('imported key');
+          jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+            {
+              type: KeyringTypes.hd,
+              data: '0x123',
+            },
+          ]);
+
+          await controller.submitEncryptionKey(
+            MOCK_ENCRYPTION_KEY,
+            initialState.encryptionSalt as string,
+          );
+
+          expect(controller.state.isUnlocked).toBe(true);
+          expect(encryptWithKeySpy).toHaveBeenCalledWith('imported key', [
+            {
+              type: KeyringTypes.hd,
+              data: {
+                accounts: ['0x123'],
+              },
+              metadata: {
+                id: expect.any(String),
+                name: '',
+              },
+            },
+          ]);
+        },
+      );
+    });
+
     it('should throw error if vault unlocked has an unexpected shape', async () => {
       await withController(
         { cacheEncryptionKey: true },
