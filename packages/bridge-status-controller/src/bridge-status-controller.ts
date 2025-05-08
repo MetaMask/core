@@ -540,7 +540,27 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     isBridgeTx: boolean,
     quoteResponse: QuoteResponse<string | TxData> & QuoteMetadata,
   ): Promise<TransactionMeta | undefined> => {
-    if (quoteResponse.approval) {
+    const { approval } = quoteResponse;
+    
+    if (approval) {
+      const approveTx = async () => {
+        await this.#handleUSDTAllowanceReset(quoteResponse);
+        
+        const approvalTxMeta = await this.#handleEvmTransaction(
+          TransactionType.bridgeApproval,
+          approval,
+          quoteResponse,
+        );
+        if (!approvalTxMeta) {
+          throw new Error(
+            'Failed to submit bridge tx: approval txMeta is undefined',
+          );
+        }
+
+        await handleLineaDelay(quoteResponse);
+        return approvalTxMeta;
+      }
+
       return await this.#trace(
         {
           name: isBridgeTx ? TraceName.BridgeTransactionApprovalCompleted : TraceName.SwapTransactionApprovalCompleted,
@@ -549,27 +569,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             stxEnabled: false,
           },
         },
-        async () => {
-          if (!quoteResponse.approval) {
-            return undefined;
-          }
-          await this.#handleUSDTAllowanceReset(quoteResponse);
-          const approvalTxMeta = await this.#handleEvmTransaction(
-            TransactionType.bridgeApproval,
-            quoteResponse.approval,
-            quoteResponse,
-          );
-          if (!approvalTxMeta) {
-            throw new Error(
-              'Failed to submit bridge tx: approval txMeta is undefined',
-            );
-          }
-
-          await handleLineaDelay(quoteResponse);
-          return approvalTxMeta;
-        },
+        approveTx
       );
     }
+
     return undefined;
   };
 
