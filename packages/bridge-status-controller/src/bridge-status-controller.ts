@@ -539,20 +539,34 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     quoteResponse: QuoteResponse<string | TxData> & QuoteMetadata,
   ): Promise<TransactionMeta | undefined> => {
     if (quoteResponse.approval) {
-      await this.#handleUSDTAllowanceReset(quoteResponse);
-      const approvalTxMeta = await this.#handleEvmTransaction(
-        TransactionType.bridgeApproval,
-        quoteResponse.approval,
-        quoteResponse,
-      );
-      if (!approvalTxMeta) {
-        throw new Error(
-          'Failed to submit bridge tx: approval txMeta is undefined',
-        );
-      }
+      return await this.#trace(
+        {
+          name: TraceName.BridgeTransactionApprovalCompleted,
+          data: {
+            srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
+            stxEnabled: false,
+          },
+        },
+        async () => {
+          if (!quoteResponse.approval) {
+            return undefined;
+          }
+          await this.#handleUSDTAllowanceReset(quoteResponse);
+          const approvalTxMeta = await this.#handleEvmTransaction(
+            TransactionType.bridgeApproval,
+            quoteResponse.approval,
+            quoteResponse,
+          );
+          if (!approvalTxMeta) {
+            throw new Error(
+              'Failed to submit bridge tx: approval txMeta is undefined',
+            );
+          }
 
-      await handleLineaDelay(quoteResponse);
-      return approvalTxMeta;
+          await handleLineaDelay(quoteResponse);
+          return approvalTxMeta;
+        },
+      );
     }
     return undefined;
   };
@@ -769,16 +783,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       typeof quoteResponse.trade !== 'string'
     ) {
       // Set approval time and id if an approval tx is needed
-      const approvalTxMeta = await this.#trace(
-        {
-          name: TraceName.BridgeTransactionApprovalCompleted,
-          data: {
-            srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
-            stxEnabled: false,
-          },
-        },
-        async () => await this.#handleApprovalTx(quoteResponse),
-      );
+      const approvalTxMeta = await this.#handleApprovalTx(quoteResponse);
       approvalTime = approvalTxMeta?.time;
       approvalTxId = approvalTxMeta?.id;
       // Handle smart transactions if enabled
@@ -790,7 +795,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
               stxEnabled: true,
             },
-            parentContext: approvalTxMeta,
           },
           async () =>
             await this.#handleEvmSmartTransaction(
