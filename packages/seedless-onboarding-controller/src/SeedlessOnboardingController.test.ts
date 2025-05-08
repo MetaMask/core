@@ -2257,7 +2257,7 @@ describe('SeedlessOnboardingController', () => {
             MOCK_KEYRING_ID,
           );
 
-          await controller.setLocked();
+          controller.setLocked();
 
           await expect(
             controller.addNewSeedPhraseBackup(
