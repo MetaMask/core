@@ -2707,7 +2707,7 @@ __metadata:
     "@metamask/gas-fee-controller": "npm:^23.0.0"
     "@metamask/keyring-api": "npm:^17.4.0"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
-    "@metamask/multichain-network-controller": "npm:^0.6.0"
+    "@metamask/multichain-network-controller": "npm:^0.6.1"
     "@metamask/network-controller": "npm:^23.4.0"
     "@metamask/polling-controller": "npm:^13.0.0"
     "@metamask/remote-feature-flag-controller": "npm:^1.6.0"
@@ -3693,7 +3693,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/multichain-network-controller@npm:^0.6.0, @metamask/multichain-network-controller@workspace:packages/multichain-network-controller":
+"@metamask/multichain-network-controller@npm:^0.6.1, @metamask/multichain-network-controller@workspace:packages/multichain-network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/multichain-network-controller@workspace:packages/multichain-network-controller"
   dependencies:
