@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/controller-utils` to `^11.8.0` ([#5765](https://github.com/MetaMask/core/pull/5765))
+
 ## [0.6.0]
 
 ### Changed
@@ -19,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Updated to restrict `getNetworksWithTransactionActivityByAccounts` to EVM networks only while non-EVM network endpoint support is being completed. Full multi-chain support will be restored in the coming weeks ([#5677](https://github.com/MetaMask/core/pull/5677))
+- Updated network activity API requests to have batching support to handle URL length limitations, allowing the controller to fetch network activity for any number of accounts ([#5752](https://github.com/MetaMask/core/pull/5752))
 
 ## [0.5.0]
 
