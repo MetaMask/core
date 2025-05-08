@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/multichain-network-controller` dependency to `^0.6.1` ([#5782](https://github.com/MetaMask/core/pull/5782))
+
 ## [22.0.0]
 
 ### Changed
