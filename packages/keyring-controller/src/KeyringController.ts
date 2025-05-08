@@ -1445,10 +1445,29 @@ export class KeyringController extends BaseController<
     encryptionKey: string,
     encryptionSalt: string,
   ): Promise<void> {
-    return this.#withRollback(async () => {
-      await this.#unlockKeyrings(undefined, encryptionKey, encryptionSalt);
+    const { newMetadata } = await this.#withRollback(async () => {
+      const result = await this.#unlockKeyrings(
+        undefined,
+        encryptionKey,
+        encryptionSalt,
+      );
       this.#setUnlocked();
+      return result;
     });
+
+    try {
+      // if new metadata has been generated during login, we
+      // can attempt to upgrade the vault.
+      await this.#withRollback(async () => {
+        if (newMetadata) {
+          await this.#updateVault();
+        }
+      });
+    } catch (error) {
+      // We don't want to throw an error if the upgrade fails
+      // since the controller is already unlocked.
+      console.error('Failed to update vault during login:', error);
+    }
   }
 
   /**
@@ -1459,21 +1478,25 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving when the operation completes.
    */
   async submitPassword(password: string): Promise<void> {
-    await this.#withRollback(async () => {
-      await this.#unlockKeyrings(password);
+    const { newMetadata } = await this.#withRollback(async () => {
+      const result = await this.#unlockKeyrings(password);
       this.#setUnlocked();
+      return result;
     });
 
     try {
-      // If there are stronger encryption params available, we
+      // If there are stronger encryption params available, or
+      // if new metadata has been generated during login, we
       // can attempt to upgrade the vault.
-      await this.#withRollback(async () =>
-        this.#upgradeVaultEncryptionParams(),
-      );
+      await this.#withRollback(async () => {
+        if (newMetadata || this.#isNewEncryptionAvailable()) {
+          await this.#updateVault();
+        }
+      });
     } catch (error) {
       // We don't want to throw an error if the upgrade fails
       // since the controller is already unlocked.
-      console.error('Failed to upgrade vault encryption params:', error);
+      console.error('Failed to update vault during login:', error);
     }
   }
 
@@ -2188,15 +2211,30 @@ export class KeyringController extends BaseController<
    * Restore a serialized keyrings array.
    *
    * @param serializedKeyrings - The serialized keyrings array.
+   * @returns A promise resolving to the restored keyrings.
    */
   async #restoreSerializedKeyrings(
     serializedKeyrings: SerializedKeyring[],
-  ): Promise<void> {
+  ): Promise<{
+    keyrings: { keyring: EthKeyring; metadata: KeyringMetadata }[];
+    newMetadata: boolean;
+  }> {
     await this.#clearKeyrings();
+    const keyrings: { keyring: EthKeyring; metadata: KeyringMetadata }[] = [];
+    let newMetadata = false;
 
     for (const serializedKeyring of serializedKeyrings) {
-      await this.#restoreKeyring(serializedKeyring);
+      const result = await this.#restoreKeyring(serializedKeyring);
+      if (result) {
+        const { keyring, metadata } = result;
+        keyrings.push({ keyring, metadata });
+        if (result.newMetadata) {
+          newMetadata = true;
+        }
+      }
     }
+
+    return { keyrings, newMetadata };
   }
 
   /**
@@ -2212,7 +2250,10 @@ export class KeyringController extends BaseController<
     password: string | undefined,
     encryptionKey?: string,
     encryptionSalt?: string,
-  ): Promise<void> {
+  ): Promise<{
+    keyrings: { keyring: EthKeyring; metadata: KeyringMetadata }[];
+    newMetadata: boolean;
+  }> {
     return this.#withVaultLock(async () => {
       const encryptedVault = this.state.vault;
       if (!encryptedVault) {
@@ -2273,7 +2314,8 @@ export class KeyringController extends BaseController<
         throw new Error(KeyringControllerError.VaultDataError);
       }
 
-      await this.#restoreSerializedKeyrings(vault);
+      const { keyrings, newMetadata } =
+        await this.#restoreSerializedKeyrings(vault);
 
       const updatedKeyrings = await this.#getUpdatedKeyrings();
 
@@ -2284,6 +2326,8 @@ export class KeyringController extends BaseController<
           state.encryptionSalt = updatedState.encryptionSalt;
         }
       });
+
+      return { keyrings, newMetadata };
     });
   }
 
@@ -2370,22 +2414,18 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Upgrade the vault encryption parameters if needed.
+   * Check if there are new encryption parameters available.
    *
    * @returns A promise resolving to `void`.
    */
-  async #upgradeVaultEncryptionParams(): Promise<void> {
-    this.#assertControllerMutexIsLocked();
+  #isNewEncryptionAvailable(): boolean {
     const { vault } = this.state;
 
-    if (
-      vault &&
-      this.#password &&
-      this.#encryptor.isVaultUpdated &&
-      !this.#encryptor.isVaultUpdated(vault)
-    ) {
-      await this.#updateVault();
+    if (!vault || !this.#password || !this.#encryptor.isVaultUpdated) {
+      return false;
     }
+
+    return !this.#encryptor.isVaultUpdated(vault);
   }
 
   /**
@@ -2533,23 +2573,30 @@ export class KeyringController extends BaseController<
    */
   async #restoreKeyring(
     serialized: SerializedKeyring,
-  ): Promise<EthKeyring | undefined> {
+  ): Promise<
+    | { keyring: EthKeyring; metadata: KeyringMetadata; newMetadata: boolean }
+    | undefined
+  > {
     this.#assertControllerMutexIsLocked();
 
     try {
       const { type, data, metadata: serializedMetadata } = serialized;
+      let newMetadata = false;
+      let metadata = serializedMetadata;
       const keyring = await this.#createKeyring(type, data);
       // If metadata is missing, assume the data is from an installation before
       // we had keyring metadata.
-      // WARN: This won't be persisted in the vault, so it will be lost on reload.
-      const metadata = serializedMetadata || getDefaultKeyringMetadata();
+      if (!metadata) {
+        newMetadata = true;
+        metadata = getDefaultKeyringMetadata();
+      }
       // The keyring is added to the keyrings array only if it's successfully restored
       // and the metadata is successfully added to the controller
       this.#keyrings.push({
         keyring,
         metadata,
       });
-      return keyring;
+      return { keyring, metadata, newMetadata };
     } catch (error) {
       console.error(error);
       this.#unsupportedKeyrings.push(serialized);

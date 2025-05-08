@@ -2867,6 +2867,33 @@ describe('KeyringController', () => {
             );
           });
 
+        cacheEncryptionKey &&
+          it('should not upgrade the vault encryption if the key encryptor has the same parameters', async () => {
+            await withController(
+              {
+                skipVaultCreation: true,
+                cacheEncryptionKey,
+                state: { vault: 'my vault' },
+              },
+              async ({ controller, encryptor }) => {
+                jest.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(true);
+                const encryptSpy = jest.spyOn(encryptor, 'encrypt');
+                jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+                  {
+                    type: KeyringTypes.hd,
+                    data: {
+                      accounts: ['0x123'],
+                    },
+                  },
+                ]);
+
+                await controller.submitPassword(password);
+
+                expect(encryptSpy).not.toHaveBeenCalled();
+              },
+            );
+          });
+
         !cacheEncryptionKey &&
           it('should upgrade the vault encryption if the generic encryptor has different parameters', async () => {
             await withController(
@@ -2877,6 +2904,33 @@ describe('KeyringController', () => {
               },
               async ({ controller, encryptor }) => {
                 jest.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(false);
+                const encryptSpy = jest.spyOn(encryptor, 'encrypt');
+                jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+                  {
+                    type: KeyringTypes.hd,
+                    data: {
+                      accounts: ['0x123'],
+                    },
+                  },
+                ]);
+
+                await controller.submitPassword(password);
+
+                expect(encryptSpy).toHaveBeenCalledTimes(1);
+              },
+            );
+          });
+
+        !cacheEncryptionKey &&
+          it('should not upgrade the vault encryption if the generic encryptor has the same parameters', async () => {
+            await withController(
+              {
+                skipVaultCreation: true,
+                cacheEncryptionKey,
+                state: { vault: 'my vault' },
+              },
+              async ({ controller, encryptor }) => {
+                jest.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(true);
                 const encryptSpy = jest.spyOn(encryptor, 'encrypt');
                 jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
                   {
