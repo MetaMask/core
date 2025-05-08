@@ -3005,32 +3005,35 @@ describe('KeyringController', () => {
             );
           });
 
-        !cacheEncryptionKey &&
-          it('should not upgrade the vault encryption if the generic encryptor has the same parameters', async () => {
-            await withController(
-              {
-                skipVaultCreation: true,
-                cacheEncryptionKey,
-                state: { vault: 'my vault' },
-              },
-              async ({ controller, encryptor }) => {
-                jest.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(true);
-                const encryptSpy = jest.spyOn(encryptor, 'encrypt');
-                jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
-                  {
-                    type: KeyringTypes.hd,
-                    data: {
-                      accounts: ['0x123'],
-                    },
+        it('should not upgrade the vault encryption if the encryptor has the same parameters and the keyring has metadata', async () => {
+          await withController(
+            {
+              skipVaultCreation: true,
+              cacheEncryptionKey,
+              state: { vault: 'my vault' },
+            },
+            async ({ controller, encryptor }) => {
+              jest.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(true);
+              const encryptSpy = jest.spyOn(encryptor, 'encrypt');
+              jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+                {
+                  type: KeyringTypes.hd,
+                  data: {
+                    accounts: ['0x123'],
                   },
-                ]);
+                  metadata: {
+                    id: '123',
+                    name: '',
+                  },
+                },
+              ]);
 
-                await controller.submitPassword(password);
+              await controller.submitPassword(password);
 
-                expect(encryptSpy).toHaveBeenCalledTimes(1);
-              },
-            );
-          });
+              expect(encryptSpy).not.toHaveBeenCalled();
+            },
+          );
+        });
 
         !cacheEncryptionKey &&
           it('should throw error if password is of wrong type', async () => {
