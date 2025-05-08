@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/controller-utils` to `^11.8.0` ([#5765](https://github.com/MetaMask/core/pull/5765))
-- Added `isUnifiedUIEnabled` flag to `ChainConfiguration` feature-flag type and update validators accordingly ([5783](https://github.com/MetaMask/core/pull/5783))
+- Added `isUnifiedUIEnabled` flag to `ChainConfiguration` feature-flag type and update validators accordingly ([#5783](https://github.com/MetaMask/core/pull/5783))
 
 ## [21.0.0]
 
