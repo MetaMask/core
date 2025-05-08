@@ -120,9 +120,10 @@ export class SequentialPublishBatchHook {
         return true;
       }
 
-      await new Promise((resolve) =>
+      const waitPromise = new Promise((resolve) =>
         setTimeout(resolve, TRANSACTION_CHECK_INTERVAL),
       );
+      await waitPromise;
 
       attempts += 1;
     }
@@ -150,13 +151,24 @@ export class SequentialPublishBatchHook {
         transactionHash,
         networkClientId,
       );
-      const isSuccess = receipt?.status === RECEIPT_STATUS_SUCCESS;
-      const isFailure = receipt?.status === RECEIPT_STATUS_FAILURE;
+      if (!receipt) {
+        return false;
+      }
 
-      return isSuccess || isFailure;
+      const { status } = receipt;
+
+      if (status === RECEIPT_STATUS_SUCCESS) {
+        return true;
+      }
+
+      if (status === RECEIPT_STATUS_FAILURE) {
+        throw new Error(`Transaction ${transactionHash} failed.`);
+      }
+
+      return false;
     } catch (error) {
       log('Error checking transaction status', { transactionHash, error });
-      return false;
+      throw error;
     }
   }
 }
