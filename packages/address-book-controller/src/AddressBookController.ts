@@ -86,6 +86,22 @@ export type AddressBookControllerGetStateAction = ControllerGetStateAction<
 >;
 
 /**
+ * Event emitted when a contact is added or updated
+ */
+export type AddressBookControllerContactUpdatedEvent = {
+  type: `${typeof controllerName}:contactUpdated`;
+  payload: [AddressBookEntry];
+};
+
+/**
+ * Event emitted when a contact is deleted
+ */
+export type AddressBookControllerContactDeletedEvent = {
+  type: `${typeof controllerName}:contactDeleted`;
+  payload: [AddressBookEntry];
+};
+
+/**
  * The actions that can be performed using the {@link AddressBookController}.
  */
 export type AddressBookControllerActions = AddressBookControllerGetStateAction;
@@ -101,7 +117,10 @@ export type AddressBookControllerStateChangeEvent = ControllerStateChangeEvent<
 /**
  * The events that {@link AddressBookController} can emit.
  */
-export type AddressBookControllerEvents = AddressBookControllerStateChangeEvent;
+export type AddressBookControllerEvents = 
+  | AddressBookControllerStateChangeEvent
+  | AddressBookControllerContactUpdatedEvent
+  | AddressBookControllerContactDeletedEvent;
 
 const addressBookControllerMetadata = {
   addressBook: { persist: true, anonymous: false },
@@ -188,12 +207,19 @@ export class AddressBookController extends BaseController<
       return false;
     }
 
+    const deletedEntry = { ...this.state.addressBook[chainId][address] };
+
     this.update((state) => {
       delete state.addressBook[chainId][address];
       if (Object.keys(state.addressBook[chainId]).length === 0) {
         delete state.addressBook[chainId];
       }
     });
+
+    this.messagingSystem.publish(
+      'AddressBookController:contactDeleted',
+      deletedEntry,
+    );
 
     return true;
   }
@@ -244,6 +270,11 @@ export class AddressBookController extends BaseController<
         },
       };
     });
+
+    this.messagingSystem.publish(
+      'AddressBookController:contactUpdated',
+      entry,
+    );
 
     return true;
   }
