@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add event `MultichainAssetsController:accountAssetListUpdated` in MultichainAssetsController to notify when new assets are detected for an account ([#5761](https://github.com/MetaMask/core/pull/5761))
+
+### Changed
+
+- **BREAKING:** Removed subscription to `MultichainAssetsController:stateChange` in `MultichainAssetsRatesController` and add subscription to `MultichainAssetsController:accountAssetListUpdated` ([#5761](https://github.com/MetaMask/core/pull/5761))
+- **BREAKING:** Removed subscription to `MultichainAssetsController:stateChange` in `MultichainBalancesController` and add subscription to `MultichainAssetsController:accountAssetListUpdated` ([#5761](https://github.com/MetaMask/core/pull/5761))
+
 ## [61.1.0]
 
 ### Changed
