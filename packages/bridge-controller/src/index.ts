@@ -28,7 +28,6 @@ export type {
   L1GasFees,
   SolanaFees,
   QuoteMetadata,
-  BridgeToken,
   GasMultiplierByChainId,
   FeatureFlagResponse,
   BridgeAsset,
