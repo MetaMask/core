@@ -6,7 +6,7 @@ import type { AccountsControllerState } from '../../../../accounts-controller/sr
 import { DEFAULT_BRIDGE_CONTROLLER_STATE } from '../../constants/bridge';
 import type { BridgeControllerState, QuoteResponse, TxData } from '../../types';
 import { type GenericQuoteRequest, type QuoteRequest } from '../../types';
-import { getNativeAssetForChainId } from '../bridge';
+import { getNativeAssetForChainId, isCrossChainTx } from '../bridge';
 import {
   formatAddressToAssetId,
   formatChainIdToCaip,
@@ -51,12 +51,12 @@ export const getActionType = (
 ) => {
   if (
     srcChainId &&
-    formatChainIdToCaip(srcChainId) ===
-      formatChainIdToCaip(destChainId ?? srcChainId)
+    isCrossChainTx(srcChainId, destChainId ?? srcChainId)
   ) {
-    return MetricsActionType.SWAPBRIDGE_V1;
-  }
-  return MetricsActionType.CROSSCHAIN_V1;
+    return MetricsActionType.CROSSCHAIN_V1;
+    
+  } return MetricsActionType.SWAPBRIDGE_V1;
+  
 };
 
 export const getActionTypeFromQuoteRequest = (
@@ -71,12 +71,12 @@ export const getSwapType = (
 ) => {
   if (
     srcChainId &&
-    formatChainIdToCaip(srcChainId) ===
-      formatChainIdToCaip(destChainId ?? srcChainId)
+    isCrossChainTx(srcChainId, destChainId ?? srcChainId)
   ) {
-    return MetricsSwapType.SINGLE;
+    return MetricsSwapType.CROSSCHAIN;
   }
-  return MetricsSwapType.CROSSCHAIN;
+  
+  return MetricsSwapType.SINGLE;
 };
 
 export const getSwapTypeFromQuote = (
