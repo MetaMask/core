@@ -164,9 +164,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     // setup subscriptions to the keyring lock event
     // when the keyring is locked (wallet is locked), the controller will be cleared of its credentials
     this.messagingSystem.subscribe('KeyringController:lock', () => {
-      this.setLocked().catch((error) => {
-        log('Error setting controller to locked state', error);
-      });
+      this.setLocked();
     });
     this.messagingSystem.subscribe('KeyringController:unlock', () => {
       this.#setUnlocked();
@@ -481,15 +479,13 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    *
    * @returns A promise that resolves to the success of the operation.
    */
-  async setLocked(): Promise<void> {
-    return this.#withControllerLock(async () => {
-      this.update((state) => {
-        delete state.vaultEncryptionKey;
-        delete state.vaultEncryptionSalt;
-      });
-
-      this.#isUnlocked = false;
+  setLocked() {
+    this.update((state) => {
+      delete state.vaultEncryptionKey;
+      delete state.vaultEncryptionSalt;
     });
+
+    this.#isUnlocked = false;
   }
 
   /**
