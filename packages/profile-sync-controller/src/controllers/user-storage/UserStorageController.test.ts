@@ -1017,7 +1017,6 @@ describe('user-storage/user-storage-controller - snap handling', () => {
     messengerMocks.mockKeyringGetState.mockReturnValue({
       isUnlocked: false,
       keyrings: [],
-      keyringsMetadata: [],
     });
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
@@ -1034,7 +1033,6 @@ describe('user-storage/user-storage-controller - snap handling', () => {
     messengerMocks.mockKeyringGetState.mockReturnValue({
       isUnlocked: true,
       keyrings: [],
-      keyringsMetadata: [],
     });
 
     const controller = new UserStorageController({
