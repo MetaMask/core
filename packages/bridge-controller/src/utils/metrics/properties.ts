@@ -51,12 +51,11 @@ export const getActionType = (
 ) => {
   if (
     srcChainId &&
-    isCrossChainTx(srcChainId, destChainId ?? srcChainId)
+   ! isCrossChainTx(srcChainId, destChainId ?? srcChainId)
   ) {
-    return MetricsActionType.CROSSCHAIN_V1;
-    
-  } return MetricsActionType.SWAPBRIDGE_V1;
-  
+    return MetricsActionType.SWAPBRIDGE_V1; 
+  }
+  return MetricsActionType.CROSSCHAIN_V1;
 };
 
 export const getActionTypeFromQuoteRequest = (
@@ -71,12 +70,11 @@ export const getSwapType = (
 ) => {
   if (
     srcChainId &&
-    isCrossChainTx(srcChainId, destChainId ?? srcChainId)
+    !isCrossChainTx(srcChainId, destChainId ?? srcChainId)
   ) {
-    return MetricsSwapType.CROSSCHAIN;
+    return MetricsSwapType.SINGLE;
   }
-  
-  return MetricsSwapType.SINGLE;
+  return MetricsSwapType.CROSSCHAIN;  
 };
 
 export const getSwapTypeFromQuote = (
