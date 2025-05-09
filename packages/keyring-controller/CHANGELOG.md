@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The metadata is now stored in each keyring object in the `state.keyrings` array.
   - When updating to this version, we recommend removing the `keyringsMetadata` state and all state referencing a keyring ID with a migration. New metadata will be generated for each keyring automatically after the update.
 
+### Fixed
+
+- Discard keyrings with duplicate accounts when unlock the wallet ([#5775](https://github.com/MetaMask/core/pull/5775))
+
 ## [21.0.6]
 
 ### Changed

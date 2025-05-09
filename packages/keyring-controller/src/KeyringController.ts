@@ -2432,13 +2432,18 @@ export class KeyringController extends BaseController<
    * Retrieves all the accounts from keyrings instances
    * that are currently in memory.
    *
+   * @param additionalKeyrings - Additional keyrings to include in the search.
    * @returns A promise resolving to an array of accounts.
    */
-  async #getAccountsFromKeyrings(): Promise<string[]> {
-    const keyrings = this.#keyrings;
+  async #getAccountsFromKeyrings(
+    additionalKeyrings: EthKeyring[] = [],
+  ): Promise<string[]> {
+    const keyrings = this.#keyrings.map(({ keyring }) => keyring);
 
     const keyringArrays = await Promise.all(
-      keyrings.map(async ({ keyring }) => keyring.getAccounts()),
+      [...keyrings, ...additionalKeyrings].map(async (keyring) =>
+        keyring.getAccounts(),
+      ),
     );
     const addresses = keyringArrays.reduce((res, arr) => {
       return res.concat(arr);
@@ -2584,6 +2589,7 @@ export class KeyringController extends BaseController<
       let newMetadata = false;
       let metadata = serializedMetadata;
       const keyring = await this.#createKeyring(type, data);
+      await this.#assertNoDuplicateAccounts([keyring]);
       // If metadata is missing, assume the data is from an installation before
       // we had keyring metadata.
       if (!metadata) {
@@ -2648,10 +2654,13 @@ export class KeyringController extends BaseController<
   /**
    * Assert that there are no duplicate accounts in the keyrings.
    *
+   * @param additionalKeyrings - Additional keyrings to include in the check.
    * @throws If there are duplicate accounts.
    */
-  async #assertNoDuplicateAccounts(): Promise<void> {
-    const accounts = await this.#getAccountsFromKeyrings();
+  async #assertNoDuplicateAccounts(
+    additionalKeyrings: EthKeyring[] = [],
+  ): Promise<void> {
+    const accounts = await this.#getAccountsFromKeyrings(additionalKeyrings);
 
     if (new Set(accounts).size !== accounts.length) {
       throw new Error(KeyringControllerError.DuplicatedAccount);
