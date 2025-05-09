@@ -2923,6 +2923,32 @@ describe('KeyringController', () => {
           );
         });
 
+        it('should unlock the wallet also if encryption parameters are outdated the vault upgrade fails', async () => {
+          await withController(
+            {
+              skipVaultCreation: true,
+              cacheEncryptionKey,
+              state: { vault: 'my vault' },
+            },
+            async ({ controller, encryptor }) => {
+              jest.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(false);
+              jest.spyOn(encryptor, 'encrypt').mockRejectedValue(new Error());
+              jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+                {
+                  type: KeyringTypes.hd,
+                  data: {
+                    accounts: ['0x123'],
+                  },
+                },
+              ]);
+
+              await controller.submitPassword(password);
+
+              expect(controller.state.isUnlocked).toBe(true);
+            },
+          );
+        });
+
         it('should unlock the wallet discarding existing duplicate accounts', async () => {
           stubKeyringClassWithAccount(MockKeyring, '0x123');
           // @ts-expect-error HdKeyring is not yet compatible with Keyring type.
