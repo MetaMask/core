@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [55.1.0]
+
 ### Changed
 
 - Bump `@metamask/controller-utils` to `^11.8.0` ([#5765](https://github.com/MetaMask/core/pull/5765))
@@ -1569,7 +1571,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@55.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@55.1.0...HEAD
+[55.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@55.0.0...@metamask/transaction-controller@55.1.0
 [55.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@54.4.0...@metamask/transaction-controller@55.0.0
 [54.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@54.3.0...@metamask/transaction-controller@54.4.0
 [54.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@54.2.0...@metamask/transaction-controller@54.3.0
