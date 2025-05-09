@@ -2555,7 +2555,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/assets-controllers@npm:^61.1.0, @metamask/assets-controllers@workspace:packages/assets-controllers":
+"@metamask/assets-controllers@npm:^62.0.0, @metamask/assets-controllers@workspace:packages/assets-controllers":
   version: 0.0.0-use.local
   resolution: "@metamask/assets-controllers@workspace:packages/assets-controllers"
   dependencies:
@@ -2589,7 +2589,7 @@ __metadata:
     "@metamask/snaps-controllers": "npm:^11.2.1"
     "@metamask/snaps-sdk": "npm:^6.22.0"
     "@metamask/snaps-utils": "npm:^9.2.0"
-    "@metamask/transaction-controller": "npm:^55.0.0"
+    "@metamask/transaction-controller": "npm:^55.0.1"
     "@metamask/utils": "npm:^11.2.0"
     "@types/bn.js": "npm:^5.1.5"
     "@types/jest": "npm:^27.4.1"
@@ -2689,7 +2689,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/bridge-controller@npm:^21.0.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
+"@metamask/bridge-controller@npm:^22.0.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-controller@workspace:packages/bridge-controller"
   dependencies:
@@ -2699,7 +2699,7 @@ __metadata:
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
     "@metamask/accounts-controller": "npm:^28.0.0"
-    "@metamask/assets-controllers": "npm:^61.1.0"
+    "@metamask/assets-controllers": "npm:^62.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.1"
     "@metamask/controller-utils": "npm:^11.8.0"
@@ -2713,7 +2713,7 @@ __metadata:
     "@metamask/remote-feature-flag-controller": "npm:^1.6.0"
     "@metamask/snaps-controllers": "npm:^11.2.1"
     "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/transaction-controller": "npm:^55.0.0"
+    "@metamask/transaction-controller": "npm:^55.0.1"
     "@metamask/utils": "npm:^11.2.0"
     "@types/jest": "npm:^27.4.1"
     bignumber.js: "npm:^9.1.2"
@@ -2729,7 +2729,7 @@ __metadata:
     typescript: "npm:~5.2.2"
   peerDependencies:
     "@metamask/accounts-controller": ^28.0.0
-    "@metamask/assets-controllers": ^61.0.0
+    "@metamask/assets-controllers": ^62.0.0
     "@metamask/network-controller": ^23.0.0
     "@metamask/remote-feature-flag-controller": ^1.6.0
     "@metamask/snaps-controllers": ^11.0.0
@@ -2744,7 +2744,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^28.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.1"
-    "@metamask/bridge-controller": "npm:^21.0.0"
+    "@metamask/bridge-controller": "npm:^22.0.0"
     "@metamask/controller-utils": "npm:^11.8.0"
     "@metamask/gas-fee-controller": "npm:^23.0.0"
     "@metamask/keyring-api": "npm:^17.4.0"
@@ -2752,7 +2752,7 @@ __metadata:
     "@metamask/polling-controller": "npm:^13.0.0"
     "@metamask/snaps-controllers": "npm:^11.2.1"
     "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/transaction-controller": "npm:^55.0.0"
+    "@metamask/transaction-controller": "npm:^55.0.1"
     "@metamask/user-operation-controller": "npm:^34.0.0"
     "@metamask/utils": "npm:^11.2.0"
     "@types/jest": "npm:^27.4.1"
@@ -2769,7 +2769,7 @@ __metadata:
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/accounts-controller": ^28.0.0
-    "@metamask/bridge-controller": ^21.0.0
+    "@metamask/bridge-controller": ^22.0.0
     "@metamask/gas-fee-controller": ^23.0.0
     "@metamask/network-controller": ^23.0.0
     "@metamask/snaps-controllers": ^11.0.0
@@ -3003,7 +3003,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^11.8.0"
     "@metamask/network-controller": "npm:^23.4.0"
     "@metamask/stake-sdk": "npm:^1.0.0"
-    "@metamask/transaction-controller": "npm:^55.0.0"
+    "@metamask/transaction-controller": "npm:^55.0.1"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
@@ -4458,7 +4458,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/transaction-controller@npm:^55.0.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
+"@metamask/transaction-controller@npm:^55.0.1, @metamask/transaction-controller@workspace:packages/transaction-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-controller@workspace:packages/transaction-controller"
   dependencies:
@@ -4531,7 +4531,7 @@ __metadata:
     "@metamask/polling-controller": "npm:^13.0.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/transaction-controller": "npm:^55.0.0"
+    "@metamask/transaction-controller": "npm:^55.0.1"
     "@metamask/utils": "npm:^11.2.0"
     "@types/jest": "npm:^27.4.1"
     bn.js: "npm:^5.2.1"
