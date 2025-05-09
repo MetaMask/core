@@ -157,9 +157,11 @@ export const isNativeAddress = (address?: string | null) =>
   address === '' || // assets controllers set the native asset address to an empty string
   !address ||
   (!isStrictHexString(address) &&
-    Object.values(SYMBOL_TO_SLIP44_MAP).some((assetId) =>
-      assetId.endsWith(address),
-    )); // solana and EVM native assetId used in the extension client
+    Object.values(ChainId).some((chainId) =>
+      getNativeAssetForChainId(
+        ChainId[chainId as keyof typeof ChainId],
+      )?.assetId?.endsWith(address),
+    ));
 
 /**
  * Checks whether the chainId matches Solana in CaipChainId or number format
