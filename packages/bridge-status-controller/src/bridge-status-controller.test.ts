@@ -11,7 +11,7 @@ import { EthAccountType } from '@metamask/keyring-api';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
-import { numberToHex } from '@metamask/utils';  
+import { numberToHex } from '@metamask/utils';
 
 import { BridgeStatusController } from './bridge-status-controller';
 import { DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE } from './constants';
@@ -1840,7 +1840,7 @@ describe('BridgeStatusController', () => {
         .mockResolvedValueOnce();
       const mockTraceFn = jest
         .fn()
-        .mockImplementation((p, callback) => callback());
+        .mockImplementation((_p, callback) => callback());
 
       setupApprovalMocks();
       setupBridgeMocks();
