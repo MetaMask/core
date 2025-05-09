@@ -64,6 +64,7 @@ export type ChainConfiguration = {
   isActiveDest: boolean;
   refreshRate?: number;
   topAssets?: string[];
+  isUnifiedUIEnabled?: boolean;
 };
 
 export type L1GasFees = {
