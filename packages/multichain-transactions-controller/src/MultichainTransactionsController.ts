@@ -23,14 +23,11 @@ import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import {
-  KnownCaipNamespace,
-  parseCaipChainId,
+  type CaipChainId,
   type Json,
   type JsonRpcRequest,
 } from '@metamask/utils';
 import type { Draft } from 'immer';
-
-import { MultichainNetwork } from './constants';
 
 const controllerName = 'MultichainTransactionsController';
 
@@ -51,7 +48,9 @@ export type PaginationOptions = {
  */
 export type MultichainTransactionsControllerState = {
   nonEvmTransactions: {
-    [accountId: string]: TransactionStateEntry;
+    [accountId: string]: {
+      [chain: CaipChainId]: TransactionStateEntry;
+    };
   };
 };
 
@@ -156,7 +155,7 @@ const multichainTransactionsControllerMetadata = {
 };
 
 /**
- * The state of transactions for a specific account.
+ * The state of transactions for a specific chain.
  */
 export type TransactionStateEntry = {
   transactions: Transaction[];
@@ -285,16 +284,36 @@ export class MultichainTransactionsController extends BaseController<
           { limit: 10 },
         );
 
-        const transactions = this.#filterTransactions(response.data);
+        const transactionsByChain: Record<CaipChainId, Transaction[]> = {};
+
+        response.data.forEach((transaction) => {
+          const { chain } = transaction;
+
+          if (!transactionsByChain[chain]) {
+            transactionsByChain[chain] = [];
+          }
+          transactionsByChain[chain].push(transaction);
+        });
+
+        const chainUpdates = Object.entries(transactionsByChain).map(
+          ([chain, transactions]) => ({
+            chain,
+            entry: {
+              transactions,
+              next: response.next,
+              lastUpdated: Date.now(),
+            },
+          }),
+        );
 
         this.update((state: Draft<MultichainTransactionsControllerState>) => {
-          const entry: TransactionStateEntry = {
-            transactions,
-            next: response.next,
-            lastUpdated: Date.now(),
-          };
+          if (!state.nonEvmTransactions[account.id]) {
+            state.nonEvmTransactions[account.id] = {};
+          }
 
-          Object.assign(state.nonEvmTransactions, { [account.id]: entry });
+          chainUpdates.forEach(({ chain, entry }) => {
+            state.nonEvmTransactions[account.id][chain as CaipChainId] = entry;
+          });
         });
       }
     } catch (error) {
@@ -303,27 +322,6 @@ export class MultichainTransactionsController extends BaseController<
         error,
       );
     }
-  }
-
-  /**
-   * Filters transactions to only include mainnet Solana transactions for Solana chains.
-   * Non-Solana chain transactions are kept as is.
-   *
-   * @param transactions - Array of transactions to filter
-   * @returns Filtered transactions array
-   */
-  #filterTransactions(transactions: Transaction[]): Transaction[] {
-    return transactions.filter((tx) => {
-      const chain = tx.chain as MultichainNetwork;
-      const { namespace } = parseCaipChainId(chain);
-
-      // Enum comparison is safe here as we control both enum values
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
-      if (namespace === KnownCaipNamespace.Solana) {
-        return chain === MultichainNetwork.Solana;
-      }
-      return true;
-    });
   }
 
   /**
@@ -395,7 +393,10 @@ export class MultichainTransactionsController extends BaseController<
   #handleOnAccountTransactionsUpdated(
     transactionsUpdate: AccountTransactionsUpdatedEventPayload,
   ): void {
-    const updatedTransactions: Record<string, Transaction[]> = {};
+    const updatedTransactions: Record<
+      string,
+      Record<CaipChainId, Transaction[]>
+    > = {};
     const transactionsToPublish: Transaction[] = [];
 
     if (!transactionsUpdate?.transactions) {
@@ -404,45 +405,63 @@ export class MultichainTransactionsController extends BaseController<
 
     Object.entries(transactionsUpdate.transactions).forEach(
       ([accountId, newTransactions]) => {
-        // Account might not have any transactions yet, so use `[]` in that case.
-        const oldTransactions =
-          this.state.nonEvmTransactions[accountId]?.transactions ?? [];
+        updatedTransactions[accountId] = {};
 
-        const filteredNewTransactions =
-          this.#filterTransactions(newTransactions);
+        newTransactions.forEach((tx) => {
+          const { chain } = tx;
 
-        // Uses a `Map` to deduplicate transactions by ID, ensuring we keep the latest version
-        // of each transaction while preserving older transactions and transactions from other accounts.
-        // Transactions are sorted by timestamp (newest first).
-        const transactions = new Map();
+          if (!updatedTransactions[accountId][chain]) {
+            updatedTransactions[accountId][chain] = [];
+          }
 
-        oldTransactions.forEach((tx) => {
-          transactions.set(tx.id, tx);
-        });
-
-        filteredNewTransactions.forEach((tx) => {
-          transactions.set(tx.id, tx);
+          updatedTransactions[accountId][chain].push(tx);
           transactionsToPublish.push(tx);
         });
 
-        // Sorted by timestamp (newest first). If the timestamp is not provided, those
-        // transactions will be put in the end of this list.
-        updatedTransactions[accountId] = Array.from(transactions.values()).sort(
-          (a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0),
+        Object.entries(updatedTransactions[accountId]).forEach(
+          ([chain, chainTransactions]) => {
+            // Account might not have any transactions yet, so use `[]` in that case.
+            const oldTransactions =
+              this.state.nonEvmTransactions[accountId]?.[chain as CaipChainId]
+                ?.transactions ?? [];
+
+            // Uses a `Map` to deduplicate transactions by ID, ensuring we keep the latest version
+            // of each transaction while preserving older transactions and transactions from other accounts.
+            // Transactions are sorted by timestamp (newest first).
+            const transactions = new Map();
+
+            oldTransactions.forEach((tx) => {
+              transactions.set(tx.id, tx);
+            });
+
+            chainTransactions.forEach((tx) => {
+              transactions.set(tx.id, tx);
+            });
+
+            // Sorted by timestamp (newest first). If the timestamp is not provided, those
+            // transactions will be put in the end of this list.
+            updatedTransactions[accountId][chain as CaipChainId] = Array.from(
+              transactions.values(),
+            ).sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
+          },
         );
       },
     );
 
     this.update((state) => {
-      Object.entries(updatedTransactions).forEach(
-        ([accountId, transactions]) => {
-          state.nonEvmTransactions[accountId] = {
-            ...state.nonEvmTransactions[accountId],
+      Object.entries(updatedTransactions).forEach(([accountId, chainsData]) => {
+        if (!state.nonEvmTransactions[accountId]) {
+          state.nonEvmTransactions[accountId] = {};
+        }
+
+        Object.entries(chainsData).forEach(([chain, transactions]) => {
+          state.nonEvmTransactions[accountId][chain as CaipChainId] = {
             transactions,
+            next: null,
             lastUpdated: Date.now(),
           };
-        },
-      );
+        });
+      });
     });
 
     // After we update the state, publish the events for new/updated transactions
