@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Removed subscription to `MultichainAssetsController:stateChange` in `MultichainAssetsRatesController` and add subscription to `MultichainAssetsController:accountAssetListUpdated` ([#5761](https://github.com/MetaMask/core/pull/5761))
 - **BREAKING:** Removed subscription to `MultichainAssetsController:stateChange` in `MultichainBalancesController` and add subscription to `MultichainAssetsController:accountAssetListUpdated` ([#5761](https://github.com/MetaMask/core/pull/5761))
-- Improve controller constructor by moving async logic to it's own method  ([#5781](https://github.com/MetaMask/core/pull/5781))
+- Improve controller constructor by moving async logic to it's own method ([#5781](https://github.com/MetaMask/core/pull/5781))
 
 ## [61.1.0]
 
