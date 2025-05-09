@@ -2768,7 +2768,7 @@ describe('KeyringController', () => {
           );
         });
 
-        !cacheEncryptionKey &&
+        cacheEncryptionKey &&
           it('should generate new metadata when there is no metadata in the vault and cacheEncryptionKey is enabled', async () => {
             const hdKeyringSerializeSpy = jest.spyOn(
               HdKeyring.prototype,
