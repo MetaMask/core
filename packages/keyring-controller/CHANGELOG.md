@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING** `keyringsMetadata` has been removed from the controller state ([#5725](https://github.com/MetaMask/core/pull/5725))
+  - The metadata is now stored in each keyring object in the `state.keyrings` array.
+  - When updating to this version, we recommend removing the `keyringsMetadata` state and all state referencing a keyring ID with a migration. New metadata will be generated for each keyring automatically after the update.
+
 ## [21.0.6]
 
 ### Changed

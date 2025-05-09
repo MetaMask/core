@@ -132,7 +132,6 @@ export function mockUserStorageMessenger(
   ).mockReturnValue({
     isUnlocked: true,
     keyrings: [],
-    keyringsMetadata: [],
   });
 
   const mockAccountsListAccounts = jest.fn();
