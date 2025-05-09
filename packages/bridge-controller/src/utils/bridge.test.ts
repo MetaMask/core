@@ -6,6 +6,7 @@ import type { Hex } from '@metamask/utils';
 import {
   getEthUsdtResetData,
   getNativeAssetForChainId,
+  isCrossChain,
   isEthUsdt,
   isSolanaChainId,
   isSwapsDefaultTokenAddress,
@@ -200,6 +201,23 @@ describe('Bridge utils', () => {
       expect(hexResult).toStrictEqual(decimalResult);
       expect(decimalResult).toStrictEqual(caipResult);
       expect(decimalResult).toStrictEqual(stringifiedDecimalResult);
+    });
+  });
+
+  describe('isCrossChain', () => {
+    it('should return false when there is no destChainId', () => {
+      const result = isCrossChain('0x1');
+      expect(result).toBe(false);
+    });
+
+    it('should return false when srcChainId is invalid', () => {
+      const result = isCrossChain('a', '0x1');
+      expect(result).toBe(false);
+    });
+
+    it('should return false when destChainId is invalid', () => {
+      const result = isCrossChain('0x1', 'a');
+      expect(result).toBe(false);
     });
   });
 });

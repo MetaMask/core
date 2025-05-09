@@ -21,7 +21,11 @@ import {
   SYMBOL_TO_SLIP44_MAP,
   type SupportedSwapsNativeCurrencySymbols,
 } from '../constants/tokens';
-import type { BridgeAsset, BridgeControllerState } from '../types';
+import type {
+  BridgeAsset,
+  BridgeControllerState,
+  GenericQuoteRequest,
+} from '../types';
 import { ChainId } from '../types';
 
 export const getDefaultBridgeControllerState = (): BridgeControllerState => {
@@ -174,4 +178,25 @@ export const isSolanaChainId = (
     return chainId === SolScope.Mainnet.toString();
   }
   return chainId.toString() === ChainId.SOLANA.toString();
+};
+
+/**
+ * Checks whether the transaction is a cross-chain transaction by comparing the source and destination chainIds
+ *
+ * @param srcChainId - The source chainId
+ * @param destChainId - The destination chainId
+ * @returns Whether the transaction is a cross-chain transaction
+ */
+export const isCrossChain = (
+  srcChainId: GenericQuoteRequest['srcChainId'],
+  destChainId?: GenericQuoteRequest['destChainId'],
+) => {
+  try {
+    if (!destChainId) {
+      return false;
+    }
+    return formatChainIdToCaip(srcChainId) !== formatChainIdToCaip(destChainId);
+  } catch {
+    return false;
+  }
 };
