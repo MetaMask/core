@@ -219,5 +219,5 @@ describe('Bridge utils', () => {
       const result = isCrossChain('0x1', 'a');
       expect(result).toBe(false);
     });
-  })
+  });
 });

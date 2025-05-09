@@ -1838,13 +1838,17 @@ describe('BridgeStatusController', () => {
       const handleLineaDelaySpy = jest
         .spyOn(transactionUtils, 'handleLineaDelay')
         .mockResolvedValueOnce();
-      const mockTraceFn = jest.fn().mockImplementation((p,callback) => callback());
+      const mockTraceFn = jest
+        .fn()
+        .mockImplementation((p, callback) => callback());
 
       setupApprovalMocks();
       setupBridgeMocks();
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall, mockTraceFn);
+      const { controller, startPollingForBridgeTxStatusSpy } = getController(
+        mockMessengerCall,
+        mockTraceFn,
+      );
 
       const lineaQuoteResponse = {
         ...mockEvmQuoteResponse,

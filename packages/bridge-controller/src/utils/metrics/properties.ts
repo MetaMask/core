@@ -49,11 +49,8 @@ export const getActionType = (
   srcChainId?: GenericQuoteRequest['srcChainId'],
   destChainId?: GenericQuoteRequest['destChainId'],
 ) => {
-  if (
-    srcChainId &&
-   ! isCrossChain(srcChainId, destChainId ?? srcChainId)
-  ) {
-    return MetricsActionType.SWAPBRIDGE_V1; 
+  if (srcChainId && !isCrossChain(srcChainId, destChainId ?? srcChainId)) {
+    return MetricsActionType.SWAPBRIDGE_V1;
   }
   return MetricsActionType.CROSSCHAIN_V1;
 };
@@ -68,13 +65,10 @@ export const getSwapType = (
   srcChainId?: GenericQuoteRequest['srcChainId'],
   destChainId?: GenericQuoteRequest['destChainId'],
 ) => {
-  if (
-    srcChainId &&
-    !isCrossChain(srcChainId, destChainId ?? srcChainId)
-  ) {
+  if (srcChainId && !isCrossChain(srcChainId, destChainId ?? srcChainId)) {
     return MetricsSwapType.SINGLE;
   }
-  return MetricsSwapType.CROSSCHAIN;  
+  return MetricsSwapType.CROSSCHAIN;
 };
 
 export const getSwapTypeFromQuote = (
