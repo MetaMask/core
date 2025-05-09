@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Improve controllers constructor by moving async logic to it's own method  ([#5781](https://github.com/MetaMask/core/pull/5781))
+
 ## [0.10.0]
 
 ### Changed
