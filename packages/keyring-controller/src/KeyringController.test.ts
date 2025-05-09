@@ -2951,6 +2951,7 @@ describe('KeyringController', () => {
               await controller.submitPassword(password);
 
               expect(controller.state.keyrings).toHaveLength(1);
+              expect(unlockListener).toHaveBeenCalledTimes(1);
             },
           );
         });
