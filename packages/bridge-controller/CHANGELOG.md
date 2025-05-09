@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Update `isNativeAddress` util to identify native addresses based on known supported SLIP44 assetIds for EVM and Solana
+
 ## [22.0.0]
 
 ### Changed
