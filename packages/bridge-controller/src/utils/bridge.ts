@@ -157,11 +157,11 @@ export const isNativeAddress = (address?: string | null) =>
   address === '' || // assets controllers set the native asset address to an empty string
   !address ||
   (!isStrictHexString(address) &&
-    Object.values(ChainId).some((chainId) =>
-      getNativeAssetForChainId(
-        ChainId[chainId as keyof typeof ChainId],
-      )?.assetId?.endsWith(address),
-    ));
+    Object.values(ChainId)
+      .filter((chainId) => typeof chainId === 'number')
+      .some((chainId) =>
+        getNativeAssetForChainId(chainId)?.assetId?.endsWith(address),
+      ));
 
 /**
  * Checks whether the chainId matches Solana in CaipChainId or number format
