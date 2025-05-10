@@ -156,10 +156,12 @@ export const isNativeAddress = (address?: string | null) =>
   address === AddressZero || // bridge and swap apis set the native asset address to zero
   address === '' || // assets controllers set the native asset address to an empty string
   !address ||
-  address.endsWith('11111111111111111111111111111111') || // token-api and bridge-api use this as the solana native assetId
-  [getNativeAssetForChainId(ChainId.SOLANA).assetId].some(
-    (assetId) => assetId.includes(address) && !isStrictHexString(address),
-  ); // solana native assetId used in the extension client
+  (!isStrictHexString(address) &&
+    Object.values(ChainId)
+      .filter((chainId) => typeof chainId === 'number')
+      .some((chainId) =>
+        getNativeAssetForChainId(chainId)?.assetId?.endsWith(address),
+      ));
 
 /**
  * Checks whether the chainId matches Solana in CaipChainId or number format

@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING** Rename `QuoteResponse.bridgePriceData` to `priceData` ([#5784](https://github.com/MetaMask/core/pull/5784))
 
+### Fixed
+
+- Update `isNativeAddress` util to identify native addresses based on known supported SLIP44 assetIds for EVM and Solana ([#5786](https://github.com/MetaMask/core/pull/5786))
+
 ## [22.0.0]
 
 ### Changed
