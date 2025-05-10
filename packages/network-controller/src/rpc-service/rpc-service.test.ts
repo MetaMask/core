@@ -214,7 +214,9 @@ describe('RpcService', () => {
           method: 'eth_chainId',
           params: [],
         };
-        await ignoreRejection(service.request(jsonRpcRequest));
+        await expect(service.request(jsonRpcRequest)).rejects.toThrow(
+          'Nock: No match for request',
+        );
         expect(failoverService.request).not.toHaveBeenCalled();
       });
 
@@ -236,13 +238,14 @@ describe('RpcService', () => {
         });
         service.onBreak(onBreakListener);
 
-        const promise = service.request({
-          id: 1,
-          jsonrpc: '2.0',
-          method: 'eth_chainId',
-          params: [],
-        });
-        await ignoreRejection(promise);
+        await expect(
+          service.request({
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'eth_chainId',
+            params: [],
+          }),
+        ).rejects.toThrow('Nock: No match for request');
         expect(onBreakListener).not.toHaveBeenCalled();
       });
     });
@@ -331,7 +334,7 @@ describe('RpcService', () => {
     );
 
     describe('if the endpoint has a 405 response', () => {
-      it('throws a non-existent method error without retrying the request', async () => {
+      it('returns a method not supported error response for 405 status', async () => {
         const endpointUrl = 'https://rpc.example.chain';
         nock(endpointUrl)
           .post('/', {
@@ -347,15 +350,21 @@ describe('RpcService', () => {
           endpointUrl,
         });
 
-        const promise = service.request({
+        const response = await service.request({
           id: 1,
           jsonrpc: '2.0',
           method: 'eth_unknownMethod',
           params: [],
         });
-        await expect(promise).rejects.toThrow(
-          'The method does not exist / is not available.',
-        );
+
+        expect(response).toStrictEqual({
+          id: 1,
+          jsonrpc: '2.0',
+          error: {
+            code: -32601,
+            message: 'The method does not exist / is not available.',
+          },
+        });
       });
 
       it('does not forward the request to a failover service if given one', async () => {
@@ -382,7 +391,7 @@ describe('RpcService', () => {
           method: 'eth_unknownMethod',
           params: [],
         };
-        await ignoreRejection(service.request(jsonRpcRequest));
+        await service.request(jsonRpcRequest);
         expect(failoverService.request).not.toHaveBeenCalled();
       });
 
@@ -404,19 +413,18 @@ describe('RpcService', () => {
         });
         service.onBreak(onBreakListener);
 
-        const promise = service.request({
+        await service.request({
           id: 1,
           jsonrpc: '2.0',
           method: 'eth_unknownMethod',
           params: [],
         });
-        await ignoreRejection(promise);
         expect(onBreakListener).not.toHaveBeenCalled();
       });
     });
 
     describe('if the endpoint has a 429 response', () => {
-      it('throws a rate-limiting error without retrying the request', async () => {
+      it('returns a rate limit error response for 429 status', async () => {
         const endpointUrl = 'https://rpc.example.chain';
         nock(endpointUrl)
           .post('/', {
@@ -432,13 +440,62 @@ describe('RpcService', () => {
           endpointUrl,
         });
 
-        const promise = service.request({
+        const response = await service.request({
           id: 1,
           jsonrpc: '2.0',
           method: 'eth_chainId',
           params: [],
         });
-        await expect(promise).rejects.toThrow('Request is being rate limited.');
+
+        expect(response).toStrictEqual({
+          id: 1,
+          jsonrpc: '2.0',
+          error: {
+            code: -32005,
+            message: 'Request is being rate limited.',
+            data: {
+              retryAfter: 1000,
+            },
+          },
+        });
+      });
+
+      it('includes retry delay from Retry-After header when available', async () => {
+        const endpointUrl = 'https://rpc.example.chain';
+        nock(endpointUrl)
+          .post('/', {
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'eth_chainId',
+            params: [],
+          })
+          .reply(429, '', {
+            'Retry-After': '5',
+          });
+        const service = new RpcService({
+          fetch,
+          btoa,
+          endpointUrl,
+        });
+
+        const response = await service.request({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        });
+
+        expect(response).toStrictEqual({
+          id: 1,
+          jsonrpc: '2.0',
+          error: {
+            code: -32005,
+            message: 'Request is being rate limited.',
+            data: {
+              retryAfter: 5000,
+            },
+          },
+        });
       });
 
       it('does not forward the request to a failover service if given one', async () => {
@@ -465,7 +522,7 @@ describe('RpcService', () => {
           method: 'eth_chainId',
           params: [],
         };
-        await ignoreRejection(service.request(jsonRpcRequest));
+        await service.request(jsonRpcRequest);
         expect(failoverService.request).not.toHaveBeenCalled();
       });
 
@@ -487,13 +544,12 @@ describe('RpcService', () => {
         });
         service.onBreak(onBreakListener);
 
-        const promise = service.request({
+        await service.request({
           id: 1,
           jsonrpc: '2.0',
           method: 'eth_chainId',
           params: [],
         });
-        await ignoreRejection(promise);
         expect(onBreakListener).not.toHaveBeenCalled();
       });
     });

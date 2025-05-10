@@ -333,12 +333,10 @@ export class RpcService implements AbstractRpcService {
    * @param jsonRpcRequest - The JSON-RPC request to send to the endpoint.
    * @param fetchOptions - An options bag for {@link fetch} which further
    * specifies the request.
-   * @returns The decoded JSON-RPC response from the endpoint.
-   * @throws A "method not found" error if the response status is 405.
-   * @throws A rate limiting error if the response HTTP status is 429.
+   * @returns The decoded JSON-RPC response from the endpoint. For 405 status, returns a JSON-RPC error response with code -32601.
+   * For 429 status, returns a JSON-RPC error response with code -32005.
    * @throws A timeout error if the response HTTP status is 503 or 504.
-   * @throws A generic error if the response HTTP status is not 2xx but also not
-   * 405, 429, 503, or 504.
+   * @throws A generic error if the response HTTP status is not 2xx and not one of the specifically handled status codes (405, 429, 503, 504).
    */
   async request<Params extends JsonRpcParams, Result extends Json>(
     jsonRpcRequest: JsonRpcRequest<Params> & { method: 'eth_getBlockByNumber' },
@@ -357,12 +355,10 @@ export class RpcService implements AbstractRpcService {
    * @param jsonRpcRequest - The JSON-RPC request to send to the endpoint.
    * @param fetchOptions - An options bag for {@link fetch} which further
    * specifies the request.
-   * @returns The decoded JSON-RPC response from the endpoint.
-   * @throws A "method not found" error if the response status is 405.
-   * @throws A rate limiting error if the response HTTP status is 429.
+   * @returns The decoded JSON-RPC response from the endpoint. For 405 status, returns a JSON-RPC error response with code -32601.
+   * For 429 status, returns a JSON-RPC error response with code -32005.
    * @throws A timeout error if the response HTTP status is 503 or 504.
-   * @throws A generic error if the response HTTP status is not 2xx but also not
-   * 405, 429, 503, or 504.
+   * @throws A generic error if the response HTTP status is not 2xx and not one of the specifically handled status codes (405, 429, 503, 504).
    */
   async request<Params extends JsonRpcParams, Result extends Json>(
     jsonRpcRequest: JsonRpcRequest<Params>,
@@ -465,12 +461,10 @@ export class RpcService implements AbstractRpcService {
    * @param jsonRpcRequest - The JSON-RPC request to send to the endpoint.
    * @param fetchOptions - The options for `fetch`; will be combined with the
    * fetch options passed to the constructor
-   * @returns The decoded JSON-RPC response from the endpoint.
-   * @throws A "method not found" error if the response status is 405.
-   * @throws A rate limiting error if the response HTTP status is 429.
+   * @returns The decoded JSON-RPC response from the endpoint. For 405 status, returns a JSON-RPC error response with code -32601.
+   * For 429 status, returns a JSON-RPC error response with code -32005.
    * @throws A timeout error if the response HTTP status is 503 or 504.
-   * @throws A generic error if the response HTTP status is not 2xx but also not
-   * 405, 429, 503, or 504.
+   * @throws A generic error if the response HTTP status is not 2xx and not one of the specifically handled status codes (405, 429, 503, 504).
    */
   async #executePolicy<
     Params extends JsonRpcParams,
@@ -484,11 +478,31 @@ export class RpcService implements AbstractRpcService {
       const response = await this.#fetch(this.endpointUrl, fetchOptions);
 
       if (response.status === 405) {
-        throw rpcErrors.methodNotFound();
+        return {
+          id: jsonRpcRequest.id,
+          jsonrpc: jsonRpcRequest.jsonrpc,
+          error: {
+            code: -32601,
+            message: 'The method does not exist / is not available.',
+          },
+        };
       }
 
       if (response.status === 429) {
-        throw rpcErrors.internal({ message: 'Request is being rate limited.' });
+        const retryAfter = response.headers.get('Retry-After');
+        const retryDelay = retryAfter ? parseInt(retryAfter, 10) * 1000 : 1000;
+
+        return {
+          id: jsonRpcRequest.id,
+          jsonrpc: jsonRpcRequest.jsonrpc,
+          error: {
+            code: -32005,
+            message: 'Request is being rate limited.',
+            data: {
+              retryAfter: retryDelay,
+            },
+          },
+        };
       }
 
       if (response.status === 503 || response.status === 504) {
