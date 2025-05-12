@@ -725,11 +725,11 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       const { keyringId, seedPhrase } = item;
       const backupHash = keccak256AndHexify(seedPhrase);
 
-      const existingBackupMetadata = currentBackupsMetadata.find(
+      const backupStateAlreadyExisted = currentBackupsMetadata.some(
         (backup) => backup.hash === backupHash,
       );
 
-      if (!existingBackupMetadata) {
+      if (!backupStateAlreadyExisted) {
         filteredNewBackupsMetadata.push({
           id: keyringId,
           hash: backupHash,
