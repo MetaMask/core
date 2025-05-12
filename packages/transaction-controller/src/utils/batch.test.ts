@@ -107,6 +107,10 @@ describe('Batch Utils', () => {
       AddBatchTransactionOptions['publishTransaction']
     >;
 
+    let getPendingTransactionTracker: jest.MockedFn<
+      AddBatchTransactionOptions['getPendingTransactionTrackerByChainId']
+    >;
+
     let request: AddBatchTransactionOptions;
 
     beforeEach(() => {
@@ -115,6 +119,7 @@ describe('Batch Utils', () => {
       getChainIdMock = jest.fn();
       updateTransactionMock = jest.fn();
       publishTransactionMock = jest.fn();
+      getPendingTransactionTracker = jest.fn();
 
       determineTransactionTypeMock.mockResolvedValue({
         type: TransactionType.simpleSend,
@@ -153,6 +158,7 @@ describe('Batch Utils', () => {
         },
         updateTransaction: updateTransactionMock,
         publishTransaction: publishTransactionMock,
+        getPendingTransactionTrackerByChainId: getPendingTransactionTracker,
       };
     });
 
@@ -1077,10 +1083,10 @@ describe('Batch Utils', () => {
     });
 
     describe('with sequential publish batch hook', () => {
-      let publishBatchHook: jest.MockedFn<PublishBatchHook>;
+      let sequentialPublishBatchHook: jest.MockedFn<PublishBatchHook>;
 
       beforeEach(() => {
-        publishBatchHook = jest.fn();
+        sequentialPublishBatchHook = jest.fn();
 
         addTransactionMock
           .mockResolvedValueOnce({
@@ -1130,7 +1136,7 @@ describe('Batch Utils', () => {
       };
 
       it('calls sequentialPublishBatchHook when publishBatchHook is undefined', async () => {
-        publishBatchHook.mockResolvedValueOnce({
+        sequentialPublishBatchHook.mockResolvedValueOnce({
           results: [
             {
               transactionHash: TRANSACTION_HASH_MOCK,
@@ -1141,7 +1147,7 @@ describe('Batch Utils', () => {
           ],
         });
 
-        setupSequentialPublishBatchHookMock(() => publishBatchHook);
+        setupSequentialPublishBatchHookMock(() => sequentialPublishBatchHook);
 
         addTransactionBatch({
           ...request,
@@ -1155,8 +1161,8 @@ describe('Batch Utils', () => {
         await executePublishHooks();
 
         expect(sequentialPublishBatchHookMock).toHaveBeenCalledTimes(1);
-        expect(publishBatchHook).toHaveBeenCalledTimes(1);
-        expect(publishBatchHook).toHaveBeenCalledWith({
+        expect(sequentialPublishBatchHook).toHaveBeenCalledTimes(1);
+        expect(sequentialPublishBatchHook).toHaveBeenCalledWith({
           from: FROM_MOCK,
           networkClientId: NETWORK_CLIENT_ID_MOCK,
           transactions: [

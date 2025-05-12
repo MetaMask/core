@@ -22,6 +22,7 @@ import {
   type TransactionControllerMessenger,
   type TransactionMeta,
 } from '..';
+import type { PendingTransactionTracker } from '../helpers/PendingTransactionTracker';
 import { CollectPublishHook } from '../hooks/CollectPublishHook';
 import { SequentialPublishBatchHook } from '../hooks/SequentialPublishBatchHook';
 import { projectLogger } from '../logger';
@@ -62,6 +63,9 @@ type AddTransactionBatchRequest = {
     _ethQuery: EthQuery,
     transactionMeta: TransactionMeta,
   ) => Promise<Hex>;
+  getPendingTransactionTrackerByChainId: (
+    networkClientId: string,
+  ) => PendingTransactionTracker;
 };
 
 type IsAtomicBatchSupportedRequestInternal = {
@@ -291,7 +295,7 @@ export async function isAtomicBatchSupported(
 }
 
 /**
- * Generate a tranasction batch ID.
+ * Generate a transaction batch ID.
  *
  * @returns  A unique batch ID as a hexadecimal string.
  */
@@ -337,7 +341,7 @@ async function getNestedTransactionMeta(
 async function addTransactionBatchWithHook(
   request: AddTransactionBatchRequest,
 ): Promise<TransactionBatchResult> {
-  const { publishBatchHook: initialPublishBatchHook, request: userRequest } =
+  const { publishBatchHook: requestPublishBatchHook, request: userRequest } =
     request;
 
   const {
@@ -352,10 +356,12 @@ async function addTransactionBatchWithHook(
     publishTransaction: request.publishTransaction,
     getTransaction: request.getTransaction,
     getEthQuery: request.getEthQuery,
+    getPendingTransactionTrackerByChainId:
+      request.getPendingTransactionTrackerByChainId,
   });
 
   const publishBatchHook =
-    initialPublishBatchHook ?? sequentialPublishBatchHook.getHook();
+    requestPublishBatchHook ?? sequentialPublishBatchHook.getHook();
 
   const batchId = generateBatchId();
   const transactionCount = nestedTransactions.length;

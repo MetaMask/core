@@ -996,6 +996,11 @@ export class TransactionController extends BaseController<
   async addTransactionBatch(
     request: TransactionBatchRequest,
   ): Promise<TransactionBatchResult> {
+    const { blockTracker } = this.messagingSystem.call(
+      `NetworkController:getNetworkClientById`,
+      request.networkClientId,
+    );
+
     return await addTransactionBatch({
       addTransaction: this.addTransaction.bind(this),
       getChainId: this.#getChainId.bind(this),
@@ -1012,6 +1017,15 @@ export class TransactionController extends BaseController<
         ethQuery: EthQuery,
         transactionMeta: TransactionMeta,
       ) => this.#publishTransaction(ethQuery, transactionMeta) as Promise<Hex>,
+      getPendingTransactionTrackerByChainId: (
+        networkClientId: NetworkClientId,
+      ) =>
+        this.#createPendingTransactionTracker({
+          provider: this.#getProvider({ networkClientId }),
+          blockTracker,
+          chainId: this.#getChainId(networkClientId),
+          networkClientId,
+        }),
     });
   }
 

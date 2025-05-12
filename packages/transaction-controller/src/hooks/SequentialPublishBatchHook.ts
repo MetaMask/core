@@ -1,38 +1,58 @@
-import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import { rpcErrors } from '@metamask/rpc-errors';
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
+import type { PendingTransactionTracker } from '../helpers/PendingTransactionTracker';
 import { projectLogger } from '../logger';
 import type {
-  PublishBatchHookTransaction,
+  PublishBatchHook,
+  PublishBatchHookRequest,
+  PublishBatchHookResult,
   TransactionMeta,
-  TransactionReceipt,
 } from '../types';
-
-const TRANSACTION_CHECK_INTERVAL = 5000; // 5 seconds
-const MAX_TRANSACTION_CHECK_ATTEMPTS = 60; // 5 minutes
-const RECEIPT_STATUS_SUCCESS = '0x1';
-const RECEIPT_STATUS_FAILURE = '0x0';
 
 const log = createModuleLogger(projectLogger, 'sequential-publish-batch-hook');
 
-type SequentialPublishBatchHookParams = {
+type SequentialPublishBatchHookOptions = {
   publishTransaction: (
-    _ethQuery: EthQuery,
+    ethQuery: EthQuery,
     transactionMeta: TransactionMeta,
   ) => Promise<Hex>;
   getTransaction: (id: string) => TransactionMeta;
   getEthQuery: (networkClientId: string) => EthQuery;
+  getPendingTransactionTrackerByChainId: (
+    networkClientId: string,
+  ) => PendingTransactionTracker;
 };
+
+type TrackerListenersOptions = {
+  pendingTransactionTracker: PendingTransactionTracker;
+  onConfirmed: (txMeta: TransactionMeta) => void;
+  onFailedOrDropped: (txMeta: TransactionMeta, error?: Error) => void;
+};
+
+type OnConfirmedHandlerOptions = {
+  transactionMeta: TransactionMeta;
+  transactionHash: string;
+  resolve: (txMeta: TransactionMeta) => void;
+  pendingTransactionTracker: PendingTransactionTracker;
+};
+
+type OnFailedOrDroppedHandlerOptions = {
+  transactionMeta: TransactionMeta;
+  transactionHash: string;
+  reject: (error: Error) => void;
+  pendingTransactionTracker: PendingTransactionTracker;
+};
+
 /**
  * Custom publish logic that also publishes additional sequential transactions in an batch.
  * Requires the batch to be successful to resolve.
  */
 export class SequentialPublishBatchHook {
   readonly #publishTransaction: (
-    _ethQuery: EthQuery,
+    ethQuery: EthQuery,
     transactionMeta: TransactionMeta,
   ) => Promise<Hex>;
 
@@ -40,135 +60,159 @@ export class SequentialPublishBatchHook {
 
   readonly #getEthQuery: (networkClientId: string) => EthQuery;
 
+  readonly #getPendingTransactionTrackerByChainId: (
+    networkClientId: string,
+  ) => PendingTransactionTracker;
+
   constructor({
     publishTransaction,
     getTransaction,
+    getPendingTransactionTrackerByChainId,
     getEthQuery,
-  }: SequentialPublishBatchHookParams) {
+  }: SequentialPublishBatchHookOptions) {
     this.#publishTransaction = publishTransaction;
     this.#getTransaction = getTransaction;
     this.#getEthQuery = getEthQuery;
+    this.#getPendingTransactionTrackerByChainId =
+      getPendingTransactionTrackerByChainId;
   }
 
   /**
-   * Get the hook function for sequential publishing.
-   *
-   * @returns The hook function.
+   * @returns The publish batch hook function.
    */
-  getHook() {
-    return async ({
-      from,
-      networkClientId,
-      transactions,
-    }: {
-      from: string;
-      networkClientId: string;
-      transactions: PublishBatchHookTransaction[];
-    }) => {
-      log('Starting sequential publish batch hook', { from, networkClientId });
+  getHook(): PublishBatchHook {
+    return this.#hook.bind(this);
+  }
 
-      const results = [];
+  async #hook({
+    from,
+    networkClientId,
+    transactions,
+  }: PublishBatchHookRequest): Promise<PublishBatchHookResult> {
+    log('Starting sequential publish batch hook', { from, networkClientId });
 
-      for (const transaction of transactions) {
-        try {
-          const transactionMeta = this.#getTransaction(String(transaction.id));
-          const transactionHash = await this.#publishTransaction(
-            this.#getEthQuery(networkClientId),
-            transactionMeta,
-          );
-          log('Transaction published', { transactionHash });
+    const pendingTransactionTracker =
+      this.#getPendingTransactionTrackerByChainId(networkClientId);
+    const results = [];
 
-          const isConfirmed = await this.#waitForTransactionConfirmation(
-            transactionHash,
-            networkClientId,
-          );
+    for (const transaction of transactions) {
+      try {
+        const transactionMeta = this.#getTransaction(String(transaction.id));
 
-          if (!isConfirmed) {
-            throw new Error(
-              `Transaction ${transactionHash} failed or was not confirmed.`,
-            );
-          }
+        const transactionHash = await this.#publishTransaction(
+          this.#getEthQuery(networkClientId),
+          transactionMeta,
+        );
+        log('Transaction published', { transactionHash });
 
-          results.push({ transactionHash });
-        } catch (error) {
-          log('Transaction failed', { transaction, error });
-          throw rpcErrors.internal(
-            `Failed to publish sequential batch transaction`,
-          );
-        }
+        const confirmationPromise = this.#waitForTransactionEvent(
+          pendingTransactionTracker,
+          transactionMeta,
+          transactionHash,
+        );
+
+        await confirmationPromise;
+        results.push({ transactionHash });
+      } catch (error) {
+        log('Batch transaction failed', { transaction, error });
+        throw rpcErrors.internal(`Failed to publish batch transaction`);
       }
+    }
+    log('Sequential publish batch hook completed', { results });
 
-      log('Sequential publish batch hook completed', { results });
+    return { results };
+  }
 
-      return { results };
+  /**
+   * Waits for a transaction event (confirmed, failed, or dropped) and resolves/rejects accordingly.
+   *
+   * @param pendingTransactionTracker - The tracker instance to subscribe to events.
+   * @param transactionMeta - The transaction metadata.
+   * @param transactionHash - The hash of the transaction.
+   * @returns A promise that resolves when the transaction is confirmed or rejects if it fails or is dropped.
+   */
+  async #waitForTransactionEvent(
+    pendingTransactionTracker: PendingTransactionTracker,
+    transactionMeta: TransactionMeta,
+    transactionHash: string,
+  ): Promise<TransactionMeta> {
+    return new Promise((resolve, reject) => {
+      const onConfirmed = this.#onConfirmedHandler({
+        transactionMeta,
+        transactionHash,
+        resolve,
+        pendingTransactionTracker,
+      });
+
+      const onFailedOrDropped = this.#onFailedOrDroppedHandler({
+        transactionMeta,
+        transactionHash,
+        reject,
+        pendingTransactionTracker,
+      });
+
+      this.#addListeners({
+        pendingTransactionTracker,
+        onConfirmed,
+        onFailedOrDropped,
+      });
+    });
+  }
+
+  #onConfirmedHandler({
+    transactionMeta,
+    transactionHash,
+    resolve,
+    pendingTransactionTracker,
+  }: OnConfirmedHandlerOptions): (txMeta: TransactionMeta) => void {
+    return (txMeta) => {
+      if (txMeta.id === transactionMeta.id) {
+        log('Transaction confirmed', { transactionHash });
+        this.#removeListeners({
+          pendingTransactionTracker,
+        });
+        resolve(txMeta);
+      }
     };
   }
 
-  async #waitForTransactionConfirmation(
-    transactionHash: string,
-    networkClientId: string,
-  ): Promise<boolean> {
-    let attempts = 0;
-
-    while (attempts < MAX_TRANSACTION_CHECK_ATTEMPTS) {
-      const isConfirmed = await this.#isTransactionConfirmed(
-        transactionHash,
-        networkClientId,
-      );
-
-      if (isConfirmed) {
-        return true;
+  #onFailedOrDroppedHandler({
+    transactionMeta,
+    transactionHash,
+    reject,
+    pendingTransactionTracker,
+  }: OnFailedOrDroppedHandlerOptions): (
+    txMeta: TransactionMeta,
+    error?: Error,
+  ) => void {
+    return (txMeta, error) => {
+      if (txMeta.id === transactionMeta.id) {
+        log('Transaction failed or dropped', { transactionHash, error });
+        this.#removeListeners({
+          pendingTransactionTracker,
+        });
+        reject(new Error(`Transaction ${transactionHash} failed or dropped.`));
       }
-
-      const waitPromise = new Promise((resolve) =>
-        setTimeout(resolve, TRANSACTION_CHECK_INTERVAL),
-      );
-      await waitPromise;
-
-      attempts += 1;
-    }
-
-    return false;
+    };
   }
 
-  async #getTransactionReceipt(
-    txHash: string,
-    networkClientId: string,
-  ): Promise<TransactionReceipt | undefined> {
-    return await query(
-      this.#getEthQuery(networkClientId),
-      'getTransactionReceipt',
-      [txHash],
-    );
+  #addListeners({
+    pendingTransactionTracker,
+    onConfirmed,
+    onFailedOrDropped,
+  }: TrackerListenersOptions): void {
+    pendingTransactionTracker.hub.on('transaction-confirmed', onConfirmed);
+    pendingTransactionTracker.hub.on('transaction-dropped', onFailedOrDropped);
+    pendingTransactionTracker.hub.on('transaction-failed', onFailedOrDropped);
   }
 
-  async #isTransactionConfirmed(
-    transactionHash: string,
-    networkClientId: string,
-  ): Promise<boolean> {
-    try {
-      const receipt = await this.#getTransactionReceipt(
-        transactionHash,
-        networkClientId,
-      );
-      if (!receipt) {
-        return false;
-      }
-
-      const { status } = receipt;
-
-      if (status === RECEIPT_STATUS_SUCCESS) {
-        return true;
-      }
-
-      if (status === RECEIPT_STATUS_FAILURE) {
-        throw new Error(`Transaction ${transactionHash} failed.`);
-      }
-
-      return false;
-    } catch (error) {
-      log('Error checking transaction status', { transactionHash, error });
-      throw error;
-    }
+  #removeListeners({
+    pendingTransactionTracker,
+  }: {
+    pendingTransactionTracker: PendingTransactionTracker;
+  }): void {
+    pendingTransactionTracker.hub.removeAllListeners('transaction-confirmed');
+    pendingTransactionTracker.hub.removeAllListeners('transaction-dropped');
+    pendingTransactionTracker.hub.removeAllListeners('transaction-failed');
   }
 }
