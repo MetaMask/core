@@ -27,9 +27,9 @@ import {
 import { MOCK_STORAGE_KEY } from '../mocks';
 
 const baseState = {
-  isProfileSyncingEnabled: true,
+  isBackupAndSyncEnabled: true,
   isAccountSyncingEnabled: true,
-  isProfileSyncingUpdateLoading: false,
+  isBackupAndSyncUpdateLoading: false,
   hasAccountSyncingSyncedAtLeastOnce: false,
   isAccountSyncingReadyToBeDispatched: false,
   isAccountSyncingInProgress: false,
@@ -96,7 +96,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
   it('returns void if UserStorage is not enabled', async () => {
     const { controller, messengerMocks, options } = await arrangeMocks({
       stateOverrides: {
-        isProfileSyncingEnabled: false,
+        isBackupAndSyncEnabled: false,
       },
     });
 
@@ -973,7 +973,7 @@ describe('user-storage/account-syncing/controller-integration - saveInternalAcco
   it('returns void if UserStorage is not enabled', async () => {
     const { options } = await arrangeMocks({
       stateOverrides: {
-        isProfileSyncingEnabled: false,
+        isBackupAndSyncEnabled: false,
       },
     });
 

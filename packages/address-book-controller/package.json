@@ -48,7 +48,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^8.0.1",
-    "@metamask/controller-utils": "^11.7.0",
+    "@metamask/controller-utils": "^11.8.0",
     "@metamask/utils": "^11.2.0"
   },
   "devDependencies": {

@@ -1913,6 +1913,30 @@ describe('SeedlessOnboardingController', () => {
     });
   });
 
+  describe('clearState', () => {
+    it('should clear the state', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller }) => {
+          const { state } = controller;
+
+          expect(state.nodeAuthTokens).toBeDefined();
+          expect(state.userId).toBeDefined();
+          expect(state.authConnectionId).toBeDefined();
+
+          controller.clearState();
+          expect(controller.state).toStrictEqual(
+            getDefaultSeedlessOnboardingControllerState(),
+          );
+        },
+      );
+    });
+  });
+
   describe('vault', () => {
     const MOCK_PASSWORD = 'mock-password';
 
