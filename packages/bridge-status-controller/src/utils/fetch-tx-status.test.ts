@@ -2,7 +2,7 @@ import {
   fetchBridgeTxStatus,
   getBridgeStatusUrl,
   getStatusRequestDto,
-} from './bridge-status';
+} from './fetch-tx-status';
 import { BRIDGE_PROD_API_BASE_URL } from '../constants';
 import { BridgeClientId } from '../types';
 import type { StatusRequestWithSrcTxHash, FetchFunction } from '../types';

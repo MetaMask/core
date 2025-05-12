@@ -48,7 +48,7 @@ import type {
 import {
   fetchBridgeTxStatus,
   getStatusRequestWithSrcTxHash,
-} from './utils/bridge-status';
+} from './utils/fetch-tx-status';
 import { getTxGasEstimates } from './utils/gas';
 import {
   getFinalizedTxProperties,
