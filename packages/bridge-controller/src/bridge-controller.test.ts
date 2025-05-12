@@ -14,6 +14,7 @@ import { SWAPS_API_V2_BASE_URL } from './constants/swaps';
 import * as selectors from './selectors';
 import {
   ChainId,
+  RequestStatus,
   SortOrder,
   StatusTypes,
   type BridgeControllerMessenger,
@@ -320,6 +321,17 @@ describe('BridgeController', function () {
       });
     });
 
+    fetchBridgeQuotesSpy.mockImplementationOnce(async () => {
+      return await new Promise((resolve) => {
+        return setTimeout(() => {
+          resolve([
+            ...mockBridgeQuotesNativeErc20Eth,
+            ...mockBridgeQuotesNativeErc20Eth,
+          ] as never);
+        }, 10000);
+      });
+    });
+
     const quoteParams = {
       srcChainId: '0x1',
       destChainId: SolScope.Mainnet,
@@ -434,11 +446,46 @@ describe('BridgeController', function () {
       bridgeController.state.quotesLastFetched,
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     ).toBeGreaterThan(secondFetchTime!);
+    const thirdFetchTime = bridgeController.state.quotesLastFetched;
+
+    // Incoming request update aborts current polling
+    jest.advanceTimersByTime(10000);
+    await flushPromises();
+    await bridgeController.updateBridgeQuoteRequestParams(
+      { ...quoteRequest, srcTokenAmount: '10', insufficientBal: false },
+      {
+        stx_enabled: true,
+        token_symbol_source: 'ETH',
+        token_symbol_destination: 'USDC',
+        security_warnings: [],
+      },
+    );
+    await flushPromises();
+    expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(3);
+    // eslint-disable-next-line jest/no-restricted-matchers
+    expect(bridgeController.state).toMatchSnapshot();
+
+    // Next fetch succeeds
+    jest.advanceTimersByTime(15000);
+    await flushPromises();
+    expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(4);
+    const { quotesLastFetched, quotes, ...stateWithoutTimestamp } =
+      bridgeController.state;
+    // eslint-disable-next-line jest/no-restricted-matchers
+    expect(stateWithoutTimestamp).toMatchSnapshot();
+    expect(quotes).toStrictEqual([
+      ...mockBridgeQuotesNativeErc20Eth,
+      ...mockBridgeQuotesNativeErc20Eth,
+    ]);
+    expect(
+      quotesLastFetched,
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    ).toBeGreaterThan(thirdFetchTime!);
 
     expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
     expect(getLayer1GasFeeMock).not.toHaveBeenCalled();
 
-    expect(trackMetaMetricsFn).toHaveBeenCalledTimes(8);
+    expect(trackMetaMetricsFn).toHaveBeenCalledTimes(9);
     // eslint-disable-next-line jest/no-restricted-matchers
     expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
   });
@@ -941,7 +988,7 @@ describe('BridgeController', function () {
     },
   );
 
-  it('should handle abort signals in fetchBridgeQuotes', async () => {
+  it('should handle errors from fetchBridgeQuotes', async () => {
     jest.useFakeTimers();
     const fetchBridgeQuotesSpy = jest.spyOn(fetchUtils, 'fetchBridgeQuotes');
     messengerMock.call.mockReturnValue({
@@ -951,11 +998,32 @@ describe('BridgeController', function () {
 
     jest.spyOn(balanceUtils, 'hasSufficientBalance').mockResolvedValue(true);
 
-    // Mock fetchBridgeQuotes to throw AbortError
-    fetchBridgeQuotesSpy.mockImplementation(async () => {
-      const error = new Error('Aborted');
-      error.name = 'AbortError';
-      throw error;
+    // Fetch throws unknown Error
+    fetchBridgeQuotesSpy.mockImplementationOnce(async () => {
+      return await new Promise((_resolve, reject) => {
+        return setTimeout(() => {
+          reject(new Error('Other error'));
+        }, 1000);
+      });
+    });
+
+    // Fetch succeeds
+    fetchBridgeQuotesSpy.mockImplementationOnce(async () => {
+      return await new Promise((resolve) => {
+        return setTimeout(() => {
+          resolve(mockBridgeQuotesNativeErc20Eth as never);
+        }, 1000);
+      });
+    });
+
+    // Fetch throws string error
+    fetchBridgeQuotesSpy.mockImplementationOnce(async () => {
+      return await new Promise((_resolve, reject) => {
+        return setTimeout(() => {
+          // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
+          reject('Test error');
+        }, 1000);
+      });
     });
 
     const quoteParams = {
@@ -977,25 +1045,46 @@ describe('BridgeController', function () {
     await flushPromises();
 
     // Verify state wasn't updated due to abort
-    expect(bridgeController.state.quoteFetchError).toBeNull();
-    expect(bridgeController.state.quotesLoadingStatus).toBe(0);
+    expect(bridgeController.state.quoteFetchError).toBe('Other error');
+    expect(bridgeController.state.quotesLoadingStatus).toBe(
+      RequestStatus.ERROR,
+    );
     expect(bridgeController.state.quotes).toStrictEqual([]);
 
-    // Test reset abort
-    fetchBridgeQuotesSpy.mockRejectedValueOnce('Reset controller state');
+    // Verify state wasn't updated due to reset
+    bridgeController.resetState();
+    jest.advanceTimersByTime(1000);
+    await flushPromises();
+    expect(bridgeController.state.quoteFetchError).toBeNull();
+    expect(bridgeController.state.quotesLoadingStatus).toBeNull();
+    expect(bridgeController.state.quotes).toStrictEqual([]);
 
+    // Verify quotes are fetched
     await bridgeController.updateBridgeQuoteRequestParams(
       quoteParams,
       metricsContext,
     );
-
-    jest.advanceTimersByTime(1000);
+    jest.advanceTimersByTime(10000);
     await flushPromises();
+    const { quotes, quotesLastFetched, ...stateWithoutQuotes } =
+      bridgeController.state;
+    // eslint-disable-next-line jest/no-restricted-matchers
+    expect(stateWithoutQuotes).toMatchSnapshot();
+    expect(quotes).toStrictEqual(mockBridgeQuotesNativeErc20Eth);
+    expect(quotesLastFetched).toBeCloseTo(Date.now());
 
-    // Verify state wasn't updated due to reset
-    expect(bridgeController.state.quoteFetchError).toBeNull();
-    expect(bridgeController.state.quotesLoadingStatus).toBe(0);
-    expect(bridgeController.state.quotes).toStrictEqual([]);
+    jest.advanceTimersByTime(10000);
+    await flushPromises();
+    const {
+      quotes: quotes2,
+      quotesLastFetched: quotesLastFetched2,
+      ...stateWithoutQuotes2
+    } = bridgeController.state;
+    // eslint-disable-next-line jest/no-restricted-matchers
+    expect(stateWithoutQuotes2).toMatchSnapshot();
+    expect(quotes2).toStrictEqual(mockBridgeQuotesNativeErc20Eth);
+
+    expect(quotesLastFetched2).toBe(quotesLastFetched);
   });
 
   const getFeeSnapCalls = mockBridgeQuotesSolErc20.map(({ trade }) => [
