@@ -336,6 +336,16 @@ export class SeedlessOnboardingController extends BaseController<
   }
 
   /**
+   * Clears the current state of the SeedlessOnboardingController.
+   */
+  clearState() {
+    const defaultState = getDefaultSeedlessOnboardingControllerState();
+    this.update(() => {
+      return defaultState;
+    });
+  }
+
+  /**
    * Persist the encryption key for the seedless onboarding flow.
    *
    * @param oprfKey - The OPRF key to be splited and persisted.
