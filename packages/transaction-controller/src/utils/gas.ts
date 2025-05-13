@@ -405,13 +405,13 @@ async function simulateGas({
     },
   });
 
-  const gasUsed = response?.transactions?.[0].gasUsed;
+  const gasLimit = response?.transactions?.[0].gasLimit;
 
-  if (!gasUsed) {
+  if (!gasLimit) {
     throw new Error('No simulated gas returned');
   }
 
-  return gasUsed;
+  return gasLimit;
 }
 
 /**

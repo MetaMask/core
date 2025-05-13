@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [55.0.2]
+
+### Fixed
+
+- Fix type-4 gas estimation ([#5790](https://github.com/MetaMask/core/pull/5790))
+
+## [55.0.1]
+
 ### Changed
 
 - Bump `@metamask/controller-utils` to `^11.8.0` ([#5765](https://github.com/MetaMask/core/pull/5765))
@@ -14,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Validate correct origin in EIP-7702 transaction ([#5771](https://github.com/MetaMask/core/pull/5771))
-- Set `userLevelFee` to `medium` instead of `dappSuggested` when gasPrice is suggested ([#5773](https://github.com/MetaMask/core/5773))
+- Set `userFeeLevel` to `medium` instead of `dappSuggested` when `gasPrice` is suggested ([#5773](https://github.com/MetaMask/core/5773))
 
 ## [55.0.0]
 
@@ -1569,7 +1577,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@55.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@55.0.2...HEAD
+[55.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@55.0.1...@metamask/transaction-controller@55.0.2
+[55.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@55.0.0...@metamask/transaction-controller@55.0.1
 [55.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@54.4.0...@metamask/transaction-controller@55.0.0
 [54.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@54.3.0...@metamask/transaction-controller@54.4.0
 [54.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@54.2.0...@metamask/transaction-controller@54.3.0
