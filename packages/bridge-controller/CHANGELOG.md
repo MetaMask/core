@@ -7,11 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Sentry traces for `BridgeQuotesFetched` and `SwapQuotesFetched` events ([#5780](https://github.com/MetaMask/core/pull/5780))
+- Export `isCrossChain` utility ([#5780](https://github.com/MetaMask/core/pull/5780))
+
 ## [23.0.0]
 
 ### Changed
 
+- **BREAKING:** Remove `BridgeToken` export ([#5768](https://github.com/MetaMask/core/pull/5768))
 - **BREAKING** Rename `QuoteResponse.bridgePriceData` to `priceData` ([#5784](https://github.com/MetaMask/core/pull/5784))
+- `traceFn` added to BridgeController constructor to enable clients to pass in a custom sentry trace handler ([#5768](https://github.com/MetaMask/core/pull/5768))
 
 ## [22.0.0]
 

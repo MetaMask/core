@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Sentry traces for Swap and Bridge `TransactionApprovalCompleted` and `TransactionCompleted` events ([#5780](https://github.com/MetaMask/core/pull/5780))
+
+### Changed
+
+- `traceFn` added to BridgeStatusController constructor to enable clients to pass in a custom sentry trace handler ([#5768](https://github.com/MetaMask/core/pull/5768))
+
 ## [20.0.0]
 
 ### Changed

@@ -2,7 +2,7 @@ import type { BigNumber } from '@ethersproject/bignumber';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import type { StateMetadata } from '@metamask/base-controller';
-import type { ChainId } from '@metamask/controller-utils';
+import type { ChainId, TraceCallback } from '@metamask/controller-utils';
 import { SolScope } from '@metamask/keyring-api';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { NetworkClientId } from '@metamask/network-controller';
@@ -20,6 +20,7 @@ import {
   REFRESH_INTERVAL_MS,
 } from './constants/bridge';
 import { CHAIN_IDS } from './constants/chains';
+import { TraceName } from './constants/traces';
 import { selectIsAssetExchangeRateInState } from './selectors';
 import type { QuoteRequest } from './types';
 import {
@@ -37,6 +38,7 @@ import { getAssetIdsForToken, toExchangeRates } from './utils/assets';
 import { hasSufficientBalance } from './utils/balance';
 import {
   getDefaultBridgeControllerState,
+  isCrossChain,
   isSolanaChainId,
   sumHexes,
 } from './utils/bridge';
@@ -151,6 +153,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     properties: CrossChainSwapsEventProperties<T>,
   ) => void;
 
+  readonly #trace: TraceCallback;
+
   readonly #config: {
     customBridgeApiBaseUrl?: string;
   };
@@ -163,6 +167,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     fetchFn,
     config,
     trackMetaMetricsFn,
+    traceFn,
   }: {
     messenger: BridgeControllerMessenger;
     state?: Partial<BridgeControllerState>;
@@ -182,6 +187,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       eventName: T,
       properties: CrossChainSwapsEventProperties<T>,
     ) => void;
+    traceFn?: TraceCallback;
   }) {
     super({
       name: BRIDGE_CONTROLLER_NAME,
@@ -201,6 +207,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#fetchFn = fetchFn;
     this.#trackMetaMetricsFn = trackMetaMetricsFn;
     this.#config = config ?? {};
+    this.#trace = traceFn ?? (((_request, fn) => fn?.()) as TraceCallback);
 
     // Register action handlers
     this.messagingSystem.registerActionHandler(
@@ -453,7 +460,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       state.quoteFetchError = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError;
     });
 
-    try {
+    const fetchQuotes = async () => {
       const quotes = await fetchBridgeQuotes(
         updatedQuoteRequest,
         // AbortController is always defined by this line, because we assign it a few lines above,
@@ -473,6 +480,24 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         state.quotes = quotesWithL1GasFees ?? quotesWithSolanaFees ?? quotes;
         state.quotesLoadingStatus = RequestStatus.FETCHED;
       });
+    };
+
+    try {
+      await this.#trace(
+        {
+          name: isCrossChain(
+            updatedQuoteRequest.srcChainId,
+            updatedQuoteRequest.destChainId,
+          )
+            ? TraceName.BridgeQuotesFetched
+            : TraceName.SwapQuotesFetched,
+          data: {
+            srcChainId: formatChainIdToCaip(updatedQuoteRequest.srcChainId),
+            destChainId: formatChainIdToCaip(updatedQuoteRequest.destChainId),
+          },
+        },
+        fetchQuotes,
+      );
     } catch (error) {
       const isAbortError = (error as Error).name === 'AbortError';
       const isAbortedDueToReset = error === RESET_STATE_ABORT_MESSAGE;
