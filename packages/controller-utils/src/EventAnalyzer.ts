@@ -91,7 +91,7 @@ export const DEFAULT_HANDLERS: Handlers = {
   onSameEventValues: onSameEventValuesLogHandler,
 };
 
-export class EventChangeDetector<Event extends EventName>
+export class EventAnalyzer<Event extends EventName>
   implements EventAnalyzedData<Event>
 {
   readonly #events: Map<Event, EventInfo>;
@@ -121,12 +121,12 @@ export class EventChangeDetector<Event extends EventName>
     messenger: EventMessenger<Event>;
     handlers?: Handlers;
   }) {
-    const detector = new EventChangeDetector<Event>({ messenger, handlers });
+    const analyzer = new EventAnalyzer<Event>({ messenger, handlers });
 
     for (const event of events) {
-      detector.subscribe(event);
+      analyzer.subscribe(event);
     }
-    return detector;
+    return analyzer;
   }
 
   subscribe(event: Event) {

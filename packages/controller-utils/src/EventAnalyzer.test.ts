@@ -1,5 +1,5 @@
-import type { EventName, Handlers } from './EventChangeDetector';
-import { EventChangeDetector, EventStats } from './EventChangeDetector';
+import type { EventName, Handlers } from './EventAnalyzer';
+import { EventAnalyzer, EventStats } from './EventAnalyzer';
 
 type EventHandler = (...payload: unknown[]) => void;
 
@@ -43,13 +43,13 @@ function setup<Event extends EventName>(opts: {
   const handlers = opts.handlers ?? {
     onSameEventValues: jest.fn(),
   };
-  const detector = EventChangeDetector.from({
+  const analyzer = EventAnalyzer.from({
     messenger,
     handlers,
     events: opts.events,
   });
 
-  return { messenger, handlers, detector };
+  return { messenger, handlers, analyzer };
 }
 
 describe('EventChangeDetector', () => {
@@ -79,14 +79,14 @@ describe('EventChangeDetector', () => {
   });
 
   it('detects event sent with the same values', () => {
-    const { messenger, detector, handlers } = setup({ events });
+    const { messenger, analyzer, handlers } = setup({ events });
 
     const payload = { foobar: true };
     messenger.publish(events[0], payload);
     messenger.publish(events[0], payload);
 
     expect(handlers.onSameEventValues).toHaveBeenCalledWith(
-      detector,
+      analyzer,
       events[0],
       payload,
     );
@@ -94,11 +94,11 @@ describe('EventChangeDetector', () => {
 
   it('detects event sent with the same values (default handler)', () => {
     const messenger = new MockMessenger<(typeof events)[number]>();
-    const detector = EventChangeDetector.from({
+    const analyzer = EventAnalyzer.from({
       messenger,
       events,
     });
-    detector.subscribe(events[0]);
+    analyzer.subscribe(events[0]);
 
     const consoleSpy = jest.spyOn(global.console, 'log');
 
@@ -112,12 +112,12 @@ describe('EventChangeDetector', () => {
   });
 
   it('subscribe and unsubscribe events', () => {
-    const { messenger, detector } = setup<(typeof events)[0]>({
+    const { messenger, analyzer } = setup<(typeof events)[0]>({
       events: [],
     });
 
-    detector.subscribe(events[0]);
-    detector.unsubscribe(events[0]);
+    analyzer.subscribe(events[0]);
+    analyzer.unsubscribe(events[0]);
 
     expect(() => messenger.publish(events[0], { foobar: true })).toThrow(
       `No event handlers for: "${events[0]}"`,
@@ -125,7 +125,7 @@ describe('EventChangeDetector', () => {
   });
 
   it('tracks stats', () => {
-    const { messenger, detector } = setup({
+    const { messenger, analyzer } = setup({
       events,
     });
 
@@ -135,7 +135,7 @@ describe('EventChangeDetector', () => {
     messenger.publish(event, { foobar: 3 });
     messenger.publish(event, { foobar: 3 }); // Same.
 
-    const stats = detector.getStats(events[0]);
+    const stats = analyzer.getStats(events[0]);
     expect(stats).toBeDefined();
     expect(stats?.total).toBe(4);
     expect(stats?.same).toBe(1);
@@ -143,32 +143,32 @@ describe('EventChangeDetector', () => {
   });
 
   it('cannot get stats for an unknown event', () => {
-    const { detector } = setup({
+    const { analyzer } = setup({
       events: [events[0]],
     });
 
     const badEvent = events[1];
     // @ts-expect-error - Testing error case that's not type-safe.
-    expect(() => detector.getStats(badEvent)).toThrow(
+    expect(() => analyzer.getStats(badEvent)).toThrow(
       `Unknown event: "${badEvent}"`,
     );
   });
 
   it('gets registered events', () => {
-    const { detector } = setup({
+    const { analyzer } = setup({
       events,
     });
 
-    expect(detector.getEvents()).toStrictEqual(events);
+    expect(analyzer.getEvents()).toStrictEqual(events);
   });
 
   it('gets registered events and use it to get event stats', () => {
-    const { detector } = setup({
+    const { analyzer } = setup({
       events,
     });
 
-    for (const event of detector.getEvents()) {
-      const stats = detector.getStats(event);
+    for (const event of analyzer.getEvents()) {
+      const stats = analyzer.getStats(event);
 
       expect(stats).toBeDefined();
     }

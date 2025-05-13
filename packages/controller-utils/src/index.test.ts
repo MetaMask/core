@@ -84,7 +84,7 @@ describe('@metamask/controller-utils', () => {
         "EventStats",
         "onSameEventValuesLogHandler",
         "DEFAULT_HANDLERS",
-        "EventChangeDetector",
+        "EventAnalyzer",
       ]
     `);
   });
