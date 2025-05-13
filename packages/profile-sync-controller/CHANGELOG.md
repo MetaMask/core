@@ -7,10 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.0.0]
+
 ### Changed
 
 - **BREAKING:** Replace all "Profile Syncing" mentions to "Backup & Sync" ([#5686](https://github.com/MetaMask/core/pull/5686))
   - Replaces state properties `isProfileSyncingEnabled` to `isBackupAndSyncEnabled`, and `isProfileSyncingUpdateLoading` to `isBackupAndSyncUpdateLoading`
+
+### Fixed
+
+- Remove metadata for unsupported keyrings ([#5725](https://github.com/MetaMask/core/pull/5725))
 
 ## [13.0.0]
 
@@ -580,7 +586,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@13.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@14.0.0...HEAD
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@13.0.0...@metamask/profile-sync-controller@14.0.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@12.0.0...@metamask/profile-sync-controller@13.0.0
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@11.0.1...@metamask/profile-sync-controller@12.0.0
 [11.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@11.0.0...@metamask/profile-sync-controller@11.0.1
