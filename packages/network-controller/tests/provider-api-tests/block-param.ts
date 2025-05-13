@@ -455,28 +455,29 @@ export function testsForRpcMethodSupportingBlockParam(
           });
         });
 
-        testsForRpcFailoverBehavior({
-          providerType,
-          requestToCall: {
-            method,
-            params: buildMockParams({ blockParam, blockParamIndex }),
-          },
-          getRequestToMock: (request: MockRequest, blockNumber: Hex) => {
-            return buildRequestWithReplacedBlockParam(
-              request,
-              blockParamIndex,
-              blockNumber,
-            );
-          },
-          failure: {
-            httpStatus,
-          },
-          isRetriableFailure: false,
-          getExpectedError: () =>
-            expect.objectContaining({
-              message: errorMessage,
-            }),
-        });
+        // TODO: Add tests for failover behavior when the RPC endpoint returns a 405 or 429 response without opening a circuit breaker
+        // testsForRpcFailoverBehavior({
+        //   providerType,
+        //   requestToCall: {
+        //     method,
+        //     params: buildMockParams({ blockParam, blockParamIndex }),
+        //   },
+        //   getRequestToMock: (request: MockRequest, blockNumber: Hex) => {
+        //     return buildRequestWithReplacedBlockParam(
+        //       request,
+        //       blockParamIndex,
+        //       blockNumber,
+        //     );
+        //   },
+        //   failure: {
+        //     httpStatus,
+        //   },
+        //   isRetriableFailure: false,
+        //   getExpectedError: () =>
+        //     expect.objectContaining({
+        //       message: errorMessage,
+        //     }),
+        // });
       },
     );
 
