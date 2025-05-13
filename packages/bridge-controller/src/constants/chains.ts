@@ -123,6 +123,7 @@ export const INK_DISPLAY_NAME = 'Ink Mainnet';
 export const SONEIUM_DISPLAY_NAME = 'Soneium Mainnet';
 export const MODE_SEPOLIA_DISPLAY_NAME = 'Mode Sepolia';
 export const MODE_DISPLAY_NAME = 'Mode Mainnet';
+export const SEI_DISPLAY_NAME = 'Sei Network';
 
 export const NETWORK_TO_NAME_MAP = {
   [NETWORK_TYPES.GOERLI]: GOERLI_DISPLAY_NAME,
@@ -154,4 +155,5 @@ export const NETWORK_TO_NAME_MAP = {
   [CHAIN_IDS.METACHAIN_ONE]: METACHAIN_ONE_DISPLAY_NAME,
   [CHAIN_IDS.LISK]: LISK_DISPLAY_NAME,
   [CHAIN_IDS.LISK_SEPOLIA]: LISK_SEPOLIA_DISPLAY_NAME,
+  [CHAIN_IDS.SEI]: SEI_DISPLAY_NAME,
 } as const;
