@@ -108,6 +108,7 @@ describe('SequentialPublishBatchHook', () => {
           }
         }),
       },
+      forceCheckTransaction: jest.fn(),
     } as unknown as jest.Mocked<PendingTransactionTracker>;
   });
 
@@ -176,6 +177,16 @@ describe('SequentialPublishBatchHook', () => {
       ethQueryInstanceMock,
       TRANSACTION_META_2_MOCK,
     );
+
+    expect(
+      pendingTransactionTrackerMock.forceCheckTransaction,
+    ).toHaveBeenCalledTimes(2);
+    expect(
+      pendingTransactionTrackerMock.forceCheckTransaction,
+    ).toHaveBeenNthCalledWith(1, TRANSACTION_META_MOCK);
+    expect(
+      pendingTransactionTrackerMock.forceCheckTransaction,
+    ).toHaveBeenNthCalledWith(2, TRANSACTION_META_2_MOCK);
 
     expect(pendingTransactionTrackerMock.hub.on).toHaveBeenCalledTimes(6);
     expect(
@@ -304,6 +315,12 @@ describe('SequentialPublishBatchHook', () => {
     );
 
     expect(
+      pendingTransactionTrackerMock.forceCheckTransaction,
+    ).toHaveBeenCalledTimes(1);
+    expect(
+      pendingTransactionTrackerMock.forceCheckTransaction,
+    ).toHaveBeenCalledWith(TRANSACTION_META_MOCK);
+    expect(
       pendingTransactionTrackerMock.hub.removeAllListeners,
     ).toHaveBeenCalledTimes(3);
     expect(publishTransactionMock).toHaveBeenCalledTimes(1);
@@ -343,6 +360,12 @@ describe('SequentialPublishBatchHook', () => {
       `Failed to publish batch transaction`,
     );
 
+    expect(
+      pendingTransactionTrackerMock.forceCheckTransaction,
+    ).toHaveBeenCalledTimes(1);
+    expect(
+      pendingTransactionTrackerMock.forceCheckTransaction,
+    ).toHaveBeenCalledWith(TRANSACTION_META_MOCK);
     expect(
       pendingTransactionTrackerMock.hub.removeAllListeners,
     ).toHaveBeenCalledTimes(3);

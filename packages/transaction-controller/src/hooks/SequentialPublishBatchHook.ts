@@ -105,6 +105,9 @@ export class SequentialPublishBatchHook {
         );
         log('Transaction published', { transactionHash });
 
+        // Force check the transaction to ensure it is tracked.
+        await pendingTransactionTracker.forceCheckTransaction(transactionMeta);
+
         const confirmationPromise = this.#waitForTransactionEvent(
           pendingTransactionTracker,
           transactionMeta,
