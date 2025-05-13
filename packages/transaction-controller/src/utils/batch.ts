@@ -1,3 +1,4 @@
+import { toHex } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
@@ -36,15 +37,18 @@ import type {
   ValidateSecurityRequest,
   IsAtomicBatchSupportedResult,
   IsAtomicBatchSupportedResultEntry,
+  TransactionBatchMeta,
 } from '../types';
 import {
   TransactionEnvelopeType,
   type TransactionBatchResult,
   type TransactionParams,
   TransactionType,
+  TransactionStatus,
 } from '../types';
 
 type AddTransactionBatchRequest = {
+  addBatchMetadata: (transactionBatchMeta: TransactionBatchMeta) => void;
   addTransaction: TransactionController['addTransaction'];
   getChainId: (networkClientId: string) => Hex;
   getEthQuery: (networkClientId: string) => EthQuery;
@@ -349,11 +353,18 @@ async function addTransactionBatchWith7702(
 async function addTransactionBatchWithHook(
   request: AddTransactionBatchRequest,
 ): Promise<TransactionBatchResult> {
-  const { publishBatchHook, request: userRequest } = request;
+  const {
+    addBatchMetadata,
+    getChainId,
+    publishBatchHook,
+    request: userRequest,
+  } = request;
 
   const {
     from,
     networkClientId,
+    origin,
+    requireApproval,
     transactions: nestedTransactions,
   } = userRequest;
 
@@ -364,7 +375,23 @@ async function addTransactionBatchWithHook(
     throw new Error('No publish batch hook provided');
   }
 
+  const chainId = getChainId(networkClientId);
   const batchId = generateBatchId();
+
+  if (requireApproval) {
+    addBatchMetadata({
+      id: batchId,
+      status: TransactionStatus.unapproved,
+      type: TransactionType.batch,
+      chainId,
+      txParams: { from },
+      networkClientId,
+      transactions: nestedTransactions,
+      origin,
+      time: Date.now(),
+    } as TransactionBatchMeta);
+  }
+
   const transactionCount = nestedTransactions.length;
   const collectHook = new CollectPublishHook(transactionCount);
   const publishHook = collectHook.getHook();

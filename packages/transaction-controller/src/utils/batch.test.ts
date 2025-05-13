@@ -22,6 +22,7 @@ import {
   type TransactionMeta,
   determineTransactionType,
   TransactionType,
+  TransactionStatus,
 } from '..';
 import { flushPromises } from '../../../../tests/helpers';
 import type { PublishBatchHook } from '../types';
@@ -103,6 +104,10 @@ describe('Batch Utils', () => {
       AddBatchTransactionOptions['updateTransaction']
     >;
 
+    let addBatchMetadataMock: jest.MockedFn<
+      AddBatchTransactionOptions['addBatchMetadata']
+    >;
+
     let request: AddBatchTransactionOptions;
 
     beforeEach(() => {
@@ -110,6 +115,7 @@ describe('Batch Utils', () => {
       addTransactionMock = jest.fn();
       getChainIdMock = jest.fn();
       updateTransactionMock = jest.fn();
+      addBatchMetadataMock = jest.fn();
 
       determineTransactionTypeMock.mockResolvedValue({
         type: TransactionType.simpleSend,
@@ -118,6 +124,7 @@ describe('Batch Utils', () => {
       getChainIdMock.mockReturnValue(CHAIN_ID_MOCK);
 
       request = {
+        addBatchMetadata: addBatchMetadataMock,
         addTransaction: addTransactionMock,
         getChainId: getChainIdMock,
         getEthQuery: GET_ETH_QUERY_MOCK,
@@ -586,6 +593,40 @@ describe('Batch Utils', () => {
             requireApproval: false,
           },
         );
+      });
+
+      it('adds batch metadata to controller state if requireApproval is true', async () => {
+        const publishBatchHook = jest.fn();
+
+        addTransactionMock.mockResolvedValueOnce({
+          transactionMeta: TRANSACTION_META_MOCK,
+          result: Promise.resolve(''),
+        });
+
+        addTransactionBatch({
+          ...request,
+          publishBatchHook,
+          request: { ...request.request, useHook: true, requireApproval: true },
+        }).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+        expect(addBatchMetadataMock).toHaveBeenCalledTimes(1);
+        expect(addBatchMetadataMock).toHaveBeenCalledWith({
+          chainId: CHAIN_ID_MOCK,
+          id: expect.any(String),
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          origin: 'test.com',
+          status: TransactionStatus.unapproved,
+          time: expect.any(Number),
+          transactions: [
+            { params: { data: DATA_MOCK, to: TO_MOCK, value: VALUE_MOCK } },
+            { params: { data: DATA_MOCK, to: TO_MOCK, value: VALUE_MOCK } },
+          ],
+          txParams: { from: FROM_MOCK },
+          type: TransactionType.batch,
+        });
       });
 
       it('calls publish batch hook', async () => {
