@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [23.0.0]
+
 ### Changed
 
 - **BREAKING** Rename `QuoteResponse.bridgePriceData` to `priceData` ([#5784](https://github.com/MetaMask/core/pull/5784))
@@ -215,7 +217,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@22.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@23.0.0...HEAD
+[23.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@22.0.0...@metamask/bridge-controller@23.0.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@21.0.0...@metamask/bridge-controller@22.0.0
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@20.0.0...@metamask/bridge-controller@21.0.0
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@19.0.0...@metamask/bridge-controller@20.0.0
