@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Improved circuit breaker behavior to only consider actual service failures ([#5798](https://github.com/MetaMask/core/pull/5798))
+  - Changed from using `handleAll` to `handleWhen(isServiceFailure)` in circuit breaker policy
+  - This ensures that expected error responses (like 405 Method Not Allowed and 429 Rate Limited) don't trigger the circuit breaker
+  - Only actual service failures (like network errors, 500s, etc.) will now count towards the consecutive failure limit
+
 ## [11.8.0]
 
 ### Added
