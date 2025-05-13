@@ -1,7 +1,12 @@
 import { rpcErrors } from '@metamask/rpc-errors';
 
-import { addTransactionBatch, isAtomicBatchSupported } from './batch';
 import {
+  ERROR_MESSAGE_NO_UPGRADE_CONTRACT,
+  addTransactionBatch,
+  isAtomicBatchSupported,
+} from './batch';
+import {
+  ERROR_MESSGE_PUBLIC_KEY,
   doesChainSupportEIP7702,
   generateEIP7702BatchTransaction,
   isAccountUpgradedToEIP7702,
@@ -56,6 +61,7 @@ const TRANSACTION_SIGNATURE_MOCK = '0xabc';
 const TRANSACTION_SIGNATURE_2_MOCK = '0xdef';
 const ERROR_MESSAGE_MOCK = 'Test error';
 const SECURITY_ALERT_ID_MOCK = '123-456';
+const ORIGIN_MOCK = 'test.com';
 const UPGRADE_CONTRACT_ADDRESS_MOCK =
   '0xfedfedfedfedfedfedfedfedfedfedfedfedfedf';
 
@@ -138,6 +144,7 @@ describe('Batch Utils', () => {
         request: {
           from: FROM_MOCK,
           networkClientId: NETWORK_CLIENT_ID_MOCK,
+          origin: ORIGIN_MOCK,
           requireApproval: true,
           transactions: [
             {
@@ -243,6 +250,7 @@ describe('Batch Utils', () => {
         },
         expect.objectContaining({
           networkClientId: NETWORK_CLIENT_ID_MOCK,
+          origin: ORIGIN_MOCK,
           requireApproval: true,
         }),
       );
@@ -389,9 +397,7 @@ describe('Batch Utils', () => {
 
       await expect(
         addTransactionBatch({ ...request, publicKeyEIP7702: undefined }),
-      ).rejects.toThrow(
-        rpcErrors.internal('EIP-7702 public key not specified'),
-      );
+      ).rejects.toThrow(rpcErrors.internal(ERROR_MESSGE_PUBLIC_KEY));
     });
 
     it('throws if account upgraded to unsupported contract', async () => {
@@ -417,7 +423,7 @@ describe('Batch Utils', () => {
       getEIP7702UpgradeContractAddressMock.mockReturnValueOnce(undefined);
 
       await expect(addTransactionBatch(request)).rejects.toThrow(
-        rpcErrors.internal('Upgrade contract address not found'),
+        rpcErrors.internal(ERROR_MESSAGE_NO_UPGRADE_CONTRACT),
       );
     });
 
@@ -1308,9 +1314,7 @@ describe('Batch Utils', () => {
           messenger: MESSENGER_MOCK,
           publicKeyEIP7702: undefined,
         }),
-      ).rejects.toThrow(
-        rpcErrors.internal('EIP-7702 public key not specified'),
-      );
+      ).rejects.toThrow(rpcErrors.internal(ERROR_MESSGE_PUBLIC_KEY));
     });
 
     it('does not throw if error getting provider', async () => {

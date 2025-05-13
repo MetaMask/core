@@ -37,6 +37,7 @@ import { Mutex } from 'async-mutex';
 import type { MutexInterface } from 'async-mutex';
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
 import type { Patch } from 'immer';
+import { isEqual } from 'lodash';
 // When generating a ULID within the same millisecond, monotonicFactory provides some guarantees regarding sort order.
 import { ulid } from 'ulid';
 
@@ -318,6 +319,15 @@ export enum SignTypedDataVersion {
 export type SerializedKeyring = {
   type: string;
   data: Json;
+};
+
+/**
+ * State/data that can be updated during a `withKeyring` operation.
+ */
+type SessionState = {
+  keyrings: SerializedKeyring[];
+  keyringsMetadata: KeyringMetadata[];
+  password?: string;
 };
 
 /**
@@ -1027,8 +1037,12 @@ export class KeyringController extends BaseController<
    * operation completes.
    */
   async persistAllKeyrings(): Promise<boolean> {
-    this.#assertIsUnlocked();
-    return this.#persistOrRollback(async () => true);
+    return this.#withRollback(async () => {
+      this.#assertIsUnlocked();
+
+      await this.#updateVault();
+      return true;
+    });
   }
 
   /**
@@ -1399,6 +1413,7 @@ export class KeyringController extends BaseController<
    */
   changePassword(password: string): Promise<void> {
     this.#assertIsUnlocked();
+
     return this.#persistOrRollback(async () => {
       assertIsValidPassword(password);
 
@@ -2159,6 +2174,20 @@ export class KeyringController extends BaseController<
   }
 
   /**
+   * Get a snapshot of session data held by class variables.
+   *
+   * @returns An object with serialized keyrings, keyrings metadata,
+   * and the user password.
+   */
+  async #getSessionState(): Promise<SessionState> {
+    return {
+      keyrings: await this.#getSerializedKeyrings(),
+      keyringsMetadata: this.#keyringsMetadata.slice(), // Force copy.
+      password: this.#password,
+    };
+  }
+
+  /**
    * Restore a serialized keyrings array.
    *
    * @param serializedKeyrings - The serialized keyrings array.
@@ -2635,7 +2664,7 @@ export class KeyringController extends BaseController<
 
   /**
    * Execute the given function after acquiring the controller lock
-   * and save the keyrings to state after it, or rollback to their
+   * and save the vault to state after it (only if needed), or rollback to their
    * previous state in case of error.
    *
    * @param callback - The function to execute.
@@ -2645,9 +2674,14 @@ export class KeyringController extends BaseController<
     callback: MutuallyExclusiveCallback<Result>,
   ): Promise<Result> {
     return this.#withRollback(async ({ releaseLock }) => {
+      const oldState = await this.#getSessionState();
       const callbackResult = await callback({ releaseLock });
-      // State is committed only if the operation is successful
-      await this.#updateVault();
+      const newState = await this.#getSessionState();
+
+      // State is committed only if the operation is successful and need to trigger a vault update.
+      if (!isEqual(oldState, newState)) {
+        await this.#updateVault();
+      }
 
       return callbackResult;
     });

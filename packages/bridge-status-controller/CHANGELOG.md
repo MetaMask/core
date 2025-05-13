@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Replace `bridgePriceData` with `priceData` from QuoteResponse object ([#5784](https://github.com/MetaMask/core/pull/5784))
+
+## [19.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/bridge-controller` peer dependency to `^22.0.0` ([#5780](https://github.com/MetaMask/core/pull/5780))
+- Bump `@metamask/controller-utils` to `^11.8.0` ([#5765](https://github.com/MetaMask/core/pull/5765))
+
+## [18.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/bridge-controller` peer dependency to `^21.0.0` ([#5763](https://github.com/MetaMask/core/pull/5763))
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency to `^28.0.0` ([#5763](https://github.com/MetaMask/core/pull/5763))
+- **BREAKING:** Bump `@metamask/transaction-controller` peer dependency to `^55.0.0` ([#5763](https://github.com/MetaMask/core/pull/5763))
+
+## [17.0.1]
+
+### Fixed
+
+- Added a hardcoded `SolScope.Mainnet` value to ensure the `signAndSendTransaction` params are always valid. Discovered Solana accounts may have an undefined `options.scope`, which causes `handleRequest` calls to throw a JSON-RPC validation error ([#5750])(https://github.com/MetaMask/core/pull/5750)
+
 ## [17.0.0]
 
 ### Changed
@@ -180,7 +205,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@17.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@19.0.0...HEAD
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@18.0.0...@metamask/bridge-status-controller@19.0.0
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@17.0.1...@metamask/bridge-status-controller@18.0.0
+[17.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@17.0.0...@metamask/bridge-status-controller@17.0.1
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@16.0.0...@metamask/bridge-status-controller@17.0.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@15.0.0...@metamask/bridge-status-controller@16.0.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@14.0.0...@metamask/bridge-status-controller@15.0.0
