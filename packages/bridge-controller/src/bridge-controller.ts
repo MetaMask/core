@@ -446,7 +446,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     updatedQuoteRequest,
     context,
   }: BridgePollingInput) => {
-    const { quotesInitialLoadTime, quotesRefreshCount } = this.state;
     this.#abortController?.abort('New quote request');
     this.#abortController = new AbortController();
 
@@ -502,6 +501,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       const isAbortError = (error as Error).name === 'AbortError';
       const isAbortedDueToReset = error === RESET_STATE_ABORT_MESSAGE;
       if (isAbortedDueToReset || isAbortError) {
+        // Exit the function early to avoid other state updates
         return;
       }
 
@@ -516,31 +516,29 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         context,
       );
       console.log('Failed to fetch bridge quotes', error);
-    } finally {
-      const bridgeFeatureFlags = getBridgeFeatureFlags(this.messagingSystem);
-      const { maxRefreshCount } = bridgeFeatureFlags;
-
-      const updatedQuotesRefreshCount = quotesRefreshCount + 1;
-      // Stop polling if the maximum number of refreshes has been reached
-      if (
-        updatedQuoteRequest.insufficientBal ||
-        (!updatedQuoteRequest.insufficientBal &&
-          updatedQuotesRefreshCount >= maxRefreshCount)
-      ) {
-        this.stopAllPolling();
-      }
-
-      // Update quote fetching stats
-      const quotesLastFetched = Date.now();
-      this.update((state) => {
-        state.quotesInitialLoadTime =
-          updatedQuotesRefreshCount === 1 && this.#quotesFirstFetched
-            ? quotesLastFetched - this.#quotesFirstFetched
-            : quotesInitialLoadTime;
-        state.quotesLastFetched = quotesLastFetched;
-        state.quotesRefreshCount = updatedQuotesRefreshCount;
-      });
     }
+    const bridgeFeatureFlags = getBridgeFeatureFlags(this.messagingSystem);
+    const { maxRefreshCount } = bridgeFeatureFlags;
+
+    // Stop polling if the maximum number of refreshes has been reached
+    if (
+      updatedQuoteRequest.insufficientBal ||
+      (!updatedQuoteRequest.insufficientBal &&
+        this.state.quotesRefreshCount >= maxRefreshCount)
+    ) {
+      this.stopAllPolling();
+    }
+
+    // Update quote fetching stats
+    const quotesLastFetched = Date.now();
+    this.update((state) => {
+      state.quotesInitialLoadTime =
+        state.quotesRefreshCount === 0 && this.#quotesFirstFetched
+          ? quotesLastFetched - this.#quotesFirstFetched
+          : this.state.quotesInitialLoadTime;
+      state.quotesLastFetched = quotesLastFetched;
+      state.quotesRefreshCount += 1;
+    });
   };
 
   readonly #appendL1GasFees = async (
