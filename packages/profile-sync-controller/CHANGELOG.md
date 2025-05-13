@@ -7,12 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [13.0.0]
-
 ### Changed
 
 - **BREAKING:** Replace all "Profile Syncing" mentions to "Backup & Sync" ([#5686](https://github.com/MetaMask/core/pull/5686))
   - Replaces state properties `isProfileSyncingEnabled` to `isBackupAndSyncEnabled`, and `isProfileSyncingUpdateLoading` to `isBackupAndSyncUpdateLoading`
+
+## [13.0.0]
+
+### Changed
+
 - **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^27.0.0` to `^28.0.0` ([#5763](https://github.com/MetaMask/core/pull/5763))
 - **BREAKING:** Bump `@metamask/snaps-controllers` peer dependency from `^9.19.0` to `^11.0.0` ([#5639](https://github.com/MetaMask/core/pull/5639))
 - **BREAKING:** Bump `@metamask/providers` peer dependency from `^18.1.1` to `^21.0.0` ([#5639](https://github.com/MetaMask/core/pull/5639))
