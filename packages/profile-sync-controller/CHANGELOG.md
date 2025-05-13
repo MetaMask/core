@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: misplaced changelog entry for `@metamask/profile-sync-controller` ([#5788](https://github.com/MetaMask/core/pull/5788))
+- fix: remove metadata for unsupported keyrings ([#5725](https://github.com/MetaMask/core/pull/5725))
+- Release/389.0.0 ([#5765](https://github.com/MetaMask/core/pull/5765))
+
 ### Changed
 
 - **BREAKING:** Replace all "Profile Syncing" mentions to "Backup & Sync" ([#5686](https://github.com/MetaMask/core/pull/5686))
