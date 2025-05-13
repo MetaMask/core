@@ -993,6 +993,7 @@ describe('TransactionController', () => {
       expect(controller.state).toStrictEqual({
         methodData: {},
         transactions: [],
+        transactionBatches: [],
         lastFetchedBlockNumbers: {},
         submitHistory: [],
       });

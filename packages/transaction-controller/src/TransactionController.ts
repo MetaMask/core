@@ -111,6 +111,7 @@ import type {
   IsAtomicBatchSupportedResult,
   IsAtomicBatchSupportedRequest,
   AfterAddHook,
+  TransactionBatchMeta,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -182,6 +183,10 @@ const metadata = {
     persist: true,
     anonymous: false,
   },
+  transactionBatches: {
+    persist: true,
+    anonymous: false,
+  },
   methodData: {
     persist: true,
     anonymous: false,
@@ -245,13 +250,16 @@ export type TransactionControllerState = {
   /** A list of TransactionMeta objects. */
   transactions: TransactionMeta[];
 
+  /** A list of TransactionBatchMeta objects. */
+  transactionBatches: TransactionBatchMeta[];
+
   /** Object containing all known method data information. */
   methodData: Record<string, MethodData>;
 
   /** Cache to optimise incoming transaction queries. */
   lastFetchedBlockNumbers: { [key: string]: number | string };
 
-  /** History of all tranasactions submitted from the wallet. */
+  /** History of all transactions submitted from the wallet. */
   submitHistory: SubmitHistoryEntry[];
 };
 
@@ -666,6 +674,7 @@ function getDefaultTransactionControllerState(): TransactionControllerState {
   return {
     methodData: {},
     transactions: [],
+    transactionBatches: [],
     lastFetchedBlockNumbers: {},
     submitHistory: [],
   };
@@ -1017,6 +1026,7 @@ export class TransactionController extends BaseController<
     request: TransactionBatchRequest,
   ): Promise<TransactionBatchResult> {
     return await addTransactionBatch({
+      addBatchMetadata: this.#addBatchMetadata.bind(this),
       addTransaction: this.addTransaction.bind(this),
       getChainId: this.#getChainId.bind(this),
       getEthQuery: (networkClientId) => this.#getEthQuery({ networkClientId }),
@@ -2595,6 +2605,16 @@ export class TransactionController extends BaseController<
     });
   }
 
+  #addBatchMetadata(transactionBatchMeta: TransactionBatchMeta) {
+    validateTxParams(transactionBatchMeta.txParams);
+    this.update((state) => {
+      state.transactionBatches = this.#trimTransactionsForState([
+        ...state.transactionBatches,
+        transactionBatchMeta,
+      ]);
+    });
+  }
+
   async #updateGasProperties(
     transactionMeta: TransactionMeta,
     { traceContext }: { traceContext?: TraceContext } = {},
@@ -3052,8 +3072,8 @@ export class TransactionController extends BaseController<
    * @returns The trimmed list of transactions.
    */
   #trimTransactionsForState(
-    transactions: TransactionMeta[],
-  ): TransactionMeta[] {
+    transactions: TransactionMeta[] | TransactionBatchMeta[],
+  ): TransactionMeta[] | TransactionBatchMeta[] {
     const nonceNetworkSet = new Set();
 
     const txsToKeep = [...transactions]

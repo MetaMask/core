@@ -490,6 +490,72 @@ export type TransactionMeta = {
   };
 };
 
+export type TransactionBatchMeta = {
+  /**
+   * Network code as per EIP-155 for this transaction.
+   */
+  chainId: Hex;
+
+  /**
+   * A hex string of the transaction hash, used to identify the transaction on the network.
+   */
+  hash?: string;
+
+  /**
+   * A history of mutations to TransactionMeta.
+   */
+  history?: TransactionHistory;
+
+  /**
+   * ID of the associated transaction batch.
+   */
+  id: string;
+
+  /**
+   * Data for any nested transactions.
+   * For example, in an atomic batch transaction via EIP-7702.
+   */
+  transactions?: NestedTransactionMetadata[];
+
+  /**
+   * The ID of the network client used by the transaction.
+   */
+  networkClientId: NetworkClientId;
+
+  /**
+   * Origin this transaction was sent from.
+   */
+  origin?: string;
+
+  /**
+   * Response from security validator.
+   */
+  securityAlertResponse?: SecurityAlertResponse;
+
+  /** Current status of the transaction. */
+  status: TransactionStatus;
+
+  /**
+   * Underlying Transaction object.
+   */
+  txParams: TransactionParams;
+
+  /**
+   * Transaction receipt.
+   */
+  txReceipt?: TransactionReceipt;
+
+  /**
+   * The type of transaction such as `cancel` or `swap`.
+   */
+  type?: TransactionType;
+
+  /**
+   * Timestamp associated with this transaction.
+   */
+  time: number;
+};
+
 export type SendFlowHistoryEntry = {
   /**
    * String to indicate user interaction information.
@@ -1509,7 +1575,7 @@ export type BatchTransactionParams = {
 
 /** Metadata for a nested transaction within a standard transaction. */
 export type NestedTransactionMetadata = BatchTransactionParams & {
-  /** Type of the neted transaction. */
+  /** Type of the nested transaction. */
   type?: TransactionType;
 };
 
