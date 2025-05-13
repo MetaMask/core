@@ -2923,7 +2923,7 @@ describe('KeyringController', () => {
           );
         });
 
-        it('should unlock the wallet also if encryption parameters are outdated the vault upgrade fails', async () => {
+        it('should unlock the wallet also if encryption parameters are outdated and the vault upgrade fails', async () => {
           await withController(
             {
               skipVaultCreation: true,
@@ -2976,7 +2976,7 @@ describe('KeyringController', () => {
 
               await controller.submitPassword(password);
 
-              expect(controller.state.keyrings).toHaveLength(1);
+              expect(controller.state.keyrings).toHaveLength(1); // Second keyring will be skipped as "unsupported".
               expect(unlockListener).toHaveBeenCalledTimes(1);
             },
           );
