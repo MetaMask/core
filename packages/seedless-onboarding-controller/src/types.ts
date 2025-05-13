@@ -12,6 +12,7 @@ import type { MutexInterface } from 'async-mutex';
 import type {
   AuthConnection,
   controllerName,
+  SecretType,
   Web3AuthNetwork,
 } from './constants';
 
@@ -180,4 +181,18 @@ export type VaultData = {
    * The authentication key pair to authenticate the TOPRF.
    */
   toprfAuthKeyPair: string;
+};
+
+/**
+ * The constructor options for the seed phrase metadata.
+ */
+export type SecretMetadataOptions = {
+  /**
+   * The timestamp when the seed phrase was created.
+   */
+  timestamp: number;
+  /**
+   * The type of the seed phrase.
+   */
+  type: SecretType;
 };
