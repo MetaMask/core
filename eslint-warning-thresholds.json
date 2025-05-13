@@ -437,9 +437,6 @@
   "packages/polling-controller/src/AbstractPollingController.ts": {
     "@typescript-eslint/prefer-readonly": 1
   },
-  "packages/preferences-controller/src/PreferencesController.test.ts": {
-    "prettier/prettier": 4
-  },
   "packages/queued-request-controller/src/QueuedRequestController.ts": {
     "@typescript-eslint/prefer-readonly": 2
   },
