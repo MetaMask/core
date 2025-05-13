@@ -11,6 +11,7 @@ import type { SecretMetadataOptions } from './types';
 type ISecretMetadata = {
   data: Uint8Array;
   timestamp: number;
+  type: SecretType;
   toBytes: () => Uint8Array;
 };
 
