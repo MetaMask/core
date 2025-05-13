@@ -169,6 +169,7 @@ export enum ApprovalType {
   WalletConnect = 'wallet_connect',
   WalletRequestPermissions = 'wallet_requestPermissions',
   WatchAsset = 'wallet_watchAsset',
+  TransactionBatch = 'transaction_batch',
 }
 
 /**
