@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.0.0]
+
 ### Uncategorized
 
 - fix: misplaced changelog entry for `@metamask/profile-sync-controller` ([#5788](https://github.com/MetaMask/core/pull/5788))
@@ -586,7 +588,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@13.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@14.0.0...HEAD
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@13.0.0...@metamask/profile-sync-controller@14.0.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@12.0.0...@metamask/profile-sync-controller@13.0.0
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@11.0.1...@metamask/profile-sync-controller@12.0.0
 [11.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@11.0.0...@metamask/profile-sync-controller@11.0.1
