@@ -617,7 +617,7 @@ describe('gas', () => {
         simulateTransactionsMock.mockResolvedValueOnce({
           transactions: [
             {
-              gasUsed: toHex(SIMULATE_GAS_MOCK) as Hex,
+              gasLimit: toHex(SIMULATE_GAS_MOCK) as Hex,
             },
           ],
         } as SimulationResponse);
