@@ -1,3 +1,4 @@
+import { hasProperty } from '@metamask/utils';
 import {
   BrokenCircuitError,
   CircuitState,
@@ -130,6 +131,18 @@ export const DEFAULT_CIRCUIT_BREAK_DURATION = 30 * 60 * 1000;
  */
 export const DEFAULT_DEGRADED_THRESHOLD = 5_000;
 
+const isServiceFailure = (error: unknown) => {
+  if (error && hasProperty(error, 'code')) {
+    const { code } = error;
+    // Don't consider -32601 (method not found) and -32005 (rate limit exceeded) as service failures
+    if (code === -32601 || code === -32005) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
 /**
  * Constructs an object exposing an `execute` method which, given a function —
  * hereafter called the "service" — will retry that service with ever increasing
@@ -202,7 +215,7 @@ export function createServicePolicy(
   });
   const onRetry = retryPolicy.onRetry.bind(retryPolicy);
 
-  const circuitBreakerPolicy = circuitBreaker(handleAll, {
+  const circuitBreakerPolicy = circuitBreaker(handleWhen(isServiceFailure), {
     // While the circuit is open, any additional invocations of the service
     // passed to the policy (either via automatic retries or by manually
     // executing the policy again) will result in a BrokenCircuitError. This
