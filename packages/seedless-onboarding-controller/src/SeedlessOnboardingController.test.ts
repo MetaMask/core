@@ -24,13 +24,14 @@ import {
   Web3AuthNetwork,
   SeedlessOnboardingControllerError,
   AuthConnection,
+  SecretType,
 } from './constants';
 import { RecoveryError } from './errors';
+import { SecretMetadata } from './SecretMetadata';
 import {
   getDefaultSeedlessOnboardingControllerState,
   SeedlessOnboardingController,
 } from './SeedlessOnboardingController';
-import { SeedPhraseMetadata } from './SeedPhraseMetadata';
 import type {
   AllowedActions,
   AllowedEvents,
@@ -48,7 +49,7 @@ import {
 } from '../tests/__fixtures__/topfClient';
 import {
   createMockSecretDataGetResponse,
-  MULTIPLE_MOCK_SEEDPHRASE_METADATA,
+  MULTIPLE_MOCK_SECRET_METADATA,
 } from '../tests/mocks/toprf';
 import { MockToprfEncryptorDecryptor } from '../tests/mocks/toprfEncryptor';
 import MockVaultEncryptor from '../tests/mocks/vaultEncryptor';
@@ -1263,7 +1264,7 @@ describe('SeedlessOnboardingController', () => {
           const mockSecretDataGet = handleMockSecretDataGet({
             status: 200,
             body: createMockSecretDataGetResponse(
-              MULTIPLE_MOCK_SEEDPHRASE_METADATA,
+              MULTIPLE_MOCK_SECRET_METADATA,
               MOCK_PASSWORD,
             ),
           });
@@ -2117,29 +2118,43 @@ describe('SeedlessOnboardingController', () => {
   });
 
   describe('SeedPhraseMetadata', () => {
-    it('should be able to create a seed phrase metadata', () => {
+    it('should be able to create a seed phrase metadata with default options', () => {
       // should be able to create a SeedPhraseMetadata instance via constructor
-      const seedPhraseMetadata = new SeedPhraseMetadata(MOCK_SEED_PHRASE);
-      expect(seedPhraseMetadata.seedPhrase).toBeDefined();
+      const seedPhraseMetadata = new SecretMetadata(MOCK_SEED_PHRASE);
+      expect(seedPhraseMetadata.data).toBeDefined();
       expect(seedPhraseMetadata.timestamp).toBeDefined();
 
       // should be able to create a SeedPhraseMetadata instance with a timestamp via constructor
       const timestamp = 18_000;
-      const seedPhraseMetadata2 = new SeedPhraseMetadata(
-        MOCK_SEED_PHRASE,
+      const seedPhraseMetadata2 = new SecretMetadata(MOCK_SEED_PHRASE, {
         timestamp,
-      );
-      expect(seedPhraseMetadata2.seedPhrase).toBeDefined();
+      });
+      expect(seedPhraseMetadata2.data).toBeDefined();
       expect(seedPhraseMetadata2.timestamp).toBe(timestamp);
-      expect(seedPhraseMetadata2.seedPhrase).toStrictEqual(MOCK_SEED_PHRASE);
+      expect(seedPhraseMetadata2.data).toStrictEqual(MOCK_SEED_PHRASE);
+      expect(seedPhraseMetadata2.type).toBe(SecretType.Mnemonic);
+    });
+
+    it('should be able to add metadata to a seed phrase', () => {
+      const timestamp = 18_000;
+      const seedPhraseMetadata = new SecretMetadata(MOCK_SEED_PHRASE, {
+        type: SecretType.PrivateKey,
+        timestamp,
+      });
+      expect(seedPhraseMetadata.type).toBe(SecretType.PrivateKey);
+      expect(seedPhraseMetadata.timestamp).toBe(timestamp);
     });
 
     it('should be able to correctly create `SeedPhraseMetadata` Array for batch seedphrases', () => {
       const seedPhrases = ['seed phrase 1', 'seed phrase 2', 'seed phrase 3'];
-      const rawSeedPhrases = seedPhrases.map(stringToBytes);
+      const rawSeedPhrases = seedPhrases.map((srp) => ({
+        value: stringToBytes(srp),
+        options: {
+          type: SecretType.Mnemonic,
+        },
+      }));
 
-      const seedPhraseMetadataArray =
-        SeedPhraseMetadata.fromBatchSeedPhrases(rawSeedPhrases);
+      const seedPhraseMetadataArray = SecretMetadata.fromBatch(rawSeedPhrases);
       expect(seedPhraseMetadataArray).toHaveLength(seedPhrases.length);
 
       // check the timestamp, the first one should be the oldest
@@ -2152,31 +2167,27 @@ describe('SeedlessOnboardingController', () => {
     });
 
     it('should be able to serialized and parse a seed phrase metadata', () => {
-      const seedPhraseMetadata = new SeedPhraseMetadata(MOCK_SEED_PHRASE);
+      const seedPhraseMetadata = new SecretMetadata(MOCK_SEED_PHRASE);
       const serializedSeedPhraseBytes = seedPhraseMetadata.toBytes();
 
-      const parsedSeedPhraseMetadata = SeedPhraseMetadata.fromRawMetadata(
+      const parsedSeedPhraseMetadata = SecretMetadata.fromRawMetadata(
         serializedSeedPhraseBytes,
       );
-      expect(parsedSeedPhraseMetadata.seedPhrase).toBeDefined();
+      expect(parsedSeedPhraseMetadata.data).toBeDefined();
       expect(parsedSeedPhraseMetadata.timestamp).toBeDefined();
-      expect(parsedSeedPhraseMetadata.seedPhrase).toStrictEqual(
-        MOCK_SEED_PHRASE,
-      );
+      expect(parsedSeedPhraseMetadata.data).toStrictEqual(MOCK_SEED_PHRASE);
     });
 
     it('should be able to sort seed phrase metadata', () => {
-      const mockSeedPhraseMetadata1 = new SeedPhraseMetadata(
-        MOCK_SEED_PHRASE,
-        1000,
-      );
-      const mockSeedPhraseMetadata2 = new SeedPhraseMetadata(
-        MOCK_SEED_PHRASE,
-        2000,
-      );
+      const mockSeedPhraseMetadata1 = new SecretMetadata(MOCK_SEED_PHRASE, {
+        timestamp: 1000,
+      });
+      const mockSeedPhraseMetadata2 = new SecretMetadata(MOCK_SEED_PHRASE, {
+        timestamp: 2000,
+      });
 
       // sort in ascending order
-      const sortedSeedPhraseMetadata = SeedPhraseMetadata.sort(
+      const sortedSeedPhraseMetadata = SecretMetadata.sort(
         [mockSeedPhraseMetadata1, mockSeedPhraseMetadata2],
         'asc',
       );
@@ -2185,7 +2196,7 @@ describe('SeedlessOnboardingController', () => {
       );
 
       // sort in descending order
-      const sortedSeedPhraseMetadataDesc = SeedPhraseMetadata.sort(
+      const sortedSeedPhraseMetadataDesc = SecretMetadata.sort(
         [mockSeedPhraseMetadata1, mockSeedPhraseMetadata2],
         'desc',
       );
