@@ -2120,7 +2120,7 @@ describe('SeedlessOnboardingController', () => {
     it('should be able to create a seed phrase metadata', () => {
       // should be able to create a SeedPhraseMetadata instance via constructor
       const seedPhraseMetadata = new SeedPhraseMetadata(MOCK_SEED_PHRASE);
-      expect(seedPhraseMetadata.seedPhrase).toBeDefined();
+      expect(seedPhraseMetadata.data).toBeDefined();
       expect(seedPhraseMetadata.timestamp).toBeDefined();
 
       // should be able to create a SeedPhraseMetadata instance with a timestamp via constructor
@@ -2129,9 +2129,9 @@ describe('SeedlessOnboardingController', () => {
         MOCK_SEED_PHRASE,
         timestamp,
       );
-      expect(seedPhraseMetadata2.seedPhrase).toBeDefined();
+      expect(seedPhraseMetadata2.data).toBeDefined();
       expect(seedPhraseMetadata2.timestamp).toBe(timestamp);
-      expect(seedPhraseMetadata2.seedPhrase).toStrictEqual(MOCK_SEED_PHRASE);
+      expect(seedPhraseMetadata2.data).toStrictEqual(MOCK_SEED_PHRASE);
     });
 
     it('should be able to correctly create `SeedPhraseMetadata` Array for batch seedphrases', () => {
@@ -2158,11 +2158,9 @@ describe('SeedlessOnboardingController', () => {
       const parsedSeedPhraseMetadata = SeedPhraseMetadata.fromRawMetadata(
         serializedSeedPhraseBytes,
       );
-      expect(parsedSeedPhraseMetadata.seedPhrase).toBeDefined();
+      expect(parsedSeedPhraseMetadata.data).toBeDefined();
       expect(parsedSeedPhraseMetadata.timestamp).toBeDefined();
-      expect(parsedSeedPhraseMetadata.seedPhrase).toStrictEqual(
-        MOCK_SEED_PHRASE,
-      );
+      expect(parsedSeedPhraseMetadata.data).toStrictEqual(MOCK_SEED_PHRASE);
     });
 
     it('should be able to sort seed phrase metadata', () => {

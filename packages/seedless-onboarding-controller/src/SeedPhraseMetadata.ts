@@ -8,7 +8,7 @@ import {
 import { SeedlessOnboardingControllerError } from './constants';
 
 type ISeedPhraseMetadata = {
-  seedPhrase: Uint8Array;
+  data: Uint8Array;
   timestamp: number;
   toBytes: () => Uint8Array;
 };
@@ -17,9 +17,9 @@ type ISeedPhraseMetadata = {
 // in which the seedPhrase is base64 encoded for more compacted metadata
 type IBase64SeedPhraseMetadata = Omit<
   ISeedPhraseMetadata,
-  'seedPhrase' | 'toBytes'
+  'data' | 'toBytes'
 > & {
-  seedPhrase: string; // base64 encoded string
+  data: string; // base64 encoded string
 };
 
 /**
@@ -34,18 +34,18 @@ type IBase64SeedPhraseMetadata = Omit<
  * ```
  */
 export class SeedPhraseMetadata implements ISeedPhraseMetadata {
-  readonly #seedPhrase: Uint8Array;
+  readonly #data: Uint8Array;
 
   readonly #timestamp: number;
 
   /**
    * Create a new SeedPhraseMetadata instance.
    *
-   * @param seedPhrase - The seed phrase to add metadata to.
+   * @param data - The seed phrase data to add metadata to.
    * @param timestamp - The timestamp when the seed phrase was created.
    */
-  constructor(seedPhrase: Uint8Array, timestamp: number = Date.now()) {
-    this.#seedPhrase = seedPhrase;
+  constructor(data: Uint8Array, timestamp: number = Date.now()) {
+    this.#data = data;
     this.#timestamp = timestamp;
   }
 
@@ -82,8 +82,8 @@ export class SeedPhraseMetadata implements ISeedPhraseMetadata {
     if (
       typeof value !== 'object' ||
       !value ||
-      !('seedPhrase' in value) ||
-      typeof value.seedPhrase !== 'string' ||
+      !('data' in value) ||
+      typeof value.data !== 'string' ||
       !('timestamp' in value) ||
       typeof value.timestamp !== 'number'
     ) {
@@ -110,9 +110,7 @@ export class SeedPhraseMetadata implements ISeedPhraseMetadata {
 
     const seedPhrases = SeedPhraseMetadata.sort(parsedSeedPhraseMetadata);
 
-    return seedPhrases.map(
-      (seedPhraseMetadata) => seedPhraseMetadata.seedPhrase,
-    );
+    return seedPhrases.map((seedPhraseMetadata) => seedPhraseMetadata.data);
   }
 
   /**
@@ -127,7 +125,7 @@ export class SeedPhraseMetadata implements ISeedPhraseMetadata {
 
     SeedPhraseMetadata.assertIsBase64SeedphraseMetadata(parsedMetadata);
 
-    const seedPhraseBytes = base64ToBytes(parsedMetadata.seedPhrase);
+    const seedPhraseBytes = base64ToBytes(parsedMetadata.data);
     return new SeedPhraseMetadata(seedPhraseBytes, parsedMetadata.timestamp);
   }
 
@@ -151,8 +149,8 @@ export class SeedPhraseMetadata implements ISeedPhraseMetadata {
     });
   }
 
-  get seedPhrase() {
-    return this.#seedPhrase;
+  get data() {
+    return this.#data;
   }
 
   get timestamp() {
@@ -167,11 +165,11 @@ export class SeedPhraseMetadata implements ISeedPhraseMetadata {
   toBytes(): Uint8Array {
     // encode the raw SeedPhrase to base64 encoded string
     // to create more compacted metadata
-    const b64SeedPhrase = bytesToBase64(this.#seedPhrase);
+    const b64SeedPhrase = bytesToBase64(this.#data);
 
     // serialize the metadata to a JSON string
     const serializedMetadata = JSON.stringify({
-      seedPhrase: b64SeedPhrase,
+      data: b64SeedPhrase,
       timestamp: this.#timestamp,
     });
 
