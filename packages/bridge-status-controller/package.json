@@ -64,7 +64,7 @@
     "@metamask/gas-fee-controller": "^23.0.0",
     "@metamask/network-controller": "^23.4.0",
     "@metamask/snaps-controllers": "^11.2.1",
-    "@metamask/transaction-controller": "^55.0.1",
+    "@metamask/transaction-controller": "^55.0.2",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
