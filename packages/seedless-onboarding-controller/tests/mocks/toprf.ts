@@ -52,15 +52,15 @@ export const MOCK_RELEASE_METADATA_LOCK_RESPONSE = {
 
 export const MULTIPLE_MOCK_SEEDPHRASE_METADATA = [
   {
-    seedPhrase: new Uint8Array(Buffer.from('seedPhrase1', 'utf-8')),
+    data: new Uint8Array(Buffer.from('seedPhrase1', 'utf-8')),
     timestamp: 10,
   },
   {
-    seedPhrase: new Uint8Array(Buffer.from('seedPhrase3', 'utf-8')),
+    data: new Uint8Array(Buffer.from('seedPhrase3', 'utf-8')),
     timestamp: 60,
   },
   {
-    seedPhrase: new Uint8Array(Buffer.from('seedPhrase2', 'utf-8')),
+    data: new Uint8Array(Buffer.from('seedPhrase2', 'utf-8')),
     timestamp: 20,
   },
 ];
@@ -73,7 +73,7 @@ export const MULTIPLE_MOCK_SEEDPHRASE_METADATA = [
  * @returns The mock secret data get response
  */
 export function createMockSecretDataGetResponse<
-  T extends Uint8Array | { seedPhrase: Uint8Array; timestamp: number },
+  T extends Uint8Array | { data: Uint8Array; timestamp: number },
 >(secretDataArr: T[], password: string) {
   const mockToprfEncryptor = new MockToprfEncryptorDecryptor();
   const ids: string[] = [];
@@ -84,12 +84,12 @@ export function createMockSecretDataGetResponse<
     if (secretData instanceof Uint8Array) {
       b64SecretData = Buffer.from(secretData).toString('base64');
     } else {
-      b64SecretData = Buffer.from(secretData.seedPhrase).toString('base64');
+      b64SecretData = Buffer.from(secretData.data).toString('base64');
       timestamp = secretData.timestamp;
     }
 
     const metadata = JSON.stringify({
-      seedPhrase: b64SecretData,
+      data: b64SecretData,
       timestamp,
     });
 
