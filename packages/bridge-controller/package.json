@@ -59,6 +59,7 @@
     "@metamask/metamask-eth-abis": "^3.1.1",
     "@metamask/multichain-network-controller": "^0.6.0",
     "@metamask/polling-controller": "^13.0.0",
+    "@metamask/transaction-controller": "^54.3.0",
     "@metamask/utils": "^11.2.0",
     "bignumber.js": "^9.1.2",
     "reselect": "^5.1.1"
@@ -73,6 +74,7 @@
     "@metamask/snaps-controllers": "^11.2.1",
     "@metamask/superstruct": "^3.1.0",
     "@metamask/transaction-controller": "^55.0.1",
+    "@ts-bridge/cli": "^0.6.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",

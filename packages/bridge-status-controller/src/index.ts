@@ -39,3 +39,13 @@ export { BridgeId, FeeType, ActionTypes, BridgeStatusAction } from './types';
 export { BridgeStatusController } from './bridge-status-controller';
 
 export { getTxMetaFields } from './utils/transaction';
+
+export {
+  isBridgeComplete,
+  isBridgeFailed,
+  getBridgeStatusKey,
+  getSrcTxStatus,
+  getDestTxStatus,
+  getStepStatus,
+  getIsDelayed,
+} from './utils/tx-status';

@@ -65,6 +65,10 @@ import {
   handleSolanaTxResponse,
 } from './utils/transaction';
 import { generateActionId } from './utils/transaction';
+import {
+  isBridgeTransaction,
+  isIncompleteTransactionCleanup,
+} from './utils/tx-status';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
   // We want to persist the bridge status state so that we can show the proper data for the Activity list
@@ -170,6 +174,24 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // If you close the browser, the polling stops
     // Check for historyItems that do not have a status of complete and restart polling
     this.#restartPollingForIncompleteHistoryItems();
+
+    // TODO test this
+    this.messagingSystem.subscribe(
+      'TransactionController:transactionFailed',
+      ({ transactionMeta }) => {
+        const { type, status } = transactionMeta;
+
+        if (
+          isBridgeTransaction(type) &&
+          !isIncompleteTransactionCleanup(status)
+        ) {
+          this.#trackUnifiedSwapBridgeEvent(
+            UnifiedSwapBridgeEventName.Failed,
+            transactionMeta.id,
+          );
+        }
+      },
+    );
   }
 
   resetState = () => {
@@ -364,21 +386,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         this.stopPollingByPollingToken(pollingToken);
 
         if (status.status === StatusTypes.COMPLETE) {
-          this.messagingSystem.publish(
-            `${BRIDGE_STATUS_CONTROLLER_NAME}:bridgeTransactionComplete`,
-            { bridgeHistoryItem: newBridgeHistoryItem },
-          );
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Completed,
             bridgeTxMetaId,
           );
         }
         if (status.status === StatusTypes.FAILED) {
-          this.messagingSystem.publish(
-            `${BRIDGE_STATUS_CONTROLLER_NAME}:bridgeTransactionFailed`,
-            { bridgeHistoryItem: newBridgeHistoryItem },
-          );
-
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Failed,
             bridgeTxMetaId,
@@ -736,12 +749,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       isSolanaChainId(quoteResponse.quote.srcChainId) &&
       typeof quoteResponse.trade === 'string'
     ) {
-      txMeta = await this.#handleSolanaTx(
-        quoteResponse as QuoteResponse<string> & QuoteMetadata,
-      );
       this.#trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.SnapConfirmationViewed,
-        txMeta.id,
+      );
+      txMeta = await this.#handleSolanaTx(
+        quoteResponse as QuoteResponse<string> & QuoteMetadata,
       );
     }
     // Submit EVM tx
@@ -814,24 +826,36 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       | typeof UnifiedSwapBridgeEventName.Completed,
   >(
     eventName: T,
-    txMetaId: string,
+    txMetaId?: string,
   ) => {
-    const historyItem: BridgeHistoryItem | undefined =
-      this.state.txHistory[txMetaId];
-    if (!historyItem) {
-      this.messagingSystem.call(
-        'BridgeController:trackUnifiedSwapBridgeEvent',
-        eventName,
-        {},
-      );
-      return;
-    }
+    const historyItem: BridgeHistoryItem | undefined = txMetaId
+      ? this.state.txHistory[txMetaId]
+      : undefined;
 
-    let requiredEventProperties: Pick<RequiredEventContextFromClient, T>[T];
-    const selectedAccount = this.messagingSystem.call(
-      'AccountsController:getAccountByAddress',
-      historyItem.account,
-    );
+    // TODO remove this so Snap viewed and Failed before submission can still emit data from bridge controller
+    // if (!historyItem) {
+    //   this.messagingSystem.call(
+    //     'BridgeController:trackUnifiedSwapBridgeEvent',
+    //     eventName,
+    //     {
+    //        error_message: 'error_message',
+    //       price_impact: Number(
+    //         historyItem.quote.bridgePriceData?.priceImpact ?? '0',
+    //       ),
+    //     },
+    //   );
+    //   return;
+    // }
+
+    let requiredEventProperties:
+      | Pick<RequiredEventContextFromClient, T>[T]
+      | Record<string, unknown>;
+    const selectedAccount = historyItem
+      ? this.messagingSystem.call(
+          'AccountsController:getAccountByAddress',
+          historyItem.account,
+        )
+      : undefined;
 
     switch (eventName) {
       case UnifiedSwapBridgeEventName.Submitted:
@@ -840,16 +864,20 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       default:
         requiredEventProperties = {
           action_type: getActionType(
-            historyItem.quote.srcChainId,
-            historyItem.quote.destChainId,
+            historyItem?.quote.srcChainId,
+            historyItem?.quote.destChainId,
           ),
-          ...getRequestParamFromHistory(historyItem),
-          ...getRequestMetadataFromHistory(historyItem, selectedAccount),
-          ...getTradeDataFromHistory(historyItem),
-          ...getTxStatusesFromHistory(historyItem),
-          ...getFinalizedTxProperties(historyItem),
-          error_message: 'error_message',
-          price_impact: Number(historyItem.quote.priceData?.priceImpact ?? '0'),
+          ...(historyItem ? getRequestParamFromHistory(historyItem) : {}),
+          ...(historyItem
+            ? getRequestMetadataFromHistory(historyItem, selectedAccount)
+            : {}),
+          ...(historyItem ? getTradeDataFromHistory(historyItem) : {}),
+          ...(historyItem ? getTxStatusesFromHistory(historyItem) : {}),
+          ...(historyItem ? getFinalizedTxProperties(historyItem) : {}),
+          // error_message: 'error_message',
+          price_impact: Number(
+            historyItem?.quote.priceData?.priceImpact ?? '0',
+          ),
         };
     }
 
