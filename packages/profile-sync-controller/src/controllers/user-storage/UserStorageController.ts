@@ -29,7 +29,8 @@ import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type {
   AddressBookControllerContactUpdatedEvent,
   AddressBookControllerContactDeletedEvent,
-  AddressBookControllerGetStateAction,
+  AddressBookControllerActions,
+  AddressBookControllerListAction,
 } from '@metamask/address-book-controller';
 
 import {
@@ -278,7 +279,10 @@ export type AllowedActions =
   | NetworkControllerGetStateAction
   | NetworkControllerAddNetworkAction
   | NetworkControllerRemoveNetworkAction
-  | NetworkControllerUpdateNetworkAction;
+  | NetworkControllerUpdateNetworkAction
+  // Address Book Syncing
+  | AddressBookControllerListAction
+  ;
 
 // Messenger events
 export type UserStorageControllerStateChangeEvent = ControllerStateChangeEvent<

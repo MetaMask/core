@@ -26,7 +26,10 @@ export type UserStorageAddressBookEntry = {
   lu?: number;
 };
 
+/**
+ * Options for address book syncing operations
+ */
 export type AddressBookSyncingOptions = {
   getUserStorageControllerInstance: () => UserStorageController;
   getMessenger: () => UserStorageControllerMessenger;
-}; 
+}
