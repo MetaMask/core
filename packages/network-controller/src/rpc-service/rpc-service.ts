@@ -500,29 +500,15 @@ export class RpcService implements AbstractRpcService {
         });
       }
 
-      const text = await response.text();
-
-      if (
-        jsonRpcRequest.method === 'eth_getBlockByNumber' &&
-        text === 'Not Found'
-      ) {
-        return {
-          id: jsonRpcRequest.id,
-          jsonrpc: jsonRpcRequest.jsonrpc,
-          result: null,
-        };
-      }
-
       // Type annotation: We assume that if this response is valid JSON, it's a
       // valid JSON-RPC response.
       let json: JsonRpcResponse<Result>;
       try {
-        json = JSON.parse(text);
+        json = await response.json();
       } catch (error) {
         if (error instanceof SyntaxError) {
           throw rpcErrors.internal({
             message: 'Could not parse response as it is not valid JSON',
-            data: text,
           });
         } else {
           throw error;
