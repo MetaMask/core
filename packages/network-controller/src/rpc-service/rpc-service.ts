@@ -7,8 +7,8 @@ import {
   createServicePolicy,
   handleWhen,
 } from '@metamask/controller-utils';
-import { rpcErrors } from '@metamask/rpc-errors';
-import type { JsonRpcError, JsonRpcRequest } from '@metamask/utils';
+import { JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
+import type { JsonRpcRequest } from '@metamask/utils';
 import {
   hasProperty,
   type Json,
@@ -485,13 +485,7 @@ export class RpcService implements AbstractRpcService {
 
       if (response.status === 401) {
         // code: -33100
-        const errorData: JsonRpcError = {
-          code: -33100,
-          message: 'Unauthorized.',
-        };
-        const error = new Error('Unauthorized.');
-        Object.assign(error, errorData);
-        throw error;
+        throw new JsonRpcError(-33100, 'Unauthorized.');
       }
 
       if (response.status === 402 || response.status === 404) {
