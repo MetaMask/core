@@ -1231,7 +1231,7 @@ function mockNotificationMessenger() {
 
   const mockAuthPerformSignIn =
     typedMockAction<AuthenticationController.AuthenticationControllerPerformSignIn>().mockResolvedValue(
-      'New Access Token',
+      ['New Access Token'],
     );
 
   const mockDisablePushNotifications =
