@@ -960,6 +960,7 @@ export class TransactionController extends BaseController<
       includeTokenTransfers:
         this.#incomingTransactionOptions.includeTokenTransfers,
       isEnabled: this.#incomingTransactionOptions.isEnabled,
+      messenger: this.messagingSystem,
       queryEntireHistory: this.#incomingTransactionOptions.queryEntireHistory,
       remoteTransactionSource: new AccountsApiRemoteTransactionSource(),
       trimTransactions: this.#trimTransactionsForState.bind(this),
