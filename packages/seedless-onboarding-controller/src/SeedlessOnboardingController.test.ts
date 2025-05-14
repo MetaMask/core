@@ -2207,5 +2207,86 @@ describe('SeedlessOnboardingController', () => {
         sortedSeedPhraseMetadataDesc[1].timestamp,
       );
     });
+
+    it('should be able to overwrite the default Generic DataType', () => {
+      const secret1 = new SecretMetadata<string>('private-key-1', {
+        type: SecretType.PrivateKey,
+      });
+      expect(secret1.data).toBe('private-key-1');
+      expect(secret1.type).toBe(SecretType.PrivateKey);
+      expect(secret1.version).toBe(SecretMetadataVersion.V1);
+
+      // should be able to convert to bytes
+      const secret1Bytes = secret1.toBytes();
+      const parsedSecret1 =
+        SecretMetadata.fromRawMetadata<string>(secret1Bytes);
+      expect(parsedSecret1.data).toBe('private-key-1');
+      expect(parsedSecret1.type).toBe(SecretType.PrivateKey);
+      expect(parsedSecret1.version).toBe(SecretMetadataVersion.V1);
+
+      const secret2 = new SecretMetadata<Uint8Array>(MOCK_SEED_PHRASE, {
+        type: SecretType.Mnemonic,
+      });
+      expect(secret2.data).toStrictEqual(MOCK_SEED_PHRASE);
+      expect(secret2.type).toBe(SecretType.Mnemonic);
+
+      const secret2Bytes = secret2.toBytes();
+      const parsedSecret2 =
+        SecretMetadata.fromRawMetadata<Uint8Array>(secret2Bytes);
+      expect(parsedSecret2.data).toStrictEqual(MOCK_SEED_PHRASE);
+      expect(parsedSecret2.type).toBe(SecretType.Mnemonic);
+    });
+
+    it('should be able to parse the array of Mixed SecretMetadata', () => {
+      const MOCK_PRIVATE_KEY = 'private-key-1';
+      const secret1 = new SecretMetadata<string>(MOCK_PRIVATE_KEY, {
+        type: SecretType.PrivateKey,
+      });
+      const secret2 = new SecretMetadata<Uint8Array>(MOCK_SEED_PHRASE, {
+        type: SecretType.Mnemonic,
+      });
+
+      const secrets = [secret1.toBytes(), secret2.toBytes()];
+
+      const parsedSecrets =
+        SecretMetadata.parseSecretsFromMetadataStore(secrets);
+      expect(parsedSecrets).toHaveLength(2);
+      expect(parsedSecrets[0].data).toBe(MOCK_PRIVATE_KEY);
+      expect(parsedSecrets[0].type).toBe(SecretType.PrivateKey);
+      expect(parsedSecrets[1].data).toStrictEqual(MOCK_SEED_PHRASE);
+      expect(parsedSecrets[1].type).toBe(SecretType.Mnemonic);
+    });
+
+    it('should be able to filter the array of SecretMetadata by type', () => {
+      const MOCK_PRIVATE_KEY = 'MOCK_PRIVATE_KEY';
+      const secret1 = new SecretMetadata<string>(MOCK_PRIVATE_KEY, {
+        type: SecretType.PrivateKey,
+      });
+      const secret2 = new SecretMetadata<Uint8Array>(MOCK_SEED_PHRASE, {
+        type: SecretType.Mnemonic,
+      });
+      const secret3 = new SecretMetadata(MOCK_SEED_PHRASE);
+
+      const secrets = [secret1.toBytes(), secret2.toBytes(), secret3.toBytes()];
+
+      const mnemonicSecrets = SecretMetadata.parseSecretsFromMetadataStore(
+        secrets,
+        SecretType.Mnemonic,
+      );
+      expect(mnemonicSecrets).toHaveLength(2);
+      expect(mnemonicSecrets[0].data).toStrictEqual(MOCK_SEED_PHRASE);
+      expect(mnemonicSecrets[0].type).toBe(SecretType.Mnemonic);
+      expect(mnemonicSecrets[1].data).toStrictEqual(MOCK_SEED_PHRASE);
+      expect(mnemonicSecrets[1].type).toBe(SecretType.Mnemonic);
+
+      const privateKeySecrets = SecretMetadata.parseSecretsFromMetadataStore(
+        secrets,
+        SecretType.PrivateKey,
+      );
+
+      expect(privateKeySecrets).toHaveLength(1);
+      expect(privateKeySecrets[0].data).toBe(MOCK_PRIVATE_KEY);
+      expect(privateKeySecrets[0].type).toBe(SecretType.PrivateKey);
+    });
   });
 });
