@@ -21,12 +21,13 @@ import {
   type AuthConnection,
   controllerName,
   PASSWORD_OUTDATED_CACHE_TTL_MS,
+  SecretType,
   SeedlessOnboardingControllerError,
   Web3AuthNetwork,
 } from './constants';
 import { PasswordSyncError, RecoveryError } from './errors';
 import { projectLogger, createModuleLogger } from './logger';
-import { SeedPhraseMetadata } from './SeedPhraseMetadata';
+import { SecretMetadata } from './SecretMetadata';
 import type {
   MutuallyExclusiveCallback,
   SeedlessOnboardingControllerMessenger,
@@ -344,7 +345,11 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           });
         }
 
-        return SeedPhraseMetadata.parseSeedPhraseFromMetadataStore(secretData);
+        const secrets = SecretMetadata.parseSecretsFromMetadataStore(
+          secretData,
+          SecretType.Mnemonic,
+        );
+        return secrets.map((secret) => secret.data);
       } catch (error) {
         log('Error fetching seed phrase metadata', error);
         throw new Error(
@@ -772,7 +777,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     try {
       const { keyringId, seedPhrase, encKey, authKeyPair } = params;
 
-      const seedPhraseMetadata = new SeedPhraseMetadata(seedPhrase);
+      const seedPhraseMetadata = new SecretMetadata(seedPhrase);
       const secretData = seedPhraseMetadata.toBytes();
       await this.#withPersistedSeedPhraseBackupsState(async () => {
         await this.toprfClient.addSecretDataItem({

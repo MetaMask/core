@@ -13,6 +13,15 @@ export enum AuthConnection {
   Apple = 'apple',
 }
 
+export enum SecretType {
+  Mnemonic = 'mnemonic',
+  PrivateKey = 'privateKey',
+}
+
+export enum SecretMetadataVersion {
+  V1 = 'v1',
+}
+
 export enum SeedlessOnboardingControllerError {
   ControllerLocked = `${controllerName} - The operation cannot be completed while the controller is locked.`,
   AuthenticationError = `${controllerName} - Authentication error`,
@@ -27,7 +36,7 @@ export enum SeedlessOnboardingControllerError {
   InvalidVaultData = `${controllerName} - Invalid vault data`,
   VaultDataError = `${controllerName} - The decrypted vault has an unexpected shape.`,
   VaultError = `${controllerName} - Cannot unlock without a previous vault.`,
-  InvalidSeedPhraseMetadata = `${controllerName} - Invalid seed phrase metadata`,
+  InvalidSecretMetadata = `${controllerName} - Invalid secret metadata`,
   FailedToEncryptAndStoreSeedPhraseBackup = `${controllerName} - Failed to encrypt and store seed phrase backup`,
   FailedToFetchSeedPhraseMetadata = `${controllerName} - Failed to fetch seed phrase metadata`,
   FailedToChangePassword = `${controllerName} - Failed to change password`,
