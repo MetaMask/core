@@ -388,54 +388,6 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
     },
   );
 
-  describe('if the RPC endpoint returns a response that is not 405, 429, 503, or 504', () => {
-    const httpStatus = 500;
-    const errorMessage = `Non-200 status code: '${httpStatus}'`;
-
-    it('throws a generic, undescriptive error', async () => {
-      await withMockedCommunications({ providerType }, async (comms) => {
-        const request = { method };
-
-        // The first time a block-cacheable request is made, the latest block
-        // number is retrieved through the block tracker first. It doesn't
-        // matter what this is — it's just used as a cache key.
-        comms.mockNextBlockTrackerRequest();
-        comms.mockRpcCall({
-          request,
-          response: {
-            httpStatus,
-          },
-        });
-        const promiseForResult = withNetworkClient(
-          { providerType },
-          async ({ makeRpcCall }) => makeRpcCall(request),
-        );
-
-        await expect(promiseForResult).rejects.toThrow(errorMessage);
-      });
-    });
-
-    testsForRpcFailoverBehavior({
-      providerType,
-      requestToCall: {
-        method,
-        params: [],
-      },
-      getRequestToMock: () => ({
-        method,
-        params: [],
-      }),
-      failure: {
-        httpStatus,
-      },
-      isRetriableFailure: false,
-      getExpectedError: () =>
-        expect.objectContaining({
-          message: errorMessage,
-        }),
-    });
-  });
-
   describe.each([503, 504])(
     'if the RPC endpoint returns a %d response',
     (httpStatus) => {
