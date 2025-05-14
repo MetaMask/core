@@ -194,7 +194,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     groupedAuthConnectionId?: string;
     socialLoginEmail?: string;
   }) {
-    return this.#withControllerLock(async () => {
+    return await this.#withControllerLock(async () => {
       try {
         const {
           idTokens,
@@ -250,7 +250,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     // assert that the user is authenticated before creating the TOPRF key and backing up the seed phrase
     this.#assertIsAuthenticatedUser(this.state);
 
-    return this.#withControllerLock(async () => {
+    return await this.#withControllerLock(async () => {
       // locally evaluate the encryption key from the password
       const { encKey, authKeyPair, oprfKey } = this.toprfClient.createLocalKey({
         password,
@@ -297,7 +297,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       skipCache: true,
     });
     // NOTE don't include #assertPasswordInSync in #withControllerLock since #assertPasswordInSync already acquires the controller lock
-    return this.#withControllerLock(async () => {
+    return await this.#withControllerLock(async () => {
       // verify the password and unlock the vault
       const { toprfEncryptionKey, toprfAuthKeyPair } =
         await this.#unlockVaultAndGetBackupEncKey();
@@ -324,7 +324,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     // assert that the user is authenticated before fetching the seed phrases
     this.#assertIsAuthenticatedUser(this.state);
 
-    return this.#withControllerLock(async () => {
+    return await this.#withControllerLock(async () => {
       const { encKey, authKeyPair } = await this.#recoverEncKey(password);
 
       try {
@@ -377,7 +377,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     });
 
     // NOTE don't include verifyPassword and #assertPasswordInSync in #withControllerLock since verifyPassword and #assertPasswordInSync already acquires the controller lock
-    return this.#withControllerLock(async () => {
+    return await this.#withControllerLock(async () => {
       try {
         // update the encryption key with new password and update the Metadata Store
         const { encKey: newEncKey, authKeyPair: newAuthKeyPair } =
@@ -434,7 +434,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @throws {Error} If the password is invalid or the vault is not initialized.
    */
   async verifyVaultPassword(password: string): Promise<void> {
-    return this.#withControllerLock(async () => {
+    return await this.#withControllerLock(async () => {
       if (!this.state.vault) {
         throw new Error(SeedlessOnboardingControllerError.VaultError);
       }
@@ -471,7 +471,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @returns A promise that resolves to the success of the operation.
    */
   async submitPassword(password: string): Promise<void> {
-    return this.#withControllerLock(async () => {
+    return await this.#withControllerLock(async () => {
       await this.#unlockVaultAndGetBackupEncKey(password);
       this.#setUnlocked();
     });
@@ -511,7 +511,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     // verify correct old password
     await this.verifyVaultPassword(oldPassword);
     // NOTE don't include verifyPassword in #withControllerLock since verifyPassword already acquires the controller lock
-    return this.#withControllerLock(async () => {
+    return await this.#withControllerLock(async () => {
       // update vault with latest globalPassword
       const { encKey, authKeyPair } = await this.#recoverEncKey(globalPassword);
       // update and encrypt the vault with new password
@@ -541,7 +541,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   }: {
     globalPassword: string;
   }): Promise<{ password: string }> {
-    return this.#withControllerLock(async () => {
+    return await this.#withControllerLock(async () => {
       const currentDeviceAuthPubKey = this.#recoverAuthPubKey();
       const { password: currentDevicePassword } = await this.#recoverPassword({
         targetPwPubKey: currentDeviceAuthPubKey,
@@ -606,7 +606,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         return passwordOutdatedCache.isExpiredPwd;
       }
     }
-    return this.#withControllerLock(async () => {
+    return await this.#withControllerLock(async () => {
       this.#assertIsAuthenticatedUser(this.state);
       const {
         nodeAuthTokens,
@@ -1063,7 +1063,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   async #withControllerLock<Result>(
     callback: MutuallyExclusiveCallback<Result>,
   ): Promise<Result> {
-    return withLock(this.#controllerOperationMutex, callback);
+    return await withLock(this.#controllerOperationMutex, callback);
   }
 
   /**
