@@ -364,27 +364,6 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
           await expect(promiseForResult).rejects.toThrow(errorMessage);
         });
       });
-
-      // TODO: Add tests for failover behavior when the RPC endpoint returns a 405 or 429 response without opening a circuit breaker
-      // testsForRpcFailoverBehavior({
-      //   providerType,
-      //   requestToCall: {
-      //     method,
-      //     params: [],
-      //   },
-      //   getRequestToMock: () => ({
-      //     method,
-      //     params: [],
-      //   }),
-      //   failure: {
-      //     httpStatus,
-      //   },
-      //   isRetriableFailure: false,
-      //   getExpectedError: () =>
-      //     expect.objectContaining({
-      //       message: errorMessage,
-      //     }),
-      // });
     },
   );
 
@@ -432,6 +411,10 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
       getExpectedError: () =>
         expect.objectContaining({
           message: errorMessage,
+        }),
+      getExpectedBreakError: () =>
+        expect.objectContaining({
+          message: `Fetch failed with status '500'`,
         }),
     });
   });
@@ -527,6 +510,12 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
         getExpectedError: () =>
           expect.objectContaining({
             message: expect.stringContaining(errorMessage),
+          }),
+        getExpectedBreakError: () =>
+          expect.objectContaining({
+            message: expect.stringContaining(
+              `Fetch failed with status '${httpStatus}'`,
+            ),
           }),
       });
     },

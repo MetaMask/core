@@ -1,6 +1,7 @@
 // We use conditions exclusively in this file.
 /* eslint-disable jest/no-conditional-in-test */
 
+import { HttpError } from '@metamask/controller-utils';
 import { rpcErrors } from '@metamask/rpc-errors';
 import nock from 'nock';
 import { FetchError } from 'node-fetch';
@@ -82,15 +83,6 @@ describe('RpcService', () => {
         });
       },
     );
-
-    describe('if making the request throws a "Gateway timeout" error', () => {
-      const error = new Error('Gateway timeout');
-      testsForRetriableFetchErrors({
-        getClock: () => clock,
-        producedError: error,
-        expectedError: error,
-      });
-    });
 
     describe.each(['ETIMEDOUT', 'ECONNRESET'])(
       'if making the request throws a %s error',
@@ -326,6 +318,7 @@ describe('RpcService', () => {
             message:
               'Gateway timeout. The request took too long to process. This can happen when querying logs over too wide a block range.',
           }),
+          expectedOnBreakError: new HttpError(httpStatus),
         });
       },
     );
@@ -528,11 +521,6 @@ describe('RpcService', () => {
         await expect(promise).rejects.toThrow(
           expect.objectContaining({
             message: "Non-200 status code: '500'",
-            data: {
-              id: 1,
-              jsonrpc: '2.0',
-              error: 'oops',
-            },
           }),
         );
       });
@@ -1243,17 +1231,21 @@ function testsForRetriableFetchErrors({
  * @param args.responseBody - The body that the response will have.
  * @param args.expectedError - The error that a call to the service's `request`
  * method is expected to produce.
+ * @param args.expectedOnBreakError - The error expected by the `onBreak` handler when there is a
+ * circuit break. Defaults to `expectedError` if not provided.
  */
 function testsForRetriableResponses({
   getClock,
   httpStatus,
   responseBody = '',
   expectedError,
+  expectedOnBreakError = expectedError,
 }: {
   getClock: () => SinonFakeTimers;
   httpStatus: number;
   responseBody?: string;
   expectedError: string | jest.Constructable | RegExp | Error;
+  expectedOnBreakError?: string | jest.Constructable | RegExp | Error;
 }) {
   // This function is designed to be used inside of a describe, so this won't be
   // a problem in practice.
@@ -1371,7 +1363,7 @@ function testsForRetriableResponses({
 
       expect(onBreakListener).toHaveBeenCalledTimes(1);
       expect(onBreakListener).toHaveBeenCalledWith({
-        error: expectedError,
+        error: expectedOnBreakError,
         endpointUrl: `${endpointUrl}/`,
       });
     });
@@ -1589,7 +1581,7 @@ function testsForRetriableResponses({
 
       expect(onBreakListener).toHaveBeenCalledTimes(2);
       expect(onBreakListener).toHaveBeenCalledWith({
-        error: expectedError,
+        error: expectedOnBreakError,
         endpointUrl: `${endpointUrl}/`,
         failoverEndpointUrl: `${failoverEndpointUrl}/`,
       });

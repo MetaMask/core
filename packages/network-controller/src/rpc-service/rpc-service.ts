@@ -4,6 +4,7 @@ import type {
 } from '@metamask/controller-utils';
 import {
   CircuitState,
+  HttpError,
   createServicePolicy,
   handleWhen,
 } from '@metamask/controller-utils';
@@ -250,7 +251,8 @@ export class RpcService implements AbstractRpcService {
           // Ignore server sent HTML error pages or truncated JSON responses
           error.message.includes('not valid JSON') ||
           // Ignore server overload errors
-          error.message.includes('Gateway timeout') ||
+          ('httpStatus' in error &&
+            (error.httpStatus === 503 || error.httpStatus === 504)) ||
           (hasProperty(error, 'code') &&
             (error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET'))
         );
@@ -379,7 +381,7 @@ export class RpcService implements AbstractRpcService {
     );
 
     try {
-      return await this.#executePolicy<Result>(completeFetchOptions);
+      return await this.#processRequest<Result>(completeFetchOptions);
     } catch (error) {
       if (
         this.#policy.circuitBreakerPolicy.state === CircuitState.Open &&
@@ -468,52 +470,45 @@ export class RpcService implements AbstractRpcService {
    * @throws A generic error if the response HTTP status is not 2xx but also not
    * 405, 429, 503, or 504.
    */
-  async #executePolicy<Result extends Json>(
+  async #processRequest<Result extends Json>(
     fetchOptions: FetchOptions,
   ): Promise<JsonRpcResponse<Result> | JsonRpcResponse<null>> {
-    return await this.#policy.execute(async () => {
-      const response = await this.#fetch(this.endpointUrl, fetchOptions);
-
-      if (response.status === 405) {
-        throw rpcErrors.methodNotFound();
-      }
-
-      if (response.status === 429) {
-        throw rpcErrors.limitExceeded({
-          message: 'Request is being rate limited.',
-        });
-      }
-
-      if (response.status === 503 || response.status === 504) {
-        throw rpcErrors.internal({
-          message:
-            'Gateway timeout. The request took too long to process. This can happen when querying logs over too wide a block range.',
-        });
-      }
-
-      // Type annotation: We assume that if this response is valid JSON, it's a
-      // valid JSON-RPC response.
-      let json: JsonRpcResponse<Result>;
-      try {
-        json = await response.json();
-      } catch (error) {
-        if (error instanceof SyntaxError) {
-          throw rpcErrors.internal({
-            message: 'Could not parse response as it is not valid JSON',
-          });
-        } else {
-          throw error;
+    let response: Response | undefined;
+    try {
+      return await this.#policy.execute(async () => {
+        response = await this.#fetch(this.endpointUrl, fetchOptions);
+        if (!response.ok) {
+          throw new HttpError(response.status);
         }
-      }
+        return await response.json();
+      });
+    } catch (error) {
+      if (error instanceof HttpError) {
+        const status = error.httpStatus;
+        if (status === 405) {
+          throw rpcErrors.methodNotFound();
+        }
+        if (status === 429) {
+          throw rpcErrors.limitExceeded({
+            message: 'Request is being rate limited.',
+          });
+        }
+        if (status === 503 || status === 504) {
+          throw rpcErrors.internal({
+            message:
+              'Gateway timeout. The request took too long to process. This can happen when querying logs over too wide a block range.',
+          });
+        }
 
-      if (!response.ok) {
         throw rpcErrors.internal({
-          message: `Non-200 status code: '${response.status}'`,
-          data: json,
+          message: `Non-200 status code: '${status}'`,
+        });
+      } else if (error instanceof SyntaxError) {
+        throw rpcErrors.internal({
+          message: 'Could not parse response as it is not valid JSON',
         });
       }
-
-      return json;
-    });
+      throw error;
+    }
   }
 }
