@@ -1,3 +1,4 @@
+import { isJsonRpcError } from '@metamask/utils';
 import {
   BrokenCircuitError,
   CircuitState,
@@ -131,16 +132,10 @@ export const DEFAULT_CIRCUIT_BREAK_DURATION = 30 * 60 * 1000;
 export const DEFAULT_DEGRADED_THRESHOLD = 5_000;
 
 const isServiceFailure = (error: unknown) => {
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    typeof error.code === 'number'
-  ) {
+  if (isJsonRpcError(error)) {
     let httpStatus: number | undefined;
 
     if (
-      'data' in error &&
       typeof error.data === 'object' &&
       error.data !== null &&
       'httpStatus' in error.data &&
