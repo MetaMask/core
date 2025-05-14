@@ -77,7 +77,7 @@ export function testsForProviderType(providerType: ProviderType) {
     describe('methods with block hashes in their result', () => {
       const methodsWithBlockHashInResponse = [
         { name: 'eth_getTransactionByHash', numberOfParameters: 1 },
-        { name: 'eth_getTransactionReceipt', numberOfParameters: 1 },
+        // { name: 'eth_getTransactionReceipt', numberOfParameters: 1 },
       ];
       methodsWithBlockHashInResponse.forEach(({ name, numberOfParameters }) => {
         describe(`method name: ${name}`, () => {

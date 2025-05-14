@@ -83,8 +83,8 @@ describe('RpcService', () => {
       },
     );
 
-    describe('if making the request throws a "Gateway timeout" error', () => {
-      const error = new Error('Gateway timeout');
+    describe('if making the request throws a "RPC endpoint server error (HTTP 5xx)" error', () => {
+      const error = new Error('RPC endpoint server error (HTTP 500)');
       testsForRetriableFetchErrors({
         getClock: () => clock,
         producedError: error,
@@ -322,9 +322,8 @@ describe('RpcService', () => {
         testsForRetriableResponses({
           getClock: () => clock,
           httpStatus,
-          expectedError: rpcErrors.internal({
-            message:
-              'Gateway timeout. The request took too long to process. This can happen when querying logs over too wide a block range.',
+          expectedError: rpcErrors.resourceUnavailable({
+            message: `RPC endpoint server error (HTTP ${httpStatus})`,
           }),
         });
       },
@@ -479,110 +478,6 @@ describe('RpcService', () => {
             params: [],
           })
           .reply(429);
-        const onBreakListener = jest.fn();
-        const service = new RpcService({
-          fetch,
-          btoa,
-          endpointUrl,
-        });
-        service.onBreak(onBreakListener);
-
-        const promise = service.request({
-          id: 1,
-          jsonrpc: '2.0',
-          method: 'eth_chainId',
-          params: [],
-        });
-        await ignoreRejection(promise);
-        expect(onBreakListener).not.toHaveBeenCalled();
-      });
-    });
-
-    describe('when the endpoint has a response that is neither 2xx, nor 405, 429, 503, or 504', () => {
-      it('throws a generic error without retrying the request', async () => {
-        const endpointUrl = 'https://rpc.example.chain';
-        nock(endpointUrl)
-          .post('/', {
-            id: 1,
-            jsonrpc: '2.0',
-            method: 'eth_chainId',
-            params: [],
-          })
-          .reply(500, {
-            id: 1,
-            jsonrpc: '2.0',
-            error: 'oops',
-          });
-        const service = new RpcService({
-          fetch,
-          btoa,
-          endpointUrl,
-        });
-
-        const promise = service.request({
-          id: 1,
-          jsonrpc: '2.0',
-          method: 'eth_chainId',
-          params: [],
-        });
-        await expect(promise).rejects.toThrow(
-          expect.objectContaining({
-            message: "Non-200 status code: '500'",
-            data: {
-              id: 1,
-              jsonrpc: '2.0',
-              error: 'oops',
-            },
-          }),
-        );
-      });
-
-      it('does not forward the request to a failover service if given one', async () => {
-        const endpointUrl = 'https://rpc.example.chain';
-        nock(endpointUrl)
-          .post('/', {
-            id: 1,
-            jsonrpc: '2.0',
-            method: 'eth_chainId',
-            params: [],
-          })
-          .reply(500, {
-            id: 1,
-            jsonrpc: '2.0',
-            error: 'oops',
-          });
-        const failoverService = buildMockRpcService();
-        const service = new RpcService({
-          fetch,
-          btoa,
-          endpointUrl,
-          failoverService,
-        });
-
-        const jsonRpcRequest = {
-          id: 1,
-          jsonrpc: '2.0' as const,
-          method: 'eth_chainId',
-          params: [],
-        };
-        await ignoreRejection(service.request(jsonRpcRequest));
-        expect(failoverService.request).not.toHaveBeenCalled();
-      });
-
-      it('does not call onBreak', async () => {
-        const endpointUrl = 'https://rpc.example.chain';
-        nock(endpointUrl)
-          .post('/', {
-            id: 1,
-            jsonrpc: '2.0',
-            method: 'eth_chainId',
-            params: [],
-          })
-          .reply(500, {
-            id: 1,
-            jsonrpc: '2.0',
-            error: 'oops',
-          });
         const onBreakListener = jest.fn();
         const service = new RpcService({
           fetch,

@@ -1,3 +1,4 @@
+import { isJsonRpcError } from '@metamask/utils';
 import {
   BrokenCircuitError,
   CircuitState,
@@ -131,15 +132,28 @@ export const DEFAULT_CIRCUIT_BREAK_DURATION = 30 * 60 * 1000;
 export const DEFAULT_DEGRADED_THRESHOLD = 5_000;
 
 const isServiceFailure = (error: unknown) => {
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    typeof error.code === 'number'
-  ) {
+  if (isJsonRpcError(error)) {
+    let httpStatus: number | undefined;
+
+    if (
+      typeof error.data === 'object' &&
+      error.data !== null &&
+      'httpStatus' in error.data &&
+      typeof error.data.httpStatus === 'number'
+    ) {
+      ({ httpStatus } = error.data);
+    }
+
     const { code } = error;
-    // Only consider errors with code -32603 (internal error) as service failures
-    return code === -32603;
+    // Only consider these errors as service failures:
+    // - Internal error (-32603)
+    // - Resource unavailable (-32002) and http status is not 402 or 404
+    // - Parse error (-32700)
+    return (
+      code === -32603 ||
+      (code === -32002 && httpStatus !== 402 && httpStatus !== 404) ||
+      code === -32700
+    );
   }
 
   // If the error is not an object, or doesn't have a numeric code property,

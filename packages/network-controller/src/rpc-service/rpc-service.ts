@@ -7,7 +7,7 @@ import {
   createServicePolicy,
   handleWhen,
 } from '@metamask/controller-utils';
-import { rpcErrors } from '@metamask/rpc-errors';
+import { JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest } from '@metamask/utils';
 import {
   hasProperty,
@@ -250,7 +250,7 @@ export class RpcService implements AbstractRpcService {
           // Ignore server sent HTML error pages or truncated JSON responses
           error.message.includes('not valid JSON') ||
           // Ignore server overload errors
-          error.message.includes('Gateway timeout') ||
+          error.message.includes('RPC endpoint server error (HTTP 5') ||
           (hasProperty(error, 'code') &&
             (error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET'))
         );
@@ -474,21 +474,42 @@ export class RpcService implements AbstractRpcService {
     return await this.#policy.execute(async () => {
       const response = await this.#fetch(this.endpointUrl, fetchOptions);
 
-      if (response.status === 405) {
+      if (response.status === 401) {
+        // code: -33100
+        throw new JsonRpcError(-33100, 'Unauthorized.');
+      }
+
+      if (response.status === 405 || response.status === 501) {
+        // code: -32601
         throw rpcErrors.methodNotFound();
       }
 
       if (response.status === 429) {
+        // code: -32005
         throw rpcErrors.limitExceeded({
           message: 'Request is being rate limited.',
         });
       }
 
-      if (response.status === 503 || response.status === 504) {
-        throw rpcErrors.internal({
-          message:
-            'Gateway timeout. The request took too long to process. This can happen when querying logs over too wide a block range.',
+      if (
+        (response.status >= 500 && response.status < 600) ||
+        response.status === 402 ||
+        response.status === 404
+      ) {
+        // code: -32002
+        throw rpcErrors.resourceUnavailable({
+          message: `RPC endpoint server error (HTTP ${response.status})`,
+          data: {
+            httpStatus: response.status,
+            httpStatusText: response.statusText,
+            originalError: `HTTP ${response.status} server error from RPC endpoint`,
+          },
         });
+      }
+
+      if (response.status >= 400 && response.status < 500) {
+        // code: -32600
+        throw rpcErrors.invalidRequest();
       }
 
       // Type annotation: We assume that if this response is valid JSON, it's a
@@ -498,7 +519,8 @@ export class RpcService implements AbstractRpcService {
         json = await response.json();
       } catch (error) {
         if (error instanceof SyntaxError) {
-          throw rpcErrors.internal({
+          // code: -32700
+          throw rpcErrors.parse({
             message: 'Could not parse response as it is not valid JSON',
           });
         } else {
@@ -507,6 +529,7 @@ export class RpcService implements AbstractRpcService {
       }
 
       if (!response.ok) {
+        // code: -32603
         throw rpcErrors.internal({
           message: `Non-200 status code: '${response.status}'`,
           data: json,
