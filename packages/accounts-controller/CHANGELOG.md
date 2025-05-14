@@ -9,10 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [29.0.0]
 
-### Uncategorized
+### Changed
 
-- fix: remove metadata for unsupported keyrings ([#5725](https://github.com/MetaMask/core/pull/5725))
-- Release/389.0.0 ([#5765](https://github.com/MetaMask/core/pull/5765))
+- **BREAKING:** bump `@metamask/keyring-controller` peer dependency to `^22.0.0` ([#5802](https://github.com/MetaMask/core/pull/5802))
 
 ## [28.0.0]
 
