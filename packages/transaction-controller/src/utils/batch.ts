@@ -1,5 +1,5 @@
 import type { AddResult } from '@metamask/approval-controller';
-import { ApprovalType, ORIGIN_METAMASK } from '@metamask/controller-utils';
+import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
@@ -558,7 +558,7 @@ async function requestApproval(
 ): Promise<AddResult> {
   const id = String(txBatchMeta.id);
   const { origin } = txBatchMeta;
-  const type = ApprovalType.TransactionBatch;
+  const type = 'transaction_batch';
   const requestData = { txBatchId: id };
 
   return (await messenger.call(
