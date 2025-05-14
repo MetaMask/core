@@ -201,6 +201,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   // Maintaining these functions for now until we can safely deprecate them for backwards compatibility
   /**
    * Start polling for the token list.
+   *
    * @deprecated This method is deprecated and will be removed in the future.
    * Consider using the new polling approach instead
    */
@@ -213,6 +214,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
 
   /**
    * Restart polling for the token list.
+   *
    * @deprecated This method is deprecated and will be removed in the future.
    * Consider using the new polling approach instead
    */
@@ -223,6 +225,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
 
   /**
    * Stop polling for the token list.
+   *
    * @deprecated This method is deprecated and will be removed in the future.
    * Consider using the new polling approach instead
    */
@@ -232,6 +235,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
 
   /**
    * This stops any active polling.
+   *
    * @deprecated This method is deprecated and will be removed in the future.
    * Consider using the new polling approach instead
    */
@@ -242,6 +246,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
 
   /**
    * This stops any active polling intervals.
+   *
    * @deprecated This method is deprecated and will be removed in the future.
    * Consider using the new polling approach instead
    */
@@ -253,6 +258,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
 
   /**
    * Starts a new polling interval for a given chainId (this should be deprecated in favor of _executePoll)
+   *
    * @deprecated This method is deprecated and will be removed in the future.
    * Consider using the new polling approach instead
    */
@@ -269,7 +275,6 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   /**
    * This starts a new polling loop for any given chain. Under the hood it is deduping polls
    *
-   * @private
    * @param input - The input for the poll.
    * @param input.chainId - The chainId of the chain to trigger the fetch.
    * @returns A promise that resolves when this operation completes.
