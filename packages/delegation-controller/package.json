@@ -1,6 +1,6 @@
 {
   "name": "@metamask/delegation-controller",
-  "version": "1.0.0",
+  "version": "0.3.0",
   "description": "Manages delegations for MetaMask",
   "keywords": [
     "MetaMask",
