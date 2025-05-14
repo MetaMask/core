@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Set the polling time constant to the correct value ([#5805](https://github.com/MetaMask/core/pull/5805))
+
 ## [63.0.0]
 
 ### Changed
