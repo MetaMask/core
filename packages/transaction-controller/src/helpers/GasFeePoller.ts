@@ -320,7 +320,10 @@ export class GasFeePoller {
 }
 
 /**
- * Update the gas fees for a transaction.
+ * Update the gas properties for a transaction.
+ *
+ * Updates gas properties for a transaction given `gasFeeEstimates` from the gas fee controller
+ * and sets other gas properties.
  *
  * @param args - Argument bag.
  * @param args.txMeta - The transaction meta.
@@ -329,18 +332,18 @@ export class GasFeePoller {
  * @param args.isTxParamsGasFeeUpdatesEnabled - Whether to update the gas fee properties in `txParams`.
  * @param args.layer1GasFee - The layer 1 gas fee.
  */
-export function updateTransactionGasFees({
-  txMeta,
+export function applyGasFeeEstimatesToTransaction({
   gasFeeEstimates,
   gasFeeEstimatesLoaded,
   isTxParamsGasFeeUpdatesEnabled,
   layer1GasFee,
+  txMeta,
 }: {
-  txMeta: TransactionMeta;
   gasFeeEstimates?: GasFeeEstimates;
   gasFeeEstimatesLoaded?: boolean;
   isTxParamsGasFeeUpdatesEnabled: (transactionMeta: TransactionMeta) => boolean;
   layer1GasFee?: Hex;
+  txMeta: TransactionMeta;
 }): void {
   const userFeeLevel = txMeta.userFeeLevel as GasFeeEstimateLevel;
   const isUsingGasFeeEstimateLevel =
@@ -418,5 +421,62 @@ export function updateTransactionGasFees({
 
   if (layer1GasFee) {
     txMeta.layer1GasFee = layer1GasFee;
+  }
+}
+
+/**
+ * Update the txParams gas values for a transaction with the given user fee level.
+ *
+ * Updates txParams gas values accordingly with given `txParams.gasFeeEstimates` from transaction meta.
+ *
+ * @param args - Argument bag.
+ * @param args.txMeta - The transaction meta.
+ * @param args.userFeeLevel - The user fee level.
+ */
+export function applyTransactionGasEstimatesToTransaction({
+  txMeta,
+  userFeeLevel,
+}: {
+  txMeta: TransactionMeta;
+  userFeeLevel: GasFeeEstimateLevel;
+}): void {
+  const { txParams, gasFeeEstimates } = txMeta;
+
+  if (!gasFeeEstimates) {
+    return;
+  }
+
+  const isEIP1559Compatible =
+    txMeta.txParams.type !== TransactionEnvelopeType.legacy;
+
+  const transactionGasFeeEstimates = gasFeeEstimates as GasFeeEstimates;
+  const transactionGasFeeEstimateType = transactionGasFeeEstimates.type;
+
+  if (isEIP1559Compatible) {
+    if (transactionGasFeeEstimateType === GasFeeEstimateType.FeeMarket) {
+      txParams.maxFeePerGas =
+        transactionGasFeeEstimates[userFeeLevel]?.maxFeePerGas;
+      txParams.maxPriorityFeePerGas =
+        transactionGasFeeEstimates[userFeeLevel]?.maxPriorityFeePerGas;
+    }
+    if (transactionGasFeeEstimateType === GasFeeEstimateType.Legacy) {
+      txParams.maxFeePerGas = transactionGasFeeEstimates[userFeeLevel];
+      txParams.maxPriorityFeePerGas = transactionGasFeeEstimates[userFeeLevel];
+    }
+    if (transactionGasFeeEstimateType === GasFeeEstimateType.GasPrice) {
+      txParams.maxFeePerGas = transactionGasFeeEstimates.gasPrice;
+      txParams.maxPriorityFeePerGas = transactionGasFeeEstimates.gasPrice;
+    }
+  } else {
+    if (transactionGasFeeEstimateType === GasFeeEstimateType.FeeMarket) {
+      txParams.gasPrice =
+        transactionGasFeeEstimates[userFeeLevel]?.maxFeePerGas;
+    }
+    if (transactionGasFeeEstimateType === GasFeeEstimateType.Legacy) {
+      txParams.gasPrice = transactionGasFeeEstimates[userFeeLevel];
+    }
+    if (transactionGasFeeEstimateType === GasFeeEstimateType.GasPrice) {
+      txParams.gasPrice = transactionGasFeeEstimates.gasPrice;
+    }
   }
 }
