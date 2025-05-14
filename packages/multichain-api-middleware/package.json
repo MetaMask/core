@@ -62,7 +62,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/eth-json-rpc-filters": "^9.0.0",
-    "@metamask/multichain-transactions-controller": "^1.0.0",
+    "@metamask/multichain-transactions-controller": "^0.11.0",
     "@metamask/safe-event-emitter": "^3.0.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
