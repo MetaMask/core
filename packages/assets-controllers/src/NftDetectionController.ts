@@ -33,6 +33,10 @@ import {
   type NftControllerState,
   type NftMetadata,
 } from './NftController';
+import type {
+  NetworkClientId,
+  NetworkControllerFindNetworkClientIdByChainIdAction,
+} from '../../network-controller/src/NetworkController';
 
 const controllerName = 'NftDetectionController';
 
@@ -43,7 +47,8 @@ export type AllowedActions =
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
   | PreferencesControllerGetStateAction
-  | AccountsControllerGetSelectedAccountAction;
+  | AccountsControllerGetSelectedAccountAction
+  | NetworkControllerFindNetworkClientIdByChainIdAction;
 
 export type AllowedEvents =
   | PreferencesControllerStateChangeEvent
@@ -794,12 +799,20 @@ export class NftDetectionController extends BaseController<
               collection && { collection },
               chainId && { chainId },
             );
-            await this.#addNft(contract, tokenId, {
-              nftMetadata,
-              userAddress,
-              source: Source.Detected,
-              chainId: toHex(chainId),
-            });
+            const networkClientId = this.messagingSystem.call(
+              'NetworkController:findNetworkClientIdByChainId',
+              toHex(chainId as number),
+            );
+            await this.#addNft(
+              contract,
+              tokenId,
+              networkClientId as NetworkClientId,
+              {
+                nftMetadata,
+                userAddress,
+                source: Source.Detected,
+              },
+            );
           }
         });
         await Promise.all(addNftPromises);
