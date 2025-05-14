@@ -150,7 +150,10 @@ const isServiceFailure = (error: unknown) => {
     }
 
     const { code } = error;
-    // Only consider errors with code -32603, -32002, or -32700 as service failures
+    // Only consider these errors as service failures:
+    // - Internal error (-32603)
+    // - Resource unavailable (-32002) and http status is not 402 or 404
+    // - Parse error (-32700)
     return (
       code === -32603 ||
       (code === -32002 && httpStatus !== 402 && httpStatus !== 404) ||
