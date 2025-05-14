@@ -379,10 +379,7 @@ export class RpcService implements AbstractRpcService {
     );
 
     try {
-      return await this.#executePolicy<Params, Result>(
-        jsonRpcRequest,
-        completeFetchOptions,
-      );
+      return await this.#executePolicy<Result>(completeFetchOptions);
     } catch (error) {
       if (
         this.#policy.circuitBreakerPolicy.state === CircuitState.Open &&
@@ -462,7 +459,6 @@ export class RpcService implements AbstractRpcService {
   /**
    * Makes the request using the Cockatiel policy that this service creates.
    *
-   * @param jsonRpcRequest - The JSON-RPC request to send to the endpoint.
    * @param fetchOptions - The options for `fetch`; will be combined with the
    * fetch options passed to the constructor
    * @returns The decoded JSON-RPC response from the endpoint.
@@ -472,12 +468,7 @@ export class RpcService implements AbstractRpcService {
    * @throws A generic error if the response HTTP status is not 2xx but also not
    * 405, 429, 503, or 504.
    */
-  async #executePolicy<
-    Params extends JsonRpcParams,
-    Result extends Json,
-    Request extends JsonRpcRequest = JsonRpcRequest<Params>,
-  >(
-    jsonRpcRequest: Request,
+  async #executePolicy<Result extends Json>(
     fetchOptions: FetchOptions,
   ): Promise<JsonRpcResponse<Result> | JsonRpcResponse<null>> {
     return await this.#policy.execute(async () => {
