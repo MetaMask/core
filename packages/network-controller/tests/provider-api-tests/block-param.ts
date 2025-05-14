@@ -548,7 +548,7 @@ export function testsForRpcMethodSupportingBlockParam(
     describe.each([503, 504])(
       'if the RPC endpoint returns a %d response',
       (httpStatus) => {
-        const errorMessage = 'Gateway timeout';
+        const errorMessage = `RPC endpoint server error (HTTP ${httpStatus})`;
 
         it('retries the request up to 5 times until there is a 200 response', async () => {
           await withMockedCommunications({ providerType }, async (comms) => {
