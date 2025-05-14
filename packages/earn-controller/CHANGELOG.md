@@ -9,13 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.14.0]
 
-### Uncategorized
-
-- Release 394.0.0 ([#5791](https://github.com/MetaMask/core/pull/5791))
-- Release/392.0.0 ([#5785](https://github.com/MetaMask/core/pull/5785))
-
 ### Changed
 
+- **BREAKING:** bump `@metamask/accounts-controller` peer dependency to `^29.0.0` ([#5802](https://github.com/MetaMask/core/pull/5802))
 - Bump `@metamask/controller-utils` to `^11.8.0` ([#5765](https://github.com/MetaMask/core/pull/5765))
 
 ## [0.13.0]
