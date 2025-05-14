@@ -488,7 +488,9 @@ export class RpcService implements AbstractRpcService {
       }
 
       if (response.status === 429) {
-        throw rpcErrors.internal({ message: 'Request is being rate limited.' });
+        throw rpcErrors.limitExceeded({
+          message: 'Request is being rate limited.',
+        });
       }
 
       if (response.status === 503 || response.status === 504) {
