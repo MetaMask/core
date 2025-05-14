@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Configure incoming transaction polling interval using feature flag ([#5792](https://github.com/MetaMask/core/pull/5792))
+
 ## [55.0.2]
 
 ### Fixed
