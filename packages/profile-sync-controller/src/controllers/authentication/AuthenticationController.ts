@@ -31,7 +31,6 @@ const controllerName = 'AuthenticationController';
 // State
 export type AuthenticationControllerState = {
   isSignedIn: boolean;
-  sessionData?: LoginResponse; // TODO: deprecate this
   srpSessionData?: Record<string, LoginResponse>;
 };
 export const defaultState: AuthenticationControllerState = {
@@ -41,10 +40,6 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
   isSignedIn: {
     persist: true,
     anonymous: true,
-  },
-  sessionData: {
-    persist: true,
-    anonymous: false,
   },
   srpSessionData: {
     persist: true,
@@ -224,19 +219,21 @@ export default class AuthenticationController extends BaseController<
     entropySourceId?: string,
   ): Promise<LoginResponse | null> {
     if (entropySourceId) {
-      if (
-        !this.state.srpSessionData ||
-        !this.state.srpSessionData[entropySourceId]
-      ) {
+      if (!this.state.srpSessionData?.[entropySourceId]) {
         return null;
       }
       return this.state.srpSessionData[entropySourceId];
     }
-    if (!this.state.sessionData) {
+
+    const primarySrpLoginResponse = Object.values(
+      this.state.srpSessionData || {},
+    )?.[0];
+
+    if (!primarySrpLoginResponse) {
       return null;
     }
 
-    return this.state.sessionData;
+    return primarySrpLoginResponse;
   }
 
   async #setLoginResponseToState(
@@ -245,20 +242,12 @@ export default class AuthenticationController extends BaseController<
   ) {
     const metaMetricsId = await this.#metametrics.getMetaMetricsId();
     this.update((state) => {
-      state.isSignedIn = true;
       if (entropySourceId) {
+        state.isSignedIn = true;
         if (!state.srpSessionData) {
           state.srpSessionData = {};
         }
         state.srpSessionData[entropySourceId] = {
-          ...loginResponse,
-          profile: {
-            ...loginResponse.profile,
-            metaMetricsId,
-          },
-        };
-      } else {
-        state.sessionData = {
           ...loginResponse,
           profile: {
             ...loginResponse.profile,
@@ -275,26 +264,25 @@ export default class AuthenticationController extends BaseController<
     }
   }
 
-  public async performSignIn(): Promise<string> {
+  public async performSignIn(): Promise<string[]> {
     this.#assertIsUnlocked('performSignIn');
 
     const allPublicKeys = await this.#snapGetAllPublicKeys();
 
-    await Promise.all(
+    return await Promise.all(
       allPublicKeys.map(async ([entropySourceId]) => {
-        await this.#auth.getAccessToken(entropySourceId);
+        return await this.#auth.getAccessToken(entropySourceId);
       }),
     );
 
     // Keeping this for backwards compatibility for now
     // This results in duplicate API calls
-    return await this.#auth.getAccessToken();
+    // return await this.#auth.getAccessToken();
   }
 
   public performSignOut(): void {
     this.update((state) => {
       state.isSignedIn = false;
-      state.sessionData = undefined;
       state.srpSessionData = undefined;
     });
   }
@@ -327,7 +315,8 @@ export default class AuthenticationController extends BaseController<
   }
 
   public isSignedIn(): boolean {
-    // TODO: we might need to do this
+    // TODO: we might need to do something along those lines?
+
     // this.#assertIsUnlocked('isSignedIn');
     // const allPublicKeys = await this.#snapGetAllPublicKeys();
 
