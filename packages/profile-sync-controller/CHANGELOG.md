@@ -7,13 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.0.0]
+
 ### Changed
 
-- Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
-- **BREAKING:** Bump `@metamask/snaps-controllers` peer dependency from ^9.19.0 to ^11.0.0 ([#5639](https://github.com/MetaMask/core/pull/5639))
-- **BREAKING:** Bump `@metamask/providers` peer dependency from ^18.1.1 to ^21.0.0 ([#5639](https://github.com/MetaMask/core/pull/5639))
-- Bump `@metamask/snaps-sdk` from ^6.17.1 to ^6.22.0 ([#5639](https://github.com/MetaMask/core/pull/5639))
-- Bump `@metamask/snaps-utils` from ^8.10.0 to ^9.2.0 ([#5639](https://github.com/MetaMask/core/pull/5639))
+- **BREAKING:** Replace all "Profile Syncing" mentions to "Backup & Sync" ([#5686](https://github.com/MetaMask/core/pull/5686))
+  - Replaces state properties `isProfileSyncingEnabled` to `isBackupAndSyncEnabled`, and `isProfileSyncingUpdateLoading` to `isBackupAndSyncUpdateLoading`
+
+### Fixed
+
+- Remove metadata for unsupported keyrings ([#5725](https://github.com/MetaMask/core/pull/5725))
+
+## [13.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^27.0.0` to `^28.0.0` ([#5763](https://github.com/MetaMask/core/pull/5763))
+- **BREAKING:** Bump `@metamask/snaps-controllers` peer dependency from `^9.19.0` to `^11.0.0` ([#5639](https://github.com/MetaMask/core/pull/5639))
+- **BREAKING:** Bump `@metamask/providers` peer dependency from `^18.1.1` to `^21.0.0` ([#5639](https://github.com/MetaMask/core/pull/5639))
+- Bump `@metamask/base-controller` from `^8.0.0` to `^8.0.1` ([#5722](https://github.com/MetaMask/core/pull/5722))
+- Bump `@metamask/snaps-sdk` from `^6.17.1` to `^6.22.0` ([#5639](https://github.com/MetaMask/core/pull/5639))
+- Bump `@metamask/snaps-utils` from `^8.10.0` to `^9.2.0` ([#5639](https://github.com/MetaMask/core/pull/5639))
 
 ## [12.0.0]
 
@@ -572,7 +586,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@12.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@14.0.0...HEAD
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@13.0.0...@metamask/profile-sync-controller@14.0.0
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@12.0.0...@metamask/profile-sync-controller@13.0.0
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@11.0.1...@metamask/profile-sync-controller@12.0.0
 [11.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@11.0.0...@metamask/profile-sync-controller@11.0.1
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@10.1.0...@metamask/profile-sync-controller@11.0.0

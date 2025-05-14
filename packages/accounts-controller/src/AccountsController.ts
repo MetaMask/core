@@ -684,11 +684,11 @@ export class AccountsController extends BaseController<
    */
   async #listNormalAccounts(): Promise<InternalAccount[]> {
     const internalAccounts: InternalAccount[] = [];
-    const { keyrings, keyringsMetadata } = this.messagingSystem.call(
+    const { keyrings } = this.messagingSystem.call(
       'KeyringController:getState',
     );
 
-    for (const [keyringIndex, keyring] of keyrings.entries()) {
+    for (const keyring of keyrings) {
       const keyringType = keyring.type;
       if (!isNormalKeyringType(keyringType as KeyringTypes)) {
         // We only consider "normal accounts" here, so keep looping
@@ -702,7 +702,7 @@ export class AccountsController extends BaseController<
 
         if (isHdKeyringType(keyring.type as KeyringTypes)) {
           options = {
-            entropySource: keyringsMetadata[keyringIndex].id,
+            entropySource: keyring.metadata.id,
             // NOTE: We are not using the `hdPath` from the associated keyring here and
             // getting the keyring instance here feels a bit overkill.
             // This will be naturally fixed once every keyring start using `KeyringAccount` and implement the keyring API.
@@ -988,24 +988,31 @@ export class AccountsController extends BaseController<
   #handleOnSnapStateChange(snapState: SnapControllerState) {
     // only check if snaps changed in status
     const { snaps } = snapState;
-    const accounts = this.listMultichainAccounts().filter(
-      (account) => account.metadata.snap,
-    );
 
-    this.update((currentState) => {
-      accounts.forEach((account) => {
-        const currentAccount =
-          currentState.internalAccounts.accounts[account.id];
-        if (currentAccount.metadata.snap) {
-          const snapId = currentAccount.metadata.snap.id;
-          const storedSnap: Snap = snaps[snapId as SnapId];
-          if (storedSnap) {
-            currentAccount.metadata.snap.enabled =
-              storedSnap.enabled && !storedSnap.blocked;
+    const accounts: { id: string; enabled: boolean }[] = [];
+    for (const account of this.listMultichainAccounts()) {
+      if (account.metadata.snap) {
+        const snap: Snap = snaps[account.metadata.snap.id as SnapId];
+        const enabled = snap.enabled && !snap.blocked;
+        const metadata = account.metadata.snap;
+
+        if (metadata.enabled !== enabled) {
+          accounts.push({ id: account.id, enabled });
+        }
+      }
+    }
+
+    if (accounts.length > 0) {
+      this.update((state) => {
+        for (const { id, enabled } of accounts) {
+          const account = state.internalAccounts.accounts[id];
+
+          if (account.metadata.snap) {
+            account.metadata.snap.enabled = enabled;
           }
         }
       });
-    });
+    }
   }
 
   /**

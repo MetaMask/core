@@ -13,6 +13,7 @@ import type {
   NetworkControllerGetStateAction,
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
+import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type {
   CaipAccountId,
@@ -177,10 +178,6 @@ export type BridgeToken = {
   occurrences?: number;
 };
 
-export enum BridgeFlag {
-  EXTENSION_CONFIG = 'extension-config',
-  MOBILE_CONFIG = 'mobile-config',
-}
 type DecimalChainId = string;
 export type GasMultiplierByChainId = Record<DecimalChainId, number>;
 
@@ -191,10 +188,7 @@ type FeatureFlagResponsePlatformConfig = {
   chains: Record<string, ChainConfiguration>;
 };
 
-export type FeatureFlagResponse = {
-  [BridgeFlag.EXTENSION_CONFIG]: FeatureFlagResponsePlatformConfig;
-  [BridgeFlag.MOBILE_CONFIG]: FeatureFlagResponsePlatformConfig;
-};
+export type FeatureFlagResponse = FeatureFlagResponsePlatformConfig;
 
 /**
  * This is the interface for the quote request sent to the bridge-api
@@ -282,6 +276,11 @@ export type Quote = {
   bridges: string[];
   steps: Step[];
   refuel?: RefuelData;
+  priceData?: {
+    totalFromAmountUsd?: string;
+    totalToAmountUsd?: string;
+    priceImpact?: string;
+  };
 };
 
 /**
@@ -324,22 +323,14 @@ export type TxData = {
   data: string;
   gasLimit: number | null;
 };
-export enum BridgeFeatureFlagsKey {
-  EXTENSION_CONFIG = 'extensionConfig',
-  MOBILE_CONFIG = 'mobileConfig',
-}
 
-type FeatureFlagsPlatformConfig = {
+export type FeatureFlagsPlatformConfig = {
   refreshRate: number;
   maxRefreshCount: number;
   support: boolean;
   chains: Record<CaipChainId, ChainConfiguration>;
 };
 
-export type BridgeFeatureFlags = {
-  [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: FeatureFlagsPlatformConfig;
-  [BridgeFeatureFlagsKey.MOBILE_CONFIG]: FeatureFlagsPlatformConfig;
-};
 export enum RequestStatus {
   LOADING,
   FETCHED,
@@ -350,14 +341,13 @@ export enum BridgeUserAction {
   UPDATE_QUOTE_PARAMS = 'updateBridgeQuoteRequestParams',
 }
 export enum BridgeBackgroundAction {
-  SET_FEATURE_FLAGS = 'setBridgeFeatureFlags',
+  SET_CHAIN_INTERVAL_LENGTH = 'setChainIntervalLength',
   RESET_STATE = 'resetState',
   GET_BRIDGE_ERC20_ALLOWANCE = 'getBridgeERC20Allowance',
   TRACK_METAMETRICS_EVENT = 'trackUnifiedSwapBridgeEvent',
 }
 
 export type BridgeControllerState = {
-  bridgeFeatureFlags: BridgeFeatureFlags;
   quoteRequest: Partial<GenericQuoteRequest>;
   quotes: (QuoteResponse & L1GasFees & SolanaFees)[];
   quotesInitialLoadTime: number | null;
@@ -380,7 +370,7 @@ export type BridgeControllerAction<
 
 // Maps to BridgeController function names
 export type BridgeControllerActions =
-  | BridgeControllerAction<BridgeBackgroundAction.SET_FEATURE_FLAGS>
+  | BridgeControllerAction<BridgeBackgroundAction.SET_CHAIN_INTERVAL_LENGTH>
   | BridgeControllerAction<BridgeBackgroundAction.RESET_STATE>
   | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>
   | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>
@@ -399,7 +389,8 @@ export type AllowedActions =
   | HandleSnapRequest
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetStateAction
-  | NetworkControllerGetNetworkClientByIdAction;
+  | NetworkControllerGetNetworkClientByIdAction
+  | RemoteFeatureFlagControllerGetStateAction;
 export type AllowedEvents = never;
 
 /**

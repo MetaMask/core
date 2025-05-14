@@ -14,8 +14,8 @@ import {
   type KeyringControllerGetStateAction,
   type KeyringControllerLockEvent,
   type KeyringControllerUnlockEvent,
-  type KeyringControllerWithKeyringAction,
   KeyringTypes,
+  type KeyringControllerState,
 } from '@metamask/keyring-controller';
 import type {
   AuthenticationController,
@@ -200,7 +200,6 @@ export type Actions =
 // Allowed Actions
 export type AllowedActions =
   // Keyring Controller Requests
-  | KeyringControllerWithKeyringAction
   | KeyringControllerGetStateAction
   // Auth Controller Requests
   | AuthenticationController.AuthenticationControllerGetBearerToken
@@ -410,20 +409,14 @@ export default class NotificationServicesController extends BaseController<
     isNotificationAccountsSetup: false,
 
     getNotificationAccounts: async () => {
-      const mainHDWalletAccounts = (await this.messagingSystem
-        .call(
-          'KeyringController:withKeyring',
-          {
-            type: KeyringTypes.hd,
-            index: 0,
-          },
-          async ({ keyring }): Promise<string[]> => {
-            return await keyring.getAccounts();
-          },
-        )
-        .catch(() => null)) as string[] | null;
-
-      return mainHDWalletAccounts;
+      const { keyrings } = this.messagingSystem.call(
+        'KeyringController:getState',
+      );
+      const firstHDKeyring = keyrings.find(
+        (k) => k.type === KeyringTypes.hd.toString(),
+      );
+      const keyringAccounts = firstHDKeyring?.accounts ?? null;
+      return keyringAccounts;
     },
 
     /**
@@ -501,8 +494,12 @@ export default class NotificationServicesController extends BaseController<
     subscribe: () => {
       this.messagingSystem.subscribe(
         'KeyringController:stateChange',
-        async () => {
-          if (!this.state.isNotificationServicesEnabled) {
+        async (totalAccounts, prevTotalAccounts) => {
+          const hasTotalAccountsChanged = totalAccounts !== prevTotalAccounts;
+          if (
+            !this.state.isNotificationServicesEnabled ||
+            !hasTotalAccountsChanged
+          ) {
             return;
           }
 
@@ -517,6 +514,12 @@ export default class NotificationServicesController extends BaseController<
             promises.push(this.deleteOnChainTriggersByAccount(accountsRemoved));
           }
           await Promise.all(promises);
+        },
+        (state: KeyringControllerState) => {
+          return (
+            state?.keyrings?.flatMap?.((keyring) => keyring.accounts)?.length ??
+            0
+          );
         },
       );
     },

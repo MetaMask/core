@@ -28,7 +28,6 @@ export type {
   L1GasFees,
   SolanaFees,
   QuoteMetadata,
-  BridgeToken,
   GasMultiplierByChainId,
   FeatureFlagResponse,
   BridgeAsset,
@@ -41,12 +40,12 @@ export type {
   QuoteResponse,
   FeeData,
   TxData,
-  BridgeFeatureFlags,
   BridgeControllerState,
   BridgeControllerAction,
   BridgeControllerActions,
   BridgeControllerEvents,
   BridgeControllerMessenger,
+  FeatureFlagsPlatformConfig,
 } from './types';
 
 export { StatusTypes } from './types';
@@ -54,10 +53,8 @@ export { StatusTypes } from './types';
 export {
   AssetType,
   SortOrder,
-  BridgeFlag,
   ActionTypes,
   ChainId,
-  BridgeFeatureFlagsKey,
   RequestStatus,
   BridgeUserAction,
   BridgeBackgroundAction,
@@ -103,6 +100,7 @@ export {
   isSolanaChainId,
   getNativeAssetForChainId,
   getDefaultBridgeControllerState,
+  isCrossChain,
 } from './utils/bridge';
 
 export { isValidQuoteRequest, formatEtaInMinutes } from './utils/quote';
@@ -129,4 +127,5 @@ export {
    * @returns Whether the quote is expired
    */
   selectIsQuoteExpired,
+  selectBridgeFeatureFlags,
 } from './selectors';

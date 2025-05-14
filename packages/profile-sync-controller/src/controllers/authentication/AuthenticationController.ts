@@ -109,7 +109,7 @@ export type AuthenticationControllerMessenger = RestrictedMessenger<
 
 /**
  * Controller that enables authentication for restricted endpoints.
- * Used for Global Profile Syncing and Notifications
+ * Used for Backup & Sync, Notifications, and other services.
  */
 export default class AuthenticationController extends BaseController<
   typeof controllerName,
