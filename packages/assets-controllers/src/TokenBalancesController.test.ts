@@ -610,6 +610,17 @@ describe('TokenBalancesController', () => {
   });
 
   describe('when accountRemoved is published', () => {
+    it('does not update state if account removed is not in the list of accounts', async () => {
+      const { controller, messenger, updateSpy } = setupController();
+
+      messenger.publish(
+        'AccountsController:accountRemoved',
+        '0x0000000000000000000000000000000000000000',
+      );
+
+      expect(controller.state.tokenBalances).toStrictEqual({});
+      expect(updateSpy).toHaveBeenCalledTimes(0);
+    });
     it('removes the balances for the removed account', async () => {
       const chainId = '0x1';
       const accountAddress = '0x0000000000000000000000000000000000000000';
