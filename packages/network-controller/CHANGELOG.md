@@ -9,9 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Improved handling of HTTP status codes to prevent unnecessary circuit breaker triggers ([#5798](https://github.com/MetaMask/core/pull/5798))
+- Improved handling of HTTP status codes to prevent unnecessary circuit breaker triggers ([#5798](https://github.com/MetaMask/core/pull/5798), [#5807](https://github.com/MetaMask/core/pull/5807))
   - 405 (Method Not Allowed) continues to throw JSON-RPC error with code -32601 (Method not found)
   - 429 (Too Many Requests) now throws JSON-RPC error with code -32005 (Request rate limit exceeded) instead of a generic internal error
+  - 500-599 (Server Errors) now throw JSON-RPC error with code -32002 (Resource unavailable) instead of internal error
+  - 402 and 404 responses are consolidated with 5XX handling, all using resource unavailable error type
   - These errors are filtered by the circuit breaker's `handleWhen` policy to prevent unnecessary failover to backup endpoints
 
 ## [23.4.0]
