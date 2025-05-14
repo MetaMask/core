@@ -286,80 +286,67 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   async fetchTokenList(chainId: Hex): Promise<void> {
     const releaseLock = await this.mutex.acquire();
     try {
-      const { tokensChainsCache } = this.state;
-      let tokenList: TokenListMap = {};
-      // Attempt to fetch cached tokens
-      const cachedTokens = await safelyExecute(() =>
-        this.#fetchFromCache(chainId),
-      );
-      if (cachedTokens) {
-        // Use non-expired cached tokens
-        tokenList = { ...cachedTokens };
-      } else {
-        // Fetch fresh token list from the API
-        const tokensFromAPI = await safelyExecute(
-          () =>
-            fetchTokenListByChainId(
-              chainId,
-              this.abortController.signal,
-            ) as Promise<TokenListToken[]>,
-        );
-
-        if (tokensFromAPI) {
-          // Format tokens from API (HTTP) and update tokenList
-          tokenList = {};
-          for (const token of tokensFromAPI) {
-            tokenList[token.address] = {
-              ...token,
-              aggregators: formatAggregatorNames(token.aggregators),
-              iconUrl: formatIconUrlWithProxy({
-                chainId,
-                tokenAddress: token.address,
-              }),
-            };
-          }
-        } else {
-          // Fallback to expired cached tokens
-          tokenList = { ...(tokensChainsCache[chainId]?.data || {}) };
-        }
+      if (this.isCacheValid(chainId)) {
+        return;
       }
 
-      // Update the state with a single update for both tokenList and tokenChainsCache
-      this.update(() => {
-        return {
-          ...this.state,
-          tokensChainsCache: {
-            ...tokensChainsCache,
-            [chainId]: {
-              timestamp: Date.now(),
-              data: tokenList,
-            },
-          },
-        };
-      });
+      // Fetch fresh token list from the API
+      const tokensFromAPI = await safelyExecute(
+        () =>
+          fetchTokenListByChainId(
+            chainId,
+            this.abortController.signal,
+          ) as Promise<TokenListToken[]>,
+      );
+
+      // Have response - process and update list
+      if (tokensFromAPI) {
+        // Format tokens from API (HTTP) and update tokenList
+        const tokenList: TokenListMap = {};
+        for (const token of tokensFromAPI) {
+          tokenList[token.address] = {
+            ...token,
+            aggregators: formatAggregatorNames(token.aggregators),
+            iconUrl: formatIconUrlWithProxy({
+              chainId,
+              tokenAddress: token.address,
+            }),
+          };
+        }
+
+        this.update((state) => {
+          state.tokensChainsCache[chainId] ??= {
+            data: {},
+            timestamp: Date.now(),
+          };
+          state.tokensChainsCache[chainId].data = tokenList;
+          state.tokensChainsCache[chainId].timestamp = Date.now();
+        });
+        return;
+      }
+
+      // No response - fallback to previous state, or initialise empty
+      if (!tokensFromAPI) {
+        this.update((state) => {
+          state.tokensChainsCache[chainId] ??= {
+            data: {},
+            timestamp: Date.now(),
+          };
+          state.tokensChainsCache[chainId].timestamp = Date.now();
+        });
+      }
     } finally {
       releaseLock();
     }
   }
 
-  /**
-   * Checks if the Cache timestamp is valid,
-   * if yes data in cache will be returned
-   * otherwise null will be returned.
-   * @param chainId - The chain ID of the network for which to fetch the cache.
-   * @returns The cached data, or `null` if the cache was expired.
-   */
-  async #fetchFromCache(chainId: Hex): Promise<TokenListMap | null> {
+  isCacheValid(chainId: Hex): boolean {
     const { tokensChainsCache }: TokenListState = this.state;
-    const dataCache = tokensChainsCache[chainId];
+    const timestamp: number | undefined = tokensChainsCache[chainId]?.timestamp;
     const now = Date.now();
-    if (
-      dataCache?.data &&
-      now - dataCache?.timestamp < this.cacheRefreshThreshold
-    ) {
-      return dataCache.data;
-    }
-    return null;
+    return (
+      timestamp !== undefined && now - timestamp < this.cacheRefreshThreshold
+    );
   }
 
   /**
