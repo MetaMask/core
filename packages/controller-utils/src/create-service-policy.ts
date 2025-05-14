@@ -138,8 +138,8 @@ const isServiceFailure = (error: unknown) => {
     typeof error.code === 'number'
   ) {
     const { code } = error;
-    // Only consider errors with code -32603 (internal error) as service failures
-    return code === -32603;
+    // Only consider errors with code -32603, -32002, or -32700 as service failures
+    return code === -32603 || code === -32002 || code === -32700;
   }
 
   // If the error is not an object, or doesn't have a numeric code property,
