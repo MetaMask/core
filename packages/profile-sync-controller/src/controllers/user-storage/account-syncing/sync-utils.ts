@@ -1,9 +1,7 @@
 import { isEvmAccountType } from '@metamask/keyring-api';
-import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { AccountSyncingOptions, UserStorageAccount } from './types';
-import { mapInternalAccountsListToPrimarySRPHdKeyringInternalAccountsList } from './utils';
 import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
 
 /**
@@ -50,41 +48,21 @@ export function canPerformAccountSyncing(
  */
 export async function getInternalAccountsList(
   options: AccountSyncingOptions,
-  entropySourceId?: string,
+  entropySourceId: string,
 ): Promise<InternalAccount[]> {
   const { getMessenger } = options;
+
+  await getMessenger().call('AccountsController:updateAccounts');
 
   const internalAccountsList = getMessenger().call(
     'AccountsController:listAccounts',
   );
 
-  if (entropySourceId) {
-    return internalAccountsList.filter(
-      (account) =>
-        entropySourceId === account.options?.entropySourceId &&
-        isEvmAccountType(account.type), // TODO: remove solana filtering
-    );
-  }
-  return await mapInternalAccountsListToPrimarySRPHdKeyringInternalAccountsList(
-    internalAccountsList,
-    options,
+  return internalAccountsList.filter(
+    (account) =>
+      entropySourceId === account.options?.entropySource &&
+      isEvmAccountType(account.type), // sync only EVM accounts until we support multichain accounts
   );
-}
-
-/**
- * Lists all the available HD keyring metadata IDs.
- * These IDs can be used in a multi-SRP context to segregate data specific to different SRPs.
- *
- * @param options - An object including a controller messenger getter.
- * @returns A promise that resolves to an array of HD keyring metadata IDs.
- */
-export async function listEntropySources(options: AccountSyncingOptions) {
-  const { getMessenger } = options;
-
-  const { keyrings } = getMessenger().call('KeyringController:getState');
-  return keyrings
-    .filter((keyring) => keyring.type === KeyringTypes.hd.toString())
-    .map((keyring) => keyring.metadata.id);
 }
 
 /**
@@ -110,14 +88,4 @@ export async function getUserStorageAccountsList(
   return (
     rawAccountsListResponse?.map((rawAccount) => JSON.parse(rawAccount)) ?? null
   );
-}
-
-/**
- * Type guard to check if a value is defined (not null or undefined)
- *
- * @param arg - The value to check
- * @returns True if the value is neither null nor undefined
- */
-function isDefined<T>(arg: T): arg is Exclude<T, null | undefined> {
-  return arg !== null && typeof arg !== 'undefined';
 }

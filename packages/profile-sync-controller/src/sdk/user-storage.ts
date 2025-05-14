@@ -99,15 +99,17 @@ export class UserStorage {
 
   async deleteAllFeatureItems(
     path: UserStorageGenericFeatureName,
+    options?: UserStorageMethodOptions,
   ): Promise<void> {
-    return this.#deleteUserStorageAllFeatureEntries(path);
+    return this.#deleteUserStorageAllFeatureEntries(path, options);
   }
 
   async batchDeleteItems(
     path: UserStorageGenericFeatureName,
     values: UserStorageGenericFeatureKey[],
+    options?: UserStorageMethodOptions,
   ) {
-    return this.#batchDeleteUserStorage(path, values);
+    return this.#batchDeleteUserStorage(path, values, options);
   }
 
   async getStorageKey(entropySourceId?: string): Promise<string> {
@@ -480,9 +482,10 @@ export class UserStorage {
 
   async #deleteUserStorageAllFeatureEntries(
     path: UserStorageGenericPathWithFeatureOnly,
-    entropySourceId?: string,
+    options?: UserStorageMethodOptions,
   ): Promise<void> {
     try {
+      const entropySourceId = options?.entropySourceId;
       const headers = await this.#getAuthorizationHeader(entropySourceId);
 
       const url = new URL(STORAGE_URL(this.env, path));
@@ -523,13 +526,14 @@ export class UserStorage {
   async #batchDeleteUserStorage(
     path: UserStorageGenericPathWithFeatureOnly,
     keysToDelete: string[],
-    entropySourceId?: string,
+    options?: UserStorageMethodOptions,
   ): Promise<void> {
     try {
       if (!keysToDelete.length) {
         return;
       }
 
+      const entropySourceId = options?.entropySourceId;
       const headers = await this.#getAuthorizationHeader(entropySourceId);
       const storageKey = await this.getStorageKey(entropySourceId);
 
