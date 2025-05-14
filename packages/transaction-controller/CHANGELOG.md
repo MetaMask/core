@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add automatic update `txParams` gas values when controller `updateTransactionGasFees` method is called with `userFeeLevel` ([#5800](https://github.com/MetaMask/core/pull/5800))
+
 ## [55.0.2]
 
 ### Fixed
