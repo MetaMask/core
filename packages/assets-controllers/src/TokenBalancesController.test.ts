@@ -2,10 +2,10 @@ import { Messenger } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
+import { CHAIN_IDS } from '@metamask/transaction-controller';
 import BN from 'bn.js';
 import { useFakeTimers } from 'sinon';
 
-import { advanceTime } from '../../../tests/helpers';
 import * as multicall from './multicall';
 import type {
   AllowedActions,
@@ -16,9 +16,9 @@ import type {
 } from './TokenBalancesController';
 import { TokenBalancesController } from './TokenBalancesController';
 import type { TokensControllerState } from './TokensController';
+import { advanceTime } from '../../../tests/helpers';
 import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
 import type { InternalAccount } from '../../transaction-controller/src/types';
-import { CHAIN_IDS } from '@metamask/transaction-controller';
 
 const setupController = ({
   config,

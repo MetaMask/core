@@ -73,9 +73,6 @@
   "packages/assets-controllers/src/Standards/NftStandards/ERC721/ERC721Standard.ts": {
     "prettier/prettier": 1
   },
-  "packages/assets-controllers/src/TokenBalancesController.test.ts": {
-    "import-x/order": 1
-  },
   "packages/assets-controllers/src/TokenBalancesController.ts": {
     "@typescript-eslint/prefer-readonly": 4,
     "jsdoc/check-tag-names": 4,
