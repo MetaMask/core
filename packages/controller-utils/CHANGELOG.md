@@ -9,10 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Improved circuit breaker behavior to only consider actual service failures ([#5798](https://github.com/MetaMask/core/pull/5798))
+- Improved circuit breaker behavior to only consider specific error codes as service failures ([#5798](https://github.com/MetaMask/core/pull/5798))
   - Changed from using `handleAll` to `handleWhen(isServiceFailure)` in circuit breaker policy
   - This ensures that expected error responses (like 405 Method Not Allowed and 429 Rate Limited) don't trigger the circuit breaker
-  - Only actual service failures (like network errors, 500s, etc.) will now count towards the consecutive failure limit
+  - Only considers as service failures:
+    - Errors that have a numeric code property with value -32603 (Internal error)
+    - Errors that don't meet the criteria for having a numeric code property
+  - With more precise type checking for the error object structure
 
 ## [11.8.0]
 
@@ -269,7 +272,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING**: `OPENSEA_PROXY_URL` now points to OpenSea's v2 API. `OPENSEA_API_URL` + `OPENSEA_TEST_API_URL` have been removed ([#3654](https://github.com/MetaMask/core/pull/3654))
+- **BREAKING:** `OPENSEA_PROXY_URL` now points to OpenSea's v2 API. `OPENSEA_API_URL` + `OPENSEA_TEST_API_URL` have been removed ([#3654](https://github.com/MetaMask/core/pull/3654))
 
 ## [7.0.0]
 

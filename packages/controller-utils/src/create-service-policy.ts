@@ -1,4 +1,3 @@
-import { hasProperty } from '@metamask/utils';
 import {
   BrokenCircuitError,
   CircuitState,
@@ -132,14 +131,19 @@ export const DEFAULT_CIRCUIT_BREAK_DURATION = 30 * 60 * 1000;
 export const DEFAULT_DEGRADED_THRESHOLD = 5_000;
 
 const isServiceFailure = (error: unknown) => {
-  if (error && hasProperty(error, 'code')) {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    typeof error.code === 'number'
+  ) {
     const { code } = error;
-    // Don't consider -32601 (method not found) and -32005 (rate limit exceeded) as service failures
-    if (code === -32601 || code === -32005) {
-      return false;
-    }
+    // Only consider -32603 (internal error) as a service failure for errors with code property
+    return code === -32603;
   }
 
+  // If the error doesn't have a code property (like network errors or invalid responses),
+  // consider it a service failure
   return true;
 };
 
