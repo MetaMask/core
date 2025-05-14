@@ -454,30 +454,6 @@ export function testsForRpcMethodSupportingBlockParam(
             await expect(promiseForResult).rejects.toThrow(errorMessage);
           });
         });
-
-        // TODO: Add tests for failover behavior when the RPC endpoint returns a 405 or 429 response without opening a circuit breaker
-        // testsForRpcFailoverBehavior({
-        //   providerType,
-        //   requestToCall: {
-        //     method,
-        //     params: buildMockParams({ blockParam, blockParamIndex }),
-        //   },
-        //   getRequestToMock: (request: MockRequest, blockNumber: Hex) => {
-        //     return buildRequestWithReplacedBlockParam(
-        //       request,
-        //       blockParamIndex,
-        //       blockNumber,
-        //     );
-        //   },
-        //   failure: {
-        //     httpStatus,
-        //   },
-        //   isRetriableFailure: false,
-        //   getExpectedError: () =>
-        //     expect.objectContaining({
-        //       message: errorMessage,
-        //     }),
-        // });
       },
     );
 
@@ -541,6 +517,10 @@ export function testsForRpcMethodSupportingBlockParam(
         getExpectedError: () =>
           expect.objectContaining({
             message: errorMessage,
+          }),
+        getExpectedBreakError: () =>
+          expect.objectContaining({
+            message: `Fetch failed with status '500'`,
           }),
       });
     });
@@ -668,7 +648,13 @@ export function testsForRpcMethodSupportingBlockParam(
           isRetriableFailure: true,
           getExpectedError: () =>
             expect.objectContaining({
-              message: expect.stringContaining(errorMessage),
+              message: expect.stringContaining(`Gateway timeout`),
+            }),
+          getExpectedBreakError: () =>
+            expect.objectContaining({
+              message: expect.stringContaining(
+                `Fetch failed with status '${httpStatus}'`,
+              ),
             }),
         });
       },
