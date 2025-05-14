@@ -21,6 +21,7 @@ import type {
   Layer1GasFeeFlow,
   LegacyGasFeeEstimates,
   TransactionMeta,
+  TransactionParams,
 } from '../types';
 import {
   GasFeeEstimateLevel,
@@ -328,7 +329,7 @@ export class GasFeePoller {
  * @param isEIP1559Compatible - Whether the transaction is EIP-1559 compatible
  */
 function updateGasFeeParameters(
-  txParams: any,
+  txParams: TransactionParams,
   gasFeeEstimates: GasFeeEstimates,
   userFeeLevel: GasFeeEstimateLevel,
   isEIP1559Compatible: boolean,

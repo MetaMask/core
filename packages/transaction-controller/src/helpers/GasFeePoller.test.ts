@@ -575,7 +575,7 @@ describe('updateTransactionGasProperties', () => {
 
     describe('EIP-1559 compatible transaction', () => {
       sharedEIP1559GasTests.forEach((testCase) => {
-        it(testCase.name, () => {
+        it(testCase.name as string, () => {
           const txMeta = {
             ...TRANSACTION_META_MOCK,
             userFeeLevel: testCase.userFeeLevel,
@@ -599,7 +599,7 @@ describe('updateTransactionGasProperties', () => {
 
     describe('on non-EIP-1559 compatible transaction', () => {
       sharedLegacyGasTests.forEach((testCase) => {
-        it(testCase.name, () => {
+        it(testCase.name as string, () => {
           const txMeta = {
             ...TRANSACTION_META_MOCK,
             txParams: {
