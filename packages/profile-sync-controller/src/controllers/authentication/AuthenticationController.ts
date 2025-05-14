@@ -14,6 +14,7 @@ import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 
 import {
   createSnapPublicKeyRequest,
+  createSnapAllPublicKeysRequest,
   createSnapSignMessageRequest,
 } from './auth-snap-requests';
 import type { LoginResponse, SRPInterface, UserProfile } from '../../sdk';
@@ -274,15 +275,27 @@ export default class AuthenticationController extends BaseController<
     }
   }
 
-  public async performSignIn(entropySourceId?: string): Promise<string> {
+  public async performSignIn(): Promise<string> {
     this.#assertIsUnlocked('performSignIn');
-    return await this.#auth.getAccessToken(entropySourceId);
+
+    const allPublicKeys = await this.#snapGetAllPublicKeys();
+
+    await Promise.all(
+      allPublicKeys.map(async ([entropySourceId]) => {
+        await this.#auth.getAccessToken(entropySourceId);
+      }),
+    );
+
+    // Keeping this for backwards compatibility for now
+    // This results in duplicate API calls
+    return await this.#auth.getAccessToken();
   }
 
   public performSignOut(): void {
     this.update((state) => {
       state.isSignedIn = false;
       state.sessionData = undefined;
+      state.srpSessionData = undefined;
     });
   }
 
@@ -314,6 +327,17 @@ export default class AuthenticationController extends BaseController<
   }
 
   public isSignedIn(): boolean {
+    // TODO: we might need to do this
+    // this.#assertIsUnlocked('isSignedIn');
+    // const allPublicKeys = await this.#snapGetAllPublicKeys();
+
+    // return allPublicKeys.every(([entropySourceId]) => {
+    //   return Boolean(
+    //     this.state.srpSessionData?.[entropySourceId]?.token?.accessToken,
+    //   );
+    // });
+
+    // TODO: for now, keeping this for backwards compatibility
     return this.state.isSignedIn;
   }
 
@@ -331,6 +355,22 @@ export default class AuthenticationController extends BaseController<
       'SnapController:handleRequest',
       createSnapPublicKeyRequest(entropySourceId),
     )) as string;
+
+    return result;
+  }
+
+  /**
+   * Returns a mapping of entropy source IDs to auth snap public keys.
+   *
+   * @returns A mapping of entropy source IDs to public keys.
+   */
+  async #snapGetAllPublicKeys(): Promise<[string, string][]> {
+    this.#assertIsUnlocked('#snapGetAllPublicKeys');
+
+    const result = (await this.messagingSystem.call(
+      'SnapController:handleRequest',
+      createSnapAllPublicKeysRequest(),
+    )) as [string, string][];
 
     return result;
   }

@@ -81,12 +81,10 @@ export async function getInternalAccountsList(
 export async function listEntropySources(options: AccountSyncingOptions) {
   const { getMessenger } = options;
 
-  const { keyrings, keyringsMetadata } = getMessenger().call(
-    'KeyringController:getState',
-  );
+  const { keyrings } = getMessenger().call('KeyringController:getState');
   return keyrings
     .filter((keyring) => keyring.type === KeyringTypes.hd.toString())
-    .map((_, keyringIndex) => keyringsMetadata[keyringIndex].id);
+    .map((keyring) => keyring.metadata.id);
 }
 
 /**

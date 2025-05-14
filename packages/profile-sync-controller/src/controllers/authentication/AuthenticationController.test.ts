@@ -428,6 +428,9 @@ function createMockAuthenticationMessenger() {
   const { baseMessenger, messenger } = createAuthenticationMessenger();
   const mockCall = jest.spyOn(messenger, 'call');
   const mockSnapGetPublicKey = jest.fn().mockResolvedValue('MOCK_PUBLIC_KEY');
+  const mockSnapGetAllPublicKeys = jest
+    .fn()
+    .mockResolvedValue([['MOCK_ENTROPY_SOURCE_ID', 'MOCK_PUBLIC_KEY']]);
   const mockSnapSignMessage = jest
     .fn()
     .mockResolvedValue('MOCK_SIGNED_MESSAGE');
@@ -441,6 +444,10 @@ function createMockAuthenticationMessenger() {
     if (actionType === 'SnapController:handleRequest') {
       if (params?.request.method === 'getPublicKey') {
         return mockSnapGetPublicKey();
+      }
+
+      if (params?.request.method === 'getAllPublicKeys') {
+        return mockSnapGetAllPublicKeys();
       }
 
       if (params?.request.method === 'signMessage') {
