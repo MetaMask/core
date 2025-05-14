@@ -320,10 +320,8 @@ export class GasFeePoller {
 }
 
 /**
- * Update the gas properties for a transaction.
- *
  * Updates gas properties for a transaction given `gasFeeEstimates` from the gas fee controller
- * and sets other gas properties.
+ * and sets all gas related properties.
  *
  * @param args - Argument bag.
  * @param args.txMeta - The transaction meta.
@@ -425,9 +423,7 @@ export function applyGasFeeEstimatesToTransaction({
 }
 
 /**
- * Update the txParams gas values for a transaction with the given user fee level.
- *
- * Updates txParams gas values accordingly with given `txParams.gasFeeEstimates` from transaction meta.
+ * Updates `txParams` gas values accordingly with given `userFeeLevel` from `txMeta.gasFeeEstimates`.
  *
  * @param args - Argument bag.
  * @param args.txMeta - The transaction meta.
