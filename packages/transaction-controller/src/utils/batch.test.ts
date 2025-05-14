@@ -45,7 +45,9 @@ const CONTRACT_ADDRESS_MOCK = '0xabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd';
 const TO_MOCK = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcdef';
 const DATA_MOCK = '0xabcdef';
 const VALUE_MOCK = '0x1234';
-const MESSENGER_MOCK = {} as TransactionControllerMessenger;
+const MESSENGER_MOCK = {
+  call: jest.fn().mockResolvedValue({}),
+} as unknown as TransactionControllerMessenger;
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
 const PUBLIC_KEY_MOCK = '0x112233';
 const BATCH_ID_CUSTOM_MOCK = '0x123456';
@@ -618,14 +620,11 @@ describe('Batch Utils', () => {
           id: expect.any(String),
           networkClientId: NETWORK_CLIENT_ID_MOCK,
           origin: 'test.com',
-          status: TransactionStatus.unapproved,
           time: expect.any(Number),
           transactions: [
             { params: { data: DATA_MOCK, to: TO_MOCK, value: VALUE_MOCK } },
             { params: { data: DATA_MOCK, to: TO_MOCK, value: VALUE_MOCK } },
           ],
-          txParams: { from: FROM_MOCK },
-          type: TransactionType.batch,
         });
       });
 
@@ -1043,7 +1042,11 @@ describe('Batch Utils', () => {
         addTransactionBatch({
           ...request,
           publishBatchHook,
-          request: { ...request.request, useHook: true },
+          request: {
+            ...request.request,
+            useHook: true,
+            requireApproval: false,
+          },
         }).catch(() => {
           // Intentionally empty
         });
@@ -1096,7 +1099,11 @@ describe('Batch Utils', () => {
         addTransactionBatch({
           ...request,
           publishBatchHook,
-          request: { ...request.request, useHook: true },
+          request: {
+            ...request.request,
+            useHook: true,
+            requireApproval: false,
+          },
         }).catch(() => {
           // Intentionally empty
         });
@@ -1117,6 +1124,7 @@ describe('Batch Utils', () => {
         await flushPromises();
 
         await expect(publishHookPromise1).rejects.toThrow(ERROR_MESSAGE_MOCK);
+
       });
     });
   });

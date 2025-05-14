@@ -2606,9 +2606,8 @@ export class TransactionController extends BaseController<
   }
 
   #addBatchMetadata(transactionBatchMeta: TransactionBatchMeta) {
-    validateTxParams(transactionBatchMeta.txParams);
     this.update((state) => {
-      state.transactionBatches = this.#trimTransactionsForState([
+      state.transactionBatches = this.#trimBatchTransactionsForState([
         ...state.transactionBatches,
         transactionBatchMeta,
       ]);
@@ -3072,8 +3071,8 @@ export class TransactionController extends BaseController<
    * @returns The trimmed list of transactions.
    */
   #trimTransactionsForState(
-    transactions: TransactionMeta[] | TransactionBatchMeta[],
-  ): TransactionMeta[] | TransactionBatchMeta[] {
+    transactions: TransactionMeta[],
+  ): TransactionMeta[] {
     const nonceNetworkSet = new Set();
 
     const txsToKeep = [...transactions]
@@ -3095,6 +3094,48 @@ export class TransactionController extends BaseController<
             nonceNetworkSet.add(key);
             return true;
           }
+        }
+
+        return false;
+      });
+
+    txsToKeep.reverse(); // Ascending time order
+    return txsToKeep;
+  }
+
+  /**
+   * Trim the amount of transactions that are set on the state. Checks if the
+   * length of the tx history is longer then desired persistence limit and then
+   * if it is removes the oldest confirmed or rejected tx. For safety of
+   * presenting a fully functional transaction UI representation, this function
+   * will not break apart transactions created on the same day, per network. Not
+   * accounting for transactions of the same nonce, same day and network combo
+   * can result in confusing or broken experiences in the UI.
+   *
+   * @param transactions - The transactions to be applied to the state.
+   * @returns The trimmed list of transactions.
+   */
+  #trimBatchTransactionsForState(
+    transactions: TransactionBatchMeta[],
+  ): TransactionBatchMeta[] {
+    const networkAtTimestampSet = new Set();
+
+    const txsToKeep = [...transactions]
+      .sort((a, b) => (a.time > b.time ? -1 : 1)) // Descending time order
+      .filter((tx) => {
+        const { chainId, time } = tx;
+
+        const key = `${convertHexToDecimal(
+          chainId,
+        )}-${new Date(time).toDateString()}`;
+
+        if (networkAtTimestampSet.has(key)) {
+          return true;
+        } else if (
+          networkAtTimestampSet.size < this.#transactionHistoryLimit
+        ) {
+          networkAtTimestampSet.add(key);
+          return true;
         }
 
         return false;
