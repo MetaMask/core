@@ -18,6 +18,7 @@ import { TokenBalancesController } from './TokenBalancesController';
 import type { TokensControllerState } from './TokensController';
 import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
 import type { InternalAccount } from '../../transaction-controller/src/types';
+import { CHAIN_IDS } from '@metamask/transaction-controller';
 
 const setupController = ({
   config,
@@ -279,7 +280,7 @@ describe('TokenBalancesController', () => {
       },
     };
 
-    const { controller, messenger } = setupController({
+    const { controller, messenger, updateSpy } = setupController({
       tokens: initialTokens,
     });
 
@@ -317,9 +318,74 @@ describe('TokenBalancesController', () => {
     await advanceTime({ clock, duration: 1 });
 
     // Verify balance was removed
+    expect(updateSpy).toHaveBeenCalledTimes(2);
     expect(controller.state.tokenBalances).toStrictEqual({
       [accountAddress]: {
         [chainId]: {}, // Empty balances object
+      },
+    });
+  });
+  it('skips removing balances when incoming chainIds are not in the current chainIds list for tokenBalances', async () => {
+    const chainId = '0x1';
+    const accountAddress = '0x0000000000000000000000000000000000000000';
+    const tokenAddress = '0x0000000000000000000000000000000000000001';
+
+    // Start with a token
+    const initialTokens = {
+      allDetectedTokens: {},
+      allTokens: {
+        [chainId]: {
+          [accountAddress]: [
+            { address: tokenAddress, symbol: 's', decimals: 0 },
+          ],
+        },
+      },
+    };
+
+    const { controller, messenger, updateSpy } = setupController({
+      tokens: initialTokens,
+    });
+
+    // Set initial balance
+    const balance = 123456;
+    jest.spyOn(multicall, 'multicallOrFallback').mockResolvedValue([
+      {
+        success: true,
+        value: new BN(balance),
+      },
+    ]);
+
+    await controller._executePoll({ chainId });
+
+    // Verify initial balance is set
+    expect(controller.state.tokenBalances).toStrictEqual({
+      [accountAddress]: {
+        [chainId]: {
+          [tokenAddress]: toHex(balance),
+        },
+      },
+    });
+
+    // Publish an update with no tokens
+    messenger.publish(
+      'TokensController:stateChange',
+      {
+        allDetectedTokens: {},
+        allIgnoredTokens: {},
+        allTokens: { [CHAIN_IDS.BASE]: {} },
+      },
+      [],
+    );
+
+    await advanceTime({ clock, duration: 1 });
+
+    // Verify initial balances are still there
+    expect(updateSpy).toHaveBeenCalledTimes(1); // should be called only once when we first updated the balances and not twice
+    expect(controller.state.tokenBalances).toStrictEqual({
+      [accountAddress]: {
+        [chainId]: {
+          [tokenAddress]: toHex(balance),
+        },
       },
     });
   });
