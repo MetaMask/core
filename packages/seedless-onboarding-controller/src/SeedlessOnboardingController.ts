@@ -314,10 +314,11 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         });
       }
 
-      const secrets = SecretMetadata.parseSecretsFromMetadataStore(secretData);
-      return secrets
-        .filter((secret) => secret.type === SecretType.Mnemonic)
-        .map((secret) => secret.data);
+      const secrets = SecretMetadata.parseSecretsFromMetadataStore(
+        secretData,
+        SecretType.Mnemonic,
+      );
+      return secrets.map((secret) => secret.data);
     } catch (error) {
       log('Error fetching seed phrase metadata', error);
       throw new Error(

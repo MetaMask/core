@@ -10,10 +10,10 @@ import {
   SecretType,
   SecretMetadataVersion,
 } from './constants';
-import type { SecretMetadataOptions } from './types';
+import type { SecretDataType, SecretMetadataOptions } from './types';
 
-type ISecretMetadata = {
-  data: Uint8Array;
+type ISecretMetadata<DataType extends SecretDataType = Uint8Array> = {
+  data: DataType;
   timestamp: number;
   type: SecretType;
   version: SecretMetadataVersion;
@@ -22,7 +22,10 @@ type ISecretMetadata = {
 
 // SecretMetadata type without the data and toBytes methods
 // in which the data is base64 encoded for more compacted metadata
-type IBase64SecretMetadata = Omit<ISecretMetadata, 'data' | 'toBytes'> & {
+type SecretMetadataJson<DataType extends SecretDataType> = Omit<
+  ISecretMetadata<DataType>,
+  'data' | 'toBytes'
+> & {
   data: string; // base64 encoded string
 };
 
@@ -37,8 +40,10 @@ type IBase64SecretMetadata = Omit<ISecretMetadata, 'data' | 'toBytes'> & {
  * const secretMetadata = new SecretMetadata(secret);
  * ```
  */
-export class SecretMetadata implements ISecretMetadata {
-  readonly #data: Uint8Array;
+export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
+  implements ISecretMetadata<DataType>
+{
+  readonly #data: DataType;
 
   readonly #timestamp: number;
 
@@ -54,7 +59,7 @@ export class SecretMetadata implements ISecretMetadata {
    * @param options.timestamp - The timestamp when the secret was created.
    * @param options.type - The type of the secret.
    */
-  constructor(data: Uint8Array, options?: Partial<SecretMetadataOptions>) {
+  constructor(data: DataType, options?: Partial<SecretMetadataOptions>) {
     this.#data = data;
     this.#timestamp = options?.timestamp ?? Date.now();
     this.#type = options?.type ?? SecretType.Mnemonic;
@@ -73,12 +78,12 @@ export class SecretMetadata implements ISecretMetadata {
    * @param data.options - The options for the seed phrase metadata.
    * @returns The SecretMetadata instances.
    */
-  static fromBatch(
+  static fromBatch<DataType extends SecretDataType = Uint8Array>(
     data: {
-      value: Uint8Array;
+      value: DataType;
       options?: Partial<SecretMetadataOptions>;
     }[],
-  ): SecretMetadata[] {
+  ): SecretMetadata<DataType>[] {
     const timestamp = Date.now();
     return data.map((d, index) => {
       // To respect the order of the seed phrases, we add the index to the timestamp
@@ -98,9 +103,9 @@ export class SecretMetadata implements ISecretMetadata {
    * @param value - The value to check.
    * @throws If the value is not a valid seed phrase metadata.
    */
-  static assertIsBase64SecretMetadata(
-    value: unknown,
-  ): asserts value is IBase64SecretMetadata {
+  static assertIsValidSecretMetadataJson<
+    DataType extends SecretDataType = Uint8Array,
+  >(value: unknown): asserts value is SecretMetadataJson<DataType> {
     if (
       typeof value !== 'object' ||
       !value ||
@@ -119,45 +124,54 @@ export class SecretMetadata implements ISecretMetadata {
    * This method also sorts the secrets by timestamp in ascending order, i.e. the oldest secret will be the first element in the array.
    *
    * @param secretMetadataArr - The array of SecretMetadata from the metadata store.
+   * @param filterType - The type of the secret to filter.
    * @returns The array of SecretMetadata instances.
    */
-  static parseSecretsFromMetadataStore(
+  static parseSecretsFromMetadataStore<
+    DataType extends SecretDataType = Uint8Array,
+  >(
     secretMetadataArr: Uint8Array[],
-  ): SecretMetadata[] {
+    filterType?: SecretType,
+  ): SecretMetadata<DataType>[] {
     const parsedSecertMetadata = secretMetadataArr.map((metadata) =>
-      SecretMetadata.fromRawMetadata(metadata),
+      SecretMetadata.fromRawMetadata<DataType>(metadata),
     );
 
     const secrets = SecretMetadata.sort(parsedSecertMetadata);
+
+    if (filterType) {
+      return secrets.filter((secret) => secret.type === filterType);
+    }
 
     return secrets;
   }
 
   /**
-   * Parse and create the SecretMetadata instance from the raw metadata.
+   * Parse and create the SecretMetadata instance from the raw metadata bytes.
    *
    * @param rawMetadata - The raw metadata.
    * @returns The parsed secret metadata.
    */
-  static fromRawMetadata(rawMetadata: Uint8Array): SecretMetadata {
+  static fromRawMetadata<DataType extends SecretDataType>(
+    rawMetadata: Uint8Array,
+  ): SecretMetadata<DataType> {
     const serializedMetadata = bytesToString(rawMetadata);
     const parsedMetadata = JSON.parse(serializedMetadata);
 
-    SecretMetadata.assertIsBase64SecretMetadata(parsedMetadata);
+    SecretMetadata.assertIsValidSecretMetadataJson<DataType>(parsedMetadata);
 
-    let type = SecretType.Mnemonic;
-    let version = SecretMetadataVersion.V1;
+    // if the type is not provided, we default to Mnemonic for the backwards compatibility
+    const type = parsedMetadata.type ?? SecretType.Mnemonic;
+    const version = parsedMetadata.version ?? SecretMetadataVersion.V1;
 
-    if (parsedMetadata.type) {
-      type = parsedMetadata.type;
+    let data: DataType;
+    try {
+      data = base64ToBytes(parsedMetadata.data) as DataType;
+    } catch {
+      data = parsedMetadata.data as DataType;
     }
 
-    if (parsedMetadata.version) {
-      version = parsedMetadata.version;
-    }
-
-    const bytes = base64ToBytes(parsedMetadata.data);
-    return new SecretMetadata(bytes, {
+    return new SecretMetadata<DataType>(data, {
       timestamp: parsedMetadata.timestamp,
       type,
       version,
@@ -172,10 +186,10 @@ export class SecretMetadata implements ISecretMetadata {
    *
    * @returns The sorted secret metadata array.
    */
-  static sort(
-    data: SecretMetadata[],
+  static sort<DataType extends SecretDataType = Uint8Array>(
+    data: SecretMetadata<DataType>[],
     order: 'asc' | 'desc' = 'asc',
-  ): SecretMetadata[] {
+  ): SecretMetadata<DataType>[] {
     return data.sort((a, b) => {
       if (order === 'asc') {
         return a.timestamp - b.timestamp;
@@ -184,7 +198,7 @@ export class SecretMetadata implements ISecretMetadata {
     });
   }
 
-  get data() {
+  get data(): DataType {
     return this.#data;
   }
 
@@ -206,13 +220,16 @@ export class SecretMetadata implements ISecretMetadata {
    * @returns The serialized SecretMetadata value in bytes.
    */
   toBytes(): Uint8Array {
-    // encode the raw secret to base64 encoded string
-    // to create more compacted metadata
-    const b64Data = bytesToBase64(this.#data);
+    let _data: unknown = this.#data;
+    if (this.#data instanceof Uint8Array) {
+      // encode the raw secret to base64 encoded string
+      // to create more compacted metadata
+      _data = bytesToBase64(this.#data);
+    }
 
     // serialize the metadata to a JSON string
     const serializedMetadata = JSON.stringify({
-      data: b64Data,
+      data: _data,
       timestamp: this.#timestamp,
       type: this.#type,
       version: this.#version,

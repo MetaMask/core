@@ -184,6 +184,8 @@ export type VaultData = {
   toprfAuthKeyPair: string;
 };
 
+export type SecretDataType = Uint8Array | string | number;
+
 /**
  * The constructor options for the seed phrase metadata.
  */
