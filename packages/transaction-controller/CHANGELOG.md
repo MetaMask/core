@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** bump `@metamask/accounts-controller` peer dependency to `^29.0.0` ([#5802](https://github.com/MetaMask/core/pull/5802))
+- Configure incoming transaction polling interval using feature flag ([#5792](https://github.com/MetaMask/core/pull/5792))
 
 ## [55.0.2]
 

@@ -4,8 +4,10 @@ import type { Hex } from '@metamask/utils';
 // eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
 
+import type { TransactionControllerMessenger } from '..';
 import { incomingTransactionsLogger as log } from '../logger';
 import type { RemoteTransactionSource, TransactionMeta } from '../types';
+import { getIncomingTransactionsPollingInterval } from '../utils/feature-flags';
 
 export type IncomingTransactionOptions = {
   includeTokenTransfers?: boolean;
@@ -13,8 +15,6 @@ export type IncomingTransactionOptions = {
   queryEntireHistory?: boolean;
   updateTransactions?: boolean;
 };
-
-const INTERVAL = 1000 * 30; // 30 Seconds
 
 export class IncomingTransactionHelper {
   hub: EventEmitter;
@@ -32,6 +32,8 @@ export class IncomingTransactionHelper {
   readonly #isEnabled: () => boolean;
 
   #isRunning: boolean;
+
+  readonly #messenger: TransactionControllerMessenger;
 
   readonly #queryEntireHistory?: boolean;
 
@@ -53,6 +55,7 @@ export class IncomingTransactionHelper {
     getLocalTransactions,
     includeTokenTransfers,
     isEnabled,
+    messenger,
     queryEntireHistory,
     remoteTransactionSource,
     trimTransactions,
@@ -66,6 +69,7 @@ export class IncomingTransactionHelper {
     getLocalTransactions: () => TransactionMeta[];
     includeTokenTransfers?: boolean;
     isEnabled?: () => boolean;
+    messenger: TransactionControllerMessenger;
     queryEntireHistory?: boolean;
     remoteTransactionSource: RemoteTransactionSource;
     trimTransactions: (transactions: TransactionMeta[]) => TransactionMeta[];
@@ -80,6 +84,7 @@ export class IncomingTransactionHelper {
     this.#includeTokenTransfers = includeTokenTransfers;
     this.#isEnabled = isEnabled ?? (() => true);
     this.#isRunning = false;
+    this.#messenger = messenger;
     this.#queryEntireHistory = queryEntireHistory;
     this.#remoteTransactionSource = remoteTransactionSource;
     this.#trimTransactions = trimTransactions;
@@ -96,10 +101,12 @@ export class IncomingTransactionHelper {
       return;
     }
 
-    log('Starting polling');
+    const interval = this.#getInterval();
+
+    log('Starting polling', { interval });
 
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    this.#timeoutId = setTimeout(() => this.#onInterval(), INTERVAL);
+    this.#timeoutId = setTimeout(() => this.#onInterval(), interval);
     this.#isRunning = true;
 
     log('Started polling');
@@ -127,8 +134,11 @@ export class IncomingTransactionHelper {
     }
 
     if (this.#isRunning) {
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      this.#timeoutId = setTimeout(() => this.#onInterval(), INTERVAL);
+      this.#timeoutId = setTimeout(
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+        () => this.#onInterval(),
+        this.#getInterval(),
+      );
     }
   }
 
@@ -227,5 +237,9 @@ export class IncomingTransactionHelper {
 
   #canStart(): boolean {
     return this.#isEnabled();
+  }
+
+  #getInterval(): number {
+    return getIncomingTransactionsPollingInterval(this.#messenger);
   }
 }

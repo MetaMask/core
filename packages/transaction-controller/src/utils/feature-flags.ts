@@ -10,6 +10,7 @@ const DEFAULT_ACCELERATED_POLLING_COUNT_MAX = 10;
 const DEFAULT_ACCELERATED_POLLING_INTERVAL_MS = 3 * 1000;
 const DEFAULT_GAS_ESTIMATE_FALLBACK_BLOCK_PERCENT = 35;
 const DEFAULT_GAS_ESTIMATE_BUFFER = 1;
+const DEFAULT_INCOMING_TRANSACTIONS_POLLING_INTERVAL_MS = 1000 * 60 * 4; // 4 Minutes
 
 /**
  * Feature flags supporting the transaction controller.
@@ -17,6 +18,7 @@ const DEFAULT_GAS_ESTIMATE_BUFFER = 1;
 export enum FeatureFlag {
   EIP7702 = 'confirmations_eip_7702',
   GasBuffer = 'confirmations_gas_buffer',
+  IncomingTransactions = 'confirmations_incoming_transactions',
   Transactions = 'confirmations_transactions',
 }
 
@@ -92,6 +94,12 @@ export type TransactionControllerFeatureFlags = {
         eip7702?: number;
       };
     };
+  };
+
+  /** Incoming transaction configuration. */
+  [FeatureFlag.IncomingTransactions]?: {
+    /** Interval between requests to accounts API to retrieve incoming transactions. */
+    pollingIntervalMs?: number;
   };
 
   /** Miscellaneous feature flags to support the transaction controller. */
@@ -353,6 +361,24 @@ export function getGasEstimateBuffer({
     defaultIncludedRPCBuffer ??
     gasBufferFlags?.default ??
     DEFAULT_GAS_ESTIMATE_BUFFER
+  );
+}
+
+/**
+ * Retrieves the incoming transactions polling interval.
+ * Defaults to 4 minutes if not set.
+ *
+ * @param messenger - The controller messenger instance.
+ * @returns The incoming transactions polling interval in milliseconds.
+ */
+export function getIncomingTransactionsPollingInterval(
+  messenger: TransactionControllerMessenger,
+): number {
+  const featureFlags = getFeatureFlags(messenger);
+
+  return (
+    featureFlags?.[FeatureFlag.IncomingTransactions]?.pollingIntervalMs ??
+    DEFAULT_INCOMING_TRANSACTIONS_POLLING_INTERVAL_MS
   );
 }
 
