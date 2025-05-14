@@ -250,7 +250,7 @@ export class RpcService implements AbstractRpcService {
           // Ignore server sent HTML error pages or truncated JSON responses
           error.message.includes('not valid JSON') ||
           // Ignore server overload errors
-          error.message.includes('Gateway timeout') ||
+          error.message.includes('RPC endpoint server error (HTTP 5') ||
           (hasProperty(error, 'code') &&
             (error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET'))
         );
