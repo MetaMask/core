@@ -7,8 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [20.1.0]
+
+### Added
+
+- Sentry traces for Swap and Bridge `TransactionApprovalCompleted` and `TransactionCompleted` events ([#5780](https://github.com/MetaMask/core/pull/5780))
+
 ### Changed
 
+- `traceFn` added to BridgeStatusController constructor to enable clients to pass in a custom sentry trace handler ([#5768](https://github.com/MetaMask/core/pull/5768))
+
+## [20.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/bridge-controller` peer dependency to `^23.0.0` ([#5795](https://github.com/MetaMask/core/pull/5795))
 - Replace `bridgePriceData` with `priceData` from QuoteResponse object ([#5784](https://github.com/MetaMask/core/pull/5784))
 
 ## [19.0.0]
@@ -205,7 +218,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@19.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@20.1.0...HEAD
+[20.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@20.0.0...@metamask/bridge-status-controller@20.1.0
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@19.0.0...@metamask/bridge-status-controller@20.0.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@18.0.0...@metamask/bridge-status-controller@19.0.0
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@17.0.1...@metamask/bridge-status-controller@18.0.0
 [17.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@17.0.0...@metamask/bridge-status-controller@17.0.1
