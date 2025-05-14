@@ -34,6 +34,6 @@ export enum MetricsActionType {
 }
 
 export enum MetricsSwapType {
-  SINGLE = 'single chain',
+  SINGLE = 'single_chain',
   CROSSCHAIN = 'crosschain',
 }
