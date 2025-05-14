@@ -70,9 +70,9 @@ import { ScrollLayer1GasFeeFlow } from './gas-flows/ScrollLayer1GasFeeFlow';
 import { TestGasFeeFlow } from './gas-flows/TestGasFeeFlow';
 import { AccountsApiRemoteTransactionSource } from './helpers/AccountsApiRemoteTransactionSource';
 import {
-  applyGasFeeEstimatesToTransaction,
-  applyTransactionGasEstimatesToTransaction,
   GasFeePoller,
+  updateTransactionGasProperties,
+  updateTransactionGasEstimates,
 } from './helpers/GasFeePoller';
 import type { IncomingTransactionOptions } from './helpers/IncomingTransactionHelper';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
@@ -1829,11 +1829,6 @@ export class TransactionController extends BaseController<
       'updateTransactionGasFees',
     );
 
-    // Initialize gas fee values that will be used in the transaction update
-    let finalGasPrice = gasPrice;
-    let finalMaxFeePerGas = maxFeePerGas;
-    let finalMaxPriorityFeePerGas = maxPriorityFeePerGas;
-
     const clonedTransactionMeta = cloneDeep(transactionMeta);
     const isTransactionGasFeeEstimatesExists = transactionMeta.gasFeeEstimates;
     const isAutomaticGasFeeUpdateEnabled =
@@ -1844,46 +1839,58 @@ export class TransactionController extends BaseController<
       userFeeLevel;
 
     if (shouldUpdateTxParamsGasFees) {
-      applyTransactionGasEstimatesToTransaction({
+      updateTransactionGasEstimates({
         txMeta: clonedTransactionMeta,
         userFeeLevel: userFeeLevel as GasFeeEstimateLevel,
       });
-
-      // Ignore the provided gas fee values when userFeeLevel is specified because
-      // the gas fee values are updated directly in transactionMeta in the applyTransactionGasEstimatesToTransaction
-      finalGasPrice = undefined;
-      finalMaxFeePerGas = undefined;
-      finalMaxPriorityFeePerGas = undefined;
     }
 
-    let transactionGasFees = {
-      txParams: {
-        gas,
-        gasLimit,
-        gasPrice: finalGasPrice,
-        maxPriorityFeePerGas: finalMaxPriorityFeePerGas,
-        maxFeePerGas: finalMaxFeePerGas,
-      },
+    const txParamsUpdate = {
+      gas,
+      gasLimit,
+    };
+
+    if (shouldUpdateTxParamsGasFees) {
+      // Get updated values from clonedTransactionMeta if we're using automated fee updates
+      Object.assign(txParamsUpdate, {
+        gasPrice: clonedTransactionMeta.txParams.gasPrice,
+        maxPriorityFeePerGas:
+          clonedTransactionMeta.txParams.maxPriorityFeePerGas,
+        maxFeePerGas: clonedTransactionMeta.txParams.maxFeePerGas,
+      });
+    } else {
+      Object.assign(txParamsUpdate, {
+        gasPrice,
+        maxPriorityFeePerGas,
+        maxFeePerGas,
+      });
+    }
+
+    const transactionGasFees = {
+      txParams: pickBy(txParamsUpdate),
       defaultGasEstimates,
       estimateUsed,
       estimateSuggested,
       originalGasEstimate,
       userEditedGasLimit,
       userFeeLevel,
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any;
+    };
 
-    // only update what is defined
-    transactionGasFees.txParams = pickBy(transactionGasFees.txParams);
-    transactionGasFees = pickBy(transactionGasFees);
+    const filteredTransactionGasFees = pickBy(transactionGasFees);
 
-    // merge updated gas values with existing transaction meta
-    const updatedMeta = merge({}, clonedTransactionMeta, transactionGasFees);
-
-    this.updateTransaction(
-      updatedMeta,
-      `${controllerName}:updateTransactionGasFees - gas values updated`,
+    this.#updateTransactionInternal(
+      {
+        transactionId,
+        note: `${controllerName}:updateTransactionGasFees - gas values updated`,
+        skipResimulateCheck: true,
+      },
+      (draftTxMeta) => {
+        const { txParams, ...otherProps } = filteredTransactionGasFees;
+        Object.assign(draftTxMeta, otherProps);
+        if (txParams) {
+          Object.assign(draftTxMeta.txParams, txParams);
+        }
+      },
     );
 
     return this.#getTransaction(transactionId) as TransactionMeta;
@@ -4089,7 +4096,7 @@ export class TransactionController extends BaseController<
     this.#updateTransactionInternal(
       { transactionId, skipHistory: true },
       (txMeta) => {
-        applyGasFeeEstimatesToTransaction({
+        updateTransactionGasProperties({
           txMeta,
           gasFeeEstimates,
           gasFeeEstimatesLoaded,

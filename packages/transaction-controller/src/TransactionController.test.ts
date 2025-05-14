@@ -41,7 +41,7 @@ import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
 import { RandomisedEstimationsGasFeeFlow } from './gas-flows/RandomisedEstimationsGasFeeFlow';
 import { TestGasFeeFlow } from './gas-flows/TestGasFeeFlow';
 import {
-  applyTransactionGasEstimatesToTransaction,
+  updateTransactionGasEstimates,
   GasFeePoller,
 } from './helpers/GasFeePoller';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
@@ -535,8 +535,8 @@ describe('TransactionController', () => {
   );
   const testGasFeeFlowClassMock = jest.mocked(TestGasFeeFlow);
   const gasFeePollerClassMock = jest.mocked(GasFeePoller);
-  const applyTransactionGasEstimatesToTransactionMock = jest.mocked(
-    applyTransactionGasEstimatesToTransaction,
+  const updateTransactionGasEstimatesMock = jest.mocked(
+    updateTransactionGasEstimates,
   );
   const getSimulationDataMock = jest.mocked(getSimulationData);
   const getTransactionLayer1GasFeeMock = jest.mocked(
@@ -5004,7 +5004,7 @@ describe('TransactionController', () => {
     });
 
     describe('when called with userFeeLevel', () => {
-      it('does not call applyTransactionGasEstimatesToTransaction when gasFeeEstimates is undefined', async () => {
+      it('does not call updateTransactionGasEstimates when gasFeeEstimates is undefined', async () => {
         const transactionId = '123';
         const { controller } = setupController({
           options: {
@@ -5032,12 +5032,10 @@ describe('TransactionController', () => {
           userFeeLevel: GasFeeEstimateLevel.Medium,
         });
 
-        expect(
-          applyTransactionGasEstimatesToTransactionMock,
-        ).not.toHaveBeenCalled();
+        expect(updateTransactionGasEstimatesMock).not.toHaveBeenCalled();
       });
 
-      it('calls applyTransactionGasEstimatesToTransaction with correct parameters when gasFeeEstimates exists', async () => {
+      it('calls updateTransactionGasEstimates with correct parameters when gasFeeEstimates exists', async () => {
         const transactionId = '123';
         const gasFeeEstimates = {
           type: GasFeeEstimateType.FeeMarket,
@@ -5073,9 +5071,7 @@ describe('TransactionController', () => {
           userFeeLevel: GasFeeEstimateLevel.Medium,
         });
 
-        expect(
-          applyTransactionGasEstimatesToTransactionMock,
-        ).toHaveBeenCalledWith({
+        expect(updateTransactionGasEstimatesMock).toHaveBeenCalledWith({
           txMeta: expect.objectContaining({
             id: transactionId,
             gasFeeEstimates,
@@ -5119,19 +5115,15 @@ describe('TransactionController', () => {
           updateToInitialState: true,
         });
 
-        applyTransactionGasEstimatesToTransactionMock.mockImplementation(
-          ({ txMeta }) => {
-            expect(txMeta.txParams.gasPrice).toBe(existingGasPrice);
-          },
-        );
+        updateTransactionGasEstimatesMock.mockImplementation(({ txMeta }) => {
+          expect(txMeta.txParams.gasPrice).toBe(existingGasPrice);
+        });
 
         controller.updateTransactionGasFees(transactionId, {
           userFeeLevel: GasFeeEstimateLevel.Medium,
         });
 
-        expect(
-          applyTransactionGasEstimatesToTransactionMock,
-        ).toHaveBeenCalled();
+        expect(updateTransactionGasEstimatesMock).toHaveBeenCalled();
 
         const updatedTransaction = controller.state.transactions.find(
           ({ id }) => id === transactionId,
@@ -5175,9 +5167,7 @@ describe('TransactionController', () => {
           userFeeLevel: GasFeeEstimateLevel.Medium,
         });
 
-        expect(
-          applyTransactionGasEstimatesToTransactionMock,
-        ).not.toHaveBeenCalled();
+        expect(updateTransactionGasEstimatesMock).not.toHaveBeenCalled();
 
         const updatedTransaction = controller.state.transactions.find(
           ({ id }) => id === transactionId,
