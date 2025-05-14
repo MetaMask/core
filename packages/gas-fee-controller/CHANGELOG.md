@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [24.0.0]
+
 ### Uncategorized
 
 - Fix unmocked block tracker warning in GasFeeController tests ([#5297](https://github.com/MetaMask/core/pull/5297))
@@ -423,7 +425,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@23.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@24.0.0...HEAD
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@23.0.0...@metamask/gas-fee-controller@24.0.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@22.0.3...@metamask/gas-fee-controller@23.0.0
 [22.0.3]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@22.0.2...@metamask/gas-fee-controller@22.0.3
 [22.0.2]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@22.0.1...@metamask/gas-fee-controller@22.0.2
