@@ -488,16 +488,6 @@ export class RpcService implements AbstractRpcService {
         throw new JsonRpcError(-33100, 'Unauthorized.');
       }
 
-      if (response.status === 402 || response.status === 404) {
-        // code: -32002
-        throw rpcErrors.resourceUnavailable({
-          message: response.statusText,
-          data: {
-            code: response.status,
-          },
-        });
-      }
-
       if (response.status === 405 || response.status === 501) {
         // code: -32601
         throw rpcErrors.methodNotFound();
@@ -515,12 +505,18 @@ export class RpcService implements AbstractRpcService {
         throw rpcErrors.invalidRequest();
       }
 
-      if (response.status >= 500 && response.status < 600) {
+      if (
+        (response.status >= 500 && response.status < 600) ||
+        response.status === 402 ||
+        response.status === 404
+      ) {
         // code: -32002
         throw rpcErrors.resourceUnavailable({
           message: `RPC endpoint server error (HTTP ${response.status})`,
           data: {
-            code: response.status,
+            httpStatus: response.status,
+            httpStatusText: response.statusText,
+            originalError: `HTTP ${response.status} server error from RPC endpoint`,
           },
         });
       }

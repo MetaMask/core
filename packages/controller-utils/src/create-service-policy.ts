@@ -137,9 +137,25 @@ const isServiceFailure = (error: unknown) => {
     'code' in error &&
     typeof error.code === 'number'
   ) {
+    let httpStatus: number | undefined;
+
+    if (
+      'data' in error &&
+      typeof error.data === 'object' &&
+      error.data !== null &&
+      'httpStatus' in error.data &&
+      typeof error.data.httpStatus === 'number'
+    ) {
+      ({ httpStatus } = error.data);
+    }
+
     const { code } = error;
     // Only consider errors with code -32603, -32002, or -32700 as service failures
-    return code === -32603 || code === -32002 || code === -32700;
+    return (
+      code === -32603 ||
+      (code === -32002 && httpStatus !== 402 && httpStatus !== 404) ||
+      code === -32700
+    );
   }
 
   // If the error is not an object, or doesn't have a numeric code property,
