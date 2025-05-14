@@ -636,6 +636,16 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   }
 
   /**
+   * Clears the current state of the SeedlessOnboardingController.
+   */
+  clearState() {
+    const defaultState = getDefaultSeedlessOnboardingControllerState();
+    this.update(() => {
+      return defaultState;
+    });
+  }
+
+  /**
    * Persist the encryption key for the seedless onboarding flow.
    *
    * @param oprfKey - The OPRF key to be splited and persisted.
@@ -937,11 +947,11 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       const { keyringId, seedPhrase } = item;
       const backupHash = keccak256AndHexify(seedPhrase);
 
-      const existingBackupMetadata = currentBackupsMetadata.find(
+      const backupStateAlreadyExisted = currentBackupsMetadata.some(
         (backup) => backup.hash === backupHash,
       );
 
-      if (!existingBackupMetadata) {
+      if (!backupStateAlreadyExisted) {
         filteredNewBackupsMetadata.push({
           id: keyringId,
           hash: backupHash,

@@ -54,6 +54,8 @@
     "async-mutex": "^0.5.0"
   },
   "devDependencies": {
+    "@lavamoat/allow-scripts": "^3.0.4",
+    "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/browser-passworder": "^4.3.0",
     "@metamask/keyring-controller": "^21.0.6",
@@ -80,5 +82,11 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
+  },
+  "lavamoat": {
+    "allowScripts": {
+      "@lavamoat/preinstall-always-fail": false,
+      "@metamask/toprf-secure-backup": true
+    }
   }
 }
