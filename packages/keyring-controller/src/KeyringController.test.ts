@@ -2917,8 +2917,66 @@ describe('KeyringController', () => {
 
               await controller.submitPassword(password);
 
-              expect(controller.state.keyrings).toHaveLength(2);
               expect(controller.state.isUnlocked).toBe(true);
+              expect(unlockListener).toHaveBeenCalledTimes(1);
+            },
+          );
+        });
+
+        it('should unlock the wallet also if encryption parameters are outdated and the vault upgrade fails', async () => {
+          await withController(
+            {
+              skipVaultCreation: true,
+              cacheEncryptionKey,
+              state: { vault: 'my vault' },
+            },
+            async ({ controller, encryptor }) => {
+              jest.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(false);
+              jest.spyOn(encryptor, 'encrypt').mockRejectedValue(new Error());
+              jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+                {
+                  type: KeyringTypes.hd,
+                  data: {
+                    accounts: ['0x123'],
+                  },
+                },
+              ]);
+
+              await controller.submitPassword(password);
+
+              expect(controller.state.isUnlocked).toBe(true);
+            },
+          );
+        });
+
+        it('should unlock the wallet discarding existing duplicate accounts', async () => {
+          stubKeyringClassWithAccount(MockKeyring, '0x123');
+          // @ts-expect-error HdKeyring is not yet compatible with Keyring type.
+          stubKeyringClassWithAccount(HdKeyring, '0x123');
+          await withController(
+            {
+              skipVaultCreation: true,
+              cacheEncryptionKey,
+              state: { vault: 'my vault' },
+              keyringBuilders: [keyringBuilderFactory(MockKeyring)],
+            },
+            async ({ controller, encryptor, messenger }) => {
+              const unlockListener = jest.fn();
+              messenger.subscribe('KeyringController:unlock', unlockListener);
+              jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+                {
+                  type: KeyringTypes.hd,
+                  data: {},
+                },
+                {
+                  type: MockKeyring.type,
+                  data: {},
+                },
+              ]);
+
+              await controller.submitPassword(password);
+
+              expect(controller.state.keyrings).toHaveLength(1); // Second keyring will be skipped as "unsupported".
               expect(unlockListener).toHaveBeenCalledTimes(1);
             },
           );
