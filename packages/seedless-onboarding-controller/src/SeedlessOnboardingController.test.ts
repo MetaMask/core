@@ -25,6 +25,7 @@ import {
   SeedlessOnboardingControllerError,
   AuthConnection,
   SecretType,
+  SecretMetadataVersion,
 } from './constants';
 import { RecoveryError } from './errors';
 import { SecretMetadata } from './SecretMetadata';
@@ -2123,6 +2124,8 @@ describe('SeedlessOnboardingController', () => {
       const seedPhraseMetadata = new SecretMetadata(MOCK_SEED_PHRASE);
       expect(seedPhraseMetadata.data).toBeDefined();
       expect(seedPhraseMetadata.timestamp).toBeDefined();
+      expect(seedPhraseMetadata.type).toBe(SecretType.Mnemonic);
+      expect(seedPhraseMetadata.version).toBe(SecretMetadataVersion.V1);
 
       // should be able to create a SeedPhraseMetadata instance with a timestamp via constructor
       const timestamp = 18_000;

@@ -5,13 +5,18 @@ import {
   bytesToString,
 } from '@metamask/utils';
 
-import { SeedlessOnboardingControllerError, SecretType } from './constants';
+import {
+  SeedlessOnboardingControllerError,
+  SecretType,
+  SecretMetadataVersion,
+} from './constants';
 import type { SecretMetadataOptions } from './types';
 
 type ISecretMetadata = {
   data: Uint8Array;
   timestamp: number;
   type: SecretType;
+  version: SecretMetadataVersion;
   toBytes: () => Uint8Array;
 };
 
@@ -33,24 +38,27 @@ type IBase64SecretMetadata = Omit<ISecretMetadata, 'data' | 'toBytes'> & {
  * ```
  */
 export class SecretMetadata implements ISecretMetadata {
-  readonly #secret: Uint8Array;
+  readonly #data: Uint8Array;
 
   readonly #timestamp: number;
 
   readonly #type: SecretType;
 
+  readonly #version: SecretMetadataVersion;
+
   /**
    * Create a new SecretMetadata instance.
    *
-   * @param secret - The secret to add metadata to.
+   * @param data - The secret to add metadata to.
    * @param options - The options for the secret metadata.
    * @param options.timestamp - The timestamp when the secret was created.
    * @param options.type - The type of the secret.
    */
-  constructor(secret: Uint8Array, options?: Partial<SecretMetadataOptions>) {
-    this.#secret = secret;
+  constructor(data: Uint8Array, options?: Partial<SecretMetadataOptions>) {
+    this.#data = data;
     this.#timestamp = options?.timestamp ?? Date.now();
     this.#type = options?.type ?? SecretType.Mnemonic;
+    this.#version = options?.version ?? SecretMetadataVersion.V1;
   }
 
   /**
@@ -129,38 +137,46 @@ export class SecretMetadata implements ISecretMetadata {
    * Parse and create the SecretMetadata instance from the raw metadata.
    *
    * @param rawMetadata - The raw metadata.
-   * @param type - The type of the secret.
    * @returns The parsed secret metadata.
    */
-  static fromRawMetadata(
-    rawMetadata: Uint8Array,
-    type: SecretType = SecretType.Mnemonic,
-  ): SecretMetadata {
+  static fromRawMetadata(rawMetadata: Uint8Array): SecretMetadata {
     const serializedMetadata = bytesToString(rawMetadata);
     const parsedMetadata = JSON.parse(serializedMetadata);
 
     SecretMetadata.assertIsBase64SecretMetadata(parsedMetadata);
 
+    let type = SecretType.Mnemonic;
+    let version = SecretMetadataVersion.V1;
+
+    if (parsedMetadata.type) {
+      type = parsedMetadata.type;
+    }
+
+    if (parsedMetadata.version) {
+      version = parsedMetadata.version;
+    }
+
     const bytes = base64ToBytes(parsedMetadata.data);
     return new SecretMetadata(bytes, {
       timestamp: parsedMetadata.timestamp,
       type,
+      version,
     });
   }
 
   /**
    * Sort the seed phrases by timestamp.
    *
-   * @param secrets - The seed phrases to sort.
+   * @param data - The secret metadata array to sort.
    * @param order - The order to sort the seed phrases. Default is `desc`.
    *
-   * @returns The sorted seed phrases.
+   * @returns The sorted secret metadata array.
    */
   static sort(
-    secrets: SecretMetadata[],
+    data: SecretMetadata[],
     order: 'asc' | 'desc' = 'asc',
   ): SecretMetadata[] {
-    return secrets.sort((a, b) => {
+    return data.sort((a, b) => {
       if (order === 'asc') {
         return a.timestamp - b.timestamp;
       }
@@ -169,7 +185,7 @@ export class SecretMetadata implements ISecretMetadata {
   }
 
   get data() {
-    return this.#secret;
+    return this.#data;
   }
 
   get timestamp() {
@@ -180,6 +196,10 @@ export class SecretMetadata implements ISecretMetadata {
     return this.#type;
   }
 
+  get version() {
+    return this.#version;
+  }
+
   /**
    * Serialize the secret metadata and convert it to a Uint8Array.
    *
@@ -188,13 +208,14 @@ export class SecretMetadata implements ISecretMetadata {
   toBytes(): Uint8Array {
     // encode the raw secret to base64 encoded string
     // to create more compacted metadata
-    const b64Data = bytesToBase64(this.#secret);
+    const b64Data = bytesToBase64(this.#data);
 
     // serialize the metadata to a JSON string
     const serializedMetadata = JSON.stringify({
       data: b64Data,
       timestamp: this.#timestamp,
       type: this.#type,
+      version: this.#version,
     });
 
     // convert the serialized metadata to bytes(Uint8Array)

@@ -12,6 +12,7 @@ import type { MutexInterface } from 'async-mutex';
 import type {
   AuthConnection,
   controllerName,
+  SecretMetadataVersion,
   SecretType,
   Web3AuthNetwork,
 } from './constants';
@@ -195,4 +196,8 @@ export type SecretMetadataOptions = {
    * The type of the seed phrase.
    */
   type: SecretType;
+  /**
+   * The version of the seed phrase metadata.
+   */
+  version: SecretMetadataVersion;
 };

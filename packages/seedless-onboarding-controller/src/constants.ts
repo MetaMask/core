@@ -16,6 +16,10 @@ export enum SecretType {
   PrivateKey = 'privateKey',
 }
 
+export enum SecretMetadataVersion {
+  V1 = 'v1',
+}
+
 export enum SeedlessOnboardingControllerError {
   ControllerLocked = `${controllerName} - The operation cannot be completed while the controller is locked.`,
   AuthenticationError = `${controllerName} - Authentication error`,
