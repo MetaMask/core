@@ -24,13 +24,15 @@ import {
   Web3AuthNetwork,
   SeedlessOnboardingControllerError,
   AuthConnection,
+  SecretType,
+  SecretMetadataVersion,
 } from './constants';
 import { RecoveryError } from './errors';
+import { SecretMetadata } from './SecretMetadata';
 import {
   getDefaultSeedlessOnboardingControllerState,
   SeedlessOnboardingController,
 } from './SeedlessOnboardingController';
-import { SeedPhraseMetadata } from './SeedPhraseMetadata';
 import type {
   AllowedActions,
   AllowedEvents,
@@ -48,7 +50,7 @@ import {
 } from '../tests/__fixtures__/topfClient';
 import {
   createMockSecretDataGetResponse,
-  MULTIPLE_MOCK_SEEDPHRASE_METADATA,
+  MULTIPLE_MOCK_SECRET_METADATA,
 } from '../tests/mocks/toprf';
 import { MockToprfEncryptorDecryptor } from '../tests/mocks/toprfEncryptor';
 import MockVaultEncryptor from '../tests/mocks/vaultEncryptor';
@@ -1263,7 +1265,7 @@ describe('SeedlessOnboardingController', () => {
           const mockSecretDataGet = handleMockSecretDataGet({
             status: 200,
             body: createMockSecretDataGetResponse(
-              MULTIPLE_MOCK_SEEDPHRASE_METADATA,
+              MULTIPLE_MOCK_SECRET_METADATA,
               MOCK_PASSWORD,
             ),
           });
@@ -2117,29 +2119,45 @@ describe('SeedlessOnboardingController', () => {
   });
 
   describe('SeedPhraseMetadata', () => {
-    it('should be able to create a seed phrase metadata', () => {
+    it('should be able to create a seed phrase metadata with default options', () => {
       // should be able to create a SeedPhraseMetadata instance via constructor
-      const seedPhraseMetadata = new SeedPhraseMetadata(MOCK_SEED_PHRASE);
+      const seedPhraseMetadata = new SecretMetadata(MOCK_SEED_PHRASE);
       expect(seedPhraseMetadata.data).toBeDefined();
       expect(seedPhraseMetadata.timestamp).toBeDefined();
+      expect(seedPhraseMetadata.type).toBe(SecretType.Mnemonic);
+      expect(seedPhraseMetadata.version).toBe(SecretMetadataVersion.V1);
 
       // should be able to create a SeedPhraseMetadata instance with a timestamp via constructor
       const timestamp = 18_000;
-      const seedPhraseMetadata2 = new SeedPhraseMetadata(
-        MOCK_SEED_PHRASE,
+      const seedPhraseMetadata2 = new SecretMetadata(MOCK_SEED_PHRASE, {
         timestamp,
-      );
+      });
       expect(seedPhraseMetadata2.data).toBeDefined();
       expect(seedPhraseMetadata2.timestamp).toBe(timestamp);
       expect(seedPhraseMetadata2.data).toStrictEqual(MOCK_SEED_PHRASE);
+      expect(seedPhraseMetadata2.type).toBe(SecretType.Mnemonic);
+    });
+
+    it('should be able to add metadata to a seed phrase', () => {
+      const timestamp = 18_000;
+      const seedPhraseMetadata = new SecretMetadata(MOCK_SEED_PHRASE, {
+        type: SecretType.PrivateKey,
+        timestamp,
+      });
+      expect(seedPhraseMetadata.type).toBe(SecretType.PrivateKey);
+      expect(seedPhraseMetadata.timestamp).toBe(timestamp);
     });
 
     it('should be able to correctly create `SeedPhraseMetadata` Array for batch seedphrases', () => {
       const seedPhrases = ['seed phrase 1', 'seed phrase 2', 'seed phrase 3'];
-      const rawSeedPhrases = seedPhrases.map(stringToBytes);
+      const rawSeedPhrases = seedPhrases.map((srp) => ({
+        value: stringToBytes(srp),
+        options: {
+          type: SecretType.Mnemonic,
+        },
+      }));
 
-      const seedPhraseMetadataArray =
-        SeedPhraseMetadata.fromBatchSeedPhrases(rawSeedPhrases);
+      const seedPhraseMetadataArray = SecretMetadata.fromBatch(rawSeedPhrases);
       expect(seedPhraseMetadataArray).toHaveLength(seedPhrases.length);
 
       // check the timestamp, the first one should be the oldest
@@ -2152,10 +2170,10 @@ describe('SeedlessOnboardingController', () => {
     });
 
     it('should be able to serialized and parse a seed phrase metadata', () => {
-      const seedPhraseMetadata = new SeedPhraseMetadata(MOCK_SEED_PHRASE);
+      const seedPhraseMetadata = new SecretMetadata(MOCK_SEED_PHRASE);
       const serializedSeedPhraseBytes = seedPhraseMetadata.toBytes();
 
-      const parsedSeedPhraseMetadata = SeedPhraseMetadata.fromRawMetadata(
+      const parsedSeedPhraseMetadata = SecretMetadata.fromRawMetadata(
         serializedSeedPhraseBytes,
       );
       expect(parsedSeedPhraseMetadata.data).toBeDefined();
@@ -2164,17 +2182,15 @@ describe('SeedlessOnboardingController', () => {
     });
 
     it('should be able to sort seed phrase metadata', () => {
-      const mockSeedPhraseMetadata1 = new SeedPhraseMetadata(
-        MOCK_SEED_PHRASE,
-        1000,
-      );
-      const mockSeedPhraseMetadata2 = new SeedPhraseMetadata(
-        MOCK_SEED_PHRASE,
-        2000,
-      );
+      const mockSeedPhraseMetadata1 = new SecretMetadata(MOCK_SEED_PHRASE, {
+        timestamp: 1000,
+      });
+      const mockSeedPhraseMetadata2 = new SecretMetadata(MOCK_SEED_PHRASE, {
+        timestamp: 2000,
+      });
 
       // sort in ascending order
-      const sortedSeedPhraseMetadata = SeedPhraseMetadata.sort(
+      const sortedSeedPhraseMetadata = SecretMetadata.sort(
         [mockSeedPhraseMetadata1, mockSeedPhraseMetadata2],
         'asc',
       );
@@ -2183,13 +2199,94 @@ describe('SeedlessOnboardingController', () => {
       );
 
       // sort in descending order
-      const sortedSeedPhraseMetadataDesc = SeedPhraseMetadata.sort(
+      const sortedSeedPhraseMetadataDesc = SecretMetadata.sort(
         [mockSeedPhraseMetadata1, mockSeedPhraseMetadata2],
         'desc',
       );
       expect(sortedSeedPhraseMetadataDesc[0].timestamp).toBeGreaterThan(
         sortedSeedPhraseMetadataDesc[1].timestamp,
       );
+    });
+
+    it('should be able to overwrite the default Generic DataType', () => {
+      const secret1 = new SecretMetadata<string>('private-key-1', {
+        type: SecretType.PrivateKey,
+      });
+      expect(secret1.data).toBe('private-key-1');
+      expect(secret1.type).toBe(SecretType.PrivateKey);
+      expect(secret1.version).toBe(SecretMetadataVersion.V1);
+
+      // should be able to convert to bytes
+      const secret1Bytes = secret1.toBytes();
+      const parsedSecret1 =
+        SecretMetadata.fromRawMetadata<string>(secret1Bytes);
+      expect(parsedSecret1.data).toBe('private-key-1');
+      expect(parsedSecret1.type).toBe(SecretType.PrivateKey);
+      expect(parsedSecret1.version).toBe(SecretMetadataVersion.V1);
+
+      const secret2 = new SecretMetadata<Uint8Array>(MOCK_SEED_PHRASE, {
+        type: SecretType.Mnemonic,
+      });
+      expect(secret2.data).toStrictEqual(MOCK_SEED_PHRASE);
+      expect(secret2.type).toBe(SecretType.Mnemonic);
+
+      const secret2Bytes = secret2.toBytes();
+      const parsedSecret2 =
+        SecretMetadata.fromRawMetadata<Uint8Array>(secret2Bytes);
+      expect(parsedSecret2.data).toStrictEqual(MOCK_SEED_PHRASE);
+      expect(parsedSecret2.type).toBe(SecretType.Mnemonic);
+    });
+
+    it('should be able to parse the array of Mixed SecretMetadata', () => {
+      const MOCK_PRIVATE_KEY = 'private-key-1';
+      const secret1 = new SecretMetadata<string>(MOCK_PRIVATE_KEY, {
+        type: SecretType.PrivateKey,
+      });
+      const secret2 = new SecretMetadata<Uint8Array>(MOCK_SEED_PHRASE, {
+        type: SecretType.Mnemonic,
+      });
+
+      const secrets = [secret1.toBytes(), secret2.toBytes()];
+
+      const parsedSecrets =
+        SecretMetadata.parseSecretsFromMetadataStore(secrets);
+      expect(parsedSecrets).toHaveLength(2);
+      expect(parsedSecrets[0].data).toBe(MOCK_PRIVATE_KEY);
+      expect(parsedSecrets[0].type).toBe(SecretType.PrivateKey);
+      expect(parsedSecrets[1].data).toStrictEqual(MOCK_SEED_PHRASE);
+      expect(parsedSecrets[1].type).toBe(SecretType.Mnemonic);
+    });
+
+    it('should be able to filter the array of SecretMetadata by type', () => {
+      const MOCK_PRIVATE_KEY = 'MOCK_PRIVATE_KEY';
+      const secret1 = new SecretMetadata<string>(MOCK_PRIVATE_KEY, {
+        type: SecretType.PrivateKey,
+      });
+      const secret2 = new SecretMetadata<Uint8Array>(MOCK_SEED_PHRASE, {
+        type: SecretType.Mnemonic,
+      });
+      const secret3 = new SecretMetadata(MOCK_SEED_PHRASE);
+
+      const secrets = [secret1.toBytes(), secret2.toBytes(), secret3.toBytes()];
+
+      const mnemonicSecrets = SecretMetadata.parseSecretsFromMetadataStore(
+        secrets,
+        SecretType.Mnemonic,
+      );
+      expect(mnemonicSecrets).toHaveLength(2);
+      expect(mnemonicSecrets[0].data).toStrictEqual(MOCK_SEED_PHRASE);
+      expect(mnemonicSecrets[0].type).toBe(SecretType.Mnemonic);
+      expect(mnemonicSecrets[1].data).toStrictEqual(MOCK_SEED_PHRASE);
+      expect(mnemonicSecrets[1].type).toBe(SecretType.Mnemonic);
+
+      const privateKeySecrets = SecretMetadata.parseSecretsFromMetadataStore(
+        secrets,
+        SecretType.PrivateKey,
+      );
+
+      expect(privateKeySecrets).toHaveLength(1);
+      expect(privateKeySecrets[0].data).toBe(MOCK_PRIVATE_KEY);
+      expect(privateKeySecrets[0].type).toBe(SecretType.PrivateKey);
     });
   });
 });

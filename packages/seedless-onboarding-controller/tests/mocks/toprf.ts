@@ -50,7 +50,7 @@ export const MOCK_RELEASE_METADATA_LOCK_RESPONSE = {
   status: 1,
 };
 
-export const MULTIPLE_MOCK_SEEDPHRASE_METADATA = [
+export const MULTIPLE_MOCK_SECRET_METADATA = [
   {
     data: new Uint8Array(Buffer.from('seedPhrase1', 'utf-8')),
     timestamp: 10,
