@@ -27,7 +27,6 @@ export type SwapsTokenObject = {
 };
 
 const DEFAULT_TOKEN_ADDRESS = '0x0000000000000000000000000000000000000000';
-const DEFAULT_SOLANA_TOKEN_ADDRESS = `${SolScope.Mainnet}/slip44:501`;
 
 const CURRENCY_SYMBOLS = {
   ARBITRUM: 'ETH',
@@ -134,7 +133,7 @@ const BASE_SWAPS_TOKEN_OBJECT = {
 const SOLANA_SWAPS_TOKEN_OBJECT = {
   symbol: CURRENCY_SYMBOLS.SOL,
   name: 'Solana',
-  address: DEFAULT_SOLANA_TOKEN_ADDRESS,
+  address: DEFAULT_TOKEN_ADDRESS,
   decimals: 9,
   iconUrl: '',
 } as const;
