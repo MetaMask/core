@@ -115,13 +115,14 @@ import type {
   IsAtomicBatchSupportedResult,
   IsAtomicBatchSupportedRequest,
   AfterAddHook,
-  GasFeeEstimateLevel,
+  GasFeeEstimateLevel as GasFeeEstimateLevelType,
 } from './types';
 import {
   TransactionEnvelopeType,
   TransactionType,
   TransactionStatus,
   SimulationErrorCode,
+  GasFeeEstimateLevel,
 } from './types';
 import {
   addTransactionBatch,
@@ -1801,7 +1802,7 @@ export class TransactionController extends BaseController<
       maxFeePerGas,
       originalGasEstimate,
       userEditedGasLimit,
-      userFeeLevel,
+      userFeeLevel: userFeeLevelParam,
     }: {
       defaultGasEstimates?: string;
       estimateUsed?: string;
@@ -1833,15 +1834,18 @@ export class TransactionController extends BaseController<
     const isTransactionGasFeeEstimatesExists = transactionMeta.gasFeeEstimates;
     const isAutomaticGasFeeUpdateEnabled =
       this.#isAutomaticGasFeeUpdateEnabled(transactionMeta);
+    const userFeeLevel = userFeeLevelParam as GasFeeEstimateLevelType;
+    const isOneOfFeeLevelSelected =
+      Object.values(GasFeeEstimateLevel).includes(userFeeLevel);
     const shouldUpdateTxParamsGasFees =
       isTransactionGasFeeEstimatesExists &&
       isAutomaticGasFeeUpdateEnabled &&
-      userFeeLevel;
+      isOneOfFeeLevelSelected;
 
     if (shouldUpdateTxParamsGasFees) {
       updateTransactionGasEstimates({
         txMeta: clonedTransactionMeta,
-        userFeeLevel: userFeeLevel as GasFeeEstimateLevel,
+        userFeeLevel,
       });
     }
 
