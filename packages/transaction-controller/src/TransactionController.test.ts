@@ -7109,7 +7109,7 @@ describe('TransactionController', () => {
 
       addTransactionBatchMock.mockReset();
       addTransactionBatchMock.mockImplementation(async (params) => {
-        await params.addBatchMetadata(mockBatchMeta);
+        params.addBatchMetadata(mockBatchMeta);
         return { batchId: '0xbatchId' as Hex };
       });
 
@@ -7130,8 +7130,6 @@ describe('TransactionController', () => {
       expect(controller.state.transactionBatches).toContainEqual(mockBatchMeta);
     });
   });
-
-
 
   describe('updateAtomicBatchData', () => {
     /**

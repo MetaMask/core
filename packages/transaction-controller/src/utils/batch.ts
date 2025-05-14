@@ -45,7 +45,6 @@ import {
   type TransactionBatchResult,
   type TransactionParams,
   TransactionType,
-  TransactionStatus,
 } from '../types';
 
 type AddTransactionBatchRequest = {

@@ -22,7 +22,6 @@ import {
   type TransactionMeta,
   determineTransactionType,
   TransactionType,
-  TransactionStatus,
 } from '..';
 import { flushPromises } from '../../../../tests/helpers';
 import type { PublishBatchHook } from '../types';
@@ -1124,7 +1123,6 @@ describe('Batch Utils', () => {
         await flushPromises();
 
         await expect(publishHookPromise1).rejects.toThrow(ERROR_MESSAGE_MOCK);
-
       });
     });
   });

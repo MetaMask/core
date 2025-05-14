@@ -3132,9 +3132,7 @@ export class TransactionController extends BaseController<
 
         if (networkAtTimestampSet.has(key)) {
           return true;
-        } else if (
-          networkAtTimestampSet.size < this.#transactionHistoryLimit
-        ) {
+        } else if (networkAtTimestampSet.size < this.#transactionHistoryLimit) {
           networkAtTimestampSet.add(key);
           return true;
         }
