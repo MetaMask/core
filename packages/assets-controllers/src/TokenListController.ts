@@ -320,10 +320,8 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
         }
 
         this.update((state) => {
-          state.tokensChainsCache[chainId] ??= {
-            data: {},
-            timestamp: Date.now(),
-          };
+          const newDataCache: DataCache = { data: {}, timestamp: Date.now() };
+          state.tokensChainsCache[chainId] ??= newDataCache;
           state.tokensChainsCache[chainId].data = tokenList;
           state.tokensChainsCache[chainId].timestamp = Date.now();
         });
@@ -333,10 +331,8 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       // No response - fallback to previous state, or initialise empty
       if (!tokensFromAPI) {
         this.update((state) => {
-          state.tokensChainsCache[chainId] ??= {
-            data: {},
-            timestamp: Date.now(),
-          };
+          const newDataCache: DataCache = { data: {}, timestamp: Date.now() };
+          state.tokensChainsCache[chainId] ??= newDataCache;
           state.tokensChainsCache[chainId].timestamp = Date.now();
         });
       }
