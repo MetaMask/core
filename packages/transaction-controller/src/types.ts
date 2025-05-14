@@ -497,16 +497,6 @@ export type TransactionBatchMeta = {
   chainId: Hex;
 
   /**
-   * A hex string of the transaction hash, used to identify the transaction on the network.
-   */
-  hash?: string;
-
-  /**
-   * A history of mutations to TransactionMeta.
-   */
-  history?: TransactionHistory;
-
-  /**
    * ID of the associated transaction batch.
    */
   id: string;
@@ -526,29 +516,6 @@ export type TransactionBatchMeta = {
    * Origin this transaction was sent from.
    */
   origin?: string;
-
-  /**
-   * Response from security validator.
-   */
-  securityAlertResponse?: SecurityAlertResponse;
-
-  /** Current status of the transaction. */
-  status: TransactionStatus;
-
-  /**
-   * Underlying Transaction object.
-   */
-  txParams: TransactionParams;
-
-  /**
-   * Transaction receipt.
-   */
-  txReceipt?: TransactionReceipt;
-
-  /**
-   * The type of transaction such as `cancel` or `swap`.
-   */
-  type?: TransactionType;
 
   /**
    * Timestamp associated with this transaction.

@@ -1,3 +1,5 @@
+import type { AddResult } from '@metamask/approval-controller';
+import { ApprovalType, ORIGIN_METAMASK } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
@@ -355,6 +357,7 @@ async function addTransactionBatchWithHook(
   const {
     addBatchMetadata,
     getChainId,
+    messenger,
     publishBatchHook,
     request: userRequest,
   } = request;
@@ -378,17 +381,17 @@ async function addTransactionBatchWithHook(
   const batchId = generateBatchId();
 
   if (requireApproval) {
-    addBatchMetadata({
+    const txBatchMeta: TransactionBatchMeta = {
       id: batchId,
-      status: TransactionStatus.unapproved,
-      type: TransactionType.batch,
       chainId,
-      txParams: { from },
       networkClientId,
       transactions: nestedTransactions,
       origin,
       time: Date.now(),
-    } as TransactionBatchMeta);
+    };
+    addBatchMetadata(txBatchMeta);
+
+    await requestApproval(txBatchMeta, messenger, { shouldShowRequest: true });
   }
 
   const transactionCount = nestedTransactions.length;
@@ -537,4 +540,36 @@ async function processTransactionWithHook(
     id,
     params: newParams,
   };
+}
+
+/**
+ * Requests approval for a transaction batch by interacting with the ApprovalController.
+ *
+ * @param txBatchMeta - Metadata for the transaction batch, including its ID and origin.
+ * @param messenger - The messenger instance used to communicate with the ApprovalController.
+ * @param options - Options for the approval request.
+ * @param options.shouldShowRequest - A boolean indicating whether the approval request should be displayed to the user.
+ * @returns A promise that resolves to the result of adding the approval request.
+ */
+async function requestApproval(
+  txBatchMeta: TransactionBatchMeta,
+  messenger: TransactionControllerMessenger,
+  { shouldShowRequest }: { shouldShowRequest: boolean },
+): Promise<AddResult> {
+  const id = String(txBatchMeta.id);
+  const { origin } = txBatchMeta;
+  const type = ApprovalType.TransactionBatch;
+  const requestData = { txBatchId: id };
+
+  return (await messenger.call(
+    'ApprovalController:addRequest',
+    {
+      id,
+      origin: origin || ORIGIN_METAMASK,
+      requestData,
+      expectsResult: true,
+      type,
+    },
+    shouldShowRequest,
+  )) as Promise<AddResult>;
 }
