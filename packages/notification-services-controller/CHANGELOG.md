@@ -13,9 +13,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** bump `@metamask/keyring-controller` peer dependency to `^22.0.0` ([#5802](https://github.com/MetaMask/core/pull/5802))
 - **BREAKING:** bump `@metamask/profile-sync-controller` peer dependency to `^15.0.0` ([#5802](https://github.com/MetaMask/core/pull/5802))
-
-### Changed
-
 - Bump peer dependency `@metamask/profile-sync-controller` to `^14.0.0` ([#5789](https://github.com/MetaMask/core/pull/5789))
   - While `@metamask/profile-sync-controller@14.0.0` contains breaking changes for clients, they are not breaking as a peer dependency here as the changes do not impact `@metamask/notification-services-controller`
 - replaced `KeyringController:withKeyring` with `KeyringController:getState` to get the first HD keyring for notifications ([#5764](https://github.com/MetaMask/core/pull/5764))
