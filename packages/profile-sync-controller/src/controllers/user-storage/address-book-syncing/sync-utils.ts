@@ -1,8 +1,4 @@
-import type { AddressBookEntry } from '@metamask/address-book-controller';
-
-import { ADDRESS_BOOK_FEATURE_NAME } from './constants';
-import type { AddressBookSyncingOptions, UserStorageAddressBookEntry } from './types';
-import { mapUserStorageEntryToAddressBookEntry } from './utils';
+import type { AddressBookSyncingOptions } from './types';
 
 /**
  * Check if we can perform address book syncing
@@ -17,8 +13,7 @@ export function canPerformAddressBookSyncing(
 
   const {
     isProfileSyncingEnabled,
-    isAccountSyncingEnabled,
-    isAccountSyncingInProgress,
+    isAddressBookSyncingEnabled
   } = getUserStorageControllerInstance().state;
   const isAuthEnabled = getMessenger().call(
     'AuthenticationController:isSignedIn',
@@ -26,9 +21,8 @@ export function canPerformAddressBookSyncing(
 
   if (
     !isProfileSyncingEnabled ||
-    !isAccountSyncingEnabled ||
-    !isAuthEnabled ||
-    isAccountSyncingInProgress
+    !isAddressBookSyncingEnabled ||
+    !isAuthEnabled
   ) {
     return false;
   }

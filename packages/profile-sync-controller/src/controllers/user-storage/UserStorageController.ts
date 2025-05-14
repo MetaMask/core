@@ -31,6 +31,7 @@ import type {
   AddressBookControllerContactDeletedEvent,
   AddressBookControllerActions,
   AddressBookControllerListAction,
+  AddressBookControllerImportContactsFromSyncAction,
 } from '@metamask/address-book-controller';
 
 import {
@@ -282,7 +283,8 @@ export type AllowedActions =
   | NetworkControllerUpdateNetworkAction
   // Address Book Syncing
   | AddressBookControllerListAction
-  ;
+  | AddressBookControllerImportContactsFromSyncAction
+  | AddressBookControllerActions;
 
 // Messenger events
 export type UserStorageControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -809,7 +811,6 @@ export default class UserStorageController extends BaseController<
    */
   async syncAddressBookWithUserStorage(): Promise<void> {
     const profileId = await this.#auth.getProfileId();
-
     await syncAddressBookWithUserStorage(
       {
         onContactUpdated: () =>

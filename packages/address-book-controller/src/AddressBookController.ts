@@ -100,6 +100,14 @@ export type AddressBookControllerListAction = {
 };
 
 /**
+ * The action that can be performed to import contacts from sync to the {@link AddressBookController}.
+ */
+export type AddressBookControllerImportContactsFromSyncAction = {
+  type: `${typeof controllerName}:importContactsFromSync`;
+  handler: AddressBookController['importContactsFromSync'];
+};
+
+/**
  * Event emitted when a contact is added or updated
  */
 export type AddressBookControllerContactUpdatedEvent = {
@@ -120,7 +128,8 @@ export type AddressBookControllerContactDeletedEvent = {
  */
 export type AddressBookControllerActions = 
   | AddressBookControllerGetStateAction
-  | AddressBookControllerListAction;
+  | AddressBookControllerListAction
+  | AddressBookControllerImportContactsFromSyncAction;
 
 /**
  * The event that {@link AddressBookController} can emit.
@@ -267,10 +276,13 @@ export class AddressBookController extends BaseController<
       deletedAt: now 
     };
 
-    this.messagingSystem.publish(
-      'AddressBookController:contactDeleted',
-      finalDeletedEntry,
-    );
+    // Skip sending delete event for global contacts with chainId '*'
+    if (String(chainId) !== '*') {
+      this.messagingSystem.publish(
+        'AddressBookController:contactDeleted',
+        finalDeletedEntry,
+      );
+    }
 
     return true;
   }
@@ -324,10 +336,60 @@ export class AddressBookController extends BaseController<
       };
     });
 
-    this.messagingSystem.publish(
-      'AddressBookController:contactUpdated',
-      entry,
-    );
+    // Skip sending update event for global contacts with chainId '*'
+    if (String(chainId) !== '*') {
+      this.messagingSystem.publish(
+        'AddressBookController:contactUpdated',
+        entry,
+      );
+    }
+
+    return true;
+  }
+
+  /**
+   * Import contacts from sync without triggering events.
+   * This is used during the backup and sync process to avoid infinite event loops.
+   *
+   * @param contacts - Array of contact entries to import.
+   * @returns Boolean indicating if the operation was successful.
+   */
+  importContactsFromSync(contacts: AddressBookEntry[]): boolean {
+    if (!Array.isArray(contacts) || contacts.length === 0) {
+      return false;
+    }
+
+    this.update((state) => {
+      contacts.forEach((contact) => {
+        const { address, chainId } = contact;
+        const checksumAddress = toChecksumHexAddress(address);
+
+        // Initialize chainId entry if it doesn't exist
+        if (!state.addressBook[chainId]) {
+          state.addressBook[chainId] = {};
+        }
+
+        // If the contact is marked as deleted, handle appropriately
+        if (contact.deleted) {
+          if (state.addressBook[chainId][checksumAddress]) {
+            state.addressBook[chainId][checksumAddress] = {
+              ...state.addressBook[chainId][checksumAddress],
+              deleted: true,
+              deletedAt: contact.deletedAt || Date.now(),
+            };
+          }
+        } else {
+          // Update or add the contact
+          state.addressBook[chainId] = {
+            ...state.addressBook[chainId],
+            [checksumAddress]: {
+              ...contact,
+              address: checksumAddress, // Ensure checksum address
+            },
+          };
+        }
+      });
+    });
 
     return true;
   }
@@ -339,6 +401,10 @@ export class AddressBookController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:list`,
       this.list.bind(this),
+    );
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:importContactsFromSync`,
+      this.importContactsFromSync.bind(this),
     );
   }
 }

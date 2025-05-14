@@ -13,14 +13,10 @@ export function setupAddressBookSyncingSubscriptions(
 ): void {
   const { getMessenger, getUserStorageControllerInstance } = options;
 
-  console.log('setupAddressBookSyncingSubscriptions');
-
-  // Subscribe to contact updated event
   getMessenger().subscribe(
     'AddressBookController:contactUpdated',
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     async (contactEntry: AddressBookEntry) => {
-      console.log('Contact updated', contactEntry);
       if (!canPerformAddressBookSyncing(options)) {
         return;
       }
@@ -29,12 +25,10 @@ export function setupAddressBookSyncingSubscriptions(
     },
   );
 
-  // Subscribe to contact deleted event
   getMessenger().subscribe(
     'AddressBookController:contactDeleted',
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     async (contactEntry: AddressBookEntry) => {
-      console.log('Contact deleted', contactEntry);
       if (!canPerformAddressBookSyncing(options)) {
         return;
       }

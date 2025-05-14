@@ -4,6 +4,7 @@ export type {
   AddressBookControllerState,
   AddressBookControllerGetStateAction,
   AddressBookControllerListAction,
+  AddressBookControllerImportContactsFromSyncAction,
   AddressBookControllerActions,
   AddressBookControllerStateChangeEvent,
   AddressBookControllerContactUpdatedEvent,
