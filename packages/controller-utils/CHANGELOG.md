@@ -7,15 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `HttpError` class for errors representing non-200 HTTP responses ([#5809](https://github.com/MetaMask/core/pull/5809))
+
 ### Changed
 
-- Improved circuit breaker behavior to only consider specific error codes as service failures ([#5798](https://github.com/MetaMask/core/pull/5798))
+- Improved circuit breaker behavior to no longer consider HTTP 4XX responses as service failures ([#5798](https://github.com/MetaMask/core/pull/5798), [#5809](https://github.com/MetaMask/core/pull/5809))
   - Changed from using `handleAll` to `handleWhen(isServiceFailure)` in circuit breaker policy
   - This ensures that expected error responses (like 405 Method Not Allowed and 429 Rate Limited) don't trigger the circuit breaker
-  - Only considers as service failures:
-    - Errors that have a numeric code property with value -32603 (Internal error)
-    - Errors that don't meet the criteria for having a numeric code property
-  - With more precise type checking for the error object structure
 
 ## [11.7.0]
 
