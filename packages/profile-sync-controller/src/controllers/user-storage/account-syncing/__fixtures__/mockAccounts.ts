@@ -26,6 +26,11 @@ export const getMockRandomDefaultAccountName = () =>
     Math.floor(Math.random() * LOCALIZED_DEFAULT_ACCOUNT_NAMES.length)
   ];
 
+export const MOCK_ENTROPY_SOURCE_IDS = [
+  'MOCK_ENTROPY_SOURCE_ID',
+  'MOCK_ENTROPY_SOURCE_ID2',
+];
+
 export const MOCK_INTERNAL_ACCOUNTS = {
   EMPTY: [],
   ONE: [
@@ -33,6 +38,9 @@ export const MOCK_INTERNAL_ACCOUNTS = {
       address: '0x123',
       id: '1',
       type: EthAccountType.Eoa,
+      options: {
+        entropySource: MOCK_ENTROPY_SOURCE_IDS[0],
+      },
       metadata: {
         name: 'test',
         nameLastUpdatedAt: 1,
@@ -47,6 +55,9 @@ export const MOCK_INTERNAL_ACCOUNTS = {
       address: '0x123',
       id: '1',
       type: EthAccountType.Eoa,
+      options: {
+        entropySource: MOCK_ENTROPY_SOURCE_IDS[0],
+      },
       metadata: {
         name: `${getMockRandomDefaultAccountName()} 1`,
         nameLastUpdatedAt: 1,
@@ -61,6 +72,9 @@ export const MOCK_INTERNAL_ACCOUNTS = {
       address: '0x123',
       id: '1',
       type: EthAccountType.Eoa,
+      options: {
+        entropySource: MOCK_ENTROPY_SOURCE_IDS[0],
+      },
       metadata: {
         name: 'Internal account custom name without nameLastUpdatedAt',
         keyring: {
@@ -74,6 +88,9 @@ export const MOCK_INTERNAL_ACCOUNTS = {
       address: '0x123',
       id: '1',
       type: EthAccountType.Eoa,
+      options: {
+        entropySource: MOCK_ENTROPY_SOURCE_IDS[0],
+      },
       metadata: {
         name: 'Internal account custom name with nameLastUpdatedAt',
         nameLastUpdatedAt: 1,
@@ -88,6 +105,9 @@ export const MOCK_INTERNAL_ACCOUNTS = {
       address: '0x123',
       id: '1',
       type: EthAccountType.Eoa,
+      options: {
+        entropySource: MOCK_ENTROPY_SOURCE_IDS[0],
+      },
       metadata: {
         name: 'Internal account custom name with nameLastUpdatedAt',
         nameLastUpdatedAt: 9999,
@@ -102,6 +122,9 @@ export const MOCK_INTERNAL_ACCOUNTS = {
       address: '0x123',
       id: '1',
       type: EthAccountType.Eoa,
+      options: {
+        entropySource: MOCK_ENTROPY_SOURCE_IDS[0],
+      },
       metadata: {
         name: 'test',
         nameLastUpdatedAt: 1,
@@ -114,6 +137,9 @@ export const MOCK_INTERNAL_ACCOUNTS = {
       address: '0x456',
       id: '2',
       type: EthAccountType.Eoa,
+      options: {
+        entropySource: MOCK_ENTROPY_SOURCE_IDS[0],
+      },
       metadata: {
         name: 'Account 2',
         nameLastUpdatedAt: 2,
@@ -126,6 +152,9 @@ export const MOCK_INTERNAL_ACCOUNTS = {
       address: '0x789',
       id: '3',
       type: EthAccountType.Eoa,
+      options: {
+        entropySource: MOCK_ENTROPY_SOURCE_IDS[0],
+      },
       metadata: {
         name: 'Účet 2',
         nameLastUpdatedAt: 3,
@@ -138,6 +167,9 @@ export const MOCK_INTERNAL_ACCOUNTS = {
       address: '0xabc',
       id: '4',
       type: EthAccountType.Eoa,
+      options: {
+        entropySource: MOCK_ENTROPY_SOURCE_IDS[0],
+      },
       metadata: {
         name: 'My Account 4',
         nameLastUpdatedAt: 4,
@@ -151,10 +183,10 @@ export const MOCK_INTERNAL_ACCOUNTS = {
 
 export const MOCK_USER_STORAGE_ACCOUNTS = {
   SAME_AS_INTERNAL_ALL: mapInternalAccountsListToUserStorageAccountsList(
-    MOCK_INTERNAL_ACCOUNTS.ALL as InternalAccount[],
+    MOCK_INTERNAL_ACCOUNTS.ALL as unknown as InternalAccount[],
   ),
   ONE: mapInternalAccountsListToUserStorageAccountsList(
-    MOCK_INTERNAL_ACCOUNTS.ONE as InternalAccount[],
+    MOCK_INTERNAL_ACCOUNTS.ONE as unknown as InternalAccount[],
   ),
   TWO_DEFAULT_NAMES_WITH_ONE_BOGUS:
     mapInternalAccountsListToUserStorageAccountsList([
@@ -165,11 +197,14 @@ export const MOCK_USER_STORAGE_ACCOUNTS = {
         metadata: {
           name: `${getMockRandomDefaultAccountName()} 1`,
           nameLastUpdatedAt: 2,
+          keyring: {
+            type: KeyringTypes.hd,
+          },
         },
       },
-    ] as InternalAccount[]),
+    ] as unknown as InternalAccount[]),
   ONE_DEFAULT_NAME: mapInternalAccountsListToUserStorageAccountsList(
-    MOCK_INTERNAL_ACCOUNTS.ONE_DEFAULT_NAME as InternalAccount[],
+    MOCK_INTERNAL_ACCOUNTS.ONE_DEFAULT_NAME as unknown as InternalAccount[],
   ),
   ONE_CUSTOM_NAME_WITHOUT_LAST_UPDATED:
     mapInternalAccountsListToUserStorageAccountsList([
@@ -177,9 +212,12 @@ export const MOCK_USER_STORAGE_ACCOUNTS = {
         ...MOCK_INTERNAL_ACCOUNTS.ONE_CUSTOM_NAME_WITHOUT_LAST_UPDATED[0],
         metadata: {
           name: 'User storage account custom name without nameLastUpdatedAt',
+          keyring: {
+            type: KeyringTypes.hd,
+          },
         },
       },
-    ] as InternalAccount[]),
+    ] as unknown as InternalAccount[]),
   ONE_CUSTOM_NAME_WITH_LAST_UPDATED:
     mapInternalAccountsListToUserStorageAccountsList([
       {
@@ -187,7 +225,10 @@ export const MOCK_USER_STORAGE_ACCOUNTS = {
         metadata: {
           name: 'User storage account custom name with nameLastUpdatedAt',
           nameLastUpdatedAt: 3,
+          keyring: {
+            type: KeyringTypes.hd,
+          },
         },
       },
-    ] as InternalAccount[]),
+    ] as unknown as InternalAccount[]),
 };

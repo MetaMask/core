@@ -8,6 +8,7 @@ import type {
   UserStorageControllerMessenger,
 } from '..';
 import { MOCK_LOGIN_RESPONSE } from '../../authentication/mocks';
+import { MOCK_ENTROPY_SOURCE_IDS } from '../account-syncing/__fixtures__/mockAccounts';
 import { MOCK_STORAGE_KEY_SIGNATURE } from '../mocks';
 
 type GetHandler<ActionType extends AllowedActions['type']> = Extract<
@@ -99,6 +100,14 @@ export function mockUserStorageMessenger(
     overrideMessengers ?? createCustomUserStorageMessenger();
 
   const mockSnapGetPublicKey = jest.fn().mockResolvedValue('MOCK_PUBLIC_KEY');
+  const mockSnapGetAllPublicKeys = jest
+    .fn()
+    .mockResolvedValue(
+      MOCK_ENTROPY_SOURCE_IDS.map((entropySourceId) => [
+        entropySourceId,
+        'MOCK_PUBLIC_KEY',
+      ]),
+    );
   const mockSnapSignMessage = jest
     .fn()
     .mockResolvedValue(MOCK_STORAGE_KEY_SIGNATURE);
@@ -140,6 +149,10 @@ export function mockUserStorageMessenger(
     'AccountsController:updateAccountMetadata',
   ).mockResolvedValue(true as never);
 
+  const mockAccountsUpdateAccounts = typedMockFn(
+    'AccountsController:updateAccounts',
+  ).mockResolvedValue(true as never);
+
   const mockNetworkControllerGetState = typedMockFn(
     'NetworkController:getState',
   ).mockReturnValue({
@@ -168,6 +181,10 @@ export function mockUserStorageMessenger(
       const [, params] = typedArgs;
       if (params.request.method === 'getPublicKey') {
         return mockSnapGetPublicKey();
+      }
+
+      if (params.request.method === 'getAllPublicKeys') {
+        return mockSnapGetAllPublicKeys();
       }
 
       if (params.request.method === 'signMessage') {
@@ -219,6 +236,10 @@ export function mockUserStorageMessenger(
       return mockAccountsListAccounts();
     }
 
+    if (actionType === 'AccountsController:updateAccounts') {
+      return mockAccountsUpdateAccounts();
+    }
+
     if (typedArgs[0] === 'AccountsController:updateAccountMetadata') {
       const [, ...params] = typedArgs;
       return mockAccountsUpdateAccountMetadata(...params);
@@ -253,6 +274,7 @@ export function mockUserStorageMessenger(
     messenger,
     mockSnapGetPublicKey,
     mockSnapSignMessage,
+    mockSnapGetAllPublicKeys,
     mockAuthGetBearerToken,
     mockAuthGetSessionProfile,
     mockAuthPerformSignIn,

@@ -1,3 +1,4 @@
+import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type nock from 'nock';
 
@@ -756,6 +757,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
     await controller.syncInternalAccountsWithUserStorage();
 
     expect(mockSyncInternalAccountsWithUserStorage).toHaveBeenCalled();
+    expect(controller.state.hasAccountSyncingSyncedAtLeastOnce).toBe(true);
   });
 });
 
@@ -960,6 +962,11 @@ describe('user-storage/user-storage-controller - account syncing edge cases', ()
       messenger: messengerMocks.messenger,
     });
 
+    await controller.setIsBackupAndSyncFeatureEnabled(
+      BACKUPANDSYNC_FEATURES.accountSyncing,
+      false,
+    );
+
     const mockSetStorage = jest.spyOn(controller, 'performSetStorage');
 
     // Create mock account
@@ -969,6 +976,9 @@ describe('user-storage/user-storage-controller - account syncing edge cases', ()
       metadata: {
         name: 'Test',
         nameLastUpdatedAt: Date.now(),
+        keyring: {
+          type: KeyringTypes.hd,
+        },
       },
     } as InternalAccount;
 
@@ -1002,6 +1012,9 @@ describe('user-storage/user-storage-controller - snap handling', () => {
 
     await expect(controller.getStorageKey()).rejects.toThrow(
       '#snapSignMessage - unable to call snap, wallet is locked',
+    );
+    await expect(controller.listEntropySources()).rejects.toThrow(
+      'listEntropySources - unable to call snap, wallet is locked',
     );
   });
 

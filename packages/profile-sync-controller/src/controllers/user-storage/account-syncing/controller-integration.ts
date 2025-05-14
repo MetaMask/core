@@ -28,7 +28,7 @@ export async function saveInternalAccountToUserStorage(
 
   if (
     !canPerformAccountSyncing(options) ||
-    !isEvmAccountType(internalAccount.type) // sync only EVM accounts until we support multichain accounts
+    internalAccount.metadata.keyring.type !== String(KeyringTypes.hd) // sync only EVM accounts until we support multichain accounts
   ) {
     return;
   }

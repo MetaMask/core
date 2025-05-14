@@ -625,7 +625,7 @@ export default class UserStorageController extends BaseController<
   async listEntropySources() {
     if (!this.#isUnlocked) {
       throw new Error(
-        '#getAllPublicKeys - unable to call snap, wallet is locked',
+        'listEntropySources - unable to call snap, wallet is locked',
       );
     }
 
@@ -785,6 +785,7 @@ export default class UserStorageController extends BaseController<
       await this.setHasAccountSyncingSyncedAtLeastOnce(true);
     } catch (e) {
       // Silently fail for now
+      // istanbul ignore next
       console.error(e);
     }
   }

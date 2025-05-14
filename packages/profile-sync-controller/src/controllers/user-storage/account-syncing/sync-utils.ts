@@ -1,4 +1,4 @@
-import { isEvmAccountType } from '@metamask/keyring-api';
+import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { AccountSyncingOptions, UserStorageAccount } from './types';
@@ -60,8 +60,8 @@ export async function getInternalAccountsList(
 
   return internalAccountsList.filter(
     (account) =>
-      entropySourceId === account.options?.entropySource &&
-      isEvmAccountType(account.type), // sync only EVM accounts until we support multichain accounts
+      entropySourceId === account.options.entropySource &&
+      account.metadata.keyring.type === String(KeyringTypes.hd), // sync only EVM accounts until we support multichain accounts
   );
 }
 
