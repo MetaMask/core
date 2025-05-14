@@ -1,4 +1,3 @@
-import { isEvmAccountType } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
@@ -39,14 +38,20 @@ export async function saveInternalAccountToUserStorage(
   const internalAccountsList = getMessenger().call(
     'AccountsController:listAccounts',
   );
-  // This account exists in the list because users cannot delete accounts
-  // Hence the ! operator
+
   const internalAccountFromList = internalAccountsList.find(
     (account) => account.address === internalAccount.address,
-  )!;
+  );
 
-  const entropySourceId =
-    internalAccountFromList.options.entropySource?.toString();
+  if (!internalAccountFromList) {
+    throw new Error(
+      `UserStorageController - failed to find internal account in the list - ${internalAccount.address}`,
+    );
+  }
+
+  const entropySourceId = JSON.stringify(
+    internalAccountFromList.options.entropySource,
+  );
 
   try {
     // Map the internal account to the user storage account schema
@@ -55,7 +60,6 @@ export async function saveInternalAccountToUserStorage(
     );
 
     await getUserStorageControllerInstance().performSetStorage(
-      // ESLint is confused here.
       `${USER_STORAGE_FEATURE_NAMES.accounts}.${internalAccountFromList.address}`,
       JSON.stringify(mappedAccount),
       entropySourceId,
@@ -122,6 +126,7 @@ type SyncInternalAccountsWithUserStorageConfig = {
  *
  * @param config - parameters used for syncing the internal accounts list with the user storage accounts list
  * @param options - parameters used for syncing the internal accounts list with the user storage accounts list
+ * @param entropySourceId - The entropy source ID used to derive the key,
  */
 export async function syncInternalAccountsWithUserStorage(
   config: SyncInternalAccountsWithUserStorageConfig,
