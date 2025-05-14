@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Populate `transactionBatches` in state when process a batch transaction using a publish batch hook using `#addBatchMetadata` ([#5793](https://github.com/MetaMask/core/pull/5793))
+
 ## [55.0.1]
 
 ### Changed

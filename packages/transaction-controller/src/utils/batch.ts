@@ -1,4 +1,3 @@
-import { toHex } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
