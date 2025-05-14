@@ -117,7 +117,7 @@ export function mockUserStorageMessenger(
 
   const mockAuthPerformSignIn = typedMockFn(
     'AuthenticationController:performSignIn',
-  ).mockResolvedValue('New Access Token');
+  ).mockResolvedValue(['New Access Token']);
 
   const mockAuthIsSignedIn = typedMockFn(
     'AuthenticationController:isSignedIn',
