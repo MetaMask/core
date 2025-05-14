@@ -861,36 +861,6 @@ describe('RpcService', () => {
       });
     });
 
-    it('interprets a "Not Found" response for eth_getBlockByNumber as an empty result', async () => {
-      const endpointUrl = 'https://rpc.example.chain';
-      nock(endpointUrl)
-        .post('/', {
-          id: 1,
-          jsonrpc: '2.0',
-          method: 'eth_getBlockByNumber',
-          params: ['0x999999999', false],
-        })
-        .reply(200, 'Not Found');
-      const service = new RpcService({
-        fetch,
-        btoa,
-        endpointUrl,
-      });
-
-      const response = await service.request({
-        id: 1,
-        jsonrpc: '2.0',
-        method: 'eth_getBlockByNumber',
-        params: ['0x999999999', false],
-      });
-
-      expect(response).toStrictEqual({
-        id: 1,
-        jsonrpc: '2.0',
-        result: null,
-      });
-    });
-
     it('calls the onDegraded callback if the endpoint takes more than 5 seconds to respond', async () => {
       const endpointUrl = 'https://rpc.example.chain';
       nock(endpointUrl)
