@@ -744,7 +744,7 @@ describe('caip25CaveatBuilder', () => {
       });
     }).toThrow(
       new Error(
-        `${Caip25EndowmentPermissionName} error: Received scopeString value(s) for caveat of type "${Caip25CaveatType}" that are not supported by the wallet.`,
+        `${Caip25EndowmentPermissionName} error: Received scopeString value(s): eip155:1, bip122:000000000019d6689c085ae165831e93, eip155:5, bip122:12a765e31ffd4059bada1e25190f6e98 for caveat of type "${Caip25CaveatType}" that are not supported by the wallet.`,
       ),
     );
   });
