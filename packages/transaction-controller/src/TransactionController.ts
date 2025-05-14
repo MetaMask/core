@@ -1833,6 +1833,8 @@ export class TransactionController extends BaseController<
     let finalGasPrice = gasPrice;
     let finalMaxFeePerGas = maxFeePerGas;
     let finalMaxPriorityFeePerGas = maxPriorityFeePerGas;
+
+    const clonedTransactionMeta = cloneDeep(transactionMeta);
     const isTransactionGasFeeEstimatesExists = transactionMeta.gasFeeEstimates;
     const isAutomaticGasFeeUpdateEnabled =
       this.#isAutomaticGasFeeUpdateEnabled(transactionMeta);
@@ -1843,7 +1845,7 @@ export class TransactionController extends BaseController<
 
     if (shouldUpdateTxParamsGasFees) {
       applyTransactionGasEstimatesToTransaction({
-        txMeta: transactionMeta,
+        txMeta: clonedTransactionMeta,
         userFeeLevel: userFeeLevel as GasFeeEstimateLevel,
       });
 
@@ -1877,7 +1879,7 @@ export class TransactionController extends BaseController<
     transactionGasFees = pickBy(transactionGasFees);
 
     // merge updated gas values with existing transaction meta
-    const updatedMeta = merge({}, transactionMeta, transactionGasFees);
+    const updatedMeta = merge({}, clonedTransactionMeta, transactionGasFees);
 
     this.updateTransaction(
       updatedMeta,
