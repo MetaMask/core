@@ -73,7 +73,10 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
     return await this.#sdk.getIdentifier(entropySourceId);
   }
 
-  async signMessage(message: string, entropySourceId?: string): Promise<string> {
+  async signMessage(
+    message: string,
+    entropySourceId?: string,
+  ): Promise<string> {
     return await this.#sdk.signMessage(message, entropySourceId);
   }
 
