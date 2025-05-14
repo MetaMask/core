@@ -500,11 +500,6 @@ export class RpcService implements AbstractRpcService {
         });
       }
 
-      if (response.status >= 400 && response.status < 500) {
-        // code: -32600
-        throw rpcErrors.invalidRequest();
-      }
-
       if (
         (response.status >= 500 && response.status < 600) ||
         response.status === 402 ||
@@ -519,6 +514,11 @@ export class RpcService implements AbstractRpcService {
             originalError: `HTTP ${response.status} server error from RPC endpoint`,
           },
         });
+      }
+
+      if (response.status >= 400 && response.status < 500) {
+        // code: -32600
+        throw rpcErrors.invalidRequest();
       }
 
       const text = await response.text();
