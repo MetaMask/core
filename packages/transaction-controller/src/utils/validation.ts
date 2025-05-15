@@ -16,6 +16,7 @@ import {
 export enum ErrorCode {
   DuplicateBundleId = 5720,
   BundleTooLarge = 5740,
+  RejectedUpgrade = 5750,
 }
 
 const TRANSACTION_ENVELOPE_TYPES_FEE_MARKET = [

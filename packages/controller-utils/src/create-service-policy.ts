@@ -130,6 +130,21 @@ export const DEFAULT_CIRCUIT_BREAK_DURATION = 30 * 60 * 1000;
  */
 export const DEFAULT_DEGRADED_THRESHOLD = 5_000;
 
+const isServiceFailure = (error: unknown) => {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'httpStatus' in error &&
+    typeof error.httpStatus === 'number'
+  ) {
+    return error.httpStatus >= 500;
+  }
+
+  // If the error is not an object, or doesn't have a numeric code property,
+  // consider it a service failure (e.g., network errors, timeouts, etc.)
+  return true;
+};
+
 /**
  * Constructs an object exposing an `execute` method which, given a function —
  * hereafter called the "service" — will retry that service with ever increasing
@@ -202,7 +217,7 @@ export function createServicePolicy(
   });
   const onRetry = retryPolicy.onRetry.bind(retryPolicy);
 
-  const circuitBreakerPolicy = circuitBreaker(handleAll, {
+  const circuitBreakerPolicy = circuitBreaker(handleWhen(isServiceFailure), {
     // While the circuit is open, any additional invocations of the service
     // passed to the policy (either via automatic retries or by manually
     // executing the policy again) will result in a BrokenCircuitError. This
