@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.0]
+
 ### Uncategorized
 
 - Release 381.0.0 ([#5729](https://github.com/MetaMask/core.git/pull/5729))
@@ -195,7 +197,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#4962](https://github.com/MetaMask/core/pull/4962))
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/multichain@4.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/multichain@4.1.0...HEAD
+[4.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/multichain@4.0.0...@metamask/multichain@4.1.0
 [4.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/multichain@3.0.0...@metamask/multichain@4.0.0
 [3.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/multichain@2.2.0...@metamask/multichain@3.0.0
 [2.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/multichain@2.1.1...@metamask/multichain@2.2.0

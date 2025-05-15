@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 400.0.0 ([#5815](https://github.com/MetaMask/core.git/pull/5815))
-
 ### Changed
 
 - Bump `@metamask/controller-utils` to `^11.9.0` ([#5812](https://github.com/MetaMask/core/pull/5812))
@@ -255,30 +251,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@25.0.1...HEAD
-[25.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@25.0.0...@metamask/bridge-controller@25.0.1
-[25.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@24.0.0...@metamask/bridge-controller@25.0.0
-[24.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@23.0.0...@metamask/bridge-controller@24.0.0
-[23.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@22.0.0...@metamask/bridge-controller@23.0.0
-[22.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@21.0.0...@metamask/bridge-controller@22.0.0
-[21.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@20.0.0...@metamask/bridge-controller@21.0.0
-[20.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@19.0.0...@metamask/bridge-controller@20.0.0
-[19.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@18.0.0...@metamask/bridge-controller@19.0.0
-[18.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@17.0.0...@metamask/bridge-controller@18.0.0
-[17.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@16.0.0...@metamask/bridge-controller@17.0.0
-[16.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@15.0.0...@metamask/bridge-controller@16.0.0
-[15.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@14.0.0...@metamask/bridge-controller@15.0.0
-[14.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@13.0.0...@metamask/bridge-controller@14.0.0
-[13.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@12.0.0...@metamask/bridge-controller@13.0.0
-[12.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@11.0.0...@metamask/bridge-controller@12.0.0
-[11.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@10.0.0...@metamask/bridge-controller@11.0.0
-[10.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@9.0.0...@metamask/bridge-controller@10.0.0
-[9.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@8.0.0...@metamask/bridge-controller@9.0.0
-[8.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@7.0.0...@metamask/bridge-controller@8.0.0
-[7.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@6.0.0...@metamask/bridge-controller@7.0.0
-[6.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@5.0.0...@metamask/bridge-controller@6.0.0
-[5.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@4.0.0...@metamask/bridge-controller@5.0.0
-[4.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@3.0.0...@metamask/bridge-controller@4.0.0
-[3.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@2.0.0...@metamask/bridge-controller@3.0.0
-[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@1.0.0...@metamask/bridge-controller@2.0.0
-[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/bridge-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@25.0.1...HEAD
+[25.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@25.0.0...@metamask/bridge-controller@25.0.1
+[25.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@24.0.0...@metamask/bridge-controller@25.0.0
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@23.0.0...@metamask/bridge-controller@24.0.0
+[23.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@22.0.0...@metamask/bridge-controller@23.0.0
+[22.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@21.0.0...@metamask/bridge-controller@22.0.0
+[21.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@20.0.0...@metamask/bridge-controller@21.0.0
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@19.0.0...@metamask/bridge-controller@20.0.0
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@18.0.0...@metamask/bridge-controller@19.0.0
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@17.0.0...@metamask/bridge-controller@18.0.0
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@16.0.0...@metamask/bridge-controller@17.0.0
+[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@15.0.0...@metamask/bridge-controller@16.0.0
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@14.0.0...@metamask/bridge-controller@15.0.0
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@13.0.0...@metamask/bridge-controller@14.0.0
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@12.0.0...@metamask/bridge-controller@13.0.0
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@11.0.0...@metamask/bridge-controller@12.0.0
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@10.0.0...@metamask/bridge-controller@11.0.0
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@9.0.0...@metamask/bridge-controller@10.0.0
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@8.0.0...@metamask/bridge-controller@9.0.0
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@7.0.0...@metamask/bridge-controller@8.0.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@6.0.0...@metamask/bridge-controller@7.0.0
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@5.0.0...@metamask/bridge-controller@6.0.0
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@4.0.0...@metamask/bridge-controller@5.0.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@3.0.0...@metamask/bridge-controller@4.0.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@2.0.0...@metamask/bridge-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@1.0.0...@metamask/bridge-controller@2.0.0
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/bridge-controller@1.0.0
