@@ -317,8 +317,6 @@ export const calcSlippagePercentage = (
 ): string | null => {
   const cost = calcCost(adjustedReturn, sentAmount);
 
-  console.log('olha o cost', cost, adjustedReturn, sentAmount);
-
   if (cost.valueInCurrency && sentAmount.valueInCurrency) {
     return new BigNumber(cost.valueInCurrency)
       .div(sentAmount.valueInCurrency)
