@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `isUnifiedUIEnabled` flag to `ChainConfiguration` feature-flag type and update validators accordingly ([#5783](https://github.com/MetaMask/core/pull/5783))
+- Added optional `isUnifiedUIEnabled` flag to chain-level feature-flag `ChainConfiguration` type and updated the validation schema to accept the new flag ([#5783](https://github.com/MetaMask/core/pull/5783))
 
 ### Changed
 
