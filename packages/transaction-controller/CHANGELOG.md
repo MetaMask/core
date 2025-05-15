@@ -30,12 +30,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Throw correct error code if upgrade rejected ([#5814](https://github.com/MetaMask/core/pull/5814))
 
-### Added
-
-- Add optional approval request when calling `addTransactionBatch` ([#5793](https://github.com/MetaMask/core/pull/5793))
-  - Add `transactionBatches` array to state.
-  - Add `TransactionBatchMeta` type.
-
 ## [56.0.0]
 
 ### Changed
