@@ -52,9 +52,13 @@ export async function saveInternalAccountToUserStorage(
     );
   }
 
-  const entropySourceId = JSON.stringify(
-    internalAccountFromList.options.entropySource,
-  );
+  const entropySourceId =
+    String(
+      JSON.stringify(internalAccountFromList.options.entropySource).replace(
+        /"/gu,
+        '',
+      ),
+    ) || undefined;
 
   try {
     // Map the internal account to the user storage account schema
