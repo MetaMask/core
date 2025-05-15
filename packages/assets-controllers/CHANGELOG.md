@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Updated `TokenListController` `fetchTokenList` method to bail if cache is valid ([#5804](https://github.com/MetaMask/core/pull/5804))
+  - also cleaned up internal state update logic
+- Bump `@metamask/controller-utils` to `^11.9.0` ([#5812](https://github.com/MetaMask/core/pull/5812))
+
+## [63.0.0]
+
+### Changed
+
+- **BREAKING:** bump `@metamask/keyring-controller` peer dependency to `^22.0.0` ([#5802](https://github.com/MetaMask/core/pull/5802))
+- **BREAKING:** bump `@metamask/accounts-controller` peer dependency to `^29.0.0` ([#5802](https://github.com/MetaMask/core/pull/5802))
+- **BREAKING:** bump `@metamask/preferences-controller` peer dependency to `^18.0.0` ([#5802](https://github.com/MetaMask/core/pull/5802))
+- **BREAKING:** bump `@metamask/transaction-controller` peer dependency to `^56.0.0` ([#5802](https://github.com/MetaMask/core/pull/5802))
+
 ## [62.0.0]
 
 ### Added
@@ -1620,7 +1635,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@62.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@63.0.0...HEAD
+[63.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@62.0.0...@metamask/assets-controllers@63.0.0
 [62.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@61.1.0...@metamask/assets-controllers@62.0.0
 [61.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@61.0.0...@metamask/assets-controllers@61.1.0
 [61.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@60.0.0...@metamask/assets-controllers@61.0.0

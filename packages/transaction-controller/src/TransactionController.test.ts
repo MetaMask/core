@@ -98,6 +98,7 @@ import {
   updatePostTransactionBalance,
   updateSwapsTransaction,
 } from './utils/swaps';
+import { ErrorCode } from './utils/validation';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { FakeProvider } from '../../../tests/fake-provider';
 import { flushPromises } from '../../../tests/helpers';
@@ -2933,9 +2934,9 @@ describe('TransactionController', () => {
         );
       });
 
-      it('publishes TransactionController:transactionRejected if error is method not supported', async () => {
+      it('publishes TransactionController:transactionRejected if error is rejected upgrade', async () => {
         const error = {
-          code: errorCodes.rpc.methodNotSupported,
+          code: ErrorCode.RejectedUpgrade,
         };
 
         const { controller, messenger } = setupController({
@@ -2981,6 +2982,36 @@ describe('TransactionController', () => {
               status: 'rejected',
             }),
           }),
+        );
+      });
+
+      it('throws with correct error code if approval request is rejected due to upgrade', async () => {
+        const error = {
+          code: ErrorCode.RejectedUpgrade,
+        };
+
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'rejected',
+              error,
+            },
+          },
+        });
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await expect(result).rejects.toHaveProperty(
+          'code',
+          ErrorCode.RejectedUpgrade,
         );
       });
     });

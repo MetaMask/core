@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Support additional debug of incoming transaction requests ([#5803](https://github.com/MetaMask/core/pull/5803))
+  - Add optional `incomingTransactions.client` constructor property.
+  - Add optional `tags` property to `updateIncomingTransactions` method.
+
+### Changed
+
+- Bump `@metamask/controller-utils` to `^11.9.0` ([#5812](https://github.com/MetaMask/core/pull/5812))
+
+### Fixed
+
+- Throw correct error code if upgrade rejected ([#5814](https://github.com/MetaMask/core/pull/5814))
+
+## [56.0.0]
+
+### Changed
+
+- **BREAKING:** bump `@metamask/accounts-controller` peer dependency to `^29.0.0` ([#5802](https://github.com/MetaMask/core/pull/5802))
+- Configure incoming transaction polling interval using feature flag ([#5792](https://github.com/MetaMask/core/pull/5792))
+
 ## [55.0.2]
 
 ### Fixed
@@ -1577,7 +1598,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@55.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@56.0.0...HEAD
+[56.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@55.0.2...@metamask/transaction-controller@56.0.0
 [55.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@55.0.1...@metamask/transaction-controller@55.0.2
 [55.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@55.0.0...@metamask/transaction-controller@55.0.1
 [55.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@54.4.0...@metamask/transaction-controller@55.0.0

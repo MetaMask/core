@@ -365,6 +365,24 @@ export function isSmartContractCode(code: string) {
 }
 
 /**
+ * An error representing a non-200 HTTP response.
+ */
+export class HttpError extends Error {
+  public httpStatus: number;
+
+  /**
+   * Construct an HTTP error.
+   *
+   * @param status - The HTTP response status.
+   * @param message - The error message.
+   */
+  constructor(status: number, message?: string) {
+    super(message || `Fetch failed with status '${status}'`);
+    this.httpStatus = status;
+  }
+}
+
+/**
  * Execute fetch and verify that the response was successful.
  *
  * @param request - Request information.
@@ -377,10 +395,9 @@ export async function successfulFetch(
 ) {
   const response = await fetch(request, options);
   if (!response.ok) {
-    throw new Error(
-      `Fetch failed with status '${response.status}' for request '${String(
-        request,
-      )}'`,
+    throw new HttpError(
+      response.status,
+      `Fetch failed with status '${response.status}' for request '${String(request)}'`,
     );
   }
   return response;

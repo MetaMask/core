@@ -945,12 +945,14 @@ export class TransactionController extends BaseController<
     };
 
     this.#incomingTransactionHelper = new IncomingTransactionHelper({
+      client: this.#incomingTransactionOptions.client,
       getCache: () => this.state.lastFetchedBlockNumbers,
       getCurrentAccount: () => this.#getSelectedAccount(),
       getLocalTransactions: () => this.state.transactions,
       includeTokenTransfers:
         this.#incomingTransactionOptions.includeTokenTransfers,
       isEnabled: this.#incomingTransactionOptions.isEnabled,
+      messenger: this.messagingSystem,
       queryEntireHistory: this.#incomingTransactionOptions.queryEntireHistory,
       remoteTransactionSource: new AccountsApiRemoteTransactionSource(),
       trimTransactions: this.#trimTransactionsForState.bind(this),
@@ -1314,8 +1316,14 @@ export class TransactionController extends BaseController<
     this.#incomingTransactionHelper.stop();
   }
 
-  async updateIncomingTransactions() {
-    await this.#incomingTransactionHelper.update();
+  /**
+   * Update the incoming transactions by polling the remote transaction source.
+   *
+   * @param request - Request object.
+   * @param request.tags - Additional tags to identify the source of the request.
+   */
+  async updateIncomingTransactions({ tags }: { tags?: string[] } = {}) {
+    await this.#incomingTransactionHelper.update({ tags });
   }
 
   /**
@@ -4157,7 +4165,7 @@ export class TransactionController extends BaseController<
   #isRejectError(error: Error & { code?: number }) {
     return [
       errorCodes.provider.userRejectedRequest,
-      errorCodes.rpc.methodNotSupported,
+      ErrorCode.RejectedUpgrade,
     ].includes(error.code as number);
   }
 

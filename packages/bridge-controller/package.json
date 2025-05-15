@@ -1,6 +1,6 @@
 {
   "name": "@metamask/bridge-controller",
-  "version": "22.0.0",
+  "version": "25.0.1",
   "description": "Manages bridge-related quote fetching functionality for MetaMask",
   "keywords": [
     "MetaMask",
@@ -53,26 +53,26 @@
     "@ethersproject/contracts": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
     "@metamask/base-controller": "^8.0.1",
-    "@metamask/controller-utils": "^11.8.0",
+    "@metamask/controller-utils": "^11.9.0",
     "@metamask/gas-fee-controller": "^23.0.0",
     "@metamask/keyring-api": "^17.4.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
-    "@metamask/multichain-network-controller": "^0.6.0",
+    "@metamask/multichain-network-controller": "^0.7.0",
     "@metamask/polling-controller": "^13.0.0",
     "@metamask/utils": "^11.2.0",
     "bignumber.js": "^9.1.2",
     "reselect": "^5.1.1"
   },
   "devDependencies": {
-    "@metamask/accounts-controller": "^28.0.0",
-    "@metamask/assets-controllers": "^62.0.0",
+    "@metamask/accounts-controller": "^29.0.0",
+    "@metamask/assets-controllers": "^63.0.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/eth-json-rpc-provider": "^4.1.8",
-    "@metamask/network-controller": "^23.4.0",
+    "@metamask/network-controller": "^23.5.0",
     "@metamask/remote-feature-flag-controller": "^1.6.0",
     "@metamask/snaps-controllers": "^11.2.1",
     "@metamask/superstruct": "^3.1.0",
-    "@metamask/transaction-controller": "^55.0.2",
+    "@metamask/transaction-controller": "^56.0.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
@@ -85,12 +85,12 @@
     "typescript": "~5.2.2"
   },
   "peerDependencies": {
-    "@metamask/accounts-controller": "^28.0.0",
-    "@metamask/assets-controllers": "^62.0.0",
+    "@metamask/accounts-controller": "^29.0.0",
+    "@metamask/assets-controllers": "^63.0.0",
     "@metamask/network-controller": "^23.0.0",
     "@metamask/remote-feature-flag-controller": "^1.6.0",
     "@metamask/snaps-controllers": "^11.0.0",
-    "@metamask/transaction-controller": "^55.0.0"
+    "@metamask/transaction-controller": "^56.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"
