@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Store transactions by chain IDs ([#5756](https://github.com/MetaMask/core/pull/5756))
+- Remove Solana mainnet filtering to support other Solana networks (devnet, testnet) ([#5756](https://github.com/MetaMask/core/pull/5756))
+
 ## [0.11.0]
 
 ### Changed
