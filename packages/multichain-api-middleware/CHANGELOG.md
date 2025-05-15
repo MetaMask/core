@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 397.0.0 ([#5802](https://github.com/MetaMask/core/pull/5802))
+- Release 388.0.0 ([#5763](https://github.com/MetaMask/core/pull/5763))
+- Release/387.0.0 ([#5760](https://github.com/MetaMask/core/pull/5760))
+- Release 381.0.0 ([#5729](https://github.com/MetaMask/core/pull/5729))
+- Release/377.0.0 ([#5715](https://github.com/MetaMask/core/pull/5715))
+- feat: Add more chain-agnostic-permission utility functions from sip-26 usage ([#5609](https://github.com/MetaMask/core/pull/5609))
+
 ### Changed
 
 - Bump `@metamask/controller-utils` to `^11.9.0` ([#5765](https://github.com/MetaMask/core/pull/5765), [#5812](https://github.com/MetaMask/core/pull/5812))
