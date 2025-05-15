@@ -13,6 +13,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `transactionBatches` array to state.
   - Add `TransactionBatchMeta` type.
 
+## [56.1.0]
+
+### Added
+
+- Automatically update gas fee properties in `txParams` when `updateTransactionGasFees` method is called with `userFeeLevel` ([#5800](https://github.com/MetaMask/core/pull/5800))
+- Support additional debug of incoming transaction requests ([#5803](https://github.com/MetaMask/core/pull/5803))
+  - Add optional `incomingTransactions.client` constructor property.
+  - Add optional `tags` property to `updateIncomingTransactions` method.
+
+### Changed
+
+- Bump `@metamask/controller-utils` to `^11.9.0` ([#5812](https://github.com/MetaMask/core/pull/5812))
+
+### Fixed
+
+- Throw correct error code if upgrade rejected ([#5814](https://github.com/MetaMask/core/pull/5814))
+
+### Added
+
+- Add optional approval request when calling `addTransactionBatch` ([#5793](https://github.com/MetaMask/core/pull/5793))
+  - Add `transactionBatches` array to state.
+  - Add `TransactionBatchMeta` type.
+
 ## [56.0.0]
 
 ### Changed
@@ -1590,7 +1613,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@56.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@56.1.0...HEAD
+[56.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@56.0.0...@metamask/transaction-controller@56.1.0
 [56.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@55.0.2...@metamask/transaction-controller@56.0.0
 [55.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@55.0.1...@metamask/transaction-controller@55.0.2
 [55.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@55.0.0...@metamask/transaction-controller@55.0.1

@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `TransactionBatch` in approval types enum ([#5793](https://github.com/MetaMask/core/pull/5793))
 
+## [11.9.0]
+
+### Added
+
+- Add `HttpError` class for errors representing non-200 HTTP responses ([#5809](https://github.com/MetaMask/core/pull/5809))
+
+### Changed
+
+- Improved circuit breaker behavior to no longer consider HTTP 4XX responses as service failures ([#5798](https://github.com/MetaMask/core/pull/5798), [#5809](https://github.com/MetaMask/core/pull/5809))
+  - Changed from using `handleAll` to `handleWhen(isServiceFailure)` in circuit breaker policy
+  - This ensures that expected error responses (like 405 Method Not Allowed and 429 Rate Limited) don't trigger the circuit breaker
+
 ## [11.8.0]
 
 ### Added
@@ -507,7 +519,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.8.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.9.0...HEAD
+[11.9.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.8.0...@metamask/controller-utils@11.9.0
 [11.8.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.7.0...@metamask/controller-utils@11.8.0
 [11.7.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.6.0...@metamask/controller-utils@11.7.0
 [11.6.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.5.0...@metamask/controller-utils@11.6.0

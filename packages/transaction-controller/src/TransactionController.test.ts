@@ -40,7 +40,10 @@ import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
 import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
 import { RandomisedEstimationsGasFeeFlow } from './gas-flows/RandomisedEstimationsGasFeeFlow';
 import { TestGasFeeFlow } from './gas-flows/TestGasFeeFlow';
-import { GasFeePoller } from './helpers/GasFeePoller';
+import {
+  updateTransactionGasEstimates,
+  GasFeePoller,
+} from './helpers/GasFeePoller';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { MethodDataHelper } from './helpers/MethodDataHelper';
 import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper';
@@ -68,8 +71,10 @@ import type {
   InternalAccount,
   PublishHook,
   GasFeeToken,
+  GasFeeEstimates,
 } from './types';
 import {
+  GasFeeEstimateLevel,
   GasFeeEstimateType,
   SimulationErrorCode,
   SimulationTokenStandard,
@@ -98,6 +103,7 @@ import {
   updatePostTransactionBalance,
   updateSwapsTransaction,
 } from './utils/swaps';
+import { ErrorCode } from './utils/validation';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { FakeProvider } from '../../../tests/fake-provider';
 import { flushPromises } from '../../../tests/helpers';
@@ -530,6 +536,9 @@ describe('TransactionController', () => {
   );
   const testGasFeeFlowClassMock = jest.mocked(TestGasFeeFlow);
   const gasFeePollerClassMock = jest.mocked(GasFeePoller);
+  const updateTransactionGasEstimatesMock = jest.mocked(
+    updateTransactionGasEstimates,
+  );
   const getSimulationDataMock = jest.mocked(getSimulationData);
   const getTransactionLayer1GasFeeMock = jest.mocked(
     getTransactionLayer1GasFee,
@@ -2934,9 +2943,9 @@ describe('TransactionController', () => {
         );
       });
 
-      it('publishes TransactionController:transactionRejected if error is method not supported', async () => {
+      it('publishes TransactionController:transactionRejected if error is rejected upgrade', async () => {
         const error = {
-          code: errorCodes.rpc.methodNotSupported,
+          code: ErrorCode.RejectedUpgrade,
         };
 
         const { controller, messenger } = setupController({
@@ -2982,6 +2991,36 @@ describe('TransactionController', () => {
               status: 'rejected',
             }),
           }),
+        );
+      });
+
+      it('throws with correct error code if approval request is rejected due to upgrade', async () => {
+        const error = {
+          code: ErrorCode.RejectedUpgrade,
+        };
+
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'rejected',
+              error,
+            },
+          },
+        });
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await expect(result).rejects.toHaveProperty(
+          'code',
+          ErrorCode.RejectedUpgrade,
         );
       });
     });
@@ -4994,6 +5033,232 @@ describe('TransactionController', () => {
       expect(txToBeUpdatedWithoutGasPrice?.txParams?.maxFeePerGas).toBe(
         maxFeePerGas,
       );
+    });
+
+    describe('when called with userFeeLevel', () => {
+      it('does not call updateTransactionGasEstimates when gasFeeEstimates is undefined', async () => {
+        const transactionId = '123';
+        const { controller } = setupController({
+          options: {
+            state: {
+              transactions: [
+                {
+                  id: transactionId,
+                  chainId: '0x1',
+                  networkClientId: NETWORK_CLIENT_ID_MOCK,
+                  time: 123456789,
+                  status: TransactionStatus.unapproved as const,
+                  gasFeeEstimates: undefined,
+                  txParams: {
+                    from: ACCOUNT_MOCK,
+                    to: ACCOUNT_2_MOCK,
+                  },
+                },
+              ],
+            },
+          },
+          updateToInitialState: true,
+        });
+
+        controller.updateTransactionGasFees(transactionId, {
+          userFeeLevel: GasFeeEstimateLevel.Medium,
+        });
+
+        expect(updateTransactionGasEstimatesMock).not.toHaveBeenCalled();
+      });
+
+      it('calls updateTransactionGasEstimates with correct parameters when gasFeeEstimates exists', async () => {
+        const transactionId = '123';
+        const gasFeeEstimates = {
+          type: GasFeeEstimateType.FeeMarket,
+          low: { maxFeePerGas: '0x1', maxPriorityFeePerGas: '0x2' },
+          medium: { maxFeePerGas: '0x3', maxPriorityFeePerGas: '0x4' },
+          high: { maxFeePerGas: '0x5', maxPriorityFeePerGas: '0x6' },
+        } as GasFeeEstimates;
+
+        const { controller } = setupController({
+          options: {
+            isAutomaticGasFeeUpdateEnabled: () => true,
+            state: {
+              transactions: [
+                {
+                  id: transactionId,
+                  chainId: '0x1',
+                  networkClientId: NETWORK_CLIENT_ID_MOCK,
+                  time: 123456789,
+                  status: TransactionStatus.unapproved as const,
+                  gasFeeEstimates,
+                  txParams: {
+                    from: ACCOUNT_MOCK,
+                    to: ACCOUNT_2_MOCK,
+                  },
+                },
+              ],
+            },
+          },
+          updateToInitialState: true,
+        });
+
+        controller.updateTransactionGasFees(transactionId, {
+          userFeeLevel: GasFeeEstimateLevel.Medium,
+        });
+
+        expect(updateTransactionGasEstimatesMock).toHaveBeenCalledWith({
+          txMeta: expect.objectContaining({
+            id: transactionId,
+            gasFeeEstimates,
+          }),
+          userFeeLevel: GasFeeEstimateLevel.Medium,
+        });
+      });
+
+      it('preserves existing gas values when gasFeeEstimates type is unknown', async () => {
+        const transactionId = '123';
+        const unknownGasFeeEstimates = {
+          type: 'unknown' as unknown as GasFeeEstimateType,
+          low: '0x123',
+          medium: '0x1234',
+          high: '0x12345',
+        } as GasFeeEstimates;
+
+        const existingGasPrice = '0x777777';
+
+        const { controller } = setupController({
+          options: {
+            isAutomaticGasFeeUpdateEnabled: () => true,
+            state: {
+              transactions: [
+                {
+                  id: transactionId,
+                  chainId: '0x1',
+                  networkClientId: NETWORK_CLIENT_ID_MOCK,
+                  time: 123456789,
+                  status: TransactionStatus.unapproved as const,
+                  gasFeeEstimates: unknownGasFeeEstimates,
+                  txParams: {
+                    from: ACCOUNT_MOCK,
+                    to: ACCOUNT_2_MOCK,
+                    gasPrice: existingGasPrice,
+                  },
+                },
+              ],
+            },
+          },
+          updateToInitialState: true,
+        });
+
+        updateTransactionGasEstimatesMock.mockImplementation(({ txMeta }) => {
+          expect(txMeta.txParams.gasPrice).toBe(existingGasPrice);
+        });
+
+        controller.updateTransactionGasFees(transactionId, {
+          userFeeLevel: GasFeeEstimateLevel.Medium,
+        });
+
+        expect(updateTransactionGasEstimatesMock).toHaveBeenCalled();
+
+        const updatedTransaction = controller.state.transactions.find(
+          ({ id }) => id === transactionId,
+        );
+
+        // Gas price should remain unchanged
+        expect(updatedTransaction?.txParams.gasPrice).toBe(existingGasPrice);
+      });
+
+      it('preserves existing EIP-1559 gas values when gasFeeEstimates is undefined', async () => {
+        const transactionId = '123';
+        const existingMaxFeePerGas = '0x999999';
+        const existingMaxPriorityFeePerGas = '0x888888';
+
+        const { controller } = setupController({
+          options: {
+            state: {
+              transactions: [
+                {
+                  id: transactionId,
+                  chainId: '0x1',
+                  networkClientId: NETWORK_CLIENT_ID_MOCK,
+                  time: 123456789,
+                  status: TransactionStatus.unapproved as const,
+                  gasFeeEstimates: undefined,
+                  txParams: {
+                    type: TransactionEnvelopeType.feeMarket,
+                    from: ACCOUNT_MOCK,
+                    to: ACCOUNT_2_MOCK,
+                    maxFeePerGas: existingMaxFeePerGas,
+                    maxPriorityFeePerGas: existingMaxPriorityFeePerGas,
+                  },
+                },
+              ],
+            },
+          },
+          updateToInitialState: true,
+        });
+
+        controller.updateTransactionGasFees(transactionId, {
+          userFeeLevel: GasFeeEstimateLevel.Medium,
+        });
+
+        expect(updateTransactionGasEstimatesMock).not.toHaveBeenCalled();
+
+        const updatedTransaction = controller.state.transactions.find(
+          ({ id }) => id === transactionId,
+        );
+
+        // Values should remain unchanged
+        expect(updatedTransaction?.txParams.maxFeePerGas).toBe(
+          existingMaxFeePerGas,
+        );
+        expect(updatedTransaction?.txParams.maxPriorityFeePerGas).toBe(
+          existingMaxPriorityFeePerGas,
+        );
+      });
+
+      it('does not update transaction gas estimates when userFeeLevel is custom', () => {
+        const transactionId = '1';
+
+        const { controller } = setupController({
+          options: {
+            isAutomaticGasFeeUpdateEnabled: () => true,
+            state: {
+              transactions: [
+                {
+                  id: transactionId,
+                  chainId: '0x1',
+                  networkClientId: NETWORK_CLIENT_ID_MOCK,
+                  time: 123456789,
+                  status: TransactionStatus.unapproved as const,
+                  gasFeeEstimates: {
+                    type: GasFeeEstimateType.Legacy,
+                    low: '0x1',
+                    medium: '0x2',
+                    high: '0x3',
+                  },
+                  txParams: {
+                    type: TransactionEnvelopeType.legacy,
+                    from: ACCOUNT_MOCK,
+                    to: ACCOUNT_2_MOCK,
+                    gasPrice: '0x1234',
+                  },
+                },
+              ],
+            },
+          },
+          updateToInitialState: true,
+        });
+
+        // Update with custom userFeeLevel and new gasPrice
+        controller.updateTransactionGasFees(transactionId, {
+          userFeeLevel: 'custom',
+          gasPrice: '0x5678',
+        });
+
+        const updatedTransaction = controller.state.transactions.find(
+          ({ id }) => id === transactionId,
+        );
+        expect(updatedTransaction?.txParams.gasPrice).toBe('0x5678');
+        expect(updatedTransaction?.userFeeLevel).toBe('custom');
+      });
     });
   });
 

@@ -977,6 +977,11 @@ export interface RemoteTransactionSourceRequest {
   queryEntireHistory: boolean;
 
   /**
+   * Additional tags to identify the source of the request.
+   */
+  tags?: string[];
+
+  /**
    * Callback to update the cache.
    */
   updateCache(fn: (cache: Record<string, unknown>) => void): void;
