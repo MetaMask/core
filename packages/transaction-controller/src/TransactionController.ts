@@ -4165,7 +4165,7 @@ export class TransactionController extends BaseController<
   #isRejectError(error: Error & { code?: number }) {
     return [
       errorCodes.provider.userRejectedRequest,
-      errorCodes.rpc.methodNotSupported,
+      ErrorCode.RejectedUpgrade,
     ].includes(error.code as number);
   }
 
