@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/network-controller` to `^23.4.0` ([#5765](https://github.com/MetaMask/core/pull/5765))
 - Bump `@metamask/controller-utils` to `^11.8.0` ([#5765](https://github.com/MetaMask/core/pull/5765))
+- Changed `caip25CaveatBuilder` to list unsupported scopes when throwing ([#5806](https://github.com/MetaMask/core/pull/5806))
 
 ## [0.6.0]
 
