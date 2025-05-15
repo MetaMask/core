@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` to `^11.9.0` ([#5812](https://github.com/MetaMask/core/pull/5812))
 
+### Added
+- Added `isUnifiedUIEnabled` flag to `ChainConfiguration` feature-flag type and update validators accordingly ([#5783](https://github.com/MetaMask/core/pull/5783))
+
 ## [25.0.1]
 
 ### Fixed
@@ -53,7 +56,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Bump `@metamask/assets-controller` peer dependency to `^62.0.0` ([#5780](https://github.com/MetaMask/core/pull/5780))
 - Bump `@metamask/controller-utils` to `^11.8.0` ([#5765](https://github.com/MetaMask/core/pull/5765))
-- Added `isUnifiedUIEnabled` flag to `ChainConfiguration` feature-flag type and update validators accordingly ([#5783](https://github.com/MetaMask/core/pull/5783))
 
 ## [21.0.0]
 
