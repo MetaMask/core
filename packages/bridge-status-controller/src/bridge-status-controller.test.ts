@@ -23,7 +23,7 @@ import {
   type BridgeStatusControllerMessenger,
   BridgeClientId,
 } from './types';
-import * as bridgeStatusUtils from './utils/bridge-status';
+import * as bridgeStatusUtils from './utils/fetch-tx-status';
 import * as transactionUtils from './utils/transaction';
 import { flushPromises } from '../../../tests/helpers';
 

@@ -105,3 +105,71 @@ export const getRequestMetadataFromHistory = (
     security_warnings: [],
   };
 };
+
+// export const getCommonProperties = (
+//   bridgeHistoryItem: BridgeHistoryItem,
+//   state: { metamask: MetricsBackgroundState },
+// ) => {
+//   const keyring = getCurrentKeyring(state);
+//   const is_hardware_wallet = isHardwareKeyring(keyring.type) ?? false;
+
+//   const chain_id_source = formatChainIdToCaip(
+//     bridgeHistoryItem.quote.srcChainId,
+//   );
+//   const chain_id_destination = formatChainIdToCaip(
+//     bridgeHistoryItem.quote.destChainId,
+//   );
+
+//   const usd_actual_gas = getHexGasTotalUsd({ bridgeHistoryItem, state }) ?? 0;
+//   const usd_quoted_return = Number(
+//     bridgeHistoryItem.pricingData?.quotedReturnInUsd,
+//   );
+//   const usd_quoted_gas = Number(bridgeHistoryItem.pricingData?.quotedGasInUsd);
+
+//   const isBridgeTx =
+//     bridgeHistoryItem.quote.srcChainId !== bridgeHistoryItem.quote.destChainId;
+
+//   return {
+//     action_type: 'crosschain_v1' as unknown,
+
+//     slippage_limit: bridgeHistoryItem.slippagePercentage,
+//     custom_slippage:
+//       bridgeHistoryItem.slippagePercentage !== BRIDGE_DEFAULT_SLIPPAGE,
+
+//     chain_id_source,
+//     chain_id_destination,
+
+//     token_address_source: bridgeHistoryItem.quote.srcAsset.assetId,
+//     token_address_destination: bridgeHistoryItem.quote.destAsset.assetId,
+
+//     token_symbol_source: bridgeHistoryItem.quote.srcAsset.symbol,
+//     token_symbol_destination: bridgeHistoryItem.quote.destAsset.symbol,
+
+//     stx_enabled: getIsSmartTransaction(state, chain_id_source),
+//     is_hardware_wallet,
+
+//     provider: formatProviderLabel(bridgeHistoryItem.quote),
+
+//     quoted_time_minutes: bridgeHistoryItem.estimatedProcessingTimeInSeconds
+//       ? bridgeHistoryItem.estimatedProcessingTimeInSeconds / 60
+//       : 0,
+//     actual_time_minutes:
+//       bridgeHistoryItem.completionTime && bridgeHistoryItem.startTime
+//         ? (bridgeHistoryItem.completionTime - bridgeHistoryItem.startTime) /
+//           1000 /
+//           60
+//         : 0,
+
+//     swap_type: (isBridgeTx
+//       ? 'crosschain_v1'
+//       : 'swapbridge_v1') as unknown as RequestMetadata['swap_type'],
+
+//     usd_amount_source: Number(bridgeHistoryItem.pricingData?.amountSentInUsd),
+
+//     usd_actual_gas,
+//     usd_quoted_return,
+//     usd_quoted_gas,
+
+//     gas_included: false, // TODO check if trade has gas included
+//   };
+// };
