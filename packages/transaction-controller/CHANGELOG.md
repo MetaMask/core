@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Automatically update gas fee properties in `txParams` when `updateTransactionGasFees` method is called with `userFeeLevel` ([#5800](https://github.com/MetaMask/core/pull/5800))
 - Support additional debug of incoming transaction requests ([#5803](https://github.com/MetaMask/core/pull/5803))
   - Add optional `incomingTransactions.client` constructor property.
   - Add optional `tags` property to `updateIncomingTransactions` method.
