@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Remove obsolete `eth_getBlockByNumber` error handling for load balancer errors ([#5808](https://github.com/MetaMask/core/pull/5808))
+
+### Fixed
+
+- Improved handling of HTTP status codes to prevent unnecessary circuit breaker triggers ([#5798](https://github.com/MetaMask/core/pull/5798), [#5809](https://github.com/MetaMask/core/pull/5809))
+  - HTTP 4XX responses (e.g. rate limit errors) will no longer trigger the circuit breaker policy.
+
 ## [23.4.0]
 
 ### Added

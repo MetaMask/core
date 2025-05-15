@@ -161,27 +161,32 @@ describe('Quote Metadata Utils', () => {
   });
 
   describe('calcSentAmount', () => {
-    const mockQuote: Quote = {
-      srcTokenAmount: '1000000000',
-      srcAsset: { decimals: 6 },
-      feeData: {
-        metabridge: { amount: '100000000' },
-      },
-    } as Quote;
-
     it('should calculate sent amount correctly with exchange rates', () => {
+      const mockQuote: Quote = {
+        srcTokenAmount: '12555423',
+        srcAsset: { decimals: 6 },
+        feeData: {
+          metabridge: { amount: '100000000' },
+        },
+      } as Quote;
       const result = calcSentAmount(mockQuote, {
-        exchangeRate: '2',
+        exchangeRate: '2.14',
         usdExchangeRate: '1.5',
       });
 
-      // 1000000000 + 100000000 = 1100000000, then divided by 10^6
-      expect(result.amount).toBe('1100');
-      expect(result.valueInCurrency).toBe('2200');
-      expect(result.usd).toBe('1650');
+      expect(result.amount).toBe('112.555423');
+      expect(result.valueInCurrency).toBe('240.86860522');
+      expect(result.usd).toBe('168.8331345');
     });
 
     it('should handle missing exchange rates', () => {
+      const mockQuote: Quote = {
+        srcTokenAmount: '1000000000',
+        srcAsset: { decimals: 6 },
+        feeData: {
+          metabridge: { amount: '100000000' },
+        },
+      } as Quote;
       const result = calcSentAmount(mockQuote, {});
 
       expect(result.amount).toBe('1100');
@@ -190,6 +195,13 @@ describe('Quote Metadata Utils', () => {
     });
 
     it('should handle zero values', () => {
+      const mockQuote: Quote = {
+        srcTokenAmount: '0',
+        srcAsset: { decimals: 6 },
+        feeData: {
+          metabridge: { amount: '0' },
+        },
+      } as Quote;
       const zeroQuote = {
         ...mockQuote,
         srcTokenAmount: '0',
@@ -526,20 +538,20 @@ describe('Quote Metadata Utils', () => {
 
   describe('calcSlippagePercentage', () => {
     it.each([
-      ['100', '100', '100', '100', 0, 0],
-      ['95', '95', '100', '100', 5, 5],
-      ['98.3', '98.3', '100', '100', 1.7, 1.7],
-      [null, null, '100', '100', null, null],
-      ['105', '105', '100', '100', 5, 5],
+      ['100', null, '100', null, '0'],
+      ['95', '95', '100', '100', '5'],
+      ['98.3', '98.3', '100', '100', '1.7'],
+      [null, '100', null, '100', '0'],
+      [null, null, null, '100', null],
+      ['105', '105', '100', '100', '5'],
     ])(
-      'calcSlippagePercentage: calculate slippage absolute value for received amount %p, usd %p, sent amount %p, usd %p to expected amount %p, usd %p',
+      'calcSlippagePercentage: calculate slippage absolute value for received amount %p, usd %p, sent amount %p, usd %p to expected slippage %p',
       (
         returnValueInCurrency: string | null,
         returnUsd: string | null,
         sentValueInCurrency: string | null,
         sentUsd: string | null,
-        expectedValueInCurrency: number | null,
-        expectedUsd: number | null,
+        expectedSlippage: string | null,
       ) => {
         const result = calcSlippagePercentage(
           {
@@ -547,15 +559,12 @@ describe('Quote Metadata Utils', () => {
             usd: returnUsd,
           },
           {
-            amount: '',
+            amount: '1000',
             valueInCurrency: sentValueInCurrency,
             usd: sentUsd,
           },
         );
-        expect(result.percentageInCurrency).toStrictEqual(
-          expectedValueInCurrency,
-        );
-        expect(result.percentageInUsd).toStrictEqual(expectedUsd);
+        expect(result).toBe(expectedSlippage);
       },
     );
   });

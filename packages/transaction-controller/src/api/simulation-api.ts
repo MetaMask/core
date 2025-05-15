@@ -188,7 +188,10 @@ export type SimulationResponseTransaction = {
     tokenFees: SimulationResponseTokenFee[];
   }[];
 
-  /** The total gas used by the transaction. */
+  /** Required `gasLimit` for the transaction. */
+  gasLimit?: Hex;
+
+  /** Total gas used by the transaction. */
   gasUsed?: Hex;
 
   /** Return value of the transaction, such as the balance if calling balanceOf. */

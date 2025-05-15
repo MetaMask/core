@@ -314,30 +314,28 @@ export const calcCost = (
 export const calcSlippagePercentage = (
   adjustedReturn: ReturnType<typeof calcAdjustedReturn>,
   sentAmount: ReturnType<typeof calcSentAmount>,
-) => {
+): string | null => {
   const cost = calcCost(adjustedReturn, sentAmount);
-  return {
-    percentageInCurrency:
-      cost.valueInCurrency && sentAmount.valueInCurrency
-        ? parseFloat(
-            new BigNumber(cost.valueInCurrency)
-              .div(sentAmount.valueInCurrency)
-              .times(100)
-              .abs()
-              .toFixed(2),
-          )
-        : null,
-    percentageInUsd:
-      cost.usd && sentAmount.usd
-        ? parseFloat(
-            new BigNumber(cost.usd)
-              .div(sentAmount.usd)
-              .times(100)
-              .abs()
-              .toFixed(2),
-          )
-        : null,
-  };
+
+  console.log('olha o cost', cost, adjustedReturn, sentAmount);
+
+  if (cost.valueInCurrency && sentAmount.valueInCurrency) {
+    return new BigNumber(cost.valueInCurrency)
+      .div(sentAmount.valueInCurrency)
+      .times(100)
+      .abs()
+      .toString();
+  }
+
+  if (cost.usd && sentAmount.usd) {
+    return new BigNumber(cost.usd)
+      .div(sentAmount.usd)
+      .times(100)
+      .abs()
+      .toString();
+  }
+
+  return null;
 };
 
 export const formatEtaInMinutes = (

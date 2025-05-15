@@ -532,6 +532,31 @@ Array [
 ]
 `;
 
+exports[`BridgeStatusController submitTx: EVM should delay after submitting linea approval 4`] = `
+Array [
+  Array [
+    Object {
+      "data": Object {
+        "srcChainId": "eip155:59144",
+        "stxEnabled": false,
+      },
+      "name": "Bridge Transaction Approval Completed",
+    },
+    [Function],
+  ],
+  Array [
+    Object {
+      "data": Object {
+        "srcChainId": "eip155:59144",
+        "stxEnabled": false,
+      },
+      "name": "Bridge Transaction Completed",
+    },
+    [Function],
+  ],
+]
+`;
+
 exports[`BridgeStatusController submitTx: EVM should handle smart accounts (4337) 1`] = `
 Object {
   "chainId": "0xa4b1",
