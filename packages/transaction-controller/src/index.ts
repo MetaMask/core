@@ -66,6 +66,7 @@ export type {
   SimulationError,
   SimulationToken,
   SimulationTokenBalanceChange,
+  TransactionBatchMeta,
   TransactionBatchRequest,
   TransactionBatchResult,
   TransactionError,

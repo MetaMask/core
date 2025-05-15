@@ -159,17 +159,17 @@ export enum ApprovalType {
   PersonalSign = 'personal_sign',
   ResultError = 'result_error',
   ResultSuccess = 'result_success',
+  SnapDialog = 'snap_dialog',
   SnapDialogAlert = 'snap_dialog:alert',
   SnapDialogConfirmation = 'snap_dialog:confirmation',
   SnapDialogPrompt = 'snap_dialog:prompt',
-  SnapDialogDefault = 'snap_dialog',
   SwitchEthereumChain = 'wallet_switchEthereumChain',
   Transaction = 'transaction',
+  TransactionBatch = 'transaction_batch',
   Unlock = 'unlock',
   WalletConnect = 'wallet_connect',
   WalletRequestPermissions = 'wallet_requestPermissions',
   WatchAsset = 'wallet_watchAsset',
-  TransactionBatch = 'transaction_batch',
 }
 
 /**

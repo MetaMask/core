@@ -7095,40 +7095,6 @@ describe('TransactionController', () => {
 
       expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
     });
-
-    it('calls #addBatchMetadata and adds batch to state', async () => {
-      const { controller } = setupController();
-
-      const mockBatchMeta = {
-        id: 'batch-id',
-        time: Date.now(),
-        chainId: CHAIN_ID_MOCK,
-        networkClientId: NETWORK_CLIENT_ID_MOCK,
-        transactionIds: ['tx1', 'tx2'],
-      };
-
-      addTransactionBatchMock.mockReset();
-      addTransactionBatchMock.mockImplementation(async (params) => {
-        params.addBatchMetadata(mockBatchMeta);
-        return { batchId: '0xbatchId' as Hex };
-      });
-
-      await controller.addTransactionBatch({
-        from: ACCOUNT_MOCK,
-        networkClientId: NETWORK_CLIENT_ID_MOCK,
-        transactions: [
-          {
-            params: {
-              to: ACCOUNT_2_MOCK,
-              data: '0x123456',
-              value: '0x123',
-            },
-          },
-        ],
-      });
-
-      expect(controller.state.transactionBatches).toContainEqual(mockBatchMeta);
-    });
   });
 
   describe('updateAtomicBatchData', () => {

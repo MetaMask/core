@@ -490,6 +490,9 @@ export type TransactionMeta = {
   };
 };
 
+/**
+ * Information about a batch transaction.
+ */
 export type TransactionBatchMeta = {
   /**
    * Network code as per EIP-155 for this transaction.
@@ -502,8 +505,7 @@ export type TransactionBatchMeta = {
   id: string;
 
   /**
-   * Data for any nested transactions.
-   * For example, in an atomic batch transaction via EIP-7702.
+   * Data for any EIP-7702 transactions.
    */
   transactions?: NestedTransactionMetadata[];
 

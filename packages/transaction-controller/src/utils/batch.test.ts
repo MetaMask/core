@@ -1,4 +1,5 @@
-import { rpcErrors } from '@metamask/rpc-errors';
+import { ORIGIN_METAMASK, type AddResult } from '@metamask/approval-controller';
+import { rpcErrors, errorCodes } from '@metamask/rpc-errors';
 
 import {
   ERROR_MESSAGE_NO_UPGRADE_CONTRACT,
@@ -74,6 +75,86 @@ const TRANSACTION_META_MOCK = {
   },
 } as unknown as TransactionMeta;
 
+/**
+ * Mocks the `ApprovalController:addRequest` action for the `requestApproval` function in `batch.ts`.
+ *
+ * @param messenger - The mocked messenger instance.
+ * @param options - An options bag which will be used to create an action
+ * handler that places the approval request in a certain state.
+ * @returns An object which contains the mocked promise, functions to
+ * manually approve or reject the approval (and therefore the promise), and
+ * finally the mocked version of the action handler itself.
+ */
+function mockRequestApproval(
+  messenger: TransactionControllerMessenger,
+  options:
+    | {
+        state: 'approved';
+        result?: Partial<AddResult>;
+      }
+    | {
+        state: 'rejected';
+        error?: unknown;
+      }
+    | {
+        state: 'pending';
+      },
+): {
+  promise: Promise<AddResult>;
+  approve: (approvalResult?: Partial<AddResult>) => void;
+  reject: (rejectionError: unknown) => void;
+  actionHandlerMock: jest.Mock<
+    ReturnType<typeof messenger.call>,
+    Parameters<typeof messenger.call>
+  >;
+} {
+  let resolvePromise: (value: AddResult) => void;
+  let rejectPromise: (reason?: unknown) => void;
+  const promise = new Promise<AddResult>((resolve, reject) => {
+    resolvePromise = resolve;
+    rejectPromise = reject;
+  });
+
+  const approveTransaction = (approvalResult?: Partial<AddResult>) => {
+    resolvePromise({
+      resultCallbacks: {
+        success() {
+          // Mock success callback
+        },
+        error() {
+          // Mock error callback
+        },
+      },
+      ...approvalResult,
+    });
+  };
+
+  const rejectTransaction = (
+    rejectionError: unknown = {
+      code: errorCodes.provider.userRejectedRequest,
+    },
+  ) => {
+    rejectPromise(rejectionError);
+  };
+
+  const actionHandlerMock = jest.fn().mockReturnValue(promise);
+
+  if (options.state === 'approved') {
+    approveTransaction(options.result);
+  } else if (options.state === 'rejected') {
+    rejectTransaction(options.error);
+  }
+
+  messenger.call = actionHandlerMock;
+
+  return {
+    promise,
+    approve: approveTransaction,
+    reject: rejectTransaction,
+    actionHandlerMock,
+  };
+}
+
 describe('Batch Utils', () => {
   const doesChainSupportEIP7702Mock = jest.mocked(doesChainSupportEIP7702);
   const getEIP7702SupportedChainsMock = jest.mocked(getEIP7702SupportedChains);
@@ -105,10 +186,6 @@ describe('Batch Utils', () => {
       AddBatchTransactionOptions['updateTransaction']
     >;
 
-    let addBatchMetadataMock: jest.MockedFn<
-      AddBatchTransactionOptions['addBatchMetadata']
-    >;
-
     let request: AddBatchTransactionOptions;
 
     beforeEach(() => {
@@ -116,7 +193,6 @@ describe('Batch Utils', () => {
       addTransactionMock = jest.fn();
       getChainIdMock = jest.fn();
       updateTransactionMock = jest.fn();
-      addBatchMetadataMock = jest.fn();
 
       determineTransactionTypeMock.mockResolvedValue({
         type: TransactionType.simpleSend,
@@ -125,7 +201,6 @@ describe('Batch Utils', () => {
       getChainIdMock.mockReturnValue(CHAIN_ID_MOCK);
 
       request = {
-        addBatchMetadata: addBatchMetadataMock,
         addTransaction: addTransactionMock,
         getChainId: getChainIdMock,
         getEthQuery: GET_ETH_QUERY_MOCK,
@@ -560,6 +635,12 @@ describe('Batch Utils', () => {
     });
 
     describe('with publish batch hook', () => {
+      beforeEach(() => {
+        mockRequestApproval(MESSENGER_MOCK, {
+          state: 'approved',
+        });
+      });
+
       it('adds each nested transaction', async () => {
         const publishBatchHook = jest.fn();
 
@@ -596,36 +677,58 @@ describe('Batch Utils', () => {
         );
       });
 
-      it('adds batch metadata to controller state if requireApproval is true', async () => {
-        const publishBatchHook = jest.fn();
+      it.each([
+        {
+          origin: ORIGIN_MOCK,
+          description: 'with defined origin',
+          expectedOrigin: ORIGIN_MOCK,
+        },
+        {
+          origin: undefined,
+          description: 'with undefined origin',
+          expectedOrigin: ORIGIN_METAMASK,
+        },
+      ])(
+        'requests approval for batch transactions $description',
+        async ({ origin, expectedOrigin }) => {
+          const publishBatchHook = jest.fn();
 
-        addTransactionMock.mockResolvedValueOnce({
-          transactionMeta: TRANSACTION_META_MOCK,
-          result: Promise.resolve(''),
-        });
+          addTransactionMock.mockResolvedValueOnce({
+            transactionMeta: TRANSACTION_META_MOCK,
+            result: Promise.resolve(''),
+          });
 
-        addTransactionBatch({
-          ...request,
-          publishBatchHook,
-          request: { ...request.request, useHook: true, requireApproval: true },
-        }).catch(() => {
-          // Intentionally empty
-        });
+          generateEIP7702BatchTransactionMock.mockReturnValueOnce({
+            to: TO_MOCK,
+            data: DATA_MOCK,
+            value: VALUE_MOCK,
+          });
 
-        await flushPromises();
-        expect(addBatchMetadataMock).toHaveBeenCalledTimes(1);
-        expect(addBatchMetadataMock).toHaveBeenCalledWith({
-          chainId: CHAIN_ID_MOCK,
-          id: expect.any(String),
-          networkClientId: NETWORK_CLIENT_ID_MOCK,
-          origin: 'test.com',
-          time: expect.any(Number),
-          transactions: [
-            { params: { data: DATA_MOCK, to: TO_MOCK, value: VALUE_MOCK } },
-            { params: { data: DATA_MOCK, to: TO_MOCK, value: VALUE_MOCK } },
-          ],
-        });
-      });
+          request.messenger = MESSENGER_MOCK;
+
+          addTransactionBatch({
+            ...request,
+            publishBatchHook,
+            request: { ...request.request, useHook: true, origin },
+          }).catch(() => {
+            // Intentionally empty
+          });
+
+          await flushPromises();
+
+          expect(MESSENGER_MOCK.call).toHaveBeenCalledWith(
+            'ApprovalController:addRequest',
+            expect.objectContaining({
+              id: expect.any(String),
+              origin: expectedOrigin,
+              requestData: { txBatchId: expect.any(String) },
+              expectsResult: true,
+              type: 'transaction_batch',
+            }),
+            true,
+          );
+        },
+      );
 
       it('calls publish batch hook', async () => {
         const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
