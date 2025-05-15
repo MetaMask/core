@@ -3,7 +3,7 @@
 import { join, relative } from 'node:path';
 import { homedir } from 'node:os';
 import { Dir, readFileSync } from 'node:fs';
-import { copyFile, opendir, rm, symlink, unlink } from 'node:fs/promises';
+import { copyFile, mkdir, opendir, rm, symlink, unlink } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { cwd, exit } from 'node:process';
 import { parse as parseYaml } from 'yaml';
@@ -82,6 +82,10 @@ export async function installBinaries(
     }
     const target = join(file.parentPath, file.name);
     const path = join(BIN_DIR, relative(cachePath, target));
+
+    // create the BIN_DIR paths if they don't exists already
+    await mkdir(BIN_DIR, { recursive: true });
+
     // clean up any existing files or symlinks
     await unlink(path).catch(noop);
     try {
