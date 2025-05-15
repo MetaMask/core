@@ -9,17 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.3.0]
 
-### Uncategorized
-
-- Release 397.0.0 ([#5802](https://github.com/MetaMask/core.git/pull/5802))
-- Release 388.0.0 ([#5763](https://github.com/MetaMask/core.git/pull/5763))
-- Release/387.0.0 ([#5760](https://github.com/MetaMask/core.git/pull/5760))
-- Release 381.0.0 ([#5729](https://github.com/MetaMask/core.git/pull/5729))
-- Release/377.0.0 ([#5715](https://github.com/MetaMask/core.git/pull/5715))
-- feat: Add more chain-agnostic-permission utility functions from sip-26 usage ([#5609](https://github.com/MetaMask/core.git/pull/5609))
-
 ### Changed
 
+- feat: Add more chain-agnostic-permission utility functions from sip-26 usage ([#5609](https://github.com/MetaMask/core/pull/5609))
+- Bump `@metamask/chain-agnostic-permission` to `^0.6.0` ([#5715](https://github.com/MetaMask/core/pull/5715),[#5760](https://github.com/MetaMask/core/pull/5760))
 - Bump `@metamask/api-specs` to `^0.14.0` ([#5817](https://github.com/MetaMask/core/pull/5817))
 - Bump `@metamask/controller-utils` to `^11.9.0` ([#5765](https://github.com/MetaMask/core/pull/5765), [#5812](https://github.com/MetaMask/core/pull/5812))
 - Bump `@metamask/network-controller` to `^23.5.0` ([#5765](https://github.com/MetaMask/core/pull/5765), [#5812](https://github.com/MetaMask/core/pull/5812))
@@ -53,8 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/multichain-api-middleware@0.3.0...HEAD
-[0.3.0]: https://github.com/MetaMask/core.git/compare/@metamask/multichain-api-middleware@0.2.0...@metamask/multichain-api-middleware@0.3.0
-[0.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/multichain-api-middleware@0.1.1...@metamask/multichain-api-middleware@0.2.0
-[0.1.1]: https://github.com/MetaMask/core.git/compare/@metamask/multichain-api-middleware@0.1.0...@metamask/multichain-api-middleware@0.1.1
-[0.1.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/multichain-api-middleware@0.1.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@0.3.0...HEAD
+[0.3.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@0.2.0...@metamask/multichain-api-middleware@0.3.0
+[0.2.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@0.1.1...@metamask/multichain-api-middleware@0.2.0
+[0.1.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@0.1.0...@metamask/multichain-api-middleware@0.1.1
+[0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/multichain-api-middleware@0.1.0
