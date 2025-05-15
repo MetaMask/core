@@ -114,6 +114,7 @@
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/accounts-controller": "^29.0.0",
     "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/keyring-api": "^17.4.0",
     "@metamask/keyring-controller": "^22.0.0",
     "@metamask/keyring-internal-api": "^6.0.1",
     "@metamask/network-controller": "^23.5.0",
