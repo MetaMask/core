@@ -3453,6 +3453,8 @@ __metadata:
     unzipper: "npm:^0.12.3"
     yargs: "npm:17.7.2"
     yargs-parser: "npm:^21.1.1"
+  bin:
+    mm-foundryup: ./dist/cli.mjs
   languageName: unknown
   linkType: soft
 

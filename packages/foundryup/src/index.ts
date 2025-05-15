@@ -16,7 +16,8 @@ import {
 } from './utils';
 import { extractFrom } from './extract';
 import { parseArgs, printBanner } from './options';
-import { Architecture, Binary, Checksums, Extension, Platform } from './types';
+import type { Checksums } from './types';
+import { Architecture, Binary, Extension, Platform } from './types';
 
 export function getCacheDirectory(): string {
   let enableGlobalCache = false;
@@ -155,16 +156,4 @@ export async function downloadAndInstallFoundryBinaries(): Promise<void> {
   await installBinaries(downloadedBinaries, BIN_DIR, cachePath);
 
   say('done!');
-}
-
-export function main() {
-  downloadAndInstallFoundryBinaries().catch((error) => {
-    console.error('Error:', error);
-    exit(1);
-  });
-}
-
-// Only run `main` if this is the main module (not being imported for tests)
-if (require.main === module) {
-  main();
 }
