@@ -1,6 +1,7 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import {
+  MOCK_ENTROPY_SOURCE_IDS,
   MOCK_INTERNAL_ACCOUNTS,
   MOCK_USER_STORAGE_ACCOUNTS,
 } from './__fixtures__/mockAccounts';
@@ -77,8 +78,6 @@ const arrangeMocks = async (
 };
 
 describe('user-storage/account-syncing/controller-integration - saveInternalAccountsListToUserStorage() tests', () => {
-  it.todo('returns void if account syncing is not enabled');
-
   it('returns void if account syncing is enabled but the internal accounts list is empty', async () => {
     const { controller, options, entropySourceIds } = await arrangeMocks({});
 
@@ -121,7 +120,26 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
     expect(messengerMocks.mockAccountsListAccounts).not.toHaveBeenCalled();
   });
 
-  it.todo('returns void if account syncing feature flag is disabled');
+  it('returns void if account syncing is disabled', async () => {
+    const { controller, options, entropySourceIds, messengerMocks } =
+      await arrangeMocks({
+        stateOverrides: {
+          isAccountSyncingEnabled: false,
+        },
+      });
+
+    await mockEndpointGetUserStorage();
+
+    await controller.setIsAccountSyncingReadyToBeDispatched(true);
+
+    await AccountSyncingControllerIntegrationModule.syncInternalAccountsWithUserStorage(
+      {},
+      options,
+      entropySourceIds[0],
+    );
+
+    expect(messengerMocks.mockAccountsListAccounts).not.toHaveBeenCalled();
+  });
 
   it('throws if AccountsController:listAccounts fails or returns an empty list', async () => {
     const { options, entropySourceIds } = await arrangeMocks({
@@ -273,6 +291,116 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
       numberOfAddedAccounts,
     );
     expect(mockAPI.mockEndpointBatchDeleteUserStorage.isDone()).toBe(true);
+  });
+
+  it('manages multi-SRP accounts correctly', async () => {
+    const { messengerMocks, options, entropySourceIds } = await arrangeMocks({
+      messengerMockOptions: {
+        accounts: {
+          accountsList: [
+            MOCK_INTERNAL_ACCOUNTS.MULTI_SRP[0],
+            MOCK_INTERNAL_ACCOUNTS.MULTI_SRP[2],
+          ] as unknown as InternalAccount[],
+        },
+      },
+    });
+
+    // Multi-SRP account syncing happens sequentially for each entropy source
+    // This is done in UserStorageController, so here we trigger the function manually for each entropy source
+
+    // SRP 1 Sync
+    const mockAPISrp1 = {
+      mockEndpointGetUserStorageSrp1:
+        await mockEndpointGetUserStorageAllFeatureEntries(
+          USER_STORAGE_FEATURE_NAMES.accounts,
+          {
+            status: 200,
+            body: await createMockUserStorageEntries(
+              MOCK_USER_STORAGE_ACCOUNTS.MULTI_SRP[MOCK_ENTROPY_SOURCE_IDS[0]],
+            ),
+          },
+        ),
+      // These two mocks below don't happen in reality, but we need to mock them to avoid
+      // the test to fail because the internal accounts list doesn't match, and creates erroneous situations
+      // Since this is not what we are testing here, this is fine
+      mockEndpointBatchDeleteUserStorage: mockEndpointBatchDeleteUserStorage(
+        USER_STORAGE_FEATURE_NAMES.accounts,
+        undefined,
+      ),
+      mockEndpointBatchUpsertUserStorage: mockEndpointBatchUpsertUserStorage(
+        USER_STORAGE_FEATURE_NAMES.accounts,
+      ),
+    };
+
+    await AccountSyncingControllerIntegrationModule.syncInternalAccountsWithUserStorage(
+      {},
+      options,
+      entropySourceIds[0],
+    );
+
+    const numberOfAddedAccountsSrp1 =
+      MOCK_USER_STORAGE_ACCOUNTS.MULTI_SRP[MOCK_ENTROPY_SOURCE_IDS[0]].length -
+      MOCK_INTERNAL_ACCOUNTS.MULTI_SRP.filter(
+        (a) => a.options.entropySource === MOCK_ENTROPY_SOURCE_IDS[0],
+      ).length +
+      1;
+
+    expect(messengerMocks.mockWithKeyringSelector).toHaveBeenCalledWith({
+      id: MOCK_ENTROPY_SOURCE_IDS[0],
+    });
+    expect(messengerMocks.mockKeyringAddAccounts).toHaveBeenCalledWith(
+      numberOfAddedAccountsSrp1,
+    );
+
+    mockAPISrp1.mockEndpointGetUserStorageSrp1.persist(false);
+    mockAPISrp1.mockEndpointBatchDeleteUserStorage.done();
+
+    // SRP 2 Sync
+    const mockAPISrp2 = {
+      mockEndpointGetUserStorageSrp2:
+        await mockEndpointGetUserStorageAllFeatureEntries(
+          USER_STORAGE_FEATURE_NAMES.accounts,
+          {
+            status: 200,
+            body: await createMockUserStorageEntries(
+              MOCK_USER_STORAGE_ACCOUNTS.MULTI_SRP[MOCK_ENTROPY_SOURCE_IDS[1]],
+            ),
+          },
+        ),
+      // This doesn't happen in reality, but we need to mock it to avoid
+      // the test to fail because the internal accounts list doesn't match since this is not what we are testing here
+      mockEndpointBatchDeleteUserStorage: mockEndpointBatchDeleteUserStorage(
+        USER_STORAGE_FEATURE_NAMES.accounts,
+        undefined,
+      ),
+    };
+
+    await AccountSyncingControllerIntegrationModule.syncInternalAccountsWithUserStorage(
+      {},
+      options,
+      entropySourceIds[1],
+    );
+
+    const numberOfAddedAccountsSrp2 =
+      MOCK_USER_STORAGE_ACCOUNTS.MULTI_SRP[MOCK_ENTROPY_SOURCE_IDS[1]].length -
+      MOCK_INTERNAL_ACCOUNTS.MULTI_SRP.filter(
+        (a) => a.options.entropySource === MOCK_ENTROPY_SOURCE_IDS[1],
+      ).length +
+      1;
+
+    expect(messengerMocks.mockWithKeyringSelector).toHaveBeenCalledWith({
+      id: MOCK_ENTROPY_SOURCE_IDS[1],
+    });
+    expect(messengerMocks.mockKeyringAddAccounts).toHaveBeenCalledWith(
+      numberOfAddedAccountsSrp2,
+    );
+
+    mockAPISrp1.mockEndpointBatchUpsertUserStorage.done();
+    mockAPISrp2.mockEndpointGetUserStorageSrp2.done();
+    mockAPISrp2.mockEndpointBatchDeleteUserStorage.done();
+
+    expect(mockAPISrp1.mockEndpointGetUserStorageSrp1.isDone()).toBe(true);
+    expect(mockAPISrp2.mockEndpointGetUserStorageSrp2.isDone()).toBe(true);
   });
 
   describe('handles corrupted user storage gracefully', () => {

@@ -315,18 +315,6 @@ export default class AuthenticationController extends BaseController<
   }
 
   public isSignedIn(): boolean {
-    // TODO: we might need to do something along those lines?
-
-    // this.#assertIsUnlocked('isSignedIn');
-    // const allPublicKeys = await this.#snapGetAllPublicKeys();
-
-    // return allPublicKeys.every(([entropySourceId]) => {
-    //   return Boolean(
-    //     this.state.srpSessionData?.[entropySourceId]?.token?.accessToken,
-    //   );
-    // });
-
-    // TODO: for now, keeping this for backwards compatibility
     return this.state.isSignedIn;
   }
 

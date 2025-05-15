@@ -43,6 +43,9 @@ export async function saveInternalAccountToUserStorage(
     (account) => account.address === internalAccount.address,
   );
 
+  // This should never happen because users don't have the ability to remove an accounts
+  // but if it does, we throw an error
+  // istanbul ignore next
   if (!internalAccountFromList) {
     throw new Error(
       `UserStorageController - failed to find internal account in the list - ${internalAccount.address}`,

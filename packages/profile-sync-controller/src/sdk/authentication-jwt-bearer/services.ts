@@ -47,14 +47,8 @@ type NonceResponse = {
 
 type PairRequest = {
   signature: string;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   raw_message: string;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   encrypted_storage_key: string;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   identifier_type: 'SIWE' | 'SRP';
 };
 
@@ -168,8 +162,6 @@ export async function authorizeOIDC(
 
     if (!response.ok) {
       const responseBody = (await response.json()) as {
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
         error_description: string;
         error: string;
       };

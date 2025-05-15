@@ -135,6 +135,7 @@ export function mockUserStorageMessenger(
   const mockKeyringWithKeyring = typedMockFn('KeyringController:withKeyring');
   const mockKeyringGetAccounts = jest.fn();
   const mockKeyringAddAccounts = jest.fn();
+  const mockWithKeyringSelector = jest.fn();
 
   const mockKeyringGetState = typedMockFn(
     'KeyringController:getState',
@@ -220,7 +221,9 @@ export function mockUserStorageMessenger(
 
     if (actionType === 'KeyringController:withKeyring') {
       const [, ...params] = typedArgs;
-      const [, operation] = params;
+      const [selector, operation] = params;
+
+      mockWithKeyringSelector(selector);
 
       const keyring = {
         getAccounts: mockKeyringGetAccounts,
@@ -283,6 +286,7 @@ export function mockUserStorageMessenger(
     mockKeyringAddAccounts,
     mockKeyringWithKeyring,
     mockKeyringGetState,
+    mockWithKeyringSelector,
     mockAccountsUpdateAccountMetadata,
     mockAccountsListAccounts,
     mockNetworkControllerGetState,

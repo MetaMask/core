@@ -78,7 +78,7 @@ describe('authentication/authentication-controller - constructor() tests', () =>
 });
 
 describe('authentication/authentication-controller - performSignIn() tests', () => {
-  it('should create access token and update state', async () => {
+  it('should create access token(s) and update state', async () => {
     const metametrics = createMockAuthMetaMetrics();
     const mockEndpoints = arrangeAuthAPIs();
     const {
@@ -234,7 +234,7 @@ describe('authentication/authentication-controller - getBearerToken() tests', ()
     );
   });
 
-  it('should return original access tokens in state', async () => {
+  it('should return original access token(s) in state', async () => {
     const metametrics = createMockAuthMetaMetrics();
     const { messenger } = createMockAuthenticationMessenger();
     const originalState = mockSignedInState();
@@ -245,25 +245,19 @@ describe('authentication/authentication-controller - getBearerToken() tests', ()
     });
 
     const resultWithoutEntropySourceId = await controller.getBearerToken();
-    const resultSrp1 = await controller.getBearerToken(
-      MOCK_ENTROPY_SOURCE_IDS[0],
-    );
-    const resultSrp2 = await controller.getBearerToken(
-      MOCK_ENTROPY_SOURCE_IDS[1],
-    );
     expect(resultWithoutEntropySourceId).toBeDefined();
-    expect(resultSrp1).toBeDefined();
-    expect(resultSrp2).toBeDefined();
-
     expect(resultWithoutEntropySourceId).toBe(
       originalState.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]]?.token
         .accessToken,
     );
-    expect(resultSrp1).toBe(resultWithoutEntropySourceId);
-    expect(resultSrp2).toBe(
-      originalState.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[1]]?.token
-        .accessToken,
-    );
+
+    for (const id of MOCK_ENTROPY_SOURCE_IDS) {
+      const resultWithEntropySourceId = await controller.getBearerToken(id);
+      expect(resultWithEntropySourceId).toBeDefined();
+      expect(resultWithEntropySourceId).toBe(
+        originalState.srpSessionData?.[id]?.token.accessToken,
+      );
+    }
   });
 
   it('should return new access token if state is invalid', async () => {
@@ -346,7 +340,7 @@ describe('authentication/authentication-controller - getSessionProfile() tests',
     );
   });
 
-  it('should return original access token in state', async () => {
+  it('should return original user profile(s) in state', async () => {
     const metametrics = createMockAuthMetaMetrics();
     const { messenger } = createMockAuthenticationMessenger();
     const originalState = mockSignedInState();
@@ -356,14 +350,22 @@ describe('authentication/authentication-controller - getSessionProfile() tests',
       metametrics,
     });
 
-    const result = await controller.getSessionProfile();
-    expect(result).toBeDefined();
-    expect(result).toStrictEqual(
+    const resultWithoutEntropySourceId = await controller.getSessionProfile();
+    expect(resultWithoutEntropySourceId).toBeDefined();
+    expect(resultWithoutEntropySourceId).toStrictEqual(
       originalState.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]]?.profile,
     );
+
+    for (const id of MOCK_ENTROPY_SOURCE_IDS) {
+      const resultWithEntropySourceId = await controller.getSessionProfile(id);
+      expect(resultWithEntropySourceId).toBeDefined();
+      expect(resultWithEntropySourceId).toStrictEqual(
+        originalState.srpSessionData?.[id]?.profile,
+      );
+    }
   });
 
-  it('should return new access token if state is invalid', async () => {
+  it('should return new user profile if state is invalid', async () => {
     const metametrics = createMockAuthMetaMetrics();
     const { messenger } = createMockAuthenticationMessenger();
     mockAuthenticationFlowEndpoints();

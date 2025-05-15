@@ -21,8 +21,6 @@ import {
 } from '../utils/messaging-signing-snap-requests';
 import { validateLoginResponse } from '../utils/validate-login-response';
 
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
 type JwtBearerAuth_SRP_Options = {
   storage: AuthStorageOptions;
   signing?: AuthSigningOptions;

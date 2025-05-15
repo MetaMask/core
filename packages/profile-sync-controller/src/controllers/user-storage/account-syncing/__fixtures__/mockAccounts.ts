@@ -179,6 +179,83 @@ export const MOCK_INTERNAL_ACCOUNTS = {
       },
     },
   ],
+  MULTI_SRP: [
+    {
+      address: '0x123',
+      id: '1',
+      type: EthAccountType.Eoa,
+      options: {
+        entropySource: MOCK_ENTROPY_SOURCE_IDS[0],
+      },
+      metadata: {
+        name: 'test',
+        nameLastUpdatedAt: 1,
+        keyring: {
+          type: KeyringTypes.hd,
+        },
+      },
+    },
+    {
+      address: '0x456',
+      id: '2',
+      type: EthAccountType.Eoa,
+      options: {
+        entropySource: MOCK_ENTROPY_SOURCE_IDS[0],
+      },
+      metadata: {
+        name: 'test 2',
+        nameLastUpdatedAt: 2,
+        keyring: {
+          type: KeyringTypes.hd,
+        },
+      },
+    },
+    {
+      address: '0x789',
+      id: '3',
+      type: EthAccountType.Eoa,
+      options: {
+        entropySource: MOCK_ENTROPY_SOURCE_IDS[1],
+      },
+      metadata: {
+        name: 'Account 2',
+        nameLastUpdatedAt: 2,
+        keyring: {
+          type: KeyringTypes.hd,
+        },
+      },
+    },
+    {
+      address: '0xabc',
+      id: '4',
+      type: EthAccountType.Eoa,
+      options: {
+        entropySource: MOCK_ENTROPY_SOURCE_IDS[1],
+      },
+      metadata: {
+        name: 'Account 3',
+        nameLastUpdatedAt: 3,
+        keyring: {
+          type: KeyringTypes.hd,
+        },
+      },
+    },
+    {
+      address: '0xdef',
+      id: '5',
+      type: EthAccountType.Eoa,
+      options: {
+        entropySource: MOCK_ENTROPY_SOURCE_IDS[1],
+      },
+      metadata: {
+        name: 'Account 4',
+        nameLastUpdatedAt: 5,
+        keyring: {
+          type: KeyringTypes.hd,
+        },
+      },
+    },
+  ],
 };
 
 export const MOCK_USER_STORAGE_ACCOUNTS = {
@@ -231,4 +308,17 @@ export const MOCK_USER_STORAGE_ACCOUNTS = {
         },
       },
     ] as unknown as InternalAccount[]),
+  MULTI_SRP: {
+    [MOCK_ENTROPY_SOURCE_IDS[0]]:
+      mapInternalAccountsListToUserStorageAccountsList([
+        MOCK_INTERNAL_ACCOUNTS.MULTI_SRP[0],
+        MOCK_INTERNAL_ACCOUNTS.MULTI_SRP[1],
+      ] as unknown as InternalAccount[]),
+    [MOCK_ENTROPY_SOURCE_IDS[1]]:
+      mapInternalAccountsListToUserStorageAccountsList([
+        MOCK_INTERNAL_ACCOUNTS.MULTI_SRP[2],
+        MOCK_INTERNAL_ACCOUNTS.MULTI_SRP[3],
+        MOCK_INTERNAL_ACCOUNTS.MULTI_SRP[4],
+      ] as unknown as InternalAccount[]),
+  },
 };

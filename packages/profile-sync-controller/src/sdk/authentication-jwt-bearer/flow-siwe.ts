@@ -17,13 +17,9 @@ import type {
 import { ValidationError } from '../errors';
 import { validateLoginResponse } from '../utils/validate-login-response';
 
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
 type JwtBearerAuth_SIWE_Options = {
   storage: AuthStorageOptions;
 };
-
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
 
 type JwtBearerAuth_SIWE_Signer = {
   address: string;
