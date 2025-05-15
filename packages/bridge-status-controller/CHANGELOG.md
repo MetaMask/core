@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Error logs for invalid getTxStatus responses
+- Error logs for invalid getTxStatus responses ([#5816](https://github.com/MetaMask/core/pull/5816))
 
 ### Changed
 
