@@ -33,6 +33,10 @@ export class TokenDiscoveryApiService extends AbstractTokenDiscoveryApiService {
       url.searchParams.append('limit', trendingTokensParams.limit);
     }
 
+    if (trendingTokensParams?.swappable) {
+      url.searchParams.append('swappable', 'true');
+    }
+
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -59,6 +63,10 @@ export class TokenDiscoveryApiService extends AbstractTokenDiscoveryApiService {
     }
     if (topLosersParams?.limit) {
       url.searchParams.append('limit', topLosersParams.limit);
+    }
+
+    if (topLosersParams?.swappable) {
+      url.searchParams.append('swappable', 'true');
     }
 
     const response = await fetch(url, {
@@ -89,6 +97,10 @@ export class TokenDiscoveryApiService extends AbstractTokenDiscoveryApiService {
       url.searchParams.append('limit', topGainersParams.limit);
     }
 
+    if (topGainersParams?.swappable) {
+      url.searchParams.append('swappable', 'true');
+    }
+
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -115,6 +127,10 @@ export class TokenDiscoveryApiService extends AbstractTokenDiscoveryApiService {
     }
     if (blueChipParams?.limit) {
       url.searchParams.append('limit', blueChipParams.limit);
+    }
+
+    if (blueChipParams?.swappable) {
+      url.searchParams.append('swappable', 'true');
     }
 
     const response = await fetch(url, {
