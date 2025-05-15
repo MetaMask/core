@@ -518,11 +518,6 @@ export type TransactionBatchMeta = {
    * Origin this transaction was sent from.
    */
   origin?: string;
-
-  /**
-   * Timestamp associated with this transaction.
-   */
-  time: number;
 };
 
 export type SendFlowHistoryEntry = {

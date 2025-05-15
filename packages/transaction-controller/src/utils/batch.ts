@@ -592,13 +592,12 @@ function newBatchMetadata({
   networkClientId,
   transactions,
   origin,
-}: Omit<TransactionBatchMeta, 'time'>): TransactionBatchMeta {
+}: TransactionBatchMeta): TransactionBatchMeta {
   return {
     id,
     chainId,
     networkClientId,
     transactions,
     origin,
-    time: Date.now(),
   };
 }
