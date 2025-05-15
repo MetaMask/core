@@ -277,7 +277,7 @@ export type Quote = {
   bridges: string[];
   steps: Step[];
   refuel?: RefuelData;
-  bridgePriceData?: {
+  priceData?: {
     totalFromAmountUsd?: string;
     totalToAmountUsd?: string;
     priceImpact?: string;

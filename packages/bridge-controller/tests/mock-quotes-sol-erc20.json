@@ -137,7 +137,7 @@
           "destAmount": "143291269234176100000"
         }
       ],
-      "bridgePriceData": {
+      "priceData": {
         "totalFromAmountUsd": "124.9200",
         "totalToAmountUsd": "123.9469",
         "priceImpact": "0.007789785462696144"
@@ -284,7 +284,7 @@
           "destAmount": "141450025181571360000"
         }
       ],
-      "bridgePriceData": {
+      "priceData": {
         "totalFromAmountUsd": "124.9200",
         "totalToAmountUsd": "122.3543",
         "priceImpact": "0.020538744796669922"
