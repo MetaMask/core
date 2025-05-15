@@ -64,7 +64,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-controller": "^21.0.1",
-    "@metamask/network-controller": "^23.2.0",
+    "@metamask/network-controller": "^23.2.1-backport",
     "@metamask/providers": "^18.1.1",
     "@metamask/snaps-controllers": "^9.19.0",
     "@types/jest": "^27.4.1",

@@ -52,8 +52,8 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/controller-utils": "^11.7.0",
-    "@metamask/network-controller": "^23.2.0",
+    "@metamask/controller-utils": "^11.7.1-backport",
+    "@metamask/network-controller": "^23.2.1-backport",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",

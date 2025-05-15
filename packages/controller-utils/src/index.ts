@@ -29,6 +29,7 @@ export {
   handleFetch,
   hexToBN,
   hexToText,
+  HttpError,
   isNonEmptyArray,
   isPlainObject,
   isSafeChainId,
