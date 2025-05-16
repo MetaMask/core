@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Error logs for invalid getTxStatus responses ([#5816](https://github.com/MetaMask/core/pull/5816))
+
 ### Changed
 
 - Bump `@metamask/bridge-controller` peer dependency to `^25.0.1` ([#5811](https://github.com/MetaMask/core/pull/5811))

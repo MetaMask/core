@@ -104,7 +104,12 @@ export async function fetchBridgeQuotes(
   });
 
   const filteredQuotes = quotes.filter((quoteResponse: unknown) => {
-    return validateQuoteResponse(quoteResponse);
+    try {
+      return validateQuoteResponse(quoteResponse);
+    } catch (error) {
+      console.error(error);
+      return false;
+    }
   });
   return filteredQuotes as QuoteResponse[];
 }

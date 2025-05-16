@@ -52,5 +52,10 @@ export const validateBridgeStatusResponse = (data: unknown) => {
     refuel: optional(RefuelStatusResponseSchema),
   });
 
-  assert(data, StatusResponseSchema);
+  try {
+    assert(data, StatusResponseSchema);
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
 };
