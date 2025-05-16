@@ -1151,4 +1151,53 @@ describe('PendingTransactionTracker', () => {
       expect(transactionMeta.txReceipt).toBeUndefined();
     });
   });
+
+  describe('addTransactionToPoll', () => {
+    it('adds a transaction to poll and sets #transactionToForcePoll', () => {
+      pendingTransactionTracker = new PendingTransactionTracker(options);
+
+      pendingTransactionTracker.addTransactionToPoll(
+        TRANSACTION_SUBMITTED_MOCK,
+      );
+
+      expect(transactionPoller.setPendingTransactions).toHaveBeenCalledWith([
+        TRANSACTION_SUBMITTED_MOCK,
+      ]);
+      expect(transactionPoller.start).toHaveBeenCalledTimes(1);
+    });
+
+    describe('emits confirm event and clean transactionToForcePoll', () => {
+      it('if receipt has success status', async () => {
+        const transaction = { ...TRANSACTION_SUBMITTED_MOCK };
+        const getTransactions = jest
+          .fn()
+          .mockReturnValue(freeze([transaction], true));
+
+        pendingTransactionTracker = new PendingTransactionTracker({
+          ...options,
+          getTransactions,
+        });
+
+        pendingTransactionTracker.addTransactionToPoll(
+          TRANSACTION_SUBMITTED_MOCK,
+        );
+
+        const listener = jest.fn();
+        pendingTransactionTracker.hub.addListener(
+          'transaction-confirmed',
+          listener,
+        );
+
+        queryMock.mockResolvedValueOnce(RECEIPT_MOCK);
+        queryMock.mockResolvedValueOnce(BLOCK_MOCK);
+
+        await onPoll();
+
+        expect(listener).toHaveBeenCalledTimes(1);
+        expect(listener).toHaveBeenCalledWith(
+          expect.objectContaining(TRANSACTION_SUBMITTED_MOCK),
+        );
+      });
+    });
+  });
 });
