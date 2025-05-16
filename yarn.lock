@@ -3674,7 +3674,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^11.9.0"
     "@metamask/eth-json-rpc-filters": "npm:^9.0.0"
     "@metamask/json-rpc-engine": "npm:^10.0.3"
-    "@metamask/multichain-transactions-controller": "npm:^0.11.0"
+    "@metamask/multichain-transactions-controller": "npm:^1.0.0"
     "@metamask/network-controller": "npm:^23.5.0"
     "@metamask/permission-controller": "npm:^11.0.6"
     "@metamask/rpc-errors": "npm:^7.0.2"
@@ -3726,7 +3726,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/multichain-transactions-controller@npm:^0.11.0, @metamask/multichain-transactions-controller@workspace:packages/multichain-transactions-controller":
+"@metamask/multichain-transactions-controller@npm:^1.0.0, @metamask/multichain-transactions-controller@workspace:packages/multichain-transactions-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/multichain-transactions-controller@workspace:packages/multichain-transactions-controller"
   dependencies:
@@ -4128,7 +4128,7 @@ __metadata:
     "@metamask/json-rpc-engine": "npm:^10.0.3"
     "@metamask/network-controller": "npm:^23.5.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
-    "@metamask/selected-network-controller": "npm:^22.0.0"
+    "@metamask/selected-network-controller": "npm:^22.1.0"
     "@metamask/swappable-obj-proxy": "npm:^2.3.0"
     "@metamask/utils": "npm:^11.2.0"
     "@types/jest": "npm:^27.4.1"
@@ -4236,7 +4236,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/selected-network-controller@npm:^22.0.0, @metamask/selected-network-controller@workspace:packages/selected-network-controller":
+"@metamask/selected-network-controller@npm:^22.1.0, @metamask/selected-network-controller@workspace:packages/selected-network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/selected-network-controller@workspace:packages/selected-network-controller"
   dependencies:

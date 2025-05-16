@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0]
+
 ### Changed
 
 - **BREAKING:** Store transactions by chain IDs ([#5756](https://github.com/MetaMask/core/pull/5756))
@@ -129,7 +131,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5133](https://github.com/MetaMask/core/pull/5133)), ([#5177](https://github.com/MetaMask/core/pull/5177))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.11.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.11.0...@metamask/multichain-transactions-controller@1.0.0
 [0.11.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.10.0...@metamask/multichain-transactions-controller@0.11.0
 [0.10.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.9.0...@metamask/multichain-transactions-controller@0.10.0
 [0.9.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.8.0...@metamask/multichain-transactions-controller@0.9.0
