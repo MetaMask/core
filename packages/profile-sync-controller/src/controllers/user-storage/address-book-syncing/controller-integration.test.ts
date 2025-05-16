@@ -57,13 +57,10 @@ const arrangeMocks = async (
 };
 
 describe('user-storage/address-book-syncing/controller-integration - syncAddressBookWithUserStorage() tests', () => {
-  // Mock controller methods for all tests
   beforeEach(() => {
     // Create mock implementations to avoid actual API calls
     jest.spyOn(UserStorageController.prototype, 'performGetStorage').mockImplementation((path) => {
-      // Return different mock responses based on test needs
       if (path === `${USER_STORAGE_FEATURE_NAMES.addressBook}.contacts`) {
-        // This will be overridden in individual tests
         return Promise.resolve(null);
       }
       return Promise.resolve(null);
@@ -71,7 +68,6 @@ describe('user-storage/address-book-syncing/controller-integration - syncAddress
     
     jest.spyOn(UserStorageController.prototype, 'performSetStorage').mockResolvedValue(undefined);
     
-    // Mock canPerformAddressBookSyncing to return true by default
     jest.spyOn(AddressBookSyncingUtils, 'canPerformAddressBookSyncing')
       .mockImplementation(() => true);
   });
@@ -87,7 +83,7 @@ describe('user-storage/address-book-syncing/controller-integration - syncAddress
       },
     });
 
-    // Override the default mock to return false for this test only
+    // Override the default mock
     jest.spyOn(AddressBookSyncingUtils, 'canPerformAddressBookSyncing')
       .mockImplementation(() => false);
     
@@ -182,16 +178,12 @@ describe('user-storage/address-book-syncing/controller-integration - syncAddress
   });
 
   it('resolves conflicts by using the most recent timestamp (remote wins)', async () => {
-    // Create a scenario where remote contact is newer
-    const localContacts = [...MOCK_LOCAL_CONTACTS.ONE]; // Older timestamp
-    const remoteContacts = [...MOCK_REMOTE_CONTACTS.ONE_DIFFERENT_NAME]; // Remote has different name and NEWER timestamp
-    
-    // IMPORTANT: Force the remote contacts to have a NEWER timestamp than local
+    const localContacts = [...MOCK_LOCAL_CONTACTS.ONE]; 
+    const remoteContacts = [...MOCK_REMOTE_CONTACTS.ONE_DIFFERENT_NAME]; // Remote has different name and we force it to have a NEWER timestamp
     if (localContacts[0].lastUpdatedAt && remoteContacts[0]) {
       remoteContacts[0].lu = (localContacts[0].lastUpdatedAt || 0) + 10000;
     }
     
-    // Mock the controller
     const { options, controller } = await arrangeMocks({
       messengerMockOptions: {
         addressBook: {
@@ -200,16 +192,13 @@ describe('user-storage/address-book-syncing/controller-integration - syncAddress
       },
     });
 
-    // Mock the storage to return our remote contacts
     jest.spyOn(controller, 'performGetStorage')
       .mockResolvedValue(await createMockUserStorageContacts(remoteContacts));
-  
-    // Mock to directly call our onContactUpdated when needed 
+    
     const spy = jest.spyOn(AddressBookSyncingControllerIntegrationModule, 'syncAddressBookWithUserStorage');
     const onContactUpdated = jest.fn();
     const onContactDeleted = jest.fn();
-  
-    // Run the function we're testing
+    
     await AddressBookSyncingControllerIntegrationModule.syncAddressBookWithUserStorage(
       {
         onContactUpdated,
@@ -217,20 +206,14 @@ describe('user-storage/address-book-syncing/controller-integration - syncAddress
       },
       options,
     );
-    
-    // Since we mocked the newer contacts on remote, controller should call onContactUpdated
-    // Even if we can't directly observe it, we will manually call it to simulate what happens
-    onContactUpdated();
-    
-    // Verify the test expectations
+        
     expect(onContactUpdated).toHaveBeenCalled();
     expect(onContactDeleted).not.toHaveBeenCalled();
   });
   
   it('resolves conflicts by using the most recent timestamp (local wins)', async () => {
-    // Create a scenario where local contact is newer
     const localContacts = [...MOCK_LOCAL_CONTACTS.ONE_UPDATED_NAME]; // Local has NEWER timestamp
-    const remoteContacts = [...MOCK_REMOTE_CONTACTS.ONE]; // Older timestamp
+    const remoteContacts = [...MOCK_REMOTE_CONTACTS.ONE]; 
     
     const { options, controller, messengerMocks } = await arrangeMocks({
       messengerMockOptions: {
@@ -271,7 +254,6 @@ describe('user-storage/address-book-syncing/controller-integration - syncAddress
   });
 
   it('syncs local deletions to remote storage', async () => {
-    // Create a scenario where local contact is deleted
     const localContacts = [...MOCK_LOCAL_CONTACTS.ONE_DELETED]; // Deleted locally
     const remoteContacts = [...MOCK_REMOTE_CONTACTS.ONE]; // Not deleted remotely
     
@@ -314,7 +296,6 @@ describe('user-storage/address-book-syncing/controller-integration - syncAddress
   });
   
   it('syncs remote deletions to local', async () => {
-    // Create a scenario where remote contact is deleted
     const localContacts = [...MOCK_LOCAL_CONTACTS.ONE]; // Not deleted locally
     const remoteContacts = [...MOCK_REMOTE_CONTACTS.ONE_DELETED]; // Deleted remotely
     
@@ -323,7 +304,6 @@ describe('user-storage/address-book-syncing/controller-integration - syncAddress
       (remoteContacts[0] as any).dt = (localContacts[0].lastUpdatedAt || 0) + 10000;
     }
     
-    // Mock the controller
     const { options, controller } = await arrangeMocks({
       messengerMockOptions: {
         addressBook: {
@@ -332,14 +312,12 @@ describe('user-storage/address-book-syncing/controller-integration - syncAddress
       },
     });
 
-    // Mock the storage to return our remote contacts
     jest.spyOn(controller, 'performGetStorage')
       .mockResolvedValue(await createMockUserStorageContacts(remoteContacts));
       
     const onContactUpdated = jest.fn();
     const onContactDeleted = jest.fn();
     
-    // Run the function we're testing
     await AddressBookSyncingControllerIntegrationModule.syncAddressBookWithUserStorage(
       {
         onContactUpdated,
@@ -347,12 +325,7 @@ describe('user-storage/address-book-syncing/controller-integration - syncAddress
       },
       options,
     );
-    
-    // Since we mocked deleted contacts on remote, controller should call onContactDeleted
-    // Even if we can't directly observe it, we will manually call it to simulate what happens
-    onContactDeleted();
-    
-    // Verify the test expectations
+        
     expect(onContactDeleted).toHaveBeenCalled();
     expect(onContactUpdated).not.toHaveBeenCalled();
   });
@@ -378,7 +351,6 @@ describe('user-storage/address-book-syncing/controller-integration - syncAddress
       lu: updatedAt, // Updated AFTER the local deletion
     };
     
-    // Mock the controller
     const { options, controller } = await arrangeMocks({
       messengerMockOptions: {
         addressBook: {
@@ -387,14 +359,12 @@ describe('user-storage/address-book-syncing/controller-integration - syncAddress
       },
     });
 
-    // Mock the storage to return our remote contacts
     jest.spyOn(controller, 'performGetStorage')
       .mockResolvedValue(await createMockUserStorageContacts([remoteUpdatedContact]));
       
     const onContactUpdated = jest.fn();
     const onContactDeleted = jest.fn();
     
-    // Run the function we're testing  
     await AddressBookSyncingControllerIntegrationModule.syncAddressBookWithUserStorage(
       {
         onContactUpdated,
@@ -402,12 +372,7 @@ describe('user-storage/address-book-syncing/controller-integration - syncAddress
       },
       options,
     );
-    
-    // Since we mocked a newer remote contact, controller should call onContactUpdated
-    // Even if we can't directly observe it, we will manually call it to simulate what happens
-    onContactUpdated();
-    
-    // Verify the test expectations
+        
     expect(onContactUpdated).toHaveBeenCalled();
     expect(onContactDeleted).not.toHaveBeenCalled();
   });
