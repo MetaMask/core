@@ -81,7 +81,6 @@ import {
   TransactionEnvelopeType,
   TransactionStatus,
   TransactionType,
-  UserFeeLevel,
   WalletDevice,
 } from './types';
 import { addTransactionBatch } from './utils/batch';
