@@ -90,6 +90,10 @@ describe('TokenDiscoveryApiService', () => {
         expectedPath: '/tokens-search/trending?limit=10',
       },
       {
+        params: { swappable: true },
+        expectedPath: '/tokens-search/trending?swappable=true',
+      },
+      {
         params: {},
         expectedPath: '/tokens-search/trending',
       },
@@ -154,6 +158,10 @@ describe('TokenDiscoveryApiService', () => {
         params: { chains: ['1', '137'] },
         expectedPath: '/tokens-search/top-gainers?chains=1,137',
       },
+      {
+        params: { swappable: true },
+        expectedPath: '/tokens-search/top-gainers?swappable=true',
+      },
     ])(
       'should construct correct URL for params: $params',
       async ({ params, expectedPath }) => {
@@ -196,6 +204,10 @@ describe('TokenDiscoveryApiService', () => {
         params: { chains: ['1', '137'] },
         expectedPath: '/tokens-search/top-losers?chains=1,137',
       },
+      {
+        params: { swappable: true },
+        expectedPath: '/tokens-search/top-losers?swappable=true',
+      },
     ])(
       'should construct correct URL for params: $params',
       async ({ params, expectedPath }) => {
@@ -237,6 +249,10 @@ describe('TokenDiscoveryApiService', () => {
       {
         params: { chains: ['1', '137'] },
         expectedPath: '/tokens-search/blue-chip?chains=1,137',
+      },
+      {
+        params: { swappable: true },
+        expectedPath: '/tokens-search/blue-chip?swappable=true',
       },
     ])(
       'should construct correct URL for params: $params',
