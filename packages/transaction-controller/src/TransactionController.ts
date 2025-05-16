@@ -1220,9 +1220,6 @@ export class TransactionController extends BaseController<
           txParams,
           type: transactionType,
           userEditedGasLimit: false,
-          userFeeLevel: dappSuggestedGasFees
-            ? UserFeeLevel.DAPP_SUGGESTED
-            : undefined,
           verifiedOnBlockchain: false,
         };
 

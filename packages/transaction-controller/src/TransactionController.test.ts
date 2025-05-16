@@ -1729,7 +1729,6 @@ describe('TransactionController', () => {
         time: expect.any(Number),
         txParams: expect.anything(),
         userEditedGasLimit: false,
-        userFeeLevel: undefined,
         type: TransactionType.simpleSend,
         verifiedOnBlockchain: expect.any(Boolean),
       };
@@ -1791,9 +1790,6 @@ describe('TransactionController', () => {
           const transactionMeta = controller.state.transactions[0];
           expect(transactionMeta?.dappSuggestedGasFees?.[gasPropName]).toBe(
             mockGasValue,
-          );
-          expect(transactionMeta?.userFeeLevel).toBe(
-            UserFeeLevel.DAPP_SUGGESTED,
           );
         },
       );
