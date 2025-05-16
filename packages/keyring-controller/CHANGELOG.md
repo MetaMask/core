@@ -7,11 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.0.0]
+
 ### Changed
 
 - **BREAKING** `keyringsMetadata` has been removed from the controller state ([#5725](https://github.com/MetaMask/core/pull/5725))
   - The metadata is now stored in each keyring object in the `state.keyrings` array.
   - When updating to this version, we recommend removing the `keyringsMetadata` state and all state referencing a keyring ID with a migration. New metadata will be generated for each keyring automatically after the update.
+
+### Fixed
+
+- Keyrings with duplicate accounts are skipped as unsupported on unlock ([#5775](https://github.com/MetaMask/core/pull/5775))
 
 ## [21.0.6]
 
@@ -776,7 +782,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.6...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.0.0...HEAD
+[22.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.6...@metamask/keyring-controller@22.0.0
 [21.0.6]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.5...@metamask/keyring-controller@21.0.6
 [21.0.5]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.4...@metamask/keyring-controller@21.0.5
 [21.0.4]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.3...@metamask/keyring-controller@21.0.4
