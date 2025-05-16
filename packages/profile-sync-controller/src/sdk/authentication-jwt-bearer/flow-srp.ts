@@ -159,11 +159,9 @@ export class SRPJwtBearerAuth implements IBaseAuth {
 
   async #login(entropySourceId?: string): Promise<LoginResponse> {
     // Nonce
-    const address = await this.getIdentifier(entropySourceId);
-    const nonceRes = await getNonce(address, this.#config.env);
-    // TODO: why do we have 2 different getIdentifier methods?
-    const publicKey =
-      await this.#options.signing.getIdentifier(entropySourceId);
+    const publicKey = await this.getIdentifier(entropySourceId);
+    const nonceRes = await getNonce(publicKey, this.#config.env);
+
     const rawMessage = this.#createSrpLoginRawMessage(
       nonceRes.nonce,
       publicKey,

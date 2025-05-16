@@ -92,7 +92,7 @@ describe('authentication/authentication-controller - performSignIn() tests', () 
 
     const result = await controller.performSignIn();
     expect(mockSnapGetAllPublicKeys).toHaveBeenCalledTimes(1);
-    expect(mockSnapGetPublicKey).toHaveBeenCalledTimes(4);
+    expect(mockSnapGetPublicKey).toHaveBeenCalledTimes(2);
     expect(mockSnapSignMessage).toHaveBeenCalledTimes(1);
     mockEndpoints.mockNonceUrl.done();
     mockEndpoints.mockSrpLoginUrl.done();
