@@ -1,9 +1,9 @@
 import EthQuery from '@metamask/eth-query';
 
+import { DELEGATION_PREFIX } from './eip7702';
 import { determineTransactionType } from './transaction-type';
 import { FakeProvider } from '../../../../tests/fake-provider';
 import { TransactionType } from '../types';
-import { DELEGATION_PREFIX } from './eip7702';
 
 describe('determineTransactionType', () => {
   const FROM_MOCK = '0x9e';
@@ -106,24 +106,25 @@ describe('determineTransactionType', () => {
 
   it('does not identify contract codes with DELEGATION_PREFIX as contract addresses', async () => {
     class MockEthQuery extends EthQuery {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getCode(_to: any, cb: any) {
-        // Return a code starting with the DELEGATION_PREFIX
-        cb(null, DELEGATION_PREFIX + '1234567890abcdef');
+        cb(null, `${DELEGATION_PREFIX}1234567890abcdef`);
       }
     }
-    
+
     const result = await determineTransactionType(
       {
         to: '0x9e673399f795D01116e9A8B2dD2F156705131ee9',
         data: '0xabd',
         from: FROM_MOCK,
       },
-      new MockEthQuery(new FakeProvider())
+      new MockEthQuery(new FakeProvider()),
     );
-    
+
     expect(result).toMatchObject({
       type: TransactionType.simpleSend,
-      getCodeResponse: DELEGATION_PREFIX + '1234567890abcdef',
+      getCodeResponse: `${DELEGATION_PREFIX}1234567890abcdef`,
     });
   });
 

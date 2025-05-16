@@ -9,9 +9,9 @@ import {
   abiFiatTokenV2,
 } from '@metamask/metamask-eth-abis';
 
+import { DELEGATION_PREFIX } from './eip7702';
 import type { InferTransactionTypeResult, TransactionParams } from '../types';
 import { TransactionType } from '../types';
-import { DELEGATION_PREFIX } from './eip7702';
 
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 
