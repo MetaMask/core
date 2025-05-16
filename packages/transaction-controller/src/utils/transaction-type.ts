@@ -11,6 +11,7 @@ import {
 
 import type { InferTransactionTypeResult, TransactionParams } from '../types';
 import { TransactionType } from '../types';
+import { DELEGATION_PREFIX } from './eip7702';
 
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 
@@ -146,7 +147,9 @@ async function readAddressAsContract(
   }
 
   const isContractAddress = contractCode
-    ? contractCode !== '0x' && contractCode !== '0x0'
+    ? contractCode !== '0x' &&
+      contractCode !== '0x0' &&
+      !contractCode.startsWith(DELEGATION_PREFIX)
     : false;
   return { contractCode, isContractAddress };
 }
