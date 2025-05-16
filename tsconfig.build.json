@@ -18,18 +18,19 @@
     { "path": "./packages/eip1193-permission-middleware/tsconfig.build.json" },
     { "path": "./packages/ens-controller/tsconfig.build.json" },
     { "path": "./packages/eth-json-rpc-provider/tsconfig.build.json" },
+    { "path": "./packages/foundryup/tsconfig.build.json" },
     { "path": "./packages/gas-fee-controller/tsconfig.build.json" },
     { "path": "./packages/json-rpc-engine/tsconfig.build.json" },
     { "path": "./packages/json-rpc-middleware-stream/tsconfig.build.json" },
     { "path": "./packages/keyring-controller/tsconfig.build.json" },
     { "path": "./packages/logging-controller/tsconfig.build.json" },
     { "path": "./packages/message-manager/tsconfig.build.json" },
+    { "path": "./packages/multichain-api-middleware/tsconfig.build.json" },
     { "path": "./packages/multichain-network-controller/tsconfig.build.json" },
     {
       "path": "./packages/multichain-transactions-controller/tsconfig.build.json"
     },
     { "path": "./packages/multichain/tsconfig.build.json" },
-    { "path": "./packages/multichain-api-middleware/tsconfig.build.json" },
     { "path": "./packages/name-controller/tsconfig.build.json" },
     { "path": "./packages/network-controller/tsconfig.build.json" },
     {

@@ -24,6 +24,7 @@
     { "path": "./packages/eip1193-permission-middleware" },
     { "path": "./packages/ens-controller" },
     { "path": "./packages/eth-json-rpc-provider" },
+    { "path": "./packages/foundryup" },
     { "path": "./packages/gas-fee-controller" },
     { "path": "./packages/json-rpc-engine" },
     { "path": "./packages/json-rpc-middleware-stream" },
