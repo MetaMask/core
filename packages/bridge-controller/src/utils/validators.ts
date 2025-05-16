@@ -12,6 +12,7 @@ import {
   enums,
   define,
   union,
+  assert,
 } from '@metamask/superstruct';
 import { isStrictHexString } from '@metamask/utils';
 
@@ -133,5 +134,6 @@ export const validateQuoteResponse = (data: unknown): data is QuoteResponse => {
     estimatedProcessingTimeInSeconds: number(),
   });
 
-  return is(data, QuoteResponseSchema);
+  assert(data, QuoteResponseSchema);
+  return true;
 };
