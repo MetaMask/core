@@ -10,8 +10,6 @@ jest.mock('@metamask/controller-utils', () => ({
   query: jest.fn(),
 }));
 
-const queryMock = jest.requireMock('@metamask/controller-utils').query;
-
 const TRANSACTION_HASH_MOCK = '0x123';
 const TRANSACTION_HASH_2_MOCK = '0x456';
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
@@ -108,7 +106,8 @@ describe('SequentialPublishBatchHook', () => {
           }
         }),
       },
-      forceCheckTransaction: jest.fn(),
+      addTransactionToPoll: jest.fn(),
+      stop: jest.fn(),
     } as unknown as jest.Mocked<PendingTransactionTracker>;
   });
 
@@ -179,14 +178,26 @@ describe('SequentialPublishBatchHook', () => {
     );
 
     expect(
-      pendingTransactionTrackerMock.forceCheckTransaction,
+      pendingTransactionTrackerMock.addTransactionToPoll,
     ).toHaveBeenCalledTimes(2);
     expect(
-      pendingTransactionTrackerMock.forceCheckTransaction,
-    ).toHaveBeenNthCalledWith(1, TRANSACTION_META_MOCK);
+      pendingTransactionTrackerMock.addTransactionToPoll,
+    ).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        id: TRANSACTION_ID_MOCK,
+        hash: TRANSACTION_HASH_MOCK,
+      }),
+    );
     expect(
-      pendingTransactionTrackerMock.forceCheckTransaction,
-    ).toHaveBeenNthCalledWith(2, TRANSACTION_META_2_MOCK);
+      pendingTransactionTrackerMock.addTransactionToPoll,
+    ).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        id: TRANSACTION_ID_2_MOCK,
+        hash: TRANSACTION_HASH_2_MOCK,
+      }),
+    );
 
     expect(pendingTransactionTrackerMock.hub.on).toHaveBeenCalledTimes(6);
     expect(
@@ -221,7 +232,9 @@ describe('SequentialPublishBatchHook', () => {
     ).rejects.toThrow('Failed to publish batch transaction');
 
     expect(publishTransactionMock).toHaveBeenCalledTimes(1);
-    expect(queryMock).not.toHaveBeenCalled();
+    expect(
+      pendingTransactionTrackerMock.addTransactionToPoll,
+    ).not.toHaveBeenCalled();
   });
 
   it('returns an empty result when transactions array is empty', async () => {
@@ -246,39 +259,9 @@ describe('SequentialPublishBatchHook', () => {
 
     expect(result).toStrictEqual({ results: [] });
     expect(publishTransactionMock).not.toHaveBeenCalled();
-    expect(queryMock).not.toHaveBeenCalled();
-  });
-
-  it('throws an error for invalid transaction ID', async () => {
-    const transactions: PublishBatchHookTransaction[] = [
-      {
-        id: 'invalidTransactionId',
-        signedTx: TRANSACTION_SIGNED_MOCK,
-        params: TRANSACTION_PARAMS_MOCK,
-      },
-    ];
-
-    const sequentialPublishBatchHook = new SequentialPublishBatchHook({
-      publishTransaction: publishTransactionMock,
-      getTransaction: getTransactionMock,
-      getEthQuery: getEthQueryMock,
-      getPendingTransactionTrackerByChainId: jest
-        .fn()
-        .mockReturnValue(pendingTransactionTrackerMock),
-    });
-
-    const hook = sequentialPublishBatchHook.getHook();
-
-    await expect(
-      hook({
-        from: '0x123',
-        networkClientId: NETWORK_CLIENT_ID_MOCK,
-        transactions,
-      }),
-    ).rejects.toThrow('Failed to publish batch transaction');
-
-    expect(publishTransactionMock).not.toHaveBeenCalled();
-    expect(queryMock).not.toHaveBeenCalled();
+    expect(
+      pendingTransactionTrackerMock.addTransactionToPoll,
+    ).not.toHaveBeenCalled();
   });
 
   it('handles transaction dropped event correctly', async () => {
@@ -315,11 +298,17 @@ describe('SequentialPublishBatchHook', () => {
     );
 
     expect(
-      pendingTransactionTrackerMock.forceCheckTransaction,
+      pendingTransactionTrackerMock.addTransactionToPoll,
     ).toHaveBeenCalledTimes(1);
     expect(
-      pendingTransactionTrackerMock.forceCheckTransaction,
-    ).toHaveBeenCalledWith(TRANSACTION_META_MOCK);
+      pendingTransactionTrackerMock.addTransactionToPoll,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: TRANSACTION_ID_MOCK,
+        hash: TRANSACTION_HASH_MOCK,
+      }),
+    );
+
     expect(
       pendingTransactionTrackerMock.hub.removeAllListeners,
     ).toHaveBeenCalledTimes(3);
@@ -361,11 +350,17 @@ describe('SequentialPublishBatchHook', () => {
     );
 
     expect(
-      pendingTransactionTrackerMock.forceCheckTransaction,
+      pendingTransactionTrackerMock.addTransactionToPoll,
     ).toHaveBeenCalledTimes(1);
     expect(
-      pendingTransactionTrackerMock.forceCheckTransaction,
-    ).toHaveBeenCalledWith(TRANSACTION_META_MOCK);
+      pendingTransactionTrackerMock.addTransactionToPoll,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: TRANSACTION_ID_MOCK,
+        hash: TRANSACTION_HASH_MOCK,
+      }),
+    );
+
     expect(
       pendingTransactionTrackerMock.hub.removeAllListeners,
     ).toHaveBeenCalledTimes(3);

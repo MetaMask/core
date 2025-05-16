@@ -5,11 +5,11 @@ import type { Hex } from '@metamask/utils';
 
 import type { PendingTransactionTracker } from '../helpers/PendingTransactionTracker';
 import { projectLogger } from '../logger';
-import type {
-  PublishBatchHook,
-  PublishBatchHookRequest,
-  PublishBatchHookResult,
-  TransactionMeta,
+import {
+  type PublishBatchHook,
+  type PublishBatchHookRequest,
+  type PublishBatchHookResult,
+  type TransactionMeta,
 } from '../types';
 
 const log = createModuleLogger(projectLogger, 'sequential-publish-batch-hook');
@@ -105,23 +105,29 @@ export class SequentialPublishBatchHook {
         );
         log('Transaction published', { transactionHash });
 
+        const transactionUpdated = {
+          ...transactionMeta,
+          hash: transactionHash,
+        };
+
         const confirmationPromise = this.#waitForTransactionEvent(
           pendingTransactionTracker,
-          transactionMeta,
+          transactionUpdated,
           transactionHash,
         );
 
-        // Force check the transaction to ensure it is tracked.
-        await pendingTransactionTracker.forceCheckTransaction(transactionMeta);
+        pendingTransactionTracker.addTransactionToPoll(transactionUpdated);
 
         await confirmationPromise;
         results.push({ transactionHash });
       } catch (error) {
         log('Batch transaction failed', { transaction, error });
+        pendingTransactionTracker.stop();
         throw rpcErrors.internal(`Failed to publish batch transaction`);
       }
     }
     log('Sequential publish batch hook completed', { results });
+    pendingTransactionTracker.stop();
 
     return { results };
   }

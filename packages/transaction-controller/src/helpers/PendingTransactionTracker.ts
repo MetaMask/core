@@ -93,6 +93,8 @@ export class PendingTransactionTracker {
 
   readonly #transactionPoller: TransactionPoller;
 
+  #transactionToForcePoll: TransactionMeta | undefined;
+
   readonly #beforeCheckPendingTransaction: (
     transactionMeta: TransactionMeta,
   ) => Promise<boolean>;
@@ -139,6 +141,7 @@ export class PendingTransactionTracker {
     this.#getGlobalLock = getGlobalLock;
     this.#publishTransaction = publishTransaction;
     this.#running = false;
+    this.#transactionToForcePoll = undefined;
 
     this.#transactionPoller = new TransactionPoller({
       blockTracker,
@@ -165,6 +168,22 @@ export class PendingTransactionTracker {
     } else {
       this.stop();
     }
+  };
+
+  /**
+   * Adds a transaction to the polling mechanism for monitoring its status.
+   *
+   * This method forcefully adds a single transaction to the list of transactions
+   * being polled, ensuring that its status is checked, event emitted but no update is performed.
+   * It overrides the default behavior by prioritizing the given transaction for polling.
+   *
+   * @param transactionMeta - The transaction metadata to be added for polling.
+   *
+   * The transaction will now be monitored for updates, such as confirmation or failure.
+   */
+  addTransactionToPoll = (transactionMeta: TransactionMeta) => {
+    this.#start([transactionMeta]);
+    this.#transactionToForcePoll = transactionMeta;
   };
 
   /**
@@ -232,7 +251,14 @@ export class PendingTransactionTracker {
   async #checkTransactions() {
     this.#log('Checking transactions');
 
-    const pendingTransactions = this.#getPendingTransactions();
+    const pendingTransactions: TransactionMeta[] = [
+      ...new Set(
+        [
+          ...this.#getPendingTransactions(),
+          this.#transactionToForcePoll,
+        ].filter((tx): tx is TransactionMeta => tx !== undefined),
+      ),
+    ];
 
     if (!pendingTransactions.length) {
       this.#log('No pending transactions to check');
@@ -353,6 +379,12 @@ export class PendingTransactionTracker {
     return blocksSinceFirstRetry >= requiredBlocksSinceFirstRetry;
   }
 
+  #cleanTransactionToForcePoll(txMeta: TransactionMeta) {
+    if (this.#transactionToForcePoll?.id === txMeta.id) {
+      this.#transactionToForcePoll = undefined;
+    }
+  }
+
   async #checkTransaction(txMeta: TransactionMeta) {
     const { hash, id } = txMeta;
 
@@ -428,6 +460,12 @@ export class PendingTransactionTracker {
     const { blockHash } = receipt;
 
     this.#log('Transaction confirmed', id);
+
+    if (this.#transactionToForcePoll) {
+      this.#cleanTransactionToForcePoll(txMeta);
+      this.hub.emit('transaction-confirmed', txMeta);
+      return;
+    }
 
     const { baseFeePerGas, timestamp: blockTimestamp } =
       await this.#getBlockByHash(blockHash, false);
@@ -525,11 +563,13 @@ export class PendingTransactionTracker {
 
   #failTransaction(txMeta: TransactionMeta, error: Error) {
     this.#log('Transaction failed', txMeta.id, error);
+    this.#cleanTransactionToForcePoll(txMeta);
     this.hub.emit('transaction-failed', txMeta, error);
   }
 
   #dropTransaction(txMeta: TransactionMeta) {
     this.#log('Transaction dropped', txMeta.id);
+    this.#cleanTransactionToForcePoll(txMeta);
     this.hub.emit('transaction-dropped', txMeta);
   }
 
