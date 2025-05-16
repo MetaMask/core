@@ -2,7 +2,6 @@ import type {
   AccountsControllerGetAccountByAddressAction,
   AccountsControllerGetSelectedMultichainAccountAction,
 } from '@metamask/accounts-controller';
-import type { TokensControllerAddDetectedTokensAction } from '@metamask/assets-controllers';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -345,8 +344,7 @@ type AllowedActions =
   | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>
   | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>
   | GetGasFeeState
-  | AccountsControllerGetAccountByAddressAction
-  | TokensControllerAddDetectedTokensAction;
+  | AccountsControllerGetAccountByAddressAction;
 
 /**
  * The external events available to the BridgeStatusController.

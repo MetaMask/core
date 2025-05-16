@@ -313,6 +313,14 @@ function getUserFeeLevel(request: GetGasFeeRequest): UserFeeLevel | undefined {
     return UserFeeLevel.MEDIUM;
   }
 
+  if (
+    !initialParams.maxFeePerGas &&
+    !initialParams.maxPriorityFeePerGas &&
+    suggestedGasFees.gasPrice
+  ) {
+    return UserFeeLevel.MEDIUM;
+  }
+
   if (txMeta.origin === ORIGIN_METAMASK) {
     return UserFeeLevel.MEDIUM;
   }

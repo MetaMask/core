@@ -523,7 +523,7 @@ const addTransactionFn = jest.fn();
 const estimateGasFeeFn = jest.fn();
 const addUserOperationFromTransactionFn = jest.fn();
 
-const getController = (call: jest.Mock) => {
+const getController = (call: jest.Mock, traceFn?: jest.Mock) => {
   const controller = new BridgeStatusController({
     messenger: {
       call,
@@ -536,6 +536,7 @@ const getController = (call: jest.Mock) => {
     addTransactionFn,
     estimateGasFeeFn,
     addUserOperationFromTransactionFn,
+    traceFn,
   });
 
   jest.spyOn(controller, 'startPolling').mockImplementation(jest.fn());
@@ -1572,7 +1573,7 @@ describe('BridgeStatusController', () => {
       });
     };
 
-    const setupBridgeMocks = (shouldAddDetectedTokensResolve = true) => {
+    const setupBridgeMocks = () => {
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum');
       mockMessengerCall.mockReturnValueOnce({
@@ -1589,13 +1590,6 @@ describe('BridgeStatusController', () => {
 
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
-
-      // addDetectedTokens
-      if (shouldAddDetectedTokensResolve) {
-        mockMessengerCall.mockReturnValueOnce(true);
-      } else {
-        mockMessengerCall.mockRejectedValueOnce(shouldAddDetectedTokensResolve);
-      }
     };
 
     it('should successfully submit an EVM bridge transaction with approval', async () => {
@@ -1624,7 +1618,7 @@ describe('BridgeStatusController', () => {
     });
 
     it('should successfully submit an EVM bridge transaction with no approval', async () => {
-      setupBridgeMocks(true);
+      setupBridgeMocks();
 
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
@@ -1845,12 +1839,17 @@ describe('BridgeStatusController', () => {
       const handleLineaDelaySpy = jest
         .spyOn(transactionUtils, 'handleLineaDelay')
         .mockResolvedValueOnce();
+      const mockTraceFn = jest
+        .fn()
+        .mockImplementation((_p, callback) => callback());
 
       setupApprovalMocks();
       setupBridgeMocks();
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
+      const { controller, startPollingForBridgeTxStatusSpy } = getController(
+        mockMessengerCall,
+        mockTraceFn,
+      );
 
       const lineaQuoteResponse = {
         ...mockEvmQuoteResponse,
@@ -1861,6 +1860,7 @@ describe('BridgeStatusController', () => {
       const result = await controller.submitTx(lineaQuoteResponse, false);
       controller.stopAllPolling();
 
+      expect(mockTraceFn).toHaveBeenCalledTimes(2);
       expect(handleLineaDelaySpy).toHaveBeenCalledTimes(1);
       expect(result).toMatchSnapshot();
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
@@ -1874,6 +1874,7 @@ describe('BridgeStatusController', () => {
         1234567890,
       );
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+      expect(mockTraceFn.mock.calls).toMatchSnapshot();
     });
   });
 });

@@ -634,6 +634,11 @@ export enum TransactionType {
   incoming = 'incoming',
 
   /**
+   * A transaction that deposits tokens into a lending contract.
+   */
+  lendingDeposit = 'lendingDeposit',
+
+  /**
    * A transaction for personal sign.
    */
   personalSign = 'personal_sign',
@@ -940,6 +945,11 @@ export interface RemoteTransactionSourceRequest {
    * Whether to initially query the entire transaction history.
    */
   queryEntireHistory: boolean;
+
+  /**
+   * Additional tags to identify the source of the request.
+   */
+  tags?: string[];
 
   /**
    * Callback to update the cache.
