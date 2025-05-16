@@ -16,7 +16,7 @@ import type { UserStorageAddressBookEntry } from './types';
 export const mapAddressBookEntryToUserStorageEntry = (
   addressBookEntry: AddressBookEntry,
 ): UserStorageAddressBookEntry => {
-  const { address, name, chainId, memo, addressType } = addressBookEntry;
+  const { address, name, chainId, memo, addressType, lastUpdatedAt, deleted, deletedAt } = addressBookEntry;
   
   return {
     [USER_STORAGE_VERSION_KEY]: USER_STORAGE_VERSION,
@@ -25,7 +25,9 @@ export const mapAddressBookEntryToUserStorageEntry = (
     c: chainId,
     ...(memo ? { m: memo } : {}),
     ...(addressType ? { t: addressType } : {}),
-    lu: Date.now(),
+    lu: lastUpdatedAt || Date.now(),
+    ...(deleted ? { d: deleted } : {}),
+    ...(deletedAt ? { dt: deletedAt } : {}),
   };
 };
 
@@ -45,5 +47,8 @@ export const mapUserStorageEntryToAddressBookEntry = (
     memo: userStorageEntry.m || '',
     isEns: false, // This will be updated by the AddressBookController
     ...(userStorageEntry.t ? { addressType: userStorageEntry.t as AddressType } : {}),
+    ...(userStorageEntry.d ? { deleted: userStorageEntry.d } : {}),
+    ...(userStorageEntry.dt ? { deletedAt: userStorageEntry.dt } : {}),
+    ...(userStorageEntry.lu ? { lastUpdatedAt: userStorageEntry.lu } : {}),
   };
 }; 

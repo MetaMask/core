@@ -62,8 +62,6 @@ export async function syncAddressBookWithUserStorage(
   const { getMessenger } = options;
 
   try {
-    console.log('Starting address book sync...');
-    
     // Get local contacts from AddressBookController (including deleted ones) and filter out "account" contacts having chainId "*"
     const localContacts = await getMessenger().call('AddressBookController:list', true).filter(contact => String(contact.chainId) !== '*') || [];
     
@@ -73,14 +71,10 @@ export async function syncAddressBookWithUserStorage(
     // SCENARIO 1: First Sync - No remote contacts exist but local contacts do
     if (!remoteContacts || remoteContacts.length === 0) {
       if (localContacts.length > 0) {
-        console.log('No remote contacts found. Performing first address book sync to user storage...');
         await saveContactsToUserStorage(localContacts, options);
-        console.log('First address book sync completed successfully');
       }
       return;
     }
-
-    console.log(`Found ${remoteContacts.length} total remote contacts`);
     
     // Prepare maps for faster lookup
     const localContactsMap = new Map<string, AddressBookEntry>();
@@ -170,7 +164,6 @@ export async function syncAddressBookWithUserStorage(
       
       // Callbacks (analytics)
       contactsToImportLocally.forEach(contact => {
-        console.log('Importing local contact:', contact);
         if (contact.deleted && onContactDeleted) {
           onContactDeleted();
         } else if (!contact.deleted && onContactUpdated) {
@@ -192,11 +185,9 @@ export async function syncAddressBookWithUserStorage(
         if (existingIndex !== -1) {
           // Update existing contact
           updatedRemoteContacts[existingIndex] = localContact;
-          console.log('Updating remote contact:', localContact);
         } else {
           // Add new contact
           updatedRemoteContacts.push(localContact);
-          console.log('Adding new remote contact:', localContact);
         }
         
         // Callbacks (analytics)
@@ -210,11 +201,8 @@ export async function syncAddressBookWithUserStorage(
       // Save updated contact list to remote storage
       await saveContactsToUserStorage(updatedRemoteContacts, options);
     }
-    
-    console.log('Address book sync completed successfully');
 
   } catch (error) {
-    console.error('Error synchronizing address book:', error);
     if (onAddressBookSyncErroneousSituation) {
       onAddressBookSyncErroneousSituation('Error synchronizing address book', { error });
     }
@@ -243,7 +231,6 @@ async function getRemoteContacts(options: AddressBookSyncingOptions): Promise<Ad
     const remoteStorageEntries = JSON.parse(remoteContactsJson) as UserStorageAddressBookEntry[];
     return remoteStorageEntries.map(entry => mapUserStorageEntryToAddressBookEntry(entry));
   } catch (error) {
-    console.error('Error retrieving remote contacts:', error);
     return null;
   }
 }
@@ -261,7 +248,6 @@ async function saveContactsToUserStorage(
   const { getUserStorageControllerInstance } = options;
   
   if (!contacts || contacts.length === 0) {
-    console.log('saveContactsToUserStorage: no contacts to save to user storage');
     return;
   }
   
@@ -274,7 +260,6 @@ async function saveContactsToUserStorage(
       JSON.stringify(storageEntries)
     );
   } catch (error) {
-    console.error('Error saving contacts to user storage:', error);
     throw error;
   }
 }

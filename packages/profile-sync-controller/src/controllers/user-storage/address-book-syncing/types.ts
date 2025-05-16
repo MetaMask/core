@@ -24,6 +24,10 @@ export type UserStorageAddressBookEntry = {
   t?: string;
   /** the lastUpdatedAt timestamp 'lu' of the contact */
   lu?: number;
+  /** the deleted flag 'd' of the contact (optional) */
+  d?: boolean;
+  /** the deletedAt timestamp 'dt' of the contact (optional) */
+  dt?: number;
 };
 
 /**
