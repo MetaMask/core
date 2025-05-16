@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
+### Fixed
 
 - Add `userFeeLevel` as `dappSuggested` initially when `txParams` contains gas values ([#5821](https://github.com/MetaMask/core/pull/5821))
 
