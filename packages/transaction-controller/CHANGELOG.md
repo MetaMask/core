@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Add `userFeeLevel` as `dappSuggested` initially when `txParams` contains gas values ([#5821](https://github.com/MetaMask/core/pull/5821))
+- Fix `userFeeLevel` as `dappSuggested` initially when dApp suggested gas values for legacy transactions ([#5821](https://github.com/MetaMask/core/pull/5821))
 
 ## [56.1.0]
 
