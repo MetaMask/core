@@ -168,7 +168,7 @@ Array [
 ]
 `;
 
-exports[`BridgeStatusController startPollingForBridgeTxStatus sets the inital tx history state 1`] = `
+exports[`BridgeStatusController startPollingForBridgeTxStatus sets the initial tx history state 1`] = `
 Object {
   "bridgeTxMetaId1": Object {
     "account": "0xaccount1",

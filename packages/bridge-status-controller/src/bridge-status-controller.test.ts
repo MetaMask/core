@@ -487,6 +487,12 @@ const executePollingWithPendingStatus = async () => {
     config: {},
   });
   const startPollingSpy = jest.spyOn(bridgeStatusController, 'startPolling');
+  jest
+    .spyOn(bridgeStatusController, 'setDurationForId')
+    .mockImplementation(jest.fn());
+  jest
+    .spyOn(bridgeStatusController, 'getDurationForId')
+    .mockImplementation(jest.fn());
 
   // Execution
   bridgeStatusController.startPollingForBridgeTxStatus(
@@ -540,6 +546,7 @@ const getController = (call: jest.Mock, traceFn?: jest.Mock) => {
   });
 
   jest.spyOn(controller, 'startPolling').mockImplementation(jest.fn());
+  jest.spyOn(controller, 'getDurationForId').mockImplementation(jest.fn());
   const startPollingForBridgeTxStatusFn =
     controller.startPollingForBridgeTxStatus;
   const startPollingForBridgeTxStatusSpy = jest
@@ -590,6 +597,7 @@ describe('BridgeStatusController', () => {
       // Assertion
       expect(bridgeStatusController.state.txHistory).toMatchSnapshot();
     });
+
     it('restarts polling for history items that are not complete', async () => {
       // Setup
       jest.useFakeTimers();
@@ -599,7 +607,6 @@ describe('BridgeStatusController', () => {
       );
 
       // Execution
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const bridgeStatusController = new BridgeStatusController({
         messenger: getMessengerMock(),
         state: {
@@ -613,6 +620,11 @@ describe('BridgeStatusController', () => {
         addTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
       });
+
+      jest
+        .spyOn(bridgeStatusController, 'getDurationForId')
+        .mockImplementation(jest.fn());
+
       jest.advanceTimersByTime(10000);
       await flushPromises();
 
@@ -626,7 +638,7 @@ describe('BridgeStatusController', () => {
       jest.clearAllMocks();
     });
 
-    it('sets the inital tx history state', async () => {
+    it('sets the initial tx history state', async () => {
       // Setup
       const bridgeStatusController = new BridgeStatusController({
         messenger: getMessengerMock(),
@@ -645,6 +657,7 @@ describe('BridgeStatusController', () => {
       // Assertion
       expect(bridgeStatusController.state.txHistory).toMatchSnapshot();
     });
+
     it('starts polling and updates the tx history when the status response is received', async () => {
       const {
         bridgeStatusController,
@@ -659,6 +672,7 @@ describe('BridgeStatusController', () => {
         MockTxHistory.getPending(),
       );
     });
+
     it('stops polling when the status response is complete', async () => {
       // Setup
       jest.useFakeTimers();
@@ -674,6 +688,11 @@ describe('BridgeStatusController', () => {
         estimateGasFeeFn: jest.fn(),
         addUserOperationFromTransactionFn: jest.fn(),
       });
+
+      jest
+        .spyOn(bridgeStatusController, 'getDurationForId')
+        .mockImplementation(jest.fn());
+
       const fetchBridgeTxStatusSpy = jest.spyOn(
         bridgeStatusUtils,
         'fetchBridgeTxStatus',
@@ -794,6 +813,10 @@ describe('BridgeStatusController', () => {
         addUserOperationFromTransactionFn: jest.fn(),
       });
 
+      jest
+        .spyOn(bridgeStatusController, 'getDurationForId')
+        .mockImplementation(jest.fn());
+
       const fetchBridgeTxStatusSpy = jest
         .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
         .mockImplementationOnce(async () => {
@@ -845,6 +868,10 @@ describe('BridgeStatusController', () => {
         estimateGasFeeFn: jest.fn(),
         addUserOperationFromTransactionFn: jest.fn(),
       });
+
+      jest
+        .spyOn(bridgeStatusController, 'getDurationForId')
+        .mockImplementation(jest.fn());
 
       // Execution
       bridgeStatusController.startPollingForBridgeTxStatus(
@@ -918,6 +945,10 @@ describe('BridgeStatusController', () => {
         estimateGasFeeFn: jest.fn(),
         addUserOperationFromTransactionFn: jest.fn(),
       });
+
+      jest
+        .spyOn(bridgeStatusController, 'getDurationForId')
+        .mockImplementation(jest.fn());
 
       // Start polling with no srcTxHash
       const startPollingArgs = getMockStartPollingForBridgeTxStatusArgs();
@@ -1005,6 +1036,11 @@ describe('BridgeStatusController', () => {
         estimateGasFeeFn: jest.fn(),
         addUserOperationFromTransactionFn: jest.fn(),
       });
+
+      jest
+        .spyOn(bridgeStatusController, 'getDurationForId')
+        .mockImplementation(jest.fn());
+
       const fetchBridgeTxStatusSpy = jest
         .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
         .mockImplementationOnce(async () => {
@@ -1091,6 +1127,11 @@ describe('BridgeStatusController', () => {
         estimateGasFeeFn: jest.fn(),
         addUserOperationFromTransactionFn: jest.fn(),
       });
+
+      jest
+        .spyOn(bridgeStatusController, 'getDurationForId')
+        .mockImplementation(jest.fn());
+
       const fetchBridgeTxStatusSpy = jest
         .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
         .mockImplementationOnce(async () => {
@@ -1212,6 +1253,11 @@ describe('BridgeStatusController', () => {
           destChainId: 1,
         }),
       );
+
+      jest
+        .spyOn(bridgeStatusController, 'getDurationForId')
+        .mockImplementation(jest.fn());
+
       jest.advanceTimersByTime(10_000);
       expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
 

@@ -1,15 +1,13 @@
 import type { StateMetadata } from '@metamask/base-controller';
-import type {
-  QuoteMetadata,
-  RequiredEventContextFromClient,
-  TxData,
-  QuoteResponse,
-} from '@metamask/bridge-controller';
 import {
   formatChainIdToHex,
   getEthUsdtResetData,
   isEthUsdt,
   isSolanaChainId,
+  type QuoteResponse,
+  type QuoteMetadata,
+  type TxData,
+  type RequiredEventContextFromClient,
   StatusTypes,
   UnifiedSwapBridgeEventName,
   getActionType,
@@ -19,15 +17,16 @@ import {
 import type { TraceCallback } from '@metamask/controller-utils';
 import { toHex } from '@metamask/controller-utils';
 import { EthAccountType } from '@metamask/keyring-api';
-import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import type {
-  TransactionController,
-  TransactionParams,
-} from '@metamask/transaction-controller';
+import {
+  StaticIntervalPollingController,
+  getKey,
+} from '@metamask/polling-controller';
 import {
   TransactionStatus,
   TransactionType,
   type TransactionMeta,
+  type TransactionController,
+  type TransactionParams,
 } from '@metamask/transaction-controller';
 import type { UserOperationController } from '@metamask/user-operation-controller';
 import { numberToHex, type Hex } from '@metamask/utils';
@@ -38,16 +37,17 @@ import {
   BRIDGE_STATUS_CONTROLLER_NAME,
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
   REFRESH_INTERVAL_MS,
+  POLLING_DURATION,
   TraceName,
 } from './constants';
-import { type BridgeStatusControllerMessenger } from './types';
-import type {
-  BridgeStatusControllerState,
-  StartPollingForBridgeTxStatusArgsSerialized,
-  FetchFunction,
-  BridgeClientId,
-  SolanaTransactionMeta,
-  BridgeHistoryItem,
+import {
+  type BridgeStatusControllerMessenger,
+  type BridgeStatusControllerState,
+  type StartPollingForBridgeTxStatusArgsSerialized,
+  type FetchFunction,
+  type BridgeClientId,
+  type SolanaTransactionMeta,
+  type BridgeHistoryItem,
 } from './types';
 import {
   fetchBridgeTxStatus,
@@ -67,8 +67,8 @@ import {
   getTxMetaFields,
   handleLineaDelay,
   handleSolanaTxResponse,
+  generateActionId,
 } from './utils/transaction';
-import { generateActionId } from './utils/transaction';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
   // We want to persist the bridge status state so that we can show the proper data for the Activity list
@@ -233,11 +233,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     incompleteHistoryItems.forEach((historyItem) => {
       const bridgeTxMetaId = historyItem.txMetaId;
 
+      const input = {
+        bridgeTxMetaId,
+      };
       // We manually call startPolling() here rather than go through startPollingForBridgeTxStatus()
       // because we don't want to overwrite the existing historyItem in state
-      this.#pollingTokensByTxMetaId[bridgeTxMetaId] = this.startPolling({
-        bridgeTxMetaId,
-      });
+      this.#pollingTokensByTxMetaId[bridgeTxMetaId] = this.startPolling(input);
+      this.setDurationForId(getKey(input), POLLING_DURATION);
     });
   };
 
@@ -297,9 +299,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       state.txHistory[bridgeTxMeta.id] = txHistoryItem;
     });
 
-    this.#pollingTokensByTxMetaId[bridgeTxMeta.id] = this.startPolling({
+    const input = {
       bridgeTxMetaId: bridgeTxMeta.id,
-    });
+    };
+
+    this.#pollingTokensByTxMetaId[bridgeTxMeta.id] = this.startPolling(input);
+
+    // set the polling max time duration to five minutes
+    this.setDurationForId(getKey(input), POLLING_DURATION);
   };
 
   // This will be called after you call this.startPolling()
