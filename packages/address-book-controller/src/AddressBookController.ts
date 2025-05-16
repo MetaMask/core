@@ -52,6 +52,9 @@ export enum AddressType {
  * @property memo - User's note about address
  * @property isEns - is the entry an ENS name
  * @property addressType - is the type of this address
+ * @property lastUpdatedAt - timestamp when the entry was last updated
+ * @property deleted - whether this entry has been deleted (tombstone marker)
+ * @property deletedAt - timestamp when the entry was deleted
  */
 export type AddressBookEntry = {
   address: string;
@@ -60,6 +63,9 @@ export type AddressBookEntry = {
   memo: string;
   isEns: boolean;
   addressType?: AddressType;
+  lastUpdatedAt?: number;
+  deleted?: boolean;
+  deletedAt?: number;
 };
 
 /**
@@ -86,9 +92,44 @@ export type AddressBookControllerGetStateAction = ControllerGetStateAction<
 >;
 
 /**
+ * The action that can be performed to list contacts from the {@link AddressBookController}.
+ */
+export type AddressBookControllerListAction = {
+  type: `${typeof controllerName}:list`;
+  handler: AddressBookController['list'];
+};
+
+/**
+ * The action that can be performed to import contacts from sync to the {@link AddressBookController}.
+ */
+export type AddressBookControllerImportContactsFromSyncAction = {
+  type: `${typeof controllerName}:importContactsFromSync`;
+  handler: AddressBookController['importContactsFromSync'];
+};
+
+/**
+ * Event emitted when a contact is added or updated
+ */
+export type AddressBookControllerContactUpdatedEvent = {
+  type: `${typeof controllerName}:contactUpdated`;
+  payload: [AddressBookEntry];
+};
+
+/**
+ * Event emitted when a contact is deleted
+ */
+export type AddressBookControllerContactDeletedEvent = {
+  type: `${typeof controllerName}:contactDeleted`;
+  payload: [AddressBookEntry];
+};
+
+/**
  * The actions that can be performed using the {@link AddressBookController}.
  */
-export type AddressBookControllerActions = AddressBookControllerGetStateAction;
+export type AddressBookControllerActions = 
+  | AddressBookControllerGetStateAction
+  | AddressBookControllerListAction
+  | AddressBookControllerImportContactsFromSyncAction;
 
 /**
  * The event that {@link AddressBookController} can emit.
@@ -101,7 +142,10 @@ export type AddressBookControllerStateChangeEvent = ControllerStateChangeEvent<
 /**
  * The events that {@link AddressBookController} can emit.
  */
-export type AddressBookControllerEvents = AddressBookControllerStateChangeEvent;
+export type AddressBookControllerEvents = 
+  | AddressBookControllerStateChangeEvent
+  | AddressBookControllerContactUpdatedEvent
+  | AddressBookControllerContactDeletedEvent;
 
 const addressBookControllerMetadata = {
   addressBook: { persist: true, anonymous: false },
@@ -159,6 +203,31 @@ export class AddressBookController extends BaseController<
       name: controllerName,
       state: mergedState,
     });
+
+    this.#registerMessageHandlers();
+  }
+
+  /**
+   * Returns all address book entries as an array.
+   *
+   * @param includeDeleted - Whether to include soft-deleted entries (default: false)
+   * @returns Array of all address book entries.
+   */
+  list(includeDeleted: boolean = false): AddressBookEntry[] {
+    const { addressBook } = this.state;
+    const contacts: AddressBookEntry[] = [];
+    
+    Object.keys(addressBook).forEach((chainId) => {
+      const chainIdHex = chainId as Hex;
+      Object.keys(addressBook[chainIdHex]).forEach((address) => {
+        const contact = addressBook[chainIdHex][address];
+        if (includeDeleted || !contact.deleted) {
+          contacts.push(contact);
+        }
+      });
+    });
+    
+    return contacts;
   }
 
   /**
@@ -188,12 +257,32 @@ export class AddressBookController extends BaseController<
       return false;
     }
 
+    const deletedEntry = { ...this.state.addressBook[chainId][address] };
+    
+    // Mark the entry as deleted instead of removing it
+    const now = Date.now();
     this.update((state) => {
-      delete state.addressBook[chainId][address];
-      if (Object.keys(state.addressBook[chainId]).length === 0) {
-        delete state.addressBook[chainId];
-      }
+      state.addressBook[chainId][address] = {
+        ...state.addressBook[chainId][address],
+        deleted: true,
+        deletedAt: now,
+      };
     });
+
+    // Include the deleted flag and timestamp in the event payload
+    const finalDeletedEntry = { 
+      ...deletedEntry,
+      deleted: true, 
+      deletedAt: now 
+    };
+
+    // Skip sending delete event for global contacts with chainId '*'
+    if (String(chainId) !== '*') {
+      this.messagingSystem.publish(
+        'AddressBookController:contactDeleted',
+        finalDeletedEntry,
+      );
+    }
 
     return true;
   }
@@ -206,6 +295,7 @@ export class AddressBookController extends BaseController<
    * @param chainId - Chain id identifies the current chain.
    * @param memo - User's note about address.
    * @param addressType - Contact's address type.
+   * @param lastUpdatedAt - Optional timestamp when entry was updated (defaults to now).
    * @returns Boolean indicating if the address was successfully set.
    */
   set(
@@ -213,7 +303,7 @@ export class AddressBookController extends BaseController<
     name: string,
     chainId = toHex(1),
     memo = '',
-    addressType?: AddressType,
+    addressType?: AddressType
   ) {
     address = toChecksumHexAddress(address);
     if (!isValidHexAddress(address)) {
@@ -224,11 +314,12 @@ export class AddressBookController extends BaseController<
       address,
       chainId,
       isEns: false,
+      deleted: false,
       memo,
       name,
       addressType,
-    };
-
+      lastUpdatedAt: Date.now(),
+    }
     const ensName = normalizeEnsName(name);
     if (ensName) {
       entry.name = ensName;
@@ -245,7 +336,76 @@ export class AddressBookController extends BaseController<
       };
     });
 
+    // Skip sending update event for global contacts with chainId '*'
+    if (String(chainId) !== '*') {
+      this.messagingSystem.publish(
+        'AddressBookController:contactUpdated',
+        entry,
+      );
+    }
+
     return true;
+  }
+
+  /**
+   * Import contacts from sync without triggering events.
+   * This is used during the backup and sync process to avoid infinite event loops.
+   *
+   * @param contacts - Array of contact entries to import.
+   * @returns Boolean indicating if the operation was successful.
+   */
+  importContactsFromSync(contacts: AddressBookEntry[]): boolean {
+    if (!Array.isArray(contacts) || contacts.length === 0) {
+      return false;
+    }
+
+    this.update((state) => {
+      contacts.forEach((contact) => {
+        const { address, chainId } = contact;
+        const checksumAddress = toChecksumHexAddress(address);
+
+        // Initialize chainId entry if it doesn't exist
+        if (!state.addressBook[chainId]) {
+          state.addressBook[chainId] = {};
+        }
+
+        // If the contact is marked as deleted, handle appropriately
+        if (contact.deleted) {
+          if (state.addressBook[chainId][checksumAddress]) {
+            state.addressBook[chainId][checksumAddress] = {
+              ...state.addressBook[chainId][checksumAddress],
+              deleted: true,
+              deletedAt: contact.deletedAt || Date.now(),
+            };
+          }
+        } else {
+          // Update or add the contact
+          state.addressBook[chainId] = {
+            ...state.addressBook[chainId],
+            [checksumAddress]: {
+              ...contact,
+              address: checksumAddress, // Ensure checksum address
+            },
+          };
+        }
+      });
+    });
+
+    return true;
+  }
+
+  /**
+   * Registers message handlers for the AddressBookController.
+   */
+  #registerMessageHandlers() {
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:list`,
+      this.list.bind(this),
+    );
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:importContactsFromSync`,
+      this.importContactsFromSync.bind(this),
+    );
   }
 }
 

@@ -33,6 +33,7 @@ const baseState = {
   hasAccountSyncingSyncedAtLeastOnce: false,
   isAccountSyncingReadyToBeDispatched: false,
   isAccountSyncingInProgress: false,
+  isAddressBookSyncingEnabled: true,
 };
 
 const arrangeMocks = async (
