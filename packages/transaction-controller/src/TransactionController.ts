@@ -123,7 +123,6 @@ import {
   TransactionType,
   TransactionStatus,
   SimulationErrorCode,
-  UserFeeLevel,
 } from './types';
 import {
   addTransactionBatch,

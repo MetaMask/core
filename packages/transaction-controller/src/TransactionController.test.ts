@@ -1787,10 +1787,11 @@ describe('TransactionController', () => {
               networkClientId: NETWORK_CLIENT_ID_MOCK,
             },
           );
-          const transactionMeta = controller.state.transactions[0];
-          expect(transactionMeta?.dappSuggestedGasFees?.[gasPropName]).toBe(
-            mockGasValue,
-          );
+          expect(
+            controller.state.transactions[0]?.dappSuggestedGasFees?.[
+              gasPropName
+            ],
+          ).toBe(mockGasValue);
         },
       );
     });
