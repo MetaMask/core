@@ -68,10 +68,8 @@ function StaticIntervalPollingControllerMixin<
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
         async () => {
-          if (
-            this.#durationsById[key] &&
-            Date.now() > this.#durationsById[key]
-          ) {
+          const durationForId = this.getDurationForId(key);
+          if (durationForId && Date.now() > durationForId) {
             this._stopPollingByPollingTokenSetId(key);
             delete this.#durationsById[key];
             return;
