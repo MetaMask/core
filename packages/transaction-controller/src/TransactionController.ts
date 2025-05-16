@@ -118,11 +118,12 @@ import type {
   GasFeeEstimateLevel as GasFeeEstimateLevelType,
 } from './types';
 import {
+  GasFeeEstimateLevel,
   TransactionEnvelopeType,
   TransactionType,
   TransactionStatus,
   SimulationErrorCode,
-  GasFeeEstimateLevel,
+  UserFeeLevel,
 } from './types';
 import {
   addTransactionBatch,
@@ -1219,6 +1220,9 @@ export class TransactionController extends BaseController<
           txParams,
           type: transactionType,
           userEditedGasLimit: false,
+          userFeeLevel: dappSuggestedGasFees
+            ? UserFeeLevel.DAPP_SUGGESTED
+            : undefined,
           verifiedOnBlockchain: false,
         };
 

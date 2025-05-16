@@ -81,6 +81,7 @@ import {
   TransactionEnvelopeType,
   TransactionStatus,
   TransactionType,
+  UserFeeLevel,
   WalletDevice,
 } from './types';
 import { addTransactionBatch } from './utils/batch';
@@ -1786,11 +1787,13 @@ describe('TransactionController', () => {
               networkClientId: NETWORK_CLIENT_ID_MOCK,
             },
           );
-          expect(
-            controller.state.transactions[0]?.dappSuggestedGasFees?.[
-              gasPropName
-            ],
-          ).toBe(mockGasValue);
+          const transactionMeta = controller.state.transactions[0];
+          expect(transactionMeta?.dappSuggestedGasFees?.[gasPropName]).toBe(
+            mockGasValue,
+          );
+          expect(transactionMeta?.userFeeLevel).toBe(
+            UserFeeLevel.DAPP_SUGGESTED,
+          );
         },
       );
     });
