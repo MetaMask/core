@@ -1,3 +1,8 @@
+import type {
+  AcceptResultCallbacks,
+  AddResult,
+} from '@metamask/approval-controller';
+import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
@@ -36,6 +41,7 @@ import type {
   ValidateSecurityRequest,
   IsAtomicBatchSupportedResult,
   IsAtomicBatchSupportedResultEntry,
+  TransactionBatchMeta,
 } from '../types';
 import {
   TransactionEnvelopeType,
@@ -349,13 +355,23 @@ async function addTransactionBatchWith7702(
 async function addTransactionBatchWithHook(
   request: AddTransactionBatchRequest,
 ): Promise<TransactionBatchResult> {
-  const { publishBatchHook, request: userRequest } = request;
+  const {
+    getChainId,
+    messenger,
+    publishBatchHook,
+    request: userRequest,
+  } = request;
 
   const {
     from,
     networkClientId,
+    origin,
+    requireApproval,
     transactions: nestedTransactions,
+    useHook,
   } = userRequest;
+
+  let resultCallbacks: AcceptResultCallbacks | undefined;
 
   log('Adding transaction batch using hook', userRequest);
 
@@ -364,13 +380,28 @@ async function addTransactionBatchWithHook(
     throw new Error('No publish batch hook provided');
   }
 
+  const chainId = getChainId(networkClientId);
   const batchId = generateBatchId();
   const transactionCount = nestedTransactions.length;
   const collectHook = new CollectPublishHook(transactionCount);
-  const publishHook = collectHook.getHook();
-  const hookTransactions: Omit<PublishBatchHookTransaction, 'signedTx'>[] = [];
-
   try {
+    if (requireApproval && useHook) {
+      const txBatchMeta = newBatchMetadata({
+        id: batchId,
+        chainId,
+        networkClientId,
+        transactions: nestedTransactions,
+        origin,
+      });
+
+      resultCallbacks = (await requestApproval(txBatchMeta, messenger))
+        .resultCallbacks;
+    }
+
+    const publishHook = collectHook.getHook();
+    const hookTransactions: Omit<PublishBatchHookTransaction, 'signedTx'>[] =
+      [];
+
     for (const nestedTransaction of nestedTransactions) {
       const hookTransaction = await processTransactionWithHook(
         batchId,
@@ -408,6 +439,7 @@ async function addTransactionBatchWithHook(
     );
 
     collectHook.success(transactionHashes);
+    resultCallbacks?.success();
 
     log('Completed batch transaction with hook', transactionHashes);
 
@@ -418,6 +450,7 @@ async function addTransactionBatchWithHook(
     log('Publish batch hook failed', error);
 
     collectHook.error(error);
+    resultCallbacks?.error(error as Error);
 
     throw error;
   }
@@ -510,5 +543,61 @@ async function processTransactionWithHook(
   return {
     id,
     params: newParams,
+  };
+}
+
+/**
+ * Requests approval for a transaction batch by interacting with the ApprovalController.
+ *
+ * @param txBatchMeta - Metadata for the transaction batch, including its ID and origin.
+ * @param messenger - The messenger instance used to communicate with the ApprovalController.
+ * @returns A promise that resolves to the result of adding the approval request.
+ */
+async function requestApproval(
+  txBatchMeta: TransactionBatchMeta,
+  messenger: TransactionControllerMessenger,
+): Promise<AddResult> {
+  const id = String(txBatchMeta.id);
+  const { origin } = txBatchMeta;
+  const type = 'transaction_batch';
+  const requestData = { txBatchId: id };
+
+  return (await messenger.call(
+    'ApprovalController:addRequest',
+    {
+      id,
+      origin: origin || ORIGIN_METAMASK,
+      requestData,
+      expectsResult: true,
+      type,
+    },
+    true,
+  )) as Promise<AddResult>;
+}
+
+/**
+ * Create a new batch metadata object.
+ *
+ * @param options - The options for creating a new batch metadata object.
+ * @param options.id - The ID of the transaction batch.
+ * @param options.chainId - The chain ID of the transaction batch.
+ * @param options.networkClientId - The network client ID of the transaction batch.
+ * @param options.transactions - The transactions in the batch.
+ * @param options.origin - The origin of the transaction batch.
+ * @returns A new TransactionBatchMeta object.
+ */
+function newBatchMetadata({
+  id,
+  chainId,
+  networkClientId,
+  transactions,
+  origin,
+}: TransactionBatchMeta): TransactionBatchMeta {
+  return {
+    id,
+    chainId,
+    networkClientId,
+    transactions,
+    origin,
   };
 }
