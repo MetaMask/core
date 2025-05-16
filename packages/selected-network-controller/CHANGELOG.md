@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.1.0]
+
 ### Uncategorized
 
 - Use selected network controller for Snaps ([#4602](https://github.com/MetaMask/core/pull/4602))
@@ -366,7 +368,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1643](https://github.com/MetaMask/core/pull/1643))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@22.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@22.1.0...HEAD
+[22.1.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@22.0.0...@metamask/selected-network-controller@22.1.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@21.0.1...@metamask/selected-network-controller@22.0.0
 [21.0.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@21.0.0...@metamask/selected-network-controller@21.0.1
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@20.0.2...@metamask/selected-network-controller@21.0.0

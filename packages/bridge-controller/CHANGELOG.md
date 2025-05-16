@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 400.0.0 ([#5815](https://github.com/MetaMask/core/pull/5815))
-
 ### Added
 
 - Error logs for invalid getQuote responses ([#5816](https://github.com/MetaMask/core/pull/5816))

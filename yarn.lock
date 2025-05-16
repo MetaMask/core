@@ -4128,7 +4128,7 @@ __metadata:
     "@metamask/json-rpc-engine": "npm:^10.0.3"
     "@metamask/network-controller": "npm:^23.5.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
-    "@metamask/selected-network-controller": "npm:^22.0.0"
+    "@metamask/selected-network-controller": "npm:^22.1.0"
     "@metamask/swappable-obj-proxy": "npm:^2.3.0"
     "@metamask/utils": "npm:^11.2.0"
     "@types/jest": "npm:^27.4.1"
@@ -4236,7 +4236,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/selected-network-controller@npm:^22.0.0, @metamask/selected-network-controller@workspace:packages/selected-network-controller":
+"@metamask/selected-network-controller@npm:^22.1.0, @metamask/selected-network-controller@workspace:packages/selected-network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/selected-network-controller@workspace:packages/selected-network-controller"
   dependencies:
