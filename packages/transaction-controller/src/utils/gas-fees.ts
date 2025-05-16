@@ -283,12 +283,7 @@ function getGasPrice(request: GetGasFeeRequest): string | undefined {
  * @returns The user fee level.
  */
 function getUserFeeLevel(request: GetGasFeeRequest): UserFeeLevel | undefined {
-  const { eip1559, initialParams, savedGasFees, suggestedGasFees, txMeta } =
-    request;
-
-  if (!eip1559) {
-    return undefined;
-  }
+  const { initialParams, savedGasFees, suggestedGasFees, txMeta } = request;
 
   if (savedGasFees) {
     return UserFeeLevel.CUSTOM;
