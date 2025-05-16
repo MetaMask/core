@@ -1,17 +1,10 @@
 import type { StateMetadata } from '@metamask/base-controller';
-import type {
-  QuoteMetadata,
-  RequiredEventContextFromClient,
-  TxData,
-  QuoteResponse,
-} from '@metamask/bridge-controller';
 import {
   formatChainIdToHex,
   getEthUsdtResetData,
   isEthUsdt,
   isSolanaChainId,
   type QuoteResponse,
-  type BridgeAsset,
   type QuoteMetadata,
   type TxData,
   type RequiredEventContextFromClient,
@@ -246,7 +239,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       // We manually call startPolling() here rather than go through startPollingForBridgeTxStatus()
       // because we don't want to overwrite the existing historyItem in state
       this.#pollingTokensByTxMetaId[bridgeTxMetaId] = this.startPolling(input);
-      this.setKeyDuration(getKey(input), POLLING_DURATION);
+      this.setDurationForId(getKey(input), POLLING_DURATION);
     });
   };
 
@@ -313,7 +306,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     this.#pollingTokensByTxMetaId[bridgeTxMeta.id] = this.startPolling(input);
 
     // set the polling max time duration to five minutes
-    this.setKeyDuration(getKey(input), POLLING_DURATION);
+    this.setDurationForId(getKey(input), POLLING_DURATION);
   };
 
   // This will be called after you call this.startPolling()

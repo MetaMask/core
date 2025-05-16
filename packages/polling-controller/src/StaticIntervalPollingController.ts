@@ -30,16 +30,20 @@ function StaticIntervalPollingControllerMixin<
   {
     readonly #intervalIds: Record<PollingTokenSetId, NodeJS.Timeout> = {};
 
-    #durationIds: Record<PollingTokenSetId, number> = {};
+    /**
+     * A map of polling token set IDs to their durations.
+     * This is used to determine when to stop polling for a specific token set.
+     */
+    #durationsById: Record<PollingTokenSetId, number> = {};
 
     #intervalLength: number | undefined = 1000;
 
-    setKeyDuration(key: string, duration: number) {
-      this.#durationIds[key] = duration;
+    setDurationForId(key: string, duration: number) {
+      this.#durationsById[key] = duration;
     }
 
-    getKeyDuration(key: string) {
-      return this.#durationIds[key];
+    getDurationForId(id: string) {
+      return this.#durationsById[id];
     }
 
     setIntervalLength(intervalLength: number) {
@@ -64,9 +68,12 @@ function StaticIntervalPollingControllerMixin<
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
         async () => {
-          if (this.#durationIds[key] && Date.now() > this.#durationIds[key]) {
+          if (
+            this.#durationsById[key] &&
+            Date.now() > this.#durationsById[key]
+          ) {
             this._stopPollingByPollingTokenSetId(key);
-            delete this.#durationIds[key];
+            delete this.#durationsById[key];
             return;
           }
 
