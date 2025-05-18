@@ -6,6 +6,7 @@ import type {
   MetricsActionType,
   MetricsSwapType,
 } from './constants';
+import type { BridgeClientId } from '../../constants/bridge';
 import type { SortOrder, StatusTypes } from '../../types';
 
 /**
@@ -230,9 +231,10 @@ export type EventPropertiesFromControllerState = {
  */
 export type CrossChainSwapsEventProperties<
   T extends UnifiedSwapBridgeEventName,
-> =
-  | {
-      action_type: MetricsActionType;
-    }
+> = {
+  action_type: MetricsActionType;
+  client_id: BridgeClientId;
+} & (
   | Pick<EventPropertiesFromControllerState, T>[T]
-  | Pick<RequiredEventContextFromClient, T>[T];
+  | Pick<RequiredEventContextFromClient, T>[T]
+);

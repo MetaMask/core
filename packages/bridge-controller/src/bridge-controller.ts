@@ -699,6 +699,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   ): CrossChainSwapsEventProperties<T> => {
     const baseProperties = {
       action_type: getActionTypeFromQuoteRequest(this.state.quoteRequest),
+      client_id: this.#clientId,
       ...propertiesFromClient,
     };
     switch (eventName) {
@@ -744,7 +745,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       case UnifiedSwapBridgeEventName.Submitted:
       case UnifiedSwapBridgeEventName.Completed:
       case UnifiedSwapBridgeEventName.Failed:
-        return propertiesFromClient;
+        return {
+          ...baseProperties,
+          ...propertiesFromClient,
+        };
       case UnifiedSwapBridgeEventName.InputChanged:
       default:
         return baseProperties;
