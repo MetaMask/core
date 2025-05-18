@@ -231,10 +231,10 @@ export type EventPropertiesFromControllerState = {
  */
 export type CrossChainSwapsEventProperties<
   T extends UnifiedSwapBridgeEventName,
-> = {
-  action_type: MetricsActionType;
-  client_id: BridgeClientId;
-} & (
+> =
+  | {
+      action_type: MetricsActionType;
+      client_id: BridgeClientId;
+    }
   | Pick<EventPropertiesFromControllerState, T>[T]
-  | Pick<RequiredEventContextFromClient, T>[T]
-);
+  | Pick<RequiredEventContextFromClient, T>[T];
