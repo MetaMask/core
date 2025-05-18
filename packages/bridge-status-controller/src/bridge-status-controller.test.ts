@@ -724,6 +724,35 @@ describe('BridgeStatusController', () => {
       // Cleanup
       jest.restoreAllMocks();
     });
+
+    it('stops polling when the transaction duration expires', async () => {
+      // Setup
+      jest.useFakeTimers();
+      const messengerMock = getMessengerMock();
+      const bridgeStatusController = new BridgeStatusController({
+        messenger: messengerMock,
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: jest.fn(),
+        addTransactionFn: jest.fn(),
+        estimateGasFeeFn: jest.fn(),
+        addUserOperationFromTransactionFn: jest.fn(),
+      });
+      const stopPollingByNetworkClientIdSpy = jest.spyOn(
+        bridgeStatusController,
+        'stopPollingByPollingToken',
+      );
+
+      // Execution
+      jest.advanceTimersByTime(6 * 60 * 1000);
+      await flushPromises();
+
+      // Assertions
+      expect(stopPollingByNetworkClientIdSpy).toHaveBeenCalledTimes(0);
+      expect(messengerMock.call.mock.calls).toMatchSnapshot();
+      // Cleanup
+      jest.restoreAllMocks();
+    });
+
     it('does not poll if the srcTxHash is not available', async () => {
       // Setup
       jest.useFakeTimers();
@@ -773,6 +802,10 @@ describe('BridgeStatusController', () => {
         estimateGasFeeFn: jest.fn(),
         addUserOperationFromTransactionFn: jest.fn(),
       });
+
+      jest
+        .spyOn(bridgeStatusController, 'getDurationForId')
+        .mockImplementation(jest.fn());
 
       // Start polling with args that have no srcTxHash
       const startPollingArgs = getMockStartPollingForBridgeTxStatusArgs();

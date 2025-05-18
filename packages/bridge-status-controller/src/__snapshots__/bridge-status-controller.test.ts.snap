@@ -336,6 +336,8 @@ Array [
 ]
 `;
 
+exports[`BridgeStatusController startPollingForBridgeTxStatus stops polling when the transaction duration expires 1`] = `Array []`;
+
 exports[`BridgeStatusController submitTx: EVM should delay after submitting linea approval 1`] = `
 Object {
   "chainId": "0xa4b1",
