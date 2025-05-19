@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [25.1.0]
 
-### Uncategorized
-
-- Release 400.0.0 ([#5815](https://github.com/MetaMask/core.git/pull/5815))
-
 ### Added
 
 - Added optional `isUnifiedUIEnabled` flag to chain-level feature-flag `ChainConfiguration` type and updated the validation schema to accept the new flag ([#5783](https://github.com/MetaMask/core/pull/5783))
