@@ -547,7 +547,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         await this.#handleUSDTAllowanceReset(quoteResponse);
 
         const approvalTxMeta = await this.#handleEvmTransaction(
-          TransactionType.bridgeApproval,
+          isBridgeTx
+            ? TransactionType.bridgeApproval
+            : TransactionType.swapApproval,
           approval,
           quoteResponse,
         );
@@ -579,12 +581,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   readonly #handleEvmSmartTransaction = async (
+    isBridgeTx: boolean,
     trade: TxData,
     quoteResponse: Omit<QuoteResponse, 'approval' | 'trade'> & QuoteMetadata,
     approvalTxId?: string,
   ) => {
     return await this.#handleEvmTransaction(
-      TransactionType.bridge,
+      isBridgeTx ? TransactionType.bridge : TransactionType.swap,
       trade,
       quoteResponse,
       approvalTxId,
@@ -818,6 +821,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           },
           async () =>
             await this.#handleEvmSmartTransaction(
+              isBridgeTx,
               quoteResponse.trade as TxData,
               quoteResponse,
               approvalTxId,
