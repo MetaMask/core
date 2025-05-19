@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 400.0.0 ([#5815](https://github.com/MetaMask/core.git/pull/5815))
+
 ### Changed
 
 - Bump `@metamask/controller-utils` to `^11.9.0` ([#5812](https://github.com/MetaMask/core/pull/5812))
@@ -109,19 +113,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.14.0...HEAD
-[0.14.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.13.0...@metamask/earn-controller@0.14.0
-[0.13.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.12.0...@metamask/earn-controller@0.13.0
-[0.12.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.11.0...@metamask/earn-controller@0.12.0
-[0.11.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.10.0...@metamask/earn-controller@0.11.0
-[0.10.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.9.0...@metamask/earn-controller@0.10.0
-[0.9.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.8.0...@metamask/earn-controller@0.9.0
-[0.8.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.7.0...@metamask/earn-controller@0.8.0
-[0.7.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.6.0...@metamask/earn-controller@0.7.0
-[0.6.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.5.0...@metamask/earn-controller@0.6.0
-[0.5.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.4.0...@metamask/earn-controller@0.5.0
-[0.4.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.3.0...@metamask/earn-controller@0.4.0
-[0.3.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.2.1...@metamask/earn-controller@0.3.0
-[0.2.1]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.2.0...@metamask/earn-controller@0.2.1
-[0.2.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.1.0...@metamask/earn-controller@0.2.0
-[0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/earn-controller@0.1.0
+[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/earn-controller@0.14.0...HEAD
+[0.14.0]: https://github.com/MetaMask/core.git/compare/@metamask/earn-controller@0.13.0...@metamask/earn-controller@0.14.0
+[0.13.0]: https://github.com/MetaMask/core.git/compare/@metamask/earn-controller@0.12.0...@metamask/earn-controller@0.13.0
+[0.12.0]: https://github.com/MetaMask/core.git/compare/@metamask/earn-controller@0.11.0...@metamask/earn-controller@0.12.0
+[0.11.0]: https://github.com/MetaMask/core.git/compare/@metamask/earn-controller@0.10.0...@metamask/earn-controller@0.11.0
+[0.10.0]: https://github.com/MetaMask/core.git/compare/@metamask/earn-controller@0.9.0...@metamask/earn-controller@0.10.0
+[0.9.0]: https://github.com/MetaMask/core.git/compare/@metamask/earn-controller@0.8.0...@metamask/earn-controller@0.9.0
+[0.8.0]: https://github.com/MetaMask/core.git/compare/@metamask/earn-controller@0.7.0...@metamask/earn-controller@0.8.0
+[0.7.0]: https://github.com/MetaMask/core.git/compare/@metamask/earn-controller@0.6.0...@metamask/earn-controller@0.7.0
+[0.6.0]: https://github.com/MetaMask/core.git/compare/@metamask/earn-controller@0.5.0...@metamask/earn-controller@0.6.0
+[0.5.0]: https://github.com/MetaMask/core.git/compare/@metamask/earn-controller@0.4.0...@metamask/earn-controller@0.5.0
+[0.4.0]: https://github.com/MetaMask/core.git/compare/@metamask/earn-controller@0.3.0...@metamask/earn-controller@0.4.0
+[0.3.0]: https://github.com/MetaMask/core.git/compare/@metamask/earn-controller@0.2.1...@metamask/earn-controller@0.3.0
+[0.2.1]: https://github.com/MetaMask/core.git/compare/@metamask/earn-controller@0.2.0...@metamask/earn-controller@0.2.1
+[0.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/earn-controller@0.1.0...@metamask/earn-controller@0.2.0
+[0.1.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/earn-controller@0.1.0
