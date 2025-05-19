@@ -854,19 +854,21 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     }
 
     try {
-      // Start polling for bridge tx status
-      this.startPollingForBridgeTxStatus({
-        bridgeTxMeta: txMeta, // Only the id field is used by the BridgeStatusController
-        statusRequest: {
-          ...getStatusRequestParams(quoteResponse),
-          srcTxHash: txMeta.hash,
-        },
-        quoteResponse,
-        slippagePercentage: 0, // TODO include slippage provided by quote if using dynamic slippage, or slippage from quote request
-        isStxEnabled: isStxEnabledOnClient,
-        startTime: approvalTime ?? Date.now(),
-        approvalTxId,
-      });
+      if (isBridgeTx) {
+        // Start polling for bridge tx status
+        this.startPollingForBridgeTxStatus({
+          bridgeTxMeta: txMeta, // Only the id field is used by the BridgeStatusController
+          statusRequest: {
+            ...getStatusRequestParams(quoteResponse),
+            srcTxHash: txMeta.hash,
+          },
+          quoteResponse,
+          slippagePercentage: 0, // TODO include slippage provided by quote if using dynamic slippage, or slippage from quote request
+          isStxEnabled: isStxEnabledOnClient,
+          startTime: approvalTime ?? Date.now(),
+          approvalTxId,
+        });
+      }
 
       this.#trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.Submitted,
