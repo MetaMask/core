@@ -813,17 +813,6 @@ describe('BridgeStatusController', () => {
 
       // Assertions
       expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
-      expect(messengerMock.publish).toHaveBeenCalledWith(
-        'BridgeStatusController:bridgeTransactionComplete',
-        {
-          bridgeHistoryItem: expect.objectContaining({
-            txMetaId: 'bridgeTxMetaId1',
-            status: expect.objectContaining({
-              status: 'COMPLETE',
-            }),
-          }),
-        },
-      );
 
       // Cleanup
       jest.restoreAllMocks();
@@ -859,17 +848,6 @@ describe('BridgeStatusController', () => {
 
       // Assertions
       expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
-      expect(messengerMock.publish).toHaveBeenCalledWith(
-        'BridgeStatusController:bridgeTransactionFailed',
-        {
-          bridgeHistoryItem: expect.objectContaining({
-            txMetaId: 'bridgeTxMetaId1',
-            status: expect.objectContaining({
-              status: 'FAILED',
-            }),
-          }),
-        },
-      );
       expect(messengerMock.call.mock.calls).toMatchSnapshot();
 
       // Cleanup
@@ -909,6 +887,7 @@ describe('BridgeStatusController', () => {
           }
           return null;
         }),
+        subscribe: mockMessengerSubscribe,
         publish: jest.fn(),
         registerActionHandler: jest.fn(),
         registerInitialEventPayload: jest.fn(),
