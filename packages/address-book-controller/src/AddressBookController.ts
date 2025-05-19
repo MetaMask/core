@@ -14,47 +14,36 @@ import {
 import type { Hex } from '@metamask/utils';
 
 /**
- * @type ContactEntry
- *
- * ContactEntry representation
- * @property address - Hex address of a recipient account
- * @property name - Nickname associated with this address
- * @property importTime - Data time when an account as created/imported
- */
-export type ContactEntry = {
-  address: string;
-  name: string;
-  importTime?: number;
-};
-
-/**
  * The type of address.
  */
 export enum AddressType {
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   externallyOwnedAccounts = 'EXTERNALLY_OWNED_ACCOUNTS',
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   contractAccounts = 'CONTRACT_ACCOUNTS',
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   nonAccounts = 'NON_ACCOUNTS',
 }
 
 /**
- * @type AddressBookEntry
+ * AddressBookEntry
  *
  * AddressBookEntry representation
- * @property address - Hex address of a recipient account
- * @property name - Nickname associated with this address
- * @property chainId - Chain id identifies the current chain
- * @property memo - User's note about address
- * @property isEns - is the entry an ENS name
- * @property addressType - is the type of this address
- * @property lastUpdatedAt - timestamp when the entry was last updated
- * @property deleted - whether this entry has been deleted (tombstone marker)
- * @property deletedAt - timestamp when the entry was deleted
+ *
+ * address - Hex address of a recipient account
+ *
+ * name - Nickname associated with this address
+ *
+ * chainId - Chain id identifies the current chain
+ *
+ * memo - User's note about address
+ *
+ * isEns - is the entry an ENS name
+ *
+ * addressType - is the type of this address
  */
 export type AddressBookEntry = {
   address: string;
@@ -63,16 +52,31 @@ export type AddressBookEntry = {
   memo: string;
   isEns: boolean;
   addressType?: AddressType;
-  lastUpdatedAt?: number;
-  deleted?: boolean;
-  deletedAt?: number;
 };
 
 /**
- * @type AddressBookState
+ * Sync metadata interface used for contacts syncing.
+ * This is used by the UserStorageController and not stored in address book.
+ */
+type SyncMetadata = {
+  deleted?: boolean;
+  deletedAt?: number;
+  lastUpdatedAt?: number;
+};
+
+/**
+ * Address book entry with sync metadata
+ */
+export type AddressBookEntryWithSyncMetadata = {
+  _syncMetadata?: SyncMetadata;
+} & AddressBookEntry;
+
+/**
+ * AddressBookState
  *
  * Address book controller state
- * @property addressBook - Array of contact entry objects
+ *
+ * addressBook - Array of contact entry objects
  */
 export type AddressBookControllerState = {
   addressBook: { [chainId: Hex]: { [address: string]: AddressBookEntry } };
@@ -126,7 +130,7 @@ export type AddressBookControllerContactDeletedEvent = {
 /**
  * The actions that can be performed using the {@link AddressBookController}.
  */
-export type AddressBookControllerActions = 
+export type AddressBookControllerActions =
   | AddressBookControllerGetStateAction
   | AddressBookControllerListAction
   | AddressBookControllerImportContactsFromSyncAction;
@@ -142,7 +146,7 @@ export type AddressBookControllerStateChangeEvent = ControllerStateChangeEvent<
 /**
  * The events that {@link AddressBookController} can emit.
  */
-export type AddressBookControllerEvents = 
+export type AddressBookControllerEvents =
   | AddressBookControllerStateChangeEvent
   | AddressBookControllerContactUpdatedEvent
   | AddressBookControllerContactDeletedEvent;
@@ -210,23 +214,20 @@ export class AddressBookController extends BaseController<
   /**
    * Returns all address book entries as an array.
    *
-   * @param includeDeleted - Whether to include soft-deleted entries (default: false)
    * @returns Array of all address book entries.
    */
-  list(includeDeleted: boolean = false): AddressBookEntry[] {
+  list(): AddressBookEntry[] {
     const { addressBook } = this.state;
     const contacts: AddressBookEntry[] = [];
-    
+
     Object.keys(addressBook).forEach((chainId) => {
       const chainIdHex = chainId as Hex;
       Object.keys(addressBook[chainIdHex]).forEach((address) => {
         const contact = addressBook[chainIdHex][address];
-        if (includeDeleted || !contact.deleted) {
-          contacts.push(contact);
-        }
+        contacts.push(contact);
       });
     });
-    
+
     return contacts;
   }
 
@@ -258,29 +259,18 @@ export class AddressBookController extends BaseController<
     }
 
     const deletedEntry = { ...this.state.addressBook[chainId][address] };
-    
-    // Mark the entry as deleted instead of removing it
-    const now = Date.now();
-    this.update((state) => {
-      state.addressBook[chainId][address] = {
-        ...state.addressBook[chainId][address],
-        deleted: true,
-        deletedAt: now,
-      };
-    });
 
-    // Include the deleted flag and timestamp in the event payload
-    const finalDeletedEntry = { 
-      ...deletedEntry,
-      deleted: true, 
-      deletedAt: now 
-    };
+    this.update((state) => {
+      if (state.addressBook[chainId] && state.addressBook[chainId][address]) {
+        delete state.addressBook[chainId][address];
+      }
+    });
 
     // Skip sending delete event for global contacts with chainId '*'
     if (String(chainId) !== '*') {
       this.messagingSystem.publish(
         'AddressBookController:contactDeleted',
-        finalDeletedEntry,
+        deletedEntry,
       );
     }
 
@@ -295,7 +285,6 @@ export class AddressBookController extends BaseController<
    * @param chainId - Chain id identifies the current chain.
    * @param memo - User's note about address.
    * @param addressType - Contact's address type.
-   * @param lastUpdatedAt - Optional timestamp when entry was updated (defaults to now).
    * @returns Boolean indicating if the address was successfully set.
    */
   set(
@@ -303,7 +292,7 @@ export class AddressBookController extends BaseController<
     name: string,
     chainId = toHex(1),
     memo = '',
-    addressType?: AddressType
+    addressType?: AddressType,
   ) {
     address = toChecksumHexAddress(address);
     if (!isValidHexAddress(address)) {
@@ -314,12 +303,10 @@ export class AddressBookController extends BaseController<
       address,
       chainId,
       isEns: false,
-      deleted: false,
       memo,
       name,
       addressType,
-      lastUpdatedAt: Date.now(),
-    }
+    };
     const ensName = normalizeEnsName(name);
     if (ensName) {
       entry.name = ensName;
@@ -369,22 +356,29 @@ export class AddressBookController extends BaseController<
           state.addressBook[chainId] = {};
         }
 
-        // If the contact is marked as deleted, handle appropriately
-        if (contact.deleted) {
+        // Check for sync metadata (added by profile sync controller)
+        const contactWithMetadata = contact as AddressBookEntryWithSyncMetadata;
+        const syncMetadata = contactWithMetadata._syncMetadata || {};
+
+        if (syncMetadata.deleted) {
+          // If this contact is marked as deleted in sync metadata,
+          // actually delete it from the address book
           if (state.addressBook[chainId][checksumAddress]) {
-            state.addressBook[chainId][checksumAddress] = {
-              ...state.addressBook[chainId][checksumAddress],
-              deleted: true,
-              deletedAt: contact.deletedAt || Date.now(),
-            };
+            delete state.addressBook[chainId][checksumAddress];
           }
         } else {
-          // Update or add the contact
+          // Update or add the contact (without sync metadata)
           state.addressBook[chainId] = {
             ...state.addressBook[chainId],
             [checksumAddress]: {
-              ...contact,
-              address: checksumAddress, // Ensure checksum address
+              address: checksumAddress,
+              name: contact.name,
+              chainId: contact.chainId,
+              memo: contact.memo || '',
+              isEns: contact.isEns || false,
+              ...(contact.addressType
+                ? { addressType: contact.addressType }
+                : {}),
             },
           };
         }

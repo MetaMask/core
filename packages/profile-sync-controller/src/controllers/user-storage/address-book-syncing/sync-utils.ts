@@ -11,16 +11,14 @@ export function canPerformAddressBookSyncing(
 ): boolean {
   const { getMessenger, getUserStorageControllerInstance } = options;
 
-  const {
-    isProfileSyncingEnabled,
-    isAddressBookSyncingEnabled
-  } = getUserStorageControllerInstance().state;
+  const { isBackupAndSyncEnabled, isAddressBookSyncingEnabled } =
+    getUserStorageControllerInstance().state;
   const isAuthEnabled = getMessenger().call(
     'AuthenticationController:isSignedIn',
   );
 
   if (
-    !isProfileSyncingEnabled ||
+    !isBackupAndSyncEnabled ||
     !isAddressBookSyncingEnabled ||
     !isAuthEnabled
   ) {

@@ -1,4 +1,5 @@
 import type { Hex } from '@metamask/utils';
+
 import type {
   USER_STORAGE_VERSION_KEY,
   USER_STORAGE_VERSION,
@@ -36,4 +37,4 @@ export type UserStorageAddressBookEntry = {
 export type AddressBookSyncingOptions = {
   getUserStorageControllerInstance: () => UserStorageController;
   getMessenger: () => UserStorageControllerMessenger;
-}
+};

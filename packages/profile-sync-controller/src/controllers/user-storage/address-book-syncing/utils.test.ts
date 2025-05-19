@@ -6,6 +6,7 @@ import type { UserStorageAddressBookEntry } from './types';
 import {
   mapAddressBookEntryToUserStorageEntry,
   mapUserStorageEntryToAddressBookEntry,
+  type SyncAddressBookEntry,
 } from './utils';
 
 describe('user-storage/address-book-syncing/utils', () => {
@@ -16,6 +17,15 @@ describe('user-storage/address-book-syncing/utils', () => {
   const mockMemo = 'This is a test contact';
   const mockTimestamp = 1657000000000;
   const mockDeletedTimestamp = 1657000100000;
+
+  beforeEach(() => {
+    // Mock Date.now() to return a fixed timestamp for consistent testing
+    jest.spyOn(Date, 'now').mockImplementation(() => mockTimestamp);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
 
   describe('mapAddressBookEntryToUserStorageEntry', () => {
     it('should map a basic address book entry to a user storage entry', () => {
@@ -42,14 +52,14 @@ describe('user-storage/address-book-syncing/utils', () => {
     });
 
     it('should map an address book entry with a timestamp to a user storage entry', () => {
-      const addressBookEntry: AddressBookEntry = {
+      const addressBookEntry = {
         address: mockAddress,
-        chainId: mockChainId,
+        chainId: mockChainId as `0x${string}`,
         name: mockName,
         memo: mockMemo,
         isEns: false,
         lastUpdatedAt: mockTimestamp,
-      };
+      } as SyncAddressBookEntry;
 
       const userStorageEntry =
         mapAddressBookEntryToUserStorageEntry(addressBookEntry);
@@ -65,16 +75,16 @@ describe('user-storage/address-book-syncing/utils', () => {
     });
 
     it('should map a deleted address book entry to a user storage entry', () => {
-      const addressBookEntry: AddressBookEntry = {
+      const addressBookEntry = {
         address: mockAddress,
-        chainId: mockChainId,
+        chainId: mockChainId as `0x${string}`,
         name: mockName,
         memo: mockMemo,
         isEns: false,
         lastUpdatedAt: mockTimestamp,
         deleted: true,
         deletedAt: mockDeletedTimestamp,
-      };
+      } as SyncAddressBookEntry;
 
       const userStorageEntry =
         mapAddressBookEntryToUserStorageEntry(addressBookEntry);

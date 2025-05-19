@@ -1,6 +1,7 @@
 import type { AddressBookEntry } from '@metamask/address-book-controller';
-import type { UserStorageAddressBookEntry } from '../types';
+
 import { USER_STORAGE_VERSION, USER_STORAGE_VERSION_KEY } from '../constants';
+import type { UserStorageAddressBookEntry } from '../types';
 
 // Base timestamp for predictable testing
 const NOW = 1657000000000;
@@ -18,7 +19,7 @@ export const MOCK_LOCAL_CONTACTS = {
       lastUpdatedAt: NOW,
     } as AddressBookEntry,
   ],
-  
+
   // Two contacts on different chains
   TWO_DIFF_CHAINS: [
     {
@@ -38,7 +39,7 @@ export const MOCK_LOCAL_CONTACTS = {
       lastUpdatedAt: NOW,
     } as AddressBookEntry,
   ],
-  
+
   // Same contact as remote but different name (newer)
   ONE_UPDATED_NAME: [
     {
@@ -50,7 +51,7 @@ export const MOCK_LOCAL_CONTACTS = {
       lastUpdatedAt: NOW + 1000,
     } as AddressBookEntry,
   ],
-  
+
   // Contact that has been marked as deleted
   ONE_DELETED: [
     {
@@ -79,7 +80,7 @@ export const MOCK_REMOTE_CONTACTS = {
       lu: NOW,
     } as UserStorageAddressBookEntry,
   ],
-  
+
   // Two contacts on different chains
   TWO_DIFF_CHAINS: [
     {
@@ -99,7 +100,7 @@ export const MOCK_REMOTE_CONTACTS = {
       lu: NOW,
     } as UserStorageAddressBookEntry,
   ],
-  
+
   // Different contact than local
   ONE_DIFFERENT: [
     {
@@ -111,7 +112,7 @@ export const MOCK_REMOTE_CONTACTS = {
       lu: NOW,
     } as UserStorageAddressBookEntry,
   ],
-  
+
   // Same contact as local but with different name
   ONE_DIFFERENT_NAME: [
     {
@@ -123,7 +124,7 @@ export const MOCK_REMOTE_CONTACTS = {
       lu: NOW - 1000, // Older timestamp
     } as UserStorageAddressBookEntry,
   ],
-  
+
   // Deleted contact
   ONE_DELETED: [
     {
@@ -137,4 +138,4 @@ export const MOCK_REMOTE_CONTACTS = {
       dt: NOW + 1000,
     } as unknown as UserStorageAddressBookEntry,
   ],
-}; 
+};

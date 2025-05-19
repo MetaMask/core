@@ -4,7 +4,7 @@ import type { AddressBookSyncingOptions } from './types';
 describe('user-storage/address-book-syncing/sync-utils', () => {
   describe('canPerformAddressBookSyncing', () => {
     const arrangeMocks = ({
-      isProfileSyncingEnabled = true,
+      isBackupAndSyncEnabled = true,
       isAddressBookSyncingEnabled = true,
       messengerCallControllerAndAction = 'AuthenticationController:isSignedIn',
       messengerCallCallback = () => true,
@@ -21,7 +21,7 @@ describe('user-storage/address-book-syncing/sync-utils', () => {
         }),
         getUserStorageControllerInstance: jest.fn().mockReturnValue({
           state: {
-            isProfileSyncingEnabled,
+            isBackupAndSyncEnabled,
             isAddressBookSyncingEnabled,
           },
         }),
@@ -31,14 +31,14 @@ describe('user-storage/address-book-syncing/sync-utils', () => {
     };
 
     const failureCases = [
-      ['profile syncing is not enabled', { isProfileSyncingEnabled: false }],
+      ['profile syncing is not enabled', { isBackupAndSyncEnabled: false }],
       [
         'profile syncing is not enabled but address book syncing is',
-        { isProfileSyncingEnabled: false, isAddressBookSyncingEnabled: true },
+        { isBackupAndSyncEnabled: false, isAddressBookSyncingEnabled: true },
       ],
       [
         'profile syncing is enabled but not address book syncing',
-        { isProfileSyncingEnabled: true, isAddressBookSyncingEnabled: false },
+        { isBackupAndSyncEnabled: true, isAddressBookSyncingEnabled: false },
       ],
       [
         'authentication is not enabled',
@@ -62,4 +62,4 @@ describe('user-storage/address-book-syncing/sync-utils', () => {
       expect(canPerformAddressBookSyncing(options)).toBe(true);
     });
   });
-}); 
+});

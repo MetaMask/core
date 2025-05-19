@@ -1,7 +1,7 @@
 import type { AddressBookEntry } from '@metamask/address-book-controller';
-import type { AddressBookSyncingOptions } from './types';
-import { syncAddressBookWithUserStorage, SyncAddressBookWithUserStorageConfig } from './controller-integration';
+
 import { canPerformAddressBookSyncing } from './sync-utils';
+import type { AddressBookSyncingOptions } from './types';
 
 /**
  * Initialize and setup events to listen to for address book syncing
@@ -17,11 +17,19 @@ export function setupAddressBookSyncingSubscriptions(
     'AddressBookController:contactUpdated',
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     async (contactEntry: AddressBookEntry) => {
+      console.log('AddressBookController:contactUpdated', contactEntry);
       if (!canPerformAddressBookSyncing(options)) {
         return;
       }
 
-      getUserStorageControllerInstance().syncAddressBookWithUserStorage();
+      try {
+        await getUserStorageControllerInstance().syncAddressBookWithUserStorage();
+      } catch (error) {
+        console.error(
+          'Error syncing address book after contact update:',
+          error,
+        );
+      }
     },
   );
 
@@ -29,11 +37,19 @@ export function setupAddressBookSyncingSubscriptions(
     'AddressBookController:contactDeleted',
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     async (contactEntry: AddressBookEntry) => {
+      console.log('AddressBookController:contactDeleted', contactEntry);
       if (!canPerformAddressBookSyncing(options)) {
         return;
       }
 
-      getUserStorageControllerInstance().syncAddressBookWithUserStorage();
+      try {
+        await getUserStorageControllerInstance().syncAddressBookWithUserStorage();
+      } catch (error) {
+        console.error(
+          'Error syncing address book after contact deletion:',
+          error,
+        );
+      }
     },
   );
-} 
+}

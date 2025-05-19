@@ -11,7 +11,7 @@ export type {
   AddressBookControllerContactDeletedEvent,
   AddressBookControllerEvents,
   AddressBookControllerMessenger,
-  ContactEntry,
+  AddressBookEntryWithSyncMetadata,
 } from './AddressBookController';
 export {
   getDefaultAddressBookControllerState,

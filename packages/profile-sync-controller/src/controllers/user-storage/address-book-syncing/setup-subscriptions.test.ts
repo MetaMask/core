@@ -1,4 +1,5 @@
 import { setupAddressBookSyncingSubscriptions } from './setup-subscriptions';
+import * as SyncUtils from './sync-utils';
 
 // Define a type for the contact data
 type AddressBookContactData = {
@@ -7,6 +8,16 @@ type AddressBookContactData = {
 };
 
 describe('user-storage/address-book-syncing/setup-subscriptions - setupAddressBookSyncingSubscriptions', () => {
+  beforeEach(() => {
+    jest
+      .spyOn(SyncUtils, 'canPerformAddressBookSyncing')
+      .mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it('should subscribe to contactUpdated and contactDeleted events', () => {
     const options = {
       getMessenger: jest.fn().mockReturnValue({
@@ -53,7 +64,6 @@ describe('user-storage/address-book-syncing/setup-subscriptions - setupAddressBo
     const options = {
       getMessenger: jest.fn().mockReturnValue({
         subscribe: mockSubscribe,
-        call: jest.fn().mockReturnValue(true), // Mock canPerformAddressBookSyncing to return true
       }),
       getUserStorageControllerInstance: jest.fn().mockReturnValue({
         syncAddressBookWithUserStorage: mockSyncAddressBookWithUserStorage,
@@ -89,6 +99,11 @@ describe('user-storage/address-book-syncing/setup-subscriptions - setupAddressBo
   });
 
   it('should not call syncAddressBookWithUserStorage when canPerformAddressBookSyncing returns false', () => {
+    // Override the default mock to return false for this test
+    jest
+      .spyOn(SyncUtils, 'canPerformAddressBookSyncing')
+      .mockImplementation(() => false);
+
     // Store the callbacks
     const callbacks: Record<string, (data: AddressBookContactData) => void> =
       {};
@@ -104,11 +119,9 @@ describe('user-storage/address-book-syncing/setup-subscriptions - setupAddressBo
 
     const mockSyncAddressBookWithUserStorage = jest.fn();
 
-    // Set up the mock to make canPerformAddressBookSyncing return false
     const options = {
       getMessenger: jest.fn().mockReturnValue({
         subscribe: mockSubscribe,
-        call: jest.fn().mockReturnValue(false), // This will make canPerformAddressBookSyncing return false
       }),
       getUserStorageControllerInstance: jest.fn().mockReturnValue({
         syncAddressBookWithUserStorage: mockSyncAddressBookWithUserStorage,
