@@ -7,7 +7,7 @@ import {
   checkAndDownloadBinaries,
   getBinaryArchiveUrl,
   getCacheDirectory,
-} from '.';
+} from './index';
 import { isCodedError } from './utils';
 import { parseArgs } from './options';
 import type { Binary, Checksums } from './types';
@@ -65,7 +65,7 @@ jest.mock('./options', () => ({
   extractFrom: jest.fn().mockResolvedValue(['mock/path/to/binary']),
 }));
 
-export const mockInstallBinaries = async (
+const mockInstallBinaries = async (
   downloadedBinaries: Dir,
   BIN_DIR: string,
   cachePath: string,
@@ -109,7 +109,7 @@ export const mockInstallBinaries = async (
   return mockOperations;
 };
 
-export const mockDownloadAndInstallFoundryBinaries = async (): Promise<
+const mockDownloadAndInstallFoundryBinaries = async (): Promise<
   { operation: string; details?: OperationDetails }[]
 > => {
   const operations: { operation: string; details?: OperationDetails }[] = [];
@@ -170,7 +170,7 @@ describe('foundryup', () => {
       (readFileSync as jest.Mock).mockReturnValue('dummy yaml content');
 
       const result = getCacheDirectory();
-      expect(result).toMatch(/^\/home\/.*\/.cache\/metamask$/u);
+      expect(result).toMatch(/\/\.cache\/metamask$/u);
     });
 
     it('uses local cache when global cache is disabled', () => {
@@ -223,6 +223,8 @@ describe('foundryup', () => {
 
       nock.cleanAll();
       nock('https://example.com')
+        .head('/binaries')
+        .reply(500, 'Internal Server Error')
         .get('/binaries')
         .reply(500, 'Internal Server Error');
 
@@ -234,7 +236,7 @@ describe('foundryup', () => {
           Platform.Linux,
           Architecture.Amd64,
         ),
-      ).rejects.toThrow();
+      ).rejects.toThrow('Failed to download binaries');
     });
   });
 
@@ -418,14 +420,12 @@ describe('foundryup', () => {
 
       (parseArgs as jest.Mock).mockReturnValue(mockCleanArgs);
 
-      try {
-        await mockDownloadAndInstallFoundryBinaries();
-      } catch (error: unknown) {
-        expect(error).toBeInstanceOf(Error);
-        expect((error as Error).message).toBe('Mock error');
-      }
+      await expect(mockDownloadAndInstallFoundryBinaries()).rejects.toThrow(
+        'Mock error',
+      );
 
       consoleSpy.mockRestore();
     });
   });
 });
+

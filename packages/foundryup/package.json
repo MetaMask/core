@@ -39,11 +39,13 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@types/jest": "^27.4.1",
+    "@types/nock": "^13.3.0",
     "@types/unzipper": "^0.10.10",
     "@types/yargs": "^17.0.32",
     "@types/yargs-parser": "^21.0.3",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
+    "nock": "^13.5.4",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
