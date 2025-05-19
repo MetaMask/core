@@ -1,7 +1,9 @@
 export type {
   PooledStakingState,
-  StablecoinLendingState,
-  StablecoinVault,
+  LendingState,
+  LendingMarketWithPosition,
+  LendingPositionWithMarket,
+  LendingPositionWithMarketReference,
   EarnControllerState,
   EarnControllerGetStateAction,
   EarnControllerStateChangeEvent,
@@ -15,3 +17,18 @@ export {
   getDefaultEarnControllerState,
   EarnController,
 } from './EarnController';
+
+export {
+  selectLendingMarkets,
+  selectLendingPositions,
+  selectLendingMarketsWithPosition,
+  selectLendingPositionsByProtocol,
+  selectLendingMarketByProtocolAndTokenAddress,
+  selectLendingMarketForProtocolAndTokenAddress,
+  selectLendingPositionsByChainId,
+  selectLendingMarketsByChainId,
+  selectLendingMarketsByProtocolAndId,
+  selectLendingMarketForProtocolAndId,
+  selectLendingPositionsWithMarket,
+  selectLendingMarketsForChainId,
+} from './selectors';
