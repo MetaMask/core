@@ -207,6 +207,19 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       },
     );
 
+    this.messagingSystem.subscribe(
+      'MultichainTransactionsController:transactionConfirmed',
+      (transactionMeta) => {
+        const { type, id } = transactionMeta;
+        if (type === TransactionType.swap) {
+          this.#trackUnifiedSwapBridgeEvent(
+            UnifiedSwapBridgeEventName.Completed,
+            id,
+          );
+        }
+      },
+    );
+
     // If you close the extension, but keep the browser open, the polling continues
     // If you close the browser, the polling stops
     // Check for historyItems that do not have a status of complete and restart polling
