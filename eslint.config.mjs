@@ -9,6 +9,7 @@ const config = createConfig([
   ...base,
   {
     ignores: [
+      '**/api-docs/**',
       '**/dist/**',
       '**/docs/**',
       '**/coverage/**',

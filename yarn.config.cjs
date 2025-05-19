@@ -119,7 +119,7 @@ module.exports = defineConfig({
         );
 
         // All non-root packages must have the same "build:docs" script.
-        expectWorkspaceField(workspace, 'scripts.build:docs', 'typedoc');
+        expectWorkspaceField(workspace, 'scripts.build:docs', null);
 
         if (isPrivate) {
           // All private, non-root packages must not have a "publish:preview"
@@ -188,6 +188,32 @@ module.exports = defineConfig({
         // development-only scripts, as otherwise the
         // `node/no-unpublished-require` ESLint rule will disallow it.)
         expectWorkspaceField(workspace, 'files', []);
+      }
+
+      if (isChildWorkspace) {
+        // No non-root workspace should have typedoc or
+        // typedoc-plugin-missing-exports.
+        expectWorkspaceField(workspace, 'devDependencies["typedoc"]', null);
+        expectWorkspaceField(
+          workspace,
+          'devDependencies["typedoc-plugin-missing-exports"]',
+          null,
+        );
+
+        // All non-root workspaces should have a typedoc.json file.
+        if (!(await workspaceFileExists(workspace, 'typedoc.json'))) {
+          workspace.error('Could not find typedoc.json');
+        }
+      } else {
+        // The root workspace should have typedoc.json and typedoc.packages.json
+        // files.
+        if (!(await workspaceFileExists(workspace, 'typedoc.json'))) {
+          workspace.error('Could not find typedoc.json');
+        }
+
+        if (!(await workspaceFileExists(workspace, 'typedoc.packages.json'))) {
+          workspace.error('Could not find typedoc.packages.json');
+        }
       }
 
       // If one workspace package lists another workspace package within

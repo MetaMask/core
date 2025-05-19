@@ -1,0 +1,15 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "out": "api-docs",
+  "entryPointStrategy": "packages",
+  "entryPoints": [
+    "packages/base-controller",
+    "packages/accounts-controller",
+    "packages/multichain-transactions-controller",
+    "packages/token-search-discovery-controller"
+  ],
+  "packageOptions": {
+    "excludePrivate": true,
+    "hideGenerator": true
+  }
+}

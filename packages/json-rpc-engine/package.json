@@ -39,7 +39,6 @@
   ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
-    "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/json-rpc-engine --tag-prefix-before-package-rename json-rpc-engine@ --version-before-package-rename 6.1.0",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/json-rpc-engine --tag-prefix-before-package-rename json-rpc-engine@ --version-before-package-rename 6.1.0",
     "lint": "yarn lint:eslint && yarn lint:misc --check && yarn lint:dependencies && yarn lint:changelog",
@@ -69,7 +68,6 @@
     "jest": "^27.5.1",
     "jest-it-up": "^2.0.2",
     "ts-jest": "^27.1.4",
-    "typedoc": "^0.24.8",
     "typescript": "~5.2.2"
   },
   "engines": {

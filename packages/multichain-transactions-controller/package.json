@@ -36,7 +36,6 @@
   ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
-    "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/multichain-transactions-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/multichain-transactions-controller",
     "publish:preview": "yarn npm publish --tag preview",
@@ -68,8 +67,6 @@
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "ts-jest": "^27.1.4",
-    "typedoc": "^0.24.8",
-    "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.2.2"
   },
   "peerDependencies": {

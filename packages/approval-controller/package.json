@@ -36,7 +36,6 @@
   ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
-    "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/approval-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/approval-controller",
     "publish:preview": "yarn npm publish --tag preview",
@@ -59,8 +58,6 @@
     "jest": "^27.5.1",
     "sinon": "^9.2.4",
     "ts-jest": "^27.1.4",
-    "typedoc": "^0.24.8",
-    "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.2.2"
   },
   "engines": {
