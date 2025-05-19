@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** bump `@metamask/accounts-controller` peer dependency to `^30.0.0` ([#5888](https://github.com/MetaMask/core/pull/5888))
 - Bump `@metamask/controller-utils` to `^11.9.0` ([#5812](https://github.com/MetaMask/core/pull/5812))
+- **BREAKING:** bump `@metamask/stake-sdk` peer dependency to `3.0.0` ([#5828](https://github.com/MetaMask/core/pull/5828))
 
 ## [0.14.0]
 
