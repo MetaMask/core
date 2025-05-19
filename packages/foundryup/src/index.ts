@@ -26,7 +26,12 @@ export function getCacheDirectory(): string {
     const parsedConfig = parseYaml(configFileContent);
     enableGlobalCache = parsedConfig?.enableGlobalCache ?? false;
   } catch (error) {
-    console.error('Error reading/parsing .yarnrc.yml:', error);
+    // If file doesn't exist or can't be read, default to local cache
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return join(cwd(), '.metamask', 'cache');
+    }
+    // For other errors, log but continue with default
+    console.warn('Warning: Error reading .yarnrc.yml, using local cache:', error);
   }
   return enableGlobalCache
     ? join(homedir(), '.cache', 'metamask')
