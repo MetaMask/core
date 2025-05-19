@@ -41,6 +41,7 @@ const EMPTY_INIT_STATE: BridgeStatusControllerState = {
   ...DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
 };
 
+const mockMessengerSubscribe = jest.fn();
 const MockStatusResponse = {
   getPending: ({
     srcTxHash = '0xsrcTxHash1',
@@ -465,6 +466,7 @@ const getMessengerMock = ({
       }
       return null;
     }),
+    subscribe: mockMessengerSubscribe,
     publish: jest.fn(),
     registerActionHandler: jest.fn(),
     registerInitialEventPayload: jest.fn(),
@@ -527,6 +529,7 @@ const getController = (call: jest.Mock, traceFn?: jest.Mock) => {
   const controller = new BridgeStatusController({
     messenger: {
       call,
+      subscribe: mockMessengerSubscribe,
       publish: jest.fn(),
       registerActionHandler: jest.fn(),
       registerInitialEventPayload: jest.fn(),
@@ -567,6 +570,7 @@ describe('BridgeStatusController', () => {
         addUserOperationFromTransactionFn: jest.fn(),
       });
       expect(bridgeStatusController.state).toStrictEqual(EMPTY_INIT_STATE);
+      expect(mockMessengerSubscribe.mock.calls).toMatchSnapshot();
     });
     it('rehydrates the tx history state', async () => {
       // Setup
@@ -993,6 +997,7 @@ describe('BridgeStatusController', () => {
           }
           return null;
         }),
+        subscribe: mockMessengerSubscribe,
         publish: jest.fn(),
         registerActionHandler: jest.fn(),
         registerInitialEventPayload: jest.fn(),
@@ -1079,6 +1084,7 @@ describe('BridgeStatusController', () => {
           }
           return null;
         }),
+        subscribe: mockMessengerSubscribe,
         publish: jest.fn(),
         registerActionHandler: jest.fn(),
         registerInitialEventPayload: jest.fn(),
@@ -1179,6 +1185,7 @@ describe('BridgeStatusController', () => {
           }
           return null;
         }),
+        subscribe: mockMessengerSubscribe,
         publish: jest.fn(),
         registerActionHandler: jest.fn(),
         registerInitialEventPayload: jest.fn(),

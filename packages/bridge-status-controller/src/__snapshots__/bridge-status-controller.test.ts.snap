@@ -120,6 +120,23 @@ Object {
 }
 `;
 
+exports[`BridgeStatusController constructor should setup correctly 1`] = `
+Array [
+  Array [
+    "TransactionController:transactionFailed",
+    [Function],
+  ],
+  Array [
+    "TransactionController:transactionConfirmed",
+    [Function],
+  ],
+  Array [
+    "MultichainTransactionsController:transactionConfirmed",
+    [Function],
+  ],
+]
+`;
+
 exports[`BridgeStatusController startPollingForBridgeTxStatus emits bridgeTransactionFailed event when the status response is failed 1`] = `
 Array [
   Array [
