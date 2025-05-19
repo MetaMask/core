@@ -26,6 +26,8 @@ import type {
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type {
   TransactionControllerGetStateAction,
+  TransactionControllerTransactionConfirmedEvent,
+  TransactionControllerTransactionFailedEvent,
   TransactionMeta,
 } from '@metamask/transaction-controller';
 
@@ -349,7 +351,9 @@ type AllowedActions =
 /**
  * The external events available to the BridgeStatusController.
  */
-type AllowedEvents = never;
+type AllowedEvents =
+  | TransactionControllerTransactionFailedEvent
+  | TransactionControllerTransactionConfirmedEvent;
 
 /**
  * The messenger for the BridgeStatusController.
