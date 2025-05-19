@@ -228,6 +228,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         const srcTxMetaId = historyItem.txMetaId;
         const pollingToken = this.#pollingTokensByTxMetaId[srcTxMetaId];
         return !pollingToken;
+      })
+      // Swap txs don't need to have their statuses polled
+      .filter((historyItem) => {
+        const isBridgeTx = isCrossChain(
+          historyItem.quote.srcChainId,
+          historyItem.quote.destChainId,
+        );
+        return isBridgeTx;
       });
 
     incompleteHistoryItems.forEach((historyItem) => {
