@@ -12,6 +12,7 @@ import {
   enums,
   define,
   union,
+  assert,
 } from '@metamask/superstruct';
 import { isStrictHexString } from '@metamask/utils';
 
@@ -58,6 +59,7 @@ export const validateFeatureFlagsResponse = (
     isActiveDest: boolean(),
     refreshRate: optional(number()),
     topAssets: optional(array(string())),
+    isUnifiedUIEnabled: optional(boolean()),
   });
 
   const PlatformConfigSchema = type({
@@ -133,5 +135,6 @@ export const validateQuoteResponse = (data: unknown): data is QuoteResponse => {
     estimatedProcessingTimeInSeconds: number(),
   });
 
-  return is(data, QuoteResponseSchema);
+  assert(data, QuoteResponseSchema);
+  return true;
 };

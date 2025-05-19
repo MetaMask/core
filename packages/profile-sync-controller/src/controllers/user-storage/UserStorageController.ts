@@ -70,11 +70,11 @@ export type UserStorageControllerState = {
   /**
    * Condition used by UI and to determine if we can use some of the User Storage methods.
    */
-  isProfileSyncingEnabled: boolean;
+  isBackupAndSyncEnabled: boolean;
   /**
-   * Loading state for the profile syncing update
+   * Loading state for the backup and sync update
    */
-  isProfileSyncingUpdateLoading: boolean;
+  isBackupAndSyncUpdateLoading: boolean;
   /**
    * Condition used by UI to determine if account syncing is enabled.
    */
@@ -104,8 +104,8 @@ export type UserStorageControllerState = {
 };
 
 export const defaultState: UserStorageControllerState = {
-  isProfileSyncingEnabled: true,
-  isProfileSyncingUpdateLoading: false,
+  isBackupAndSyncEnabled: true,
+  isBackupAndSyncUpdateLoading: false,
   isAccountSyncingEnabled: true,
   isAddressBookSyncingEnabled: true,  
   hasAccountSyncingSyncedAtLeastOnce: false,
@@ -114,11 +114,11 @@ export const defaultState: UserStorageControllerState = {
 };
 
 const metadata: StateMetadata<UserStorageControllerState> = {
-  isProfileSyncingEnabled: {
+  isBackupAndSyncEnabled: {
     persist: true,
     anonymous: true,
   },
-  isProfileSyncingUpdateLoading: {
+  isBackupAndSyncUpdateLoading: {
     persist: false,
     anonymous: false,
   },
@@ -667,7 +667,7 @@ export default class UserStorageController extends BaseController<
     enabled: boolean,
   ): Promise<void> {
     try {
-      this.#setIsProfileSyncingUpdateLoading(true);
+      this.#setIsBackupAndSyncUpdateLoading(true);
 
       if (enabled) {
         // If any of the features are enabled, we need to ensure the user is signed in
@@ -679,7 +679,7 @@ export default class UserStorageController extends BaseController<
 
       this.update((state) => {
         if (feature === BACKUPANDSYNC_FEATURES.main) {
-          state.isProfileSyncingEnabled = enabled;
+          state.isBackupAndSyncEnabled = enabled;
         }
 
         if (feature === BACKUPANDSYNC_FEATURES.accountSyncing) {
@@ -698,15 +698,15 @@ export default class UserStorageController extends BaseController<
         `${controllerName} - failed to ${enabled ? 'enable' : 'disable'} ${feature} - ${errorMessage}`,
       );
     } finally {
-      this.#setIsProfileSyncingUpdateLoading(false);
+      this.#setIsBackupAndSyncUpdateLoading(false);
     }
   }
 
-  #setIsProfileSyncingUpdateLoading(
-    isProfileSyncingUpdateLoading: boolean,
+  #setIsBackupAndSyncUpdateLoading(
+    isBackupAndSyncUpdateLoading: boolean,
   ): void {
     this.update((state) => {
-      state.isProfileSyncingUpdateLoading = isProfileSyncingUpdateLoading;
+      state.isBackupAndSyncUpdateLoading = isBackupAndSyncUpdateLoading;
     });
   }
 
