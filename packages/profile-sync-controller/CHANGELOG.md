@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Temporarily add back previously deleted state properties `isProfileSyncingEnabled` and `isProfileSyncingUpdateLoading` so that state transformers don't throw on clients.
+
 ## [15.0.0]
 
 ### Changed

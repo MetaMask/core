@@ -61,9 +61,17 @@ export type UserStorageControllerState = {
    */
   isBackupAndSyncEnabled: boolean;
   /**
+   * @deprecated This feature is no longer used or supported
+   */
+  isProfileSyncingEnabled: boolean;
+  /**
    * Loading state for the backup and sync update
    */
   isBackupAndSyncUpdateLoading: boolean;
+  /**
+   * @deprecated This feature is no longer used or supported
+   */
+  isProfileSyncingUpdateLoading: boolean;
   /**
    * Condition used by UI to determine if account syncing is enabled.
    */
@@ -90,7 +98,9 @@ export type UserStorageControllerState = {
 
 export const defaultState: UserStorageControllerState = {
   isBackupAndSyncEnabled: true,
+  isProfileSyncingEnabled: true,
   isBackupAndSyncUpdateLoading: false,
+  isProfileSyncingUpdateLoading: false,
   isAccountSyncingEnabled: true,
   hasAccountSyncingSyncedAtLeastOnce: false,
   isAccountSyncingReadyToBeDispatched: false,
@@ -102,7 +112,15 @@ const metadata: StateMetadata<UserStorageControllerState> = {
     persist: true,
     anonymous: true,
   },
+  isProfileSyncingEnabled: {
+    persist: true,
+    anonymous: true,
+  },
   isBackupAndSyncUpdateLoading: {
+    persist: false,
+    anonymous: false,
+  },
+  isProfileSyncingUpdateLoading: {
     persist: false,
     anonymous: false,
   },
