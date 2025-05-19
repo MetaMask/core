@@ -26,8 +26,6 @@ export type {
   BridgeStatusControllerResetStateAction,
   BridgeStatusControllerEvents,
   BridgeStatusControllerStateChangeEvent,
-  BridgeStatusControllerBridgeTransactionCompleteEvent,
-  BridgeStatusControllerBridgeTransactionFailedEvent,
   StartPollingForBridgeTxStatusArgs,
   StartPollingForBridgeTxStatusArgsSerialized,
   TokenAmountValuesSerialized,

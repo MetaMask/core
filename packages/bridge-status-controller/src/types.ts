@@ -318,20 +318,8 @@ export type BridgeStatusControllerStateChangeEvent = ControllerStateChangeEvent<
   BridgeStatusControllerState
 >;
 
-export type BridgeStatusControllerBridgeTransactionCompleteEvent = {
-  type: `${typeof BRIDGE_STATUS_CONTROLLER_NAME}:bridgeTransactionComplete`;
-  payload: [{ bridgeHistoryItem: BridgeHistoryItem }];
-};
-
-export type BridgeStatusControllerBridgeTransactionFailedEvent = {
-  type: `${typeof BRIDGE_STATUS_CONTROLLER_NAME}:bridgeTransactionFailed`;
-  payload: [{ bridgeHistoryItem: BridgeHistoryItem }];
-};
-
 export type BridgeStatusControllerEvents =
-  | BridgeStatusControllerStateChangeEvent
-  | BridgeStatusControllerBridgeTransactionCompleteEvent
-  | BridgeStatusControllerBridgeTransactionFailedEvent;
+  BridgeStatusControllerStateChangeEvent;
 
 /**
  * The external actions available to the BridgeStatusController.

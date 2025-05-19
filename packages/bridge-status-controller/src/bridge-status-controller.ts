@@ -413,21 +413,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         this.stopPollingByPollingToken(pollingToken);
 
         if (status.status === StatusTypes.COMPLETE) {
-          this.messagingSystem.publish(
-            `${BRIDGE_STATUS_CONTROLLER_NAME}:bridgeTransactionComplete`,
-            { bridgeHistoryItem: newBridgeHistoryItem },
-          );
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Completed,
             bridgeTxMetaId,
           );
         }
         if (status.status === StatusTypes.FAILED) {
-          this.messagingSystem.publish(
-            `${BRIDGE_STATUS_CONTROLLER_NAME}:bridgeTransactionFailed`,
-            { bridgeHistoryItem: newBridgeHistoryItem },
-          );
-
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Failed,
             bridgeTxMetaId,
