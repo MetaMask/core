@@ -398,6 +398,38 @@ const MockTxHistory = {
       completionTime: undefined,
     },
   }),
+  getPendingSwap: ({
+    txMetaId = 'swapTxMetaId1',
+    srcTxHash = '0xsrcTxHash1',
+    account = '0xaccount1',
+    srcChainId = 42161,
+    destChainId = 42161,
+  } = {}): Record<string, BridgeHistoryItem> => ({
+    [txMetaId]: {
+      txMetaId,
+      quote: getMockQuote({ srcChainId, destChainId }),
+      startTime: 1729964825189,
+      estimatedProcessingTimeInSeconds: 15,
+      slippagePercentage: 0,
+      account,
+      status: MockStatusResponse.getPending({
+        srcTxHash,
+        srcChainId,
+      }),
+      targetContractAddress: '0x23981fC34e69eeDFE2BD9a0a9fCb0719Fe09DbFC',
+      initialDestAssetBalance: undefined,
+      pricingData: {
+        amountSent: '1.234',
+        amountSentInUsd: undefined,
+        quotedGasInUsd: undefined,
+        quotedReturnInUsd: undefined,
+      },
+      approvalTxId: undefined,
+      isStxEnabled: false,
+      hasApprovalTx: false,
+      completionTime: undefined,
+    },
+  }),
   getComplete: ({
     txMetaId = 'bridgeTxMetaId1',
     srcTxHash = '0xsrcTxHash1',
@@ -606,6 +638,7 @@ describe('BridgeStatusController', () => {
           txHistory: {
             ...MockTxHistory.getPending(),
             ...MockTxHistory.getUnknown(),
+            ...MockTxHistory.getPendingSwap(),
           },
         },
         clientId: BridgeClientId.EXTENSION,
