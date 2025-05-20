@@ -118,11 +118,11 @@ import type {
   GasFeeEstimateLevel as GasFeeEstimateLevelType,
 } from './types';
 import {
+  GasFeeEstimateLevel,
   TransactionEnvelopeType,
   TransactionType,
   TransactionStatus,
   SimulationErrorCode,
-  GasFeeEstimateLevel,
 } from './types';
 import {
   addTransactionBatch,
@@ -1024,6 +1024,11 @@ export class TransactionController extends BaseController<
   async addTransactionBatch(
     request: TransactionBatchRequest,
   ): Promise<TransactionBatchResult> {
+    const { blockTracker } = this.messagingSystem.call(
+      `NetworkController:getNetworkClientById`,
+      request.networkClientId,
+    );
+
     return await addTransactionBatch({
       addTransaction: this.addTransaction.bind(this),
       getChainId: this.#getChainId.bind(this),
@@ -1036,6 +1041,17 @@ export class TransactionController extends BaseController<
       publicKeyEIP7702: this.#publicKeyEIP7702,
       request,
       updateTransaction: this.#updateTransactionInternal.bind(this),
+      publishTransaction: (
+        ethQuery: EthQuery,
+        transactionMeta: TransactionMeta,
+      ) => this.#publishTransaction(ethQuery, transactionMeta) as Promise<Hex>,
+      getPendingTransactionTracker: (networkClientId: NetworkClientId) =>
+        this.#createPendingTransactionTracker({
+          provider: this.#getProvider({ networkClientId }),
+          blockTracker,
+          chainId: this.#getChainId(networkClientId),
+          networkClientId,
+        }),
     });
   }
 
