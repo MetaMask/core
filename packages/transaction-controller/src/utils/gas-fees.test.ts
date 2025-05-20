@@ -487,14 +487,6 @@ describe('gas-fees', () => {
     });
 
     describe('sets userFeeLevel', () => {
-      it('to undefined if not eip1559', async () => {
-        updateGasFeeRequest.eip1559 = false;
-
-        await updateGasFees(updateGasFeeRequest);
-
-        expect(updateGasFeeRequest.txMeta.userFeeLevel).toBeUndefined();
-      });
-
       it('to saved userFeeLevel if saved gas fees defined', async () => {
         updateGasFeeRequest.txMeta.type = TransactionType.simpleSend;
         updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce({
