@@ -25,6 +25,7 @@ describe('@metamask/controller-utils', () => {
         "handleFetch",
         "hexToBN",
         "hexToText",
+        "HttpError",
         "isNonEmptyArray",
         "isPlainObject",
         "isSafeChainId",

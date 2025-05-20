@@ -1,0 +1,41 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`validators bridgeStatusValidator should throw for invalid response for complete bridge status with missing fields 1`] = `
+Array [
+  Array [
+    [StructError: At path: srcChain -- Expected an object, but received: undefined],
+  ],
+]
+`;
+
+exports[`validators bridgeStatusValidator should throw for invalid response for empty object 1`] = `
+Array [
+  Array [
+    [StructError: At path: status -- Expected one of \`"UNKNOWN","FAILED","PENDING","COMPLETE"\`, but received: undefined],
+  ],
+]
+`;
+
+exports[`validators bridgeStatusValidator should throw for invalid response for null 1`] = `
+Array [
+  Array [
+    [StructError: Expected an object, but received: null],
+  ],
+]
+`;
+
+exports[`validators bridgeStatusValidator should throw for invalid response for pending bridge status with missing fields 1`] = `
+Array [
+  Array [
+    [StructError: At path: destChain.chainId -- Expected the value to satisfy a union of \`number | string\`, but received: undefined],
+  ],
+]
+`;
+
+exports[`validators bridgeStatusValidator should throw for invalid response for undefined 1`] = `
+Array [
+  Array [
+    [StructError: Expected an object, but received: undefined],
+  ],
+]
+`;
