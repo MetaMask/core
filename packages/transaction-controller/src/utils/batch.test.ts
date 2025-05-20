@@ -25,6 +25,7 @@ import {
   TransactionType,
 } from '..';
 import { flushPromises } from '../../../../tests/helpers';
+import { SequentialPublishBatchHook } from '../hooks/SequentialPublishBatchHook';
 import type { PublishBatchHook } from '../types';
 
 jest.mock('./eip7702');
@@ -35,6 +36,8 @@ jest.mock('./validation', () => ({
   ...jest.requireActual('./validation'),
   validateBatchRequest: jest.fn(),
 }));
+
+jest.mock('../hooks/SequentialPublishBatchHook');
 
 type AddBatchTransactionOptions = Parameters<typeof addTransactionBatch>[0];
 
@@ -160,6 +163,9 @@ describe('Batch Utils', () => {
   const getEIP7702SupportedChainsMock = jest.mocked(getEIP7702SupportedChains);
   const validateBatchRequestMock = jest.mocked(validateBatchRequest);
   const determineTransactionTypeMock = jest.mocked(determineTransactionType);
+  const sequentialPublishBatchHookMock = jest.mocked(
+    SequentialPublishBatchHook,
+  );
 
   const isAccountUpgradedToEIP7702Mock = jest.mocked(
     isAccountUpgradedToEIP7702,
@@ -186,6 +192,14 @@ describe('Batch Utils', () => {
       AddBatchTransactionOptions['updateTransaction']
     >;
 
+    let publishTransactionMock: jest.MockedFn<
+      AddBatchTransactionOptions['publishTransaction']
+    >;
+
+    let getPendingTransactionTrackerMock: jest.MockedFn<
+      AddBatchTransactionOptions['getPendingTransactionTracker']
+    >;
+
     let request: AddBatchTransactionOptions;
 
     beforeEach(() => {
@@ -193,6 +207,8 @@ describe('Batch Utils', () => {
       addTransactionMock = jest.fn();
       getChainIdMock = jest.fn();
       updateTransactionMock = jest.fn();
+      publishTransactionMock = jest.fn();
+      getPendingTransactionTrackerMock = jest.fn();
 
       determineTransactionTypeMock.mockResolvedValue({
         type: TransactionType.simpleSend,
@@ -231,6 +247,8 @@ describe('Batch Utils', () => {
           ],
         },
         updateTransaction: updateTransactionMock,
+        publishTransaction: publishTransactionMock,
+        getPendingTransactionTracker: getPendingTransactionTrackerMock,
       };
     });
 
@@ -1109,15 +1127,6 @@ describe('Batch Utils', () => {
         );
       });
 
-      it('throws if no publish batch hook', async () => {
-        await expect(
-          addTransactionBatch({
-            ...request,
-            request: { ...request.request, useHook: true },
-          }),
-        ).rejects.toThrow(rpcErrors.internal('No publish batch hook provided'));
-      });
-
       it('rejects individual publish hooks if batch hook throws', async () => {
         const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
 
@@ -1226,6 +1235,146 @@ describe('Batch Utils', () => {
         await flushPromises();
 
         await expect(publishHookPromise1).rejects.toThrow(ERROR_MESSAGE_MOCK);
+      });
+    });
+
+    describe('with sequential publish batch hook', () => {
+      let sequentialPublishBatchHook: jest.MockedFn<PublishBatchHook>;
+
+      beforeEach(() => {
+        sequentialPublishBatchHook = jest.fn();
+
+        addTransactionMock
+          .mockResolvedValueOnce({
+            transactionMeta: {
+              ...TRANSACTION_META_MOCK,
+              id: TRANSACTION_ID_MOCK,
+            },
+            result: Promise.resolve(''),
+          })
+          .mockResolvedValueOnce({
+            transactionMeta: {
+              ...TRANSACTION_META_MOCK,
+              id: TRANSACTION_ID_2_MOCK,
+            },
+            result: Promise.resolve(''),
+          });
+      });
+
+      const setupSequentialPublishBatchHookMock = (
+        hookImplementation: () => PublishBatchHook | undefined,
+      ) => {
+        sequentialPublishBatchHookMock.mockReturnValue({
+          getHook: hookImplementation,
+        } as unknown as SequentialPublishBatchHook);
+      };
+
+      const executePublishHooks = async () => {
+        const publishHooks = addTransactionMock.mock.calls.map(
+          ([, options]) => options.publishHook,
+        );
+
+        publishHooks[0]?.(
+          TRANSACTION_META_MOCK,
+          TRANSACTION_SIGNATURE_MOCK,
+        ).catch(() => {
+          // Intentionally empty
+        });
+
+        publishHooks[1]?.(
+          TRANSACTION_META_MOCK,
+          TRANSACTION_SIGNATURE_2_MOCK,
+        ).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+      };
+
+      it('calls sequentialPublishBatchHook when publishBatchHook is undefined', async () => {
+        sequentialPublishBatchHook.mockResolvedValueOnce({
+          results: [
+            {
+              transactionHash: TRANSACTION_HASH_MOCK,
+            },
+            {
+              transactionHash: TRANSACTION_HASH_2_MOCK,
+            },
+          ],
+        });
+
+        setupSequentialPublishBatchHookMock(() => sequentialPublishBatchHook);
+
+        addTransactionBatch({
+          ...request,
+          publishBatchHook: undefined,
+          request: { ...request.request, useHook: true },
+        }).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+        await executePublishHooks();
+
+        expect(sequentialPublishBatchHookMock).toHaveBeenCalledTimes(1);
+        expect(sequentialPublishBatchHook).toHaveBeenCalledTimes(1);
+        expect(sequentialPublishBatchHook).toHaveBeenCalledWith({
+          from: FROM_MOCK,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          transactions: [
+            expect.objectContaining({
+              id: TRANSACTION_ID_MOCK,
+              params: { data: DATA_MOCK, to: TO_MOCK, value: VALUE_MOCK },
+              signedTx: TRANSACTION_SIGNATURE_MOCK,
+            }),
+            expect.objectContaining({
+              id: TRANSACTION_ID_2_MOCK,
+              params: { data: DATA_MOCK, to: TO_MOCK, value: VALUE_MOCK },
+              signedTx: TRANSACTION_SIGNATURE_2_MOCK,
+            }),
+          ],
+        });
+      });
+
+      it('throws if sequentialPublishBatchHook does not return a result', async () => {
+        const publishBatchHookMock: jest.MockedFn<PublishBatchHook> = jest.fn();
+        publishBatchHookMock.mockResolvedValueOnce(undefined);
+        setupSequentialPublishBatchHookMock(() => publishBatchHookMock);
+
+        const resultPromise = addTransactionBatch({
+          ...request,
+          publishBatchHook: undefined,
+          request: { ...request.request, useHook: true },
+        });
+
+        resultPromise.catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+        await executePublishHooks();
+
+        await expect(resultPromise).rejects.toThrow(
+          'Publish batch hook did not return a result',
+        );
+        await flushPromises();
+        expect(sequentialPublishBatchHookMock).toHaveBeenCalledTimes(1);
+      });
+
+      it('handles individual transaction failures when using sequentialPublishBatchHook', async () => {
+        setupSequentialPublishBatchHookMock(() => {
+          throw new Error('Test error');
+        });
+
+        await expect(
+          addTransactionBatch({
+            ...request,
+            publishBatchHook: undefined,
+            request: { ...request.request, useHook: true },
+          }),
+        ).rejects.toThrow('Test error');
+
+        expect(sequentialPublishBatchHookMock).toHaveBeenCalledTimes(1);
       });
     });
   });
