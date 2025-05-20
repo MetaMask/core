@@ -5,6 +5,7 @@ import type {
   TopLosersParams,
   TrendingTokensParams,
   BlueChipParams,
+  ParamsBase,
 } from '../types';
 
 export class TokenDiscoveryApiService extends AbstractTokenDiscoveryApiService {
@@ -18,22 +19,18 @@ export class TokenDiscoveryApiService extends AbstractTokenDiscoveryApiService {
     this.#baseUrl = baseUrl;
   }
 
-  async getTrendingTokensByChains(
-    trendingTokensParams?: TrendingTokensParams,
-  ): Promise<MoralisTokenResponseItem[]> {
-    const url = new URL('/tokens-search/trending', this.#baseUrl);
+  async #fetch(subPath: string, params?: ParamsBase) {
+    const url = new URL(`/tokens-search/${subPath}`, this.#baseUrl);
 
-    if (
-      trendingTokensParams?.chains &&
-      trendingTokensParams.chains.length > 0
-    ) {
-      url.searchParams.append('chains', trendingTokensParams.chains.join());
-    }
-    if (trendingTokensParams?.limit) {
-      url.searchParams.append('limit', trendingTokensParams.limit);
+    if (params?.chains && params.chains.length > 0) {
+      url.searchParams.append('chains', params.chains.join());
     }
 
-    if (trendingTokensParams?.swappable) {
+    if (params?.limit) {
+      url.searchParams.append('limit', params.limit);
+    }
+
+    if (params?.swappable) {
       url.searchParams.append('swappable', 'true');
     }
 
@@ -51,101 +48,29 @@ export class TokenDiscoveryApiService extends AbstractTokenDiscoveryApiService {
     }
 
     return response.json();
+  }
+
+  async getTrendingTokensByChains(
+    trendingTokensParams?: TrendingTokensParams,
+  ): Promise<MoralisTokenResponseItem[]> {
+    return this.#fetch('trending', trendingTokensParams);
   }
 
   async getTopLosersByChains(
     topLosersParams?: TopLosersParams,
   ): Promise<MoralisTokenResponseItem[]> {
-    const url = new URL('/tokens-search/top-losers', this.#baseUrl);
-
-    if (topLosersParams?.chains && topLosersParams.chains.length > 0) {
-      url.searchParams.append('chains', topLosersParams.chains.join());
-    }
-    if (topLosersParams?.limit) {
-      url.searchParams.append('limit', topLosersParams.limit);
-    }
-
-    if (topLosersParams?.swappable) {
-      url.searchParams.append('swappable', 'true');
-    }
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        `Portfolio API request failed with status: ${response.status}`,
-      );
-    }
-
-    return response.json();
+    return this.#fetch('top-losers', topLosersParams);
   }
 
   async getTopGainersByChains(
     topGainersParams?: TopGainersParams,
   ): Promise<MoralisTokenResponseItem[]> {
-    const url = new URL('/tokens-search/top-gainers', this.#baseUrl);
-
-    if (topGainersParams?.chains && topGainersParams.chains.length > 0) {
-      url.searchParams.append('chains', topGainersParams.chains.join());
-    }
-    if (topGainersParams?.limit) {
-      url.searchParams.append('limit', topGainersParams.limit);
-    }
-
-    if (topGainersParams?.swappable) {
-      url.searchParams.append('swappable', 'true');
-    }
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        `Portfolio API request failed with status: ${response.status}`,
-      );
-    }
-
-    return response.json();
+    return this.#fetch('top-gainers', topGainersParams);
   }
 
   async getBlueChipTokensByChains(
     blueChipParams?: BlueChipParams,
   ): Promise<MoralisTokenResponseItem[]> {
-    const url = new URL('/tokens-search/blue-chip', this.#baseUrl);
-
-    if (blueChipParams?.chains && blueChipParams.chains.length > 0) {
-      url.searchParams.append('chains', blueChipParams.chains.join());
-    }
-    if (blueChipParams?.limit) {
-      url.searchParams.append('limit', blueChipParams.limit);
-    }
-
-    if (blueChipParams?.swappable) {
-      url.searchParams.append('swappable', 'true');
-    }
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        `Portfolio API request failed with status: ${response.status}`,
-      );
-    }
-
-    return response.json();
+    return this.#fetch('blue-chip', blueChipParams);
   }
 }

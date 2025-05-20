@@ -1,6 +1,6 @@
 // Function params
 
-type ParamsBase = {
+export type ParamsBase = {
   chains?: string[];
   limit?: string;
   swappable?: boolean;
