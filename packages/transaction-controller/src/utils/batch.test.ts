@@ -1274,52 +1274,30 @@ describe('Batch Utils', () => {
           ([, options]) => options.publishHook,
         );
 
-        publishHooks[0]?.(
-          TRANSACTION_META_MOCK,
-          TRANSACTION_SIGNATURE_MOCK,
-        ).catch(() => {
-          // Intentionally empty
-        });
-
-        publishHooks[1]?.(
-          TRANSACTION_META_MOCK,
-          TRANSACTION_SIGNATURE_2_MOCK,
-        ).catch(() => {
-          // Intentionally empty
-        });
+        for (const [index, publishHook] of publishHooks.entries()) {
+          publishHook?.(
+            TRANSACTION_META_MOCK,
+            index === 0
+              ? TRANSACTION_SIGNATURE_MOCK
+              : TRANSACTION_SIGNATURE_2_MOCK,
+          ).catch(() => {
+            // Intentionally empty
+          });
+        }
 
         await flushPromises();
       };
 
-      it('calls sequentialPublishBatchHook when publishBatchHook is undefined', async () => {
+      const mockSequentialPublishBatchHookResults = () => {
         sequentialPublishBatchHook.mockResolvedValueOnce({
           results: [
-            {
-              transactionHash: TRANSACTION_HASH_MOCK,
-            },
-            {
-              transactionHash: TRANSACTION_HASH_2_MOCK,
-            },
+            { transactionHash: TRANSACTION_HASH_MOCK },
+            { transactionHash: TRANSACTION_HASH_2_MOCK },
           ],
         });
+      };
 
-        setupSequentialPublishBatchHookMock(() => sequentialPublishBatchHook);
-
-        addTransactionBatch({
-          ...request,
-          publishBatchHook: undefined,
-          request: {
-            ...request.request,
-            useHook: true,
-            requireApproval: false,
-          },
-        }).catch(() => {
-          // Intentionally empty
-        });
-
-        await flushPromises();
-        await executePublishHooks();
-
+      const assertSequentialPublishBatchHookCalled = () => {
         expect(sequentialPublishBatchHookMock).toHaveBeenCalledTimes(1);
         expect(sequentialPublishBatchHook).toHaveBeenCalledTimes(1);
         expect(sequentialPublishBatchHook).toHaveBeenCalledWith({
@@ -1338,9 +1316,34 @@ describe('Batch Utils', () => {
             }),
           ],
         });
+      };
+
+      it('invokes sequentialPublishBatchHook when publishBatchHook is undefined', async () => {
+        mockSequentialPublishBatchHookResults();
+        setupSequentialPublishBatchHookMock(() => sequentialPublishBatchHook);
+
+        const resultPromise = addTransactionBatch({
+          ...request,
+          publishBatchHook: undefined,
+          request: {
+            ...request.request,
+            useHook: true,
+            requireApproval: false,
+          },
+        }).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+        await executePublishHooks();
+
+        assertSequentialPublishBatchHookCalled();
+
+        const result = await resultPromise;
+        expect(result?.batchId).toMatch(/^0x[0-9a-f]{32}$/u);
       });
 
-      it('handles individual transaction failures when using sequentialPublishBatchHook', async () => {
+      it('throws an error when sequentialPublishBatchHook fails', async () => {
         setupSequentialPublishBatchHookMock(() => {
           throw new Error('Test error');
         });
@@ -1354,6 +1357,44 @@ describe('Batch Utils', () => {
         ).rejects.toThrow('Test error');
 
         expect(sequentialPublishBatchHookMock).toHaveBeenCalledTimes(1);
+      });
+
+      it('creates an approval request for sequential publish batch hook', async () => {
+        const { approve } = mockRequestApproval(MESSENGER_MOCK, {
+          state: 'approved',
+        });
+        mockSequentialPublishBatchHookResults();
+        setupSequentialPublishBatchHookMock(() => sequentialPublishBatchHook);
+
+        const resultPromise = addTransactionBatch({
+          ...request,
+          publishBatchHook: undefined,
+          messenger: MESSENGER_MOCK,
+          request: { ...request.request, useHook: true, origin },
+        }).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+        approve();
+        await executePublishHooks();
+
+        expect(MESSENGER_MOCK.call).toHaveBeenCalledWith(
+          'ApprovalController:addRequest',
+          expect.objectContaining({
+            id: expect.any(String),
+            origin: 'http://localhost',
+            requestData: { txBatchId: expect.any(String) },
+            expectsResult: true,
+            type: 'transaction_batch',
+          }),
+          true,
+        );
+
+        assertSequentialPublishBatchHookCalled();
+
+        const result = await resultPromise;
+        expect(result?.batchId).toMatch(/^0x[0-9a-f]{32}$/u);
       });
     });
   });
