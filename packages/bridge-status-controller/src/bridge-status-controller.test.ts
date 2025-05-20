@@ -1517,7 +1517,7 @@ describe('BridgeStatusController', () => {
     });
   });
 
-  describe('submitTx: EVM', () => {
+  describe('submitTx: EVM bridge', () => {
     const mockEvmQuoteResponse = {
       ...getMockQuote(),
       quote: {
@@ -1919,6 +1919,264 @@ describe('BridgeStatusController', () => {
       );
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
       expect(mockTraceFn.mock.calls).toMatchSnapshot();
+    });
+  });
+
+  describe('submitTx: EVM swap', () => {
+    const mockEvmQuoteResponse = {
+      ...getMockQuote(),
+      quote: {
+        ...getMockQuote(),
+        srcChainId: 42161,
+        destChainId: 42161,
+      },
+      estimatedProcessingTimeInSeconds: 0,
+      sentAmount: { amount: '1.234', valueInCurrency: null, usd: null },
+      toTokenAmount: { amount: '1.234', valueInCurrency: null, usd: null },
+      totalNetworkFee: { amount: '1.234', valueInCurrency: null, usd: null },
+      totalMaxNetworkFee: { amount: '1.234', valueInCurrency: null, usd: null },
+      gasFee: { amount: '1.234', valueInCurrency: null, usd: null },
+      adjustedReturn: { valueInCurrency: null, usd: null },
+      swapRate: '1.234',
+      cost: { valueInCurrency: null, usd: null },
+      trade: {
+        from: '0xaccount1',
+        to: '0xbridgeContract',
+        value: '0x0',
+        data: '0xdata',
+        chainId: 42161,
+        gasLimit: 21000,
+      },
+      approval: {
+        from: '0xaccount1',
+        to: '0xtokenContract',
+        value: '0x0',
+        data: '0xapprovalData',
+        chainId: 42161,
+        gasLimit: 21000,
+      },
+    } as QuoteResponse & QuoteMetadata;
+
+    const mockEvmTxMeta = {
+      id: 'test-tx-id',
+      hash: '0xevmTxHash',
+      time: 1234567890,
+      status: 'unapproved',
+      type: TransactionType.swap,
+      chainId: '0xa4b1', // 42161 in hex
+      txParams: {
+        from: '0xaccount1',
+        to: '0xbridgeContract',
+        value: '0x0',
+        data: '0xdata',
+        chainId: '0xa4b1',
+        gasLimit: '0x5208',
+      },
+    };
+
+    const mockApprovalTxMeta = {
+      id: 'test-approval-tx-id',
+      hash: '0xapprovalTxHash',
+      time: 1234567890,
+      status: 'unapproved',
+      type: TransactionType.swapApproval,
+      chainId: '0xa4b1', // 42161 in hex
+      txParams: {
+        from: '0xaccount1',
+        to: '0xtokenContract',
+        value: '0x0',
+        data: '0xapprovalData',
+        chainId: '0xa4b1',
+        gasLimit: '0x5208',
+      },
+    };
+
+    const mockEstimateGasFeeResult = {
+      estimates: {
+        high: {
+          suggestedMaxFeePerGas: '0x1234',
+          suggestedMaxPriorityFeePerGas: '0x5678',
+        },
+      },
+    };
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+      jest.spyOn(Date, 'now').mockReturnValue(1234567890);
+      jest.spyOn(Math, 'random').mockReturnValue(0.456);
+    });
+
+    const setupApprovalMocks = () => {
+      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+      mockMessengerCall.mockReturnValueOnce('arbitrum-client-id');
+      mockMessengerCall.mockReturnValueOnce({
+        gasFeeEstimates: { estimatedBaseFee: '0x1234' },
+      });
+      estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
+      addTransactionFn.mockResolvedValueOnce({
+        transactionMeta: mockApprovalTxMeta,
+        result: Promise.resolve('0xapprovalTxHash'),
+      });
+      mockMessengerCall.mockReturnValueOnce({
+        transactions: [mockApprovalTxMeta],
+      });
+    };
+
+    const setupBridgeMocks = () => {
+      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+      mockMessengerCall.mockReturnValueOnce('arbitrum');
+      mockMessengerCall.mockReturnValueOnce({
+        gasFeeEstimates: { estimatedBaseFee: '0x1234' },
+      });
+      estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
+      addTransactionFn.mockResolvedValueOnce({
+        transactionMeta: mockEvmTxMeta,
+        result: Promise.resolve('0xevmTxHash'),
+      });
+      mockMessengerCall.mockReturnValueOnce({
+        transactions: [mockEvmTxMeta],
+      });
+
+      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+    };
+
+    it('should successfully submit an EVM swap transaction with approval', async () => {
+      setupApprovalMocks();
+      setupBridgeMocks();
+
+      const { controller, startPollingForBridgeTxStatusSpy } =
+        getController(mockMessengerCall);
+      const result = await controller.submitTx(mockEvmQuoteResponse, false);
+      controller.stopAllPolling();
+
+      expect(result).toMatchSnapshot();
+      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
+      expect(
+        startPollingForBridgeTxStatusSpy.mock.lastCall[0].statusRequest,
+      ).toMatchSnapshot();
+      expect(
+        startPollingForBridgeTxStatusSpy.mock.lastCall[0].bridgeTxMeta,
+      ).toStrictEqual(result);
+      expect(startPollingForBridgeTxStatusSpy.mock.lastCall[0].startTime).toBe(
+        1234567890,
+      );
+      expect(addTransactionFn.mock.calls).toMatchSnapshot();
+      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+      expect(addUserOperationFromTransactionFn).not.toHaveBeenCalled();
+    });
+
+    it('should successfully submit an EVM swap transaction with no approval', async () => {
+      setupBridgeMocks();
+
+      const { controller, startPollingForBridgeTxStatusSpy } =
+        getController(mockMessengerCall);
+      const erc20Token = {
+        address: '0x0000000000000000000000000000000000000032',
+        assetId: `eip155:10/slip44:60` as CaipAssetType,
+        chainId: 10,
+        symbol: 'WETH',
+        decimals: 18,
+        name: 'WETH',
+        coinKey: 'WETH',
+        logoURI:
+          'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png',
+        priceUSD: '2478.63',
+        icon: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png',
+      };
+      const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+      const result = await controller.submitTx(
+        {
+          ...quoteWithoutApproval,
+          quote: { ...quoteWithoutApproval.quote, destAsset: erc20Token },
+        },
+        false,
+      );
+
+      expect(result).toMatchSnapshot();
+      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
+      expect(
+        startPollingForBridgeTxStatusSpy.mock.lastCall[0].statusRequest,
+      ).toMatchSnapshot();
+      expect(
+        startPollingForBridgeTxStatusSpy.mock.lastCall[0].bridgeTxMeta,
+      ).toStrictEqual(result);
+      expect(startPollingForBridgeTxStatusSpy.mock.lastCall[0].startTime).toBe(
+        1234567890,
+      );
+      expect(estimateGasFeeFn.mock.calls).toMatchSnapshot();
+      expect(addTransactionFn.mock.calls).toMatchSnapshot();
+      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+      expect(addUserOperationFromTransactionFn).not.toHaveBeenCalled();
+    });
+
+    it('should handle smart transactions', async () => {
+      setupBridgeMocks();
+
+      const { controller, startPollingForBridgeTxStatusSpy } =
+        getController(mockMessengerCall);
+      const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+      const result = await controller.submitTx(quoteWithoutApproval, true);
+      controller.stopAllPolling();
+
+      expect(result).toMatchSnapshot();
+      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
+      expect(
+        startPollingForBridgeTxStatusSpy.mock.lastCall[0].statusRequest,
+      ).toMatchSnapshot();
+      expect(
+        startPollingForBridgeTxStatusSpy.mock.lastCall[0].bridgeTxMeta,
+      ).toStrictEqual(result);
+      expect(startPollingForBridgeTxStatusSpy.mock.lastCall[0].startTime).toBe(
+        1234567890,
+      );
+      expect(estimateGasFeeFn.mock.calls).toMatchSnapshot();
+      expect(addTransactionFn.mock.calls).toMatchSnapshot();
+      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+      expect(addUserOperationFromTransactionFn).not.toHaveBeenCalled();
+    });
+
+    it('should handle smart accounts (4337)', async () => {
+      mockMessengerCall.mockReturnValueOnce({
+        ...mockSelectedAccount,
+        type: EthAccountType.Erc4337,
+      });
+      mockMessengerCall.mockReturnValueOnce('arbitrum');
+      estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
+      mockMessengerCall.mockReturnValueOnce({
+        gasFeeEstimates: { estimatedBaseFee: '0x1234' },
+      });
+      addUserOperationFromTransactionFn.mockResolvedValueOnce({
+        id: 'user-op-id',
+        transactionHash: Promise.resolve('0xevmTxHash'),
+        hash: Promise.resolve('0xevmTxHash'),
+      });
+      mockMessengerCall.mockReturnValueOnce({
+        transactions: [mockEvmTxMeta],
+      });
+      estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
+
+      const { controller, startPollingForBridgeTxStatusSpy } =
+        getController(mockMessengerCall);
+      const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+      const result = await controller.submitTx(quoteWithoutApproval, false);
+      controller.stopAllPolling();
+
+      expect(result).toMatchSnapshot();
+      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
+      expect(
+        startPollingForBridgeTxStatusSpy.mock.lastCall[0].statusRequest,
+      ).toMatchSnapshot();
+      expect(
+        startPollingForBridgeTxStatusSpy.mock.lastCall[0].bridgeTxMeta,
+      ).toStrictEqual(result);
+      expect(startPollingForBridgeTxStatusSpy.mock.lastCall[0].startTime).toBe(
+        1234567890,
+      );
+      expect(estimateGasFeeFn.mock.calls).toMatchSnapshot();
+      expect(addTransactionFn).not.toHaveBeenCalled();
+      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+      expect(addUserOperationFromTransactionFn.mock.calls).toMatchSnapshot();
     });
   });
 
