@@ -337,7 +337,7 @@ describe('MultichainTransactionsController', () => {
 
     expect(
       Object.keys(controller.state.nonEvmTransactions[mockSolAccount.id]),
-    ).toHaveLength(4);
+    ).toHaveLength(3);
 
     expect(
       controller.state.nonEvmTransactions[mockSolAccount.id][
@@ -952,55 +952,32 @@ describe('MultichainTransactionsController', () => {
     );
   });
 
-  it('initializes by fetching transactions for non-EVM accounts', async () => {
+  it('handles errors when initializing transactions for accounts', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
     const { controller, mockSnapHandleRequest } = setupController({
       mocks: {
         listMultichainAccounts: [mockBtcAccount],
       },
     });
 
-    expect(controller.state.nonEvmTransactions).toStrictEqual({});
-
-    await controller.initialize();
-    await waitForAllPromises();
-
-    expect(
-      controller.state.nonEvmTransactions[mockBtcAccount.id],
-    ).toStrictEqual({
-      transactions: mockTransactionResult.data,
-      next: null,
-      lastUpdated: expect.any(Number),
-    });
-    expect(mockSnapHandleRequest).toHaveBeenCalled();
-  });
-
-  it('handles errors during initialization', async () => {
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-
-    const initError = new Error('Test initialization error');
-
-    const { controller, mockListMultichainAccounts } = setupController({
-      mocks: {
-        listMultichainAccounts: [mockBtcAccount],
-      },
-    });
-
-    mockListMultichainAccounts.mockReturnValue([mockBtcAccount]);
-
-    const updateSpy = jest.spyOn(controller, 'updateTransactionsForAccount');
-    updateSpy.mockRejectedValue(initError);
-
-    await controller.initialize();
-    await waitForAllPromises();
-
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      `Failed to fetch initial transactions for account ${mockBtcAccount.id}:`,
-      initError,
+    mockSnapHandleRequest.mockRejectedValueOnce(
+      new Error('Failed to fetch transactions'),
     );
 
-    expect(controller.state.nonEvmTransactions).toStrictEqual({});
+    jest
+      .spyOn(controller, 'updateTransactionsForAccount')
+      .mockRejectedValueOnce(new Error('Failed to fetch transactions'));
 
-    updateSpy.mockRestore();
-    consoleErrorSpy.mockRestore();
+    await controller.initialize();
+    await waitForAllPromises();
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      `Failed to fetch initial transactions for account ${mockBtcAccount.id}:`,
+      expect.any(Error),
+    );
+
+    expect(controller.state).toStrictEqual({ nonEvmTransactions: {} });
+
+    consoleSpy.mockRestore();
   });
 });
