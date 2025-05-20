@@ -1,7 +1,6 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import { keyFromPassword } from '@metamask/browser-passworder';
 import type {
   KeyPair,
   NodeAuthTokens,
@@ -14,7 +13,6 @@ import {
   stringToBytes,
   remove0x,
   bigIntToHex,
-  bytesToString,
 } from '@metamask/utils';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { Mutex } from 'async-mutex';
@@ -232,7 +230,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         });
         return authenticationResult;
       } catch (error) {
-        console.log('Error authenticating user', error);
+        log('Error authenticating user', error);
         throw new Error(SeedlessOnboardingControllerError.AuthenticationError);
       }
     });

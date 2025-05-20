@@ -208,7 +208,7 @@ function mockcreateLocalKey(toprfClient: ToprfSecureBackup, password: string) {
   const oprfKey = BigInt(0);
   const seed = stringToBytes(password);
 
-  jest.spyOn(toprfClient, 'createLocalKey').mockReturnValue({
+  jest.spyOn(toprfClient, 'createLocalKey').mockResolvedValueOnce({
     encKey,
     authKeyPair,
     oprfKey,
@@ -471,6 +471,42 @@ describe('SeedlessOnboardingController', () => {
             encryptor,
           }),
       ).not.toThrow();
+    });
+
+    it('should be able to instantiate with a toprfKeyDeriver', async () => {
+      const deriveKeySpy = jest.fn();
+      const MOCK_PASSWORD = 'mock-password';
+
+      const keyDeriver = {
+        deriveKey: (seed: Uint8Array, salt: Uint8Array) => {
+          deriveKeySpy(seed, salt);
+          return Promise.resolve(new Uint8Array());
+        },
+      };
+
+      await withController(
+        {
+          toprfKeyDeriver: keyDeriver,
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          // persist the local enc key
+          jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
+          // encrypt and store the secret data
+          const mockSecretDataAdd = handleMockSecretDataAdd();
+
+          await controller.createToprfKeyAndBackupSeedPhrase(
+            MOCK_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+
+          expect(mockSecretDataAdd.isDone()).toBe(true);
+          expect(deriveKeySpy).toHaveBeenCalled();
+        },
+      );
     });
   });
 
