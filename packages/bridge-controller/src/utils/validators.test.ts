@@ -105,6 +105,28 @@ describe('validators', () => {
         type: 'no response',
         expected: false,
       },
+      {
+        response: {
+          chains: {
+            '1': { isActiveDest: true, isActiveSrc: true },
+            '10': { isActiveDest: true, isActiveSrc: true },
+            '137': { isActiveDest: true, isActiveSrc: true },
+            '324': { isActiveDest: true, isActiveSrc: true },
+            '42161': { isActiveDest: true, isActiveSrc: true },
+            '43114': { isActiveDest: true, isActiveSrc: true },
+            '56': { isActiveDest: true, isActiveSrc: true },
+            '59144': { isActiveDest: true, isActiveSrc: true },
+            '8453': { isActiveDest: true, isActiveSrc: true },
+          },
+          maxRefreshCount: 5,
+          refreshRate: 30000,
+          support: true,
+          minimumVersion: '0.0.0',
+          extraField: 'foo',
+        },
+        type: 'all evm chains active + an extra field not specified in the schema',
+        expected: true,
+      },
     ])(
       'should return $expected if the response is valid: $type',
       ({
