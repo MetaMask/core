@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `minimumVersion` to feature flag response schema ([#5834](https://github.com/MetaMask/core/pull/5834))
+- **BREAKING:** Added a required `minimumVersion` to feature flag response schema ([#5834](https://github.com/MetaMask/core/pull/5834))
 
 ## [25.1.0]
 
