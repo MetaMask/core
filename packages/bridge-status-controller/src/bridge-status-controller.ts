@@ -294,12 +294,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     });
   };
 
-  /**
-   * Starts polling for the bridge tx status
-   *
-   * @param startPollingForBridgeTxStatusArgs - The args to start polling for the bridge tx status
-   */
-  startPollingForBridgeTxStatus = (
+  readonly #addTxToHistory = (
     startPollingForBridgeTxStatusArgs: StartPollingForBridgeTxStatusArgsSerialized,
   ) => {
     const {
@@ -349,10 +344,29 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       // Use the txMeta.id as the key so we can reference the txMeta in TransactionController
       state.txHistory[bridgeTxMeta.id] = txHistoryItem;
     });
+  };
 
-    this.#pollingTokensByTxMetaId[bridgeTxMeta.id] = this.startPolling({
-      bridgeTxMetaId: bridgeTxMeta.id,
-    });
+  /**
+   * Starts polling for the bridge tx status
+   *
+   * @param txHistoryMeta - The parameters for creating the history item
+   */
+  startPollingForBridgeTxStatus = (
+    txHistoryMeta: StartPollingForBridgeTxStatusArgsSerialized,
+  ) => {
+    const { quoteResponse, bridgeTxMeta } = txHistoryMeta;
+
+    this.#addTxToHistory(txHistoryMeta);
+
+    const isBridgeTx = isCrossChain(
+      quoteResponse.quote.srcChainId,
+      quoteResponse.quote.destChainId,
+    );
+    if (isBridgeTx) {
+      this.#pollingTokensByTxMetaId[bridgeTxMeta.id] = this.startPolling({
+        bridgeTxMetaId: bridgeTxMeta.id,
+      });
+    }
   };
 
   // This will be called after you call this.startPolling()
@@ -898,21 +912,19 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     }
 
     try {
-      if (isBridgeTx) {
-        // Start polling for bridge tx status
-        this.startPollingForBridgeTxStatus({
-          bridgeTxMeta: txMeta, // Only the id field is used by the BridgeStatusController
-          statusRequest: {
-            ...getStatusRequestParams(quoteResponse),
-            srcTxHash: txMeta.hash,
-          },
-          quoteResponse,
-          slippagePercentage: 0, // TODO include slippage provided by quote if using dynamic slippage, or slippage from quote request
-          isStxEnabled: isStxEnabledOnClient,
-          startTime: approvalTime ?? Date.now(),
-          approvalTxId,
-        });
-      }
+      // Start polling for bridge tx status
+      this.startPollingForBridgeTxStatus({
+        bridgeTxMeta: txMeta, // Only the id field is used by the BridgeStatusController
+        statusRequest: {
+          ...getStatusRequestParams(quoteResponse),
+          srcTxHash: txMeta.hash,
+        },
+        quoteResponse,
+        slippagePercentage: 0, // TODO include slippage provided by quote if using dynamic slippage, or slippage from quote request
+        isStxEnabled: isStxEnabledOnClient,
+        startTime: approvalTime ?? Date.now(),
+        approvalTxId,
+      });
 
       this.#trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.Submitted,
