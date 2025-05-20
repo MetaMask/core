@@ -5,6 +5,13 @@ import type {
   AccountsControllerAccountAddedEvent,
 } from '@metamask/accounts-controller';
 import type {
+  AddressBookControllerContactUpdatedEvent,
+  AddressBookControllerContactDeletedEvent,
+  AddressBookControllerActions,
+  AddressBookControllerListAction,
+  AddressBookControllerImportContactsFromSyncAction,
+} from '@metamask/address-book-controller';
+import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   RestrictedMessenger,
@@ -26,22 +33,13 @@ import type {
   NetworkControllerUpdateNetworkAction,
 } from '@metamask/network-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
-import type {
-  AddressBookControllerContactUpdatedEvent,
-  AddressBookControllerContactDeletedEvent,
-  AddressBookControllerActions,
-  AddressBookControllerListAction,
-  AddressBookControllerImportContactsFromSyncAction,
-} from '@metamask/address-book-controller';
 
 import {
   saveInternalAccountToUserStorage,
   syncInternalAccountsWithUserStorage,
 } from './account-syncing/controller-integration';
 import { setupAccountSyncingSubscriptions } from './account-syncing/setup-subscriptions';
-import {
-  syncAddressBookWithUserStorage,
-} from './address-book-syncing/controller-integration';
+import { syncAddressBookWithUserStorage } from './address-book-syncing/controller-integration';
 import { setupAddressBookSyncingSubscriptions } from './address-book-syncing/setup-subscriptions';
 import { BACKUPANDSYNC_FEATURES } from './constants';
 import {
@@ -107,7 +105,7 @@ export const defaultState: UserStorageControllerState = {
   isBackupAndSyncEnabled: true,
   isBackupAndSyncUpdateLoading: false,
   isAccountSyncingEnabled: true,
-  isAddressBookSyncingEnabled: true,  
+  isAddressBookSyncingEnabled: true,
   hasAccountSyncingSyncedAtLeastOnce: false,
   isAccountSyncingReadyToBeDispatched: false,
   isAccountSyncingInProgress: false,
@@ -817,7 +815,10 @@ export default class UserStorageController extends BaseController<
           this.#config?.addressBookSyncing?.onContactUpdated?.(profileId),
         onContactDeleted: () =>
           this.#config?.addressBookSyncing?.onContactDeleted?.(profileId),
-        onAddressBookSyncErroneousSituation: (situationMessage, sentryContext) =>
+        onAddressBookSyncErroneousSituation: (
+          situationMessage,
+          sentryContext,
+        ) =>
           this.#config?.accountSyncing?.onAccountSyncErroneousSituation?.(
             profileId,
             situationMessage,
