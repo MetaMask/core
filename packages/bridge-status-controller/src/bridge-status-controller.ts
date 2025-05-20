@@ -228,6 +228,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         const srcTxMetaId = historyItem.txMetaId;
         const pollingToken = this.#pollingTokensByTxMetaId[srcTxMetaId];
         return !pollingToken;
+      })
+      // Swap txs don't need to have their statuses polled
+      .filter((historyItem) => {
+        const isBridgeTx = isCrossChain(
+          historyItem.quote.srcChainId,
+          historyItem.quote.destChainId,
+        );
+        return isBridgeTx;
       });
 
     incompleteHistoryItems.forEach((historyItem) => {
@@ -241,12 +249,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     });
   };
 
-  /**
-   * Starts polling for the bridge tx status
-   *
-   * @param startPollingForBridgeTxStatusArgs - The args to start polling for the bridge tx status
-   */
-  startPollingForBridgeTxStatus = (
+  readonly #addTxToHistory = (
     startPollingForBridgeTxStatusArgs: StartPollingForBridgeTxStatusArgsSerialized,
   ) => {
     const {
@@ -296,10 +299,29 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       // Use the txMeta.id as the key so we can reference the txMeta in TransactionController
       state.txHistory[bridgeTxMeta.id] = txHistoryItem;
     });
+  };
 
-    this.#pollingTokensByTxMetaId[bridgeTxMeta.id] = this.startPolling({
-      bridgeTxMetaId: bridgeTxMeta.id,
-    });
+  /**
+   * Starts polling for the bridge tx status
+   *
+   * @param txHistoryMeta - The parameters for creating the history item
+   */
+  startPollingForBridgeTxStatus = (
+    txHistoryMeta: StartPollingForBridgeTxStatusArgsSerialized,
+  ) => {
+    const { quoteResponse, bridgeTxMeta } = txHistoryMeta;
+
+    this.#addTxToHistory(txHistoryMeta);
+
+    const isBridgeTx = isCrossChain(
+      quoteResponse.quote.srcChainId,
+      quoteResponse.quote.destChainId,
+    );
+    if (isBridgeTx) {
+      this.#pollingTokensByTxMetaId[bridgeTxMeta.id] = this.startPolling({
+        bridgeTxMetaId: bridgeTxMeta.id,
+      });
+    }
   };
 
   // This will be called after you call this.startPolling()
