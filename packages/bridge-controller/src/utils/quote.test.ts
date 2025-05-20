@@ -14,6 +14,7 @@ import {
   calcSwapRate,
   calcCost,
   formatEtaInMinutes,
+  calcSlippagePercentage,
 } from './quote';
 import type {
   GenericQuoteRequest,
@@ -533,5 +534,38 @@ describe('Quote Metadata Utils', () => {
       expect(result.valueInCurrency).toBeNull();
       expect(result.usd).toBeNull();
     });
+  });
+
+  describe('calcSlippagePercentage', () => {
+    it.each([
+      ['100', null, '100', null, '0'],
+      ['95', '95', '100', '100', '5'],
+      ['98.3', '98.3', '100', '100', '1.7'],
+      [null, '100', null, '100', '0'],
+      [null, null, null, '100', null],
+      ['105', '105', '100', '100', '5'],
+    ])(
+      'calcSlippagePercentage: calculate slippage absolute value for received amount %p, usd %p, sent amount %p, usd %p to expected slippage %p',
+      (
+        returnValueInCurrency: string | null,
+        returnUsd: string | null,
+        sentValueInCurrency: string | null,
+        sentUsd: string | null,
+        expectedSlippage: string | null,
+      ) => {
+        const result = calcSlippagePercentage(
+          {
+            valueInCurrency: returnValueInCurrency,
+            usd: returnUsd,
+          },
+          {
+            amount: '1000',
+            valueInCurrency: sentValueInCurrency,
+            usd: sentUsd,
+          },
+        );
+        expect(result).toBe(expectedSlippage);
+      },
+    );
   });
 });
