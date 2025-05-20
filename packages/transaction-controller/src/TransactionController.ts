@@ -118,11 +118,11 @@ import type {
   GasFeeEstimateLevel as GasFeeEstimateLevelType,
 } from './types';
 import {
+  GasFeeEstimateLevel,
   TransactionEnvelopeType,
   TransactionType,
   TransactionStatus,
   SimulationErrorCode,
-  GasFeeEstimateLevel,
 } from './types';
 import {
   addTransactionBatch,
