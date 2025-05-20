@@ -115,6 +115,7 @@ describe('BridgeController', function () {
 
   it('setBridgeFeatureFlags should fetch and set the bridge feature flags', async function () {
     const bridgeConfig = {
+      minimumVersion: '0.0.0',
       maxRefreshCount: 3,
       refreshRate: 3,
       support: true,
