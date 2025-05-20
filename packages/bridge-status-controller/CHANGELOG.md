@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/bridge-controller` peer dependency to `^25.0.1` ([#5811](https://github.com/MetaMask/core/pull/5811))
 - Bump `@metamask/controller-utils` to `^11.9.0` ([#5812](https://github.com/MetaMask/core/pull/5812))
 
+### Fixed
+
+- Don't start or restart getTxStatus polling if transaction is a swap ([#5829](https://github.com/MetaMask/core/pull/5829))
+
 ## [21.0.0]
 
 ### Changed
