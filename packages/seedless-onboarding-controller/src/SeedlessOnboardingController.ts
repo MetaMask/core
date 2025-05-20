@@ -1,6 +1,7 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import { keyFromPassword } from '@metamask/browser-passworder';
 import type {
   KeyPair,
   NodeAuthTokens,
@@ -13,6 +14,7 @@ import {
   stringToBytes,
   remove0x,
   bigIntToHex,
+  bytesToString,
 } from '@metamask/utils';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { Mutex } from 'async-mutex';
@@ -139,12 +141,14 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @param options.messenger - A restricted messenger.
    * @param options.state - Initial state to set on this controller.
    * @param options.encryptor - An optional encryptor to use for encrypting and decrypting seedless onboarding vault.
+   * @param options.toprfKeyDeriver - An optional key derivation interface for the TOPRF client.
    * @param options.network - The network to be used for the Seedless Onboarding flow.
    */
   constructor({
     messenger,
     state,
     encryptor,
+    toprfKeyDeriver,
     network = Web3AuthNetwork.Mainnet,
   }: SeedlessOnboardingControllerOptions<EncryptionKey>) {
     super({
@@ -160,6 +164,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     this.#vaultEncryptor = encryptor;
     this.toprfClient = new ToprfSecureBackup({
       network,
+      keyDeriver: toprfKeyDeriver,
     });
 
     // setup subscriptions to the keyring lock event
@@ -227,7 +232,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         });
         return authenticationResult;
       } catch (error) {
-        log('Error authenticating user', error);
+        console.log('Error authenticating user', error);
         throw new Error(SeedlessOnboardingControllerError.AuthenticationError);
       }
     });
@@ -252,9 +257,10 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
 
     return await this.#withControllerLock(async () => {
       // locally evaluate the encryption key from the password
-      const { encKey, authKeyPair, oprfKey } = this.toprfClient.createLocalKey({
-        password,
-      });
+      const { encKey, authKeyPair, oprfKey } =
+        await this.toprfClient.createLocalKey({
+          password,
+        });
 
       // encrypt and store the seed phrase backup
       await this.#encryptAndStoreSeedPhraseBackup({

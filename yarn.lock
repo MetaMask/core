@@ -2628,9 +2628,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/auth-network-utils@npm:^0.1.0":
-  version: 0.1.0
-  resolution: "@metamask/auth-network-utils@npm:0.1.0"
+"@metamask/auth-network-utils@npm:^0.2.0":
+  version: 0.2.0
+  resolution: "@metamask/auth-network-utils@npm:0.2.0"
   dependencies:
     "@noble/curves": "npm:^1.8.1"
     "@noble/hashes": "npm:^1.7.1"
@@ -2641,7 +2641,7 @@ __metadata:
     elliptic: "npm:^6.6.1"
     json-stable-stringify: "npm:^1.2.1"
     loglevel: "npm:^1.9.2"
-  checksum: 10/5becc59a4fbb76be0411a50118ca67bbf9d15dcf3552062c6c873dd1662a2f1ff438a7c0afa3f9112a7a539a0c1e5a5d853bf69b3e35219ac54889cefb895d9c
+  checksum: 10/f20bc5d4e2a07d3186d81128b2d9e0d38bd42f65aebe14fb796078f0b2209c297068c852deb7811d4e7243fad7bc091d956f06e537d201a3f8e0b906ee10e08b
   languageName: node
   linkType: hard
 
@@ -4259,12 +4259,12 @@ __metadata:
   dependencies:
     "@lavamoat/allow-scripts": "npm:^3.0.4"
     "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
-    "@metamask/auth-network-utils": "npm:^0.1.0"
+    "@metamask/auth-network-utils": "npm:^0.2.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.1"
     "@metamask/browser-passworder": "npm:^4.3.0"
     "@metamask/keyring-controller": "npm:^21.0.6"
-    "@metamask/toprf-secure-backup": "npm:^0.1.0"
+    "@metamask/toprf-secure-backup": "npm:^0.2.0"
     "@metamask/utils": "npm:^11.2.0"
     "@noble/ciphers": "npm:^0.5.2"
     "@noble/curves": "npm:^1.2.0"
@@ -4507,11 +4507,11 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/toprf-secure-backup@npm:^0.1.0":
-  version: 0.1.0
-  resolution: "@metamask/toprf-secure-backup@npm:0.1.0"
+"@metamask/toprf-secure-backup@npm:^0.2.0":
+  version: 0.2.0
+  resolution: "@metamask/toprf-secure-backup@npm:0.2.0"
   dependencies:
-    "@metamask/auth-network-utils": "npm:^0.1.0"
+    "@metamask/auth-network-utils": "npm:^0.2.0"
     "@noble/ciphers": "npm:^1.2.1"
     "@noble/curves": "npm:^1.8.1"
     "@noble/hashes": "npm:^1.7.1"
@@ -4521,7 +4521,7 @@ __metadata:
     "@toruslabs/fetch-node-details": "npm:^15.0.0"
     "@toruslabs/http-helpers": "npm:^8.1.1"
     bn.js: "npm:^5.2.1"
-  checksum: 10/ef6d1cfabe13b793807398c1bd00a27c0eb20f84411d54425da49c5742dffee83b3cf0d12daa7af170d4175eeca4b2eceecbf1465992ba3a35f4ace77d49e4c1
+  checksum: 10/8d0f04e4327f67169d3758db6d45285448239689d35b7371475157bd2e14ebfd82e61451bf60e4c1dcdc17750efbc030636211b9df0c1e769710354cf1e4c8c6
   languageName: node
   linkType: hard
 

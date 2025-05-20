@@ -140,6 +140,26 @@ export type VaultEncryptor<EncryptionKey> = Omit<
 >;
 
 /**
+ * Additional key deriver for the TOPRF client.
+ *
+ * This is a function that takes a seed and salt and returns a key in bytes (Uint8Array).
+ * It is used as an additional step during key derivation. This can be used, for example, to inject a slow key
+ * derivation step to protect against local brute force attacks on the password.
+ *
+ * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
+ */
+export type ToprfKeyDeriver = {
+  /**
+   * Derive a key from a seed and salt.
+   *
+   * @param seed - The seed to derive the key from.
+   * @param salt - The salt to derive the key from.
+   * @returns The derived key.
+   */
+  deriveKey: (seed: Uint8Array, salt: Uint8Array) => Promise<Uint8Array>;
+};
+
+/**
  * Seedless Onboarding Controller Options.
  *
  * @param messenger - The messenger to use for this controller.
@@ -160,6 +180,18 @@ export type SeedlessOnboardingControllerOptions<EncryptionKey> = {
    * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
    */
   encryptor: VaultEncryptor<EncryptionKey>;
+
+  /**
+   * Optional key derivation interface for the TOPRF client.
+   *
+   * If provided, it will be used as an additional step during
+   * key derivation. This can be used, for example, to inject a slow key
+   * derivation step to protect against local brute force attacks on the
+   * password.
+   *
+   * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
+   */
+  toprfKeyDeriver?: ToprfKeyDeriver;
 
   /**
    * Type of Web3Auth network to be used for the Seedless Onboarding flow.

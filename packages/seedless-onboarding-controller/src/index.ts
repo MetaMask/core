@@ -12,6 +12,7 @@ export type {
   SeedlessOnboardingControllerStateChangeEvent,
   SeedlessOnboardingControllerActions,
   SeedlessOnboardingControllerEvents,
+  ToprfKeyDeriver,
 } from './types';
 export {
   Web3AuthNetwork,

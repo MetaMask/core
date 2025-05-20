@@ -47,9 +47,9 @@
     "since-latest-release": "../../scripts/since-latest-release.sh"
   },
   "dependencies": {
-    "@metamask/auth-network-utils": "^0.1.0",
+    "@metamask/auth-network-utils": "^0.2.0",
     "@metamask/base-controller": "^8.0.1",
-    "@metamask/toprf-secure-backup": "^0.1.0",
+    "@metamask/toprf-secure-backup": "^0.2.0",
     "@metamask/utils": "^11.2.0",
     "async-mutex": "^0.5.0"
   },
