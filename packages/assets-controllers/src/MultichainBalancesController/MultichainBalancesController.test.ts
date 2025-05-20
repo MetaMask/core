@@ -342,6 +342,9 @@ describe('MultichainBalancesController', () => {
 
   it('stores balances when receiving new balances from the "AccountsController:accountBalancesUpdated" event', async () => {
     const { controller, messenger } = setupController();
+
+    await controller.initialize();
+
     const balanceUpdate = {
       balances: {
         [mockBtcAccount.id]: mockBalanceResult,
@@ -402,6 +405,8 @@ describe('MultichainBalancesController', () => {
         listMultichainAccounts: [mockBtcAccount],
       },
     });
+
+    await controller.initialize();
 
     await waitForAllPromises();
 
@@ -573,6 +578,8 @@ describe('MultichainBalancesController', () => {
         },
       });
 
+      await controller.initialize();
+
       mockSnapHandleRequest.mockReset();
       mockListMultichainAccounts.mockReset();
 
@@ -641,5 +648,53 @@ describe('MultichainBalancesController', () => {
     expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual(
       mockBalanceResult,
     );
+  });
+
+  it('initializes by fetching balances for non-EVM accounts', async () => {
+    const { controller, mockSnapHandleRequest } = setupController({
+      mocks: {
+        listMultichainAccounts: [mockBtcAccount],
+      },
+    });
+
+    expect(controller.state.balances).toStrictEqual({});
+
+    await controller.initialize();
+    await waitForAllPromises();
+
+    expect(mockSnapHandleRequest).toHaveBeenCalled();
+    expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual(
+      mockBalanceResult,
+    );
+  });
+
+  it('handles errors during initialization', async () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+    const initError = new Error('Test initialization error');
+
+    const { controller, mockListMultichainAccounts } = setupController({
+      mocks: {
+        listMultichainAccounts: [mockBtcAccount],
+      },
+    });
+
+    mockListMultichainAccounts.mockReturnValue([mockBtcAccount]);
+
+    const updateSpy = jest.spyOn(controller, 'updateBalance');
+    updateSpy.mockRejectedValue(initError);
+
+    await controller.initialize();
+    await waitForAllPromises();
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      `Failed to fetch initial balances for account ${mockBtcAccount.id}:`,
+      initError,
+    );
+
+    expect(controller.state.balances).toStrictEqual({});
+
+    updateSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
   });
 });

@@ -189,16 +189,6 @@ export class MultichainTransactionsController extends BaseController<
       },
     });
 
-    // Fetch initial transactions for all non-EVM accounts
-    for (const account of this.#listAccounts()) {
-      this.updateTransactionsForAccount(account.id).catch((error) => {
-        console.error(
-          `Failed to fetch initial transactions for account ${account.id}:`,
-          error,
-        );
-      });
-    }
-
     this.messagingSystem.subscribe(
       'AccountsController:accountAdded',
       (account: InternalAccount) => this.#handleOnAccountAdded(account),
@@ -212,6 +202,21 @@ export class MultichainTransactionsController extends BaseController<
       (transactionsUpdate: AccountTransactionsUpdatedEventPayload) =>
         this.#handleOnAccountTransactionsUpdated(transactionsUpdate),
     );
+  }
+
+  /**
+   * Initialize the controller by fetching initial transactions for all non-EVM accounts.
+   * This method should be called after the controller is constructed.
+   */
+  async initialize(): Promise<void> {
+    for (const account of this.#listAccounts()) {
+      this.updateTransactionsForAccount(account.id).catch((error) => {
+        console.error(
+          `Failed to fetch initial transactions for account ${account.id}:`,
+          error,
+        );
+      });
+    }
   }
 
   /**

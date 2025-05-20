@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Improve controller constructor by moving async logic to it's own method ([#5781](https://github.com/MetaMask/core/pull/5781))
 - Updated `TokenListController` `fetchTokenList` method to bail if cache is valid ([#5804](https://github.com/MetaMask/core/pull/5804))
   - also cleaned up internal state update logic
 - Bump `@metamask/controller-utils` to `^11.9.0` ([#5812](https://github.com/MetaMask/core/pull/5812))
