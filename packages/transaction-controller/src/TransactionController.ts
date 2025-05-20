@@ -3672,10 +3672,7 @@ export class TransactionController extends BaseController<
     try {
       const { networkClientId, type } = transactionMeta;
 
-      if (
-        type &&
-        ![TransactionType.swap, TransactionType.bridge].includes(type)
-      ) {
+      if (type !== TransactionType.swap) {
         return;
       }
 
