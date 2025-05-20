@@ -181,10 +181,10 @@ export class PendingTransactionTracker {
    *
    * The transaction will now be monitored for updates, such as confirmation or failure.
    */
-  addTransactionToPoll = (transactionMeta: TransactionMeta) => {
+  addTransactionToPoll(transactionMeta: TransactionMeta): void {
     this.#start([transactionMeta]);
     this.#transactionToForcePoll = transactionMeta;
-  };
+  }
 
   /**
    * Force checks the network if the given transaction is confirmed and updates it's status.
@@ -252,12 +252,8 @@ export class PendingTransactionTracker {
     this.#log('Checking transactions');
 
     const pendingTransactions: TransactionMeta[] = [
-      ...new Set(
-        [
-          ...this.#getPendingTransactions(),
-          this.#transactionToForcePoll,
-        ].filter((tx): tx is TransactionMeta => tx !== undefined),
-      ),
+      ...this.#getPendingTransactions(),
+      ...(this.#transactionToForcePoll ? [this.#transactionToForcePoll] : []),
     ];
 
     if (!pendingTransactions.length) {
@@ -379,8 +375,8 @@ export class PendingTransactionTracker {
     return blocksSinceFirstRetry >= requiredBlocksSinceFirstRetry;
   }
 
-  #cleanTransactionToForcePoll(txMeta: TransactionMeta) {
-    if (this.#transactionToForcePoll?.id === txMeta.id) {
+  #cleanTransactionToForcePoll(transactionId: string) {
+    if (this.#transactionToForcePoll?.id === transactionId) {
       this.#transactionToForcePoll = undefined;
     }
   }
@@ -462,7 +458,7 @@ export class PendingTransactionTracker {
     this.#log('Transaction confirmed', id);
 
     if (this.#transactionToForcePoll) {
-      this.#cleanTransactionToForcePoll(txMeta);
+      this.#cleanTransactionToForcePoll(txMeta.id);
       this.hub.emit('transaction-confirmed', txMeta);
       return;
     }
@@ -563,13 +559,13 @@ export class PendingTransactionTracker {
 
   #failTransaction(txMeta: TransactionMeta, error: Error) {
     this.#log('Transaction failed', txMeta.id, error);
-    this.#cleanTransactionToForcePoll(txMeta);
+    this.#cleanTransactionToForcePoll(txMeta.id);
     this.hub.emit('transaction-failed', txMeta, error);
   }
 
   #dropTransaction(txMeta: TransactionMeta) {
     this.#log('Transaction dropped', txMeta.id);
-    this.#cleanTransactionToForcePoll(txMeta);
+    this.#cleanTransactionToForcePoll(txMeta.id);
     this.hub.emit('transaction-dropped', txMeta);
   }
 

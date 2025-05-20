@@ -113,8 +113,8 @@ describe('Batch Utils', () => {
       AddBatchTransactionOptions['publishTransaction']
     >;
 
-    let getPendingTransactionTracker: jest.MockedFn<
-      AddBatchTransactionOptions['getPendingTransactionTrackerByChainId']
+    let getPendingTransactionTrackerMock: jest.MockedFn<
+      AddBatchTransactionOptions['getPendingTransactionTracker']
     >;
 
     let request: AddBatchTransactionOptions;
@@ -125,7 +125,7 @@ describe('Batch Utils', () => {
       getChainIdMock = jest.fn();
       updateTransactionMock = jest.fn();
       publishTransactionMock = jest.fn();
-      getPendingTransactionTracker = jest.fn();
+      getPendingTransactionTrackerMock = jest.fn();
 
       determineTransactionTypeMock.mockResolvedValue({
         type: TransactionType.simpleSend,
@@ -165,7 +165,7 @@ describe('Batch Utils', () => {
         },
         updateTransaction: updateTransactionMock,
         publishTransaction: publishTransactionMock,
-        getPendingTransactionTrackerByChainId: getPendingTransactionTracker,
+        getPendingTransactionTracker: getPendingTransactionTrackerMock,
       };
     });
 

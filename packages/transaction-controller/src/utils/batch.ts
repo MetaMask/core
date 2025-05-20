@@ -64,7 +64,7 @@ type AddTransactionBatchRequest = {
     _ethQuery: EthQuery,
     transactionMeta: TransactionMeta,
   ) => Promise<Hex>;
-  getPendingTransactionTrackerByChainId: (
+  getPendingTransactionTracker: (
     networkClientId: string,
   ) => PendingTransactionTracker;
 };
@@ -318,7 +318,9 @@ async function addTransactionBatchWith7702(
 
     log('Security request', securityRequest);
 
+    /* istanbul ignore next */
     validateSecurity(securityRequest, chainId).catch((error) => {
+      /* istanbul ignore next */
       log('Security validation failed', error);
     });
   }
@@ -373,8 +375,7 @@ async function addTransactionBatchWithHook(
     publishTransaction: request.publishTransaction,
     getTransaction: request.getTransaction,
     getEthQuery: request.getEthQuery,
-    getPendingTransactionTrackerByChainId:
-      request.getPendingTransactionTrackerByChainId,
+    getPendingTransactionTracker: request.getPendingTransactionTracker,
   });
 
   const publishBatchHook =

@@ -96,7 +96,7 @@ describe('SequentialPublishBatchHook', () => {
           }
           eventListeners[eventName].push(callback);
         }),
-        removeAllListeners: jest.fn((eventName) => {
+        off: jest.fn((eventName) => {
           if (eventName) {
             eventListeners[eventName] = [];
           } else {
@@ -129,7 +129,7 @@ describe('SequentialPublishBatchHook', () => {
       publishTransaction: publishTransactionMock,
       getTransaction: getTransactionMock,
       getEthQuery: getEthQueryMock,
-      getPendingTransactionTrackerByChainId: jest
+      getPendingTransactionTracker: jest
         .fn()
         .mockReturnValue(pendingTransactionTrackerMock),
     });
@@ -200,9 +200,7 @@ describe('SequentialPublishBatchHook', () => {
     );
 
     expect(pendingTransactionTrackerMock.hub.on).toHaveBeenCalledTimes(6);
-    expect(
-      pendingTransactionTrackerMock.hub.removeAllListeners,
-    ).toHaveBeenCalledTimes(6);
+    expect(pendingTransactionTrackerMock.hub.off).toHaveBeenCalledTimes(6);
   });
 
   it('throws an error when publishTransaction fails', async () => {
@@ -216,7 +214,7 @@ describe('SequentialPublishBatchHook', () => {
       publishTransaction: publishTransactionMock,
       getTransaction: getTransactionMock,
       getEthQuery: getEthQueryMock,
-      getPendingTransactionTrackerByChainId: jest
+      getPendingTransactionTracker: jest
         .fn()
         .mockReturnValue(pendingTransactionTrackerMock),
     });
@@ -244,7 +242,7 @@ describe('SequentialPublishBatchHook', () => {
       publishTransaction: publishTransactionMock,
       getTransaction: getTransactionMock,
       getEthQuery: getEthQueryMock,
-      getPendingTransactionTrackerByChainId: jest
+      getPendingTransactionTracker: jest
         .fn()
         .mockReturnValue(pendingTransactionTrackerMock),
     });
@@ -273,7 +271,7 @@ describe('SequentialPublishBatchHook', () => {
       publishTransaction: publishTransactionMock,
       getTransaction: getTransactionMock,
       getEthQuery: getEthQueryMock,
-      getPendingTransactionTrackerByChainId: jest
+      getPendingTransactionTracker: jest
         .fn()
         .mockReturnValue(pendingTransactionTrackerMock),
     });
@@ -309,9 +307,7 @@ describe('SequentialPublishBatchHook', () => {
       }),
     );
 
-    expect(
-      pendingTransactionTrackerMock.hub.removeAllListeners,
-    ).toHaveBeenCalledTimes(3);
+    expect(pendingTransactionTrackerMock.hub.off).toHaveBeenCalledTimes(3);
     expect(publishTransactionMock).toHaveBeenCalledTimes(1);
   });
 
@@ -324,7 +320,7 @@ describe('SequentialPublishBatchHook', () => {
       publishTransaction: publishTransactionMock,
       getTransaction: getTransactionMock,
       getEthQuery: getEthQueryMock,
-      getPendingTransactionTrackerByChainId: jest
+      getPendingTransactionTracker: jest
         .fn()
         .mockReturnValue(pendingTransactionTrackerMock),
     });
@@ -361,9 +357,89 @@ describe('SequentialPublishBatchHook', () => {
       }),
     );
 
-    expect(
-      pendingTransactionTrackerMock.hub.removeAllListeners,
-    ).toHaveBeenCalledTimes(3);
+    expect(pendingTransactionTrackerMock.hub.off).toHaveBeenCalledTimes(3);
     expect(publishTransactionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does nothing when #onConfirmed is called with a different transactionId', async () => {
+    const transactions: PublishBatchHookTransaction[] = [TRANSACTION_1_MOCK];
+
+    publishTransactionMock.mockResolvedValueOnce(TRANSACTION_HASH_MOCK);
+
+    const sequentialPublishBatchHook = new SequentialPublishBatchHook({
+      publishTransaction: publishTransactionMock,
+      getTransaction: getTransactionMock,
+      getEthQuery: getEthQueryMock,
+      getPendingTransactionTracker: jest
+        .fn()
+        .mockReturnValue(pendingTransactionTrackerMock),
+    });
+
+    const hook = sequentialPublishBatchHook.getHook();
+
+    const hookPromise = hook({
+      from: '0x123',
+      networkClientId: NETWORK_CLIENT_ID_MOCK,
+      transactions,
+    });
+
+    await flushPromises();
+
+    firePendingTransactionTrackerEvent('transaction-confirmed', {
+      id: 'differentTransactionId',
+    });
+
+    expect(pendingTransactionTrackerMock.hub.off).not.toHaveBeenCalled();
+
+    firePendingTransactionTrackerEvent(
+      'transaction-confirmed',
+      TRANSACTION_META_MOCK,
+    );
+
+    expect(await hookPromise).toStrictEqual({
+      results: [{ transactionHash: TRANSACTION_HASH_MOCK }],
+    });
+  });
+
+  it('does nothing when #onFailedOrDropped is called with a different transactionId', async () => {
+    const transactions: PublishBatchHookTransaction[] = [TRANSACTION_1_MOCK];
+
+    publishTransactionMock.mockResolvedValueOnce(TRANSACTION_HASH_MOCK);
+
+    const sequentialPublishBatchHook = new SequentialPublishBatchHook({
+      publishTransaction: publishTransactionMock,
+      getTransaction: getTransactionMock,
+      getEthQuery: getEthQueryMock,
+      getPendingTransactionTracker: jest
+        .fn()
+        .mockReturnValue(pendingTransactionTrackerMock),
+    });
+
+    const hook = sequentialPublishBatchHook.getHook();
+
+    const hookPromise = hook({
+      from: '0x123',
+      networkClientId: NETWORK_CLIENT_ID_MOCK,
+      transactions,
+    });
+
+    await flushPromises();
+
+    firePendingTransactionTrackerEvent(
+      'transaction-failed',
+      { id: 'differentTransactionId' },
+      new Error('Transaction failed'),
+    );
+
+    expect(pendingTransactionTrackerMock.hub.off).not.toHaveBeenCalled();
+
+    firePendingTransactionTrackerEvent(
+      'transaction-confirmed',
+      TRANSACTION_META_MOCK,
+    );
+
+    expect(await hookPromise).toStrictEqual({
+      results: [{ transactionHash: TRANSACTION_HASH_MOCK }],
+    });
   });
 });

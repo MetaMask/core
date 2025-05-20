@@ -1045,9 +1045,7 @@ export class TransactionController extends BaseController<
         ethQuery: EthQuery,
         transactionMeta: TransactionMeta,
       ) => this.#publishTransaction(ethQuery, transactionMeta) as Promise<Hex>,
-      getPendingTransactionTrackerByChainId: (
-        networkClientId: NetworkClientId,
-      ) =>
+      getPendingTransactionTracker: (networkClientId: NetworkClientId) =>
         this.#createPendingTransactionTracker({
           provider: this.#getProvider({ networkClientId }),
           blockTracker,
