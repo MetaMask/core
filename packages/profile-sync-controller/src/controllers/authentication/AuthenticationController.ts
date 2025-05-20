@@ -274,10 +274,6 @@ export default class AuthenticationController extends BaseController<
         return await this.#auth.getAccessToken(entropySourceId);
       }),
     );
-
-    // Keeping this for backwards compatibility for now
-    // This results in duplicate API calls
-    // return await this.#auth.getAccessToken();
   }
 
   public performSignOut(): void {
