@@ -1,5 +1,7 @@
 export const controllerName = 'SeedlessOnboardingController';
 
+export const PASSWORD_OUTDATED_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
 export enum Web3AuthNetwork {
   Mainnet = 'sapphire_mainnet',
   Devnet = 'sapphire_devnet',
@@ -9,6 +11,15 @@ export enum Web3AuthNetwork {
 export enum AuthConnection {
   Google = 'google',
   Apple = 'apple',
+}
+
+export enum SecretType {
+  Mnemonic = 'mnemonic',
+  PrivateKey = 'privateKey',
+}
+
+export enum SecretMetadataVersion {
+  V1 = 'v1',
 }
 
 export enum SeedlessOnboardingControllerError {
@@ -25,7 +36,7 @@ export enum SeedlessOnboardingControllerError {
   InvalidVaultData = `${controllerName} - Invalid vault data`,
   VaultDataError = `${controllerName} - The decrypted vault has an unexpected shape.`,
   VaultError = `${controllerName} - Cannot unlock without a previous vault.`,
-  InvalidSeedPhraseMetadata = `${controllerName} - Invalid seed phrase metadata`,
+  InvalidSecretMetadata = `${controllerName} - Invalid secret metadata`,
   FailedToEncryptAndStoreSeedPhraseBackup = `${controllerName} - Failed to encrypt and store seed phrase backup`,
   FailedToFetchSeedPhraseMetadata = `${controllerName} - Failed to fetch seed phrase metadata`,
   FailedToChangePassword = `${controllerName} - Failed to change password`,

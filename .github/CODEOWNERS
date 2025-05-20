@@ -8,7 +8,6 @@
 
 ## Accounts Team
 /packages/accounts-controller        @MetaMask/accounts-engineers
-/packages/keyring-controller         @MetaMask/accounts-engineers
 /packages/multichain-transactions-controller @MetaMask/accounts-engineers
 
 ## Assets Team
@@ -78,6 +77,7 @@
 /packages/eth-json-rpc-provider        @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
 /packages/json-rpc-engine              @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
 /packages/json-rpc-middleware-stream   @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
+/packages/keyring-controller           @MetaMask/accounts-engineers @MetaMask/wallet-framework-engineers
 /packages/multichain-network-controller  @MetaMask/wallet-framework-engineers @MetaMask/accounts-engineers @MetaMask/metamask-assets
 /packages/network-controller           @MetaMask/wallet-framework-engineers @MetaMask/metamask-assets
 /packages/permission-controller        @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers @MetaMask/snaps-devs

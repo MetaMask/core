@@ -1,32 +1,55 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
+import type { Messenger } from '@metamask/base-controller';
+import type { EncryptionKey } from '@metamask/browser-passworder';
 import {
+  encrypt,
+  decrypt,
+  decryptWithDetail,
+  encryptWithDetail,
+  decryptWithKey as decryptWithKeyBrowserPassworder,
+  importKey as importKeyBrowserPassworder,
+} from '@metamask/browser-passworder';
+import {
+  TOPRFError,
   type FetchAuthPubKeyResult,
   type SEC1EncodedPublicKey,
-  TOPRFError,
   type ChangeEncryptionKeyResult,
   type KeyPair,
   type NodeAuthTokens,
   type RecoverEncryptionKeyResult,
   type ToprfSecureBackup,
+  TOPRFErrorCode,
 } from '@metamask/toprf-secure-backup';
-import { base64ToBytes, bytesToBase64, stringToBytes } from '@metamask/utils';
+import {
+  base64ToBytes,
+  bytesToBase64,
+  stringToBytes,
+  bigIntToHex,
+} from '@metamask/utils';
+import type { webcrypto } from 'node:crypto';
 
 import {
   Web3AuthNetwork,
   SeedlessOnboardingControllerError,
   AuthConnection,
+  SecretType,
+  SecretMetadataVersion,
 } from './constants';
-import { RecoveryError } from './errors';
+import { PasswordSyncError, RecoveryError } from './errors';
+import { SecretMetadata } from './SecretMetadata';
 import {
   getDefaultSeedlessOnboardingControllerState,
   SeedlessOnboardingController,
 } from './SeedlessOnboardingController';
-import { SeedPhraseMetadata } from './SeedPhraseMetadata';
 import type {
+  AllowedActions,
+  AllowedEvents,
   SeedlessOnboardingControllerMessenger,
   SeedlessOnboardingControllerOptions,
   SeedlessOnboardingControllerState,
+  VaultEncryptor,
 } from './types';
+import { mockSeedlessOnboardingMessenger } from '../tests/__fixtures__/mockMessenger';
 import {
   handleMockSecretDataGet,
   handleMockSecretDataAdd,
@@ -35,7 +58,7 @@ import {
 } from '../tests/__fixtures__/topfClient';
 import {
   createMockSecretDataGetResponse,
-  MULTIPLE_MOCK_SEEDPHRASE_METADATA,
+  MULTIPLE_MOCK_SECRET_METADATA,
 } from '../tests/mocks/toprf';
 import { MockToprfEncryptorDecryptor } from '../tests/mocks/toprfEncryptor';
 import MockVaultEncryptor from '../tests/mocks/vaultEncryptor';
@@ -70,41 +93,51 @@ const MOCK_SEED_PHRASE = stringToBytes(
   'horror pink muffin canal young photo magnet runway start elder patch until',
 );
 
-const MOCK_AUTH_PUB_KEY = 'dGVzdFB1YktleQ==';
-const MOCK_AUTH_PUB_KEY_OUTDATED = 'YXV0aHB1YmtleW91dGRhdGVk';
+const MOCK_AUTH_PUB_KEY = 'A09CwPHdl/qo2AjBOHen5d4QORaLedxOrSdgReq8IhzQ';
+const MOCK_AUTH_PUB_KEY_OUTDATED =
+  'Ao2sa8imX7SD4KE4fJLoJ/iBufmaBxSFygG1qUhW2qAb';
 
-type WithControllerCallback<ReturnValue> = ({
+type WithControllerCallback<ReturnValue, EKey> = ({
   controller,
   initialState,
   encryptor,
   messenger,
 }: {
-  controller: SeedlessOnboardingController;
-  encryptor: MockVaultEncryptor;
+  controller: SeedlessOnboardingController<EKey>;
+  encryptor: VaultEncryptor<EKey>;
   initialState: SeedlessOnboardingControllerState;
   messenger: SeedlessOnboardingControllerMessenger;
+  baseMessenger: Messenger<AllowedActions, AllowedEvents>;
   toprfClient: ToprfSecureBackup;
 }) => Promise<ReturnValue> | ReturnValue;
 
-type WithControllerOptions = Partial<SeedlessOnboardingControllerOptions>;
+type WithControllerOptions<EKey> = Partial<
+  SeedlessOnboardingControllerOptions<EKey>
+>;
 
-type WithControllerArgs<ReturnValue> =
-  | [WithControllerCallback<ReturnValue>]
-  | [WithControllerOptions, WithControllerCallback<ReturnValue>];
+type WithControllerArgs<ReturnValue, EKey> =
+  | [WithControllerCallback<ReturnValue, EKey>]
+  | [WithControllerOptions<EKey>, WithControllerCallback<ReturnValue, EKey>];
 
 /**
- * Creates a mock user operation messenger.
+ * Get the default vault encryptor for the Seedless Onboarding Controller.
  *
- * @returns The mock user operation messenger.
+ * By default, we'll use the encryption utilities from `@metamask/browser-passworder`.
+ *
+ * @returns The default vault encryptor for the Seedless Onboarding Controller.
  */
-function buildSeedlessOnboardingControllerMessenger() {
+function getDefaultSeedlessOnboardingVaultEncryptor() {
   return {
-    call: jest.fn(),
-    publish: jest.fn(),
-    registerActionHandler: jest.fn(),
-    registerInitialEventPayload: jest.fn(),
-    subscribe: jest.fn(),
-  } as unknown as jest.Mocked<SeedlessOnboardingControllerMessenger>;
+    encrypt,
+    encryptWithDetail,
+    decrypt,
+    decryptWithDetail,
+    decryptWithKey: decryptWithKeyBrowserPassworder as (
+      key: unknown,
+      payload: unknown,
+    ) => Promise<unknown>,
+    importKey: importKeyBrowserPassworder,
+  };
 }
 
 /**
@@ -127,11 +160,11 @@ function createMockVaultEncryptor() {
  * @returns Whatever the callback returns.
  */
 async function withController<ReturnValue>(
-  ...args: WithControllerArgs<ReturnValue>
+  ...args: WithControllerArgs<ReturnValue, EncryptionKey | webcrypto.CryptoKey>
 ) {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
   const encryptor = new MockVaultEncryptor();
-  const messenger = buildSeedlessOnboardingControllerMessenger();
+  const { messenger, baseMessenger } = mockSeedlessOnboardingMessenger();
 
   const controller = new SeedlessOnboardingController({
     encryptor,
@@ -145,6 +178,7 @@ async function withController<ReturnValue>(
     encryptor,
     initialState: controller.state,
     messenger,
+    baseMessenger,
     toprfClient,
   });
 }
@@ -277,9 +311,9 @@ function mockChangeEncKey(
  * @param seedPhrase - The mock seed phrase.
  * @param keyringId - The mock keyring id.
  */
-async function mockCreateToprfKeyAndBackupSeedPhrase(
+async function mockCreateToprfKeyAndBackupSeedPhrase<EKey>(
   toprfClient: ToprfSecureBackup,
-  controller: SeedlessOnboardingController,
+  controller: SeedlessOnboardingController<EKey>,
   password: string,
   seedPhrase: Uint8Array,
   keyringId: string,
@@ -415,9 +449,10 @@ function getMockInitialControllerState(options?: {
 describe('SeedlessOnboardingController', () => {
   describe('constructor', () => {
     it('should be able to instantiate', () => {
-      const messenger = buildSeedlessOnboardingControllerMessenger();
+      const { messenger } = mockSeedlessOnboardingMessenger();
       const controller = new SeedlessOnboardingController({
         messenger,
+        encryptor: getDefaultSeedlessOnboardingVaultEncryptor(),
       });
       expect(controller).toBeDefined();
       expect(controller.state).toStrictEqual(
@@ -426,7 +461,7 @@ describe('SeedlessOnboardingController', () => {
     });
 
     it('should be able to instantiate with an encryptor', () => {
-      const messenger = buildSeedlessOnboardingControllerMessenger();
+      const { messenger } = mockSeedlessOnboardingMessenger();
       const encryptor = createMockVaultEncryptor();
 
       expect(
@@ -584,9 +619,15 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller, toprfClient }) => {
+          const spy = jest.spyOn(toprfClient, 'fetchAuthPubKey');
           mockFetchAuthPubKey(toprfClient, base64ToBytes(MOCK_AUTH_PUB_KEY));
-          const result = await controller.checkPasswordOutdated();
+          const result = await controller.checkIsPasswordOutdated();
           expect(result).toBe(false);
+          // Call again to test cache
+          const result2 = await controller.checkIsPasswordOutdated();
+          expect(result2).toBe(false);
+          // Should only call fetchAuthPubKey once due to cache
+          expect(spy).toHaveBeenCalledTimes(1);
         },
       );
     });
@@ -600,9 +641,40 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller, toprfClient }) => {
+          const spy = jest.spyOn(toprfClient, 'fetchAuthPubKey');
           mockFetchAuthPubKey(toprfClient, base64ToBytes(MOCK_AUTH_PUB_KEY));
-          const result = await controller.checkPasswordOutdated();
+          const result = await controller.checkIsPasswordOutdated();
           expect(result).toBe(true);
+          // Call again to test cache
+          const result2 = await controller.checkIsPasswordOutdated();
+          expect(result2).toBe(true);
+          // Should only call fetchAuthPubKey once due to cache
+          expect(spy).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should bypass cache if skipCache is true', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          const spy = jest.spyOn(toprfClient, 'fetchAuthPubKey');
+          mockFetchAuthPubKey(toprfClient, base64ToBytes(MOCK_AUTH_PUB_KEY));
+          const result = await controller.checkIsPasswordOutdated({
+            skipCache: true,
+          });
+          expect(result).toBe(false);
+          // Call again with skipCache: true, should call fetchAuthPubKey again
+          const result2 = await controller.checkIsPasswordOutdated({
+            skipCache: true,
+          });
+          expect(result2).toBe(false);
+          expect(spy).toHaveBeenCalledTimes(2);
         },
       );
     });
@@ -615,7 +687,7 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller }) => {
-          await expect(controller.checkPasswordOutdated()).rejects.toThrow(
+          await expect(controller.checkIsPasswordOutdated()).rejects.toThrow(
             SeedlessOnboardingControllerError.SRPNotBackedUpError,
           );
         },
@@ -634,7 +706,7 @@ describe('SeedlessOnboardingController', () => {
           },
         },
         async ({ controller }) => {
-          await expect(controller.checkPasswordOutdated()).rejects.toThrow(
+          await expect(controller.checkIsPasswordOutdated()).rejects.toThrow(
             SeedlessOnboardingControllerError.InsufficientAuthToken,
           );
         },
@@ -1382,7 +1454,7 @@ describe('SeedlessOnboardingController', () => {
           const mockSecretDataGet = handleMockSecretDataGet({
             status: 200,
             body: createMockSecretDataGetResponse(
-              MULTIPLE_MOCK_SEEDPHRASE_METADATA,
+              MULTIPLE_MOCK_SECRET_METADATA,
               MOCK_PASSWORD,
             ),
           });
@@ -1672,7 +1744,7 @@ describe('SeedlessOnboardingController', () => {
           jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce('MOCK_VAULT');
 
           expect(async () => {
-            await controller.verifyPassword(MOCK_PASSWORD);
+            await controller.verifyVaultPassword(MOCK_PASSWORD);
           }).not.toThrow();
         },
       );
@@ -1692,7 +1764,7 @@ describe('SeedlessOnboardingController', () => {
             .mockRejectedValueOnce(new Error('Incorrect password'));
 
           await expect(
-            controller.verifyPassword(MOCK_PASSWORD),
+            controller.verifyVaultPassword(MOCK_PASSWORD),
           ).rejects.toThrow('Incorrect password');
         },
       );
@@ -1700,9 +1772,9 @@ describe('SeedlessOnboardingController', () => {
 
     it('should throw an error if the vault is missing', async () => {
       await withController(async ({ controller }) => {
-        await expect(controller.verifyPassword(MOCK_PASSWORD)).rejects.toThrow(
-          SeedlessOnboardingControllerError.VaultError,
-        );
+        await expect(
+          controller.verifyVaultPassword(MOCK_PASSWORD),
+        ).rejects.toThrow(SeedlessOnboardingControllerError.VaultError);
       });
     });
   });
@@ -2081,6 +2153,30 @@ describe('SeedlessOnboardingController', () => {
     });
   });
 
+  describe('clearState', () => {
+    it('should clear the state', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller }) => {
+          const { state } = controller;
+
+          expect(state.nodeAuthTokens).toBeDefined();
+          expect(state.userId).toBeDefined();
+          expect(state.authConnectionId).toBeDefined();
+
+          controller.clearState();
+          expect(controller.state).toStrictEqual(
+            getDefaultSeedlessOnboardingControllerState(),
+          );
+        },
+      );
+    });
+  });
+
   describe('vault', () => {
     const MOCK_PASSWORD = 'mock-password';
 
@@ -2198,32 +2294,108 @@ describe('SeedlessOnboardingController', () => {
         },
       );
     });
+
+    it('should lock the controller when the keyring is locked', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller, baseMessenger, toprfClient }) => {
+          await mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            MOCK_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+
+          baseMessenger.publish('KeyringController:lock');
+
+          await expect(
+            controller.addNewSeedPhraseBackup(
+              MOCK_SEED_PHRASE,
+              MOCK_KEYRING_ID,
+            ),
+          ).rejects.toThrow(SeedlessOnboardingControllerError.ControllerLocked);
+        },
+      );
+    });
+
+    it('should unlock the controller when the keyring is unlocked', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller, baseMessenger }) => {
+          await expect(
+            controller.addNewSeedPhraseBackup(
+              MOCK_SEED_PHRASE,
+              MOCK_KEYRING_ID,
+            ),
+          ).rejects.toThrow(SeedlessOnboardingControllerError.ControllerLocked);
+
+          baseMessenger.publish('KeyringController:unlock');
+
+          await new Promise((resolve) => setTimeout(resolve, 100));
+
+          controller.updateBackupMetadataState({
+            keyringId: MOCK_KEYRING_ID,
+            seedPhrase: MOCK_SEED_PHRASE,
+          });
+
+          const MOCK_SEED_PHRASE_HASH = keccak256AndHexify(MOCK_SEED_PHRASE);
+          expect(controller.state.socialBackupsMetadata).toStrictEqual([
+            { id: MOCK_KEYRING_ID, hash: MOCK_SEED_PHRASE_HASH },
+          ]);
+        },
+      );
+    });
   });
 
   describe('SeedPhraseMetadata', () => {
-    it('should be able to create a seed phrase metadata', () => {
+    it('should be able to create a seed phrase metadata with default options', () => {
       // should be able to create a SeedPhraseMetadata instance via constructor
-      const seedPhraseMetadata = new SeedPhraseMetadata(MOCK_SEED_PHRASE);
-      expect(seedPhraseMetadata.seedPhrase).toBeDefined();
+      const seedPhraseMetadata = new SecretMetadata(MOCK_SEED_PHRASE);
+      expect(seedPhraseMetadata.data).toBeDefined();
       expect(seedPhraseMetadata.timestamp).toBeDefined();
+      expect(seedPhraseMetadata.type).toBe(SecretType.Mnemonic);
+      expect(seedPhraseMetadata.version).toBe(SecretMetadataVersion.V1);
 
       // should be able to create a SeedPhraseMetadata instance with a timestamp via constructor
       const timestamp = 18_000;
-      const seedPhraseMetadata2 = new SeedPhraseMetadata(
-        MOCK_SEED_PHRASE,
+      const seedPhraseMetadata2 = new SecretMetadata(MOCK_SEED_PHRASE, {
         timestamp,
-      );
-      expect(seedPhraseMetadata2.seedPhrase).toBeDefined();
+      });
+      expect(seedPhraseMetadata2.data).toBeDefined();
       expect(seedPhraseMetadata2.timestamp).toBe(timestamp);
-      expect(seedPhraseMetadata2.seedPhrase).toStrictEqual(MOCK_SEED_PHRASE);
+      expect(seedPhraseMetadata2.data).toStrictEqual(MOCK_SEED_PHRASE);
+      expect(seedPhraseMetadata2.type).toBe(SecretType.Mnemonic);
+    });
+
+    it('should be able to add metadata to a seed phrase', () => {
+      const timestamp = 18_000;
+      const seedPhraseMetadata = new SecretMetadata(MOCK_SEED_PHRASE, {
+        type: SecretType.PrivateKey,
+        timestamp,
+      });
+      expect(seedPhraseMetadata.type).toBe(SecretType.PrivateKey);
+      expect(seedPhraseMetadata.timestamp).toBe(timestamp);
     });
 
     it('should be able to correctly create `SeedPhraseMetadata` Array for batch seedphrases', () => {
       const seedPhrases = ['seed phrase 1', 'seed phrase 2', 'seed phrase 3'];
-      const rawSeedPhrases = seedPhrases.map(stringToBytes);
+      const rawSeedPhrases = seedPhrases.map((srp) => ({
+        value: stringToBytes(srp),
+        options: {
+          type: SecretType.Mnemonic,
+        },
+      }));
 
-      const seedPhraseMetadataArray =
-        SeedPhraseMetadata.fromBatchSeedPhrases(rawSeedPhrases);
+      const seedPhraseMetadataArray = SecretMetadata.fromBatch(rawSeedPhrases);
       expect(seedPhraseMetadataArray).toHaveLength(seedPhrases.length);
 
       // check the timestamp, the first one should be the oldest
@@ -2236,31 +2408,27 @@ describe('SeedlessOnboardingController', () => {
     });
 
     it('should be able to serialized and parse a seed phrase metadata', () => {
-      const seedPhraseMetadata = new SeedPhraseMetadata(MOCK_SEED_PHRASE);
+      const seedPhraseMetadata = new SecretMetadata(MOCK_SEED_PHRASE);
       const serializedSeedPhraseBytes = seedPhraseMetadata.toBytes();
 
-      const parsedSeedPhraseMetadata = SeedPhraseMetadata.fromRawMetadata(
+      const parsedSeedPhraseMetadata = SecretMetadata.fromRawMetadata(
         serializedSeedPhraseBytes,
       );
-      expect(parsedSeedPhraseMetadata.seedPhrase).toBeDefined();
+      expect(parsedSeedPhraseMetadata.data).toBeDefined();
       expect(parsedSeedPhraseMetadata.timestamp).toBeDefined();
-      expect(parsedSeedPhraseMetadata.seedPhrase).toStrictEqual(
-        MOCK_SEED_PHRASE,
-      );
+      expect(parsedSeedPhraseMetadata.data).toStrictEqual(MOCK_SEED_PHRASE);
     });
 
     it('should be able to sort seed phrase metadata', () => {
-      const mockSeedPhraseMetadata1 = new SeedPhraseMetadata(
-        MOCK_SEED_PHRASE,
-        1000,
-      );
-      const mockSeedPhraseMetadata2 = new SeedPhraseMetadata(
-        MOCK_SEED_PHRASE,
-        2000,
-      );
+      const mockSeedPhraseMetadata1 = new SecretMetadata(MOCK_SEED_PHRASE, {
+        timestamp: 1000,
+      });
+      const mockSeedPhraseMetadata2 = new SecretMetadata(MOCK_SEED_PHRASE, {
+        timestamp: 2000,
+      });
 
       // sort in ascending order
-      const sortedSeedPhraseMetadata = SeedPhraseMetadata.sort(
+      const sortedSeedPhraseMetadata = SecretMetadata.sort(
         [mockSeedPhraseMetadata1, mockSeedPhraseMetadata2],
         'asc',
       );
@@ -2269,7 +2437,7 @@ describe('SeedlessOnboardingController', () => {
       );
 
       // sort in descending order
-      const sortedSeedPhraseMetadataDesc = SeedPhraseMetadata.sort(
+      const sortedSeedPhraseMetadataDesc = SecretMetadata.sort(
         [mockSeedPhraseMetadata1, mockSeedPhraseMetadata2],
         'desc',
       );
@@ -2277,9 +2445,90 @@ describe('SeedlessOnboardingController', () => {
         sortedSeedPhraseMetadataDesc[1].timestamp,
       );
     });
+
+    it('should be able to overwrite the default Generic DataType', () => {
+      const secret1 = new SecretMetadata<string>('private-key-1', {
+        type: SecretType.PrivateKey,
+      });
+      expect(secret1.data).toBe('private-key-1');
+      expect(secret1.type).toBe(SecretType.PrivateKey);
+      expect(secret1.version).toBe(SecretMetadataVersion.V1);
+
+      // should be able to convert to bytes
+      const secret1Bytes = secret1.toBytes();
+      const parsedSecret1 =
+        SecretMetadata.fromRawMetadata<string>(secret1Bytes);
+      expect(parsedSecret1.data).toBe('private-key-1');
+      expect(parsedSecret1.type).toBe(SecretType.PrivateKey);
+      expect(parsedSecret1.version).toBe(SecretMetadataVersion.V1);
+
+      const secret2 = new SecretMetadata<Uint8Array>(MOCK_SEED_PHRASE, {
+        type: SecretType.Mnemonic,
+      });
+      expect(secret2.data).toStrictEqual(MOCK_SEED_PHRASE);
+      expect(secret2.type).toBe(SecretType.Mnemonic);
+
+      const secret2Bytes = secret2.toBytes();
+      const parsedSecret2 =
+        SecretMetadata.fromRawMetadata<Uint8Array>(secret2Bytes);
+      expect(parsedSecret2.data).toStrictEqual(MOCK_SEED_PHRASE);
+      expect(parsedSecret2.type).toBe(SecretType.Mnemonic);
+    });
+
+    it('should be able to parse the array of Mixed SecretMetadata', () => {
+      const MOCK_PRIVATE_KEY = 'private-key-1';
+      const secret1 = new SecretMetadata<string>(MOCK_PRIVATE_KEY, {
+        type: SecretType.PrivateKey,
+      });
+      const secret2 = new SecretMetadata<Uint8Array>(MOCK_SEED_PHRASE, {
+        type: SecretType.Mnemonic,
+      });
+
+      const secrets = [secret1.toBytes(), secret2.toBytes()];
+
+      const parsedSecrets =
+        SecretMetadata.parseSecretsFromMetadataStore(secrets);
+      expect(parsedSecrets).toHaveLength(2);
+      expect(parsedSecrets[0].data).toBe(MOCK_PRIVATE_KEY);
+      expect(parsedSecrets[0].type).toBe(SecretType.PrivateKey);
+      expect(parsedSecrets[1].data).toStrictEqual(MOCK_SEED_PHRASE);
+      expect(parsedSecrets[1].type).toBe(SecretType.Mnemonic);
+    });
+
+    it('should be able to filter the array of SecretMetadata by type', () => {
+      const MOCK_PRIVATE_KEY = 'MOCK_PRIVATE_KEY';
+      const secret1 = new SecretMetadata<string>(MOCK_PRIVATE_KEY, {
+        type: SecretType.PrivateKey,
+      });
+      const secret2 = new SecretMetadata<Uint8Array>(MOCK_SEED_PHRASE, {
+        type: SecretType.Mnemonic,
+      });
+      const secret3 = new SecretMetadata(MOCK_SEED_PHRASE);
+
+      const secrets = [secret1.toBytes(), secret2.toBytes(), secret3.toBytes()];
+
+      const mnemonicSecrets = SecretMetadata.parseSecretsFromMetadataStore(
+        secrets,
+        SecretType.Mnemonic,
+      );
+      expect(mnemonicSecrets).toHaveLength(2);
+      expect(mnemonicSecrets[0].data).toStrictEqual(MOCK_SEED_PHRASE);
+      expect(mnemonicSecrets[0].type).toBe(SecretType.Mnemonic);
+      expect(mnemonicSecrets[1].data).toStrictEqual(MOCK_SEED_PHRASE);
+      expect(mnemonicSecrets[1].type).toBe(SecretType.Mnemonic);
+
+      const privateKeySecrets = SecretMetadata.parseSecretsFromMetadataStore(
+        secrets,
+        SecretType.PrivateKey,
+      );
+
+      expect(privateKeySecrets).toHaveLength(1);
+      expect(privateKeySecrets[0].data).toBe(MOCK_PRIVATE_KEY);
+      expect(privateKeySecrets[0].type).toBe(SecretType.PrivateKey);
+    });
   });
 
-  describe('recoverPassword', () => {
+  describe('recoverCurrentDevicePassword', () => {
     const GLOBAL_PASSWORD = 'global-password';
     const RECOVERED_PASSWORD = 'recovered-password';
 
@@ -2309,7 +2558,7 @@ describe('SeedlessOnboardingController', () => {
             password: RECOVERED_PASSWORD,
           });
 
-          const result = await controller.recoverPassword({
+          const result = await controller.recoverCurrentDevicePassword({
             globalPassword: GLOBAL_PASSWORD,
           });
 
@@ -2327,7 +2576,7 @@ describe('SeedlessOnboardingController', () => {
         },
         async ({ controller }) => {
           await expect(
-            controller.recoverPassword({
+            controller.recoverCurrentDevicePassword({
               globalPassword: GLOBAL_PASSWORD,
             }),
           ).rejects.toThrow(
@@ -2349,14 +2598,21 @@ describe('SeedlessOnboardingController', () => {
           jest
             .spyOn(toprfClient, 'recoverEncKey')
             .mockRejectedValueOnce(
-              new Error('Failed to recover encryption key'),
+              new TOPRFError(
+                TOPRFErrorCode.CouldNotDeriveEncryptionKey,
+                'Could not derive encryption key',
+              ),
             );
 
           await expect(
-            controller.recoverPassword({
+            controller.recoverCurrentDevicePassword({
               globalPassword: GLOBAL_PASSWORD,
             }),
-          ).rejects.toThrow(SeedlessOnboardingControllerError.LoginFailedError);
+          ).rejects.toStrictEqual(
+            new RecoveryError(
+              SeedlessOnboardingControllerError.IncorrectPassword,
+            ),
+          );
         },
       );
     });
@@ -2383,13 +2639,292 @@ describe('SeedlessOnboardingController', () => {
 
           jest
             .spyOn(toprfClient, 'recoverPassword')
-            .mockRejectedValueOnce(new Error('Failed to recover password'));
+            .mockRejectedValueOnce(
+              new TOPRFError(
+                TOPRFErrorCode.CouldNotFetchPassword,
+                'Could not fetch password',
+              ),
+            );
 
           await expect(
-            controller.recoverPassword({
+            controller.recoverCurrentDevicePassword({
               globalPassword: GLOBAL_PASSWORD,
             }),
-          ).rejects.toThrow('Failed to recover password');
+          ).rejects.toStrictEqual(
+            new PasswordSyncError(
+              SeedlessOnboardingControllerError.CouldNotRecoverPassword,
+            ),
+          );
+        },
+      );
+    });
+
+    it('should not propagate unknown errors from #toprfClient.recoverPassword', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          const mockToprfEncryptor = createMockToprfEncryptor();
+          const encKey = mockToprfEncryptor.deriveEncKey(GLOBAL_PASSWORD);
+          const authKeyPair =
+            mockToprfEncryptor.deriveAuthKeyPair(GLOBAL_PASSWORD);
+          jest.spyOn(toprfClient, 'recoverEncKey').mockResolvedValueOnce({
+            encKey,
+            authKeyPair,
+            rateLimitResetResult: Promise.resolve(),
+            keyShareIndex: 1,
+          });
+
+          jest
+            .spyOn(toprfClient, 'recoverPassword')
+            .mockRejectedValueOnce(new Error('Unknown error'));
+
+          await expect(
+            controller.recoverCurrentDevicePassword({
+              globalPassword: GLOBAL_PASSWORD,
+            }),
+          ).rejects.toStrictEqual(
+            new PasswordSyncError(
+              SeedlessOnboardingControllerError.CouldNotRecoverPassword,
+            ),
+          );
+        },
+      );
+    });
+  });
+
+  describe('syncLatestGlobalPassword', () => {
+    const OLD_PASSWORD = 'old-mock-password';
+    const GLOBAL_PASSWORD = 'new-global-password';
+    let MOCK_VAULT: string;
+    let MOCK_VAULT_ENCRYPTION_KEY: string;
+    let MOCK_VAULT_ENCRYPTION_SALT: string;
+    let INITIAL_AUTH_PUB_KEY: string;
+    let initialAuthKeyPair: KeyPair; // Store initial keypair for vault creation
+    let initialEncKey: Uint8Array; // Store initial encKey for vault creation
+
+    // Generate initial keys and vault state before tests run
+    beforeAll(async () => {
+      const mockToprfEncryptor = createMockToprfEncryptor();
+      initialEncKey = mockToprfEncryptor.deriveEncKey(OLD_PASSWORD);
+      initialAuthKeyPair = mockToprfEncryptor.deriveAuthKeyPair(OLD_PASSWORD);
+      INITIAL_AUTH_PUB_KEY = bytesToBase64(initialAuthKeyPair.pk);
+
+      const mockResult = await createMockVault(
+        initialEncKey,
+        initialAuthKeyPair,
+        OLD_PASSWORD,
+        MOCK_NODE_AUTH_TOKENS,
+      );
+
+      MOCK_VAULT = mockResult.encryptedMockVault;
+      MOCK_VAULT_ENCRYPTION_KEY = mockResult.vaultEncryptionKey;
+      MOCK_VAULT_ENCRYPTION_SALT = mockResult.vaultEncryptionSalt;
+    });
+
+    // Remove beforeEach as setup is done in beforeAll now
+
+    it('should successfully sync the latest global password', async () => {
+      await withController(
+        {
+          // Pass the pre-generated state values
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            authPubKey: INITIAL_AUTH_PUB_KEY, // Use the base64 encoded key
+            vault: MOCK_VAULT,
+            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
+          }),
+        },
+        async ({ controller, toprfClient, encryptor }) => {
+          // Unlock controller first - requires vaultEncryptionKey/Salt or password
+          // Since we provide key/salt in state, submitPassword isn't strictly needed here
+          // but we keep it to match the method's requirement of being unlocked
+          // We'll use the key/salt implicitly by not providing password to unlockVaultAndGetBackupEncKey
+          await controller.submitPassword(OLD_PASSWORD); // Unlock using the standard method
+
+          const verifyPasswordSpy = jest.spyOn(
+            controller,
+            'verifyVaultPassword',
+          );
+          const recoverEncKeySpy = jest.spyOn(toprfClient, 'recoverEncKey');
+          const encryptorSpy = jest.spyOn(encryptor, 'encryptWithDetail');
+
+          // Mock recoverEncKey for the new global password
+          const mockToprfEncryptor = createMockToprfEncryptor();
+          const newEncKey = mockToprfEncryptor.deriveEncKey(GLOBAL_PASSWORD);
+          const newAuthKeyPair =
+            mockToprfEncryptor.deriveAuthKeyPair(GLOBAL_PASSWORD);
+
+          recoverEncKeySpy.mockResolvedValueOnce({
+            encKey: newEncKey,
+            authKeyPair: newAuthKeyPair,
+            rateLimitResetResult: Promise.resolve(),
+            keyShareIndex: 1,
+          });
+
+          // We still need verifyPassword to work conceptually, even if unlock is bypassed
+          // verifyPasswordSpy.mockResolvedValueOnce(); // Don't mock, let the real one run inside syncLatestGlobalPassword
+
+          await controller.syncLatestGlobalPassword({
+            oldPassword: OLD_PASSWORD,
+            globalPassword: GLOBAL_PASSWORD,
+          });
+
+          // Assertions
+          expect(verifyPasswordSpy).toHaveBeenCalledWith(OLD_PASSWORD);
+          expect(recoverEncKeySpy).toHaveBeenCalledWith(
+            expect.objectContaining({ password: GLOBAL_PASSWORD }),
+          );
+
+          // Check if vault was re-encrypted with the new password and keys
+          const expectedSerializedVaultData = JSON.stringify({
+            authTokens: controller.state.nodeAuthTokens,
+            toprfEncryptionKey: bytesToBase64(newEncKey),
+            toprfAuthKeyPair: JSON.stringify({
+              sk: bigIntToHex(newAuthKeyPair.sk),
+              pk: bytesToBase64(newAuthKeyPair.pk),
+            }),
+          });
+          expect(encryptorSpy).toHaveBeenCalledWith(
+            GLOBAL_PASSWORD,
+            expectedSerializedVaultData,
+          );
+
+          // Check if authPubKey was updated in state
+          expect(controller.state.authPubKey).toBe(
+            bytesToBase64(newAuthKeyPair.pk),
+          );
+          // Check if vault content actually changed
+          expect(controller.state.vault).not.toBe(MOCK_VAULT);
+        },
+      );
+    });
+
+    it('should throw an error if the old password verification fails', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            authPubKey: INITIAL_AUTH_PUB_KEY,
+            vault: MOCK_VAULT,
+            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
+          }),
+        },
+        async ({ controller }) => {
+          // Unlock controller first
+          await controller.submitPassword(OLD_PASSWORD);
+
+          const verifyPasswordSpy = jest
+            .spyOn(controller, 'verifyVaultPassword')
+            .mockRejectedValueOnce(new Error('Incorrect old password'));
+
+          await expect(
+            controller.syncLatestGlobalPassword({
+              oldPassword: 'WRONG_OLD_PASSWORD',
+              globalPassword: GLOBAL_PASSWORD,
+            }),
+          ).rejects.toThrow('Incorrect old password');
+
+          expect(verifyPasswordSpy).toHaveBeenCalledWith('WRONG_OLD_PASSWORD');
+        },
+      );
+    });
+
+    it('should throw an error if recovering the encryption key for the global password fails', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            authPubKey: INITIAL_AUTH_PUB_KEY,
+            vault: MOCK_VAULT,
+            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          // Unlock controller first
+          await controller.submitPassword(OLD_PASSWORD);
+
+          const verifyPasswordSpy = jest
+            .spyOn(controller, 'verifyVaultPassword')
+            .mockResolvedValueOnce();
+          const recoverEncKeySpy = jest
+            .spyOn(toprfClient, 'recoverEncKey')
+            .mockRejectedValueOnce(
+              new RecoveryError(
+                SeedlessOnboardingControllerError.LoginFailedError,
+              ),
+            );
+
+          await expect(
+            controller.syncLatestGlobalPassword({
+              oldPassword: OLD_PASSWORD,
+              globalPassword: GLOBAL_PASSWORD,
+            }),
+          ).rejects.toThrow(SeedlessOnboardingControllerError.LoginFailedError);
+
+          expect(verifyPasswordSpy).toHaveBeenCalledWith(OLD_PASSWORD);
+          expect(recoverEncKeySpy).toHaveBeenCalledWith(
+            expect.objectContaining({ password: GLOBAL_PASSWORD }),
+          );
+        },
+      );
+    });
+
+    it('should throw an error if creating the new vault fails', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            authPubKey: INITIAL_AUTH_PUB_KEY,
+            vault: MOCK_VAULT,
+            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
+          }),
+        },
+        async ({ controller, toprfClient, encryptor }) => {
+          // Unlock controller first
+          await controller.submitPassword(OLD_PASSWORD);
+
+          const verifyPasswordSpy = jest
+            .spyOn(controller, 'verifyVaultPassword')
+            .mockResolvedValueOnce();
+          const recoverEncKeySpy = jest.spyOn(toprfClient, 'recoverEncKey');
+          const encryptorSpy = jest
+            .spyOn(encryptor, 'encryptWithDetail')
+            .mockRejectedValueOnce(new Error('Vault creation failed'));
+
+          // Mock recoverEncKey for the new global password
+          const mockToprfEncryptor = createMockToprfEncryptor();
+          const newEncKey = mockToprfEncryptor.deriveEncKey(GLOBAL_PASSWORD);
+          const newAuthKeyPair =
+            mockToprfEncryptor.deriveAuthKeyPair(GLOBAL_PASSWORD);
+
+          recoverEncKeySpy.mockResolvedValueOnce({
+            encKey: newEncKey,
+            authKeyPair: newAuthKeyPair,
+            rateLimitResetResult: Promise.resolve(),
+            keyShareIndex: 1,
+          });
+
+          await expect(
+            controller.syncLatestGlobalPassword({
+              oldPassword: OLD_PASSWORD,
+              globalPassword: GLOBAL_PASSWORD,
+            }),
+          ).rejects.toThrow('Vault creation failed');
+
+          expect(verifyPasswordSpy).toHaveBeenCalledWith(OLD_PASSWORD);
+          expect(recoverEncKeySpy).toHaveBeenCalledWith(
+            expect.objectContaining({ password: GLOBAL_PASSWORD }),
+          );
+          expect(encryptorSpy).toHaveBeenCalled();
         },
       );
     });

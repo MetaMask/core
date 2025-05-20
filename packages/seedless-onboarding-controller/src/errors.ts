@@ -13,7 +13,7 @@ import { SeedlessOnboardingControllerError } from './constants';
  * @param defaultMessage - The default error message if the error code is not found.
  * @returns The error message.
  */
-export function getErrorMessageFromTOPRFErrorCode(
+function getErrorMessageFromTOPRFErrorCode(
   errorCode: TOPRFErrorCode,
   defaultMessage: string,
 ): string {
@@ -26,6 +26,35 @@ export function getErrorMessageFromTOPRFErrorCode(
       return SeedlessOnboardingControllerError.CouldNotRecoverPassword;
     default:
       return defaultMessage;
+  }
+}
+
+/**
+ * The PasswordSyncError class is used to handle errors that occur during the password sync process.
+ */
+export class PasswordSyncError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SeedlessOnboardingController - PasswordSyncError';
+  }
+
+  /**
+   * Get an instance of the PasswordSyncError class.
+   *
+   * @param error - The error to get the instance of.
+   * @returns The instance of the PasswordSyncError class.
+   */
+  static getInstance(error: unknown): PasswordSyncError {
+    if (error instanceof TOPRFError) {
+      const errorMessage = getErrorMessageFromTOPRFErrorCode(
+        error.code,
+        SeedlessOnboardingControllerError.CouldNotRecoverPassword,
+      );
+      return new PasswordSyncError(errorMessage);
+    }
+    return new PasswordSyncError(
+      SeedlessOnboardingControllerError.CouldNotRecoverPassword,
+    );
   }
 }
 

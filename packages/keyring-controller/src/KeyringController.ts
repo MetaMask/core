@@ -37,6 +37,7 @@ import { Mutex } from 'async-mutex';
 import type { MutexInterface } from 'async-mutex';
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
 import type { Patch } from 'immer';
+import { isEqual } from 'lodash';
 // When generating a ULID within the same millisecond, monotonicFactory provides some guarantees regarding sort order.
 import { ulid } from 'ulid';
 
@@ -318,6 +319,15 @@ export enum SignTypedDataVersion {
 export type SerializedKeyring = {
   type: string;
   data: Json;
+};
+
+/**
+ * State/data that can be updated during a `withKeyring` operation.
+ */
+type SessionState = {
+  keyrings: SerializedKeyring[];
+  keyringsMetadata: KeyringMetadata[];
+  password?: string;
 };
 
 /**
@@ -1027,8 +1037,12 @@ export class KeyringController extends BaseController<
    * operation completes.
    */
   async persistAllKeyrings(): Promise<boolean> {
-    this.#assertIsUnlocked();
-    return this.#persistOrRollback(async () => true);
+    return this.#withRollback(async () => {
+      this.#assertIsUnlocked();
+
+      await this.#updateVault();
+      return true;
+    });
   }
 
   /**
@@ -1399,6 +1413,7 @@ export class KeyringController extends BaseController<
    */
   changePassword(password: string): Promise<void> {
     this.#assertIsUnlocked();
+
     return this.#persistOrRollback(async () => {
       assertIsValidPassword(password);
 
@@ -1445,10 +1460,22 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving when the operation completes.
    */
   async submitPassword(password: string): Promise<void> {
-    return this.#withRollback(async () => {
+    await this.#withRollback(async () => {
       this.#keyrings = await this.#unlockKeyrings(password);
       this.#setUnlocked();
     });
+
+    try {
+      // If there are stronger encryption params available, we
+      // can attempt to upgrade the vault.
+      await this.#withRollback(async () =>
+        this.#upgradeVaultEncryptionParams(),
+      );
+    } catch (error) {
+      // We don't want to throw an error if the upgrade fails
+      // since the controller is already unlocked.
+      console.error('Failed to upgrade vault encryption params:', error);
+    }
   }
 
   /**
@@ -2147,6 +2174,20 @@ export class KeyringController extends BaseController<
   }
 
   /**
+   * Get a snapshot of session data held by class variables.
+   *
+   * @returns An object with serialized keyrings, keyrings metadata,
+   * and the user password.
+   */
+  async #getSessionState(): Promise<SessionState> {
+    return {
+      keyrings: await this.#getSerializedKeyrings(),
+      keyringsMetadata: this.#keyringsMetadata.slice(), // Force copy.
+      password: this.#password,
+    };
+  }
+
+  /**
    * Restore a serialized keyrings array.
    *
    * @param serializedKeyrings - The serialized keyrings array.
@@ -2175,7 +2216,7 @@ export class KeyringController extends BaseController<
     encryptionKey?: string,
     encryptionSalt?: string,
   ): Promise<EthKeyring[]> {
-    return this.#withVaultLock(async ({ releaseLock }) => {
+    return this.#withVaultLock(async () => {
       const encryptedVault = this.state.vault;
       if (!encryptedVault) {
         throw new Error(KeyringControllerError.VaultError);
@@ -2253,19 +2294,6 @@ export class KeyringController extends BaseController<
         }
       });
 
-      if (
-        this.#password &&
-        (!this.#cacheEncryptionKey || !encryptionKey) &&
-        this.#encryptor.isVaultUpdated &&
-        !this.#encryptor.isVaultUpdated(encryptedVault)
-      ) {
-        // The lock needs to be released before persisting the keyrings
-        // to avoid deadlock
-        releaseLock();
-        // Re-encrypt the vault with safer method if one is available
-        await this.#updateVault();
-      }
-
       return this.#keyrings;
     });
   }
@@ -2277,6 +2305,9 @@ export class KeyringController extends BaseController<
    */
   #updateVault(): Promise<boolean> {
     return this.#withVaultLock(async () => {
+      // Ensure no duplicate accounts are persisted.
+      await this.#assertNoDuplicateAccounts();
+
       const { encryptionKey, encryptionSalt, vault } = this.state;
       // READ THIS CAREFULLY:
       // We do check if the vault is still considered up-to-date, if not, we would not re-use the
@@ -2351,6 +2382,25 @@ export class KeyringController extends BaseController<
 
       return true;
     });
+  }
+
+  /**
+   * Upgrade the vault encryption parameters if needed.
+   *
+   * @returns A promise resolving to `void`.
+   */
+  async #upgradeVaultEncryptionParams(): Promise<void> {
+    this.#assertControllerMutexIsLocked();
+    const { vault } = this.state;
+
+    if (
+      vault &&
+      this.#password &&
+      this.#encryptor.isVaultUpdated &&
+      !this.#encryptor.isVaultUpdated(vault)
+    ) {
+      await this.#updateVault();
+    }
   }
 
   /**
@@ -2471,8 +2521,6 @@ export class KeyringController extends BaseController<
       await keyring.addAccounts(1);
     }
 
-    await this.#checkForDuplicate(type, await keyring.getAccounts());
-
     if (type === KeyringTypes.qr) {
       // In case of a QR keyring type, we need to subscribe
       // to its events after creating it
@@ -2571,41 +2619,15 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Checks for duplicate keypairs, using the the first account in the given
-   * array. Rejects if a duplicate is found.
+   * Assert that there are no duplicate accounts in the keyrings.
    *
-   * Only supports 'Simple Key Pair'.
-   *
-   * @param type - The key pair type to check for.
-   * @param newAccountArray - Array of new accounts.
-   * @returns The account, if no duplicate is found.
+   * @throws If there are duplicate accounts.
    */
-  async #checkForDuplicate(
-    type: string,
-    newAccountArray: string[],
-  ): Promise<string[]> {
+  async #assertNoDuplicateAccounts(): Promise<void> {
     const accounts = await this.#getAccountsFromKeyrings();
 
-    switch (type) {
-      case KeyringTypes.simple: {
-        const isIncluded = Boolean(
-          accounts.find(
-            (key) =>
-              newAccountArray[0] &&
-              (key === newAccountArray[0] ||
-                key === remove0x(newAccountArray[0])),
-          ),
-        );
-
-        if (isIncluded) {
-          throw new Error(KeyringControllerError.DuplicatedAccount);
-        }
-        return newAccountArray;
-      }
-
-      default: {
-        return newAccountArray;
-      }
+    if (new Set(accounts).size !== accounts.length) {
+      throw new Error(KeyringControllerError.DuplicatedAccount);
     }
   }
 
@@ -2642,7 +2664,7 @@ export class KeyringController extends BaseController<
 
   /**
    * Execute the given function after acquiring the controller lock
-   * and save the keyrings to state after it, or rollback to their
+   * and save the vault to state after it (only if needed), or rollback to their
    * previous state in case of error.
    *
    * @param callback - The function to execute.
@@ -2652,9 +2674,14 @@ export class KeyringController extends BaseController<
     callback: MutuallyExclusiveCallback<Result>,
   ): Promise<Result> {
     return this.#withRollback(async ({ releaseLock }) => {
+      const oldState = await this.#getSessionState();
       const callbackResult = await callback({ releaseLock });
-      // State is committed only if the operation is successful
-      await this.#updateVault();
+      const newState = await this.#getSessionState();
+
+      // State is committed only if the operation is successful and need to trigger a vault update.
+      if (!isEqual(oldState, newState)) {
+        await this.#updateVault();
+      }
 
       return callbackResult;
     });

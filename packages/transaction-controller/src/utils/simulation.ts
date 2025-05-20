@@ -4,14 +4,15 @@ import { hexToBN, toHex } from '@metamask/controller-utils';
 import { abiERC20, abiERC721, abiERC1155 } from '@metamask/metamask-eth-abis';
 import { createModuleLogger, type Hex } from '@metamask/utils';
 
-import { simulateTransactions } from './simulation-api';
+import { simulateTransactions } from '../api/simulation-api';
 import type {
   SimulationResponseLog,
   SimulationRequestTransaction,
   SimulationResponse,
   SimulationResponseCallTrace,
   SimulationResponseTransaction,
-} from './simulation-api';
+  SimulationRequest,
+} from '../api/simulation-api';
 import {
   ABI_SIMULATION_ERC20_WRAPPED,
   ABI_SIMULATION_ERC721_LEGACY,
@@ -42,6 +43,7 @@ export enum SupportedToken {
 type ABI = Fragment[];
 
 export type GetSimulationDataRequest = {
+  authorizationList?: SimulationRequestTransaction['authorizationList'];
   chainId: Hex;
   data?: Hex;
   from: Hex;
@@ -65,6 +67,7 @@ type ParsedEvent = {
 type GetSimulationDataOptions = {
   blockTime?: number;
   senderCode?: Hex;
+  use7702Fees?: boolean;
 };
 
 const log = createModuleLogger(projectLogger, 'simulation');
@@ -121,39 +124,34 @@ export async function getSimulationData(
   request: GetSimulationDataRequest,
   options: GetSimulationDataOptions = {},
 ): Promise<GetSimulationDataResult> {
-  const { chainId, from, to, value, data } = request;
-  const { blockTime, senderCode } = options;
+  const { authorizationList, chainId, from, to, value, data } = request;
+  const { use7702Fees } = options;
 
-  log('Getting simulation data', request);
+  log('Getting simulation data', { request, options });
 
   try {
-    const response = await simulateTransactions(chainId, {
+    const response = await baseRequest({
+      chainId,
+      from,
+      options,
+      params: {
+        suggestFees: {
+          withFeeTransfer: true,
+          withTransfer: true,
+          ...(use7702Fees ? { with7702: true } : {}),
+        },
+        withCallTrace: true,
+        withLogs: true,
+      },
       transactions: [
         {
+          authorizationList,
           data,
           from,
           to,
           value,
         },
       ],
-      suggestFees: {
-        withTransfer: true,
-        withFeeTransfer: true,
-      },
-      withCallTrace: true,
-      withLogs: true,
-      ...(blockTime && {
-        blockOverrides: {
-          time: toHex(blockTime),
-        },
-      }),
-      ...(senderCode && {
-        overrides: {
-          [from]: {
-            code: senderCode,
-          },
-        },
-      }),
     });
 
     const transactionError = response.transactions?.[0]?.error;
@@ -356,8 +354,7 @@ async function getTokenBalanceChanges(
   events: ParsedEvent[],
   options: GetSimulationDataOptions,
 ): Promise<SimulationTokenBalanceChange[]> {
-  const { from } = request;
-  const { blockTime, senderCode } = options;
+  const { chainId, from } = request;
   const balanceTxs = getTokenBalanceTransactions(request, events);
 
   log('Generated balance transactions', [...balanceTxs.after.values()]);
@@ -372,20 +369,11 @@ async function getTokenBalanceChanges(
     return [];
   }
 
-  const response = await simulateTransactions(request.chainId as Hex, {
+  const response = await baseRequest({
+    chainId,
+    from,
+    options,
     transactions,
-    ...(blockTime && {
-      blockOverrides: {
-        time: toHex(blockTime),
-      },
-    }),
-    ...(senderCode && {
-      overrides: {
-        [from]: {
-          code: senderCode,
-        },
-      },
-    }),
   });
 
   log('Balance simulation response', response);
@@ -744,6 +732,7 @@ function getGasFeeTokens(response: SimulationResponse): GasFeeToken[] {
     balance: tokenFee.currentBalanceToken,
     decimals: tokenFee.token.decimals,
     gas: feeLevel.gas,
+    gasTransfer: tokenFee.transferEstimate,
     maxFeePerGas: feeLevel.maxFeePerGas,
     maxPriorityFeePerGas: feeLevel.maxPriorityFeePerGas,
     rateWei: tokenFee.rateWei,
@@ -751,4 +740,51 @@ function getGasFeeTokens(response: SimulationResponse): GasFeeToken[] {
     symbol: tokenFee.token.symbol,
     tokenAddress: tokenFee.token.address,
   }));
+}
+
+/**
+ * Base request to simulation API.
+ *
+ * @param request - The request object.
+ * @param request.chainId - Chain ID of the transaction.
+ * @param request.from - Address of the sender.
+ * @param request.options - Options for the simulation.
+ * @param request.params - Additional parameters for the request.
+ * @param request.transactions - Transactions to simulate.
+ * @returns The simulation response.
+ */
+async function baseRequest({
+  chainId,
+  from,
+  options,
+  params,
+  transactions,
+}: {
+  chainId: Hex;
+  from: Hex;
+  options: GetSimulationDataOptions;
+  params?: Partial<SimulationRequest>;
+  transactions: SimulationRequestTransaction[];
+}): Promise<SimulationResponse> {
+  const { blockTime, senderCode } = options;
+
+  return await simulateTransactions(chainId as Hex, {
+    transactions,
+    ...params,
+    ...(blockTime && {
+      blockOverrides: {
+        ...params?.blockOverrides,
+        time: toHex(blockTime),
+      },
+    }),
+    ...(senderCode && {
+      overrides: {
+        ...params?.overrides,
+        [from]: {
+          ...params?.overrides?.[from],
+          code: senderCode,
+        },
+      },
+    }),
+  });
 }

@@ -15,8 +15,12 @@ import {
 } from '@metamask/superstruct';
 import { isStrictHexString } from '@metamask/utils';
 
-import type { BridgeAsset, FeatureFlagResponse, QuoteResponse } from '../types';
-import { ActionTypes, BridgeFlag, FeeType } from '../types';
+import type {
+  BridgeAsset,
+  FeatureFlagsPlatformConfig,
+  QuoteResponse,
+} from '../types';
+import { ActionTypes, FeeType } from '../types';
 
 const HexAddressSchema = define('HexAddress', (v: unknown) =>
   isValidHexAddress(v as string, { allowNonPrefixed: false }),
@@ -48,7 +52,7 @@ const BridgeAssetSchema = type({
 
 export const validateFeatureFlagsResponse = (
   data: unknown,
-): data is FeatureFlagResponse => {
+): data is FeatureFlagsPlatformConfig => {
   const ChainConfigurationSchema = type({
     isActiveSrc: boolean(),
     isActiveDest: boolean(),
@@ -56,7 +60,7 @@ export const validateFeatureFlagsResponse = (
     topAssets: optional(array(string())),
   });
 
-  const ConfigSchema = type({
+  const PlatformConfigSchema = type({
     refreshRate: number(),
     maxRefreshCount: number(),
     support: boolean(),
@@ -64,12 +68,7 @@ export const validateFeatureFlagsResponse = (
   });
 
   // Create schema for FeatureFlagResponse
-  const FeatureFlagResponseSchema = type({
-    [BridgeFlag.EXTENSION_CONFIG]: ConfigSchema,
-    [BridgeFlag.MOBILE_CONFIG]: ConfigSchema,
-  });
-
-  return is(data, FeatureFlagResponseSchema);
+  return is(data, PlatformConfigSchema);
 };
 
 export const validateSwapsTokenObject = (

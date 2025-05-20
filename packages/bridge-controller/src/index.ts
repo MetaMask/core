@@ -1,5 +1,28 @@
 export { BridgeController } from './bridge-controller';
 
+export {
+  UnifiedSwapBridgeEventName,
+  UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY,
+} from './utils/metrics/constants';
+
+export type {
+  RequiredEventContextFromClient,
+  CrossChainSwapsEventProperties,
+  TradeData,
+  RequestParams,
+  RequestMetadata,
+  TxStatusData,
+} from './utils/metrics/types';
+
+export {
+  formatProviderLabel,
+  getRequestParams,
+  getActionType,
+  getSwapType,
+  isHardwareWallet,
+  isCustomSlippage,
+} from './utils/metrics/properties';
+
 export type {
   ChainConfiguration,
   L1GasFees,
@@ -18,21 +41,21 @@ export type {
   QuoteResponse,
   FeeData,
   TxData,
-  BridgeFeatureFlags,
   BridgeControllerState,
   BridgeControllerAction,
   BridgeControllerActions,
   BridgeControllerEvents,
   BridgeControllerMessenger,
+  FeatureFlagsPlatformConfig,
 } from './types';
+
+export { StatusTypes } from './types';
 
 export {
   AssetType,
   SortOrder,
-  BridgeFlag,
   ActionTypes,
   ChainId,
-  BridgeFeatureFlagsKey,
   RequestStatus,
   BridgeUserAction,
   BridgeBackgroundAction,
@@ -104,4 +127,5 @@ export {
    * @returns Whether the quote is expired
    */
   selectIsQuoteExpired,
+  selectBridgeFeatureFlags,
 } from './selectors';
