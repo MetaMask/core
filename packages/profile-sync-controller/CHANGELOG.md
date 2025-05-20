@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add address book syncing capability with proper contact metadata handling ([#5776](https://github.com/MetaMask/core/pull/5776))
+  - Implement contact synchronization between local and remote storage
+  - Create metadata structure for address book entries with `_syncMetadata` field
+  - Handle conflict resolution for contact updates and deletions
+
 ## [15.0.0]
 
 ### Changed
