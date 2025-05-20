@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Remove the published bridgeTransactionComplete and bridgeTransactionFailed events ([#5829](https://github.com/MetaMask/core/pull/5829))
 - Modify events to use `swap` and `swapApproval` TransactionTypes when src and dest chain are the same ([#5829](https://github.com/MetaMask/core/pull/5829))
-- Bump `@metamask/bridge-controller` peer dependency to `^25.0.1` ([#5811](https://github.com/MetaMask/core/pull/5811))
+- Bump `@metamask/bridge-controller` dev dependency to `^25.0.1` ([#5811](https://github.com/MetaMask/core/pull/5811))
 - Bump `@metamask/controller-utils` to `^11.9.0` ([#5812](https://github.com/MetaMask/core/pull/5812))
 
 ### Fixed
