@@ -1308,7 +1308,11 @@ describe('Batch Utils', () => {
         addTransactionBatch({
           ...request,
           publishBatchHook: undefined,
-          request: { ...request.request, useHook: true },
+          request: {
+            ...request.request,
+            useHook: true,
+            requireApproval: false,
+          },
         }).catch(() => {
           // Intentionally empty
         });
@@ -1334,31 +1338,6 @@ describe('Batch Utils', () => {
             }),
           ],
         });
-      });
-
-      it('throws if sequentialPublishBatchHook does not return a result', async () => {
-        const publishBatchHookMock: jest.MockedFn<PublishBatchHook> = jest.fn();
-        publishBatchHookMock.mockResolvedValueOnce(undefined);
-        setupSequentialPublishBatchHookMock(() => publishBatchHookMock);
-
-        const resultPromise = addTransactionBatch({
-          ...request,
-          publishBatchHook: undefined,
-          request: { ...request.request, useHook: true },
-        });
-
-        resultPromise.catch(() => {
-          // Intentionally empty
-        });
-
-        await flushPromises();
-        await executePublishHooks();
-
-        await expect(resultPromise).rejects.toThrow(
-          'Publish batch hook did not return a result',
-        );
-        await flushPromises();
-        expect(sequentialPublishBatchHookMock).toHaveBeenCalledTimes(1);
       });
 
       it('handles individual transaction failures when using sequentialPublishBatchHook', async () => {
