@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fix `userFeeLevel` as `dappSuggested` initially when dApp suggested gas values for legacy transactions ([#5821](https://github.com/MetaMask/core/pull/5821))
 - Fix `addTransaction` function to correctly identify a transaction as a `simpleSend` type when the recipient is a smart account ([#5822](https://github.com/MetaMask/core/pull/5822))
+- Fix `gweiDecimalToWeiDecimal` function used in `RandomisedEstimationsGasFeeFlow` to prevent return WEI value with lingering decimal ([#5839](https://github.com/MetaMask/core/pull/5839))
 
 ## [56.1.0]
 
