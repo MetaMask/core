@@ -365,7 +365,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       quoteResponse.quote.destChainId,
     );
     if (isBridgeTx) {
-
       const input = {
         bridgeTxMetaId: bridgeTxMeta.id,
       };
