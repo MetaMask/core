@@ -11,11 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Uncategorized
 
-- chore: add a test for extra fields in validator ([#5835](https://github.com/MetaMask/core.git/pull/5835))
-
 ### Added
 
 - **BREAKING:** Added a required `minimumVersion` to feature flag response schema ([#5834](https://github.com/MetaMask/core/pull/5834))
+
+- chore: add a test for extra fields in validator ([#5835](https://github.com/MetaMask/core.git/pull/5835))
 
 ### Changed
 
