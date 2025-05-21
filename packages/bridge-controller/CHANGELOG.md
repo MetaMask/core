@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.0.0]
+
 ### Uncategorized
 
 - chore: add a test for extra fields in validator ([#5835](https://github.com/MetaMask/core.git/pull/5835))
@@ -271,7 +273,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@25.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@26.0.0...HEAD
+[26.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@25.1.0...@metamask/bridge-controller@26.0.0
 [25.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@25.0.1...@metamask/bridge-controller@25.1.0
 [25.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@25.0.0...@metamask/bridge-controller@25.0.1
 [25.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-controller@24.0.0...@metamask/bridge-controller@25.0.0

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [23.0.0]
+
 ### Added
 
 - Subscribe to TransactionController and MultichainTransactionsController tx confirmed and failed events for swaps ([#5829](https://github.com/MetaMask/core/pull/5829))
@@ -253,7 +255,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-status-controller@22.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-status-controller@23.0.0...HEAD
+[23.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-status-controller@22.0.0...@metamask/bridge-status-controller@23.0.0
 [22.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-status-controller@21.0.0...@metamask/bridge-status-controller@22.0.0
 [21.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-status-controller@20.1.0...@metamask/bridge-status-controller@21.0.0
 [20.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-status-controller@20.0.0...@metamask/bridge-status-controller@20.1.0
