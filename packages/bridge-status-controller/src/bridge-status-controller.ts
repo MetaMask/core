@@ -175,6 +175,51 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // Set interval
     this.setIntervalLength(REFRESH_INTERVAL_MS);
 
+    this.messagingSystem.subscribe(
+      'TransactionController:transactionFailed',
+      ({ transactionMeta }) => {
+        const { type, status, id } = transactionMeta;
+        if (
+          type &&
+          [TransactionType.bridge, TransactionType.swap].includes(type) &&
+          ![TransactionStatus.signed, TransactionStatus.approved].includes(
+            status,
+          )
+        ) {
+          this.#trackUnifiedSwapBridgeEvent(
+            UnifiedSwapBridgeEventName.Failed,
+            id,
+          );
+        }
+      },
+    );
+
+    this.messagingSystem.subscribe(
+      'TransactionController:transactionConfirmed',
+      (transactionMeta) => {
+        const { type, id } = transactionMeta;
+        if (type === TransactionType.swap) {
+          this.#trackUnifiedSwapBridgeEvent(
+            UnifiedSwapBridgeEventName.Completed,
+            id,
+          );
+        }
+      },
+    );
+
+    this.messagingSystem.subscribe(
+      'MultichainTransactionsController:transactionConfirmed',
+      (transactionMeta) => {
+        const { type, id } = transactionMeta;
+        if (type === TransactionType.swap) {
+          this.#trackUnifiedSwapBridgeEvent(
+            UnifiedSwapBridgeEventName.Completed,
+            id,
+          );
+        }
+      },
+    );
+
     // If you close the extension, but keep the browser open, the polling continues
     // If you close the browser, the polling stops
     // Check for historyItems that do not have a status of complete and restart polling
@@ -228,6 +273,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         const srcTxMetaId = historyItem.txMetaId;
         const pollingToken = this.#pollingTokensByTxMetaId[srcTxMetaId];
         return !pollingToken;
+      })
+      // Swap txs don't need to have their statuses polled
+      .filter((historyItem) => {
+        const isBridgeTx = isCrossChain(
+          historyItem.quote.srcChainId,
+          historyItem.quote.destChainId,
+        );
+        return isBridgeTx;
       });
 
     incompleteHistoryItems.forEach((historyItem) => {
@@ -243,12 +296,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     });
   };
 
-  /**
-   * Starts polling for the bridge tx status
-   *
-   * @param startPollingForBridgeTxStatusArgs - The args to start polling for the bridge tx status
-   */
-  startPollingForBridgeTxStatus = (
+  readonly #addTxToHistory = (
     startPollingForBridgeTxStatusArgs: StartPollingForBridgeTxStatusArgsSerialized,
   ) => {
     const {
@@ -298,15 +346,35 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       // Use the txMeta.id as the key so we can reference the txMeta in TransactionController
       state.txHistory[bridgeTxMeta.id] = txHistoryItem;
     });
+  };
 
-    const input = {
-      bridgeTxMetaId: bridgeTxMeta.id,
-    };
+  /**
+   * Starts polling for the bridge tx status
+   *
+   * @param txHistoryMeta - The parameters for creating the history item
+   */
+  startPollingForBridgeTxStatus = (
+    txHistoryMeta: StartPollingForBridgeTxStatusArgsSerialized,
+  ) => {
+    const { quoteResponse, bridgeTxMeta } = txHistoryMeta;
 
-    this.#pollingTokensByTxMetaId[bridgeTxMeta.id] = this.startPolling(input);
+    this.#addTxToHistory(txHistoryMeta);
 
-    // set the polling max time duration to five minutes
-    this.setDurationForId(getKey(input), POLLING_DURATION);
+    const isBridgeTx = isCrossChain(
+      quoteResponse.quote.srcChainId,
+      quoteResponse.quote.destChainId,
+    );
+    if (isBridgeTx) {
+
+      const input = {
+        bridgeTxMetaId: bridgeTxMeta.id,
+      };
+
+      this.#pollingTokensByTxMetaId[bridgeTxMeta.id] = this.startPolling(input);
+
+      // set the polling max time duration to five minutes
+      this.setDurationForId(getKey(input), POLLING_DURATION);
+    }
   };
 
   // This will be called after you call this.startPolling()
@@ -380,21 +448,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         this.stopPollingByPollingToken(pollingToken);
 
         if (status.status === StatusTypes.COMPLETE) {
-          this.messagingSystem.publish(
-            `${BRIDGE_STATUS_CONTROLLER_NAME}:bridgeTransactionComplete`,
-            { bridgeHistoryItem: newBridgeHistoryItem },
-          );
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Completed,
             bridgeTxMetaId,
           );
         }
         if (status.status === StatusTypes.FAILED) {
-          this.messagingSystem.publish(
-            `${BRIDGE_STATUS_CONTROLLER_NAME}:bridgeTransactionFailed`,
-            { bridgeHistoryItem: newBridgeHistoryItem },
-          );
-
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Failed,
             bridgeTxMetaId,
@@ -554,7 +613,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         await this.#handleUSDTAllowanceReset(quoteResponse);
 
         const approvalTxMeta = await this.#handleEvmTransaction(
-          TransactionType.bridgeApproval,
+          isBridgeTx
+            ? TransactionType.bridgeApproval
+            : TransactionType.swapApproval,
           approval,
           quoteResponse,
         );
@@ -586,12 +647,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   readonly #handleEvmSmartTransaction = async (
+    isBridgeTx: boolean,
     trade: TxData,
     quoteResponse: Omit<QuoteResponse, 'approval' | 'trade'> & QuoteMetadata,
     approvalTxId?: string,
   ) => {
     return await this.#handleEvmTransaction(
-      TransactionType.bridge,
+      isBridgeTx ? TransactionType.bridge : TransactionType.swap,
       trade,
       quoteResponse,
       approvalTxId,
@@ -825,6 +887,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           },
           async () =>
             await this.#handleEvmSmartTransaction(
+              isBridgeTx,
               quoteResponse.trade as TxData,
               quoteResponse,
               approvalTxId,
