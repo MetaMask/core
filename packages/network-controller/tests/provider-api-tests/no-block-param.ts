@@ -338,9 +338,9 @@ export function testsForRpcMethodAssumingNoBlockParam(
     },
   );
 
-  describe('if the RPC endpoint returns a response that is not 405, 429, 503, or 504', () => {
+  describe('if the RPC endpoint returns a 5xx response that is not 503, or 504', () => {
     const httpStatus = 500;
-    const errorMessage = `Non-200 status code: '${httpStatus}'`;
+    const errorMessage = `RPC endpoint server error (HTTP ${httpStatus})`;
 
     it('throws a generic, undescriptive error', async () => {
       await withMockedCommunications({ providerType }, async (comms) => {
@@ -385,7 +385,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
         }),
       getExpectedBreakError: () =>
         expect.objectContaining({
-          message: `Fetch failed with status '500'`,
+          message: `Fetch failed with status '${httpStatus}'`,
         }),
     });
   });

@@ -323,17 +323,17 @@ describe('RpcService', () => {
       },
     );
 
-    describe('if the endpoint has a 405 response', () => {
-      it('throws a non-existent method error without retrying the request', async () => {
+    describe('if the endpoint has a 401 response', () => {
+      it('throws a 401 error without retrying the request', async () => {
         const endpointUrl = 'https://rpc.example.chain';
         nock(endpointUrl)
           .post('/', {
             id: 1,
             jsonrpc: '2.0',
-            method: 'eth_unknownMethod',
+            method: 'eth_chainId',
             params: [],
           })
-          .reply(405);
+          .reply(401);
         const service = new RpcService({
           fetch,
           btoa,
@@ -343,12 +343,10 @@ describe('RpcService', () => {
         const promise = service.request({
           id: 1,
           jsonrpc: '2.0',
-          method: 'eth_unknownMethod',
+          method: 'eth_chainId',
           params: [],
         });
-        await expect(promise).rejects.toThrow(
-          'The method does not exist / is not available.',
-        );
+        await expect(promise).rejects.toThrow('Unauthorized.');
       });
 
       it('does not forward the request to a failover service if given one', async () => {
@@ -357,10 +355,10 @@ describe('RpcService', () => {
           .post('/', {
             id: 1,
             jsonrpc: '2.0',
-            method: 'eth_unknownMethod',
+            method: 'eth_chainId',
             params: [],
           })
-          .reply(405);
+          .reply(401);
         const failoverService = buildMockRpcService();
         const service = new RpcService({
           fetch,
@@ -372,7 +370,7 @@ describe('RpcService', () => {
         const jsonRpcRequest = {
           id: 1,
           jsonrpc: '2.0' as const,
-          method: 'eth_unknownMethod',
+          method: 'eth_chainId',
           params: [],
         };
         await ignoreRejection(service.request(jsonRpcRequest));
@@ -385,10 +383,10 @@ describe('RpcService', () => {
           .post('/', {
             id: 1,
             jsonrpc: '2.0',
-            method: 'eth_unknownMethod',
+            method: 'eth_chainId',
             params: [],
           })
-          .reply(405);
+          .reply(429);
         const onBreakListener = jest.fn();
         const service = new RpcService({
           fetch,
@@ -400,13 +398,189 @@ describe('RpcService', () => {
         const promise = service.request({
           id: 1,
           jsonrpc: '2.0',
-          method: 'eth_unknownMethod',
+          method: 'eth_chainId',
           params: [],
         });
         await ignoreRejection(promise);
         expect(onBreakListener).not.toHaveBeenCalled();
       });
     });
+
+    describe.each([402, 404])(
+      'if the endpoint has a %d response',
+      (httpStatus) => {
+        it('throws a resource unavailable error without retrying the request', async () => {
+          const endpointUrl = 'https://rpc.example.chain';
+          nock(endpointUrl)
+            .post('/', {
+              id: 1,
+              jsonrpc: '2.0',
+              method: 'eth_unknownMethod',
+              params: [],
+            })
+            .reply(httpStatus);
+          const service = new RpcService({
+            fetch,
+            btoa,
+            endpointUrl,
+          });
+
+          const promise = service.request({
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'eth_unknownMethod',
+            params: [],
+          });
+          await expect(promise).rejects.toThrow(
+            `RPC endpoint server error (HTTP ${httpStatus})`,
+          );
+        });
+
+        it('does not forward the request to a failover service if given one', async () => {
+          const endpointUrl = 'https://rpc.example.chain';
+          nock(endpointUrl)
+            .post('/', {
+              id: 1,
+              jsonrpc: '2.0',
+              method: 'eth_unknownMethod',
+              params: [],
+            })
+            .reply(httpStatus);
+          const failoverService = buildMockRpcService();
+          const service = new RpcService({
+            fetch,
+            btoa,
+            endpointUrl,
+            failoverService,
+          });
+
+          const jsonRpcRequest = {
+            id: 1,
+            jsonrpc: '2.0' as const,
+            method: 'eth_unknownMethod',
+            params: [],
+          };
+          await ignoreRejection(service.request(jsonRpcRequest));
+          expect(failoverService.request).not.toHaveBeenCalled();
+        });
+
+        it('does not call onBreak', async () => {
+          const endpointUrl = 'https://rpc.example.chain';
+          nock(endpointUrl)
+            .post('/', {
+              id: 1,
+              jsonrpc: '2.0',
+              method: 'eth_unknownMethod',
+              params: [],
+            })
+            .reply(httpStatus);
+          const onBreakListener = jest.fn();
+          const service = new RpcService({
+            fetch,
+            btoa,
+            endpointUrl,
+          });
+          service.onBreak(onBreakListener);
+
+          const promise = service.request({
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'eth_unknownMethod',
+            params: [],
+          });
+          await ignoreRejection(promise);
+          expect(onBreakListener).not.toHaveBeenCalled();
+        });
+      },
+    );
+
+    describe.each([405, 501])(
+      'if the endpoint has a %d response',
+      (httpStatus) => {
+        it('throws a resource unavailable error without retrying the request', async () => {
+          const endpointUrl = 'https://rpc.example.chain';
+          nock(endpointUrl)
+            .post('/', {
+              id: 1,
+              jsonrpc: '2.0',
+              method: 'eth_unknownMethod',
+              params: [],
+            })
+            .reply(httpStatus);
+          const service = new RpcService({
+            fetch,
+            btoa,
+            endpointUrl,
+          });
+
+          const promise = service.request({
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'eth_unknownMethod',
+            params: [],
+          });
+          await expect(promise).rejects.toThrow(
+            'The method does not exist / is not available.',
+          );
+        });
+
+        it('does not forward the request to a failover service if given one', async () => {
+          const endpointUrl = 'https://rpc.example.chain';
+          nock(endpointUrl)
+            .post('/', {
+              id: 1,
+              jsonrpc: '2.0',
+              method: 'eth_unknownMethod',
+              params: [],
+            })
+            .reply(httpStatus);
+          const failoverService = buildMockRpcService();
+          const service = new RpcService({
+            fetch,
+            btoa,
+            endpointUrl,
+            failoverService,
+          });
+
+          const jsonRpcRequest = {
+            id: 1,
+            jsonrpc: '2.0' as const,
+            method: 'eth_unknownMethod',
+            params: [],
+          };
+          await ignoreRejection(service.request(jsonRpcRequest));
+          expect(failoverService.request).not.toHaveBeenCalled();
+        });
+
+        it('does not call onBreak', async () => {
+          const endpointUrl = 'https://rpc.example.chain';
+          nock(endpointUrl)
+            .post('/', {
+              id: 1,
+              jsonrpc: '2.0',
+              method: 'eth_unknownMethod',
+              params: [],
+            })
+            .reply(httpStatus);
+          const onBreakListener = jest.fn();
+          const service = new RpcService({
+            fetch,
+            btoa,
+            endpointUrl,
+          });
+          service.onBreak(onBreakListener);
+
+          const promise = service.request({
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'eth_unknownMethod',
+            params: [],
+          });
+          await ignoreRejection(promise);
+          expect(onBreakListener).not.toHaveBeenCalled();
+        });
+      },
+    );
 
     describe('if the endpoint has a 429 response', () => {
       it('throws a rate-limiting error without retrying the request', async () => {
@@ -491,7 +665,7 @@ describe('RpcService', () => {
       });
     });
 
-    describe('when the endpoint has a response that is neither 2xx, nor 405, 429, 503, or 504', () => {
+    describe('when the endpoint has a 4xx response that is not 401, 402, 404, 405, or 429', () => {
       it('throws a generic error without retrying the request', async () => {
         const endpointUrl = 'https://rpc.example.chain';
         nock(endpointUrl)
@@ -501,7 +675,7 @@ describe('RpcService', () => {
             method: 'eth_chainId',
             params: [],
           })
-          .reply(500, {
+          .reply(403, {
             id: 1,
             jsonrpc: '2.0',
             error: 'oops',
@@ -519,9 +693,7 @@ describe('RpcService', () => {
           params: [],
         });
         await expect(promise).rejects.toThrow(
-          expect.objectContaining({
-            message: "Non-200 status code: '500'",
-          }),
+          'The JSON sent is not a valid Request object.',
         );
       });
 
@@ -534,7 +706,7 @@ describe('RpcService', () => {
             method: 'eth_chainId',
             params: [],
           })
-          .reply(500, {
+          .reply(403, {
             id: 1,
             jsonrpc: '2.0',
             error: 'oops',
@@ -566,7 +738,7 @@ describe('RpcService', () => {
             method: 'eth_chainId',
             params: [],
           })
-          .reply(500, {
+          .reply(403, {
             id: 1,
             jsonrpc: '2.0',
             error: 'oops',
