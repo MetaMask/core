@@ -906,7 +906,9 @@ export class AccountsController extends BaseController<
               },
               options: {
                 ...account.options,
-                entropySource: added.entropySource,
+                ...(added.type === KeyringTypes.hd
+                  ? { entropySource: added.entropySource }
+                  : {}),
               },
             };
 

@@ -7,9 +7,9 @@ import type {
 } from '@metamask/keyring-api';
 import {
   BtcAccountType,
+  BtcScope,
   EthAccountType,
   EthScope,
-  BtcScope,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -17,8 +17,8 @@ import type { NetworkClientId } from '@metamask/network-controller';
 import type { SnapControllerState } from '@metamask/snaps-controllers';
 import { SnapStatus } from '@metamask/snaps-utils';
 import type { CaipChainId } from '@metamask/utils';
-import * as uuid from 'uuid';
 import type { V4Options } from 'uuid';
+import * as uuid from 'uuid';
 
 import type {
   AccountsControllerActions,
@@ -56,9 +56,7 @@ const mockGetState = jest.fn();
 const mockAccount: InternalAccount = {
   id: 'mock-id',
   address: '0x123',
-  options: {
-    entropySource: 'mock-id',
-  },
+  options: {},
   methods: [...ETH_EOA_METHODS],
   type: EthAccountType.Eoa,
   scopes: [EthScope.Eoa],
@@ -74,9 +72,7 @@ const mockAccount: InternalAccount = {
 const mockAccount2: InternalAccount = {
   id: 'mock-id2',
   address: '0x1234',
-  options: {
-    entropySource: 'mock-id',
-  },
+  options: {},
   methods: [...ETH_EOA_METHODS],
   type: EthAccountType.Eoa,
   scopes: [EthScope.Eoa],
@@ -91,9 +87,7 @@ const mockAccount2: InternalAccount = {
 const mockAccount3: InternalAccount = {
   id: 'mock-id3',
   address: '0x3333',
-  options: {
-    entropySource: 'mock-id',
-  },
+  options: {},
   methods: [...ETH_EOA_METHODS],
   type: EthAccountType.Eoa,
   scopes: [EthScope.Eoa],
@@ -184,6 +178,29 @@ function setLastSelectedAsAny(account: InternalAccount): InternalAccount {
   deepClonedAccount.metadata.lastSelected = expect.any(Number);
   deepClonedAccount.metadata.importTime = expect.any(Number);
   return deepClonedAccount;
+}
+
+/**
+ * Sets the `entropySource` property of the given `account` to the specified
+ * keyringId value.
+ *
+ * @param account - The account to modify.
+ * @param keyringId - The keyring ID to set as entropySource.
+ * @returns The modified account.
+ */
+function populateEntropySource(
+  account: InternalAccount,
+  keyringId: string,
+): InternalAccount {
+  return JSON.parse(
+    JSON.stringify({
+      ...account,
+      options: {
+        ...account.options,
+        entropySource: keyringId,
+      },
+    }),
+  ) as InternalAccount;
 }
 
 /**
@@ -627,7 +644,7 @@ describe('AccountsController', () => {
 
         expect(accounts).toStrictEqual([
           mockAccount,
-          setLastSelectedAsAny(mockAccount2),
+          setLastSelectedAsAny(populateEntropySource(mockAccount2, 'mock-id')),
         ]);
       });
 
@@ -701,9 +718,6 @@ describe('AccountsController', () => {
               address: mockAccount3.address,
               keyringType: mockAccount3.metadata.keyring.type as KeyringTypes,
               snap: mockAccount3.metadata.snap,
-              options: {
-                entropySource: 'mock-id2',
-              },
             }),
           ),
         ]);
@@ -886,7 +900,7 @@ describe('AccountsController', () => {
               address: mockAccount3.address,
               keyringType: KeyringTypes.hd,
               options: {
-                entropySource: mockAccount3.options.entropySource,
+                entropySource: 'mock-id',
               },
             }),
           ),
@@ -954,7 +968,7 @@ describe('AccountsController', () => {
             address: mockAccount3.address,
             keyringType: KeyringTypes.hd,
             options: {
-              entropySource: mockAccount3.options.entropySource,
+              entropySource: 'mock-id',
             },
           }),
         ]);
@@ -1058,7 +1072,7 @@ describe('AccountsController', () => {
 
         expect(accounts).toStrictEqual([
           mockAccount,
-          setLastSelectedAsAny(mockAccount2),
+          setLastSelectedAsAny(populateEntropySource(mockAccount2, 'mock-id')),
         ]);
         expect(accountsController.getSelectedAccount().id).toBe(mockAccount.id);
       });
@@ -1107,7 +1121,7 @@ describe('AccountsController', () => {
           // 2. AccountsController:stateChange
           3,
           'AccountsController:accountAdded',
-          setLastSelectedAsAny(mockAccount2),
+          setLastSelectedAsAny(populateEntropySource(mockAccount2, 'mock-id')),
         );
       });
     });
@@ -2059,9 +2073,6 @@ describe('AccountsController', () => {
           address: mockSnapAccount2.address,
           keyringType: KeyringTypes.snap,
           snap: mockSnapAccount2.metadata.snap,
-          options: {
-            entropySource: 'mock-id',
-          },
         }),
       ];
 
@@ -2134,9 +2145,6 @@ describe('AccountsController', () => {
           address: mockSnapAccount2.address,
           keyringType: KeyringTypes.snap,
           snap: mockSnapAccount2.metadata.snap,
-          options: {
-            entropySource: 'mock-id',
-          },
         }),
       ];
 
@@ -3057,27 +3065,18 @@ describe('AccountsController', () => {
       name: 'Account 2',
       address: '0x555',
       keyringType: KeyringTypes.simple,
-      options: {
-        entropySource: 'mock-id2',
-      },
     });
     const mockSimpleKeyring2 = createMockInternalAccount({
       id: 'mock-id3',
       name: 'Account 3',
       address: '0x666',
       keyringType: KeyringTypes.simple,
-      options: {
-        entropySource: 'mock-id2',
-      },
     });
     const mockSimpleKeyring3 = createMockInternalAccount({
       id: 'mock-id4',
       name: 'Account 4',
       address: '0x777',
       keyringType: KeyringTypes.simple,
-      options: {
-        entropySource: 'mock-id2',
-      },
     });
 
     const mockNewKeyringStateWith = (simpleAddressess: string[]) => {
