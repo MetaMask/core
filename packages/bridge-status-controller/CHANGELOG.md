@@ -9,9 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [23.0.0]
 
+### Added
+
+- Subscribe to TransactionController and MultichainTransactionsController tx confirmed and failed events for swaps ([#5829](https://github.com/MetaMask/core/pull/5829))
+
 ### Changed
 
 - **BREAKING:** bump `@metamask/bridge-controller` peer dependency to `^26.0.0` ([#5842](https://github.com/MetaMask/core/pull/5842))
+- **BREAKING:** Remove the published bridgeTransactionComplete and bridgeTransactionFailed events ([#5829](https://github.com/MetaMask/core/pull/5829))
+- Modify events to use `swap` and `swapApproval` TransactionTypes when src and dest chain are the same ([#5829](https://github.com/MetaMask/core/pull/5829))
 
 ## [22.0.0]
 
