@@ -337,7 +337,7 @@ export class RpcService implements AbstractRpcService {
    * specifies the request.
    * @returns The decoded JSON-RPC response from the endpoint.
    * @throws A 401 error if the response status is 401.
-   * @throws A "method not found" error if the response status is 405 or 501.
+   * @throws A "method not found" error if the response status is 501.
    * @throws A "rate limiting" error if the response HTTP status is 429.
    * @throws A "resource unavailable" error if the response status is 402, 404, or any 5xx.
    * @throws An "invalid request" error for any other 4xx status codes.
@@ -362,7 +362,7 @@ export class RpcService implements AbstractRpcService {
    * specifies the request.
    * @returns The decoded JSON-RPC response from the endpoint.
    * @throws A 401 error if the response status is 401.
-   * @throws A "method not found" error if the response status is 405 or 501.
+   * @throws A "method not found" error if the response status is 501.
    * @throws A "rate limiting" error if the response HTTP status is 429.
    * @throws A "resource unavailable" error if the response status is 402, 404, or any 5xx.
    * @throws An "invalid request" error for any other 4xx status codes.
@@ -467,7 +467,7 @@ export class RpcService implements AbstractRpcService {
    * fetch options passed to the constructor
    * @returns The decoded JSON-RPC response from the endpoint.
    * @throws A 401 error if the response status is 401.
-   * @throws A "method not found" error if the response status is 405 or 501.
+   * @throws A "method not found" error if the response status is 501.
    * @throws A "rate limiting" error if the response HTTP status is 429.
    * @throws A "resource unavailable" error if the response status is 402, 404, or any 5xx.
    * @throws An "invalid request" error for any other 4xx status codes.
@@ -493,15 +493,7 @@ export class RpcService implements AbstractRpcService {
             httpStatus: status,
           });
         }
-        if (status === 402 || status === 404) {
-          throw rpcErrors.resourceUnavailable({
-            message: `RPC endpoint server error (HTTP ${status})`,
-            data: {
-              httpStatus: status,
-            },
-          });
-        }
-        if (status === 405 || status === 501) {
+        if (status === 501) {
           throw rpcErrors.methodNotFound({
             data: {
               httpStatus: status,
@@ -516,13 +508,9 @@ export class RpcService implements AbstractRpcService {
             },
           });
         }
-        if (status >= 500 && status < 600) {
-          const message =
-            status === 503 || status === 504
-              ? 'Gateway timeout. The request took too long to process. This can happen when querying logs over too wide a block range.'
-              : `RPC endpoint server error (HTTP ${status})`;
+        if (status >= 500 || status === 402 || status === 404) {
           throw rpcErrors.resourceUnavailable({
-            message,
+            message: `RPC endpoint server error (HTTP ${status})`,
             data: {
               httpStatus: status,
             },
