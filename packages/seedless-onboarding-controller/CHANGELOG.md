@@ -16,5 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add array of new seed phrase backups to the metadata store in batch (useful in multi-srp flow)
   - Fetch seed phrase metadata from the metadata store
   - Update the password of the seedless onboarding flow
+  - checkIsPasswordOutdated to check current password is outdated compare to global password
+  - Add password outdated check to add SRPs / change password
+  - recover old password using latest global password
+  - sync latest global password to reset vault to use latest password and persist latest auth pubkey
 
 [Unreleased]: https://github.com/MetaMask/core/
