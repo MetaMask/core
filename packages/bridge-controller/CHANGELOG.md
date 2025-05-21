@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Added a required `minimumVersion` to feature flag response schema ([#5834](https://github.com/MetaMask/core/pull/5834))
 
+### Changed
+
+- Consume `bridgeConfigV2` in the feature flag response schema for Mobile ([#5837](https://github.com/MetaMask/core/pull/5837))
+
 ## [25.1.0]
 
 ### Added
