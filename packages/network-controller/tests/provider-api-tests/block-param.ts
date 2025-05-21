@@ -414,7 +414,7 @@ export function testsForRpcMethodSupportingBlockParam(
     });
 
     describe.each([
-      [405, 'The method does not exist / is not available.'],
+      [405, 'The JSON sent is not a valid Request object.'],
       [429, 'Request is being rate limited.'],
     ])(
       'if the RPC endpoint returns a %d response',
@@ -528,7 +528,7 @@ export function testsForRpcMethodSupportingBlockParam(
     describe.each([503, 504])(
       'if the RPC endpoint returns a %d response',
       (httpStatus) => {
-        const errorMessage = 'Gateway timeout';
+        const errorMessage = `RPC endpoint server error (HTTP ${httpStatus})`;
 
         it('retries the request up to 5 times until there is a 200 response', async () => {
           await withMockedCommunications({ providerType }, async (comms) => {
@@ -628,7 +628,6 @@ export function testsForRpcMethodSupportingBlockParam(
             await expect(promiseForResult).rejects.toThrow(errorMessage);
           });
         });
-
         testsForRpcFailoverBehavior({
           providerType,
           requestToCall: {
@@ -648,7 +647,9 @@ export function testsForRpcMethodSupportingBlockParam(
           isRetriableFailure: true,
           getExpectedError: () =>
             expect.objectContaining({
-              message: expect.stringContaining(`Gateway timeout`),
+              message: expect.stringContaining(
+                `RPC endpoint server error (HTTP ${httpStatus})`,
+              ),
             }),
           getExpectedBreakError: () =>
             expect.objectContaining({
