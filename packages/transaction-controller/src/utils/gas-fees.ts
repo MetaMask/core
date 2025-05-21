@@ -5,6 +5,7 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
+import { BN } from 'bn.js';
 import type {
   FetchGasFeeEstimateOptions,
   GasFeeState,
@@ -126,12 +127,9 @@ export function gweiDecimalToWeiHex(value: string) {
  * // Returns "1500000000"
  */
 export function gweiDecimalToWeiDecimal(gweiDecimal: string | number): string {
-  const gwei =
-    typeof gweiDecimal === 'string' ? gweiDecimal : String(gweiDecimal);
+  const weiValue = Number(gweiDecimal) * 1e9;
 
-  const weiDecimal = Number(gwei) * 1e9;
-
-  return weiDecimal.toString();
+  return weiValue.toString().split('.')[0];
 }
 
 /**
