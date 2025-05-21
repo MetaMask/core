@@ -7,13 +7,7 @@ import type {
   SEC1EncodedPublicKey,
 } from '@metamask/toprf-secure-backup';
 import { ToprfSecureBackup } from '@metamask/toprf-secure-backup';
-import {
-  base64ToBytes,
-  bytesToBase64,
-  stringToBytes,
-  remove0x,
-  bigIntToHex,
-} from '@metamask/utils';
+import { base64ToBytes, bytesToBase64, bigIntToHex } from '@metamask/utils';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { Mutex } from 'async-mutex';
 
@@ -207,17 +201,12 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           authConnection,
           socialLoginEmail,
         } = params;
-        const hashedIdTokenHexes = idTokens.map((idToken) => {
-          return remove0x(keccak256AndHexify(stringToBytes(idToken)));
-        });
+
         const authenticationResult = await this.toprfClient.authenticate({
-          authConnectionId: groupedAuthConnectionId || authConnectionId,
+          authConnectionId,
           userId,
-          idTokens: hashedIdTokenHexes,
-          groupedAuthConnectionParams: {
-            authConnectionId,
-            idTokens,
-          },
+          idTokens,
+          groupedAuthConnectionId,
         });
         // update the state with the authenticated user info
         this.update((state) => {
