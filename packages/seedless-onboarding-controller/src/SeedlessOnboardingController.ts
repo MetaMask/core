@@ -292,12 +292,12 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     seedPhrase: Uint8Array,
     keyringId: string,
   ): Promise<void> {
-    this.#assertIsUnlocked();
-    await this.#assertPasswordInSync({
-      skipCache: true,
-    });
-    // NOTE don't include #assertPasswordInSync in #withControllerLock since #assertPasswordInSync already acquires the controller lock
     return await this.#withControllerLock(async () => {
+      this.#assertIsUnlocked();
+      await this.#assertPasswordInSync({
+        skipCache: true,
+        skipLock: true, // skip lock since we already have the lock
+      });
       // verify the password and unlock the vault
       const { toprfEncryptionKey, toprfAuthKeyPair } =
         await this.#unlockVaultAndGetBackupEncKey();
@@ -369,15 +369,17 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @returns A promise that resolves to the success of the operation.
    */
   async changePassword(newPassword: string, oldPassword: string) {
-    this.#assertIsUnlocked();
-    // verify the old password of the encrypted vault
-    await this.verifyVaultPassword(oldPassword);
-    await this.#assertPasswordInSync({
-      skipCache: true,
-    });
-
-    // NOTE don't include verifyPassword and #assertPasswordInSync in #withControllerLock since verifyPassword and #assertPasswordInSync already acquires the controller lock
     return await this.#withControllerLock(async () => {
+      this.#assertIsUnlocked();
+      // verify the old password of the encrypted vault
+      await this.verifyVaultPassword(oldPassword, {
+        skipLock: true, // skip lock since we already have the lock
+      });
+      await this.#assertPasswordInSync({
+        skipCache: true,
+        skipLock: true, // skip lock since we already have the lock
+      });
+
       try {
         // update the encryption key with new password and update the Metadata Store
         const { encKey: newEncKey, authKeyPair: newAuthKeyPair } =
@@ -430,16 +432,26 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * Verify the password validity by decrypting the vault.
    *
    * @param password - The password to verify.
+   * @param options - Optional options object.
+   * @param options.skipLock - Whether to skip the lock acquisition.
    * @returns A promise that resolves to the success of the operation.
    * @throws {Error} If the password is invalid or the vault is not initialized.
    */
-  async verifyVaultPassword(password: string): Promise<void> {
-    return await this.#withControllerLock(async () => {
+  async verifyVaultPassword(
+    password: string,
+    options?: {
+      skipLock?: boolean;
+    },
+  ): Promise<void> {
+    const doVerify = async () => {
       if (!this.state.vault) {
         throw new Error(SeedlessOnboardingControllerError.VaultError);
       }
       await this.#vaultEncryptor.decrypt(password, this.state.vault);
-    });
+    };
+    return options?.skipLock
+      ? await doVerify()
+      : await this.#withControllerLock(doVerify);
   }
 
   /**
@@ -508,10 +520,11 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     oldPassword: string;
     globalPassword: string;
   }) {
-    // verify correct old password
-    await this.verifyVaultPassword(oldPassword);
-    // NOTE don't include verifyPassword in #withControllerLock since verifyPassword already acquires the controller lock
     return await this.#withControllerLock(async () => {
+      // verify correct old password
+      await this.verifyVaultPassword(oldPassword, {
+        skipLock: true, // skip lock since we already have the lock
+      });
       // update vault with latest globalPassword
       const { encKey, authKeyPair } = await this.#recoverEncKey(globalPassword);
       // update and encrypt the vault with new password
@@ -588,10 +601,12 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    *
    * @param options - Optional options object.
    * @param options.skipCache - If true, bypass the cache and force a fresh check.
+   * @param options.skipLock - Whether to skip the lock acquisition.
    * @returns A promise that resolves to true if the password is outdated, false otherwise.
    */
   async checkIsPasswordOutdated(options?: {
     skipCache?: boolean;
+    skipLock?: boolean;
   }): Promise<boolean> {
     // cache result to reduce load on infra
     // Check cache first unless skipCache is true
@@ -606,7 +621,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         return passwordOutdatedCache.isExpiredPwd;
       }
     }
-    return await this.#withControllerLock(async () => {
+
+    const doCheck = async () => {
       this.#assertIsAuthenticatedUser(this.state);
       const {
         nodeAuthTokens,
@@ -633,7 +649,11 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         state.passwordOutdatedCache = { isExpiredPwd, timestamp: Date.now() };
       });
       return isExpiredPwd;
-    });
+    };
+
+    return options?.skipLock
+      ? await doCheck()
+      : await this.#withControllerLock(doCheck);
   }
 
   #setUnlocked(): void {
@@ -1205,10 +1225,12 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    *
    * @param options - The options for asserting the password is in sync.
    * @param options.skipCache - Whether to skip the cache check.
+   * @param options.skipLock - Whether to skip the lock acquisition.
    * @throws If the password is outdated.
    */
   async #assertPasswordInSync(options?: {
     skipCache?: boolean;
+    skipLock?: boolean;
   }): Promise<void> {
     const isPasswordOutdated = await this.checkIsPasswordOutdated(options);
     if (isPasswordOutdated) {

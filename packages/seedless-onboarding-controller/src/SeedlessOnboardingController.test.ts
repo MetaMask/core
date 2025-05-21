@@ -2800,7 +2800,9 @@ describe('SeedlessOnboardingController', () => {
           });
 
           // Assertions
-          expect(verifyPasswordSpy).toHaveBeenCalledWith(OLD_PASSWORD);
+          expect(verifyPasswordSpy).toHaveBeenCalledWith(OLD_PASSWORD, {
+            skipLock: true, // skip lock since we already have the lock
+          });
           expect(recoverEncKeySpy).toHaveBeenCalledWith(
             expect.objectContaining({ password: GLOBAL_PASSWORD }),
           );
@@ -2855,7 +2857,9 @@ describe('SeedlessOnboardingController', () => {
             }),
           ).rejects.toThrow('Incorrect old password');
 
-          expect(verifyPasswordSpy).toHaveBeenCalledWith('WRONG_OLD_PASSWORD');
+          expect(verifyPasswordSpy).toHaveBeenCalledWith('WRONG_OLD_PASSWORD', {
+            skipLock: true, // skip lock since we already have the lock
+          });
         },
       );
     });
@@ -2893,7 +2897,9 @@ describe('SeedlessOnboardingController', () => {
             }),
           ).rejects.toThrow(SeedlessOnboardingControllerError.LoginFailedError);
 
-          expect(verifyPasswordSpy).toHaveBeenCalledWith(OLD_PASSWORD);
+          expect(verifyPasswordSpy).toHaveBeenCalledWith(OLD_PASSWORD, {
+            skipLock: true, // skip lock since we already have the lock
+          });
           expect(recoverEncKeySpy).toHaveBeenCalledWith(
             expect.objectContaining({ password: GLOBAL_PASSWORD }),
           );
@@ -2944,7 +2950,9 @@ describe('SeedlessOnboardingController', () => {
             }),
           ).rejects.toThrow('Vault creation failed');
 
-          expect(verifyPasswordSpy).toHaveBeenCalledWith(OLD_PASSWORD);
+          expect(verifyPasswordSpy).toHaveBeenCalledWith(OLD_PASSWORD, {
+            skipLock: true, // skip lock since we already have the lock
+          });
           expect(recoverEncKeySpy).toHaveBeenCalledWith(
             expect.objectContaining({ password: GLOBAL_PASSWORD }),
           );
