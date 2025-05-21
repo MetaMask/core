@@ -47,8 +47,15 @@ export function getBridgeFeatureFlags(
   const remoteFeatureFlagControllerState = messenger.call(
     'RemoteFeatureFlagController:getState',
   );
+
+  // bridgeConfigV2 is the feature flag for the mobile app
+  // bridgeConfig for Mobile has been deprecated since release of bridge and Solana in 7.46.0 was pushed back
+  // You will still get bridgeConfig returned from remoteFeatureFlagControllerState but you should use bridgeConfigV2 instead
+  const mobileFlags =
+    remoteFeatureFlagControllerState?.remoteFeatureFlags?.bridgeConfigV2;
+
   const rawBridgeConfig =
     remoteFeatureFlagControllerState?.remoteFeatureFlags?.bridgeConfig;
 
-  return processFeatureFlags(rawBridgeConfig);
+  return processFeatureFlags(mobileFlags || rawBridgeConfig);
 }
