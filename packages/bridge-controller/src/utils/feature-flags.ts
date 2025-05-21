@@ -50,12 +50,13 @@ export function getBridgeFeatureFlags(
 
   // bridgeConfigV2 is the feature flag for the mobile app
   // bridgeConfig for Mobile has been deprecated since release of bridge and Solana in 7.46.0 was pushed back
+  // and there's no way to turn on bridgeConfig for 7.47.0 without affecting 7.46.0 as well.
   // You will still get bridgeConfig returned from remoteFeatureFlagControllerState but you should use bridgeConfigV2 instead
-  const mobileFlags =
+  const rawMobileFlags =
     remoteFeatureFlagControllerState?.remoteFeatureFlags?.bridgeConfigV2;
 
   const rawBridgeConfig =
     remoteFeatureFlagControllerState?.remoteFeatureFlags?.bridgeConfig;
 
-  return processFeatureFlags(mobileFlags || rawBridgeConfig);
+  return processFeatureFlags(rawMobileFlags || rawBridgeConfig);
 }
