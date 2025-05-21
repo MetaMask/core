@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Consume `bridgeConfigV2` in the feature flag response schema for Mobile ([#5837](https://github.com/MetaMask/core/pull/5837))
+- Consume `bridgeConfigV2` in the feature flag response schema for Mobile and export `DEFAULT_FEATURE_FLAG_CONFIG` ([#5837](https://github.com/MetaMask/core/pull/5837))
 
 ## [25.1.0]
 
