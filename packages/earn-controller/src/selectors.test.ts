@@ -163,19 +163,32 @@ describe('Earn Controller Selectors', () => {
 
   describe('selectLendingMarketForProtocolAndId', () => {
     it('should return market for given protocol and id', () => {
-      const selector = selectLendingMarketForProtocolAndId(mockState);
-      expect(selector('aave-v3', 'market1')).toStrictEqual(mockMarket1);
-      expect(selector('compound-v3', 'market2')).toStrictEqual(mockMarket2);
-      expect(selector('invalid', 'invalid')).toBeUndefined();
+      const result = selectLendingMarketForProtocolAndId(
+        'aave-v3',
+        'market1',
+      )(mockState);
+      expect(result).toStrictEqual(mockMarket1);
+      const result2 = selectLendingMarketForProtocolAndId(
+        'compound-v3',
+        'market2',
+      )(mockState);
+      expect(result2).toStrictEqual(mockMarket2);
+      const result3 = selectLendingMarketForProtocolAndId(
+        'invalid',
+        'invalid',
+      )(mockState);
+      expect(result3).toBeUndefined();
     });
   });
 
   describe('selectLendingMarketsForChainId', () => {
     it('should return markets for given chain id', () => {
-      const selector = selectLendingMarketsForChainId(mockState);
-      expect(selector(1)).toStrictEqual([mockMarket1]);
-      expect(selector(2)).toStrictEqual([mockMarket2]);
-      expect(selector(999)).toStrictEqual([]);
+      const result = selectLendingMarketsForChainId(1)(mockState);
+      expect(result).toStrictEqual([mockMarket1]);
+      const result2 = selectLendingMarketsForChainId(2)(mockState);
+      expect(result2).toStrictEqual([mockMarket2]);
+      const result3 = selectLendingMarketsForChainId(999)(mockState);
+      expect(result3).toStrictEqual([]);
     });
   });
 
@@ -258,15 +271,22 @@ describe('Earn Controller Selectors', () => {
 
   describe('selectLendingMarketForProtocolAndTokenAddress', () => {
     it('should return market for given protocol and token address', () => {
-      const selector = selectLendingMarketForProtocolAndTokenAddress(mockState);
-      expect(selector('aave-v3', '0x123')).toStrictEqual({
+      const result = selectLendingMarketForProtocolAndTokenAddress(
+        'aave-v3',
+        '0x123',
+      )(mockState);
+      expect(result).toStrictEqual({
         ...mockMarket1,
         position: {
           ...mockPosition1,
           market: undefined,
         },
       });
-      expect(selector('invalid', 'invalid')).toBeUndefined();
+      const result2 = selectLendingMarketForProtocolAndTokenAddress(
+        'invalid',
+        'invalid',
+      )(mockState);
+      expect(result2).toBeUndefined();
     });
   });
 });
