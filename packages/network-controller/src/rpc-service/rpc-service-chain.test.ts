@@ -339,22 +339,54 @@ describe('RpcServiceChain', () => {
       // Retry the first endpoint until max retries is hit.
       await expect(
         rpcServiceChain.request(jsonRpcRequest, fetchOptions),
-      ).rejects.toThrow('RPC endpoint server error (HTTP 503)');
+      ).rejects.toThrow(
+        expect.objectContaining({
+          code: -32002,
+          message: 'RPC endpoint server error (HTTP 503)',
+          data: {
+            httpStatus: 503,
+          },
+        }),
+      );
       // Retry the first endpoint again, until max retries is hit.
       await expect(
         rpcServiceChain.request(jsonRpcRequest, fetchOptions),
-      ).rejects.toThrow('RPC endpoint server error (HTTP 503)');
+      ).rejects.toThrow(
+        expect.objectContaining({
+          code: -32002,
+          message: 'RPC endpoint server error (HTTP 503)',
+          data: {
+            httpStatus: 503,
+          },
+        }),
+      );
       // Retry the first endpoint for a third time, until max retries is hit.
       // The circuit will break on the last time, and the second endpoint will
       // be retried, until max retries is hit.
       await expect(
         rpcServiceChain.request(jsonRpcRequest, fetchOptions),
-      ).rejects.toThrow('RPC endpoint server error (HTTP 503)');
+      ).rejects.toThrow(
+        expect.objectContaining({
+          code: -32002,
+          message: 'RPC endpoint server error (HTTP 503)',
+          data: {
+            httpStatus: 503,
+          },
+        }),
+      );
       // Try the first endpoint, see that the circuit is broken, and retry the
       // second endpoint, until max retries is hit.
       await expect(
         rpcServiceChain.request(jsonRpcRequest, fetchOptions),
-      ).rejects.toThrow('RPC endpoint server error (HTTP 503)');
+      ).rejects.toThrow(
+        expect.objectContaining({
+          code: -32002,
+          message: 'RPC endpoint server error (HTTP 503)',
+          data: {
+            httpStatus: 503,
+          },
+        }),
+      );
       // Try the first endpoint, see that the circuit is broken, and retry the
       // second endpoint, until max retries is hit.
       // The circuit will break on the last time, and the third endpoint will
