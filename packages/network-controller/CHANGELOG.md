@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 429 responses now throw a "Rate Limiting" error
   - Other 4xx responses now throw a generic HTTP client error
   - Invalid JSON responses now throw a "Parse" error
+- Rather than throwing an error, NetworkController now corrects an invalid initial `selectedNetworkClientId` to point to the default RPC endpoint of the first network sorted by chain ID ([#5851](https://github.com/MetaMask/core/pull/5851))
 
 ## [23.5.0]
 

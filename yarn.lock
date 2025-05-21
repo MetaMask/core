@@ -3064,7 +3064,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/error-reporting-service@workspace:packages/error-reporting-service":
+"@metamask/error-reporting-service@npm:^0.0.0, @metamask/error-reporting-service@workspace:packages/error-reporting-service":
   version: 0.0.0-use.local
   resolution: "@metamask/error-reporting-service@workspace:packages/error-reporting-service"
   dependencies:
@@ -3835,6 +3835,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.1"
     "@metamask/controller-utils": "npm:^11.9.0"
+    "@metamask/error-reporting-service": "npm:^0.0.0"
     "@metamask/eth-block-tracker": "npm:^11.0.3"
     "@metamask/eth-json-rpc-infura": "npm:^10.1.1"
     "@metamask/eth-json-rpc-middleware": "npm:^16.0.1"
