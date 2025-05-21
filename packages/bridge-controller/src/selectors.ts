@@ -25,6 +25,7 @@ import type {
 import { RequestStatus, SortOrder } from './types';
 import {
   getNativeAssetForChainId,
+  isCrossChain,
   isNativeAddress,
   isSolanaChainId,
 } from './utils/bridge';
@@ -413,13 +414,19 @@ type MaxBalanceButtonVisibilityClientParams = {
 export const selectMaxBalanceButtonVisibilityForSrcToken = createBridgeSelector(
   [
     (state) => state.quoteRequest.srcTokenAddress,
+    (state) => state.quoteRequest.srcChainId,
+    (state) => state.quoteRequest.destChainId,
     (_, { isStxEnabled }: MaxBalanceButtonVisibilityClientParams) =>
       isStxEnabled,
     (_, { balanceValue }: MaxBalanceButtonVisibilityClientParams) =>
       balanceValue,
   ],
 
-  (srcTokenAddress, isStxEnabled, balanceValue) =>
-    (isNativeAddress(srcTokenAddress) ? isStxEnabled : true) &&
-    new BigNumber(balanceValue ?? 0).gt(0),
+  (srcTokenAddress, srcChainId, destChainId, isStxEnabled, balanceValue) =>
+    Boolean(
+      srcChainId &&
+        !isCrossChain(srcChainId, destChainId) &&
+        (isNativeAddress(srcTokenAddress) ? isStxEnabled : true) &&
+        new BigNumber(balanceValue ?? 0).gt(0),
+    ),
 );
