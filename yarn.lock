@@ -2727,6 +2727,7 @@ __metadata:
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
+    uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/accounts-controller": ^29.0.0
     "@metamask/assets-controllers": ^63.0.0

@@ -68,6 +68,10 @@ import type {
 } from './utils/metrics/types';
 import { type CrossChainSwapsEventProperties } from './utils/metrics/types';
 import { isValidQuoteRequest } from './utils/quote';
+import {
+  getFeeForTransactionRequest,
+  getMinimumBalanceForRentExemptionRequest,
+} from './utils/snaps';
 
 const metadata: StateMetadata<BridgeControllerState> = {
   quoteRequest: {
@@ -99,6 +103,10 @@ const metadata: StateMetadata<BridgeControllerState> = {
     anonymous: false,
   },
   assetExchangeRates: {
+    persist: false,
+    anonymous: false,
+  },
+  minimumBalanceForRentExemptionInLamports: {
     persist: false,
     anonymous: false,
   },
@@ -249,6 +257,15 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       ...DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest,
       ...paramsToUpdate,
     };
+
+    if (
+      paramsToUpdate.srcChainId &&
+      paramsToUpdate.srcChainId !== this.state.quoteRequest.srcChainId
+    ) {
+      await this.#setMinimumBalanceForRentExemptionInLamports(
+        paramsToUpdate.srcChainId,
+      );
+    }
 
     this.update((state) => {
       state.quoteRequest = updatedQuoteRequest;
@@ -423,6 +440,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         DEFAULT_BRIDGE_CONTROLLER_STATE.quotesRefreshCount;
       state.assetExchangeRates =
         DEFAULT_BRIDGE_CONTROLLER_STATE.assetExchangeRates;
+      state.minimumBalanceForRentExemptionInLamports =
+        DEFAULT_BRIDGE_CONTROLLER_STATE.minimumBalanceForRentExemptionInLamports;
     });
   };
 
@@ -496,6 +515,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           },
         },
         fetchQuotes,
+      );
+      await this.#setMinimumBalanceForRentExemptionInLamports(
+        updatedQuoteRequest.srcChainId,
       );
     } catch (error) {
       const isAbortError = (error as Error).name === 'AbortError';
@@ -587,6 +609,33 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     return undefined;
   };
 
+  readonly #setMinimumBalanceForRentExemptionInLamports = async (
+    srcChainId: GenericQuoteRequest['srcChainId'],
+  ) => {
+    const selectedAccount = this.#getMultichainSelectedAccount();
+
+    try {
+      if (isSolanaChainId(srcChainId) && selectedAccount?.metadata?.snap?.id) {
+        const fees = (await this.messagingSystem.call(
+          'SnapController:handleRequest',
+          getMinimumBalanceForRentExemptionRequest(
+            selectedAccount.metadata.snap?.id,
+          ),
+        )) as string;
+        this.update((state) => {
+          state.minimumBalanceForRentExemptionInLamports = fees;
+        });
+        return;
+      }
+    } catch (error) {
+      console.error('Error setting minimum balance for rent exemption', error);
+    }
+    this.update((state) => {
+      state.minimumBalanceForRentExemptionInLamports =
+        DEFAULT_BRIDGE_CONTROLLER_STATE.minimumBalanceForRentExemptionInLamports;
+    });
+  };
+
   readonly #appendSolanaFees = async (
     quotes: QuoteResponse[],
   ): Promise<(QuoteResponse & SolanaFees)[] | undefined> => {
@@ -605,18 +654,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         if (selectedAccount?.metadata?.snap?.id && typeof trade === 'string') {
           const { value: fees } = (await this.messagingSystem.call(
             'SnapController:handleRequest',
-            {
-              snapId: selectedAccount.metadata.snap?.id as never,
-              origin: 'metamask',
-              handler: 'onRpcRequest' as never,
-              request: {
-                method: 'getFeeForTransaction',
-                params: {
-                  transaction: trade,
-                  scope: SolScope.Mainnet,
-                },
-              },
-            },
+            getFeeForTransactionRequest(
+              selectedAccount.metadata.snap?.id,
+              trade,
+            ),
           )) as { value: string };
 
           return {
