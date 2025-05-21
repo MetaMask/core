@@ -56,7 +56,9 @@ const mockGetState = jest.fn();
 const mockAccount: InternalAccount = {
   id: 'mock-id',
   address: '0x123',
-  options: {},
+  options: {
+    entropySource: 'mock-id',
+  },
   methods: [...ETH_EOA_METHODS],
   type: EthAccountType.Eoa,
   scopes: [EthScope.Eoa],
@@ -72,7 +74,9 @@ const mockAccount: InternalAccount = {
 const mockAccount2: InternalAccount = {
   id: 'mock-id2',
   address: '0x1234',
-  options: {},
+  options: {
+    entropySource: 'mock-id',
+  },
   methods: [...ETH_EOA_METHODS],
   type: EthAccountType.Eoa,
   scopes: [EthScope.Eoa],
@@ -87,7 +91,9 @@ const mockAccount2: InternalAccount = {
 const mockAccount3: InternalAccount = {
   id: 'mock-id3',
   address: '0x3333',
-  options: {},
+  options: {
+    entropySource: 'mock-id',
+  },
   methods: [...ETH_EOA_METHODS],
   type: EthAccountType.Eoa,
   scopes: [EthScope.Eoa],
@@ -695,6 +701,9 @@ describe('AccountsController', () => {
               address: mockAccount3.address,
               keyringType: mockAccount3.metadata.keyring.type as KeyringTypes,
               snap: mockAccount3.metadata.snap,
+              options: {
+                entropySource: 'mock-id2',
+              }
             }),
           ),
         ]);
@@ -876,6 +885,9 @@ describe('AccountsController', () => {
               name: 'Account 3',
               address: mockAccount3.address,
               keyringType: KeyringTypes.hd,
+              options: {
+                entropySource: mockAccount3.options.entropySource,
+              },
             }),
           ),
         ]);
@@ -941,7 +953,9 @@ describe('AccountsController', () => {
             name: 'Account 3',
             address: mockAccount3.address,
             keyringType: KeyringTypes.hd,
-            options: {},
+            options: {
+              entropySource: mockAccount3.options.entropySource,
+            },
           }),
         ]);
       });
@@ -1407,6 +1421,9 @@ describe('AccountsController', () => {
         name: 'Account 1',
         address: '0x456',
         keyringType: KeyringTypes.hd,
+        options: {
+          entropySource: 'mock-id',
+        },
       });
 
       mockUUIDWithNormalAccounts([
@@ -2042,6 +2059,9 @@ describe('AccountsController', () => {
           address: mockSnapAccount2.address,
           keyringType: KeyringTypes.snap,
           snap: mockSnapAccount2.metadata.snap,
+          options: {
+            entropySource: 'mock-id',
+          },
         }),
       ];
 
@@ -2114,6 +2134,9 @@ describe('AccountsController', () => {
           address: mockSnapAccount2.address,
           keyringType: KeyringTypes.snap,
           snap: mockSnapAccount2.metadata.snap,
+          options: {
+            entropySource: 'mock-id',
+          },
         }),
       ];
 
@@ -3034,18 +3057,27 @@ describe('AccountsController', () => {
       name: 'Account 2',
       address: '0x555',
       keyringType: KeyringTypes.simple,
+      options: {
+        entropySource: 'mock-id2',
+      },
     });
     const mockSimpleKeyring2 = createMockInternalAccount({
       id: 'mock-id3',
       name: 'Account 3',
       address: '0x666',
       keyringType: KeyringTypes.simple,
+      options: {
+        entropySource: 'mock-id2',
+      },
     });
     const mockSimpleKeyring3 = createMockInternalAccount({
       id: 'mock-id4',
       name: 'Account 4',
       address: '0x777',
       keyringType: KeyringTypes.simple,
+      options: {
+        entropySource: 'mock-id2',
+      },
     });
 
     const mockNewKeyringStateWith = (simpleAddressess: string[]) => {

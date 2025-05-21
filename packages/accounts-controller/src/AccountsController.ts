@@ -791,6 +791,7 @@ export class AccountsController extends BaseController<
         added: [] as {
           address: string;
           type: string;
+          entropySource: string;
         }[],
         updated: [] as InternalAccount[],
         removed: [] as InternalAccount[],
@@ -836,6 +837,7 @@ export class AccountsController extends BaseController<
           patch.added.push({
             address,
             type: keyring.type,
+            entropySource: keyring.metadata.id,
           });
         }
 
@@ -901,6 +903,10 @@ export class AccountsController extends BaseController<
                 name,
                 importTime: Date.now(),
                 lastSelected,
+              },
+              options: {
+                ...account.options,
+                entropySource: added.entropySource,
               },
             };
 
