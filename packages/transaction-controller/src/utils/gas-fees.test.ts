@@ -585,28 +585,28 @@ describe('gweiDecimalToWeiDecimal', () => {
     expect(gweiDecimalToWeiDecimal('1.123456789123')).toBe('1123456789');
     expect(gweiDecimalToWeiDecimal(1.123456789123)).toBe('1123456789');
   });
-  
+
   it('handles small decimal values', () => {
     expect(gweiDecimalToWeiDecimal('0.000000001')).toBe('1');
     expect(gweiDecimalToWeiDecimal(0.000000001)).toBe('1');
     expect(gweiDecimalToWeiDecimal('0.00000001')).toBe('10');
   });
-  
+
   it('handles string values with leading zeros', () => {
     expect(gweiDecimalToWeiDecimal('00.1')).toBe('100000000');
     expect(gweiDecimalToWeiDecimal('01.5')).toBe('1500000000');
   });
-  
+
   it('handles string values with trailing zeros', () => {
     expect(gweiDecimalToWeiDecimal('1.500')).toBe('1500000000');
     expect(gweiDecimalToWeiDecimal('123.450000')).toBe('123450000000');
   });
-  
+
   it('handles extremely small values', () => {
     expect(gweiDecimalToWeiDecimal('0.000000000001')).toBe('0');
     expect(gweiDecimalToWeiDecimal(0.000000000001)).toBe('0');
   });
-  
+
   it('handles scientific notation inputs', () => {
     expect(gweiDecimalToWeiDecimal('1e-9')).toBe('1');
     expect(gweiDecimalToWeiDecimal(1e-9)).toBe('1');

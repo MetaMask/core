@@ -5,7 +5,6 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
-import { BN } from 'bn.js';
 import type {
   FetchGasFeeEstimateOptions,
   GasFeeState,
