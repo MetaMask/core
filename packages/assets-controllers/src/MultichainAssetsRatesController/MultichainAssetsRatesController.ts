@@ -353,9 +353,13 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
    * Fetches historical prices for the current account
    *
    * @param asset - The asset to fetch historical prices for.
+   * @param account - optional account to fetch historical prices for
    * @returns The historical prices.
    */
-  async fetchHistoricalPricesForAsset(asset: CaipAssetType): Promise<void> {
+  async fetchHistoricalPricesForAsset(
+    asset: CaipAssetType,
+    account?: InternalAccount,
+  ): Promise<void> {
     const releaseLock = await this.#mutex.acquire();
     return (async () => {
       const currentCaipCurrency =
@@ -373,9 +377,11 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
         return;
       }
 
-      const selectedAccount = this.messagingSystem.call(
-        'AccountsController:getSelectedMultichainAccount',
-      );
+      const selectedAccount =
+        account ??
+        this.messagingSystem.call(
+          'AccountsController:getSelectedMultichainAccount',
+        );
       try {
         const historicalPricesResponse = await this.#handleSnapRequest({
           snapId: selectedAccount?.metadata.snap?.id as SnapId,

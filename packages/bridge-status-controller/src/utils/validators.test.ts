@@ -246,6 +246,17 @@ describe('validators', () => {
         input: BridgeTxStatusResponses.STATUS_FAILED_VALID,
         description: 'valid failed bridge status',
       },
+      {
+        input: {
+          status: 'COMPLETE',
+          srcChain: {
+            chainId: 1151111081099710,
+            txHash:
+              '33LfknAQsrLC1WzmNybkZWUtuGANRFHNupsQ1YLCnjXGXxbBE93BbVTeKLLdE7Sz3WUdxnFW5HQhPuUayrXyqWky',
+          },
+        },
+        description: 'placeholder complete swap status',
+      },
     ])(
       'should not throw for valid response for $description',
       ({ input }: { input: unknown }) => {

@@ -3,6 +3,7 @@ import type { TxData } from '@metamask/bridge-controller';
 import {
   ChainId,
   formatChainIdToHex,
+  isCrossChain,
   type QuoteMetadata,
   type QuoteResponse,
 } from '@metamask/bridge-controller';
@@ -84,6 +85,11 @@ export const handleSolanaTxResponse = (
   }
 
   const hexChainId = formatChainIdToHex(quoteResponse.quote.srcChainId);
+  const isBridgeTx = isCrossChain(
+    quoteResponse.quote.srcChainId,
+    quoteResponse.quote.destChainId,
+  );
+
   // Create a transaction meta object with bridge-specific fields
   return {
     ...getTxMetaFields(quoteResponse),
@@ -92,13 +98,13 @@ export const handleSolanaTxResponse = (
     chainId: hexChainId,
     networkClientId: snapId ?? hexChainId,
     txParams: { from: selectedAccountAddress, data: quoteResponse.trade },
-    type: TransactionType.bridge,
+    type: isBridgeTx ? TransactionType.bridge : TransactionType.swap,
     status: TransactionStatus.submitted,
     hash, // Add the transaction signature as hash
     origin: snapId,
     // Add an explicit bridge flag to mark this as a Solana transaction
     isSolana: true, // TODO deprecate this and use chainId
-    isBridgeTx: true, // TODO deprecate this and use type
+    isBridgeTx,
   };
 };
 
