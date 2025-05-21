@@ -13,6 +13,11 @@ export const selectLendingMarkets = (state: EarnControllerState) =>
 export const selectLendingPositions = (state: EarnControllerState) =>
   state.lending.positions;
 
+export const selectLendingMarketsForChainId = (chainId: number) =>
+  createSelector(selectLendingMarkets, (markets) =>
+    markets.filter((market) => market.chainId === chainId),
+  );
+
 export const selectLendingMarketsByProtocolAndId = createSelector(
   selectLendingMarkets,
   (markets) => {
@@ -27,17 +32,14 @@ export const selectLendingMarketsByProtocolAndId = createSelector(
   },
 );
 
-export const selectLendingMarketForProtocolAndId = createSelector(
-  selectLendingMarketsByProtocolAndId,
-  (marketsByProtocolAndId) => (protocol: string, id: string) =>
-    marketsByProtocolAndId?.[protocol]?.[id],
-);
-
-export const selectLendingMarketsForChainId = createSelector(
-  selectLendingMarkets,
-  (markets) => (chainId: number) =>
-    markets.filter((market) => market.chainId === chainId),
-);
+export const selectLendingMarketForProtocolAndId = (
+  protocol: string,
+  id: string,
+) =>
+  createSelector(
+    selectLendingMarketsByProtocolAndId,
+    (marketsByProtocolAndId) => marketsByProtocolAndId?.[protocol]?.[id],
+  );
 
 export const selectLendingMarketsByChainId = createSelector(
   selectLendingMarkets,
@@ -137,9 +139,12 @@ export const selectLendingMarketByProtocolAndTokenAddress = createSelector(
   },
 );
 
-export const selectLendingMarketForProtocolAndTokenAddress = createSelector(
-  selectLendingMarketByProtocolAndTokenAddress,
-  (marketsByProtocolAndTokenAddress) =>
-    (protocol: string, tokenAddress: string) =>
+export const selectLendingMarketForProtocolAndTokenAddress = (
+  protocol: string,
+  tokenAddress: string,
+) =>
+  createSelector(
+    selectLendingMarketByProtocolAndTokenAddress,
+    (marketsByProtocolAndTokenAddress) =>
       marketsByProtocolAndTokenAddress?.[protocol]?.[tokenAddress],
-);
+  );

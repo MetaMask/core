@@ -200,7 +200,6 @@ export const DEFAULT_POOLED_STAKING_CHAIN_STATE = {
 export function getDefaultEarnControllerState(): EarnControllerState {
   return {
     pooled_staking: {
-      '0': DEFAULT_POOLED_STAKING_CHAIN_STATE,
       isEligible: false,
     },
     lending: {
@@ -715,6 +714,10 @@ export class EarnController extends BaseController<
   }: RefreshLendingPositionsOptions = {}): Promise<void> {
     const addressToUse = address ?? this.#getCurrentAccount()?.address;
 
+    if (!addressToUse) {
+      return;
+    }
+
     // linter complaining about this not being a promise, but it is
     // TODO: figure out why this is not seen as a promise
     const positions = await Promise.resolve(
@@ -827,6 +830,10 @@ export class EarnController extends BaseController<
   }) {
     const addressToUse = address ?? this.#getCurrentAccount()?.address;
     const chainIdToUse = chainId ?? this.#getCurrentChainId();
+
+    if (!addressToUse) {
+      return [];
+    }
 
     return this.#earnApiService.lending.getPositionHistory(
       addressToUse,

@@ -1496,6 +1496,22 @@ describe('EarnController', () => {
           730,
         );
       });
+
+      it('returns empty array if no address is provided', async () => {
+        const { controller } = await setupController({
+          mockGetSelectedAccount: jest.fn(() => ({
+            address: null,
+          })),
+        });
+        const result = await controller.getLendingPositionHistory({
+          positionId: '1',
+          marketId: 'market1',
+          marketAddress: '0x123',
+          protocol: 'aave' as LendingMarket['protocol'],
+        });
+
+        expect(result).toStrictEqual([]);
+      });
     });
 
     describe('getLendingMarketDailyApysAndAverages', () => {
