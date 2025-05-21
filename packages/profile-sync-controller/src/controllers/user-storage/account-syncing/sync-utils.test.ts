@@ -116,6 +116,78 @@ describe('user-storage/account-syncing/sync-utils', () => {
       );
       expect(result).toStrictEqual([internalAccounts[0]]);
     });
+
+    it('calls updateAccounts if entropy source is not present for all internal accounts', async () => {
+      const internalAccounts = [
+        {
+          address: '0x123',
+          id: '1',
+          options: { entropySource: undefined },
+          metadata: { keyring: { type: KeyringTypes.hd } },
+        },
+        {
+          address: '0x456',
+          id: '2',
+          options: { entropySource: MOCK_ENTROPY_SOURCE_IDS[0] },
+          metadata: { keyring: { type: KeyringTypes.hd } },
+        },
+      ] as unknown as InternalAccount[];
+
+      const options: AccountSyncingOptions = {
+        getMessenger: jest.fn().mockReturnValue({
+          call: jest.fn().mockImplementation((controllerAndActionName) => {
+            // eslint-disable-next-line jest/no-conditional-in-test
+            if (controllerAndActionName === 'AccountsController:listAccounts') {
+              return internalAccounts;
+            }
+
+            return null;
+          }),
+        }),
+        getUserStorageControllerInstance: jest.fn(),
+      };
+
+      await getInternalAccountsList(options, MOCK_ENTROPY_SOURCE_IDS[0]);
+      expect(options.getMessenger().call).toHaveBeenCalledWith(
+        'AccountsController:updateAccounts',
+      );
+    });
+
+    it('does not call updateAccounts if entropy source is present for all internal accounts', async () => {
+      const internalAccounts = [
+        {
+          address: '0x123',
+          id: '1',
+          options: { entropySource: MOCK_ENTROPY_SOURCE_IDS[0] },
+          metadata: { keyring: { type: KeyringTypes.hd } },
+        },
+        {
+          address: '0x456',
+          id: '2',
+          options: { entropySource: MOCK_ENTROPY_SOURCE_IDS[0] },
+          metadata: { keyring: { type: KeyringTypes.hd } },
+        },
+      ] as unknown as InternalAccount[];
+
+      const options: AccountSyncingOptions = {
+        getMessenger: jest.fn().mockReturnValue({
+          call: jest.fn().mockImplementation((controllerAndActionName) => {
+            // eslint-disable-next-line jest/no-conditional-in-test
+            if (controllerAndActionName === 'AccountsController:listAccounts') {
+              return internalAccounts;
+            }
+
+            return null;
+          }),
+        }),
+        getUserStorageControllerInstance: jest.fn(),
+      };
+
+      await getInternalAccountsList(options, MOCK_ENTROPY_SOURCE_IDS[0]);
+      expect(options.getMessenger().call).not.toHaveBeenCalledWith(
+        'AccountsController:updateAccounts',
+      );
+    });
   });
 
   describe('getUserStorageAccountsList', () => {

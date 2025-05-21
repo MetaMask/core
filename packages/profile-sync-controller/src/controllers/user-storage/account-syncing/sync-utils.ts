@@ -52,11 +52,20 @@ export async function getInternalAccountsList(
 ): Promise<InternalAccount[]> {
   const { getMessenger } = options;
 
-  await getMessenger().call('AccountsController:updateAccounts');
-
-  const internalAccountsList = getMessenger().call(
+  let internalAccountsList = getMessenger().call(
     'AccountsController:listAccounts',
   );
+
+  const doEachInternalAccountHaveEntropySource = internalAccountsList.every(
+    (account) => Boolean(account.options.entropySource),
+  );
+
+  if (!doEachInternalAccountHaveEntropySource) {
+    await getMessenger().call('AccountsController:updateAccounts');
+    internalAccountsList = getMessenger().call(
+      'AccountsController:listAccounts',
+    );
+  }
 
   return internalAccountsList.filter(
     (account) =>
