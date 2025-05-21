@@ -703,7 +703,7 @@ describe('AccountsController', () => {
               snap: mockAccount3.metadata.snap,
               options: {
                 entropySource: 'mock-id2',
-              }
+              },
             }),
           ),
         ]);
