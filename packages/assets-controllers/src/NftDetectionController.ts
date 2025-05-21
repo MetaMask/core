@@ -599,6 +599,92 @@ export class NftDetectionController extends BaseController<
   }
 
   /**
+   * Adds multiple NFTs to state in a batch.
+   * This is used internally by detectNfts and detectMoreNfts.
+   *
+   * @param nfts - Array of NFT tokens to add
+   * @param userAddress - The address to add NFTs for
+   * @returns Promise that resolves when all NFTs are added
+   */
+  async #addNftsToState(
+    nfts: TokensResponse[],
+    userAddress: string,
+  ): Promise<void> {
+    console.log(
+      `[NftDetectionController] Adding ${nfts.length} NFTs to state for address ${userAddress}`,
+    );
+
+    const addNftPromises = nfts.map(async (nft) => {
+      const {
+        tokenId,
+        contract,
+        kind,
+        image: imageUrl,
+        imageSmall: imageThumbnailUrl,
+        metadata,
+        name,
+        description,
+        attributes,
+        topBid,
+        lastSale,
+        rarityRank,
+        rarityScore,
+        collection,
+        chainId,
+      } = nft.token;
+
+      // Use a fallback if metadata is null
+      const { imageOriginal: imageOriginalUrl } = metadata || {};
+
+      let ignored;
+      const { ignoredNfts } = this.#getNftState();
+      if (ignoredNfts.length) {
+        ignored = ignoredNfts.find((c) => {
+          return (
+            c.address === toChecksumHexAddress(contract) &&
+            c.tokenId === tokenId
+          );
+        });
+      }
+
+      if (!ignored) {
+        console.log(
+          `[NftDetectionController] Adding NFT ${contract}:${tokenId} to state`,
+        );
+        const nftMetadata: NftMetadata = Object.assign(
+          {},
+          { name },
+          description && { description },
+          imageUrl && { image: imageUrl },
+          imageThumbnailUrl && { imageThumbnail: imageThumbnailUrl },
+          imageOriginalUrl && { imageOriginal: imageOriginalUrl },
+          kind && { standard: kind.toUpperCase() },
+          lastSale && { lastSale },
+          attributes && { attributes },
+          topBid && { topBid },
+          rarityRank && { rarityRank },
+          rarityScore && { rarityScore },
+          collection && { collection },
+          chainId && { chainId },
+        );
+        await this.#addNft(contract, tokenId, {
+          nftMetadata,
+          userAddress,
+          source: Source.Detected,
+          chainId: toHex(chainId),
+        });
+      } else {
+        console.log(
+          `[NftDetectionController] NFT ${contract}:${tokenId} is ignored, skipping`,
+        );
+      }
+    });
+
+    await Promise.all(addNftPromises);
+    console.log(`[NftDetectionController] Finished adding NFTs to state`);
+  }
+
+  /**
    * Triggers asset ERC721 token auto detection on mainnet. Any newly detected NFTs are
    * added incrementally, returning partial results as they become available.
    *
@@ -620,6 +706,11 @@ export class NftDetectionController extends BaseController<
       isInitialLoad?: boolean;
     },
   ): Promise<NftDetectionResponse> {
+    console.log('[NftDetectionController] detectNfts called with:', {
+      chainIds,
+      options,
+    });
+
     const userAddress =
       options?.userAddress ??
       this.messagingSystem.call('AccountsController:getSelectedAccount')
@@ -629,12 +720,22 @@ export class NftDetectionController extends BaseController<
     const supportedChainIds = chainIds.filter((chainId) =>
       supportedNftDetectionNetworks.has(chainId),
     );
+
+    console.log(
+      '[NftDetectionController] Supported chainIds:',
+      supportedChainIds,
+    );
+
     /* istanbul ignore if */
     if (supportedChainIds.length === 0 || this.#disabled) {
+      console.log(
+        '[NftDetectionController] No supported chainIds or detection disabled',
+      );
       return { nfts: [], hasMore: false, totalProcessed: 0 };
     }
     /* istanbul ignore else */
     if (!userAddress) {
+      console.log('[NftDetectionController] No user address provided');
       return { nfts: [], hasMore: false, totalProcessed: 0 };
     }
 
@@ -643,9 +744,10 @@ export class NftDetectionController extends BaseController<
 
     const updateKey: `${string}:${string}` = `${chainIdsString}:${userAddress}`;
     if (updateKey in this.#inProcessNftFetchingUpdates) {
+      console.log(
+        '[NftDetectionController] Update already in progress, waiting...',
+      );
       // This prevents redundant updates
-      // This promise is resolved after the in-progress update has finished,
-      // and state has been updated.
       await this.#inProcessNftFetchingUpdates[updateKey];
       return { nfts: [], hasMore: false, totalProcessed: 0 };
     }
@@ -658,10 +760,15 @@ export class NftDetectionController extends BaseController<
     this.#inProcessNftFetchingUpdates[updateKey] = inProgressUpdate;
 
     try {
+      console.log('[NftDetectionController] Fetching NFTs from API...');
       const resultNftApi = await this.#getOwnerNfts(
         userAddress,
         supportedChainIds,
         options?.continuationToken,
+      );
+
+      console.log(
+        `[NftDetectionController] API returned ${resultNftApi.tokens.length} tokens`,
       );
 
       const apiNfts = resultNftApi.tokens.filter(
@@ -670,6 +777,10 @@ export class NftDetectionController extends BaseController<
           (elm.blockaidResult?.result_type
             ? elm.blockaidResult?.result_type === BlockaidResultType.Benign
             : true),
+      );
+
+      console.log(
+        `[NftDetectionController] After filtering, ${apiNfts.length} NFTs remain`,
       );
 
       // Retrieve collections from apiNfts
@@ -768,72 +879,13 @@ export class NftDetectionController extends BaseController<
         }
       }
 
-      // Proceed to add NFTs
-      const addNftPromises = apiNfts.map(async (nft) => {
-        const {
-          tokenId,
-          contract,
-          kind,
-          image: imageUrl,
-          imageSmall: imageThumbnailUrl,
-          metadata,
-          name,
-          description,
-          attributes,
-          topBid,
-          lastSale,
-          rarityRank,
-          rarityScore,
-          collection,
-          chainId,
-        } = nft.token;
-
-        // Use a fallback if metadata is null
-        const { imageOriginal: imageOriginalUrl } = metadata || {};
-
-        let ignored;
-        /* istanbul ignore else */
-        const { ignoredNfts } = this.#getNftState();
-        if (ignoredNfts.length) {
-          ignored = ignoredNfts.find((c) => {
-            /* istanbul ignore next */
-            return (
-              c.address === toChecksumHexAddress(contract) &&
-              c.tokenId === tokenId
-            );
-          });
-        }
-
-        /* istanbul ignore else */
-        if (!ignored) {
-          /* istanbul ignore next */
-          const nftMetadata: NftMetadata = Object.assign(
-            {},
-            { name },
-            description && { description },
-            imageUrl && { image: imageUrl },
-            imageThumbnailUrl && { imageThumbnail: imageThumbnailUrl },
-            imageOriginalUrl && { imageOriginal: imageOriginalUrl },
-            kind && { standard: kind.toUpperCase() },
-            lastSale && { lastSale },
-            attributes && { attributes },
-            topBid && { topBid },
-            rarityRank && { rarityRank },
-            rarityScore && { rarityScore },
-            collection && { collection },
-            chainId && { chainId },
-          );
-          await this.#addNft(contract, tokenId, {
-            nftMetadata,
-            userAddress,
-            source: Source.Detected,
-            chainId: toHex(chainId),
-          });
-        }
-      });
-      await Promise.all(addNftPromises);
+      // Add NFTs to state
+      await this.#addNftsToState(apiNfts, userAddress);
 
       updateSucceeded();
+      console.log(
+        '[NftDetectionController] NFT detection completed successfully',
+      );
 
       return {
         nfts: apiNfts,
@@ -842,11 +894,44 @@ export class NftDetectionController extends BaseController<
         totalProcessed: apiNfts.length,
       };
     } catch (error) {
+      console.error(
+        '[NftDetectionController] Error during NFT detection:',
+        error,
+      );
       updateFailed(error);
       throw error;
     } finally {
       delete this.#inProcessNftFetchingUpdates[updateKey];
     }
+  }
+
+  /**
+   * Loads more NFTs using a continuation token from a previous detection.
+   * This is used for pagination/infinite scrolling scenarios.
+   *
+   * @param chainIds - The chain IDs to detect NFTs on.
+   * @param continuationToken - The token from a previous detection response.
+   * @param options - Options bag.
+   * @param options.userAddress - The address to detect NFTs for.
+   * @returns Promise resolving to an object containing the NFTs found, whether there are more to load,
+   * and a continuation token for the next request.
+   */
+  async detectMoreNfts(
+    chainIds: Hex[],
+    continuationToken: string,
+    options?: {
+      userAddress?: string;
+    },
+  ): Promise<NftDetectionResponse> {
+    if (!continuationToken) {
+      throw new Error('Continuation token is required for loading more NFTs');
+    }
+
+    return this.detectNfts(chainIds, {
+      ...options,
+      continuationToken,
+      isInitialLoad: false, // This is a subsequent load
+    });
   }
 }
 
