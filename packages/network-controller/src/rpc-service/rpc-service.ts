@@ -8,7 +8,7 @@ import {
   createServicePolicy,
   handleWhen,
 } from '@metamask/controller-utils';
-import { rpcErrors } from '@metamask/rpc-errors';
+import { JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest } from '@metamask/utils';
 import {
   hasProperty,
@@ -336,11 +336,12 @@ export class RpcService implements AbstractRpcService {
    * @param fetchOptions - An options bag for {@link fetch} which further
    * specifies the request.
    * @returns The decoded JSON-RPC response from the endpoint.
-   * @throws A "method not found" error if the response status is 405.
-   * @throws A rate limiting error if the response HTTP status is 429.
-   * @throws A timeout error if the response HTTP status is 503 or 504.
-   * @throws A generic error if the response HTTP status is not 2xx but also not
-   * 405, 429, 503, or 504.
+   * @throws A 401 error if the response status is 401.
+   * @throws A "method not found" error if the response status is 405 or 501.
+   * @throws A "rate limiting" error if the response HTTP status is 429.
+   * @throws A "resource unavailable" error if the response status is 402, 404, or any 5xx.
+   * @throws An "invalid request" error for any other 4xx status codes.
+   * @throws A "parse" error if the response is not valid JSON.
    */
   async request<Params extends JsonRpcParams, Result extends Json>(
     jsonRpcRequest: JsonRpcRequest<Params> & { method: 'eth_getBlockByNumber' },
@@ -360,11 +361,12 @@ export class RpcService implements AbstractRpcService {
    * @param fetchOptions - An options bag for {@link fetch} which further
    * specifies the request.
    * @returns The decoded JSON-RPC response from the endpoint.
-   * @throws A "method not found" error if the response status is 405.
-   * @throws A rate limiting error if the response HTTP status is 429.
-   * @throws A timeout error if the response HTTP status is 503 or 504.
-   * @throws A generic error if the response HTTP status is not 2xx but also not
-   * 405, 429, 503, or 504.
+   * @throws A 401 error if the response status is 401.
+   * @throws A "method not found" error if the response status is 405 or 501.
+   * @throws A "rate limiting" error if the response HTTP status is 429.
+   * @throws A "resource unavailable" error if the response status is 402, 404, or any 5xx.
+   * @throws An "invalid request" error for any other 4xx status codes.
+   * @throws A "parse" error if the response is not valid JSON.
    */
   async request<Params extends JsonRpcParams, Result extends Json>(
     jsonRpcRequest: JsonRpcRequest<Params>,
@@ -464,11 +466,12 @@ export class RpcService implements AbstractRpcService {
    * @param fetchOptions - The options for `fetch`; will be combined with the
    * fetch options passed to the constructor
    * @returns The decoded JSON-RPC response from the endpoint.
-   * @throws A "method not found" error if the response status is 405.
-   * @throws A rate limiting error if the response HTTP status is 429.
-   * @throws A timeout error if the response HTTP status is 503 or 504.
-   * @throws A generic error if the response HTTP status is not 2xx but also not
-   * 405, 429, 503, or 504.
+   * @throws A 401 error if the response status is 401.
+   * @throws A "method not found" error if the response status is 405 or 501.
+   * @throws A "rate limiting" error if the response HTTP status is 429.
+   * @throws A "resource unavailable" error if the response status is 402, 404, or any 5xx.
+   * @throws An "invalid request" error for any other 4xx status codes.
+   * @throws A "parse" error if the response is not valid JSON.
    */
   async #processRequest<Result extends Json>(
     fetchOptions: FetchOptions,
@@ -485,26 +488,55 @@ export class RpcService implements AbstractRpcService {
     } catch (error) {
       if (error instanceof HttpError) {
         const status = error.httpStatus;
-        if (status === 405) {
-          throw rpcErrors.methodNotFound();
+        if (status === 401) {
+          throw new JsonRpcError(-33100, 'Unauthorized.', {
+            httpStatus: status,
+          });
+        }
+        if (status === 402 || status === 404) {
+          throw rpcErrors.resourceUnavailable({
+            message: `RPC endpoint server error (HTTP ${status})`,
+            data: {
+              httpStatus: status,
+            },
+          });
+        }
+        if (status === 405 || status === 501) {
+          throw rpcErrors.methodNotFound({
+            data: {
+              httpStatus: status,
+            },
+          });
         }
         if (status === 429) {
           throw rpcErrors.limitExceeded({
             message: 'Request is being rate limited.',
+            data: {
+              httpStatus: status,
+            },
           });
         }
-        if (status === 503 || status === 504) {
-          throw rpcErrors.internal({
-            message:
-              'Gateway timeout. The request took too long to process. This can happen when querying logs over too wide a block range.',
+        if (status >= 500 && status < 600) {
+          const message =
+            status === 503 || status === 504
+              ? 'Gateway timeout. The request took too long to process. This can happen when querying logs over too wide a block range.'
+              : `RPC endpoint server error (HTTP ${status})`;
+          throw rpcErrors.resourceUnavailable({
+            message,
+            data: {
+              httpStatus: status,
+            },
           });
         }
 
-        throw rpcErrors.internal({
-          message: `Non-200 status code: '${status}'`,
+        // This is a catch-all for any remaining 4xx status codes not handled above
+        throw rpcErrors.invalidRequest({
+          data: {
+            httpStatus: status,
+          },
         });
       } else if (error instanceof SyntaxError) {
-        throw rpcErrors.internal({
+        throw rpcErrors.parse({
           message: 'Could not parse response as it is not valid JSON',
         });
       }
