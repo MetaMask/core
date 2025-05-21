@@ -1378,6 +1378,30 @@ describe('SeedlessOnboardingController', () => {
         },
       );
     });
+
+    it('should throw an error if password is outdated', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            authPubKey: MOCK_AUTH_PUB_KEY_OUTDATED,
+            vault: MOCK_VAULT,
+            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          mockFetchAuthPubKey(toprfClient, base64ToBytes(MOCK_AUTH_PUB_KEY));
+          await controller.submitPassword(MOCK_PASSWORD);
+          await expect(
+            controller.addNewSeedPhraseBackup(
+              NEW_KEY_RING_1.seedPhrase,
+              NEW_KEY_RING_1.id,
+            ),
+          ).rejects.toThrow(SeedlessOnboardingControllerError.OutdatedPassword);
+        },
+      );
+    });
   });
 
   describe('fetchAndRestoreSeedPhrase', () => {
