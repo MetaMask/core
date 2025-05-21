@@ -278,7 +278,7 @@ describe('foundryup', () => {
         mockCachePath,
       );
 
-      expect(operations).toEqual([
+      expect(operations).toStrictEqual([
         { operation: 'unlink', target: `${mockBinDir}/forge` },
         {
           operation: 'symlink',
@@ -301,7 +301,7 @@ describe('foundryup', () => {
         mockCachePath,
       );
 
-      expect(operations).toEqual([
+      expect(operations).toStrictEqual([
         { operation: 'unlink', target: `${mockBinDir}/forge` },
         {
           operation: 'copyFile',
@@ -369,7 +369,7 @@ describe('foundryup', () => {
     it('should execute all operations in order', async () => {
       const result = await mockDownloadAndInstallFoundryBinaries();
 
-      expect(result.map((op) => op.operation)).toEqual([
+      expect(result.map((op) => op.operation)).toStrictEqual([
         'getCacheDirectory',
         'getBinaryArchiveUrl',
         'checkAndDownloadBinaries',
@@ -386,7 +386,7 @@ describe('foundryup', () => {
 
       const result = await mockDownloadAndInstallFoundryBinaries();
 
-      expect(result).toEqual([
+      expect(result).toStrictEqual([
         { operation: 'getCacheDirectory' },
         {
           operation: 'cleanCache',
@@ -423,9 +423,7 @@ describe('foundryup', () => {
         // Use actual implementation instead of mock for this test
         jest.unmock('./options');
         const { printBanner: actualPrintBanner } = jest.requireActual('./options');
-        
         actualPrintBanner();
-        
         expect(consoleSpy).toHaveBeenCalledWith(
           expect.stringContaining('╔═╗ ╔═╗ ╦ ╦ ╔╗╔ ╔╦╗ ╦═╗ ╦ ╦'),
         );
@@ -435,7 +433,6 @@ describe('foundryup', () => {
         expect(consoleSpy).toHaveBeenCalledWith(
           expect.stringContaining('https://github.com/foundry-rs/'),
         );
-        
         // Re-mock for other tests
         jest.doMock('./options', () => ({
           ...jest.requireActual('./options'),
@@ -478,7 +475,7 @@ describe('foundryup', () => {
           const result = actualParseArgs([]);
 
           expect(result.command).toBe('install');
-          expect(result.options).toEqual(
+          expect(result.options).toStrictEqual(
             expect.objectContaining({
               binaries: ['forge', 'anvil', 'cast'],
               repo: 'foundry-rs/foundry',
@@ -493,7 +490,7 @@ describe('foundryup', () => {
           const result = actualParseArgs(['install']);
 
           expect(result.command).toBe('install');
-          expect(result.options).toEqual(
+          expect(result.options).toStrictEqual(
             expect.objectContaining({
               binaries: ['forge', 'anvil', 'cast'],
               repo: 'foundry-rs/foundry',
@@ -509,7 +506,7 @@ describe('foundryup', () => {
         it('should parse cache clean command', () => {
           const result = actualParseArgs(['cache', 'clean']);
 
-          expect(result).toEqual({
+          expect(result).toStrictEqual({
             command: 'cache clean',
           });
         });
@@ -518,9 +515,8 @@ describe('foundryup', () => {
       describe('binaries option', () => {
         it('should parse single binary with --binaries flag', () => {
           const result = actualParseArgs(['--binaries', 'forge']);
-          
           expect(result.command).toBe('install');
-          expect(result.options.binaries).toEqual(['forge']);
+          expect(result.options.binaries).toStrictEqual(['forge']);
         });
 
         it('should parse multiple binaries with --binaries flag', () => {
@@ -531,13 +527,13 @@ describe('foundryup', () => {
             'cast',
           ]);
           expect(result.command).toBe('install');
-          expect(result.options.binaries).toEqual(['forge', 'anvil', 'cast']);
+          expect(result.options.binaries).toStrictEqual(['forge', 'anvil', 'cast']);
         });
 
         it('should parse binaries with short flag -b', () => {
           const result = actualParseArgs(['-b', 'forge', 'anvil']);
           expect(result.command).toBe('install');
-          expect(result.options.binaries).toEqual(['forge', 'anvil']);
+          expect(result.options.binaries).toStrictEqual(['forge', 'anvil']);
         });
 
         it('should remove duplicate binaries', () => {
@@ -548,7 +544,7 @@ describe('foundryup', () => {
             'forge',
           ]);
           expect(result.command).toBe('install');
-          expect(result.options.binaries).toEqual(['forge', 'anvil']);
+          expect(result.options.binaries).toStrictEqual(['forge', 'anvil']);
         });
       });
 
@@ -568,7 +564,7 @@ describe('foundryup', () => {
           ]);
 
           expect(result.command).toBe('install');
-          expect(result.options.checksums).toEqual(checksums);
+          expect(result.options.checksums).toStrictEqual(checksums);
         });
 
         it('should parse checksums with short flag -c', () => {
@@ -576,7 +572,7 @@ describe('foundryup', () => {
           const result = actualParseArgs(['-c', JSON.stringify(checksums)]);
 
           expect(result.command).toBe('install');
-          expect(result.options.checksums).toEqual(checksums);
+          expect(result.options.checksums).toStrictEqual(checksums);
         });
 
         it('should throw error for invalid JSON checksums', () => {
@@ -606,7 +602,7 @@ describe('foundryup', () => {
           const result = actualParseArgs(['--version', 'nightly']);
 
           expect(result.command).toBe('install');
-          expect(result.options.version).toEqual({
+          expect(result.options.version).toStrictEqual({
             version: 'nightly',
             tag: 'nightly',
           });
@@ -616,7 +612,7 @@ describe('foundryup', () => {
           const result = actualParseArgs(['--version', 'nightly-2024-01-01']);
 
           expect(result.command).toBe('install');
-          expect(result.options.version).toEqual({
+          expect(result.options.version).toStrictEqual({
             version: 'nightly',
             tag: 'nightly-2024-01-01',
           });
@@ -626,7 +622,7 @@ describe('foundryup', () => {
           const result = actualParseArgs(['--version', 'v1.2.3']);
 
           expect(result.command).toBe('install');
-          expect(result.options.version).toEqual({
+          expect(result.options.version).toStrictEqual({
             version: 'v1.2.3',
             tag: 'v1.2.3',
           });
@@ -636,7 +632,7 @@ describe('foundryup', () => {
           const result = actualParseArgs(['-v', 'v2.0.0']);
 
           expect(result.command).toBe('install');
-          expect(result.options.version).toEqual({
+          expect(result.options.version).toStrictEqual({
             version: 'v2.0.0',
             tag: 'v2.0.0',
           });
@@ -724,7 +720,7 @@ describe('foundryup', () => {
           ]);
 
           expect(result.command).toBe('install');
-          expect(result.options).toEqual(
+          expect(result.options).toStrictEqual(
             expect.objectContaining({
               binaries: ['forge', 'anvil'],
               repo: 'custom/repo',
