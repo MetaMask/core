@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **BREAKING:** bump `@metamask/bridge-controller` peer dependency to `^26.0.0` ([#5842](https://github.com/MetaMask/core/pull/5842))
+
 - Subscribe to TransactionController and MultichainTransactionsController tx confirmed and failed events for swaps ([#5829](https://github.com/MetaMask/core/pull/5829))
 
 ### Changed
