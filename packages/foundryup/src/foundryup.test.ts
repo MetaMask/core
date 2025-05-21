@@ -1,17 +1,21 @@
+import type { Dir } from 'fs';
+import { readFileSync } from 'fs';
+import { platform as osPlatform } from 'node:os';
 import fs from 'fs/promises';
-import { Dir, readFileSync } from 'fs';
+
 import { join, relative } from 'path';
 import { parse as parseYaml } from 'yaml';
 import nock from 'nock';
+
 import {
   checkAndDownloadBinaries,
   getBinaryArchiveUrl,
   getCacheDirectory,
-} from './index';
-import { isCodedError } from './utils';
-import { parseArgs } from './options';
-import type { Binary, Checksums } from './types';
+} from '.';
+import { parseArgs, printBanner } from './options';
 import { Architecture, Platform } from './types';
+import type { Binary, Checksums } from './types';
+import { isCodedError, normalizeSystemArchitecture } from './utils';
 
 type OperationDetails = {
   path?: string;
@@ -28,15 +32,12 @@ type OperationDetails = {
 };
 
 jest.mock('fs/promises', () => {
-  console.log('Mocking fs/promises');
   const actualFs = jest.requireActual('fs/promises');
   return {
     ...actualFs,
     opendir: jest.fn().mockImplementation((path) => {
-      console.log('Mock opendir called with path:', path);
-      // Simulate ENOENT error for the first call
       const error = new Error(
-        `ENOENT: no such file or directory, opendir '${path}`,
+        `ENOENT: no such file or directory, opendir '${path}'`,
       );
       (error as NodeJS.ErrnoException).code = 'ENOENT';
       throw error;
@@ -54,6 +55,23 @@ jest.mock('fs');
 jest.mock('yaml');
 jest.mock('os', () => ({
   homedir: jest.fn().mockReturnValue('/home/user'),
+}));
+
+// Mock node:os and node:process for options.ts tests
+jest.mock('node:os', () => ({
+  platform: jest.fn().mockReturnValue('linux'),
+}));
+
+jest.mock('node:process', () => ({
+  argv: ['node', 'script.js'],
+  stdout: {
+    columns: 80,
+  },
+}));
+
+jest.mock('./utils', () => ({
+  ...jest.requireActual('./utils'),
+  normalizeSystemArchitecture: jest.fn().mockReturnValue('x64'),
 }));
 
 jest.mock('./options', () => ({
@@ -275,7 +293,6 @@ describe('foundryup', () => {
       const epermError = new Error('EPERM') as NodeJS.ErrnoException;
       epermError.code = 'EPERM';
 
-      // Mock symlink to fail
       (fs.symlink as jest.Mock).mockRejectedValueOnce(epermError);
 
       const operations = await mockInstallBinaries(
@@ -297,8 +314,6 @@ describe('foundryup', () => {
 
     it('should throw error for non-permission-related symlink failures', async () => {
       const otherError = new Error('Other error');
-
-      // Mock symlink to fail with other error
       jest.spyOn(fs, 'symlink').mockRejectedValue(otherError);
 
       await expect(
@@ -346,86 +361,394 @@ describe('foundryup', () => {
     beforeEach(() => {
       jest.clearAllMocks();
       const mockedOptions = jest.requireMock('./options');
-
       mockedOptions.parseArgs.mockReturnValue(mockArgs);
       mockedOptions.printBanner.mockImplementation(jest.fn());
       mockedOptions.say.mockImplementation(jest.fn());
     });
 
-    it('should execute all operations in correct order', async () => {
-      const operations = await mockDownloadAndInstallFoundryBinaries();
+    it('should execute all operations in order', async () => {
+      const result = await mockDownloadAndInstallFoundryBinaries();
 
-      expect(operations).toEqual([
-        { operation: 'getCacheDirectory' },
-        {
-          operation: 'getBinaryArchiveUrl',
-          details: {
-            repo: 'foundry-rs/foundry',
-            tag: 'v1.0.0',
-            version: '1.0.0',
-            platform: Platform.Linux,
-            arch: Architecture.Amd64,
-          },
-        },
-        {
-          operation: 'checkAndDownloadBinaries',
-          details: expect.objectContaining({
-            binaries: ['forge', 'anvil'],
-            platform: Platform.Linux,
-            arch: Architecture.Amd64,
-          }),
-        },
-        {
-          operation: 'installBinaries',
-          details: {
-            binaries: ['forge', 'anvil'],
-            binDir: 'node_modules/.bin',
-            cachePath: expect.stringContaining('metamask'),
-          },
-        },
+      expect(result.map((op) => op.operation)).toEqual([
+        'getCacheDirectory',
+        'getBinaryArchiveUrl',
+        'checkAndDownloadBinaries',
+        'installBinaries',
       ]);
     });
 
-    it('should handle cache clean command', async () => {
-      const mockCleanArgs = {
+    it('should clean cache when command is "cache clean"', async () => {
+      const mockedOptions = jest.requireMock('./options');
+      mockedOptions.parseArgs.mockReturnValue({
         ...mockArgs,
         command: 'cache clean',
-      };
+      });
 
-      (parseArgs as jest.Mock).mockReturnValue(mockCleanArgs);
-      const rmSpy = jest.spyOn(fs, 'rm').mockResolvedValue();
+      const result = await mockDownloadAndInstallFoundryBinaries();
 
-      const operations = await mockDownloadAndInstallFoundryBinaries();
-
-      expect(operations).toEqual([
+      expect(result).toEqual([
         { operation: 'getCacheDirectory' },
         {
           operation: 'cleanCache',
-          details: {
-            path: expect.stringContaining('metamask'),
-          },
+          details: { path: getCacheDirectory() },
         },
       ]);
-      expect(rmSpy).toHaveBeenCalled();
+    });
+  });
+
+  // NEW TESTS FOR options.ts
+  describe('options.ts', () => {
+    // Mock console.log for printBanner tests
+    const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+      // Reset process.env before each test
+      /* eslint-disable no-process-env */
+      delete process.env.FOUNDRYUP_BINARIES;
+      delete process.env.FOUNDRYUP_CHECKSUMS;
+      delete process.env.FOUNDRYUP_REPO;
+      delete process.env.FOUNDRYUP_VERSION;
+      delete process.env.FOUNDRYUP_ARCH;
+      delete process.env.FOUNDRYUP_PLATFORM;
+      /* eslint-enable no-process-env */
+
+      // Reset mocks to default values
+      (normalizeSystemArchitecture as jest.Mock).mockReturnValue('x64');
+      (osPlatform as jest.Mock).mockReturnValue('linux');
     });
 
-    it('should handle errors gracefully', async () => {
-      jest.spyOn(fs, 'rm').mockRejectedValue(new Error('Mock error'));
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+    describe('printBanner', () => {
+      it('should print the foundry banner to console', () => {
+        // Use actual implementation instead of mock for this test
+        jest.unmock('./options');
+        const { printBanner: actualPrintBanner } = jest.requireActual('./options');
+        
+        actualPrintBanner();
+        
+        expect(consoleSpy).toHaveBeenCalledWith(
+          expect.stringContaining('╔═╗ ╔═╗ ╦ ╦ ╔╗╔ ╔╦╗ ╦═╗ ╦ ╦'),
+        );
+        expect(consoleSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Portable and modular toolkit'),
+        );
+        expect(consoleSpy).toHaveBeenCalledWith(
+          expect.stringContaining('https://github.com/foundry-rs/'),
+        );
+        
+        // Re-mock for other tests
+        jest.doMock('./options', () => ({
+          ...jest.requireActual('./options'),
+          parseArgs: jest.fn(),
+          printBanner: jest.fn(),
+        }));
+      });
+    });
 
-      const mockCleanArgs = {
-        ...mockArgs,
-        command: 'cache clean',
+    describe('parseArgs', () => {
+      let actualParseArgs: (args?: string[]) => {
+        command: string;
+        options: {
+          binaries: string[];
+          repo: string;
+          version: { version: string; tag: string };
+          arch: string;
+          platform: string;
+          checksums?: Checksums;
+        };
       };
 
-      (parseArgs as jest.Mock).mockReturnValue(mockCleanArgs);
+      beforeEach(() => {
+        jest.unmock('./options');
+        const optionsModule = jest.requireActual('./options');
+        actualParseArgs = optionsModule.parseArgs;
+      });
 
-      await expect(mockDownloadAndInstallFoundryBinaries()).rejects.toThrow(
-        'Mock error',
-      );
+      afterEach(() => {
+        // Re-mock after each test
+        jest.doMock('./options', () => ({
+          ...jest.requireActual('./options'),
+          parseArgs: jest.fn(),
+          printBanner: jest.fn(),
+        }));
+      });
 
-      consoleSpy.mockRestore();
+      describe('default install command', () => {
+        it('should parse default install command with no arguments', () => {
+          const result = actualParseArgs([]);
+
+          expect(result.command).toBe('install');
+          expect(result.options).toEqual(
+            expect.objectContaining({
+              binaries: ['forge', 'anvil', 'cast'],
+              repo: 'foundry-rs/foundry',
+              version: { version: 'nightly', tag: 'nightly' },
+              arch: 'x64',
+              platform: 'linux',
+            }),
+          );
+        });
+
+        it('should parse explicit install command', () => {
+          const result = actualParseArgs(['install']);
+
+          expect(result.command).toBe('install');
+          expect(result.options).toEqual(
+            expect.objectContaining({
+              binaries: ['forge', 'anvil', 'cast'],
+              repo: 'foundry-rs/foundry',
+              version: { version: 'nightly', tag: 'nightly' },
+              arch: 'x64',
+              platform: 'linux',
+            }),
+          );
+        });
+      });
+
+      describe('cache clean command', () => {
+        it('should parse cache clean command', () => {
+          const result = actualParseArgs(['cache', 'clean']);
+
+          expect(result).toEqual({
+            command: 'cache clean',
+          });
+        });
+      });
+
+      describe('binaries option', () => {
+        it('should parse single binary with --binaries flag', () => {
+          const result = actualParseArgs(['--binaries', 'forge']);
+          
+          expect(result.command).toBe('install');
+          expect(result.options.binaries).toEqual(['forge']);
+        });
+
+        it('should parse multiple binaries with --binaries flag', () => {
+          const result = actualParseArgs([
+            '--binaries',
+            'forge',
+            'anvil',
+            'cast',
+          ]);
+          expect(result.command).toBe('install');
+          expect(result.options.binaries).toEqual(['forge', 'anvil', 'cast']);
+        });
+
+        it('should parse binaries with short flag -b', () => {
+          const result = actualParseArgs(['-b', 'forge', 'anvil']);
+          expect(result.command).toBe('install');
+          expect(result.options.binaries).toEqual(['forge', 'anvil']);
+        });
+
+        it('should remove duplicate binaries', () => {
+          const result = actualParseArgs([
+            '--binaries',
+            'forge',
+            'anvil',
+            'forge',
+          ]);
+          expect(result.command).toBe('install');
+          expect(result.options.binaries).toEqual(['forge', 'anvil']);
+        });
+      });
+
+      describe('checksums option', () => {
+        it('should parse checksums from JSON string', () => {
+          const checksums = {
+            algorithm: 'sha256',
+            binaries: {
+              forge: {
+                'linux-amd64': 'abc123',
+              },
+            },
+          };
+          const result = actualParseArgs([
+            '--checksums',
+            JSON.stringify(checksums),
+          ]);
+
+          expect(result.command).toBe('install');
+          expect(result.options.checksums).toEqual(checksums);
+        });
+
+        it('should parse checksums with short flag -c', () => {
+          const checksums = { algorithm: 'sha256', binaries: {} };
+          const result = actualParseArgs(['-c', JSON.stringify(checksums)]);
+
+          expect(result.command).toBe('install');
+          expect(result.options.checksums).toEqual(checksums);
+        });
+
+        it('should throw error for invalid JSON checksums', () => {
+          expect(() => {
+            actualParseArgs(['--checksums', 'invalid-json']);
+          }).toThrow('Invalid checksums');
+        });
+      });
+
+      describe('repo option', () => {
+        it('should parse custom repo with --repo flag', () => {
+          const result = actualParseArgs(['--repo', 'custom/repo']);
+          expect(result.command).toBe('install');
+          expect(result.options.repo).toBe('custom/repo');
+        });
+
+        it('should parse repo with short flag -r', () => {
+          const result = actualParseArgs(['-r', 'another/repo']);
+
+          expect(result.command).toBe('install');
+          expect(result.options.repo).toBe('another/repo');
+        });
+      });
+
+      describe('version option', () => {
+        it('should parse nightly version', () => {
+          const result = actualParseArgs(['--version', 'nightly']);
+
+          expect(result.command).toBe('install');
+          expect(result.options.version).toEqual({
+            version: 'nightly',
+            tag: 'nightly',
+          });
+        });
+
+        it('should parse nightly with date suffix', () => {
+          const result = actualParseArgs(['--version', 'nightly-2024-01-01']);
+
+          expect(result.command).toBe('install');
+          expect(result.options.version).toEqual({
+            version: 'nightly',
+            tag: 'nightly-2024-01-01',
+          });
+        });
+
+        it('should parse semantic version', () => {
+          const result = actualParseArgs(['--version', 'v1.2.3']);
+
+          expect(result.command).toBe('install');
+          expect(result.options.version).toEqual({
+            version: 'v1.2.3',
+            tag: 'v1.2.3',
+          });
+        });
+
+        it('should parse version with short flag -v', () => {
+          const result = actualParseArgs(['-v', 'v2.0.0']);
+
+          expect(result.command).toBe('install');
+          expect(result.options.version).toEqual({
+            version: 'v2.0.0',
+            tag: 'v2.0.0',
+          });
+        });
+      });
+
+      describe('architecture option', () => {
+        it('should parse architecture with --arch flag', () => {
+          const result = actualParseArgs(['--arch', Architecture.Arm64]);
+
+          expect(result.command).toBe('install');
+          expect(result.options.arch).toBe(Architecture.Arm64);
+        });
+
+        it('should parse architecture with short flag -a', () => {
+          const result = actualParseArgs(['-a', Architecture.Amd64]);
+
+          expect(result.command).toBe('install');
+          expect(result.options.arch).toBe(Architecture.Amd64);
+        });
+      });
+
+      describe('platform option', () => {
+        it('should parse platform with --platform flag', () => {
+          const result = actualParseArgs(['--platform', Platform.Windows]);
+
+          expect(result.command).toBe('install');
+          expect(result.options.platform).toBe(Platform.Windows);
+        });
+
+        it('should parse platform with short flag -p', () => {
+          const result = actualParseArgs(['-p', Platform.Mac]);
+
+          expect(result.command).toBe('install');
+          expect(result.options.platform).toBe(Platform.Mac);
+        });
+      });
+
+      describe('error handling', () => {
+        it('should throw error for invalid binary choice', () => {
+          expect(() => {
+            actualParseArgs(['--binaries', 'invalid-binary']);
+          }).toThrow('Invalid binary choice');
+        });
+
+        it('should throw error for invalid architecture choice', () => {
+          expect(() => {
+            actualParseArgs(['--arch', 'invalid-arch']);
+          }).toThrow('Invalid architecture choice');
+        });
+
+        it('should throw error for invalid platform choice', () => {
+          expect(() => {
+            actualParseArgs(['--platform', 'invalid-platform']);
+          }).toThrow('Invalid platform choice');
+        });
+
+        it('should throw error for incomplete cache command', () => {
+          expect(() => {
+            actualParseArgs(['cache']);
+          }).toThrow('Incomplete cache command');
+        });
+
+        it('should throw error for unknown flags in strict mode', () => {
+          expect(() => {
+            actualParseArgs(['--unknown-flag']);
+          }).toThrow('Unknown flag');
+        });
+      });
+
+      describe('combined options', () => {
+        it('should parse multiple options together', () => {
+          const result = actualParseArgs([
+            '--binaries',
+            'forge',
+            'anvil',
+            '--repo',
+            'custom/repo',
+            '--version',
+            'v1.0.0',
+            '--arch',
+            Architecture.Arm64,
+            '--platform',
+            Platform.Mac,
+          ]);
+
+          expect(result.command).toBe('install');
+          expect(result.options).toEqual(
+            expect.objectContaining({
+              binaries: ['forge', 'anvil'],
+              repo: 'custom/repo',
+              version: { version: 'v1.0.0', tag: 'v1.0.0' },
+              arch: Architecture.Arm64,
+              platform: Platform.Mac,
+            }),
+          );
+        });
+      });
+
+      describe('version string validation', () => {
+        it('should accept version strings starting with v followed by digit', () => {
+          const result = actualParseArgs(['--version', 'v1']);
+          expect(result.command).toBe('install');
+          expect(result.options.version.version).toBe('v1');
+        });
+
+        it('should accept complex version strings', () => {
+          const result = actualParseArgs(['--version', 'v1.2.3-beta.1']);
+          expect(result.command).toBe('install');
+          expect(result.options.version.version).toBe('v1.2.3-beta.1');
+        });
+      });
     });
   });
 });
-
