@@ -345,7 +345,15 @@ describe('RpcService', () => {
           method: 'eth_chainId',
           params: [],
         });
-        await expect(promise).rejects.toThrow('Unauthorized.');
+        await expect(promise).rejects.toThrow(
+          expect.objectContaining({
+            code: -33100,
+            message: 'Unauthorized.',
+            data: {
+              httpStatus: 401,
+            },
+          }),
+        );
       });
 
       it('does not forward the request to a failover service if given one', async () => {
@@ -431,7 +439,13 @@ describe('RpcService', () => {
             params: [],
           });
           await expect(promise).rejects.toThrow(
-            `RPC endpoint server error (HTTP ${httpStatus})`,
+            expect.objectContaining({
+              code: -32002,
+              message: `RPC endpoint server error (HTTP ${httpStatus})`,
+              data: {
+                httpStatus,
+              },
+            }),
           );
         });
 
@@ -517,7 +531,13 @@ describe('RpcService', () => {
           params: [],
         });
         await expect(promise).rejects.toThrow(
-          'The method does not exist / is not available.',
+          expect.objectContaining({
+            code: -32601,
+            message: 'The method does not exist / is not available.',
+            data: {
+              httpStatus: 501,
+            },
+          }),
         );
       });
 
@@ -601,7 +621,15 @@ describe('RpcService', () => {
           method: 'eth_chainId',
           params: [],
         });
-        await expect(promise).rejects.toThrow('Request is being rate limited.');
+        await expect(promise).rejects.toThrow(
+          expect.objectContaining({
+            code: -32005,
+            message: 'Request is being rate limited.',
+            data: {
+              httpStatus: 429,
+            },
+          }),
+        );
       });
 
       it('does not forward the request to a failover service if given one', async () => {
@@ -689,7 +717,13 @@ describe('RpcService', () => {
           params: [],
         });
         await expect(promise).rejects.toThrow(
-          'The JSON sent is not a valid Request object.',
+          expect.objectContaining({
+            code: -32600,
+            message: 'The JSON sent is not a valid Request object.',
+            data: {
+              httpStatus: 403,
+            },
+          }),
         );
       });
 
