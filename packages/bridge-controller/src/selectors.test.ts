@@ -7,6 +7,7 @@ import {
   selectBridgeQuotes,
   selectIsQuoteExpired,
   selectBridgeFeatureFlags,
+  selectMaxBalanceButtonVisibilityForSrcToken,
 } from './selectors';
 import { SortOrder, RequestStatus, ChainId } from './types';
 
@@ -623,6 +624,78 @@ describe('Bridge Selectors', () => {
         chains: {},
         support: false,
       });
+    });
+  });
+
+  describe('selectMaxBalanceButtonVisibilityForSrcToken', () => {
+    const mockState = {
+      quoteRequest: {
+        srcTokenAddress: '0x0000000000000000000000000000000000000000',
+      },
+    } as unknown as BridgeAppState;
+
+    it('should return true for non-native token with positive balance', () => {
+      const result = selectMaxBalanceButtonVisibilityForSrcToken(
+        {
+          ...mockState,
+          quoteRequest: {
+            srcTokenAddress: '0x123',
+          },
+        },
+        {
+          isStxEnabled: false,
+          balanceValue: '1.0',
+        },
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should return false for non-native token with zero balance', () => {
+      const result = selectMaxBalanceButtonVisibilityForSrcToken(
+        {
+          ...mockState,
+          quoteRequest: {
+            srcTokenAddress: '0x123',
+          },
+        },
+        {
+          isStxEnabled: false,
+          balanceValue: '0',
+        },
+      );
+      expect(result).toBe(false);
+    });
+
+    it('should return true for native token with positive balance when STX is enabled', () => {
+      const result = selectMaxBalanceButtonVisibilityForSrcToken(mockState, {
+        isStxEnabled: true,
+        balanceValue: '1.0',
+      });
+      expect(result).toBe(true);
+    });
+
+    it('should return false for native token with positive balance when STX is disabled', () => {
+      const result = selectMaxBalanceButtonVisibilityForSrcToken(mockState, {
+        isStxEnabled: false,
+        balanceValue: '1.0',
+      });
+      expect(result).toBe(false);
+    });
+
+    it('should return false for native token with zero balance regardless of STX status', () => {
+      const result = selectMaxBalanceButtonVisibilityForSrcToken(mockState, {
+        isStxEnabled: true,
+        balanceValue: '0',
+      });
+      expect(result).toBe(false);
+    });
+
+    it('should handle undefined balance value', () => {
+      const result = selectMaxBalanceButtonVisibilityForSrcToken(mockState, {
+        isStxEnabled: true,
+        balanceValue: '0',
+      });
+      expect(result).toBe(false);
     });
   });
 });

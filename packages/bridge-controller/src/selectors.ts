@@ -7,6 +7,7 @@ import type {
 import type { GasFeeEstimates } from '@metamask/gas-fee-controller';
 import type { CaipAssetType } from '@metamask/utils';
 import { isStrictHexString } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 import { orderBy } from 'lodash';
 import {
   createSelector as createSelector_,
@@ -404,3 +405,21 @@ export const selectBridgeQuotes = createStructuredBridgeSelector({
   quotesInitialLoadTimeMs: (state) => state.quotesInitialLoadTime,
   isQuoteGoingToRefresh: selectIsQuoteGoingToRefresh,
 });
+
+type MaxBalanceButtonVisibilityClientParams = {
+  isStxEnabled: boolean;
+  balanceValue: string;
+};
+export const selectMaxBalanceButtonVisibilityForSrcToken = createBridgeSelector(
+  [
+    (state) => state.quoteRequest.srcTokenAddress,
+    (_, { isStxEnabled }: MaxBalanceButtonVisibilityClientParams) =>
+      isStxEnabled,
+    (_, { balanceValue }: MaxBalanceButtonVisibilityClientParams) =>
+      balanceValue,
+  ],
+
+  (srcTokenAddress, isStxEnabled, balanceValue) =>
+    (isNativeAddress(srcTokenAddress) ? isStxEnabled : true) &&
+    new BigNumber(balanceValue ?? 0).gt(0),
+);

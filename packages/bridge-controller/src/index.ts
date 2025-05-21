@@ -132,4 +132,5 @@ export {
    */
   selectIsQuoteExpired,
   selectBridgeFeatureFlags,
+  selectMaxBalanceButtonVisibilityForSrcToken,
 } from './selectors';
