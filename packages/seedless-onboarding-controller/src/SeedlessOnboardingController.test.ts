@@ -932,7 +932,9 @@ describe('SeedlessOnboardingController', () => {
 
           await expect(
             controller.fetchAllSeedPhrases('INCORRECT_PASSWORD'),
-          ).rejects.toThrow(SeedlessOnboardingControllerErrorMessage.LoginFailedError);
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.LoginFailedError,
+          );
         },
       );
     });
@@ -1269,7 +1271,9 @@ describe('SeedlessOnboardingController', () => {
         async ({ controller }) => {
           await expect(
             controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
-          ).rejects.toThrow(SeedlessOnboardingControllerErrorMessage.VaultError);
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.VaultError,
+          );
         },
       );
     });
@@ -1285,7 +1289,9 @@ describe('SeedlessOnboardingController', () => {
             .mockResolvedValueOnce('{ "foo": "bar"');
           await expect(
             controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
-          ).rejects.toThrow(SeedlessOnboardingControllerErrorMessage.InvalidVaultData);
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.InvalidVaultData,
+          );
         },
       );
     });
@@ -1304,12 +1310,16 @@ describe('SeedlessOnboardingController', () => {
             .mockResolvedValueOnce({ foo: 'bar' });
           await expect(
             controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
-          ).rejects.toThrow(SeedlessOnboardingControllerErrorMessage.InvalidVaultData);
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.InvalidVaultData,
+          );
 
           jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce('null');
           await expect(
             controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
-          ).rejects.toThrow(SeedlessOnboardingControllerErrorMessage.VaultDataError);
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.VaultDataError,
+          );
         },
       );
     });
@@ -1326,7 +1336,9 @@ describe('SeedlessOnboardingController', () => {
           jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce(MOCK_VAULT);
           await expect(
             controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
-          ).rejects.toThrow(SeedlessOnboardingControllerErrorMessage.VaultDataError);
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.VaultDataError,
+          );
         },
       );
     });
