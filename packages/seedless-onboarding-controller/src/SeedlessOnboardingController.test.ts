@@ -861,7 +861,9 @@ describe('SeedlessOnboardingController', () => {
             NEW_KEY_RING_1.seedPhrase,
             NEW_KEY_RING_1.id,
           ),
-        ).rejects.toThrow(SeedlessOnboardingControllerError.ControllerLocked);
+        ).rejects.toThrow(
+          SeedlessOnboardingControllerErrorMessage.ControllerLocked,
+        );
       });
     });
 
@@ -984,7 +986,9 @@ describe('SeedlessOnboardingController', () => {
               NEW_KEY_RING_1.seedPhrase,
               NEW_KEY_RING_1.id,
             ),
-          ).rejects.toThrow(SeedlessOnboardingControllerError.InvalidVaultData);
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.InvalidVaultData,
+          );
         },
       );
     });
@@ -1023,7 +1027,7 @@ describe('SeedlessOnboardingController', () => {
               NEW_KEY_RING_2.id,
             ),
           ).rejects.toThrow(
-            SeedlessOnboardingControllerError.MissingCredentials,
+            SeedlessOnboardingControllerErrorMessage.MissingCredentials,
           );
         },
       );
@@ -1056,7 +1060,7 @@ describe('SeedlessOnboardingController', () => {
               NEW_KEY_RING_1.id,
             ),
           ).rejects.toThrow(
-            SeedlessOnboardingControllerError.ExpiredCredentials,
+            SeedlessOnboardingControllerErrorMessage.ExpiredCredentials,
           );
         },
       );
@@ -1096,7 +1100,7 @@ describe('SeedlessOnboardingController', () => {
               NEW_KEY_RING_2.id,
             ),
           ).rejects.toThrow(
-            SeedlessOnboardingControllerError.WrongPasswordType,
+            SeedlessOnboardingControllerErrorMessage.WrongPasswordType,
           );
         },
       );
@@ -1137,7 +1141,9 @@ describe('SeedlessOnboardingController', () => {
               NEW_KEY_RING_2.seedPhrase,
               NEW_KEY_RING_2.id,
             ),
-          ).rejects.toThrow(SeedlessOnboardingControllerError.InvalidVaultData);
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.InvalidVaultData,
+          );
 
           jest.spyOn(encryptor, 'decryptWithKey').mockResolvedValueOnce('null');
           await expect(
@@ -1145,7 +1151,9 @@ describe('SeedlessOnboardingController', () => {
               NEW_KEY_RING_2.seedPhrase,
               NEW_KEY_RING_2.id,
             ),
-          ).rejects.toThrow(SeedlessOnboardingControllerError.VaultDataError);
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.VaultDataError,
+          );
         },
       );
     });
@@ -1185,7 +1193,9 @@ describe('SeedlessOnboardingController', () => {
               NEW_KEY_RING_2.seedPhrase,
               NEW_KEY_RING_2.id,
             ),
-          ).rejects.toThrow(SeedlessOnboardingControllerError.VaultDataError);
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.VaultDataError,
+          );
         },
       );
     });
@@ -1521,7 +1531,7 @@ describe('SeedlessOnboardingController', () => {
     it('should throw error if the vault is missing', async () => {
       await withController(async ({ controller }) => {
         await expect(controller.submitPassword(MOCK_PASSWORD)).rejects.toThrow(
-          SeedlessOnboardingControllerError.VaultError,
+          SeedlessOnboardingControllerErrorMessage.VaultError,
         );
       });
     });
@@ -1536,7 +1546,7 @@ describe('SeedlessOnboardingController', () => {
         async ({ controller }) => {
           // @ts-expect-error intentional test case
           await expect(controller.submitPassword(123)).rejects.toThrow(
-            SeedlessOnboardingControllerError.WrongPasswordType,
+            SeedlessOnboardingControllerErrorMessage.WrongPasswordType,
           );
         },
       );
@@ -1587,7 +1597,7 @@ describe('SeedlessOnboardingController', () => {
     it('should throw an error if the vault is missing', async () => {
       await withController(async ({ controller }) => {
         await expect(controller.verifyPassword(MOCK_PASSWORD)).rejects.toThrow(
-          SeedlessOnboardingControllerError.VaultError,
+          SeedlessOnboardingControllerErrorMessage.VaultError,
         );
       });
     });
@@ -1852,66 +1862,9 @@ describe('SeedlessOnboardingController', () => {
         await expect(
           controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
         ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.ControllerLocked,
-          );
+          SeedlessOnboardingControllerErrorMessage.ControllerLocked,
+        );
       });
-    });
-
-    it('should throw an error if failed to parse vault data', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({ vault: '{ "foo": "bar"' }),
-        },
-        async ({ controller, encryptor }) => {
-          jest
-            .spyOn(encryptor, 'decrypt')
-            .mockResolvedValueOnce('{ "foo": "bar"');
-          await expect(
-            controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
-          ).rejects.toThrow(SeedlessOnboardingControllerError.InvalidVaultData);
-        },
-      );
-    });
-
-    it('should throw an error if vault unlocked has an unexpected shape', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            vault: MOCK_VAULT,
-            withMockAuthenticatedUser: true,
-          }),
-        },
-        async ({ controller, encryptor }) => {
-          jest
-            .spyOn(encryptor, 'decrypt')
-            .mockResolvedValueOnce({ foo: 'bar' });
-          await expect(
-            controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
-          ).rejects.toThrow(SeedlessOnboardingControllerError.InvalidVaultData);
-
-          jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce('null');
-          await expect(
-            controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
-          ).rejects.toThrow(SeedlessOnboardingControllerError.VaultDataError);
-        },
-      );
-    });
-
-    it('should throw an error if vault unlocked has invalid authentication data', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            vault: MOCK_VAULT,
-            withMockAuthenticatedUser: true,
-          }),
-        },
-        async ({ controller, encryptor }) => {
-          jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce(MOCK_VAULT);
-          await expect(
-            controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
-          ).rejects.toThrow(SeedlessOnboardingControllerError.VaultDataError);
-        },
-      );
     });
 
     it('should throw an error if the old password is incorrect', async () => {
@@ -1922,7 +1875,11 @@ describe('SeedlessOnboardingController', () => {
             withMockAuthenticatedUser: true,
           }),
         },
-        async ({ controller, encryptor }) => {
+        async ({ controller, encryptor, baseMessenger }) => {
+          // unlock the controller
+          baseMessenger.publish('KeyringController:unlock');
+          await new Promise((resolve) => setTimeout(resolve, 100));
+
           jest
             .spyOn(encryptor, 'decrypt')
             .mockRejectedValueOnce(new Error('Incorrect password'));
@@ -2105,7 +2062,9 @@ describe('SeedlessOnboardingController', () => {
               MOCK_SEED_PHRASE,
               MOCK_KEYRING_ID,
             ),
-          ).rejects.toThrow(SeedlessOnboardingControllerError.ControllerLocked);
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.ControllerLocked,
+          );
         },
       );
     });
@@ -2133,7 +2092,9 @@ describe('SeedlessOnboardingController', () => {
               MOCK_SEED_PHRASE,
               MOCK_KEYRING_ID,
             ),
-          ).rejects.toThrow(SeedlessOnboardingControllerError.ControllerLocked);
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.ControllerLocked,
+          );
         },
       );
     });
@@ -2151,7 +2112,9 @@ describe('SeedlessOnboardingController', () => {
               MOCK_SEED_PHRASE,
               MOCK_KEYRING_ID,
             ),
-          ).rejects.toThrow(SeedlessOnboardingControllerError.ControllerLocked);
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.ControllerLocked,
+          );
 
           baseMessenger.publish('KeyringController:unlock');
 
@@ -2201,7 +2164,7 @@ describe('SeedlessOnboardingController', () => {
       expect(seedPhraseMetadata.timestamp).toBe(timestamp);
     });
 
-    it('should be able to correctly create `SeedPhraseMetadata` Array for batch seedphrases', () => {
+    it('should be able to correctly create `SecretMetadata` Array for batch seedphrases', () => {
       const seedPhrases = ['seed phrase 1', 'seed phrase 2', 'seed phrase 3'];
       const rawSeedPhrases = seedPhrases.map((srp) => ({
         value: stringToBytes(srp),

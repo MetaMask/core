@@ -392,7 +392,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    */
   async verifyPassword(password: string): Promise<void> {
     if (!this.state.vault) {
-      throw new Error(SeedlessOnboardingControllerError.VaultError);
+      throw new Error(SeedlessOnboardingControllerErrorMessage.VaultError);
     }
 
     await this.#vaultEncryptor.decrypt(password, this.state.vault);
@@ -614,7 +614,9 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       }
 
       if (!vaultEncryptionKey && !password) {
-        throw new Error(SeedlessOnboardingControllerError.MissingCredentials);
+        throw new Error(
+          SeedlessOnboardingControllerErrorMessage.MissingCredentials,
+        );
       }
 
       let decryptedVaultData: unknown;
@@ -636,12 +638,14 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         const parsedEncryptedVault = JSON.parse(encryptedVault);
 
         if (vaultEncryptionSalt !== parsedEncryptedVault.salt) {
-          throw new Error(SeedlessOnboardingControllerError.ExpiredCredentials);
+          throw new Error(
+            SeedlessOnboardingControllerErrorMessage.ExpiredCredentials,
+          );
         }
 
         if (typeof vaultEncryptionKey !== 'string') {
           throw new TypeError(
-            SeedlessOnboardingControllerError.WrongPasswordType,
+            SeedlessOnboardingControllerErrorMessage.WrongPasswordType,
           );
         }
 
@@ -713,11 +717,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @param data - The backup data to add to the state
    * @param data.id - The identifier for the backup
    * @param data.seedPhrase - The seed phrase to backup as a Uint8Array
-   */
-  /**
-   * Update the existing social backups metadata state with the new backup metadata.
-   *
-   * @param newSocialBackupMetadata - The new social backup metadata to update.
    */
   #filterDupesAndUpdateSocialBackupsMetadata(
     data:
@@ -927,7 +926,9 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
 
   #assertIsUnlocked(): void {
     if (!this.#isUnlocked) {
-      throw new Error(SeedlessOnboardingControllerError.ControllerLocked);
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.ControllerLocked,
+      );
     }
   }
 
