@@ -16,5 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add array of new seed phrase backups to the metadata store in batch (useful in multi-srp flow)
   - Fetch seed phrase metadata from the metadata store
   - Update the password of the seedless onboarding flow
+- Support multi SRP sync using social login. ([#5](https://github.com/Web3Auth/core/pull/5))
+  - Update Metadata to support multiple types of secrets (SRP, PrivateKey).
+  - Add `Controller Lock` which will sync with `Keyring Lock`.
 
 [Unreleased]: https://github.com/MetaMask/core/
