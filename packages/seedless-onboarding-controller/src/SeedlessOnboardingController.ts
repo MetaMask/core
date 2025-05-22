@@ -20,7 +20,7 @@ import {
   type AuthConnection,
   controllerName,
   SecretType,
-  SeedlessOnboardingControllerError,
+  SeedlessOnboardingControllerErrorMessage,
   Web3AuthNetwork,
 } from './constants';
 import { RecoveryError } from './errors';
@@ -214,7 +214,9 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       return authenticationResult;
     } catch (error) {
       log('Error authenticating user', error);
-      throw new Error(SeedlessOnboardingControllerError.AuthenticationError);
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.AuthenticationError,
+      );
     }
   }
 
@@ -322,7 +324,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     } catch (error) {
       log('Error fetching seed phrase metadata', error);
       throw new Error(
-        SeedlessOnboardingControllerError.FailedToFetchSeedPhraseMetadata,
+        SeedlessOnboardingControllerErrorMessage.FailedToFetchSeedPhraseMetadata,
       );
     }
   }
@@ -353,7 +355,9 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       });
     } catch (error) {
       log('Error changing password', error);
-      throw new Error(SeedlessOnboardingControllerError.FailedToChangePassword);
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.FailedToChangePassword,
+      );
     }
   }
 
@@ -476,7 +480,9 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       });
     } catch (error) {
       log('Error persisting local encryption key', error);
-      throw new Error(SeedlessOnboardingControllerError.FailedToPersistOprfKey);
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.FailedToPersistOprfKey,
+      );
     }
   }
 
@@ -571,7 +577,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     } catch (error) {
       log('Error encrypting and storing seed phrase backup', error);
       throw new Error(
-        SeedlessOnboardingControllerError.FailedToEncryptAndStoreSeedPhraseBackup,
+        SeedlessOnboardingControllerErrorMessage.FailedToEncryptAndStoreSeedPhraseBackup,
       );
     }
   }
@@ -604,7 +610,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       } = this.state;
 
       if (!encryptedVault) {
-        throw new Error(SeedlessOnboardingControllerError.VaultError);
+        throw new Error(SeedlessOnboardingControllerErrorMessage.VaultError);
       }
 
       if (!vaultEncryptionKey && !password) {
@@ -707,6 +713,11 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @param data - The backup data to add to the state
    * @param data.id - The identifier for the backup
    * @param data.seedPhrase - The seed phrase to backup as a Uint8Array
+   */
+  /**
+   * Update the existing social backups metadata state with the new backup metadata.
+   *
+   * @param newSocialBackupMetadata - The new social backup metadata to update.
    */
   #filterDupesAndUpdateSocialBackupsMetadata(
     data:
@@ -882,14 +893,18 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     toprfAuthKeyPair: KeyPair;
   } {
     if (typeof data !== 'string') {
-      throw new Error(SeedlessOnboardingControllerError.InvalidVaultData);
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.InvalidVaultData,
+      );
     }
 
     let parsedVaultData: unknown;
     try {
       parsedVaultData = JSON.parse(data);
     } catch {
-      throw new Error(SeedlessOnboardingControllerError.InvalidVaultData);
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.InvalidVaultData,
+      );
     }
 
     this.#assertIsValidVaultData(parsedVaultData);
@@ -939,7 +954,9 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       !('userId' in value) ||
       typeof value.userId !== 'string'
     ) {
-      throw new Error(SeedlessOnboardingControllerError.MissingAuthUserInfo);
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.MissingAuthUserInfo,
+      );
     }
 
     if (
@@ -948,7 +965,9 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       !Array.isArray(value.nodeAuthTokens) ||
       value.nodeAuthTokens.length < 3 // At least 3 auth tokens are required for Threshold OPRF service
     ) {
-      throw new Error(SeedlessOnboardingControllerError.InsufficientAuthToken);
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.InsufficientAuthToken,
+      );
     }
   }
 
@@ -970,7 +989,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       !('toprfAuthKeyPair' in value) || // toprfAuthKeyPair is not defined
       typeof value.toprfAuthKeyPair !== 'string' // toprfAuthKeyPair is not a string
     ) {
-      throw new Error(SeedlessOnboardingControllerError.VaultDataError);
+      throw new Error(SeedlessOnboardingControllerErrorMessage.VaultDataError);
     }
   }
 }
@@ -983,11 +1002,13 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
  */
 function assertIsValidPassword(password: unknown): asserts password is string {
   if (typeof password !== 'string') {
-    throw new Error(SeedlessOnboardingControllerError.WrongPasswordType);
+    throw new Error(SeedlessOnboardingControllerErrorMessage.WrongPasswordType);
   }
 
   if (!password || !password.length) {
-    throw new Error(SeedlessOnboardingControllerError.InvalidEmptyPassword);
+    throw new Error(
+      SeedlessOnboardingControllerErrorMessage.InvalidEmptyPassword,
+    );
   }
 }
 
