@@ -8,14 +8,14 @@ import { Messenger as MessengerImpl } from '@metamask/base-controller';
 import { MOCK_LOCAL_CONTACTS } from './mockContacts';
 
 /**
- * Test Utility - create a mock user storage messenger for address book syncing tests
+ * Test Utility - create a mock user storage messenger for contact syncing tests
  *
  * @param options - options for the mock messenger
  * @param options.addressBook - options for the address book part of the controller
  * @param options.addressBook.contactsList - List of address book contacts to use
  * @returns Mock User Storage Messenger
  */
-export function mockUserStorageMessengerForAddressBookSyncing(options?: {
+export function mockUserStorageMessengerForContactSyncing(options?: {
   addressBook?: {
     contactsList?: AddressBookEntry[];
   };

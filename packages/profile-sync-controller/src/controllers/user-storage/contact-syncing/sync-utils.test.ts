@@ -1,15 +1,15 @@
-import { canPerformAddressBookSyncing } from './sync-utils';
-import type { AddressBookSyncingOptions } from './types';
+import { canPerformContactSyncing } from './sync-utils';
+import type { ContactSyncingOptions } from './types';
 
-describe('user-storage/address-book-syncing/sync-utils', () => {
-  describe('canPerformAddressBookSyncing', () => {
+describe('user-storage/contact-syncing/sync-utils', () => {
+  describe('canPerformContactSyncing', () => {
     const arrangeMocks = ({
       isBackupAndSyncEnabled = true,
-      isAddressBookSyncingEnabled = true,
+      isContactSyncingEnabled = true,
       messengerCallControllerAndAction = 'AuthenticationController:isSignedIn',
       messengerCallCallback = () => true,
     }) => {
-      const options: AddressBookSyncingOptions = {
+      const options: ContactSyncingOptions = {
         getMessenger: jest.fn().mockReturnValue({
           call: jest
             .fn()
@@ -22,7 +22,7 @@ describe('user-storage/address-book-syncing/sync-utils', () => {
         getUserStorageControllerInstance: jest.fn().mockReturnValue({
           state: {
             isBackupAndSyncEnabled,
-            isAddressBookSyncingEnabled,
+            isContactSyncingEnabled,
           },
         }),
       };
@@ -33,12 +33,12 @@ describe('user-storage/address-book-syncing/sync-utils', () => {
     const failureCases = [
       ['profile syncing is not enabled', { isBackupAndSyncEnabled: false }],
       [
-        'profile syncing is not enabled but address book syncing is',
-        { isBackupAndSyncEnabled: false, isAddressBookSyncingEnabled: true },
+        'profile syncing is not enabled but contact syncing is',
+        { isBackupAndSyncEnabled: false, isContactSyncingEnabled: true },
       ],
       [
-        'profile syncing is enabled but not address book syncing',
-        { isBackupAndSyncEnabled: true, isAddressBookSyncingEnabled: false },
+        'profile syncing is enabled but not contact syncing',
+        { isBackupAndSyncEnabled: true, isContactSyncingEnabled: false },
       ],
       [
         'authentication is not enabled',
@@ -53,13 +53,13 @@ describe('user-storage/address-book-syncing/sync-utils', () => {
     it.each(failureCases)('returns false if %s', (_message, mocks) => {
       const { options } = arrangeMocks(mocks);
 
-      expect(canPerformAddressBookSyncing(options)).toBe(false);
+      expect(canPerformContactSyncing(options)).toBe(false);
     });
 
     it('returns true if all conditions are met', () => {
       const { options } = arrangeMocks({});
 
-      expect(canPerformAddressBookSyncing(options)).toBe(true);
+      expect(canPerformContactSyncing(options)).toBe(true);
     });
   });
 });

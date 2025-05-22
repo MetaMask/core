@@ -2,14 +2,14 @@ import type { AddressBookEntry } from '@metamask/address-book-controller';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
 
 import { USER_STORAGE_VERSION, USER_STORAGE_VERSION_KEY } from './constants';
-import type { UserStorageAddressBookEntry } from './types';
+import type { UserStorageContactEntry } from './types';
 import {
   mapAddressBookEntryToUserStorageEntry,
   mapUserStorageEntryToAddressBookEntry,
   type SyncAddressBookEntry,
 } from './utils';
 
-describe('user-storage/address-book-syncing/utils', () => {
+describe('user-storage/contact-syncing/utils', () => {
   // Use checksum address format for consistent testing
   const mockAddress = '0x123456789012345678901234567890abCdEF1234';
   const mockChainId = '0x1';
@@ -128,7 +128,7 @@ describe('user-storage/address-book-syncing/utils', () => {
 
   describe('mapUserStorageEntryToAddressBookEntry', () => {
     it('should map a basic user storage entry to an address book entry', () => {
-      const userStorageEntry: UserStorageAddressBookEntry = {
+      const userStorageEntry: UserStorageContactEntry = {
         [USER_STORAGE_VERSION_KEY]: USER_STORAGE_VERSION,
         a: mockAddress,
         n: mockName,
@@ -151,7 +151,7 @@ describe('user-storage/address-book-syncing/utils', () => {
     });
 
     it('should map a deleted user storage entry to an address book entry', () => {
-      const userStorageEntry: UserStorageAddressBookEntry = {
+      const userStorageEntry: UserStorageContactEntry = {
         [USER_STORAGE_VERSION_KEY]: USER_STORAGE_VERSION,
         a: mockAddress,
         n: mockName,
@@ -178,7 +178,7 @@ describe('user-storage/address-book-syncing/utils', () => {
     });
 
     it('should handle missing optional fields', () => {
-      const userStorageEntry: UserStorageAddressBookEntry = {
+      const userStorageEntry: UserStorageContactEntry = {
         [USER_STORAGE_VERSION_KEY]: USER_STORAGE_VERSION,
         a: mockAddress,
         n: mockName,
@@ -200,7 +200,7 @@ describe('user-storage/address-book-syncing/utils', () => {
     it('should normalize addresses to checksummed format', () => {
       // Use lowercase address for this test specifically
       const lowerCaseAddress = mockAddress.toLowerCase();
-      const userStorageEntry: UserStorageAddressBookEntry = {
+      const userStorageEntry: UserStorageContactEntry = {
         [USER_STORAGE_VERSION_KEY]: USER_STORAGE_VERSION,
         a: lowerCaseAddress,
         n: mockName,

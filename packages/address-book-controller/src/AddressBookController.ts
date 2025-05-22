@@ -44,6 +44,8 @@ export enum AddressType {
  * isEns - is the entry an ENS name
  *
  * addressType - is the type of this address
+ *
+ * lastUpdatedAt - timestamp of when this entry was last updated
  */
 export type AddressBookEntry = {
   address: string;
@@ -52,6 +54,7 @@ export type AddressBookEntry = {
   memo: string;
   isEns: boolean;
   addressType?: AddressType;
+  lastUpdatedAt?: number;
 };
 
 /**
@@ -104,11 +107,19 @@ export type AddressBookControllerListAction = {
 };
 
 /**
- * The action that can be performed to import contacts from sync to the {@link AddressBookController}.
+ * The action that can be performed to set a contact in the {@link AddressBookController}.
  */
-export type AddressBookControllerImportContactsFromSyncAction = {
-  type: `${typeof controllerName}:importContactsFromSync`;
-  handler: AddressBookController['importContactsFromSync'];
+export type AddressBookControllerSetAction = {
+  type: `${typeof controllerName}:set`;
+  handler: AddressBookController['set'];
+};
+
+/**
+ * The action that can be performed to delete a contact from the {@link AddressBookController}.
+ */
+export type AddressBookControllerDeleteAction = {
+  type: `${typeof controllerName}:delete`;
+  handler: AddressBookController['delete'];
 };
 
 /**
@@ -133,7 +144,8 @@ export type AddressBookControllerContactDeletedEvent = {
 export type AddressBookControllerActions =
   | AddressBookControllerGetStateAction
   | AddressBookControllerListAction
-  | AddressBookControllerImportContactsFromSyncAction;
+  | AddressBookControllerSetAction
+  | AddressBookControllerDeleteAction;
 
 /**
  * The event that {@link AddressBookController} can emit.
@@ -306,6 +318,7 @@ export class AddressBookController extends BaseController<
       memo,
       name,
       addressType,
+      lastUpdatedAt: Date.now(),
     };
     const ensName = normalizeEnsName(name);
     if (ensName) {
@@ -335,60 +348,6 @@ export class AddressBookController extends BaseController<
   }
 
   /**
-   * Import contacts from sync without triggering events.
-   * This is used during the backup and sync process to avoid infinite event loops.
-   *
-   * @param contacts - Array of contact entries to import.
-   * @returns Boolean indicating if the operation was successful.
-   */
-  importContactsFromSync(contacts: AddressBookEntry[]): boolean {
-    if (!Array.isArray(contacts) || contacts.length === 0) {
-      return false;
-    }
-
-    this.update((state) => {
-      contacts.forEach((contact) => {
-        const { address, chainId } = contact;
-        const checksumAddress = toChecksumHexAddress(address);
-
-        // Initialize chainId entry if it doesn't exist
-        if (!state.addressBook[chainId]) {
-          state.addressBook[chainId] = {};
-        }
-
-        // Check for sync metadata (added by profile sync controller)
-        const contactWithMetadata = contact as AddressBookEntryWithSyncMetadata;
-        const syncMetadata = contactWithMetadata._syncMetadata || {};
-
-        if (syncMetadata.deleted) {
-          // If this contact is marked as deleted in sync metadata,
-          // actually delete it from the address book
-          if (state.addressBook[chainId][checksumAddress]) {
-            delete state.addressBook[chainId][checksumAddress];
-          }
-        } else {
-          // Update or add the contact (without sync metadata)
-          state.addressBook[chainId] = {
-            ...state.addressBook[chainId],
-            [checksumAddress]: {
-              address: checksumAddress,
-              name: contact.name,
-              chainId: contact.chainId,
-              memo: contact.memo || '',
-              isEns: contact.isEns || false,
-              ...(contact.addressType
-                ? { addressType: contact.addressType }
-                : {}),
-            },
-          };
-        }
-      });
-    });
-
-    return true;
-  }
-
-  /**
    * Registers message handlers for the AddressBookController.
    */
   #registerMessageHandlers() {
@@ -397,8 +356,12 @@ export class AddressBookController extends BaseController<
       this.list.bind(this),
     );
     this.messagingSystem.registerActionHandler(
-      `${controllerName}:importContactsFromSync`,
-      this.importContactsFromSync.bind(this),
+      `${controllerName}:set`,
+      this.set.bind(this),
+    );
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:delete`,
+      this.delete.bind(this),
     );
   }
 }

@@ -1,9 +1,13 @@
 import { Messenger } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
+import type { Hex } from '@metamask/utils';
 
 import type {
   AddressBookControllerActions,
   AddressBookControllerEvents,
+  AddressBookControllerContactUpdatedEvent,
+  AddressBookControllerContactDeletedEvent,
+  AddressBookEntry,
 } from './AddressBookController';
 import {
   AddressBookController,
@@ -392,5 +396,192 @@ describe('AddressBookController', () => {
         },
       },
     });
+  });
+
+  it('should emit contactUpdated event when adding a contact', () => {
+    const messenger = new Messenger<
+      AddressBookControllerActions,
+      AddressBookControllerEvents
+    >();
+    const restrictedMessenger = messenger.getRestricted({
+      name: controllerName,
+      allowedActions: [],
+      allowedEvents: [],
+    });
+    const controller = new AddressBookController({
+      messenger: restrictedMessenger,
+    });
+
+    const mockEventListener = jest.fn();
+    messenger.subscribe(
+      'AddressBookController:contactUpdated' as AddressBookControllerContactUpdatedEvent['type'],
+      mockEventListener,
+    );
+
+    controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
+
+    expect(mockEventListener).toHaveBeenCalledTimes(1);
+    expect(mockEventListener).toHaveBeenCalledWith({
+      address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+      chainId: toHex(1),
+      isEns: false,
+      memo: '',
+      name: 'foo',
+      addressType: undefined,
+      lastUpdatedAt: expect.any(Number),
+    });
+  });
+
+  it('should emit contactUpdated event when updating a contact', () => {
+    const messenger = new Messenger<
+      AddressBookControllerActions,
+      AddressBookControllerEvents
+    >();
+    const restrictedMessenger = messenger.getRestricted({
+      name: controllerName,
+      allowedActions: [],
+      allowedEvents: [],
+    });
+    const controller = new AddressBookController({
+      messenger: restrictedMessenger,
+    });
+
+    controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
+
+    const mockEventListener = jest.fn();
+    messenger.subscribe(
+      'AddressBookController:contactUpdated' as AddressBookControllerContactUpdatedEvent['type'],
+      mockEventListener,
+    );
+
+    controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'bar');
+
+    expect(mockEventListener).toHaveBeenCalledTimes(1);
+    expect(mockEventListener).toHaveBeenCalledWith({
+      address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+      chainId: toHex(1),
+      isEns: false,
+      memo: '',
+      name: 'bar',
+      addressType: undefined,
+      lastUpdatedAt: expect.any(Number),
+    });
+  });
+
+  it('should emit contactDeleted event when deleting a contact', () => {
+    const messenger = new Messenger<
+      AddressBookControllerActions,
+      AddressBookControllerEvents
+    >();
+    const restrictedMessenger = messenger.getRestricted({
+      name: controllerName,
+      allowedActions: [],
+      allowedEvents: [],
+    });
+    const controller = new AddressBookController({
+      messenger: restrictedMessenger,
+    });
+
+    controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
+
+    const mockEventListener = jest.fn();
+    messenger.subscribe(
+      'AddressBookController:contactDeleted' as AddressBookControllerContactDeletedEvent['type'],
+      mockEventListener,
+    );
+
+    controller.delete(toHex(1), '0x32Be343B94f860124dC4fEe278FDCBD38C102D88');
+
+    expect(mockEventListener).toHaveBeenCalledTimes(1);
+    expect(mockEventListener).toHaveBeenCalledWith({
+      address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+      chainId: toHex(1),
+      isEns: false,
+      memo: '',
+      name: 'foo',
+      addressType: undefined,
+    });
+  });
+
+  it('should not emit events for contacts with chainId "*"', () => {
+    const messenger = new Messenger<
+      AddressBookControllerActions,
+      AddressBookControllerEvents
+    >();
+    const restrictedMessenger = messenger.getRestricted({
+      name: controllerName,
+      allowedActions: [],
+      allowedEvents: [],
+    });
+    const controller = new AddressBookController({
+      messenger: restrictedMessenger,
+    });
+
+    const updateEventListener = jest.fn();
+    const deleteEventListener = jest.fn();
+    messenger.subscribe(
+      'AddressBookController:contactUpdated' as AddressBookControllerContactUpdatedEvent['type'],
+      updateEventListener,
+    );
+    messenger.subscribe(
+      'AddressBookController:contactDeleted' as AddressBookControllerContactDeletedEvent['type'],
+      deleteEventListener,
+    );
+
+    // Add with chainId "*"
+    controller.set(
+      '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+      'foo',
+      '*' as unknown as Hex,
+    );
+    expect(updateEventListener).not.toHaveBeenCalled();
+
+    // Update with chainId "*"
+    controller.set(
+      '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+      'bar',
+      '*' as unknown as Hex,
+    );
+    expect(updateEventListener).not.toHaveBeenCalled();
+
+    // Delete with chainId "*"
+    controller.delete(
+      '*' as unknown as Hex,
+      '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+    );
+    expect(deleteEventListener).not.toHaveBeenCalled();
+  });
+
+  it('should list all contacts', () => {
+    const controller = new AddressBookController({
+      messenger: getRestrictedMessenger(),
+    });
+    controller.set(
+      '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+      'foo',
+      toHex(1),
+    );
+    controller.set(
+      '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d',
+      'bar',
+      toHex(2),
+    );
+
+    const contacts = controller.list();
+    expect(contacts).toHaveLength(2);
+    expect(contacts).toContainEqual(
+      expect.objectContaining({
+        address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+        chainId: toHex(1),
+        name: 'foo',
+      }),
+    );
+    expect(contacts).toContainEqual(
+      expect.objectContaining({
+        address: '0xC38bF1aD06ef69F0c04E29DBeB4152B4175f0A8D',
+        chainId: toHex(2),
+        name: 'bar',
+      }),
+    );
   });
 });

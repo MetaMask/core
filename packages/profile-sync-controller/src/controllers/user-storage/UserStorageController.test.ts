@@ -628,6 +628,8 @@ describe('user-storage/user-storage-controller - setIsBackupAndSyncFeatureEnable
         hasAccountSyncingSyncedAtLeastOnce: false,
         isAccountSyncingReadyToBeDispatched: false,
         isAccountSyncingInProgress: false,
+        isContactSyncingEnabled: false,
+        isContactSyncingInProgress: false,
       },
     });
 
@@ -654,6 +656,8 @@ describe('user-storage/user-storage-controller - setIsBackupAndSyncFeatureEnable
         hasAccountSyncingSyncedAtLeastOnce: false,
         isAccountSyncingReadyToBeDispatched: false,
         isAccountSyncingInProgress: false,
+        isContactSyncingEnabled: false,
+        isContactSyncingInProgress: false,
       },
     });
 
@@ -682,6 +686,8 @@ describe('user-storage/user-storage-controller - setIsBackupAndSyncFeatureEnable
         hasAccountSyncingSyncedAtLeastOnce: false,
         isAccountSyncingReadyToBeDispatched: false,
         isAccountSyncingInProgress: false,
+        isContactSyncingEnabled: true,
+        isContactSyncingInProgress: false,
       },
     });
 

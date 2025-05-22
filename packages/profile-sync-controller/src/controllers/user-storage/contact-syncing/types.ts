@@ -7,7 +7,7 @@ import type {
 import type { UserStorageControllerMessenger } from '../UserStorageController';
 import type UserStorageController from '../UserStorageController';
 
-export type UserStorageAddressBookEntry = {
+export type UserStorageContactEntry = {
   /**
    * The Version 'v' of the User Storage.
    * NOTE - will allow us to support upgrade/downgrades in the future
@@ -32,9 +32,9 @@ export type UserStorageAddressBookEntry = {
 };
 
 /**
- * Options for address book syncing operations
+ * Options for contact syncing operations
  */
-export type AddressBookSyncingOptions = {
+export type ContactSyncingOptions = {
   getUserStorageControllerInstance: () => UserStorageController;
   getMessenger: () => UserStorageControllerMessenger;
 };

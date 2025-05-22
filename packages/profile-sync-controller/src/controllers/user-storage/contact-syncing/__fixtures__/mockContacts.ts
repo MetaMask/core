@@ -1,7 +1,7 @@
 import type { AddressBookEntry } from '@metamask/address-book-controller';
 
 import { USER_STORAGE_VERSION, USER_STORAGE_VERSION_KEY } from '../constants';
-import type { UserStorageAddressBookEntry } from '../types';
+import type { UserStorageContactEntry } from '../types';
 
 // Base timestamp for predictable testing
 const NOW = 1657000000000;
@@ -67,7 +67,7 @@ export const MOCK_LOCAL_CONTACTS = {
   ],
 };
 
-// Remote UserStorageAddressBookEntry mock objects
+// Remote UserStorageContactEntry mock objects
 export const MOCK_REMOTE_CONTACTS = {
   // One contact on chain 1
   ONE: [
@@ -78,7 +78,7 @@ export const MOCK_REMOTE_CONTACTS = {
       c: '0x1',
       m: 'First contact',
       lu: NOW,
-    } as UserStorageAddressBookEntry,
+    } as UserStorageContactEntry,
   ],
 
   // Two contacts on different chains
@@ -90,7 +90,7 @@ export const MOCK_REMOTE_CONTACTS = {
       c: '0x1',
       m: 'First contact',
       lu: NOW,
-    } as UserStorageAddressBookEntry,
+    } as UserStorageContactEntry,
     {
       [USER_STORAGE_VERSION_KEY]: USER_STORAGE_VERSION,
       a: '0x123456789012345678901234567890abcdef1234',
@@ -98,7 +98,7 @@ export const MOCK_REMOTE_CONTACTS = {
       c: '0x5',
       m: 'Goerli test contact',
       lu: NOW,
-    } as UserStorageAddressBookEntry,
+    } as UserStorageContactEntry,
   ],
 
   // Different contact than local
@@ -110,7 +110,7 @@ export const MOCK_REMOTE_CONTACTS = {
       c: '0x1',
       m: 'Another contact',
       lu: NOW,
-    } as UserStorageAddressBookEntry,
+    } as UserStorageContactEntry,
   ],
 
   // Same contact as local but with different name
@@ -122,7 +122,7 @@ export const MOCK_REMOTE_CONTACTS = {
       c: '0x1',
       m: 'First contact',
       lu: NOW - 1000, // Older timestamp
-    } as UserStorageAddressBookEntry,
+    } as UserStorageContactEntry,
   ],
 
   // Deleted contact
@@ -136,6 +136,6 @@ export const MOCK_REMOTE_CONTACTS = {
       lu: NOW,
       d: true,
       dt: NOW + 1000,
-    } as unknown as UserStorageAddressBookEntry,
+    } as unknown as UserStorageContactEntry,
   ],
 };

@@ -5,7 +5,7 @@ import type {
 import { toChecksumHexAddress } from '@metamask/controller-utils';
 
 import { USER_STORAGE_VERSION_KEY, USER_STORAGE_VERSION } from './constants';
-import type { UserStorageAddressBookEntry } from './types';
+import type { UserStorageContactEntry } from './types';
 
 /**
  * Extends AddressBookEntry with sync metadata
@@ -26,7 +26,7 @@ export type SyncAddressBookEntry = AddressBookEntry & {
  */
 export const mapAddressBookEntryToUserStorageEntry = (
   addressBookEntry: AddressBookEntry,
-): UserStorageAddressBookEntry => {
+): UserStorageContactEntry => {
   const { address, name, chainId, memo, addressType } = addressBookEntry;
 
   // Get sync metadata from the input or use current timestamp if not present
@@ -59,7 +59,7 @@ export const mapAddressBookEntryToUserStorageEntry = (
  * @returns An address book entry with sync metadata for internal use
  */
 export const mapUserStorageEntryToAddressBookEntry = (
-  userStorageEntry: UserStorageAddressBookEntry,
+  userStorageEntry: UserStorageContactEntry,
 ): SyncAddressBookEntry => {
   // Create a standard AddressBookEntry
   const addressBookEntry: SyncAddressBookEntry = {
