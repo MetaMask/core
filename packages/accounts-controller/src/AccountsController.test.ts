@@ -7,9 +7,9 @@ import type {
 } from '@metamask/keyring-api';
 import {
   BtcAccountType,
+  BtcScope,
   EthAccountType,
   EthScope,
-  BtcScope,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -17,8 +17,8 @@ import type { NetworkClientId } from '@metamask/network-controller';
 import type { SnapControllerState } from '@metamask/snaps-controllers';
 import { SnapStatus } from '@metamask/snaps-utils';
 import type { CaipChainId } from '@metamask/utils';
-import * as uuid from 'uuid';
 import type { V4Options } from 'uuid';
+import * as uuid from 'uuid';
 
 import type {
   AccountsControllerActions,
@@ -178,6 +178,29 @@ function setLastSelectedAsAny(account: InternalAccount): InternalAccount {
   deepClonedAccount.metadata.lastSelected = expect.any(Number);
   deepClonedAccount.metadata.importTime = expect.any(Number);
   return deepClonedAccount;
+}
+
+/**
+ * Sets the `entropySource` property of the given `account` to the specified
+ * keyringId value.
+ *
+ * @param account - The account to modify.
+ * @param keyringId - The keyring ID to set as entropySource.
+ * @returns The modified account.
+ */
+function populateEntropySource(
+  account: InternalAccount,
+  keyringId: string,
+): InternalAccount {
+  return JSON.parse(
+    JSON.stringify({
+      ...account,
+      options: {
+        ...account.options,
+        entropySource: keyringId,
+      },
+    }),
+  ) as InternalAccount;
 }
 
 /**
@@ -621,7 +644,7 @@ describe('AccountsController', () => {
 
         expect(accounts).toStrictEqual([
           mockAccount,
-          setLastSelectedAsAny(mockAccount2),
+          setLastSelectedAsAny(populateEntropySource(mockAccount2, 'mock-id')),
         ]);
       });
 
@@ -876,6 +899,9 @@ describe('AccountsController', () => {
               name: 'Account 3',
               address: mockAccount3.address,
               keyringType: KeyringTypes.hd,
+              options: {
+                entropySource: 'mock-id',
+              },
             }),
           ),
         ]);
@@ -941,7 +967,9 @@ describe('AccountsController', () => {
             name: 'Account 3',
             address: mockAccount3.address,
             keyringType: KeyringTypes.hd,
-            options: {},
+            options: {
+              entropySource: 'mock-id',
+            },
           }),
         ]);
       });
@@ -1044,7 +1072,7 @@ describe('AccountsController', () => {
 
         expect(accounts).toStrictEqual([
           mockAccount,
-          setLastSelectedAsAny(mockAccount2),
+          setLastSelectedAsAny(populateEntropySource(mockAccount2, 'mock-id')),
         ]);
         expect(accountsController.getSelectedAccount().id).toBe(mockAccount.id);
       });
@@ -1093,7 +1121,7 @@ describe('AccountsController', () => {
           // 2. AccountsController:stateChange
           3,
           'AccountsController:accountAdded',
-          setLastSelectedAsAny(mockAccount2),
+          setLastSelectedAsAny(populateEntropySource(mockAccount2, 'mock-id')),
         );
       });
     });
@@ -1407,6 +1435,9 @@ describe('AccountsController', () => {
         name: 'Account 1',
         address: '0x456',
         keyringType: KeyringTypes.hd,
+        options: {
+          entropySource: 'mock-id',
+        },
       });
 
       mockUUIDWithNormalAccounts([
