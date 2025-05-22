@@ -21,17 +21,9 @@ export function mockUserStorageMessengerForAccountSyncing(options?: {
 }) {
   const messengerMocks = mockUserStorageMessenger();
 
-  messengerMocks.mockKeyringAddAccounts.mockImplementation(async () => {
-    messengerMocks.baseMessenger.publish(
-      'AccountsController:accountAdded',
-      MOCK_INTERNAL_ACCOUNTS.ONE[0] as unknown as InternalAccount,
-    );
-  });
-
   messengerMocks.mockKeyringGetAccounts.mockImplementation(async () => {
     return (
       options?.accounts?.accountsList
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
         ?.filter((a) => a.metadata.keyring.type === KeyringTypes.hd)
         .map((a) => a.address) ??
       MOCK_INTERNAL_ACCOUNTS.ALL.map((a) => a.address)

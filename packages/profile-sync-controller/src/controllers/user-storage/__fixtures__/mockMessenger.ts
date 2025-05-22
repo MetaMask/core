@@ -70,7 +70,6 @@ export function createCustomUserStorageMessenger(props?: {
     allowedEvents: props?.overrideEvents ?? [
       'KeyringController:lock',
       'KeyringController:unlock',
-      'AccountsController:accountAdded',
       'AccountsController:accountRenamed',
       'NetworkController:networkRemoved',
     ],

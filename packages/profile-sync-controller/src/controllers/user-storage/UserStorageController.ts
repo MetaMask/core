@@ -2,7 +2,6 @@ import type {
   AccountsControllerListAccountsAction,
   AccountsControllerUpdateAccountMetadataAction,
   AccountsControllerAccountRenamedEvent,
-  AccountsControllerAccountAddedEvent,
   AccountsControllerUpdateAccountsAction,
 } from '@metamask/accounts-controller';
 import type {
@@ -258,7 +257,6 @@ export type AllowedEvents =
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
   // Account Syncing Events
-  | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRenamedEvent
   // Network Syncing Events
   | NetworkControllerNetworkRemovedEvent;
