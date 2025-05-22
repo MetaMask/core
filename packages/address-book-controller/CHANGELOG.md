@@ -7,10 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `AddressBookControllerContactUpdatedEvent` and `AddressBookControllerContactDeletedEvent` types for contact events ([#5779](https://github.com/MetaMask/core/pull/5779))
+- Add `list` method on `AddressBookController` to get all address book entries as an array ([#5779](https://github.com/MetaMask/core/pull/5779))
+- Register message handlers for `list`, `set`, and `delete` actions ([#5779](https://github.com/MetaMask/core/pull/5779))
+
 ### Changed
 
 - Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
 - Bump `@metamask/controller-utils` to `^11.8.0` ([#5583](https://github.com/MetaMask/core/pull/5583), [#5765](https://github.com/MetaMask/core/pull/5765))
+- Modified `delete` method to clean up empty chainId objects ([#5779](https://github.com/MetaMask/core/pull/5779))
 
 ## [6.0.3]
 

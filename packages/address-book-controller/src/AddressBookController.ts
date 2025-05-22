@@ -17,14 +17,8 @@ import type { Hex } from '@metamask/utils';
  * The type of address.
  */
 export enum AddressType {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   externallyOwnedAccounts = 'EXTERNALLY_OWNED_ACCOUNTS',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   contractAccounts = 'CONTRACT_ACCOUNTS',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   nonAccounts = 'NON_ACCOUNTS',
 }
 
