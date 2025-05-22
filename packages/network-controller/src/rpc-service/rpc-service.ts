@@ -339,7 +339,7 @@ export class RpcService implements AbstractRpcService {
    * @throws A 401 error if the response status is 401.
    * @throws A "rate limiting" error if the response HTTP status is 429.
    * @throws A "resource unavailable" error if the response status is 402, 404, or any 5xx.
-   * @throws An "invalid request" error for any other 4xx status codes.
+   * @throws A generic HTTP client error (-32100) for any other 4xx status codes.
    * @throws A "parse" error if the response is not valid JSON.
    */
   async request<Params extends JsonRpcParams, Result extends Json>(
@@ -363,7 +363,7 @@ export class RpcService implements AbstractRpcService {
    * @throws A 401 error if the response status is 401.
    * @throws A "rate limiting" error if the response HTTP status is 429.
    * @throws A "resource unavailable" error if the response status is 402, 404, or any 5xx.
-   * @throws An "invalid request" error for any other 4xx status codes.
+   * @throws A generic HTTP client error (-32100) for any other 4xx status codes.
    * @throws A "parse" error if the response is not valid JSON.
    */
   async request<Params extends JsonRpcParams, Result extends Json>(
@@ -467,7 +467,7 @@ export class RpcService implements AbstractRpcService {
    * @throws A 401 error if the response status is 401.
    * @throws A "rate limiting" error if the response HTTP status is 429.
    * @throws A "resource unavailable" error if the response status is 402, 404, or any 5xx.
-   * @throws An "invalid request" error for any other 4xx status codes.
+   * @throws A generic HTTP client error (-32100) for any other 4xx status codes.
    * @throws A "parse" error if the response is not valid JSON.
    */
   async #processRequest<Result extends Json>(
