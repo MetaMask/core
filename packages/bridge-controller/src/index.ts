@@ -134,3 +134,5 @@ export {
   selectBridgeFeatureFlags,
   selectMaxBalanceButtonVisibilityForSrcToken,
 } from './selectors';
+
+export { DEFAULT_FEATURE_FLAG_CONFIG } from './constants/bridge';
