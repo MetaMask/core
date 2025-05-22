@@ -178,7 +178,7 @@ export type TokenRatesControllerMessenger = RestrictedMessenger<
  */
 async function getCurrencyConversionRate({
   from,
-  to, // tracking this
+  to,
 }: {
   from: string;
   to: string;
@@ -780,7 +780,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
       }),
       getCurrencyConversionRate({
         from: FALL_BACK_VS_CURRENCY,
-        to: nativeCurrency, // tracking this
+        to: nativeCurrency,
       }),
     ]);
 
