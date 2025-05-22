@@ -791,7 +791,7 @@ export class AccountsController extends BaseController<
         added: [] as {
           address: string;
           type: string;
-          entropySource: string;
+          options: InternalAccount['options'];
         }[],
         updated: [] as InternalAccount[],
         removed: [] as InternalAccount[],
@@ -837,7 +837,11 @@ export class AccountsController extends BaseController<
           patch.added.push({
             address,
             type: keyring.type,
-            entropySource: keyring.metadata.id,
+            // Automatically injects `entropySource` for HD accounts only.
+            options:
+              keyring.type === KeyringTypes.hd
+                ? { entropySource: keyring.metadata.id }
+                : {},
           });
         }
 
@@ -906,9 +910,7 @@ export class AccountsController extends BaseController<
               },
               options: {
                 ...account.options,
-                ...(added.type === KeyringTypes.hd
-                  ? { entropySource: added.entropySource }
-                  : {}),
+                ...added.options,
               },
             };
 
