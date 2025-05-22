@@ -84,14 +84,6 @@ export type AddressBookControllerListAction = {
 };
 
 /**
- * The action that can be performed to import contacts from sync in the {@link AddressBookController}.
- */
-export type AddressBookControllerImportContactsFromSyncAction = {
-  type: `${typeof controllerName}:importContactsFromSync`;
-  handler: AddressBookController['importContactsFromSync'];
-};
-
-/**
  * The action that can be performed to set a contact in the {@link AddressBookController}.
  */
 export type AddressBookControllerSetAction = {
@@ -130,8 +122,7 @@ export type AddressBookControllerActions =
   | AddressBookControllerGetStateAction
   | AddressBookControllerListAction
   | AddressBookControllerSetAction
-  | AddressBookControllerDeleteAction
-  | AddressBookControllerImportContactsFromSyncAction;
+  | AddressBookControllerDeleteAction;
 
 /**
  * The event that {@link AddressBookController} can emit.
@@ -270,6 +261,8 @@ export class AddressBookController extends BaseController<
     });
 
     // Skip sending delete event for global contacts with chainId '*'
+    // These entries with chainId='*' are the wallet's own accounts (internal MetaMask accounts),
+    // not user-created contacts. They don't need to trigger sync events.
     if (String(chainId) !== '*') {
       this.messagingSystem.publish(
         'AddressBookController:contactDeleted',
@@ -328,6 +321,8 @@ export class AddressBookController extends BaseController<
     });
 
     // Skip sending update event for global contacts with chainId '*'
+    // These entries with chainId='*' are the wallet's own accounts (internal MetaMask accounts),
+    // not user-created contacts. They don't need to trigger sync events.
     if (String(chainId) !== '*') {
       this.messagingSystem.publish(
         'AddressBookController:contactUpdated',
@@ -354,40 +349,6 @@ export class AddressBookController extends BaseController<
       `${controllerName}:delete`,
       this.delete.bind(this),
     );
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:importContactsFromSync`,
-      this.importContactsFromSync.bind(this),
-    );
-  }
-
-  /**
-   * Import contacts from sync, used during sync operations
-   * This method adds or updates multiple contacts at once
-   *
-   * @param contacts - Array of contacts to import
-   * @returns Boolean indicating import success
-   */
-  importContactsFromSync(contacts: AddressBookEntry[]): boolean {
-    if (!contacts || contacts.length === 0) {
-      return false;
-    }
-
-    // Process each contact and add it to the addressBook
-    let allSuccessful = true;
-    for (const contact of contacts) {
-      const success = this.set(
-        contact.address,
-        contact.name,
-        contact.chainId,
-        contact.memo,
-        contact.addressType,
-      );
-      if (!success) {
-        allSuccessful = false;
-      }
-    }
-
-    return allSuccessful;
   }
 }
 
