@@ -14,44 +14,38 @@ import {
 import type { Hex } from '@metamask/utils';
 
 /**
- * @type ContactEntry
- *
- * ContactEntry representation
- * @property address - Hex address of a recipient account
- * @property name - Nickname associated with this address
- * @property importTime - Data time when an account as created/imported
- */
-export type ContactEntry = {
-  address: string;
-  name: string;
-  importTime?: number;
-};
-
-/**
  * The type of address.
  */
 export enum AddressType {
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   externallyOwnedAccounts = 'EXTERNALLY_OWNED_ACCOUNTS',
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   contractAccounts = 'CONTRACT_ACCOUNTS',
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   nonAccounts = 'NON_ACCOUNTS',
 }
 
 /**
- * @type AddressBookEntry
+ * AddressBookEntry
  *
  * AddressBookEntry representation
- * @property address - Hex address of a recipient account
- * @property name - Nickname associated with this address
- * @property chainId - Chain id identifies the current chain
- * @property memo - User's note about address
- * @property isEns - is the entry an ENS name
- * @property addressType - is the type of this address
+ *
+ * address - Hex address of a recipient account
+ *
+ * name - Nickname associated with this address
+ *
+ * chainId - Chain id identifies the current chain
+ *
+ * memo - User's note about address
+ *
+ * isEns - is the entry an ENS name
+ *
+ * addressType - is the type of this address
+ *
+ * lastUpdatedAt - timestamp of when this entry was last updated
  */
 export type AddressBookEntry = {
   address: string;
@@ -60,13 +54,32 @@ export type AddressBookEntry = {
   memo: string;
   isEns: boolean;
   addressType?: AddressType;
+  lastUpdatedAt?: number;
 };
 
 /**
- * @type AddressBookState
+ * Sync metadata interface used for contacts syncing.
+ * This is used by the UserStorageController and not stored in address book.
+ */
+type SyncMetadata = {
+  deleted?: boolean;
+  deletedAt?: number;
+  lastUpdatedAt?: number;
+};
+
+/**
+ * Address book entry with sync metadata
+ */
+export type AddressBookEntryWithSyncMetadata = {
+  _syncMetadata?: SyncMetadata;
+} & AddressBookEntry;
+
+/**
+ * AddressBookState
  *
  * Address book controller state
- * @property addressBook - Array of contact entry objects
+ *
+ * addressBook - Array of contact entry objects
  */
 export type AddressBookControllerState = {
   addressBook: { [chainId: Hex]: { [address: string]: AddressBookEntry } };
@@ -84,6 +97,30 @@ export type AddressBookControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   AddressBookControllerState
 >;
+
+/**
+ * The action that can be performed to list contacts from the {@link AddressBookController}.
+ */
+export type AddressBookControllerListAction = {
+  type: `${typeof controllerName}:list`;
+  handler: AddressBookController['list'];
+};
+
+/**
+ * The action that can be performed to set a contact in the {@link AddressBookController}.
+ */
+export type AddressBookControllerSetAction = {
+  type: `${typeof controllerName}:set`;
+  handler: AddressBookController['set'];
+};
+
+/**
+ * The action that can be performed to delete a contact from the {@link AddressBookController}.
+ */
+export type AddressBookControllerDeleteAction = {
+  type: `${typeof controllerName}:delete`;
+  handler: AddressBookController['delete'];
+};
 
 /**
  * Event emitted when a contact is added or updated
@@ -104,7 +141,11 @@ export type AddressBookControllerContactDeletedEvent = {
 /**
  * The actions that can be performed using the {@link AddressBookController}.
  */
-export type AddressBookControllerActions = AddressBookControllerGetStateAction;
+export type AddressBookControllerActions =
+  | AddressBookControllerGetStateAction
+  | AddressBookControllerListAction
+  | AddressBookControllerSetAction
+  | AddressBookControllerDeleteAction;
 
 /**
  * The event that {@link AddressBookController} can emit.
@@ -117,7 +158,7 @@ export type AddressBookControllerStateChangeEvent = ControllerStateChangeEvent<
 /**
  * The events that {@link AddressBookController} can emit.
  */
-export type AddressBookControllerEvents = 
+export type AddressBookControllerEvents =
   | AddressBookControllerStateChangeEvent
   | AddressBookControllerContactUpdatedEvent
   | AddressBookControllerContactDeletedEvent;
@@ -178,6 +219,28 @@ export class AddressBookController extends BaseController<
       name: controllerName,
       state: mergedState,
     });
+
+    this.#registerMessageHandlers();
+  }
+
+  /**
+   * Returns all address book entries as an array.
+   *
+   * @returns Array of all address book entries.
+   */
+  list(): AddressBookEntry[] {
+    const { addressBook } = this.state;
+    const contacts: AddressBookEntry[] = [];
+
+    Object.keys(addressBook).forEach((chainId) => {
+      const chainIdHex = chainId as Hex;
+      Object.keys(addressBook[chainIdHex]).forEach((address) => {
+        const contact = addressBook[chainIdHex][address];
+        contacts.push(contact);
+      });
+    });
+
+    return contacts;
   }
 
   /**
@@ -210,16 +273,23 @@ export class AddressBookController extends BaseController<
     const deletedEntry = { ...this.state.addressBook[chainId][address] };
 
     this.update((state) => {
-      delete state.addressBook[chainId][address];
-      if (Object.keys(state.addressBook[chainId]).length === 0) {
-        delete state.addressBook[chainId];
+      if (state.addressBook[chainId] && state.addressBook[chainId][address]) {
+        delete state.addressBook[chainId][address];
+
+        // Clean up empty chainId objects
+        if (Object.keys(state.addressBook[chainId]).length === 0) {
+          delete state.addressBook[chainId];
+        }
       }
     });
 
-    this.messagingSystem.publish(
-      'AddressBookController:contactDeleted',
-      deletedEntry,
-    );
+    // Skip sending delete event for global contacts with chainId '*'
+    if (String(chainId) !== '*') {
+      this.messagingSystem.publish(
+        'AddressBookController:contactDeleted',
+        deletedEntry,
+      );
+    }
 
     return true;
   }
@@ -253,8 +323,8 @@ export class AddressBookController extends BaseController<
       memo,
       name,
       addressType,
+      lastUpdatedAt: Date.now(),
     };
-
     const ensName = normalizeEnsName(name);
     if (ensName) {
       entry.name = ensName;
@@ -271,12 +341,33 @@ export class AddressBookController extends BaseController<
       };
     });
 
-    this.messagingSystem.publish(
-      'AddressBookController:contactUpdated',
-      entry,
-    );
+    // Skip sending update event for global contacts with chainId '*'
+    if (String(chainId) !== '*') {
+      this.messagingSystem.publish(
+        'AddressBookController:contactUpdated',
+        entry,
+      );
+    }
 
     return true;
+  }
+
+  /**
+   * Registers message handlers for the AddressBookController.
+   */
+  #registerMessageHandlers() {
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:list`,
+      this.list.bind(this),
+    );
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:set`,
+      this.set.bind(this),
+    );
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:delete`,
+      this.delete.bind(this),
+    );
   }
 }
 

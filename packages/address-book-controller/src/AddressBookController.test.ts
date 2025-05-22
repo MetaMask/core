@@ -1,10 +1,12 @@
 import { Messenger } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
+import type { Hex } from '@metamask/utils';
 
 import type {
   AddressBookControllerActions,
   AddressBookControllerEvents,
-  AddressBookEntry,
+  AddressBookControllerContactUpdatedEvent,
+  AddressBookControllerContactDeletedEvent,
 } from './AddressBookController';
 import {
   AddressBookController,
@@ -12,30 +14,16 @@ import {
   controllerName,
 } from './AddressBookController';
 
-// Define allowed events type for testing
-type AllowedEvents = 
-  | 'AddressBookController:contactUpdated'
-  | 'AddressBookController:contactDeleted';
-
-/**
- * Constructs a controller messenger for testing.
- *
- * @returns A controller messenger.
- */
-function getMessenger() {
-  return new Messenger<
-    AddressBookControllerActions,
-    AddressBookControllerEvents
-  >();
-}
-
 /**
  * Constructs a restricted controller messenger.
  *
  * @returns A restricted controller messenger.
  */
 function getRestrictedMessenger() {
-  const messenger = getMessenger();
+  const messenger = new Messenger<
+    AddressBookControllerActions,
+    AddressBookControllerEvents
+  >();
   return messenger.getRestricted({
     name: controllerName,
     allowedActions: [],
@@ -44,6 +32,22 @@ function getRestrictedMessenger() {
 }
 
 describe('AddressBookController', () => {
+  // Mock Date.now to return a fixed value for tests
+  const originalDateNow = Date.now;
+  const MOCK_TIMESTAMP = 1000000000000;
+
+  beforeEach(() => {
+    jest.spyOn(Date, 'now').mockImplementation(() => MOCK_TIMESTAMP);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  afterAll(() => {
+    Date.now = originalDateNow;
+  });
+
   it('should set default state', () => {
     const controller = new AddressBookController({
       messenger: getRestrictedMessenger(),
@@ -67,6 +71,7 @@ describe('AddressBookController', () => {
             memo: '',
             name: 'foo',
             addressType: undefined,
+            lastUpdatedAt: MOCK_TIMESTAMP,
           },
         },
       },
@@ -95,6 +100,7 @@ describe('AddressBookController', () => {
             memo: 'account 1',
             name: 'foo',
             addressType: AddressType.externallyOwnedAccounts,
+            lastUpdatedAt: MOCK_TIMESTAMP,
           },
         },
       },
@@ -123,6 +129,7 @@ describe('AddressBookController', () => {
             memo: 'account 1',
             name: 'foo',
             addressType: AddressType.contractAccounts,
+            lastUpdatedAt: MOCK_TIMESTAMP,
           },
         },
       },
@@ -151,6 +158,7 @@ describe('AddressBookController', () => {
             memo: 'account 1',
             name: 'foo',
             addressType: AddressType.nonAccounts,
+            lastUpdatedAt: MOCK_TIMESTAMP,
           },
         },
       },
@@ -185,6 +193,7 @@ describe('AddressBookController', () => {
             memo: 'account 2',
             name: 'foo',
             addressType: undefined,
+            lastUpdatedAt: MOCK_TIMESTAMP,
           },
         },
         [toHex(2)]: {
@@ -195,6 +204,7 @@ describe('AddressBookController', () => {
             memo: 'account 2',
             name: 'foo',
             addressType: undefined,
+            lastUpdatedAt: MOCK_TIMESTAMP,
           },
         },
       },
@@ -219,6 +229,7 @@ describe('AddressBookController', () => {
             memo: '',
             name: 'bar',
             addressType: undefined,
+            lastUpdatedAt: MOCK_TIMESTAMP,
           },
         },
       },
@@ -263,6 +274,7 @@ describe('AddressBookController', () => {
             memo: '',
             name: 'foo',
             addressType: undefined,
+            lastUpdatedAt: MOCK_TIMESTAMP,
           },
         },
       },
@@ -287,6 +299,7 @@ describe('AddressBookController', () => {
             memo: '',
             name: 'foo',
             addressType: undefined,
+            lastUpdatedAt: MOCK_TIMESTAMP,
           },
           '0xC38bF1aD06ef69F0c04E29DBeB4152B4175f0A8D': {
             address: '0xC38bF1aD06ef69F0c04E29DBeB4152B4175f0A8D',
@@ -295,6 +308,7 @@ describe('AddressBookController', () => {
             memo: '',
             name: 'bar',
             addressType: undefined,
+            lastUpdatedAt: MOCK_TIMESTAMP,
           },
         },
       },
@@ -320,6 +334,7 @@ describe('AddressBookController', () => {
             memo: '',
             name: 'metamask.eth',
             addressType: undefined,
+            lastUpdatedAt: MOCK_TIMESTAMP,
           },
         },
       },
@@ -403,100 +418,198 @@ describe('AddressBookController', () => {
             memo: '',
             name: 'foo',
             addressType: undefined,
+            lastUpdatedAt: MOCK_TIMESTAMP,
           },
         },
       },
     });
   });
 
-  describe('events', () => {
-    it('should emit contactUpdated event when a contact is added', () => {
-      const messenger = getMessenger();
-      const controller = new AddressBookController({
-        messenger: messenger.getRestricted({
-          name: controllerName,
-          allowedActions: [],
-          allowedEvents: [],
-        }),
-      });
-      
-      const contactUpdatedListener = jest.fn();
-      messenger.subscribe('AddressBookController:contactUpdated', contactUpdatedListener);
-      
-      // Add a contact
-      controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
-      
-      // Verify event was emitted with correct payload
-      expect(contactUpdatedListener).toHaveBeenCalledWith({
-        address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-        chainId: toHex(1),
-        isEns: false,
-        memo: '',
-        name: 'foo',
-        addressType: undefined,
-      });
+  it('should emit contactUpdated event when adding a contact', () => {
+    const messenger = new Messenger<
+      AddressBookControllerActions,
+      AddressBookControllerEvents
+    >();
+    const restrictedMessenger = messenger.getRestricted({
+      name: controllerName,
+      allowedActions: [],
+      allowedEvents: [],
     });
-    
-    it('should emit contactUpdated event when a contact is updated', () => {
-      const messenger = getMessenger();
-      const controller = new AddressBookController({
-        messenger: messenger.getRestricted({
-          name: controllerName,
-          allowedActions: [],
-          allowedEvents: [],
-        }),
-      });
-      
-      // Add a contact first
-      controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
-      
-      // Set up event listener using any to bypass type checking
-      const contactUpdatedListener = jest.fn();
-      messenger.subscribe('AddressBookController:contactUpdated', contactUpdatedListener);
-      
-      // Update the contact
-      controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'bar');
-      
-      // Verify event was emitted with correct payload
-      expect(contactUpdatedListener).toHaveBeenCalledWith({
+    const controller = new AddressBookController({
+      messenger: restrictedMessenger,
+    });
+
+    const mockEventListener = jest.fn();
+    messenger.subscribe(
+      'AddressBookController:contactUpdated' as AddressBookControllerContactUpdatedEvent['type'],
+      mockEventListener,
+    );
+
+    controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
+
+    expect(mockEventListener).toHaveBeenCalledTimes(1);
+    expect(mockEventListener).toHaveBeenCalledWith({
+      address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+      chainId: toHex(1),
+      isEns: false,
+      memo: '',
+      name: 'foo',
+      addressType: undefined,
+      lastUpdatedAt: expect.any(Number),
+    });
+  });
+
+  it('should emit contactUpdated event when updating a contact', () => {
+    const messenger = new Messenger<
+      AddressBookControllerActions,
+      AddressBookControllerEvents
+    >();
+    const restrictedMessenger = messenger.getRestricted({
+      name: controllerName,
+      allowedActions: [],
+      allowedEvents: [],
+    });
+    const controller = new AddressBookController({
+      messenger: restrictedMessenger,
+    });
+
+    controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
+
+    const mockEventListener = jest.fn();
+    messenger.subscribe(
+      'AddressBookController:contactUpdated' as AddressBookControllerContactUpdatedEvent['type'],
+      mockEventListener,
+    );
+
+    controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'bar');
+
+    expect(mockEventListener).toHaveBeenCalledTimes(1);
+    expect(mockEventListener).toHaveBeenCalledWith({
+      address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+      chainId: toHex(1),
+      isEns: false,
+      memo: '',
+      name: 'bar',
+      addressType: undefined,
+      lastUpdatedAt: expect.any(Number),
+    });
+  });
+
+  it('should emit contactDeleted event when deleting a contact', () => {
+    const messenger = new Messenger<
+      AddressBookControllerActions,
+      AddressBookControllerEvents
+    >();
+    const restrictedMessenger = messenger.getRestricted({
+      name: controllerName,
+      allowedActions: [],
+      allowedEvents: [],
+    });
+    const controller = new AddressBookController({
+      messenger: restrictedMessenger,
+    });
+
+    controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
+
+    const mockEventListener = jest.fn();
+    messenger.subscribe(
+      'AddressBookController:contactDeleted' as AddressBookControllerContactDeletedEvent['type'],
+      mockEventListener,
+    );
+
+    controller.delete(toHex(1), '0x32Be343B94f860124dC4fEe278FDCBD38C102D88');
+
+    expect(mockEventListener).toHaveBeenCalledTimes(1);
+    expect(mockEventListener).toHaveBeenCalledWith({
+      address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+      chainId: toHex(1),
+      isEns: false,
+      memo: '',
+      name: 'foo',
+      addressType: undefined,
+      lastUpdatedAt: expect.any(Number),
+    });
+  });
+
+  it('should not emit events for contacts with chainId "*"', () => {
+    const messenger = new Messenger<
+      AddressBookControllerActions,
+      AddressBookControllerEvents
+    >();
+    const restrictedMessenger = messenger.getRestricted({
+      name: controllerName,
+      allowedActions: [],
+      allowedEvents: [],
+    });
+    const controller = new AddressBookController({
+      messenger: restrictedMessenger,
+    });
+
+    const updateEventListener = jest.fn();
+    const deleteEventListener = jest.fn();
+    messenger.subscribe(
+      'AddressBookController:contactUpdated' as AddressBookControllerContactUpdatedEvent['type'],
+      updateEventListener,
+    );
+    messenger.subscribe(
+      'AddressBookController:contactDeleted' as AddressBookControllerContactDeletedEvent['type'],
+      deleteEventListener,
+    );
+
+    // Add with chainId "*"
+    controller.set(
+      '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+      'foo',
+      '*' as unknown as Hex,
+    );
+    expect(updateEventListener).not.toHaveBeenCalled();
+
+    // Update with chainId "*"
+    controller.set(
+      '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+      'bar',
+      '*' as unknown as Hex,
+    );
+    expect(updateEventListener).not.toHaveBeenCalled();
+
+    // Delete with chainId "*"
+    controller.delete(
+      '*' as unknown as Hex,
+      '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+    );
+    expect(deleteEventListener).not.toHaveBeenCalled();
+  });
+
+  it('should list all contacts', () => {
+    const controller = new AddressBookController({
+      messenger: getRestrictedMessenger(),
+    });
+    controller.set(
+      '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+      'foo',
+      toHex(1),
+    );
+    controller.set(
+      '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d',
+      'bar',
+      toHex(2),
+    );
+
+    const contacts = controller.list();
+    expect(contacts).toHaveLength(2);
+    expect(contacts).toContainEqual(
+      expect.objectContaining({
         address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
         chainId: toHex(1),
-        isEns: false,
-        memo: '',
+        name: 'foo',
+      }),
+    );
+    expect(contacts).toContainEqual(
+      expect.objectContaining({
+        address: '0xC38bF1aD06ef69F0c04E29DBeB4152B4175f0A8D',
+        chainId: toHex(2),
         name: 'bar',
-        addressType: undefined,
-      });
-    });
-    
-    it('should emit contactDeleted event when a contact is deleted', () => {
-      const messenger = getMessenger();
-      const controller = new AddressBookController({
-        messenger: messenger.getRestricted({
-          name: controllerName,
-          allowedActions: [],
-          allowedEvents: [],
-        }),
-      });
-      
-      // Add a contact first
-      controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
-      
-      // Set up event listener using any to bypass type checking
-      const contactDeletedListener = jest.fn();
-      messenger.subscribe('AddressBookController:contactDeleted', contactDeletedListener);
-      
-      // Delete the contact
-      controller.delete(toHex(1), '0x32Be343B94f860124dC4fEe278FDCBD38C102D88');
-      
-      // Verify event was emitted with correct payload
-      expect(contactDeletedListener).toHaveBeenCalledWith({
-        address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-        chainId: toHex(1),
-        isEns: false,
-        memo: '',
-        name: 'foo',
-        addressType: undefined,
-      });
-    });
+      }),
+    );
   });
 });
