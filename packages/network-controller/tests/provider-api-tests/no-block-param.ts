@@ -340,7 +340,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
 
   describe('if the RPC endpoint returns a 5xx response that is not 503, or 504', () => {
     const httpStatus = 500;
-    const errorMessage = `RPC endpoint server error (HTTP ${httpStatus})`;
+    const errorMessage = 'RPC endpoint not found or unavailable';
 
     it('throws a generic, undescriptive error', async () => {
       await withMockedCommunications({ providerType }, async (comms) => {
@@ -393,7 +393,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
   describe.each([503, 504])(
     'if the RPC endpoint returns a %d response',
     (httpStatus) => {
-      const errorMessage = `RPC endpoint server error (HTTP ${httpStatus})`;
+      const errorMessage = 'RPC endpoint not found or unavailable';
 
       it('retries the request up to 5 times until there is a 200 response', async () => {
         await withMockedCommunications({ providerType }, async (comms) => {

@@ -195,7 +195,7 @@ describe('RpcServiceChain', () => {
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
           code: -32002,
-          message: 'RPC endpoint server error (HTTP 503)',
+          message: 'RPC endpoint not found or unavailable',
           data: {
             httpStatus: 503,
           },
@@ -205,7 +205,7 @@ describe('RpcServiceChain', () => {
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
           code: -32002,
-          message: 'RPC endpoint server error (HTTP 503)',
+          message: 'RPC endpoint not found or unavailable',
           data: {
             httpStatus: 503,
           },
@@ -217,7 +217,7 @@ describe('RpcServiceChain', () => {
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
           code: -32002,
-          message: 'RPC endpoint server error (HTTP 503)',
+          message: 'RPC endpoint not found or unavailable',
           data: {
             httpStatus: 503,
           },
@@ -228,7 +228,7 @@ describe('RpcServiceChain', () => {
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
           code: -32002,
-          message: 'RPC endpoint server error (HTTP 503)',
+          message: 'RPC endpoint not found or unavailable',
           data: {
             httpStatus: 503,
           },
@@ -342,7 +342,7 @@ describe('RpcServiceChain', () => {
       ).rejects.toThrow(
         expect.objectContaining({
           code: -32002,
-          message: 'RPC endpoint server error (HTTP 503)',
+          message: 'RPC endpoint not found or unavailable',
           data: {
             httpStatus: 503,
           },
@@ -354,7 +354,7 @@ describe('RpcServiceChain', () => {
       ).rejects.toThrow(
         expect.objectContaining({
           code: -32002,
-          message: 'RPC endpoint server error (HTTP 503)',
+          message: 'RPC endpoint not found or unavailable',
           data: {
             httpStatus: 503,
           },
@@ -368,7 +368,7 @@ describe('RpcServiceChain', () => {
       ).rejects.toThrow(
         expect.objectContaining({
           code: -32002,
-          message: 'RPC endpoint server error (HTTP 503)',
+          message: 'RPC endpoint not found or unavailable',
           data: {
             httpStatus: 503,
           },
@@ -381,7 +381,7 @@ describe('RpcServiceChain', () => {
       ).rejects.toThrow(
         expect.objectContaining({
           code: -32002,
-          message: 'RPC endpoint server error (HTTP 503)',
+          message: 'RPC endpoint not found or unavailable',
           data: {
             httpStatus: 503,
           },
@@ -473,7 +473,7 @@ describe('RpcServiceChain', () => {
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
           code: -32002,
-          message: 'RPC endpoint server error (HTTP 503)',
+          message: 'RPC endpoint not found or unavailable',
           data: {
             httpStatus: 503,
           },
@@ -483,7 +483,7 @@ describe('RpcServiceChain', () => {
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
           code: -32002,
-          message: 'RPC endpoint server error (HTTP 503)',
+          message: 'RPC endpoint not found or unavailable',
           data: {
             httpStatus: 503,
           },
@@ -495,7 +495,7 @@ describe('RpcServiceChain', () => {
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
           code: -32002,
-          message: 'RPC endpoint server error (HTTP 503)',
+          message: 'RPC endpoint not found or unavailable',
           data: {
             httpStatus: 503,
           },
@@ -506,7 +506,7 @@ describe('RpcServiceChain', () => {
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
           code: -32002,
-          message: 'RPC endpoint server error (HTTP 503)',
+          message: 'RPC endpoint not found or unavailable',
           data: {
             httpStatus: 503,
           },
@@ -612,7 +612,7 @@ describe('RpcServiceChain', () => {
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
           code: -32002,
-          message: 'RPC endpoint server error (HTTP 503)',
+          message: 'RPC endpoint not found or unavailable',
           data: {
             httpStatus: 503,
           },
@@ -622,7 +622,7 @@ describe('RpcServiceChain', () => {
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
           code: -32002,
-          message: 'RPC endpoint server error (HTTP 503)',
+          message: 'RPC endpoint not found or unavailable',
           data: {
             httpStatus: 503,
           },
@@ -634,7 +634,7 @@ describe('RpcServiceChain', () => {
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
           code: -32002,
-          message: 'RPC endpoint server error (HTTP 503)',
+          message: 'RPC endpoint not found or unavailable',
           data: {
             httpStatus: 503,
           },
@@ -645,7 +645,7 @@ describe('RpcServiceChain', () => {
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
           code: -32002,
-          message: 'RPC endpoint server error (HTTP 503)',
+          message: 'RPC endpoint not found or unavailable',
           data: {
             httpStatus: 503,
           },
@@ -751,7 +751,7 @@ describe('RpcServiceChain', () => {
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
           code: -32002,
-          message: 'RPC endpoint server error (HTTP 503)',
+          message: 'RPC endpoint not found or unavailable',
           data: {
             httpStatus: 503,
           },
@@ -761,7 +761,7 @@ describe('RpcServiceChain', () => {
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
           code: -32002,
-          message: 'RPC endpoint server error (HTTP 503)',
+          message: 'RPC endpoint not found or unavailable',
           data: {
             httpStatus: 503,
           },
@@ -773,7 +773,7 @@ describe('RpcServiceChain', () => {
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
           code: -32002,
-          message: 'RPC endpoint server error (HTTP 503)',
+          message: 'RPC endpoint not found or unavailable',
           data: {
             httpStatus: 503,
           },
@@ -784,7 +784,7 @@ describe('RpcServiceChain', () => {
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
           code: -32002,
-          message: 'RPC endpoint server error (HTTP 503)',
+          message: 'RPC endpoint not found or unavailable',
           data: {
             httpStatus: 503,
           },
