@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [56.2.0]
+
 ### Added
 
 - Add sequential batch support when `publishBatchHook` is not defined ([#5762](https://github.com/MetaMask/core/pull/5762))
@@ -15,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fix `userFeeLevel` as `dappSuggested` initially when dApp suggested gas values for legacy transactions ([#5821](https://github.com/MetaMask/core/pull/5821))
 - Fix `addTransaction` function to correctly identify a transaction as a `simpleSend` type when the recipient is a smart account ([#5822](https://github.com/MetaMask/core/pull/5822))
+- Fix gas fee randomisation with many decimal places ([#5839](https://github.com/MetaMask/core/pull/5839))
 
 ## [56.1.0]
 
@@ -1610,7 +1613,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@56.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@56.2.0...HEAD
+[56.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@56.1.0...@metamask/transaction-controller@56.2.0
 [56.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@56.0.0...@metamask/transaction-controller@56.1.0
 [56.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@55.0.2...@metamask/transaction-controller@56.0.0
 [55.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@55.0.1...@metamask/transaction-controller@55.0.2

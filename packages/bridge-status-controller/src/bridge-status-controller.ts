@@ -175,6 +175,51 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // Set interval
     this.setIntervalLength(REFRESH_INTERVAL_MS);
 
+    this.messagingSystem.subscribe(
+      'TransactionController:transactionFailed',
+      ({ transactionMeta }) => {
+        const { type, status, id } = transactionMeta;
+        if (
+          type &&
+          [TransactionType.bridge, TransactionType.swap].includes(type) &&
+          ![TransactionStatus.signed, TransactionStatus.approved].includes(
+            status,
+          )
+        ) {
+          this.#trackUnifiedSwapBridgeEvent(
+            UnifiedSwapBridgeEventName.Failed,
+            id,
+          );
+        }
+      },
+    );
+
+    this.messagingSystem.subscribe(
+      'TransactionController:transactionConfirmed',
+      (transactionMeta) => {
+        const { type, id } = transactionMeta;
+        if (type === TransactionType.swap) {
+          this.#trackUnifiedSwapBridgeEvent(
+            UnifiedSwapBridgeEventName.Completed,
+            id,
+          );
+        }
+      },
+    );
+
+    this.messagingSystem.subscribe(
+      'MultichainTransactionsController:transactionConfirmed',
+      (transactionMeta) => {
+        const { type, id } = transactionMeta;
+        if (type === TransactionType.swap) {
+          this.#trackUnifiedSwapBridgeEvent(
+            UnifiedSwapBridgeEventName.Completed,
+            id,
+          );
+        }
+      },
+    );
+
     // If you close the extension, but keep the browser open, the polling continues
     // If you close the browser, the polling stops
     // Check for historyItems that do not have a status of complete and restart polling
@@ -395,21 +440,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         this.stopPollingByPollingToken(pollingToken);
 
         if (status.status === StatusTypes.COMPLETE) {
-          this.messagingSystem.publish(
-            `${BRIDGE_STATUS_CONTROLLER_NAME}:bridgeTransactionComplete`,
-            { bridgeHistoryItem: newBridgeHistoryItem },
-          );
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Completed,
             bridgeTxMetaId,
           );
         }
         if (status.status === StatusTypes.FAILED) {
-          this.messagingSystem.publish(
-            `${BRIDGE_STATUS_CONTROLLER_NAME}:bridgeTransactionFailed`,
-            { bridgeHistoryItem: newBridgeHistoryItem },
-          );
-
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Failed,
             bridgeTxMetaId,
@@ -569,7 +605,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         await this.#handleUSDTAllowanceReset(quoteResponse);
 
         const approvalTxMeta = await this.#handleEvmTransaction(
-          TransactionType.bridgeApproval,
+          isBridgeTx
+            ? TransactionType.bridgeApproval
+            : TransactionType.swapApproval,
           approval,
           quoteResponse,
         );
@@ -601,12 +639,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   readonly #handleEvmSmartTransaction = async (
+    isBridgeTx: boolean,
     trade: TxData,
     quoteResponse: Omit<QuoteResponse, 'approval' | 'trade'> & QuoteMetadata,
     approvalTxId?: string,
   ) => {
     return await this.#handleEvmTransaction(
-      TransactionType.bridge,
+      isBridgeTx ? TransactionType.bridge : TransactionType.swap,
       trade,
       quoteResponse,
       approvalTxId,
@@ -840,6 +879,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           },
           async () =>
             await this.#handleEvmSmartTransaction(
+              isBridgeTx,
               quoteResponse.trade as TxData,
               quoteResponse,
               approvalTxId,
