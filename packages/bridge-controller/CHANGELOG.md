@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export `selectMaxBalanceButtonVisibilityForSrcToken` selector that determines whether the user is allowed to transfer their maximum balance ([#5836](https://github.com/MetaMask/core/pull/5836))
+
 ## [26.0.0]
 
 ### Added
