@@ -2427,6 +2427,28 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/account-group-controller@workspace:packages/account-group-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/account-group-controller@workspace:packages/account-group-controller"
+  dependencies:
+    "@metamask/accounts-controller": "npm:^29.0.0"
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/base-controller": "npm:^8.0.1"
+    "@metamask/keyring-api": "npm:^17.4.0"
+    "@metamask/keyring-controller": "npm:^22.0.0"
+    "@types/jest": "npm:^27.4.1"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^27.5.1"
+    ts-jest: "npm:^27.1.4"
+    typedoc: "npm:^0.24.8"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.2.2"
+  peerDependencies:
+    "@metamask/accounts-controller": ^29.0.0
+    "@metamask/keyring-controller": ^22.0.0
+  languageName: unknown
+  linkType: soft
+
 "@metamask/accounts-controller@npm:^29.0.0, @metamask/accounts-controller@workspace:packages/accounts-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/accounts-controller@workspace:packages/accounts-controller"
