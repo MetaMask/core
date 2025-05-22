@@ -1408,7 +1408,9 @@ describe('SeedlessOnboardingController', () => {
               NEW_KEY_RING_1.seedPhrase,
               NEW_KEY_RING_1.id,
             ),
-          ).rejects.toThrow(SeedlessOnboardingControllerError.OutdatedPassword);
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.OutdatedPassword,
+          );
         },
       );
     });
