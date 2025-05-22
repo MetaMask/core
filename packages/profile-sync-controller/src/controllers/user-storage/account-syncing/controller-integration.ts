@@ -32,10 +32,11 @@ export async function saveInternalAccountToUserStorage(
     return;
   }
 
-  const entropySourceId =
-    String(
-      JSON.stringify(internalAccount.options.entropySource).replace(/"/gu, ''),
-    ) || undefined;
+  // properties of `options` are (wrongly?) typed as `Json` and eslint crashes if we try to interpret it as such and call a `?.toString()` on it.
+  // but we know this is a string?, so we can safely cast it
+  const entropySourceId = internalAccount.options.entropySource as
+    | string
+    | undefined;
 
   try {
     // Map the internal account to the user storage account schema
