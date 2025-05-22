@@ -5,7 +5,9 @@ export enum Web3AuthNetwork {
   Devnet = 'sapphire_devnet',
 }
 
-// user social login provider
+/**
+ * The type of social login provider.
+ */
 export enum AuthConnection {
   Google = 'google',
   Apple = 'apple',

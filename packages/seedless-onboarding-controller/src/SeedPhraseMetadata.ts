@@ -149,10 +149,20 @@ export class SeedPhraseMetadata implements ISeedPhraseMetadata {
     });
   }
 
+  /**
+   * Get the seed phrase data.
+   *
+   * @returns The seed phrase data.
+   */
   get data() {
     return this.#data;
   }
 
+  /**
+   * Get the timestamp when the seed phrase backup was created.
+   *
+   * @returns The timestamp when the seed phrase backup was created.
+   */
   get timestamp() {
     return this.#timestamp;
   }

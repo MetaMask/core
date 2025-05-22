@@ -556,6 +556,11 @@ export class SeedlessOnboardingController extends BaseController<
     }
   }
 
+  /**
+   * Update the existing social backups metadata state with the new backup metadata.
+   *
+   * @param newSocialBackupMetadata - The new social backup metadata to update.
+   */
   #updateSocialBackupsMetadata(newSocialBackupMetadata: SocialBackupsMetadata) {
     // filter out the backed up metadata that already exists in the state
     // to prevent duplicates
