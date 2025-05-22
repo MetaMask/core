@@ -510,7 +510,7 @@ export class RpcService implements AbstractRpcService {
         }
         if (status >= 500 || status === 402 || status === 404) {
           throw rpcErrors.resourceUnavailable({
-            message: `RPC endpoint server error (HTTP ${status})`,
+            message: 'RPC endpoint not found or unavailable',
             data: {
               httpStatus: status,
             },

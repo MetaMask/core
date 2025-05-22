@@ -315,7 +315,7 @@ describe('RpcService', () => {
           getClock: () => clock,
           httpStatus,
           expectedError: rpcErrors.internal({
-            message: `RPC endpoint server error (HTTP ${httpStatus})`,
+            message: 'RPC endpoint not found or unavailable',
           }),
           expectedOnBreakError: new HttpError(httpStatus),
         });
@@ -441,7 +441,7 @@ describe('RpcService', () => {
           await expect(promise).rejects.toThrow(
             expect.objectContaining({
               code: -32002,
-              message: `RPC endpoint server error (HTTP ${httpStatus})`,
+              message: 'RPC endpoint not found or unavailable',
               data: {
                 httpStatus,
               },
