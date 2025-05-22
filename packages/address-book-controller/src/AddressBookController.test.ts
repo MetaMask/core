@@ -33,6 +33,22 @@ function getRestrictedMessenger() {
 }
 
 describe('AddressBookController', () => {
+  // Mock Date.now to return a fixed value for tests
+  const originalDateNow = Date.now;
+  const MOCK_TIMESTAMP = 1000000000000;
+
+  beforeEach(() => {
+    jest.spyOn(Date, 'now').mockImplementation(() => MOCK_TIMESTAMP);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  afterAll(() => {
+    Date.now = originalDateNow;
+  });
+
   it('should set default state', () => {
     const controller = new AddressBookController({
       messenger: getRestrictedMessenger(),
@@ -56,6 +72,7 @@ describe('AddressBookController', () => {
             memo: '',
             name: 'foo',
             addressType: undefined,
+            lastUpdatedAt: MOCK_TIMESTAMP,
           },
         },
       },
@@ -84,6 +101,7 @@ describe('AddressBookController', () => {
             memo: 'account 1',
             name: 'foo',
             addressType: AddressType.externallyOwnedAccounts,
+            lastUpdatedAt: MOCK_TIMESTAMP,
           },
         },
       },
@@ -112,6 +130,7 @@ describe('AddressBookController', () => {
             memo: 'account 1',
             name: 'foo',
             addressType: AddressType.contractAccounts,
+            lastUpdatedAt: MOCK_TIMESTAMP,
           },
         },
       },
@@ -140,6 +159,7 @@ describe('AddressBookController', () => {
             memo: 'account 1',
             name: 'foo',
             addressType: AddressType.nonAccounts,
+            lastUpdatedAt: MOCK_TIMESTAMP,
           },
         },
       },
@@ -174,6 +194,7 @@ describe('AddressBookController', () => {
             memo: 'account 2',
             name: 'foo',
             addressType: undefined,
+            lastUpdatedAt: MOCK_TIMESTAMP,
           },
         },
         [toHex(2)]: {
@@ -184,6 +205,7 @@ describe('AddressBookController', () => {
             memo: 'account 2',
             name: 'foo',
             addressType: undefined,
+            lastUpdatedAt: MOCK_TIMESTAMP,
           },
         },
       },
@@ -208,6 +230,7 @@ describe('AddressBookController', () => {
             memo: '',
             name: 'bar',
             addressType: undefined,
+            lastUpdatedAt: MOCK_TIMESTAMP,
           },
         },
       },
@@ -252,6 +275,7 @@ describe('AddressBookController', () => {
             memo: '',
             name: 'foo',
             addressType: undefined,
+            lastUpdatedAt: MOCK_TIMESTAMP,
           },
         },
       },
@@ -276,6 +300,7 @@ describe('AddressBookController', () => {
             memo: '',
             name: 'foo',
             addressType: undefined,
+            lastUpdatedAt: MOCK_TIMESTAMP,
           },
           '0xC38bF1aD06ef69F0c04E29DBeB4152B4175f0A8D': {
             address: '0xC38bF1aD06ef69F0c04E29DBeB4152B4175f0A8D',
@@ -284,6 +309,7 @@ describe('AddressBookController', () => {
             memo: '',
             name: 'bar',
             addressType: undefined,
+            lastUpdatedAt: MOCK_TIMESTAMP,
           },
         },
       },
@@ -309,6 +335,7 @@ describe('AddressBookController', () => {
             memo: '',
             name: 'metamask.eth',
             addressType: undefined,
+            lastUpdatedAt: MOCK_TIMESTAMP,
           },
         },
       },
@@ -392,6 +419,7 @@ describe('AddressBookController', () => {
             memo: '',
             name: 'foo',
             addressType: undefined,
+            lastUpdatedAt: MOCK_TIMESTAMP,
           },
         },
       },
@@ -500,6 +528,7 @@ describe('AddressBookController', () => {
       memo: '',
       name: 'foo',
       addressType: undefined,
+      lastUpdatedAt: expect.any(Number),
     });
   });
 
