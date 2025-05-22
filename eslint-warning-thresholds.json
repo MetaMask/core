@@ -96,10 +96,6 @@
     "import-x/order": 3,
     "jest/no-conditional-in-test": 2
   },
-  "packages/assets-controllers/src/TokenListController.ts": {
-    "jsdoc/check-tag-names": 1,
-    "jsdoc/tag-lines": 7
-  },
   "packages/assets-controllers/src/TokenRatesController.test.ts": {
     "import-x/order": 3
   },
@@ -436,9 +432,6 @@
   },
   "packages/polling-controller/src/AbstractPollingController.ts": {
     "@typescript-eslint/prefer-readonly": 1
-  },
-  "packages/preferences-controller/src/PreferencesController.test.ts": {
-    "prettier/prettier": 4
   },
   "packages/queued-request-controller/src/QueuedRequestController.ts": {
     "@typescript-eslint/prefer-readonly": 2

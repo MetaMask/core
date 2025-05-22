@@ -6,14 +6,9 @@ import {
   selectIsAssetExchangeRateInState,
   selectBridgeQuotes,
   selectIsQuoteExpired,
+  selectBridgeFeatureFlags,
 } from './selectors';
-import {
-  SortOrder,
-  RequestStatus,
-  BridgeFeatureFlagsKey,
-  ChainId,
-} from './types';
-import { formatChainIdToCaip } from './utils/caip-formatters';
+import { SortOrder, RequestStatus, ChainId } from './types';
 
 describe('Bridge Selectors', () => {
   describe('selectExchangeRateByChainIdAndAddress', () => {
@@ -186,11 +181,13 @@ describe('Bridge Selectors', () => {
       quoteFetchError: null,
       quotesRefreshCount: 0,
       quotesInitialLoadTime: Date.now(),
-      bridgeFeatureFlags: {
-        [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: {
+      remoteFeatureFlags: {
+        bridgeConfig: {
           maxRefreshCount: 5,
           refreshRate: 30000,
           chains: {},
+          support: true,
+          minimumVersion: '0.0.0',
         },
       },
       assetExchangeRates: {},
@@ -214,7 +211,6 @@ describe('Bridge Selectors', () => {
     const mockClientParams = {
       sortOrder: SortOrder.COST_ASC,
       selectedQuote: null,
-      featureFlagsKey: BridgeFeatureFlagsKey.EXTENSION_CONFIG,
     };
 
     it('should return false when quote is not expired', () => {
@@ -246,14 +242,15 @@ describe('Bridge Selectors', () => {
         ...mockState,
         quotesRefreshCount: 5,
         quotesLastFetched: Date.now() - 40000, // 40 seconds ago
-        bridgeFeatureFlags: {
-          [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: {
-            ...mockState.bridgeFeatureFlags[
-              BridgeFeatureFlagsKey.EXTENSION_CONFIG
-            ],
+        remoteFeatureFlags: {
+          bridgeConfig: {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ...(mockState.remoteFeatureFlags.bridgeConfig as any),
             chains: {
-              [formatChainIdToCaip(1)]: {
+              '1': {
                 refreshRate: 41000,
+                isActiveSrc: true,
+                isActiveDest: true,
               },
             },
           },
@@ -277,14 +274,15 @@ describe('Bridge Selectors', () => {
         },
         quotesRefreshCount: 5,
         quotesLastFetched: Date.now() - 40000, // 40 seconds ago
-        bridgeFeatureFlags: {
-          [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: {
-            ...mockState.bridgeFeatureFlags[
-              BridgeFeatureFlagsKey.EXTENSION_CONFIG
-            ],
+        remoteFeatureFlags: {
+          bridgeConfig: {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ...(mockState.remoteFeatureFlags.bridgeConfig as any),
             chains: {
-              [formatChainIdToCaip(1)]: {
+              '1': {
                 refreshRate: 41000,
+                isActiveSrc: true,
+                isActiveDest: true,
               },
             },
           },
@@ -348,11 +346,13 @@ describe('Bridge Selectors', () => {
       quoteFetchError: null,
       quotesRefreshCount: 0,
       quotesInitialLoadTime: Date.now(),
-      bridgeFeatureFlags: {
-        [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: {
+      remoteFeatureFlags: {
+        bridgeConfig: {
+          minimumVersion: '0.0.0',
           maxRefreshCount: 5,
           refreshRate: 30000,
           chains: {},
+          support: true,
         },
       },
       assetExchangeRates: {},
@@ -375,7 +375,6 @@ describe('Bridge Selectors', () => {
       },
       sortOrder: SortOrder.COST_ASC,
       selectedQuote: null,
-      featureFlagsKey: BridgeFeatureFlagsKey.EXTENSION_CONFIG,
     };
 
     it('should return sorted quotes with metadata', () => {
@@ -486,6 +485,144 @@ describe('Bridge Selectors', () => {
 
       const result = selectBridgeQuotes(solanaState, mockClientParams);
       expect(result.sortedQuotes).toHaveLength(1);
+    });
+  });
+
+  describe('selectBridgeFeatureFlags', () => {
+    const mockValidBridgeConfig = {
+      minimumVersion: '0.0.0',
+      refreshRate: 3,
+      maxRefreshCount: 1,
+      support: true,
+      chains: {
+        '1': {
+          isActiveSrc: true,
+          isActiveDest: true,
+        },
+        '10': {
+          isActiveSrc: true,
+          isActiveDest: false,
+        },
+        '59144': {
+          isActiveSrc: true,
+          isActiveDest: true,
+        },
+        '120': {
+          isActiveSrc: true,
+          isActiveDest: false,
+        },
+        '137': {
+          isActiveSrc: false,
+          isActiveDest: true,
+        },
+        '11111': {
+          isActiveSrc: false,
+          isActiveDest: true,
+        },
+        '1151111081099710': {
+          isActiveSrc: true,
+          isActiveDest: true,
+        },
+      },
+    };
+
+    const mockInvalidBridgeConfig = {
+      minimumVersion: 1, // Should be a string
+      maxRefreshCount: 'invalid', // Should be a number
+      refreshRate: 'invalid', // Should be a number
+      chains: 'invalid', // Should be an object
+    };
+
+    it('should return formatted feature flags when valid config is provided', () => {
+      const result = selectBridgeFeatureFlags({
+        remoteFeatureFlags: {
+          bridgeConfig: mockValidBridgeConfig,
+        },
+      });
+
+      expect(result).toStrictEqual({
+        minimumVersion: '0.0.0',
+        refreshRate: 3,
+        maxRefreshCount: 1,
+        support: true,
+        chains: {
+          'eip155:1': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+          'eip155:10': {
+            isActiveSrc: true,
+            isActiveDest: false,
+          },
+          'eip155:59144': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+          'eip155:120': {
+            isActiveSrc: true,
+            isActiveDest: false,
+          },
+          'eip155:137': {
+            isActiveSrc: false,
+            isActiveDest: true,
+          },
+          'eip155:11111': {
+            isActiveSrc: false,
+            isActiveDest: true,
+          },
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+        },
+      });
+    });
+
+    it('should return default feature flags when invalid config is provided', () => {
+      const result = selectBridgeFeatureFlags({
+        remoteFeatureFlags: {
+          bridgeConfig: mockInvalidBridgeConfig,
+        },
+      });
+
+      expect(result).toStrictEqual({
+        minimumVersion: '0.0.0',
+        maxRefreshCount: 5,
+        refreshRate: 30000,
+        chains: {},
+        support: false,
+      });
+    });
+
+    it('should return default feature flags when bridgeConfig is undefined', () => {
+      const result = selectBridgeFeatureFlags({
+        // @ts-expect-error - This is a test case
+        remoteFeatureFlags: {},
+      });
+
+      expect(result).toStrictEqual({
+        minimumVersion: '0.0.0',
+        maxRefreshCount: 5,
+        refreshRate: 30000,
+        chains: {},
+        support: false,
+      });
+    });
+
+    it('should return default feature flags when bridgeConfig is null', () => {
+      const result = selectBridgeFeatureFlags({
+        remoteFeatureFlags: {
+          bridgeConfig: null,
+        },
+      });
+
+      expect(result).toStrictEqual({
+        minimumVersion: '0.0.0',
+        maxRefreshCount: 5,
+        refreshRate: 30000,
+        chains: {},
+        support: false,
+      });
     });
   });
 });

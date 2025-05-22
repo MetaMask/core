@@ -7,6 +7,7 @@ import { BaseController } from '@metamask/base-controller';
 import type { Partialize } from '@metamask/controller-utils';
 import {
   InfuraNetworkType,
+  CustomNetworkType,
   NetworkType,
   isSafeChainId,
   isInfuraNetworkType,
@@ -15,7 +16,6 @@ import {
   NetworkNickname,
   BUILT_IN_CUSTOM_NETWORKS_RPC,
   BUILT_IN_NETWORKS,
-  BuiltInNetworkName,
 } from '@metamask/controller-utils';
 import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 import EthQuery from '@metamask/eth-query';
@@ -728,25 +728,46 @@ function getDefaultCustomNetworkConfigurationsByChainId(): Record<
   Hex,
   NetworkConfiguration
 > {
-  const { ticker, rpcPrefs } =
-    BUILT_IN_NETWORKS[BuiltInNetworkName.MegaETHTestnet];
+  // Create the `networkConfigurationsByChainId` objects explicitly,
+  // Because it is not always guaranteed that the custom networks are included in the
+  // default networks.
   return {
-    [ChainId[BuiltInNetworkName.MegaETHTestnet]]: {
-      blockExplorerUrls: [rpcPrefs.blockExplorerUrl],
-      chainId: ChainId[BuiltInNetworkName.MegaETHTestnet],
-      defaultRpcEndpointIndex: 0,
-      defaultBlockExplorerUrlIndex: 0,
-      name: NetworkNickname[BuiltInNetworkName.MegaETHTestnet],
-      nativeCurrency: ticker,
-      rpcEndpoints: [
-        {
-          failoverUrls: [],
-          networkClientId: BuiltInNetworkName.MegaETHTestnet,
-          type: RpcEndpointType.Custom,
-          url: BUILT_IN_CUSTOM_NETWORKS_RPC.MEGAETH_TESTNET,
-        },
-      ],
-    },
+    [ChainId['megaeth-testnet']]: getCustomNetworkConfiguration(
+      CustomNetworkType['megaeth-testnet'],
+    ),
+    [ChainId['monad-testnet']]: getCustomNetworkConfiguration(
+      CustomNetworkType['monad-testnet'],
+    ),
+  };
+}
+
+/**
+ * Constructs a `NetworkConfiguration` object by `CustomNetworkType`.
+ *
+ * @param customNetworkType - The type of the custom network.
+ * @returns The `NetworkConfiguration` object.
+ */
+function getCustomNetworkConfiguration(
+  customNetworkType: CustomNetworkType,
+): NetworkConfiguration {
+  const { ticker, rpcPrefs } = BUILT_IN_NETWORKS[customNetworkType];
+  const rpcEndpointUrl = BUILT_IN_CUSTOM_NETWORKS_RPC[customNetworkType];
+
+  return {
+    blockExplorerUrls: [rpcPrefs.blockExplorerUrl],
+    chainId: ChainId[customNetworkType],
+    defaultRpcEndpointIndex: 0,
+    defaultBlockExplorerUrlIndex: 0,
+    name: NetworkNickname[customNetworkType],
+    nativeCurrency: ticker,
+    rpcEndpoints: [
+      {
+        failoverUrls: [],
+        networkClientId: customNetworkType,
+        type: RpcEndpointType.Custom,
+        url: rpcEndpointUrl,
+      },
+    ],
   };
 }
 
