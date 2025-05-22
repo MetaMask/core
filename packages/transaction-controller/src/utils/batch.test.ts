@@ -17,6 +17,7 @@ import {
   getEIP7702UpgradeContractAddress,
 } from './feature-flags';
 import { validateBatchRequest } from './validation';
+import type { TransactionControllerState } from '..';
 import {
   TransactionEnvelopeType,
   type TransactionControllerMessenger,
@@ -200,6 +201,8 @@ describe('Batch Utils', () => {
       AddBatchTransactionOptions['getPendingTransactionTracker']
     >;
 
+    let updateMock: jest.MockedFn<AddBatchTransactionOptions['update']>;
+
     let request: AddBatchTransactionOptions;
 
     beforeEach(() => {
@@ -209,6 +212,7 @@ describe('Batch Utils', () => {
       updateTransactionMock = jest.fn();
       publishTransactionMock = jest.fn();
       getPendingTransactionTrackerMock = jest.fn();
+      updateMock = jest.fn();
 
       determineTransactionTypeMock.mockResolvedValue({
         type: TransactionType.simpleSend,
@@ -249,6 +253,7 @@ describe('Batch Utils', () => {
         updateTransaction: updateTransactionMock,
         publishTransaction: publishTransactionMock,
         getPendingTransactionTracker: getPendingTransactionTrackerMock,
+        update: updateMock,
       };
     });
 
@@ -1383,7 +1388,7 @@ describe('Batch Utils', () => {
           'ApprovalController:addRequest',
           expect.objectContaining({
             id: expect.any(String),
-            origin: 'http://localhost',
+            origin: ORIGIN_MOCK,
             requestData: { txBatchId: expect.any(String) },
             expectsResult: true,
             type: 'transaction_batch',
@@ -1395,6 +1400,83 @@ describe('Batch Utils', () => {
 
         const result = await resultPromise;
         expect(result?.batchId).toMatch(/^0x[0-9a-f]{32}$/u);
+      });
+
+      it('saves a transaction batch and then cleans the state', async () => {
+        const { approve } = mockRequestApproval(MESSENGER_MOCK, {
+          state: 'approved',
+        });
+        mockSequentialPublishBatchHookResults();
+        setupSequentialPublishBatchHookMock(() => sequentialPublishBatchHook);
+
+        const resultPromise = addTransactionBatch({
+          ...request,
+          publishBatchHook: undefined,
+          messenger: MESSENGER_MOCK,
+          request: {
+            ...request.request,
+            useHook: true,
+            origin: ORIGIN_MOCK,
+          },
+        }).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+        approve();
+        await executePublishHooks();
+
+        expect(MESSENGER_MOCK.call).toHaveBeenCalledWith(
+          'ApprovalController:addRequest',
+          expect.objectContaining({
+            id: expect.any(String),
+            origin: ORIGIN_MOCK,
+            requestData: { txBatchId: expect.any(String) },
+            expectsResult: true,
+            type: 'transaction_batch',
+          }),
+          true,
+        );
+
+        expect(updateMock).toHaveBeenCalledTimes(2);
+        expect(updateMock).toHaveBeenCalledWith(expect.any(Function));
+
+        // Simulate the state update
+        const state = {
+          transactionBatches: [],
+        } as unknown as TransactionControllerState;
+        updateMock.mock.calls[0][0](state);
+
+        expect(state.transactionBatches).toStrictEqual([
+          expect.objectContaining({
+            id: expect.any(String),
+            chainId: CHAIN_ID_MOCK,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+            transactions: [
+              expect.objectContaining({
+                params: {
+                  data: DATA_MOCK,
+                  to: TO_MOCK,
+                  value: VALUE_MOCK,
+                },
+              }),
+              expect.objectContaining({
+                params: {
+                  data: DATA_MOCK,
+                  to: TO_MOCK,
+                  value: VALUE_MOCK,
+                },
+              }),
+            ],
+            origin: ORIGIN_MOCK,
+          }),
+        ]);
+
+        await resultPromise;
+
+        updateMock.mock.calls[1][0](state);
+
+        expect(state.transactionBatches).toStrictEqual([]);
       });
     });
   });

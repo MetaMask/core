@@ -7,6 +7,7 @@ import type EthQuery from '@metamask/eth-query';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { bytesToHex, createModuleLogger } from '@metamask/utils';
+import type { WritableDraft } from 'immer/dist/internal.js';
 import { parse, v4 } from 'uuid';
 
 import {
@@ -21,6 +22,7 @@ import {
   getEIP7702UpgradeContractAddress,
 } from './feature-flags';
 import { validateBatchRequest } from './validation';
+import type { TransactionControllerState } from '..';
 import {
   determineTransactionType,
   type BatchTransactionParams,
@@ -52,6 +54,12 @@ import {
   TransactionType,
 } from '../types';
 
+type UpdateBatchMetadata = (
+  callback: (
+    state: WritableDraft<TransactionControllerState>,
+  ) => void | TransactionControllerState,
+) => void;
+
 type AddTransactionBatchRequest = {
   addTransaction: TransactionController['addTransaction'];
   getChainId: (networkClientId: string) => Hex;
@@ -73,6 +81,7 @@ type AddTransactionBatchRequest = {
   getPendingTransactionTracker: (
     networkClientId: string,
   ) => PendingTransactionTracker;
+  update: UpdateBatchMetadata;
 };
 
 type IsAtomicBatchSupportedRequestInternal = {
@@ -369,6 +378,7 @@ async function addTransactionBatchWithHook(
     messenger,
     publishBatchHook: requestPublishBatchHook,
     request: userRequest,
+    update,
   } = request;
 
   const {
@@ -407,6 +417,8 @@ async function addTransactionBatchWithHook(
         transactions: nestedTransactions,
         origin,
       });
+
+      addBatchMetadata(txBatchMeta, update);
 
       resultCallbacks = (await requestApproval(txBatchMeta, messenger))
         .resultCallbacks;
@@ -467,6 +479,9 @@ async function addTransactionBatchWithHook(
     resultCallbacks?.error(error as Error);
 
     throw error;
+  } finally {
+    log('Cleaning up publish batch hook');
+    wipeTransactionBatches(update);
   }
 }
 
@@ -614,4 +629,33 @@ function newBatchMetadata({
     transactions,
     origin,
   };
+}
+
+/**
+ * Adds batch metadata to the transaction controller state.
+ *
+ * @param transactionBatchMeta - The transaction batch metadata to be added.
+ * @param update - The update function to modify the transaction controller state.
+ */
+function addBatchMetadata(
+  transactionBatchMeta: TransactionBatchMeta,
+  update: UpdateBatchMetadata,
+) {
+  update((state: WritableDraft<TransactionControllerState>) => {
+    state.transactionBatches = [
+      ...state.transactionBatches,
+      transactionBatchMeta,
+    ];
+  });
+}
+
+/**
+ * Wipes all transaction batches from the transaction controller state.
+ *
+ * @param update - The update function to modify the transaction controller state.
+ */
+function wipeTransactionBatches(update: UpdateBatchMetadata): void {
+  update((state: WritableDraft<TransactionControllerState>) => {
+    state.transactionBatches = [];
+  });
 }
