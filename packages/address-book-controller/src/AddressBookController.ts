@@ -52,23 +52,6 @@ export type AddressBookEntry = {
 };
 
 /**
- * Sync metadata interface used for contacts syncing.
- * This is used by the UserStorageController and not stored in address book.
- */
-type SyncMetadata = {
-  deleted?: boolean;
-  deletedAt?: number;
-  lastUpdatedAt?: number;
-};
-
-/**
- * Address book entry with sync metadata
- */
-export type AddressBookEntryWithSyncMetadata = {
-  _syncMetadata?: SyncMetadata;
-} & AddressBookEntry;
-
-/**
  * AddressBookState
  *
  * Address book controller state
