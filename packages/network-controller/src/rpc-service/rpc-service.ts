@@ -337,7 +337,6 @@ export class RpcService implements AbstractRpcService {
    * specifies the request.
    * @returns The decoded JSON-RPC response from the endpoint.
    * @throws A 401 error if the response status is 401.
-   * @throws A "method not found" error if the response status is 501.
    * @throws A "rate limiting" error if the response HTTP status is 429.
    * @throws A "resource unavailable" error if the response status is 402, 404, or any 5xx.
    * @throws An "invalid request" error for any other 4xx status codes.
@@ -362,7 +361,6 @@ export class RpcService implements AbstractRpcService {
    * specifies the request.
    * @returns The decoded JSON-RPC response from the endpoint.
    * @throws A 401 error if the response status is 401.
-   * @throws A "method not found" error if the response status is 501.
    * @throws A "rate limiting" error if the response HTTP status is 429.
    * @throws A "resource unavailable" error if the response status is 402, 404, or any 5xx.
    * @throws An "invalid request" error for any other 4xx status codes.
@@ -467,7 +465,6 @@ export class RpcService implements AbstractRpcService {
    * fetch options passed to the constructor
    * @returns The decoded JSON-RPC response from the endpoint.
    * @throws A 401 error if the response status is 401.
-   * @throws A "method not found" error if the response status is 501.
    * @throws A "rate limiting" error if the response HTTP status is 429.
    * @throws A "resource unavailable" error if the response status is 402, 404, or any 5xx.
    * @throws An "invalid request" error for any other 4xx status codes.
@@ -493,13 +490,6 @@ export class RpcService implements AbstractRpcService {
             httpStatus: status,
           });
         }
-        if (status === 501) {
-          throw rpcErrors.methodNotFound({
-            data: {
-              httpStatus: status,
-            },
-          });
-        }
         if (status === 429) {
           throw rpcErrors.limitExceeded({
             message: 'Request is being rate limited.',
@@ -510,22 +500,20 @@ export class RpcService implements AbstractRpcService {
         }
         if (status >= 500 || status === 402 || status === 404) {
           throw rpcErrors.resourceUnavailable({
-            message: 'RPC endpoint not found or unavailable',
+            message: 'RPC endpoint not found or unavailable.',
             data: {
               httpStatus: status,
             },
           });
         }
 
-        // This is a catch-all for any remaining 4xx status codes not handled above
-        throw rpcErrors.invalidRequest({
-          data: {
-            httpStatus: status,
-          },
+        // Handle all other 4xx errors as generic HTTP client errors
+        throw new JsonRpcError(-32100, 'HTTP client error.', {
+          httpStatus: status,
         });
       } else if (error instanceof SyntaxError) {
         throw rpcErrors.parse({
-          message: 'Could not parse response as it is not valid JSON',
+          message: 'Could not parse response as it is not valid JSON.',
         });
       }
       throw error;
