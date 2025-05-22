@@ -13,7 +13,7 @@ export enum AuthConnection {
   Apple = 'apple',
 }
 
-export enum SeedlessOnboardingControllerError {
+export enum SeedlessOnboardingControllerErrorMessage {
   AuthenticationError = `${controllerName} - Authentication error`,
   MissingAuthUserInfo = `${controllerName} - Missing authenticated user information`,
   FailedToPersistOprfKey = `${controllerName} - Failed to persist OPRF key`,

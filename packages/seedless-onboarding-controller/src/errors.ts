@@ -4,7 +4,7 @@ import {
   TOPRFErrorCode,
 } from '@metamask/toprf-secure-backup';
 
-import { SeedlessOnboardingControllerError } from './constants';
+import { SeedlessOnboardingControllerErrorMessage } from './constants';
 
 /**
  * Get the error message from the TOPRF error code.
@@ -19,9 +19,9 @@ function getErrorMessageFromTOPRFErrorCode(
 ): string {
   switch (errorCode) {
     case TOPRFErrorCode.RateLimitExceeded:
-      return SeedlessOnboardingControllerError.TooManyLoginAttempts;
+      return SeedlessOnboardingControllerErrorMessage.TooManyLoginAttempts;
     case TOPRFErrorCode.CouldNotDeriveEncryptionKey:
-      return SeedlessOnboardingControllerError.IncorrectPassword;
+      return SeedlessOnboardingControllerErrorMessage.IncorrectPassword;
     default:
       return defaultMessage;
   }
@@ -80,12 +80,12 @@ export class RecoveryError extends Error {
       const rateLimitErrorData = getRateLimitErrorData(error);
       const errorMessage = getErrorMessageFromTOPRFErrorCode(
         error.code,
-        SeedlessOnboardingControllerError.LoginFailedError,
+        SeedlessOnboardingControllerErrorMessage.LoginFailedError,
       );
       return new RecoveryError(errorMessage, rateLimitErrorData);
     }
     return new RecoveryError(
-      SeedlessOnboardingControllerError.LoginFailedError,
+      SeedlessOnboardingControllerErrorMessage.LoginFailedError,
     );
   }
 }

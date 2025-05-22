@@ -5,7 +5,7 @@ import {
   bytesToString,
 } from '@metamask/utils';
 
-import { SeedlessOnboardingControllerError } from './constants';
+import { SeedlessOnboardingControllerErrorMessage } from './constants';
 
 type ISeedPhraseMetadata = {
   data: Uint8Array;
@@ -88,7 +88,7 @@ export class SeedPhraseMetadata implements ISeedPhraseMetadata {
       typeof value.timestamp !== 'number'
     ) {
       throw new Error(
-        SeedlessOnboardingControllerError.InvalidSeedPhraseMetadata,
+        SeedlessOnboardingControllerErrorMessage.InvalidSeedPhraseMetadata,
       );
     }
   }

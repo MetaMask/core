@@ -20,7 +20,7 @@ import { Mutex } from 'async-mutex';
 import {
   type AuthConnection,
   controllerName,
-  SeedlessOnboardingControllerError,
+  SeedlessOnboardingControllerErrorMessage,
   Web3AuthNetwork,
 } from './constants';
 import { RecoveryError } from './errors';
@@ -190,7 +190,7 @@ export class SeedlessOnboardingController extends BaseController<
       return authenticationResult;
     } catch (error) {
       log('Error authenticating user', error);
-      throw new Error(SeedlessOnboardingControllerError.AuthenticationError);
+      throw new Error(SeedlessOnboardingControllerErrorMessage.AuthenticationError);
     }
   }
 
@@ -269,7 +269,7 @@ export class SeedlessOnboardingController extends BaseController<
     } catch (error) {
       log('Error fetching seed phrase metadata', error);
       throw new Error(
-        SeedlessOnboardingControllerError.FailedToFetchSeedPhraseMetadata,
+        SeedlessOnboardingControllerErrorMessage.FailedToFetchSeedPhraseMetadata,
       );
     }
   }
@@ -299,7 +299,7 @@ export class SeedlessOnboardingController extends BaseController<
       });
     } catch (error) {
       log('Error changing password', error);
-      throw new Error(SeedlessOnboardingControllerError.FailedToChangePassword);
+      throw new Error(SeedlessOnboardingControllerErrorMessage.FailedToChangePassword);
     }
   }
 
@@ -367,7 +367,7 @@ export class SeedlessOnboardingController extends BaseController<
       });
     } catch (error) {
       log('Error persisting local encryption key', error);
-      throw new Error(SeedlessOnboardingControllerError.FailedToPersistOprfKey);
+      throw new Error(SeedlessOnboardingControllerErrorMessage.FailedToPersistOprfKey);
     }
   }
 
@@ -462,7 +462,7 @@ export class SeedlessOnboardingController extends BaseController<
     } catch (error) {
       log('Error encrypting and storing seed phrase backup', error);
       throw new Error(
-        SeedlessOnboardingControllerError.FailedToEncryptAndStoreSeedPhraseBackup,
+        SeedlessOnboardingControllerErrorMessage.FailedToEncryptAndStoreSeedPhraseBackup,
       );
     }
   }
@@ -492,7 +492,7 @@ export class SeedlessOnboardingController extends BaseController<
 
       const encryptedVault = this.state.vault;
       if (!encryptedVault) {
-        throw new Error(SeedlessOnboardingControllerError.VaultError);
+        throw new Error(SeedlessOnboardingControllerErrorMessage.VaultError);
       }
       // Note that vault decryption using the password is a very costly operation as it involves deriving the encryption key
       // from the password using an intentionally slow key derivation function.
@@ -706,14 +706,14 @@ export class SeedlessOnboardingController extends BaseController<
     toprfAuthKeyPair: KeyPair;
   } {
     if (typeof data !== 'string') {
-      throw new Error(SeedlessOnboardingControllerError.InvalidVaultData);
+      throw new Error(SeedlessOnboardingControllerErrorMessage.InvalidVaultData);
     }
 
     let parsedVaultData: unknown;
     try {
       parsedVaultData = JSON.parse(data);
     } catch {
-      throw new Error(SeedlessOnboardingControllerError.InvalidVaultData);
+      throw new Error(SeedlessOnboardingControllerErrorMessage.InvalidVaultData);
     }
 
     this.#assertIsValidVaultData(parsedVaultData);
@@ -757,7 +757,7 @@ export class SeedlessOnboardingController extends BaseController<
       !('userId' in value) ||
       typeof value.userId !== 'string'
     ) {
-      throw new Error(SeedlessOnboardingControllerError.MissingAuthUserInfo);
+      throw new Error(SeedlessOnboardingControllerErrorMessage.MissingAuthUserInfo);
     }
 
     if (
@@ -766,7 +766,7 @@ export class SeedlessOnboardingController extends BaseController<
       !Array.isArray(value.nodeAuthTokens) ||
       value.nodeAuthTokens.length < 3 // At least 3 auth tokens are required for Threshold OPRF service
     ) {
-      throw new Error(SeedlessOnboardingControllerError.InsufficientAuthToken);
+      throw new Error(SeedlessOnboardingControllerErrorMessage.InsufficientAuthToken);
     }
   }
 
@@ -788,7 +788,7 @@ export class SeedlessOnboardingController extends BaseController<
       !('toprfAuthKeyPair' in value) || // toprfAuthKeyPair is not defined
       typeof value.toprfAuthKeyPair !== 'string' // toprfAuthKeyPair is not a string
     ) {
-      throw new Error(SeedlessOnboardingControllerError.VaultDataError);
+      throw new Error(SeedlessOnboardingControllerErrorMessage.VaultDataError);
     }
   }
 }
@@ -801,11 +801,11 @@ export class SeedlessOnboardingController extends BaseController<
  */
 function assertIsValidPassword(password: unknown): asserts password is string {
   if (typeof password !== 'string') {
-    throw new Error(SeedlessOnboardingControllerError.WrongPasswordType);
+    throw new Error(SeedlessOnboardingControllerErrorMessage.WrongPasswordType);
   }
 
   if (!password || !password.length) {
-    throw new Error(SeedlessOnboardingControllerError.InvalidEmptyPassword);
+    throw new Error(SeedlessOnboardingControllerErrorMessage.InvalidEmptyPassword);
   }
 }
 

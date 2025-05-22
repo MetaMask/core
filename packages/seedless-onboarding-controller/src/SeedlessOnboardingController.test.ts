@@ -11,7 +11,7 @@ import { base64ToBytes, bytesToBase64, stringToBytes } from '@metamask/utils';
 
 import {
   Web3AuthNetwork,
-  SeedlessOnboardingControllerError,
+  SeedlessOnboardingControllerErrorMessage,
   AuthConnection,
 } from './constants';
 import { RecoveryError } from './errors';
@@ -485,7 +485,7 @@ describe('SeedlessOnboardingController', () => {
             socialLoginEmail,
           }),
         ).rejects.toThrow(
-          SeedlessOnboardingControllerError.AuthenticationError,
+          SeedlessOnboardingControllerErrorMessage.AuthenticationError,
         );
         expect(handleCommitment.isDone()).toBe(true);
         expect(handleAuthentication.isDone()).toBe(false);
@@ -656,7 +656,7 @@ describe('SeedlessOnboardingController', () => {
             MOCK_KEYRING_ID,
           ),
         ).rejects.toThrow(
-          SeedlessOnboardingControllerError.MissingAuthUserInfo,
+          SeedlessOnboardingControllerErrorMessage.MissingAuthUserInfo,
         );
 
         // verify vault is not created
@@ -675,7 +675,7 @@ describe('SeedlessOnboardingController', () => {
               MOCK_KEYRING_ID,
             ),
           ).rejects.toThrow(
-            SeedlessOnboardingControllerError.InsufficientAuthToken,
+            SeedlessOnboardingControllerErrorMessage.InsufficientAuthToken,
           );
 
           // verify vault is not created
@@ -708,7 +708,7 @@ describe('SeedlessOnboardingController', () => {
               MOCK_KEYRING_ID,
             ),
           ).rejects.toThrow(
-            SeedlessOnboardingControllerError.FailedToPersistOprfKey,
+            SeedlessOnboardingControllerErrorMessage.FailedToPersistOprfKey,
           );
 
           expect(mockSecretDataAdd.isDone()).toBe(true);
@@ -739,7 +739,7 @@ describe('SeedlessOnboardingController', () => {
               MOCK_KEYRING_ID,
             ),
           ).rejects.toThrow(
-            SeedlessOnboardingControllerError.FailedToEncryptAndStoreSeedPhraseBackup,
+            SeedlessOnboardingControllerErrorMessage.FailedToEncryptAndStoreSeedPhraseBackup,
           );
         },
       );
@@ -932,7 +932,7 @@ describe('SeedlessOnboardingController', () => {
 
           await expect(
             controller.fetchAllSeedPhrases('INCORRECT_PASSWORD'),
-          ).rejects.toThrow(SeedlessOnboardingControllerError.LoginFailedError);
+          ).rejects.toThrow(SeedlessOnboardingControllerErrorMessage.LoginFailedError);
         },
       );
     });
@@ -954,7 +954,7 @@ describe('SeedlessOnboardingController', () => {
           await expect(
             controller.fetchAllSeedPhrases('INCORRECT_PASSWORD'),
           ).rejects.toThrow(
-            SeedlessOnboardingControllerError.FailedToFetchSeedPhraseMetadata,
+            SeedlessOnboardingControllerErrorMessage.FailedToFetchSeedPhraseMetadata,
           );
         },
       );
@@ -979,7 +979,7 @@ describe('SeedlessOnboardingController', () => {
           await expect(
             controller.fetchAllSeedPhrases(MOCK_PASSWORD),
           ).rejects.toThrow(
-            SeedlessOnboardingControllerError.FailedToFetchSeedPhraseMetadata,
+            SeedlessOnboardingControllerErrorMessage.FailedToFetchSeedPhraseMetadata,
           );
         },
       );
@@ -1006,7 +1006,7 @@ describe('SeedlessOnboardingController', () => {
             controller.fetchAllSeedPhrases(MOCK_PASSWORD),
           ).rejects.toStrictEqual(
             new RecoveryError(
-              SeedlessOnboardingControllerError.TooManyLoginAttempts,
+              SeedlessOnboardingControllerErrorMessage.TooManyLoginAttempts,
               {
                 remainingTime: 10,
                 message: 'Rate limit exceeded',
@@ -1035,7 +1035,7 @@ describe('SeedlessOnboardingController', () => {
             controller.fetchAllSeedPhrases(MOCK_PASSWORD),
           ).rejects.toStrictEqual(
             new RecoveryError(
-              SeedlessOnboardingControllerError.IncorrectPassword,
+              SeedlessOnboardingControllerErrorMessage.IncorrectPassword,
             ),
           );
         },
@@ -1060,7 +1060,7 @@ describe('SeedlessOnboardingController', () => {
             controller.fetchAllSeedPhrases(MOCK_PASSWORD),
           ).rejects.toStrictEqual(
             new RecoveryError(
-              SeedlessOnboardingControllerError.LoginFailedError,
+              SeedlessOnboardingControllerErrorMessage.LoginFailedError,
             ),
           );
         },
@@ -1269,7 +1269,7 @@ describe('SeedlessOnboardingController', () => {
         async ({ controller }) => {
           await expect(
             controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
-          ).rejects.toThrow(SeedlessOnboardingControllerError.VaultError);
+          ).rejects.toThrow(SeedlessOnboardingControllerErrorMessage.VaultError);
         },
       );
     });
@@ -1285,7 +1285,7 @@ describe('SeedlessOnboardingController', () => {
             .mockResolvedValueOnce('{ "foo": "bar"');
           await expect(
             controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
-          ).rejects.toThrow(SeedlessOnboardingControllerError.InvalidVaultData);
+          ).rejects.toThrow(SeedlessOnboardingControllerErrorMessage.InvalidVaultData);
         },
       );
     });
@@ -1304,12 +1304,12 @@ describe('SeedlessOnboardingController', () => {
             .mockResolvedValueOnce({ foo: 'bar' });
           await expect(
             controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
-          ).rejects.toThrow(SeedlessOnboardingControllerError.InvalidVaultData);
+          ).rejects.toThrow(SeedlessOnboardingControllerErrorMessage.InvalidVaultData);
 
           jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce('null');
           await expect(
             controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
-          ).rejects.toThrow(SeedlessOnboardingControllerError.VaultDataError);
+          ).rejects.toThrow(SeedlessOnboardingControllerErrorMessage.VaultDataError);
         },
       );
     });
@@ -1326,7 +1326,7 @@ describe('SeedlessOnboardingController', () => {
           jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce(MOCK_VAULT);
           await expect(
             controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
-          ).rejects.toThrow(SeedlessOnboardingControllerError.VaultDataError);
+          ).rejects.toThrow(SeedlessOnboardingControllerErrorMessage.VaultDataError);
         },
       );
     });
@@ -1382,7 +1382,7 @@ describe('SeedlessOnboardingController', () => {
           await expect(
             controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
           ).rejects.toThrow(
-            SeedlessOnboardingControllerError.FailedToChangePassword,
+            SeedlessOnboardingControllerErrorMessage.FailedToChangePassword,
           );
         },
       );
@@ -1465,7 +1465,7 @@ describe('SeedlessOnboardingController', () => {
               MOCK_KEYRING_ID,
             ),
           ).rejects.toThrow(
-            SeedlessOnboardingControllerError.InvalidEmptyPassword,
+            SeedlessOnboardingControllerErrorMessage.InvalidEmptyPassword,
           );
 
           expect(mockSecretDataAdd.isDone()).toBe(true);
@@ -1491,7 +1491,7 @@ describe('SeedlessOnboardingController', () => {
             // @ts-expect-error Intentionally passing wrong password type
             controller.createToprfKeyAndBackupSeedPhrase(123, MOCK_SEED_PHRASE),
           ).rejects.toThrow(
-            SeedlessOnboardingControllerError.WrongPasswordType,
+            SeedlessOnboardingControllerErrorMessage.WrongPasswordType,
           );
 
           expect(mockSecretDataAdd.isDone()).toBe(true);
