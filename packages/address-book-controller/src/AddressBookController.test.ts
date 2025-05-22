@@ -15,20 +15,43 @@ import {
 } from './AddressBookController';
 
 /**
- * Constructs a restricted controller messenger.
+ * Helper function to create test fixtures
  *
- * @returns A restricted controller messenger.
+ * @returns Test fixtures including messenger, controller, and event listeners
  */
-function getRestrictedMessenger() {
+function arrangeMocks() {
   const messenger = new Messenger<
     AddressBookControllerActions,
     AddressBookControllerEvents
   >();
-  return messenger.getRestricted({
+  const restrictedMessenger = messenger.getRestricted({
     name: controllerName,
     allowedActions: [],
     allowedEvents: [],
   });
+  const controller = new AddressBookController({
+    messenger: restrictedMessenger,
+  });
+
+  // Set up mock event listeners
+  const contactUpdatedListener = jest.fn();
+  const contactDeletedListener = jest.fn();
+
+  // Subscribe to events
+  messenger.subscribe(
+    'AddressBookController:contactUpdated' as AddressBookControllerContactUpdatedEvent['type'],
+    contactUpdatedListener,
+  );
+  messenger.subscribe(
+    'AddressBookController:contactDeleted' as AddressBookControllerContactDeletedEvent['type'],
+    contactDeletedListener,
+  );
+
+  return {
+    controller,
+    contactUpdatedListener,
+    contactDeletedListener,
+  };
 }
 
 describe('AddressBookController', () => {
@@ -48,17 +71,13 @@ describe('AddressBookController', () => {
     Date.now = originalDateNow;
   });
 
-  it('should set default state', () => {
-    const controller = new AddressBookController({
-      messenger: getRestrictedMessenger(),
-    });
+  it('sets default state', () => {
+    const { controller } = arrangeMocks();
     expect(controller.state).toStrictEqual({ addressBook: {} });
   });
 
-  it('should add a contact entry', () => {
-    const controller = new AddressBookController({
-      messenger: getRestrictedMessenger(),
-    });
+  it('adds a contact entry', () => {
+    const { controller } = arrangeMocks();
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
 
     expect(controller.state).toStrictEqual({
@@ -78,10 +97,8 @@ describe('AddressBookController', () => {
     });
   });
 
-  it('should add a contact entry with chainId and memo', () => {
-    const controller = new AddressBookController({
-      messenger: getRestrictedMessenger(),
-    });
+  it('adds a contact entry with chainId and memo', () => {
+    const { controller } = arrangeMocks();
     controller.set(
       '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
       'foo',
@@ -107,10 +124,8 @@ describe('AddressBookController', () => {
     });
   });
 
-  it('should add a contact entry with address type contract accounts', () => {
-    const controller = new AddressBookController({
-      messenger: getRestrictedMessenger(),
-    });
+  it('adds a contact entry with address type contract accounts', () => {
+    const { controller } = arrangeMocks();
     controller.set(
       '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
       'foo',
@@ -136,10 +151,8 @@ describe('AddressBookController', () => {
     });
   });
 
-  it('should add a contact entry with address type non accounts', () => {
-    const controller = new AddressBookController({
-      messenger: getRestrictedMessenger(),
-    });
+  it('adds a contact entry with address type non accounts', () => {
+    const { controller } = arrangeMocks();
     controller.set(
       '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
       'foo',
@@ -165,10 +178,8 @@ describe('AddressBookController', () => {
     });
   });
 
-  it('should add multiple contact entries with different chainIds', () => {
-    const controller = new AddressBookController({
-      messenger: getRestrictedMessenger(),
-    });
+  it('adds multiple contact entries with different chainIds', () => {
+    const { controller } = arrangeMocks();
     controller.set(
       '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
       'foo',
@@ -211,10 +222,8 @@ describe('AddressBookController', () => {
     });
   });
 
-  it('should update a contact entry', () => {
-    const controller = new AddressBookController({
-      messenger: getRestrictedMessenger(),
-    });
+  it('updates a contact entry', () => {
+    const { controller } = arrangeMocks();
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
 
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'bar');
@@ -236,29 +245,23 @@ describe('AddressBookController', () => {
     });
   });
 
-  it('should not add invalid contact entry', () => {
-    const controller = new AddressBookController({
-      messenger: getRestrictedMessenger(),
-    });
+  it('does not add invalid contact entry', () => {
+    const { controller } = arrangeMocks();
     // @ts-expect-error Intentionally invalid entry
     controller.set('0x01', 'foo', AddressType.externallyOwnedAccounts);
     expect(controller.state).toStrictEqual({ addressBook: {} });
   });
 
-  it('should remove one contact entry', () => {
-    const controller = new AddressBookController({
-      messenger: getRestrictedMessenger(),
-    });
+  it('removes one contact entry', () => {
+    const { controller } = arrangeMocks();
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
     controller.delete(toHex(1), '0x32Be343B94f860124dC4fEe278FDCBD38C102D88');
 
     expect(controller.state).toStrictEqual({ addressBook: {} });
   });
 
-  it('should remove only one contact entry', () => {
-    const controller = new AddressBookController({
-      messenger: getRestrictedMessenger(),
-    });
+  it('removes only one contact entry', () => {
+    const { controller } = arrangeMocks();
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
 
     controller.set('0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d', 'bar');
@@ -281,10 +284,8 @@ describe('AddressBookController', () => {
     });
   });
 
-  it('should add two contact entries with the same chainId', () => {
-    const controller = new AddressBookController({
-      messenger: getRestrictedMessenger(),
-    });
+  it('adds two contact entries with the same chainId', () => {
+    const { controller } = arrangeMocks();
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
 
     controller.set('0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d', 'bar');
@@ -315,10 +316,8 @@ describe('AddressBookController', () => {
     });
   });
 
-  it('should correctly mark ens entries', () => {
-    const controller = new AddressBookController({
-      messenger: getRestrictedMessenger(),
-    });
+  it('marks correctly ens entries', () => {
+    const { controller } = arrangeMocks();
     controller.set(
       '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
       'metamask.eth',
@@ -341,10 +340,8 @@ describe('AddressBookController', () => {
     });
   });
 
-  it('should clear all contact entries', () => {
-    const controller = new AddressBookController({
-      messenger: getRestrictedMessenger(),
-    });
+  it('clears all contact entries', () => {
+    const { controller } = arrangeMocks();
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
 
     controller.set('0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d', 'bar');
@@ -352,29 +349,23 @@ describe('AddressBookController', () => {
     expect(controller.state).toStrictEqual({ addressBook: {} });
   });
 
-  it('should return true to indicate an address book entry has been added', () => {
-    const controller = new AddressBookController({
-      messenger: getRestrictedMessenger(),
-    });
+  it('returns true to indicate an address book entry has been added', () => {
+    const { controller } = arrangeMocks();
     expect(
       controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo'),
     ).toBe(true);
   });
 
-  it('should return false to indicate an address book entry has NOT been added', () => {
-    const controller = new AddressBookController({
-      messenger: getRestrictedMessenger(),
-    });
+  it('returns false to indicate an address book entry has NOT been added', () => {
+    const { controller } = arrangeMocks();
     expect(
       // @ts-expect-error Intentionally invalid entry
       controller.set('0x00', 'foo', AddressType.externallyOwnedAccounts),
     ).toBe(false);
   });
 
-  it('should return true to indicate an address book entry has been deleted', () => {
-    const controller = new AddressBookController({
-      messenger: getRestrictedMessenger(),
-    });
+  it('returns true to indicate an address book entry has been deleted', () => {
+    const { controller } = arrangeMocks();
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
 
     expect(
@@ -382,27 +373,21 @@ describe('AddressBookController', () => {
     ).toBe(true);
   });
 
-  it('should return false to indicate an address book entry has NOT been deleted due to unsafe input', () => {
-    const controller = new AddressBookController({
-      messenger: getRestrictedMessenger(),
-    });
+  it('returns false to indicate an address book entry has NOT been deleted due to unsafe input', () => {
+    const { controller } = arrangeMocks();
     // @ts-expect-error Suppressing error to test runtime behavior
     expect(controller.delete('__proto__', '0x01')).toBe(false);
     expect(controller.delete(toHex(1), 'constructor')).toBe(false);
   });
 
-  it('should return false to indicate an address book entry has NOT been deleted', () => {
-    const controller = new AddressBookController({
-      messenger: getRestrictedMessenger(),
-    });
+  it('returns false to indicate an address book entry has NOT been deleted', () => {
+    const { controller } = arrangeMocks();
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', '0x00');
     expect(controller.delete(toHex(1), '0x01')).toBe(false);
   });
 
-  it('should normalize addresses so adding and removing entries work across casings', () => {
-    const controller = new AddressBookController({
-      messenger: getRestrictedMessenger(),
-    });
+  it('normalizes addresses so adding and removing entries work across casings', () => {
+    const { controller } = arrangeMocks();
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
 
     controller.set('0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d', 'bar');
@@ -425,30 +410,13 @@ describe('AddressBookController', () => {
     });
   });
 
-  it('should emit contactUpdated event when adding a contact', () => {
-    const messenger = new Messenger<
-      AddressBookControllerActions,
-      AddressBookControllerEvents
-    >();
-    const restrictedMessenger = messenger.getRestricted({
-      name: controllerName,
-      allowedActions: [],
-      allowedEvents: [],
-    });
-    const controller = new AddressBookController({
-      messenger: restrictedMessenger,
-    });
-
-    const mockEventListener = jest.fn();
-    messenger.subscribe(
-      'AddressBookController:contactUpdated' as AddressBookControllerContactUpdatedEvent['type'],
-      mockEventListener,
-    );
+  it('emits contactUpdated event when adding a contact', () => {
+    const { controller, contactUpdatedListener } = arrangeMocks();
 
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
 
-    expect(mockEventListener).toHaveBeenCalledTimes(1);
-    expect(mockEventListener).toHaveBeenCalledWith({
+    expect(contactUpdatedListener).toHaveBeenCalledTimes(1);
+    expect(contactUpdatedListener).toHaveBeenCalledWith({
       address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
       chainId: toHex(1),
       isEns: false,
@@ -459,32 +427,18 @@ describe('AddressBookController', () => {
     });
   });
 
-  it('should emit contactUpdated event when updating a contact', () => {
-    const messenger = new Messenger<
-      AddressBookControllerActions,
-      AddressBookControllerEvents
-    >();
-    const restrictedMessenger = messenger.getRestricted({
-      name: controllerName,
-      allowedActions: [],
-      allowedEvents: [],
-    });
-    const controller = new AddressBookController({
-      messenger: restrictedMessenger,
-    });
+  it('emits contactUpdated event when updating a contact', () => {
+    const { controller, contactUpdatedListener } = arrangeMocks();
 
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
 
-    const mockEventListener = jest.fn();
-    messenger.subscribe(
-      'AddressBookController:contactUpdated' as AddressBookControllerContactUpdatedEvent['type'],
-      mockEventListener,
-    );
+    // Clear the mock to reset call count since the first set also triggers the event
+    contactUpdatedListener.mockClear();
 
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'bar');
 
-    expect(mockEventListener).toHaveBeenCalledTimes(1);
-    expect(mockEventListener).toHaveBeenCalledWith({
+    expect(contactUpdatedListener).toHaveBeenCalledTimes(1);
+    expect(contactUpdatedListener).toHaveBeenCalledWith({
       address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
       chainId: toHex(1),
       isEns: false,
@@ -495,32 +449,14 @@ describe('AddressBookController', () => {
     });
   });
 
-  it('should emit contactDeleted event when deleting a contact', () => {
-    const messenger = new Messenger<
-      AddressBookControllerActions,
-      AddressBookControllerEvents
-    >();
-    const restrictedMessenger = messenger.getRestricted({
-      name: controllerName,
-      allowedActions: [],
-      allowedEvents: [],
-    });
-    const controller = new AddressBookController({
-      messenger: restrictedMessenger,
-    });
+  it('emits contactDeleted event when deleting a contact', () => {
+    const { controller, contactDeletedListener } = arrangeMocks();
 
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
-
-    const mockEventListener = jest.fn();
-    messenger.subscribe(
-      'AddressBookController:contactDeleted' as AddressBookControllerContactDeletedEvent['type'],
-      mockEventListener,
-    );
-
     controller.delete(toHex(1), '0x32Be343B94f860124dC4fEe278FDCBD38C102D88');
 
-    expect(mockEventListener).toHaveBeenCalledTimes(1);
-    expect(mockEventListener).toHaveBeenCalledWith({
+    expect(contactDeletedListener).toHaveBeenCalledTimes(1);
+    expect(contactDeletedListener).toHaveBeenCalledWith({
       address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
       chainId: toHex(1),
       isEns: false,
@@ -531,30 +467,9 @@ describe('AddressBookController', () => {
     });
   });
 
-  it('should not emit events for contacts with chainId "*"', () => {
-    const messenger = new Messenger<
-      AddressBookControllerActions,
-      AddressBookControllerEvents
-    >();
-    const restrictedMessenger = messenger.getRestricted({
-      name: controllerName,
-      allowedActions: [],
-      allowedEvents: [],
-    });
-    const controller = new AddressBookController({
-      messenger: restrictedMessenger,
-    });
-
-    const updateEventListener = jest.fn();
-    const deleteEventListener = jest.fn();
-    messenger.subscribe(
-      'AddressBookController:contactUpdated' as AddressBookControllerContactUpdatedEvent['type'],
-      updateEventListener,
-    );
-    messenger.subscribe(
-      'AddressBookController:contactDeleted' as AddressBookControllerContactDeletedEvent['type'],
-      deleteEventListener,
-    );
+  it('does not emit events for contacts with chainId "*" (wallet accounts)', () => {
+    const { controller, contactUpdatedListener, contactDeletedListener } =
+      arrangeMocks();
 
     // Add with chainId "*"
     controller.set(
@@ -562,7 +477,7 @@ describe('AddressBookController', () => {
       'foo',
       '*' as unknown as Hex,
     );
-    expect(updateEventListener).not.toHaveBeenCalled();
+    expect(contactUpdatedListener).not.toHaveBeenCalled();
 
     // Update with chainId "*"
     controller.set(
@@ -570,20 +485,18 @@ describe('AddressBookController', () => {
       'bar',
       '*' as unknown as Hex,
     );
-    expect(updateEventListener).not.toHaveBeenCalled();
+    expect(contactUpdatedListener).not.toHaveBeenCalled();
 
     // Delete with chainId "*"
     controller.delete(
       '*' as unknown as Hex,
       '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
     );
-    expect(deleteEventListener).not.toHaveBeenCalled();
+    expect(contactDeletedListener).not.toHaveBeenCalled();
   });
 
-  it('should list all contacts', () => {
-    const controller = new AddressBookController({
-      messenger: getRestrictedMessenger(),
-    });
+  it('lists all contacts', () => {
+    const { controller } = arrangeMocks();
     controller.set(
       '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
       'foo',

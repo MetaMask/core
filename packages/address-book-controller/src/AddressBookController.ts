@@ -261,6 +261,8 @@ export class AddressBookController extends BaseController<
     });
 
     // Skip sending delete event for global contacts with chainId '*'
+    // These entries with chainId='*' are the wallet's own accounts (internal MetaMask accounts),
+    // not user-created contacts. They don't need to trigger sync events.
     if (String(chainId) !== '*') {
       this.messagingSystem.publish(
         'AddressBookController:contactDeleted',
@@ -319,6 +321,8 @@ export class AddressBookController extends BaseController<
     });
 
     // Skip sending update event for global contacts with chainId '*'
+    // These entries with chainId='*' are the wallet's own accounts (internal MetaMask accounts),
+    // not user-created contacts. They don't need to trigger sync events.
     if (String(chainId) !== '*') {
       this.messagingSystem.publish(
         'AddressBookController:contactUpdated',
