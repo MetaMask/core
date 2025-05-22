@@ -268,12 +268,16 @@ export default class AuthenticationController extends BaseController<
     this.#assertIsUnlocked('performSignIn');
 
     const allPublicKeys = await this.#snapGetAllPublicKeys();
+    const accessTokens = [];
 
-    return await Promise.all(
-      allPublicKeys.map(async ([entropySourceId]) => {
-        return await this.#auth.getAccessToken(entropySourceId);
-      }),
-    );
+    // We iterate sequentially in order to be sure that the first entry
+    // is the primary SRP LoginResponse.
+    for (const [entropySourceId] of allPublicKeys) {
+      const accessToken = await this.#auth.getAccessToken(entropySourceId);
+      accessTokens.push(accessToken);
+    }
+
+    return accessTokens;
   }
 
   public performSignOut(): void {

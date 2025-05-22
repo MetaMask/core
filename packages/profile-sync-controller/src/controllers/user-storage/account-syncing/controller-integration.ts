@@ -23,7 +23,7 @@ export async function saveInternalAccountToUserStorage(
   internalAccount: InternalAccount,
   options: AccountSyncingOptions,
 ): Promise<void> {
-  const { getUserStorageControllerInstance, getMessenger } = options;
+  const { getUserStorageControllerInstance } = options;
 
   if (
     !canPerformAccountSyncing(options) ||
@@ -32,42 +32,18 @@ export async function saveInternalAccountToUserStorage(
     return;
   }
 
-  // Refresh the internal accounts list so that it populates entropySourceId and derivationPath for all accounts
-  await getMessenger().call('AccountsController:updateAccounts');
-  // Find back our account from this refreshed list
-  const internalAccountsList = getMessenger().call(
-    'AccountsController:listAccounts',
-  );
-
-  const internalAccountFromList = internalAccountsList.find(
-    (account) => account.address === internalAccount.address,
-  );
-
-  // This should never happen because users don't have the ability to remove an accounts
-  // but if it does, we throw an error
-  // istanbul ignore next
-  if (!internalAccountFromList) {
-    throw new Error(
-      `UserStorageController - failed to find internal account in the list - ${internalAccount.address}`,
-    );
-  }
-
   const entropySourceId =
     String(
-      JSON.stringify(internalAccountFromList.options.entropySource).replace(
-        /"/gu,
-        '',
-      ),
+      JSON.stringify(internalAccount.options.entropySource).replace(/"/gu, ''),
     ) || undefined;
 
   try {
     // Map the internal account to the user storage account schema
-    const mappedAccount = mapInternalAccountToUserStorageAccount(
-      internalAccountFromList,
-    );
+    const mappedAccount =
+      mapInternalAccountToUserStorageAccount(internalAccount);
 
     await getUserStorageControllerInstance().performSetStorage(
-      `${USER_STORAGE_FEATURE_NAMES.accounts}.${internalAccountFromList.address}`,
+      `${USER_STORAGE_FEATURE_NAMES.accounts}.${internalAccount.address}`,
       JSON.stringify(mappedAccount),
       entropySourceId,
     );

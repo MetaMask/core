@@ -1014,7 +1014,7 @@ describe('user-storage/user-storage-controller - snap handling', () => {
       '#snapSignMessage - unable to call snap, wallet is locked',
     );
     await expect(controller.listEntropySources()).rejects.toThrow(
-      'listEntropySources - unable to call snap, wallet is locked',
+      'listEntropySources - unable to list entropy sources, wallet is locked',
     );
   });
 

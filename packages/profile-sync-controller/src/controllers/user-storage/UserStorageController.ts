@@ -12,6 +12,7 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import {
+  KeyringTypes,
   type KeyringControllerGetStateAction,
   type KeyringControllerLockEvent,
   type KeyringControllerUnlockEvent,
@@ -44,10 +45,7 @@ import {
   type UserStoragePathWithFeatureOnly,
 } from '../../shared/storage-schema';
 import type { NativeScrypt } from '../../shared/types/encryption';
-import {
-  createSnapSignMessageRequest,
-  createSnapAllPublicKeysRequest,
-} from '../authentication/auth-snap-requests';
+import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests';
 import type {
   AuthenticationControllerGetBearerToken,
   AuthenticationControllerGetSessionProfile,
@@ -568,7 +566,6 @@ export default class UserStorageController extends BaseController<
   ): Promise<void> {
     return await this.#userStorage.deleteAllFeatureItems(path, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
-      validateAgainstSchema: true,
       entropySourceId,
     });
   }
@@ -591,7 +588,6 @@ export default class UserStorageController extends BaseController<
   ): Promise<void> {
     return await this.#userStorage.batchDeleteItems(path, values, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
-      validateAgainstSchema: true,
       entropySourceId,
     });
   }
@@ -623,16 +619,16 @@ export default class UserStorageController extends BaseController<
   async listEntropySources() {
     if (!this.#isUnlocked) {
       throw new Error(
-        'listEntropySources - unable to call snap, wallet is locked',
+        'listEntropySources - unable to list entropy sources, wallet is locked',
       );
     }
 
-    const result = (await this.messagingSystem.call(
-      'SnapController:handleRequest',
-      createSnapAllPublicKeysRequest(),
-    )) as [string, string][];
-
-    return result.map(([id]) => id);
+    const { keyrings } = this.messagingSystem.call(
+      'KeyringController:getState',
+    );
+    return keyrings
+      .filter((keyring) => keyring.type === KeyringTypes.hd.toString())
+      .map((keyring) => keyring.metadata.id);
   }
 
   #_snapSignMessageCache: Record<`metamask:${string}`, string> = {};

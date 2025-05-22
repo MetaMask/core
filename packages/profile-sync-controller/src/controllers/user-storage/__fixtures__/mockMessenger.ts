@@ -1,5 +1,7 @@
 import type { NotNamespacedBy } from '@metamask/base-controller';
 import { Messenger } from '@metamask/base-controller';
+import type { KeyringObject } from '@metamask/keyring-controller';
+import { KeyringTypes } from '@metamask/keyring-controller';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 
 import type {
@@ -140,7 +142,22 @@ export function mockUserStorageMessenger(
     'KeyringController:getState',
   ).mockReturnValue({
     isUnlocked: true,
-    keyrings: [],
+    keyrings: [
+      {
+        type: KeyringTypes.hd,
+        metadata: {
+          name: '1',
+          id: MOCK_ENTROPY_SOURCE_IDS[0],
+        },
+      },
+      {
+        type: KeyringTypes.hd,
+        metadata: {
+          name: '2',
+          id: MOCK_ENTROPY_SOURCE_IDS[1],
+        },
+      },
+    ] as unknown as KeyringObject[],
   });
 
   const mockAccountsListAccounts = jest.fn();
