@@ -211,8 +211,7 @@ export class AddressBookController extends BaseController<
 
     Object.keys(addressBook).forEach((chainId) => {
       const chainIdHex = chainId as Hex;
-      Object.keys(addressBook[chainIdHex]).forEach((address) => {
-        const contact = addressBook[chainIdHex][address];
+      Object.entries(addressBook[chainIdHex]).forEach(([_, contact]) => {
         contacts.push(contact);
       });
     });
