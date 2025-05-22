@@ -23,7 +23,9 @@ import {
   type TransactionControllerMessenger,
   type TransactionMeta,
 } from '..';
+import type { PendingTransactionTracker } from '../helpers/PendingTransactionTracker';
 import { CollectPublishHook } from '../hooks/CollectPublishHook';
+import { SequentialPublishBatchHook } from '../hooks/SequentialPublishBatchHook';
 import { projectLogger } from '../logger';
 import type {
   NestedTransactionMetadata,
@@ -58,6 +60,13 @@ type AddTransactionBatchRequest = {
     options: { transactionId: string },
     callback: (transactionMeta: TransactionMeta) => void,
   ) => void;
+  publishTransaction: (
+    _ethQuery: EthQuery,
+    transactionMeta: TransactionMeta,
+  ) => Promise<Hex>;
+  getPendingTransactionTracker: (
+    networkClientId: string,
+  ) => PendingTransactionTracker;
 };
 
 type IsAtomicBatchSupportedRequestInternal = {
@@ -173,7 +182,7 @@ export async function isAtomicBatchSupported(
 }
 
 /**
- * Generate a tranasction batch ID.
+ * Generate a transaction batch ID.
  *
  * @returns  A unique batch ID as a hexadecimal string.
  */
@@ -309,7 +318,9 @@ async function addTransactionBatchWith7702(
 
     log('Security request', securityRequest);
 
+    /* istanbul ignore next */
     validateSecurity(securityRequest, chainId).catch((error) => {
+      /* istanbul ignore next */
       log('Security validation failed', error);
     });
   }
@@ -349,7 +360,8 @@ async function addTransactionBatchWith7702(
 async function addTransactionBatchWithHook(
   request: AddTransactionBatchRequest,
 ): Promise<TransactionBatchResult> {
-  const { publishBatchHook, request: userRequest } = request;
+  const { publishBatchHook: requestPublishBatchHook, request: userRequest } =
+    request;
 
   const {
     from,
@@ -359,10 +371,15 @@ async function addTransactionBatchWithHook(
 
   log('Adding transaction batch using hook', userRequest);
 
-  if (!publishBatchHook) {
-    log('No publish batch hook provided');
-    throw new Error('No publish batch hook provided');
-  }
+  const sequentialPublishBatchHook = new SequentialPublishBatchHook({
+    publishTransaction: request.publishTransaction,
+    getTransaction: request.getTransaction,
+    getEthQuery: request.getEthQuery,
+    getPendingTransactionTracker: request.getPendingTransactionTracker,
+  });
+
+  const publishBatchHook =
+    requestPublishBatchHook ?? sequentialPublishBatchHook.getHook();
 
   const batchId = generateBatchId();
   const transactionCount = nestedTransactions.length;

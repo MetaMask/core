@@ -141,8 +141,16 @@ describe('metamask-notifications - init()', () => {
     const act = async (addresses: string[], assertion: () => void) => {
       mockKeyringControllerGetState.mockReturnValue({
         isUnlocked: true,
-        keyrings: [{ accounts: addresses, type: KeyringTypes.hd }],
-        keyringsMetadata: [],
+        keyrings: [
+          {
+            accounts: addresses,
+            type: KeyringTypes.hd,
+            metadata: {
+              id: '123',
+              name: '',
+            },
+          },
+        ],
       });
 
       await actPublishKeyringStateChange(globalMessenger, addresses);
@@ -270,7 +278,6 @@ describe('metamask-notifications - init()', () => {
       mocks.mockKeyringControllerGetState.mockReturnValue({
         isUnlocked: false, // Wallet Locked
         keyrings: [],
-        keyringsMetadata: [],
       });
     });
 
@@ -357,7 +364,6 @@ describe('metamask-notifications - init()', () => {
         mocks.mockKeyringControllerGetState.mockReturnValue({
           isUnlocked: false,
           keyrings: [],
-          keyringsMetadata: [],
         });
       });
     expect(mockKeyringControllerGetState).toHaveBeenCalledTimes(1);
@@ -952,8 +958,16 @@ describe('metamask-notifications - enableMetamaskNotifications()', () => {
 
     messengerMocks.mockKeyringControllerGetState.mockReturnValue({
       isUnlocked: true,
-      keyrings: [{ accounts: [ADDRESS_1], type: KeyringTypes.hd }],
-      keyringsMetadata: [],
+      keyrings: [
+        {
+          accounts: [ADDRESS_1],
+          type: KeyringTypes.hd,
+          metadata: {
+            id: '123',
+            name: '',
+          },
+        },
+      ],
     });
 
     return { ...messengerMocks, mockCreateOnChainTriggers };

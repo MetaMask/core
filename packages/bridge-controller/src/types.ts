@@ -64,6 +64,7 @@ export type ChainConfiguration = {
   isActiveDest: boolean;
   refreshRate?: number;
   topAssets?: string[];
+  isUnifiedUIEnabled?: boolean;
 };
 
 export type L1GasFees = {
@@ -276,7 +277,7 @@ export type Quote = {
   bridges: string[];
   steps: Step[];
   refuel?: RefuelData;
-  bridgePriceData?: {
+  priceData?: {
     totalFromAmountUsd?: string;
     totalToAmountUsd?: string;
     priceImpact?: string;
@@ -325,6 +326,7 @@ export type TxData = {
 };
 
 export type FeatureFlagsPlatformConfig = {
+  minimumVersion: string;
   refreshRate: number;
   maxRefreshCount: number;
   support: boolean;

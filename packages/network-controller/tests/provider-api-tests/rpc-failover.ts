@@ -16,6 +16,8 @@ import { buildRootMessenger } from '../helpers';
  * @param args.failure - The failure mock response to use.
  * @param args.isRetriableFailure - Whether the failure gets retried.
  * @param args.getExpectedError - Factory returning the expected error.
+ * @param args.getExpectedBreakError - Factory returning the expected error
+ * upon circuit break. Defaults to using `getExpectedError`.
  */
 export function testsForRpcFailoverBehavior({
   providerType,
@@ -24,6 +26,7 @@ export function testsForRpcFailoverBehavior({
   failure,
   isRetriableFailure,
   getExpectedError,
+  getExpectedBreakError = getExpectedError,
 }: {
   providerType: ProviderType;
   requestToCall: MockRequest;
@@ -31,6 +34,7 @@ export function testsForRpcFailoverBehavior({
   failure: MockResponse | Error | string;
   isRetriableFailure: boolean;
   getExpectedError: (url: string) => Error | jest.Constructable;
+  getExpectedBreakError?: (url: string) => Error | jest.Constructable;
 }) {
   const blockNumber = '0x100';
   const backoffDuration = 100;
@@ -199,7 +203,7 @@ export function testsForRpcFailoverBehavior({
                     chainId,
                     endpointUrl: rpcUrl,
                     failoverEndpointUrl,
-                    error: getExpectedError(rpcUrl),
+                    error: getExpectedBreakError(rpcUrl),
                   },
                 );
               },
@@ -295,7 +299,7 @@ export function testsForRpcFailoverBehavior({
                 ).toHaveBeenNthCalledWith(2, {
                   chainId,
                   endpointUrl: failoverEndpointUrl,
-                  error: getExpectedError(failoverEndpointUrl),
+                  error: getExpectedBreakError(failoverEndpointUrl),
                 });
               },
             );
