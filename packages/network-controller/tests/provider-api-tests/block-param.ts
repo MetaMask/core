@@ -414,7 +414,7 @@ export function testsForRpcMethodSupportingBlockParam(
     });
 
     describe.each([
-      [405, 'The JSON sent is not a valid Request object.'],
+      [405, 'HTTP client error.'],
       [429, 'Request is being rate limited.'],
     ])(
       'if the RPC endpoint returns a %d response',
@@ -459,7 +459,7 @@ export function testsForRpcMethodSupportingBlockParam(
 
     describe('if the RPC endpoint returns a 5xx response that is not 503, or 504', () => {
       const httpStatus = 500;
-      const errorMessage = 'RPC endpoint not found or unavailable';
+      const errorMessage = 'RPC endpoint not found or unavailable.';
 
       it('throws a generic, undescriptive error', async () => {
         await withMockedCommunications({ providerType }, async (comms) => {
@@ -528,7 +528,7 @@ export function testsForRpcMethodSupportingBlockParam(
     describe.each([503, 504])(
       'if the RPC endpoint returns a %d response',
       (httpStatus) => {
-        const errorMessage = 'RPC endpoint not found or unavailable';
+        const errorMessage = 'RPC endpoint not found or unavailable.';
 
         it('retries the request up to 5 times until there is a 200 response', async () => {
           await withMockedCommunications({ providerType }, async (comms) => {
@@ -648,7 +648,7 @@ export function testsForRpcMethodSupportingBlockParam(
           getExpectedError: () =>
             expect.objectContaining({
               message: expect.stringContaining(
-                'RPC endpoint not found or unavailable',
+                'RPC endpoint not found or unavailable.',
               ),
             }),
           getExpectedBreakError: () =>

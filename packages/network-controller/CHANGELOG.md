@@ -12,9 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved error handling in RPC service with more specific error types ([#5843](https://github.com/MetaMask/core/pull/5843)):
   - 401 responses now throw an "Unauthorized" error
   - 402/404/5xx responses now throw a "Resource Unavailable" error
-  - 501 responses now throw a "Method Not Found" error
   - 429 responses now throw a "Rate Limiting" error
-  - Other 4xx responses now throw an "Invalid Request" error
+  - Other 4xx responses now throw a generic HTTP client error
   - Invalid JSON responses now throw a "Parse" error
 
 ## [23.5.0]
