@@ -17,14 +17,8 @@ import type { Hex } from '@metamask/utils';
  * The type of address.
  */
 export enum AddressType {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   externallyOwnedAccounts = 'EXTERNALLY_OWNED_ACCOUNTS',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   contractAccounts = 'CONTRACT_ACCOUNTS',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   nonAccounts = 'NON_ACCOUNTS',
 }
 
@@ -58,23 +52,6 @@ export type AddressBookEntry = {
 };
 
 /**
- * Sync metadata interface used for contacts syncing.
- * This is used by the UserStorageController and not stored in address book.
- */
-type SyncMetadata = {
-  deleted?: boolean;
-  deletedAt?: number;
-  lastUpdatedAt?: number;
-};
-
-/**
- * Address book entry with sync metadata
- */
-export type AddressBookEntryWithSyncMetadata = {
-  _syncMetadata?: SyncMetadata;
-} & AddressBookEntry;
-
-/**
  * AddressBookState
  *
  * Address book controller state
@@ -104,6 +81,14 @@ export type AddressBookControllerGetStateAction = ControllerGetStateAction<
 export type AddressBookControllerListAction = {
   type: `${typeof controllerName}:list`;
   handler: AddressBookController['list'];
+};
+
+/**
+ * The action that can be performed to import contacts from sync in the {@link AddressBookController}.
+ */
+export type AddressBookControllerImportContactsFromSyncAction = {
+  type: `${typeof controllerName}:importContactsFromSync`;
+  handler: AddressBookController['importContactsFromSync'];
 };
 
 /**
@@ -145,7 +130,8 @@ export type AddressBookControllerActions =
   | AddressBookControllerGetStateAction
   | AddressBookControllerListAction
   | AddressBookControllerSetAction
-  | AddressBookControllerDeleteAction;
+  | AddressBookControllerDeleteAction
+  | AddressBookControllerImportContactsFromSyncAction;
 
 /**
  * The event that {@link AddressBookController} can emit.
@@ -368,6 +354,40 @@ export class AddressBookController extends BaseController<
       `${controllerName}:delete`,
       this.delete.bind(this),
     );
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:importContactsFromSync`,
+      this.importContactsFromSync.bind(this),
+    );
+  }
+
+  /**
+   * Import contacts from sync, used during sync operations
+   * This method adds or updates multiple contacts at once
+   *
+   * @param contacts - Array of contacts to import
+   * @returns Boolean indicating import success
+   */
+  importContactsFromSync(contacts: AddressBookEntry[]): boolean {
+    if (!contacts || contacts.length === 0) {
+      return false;
+    }
+
+    // Process each contact and add it to the addressBook
+    let allSuccessful = true;
+    for (const contact of contacts) {
+      const success = this.set(
+        contact.address,
+        contact.name,
+        contact.chainId,
+        contact.memo,
+        contact.addressType,
+      );
+      if (!success) {
+        allSuccessful = false;
+      }
+    }
+
+    return allSuccessful;
   }
 }
 

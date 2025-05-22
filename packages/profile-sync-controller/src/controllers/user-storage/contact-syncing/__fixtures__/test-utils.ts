@@ -1,4 +1,7 @@
-import type { AddressBookEntry } from '@metamask/address-book-controller';
+import type {
+  AddressBookEntry,
+  AddressType,
+} from '@metamask/address-book-controller';
 import type {
   ActionConstraint,
   EventConstraint,
@@ -31,16 +34,45 @@ export function mockUserStorageMessengerForContactSyncing(options?: {
   };
   baseMessenger: MessengerImpl<ActionConstraint, EventConstraint>;
   mockAddressBookList: jest.Mock;
-  mockAddressBookImportContactsFromSync: jest.Mock;
+  mockAddressBookSet: jest.Mock;
+  mockAddressBookDelete: jest.Mock;
+  contactsUpdatedFromSync: AddressBookEntry[]; // Track contacts that were updated via sync
 } {
   // Start with a fresh messenger mock
   const baseMessenger = new MessengerImpl();
+
+  // Contacts that are synced/updated will be stored here for test inspection
+  const contactsUpdatedFromSync: AddressBookEntry[] = [];
 
   // Create our address book specific mocks
   const mockAddressBookList = jest.fn().mockImplementation(() => {
     return options?.addressBook?.contactsList || MOCK_LOCAL_CONTACTS.ONE;
   });
-  const mockAddressBookImportContactsFromSync = jest.fn();
+
+  const mockAddressBookSet = jest
+    .fn()
+    .mockImplementation(
+      (
+        address: string,
+        name: string,
+        chainId: string,
+        memo: string,
+        addressType?: AddressType,
+      ) => {
+        // Store the contact being set for later inspection
+        contactsUpdatedFromSync.push({
+          address,
+          name,
+          chainId: chainId as `0x${string}`,
+          memo,
+          isEns: false,
+          addressType,
+        });
+        return true;
+      },
+    );
+
+  const mockAddressBookDelete = jest.fn().mockImplementation(() => true);
 
   // Create a complete mock implementation
   const messenger = {
@@ -49,8 +81,11 @@ export function mockUserStorageMessengerForContactSyncing(options?: {
       if (method === 'AddressBookController:list') {
         return mockAddressBookList(...args);
       }
-      if (method === 'AddressBookController:importContactsFromSync') {
-        return mockAddressBookImportContactsFromSync(...args);
+      if (method === 'AddressBookController:set') {
+        return mockAddressBookSet(...args);
+      }
+      if (method === 'AddressBookController:delete') {
+        return mockAddressBookDelete(...args);
       }
 
       // Common methods needed by the controller
@@ -102,7 +137,9 @@ export function mockUserStorageMessengerForContactSyncing(options?: {
     messenger,
     baseMessenger,
     mockAddressBookList,
-    mockAddressBookImportContactsFromSync,
+    mockAddressBookSet,
+    mockAddressBookDelete,
+    contactsUpdatedFromSync,
   };
 }
 

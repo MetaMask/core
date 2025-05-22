@@ -151,10 +151,8 @@ describe('user-storage/contact-syncing/controller-integration - syncContactsWith
     expect(onContactUpdated).not.toHaveBeenCalled();
     expect(onContactDeleted).not.toHaveBeenCalled();
 
-    // Assert that importContactsFromSync wasn't called since we're only uploading
-    expect(
-      messengerMocks.mockAddressBookImportContactsFromSync,
-    ).not.toHaveBeenCalled();
+    // Assert that set wasn't called since we're only uploading to remote
+    expect(messengerMocks.mockAddressBookSet).not.toHaveBeenCalled();
   });
 
   it('imports remote contacts to local if local is empty (e.g. new device)', async () => {
@@ -192,10 +190,15 @@ describe('user-storage/contact-syncing/controller-integration - syncContactsWith
       options as any,
     );
 
-    // Assert that importContactsFromSync was called with the remote contacts
-    expect(
-      messengerMocks.mockAddressBookImportContactsFromSync,
-    ).toHaveBeenCalled();
+    // Assert that set was called to add the remote contacts
+    expect(messengerMocks.mockAddressBookSet).toHaveBeenCalled();
+
+    // Verify that the remote contact was added
+    expect(messengerMocks.contactsUpdatedFromSync.length).toBeGreaterThan(0);
+    const importedContact = messengerMocks.contactsUpdatedFromSync.find(
+      (c) => c.address.toLowerCase() === remoteContacts[0].a.toLowerCase(),
+    );
+    expect(importedContact).toBeDefined();
 
     expect(onContactUpdated).toHaveBeenCalled();
   });
@@ -256,9 +259,7 @@ describe('user-storage/contact-syncing/controller-integration - syncContactsWith
     expect(updatedContact.n).toBe('Local Name'); // Should use local name
 
     // No contacts should be imported locally
-    expect(
-      messengerMocks.mockAddressBookImportContactsFromSync,
-    ).not.toHaveBeenCalled();
+    expect(messengerMocks.mockAddressBookSet).not.toHaveBeenCalled();
   });
 
   it('resolves conflicts by using the most recent timestamp (remote wins when newer)', async () => {
@@ -300,22 +301,16 @@ describe('user-storage/contact-syncing/controller-integration - syncContactsWith
     );
 
     // Verify remote version was preferred (remote wins by timestamp)
-    // The remote contact should be imported locally
-    expect(
-      messengerMocks.mockAddressBookImportContactsFromSync,
-    ).toHaveBeenCalled();
+    // The remote contact should be imported locally using set
+    expect(messengerMocks.mockAddressBookSet).toHaveBeenCalled();
 
-    const importedContacts =
-      messengerMocks.mockAddressBookImportContactsFromSync.mock.calls[0][0];
-
-    // Find contact by address (case-insensitive)
-    const importedContact = importedContacts.find(
-      (c: any) =>
-        c.address.toLowerCase() === localContact.address.toLowerCase(),
+    // Find the contact that was set by its address
+    const importedContact = messengerMocks.contactsUpdatedFromSync.find(
+      (c) => c.address.toLowerCase() === localContact.address.toLowerCase(),
     );
 
     expect(importedContact).toBeDefined();
-    expect(importedContact.name).toBe('Remote Name'); // Should use remote name
+    expect(importedContact?.name).toBe('Remote Name'); // Should use remote name
   });
 
   it('syncs local deletions to remote storage', async () => {
@@ -430,19 +425,8 @@ describe('user-storage/contact-syncing/controller-integration - syncContactsWith
       options as unknown as ContactSyncingOptions,
     );
 
-    // Assert: importContactsFromSync was called with a deleted contact
-    expect(
-      messengerMocks.mockAddressBookImportContactsFromSync,
-    ).toHaveBeenCalled();
-
-    // Assert: Extract the contacts passed to importContactsFromSync
-    const importedContacts =
-      messengerMocks.mockAddressBookImportContactsFromSync.mock.calls[0][0];
-
-    // Assert: at least one of the imported contacts has deleted=true in _syncMetadata
-    expect(
-      importedContacts.some((c: any) => c._syncMetadata?.deleted === true),
-    ).toBe(true);
+    // Assert: 'delete' was called for the remote deletion
+    expect(messengerMocks.mockAddressBookDelete).toHaveBeenCalled();
 
     // Assert: the deletion callback was called
     expect(onContactDeleted).toHaveBeenCalled();
