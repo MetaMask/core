@@ -249,7 +249,7 @@ export class AddressBookController extends BaseController<
     const deletedEntry = { ...this.state.addressBook[chainId][address] };
 
     this.update((state) => {
-      if (state.addressBook[chainId] && state.addressBook[chainId][address]) {
+      if (state.addressBook[chainId]?.[address]) {
         delete state.addressBook[chainId][address];
 
         // Clean up empty chainId objects
