@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/406.0.0 ([#5845](https://github.com/MetaMask/core/pull/5845))
+- Release 400.0.0 ([#5815](https://github.com/MetaMask/core/pull/5815))
+
 ### Changed
 
 - Added optional`account` parameter to `fetchHistoricalPricesForAsset` method in `MultichainAssetsRatesController` ([#5833](https://github.com/MetaMask/core/pull/5833))
