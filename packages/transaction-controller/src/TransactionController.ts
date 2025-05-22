@@ -1061,6 +1061,7 @@ export class TransactionController extends BaseController<
           chainId: this.#getChainId(networkClientId),
           networkClientId,
         }),
+      update: this.update.bind(this),
     });
   }
 

@@ -7,6 +7,7 @@ import type EthQuery from '@metamask/eth-query';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { bytesToHex, createModuleLogger } from '@metamask/utils';
+import type { WritableDraft } from 'immer/dist/internal.js';
 import { parse, v4 } from 'uuid';
 
 import {
@@ -20,7 +21,9 @@ import {
   getEIP7702SupportedChains,
   getEIP7702UpgradeContractAddress,
 } from './feature-flags';
+import { simulateGasBatch } from './gas';
 import { validateBatchRequest } from './validation';
+import type { TransactionControllerState } from '..';
 import {
   determineTransactionType,
   type BatchTransactionParams,
@@ -52,6 +55,12 @@ import {
   TransactionType,
 } from '../types';
 
+type UpdateBatchMetadata = (
+  callback: (
+    state: WritableDraft<TransactionControllerState>,
+  ) => void | TransactionControllerState,
+) => void;
+
 type AddTransactionBatchRequest = {
   addTransaction: TransactionController['addTransaction'];
   getChainId: (networkClientId: string) => Hex;
@@ -73,6 +82,7 @@ type AddTransactionBatchRequest = {
   getPendingTransactionTracker: (
     networkClientId: string,
   ) => PendingTransactionTracker;
+  update: UpdateBatchMetadata;
 };
 
 type IsAtomicBatchSupportedRequestInternal = {
@@ -376,11 +386,12 @@ async function addTransactionBatchWithHook(
     networkClientId,
     origin,
     requireApproval,
-    transactions: nestedTransactions,
+    transactions: transactionBatches,
     useHook,
   } = userRequest;
 
   let resultCallbacks: AcceptResultCallbacks | undefined;
+  let nestedTransactions: TransactionBatchSingleRequest[] = transactionBatches;
 
   log('Adding transaction batch using hook', userRequest);
 
@@ -399,23 +410,41 @@ async function addTransactionBatchWithHook(
   const transactionCount = nestedTransactions.length;
   const collectHook = new CollectPublishHook(transactionCount);
   try {
+    console.log('Collecting publish hook >>>>', requireApproval, useHook);
     if (requireApproval && useHook) {
+      const { gasLimit, transactions: transactionsWithGas } =
+        await simulateGasBatch({
+          chainId,
+          from,
+          transactions: nestedTransactions,
+        });
+
+      console.log('1 nestedTransactions before >>>>', nestedTransactions);
+      // resigned the transactions with simulated gas
+      nestedTransactions = transactionsWithGas;
+
+      console.log('transactions simulated >>>>', transactionsWithGas);
       const txBatchMeta = newBatchMetadata({
         id: batchId,
         chainId,
         networkClientId,
         transactions: nestedTransactions,
         origin,
+        from,
+        gas: gasLimit,
       });
+
+      addBatchMetadata(txBatchMeta, request.update);
 
       resultCallbacks = (await requestApproval(txBatchMeta, messenger))
         .resultCallbacks;
+      console.log('resultCallbacks >>>>', resultCallbacks);
     }
 
     const publishHook = collectHook.getHook();
     const hookTransactions: Omit<PublishBatchHookTransaction, 'signedTx'>[] =
       [];
-
+    console.log('1 >>>>', nestedTransactions);
     for (const nestedTransaction of nestedTransactions) {
       const hookTransaction = await processTransactionWithHook(
         batchId,
@@ -426,8 +455,10 @@ async function addTransactionBatchWithHook(
 
       hookTransactions.push(hookTransaction);
     }
+    console.log('1.5 >>>>');
 
     const { signedTransactions } = await collectHook.ready();
+    console.log('2 signedTransactions >>>>', signedTransactions);
 
     const transactions = hookTransactions.map((transaction, index) => ({
       ...transaction,
@@ -435,6 +466,11 @@ async function addTransactionBatchWithHook(
     }));
 
     log('Calling publish batch hook', { from, networkClientId, transactions });
+    console.log('Calling publish batch hook', {
+      from,
+      networkClientId,
+      transactions,
+    });
 
     const result = await publishBatchHook({
       from,
@@ -443,6 +479,7 @@ async function addTransactionBatchWithHook(
     });
 
     log('Publish batch hook result', result);
+    console.log('Publish batch hook result', result);
 
     if (!result) {
       throw new Error('Publish batch hook did not return a result');
@@ -454,6 +491,7 @@ async function addTransactionBatchWithHook(
 
     collectHook.success(transactionHashes);
     resultCallbacks?.success();
+    console.log('called successs', resultCallbacks);
 
     log('Completed batch transaction with hook', transactionHashes);
 
@@ -496,6 +534,7 @@ async function processTransactionWithHook(
 
   const { from, networkClientId } = userRequest;
 
+  console.log('existingTransaction >>>>', existingTransaction);
   if (existingTransaction) {
     const { id, onPublish, signedTransaction } = existingTransaction;
     const transactionMeta = getTransaction(id);
@@ -511,6 +550,10 @@ async function processTransactionWithHook(
       });
 
     log('Processed existing transaction with hook', {
+      id,
+      params,
+    });
+    console.log('Processed existing transaction with hook', {
       id,
       params,
     });
@@ -592,26 +635,49 @@ async function requestApproval(
 /**
  * Create a new batch metadata object.
  *
- * @param options - The options for creating a new batch metadata object.
- * @param options.id - The ID of the transaction batch.
- * @param options.chainId - The chain ID of the transaction batch.
- * @param options.networkClientId - The network client ID of the transaction batch.
- * @param options.transactions - The transactions in the batch.
- * @param options.origin - The origin of the transaction batch.
+ * @param transactionBatchMeta - The transaction batch metadata object to be created.
  * @returns A new TransactionBatchMeta object.
  */
-function newBatchMetadata({
-  id,
-  chainId,
-  networkClientId,
-  transactions,
-  origin,
-}: TransactionBatchMeta): TransactionBatchMeta {
+function newBatchMetadata(
+  transactionBatchMeta: Omit<TransactionBatchMeta, 'time'>,
+): TransactionBatchMeta {
   return {
-    id,
-    chainId,
-    networkClientId,
-    transactions,
-    origin,
+    ...transactionBatchMeta,
+    time: Date.now(),
   };
+}
+
+/**
+ * Adds batch metadata to the transaction controller state.
+ *
+ * @param transactionBatchMeta - The transaction batch metadata to be added.
+ * @param update - The update function to modify the transaction controller state.
+ */
+function addBatchMetadata(
+  transactionBatchMeta: TransactionBatchMeta,
+  update: UpdateBatchMetadata,
+) {
+  update((state: WritableDraft<TransactionControllerState>) => {
+    state.transactionBatches = trimTransactionBatchesForState([
+      ...state.transactionBatches,
+      transactionBatchMeta,
+    ]);
+  });
+}
+
+/**
+ * Trims the transaction batches to respect the transaction history limit.
+ *
+ * @param transactionBatches - The array of transaction batches.
+ * @param transactionHistoryLimit - The maximum number of transaction batches to keep.
+ * @returns The trimmed array of transaction batches.
+ */
+function trimTransactionBatchesForState(
+  transactionBatches: TransactionBatchMeta[],
+  transactionHistoryLimit: number = 10,
+): TransactionBatchMeta[] {
+  return [...transactionBatches]
+    .sort((a, b) => (a.time > b.time ? -1 : 1))
+    .slice(0, transactionHistoryLimit)
+    .reverse();
 }
