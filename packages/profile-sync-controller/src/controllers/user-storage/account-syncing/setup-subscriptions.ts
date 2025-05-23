@@ -12,27 +12,11 @@ export function setupAccountSyncingSubscriptions(
 ) {
   const { getMessenger, getUserStorageControllerInstance } = options;
 
-  getMessenger().subscribe(
-    'AccountsController:accountAdded',
-
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    async (account) => {
-      if (
-        !canPerformAccountSyncing(options) ||
-        !getUserStorageControllerInstance().state
-          .hasAccountSyncingSyncedAtLeastOnce
-      ) {
-        return;
-      }
-
-      await saveInternalAccountToUserStorage(account, options);
-    },
-  );
-
+  // We don't listen to `AccountsController:accountAdded`
+  // because it publishes `AccountsController:accountRenamed` in any case.
   getMessenger().subscribe(
     'AccountsController:accountRenamed',
 
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     async (account) => {
       if (
         !canPerformAccountSyncing(options) ||
