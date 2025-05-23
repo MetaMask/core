@@ -7,7 +7,8 @@
     { "path": "../base-controller" },
     { "path": "../keyring-controller" },
     { "path": "../accounts-controller" },
-    { "path": "../network-controller" }
+    { "path": "../network-controller" },
+    { "path": "../address-book-controller" }
   ],
   "include": ["../../types", "./src"]
 }
