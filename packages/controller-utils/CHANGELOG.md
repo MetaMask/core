@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.10.0]
+
+### Added
+
+- Add `Hoodi` (testnet for ethereum) to list of test networks supported.
+
 ## [11.9.0]
 
 ### Added

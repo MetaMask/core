@@ -54,6 +54,7 @@ export const INFURA_NETWORKS = [
   InfuraNetworkType.sepolia,
   InfuraNetworkType['linea-mainnet'],
   InfuraNetworkType['linea-sepolia'],
+  InfuraNetworkType.hoodi
 ];
 
 /**

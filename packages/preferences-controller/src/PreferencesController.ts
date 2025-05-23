@@ -219,6 +219,7 @@ export function getDefaultPreferencesState(): PreferencesState {
       [ETHERSCAN_SUPPORTED_CHAIN_IDS.MOONBEAM_TESTNET]: true,
       [ETHERSCAN_SUPPORTED_CHAIN_IDS.MOONRIVER]: true,
       [ETHERSCAN_SUPPORTED_CHAIN_IDS.GNOSIS]: true,
+      [ETHERSCAN_SUPPORTED_CHAIN_IDS.HOODI]: true,
     },
     showTestNetworks: false,
     useNftDetection: false,
