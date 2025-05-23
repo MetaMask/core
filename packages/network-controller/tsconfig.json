@@ -5,18 +5,11 @@
     "rootDir": "../.."
   },
   "references": [
-    {
-      "path": "../base-controller"
-    },
-    {
-      "path": "../controller-utils"
-    },
-    {
-      "path": "../eth-json-rpc-provider"
-    },
-    {
-      "path": "../json-rpc-engine"
-    }
+    { "path": "../base-controller" },
+    { "path": "../controller-utils" },
+    { "path": "../eth-json-rpc-provider" },
+    { "path": "../json-rpc-engine" },
+    { "path": "../error-reporting-service" }
   ],
   "include": ["../../types", "../../tests", "./src", "./tests"]
 }

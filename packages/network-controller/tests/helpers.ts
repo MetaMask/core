@@ -12,6 +12,10 @@ import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { FakeProvider } from '../../../tests/fake-provider';
 import type { FakeProviderStub } from '../../../tests/fake-provider';
 import { buildTestObject } from '../../../tests/helpers';
+import type {
+  ExtractAvailableAction,
+  ExtractAvailableEvent,
+} from '../../base-controller/tests/helpers';
 import {
   type BuiltInNetworkClientId,
   type CustomNetworkClientId,
@@ -27,8 +31,6 @@ import type {
   AddNetworkFields,
   CustomRpcEndpoint,
   InfuraRpcEndpoint,
-  NetworkControllerActions,
-  NetworkControllerEvents,
   NetworkControllerMessenger,
   UpdateNetworkCustomRpcEndpointFields,
 } from '../src/NetworkController';
@@ -40,8 +42,8 @@ import type {
 import { NetworkClientType } from '../src/types';
 
 export type RootMessenger = Messenger<
-  NetworkControllerActions,
-  NetworkControllerEvents
+  ExtractAvailableAction<NetworkControllerMessenger>,
+  ExtractAvailableEvent<NetworkControllerMessenger>
 >;
 
 /**
@@ -73,7 +75,7 @@ export const TESTNET = {
  * @returns The messenger.
  */
 export function buildRootMessenger(): RootMessenger {
-  return new Messenger<NetworkControllerActions, NetworkControllerEvents>();
+  return new Messenger();
 }
 
 /**
@@ -87,7 +89,7 @@ export function buildNetworkControllerMessenger(
 ): NetworkControllerMessenger {
   return messenger.getRestricted({
     name: 'NetworkController',
-    allowedActions: [],
+    allowedActions: ['ErrorReportingService:captureException'],
     allowedEvents: [],
   });
 }
