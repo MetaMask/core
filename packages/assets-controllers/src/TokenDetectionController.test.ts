@@ -182,6 +182,7 @@ function buildTokenDetectionControllerMessenger(
       'NetworkController:networkDidChange',
       'TokenListController:stateChange',
       'PreferencesController:stateChange',
+      'TransactionController:transactionConfirmed',
     ],
   });
 }
