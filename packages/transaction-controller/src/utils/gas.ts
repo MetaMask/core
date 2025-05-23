@@ -8,12 +8,14 @@ import {
 import type EthQuery from '@metamask/eth-query';
 import type { Hex } from '@metamask/utils';
 import { add0x, createModuleLogger, remove0x } from '@metamask/utils';
+import { BN } from 'bn.js';
 
 import { DELEGATION_PREFIX } from './eip7702';
 import { getGasEstimateBuffer, getGasEstimateFallback } from './feature-flags';
 import { simulateTransactions } from '../api/simulation-api';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
+import type { TransactionBatchSingleRequest } from '../types';
 import {
   TransactionEnvelopeType,
   type TransactionMeta,
@@ -198,6 +200,66 @@ export function addGasBuffer(
   const maxHex = add0x(BNToHex(maxGasBN));
   log('Using 90% of block gas limit', maxHex);
   return maxHex;
+}
+
+/**
+ * Simulate the required gas for a batch of transactions using the simulation API.
+ *
+ * @param options - The options object.
+ * @param options.chainId - The chain ID of the transactions.
+ * @param options.from - The address of the sender.
+ * @param options.transactions - The array of transactions within a batch request.
+ * @returns An object containing the transactions with their gas limits and the total gas limit.
+ */
+export async function simulateGasBatch({
+  chainId,
+  from,
+  transactions,
+}: {
+  chainId: Hex;
+  from: Hex;
+  transactions: TransactionBatchSingleRequest[];
+}): Promise<{ transactions: TransactionBatchSingleRequest[]; gasLimit: Hex }> {
+  const response = await simulateTransactions(chainId, {
+    transactions: transactions.map((transaction) => ({
+      ...transaction.params,
+      from,
+    })),
+  });
+
+  if (
+    !response?.transactions ||
+    response.transactions.length !== transactions.length
+  ) {
+    throw new Error(
+      'Simulated gas response does not match the number of transactions',
+    );
+  }
+
+  let totalGasLimit = new BN(0);
+
+  const transactionsWithGasLimit = transactions.map((transaction, index) => {
+    const gasLimit = response.transactions[index]?.gasLimit;
+
+    if (!gasLimit) {
+      throw new Error(`No simulated gas returned`);
+    }
+
+    totalGasLimit = totalGasLimit.add(hexToBN(gasLimit));
+
+    return {
+      ...transaction,
+      params: {
+        ...transaction.params,
+        gas: gasLimit,
+      },
+    };
+  });
+
+  return {
+    transactions: transactionsWithGasLimit,
+    gasLimit: BNToHex(totalGasLimit), // Return the total gas limit as a hex string
+  };
 }
 
 /**

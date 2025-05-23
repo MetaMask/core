@@ -21,6 +21,7 @@ import {
   getEIP7702SupportedChains,
   getEIP7702UpgradeContractAddress,
 } from './feature-flags';
+import { simulateGasBatch } from './gas';
 import { validateBatchRequest } from './validation';
 import type { TransactionControllerState } from '..';
 import {
@@ -386,11 +387,12 @@ async function addTransactionBatchWithHook(
     networkClientId,
     origin,
     requireApproval,
-    transactions: nestedTransactions,
+    transactions: transactionBatches,
     useHook,
   } = userRequest;
 
   let resultCallbacks: AcceptResultCallbacks | undefined;
+  let nestedTransactions: TransactionBatchSingleRequest[] = transactionBatches;
 
   log('Adding transaction batch using hook', userRequest);
 
@@ -410,14 +412,25 @@ async function addTransactionBatchWithHook(
   const collectHook = new CollectPublishHook(transactionCount);
   try {
     if (requireApproval && useHook) {
+      const { gasLimit, transactions: transactionsWithGas } =
+        await simulateGasBatch({
+          chainId,
+          from,
+          transactions: nestedTransactions,
+        });
+
+      // resigned the transactions with simulated gas
+      nestedTransactions = transactionsWithGas;
+
       const txBatchMeta = newBatchMetadata({
         id: batchId,
         chainId,
         networkClientId,
         transactions: nestedTransactions,
         origin,
+        from,
+        gas: gasLimit,
       });
-
       addBatchMetadata(txBatchMeta, update);
 
       resultCallbacks = (await requestApproval(txBatchMeta, messenger))
@@ -607,28 +620,13 @@ async function requestApproval(
 /**
  * Create a new batch metadata object.
  *
- * @param options - The options for creating a new batch metadata object.
- * @param options.id - The ID of the transaction batch.
- * @param options.chainId - The chain ID of the transaction batch.
- * @param options.networkClientId - The network client ID of the transaction batch.
- * @param options.transactions - The transactions in the batch.
- * @param options.origin - The origin of the transaction batch.
+ * @param transactionBatchMeta - The transaction batch metadata object to be created.
  * @returns A new TransactionBatchMeta object.
  */
-function newBatchMetadata({
-  id,
-  chainId,
-  networkClientId,
-  transactions,
-  origin,
-}: TransactionBatchMeta): TransactionBatchMeta {
-  return {
-    id,
-    chainId,
-    networkClientId,
-    transactions,
-    origin,
-  };
+function newBatchMetadata(
+  transactionBatchMeta: TransactionBatchMeta,
+): TransactionBatchMeta {
+  return transactionBatchMeta;
 }
 
 /**
