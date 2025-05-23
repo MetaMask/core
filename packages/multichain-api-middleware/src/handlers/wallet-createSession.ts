@@ -175,10 +175,6 @@ async function walletCreateSessionHandler(
       supportedOptionalScopes,
     ]);
 
-    if (allSupportedRequestedCaipChainIds.length === 0) {
-      return end(new JsonRpcError(5100, 'Requested scopes are not supported'));
-    }
-
     const existingEvmAddresses = hooks
       .listAccounts()
       .map((account) => account.address);

@@ -1183,5 +1183,115 @@ describe('wallet_createSession', () => {
         { metadata: { promptToCreateSolanaAccount: false } },
       );
     });
+
+    it('adds a wallet scope when solana is requested with no accounts and no other valid scopes exist', async () => {
+      const {
+        handler,
+        requestPermissionsForOrigin,
+        getNonEvmAccountAddresses,
+      } = createMockedHandler();
+
+      getNonEvmAccountAddresses.mockReturnValue([]);
+
+      MockChainAgnosticPermission.validateAndNormalizeScopes.mockReturnValue({
+        normalizedRequiredScopes: {},
+        normalizedOptionalScopes: {
+          [MultichainNetwork.Solana]: {
+            methods: [],
+            notifications: [],
+            accounts: [],
+          },
+        },
+      });
+
+      MockChainAgnosticPermission.bucketScopes
+        .mockReturnValueOnce({
+          supportedScopes: {},
+          supportableScopes: {},
+          unsupportableScopes: {},
+        })
+        .mockReturnValueOnce({
+          supportedScopes: {},
+          supportableScopes: {},
+          unsupportableScopes: {},
+        });
+
+      await handler(baseRequestWithSolanaScope);
+
+      expect(requestPermissionsForOrigin).toHaveBeenCalledWith(
+        {
+          [Caip25EndowmentPermissionName]: {
+            caveats: [
+              {
+                type: Caip25CaveatType,
+                value: {
+                  requiredScopes: {},
+                  optionalScopes: {
+                    wallet: {
+                      accounts: [],
+                    },
+                  },
+                  isMultichainOrigin: true,
+                  sessionProperties: {
+                    [KnownSessionProperties.SolanaAccountChangedNotifications]:
+                      true,
+                  },
+                },
+              },
+            ],
+          },
+        },
+        { metadata: { promptToCreateSolanaAccount: true } },
+      );
+    });
+
+    it('returns error when no scopes are supported and solana is not requested', async () => {
+      const { handler, end } = createMockedHandler();
+
+      // Request with no valid scopes
+      const requestWithNoValidScopes = {
+        jsonrpc: '2.0' as const,
+        id: 0,
+        method: 'wallet_createSession',
+        origin: 'http://test.com',
+        params: {
+          requiredScopes: {
+            'unsupported:chain': {
+              methods: ['someMethod'],
+              notifications: [],
+            },
+          },
+        },
+      };
+
+      MockChainAgnosticPermission.validateAndNormalizeScopes.mockReturnValue({
+        normalizedRequiredScopes: {
+          'unsupported:chain': {
+            methods: ['someMethod'],
+            notifications: [],
+            accounts: [],
+          },
+        },
+        normalizedOptionalScopes: {},
+      });
+
+      MockChainAgnosticPermission.bucketScopes
+        .mockReturnValueOnce({
+          supportedScopes: {},
+          supportableScopes: {},
+          unsupportableScopes: {},
+        })
+        .mockReturnValueOnce({
+          supportedScopes: {},
+          supportableScopes: {},
+          unsupportableScopes: {},
+        });
+
+      await handler(requestWithNoValidScopes);
+
+      expect(end).toHaveBeenCalledWith(
+        new JsonRpcError(5100, 'Requested scopes are not supported'),
+      );
+    });
   });
 });
