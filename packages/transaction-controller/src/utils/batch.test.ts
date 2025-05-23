@@ -1375,7 +1375,7 @@ describe('Batch Utils', () => {
           ...request,
           publishBatchHook: undefined,
           messenger: MESSENGER_MOCK,
-          request: { ...request.request, useHook: true, origin },
+          request: { ...request.request, useHook: true, origin: ORIGIN_MOCK },
         }).catch(() => {
           // Intentionally empty
         });

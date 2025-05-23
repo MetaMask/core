@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add optional approval request when calling `addTransactionBatch` ([#5793](https://github.com/MetaMask/core/pull/5793))
   - Add `transactionBatches` array to state.
   - Add `TransactionBatchMeta` type.
+  - Add `addBatchMetadata` to store batch metadata and `wipeTransactionBatches` to clean up state after batch hook completion.
 - Add sequential batch support when `publishBatchHook` is not defined ([#5762](https://github.com/MetaMask/core/pull/5762))
 
 ### Fixed
