@@ -1,3 +1,4 @@
+import { Minipass } from 'minipass';
 import { ok } from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { createWriteStream } from 'node:fs';
@@ -6,12 +7,12 @@ import { Agent as HttpAgent } from 'node:http';
 import { Agent as HttpsAgent } from 'node:https';
 import { join, basename, extname, relative } from 'node:path';
 import { pipeline } from 'node:stream/promises';
-import { Minipass } from 'minipass';
 import { extract as extractTar } from 'tar';
 import { Open, type Source, type Entry } from 'unzipper';
-import { say } from './utils';
+
 import { startDownload } from './download';
-import { Extension, Binary } from './types';
+import { Extension, type Binary } from './types';
+import { say } from './utils';
 
 /**
  * Extracts the binaries from the given URL and writes them to the destination.
@@ -23,6 +24,15 @@ import { Extension, Binary } from './types';
  * @returns The list of binaries extracted
  */
 
+/**
+ * Extracts the binaries from the given URL and writes them to the destination.
+ *
+ * @param url - The URL of the archive to extract the binaries from
+ * @param binaries - The list of binaries to extract
+ * @param dir - The destination directory
+ * @param checksums - The checksums to verify the binaries against
+ * @returns The list of binaries extracted
+ */
 export async function extractFrom(
   url: URL,
   binaries: Binary[],
@@ -106,6 +116,15 @@ export async function extractFrom(
  * @returns The list of binaries extracted
  */
 
+/**
+ * Extracts the binaries from a tar archive.
+ *
+ * @param url - The URL of the archive to extract the binaries from
+ * @param binaries - The list of binaries to extract
+ * @param dir - The destination directory
+ * @param checksumAlgorithm - The checksum algorithm to use
+ * @returns The list of binaries extracted
+ */
 async function extractFromTar(
   url: URL,
   binaries: Binary[],
@@ -165,7 +184,6 @@ async function extractFromTar(
  * @param checksumAlgorithm - The checksum algorithm to use
  * @returns The list of binaries extracted
  */
-
 async function extractFromZip(
   url: URL,
   binaries: Binary[],
