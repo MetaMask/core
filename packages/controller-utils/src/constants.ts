@@ -50,6 +50,7 @@ export const TESTNET_TICKER_SYMBOLS = {
   LINEA_GOERLI: 'LineaETH',
   LINEA_SEPOLIA: 'LineaETH',
   MEGAETH_TESTNET: 'MegaETH',
+  HOODI: 'HoodiETH'
 };
 
 /**
@@ -124,6 +125,13 @@ export const BUILT_IN_NETWORKS = {
       blockExplorerUrl: BlockExplorerUrl['monad-testnet'],
     },
   },
+  [NetworkType.hoodi]: {
+    chainId: ChainId.hoodi,
+    ticker: NetworksTicker.hoodi,
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl.hoodi,
+    },
+  },
   [NetworkType.rpc]: {
     chainId: undefined,
     blockExplorerUrl: undefined,
@@ -186,4 +194,5 @@ export const CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP: Record<
   [ChainId['linea-sepolia']]: BuiltInNetworkName.LineaSepolia,
   [ChainId['linea-mainnet']]: BuiltInNetworkName.LineaMainnet,
   [ChainId.aurora]: BuiltInNetworkName.Aurora,
+  [ChainId.hoodi]: BuiltInNetworkName.Hoodi
 };

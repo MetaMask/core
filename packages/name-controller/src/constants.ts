@@ -21,6 +21,7 @@ export const CHAIN_IDS = {
   MOONBEAM_TESTNET: '0x507',
   MOONRIVER: '0x505',
   GNOSIS: '0x64',
+  HOODI: '0x88A10'
 } as const;
 
 const DEFAULT_ETHERSCAN_DOMAIN = 'etherscan.io';
@@ -38,6 +39,10 @@ export const ETHERSCAN_SUPPORTED_NETWORKS = {
   [CHAIN_IDS.SEPOLIA]: {
     domain: DEFAULT_ETHERSCAN_DOMAIN,
     subdomain: `${DEFAULT_ETHERSCAN_SUBDOMAIN_PREFIX}-sepolia`,
+  },
+  [CHAIN_IDS.HOODI]: {
+    domain: DEFAULT_ETHERSCAN_DOMAIN,
+    subdomain: `${DEFAULT_ETHERSCAN_SUBDOMAIN_PREFIX}-hoodi`
   },
   [CHAIN_IDS.LINEA_GOERLI]: {
     domain: 'lineascan.build',
