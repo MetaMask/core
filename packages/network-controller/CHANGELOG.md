@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 429 responses now throw a "Rate Limiting" error
   - Other 4xx responses now throw a generic HTTP client error
   - Invalid JSON responses now throw a "Parse" error
+- Bump `@metamask/eth-block-tracker` to ^12.0.0, `@metamask/eth-json-rpc-middleware` to ^17.0.1 ([#5860](https://github.com/MetaMask/core/pull/5860))
+  - This fixes the block tracker so that it will now reject if an error is thrown while making the request instead of hanging.
+  - Also, block tracker errors will no longer be wrapped under "PollingBlockTracker - encountered an error while attempting to update latest block".
 
 ## [23.5.0]
 
