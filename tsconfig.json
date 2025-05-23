@@ -23,6 +23,7 @@
     { "path": "./packages/earn-controller" },
     { "path": "./packages/eip1193-permission-middleware" },
     { "path": "./packages/ens-controller" },
+    { "path": "./packages/error-reporting-service" },
     { "path": "./packages/eth-json-rpc-provider" },
     { "path": "./packages/foundryup" },
     { "path": "./packages/gas-fee-controller" },

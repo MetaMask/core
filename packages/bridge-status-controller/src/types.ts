@@ -18,6 +18,7 @@ import type {
   TxData,
 } from '@metamask/bridge-controller';
 import type { GetGasFeeState } from '@metamask/gas-fee-controller';
+import type { MultichainTransactionsControllerTransactionConfirmedEvent } from '@metamask/multichain-transactions-controller';
 import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
@@ -26,6 +27,8 @@ import type {
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type {
   TransactionControllerGetStateAction,
+  TransactionControllerTransactionConfirmedEvent,
+  TransactionControllerTransactionFailedEvent,
   TransactionMeta,
 } from '@metamask/transaction-controller';
 
@@ -316,20 +319,8 @@ export type BridgeStatusControllerStateChangeEvent = ControllerStateChangeEvent<
   BridgeStatusControllerState
 >;
 
-export type BridgeStatusControllerBridgeTransactionCompleteEvent = {
-  type: `${typeof BRIDGE_STATUS_CONTROLLER_NAME}:bridgeTransactionComplete`;
-  payload: [{ bridgeHistoryItem: BridgeHistoryItem }];
-};
-
-export type BridgeStatusControllerBridgeTransactionFailedEvent = {
-  type: `${typeof BRIDGE_STATUS_CONTROLLER_NAME}:bridgeTransactionFailed`;
-  payload: [{ bridgeHistoryItem: BridgeHistoryItem }];
-};
-
 export type BridgeStatusControllerEvents =
-  | BridgeStatusControllerStateChangeEvent
-  | BridgeStatusControllerBridgeTransactionCompleteEvent
-  | BridgeStatusControllerBridgeTransactionFailedEvent;
+  BridgeStatusControllerStateChangeEvent;
 
 /**
  * The external actions available to the BridgeStatusController.
@@ -349,7 +340,10 @@ type AllowedActions =
 /**
  * The external events available to the BridgeStatusController.
  */
-type AllowedEvents = never;
+type AllowedEvents =
+  | MultichainTransactionsControllerTransactionConfirmedEvent
+  | TransactionControllerTransactionFailedEvent
+  | TransactionControllerTransactionConfirmedEvent;
 
 /**
  * The messenger for the BridgeStatusController.

@@ -37,6 +37,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/earn-controller`](packages/earn-controller)
 - [`@metamask/eip1193-permission-middleware`](packages/eip1193-permission-middleware)
 - [`@metamask/ens-controller`](packages/ens-controller)
+- [`@metamask/error-reporting-service`](packages/error-reporting-service)
 - [`@metamask/eth-json-rpc-provider`](packages/eth-json-rpc-provider)
 - [`@metamask/foundryup`](packages/foundryup)
 - [`@metamask/gas-fee-controller`](packages/gas-fee-controller)
@@ -93,6 +94,7 @@ linkStyle default opacity:0.5
   earn_controller(["@metamask/earn-controller"]);
   eip1193_permission_middleware(["@metamask/eip1193-permission-middleware"]);
   ens_controller(["@metamask/ens-controller"]);
+  error_reporting_service(["@metamask/error-reporting-service"]);
   eth_json_rpc_provider(["@metamask/eth-json-rpc-provider"]);
   foundryup(["@metamask/foundryup"]);
   gas_fee_controller(["@metamask/gas-fee-controller"]);
@@ -160,6 +162,7 @@ linkStyle default opacity:0.5
   bridge_status_controller --> accounts_controller;
   bridge_status_controller --> bridge_controller;
   bridge_status_controller --> gas_fee_controller;
+  bridge_status_controller --> multichain_transactions_controller;
   bridge_status_controller --> network_controller;
   bridge_status_controller --> transaction_controller;
   chain_agnostic_permission --> controller_utils;
