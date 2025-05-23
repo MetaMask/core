@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Support leading zeroes in `authorizationList` properties ([#5830](https://github.com/MetaMask/core/pull/5830))
+
 ## [56.2.0]
 
 ### Added
@@ -15,7 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Support leading zeroes in `authorizationList` properties ([#5830](https://github.com/MetaMask/core/pull/5830))
 - Fix `userFeeLevel` as `dappSuggested` initially when dApp suggested gas values for legacy transactions ([#5821](https://github.com/MetaMask/core/pull/5821))
 - Fix `addTransaction` function to correctly identify a transaction as a `simpleSend` type when the recipient is a smart account ([#5822](https://github.com/MetaMask/core/pull/5822))
 - Fix gas fee randomisation with many decimal places ([#5839](https://github.com/MetaMask/core/pull/5839))
