@@ -56,7 +56,7 @@
     "lodash": "^4.17.21"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/auto-changelog": "^5.0.2",
     "@metamask/keyring-internal-api": "^6.0.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",

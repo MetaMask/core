@@ -68,7 +68,7 @@
   },
   "devDependencies": {
     "@json-rpc-specification/meta-schema": "^1.0.6",
-    "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/auto-changelog": "^5.0.2",
     "@types/jest": "^27.4.1",
     "@types/jest-when": "^2.7.3",
     "@types/lodash": "^4.14.191",
@@ -79,6 +79,7 @@
     "lodash": "^4.17.21",
     "nock": "^13.3.1",
     "node-fetch": "^2.7.0",
+    "prettier": "^3.3.3",
     "sinon": "^9.2.4",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",

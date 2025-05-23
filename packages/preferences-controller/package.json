@@ -51,7 +51,7 @@
     "@metamask/controller-utils": "^11.9.0"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/auto-changelog": "^5.0.2",
     "@metamask/keyring-controller": "^22.0.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",

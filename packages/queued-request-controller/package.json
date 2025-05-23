@@ -55,7 +55,7 @@
     "@metamask/utils": "^11.2.0"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/auto-changelog": "^5.0.2",
     "@metamask/network-controller": "^23.5.0",
     "@metamask/selected-network-controller": "^22.1.0",
     "@types/jest": "^27.4.1",

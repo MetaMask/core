@@ -62,7 +62,7 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/auto-changelog": "^5.0.2",
     "@metamask/keyring-controller": "^22.0.0",
     "@metamask/network-controller": "^23.5.0",
     "@metamask/providers": "^21.0.0",
@@ -70,6 +70,7 @@
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",
     "jest": "^27.5.1",
+    "prettier": "^3.3.3",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
