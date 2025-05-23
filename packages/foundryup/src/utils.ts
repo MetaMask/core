@@ -1,26 +1,23 @@
+/* eslint-disable import-x/no-nodejs-modules */
 import { execFileSync, execSync } from 'node:child_process';
 import { arch } from 'node:os';
-import {
-  type Checksums,
-  type PlatformArchChecksums,
-  Architecture,
+/* eslint-enable import-x/no-nodejs-modules */
+
+import type {
+  Checksums,
+  PlatformArchChecksums,
   Binary,
   Platform,
 } from './types';
+import {
+  Architecture,
+} from './types';
 
 /**
- * No Operation. A function that does nothing and returns nothing.
+ * Normalizes the system architecture string to a supported Architecture enum value.
  *
- * @returns `undefined`
- */
-export const noop = () => undefined;
-
-/**
- * Returns the system architecture, normalized to one of the supported
- * {@link Architecture} values.
- *
- * @param architecture - The architecture string to normalize (e.g., 'x64', 'arm64')
- * @returns
+ * @param architecture - The system architecture string, defaults to the current system's architecture
+ * @returns The normalized Architecture enum value
  */
 export function normalizeSystemArchitecture(
   architecture: string = arch(),
@@ -58,8 +55,8 @@ export function say(message: string) {
 /**
  * Get the version of the binary at the given path.
  *
- * @param binPath
- * @returns The `--version` reported by the binary
+ * @param binPath - Path to the binary file
+ * @returns The version output from the binary
  * @throws If the binary fails to report its version
  */
 export function getVersion(binPath: string): Buffer {
@@ -78,6 +75,12 @@ support your system. If you believe this is an error, please report it.`;
   }
 }
 
+/**
+ * Type guard to check if an error has a code property.
+ *
+ * @param error - The error to check
+ * @returns True if the error has a code property of type string
+ */
 export function isCodedError(
   error: unknown,
 ): error is Error & { code: string } {
@@ -93,7 +96,7 @@ export function isCodedError(
  * @param checksums - The CLI checksum object
  * @param targetPlatform - The build platform
  * @param targetArch - The build architecture
- * @returns
+ * @returns Transformed checksums for the specific platform and architecture, or null if no checksums provided
  */
 export function transformChecksums(
   checksums: Checksums | undefined,
