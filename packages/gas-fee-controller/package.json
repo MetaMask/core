@@ -60,7 +60,7 @@
   },
   "devDependencies": {
     "@babel/runtime": "^7.23.9",
-    "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/auto-changelog": "^5.0.2",
     "@metamask/network-controller": "^23.5.0",
     "@types/jest": "^27.4.1",
     "@types/jest-when": "^2.7.3",
@@ -68,6 +68,7 @@
     "jest": "^27.5.1",
     "jest-when": "^3.4.2",
     "nock": "^13.3.1",
+    "prettier": "^3.3.3",
     "sinon": "^9.2.4",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
