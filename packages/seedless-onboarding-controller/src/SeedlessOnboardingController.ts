@@ -1483,6 +1483,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    */
   #isTokenExpiredError(error: unknown): boolean {
     if (error instanceof TOPRFError) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
       return error.code === TOPRFErrorCode.AuthTokenExpired;
     }
 
