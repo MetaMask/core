@@ -1,9 +1,22 @@
 #!/usr/bin/env node
 
-import { exit } from "node:process";
-import { downloadAndInstallFoundryBinaries } from "./";
+/**
+ * CLI entry point for Foundryup.
+ *
+ * This script downloads and installs Foundry binaries.
+ * If an error occurs, it logs the error and exits with code 1.
+ */
+import { downloadAndInstallFoundryBinaries } from '.';
 
+/**
+ * Run the main installation process and handle errors.
+ */
 downloadAndInstallFoundryBinaries().catch((error) => {
-    console.error('Error:', error);
-    exit(1);
+  /**
+   * Log any error that occurs during installation and exit with code 1.
+   *
+   * @param {unknown} error - The error thrown during installation.
+   */
+  console.error('Error:', error);
+  process.exit(1);
 });
