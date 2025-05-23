@@ -1466,7 +1466,7 @@ describe('Batch Utils', () => {
         expect(result?.batchId).toMatch(/^0x[0-9a-f]{32}$/u);
       });
 
-      it('saves a transaction batch and then cleans the state', async () => {
+      it('saves a transaction batch and then cleans the specific batch by ID', async () => {
         const { approve } = mockRequestApproval(MESSENGER_MOCK, {
           state: 'approved',
         });
@@ -1505,13 +1505,18 @@ describe('Batch Utils', () => {
         expect(updateMock).toHaveBeenCalledTimes(2);
         expect(updateMock).toHaveBeenCalledWith(expect.any(Function));
 
-        // Simulate the state update
+        // Simulate the state update for adding the batch
         const state = {
-          transactionBatches: [],
+          transactionBatches: [
+            { id: 'batch1', chainId: '0x1', transactions: [] },
+          ],
         } as unknown as TransactionControllerState;
+
+        // Simulate adding the batch
         updateMock.mock.calls[0][0](state);
 
         expect(state.transactionBatches).toStrictEqual([
+          { id: 'batch1', chainId: '0x1', transactions: [] },
           expect.objectContaining({
             id: expect.any(String),
             chainId: CHAIN_ID_MOCK,
@@ -1535,9 +1540,12 @@ describe('Batch Utils', () => {
 
         await resultPromise;
 
+        // Simulate cleaning the specific batch by ID
         updateMock.mock.calls[1][0](state);
 
-        expect(state.transactionBatches).toStrictEqual([]);
+        expect(state.transactionBatches).toStrictEqual([
+          { id: 'batch1', chainId: '0x1', transactions: [] },
+        ]);
       });
     });
   });
