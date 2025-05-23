@@ -13,19 +13,10 @@ import {
   Platform,
 } from './types';
 
-/**
- * Checks if a string is a valid version string starting with 'v' followed by digits.
- *
- * @param value - The string to check
- * @returns True if the string is a valid version string
- */
 function isVersionString(value: string): value is `v${string}` {
   return /^v\d/u.test(value);
 }
 
-/**
- * Prints the Foundry banner with links to documentation and resources.
- */
 export function printBanner() {
   console.log(`
 .xOx.xOx.xOx.xOx.xOx.xOx.xOx.xOx.xOx.xOx.xOx.xOx.xOx.xOx.xOx.xOx.xOx.xOx
@@ -46,13 +37,6 @@ Contribute : https://github.com/orgs/foundry-rs/projects/2/
 `);
 }
 
-/**
- * Parses command line arguments using yargs.
- * Handles both 'install' and 'cache clean' commands.
- *
- * @param args - Command line arguments to parse
- * @returns Parsed arguments with command and options
- */
 export function parseArgs(args: string[] = argv.slice(2)) {
   const { $0, _, ...parsed } = yargs()
     // Ensure unrecognized commands/options are reported as errors.
@@ -94,13 +78,6 @@ export function parseArgs(args: string[] = argv.slice(2)) {
 
 const Binaries = Object.values(Binary) as BinariesTuple;
 
-/**
- * Gets the command line options configuration for yargs.
- *
- * @param defaultPlatform - The default platform to use
- * @param defaultArch - The default architecture to use
- * @returns Object containing yargs options configuration
- */
 function getOptions(
   defaultPlatform = platform(),
   defaultArch = normalizeSystemArchitecture(),

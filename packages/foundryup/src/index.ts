@@ -24,7 +24,7 @@ import { Architecture, Binary, Extension, Platform } from './types';
  * If global cache is enabled, returns a path in the user's home directory.
  * Otherwise, returns a local cache path in the current working directory.
  *
- * @returns The path to the cache directory
+ * @returns {string} The path to the cache directory.
  */
 export function getCacheDirectory(): string {
   let enableGlobalCache = false;
@@ -48,12 +48,12 @@ export function getCacheDirectory(): string {
 /**
  * Generates the URL for downloading the Foundry binary archive.
  *
- * @param repo - The GitHub repository (e.g., 'foundry-rs/foundry')
- * @param tag - The release tag (e.g., 'v1.0.0')
- * @param version - The version string
- * @param platform - The target platform (e.g., Platform.Linux)
- * @param arch - The target architecture (e.g., 'amd64')
- * @returns The URL for the binary archive
+ * @param {string} repo - The GitHub repository (e.g., 'foundry-rs/foundry').
+ * @param {string} tag - The release tag (e.g., 'v1.0.0').
+ * @param {string} version - The version string.
+ * @param {Platform} platform - The target platform (e.g., Platform.Linux).
+ * @param {string} arch - The target architecture (e.g., 'amd64').
+ * @returns {string} The URL for the binary archive.
  */
 export function getBinaryArchiveUrl(
   repo: string,
@@ -69,13 +69,13 @@ export function getBinaryArchiveUrl(
 /**
  * Checks if binaries are already in the cache. If not, downloads and extracts them.
  *
- * @param url - The URL to download the binaries from
- * @param binaries - The list of binaries to download
- * @param cachePath - The path to the cache directory
- * @param platform - The target platform
- * @param arch - The target architecture
- * @param checksums - Optional checksums for verification
- * @returns A promise that resolves to the directory containing the downloaded binaries
+ * @param {URL} url - The URL to download the binaries from.
+ * @param {Binary[]} binaries - The list of binaries to download.
+ * @param {string} cachePath - The path to the cache directory.
+ * @param {Platform} platform - The target platform.
+ * @param {Architecture} arch - The target architecture.
+ * @param {Checksums} [checksums] - Optional checksums for verification.
+ * @returns {Promise<Dir>} A promise that resolves to the directory containing the downloaded binaries.
  */
 export async function checkAndDownloadBinaries(
   url: URL,
@@ -108,10 +108,10 @@ export async function checkAndDownloadBinaries(
 /**
  * Installs the downloaded binaries by creating symlinks or copying files.
  *
- * @param downloadedBinaries - The directory containing the downloaded binaries
- * @param BIN_DIR - The target directory for installation
- * @param cachePath - The path to the cache directory
- * @returns A promise that resolves when installation is complete
+ * @param {Dir} downloadedBinaries - The directory containing the downloaded binaries.
+ * @param {string} BIN_DIR - The target directory for installation.
+ * @param {string} cachePath - The path to the cache directory.
+ * @returns {Promise<void>} A promise that resolves when installation is complete.
  */
 export async function installBinaries(
   downloadedBinaries: Dir,
@@ -151,7 +151,7 @@ export async function installBinaries(
  * If the command is 'cache clean', it removes the cache directory.
  * Otherwise, it downloads and installs the specified binaries.
  *
- * @returns A promise that resolves when the operation is complete
+ * @returns {Promise<void>} A promise that resolves when the operation is complete.
  */
 export async function downloadAndInstallFoundryBinaries(): Promise<void> {
   const parsedArgs = parseArgs();
@@ -204,73 +204,4 @@ export async function downloadAndInstallFoundryBinaries(): Promise<void> {
   await installBinaries(downloadedBinaries, BIN_DIR, cachePath);
 
   say('done!');
-}
-
-/**
- * Gets the version of a binary file.
- *
- * @param path - Path to the binary file
- * @returns The version string of the binary
- */
-export function getVersion(path: string): string {
-  // ... existing code ...
-}
-
-/**
- * Checks if an error has a code property.
- *
- * @param error - The error to check
- * @returns True if the error has a code property
- */
-export function isCodedError(error: unknown): error is NodeJS.ErrnoException {
-  // ... existing code ...
-}
-
-/**
- * A no-operation function that does nothing.
- */
-export function noop(): void {
-  // ... existing code ...
-}
-
-/**
- * Logs a message to the console.
- *
- * @param message - The message to log
- */
-export function say(message: string): void {
-  // ... existing code ...
-}
-
-/**
- * Transforms checksums for a specific platform and architecture.
- *
- * @param checksums - The checksums to transform
- * @param platform - The target platform
- * @param arch - The target architecture
- * @returns Transformed checksums for the platform and architecture
- */
-export function transformChecksums(
-  checksums: Checksums | undefined,
-  platform: Platform,
-  arch: Architecture,
-): Checksums | undefined {
-  // ... existing code ...
-}
-
-/**
- * Extracts files from a URL to a destination path.
- *
- * @param url - The URL to download from
- * @param binaries - The list of binaries to extract
- * @param destPath - The destination path
- * @param checksums - Optional checksums for verification
- */
-export async function extractFrom(
-  url: URL,
-  binaries: Binary[],
-  destPath: string,
-  checksums?: Checksums,
-): Promise<void> {
-  // ... existing code ...
 }
