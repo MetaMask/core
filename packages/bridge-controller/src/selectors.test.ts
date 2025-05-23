@@ -187,6 +187,7 @@ describe('Bridge Selectors', () => {
           refreshRate: 30000,
           chains: {},
           support: true,
+          minimumVersion: '0.0.0',
         },
       },
       assetExchangeRates: {},
@@ -347,6 +348,7 @@ describe('Bridge Selectors', () => {
       quotesInitialLoadTime: Date.now(),
       remoteFeatureFlags: {
         bridgeConfig: {
+          minimumVersion: '0.0.0',
           maxRefreshCount: 5,
           refreshRate: 30000,
           chains: {},
@@ -488,6 +490,7 @@ describe('Bridge Selectors', () => {
 
   describe('selectBridgeFeatureFlags', () => {
     const mockValidBridgeConfig = {
+      minimumVersion: '0.0.0',
       refreshRate: 3,
       maxRefreshCount: 1,
       support: true,
@@ -524,6 +527,7 @@ describe('Bridge Selectors', () => {
     };
 
     const mockInvalidBridgeConfig = {
+      minimumVersion: 1, // Should be a string
       maxRefreshCount: 'invalid', // Should be a number
       refreshRate: 'invalid', // Should be a number
       chains: 'invalid', // Should be an object
@@ -537,6 +541,7 @@ describe('Bridge Selectors', () => {
       });
 
       expect(result).toStrictEqual({
+        minimumVersion: '0.0.0',
         refreshRate: 3,
         maxRefreshCount: 1,
         support: true,
@@ -581,6 +586,7 @@ describe('Bridge Selectors', () => {
       });
 
       expect(result).toStrictEqual({
+        minimumVersion: '0.0.0',
         maxRefreshCount: 5,
         refreshRate: 30000,
         chains: {},
@@ -595,6 +601,7 @@ describe('Bridge Selectors', () => {
       });
 
       expect(result).toStrictEqual({
+        minimumVersion: '0.0.0',
         maxRefreshCount: 5,
         refreshRate: 30000,
         chains: {},
@@ -610,6 +617,7 @@ describe('Bridge Selectors', () => {
       });
 
       expect(result).toStrictEqual({
+        minimumVersion: '0.0.0',
         maxRefreshCount: 5,
         refreshRate: 30000,
         chains: {},

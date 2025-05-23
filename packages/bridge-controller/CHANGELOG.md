@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.0.0]
+
+### Added
+
+- **BREAKING:** Added a required `minimumVersion` to feature flag response schema ([#5834](https://github.com/MetaMask/core/pull/5834))
+
+### Changed
+
+- Consume `bridgeConfigV2` in the feature flag response schema for Mobile and export `DEFAULT_FEATURE_FLAG_CONFIG` ([#5837](https://github.com/MetaMask/core/pull/5837))
+
 ## [25.1.0]
 
 ### Added
@@ -259,7 +269,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@25.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@26.0.0...HEAD
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@25.1.0...@metamask/bridge-controller@26.0.0
 [25.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@25.0.1...@metamask/bridge-controller@25.1.0
 [25.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@25.0.0...@metamask/bridge-controller@25.0.1
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@24.0.0...@metamask/bridge-controller@25.0.0
