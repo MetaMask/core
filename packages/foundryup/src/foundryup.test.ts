@@ -1,18 +1,19 @@
-import fs from 'fs/promises';
 import type { Dir } from 'fs';
 import { readFileSync } from 'fs';
+import fs from 'fs/promises';
+import nock, { cleanAll } from 'nock';
 import { join, relative } from 'path';
 import { parse as parseYaml } from 'yaml';
-import nock from 'nock';
+
 import {
   checkAndDownloadBinaries,
   getBinaryArchiveUrl,
   getCacheDirectory,
 } from '.';
-import { isCodedError } from './utils';
 import { parseArgs } from './options';
 import type { Binary, Checksums } from './types';
 import { Architecture, Platform } from './types';
+import { isCodedError } from './utils';
 
 type OperationDetails = {
   path?: string;
@@ -216,13 +217,13 @@ describe('foundryup', () => {
 
     beforeEach(() => {
       jest.clearAllMocks();
-      nock.cleanAll();
+      cleanAll();
     });
 
     it('handles download errors gracefully', async () => {
       (fs.opendir as jest.Mock).mockRejectedValue({ code: 'ENOENT' });
 
-      nock.cleanAll();
+      cleanAll();
       nock('https://example.com')
         .head('/binaries.zip')
         .reply(500, 'Internal Server Error')
@@ -262,7 +263,7 @@ describe('foundryup', () => {
         mockCachePath,
       );
 
-      expect(operations).toEqual([
+      expect(operations).toStrictEqual([
         { operation: 'unlink', target: `${mockBinDir}/forge` },
         {
           operation: 'symlink',
@@ -286,7 +287,7 @@ describe('foundryup', () => {
         mockCachePath,
       );
 
-      expect(operations).toEqual([
+      expect(operations).toStrictEqual([
         { operation: 'unlink', target: `${mockBinDir}/forge` },
         {
           operation: 'copyFile',
@@ -357,7 +358,7 @@ describe('foundryup', () => {
     it('should execute all operations in correct order', async () => {
       const operations = await mockDownloadAndInstallFoundryBinaries();
 
-      expect(operations).toEqual([
+      expect(operations).toStrictEqual([
         { operation: 'getCacheDirectory' },
         {
           operation: 'getBinaryArchiveUrl',
@@ -399,7 +400,7 @@ describe('foundryup', () => {
 
       const operations = await mockDownloadAndInstallFoundryBinaries();
 
-      expect(operations).toEqual([
+      expect(operations).toStrictEqual([
         { operation: 'getCacheDirectory' },
         {
           operation: 'cleanCache',
@@ -422,7 +423,9 @@ describe('foundryup', () => {
 
       (parseArgs as jest.Mock).mockReturnValue(mockCleanArgs);
 
-      await expect(mockDownloadAndInstallFoundryBinaries()).rejects.toThrow('Mock error');
+      await expect(mockDownloadAndInstallFoundryBinaries()).rejects.toThrow(
+        'Mock error',
+      );
       consoleSpy.mockRestore();
     });
   });
@@ -430,13 +433,18 @@ describe('foundryup', () => {
   describe('printBanner', () => {
     it('should print the banner to the console', () => {
       const { printBanner } = jest.requireActual('./options');
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+      const consoleSpy = jest
+        .spyOn(console, 'log')
+        .mockImplementation(() => {});
       printBanner();
       expect(consoleSpy).toHaveBeenCalled();
-      expect(consoleSpy.mock.calls[0][0]).toContain('Portable and modular toolkit');
+      expect(consoleSpy.mock.calls[0][0]).toContain(
+        'Portable and modular toolkit',
+      );
       consoleSpy.mockRestore();
     });
   });
+
   describe('parseArgs', () => {
     let actualParseArgs: (args?: string[]) => {
       command: string;
@@ -465,91 +473,89 @@ describe('foundryup', () => {
       }));
     });
 
-  describe('checksums option', () => {
-    it('should parse checksums from JSON string', () => {
-      const checksums = {
-        algorithm: 'sha256',
-        binaries: {
-          forge: {
-            'linux-amd64': 'abc123',
+    describe('checksums option', () => {
+      it('should parse checksums from JSON string', () => {
+        const checksums = {
+          algorithm: 'sha256',
+          binaries: {
+            forge: {
+              'linux-amd64': 'abc123',
+            },
           },
-        },
-      };
-      const result = actualParseArgs([
-        '--checksums',
-        JSON.stringify(checksums),
-      ]);
+        };
+        const result = actualParseArgs([
+          '--checksums',
+          JSON.stringify(checksums),
+        ]);
 
-      expect(result.command).toBe('install');
-      expect(result.options.checksums).toStrictEqual(checksums);
+        expect(result.command).toBe('install');
+        expect(result.options.checksums).toStrictEqual(checksums);
+      });
+
+      it('should parse checksums with short flag -c', () => {
+        const checksums = { algorithm: 'sha256', binaries: {} };
+        const result = actualParseArgs(['-c', JSON.stringify(checksums)]);
+
+        expect(result.command).toBe('install');
+        expect(result.options.checksums).toStrictEqual(checksums);
+      });
     });
 
-    it('should parse checksums with short flag -c', () => {
-      const checksums = { algorithm: 'sha256', binaries: {} };
-      const result = actualParseArgs(['-c', JSON.stringify(checksums)]);
+    describe('repo option', () => {
+      it('should parse custom repo with --repo flag', () => {
+        const result = actualParseArgs(['--repo', 'custom/repo']);
+        expect(result.command).toBe('install');
+        expect(result.options.repo).toBe('custom/repo');
+      });
 
-      expect(result.command).toBe('install');
-      expect(result.options.checksums).toStrictEqual(checksums);
+      it('should parse repo with short flag -r', () => {
+        const result = actualParseArgs(['-r', 'another/repo']);
+
+        expect(result.command).toBe('install');
+        expect(result.options.repo).toBe('another/repo');
+      });
     });
 
+    describe('version option', () => {
+      it('should parse nightly version', () => {
+        const result = actualParseArgs(['--version', 'nightly']);
+
+        expect(result.command).toBe('install');
+        expect(result.options.version).toStrictEqual({
+          version: 'nightly',
+          tag: 'nightly',
+        });
+      });
+
+      it('should parse nightly with date suffix', () => {
+        const result = actualParseArgs(['--version', 'nightly-2024-01-01']);
+
+        expect(result.command).toBe('install');
+        expect(result.options.version).toStrictEqual({
+          version: 'nightly',
+          tag: 'nightly-2024-01-01',
+        });
+      });
+
+      it('should parse semantic version', () => {
+        const result = actualParseArgs(['--version', 'v1.2.3']);
+
+        expect(result.command).toBe('install');
+        expect(result.options.version).toStrictEqual({
+          version: 'v1.2.3',
+          tag: 'v1.2.3',
+        });
+      });
+
+      it('should parse version with short flag -v', () => {
+        const result = actualParseArgs(['-v', 'v2.0.0']);
+
+        expect(result.command).toBe('install');
+        expect(result.options.version).toStrictEqual({
+          version: 'v2.0.0',
+          tag: 'v2.0.0',
+        });
+      });
+    });
   });
-
-  describe('repo option', () => {
-    it('should parse custom repo with --repo flag', () => {
-      const result = actualParseArgs(['--repo', 'custom/repo']);
-      expect(result.command).toBe('install');
-      expect(result.options.repo).toBe('custom/repo');
-    });
-
-    it('should parse repo with short flag -r', () => {
-      const result = actualParseArgs(['-r', 'another/repo']);
-
-      expect(result.command).toBe('install');
-      expect(result.options.repo).toBe('another/repo');
-    });
-  });
-
-  describe('version option', () => {
-    it('should parse nightly version', () => {
-      const result = actualParseArgs(['--version', 'nightly']);
-
-      expect(result.command).toBe('install');
-      expect(result.options.version).toStrictEqual({
-        version: 'nightly',
-        tag: 'nightly',
-      });
-    });
-
-    it('should parse nightly with date suffix', () => {
-      const result = actualParseArgs(['--version', 'nightly-2024-01-01']);
-
-      expect(result.command).toBe('install');
-      expect(result.options.version).toStrictEqual({
-        version: 'nightly',
-        tag: 'nightly-2024-01-01',
-      });
-    });
-
-    it('should parse semantic version', () => {
-      const result = actualParseArgs(['--version', 'v1.2.3']);
-
-      expect(result.command).toBe('install');
-      expect(result.options.version).toStrictEqual({
-        version: 'v1.2.3',
-        tag: 'v1.2.3',
-      });
-    });
-
-    it('should parse version with short flag -v', () => {
-      const result = actualParseArgs(['-v', 'v2.0.0']);
-
-      expect(result.command).toBe('install');
-      expect(result.options.version).toStrictEqual({
-        version: 'v2.0.0',
-        tag: 'v2.0.0',
-      });
-    });
-  });
-});
-
 });
