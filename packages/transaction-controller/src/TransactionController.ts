@@ -116,6 +116,7 @@ import type {
   IsAtomicBatchSupportedRequest,
   AfterAddHook,
   GasFeeEstimateLevel as GasFeeEstimateLevelType,
+  TransactionBatchMeta,
 } from './types';
 import {
   GasFeeEstimateLevel,
@@ -188,6 +189,10 @@ const metadata = {
     persist: true,
     anonymous: false,
   },
+  transactionBatches: {
+    persist: true,
+    anonymous: false,
+  },
   methodData: {
     persist: true,
     anonymous: false,
@@ -251,13 +256,16 @@ export type TransactionControllerState = {
   /** A list of TransactionMeta objects. */
   transactions: TransactionMeta[];
 
+  /** A list of TransactionBatchMeta objects. */
+  transactionBatches: TransactionBatchMeta[];
+
   /** Object containing all known method data information. */
   methodData: Record<string, MethodData>;
 
   /** Cache to optimise incoming transaction queries. */
   lastFetchedBlockNumbers: { [key: string]: number | string };
 
-  /** History of all tranasactions submitted from the wallet. */
+  /** History of all transactions submitted from the wallet. */
   submitHistory: SubmitHistoryEntry[];
 };
 
@@ -672,6 +680,7 @@ function getDefaultTransactionControllerState(): TransactionControllerState {
   return {
     methodData: {},
     transactions: [],
+    transactionBatches: [],
     lastFetchedBlockNumbers: {},
     submitHistory: [],
   };
@@ -1052,6 +1061,7 @@ export class TransactionController extends BaseController<
           chainId: this.#getChainId(networkClientId),
           networkClientId,
         }),
+      update: this.update.bind(this),
     });
   }
 

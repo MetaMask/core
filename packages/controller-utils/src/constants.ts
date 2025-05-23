@@ -165,6 +165,7 @@ export enum ApprovalType {
   SnapDialogDefault = 'snap_dialog',
   SwitchEthereumChain = 'wallet_switchEthereumChain',
   Transaction = 'transaction',
+  TransactionBatch = 'transaction_batch',
   Unlock = 'unlock',
   WalletConnect = 'wallet_connect',
   WalletRequestPermissions = 'wallet_requestPermissions',
