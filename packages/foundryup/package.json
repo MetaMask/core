@@ -44,10 +44,12 @@
     "@types/yargs-parser": "^21.0.3",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
+    "nock": "^13.5.4",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.2.2"
+    "typescript": "~5.2.2",
+    "yaml": "^2.3.4"
   },
   "engines": {
     "node": "^18.18 || >=20"
