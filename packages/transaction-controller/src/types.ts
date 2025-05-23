@@ -1600,12 +1600,6 @@ export type TransactionBatchRequest = {
   transactions: TransactionBatchSingleRequest[];
 
   /**
-   * Whether to use the publish batch hook to submit the batch.
-   * Defaults to false.
-   */
-  useHook?: boolean;
-
-  /**
    * Callback to trigger security validation in the client.
    *
    * @param request - The JSON-RPC request to validate.

@@ -107,7 +107,6 @@ export class ExtraTransactionsPublishHook {
       from,
       networkClientId,
       transactions,
-      useHook: true,
     });
 
     return resultPromise.promise;

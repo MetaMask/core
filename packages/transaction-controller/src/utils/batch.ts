@@ -115,15 +115,15 @@ export async function addTransactionBatch(
     sizeLimit,
   });
 
-  const { useHook } = userRequest;
-
   log('Adding', userRequest);
 
-  if (useHook) {
-    return await addTransactionBatchWithHook(request);
+  const chainId = request.getChainId(request.request.networkClientId);
+  const isChainSupportingEIP7702 = doesChainSupportEIP7702(chainId, messenger);
+  if (isChainSupportingEIP7702) {
+    return await addTransactionBatchWith7702(request);
   }
 
-  return await addTransactionBatchWith7702(request);
+  return await addTransactionBatchWithHook(request);
 }
 
 /**
@@ -264,12 +264,6 @@ async function addTransactionBatchWith7702(
 
   const chainId = getChainId(networkClientId);
   const ethQuery = request.getEthQuery(networkClientId);
-  const isChainSupported = doesChainSupportEIP7702(chainId, messenger);
-
-  if (!isChainSupported) {
-    log('Chain does not support EIP-7702', chainId);
-    throw rpcErrors.internal('Chain does not support EIP-7702');
-  }
 
   if (!publicKeyEIP7702) {
     throw rpcErrors.internal(ERROR_MESSGE_PUBLIC_KEY);

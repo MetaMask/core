@@ -88,7 +88,6 @@ describe('ExtraTransactionsPublishHook', () => {
           params: BATCH_TRANSACTION_PARAMS_2_MOCK,
         },
       ],
-      useHook: true,
     });
   });
 
