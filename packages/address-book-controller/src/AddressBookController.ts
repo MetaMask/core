@@ -14,6 +14,18 @@ import {
 import type { Hex } from '@metamask/utils';
 
 /**
+ * ContactEntry representation
+ */
+export type ContactEntry = {
+  /** Hex address of a recipient account */
+  address: string;
+  /** Nickname associated with this address */
+  name: string;
+  /** Data time when an account as created/imported */
+  importTime?: number;
+};
+
+/**
  * The type of address.
  */
 export enum AddressType {

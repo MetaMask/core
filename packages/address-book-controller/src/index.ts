@@ -12,6 +12,7 @@ export type {
   AddressBookControllerContactDeletedEvent,
   AddressBookControllerEvents,
   AddressBookControllerMessenger,
+  ContactEntry,
 } from './AddressBookController';
 export {
   getDefaultAddressBookControllerState,
