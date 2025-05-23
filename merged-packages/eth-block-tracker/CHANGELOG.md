@@ -5,9 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [12.0.0]
+### Changed
+- Errors that occur while polling are no longer wrapped ([#310](https://github.com/MetaMask/eth-block-tracker/pull/310))
+
 ### Removed
-- **BREAKING:** Remove `SubscribeBlockTracker`
+- **BREAKING:** Remove `SubscribeBlockTracker` ([#309](https://github.com/MetaMask/eth-block-tracker/pull/309))
   - Although we continue to maintain this, we have not used it internally for quite some time. In general we have found a polling-based approval to be reliable than a subscription-based approach. We recommend using `PollingBlockTracker` instead.
+
+### Fixed
+- Fix `PollingBlockTracker.getLatestBlock` so that it throws an error encountered while making the request instead of hanging, regardless of whether the request occurs inside or outside of a polling loop ([#313](https://github.com/MetaMask/eth-block-tracker/pull/313))
+- Fix `PollingBlockTracker.getLatestBlock` so that if invoked while a previous invocation is pending, it will throw if that invocation also throws ([#313](https://github.com/MetaMask/eth-block-tracker/pull/313))
 
 ## [11.0.4]
 ### Changed
@@ -203,7 +212,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Add RpcBlockTracker
 
-[Unreleased]: https://github.com/MetaMask/eth-block-tracker/compare/v11.0.4...HEAD
+[Unreleased]: https://github.com/MetaMask/eth-block-tracker/compare/v12.0.0...HEAD
+[12.0.0]: https://github.com/MetaMask/eth-block-tracker/compare/v11.0.4...v12.0.0
 [11.0.4]: https://github.com/MetaMask/eth-block-tracker/compare/v11.0.3...v11.0.4
 [11.0.3]: https://github.com/MetaMask/eth-block-tracker/compare/v11.0.2...v11.0.3
 [11.0.2]: https://github.com/MetaMask/eth-block-tracker/compare/v11.0.1...v11.0.2
