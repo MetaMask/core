@@ -119,6 +119,12 @@ export type SeedlessOnboardingControllerState =
        * And it also helps to synchronize the recovery error data across multiple devices.
        */
       recoveryRatelimitCache?: RecoveryErrorData;
+
+      /**
+       * The refresh token used to refresh expired nodeAuthTokens.
+       * This is temporarily stored in state during authentication and then persisted in the vault.
+       */
+      refreshToken?: string;
     };
 
 // Actions
@@ -182,6 +188,11 @@ export type ToprfKeyDeriver = {
   deriveKey: (seed: Uint8Array, salt: Uint8Array) => Promise<Uint8Array>;
 };
 
+export type GetNewRefreshToken = (params: {
+  connection: AuthConnection;
+  refreshToken: string;
+}) => Promise<{ idTokens: string[]; refreshToken: string }>;
+
 /**
  * Seedless Onboarding Controller Options.
  *
@@ -203,6 +214,8 @@ export type SeedlessOnboardingControllerOptions<EncryptionKey> = {
    * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
    */
   encryptor: VaultEncryptor<EncryptionKey>;
+
+  getNewRefreshToken: GetNewRefreshToken;
 
   /**
    * Optional key derivation interface for the TOPRF client.
@@ -252,6 +265,10 @@ export type VaultData = {
    * The authentication key pair to authenticate the TOPRF.
    */
   toprfAuthKeyPair: string;
+  /**
+   * The refresh token to refresh byoa token and get new node auth tokens after expiration.
+   */
+  refreshToken: string;
 };
 
 export type SecretDataType = Uint8Array | string | number;
