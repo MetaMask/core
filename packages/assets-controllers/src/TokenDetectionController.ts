@@ -33,6 +33,7 @@ import type {
   PreferencesControllerGetStateAction,
   PreferencesControllerStateChangeEvent,
 } from '@metamask/preferences-controller';
+import type { TransactionControllerTransactionConfirmedEvent } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { hexToNumber } from '@metamask/utils';
 import { isEqual, mapValues, isObject, get } from 'lodash';
@@ -142,7 +143,8 @@ export type AllowedEvents =
   | TokenListStateChange
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
-  | PreferencesControllerStateChangeEvent;
+  | PreferencesControllerStateChangeEvent
+  | TransactionControllerTransactionConfirmedEvent;
 
 export type TokenDetectionControllerMessenger = RestrictedMessenger<
   typeof controllerName,
@@ -408,6 +410,19 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
             chainIds,
           });
         }
+      },
+    );
+
+    // subscribe to   'TransactionController:transactionConfirmed',
+    this.messagingSystem.subscribe(
+      'TransactionController:transactionConfirmed',
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      async (transactionMeta) => {
+        console.log('transactionConfirmed', transactionMeta);
+        await this.detectTokens({
+          chainIds: [transactionMeta.chainId],
+        });
       },
     );
   }
