@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add event listener for `AccountsController:accountRemoved` on `TokenBalancesController` to remove token balances for the removed account ([#5726](https://github.com/MetaMask/core/pull/5726))
+
+- **BREAKING:** Add event listener for `AccountsController:accountRemoved` on `TokensController` to remove tokens for the removed account ([#5726](https://github.com/MetaMask/core/pull/5726))
+
+- **BREAKING:** Add `listAccounts` action to `TokensController` ([#5726](https://github.com/MetaMask/core/pull/5726))
+
+- **BREAKING:** Add `listAccounts` action to `TokenBalancesController` ([#5726](https://github.com/MetaMask/core/pull/5726))
+
+### Changed
+
+- TokenBalancesController will now check if balances has changed before updating the state ([#5726](https://github.com/MetaMask/core/pull/5726))
+
 ## [63.1.0]
 
 ### Changed
