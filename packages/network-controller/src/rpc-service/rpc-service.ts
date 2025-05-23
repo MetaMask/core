@@ -252,7 +252,9 @@ export class RpcService implements AbstractRpcService {
           error.message.includes('not valid JSON') ||
           // Ignore server overload errors
           ('httpStatus' in error &&
-            (error.httpStatus === 503 || error.httpStatus === 504)) ||
+            (error.httpStatus === 502 ||
+              error.httpStatus === 503 ||
+              error.httpStatus === 504)) ||
           (hasProperty(error, 'code') &&
             (error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET'))
         );

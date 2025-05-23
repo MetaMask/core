@@ -382,59 +382,61 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
     },
   );
 
-  describe('if the RPC endpoint returns a 5xx response that is not 503, or 504', () => {
-    const httpStatus = 500;
-    const errorMessage = 'RPC endpoint not found or unavailable.';
+  describe.each([500, 501, 505, 506, 507, 508, 510, 511])(
+    'if the RPC endpoint returns a %d response',
+    (httpStatus) => {
+      const errorMessage = 'RPC endpoint not found or unavailable.';
 
-    it('throws a generic, undescriptive error', async () => {
-      await withMockedCommunications({ providerType }, async (comms) => {
-        const request = { method };
+      it('throws a generic, undescriptive error', async () => {
+        await withMockedCommunications({ providerType }, async (comms) => {
+          const request = { method };
 
-        // The first time a block-cacheable request is made, the latest block
-        // number is retrieved through the block tracker first. It doesn't
-        // matter what this is — it's just used as a cache key.
-        comms.mockNextBlockTrackerRequest();
-        comms.mockRpcCall({
-          request,
-          response: {
-            httpStatus,
-          },
+          // The first time a block-cacheable request is made, the latest block
+          // number is retrieved through the block tracker first. It doesn't
+          // matter what this is — it's just used as a cache key.
+          comms.mockNextBlockTrackerRequest();
+          comms.mockRpcCall({
+            request,
+            response: {
+              httpStatus,
+            },
+          });
+          const promiseForResult = withNetworkClient(
+            { providerType },
+            async ({ makeRpcCall }) => makeRpcCall(request),
+          );
+
+          await expect(promiseForResult).rejects.toThrow(errorMessage);
         });
-        const promiseForResult = withNetworkClient(
-          { providerType },
-          async ({ makeRpcCall }) => makeRpcCall(request),
-        );
-
-        await expect(promiseForResult).rejects.toThrow(errorMessage);
       });
-    });
 
-    testsForRpcFailoverBehavior({
-      providerType,
-      requestToCall: {
-        method,
-        params: [],
-      },
-      getRequestToMock: () => ({
-        method,
-        params: [],
-      }),
-      failure: {
-        httpStatus,
-      },
-      isRetriableFailure: false,
-      getExpectedError: () =>
-        expect.objectContaining({
-          message: errorMessage,
+      testsForRpcFailoverBehavior({
+        providerType,
+        requestToCall: {
+          method,
+          params: [],
+        },
+        getRequestToMock: () => ({
+          method,
+          params: [],
         }),
-      getExpectedBreakError: () =>
-        expect.objectContaining({
-          message: `Fetch failed with status '${httpStatus}'`,
-        }),
-    });
-  });
+        failure: {
+          httpStatus,
+        },
+        isRetriableFailure: false,
+        getExpectedError: () =>
+          expect.objectContaining({
+            message: errorMessage,
+          }),
+        getExpectedBreakError: () =>
+          expect.objectContaining({
+            message: `Fetch failed with status '${httpStatus}'`,
+          }),
+      });
+    },
+  );
 
-  describe.each([503, 504])(
+  describe.each([502, 503, 504])(
     'if the RPC endpoint returns a %d response',
     (httpStatus) => {
       const errorMessage = 'RPC endpoint not found or unavailable.';

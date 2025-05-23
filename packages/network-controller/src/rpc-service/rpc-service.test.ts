@@ -308,7 +308,7 @@ describe('RpcService', () => {
       });
     });
 
-    describe.each([503, 504])(
+    describe.each([502, 503, 504])(
       'if the endpoint has a %d response',
       (httpStatus) => {
         testsForRetriableResponses({
@@ -413,7 +413,7 @@ describe('RpcService', () => {
       });
     });
 
-    describe.each([402, 404])(
+    describe.each([402, 404, 500, 501, 505, 506, 507, 508, 510, 511])(
       'if the endpoint has a %d response',
       (httpStatus) => {
         it('throws a resource unavailable error without retrying the request', async () => {
