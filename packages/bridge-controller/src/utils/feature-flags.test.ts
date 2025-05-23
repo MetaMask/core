@@ -11,6 +11,7 @@ describe('feature-flags', () => {
         refreshRate: 3,
         maxRefreshCount: 1,
         support: true,
+        minimumVersion: '0.0.0',
         chains: {
           '1': {
             isActiveSrc: true,
@@ -49,6 +50,7 @@ describe('feature-flags', () => {
         refreshRate: 3,
         maxRefreshCount: 1,
         support: true,
+        minimumVersion: '0.0.0',
         chains: {
           'eip155:1': {
             isActiveSrc: true,
@@ -87,6 +89,7 @@ describe('feature-flags', () => {
         refreshRate: 3,
         maxRefreshCount: 1,
         support: true,
+        minimumVersion: '0.0.0',
         chains: {},
       };
 
@@ -96,6 +99,7 @@ describe('feature-flags', () => {
         refreshRate: 3,
         maxRefreshCount: 1,
         support: true,
+        minimumVersion: '0.0.0',
         chains: {},
       });
     });
@@ -105,6 +109,7 @@ describe('feature-flags', () => {
         refreshRate: 3,
         maxRefreshCount: 1,
         support: true,
+        minimumVersion: '0.0.0',
         chains: {
           'eip155:invalid': {
             isActiveSrc: true,
@@ -123,6 +128,7 @@ describe('feature-flags', () => {
         refreshRate: 3,
         maxRefreshCount: 1,
         support: true,
+        minimumVersion: '0.0.0',
         chains: {
           'eip155:invalid': {
             isActiveSrc: true,
@@ -149,6 +155,7 @@ describe('feature-flags', () => {
         refreshRate: 3,
         maxRefreshCount: 1,
         support: true,
+        minimumVersion: '0.0.0',
         chains: {
           '1': {
             isActiveSrc: true,
@@ -236,6 +243,7 @@ describe('feature-flags', () => {
         maxRefreshCount: 1,
         refreshRate: 3,
         support: true,
+        minimumVersion: '0.0.0',
         chains: {
           'eip155:1': {
             isActiveDest: true,
@@ -276,6 +284,7 @@ describe('feature-flags', () => {
         refreshRate: 3,
         maxRefreshCount: 1,
         support: 25,
+        minimumVersion: '0.0.0',
         chains: {
           a: {
             isActiveSrc: 1,
@@ -342,8 +351,111 @@ describe('feature-flags', () => {
         maxRefreshCount: 5,
         refreshRate: 30000,
         support: false,
+        minimumVersion: '0.0.0',
         chains: {},
       };
+      expect(result).toStrictEqual(expectedBridgeConfig);
+    });
+
+    it('should prioritize bridgeConfigV2 over bridgeConfig', async () => {
+      const bridgeConfigV2 = {
+        refreshRate: 5,
+        maxRefreshCount: 2,
+        support: true,
+        minimumVersion: '1.0.0',
+        chains: {
+          '1': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+        },
+      };
+
+      const bridgeConfig = {
+        refreshRate: 3,
+        maxRefreshCount: 1,
+        support: true,
+        minimumVersion: '0.0.0',
+        chains: {
+          '1': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+        },
+      };
+
+      const remoteFeatureFlagControllerState = {
+        cacheTimestamp: 1745515389440,
+        remoteFeatureFlags: {
+          bridgeConfigV2,
+          bridgeConfig,
+          assetsNotificationsEnabled: false,
+        },
+      };
+
+      (mockMessenger.call as jest.Mock).mockImplementation(() => {
+        return remoteFeatureFlagControllerState;
+      });
+
+      const result = getBridgeFeatureFlags(mockMessenger);
+
+      const expectedBridgeConfig = {
+        refreshRate: 5,
+        maxRefreshCount: 2,
+        support: true,
+        minimumVersion: '1.0.0',
+        chains: {
+          'eip155:1': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+        },
+      };
+
+      expect(result).toStrictEqual(expectedBridgeConfig);
+    });
+
+    it('should fallback to bridgeConfig when bridgeConfigV2 is not available', async () => {
+      const bridgeConfig = {
+        refreshRate: 3,
+        maxRefreshCount: 1,
+        support: true,
+        minimumVersion: '0.0.0',
+        chains: {
+          '1': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+        },
+      };
+
+      const remoteFeatureFlagControllerState = {
+        cacheTimestamp: 1745515389440,
+        remoteFeatureFlags: {
+          bridgeConfig,
+          assetsNotificationsEnabled: false,
+        },
+      };
+
+      (mockMessenger.call as jest.Mock).mockImplementation(() => {
+        return remoteFeatureFlagControllerState;
+      });
+
+      const result = getBridgeFeatureFlags(mockMessenger);
+
+      const expectedBridgeConfig = {
+        refreshRate: 3,
+        maxRefreshCount: 1,
+        support: true,
+        minimumVersion: '0.0.0',
+        chains: {
+          'eip155:1': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+        },
+      };
+
       expect(result).toStrictEqual(expectedBridgeConfig);
     });
   });
