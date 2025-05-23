@@ -54,7 +54,7 @@ import {
   TransactionType,
 } from '../types';
 
-type UpdateBatchMetadata = (
+type UpdateStateCallback = (
   callback: (
     state: WritableDraft<TransactionControllerState>,
   ) => void | TransactionControllerState,
@@ -81,7 +81,7 @@ type AddTransactionBatchRequest = {
   getPendingTransactionTracker: (
     networkClientId: string,
   ) => PendingTransactionTracker;
-  update: UpdateBatchMetadata;
+  update: UpdateStateCallback;
 };
 
 type IsAtomicBatchSupportedRequestInternal = {
@@ -480,8 +480,8 @@ async function addTransactionBatchWithHook(
 
     throw error;
   } finally {
-    log('Cleaning up publish batch hook');
-    wipeTransactionBatches(update);
+    log('Cleaning up publish batch hook', batchId);
+    wipeTransactionBatchById(update, batchId);
   }
 }
 
@@ -639,9 +639,9 @@ function newBatchMetadata({
  */
 function addBatchMetadata(
   transactionBatchMeta: TransactionBatchMeta,
-  update: UpdateBatchMetadata,
+  update: UpdateStateCallback,
 ) {
-  update((state: WritableDraft<TransactionControllerState>) => {
+  update((state) => {
     state.transactionBatches = [
       ...state.transactionBatches,
       transactionBatchMeta,
@@ -650,12 +650,18 @@ function addBatchMetadata(
 }
 
 /**
- * Wipes all transaction batches from the transaction controller state.
+ * Wipes a specific transaction batch from the transaction controller state by its ID.
  *
  * @param update - The update function to modify the transaction controller state.
+ * @param id - The ID of the transaction batch to be wiped.
  */
-function wipeTransactionBatches(update: UpdateBatchMetadata): void {
-  update((state: WritableDraft<TransactionControllerState>) => {
-    state.transactionBatches = [];
+function wipeTransactionBatchById(
+  update: UpdateStateCallback,
+  id: string,
+): void {
+  update((state) => {
+    state.transactionBatches = state.transactionBatches.filter(
+      (batch) => batch.id !== id,
+    );
   });
 }
