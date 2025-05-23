@@ -535,9 +535,9 @@ function validateAuthorization(authorization: Authorization) {
 
   const { yParity } = authorization;
 
-  if (yParity && !['0x', '0x1'].includes(yParity)) {
+  if (yParity && !['0x0', '0x1'].includes(yParity)) {
     throw rpcErrors.invalidParams(
-      `Invalid transaction params: yParity must be '0x' or '0x1'. got: ${yParity}`,
+      `Invalid transaction params: yParity must be '0x0' or '0x1'. got: ${yParity}`,
     );
   }
 }

@@ -173,7 +173,7 @@ describe('EIP-7702 Utils', () => {
           nonce: AUTHORIZATION_LIST_MOCK[0].nonce,
           r: '0x82d5b4845dfc808802480749c30b0e02d6d7817061ba141d2d1dcd520f9b65c5',
           s: '0x9d0b985134dc2958a9981ce3b5d1061176313536e6da35852cfae41404f53ef3',
-          yParity: '0x',
+          yParity: '0x0',
         },
       ]);
     });
@@ -216,16 +216,6 @@ describe('EIP-7702 Utils', () => {
       expect(result?.[0]?.nonce).toBe('0x124');
       expect(result?.[1]?.nonce).toBe('0x125');
       expect(result?.[2]?.nonce).toBe('0x126');
-    });
-
-    it('normalizes nonce to 0x if zero', async () => {
-      const result = await signAuthorizationList({
-        authorizationList: [{ ...AUTHORIZATION_LIST_MOCK[0], nonce: '0x0' }],
-        messenger: controllerMessenger,
-        transactionMeta: TRANSACTION_META_MOCK,
-      });
-
-      expect(result?.[0]?.nonce).toBe('0x');
     });
   });
 

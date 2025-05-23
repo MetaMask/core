@@ -575,7 +575,7 @@ describe('validation', () => {
         },
       );
 
-      it('throws if yParity is not 0x or 0x1', () => {
+      it('throws if yParity is not 0x0 or 0x1', () => {
         expect(() =>
           validateTxParams({
             authorizationList: [
@@ -590,7 +590,7 @@ describe('validation', () => {
           }),
         ).toThrow(
           rpcErrors.invalidParams(
-            `Invalid transaction params: yParity must be '0x' or '0x1'. got: 0x2`,
+            `Invalid transaction params: yParity must be '0x0' or '0x1'. got: 0x2`,
           ),
         );
       });

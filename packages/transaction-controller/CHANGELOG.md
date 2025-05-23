@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Support leading zeroes in `authorizationList` properties ([#5830](https://github.com/MetaMask/core/pull/5830))
+
 ## [56.2.0]
 
 ### Added
