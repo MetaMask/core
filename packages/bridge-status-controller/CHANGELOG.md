@@ -7,14 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [23.0.0]
+
 ### Added
 
+- Subscribe to TransactionController and MultichainTransactionsController tx confirmed and failed events for swaps ([#5829](https://github.com/MetaMask/core/pull/5829))
+
+### Changed
+
+- **BREAKING:** bump `@metamask/bridge-controller` peer dependency to `^26.0.0` ([#5842](https://github.com/MetaMask/core/pull/5842))
+- **BREAKING:** Remove the published bridgeTransactionComplete and bridgeTransactionFailed events ([#5829](https://github.com/MetaMask/core/pull/5829))
+- Modify events to use `swap` and `swapApproval` TransactionTypes when src and dest chain are the same ([#5829](https://github.com/MetaMask/core/pull/5829))
+
+## [22.0.0]
+
+### Added
+
+- Subscribe to TransactionController and MultichainTransactionsController tx confirmed and failed events for swaps ([#5829](https://github.com/MetaMask/core/pull/5829))
 - Error logs for invalid getTxStatus responses ([#5816](https://github.com/MetaMask/core/pull/5816))
 
 ### Changed
 
-- Bump `@metamask/bridge-controller` peer dependency to `^25.0.1` ([#5811](https://github.com/MetaMask/core/pull/5811))
+- **BREAKING:** Remove the published bridgeTransactionComplete and bridgeTransactionFailed events ([#5829](https://github.com/MetaMask/core/pull/5829))
+- Modify events to use `swap` and `swapApproval` TransactionTypes when src and dest chain are the same ([#5829](https://github.com/MetaMask/core/pull/5829))
+- Bump `@metamask/bridge-controller` dev dependency to `^25.0.1` ([#5811](https://github.com/MetaMask/core/pull/5811))
 - Bump `@metamask/controller-utils` to `^11.9.0` ([#5812](https://github.com/MetaMask/core/pull/5812))
+
+### Fixed
+
+- Don't start or restart getTxStatus polling if transaction is a swap ([#5831](https://github.com/MetaMask/core/pull/5831))
 
 ## [21.0.0]
 
@@ -235,7 +256,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@21.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@23.0.0...HEAD
+[23.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@22.0.0...@metamask/bridge-status-controller@23.0.0
+[22.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@21.0.0...@metamask/bridge-status-controller@22.0.0
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@20.1.0...@metamask/bridge-status-controller@21.0.0
 [20.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@20.0.0...@metamask/bridge-status-controller@20.1.0
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@19.0.0...@metamask/bridge-status-controller@20.0.0

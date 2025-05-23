@@ -379,6 +379,7 @@ async function addTransactionBatchWithHook(
     messenger,
     publishBatchHook: requestPublishBatchHook,
     request: userRequest,
+    update,
   } = request;
 
   const {
@@ -434,7 +435,7 @@ async function addTransactionBatchWithHook(
         gas: gasLimit,
       });
 
-      addBatchMetadata(txBatchMeta, request.update);
+      addBatchMetadata(txBatchMeta, update);
 
       resultCallbacks = (await requestApproval(txBatchMeta, messenger))
         .resultCallbacks;
@@ -505,6 +506,9 @@ async function addTransactionBatchWithHook(
     resultCallbacks?.error(error as Error);
 
     throw error;
+  } finally {
+    log('Cleaning up publish batch hook');
+    wipeTransactionBatches(update);
   }
 }
 
@@ -658,26 +662,20 @@ function addBatchMetadata(
   update: UpdateBatchMetadata,
 ) {
   update((state: WritableDraft<TransactionControllerState>) => {
-    state.transactionBatches = trimTransactionBatchesForState([
+    state.transactionBatches = [
       ...state.transactionBatches,
       transactionBatchMeta,
-    ]);
+    ];
   });
 }
 
 /**
- * Trims the transaction batches to respect the transaction history limit.
+ * Wipes all transaction batches from the transaction controller state.
  *
- * @param transactionBatches - The array of transaction batches.
- * @param transactionHistoryLimit - The maximum number of transaction batches to keep.
- * @returns The trimmed array of transaction batches.
+ * @param update - The update function to modify the transaction controller state.
  */
-function trimTransactionBatchesForState(
-  transactionBatches: TransactionBatchMeta[],
-  transactionHistoryLimit: number = 10,
-): TransactionBatchMeta[] {
-  return [...transactionBatches]
-    .sort((a, b) => (a.time > b.time ? -1 : 1))
-    .slice(0, transactionHistoryLimit)
-    .reverse();
+function wipeTransactionBatches(update: UpdateBatchMetadata): void {
+  update((state: WritableDraft<TransactionControllerState>) => {
+    state.transactionBatches = [];
+  });
 }
