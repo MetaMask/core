@@ -21,6 +21,14 @@ export type AccountGroupId = string;
 // NOTES:
 // - Maybe add a `metadata` / `flags` for each groups (or at least, top-level ones)
 
+export type AccountGroup = {
+  id: AccountGroupId;
+  name: string;
+  subGroups: {
+    [accountSubGroup: AccountGroupId]: AccountId[];
+  };
+};
+
 export type AccountGroupMetadata = {
   name: string;
 };
@@ -34,10 +42,9 @@ export type AccountGroupControllerState = {
         [accountSubGroup: AccountGroupId]: AccountId[]; // Blockchain Accounts
       };
     };
-    // QUESTION: Should we have some metadata here indexed by `AccountGroupId` or should we
-    // group them on `groups` and sub-groups? The reasoning of having them separate would be
-    // to be able to persist them and just re-create the groups at runtime.
-    metadata: Record<AccountGroupId, AccountGroupMetadata>;
+  };
+  accountGroupsMetadata: {
+    [accountGroup: AccountGroupId]: AccountGroupMetadata;
   };
 };
 
@@ -46,9 +53,15 @@ export type AccountGroupControllerGetStateAction = ControllerGetStateAction<
   AccountGroupControllerState
 >;
 
+export type AccountGroupControllerListAccountGroupsAction = {
+  type: `${typeof controllerName}:listAccountGroups`;
+  handler: AccountGroupController['listAccountGroups'];
+};
+
 export type AllowedActions = AccountsControllerListMultichainAccountsAction;
 
-export type AccountGroupControllerActions = never;
+export type AccountGroupControllerActions =
+  AccountGroupControllerListAccountGroupsAction;
 
 export type AccountGroupControllerChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -75,6 +88,10 @@ const accountGroupControllerMetadata: StateMetadata<AccountGroupControllerState>
       persist: false, // We do re-recompute this state everytime.
       anonymous: false,
     },
+    accountGroupsMetadata: {
+      persist: false, // TODO: Change it to true once we have data to persist.
+      anonymous: false,
+    },
   };
 
 /**
@@ -86,8 +103,8 @@ export function getDefaultAccountGroupControllerState(): AccountGroupControllerS
   return {
     accountGroups: {
       groups: {},
-      metadata: {},
     },
+    accountGroupsMetadata: {},
   };
 }
 
@@ -183,12 +200,18 @@ export class AccountGroupController extends BaseController<
     return undefined;
   }
 
-  async init(): Promise<void> {
+  #groupByWalletType(account: InternalAccount): AccountGroupId | undefined {
+    return account.metadata.keyring.type as AccountGroupId;
+  }
+
+  async updateAccountGroups(): Promise<void> {
     const rules = [
       // 1. We group by entropy-source
       (account: InternalAccount) => this.#groupByEntropySource(account),
       // 2. We group by Snap ID
       (account: InternalAccount) => this.#groupBySnapId(account),
+      // 3. We group by wallet type
+      (account: InternalAccount) => this.#groupByWalletType(account),
     ];
     const groups: AccountGroupControllerState['accountGroups']['groups'] = {};
 
@@ -217,6 +240,19 @@ export class AccountGroupController extends BaseController<
     this.update((state) => {
       state.accountGroups.groups = groups;
     });
+  }
+
+  async listAccountGroups(): Promise<AccountGroup[]> {
+    return Object.keys(this.state.accountGroups.groups).map(
+      (groupId: AccountGroupId) => {
+        const subGroups = this.state.accountGroups.groups[groupId];
+        return {
+          id: groupId,
+          name: this.state.accountGroupsMetadata[groupId].name,
+          subGroups,
+        };
+      },
+    );
   }
 
   /**
