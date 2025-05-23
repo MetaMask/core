@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.0.0]
+
 ### Uncategorized
 
 - Release/407.0.0 ([#5850](https://github.com/MetaMask/core/pull/5850))
@@ -274,7 +276,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@26.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@27.0.0...HEAD
+[27.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@26.0.0...@metamask/bridge-controller@27.0.0
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@25.1.0...@metamask/bridge-controller@26.0.0
 [25.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@25.0.1...@metamask/bridge-controller@25.1.0
 [25.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@25.0.0...@metamask/bridge-controller@25.0.1
