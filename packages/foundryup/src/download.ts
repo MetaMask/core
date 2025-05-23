@@ -4,7 +4,14 @@ import { Stream } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import type { DownloadOptions } from './types';
 
+/**
+ * A PassThrough stream that emits a 'response' event when the HTTP(S) response is available.
+ */
 class DownloadStream extends Stream.PassThrough {
+  /**
+   * Returns a promise that resolves with the HTTP(S) IncomingMessage response.
+   * @returns The HTTP(S) response stream.
+   */
   async response(): Promise<IncomingMessage> {
     return new Promise((resolve, reject) => {
       this.once('response', resolve);
