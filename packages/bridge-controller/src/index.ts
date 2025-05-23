@@ -77,6 +77,7 @@ export {
   METABRIDGE_CHAIN_TO_ADDRESS_MAP,
   BRIDGE_DEV_API_BASE_URL,
   BRIDGE_PROD_API_BASE_URL,
+  DEFAULT_FEATURE_FLAG_CONFIG,
 } from './constants/bridge';
 
 export type { AllowedBridgeChainIds } from './constants/bridge';
@@ -129,5 +130,3 @@ export {
   selectIsQuoteExpired,
   selectBridgeFeatureFlags,
 } from './selectors';
-
-export { DEFAULT_FEATURE_FLAG_CONFIG } from './constants/bridge';
