@@ -457,75 +457,77 @@ export function testsForRpcMethodSupportingBlockParam(
       },
     );
 
-    describe('if the RPC endpoint returns a 5xx response that is not 503, or 504', () => {
-      const httpStatus = 500;
-      const errorMessage = 'RPC endpoint not found or unavailable.';
+    describe.each([500, 501, 505, 506, 507, 508, 510, 511])(
+      'if the RPC endpoint returns a %d response',
+      (httpStatus) => {
+        const errorMessage = 'RPC endpoint not found or unavailable.';
 
-      it('throws a generic, undescriptive error', async () => {
-        await withMockedCommunications({ providerType }, async (comms) => {
-          const request = {
+        it('throws a generic, undescriptive error', async () => {
+          await withMockedCommunications({ providerType }, async (comms) => {
+            const request = {
+              method,
+              params: buildMockParams({ blockParam, blockParamIndex }),
+            };
+
+            // The first time a block-cacheable request is made, the
+            // block-cache middleware will request the latest block number
+            // through the block tracker to determine the cache key. Later,
+            // the block-ref middleware will request the latest block number
+            // again to resolve the value of "latest", but the block number is
+            // cached once made, so we only need to mock the request once.
+            comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+            // The block-ref middleware will make the request as specified
+            // except that the block param is replaced with the latest block
+            // number.
+            comms.mockRpcCall({
+              request: buildRequestWithReplacedBlockParam(
+                request,
+                blockParamIndex,
+                '0x100',
+              ),
+              response: {
+                httpStatus,
+              },
+            });
+            const promiseForResult = withNetworkClient(
+              { providerType },
+              async ({ makeRpcCall }) => makeRpcCall(request),
+            );
+
+            await expect(promiseForResult).rejects.toThrow(errorMessage);
+          });
+        });
+
+        testsForRpcFailoverBehavior({
+          providerType,
+          requestToCall: {
             method,
             params: buildMockParams({ blockParam, blockParamIndex }),
-          };
-
-          // The first time a block-cacheable request is made, the
-          // block-cache middleware will request the latest block number
-          // through the block tracker to determine the cache key. Later,
-          // the block-ref middleware will request the latest block number
-          // again to resolve the value of "latest", but the block number is
-          // cached once made, so we only need to mock the request once.
-          comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
-          // The block-ref middleware will make the request as specified
-          // except that the block param is replaced with the latest block
-          // number.
-          comms.mockRpcCall({
-            request: buildRequestWithReplacedBlockParam(
+          },
+          getRequestToMock: (request: MockRequest, blockNumber: Hex) => {
+            return buildRequestWithReplacedBlockParam(
               request,
               blockParamIndex,
-              '0x100',
-            ),
-            response: {
-              httpStatus,
-            },
-          });
-          const promiseForResult = withNetworkClient(
-            { providerType },
-            async ({ makeRpcCall }) => makeRpcCall(request),
-          );
-
-          await expect(promiseForResult).rejects.toThrow(errorMessage);
+              blockNumber,
+            );
+          },
+          failure: {
+            httpStatus,
+          },
+          isRetriableFailure: false,
+          getExpectedError: () =>
+            expect.objectContaining({
+              message: errorMessage,
+            }),
+          getExpectedBreakError: () =>
+            expect.objectContaining({
+              message: `Fetch failed with status '${httpStatus}'`,
+            }),
         });
-      });
+      },
+    );
 
-      testsForRpcFailoverBehavior({
-        providerType,
-        requestToCall: {
-          method,
-          params: buildMockParams({ blockParam, blockParamIndex }),
-        },
-        getRequestToMock: (request: MockRequest, blockNumber: Hex) => {
-          return buildRequestWithReplacedBlockParam(
-            request,
-            blockParamIndex,
-            blockNumber,
-          );
-        },
-        failure: {
-          httpStatus,
-        },
-        isRetriableFailure: false,
-        getExpectedError: () =>
-          expect.objectContaining({
-            message: errorMessage,
-          }),
-        getExpectedBreakError: () =>
-          expect.objectContaining({
-            message: `Fetch failed with status '${httpStatus}'`,
-          }),
-      });
-    });
-
-    describe.each([503, 504])(
+    describe.each([502, 503, 504])(
       'if the RPC endpoint returns a %d response',
       (httpStatus) => {
         const errorMessage = 'RPC endpoint not found or unavailable.';
