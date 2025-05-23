@@ -63,7 +63,7 @@ main().catch((error) => {
  * The entrypoint to this script.
  */
 async function main() {
-  const { cache, fix, quiet } = parseCommandLineArguments();
+  const { cache, fix, quiet } = await parseCommandLineArguments();
 
   const eslint = new ESLint({ cache, fix });
   const results = await runESLint(eslint, { fix, quiet });
@@ -79,7 +79,7 @@ async function main() {
  *
  * @returns The parsed arguments.
  */
-function parseCommandLineArguments() {
+async function parseCommandLineArguments() {
   return yargs(process.argv.slice(2))
     .option('cache', {
       type: 'boolean',
