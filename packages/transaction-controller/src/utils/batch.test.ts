@@ -28,10 +28,7 @@ import {
 } from '..';
 import { flushPromises } from '../../../../tests/helpers';
 import { SequentialPublishBatchHook } from '../hooks/SequentialPublishBatchHook';
-import type {
-  PublishBatchHook,
-  TransactionBatchSingleRequest,
-} from '../types';
+import type { PublishBatchHook, TransactionBatchSingleRequest } from '../types';
 
 jest.mock('./eip7702');
 jest.mock('./feature-flags');
@@ -1518,24 +1515,21 @@ describe('Batch Utils', () => {
           expect.objectContaining({
             id: expect.any(String),
             chainId: CHAIN_ID_MOCK,
+            gas: GAS_TOTAL_MOCK,
+            from: FROM_MOCK,
             networkClientId: NETWORK_CLIENT_ID_MOCK,
             transactions: [
-              expect.objectContaining({
-                params: {
-                  data: DATA_MOCK,
-                  to: TO_MOCK,
-                  value: VALUE_MOCK,
-                },
-              }),
-              expect.objectContaining({
-                params: {
-                  data: DATA_MOCK,
-                  to: TO_MOCK,
-                  value: VALUE_MOCK,
-                },
-              }),
+              {
+                params: TRANSACTION_BATCH_PARAMS_MOCK,
+                type: TransactionType.contractInteraction,
+              },
+              {
+                params: TRANSACTION_BATCH_PARAMS_MOCK,
+                type: TransactionType.contractInteraction,
+              },
             ],
             origin: ORIGIN_MOCK,
+            time: expect.any(Number),
           }),
         ]);
 

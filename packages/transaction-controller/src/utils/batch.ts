@@ -420,7 +420,6 @@ async function addTransactionBatchWithHook(
           transactions: nestedTransactions,
         });
 
-      console.log('1 nestedTransactions before >>>>', nestedTransactions);
       // resigned the transactions with simulated gas
       nestedTransactions = transactionsWithGas;
 
@@ -434,7 +433,7 @@ async function addTransactionBatchWithHook(
         from,
         gas: gasLimit,
       });
-
+      console.log('1 txBatchMeta >>>>', txBatchMeta?.transactions?.[0]);
       addBatchMetadata(txBatchMeta, update);
 
       resultCallbacks = (await requestApproval(txBatchMeta, messenger))
