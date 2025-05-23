@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
 - Bump `@metamask/controller-utils` to `^11.9.0` ([#5583](https://github.com/MetaMask/core/pull/5583), [#5765](https://github.com/MetaMask/core/pull/5765), [#5812](https://github.com/MetaMask/core/pull/5812))
 
+### Fixed
+
+- Fix `delete` method to clean up empty chainId objects when the last address in a chain is deleted ([#5779](https://github.com/MetaMask/core/pull/5779))
+
 ## [6.0.3]
 
 ### Changed
