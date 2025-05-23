@@ -524,9 +524,6 @@ export type TransactionBatchMeta = {
    */
   origin?: string;
 
-  /** When the transaction was saved in the metadata. */
-  time: number;
-
   /**
    * Data for any EIP-7702 transactions.
    */

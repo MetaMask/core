@@ -1534,7 +1534,6 @@ describe('Batch Utils', () => {
               },
             ],
             origin: ORIGIN_MOCK,
-            time: expect.any(Number),
           }),
         ]);
 

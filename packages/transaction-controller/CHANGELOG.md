@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add estimate gas limit for transaction batch using simulation API ([#5852](https://github.com/MetaMask/core/pull/5852))
 - Add optional approval request when calling `addTransactionBatch` ([#5793](https://github.com/MetaMask/core/pull/5793))
   - Add `transactionBatches` array to state.
   - Add `TransactionBatchMeta` type.

@@ -411,7 +411,6 @@ async function addTransactionBatchWithHook(
   const transactionCount = nestedTransactions.length;
   const collectHook = new CollectPublishHook(transactionCount);
   try {
-    console.log('Collecting publish hook >>>>', requireApproval, useHook);
     if (requireApproval && useHook) {
       const { gasLimit, transactions: transactionsWithGas } =
         await simulateGasBatch({
@@ -423,7 +422,6 @@ async function addTransactionBatchWithHook(
       // resigned the transactions with simulated gas
       nestedTransactions = transactionsWithGas;
 
-      console.log('transactions simulated >>>>', transactionsWithGas);
       const txBatchMeta = newBatchMetadata({
         id: batchId,
         chainId,
@@ -433,18 +431,16 @@ async function addTransactionBatchWithHook(
         from,
         gas: gasLimit,
       });
-      console.log('1 txBatchMeta >>>>', txBatchMeta?.transactions?.[0]);
       addBatchMetadata(txBatchMeta, update);
 
       resultCallbacks = (await requestApproval(txBatchMeta, messenger))
         .resultCallbacks;
-      console.log('resultCallbacks >>>>', resultCallbacks);
     }
 
     const publishHook = collectHook.getHook();
     const hookTransactions: Omit<PublishBatchHookTransaction, 'signedTx'>[] =
       [];
-    console.log('1 >>>>', nestedTransactions);
+
     for (const nestedTransaction of nestedTransactions) {
       const hookTransaction = await processTransactionWithHook(
         batchId,
@@ -455,10 +451,8 @@ async function addTransactionBatchWithHook(
 
       hookTransactions.push(hookTransaction);
     }
-    console.log('1.5 >>>>');
 
     const { signedTransactions } = await collectHook.ready();
-    console.log('2 signedTransactions >>>>', signedTransactions);
 
     const transactions = hookTransactions.map((transaction, index) => ({
       ...transaction,
@@ -466,11 +460,6 @@ async function addTransactionBatchWithHook(
     }));
 
     log('Calling publish batch hook', { from, networkClientId, transactions });
-    console.log('Calling publish batch hook', {
-      from,
-      networkClientId,
-      transactions,
-    });
 
     const result = await publishBatchHook({
       from,
@@ -479,7 +468,6 @@ async function addTransactionBatchWithHook(
     });
 
     log('Publish batch hook result', result);
-    console.log('Publish batch hook result', result);
 
     if (!result) {
       throw new Error('Publish batch hook did not return a result');
@@ -491,7 +479,6 @@ async function addTransactionBatchWithHook(
 
     collectHook.success(transactionHashes);
     resultCallbacks?.success();
-    console.log('called successs', resultCallbacks);
 
     log('Completed batch transaction with hook', transactionHashes);
 
@@ -537,7 +524,6 @@ async function processTransactionWithHook(
 
   const { from, networkClientId } = userRequest;
 
-  console.log('existingTransaction >>>>', existingTransaction);
   if (existingTransaction) {
     const { id, onPublish, signedTransaction } = existingTransaction;
     const transactionMeta = getTransaction(id);
@@ -553,10 +539,6 @@ async function processTransactionWithHook(
       });
 
     log('Processed existing transaction with hook', {
-      id,
-      params,
-    });
-    console.log('Processed existing transaction with hook', {
       id,
       params,
     });
@@ -642,12 +624,9 @@ async function requestApproval(
  * @returns A new TransactionBatchMeta object.
  */
 function newBatchMetadata(
-  transactionBatchMeta: Omit<TransactionBatchMeta, 'time'>,
+  transactionBatchMeta: TransactionBatchMeta,
 ): TransactionBatchMeta {
-  return {
-    ...transactionBatchMeta,
-    time: Date.now(),
-  };
+  return transactionBatchMeta;
 }
 
 /**
