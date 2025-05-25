@@ -1140,7 +1140,7 @@ export class ApprovalController extends BaseController<
 
     const hasSomeSnapInstallFlows = pendingApprovals.some(
       (approval) =>
-        approval.id === id &&
+        approval.origin === origin &&
         (SnapApprovalTypes.has(approval.type) ||
           Boolean(
             (approval.requestData?.permissions as Record<string, unknown>)
