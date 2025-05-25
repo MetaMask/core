@@ -1133,19 +1133,21 @@ export class ApprovalController extends BaseController<
         (requestData?.permissions as Record<string, unknown>)?.wallet_snap,
       );
 
-    if (!isSnapApproval && !isSnapConnectApproval) {
+    if (!(isSnapApproval || isSnapConnectApproval)) {
       return;
     }
 
-    const hasSomeSnapInstallFlows = pendingApprovals.some(
-      (approval) =>
+    const hasSomeSnapInstallFlows = pendingApprovals.some((approval) => {
+      const isSnapApprovalType = SnapApprovalTypes.has(approval.type);
+      const isSnapConnectApprovalType = Boolean(
+        (approval.requestData?.permissions as Record<string, unknown>)
+          ?.wallet_snap,
+      );
+      return (
         approval.origin === origin &&
-        (SnapApprovalTypes.has(approval.type) ||
-          Boolean(
-            (approval.requestData?.permissions as Record<string, unknown>)
-              ?.wallet_snap,
-          )),
-    );
+        (isSnapApprovalType || isSnapConnectApprovalType)
+      );
+    });
 
     if (hasSomeSnapInstallFlows) {
       throw rpcErrors.resourceUnavailable(
