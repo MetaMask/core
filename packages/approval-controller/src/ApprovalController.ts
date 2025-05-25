@@ -925,7 +925,7 @@ export class ApprovalController extends BaseController<
   ): Promise<unknown | AddResult> {
     this.#validateAddParams(id, origin, type, requestData, requestState);
 
-    this.#checkForSnapInstallFlow(id, type, origin, requestData || {});
+    this.#checkForSnapInstallFlow(type, origin, requestData || {});
 
     if (
       !this.#typesExcludedFromRateLimiting.includes(type) &&
@@ -1121,7 +1121,6 @@ export class ApprovalController extends BaseController<
   }
 
   #checkForSnapInstallFlow(
-    id: string,
     type: string,
     origin: string,
     requestData: Record<string, Json>,
