@@ -6,7 +6,6 @@
     "jsdoc/check-tag-names": 13
   },
   "packages/approval-controller/src/ApprovalController.test.ts": {
-    "import-x/order": 1,
     "jest/no-conditional-in-test": 16
   },
   "packages/approval-controller/src/ApprovalController.ts": {
