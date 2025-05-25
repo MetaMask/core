@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add snap approval types for use in the client ([#5824](https://github.com/MetaMask/core/pull/5824))
+
 ## [11.9.0]
 
 ### Added
