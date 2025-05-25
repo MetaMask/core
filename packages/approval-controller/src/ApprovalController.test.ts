@@ -4,7 +4,6 @@ import { Messenger } from '@metamask/base-controller';
 import { errorCodes, JsonRpcError } from '@metamask/rpc-errors';
 import { nanoid } from 'nanoid';
 
-import { flushPromises } from '../../../tests/helpers';
 import type {
   AddApprovalOptions,
   ApprovalControllerActions,
@@ -25,6 +24,7 @@ import {
   MissingApprovalFlowError,
   NoApprovalFlowsError,
 } from './errors';
+import { flushPromises } from '../../../tests/helpers';
 
 jest.mock('nanoid');
 
@@ -309,6 +309,100 @@ describe('approval controller', () => {
         } as unknown as AddApprovalOptions),
       ).toThrow(getInvalidRequestStateError());
     });
+
+    it.each([
+      [
+        {
+          id: 'foo',
+          origin: 'bar.baz',
+          type: 'wallet_requestPermissions',
+          requestData: {
+            permissions: {
+              wallet_snap: { 'npm:@metamask/example-snap': {} },
+            },
+          },
+        },
+        {
+          id: 'bar',
+          origin: 'bar.baz',
+          type: 'wallet_requestPermissions',
+          requestData: {
+            permissions: {
+              wallet_snap: { 'npm:@metamask/foo-snap': {} },
+            },
+          },
+        },
+      ],
+      [
+        {
+          id: 'foo',
+          origin: 'bar.baz',
+          type: 'wallet_installSnap',
+          requestData: {},
+        },
+        {
+          id: 'bar',
+          origin: 'bar.baz',
+          type: 'wallet_requestPermissions',
+          requestData: {
+            permissions: {
+              wallet_snap: { 'npm:@metamask/foo-snap': {} },
+            },
+          },
+        },
+      ],
+      [
+        {
+          id: 'foo',
+          origin: 'bar.baz',
+          type: 'wallet_requestPermissions',
+          requestData: {
+            permissions: {
+              wallet_snap: { 'npm:@metamask/example-snap': {} },
+            },
+          },
+        },
+        {
+          id: 'bar',
+          origin: 'bar.baz',
+          type: 'wallet_updateSnap',
+          requestData: {},
+        },
+      ],
+      [
+        {
+          id: 'foo',
+          origin: 'bar.baz',
+          type: 'wallet_installSnapResult',
+          requestData: {},
+        },
+        {
+          id: 'bar',
+          origin: 'bar.baz',
+          type: 'wallet_requestPermissions',
+          requestData: {
+            permissions: {
+              wallet_snap: { 'npm:@metamask/example-snap': {} },
+            },
+          },
+        },
+      ],
+    ])(
+      'throws on snap install flow collisions',
+      (firstRequest, secondRequest) => {
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        approvalController.add(firstRequest);
+
+        // Second request should throw
+        const expectedError =
+          'Snap installation flow already pending for origin bar.baz. Please wait.';
+
+        expect(() => {
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          approvalController.add(secondRequest);
+        }).toThrow(expectedError);
+      },
+    );
 
     it('adds correctly specified entry', () => {
       expect(() =>
