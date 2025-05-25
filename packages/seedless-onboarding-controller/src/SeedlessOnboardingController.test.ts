@@ -3336,6 +3336,213 @@ describe('SeedlessOnboardingController', () => {
       });
     });
 
+    describe('syncLatestGlobalPassword with token refresh', () => {
+      const OLD_PASSWORD = 'old-mock-password';
+      const GLOBAL_PASSWORD = 'new-global-password';
+      let MOCK_VAULT: string;
+      let MOCK_VAULT_ENCRYPTION_KEY: string;
+      let MOCK_VAULT_ENCRYPTION_SALT: string;
+      let INITIAL_AUTH_PUB_KEY: string;
+      let initialAuthKeyPair: KeyPair; // Store initial keypair for vault creation
+      let initialEncKey: Uint8Array; // Store initial encKey for vault creation
+
+      // Generate initial keys and vault state before tests run
+      beforeAll(async () => {
+        const mockToprfEncryptor = createMockToprfEncryptor();
+        initialEncKey = mockToprfEncryptor.deriveEncKey(OLD_PASSWORD);
+        initialAuthKeyPair = mockToprfEncryptor.deriveAuthKeyPair(OLD_PASSWORD);
+        INITIAL_AUTH_PUB_KEY = bytesToBase64(initialAuthKeyPair.pk);
+
+        const mockResult = await createMockVault(
+          initialEncKey,
+          initialAuthKeyPair,
+          OLD_PASSWORD,
+          MOCK_NODE_AUTH_TOKENS,
+        );
+
+        MOCK_VAULT = mockResult.encryptedMockVault;
+        MOCK_VAULT_ENCRYPTION_KEY = mockResult.vaultEncryptionKey;
+        MOCK_VAULT_ENCRYPTION_SALT = mockResult.vaultEncryptionSalt;
+      });
+
+      it('should retry syncLatestGlobalPassword after refreshing expired tokens', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+              authPubKey: INITIAL_AUTH_PUB_KEY,
+              vault: MOCK_VAULT,
+              vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+              vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
+            }),
+          },
+          async ({ controller, toprfClient, encryptor }) => {
+            // Unlock controller first
+            await controller.submitPassword(OLD_PASSWORD);
+
+            const verifyPasswordSpy = jest.spyOn(
+              controller,
+              'verifyVaultPassword',
+            );
+            const recoverEncKeySpy = jest.spyOn(toprfClient, 'recoverEncKey');
+            const encryptorSpy = jest.spyOn(encryptor, 'encryptWithDetail');
+
+            // Mock recoverEncKey for the new global password
+            const mockToprfEncryptor = createMockToprfEncryptor();
+            const newEncKey = mockToprfEncryptor.deriveEncKey(GLOBAL_PASSWORD);
+            const newAuthKeyPair =
+              mockToprfEncryptor.deriveAuthKeyPair(GLOBAL_PASSWORD);
+
+            // Mock recoverEncKey to fail first with token expired error, then succeed
+            recoverEncKeySpy
+              .mockImplementationOnce(() => {
+                throw new TOPRFError(
+                  TOPRFErrorCode.AuthTokenExpired,
+                  'Auth token expired',
+                );
+              })
+              .mockResolvedValueOnce({
+                encKey: newEncKey,
+                authKeyPair: newAuthKeyPair,
+                rateLimitResetResult: Promise.resolve(),
+                keyShareIndex: 1,
+              });
+
+            // Mock authenticate for token refresh
+            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+              isNewUser: false,
+            });
+
+            await controller.syncLatestGlobalPassword({
+              oldPassword: OLD_PASSWORD,
+              globalPassword: GLOBAL_PASSWORD,
+            });
+
+            // Verify that getNewRefreshToken was called
+            expect(mockGetNewRefreshToken).toHaveBeenCalledWith({
+              connection: controller.state.authConnection,
+              refreshToken,
+            });
+
+            // Verify that recoverEncKey was called twice (once failed, once succeeded)
+            expect(recoverEncKeySpy).toHaveBeenCalledTimes(2);
+
+            // Verify that authenticate was called during token refresh
+            expect(toprfClient.authenticate).toHaveBeenCalled();
+
+            // Verify that verifyPassword was called
+            expect(verifyPasswordSpy).toHaveBeenCalledWith(OLD_PASSWORD, {
+              skipLock: true,
+            });
+
+            // Check if vault was re-encrypted with the new password and keys
+            const expectedSerializedVaultData = JSON.stringify({
+              authTokens: controller.state.nodeAuthTokens,
+              toprfEncryptionKey: bytesToBase64(newEncKey),
+              toprfAuthKeyPair: JSON.stringify({
+                sk: bigIntToHex(newAuthKeyPair.sk),
+                pk: bytesToBase64(newAuthKeyPair.pk),
+              }),
+              refreshToken: controller.state.refreshToken,
+            });
+            expect(encryptorSpy).toHaveBeenCalledWith(
+              GLOBAL_PASSWORD,
+              expectedSerializedVaultData,
+            );
+
+            // Check if authPubKey was updated in state
+            expect(controller.state.authPubKey).toBe(
+              bytesToBase64(newAuthKeyPair.pk),
+            );
+          },
+        );
+      });
+
+      it('should fail if token refresh fails during syncLatestGlobalPassword', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+              authPubKey: INITIAL_AUTH_PUB_KEY,
+              vault: MOCK_VAULT,
+              vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+              vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
+            }),
+          },
+          async ({ controller, toprfClient }) => {
+            // Unlock controller first
+            await controller.submitPassword(OLD_PASSWORD);
+
+            // Mock recoverEncKey to fail with token expired error
+            jest
+              .spyOn(toprfClient, 'recoverEncKey')
+              .mockImplementationOnce(() => {
+                throw new TOPRFError(
+                  TOPRFErrorCode.AuthTokenExpired,
+                  'Auth token expired',
+                );
+              });
+
+            // Mock getNewRefreshToken to fail
+            mockGetNewRefreshToken.mockRejectedValueOnce(
+              new Error('Failed to get new refresh token'),
+            );
+
+            await expect(
+              controller.syncLatestGlobalPassword({
+                oldPassword: OLD_PASSWORD,
+                globalPassword: GLOBAL_PASSWORD,
+              }),
+            ).rejects.toThrow(
+              SeedlessOnboardingControllerErrorMessage.AuthenticationError,
+            );
+
+            // Verify that getNewRefreshToken was called
+            expect(mockGetNewRefreshToken).toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('should not retry on non-token-related errors during syncLatestGlobalPassword', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+              authPubKey: INITIAL_AUTH_PUB_KEY,
+              vault: MOCK_VAULT,
+              vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+              vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
+            }),
+          },
+          async ({ controller, toprfClient }) => {
+            // Unlock controller first
+            await controller.submitPassword(OLD_PASSWORD);
+
+            // Mock recoverEncKey to fail with a non-token error
+            jest
+              .spyOn(toprfClient, 'recoverEncKey')
+              .mockRejectedValue(new Error('Some other error'));
+
+            await expect(
+              controller.syncLatestGlobalPassword({
+                oldPassword: OLD_PASSWORD,
+                globalPassword: GLOBAL_PASSWORD,
+              }),
+            ).rejects.toThrow(
+              SeedlessOnboardingControllerErrorMessage.LoginFailedError,
+            );
+
+            // Verify that getNewRefreshToken was NOT called
+            expect(mockGetNewRefreshToken).not.toHaveBeenCalled();
+
+            // Verify that recoverEncKey was only called once (no retry)
+            expect(toprfClient.recoverEncKey).toHaveBeenCalledTimes(1);
+          },
+        );
+      });
+    });
+
     describe('addNewSeedPhraseBackup with token refresh', () => {
       const NEW_KEY_RING = {
         id: 'new-keyring-1',

@@ -595,23 +595,30 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     globalPassword: string;
   }) {
     return await this.#withControllerLock(async () => {
-      // verify correct old password
-      await this.verifyVaultPassword(oldPassword, {
-        skipLock: true, // skip lock since we already have the lock
-      });
-      // update vault with latest globalPassword
-      const { encKey, authKeyPair } = await this.#recoverEncKey(globalPassword);
-      // update and encrypt the vault with new password
-      await this.#createNewVaultWithAuthData({
-        password: globalPassword,
-        rawToprfEncryptionKey: encKey,
-        rawToprfAuthKeyPair: authKeyPair,
-      });
-      // persist the latest global password authPubKey
-      this.#persistAuthPubKey({
-        authPubKey: authKeyPair.pk,
-      });
-      this.#resetPasswordOutdatedCache();
+      const doSyncPassword = async () => {
+        // verify correct old password
+        await this.verifyVaultPassword(oldPassword, {
+          skipLock: true, // skip lock since we already have the lock
+        });
+        // update vault with latest globalPassword
+        const { encKey, authKeyPair } =
+          await this.#recoverEncKey(globalPassword);
+        // update and encrypt the vault with new password
+        await this.#createNewVaultWithAuthData({
+          password: globalPassword,
+          rawToprfEncryptionKey: encKey,
+          rawToprfAuthKeyPair: authKeyPair,
+        });
+        // persist the latest global password authPubKey
+        this.#persistAuthPubKey({
+          authPubKey: authKeyPair.pk,
+        });
+        this.#resetPasswordOutdatedCache();
+      };
+      return await this.#executeWithTokenRefresh(
+        doSyncPassword,
+        'syncLatestGlobalPassword',
+      );
     });
   }
 
@@ -1356,6 +1363,11 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
 
       return result;
     } catch (error) {
+      // throw token expired error for token refresh handler
+      if (this.#isTokenExpiredError(error)) {
+        throw error;
+      }
+
       const recoveryError = RecoveryError.getInstance(error, {
         numberOfAttempts: updatedRecoveryAttempts,
         remainingTime: updatedRemainingTime,
