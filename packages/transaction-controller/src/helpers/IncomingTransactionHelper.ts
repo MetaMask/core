@@ -10,14 +10,19 @@ import type { RemoteTransactionSource, TransactionMeta } from '../types';
 import { getIncomingTransactionsPollingInterval } from '../utils/feature-flags';
 
 export type IncomingTransactionOptions = {
+  client?: string;
   includeTokenTransfers?: boolean;
   isEnabled?: () => boolean;
   queryEntireHistory?: boolean;
   updateTransactions?: boolean;
 };
 
+const TAG_POLLING = 'automatic-polling';
+
 export class IncomingTransactionHelper {
   hub: EventEmitter;
+
+  readonly #client?: string;
 
   readonly #getCache: () => Record<string, unknown>;
 
@@ -50,6 +55,7 @@ export class IncomingTransactionHelper {
   readonly #updateTransactions?: boolean;
 
   constructor({
+    client,
     getCache,
     getCurrentAccount,
     getLocalTransactions,
@@ -62,6 +68,7 @@ export class IncomingTransactionHelper {
     updateCache,
     updateTransactions,
   }: {
+    client?: string;
     getCache: () => Record<string, unknown>;
     getCurrentAccount: () => ReturnType<
       AccountsController['getSelectedAccount']
@@ -78,6 +85,7 @@ export class IncomingTransactionHelper {
   }) {
     this.hub = new EventEmitter();
 
+    this.#client = client;
     this.#getCache = getCache;
     this.#getCurrentAccount = getCurrentAccount;
     this.#getLocalTransactions = getLocalTransactions;
@@ -142,9 +150,15 @@ export class IncomingTransactionHelper {
     }
   }
 
-  async update({ isInterval }: { isInterval?: boolean } = {}): Promise<void> {
+  async update({
+    isInterval,
+    tags,
+  }: { isInterval?: boolean; tags?: string[] } = {}): Promise<void> {
+    const finalTags = this.#getTags(tags, isInterval);
+
     log('Checking for incoming transactions', {
       isInterval: Boolean(isInterval),
+      tags: finalTags,
     });
 
     if (!this.#canStart()) {
@@ -166,6 +180,7 @@ export class IncomingTransactionHelper {
           cache,
           includeTokenTransfers,
           queryEntireHistory,
+          tags: finalTags,
           updateCache: this.#updateCache,
           updateTransactions,
         });
@@ -241,5 +256,24 @@ export class IncomingTransactionHelper {
 
   #getInterval(): number {
     return getIncomingTransactionsPollingInterval(this.#messenger);
+  }
+
+  #getTags(
+    requestTags: string[] | undefined,
+    isInterval: boolean | undefined,
+  ): string[] | undefined {
+    const tags = [];
+
+    if (this.#client) {
+      tags.push(this.#client);
+    }
+
+    if (requestTags?.length) {
+      tags.push(...requestTags);
+    } else if (isInterval) {
+      tags.push(TAG_POLLING);
+    }
+
+    return tags?.length ? tags : undefined;
   }
 }

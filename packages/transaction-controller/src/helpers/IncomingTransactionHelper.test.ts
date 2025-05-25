@@ -23,6 +23,9 @@ const ADDRESS_MOCK = '0x1';
 const SYSTEM_TIME_MOCK = 1000 * 60 * 60 * 24 * 2;
 const CACHE_MOCK = {};
 const MESSENGER_MOCK = {} as unknown as TransactionControllerMessenger;
+const TAG_MOCK = 'test1';
+const TAG_2_MOCK = 'test2';
+const CLIENT_MOCK = 'test-client';
 
 const CONTROLLER_ARGS_MOCK: ConstructorParameters<
   typeof IncomingTransactionHelper
@@ -166,6 +169,7 @@ describe('IncomingTransactionHelper', () => {
         cache: CACHE_MOCK,
         includeTokenTransfers: true,
         queryEntireHistory: true,
+        tags: ['automatic-polling'],
         updateCache: expect.any(Function),
         updateTransactions: false,
       });
@@ -460,6 +464,24 @@ describe('IncomingTransactionHelper', () => {
       await helper.update();
 
       expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('includes correct tags in remote transaction source request', async () => {
+      const remoteTransactionSource = createRemoteTransactionSourceMock([]);
+
+      const helper = new IncomingTransactionHelper({
+        ...CONTROLLER_ARGS_MOCK,
+        client: CLIENT_MOCK,
+        remoteTransactionSource,
+      });
+
+      await helper.update({ isInterval: false, tags: [TAG_MOCK, TAG_2_MOCK] });
+
+      expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tags: [CLIENT_MOCK, TAG_MOCK, TAG_2_MOCK],
+        }),
+      );
     });
   });
 });
