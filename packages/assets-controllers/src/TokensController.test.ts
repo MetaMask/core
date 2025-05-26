@@ -3342,8 +3342,8 @@ describe('TokensController', () => {
 
   describe('when accountRemoved is published', () => {
     it('removes the list of tokens for the removed account', async () => {
-      const firstAddress = '0x123';
-      const secondAddress = '0x456';
+      const firstAddress = '0xA73d9021f67931563fDfe3E8f66261086319a1FC';
+      const secondAddress = '0xB73d9021f67931563fDfe3E8f66261086319a1FK';
       const firstAccount = createMockInternalAccount({
         address: firstAddress,
       });
@@ -3393,7 +3393,7 @@ describe('TokensController', () => {
         ({ controller, triggerAccountRemoved }) => {
           expect(controller.state).toStrictEqual(initialState);
 
-          triggerAccountRemoved(firstAccount.id);
+          triggerAccountRemoved(firstAccount.address);
 
           expect(controller.state).toStrictEqual({
             allTokens: {
@@ -3422,8 +3422,8 @@ describe('TokensController', () => {
     });
 
     it('removes an account with no tokens', async () => {
-      const firstAddress = '0x123';
-      const secondAddress = '0x456';
+      const firstAddress = '0xA73d9021f67931563fDfe3E8f66261086319a1FC';
+      const secondAddress = '0xB73d9021f67931563fDfe3E8f66261086319a1FK';
       const firstAccount = createMockInternalAccount({
         address: firstAddress,
       });
@@ -3462,7 +3462,7 @@ describe('TokensController', () => {
         ({ controller, triggerAccountRemoved }) => {
           expect(controller.state).toStrictEqual(initialState);
 
-          triggerAccountRemoved(secondAccount.id);
+          triggerAccountRemoved(secondAccount.address);
 
           expect(controller.state).toStrictEqual(initialState);
         },
@@ -3486,7 +3486,7 @@ type WithControllerCallback<ReturnValue> = ({
   messenger: UnrestrictedMessenger;
   approvalController: ApprovalController;
   triggerSelectedAccountChange: (internalAccount: InternalAccount) => void;
-  triggerAccountRemoved: (accountId: string) => void;
+  triggerAccountRemoved: (accountAddress: string) => void;
   triggerNetworkStateChange: (
     networkState: NetworkState,
     patches: Patch[],
@@ -3568,7 +3568,7 @@ async function withController<ReturnValue>(
       'NetworkController:stateChange',
       'AccountsController:selectedEvmAccountChange',
       'TokenListController:stateChange',
-      'AccountsController:accountRemoved',
+      'KeyringController:accountRemoved',
     ],
   });
 
@@ -3613,8 +3613,8 @@ async function withController<ReturnValue>(
     );
   };
 
-  const triggerAccountRemoved = (accountId: string) => {
-    messenger.publish('AccountsController:accountRemoved', accountId);
+  const triggerAccountRemoved = (accountAddress: string) => {
+    messenger.publish('KeyringController:accountRemoved', accountAddress);
   };
 
   const changeNetwork = ({
