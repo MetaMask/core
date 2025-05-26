@@ -4,6 +4,7 @@ import { BaseController } from '@metamask/base-controller';
 import type {
   KeyPair,
   NodeAuthTokens,
+  RecoverEncryptionKeyResult,
   SEC1EncodedPublicKey,
 } from '@metamask/toprf-secure-backup';
 import { ToprfSecureBackup } from '@metamask/toprf-secure-backup';
@@ -703,11 +704,12 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @throws RecoveryError - If failed to recover the encryption key.
    */
   async #recoverEncKey(password: string) {
-    this.#assertIsAuthenticatedUser(this.state);
-    const authConnectionId =
-      this.state.groupedAuthConnectionId || this.state.authConnectionId;
+    return this.#withRecoveryErrorHandler(async () => {
+      this.#assertIsAuthenticatedUser(this.state);
 
-    try {
+      const authConnectionId =
+        this.state.groupedAuthConnectionId || this.state.authConnectionId;
+
       const recoverEncKeyResult = await this.toprfClient.recoverEncKey({
         nodeAuthTokens: this.state.nodeAuthTokens,
         password,
@@ -715,9 +717,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         userId: this.state.userId,
       });
       return recoverEncKeyResult;
-    } catch (error) {
-      throw RecoveryError.getInstance(error);
-    }
+    });
   }
 
   /**
@@ -1190,6 +1190,16 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   ): asserts value is SRPBackedUpUserDetails {
     if (!this.state.authPubKey) {
       throw new Error(SeedlessOnboardingControllerError.SRPNotBackedUpError);
+    }
+  }
+
+  async #withRecoveryErrorHandler(
+    callback: () => Promise<RecoverEncryptionKeyResult>,
+  ): Promise<RecoverEncryptionKeyResult> {
+    try {
+      return await callback();
+    } catch (error) {
+      throw RecoveryError.getInstance(error);
     }
   }
 

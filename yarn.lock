@@ -4509,7 +4509,7 @@ __metadata:
 
 "@metamask/toprf-secure-backup@file:./toprf-secure-backup.tgz::locator=%40metamask%2Fseedless-onboarding-controller%40workspace%3Apackages%2Fseedless-onboarding-controller":
   version: 0.2.0
-  resolution: "@metamask/toprf-secure-backup@file:./toprf-secure-backup.tgz#./toprf-secure-backup.tgz::hash=bb8607&locator=%40metamask%2Fseedless-onboarding-controller%40workspace%3Apackages%2Fseedless-onboarding-controller"
+  resolution: "@metamask/toprf-secure-backup@file:./toprf-secure-backup.tgz#./toprf-secure-backup.tgz::hash=f5c0b6&locator=%40metamask%2Fseedless-onboarding-controller%40workspace%3Apackages%2Fseedless-onboarding-controller"
   dependencies:
     "@metamask/auth-network-utils": "npm:^0.2.0"
     "@noble/ciphers": "npm:^1.2.1"
@@ -4521,7 +4521,7 @@ __metadata:
     "@toruslabs/fetch-node-details": "npm:^15.0.0"
     "@toruslabs/http-helpers": "npm:^8.1.1"
     bn.js: "npm:^5.2.1"
-  checksum: 10/a45f3c022de89a6de7b736695b40a966ac880f6b30700fd0386eb2fec6f798fdbe52a0b6eea935b19a0ec741d74cd346feb6facfdf5632a30b640c48065069e8
+  checksum: 10/62c6af775f6daaffb1a11beea2de4c799bfce547d6ab4d38b70541d8d334577d3af2923fd639958c6fe346a76a05c19977c4e2d99a4d5a46267cef526b827502
   languageName: node
   linkType: hard
 
