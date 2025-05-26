@@ -295,7 +295,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
   #handleOnAccountRemoved(accountAddress: string) {
     const isEthAddress =
       isStrictHexString(accountAddress.toLowerCase()) &&
-      isValidHexAddress(accountAddress as Hex);
+      isValidHexAddress(accountAddress);
     if (!isEthAddress) {
       return;
     }
