@@ -1237,8 +1237,14 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     }
   }
 
+  /**
+   * Handle the recovery error and update the recovery error data after executing the given callback.
+   *
+   * @param recoveryCallback - The callback recovery function to execute.
+   * @returns The result of the callback function.
+   */
   async #withRecoveryErrorHandler(
-    callback: () => Promise<RecoverEncryptionKeyResult>,
+    recoveryCallback: () => Promise<RecoverEncryptionKeyResult>,
   ): Promise<RecoverEncryptionKeyResult> {
     const currentRecoveryAttempts =
       this.state.recoveryRatelimitCache?.numberOfAttempts || 0;
@@ -1247,7 +1253,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       this.state.recoveryRatelimitCache?.remainingTime || 0;
 
     try {
-      const result = await callback();
+      const result = await recoveryCallback();
 
       // reset the ratelimit error data
       updatedRecoveryAttempts = 0;

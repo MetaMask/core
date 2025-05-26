@@ -125,7 +125,7 @@ export class RecoveryError extends Error {
     }
 
     const rateLimitErrorData = getRateLimitErrorData(error);
-    let recoveryErrorData = rateLimitErrorData
+    const recoveryErrorData = rateLimitErrorData
       ? {
           numberOfAttempts: rateLimitErrorData.guessCount,
           remainingTime: rateLimitErrorData.remainingTime,
@@ -134,12 +134,16 @@ export class RecoveryError extends Error {
 
     if (
       rateLimitErrorData &&
+      recoveryErrorData &&
       rateLimitErrorData.guessCount === cachedErrorData?.numberOfAttempts
     ) {
-      recoveryErrorData = {
-        numberOfAttempts: rateLimitErrorData.guessCount,
-        remainingTime: rateLimitErrorData.lockTime,
-      };
+      // if the number of attempts is the same, we can assume that the previous attempt has been made from the same device.
+      // The `lockTime` value is the total ratelimit duration based on the `guessCount` value.
+      // The `remainingTime` value is the time that server acutally waits to block the recovery (count down from the `lockTime`) before the next attempt.
+      // However, due to the network delay and server processing time, the `remainingTime` value will be smaller than the `lockTime` value when it reaches to the client side.
+      // e.g. The actual remaining time is 30s, but when it reaches to the client side, it becomes less than 30s, but the `lockTime` value is still 30s.
+      // So, to enforce the user to follow the rate limit policy in the client side, we use the `lockTime` value to calculate the remaining time.
+      recoveryErrorData.remainingTime = rateLimitErrorData.lockTime;
     }
 
     const errorMessage = getErrorMessageFromTOPRFErrorCode(
