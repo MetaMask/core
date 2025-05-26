@@ -17,7 +17,7 @@ import {
   controllerName,
   PASSWORD_OUTDATED_CACHE_TTL_MS,
   SecretType,
-  SeedlessOnboardingControllerError,
+  SeedlessOnboardingControllerErrorMessage,
   Web3AuthNetwork,
 } from './constants';
 import { PasswordSyncError, RecoveryError } from './errors';
@@ -221,7 +221,9 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         return authenticationResult;
       } catch (error) {
         log('Error authenticating user', error);
-        throw new Error(SeedlessOnboardingControllerError.AuthenticationError);
+        throw new Error(
+          SeedlessOnboardingControllerErrorMessage.AuthenticationError,
+        );
       }
     });
   }
@@ -286,12 +288,12 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     seedPhrase: Uint8Array,
     keyringId: string,
   ): Promise<void> {
-    this.#assertIsUnlocked();
-    await this.#assertPasswordInSync({
-      skipCache: true,
-    });
-    // NOTE don't include #assertPasswordInSync in #withControllerLock since #assertPasswordInSync already acquires the controller lock
     return await this.#withControllerLock(async () => {
+      this.#assertIsUnlocked();
+      await this.#assertPasswordInSync({
+        skipCache: true,
+        skipLock: true, // skip lock since we already have the lock
+      });
       // verify the password and unlock the vault
       const { toprfEncryptionKey, toprfAuthKeyPair } =
         await this.#unlockVaultAndGetBackupEncKey();
@@ -347,7 +349,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       } catch (error) {
         log('Error fetching seed phrase metadata', error);
         throw new Error(
-          SeedlessOnboardingControllerError.FailedToFetchSeedPhraseMetadata,
+          SeedlessOnboardingControllerErrorMessage.FailedToFetchSeedPhraseMetadata,
         );
       }
     });
@@ -363,15 +365,17 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @returns A promise that resolves to the success of the operation.
    */
   async changePassword(newPassword: string, oldPassword: string) {
-    this.#assertIsUnlocked();
-    // verify the old password of the encrypted vault
-    await this.verifyVaultPassword(oldPassword);
-    await this.#assertPasswordInSync({
-      skipCache: true,
-    });
-
-    // NOTE don't include verifyPassword and #assertPasswordInSync in #withControllerLock since verifyPassword and #assertPasswordInSync already acquires the controller lock
     return await this.#withControllerLock(async () => {
+      this.#assertIsUnlocked();
+      // verify the old password of the encrypted vault
+      await this.verifyVaultPassword(oldPassword, {
+        skipLock: true, // skip lock since we already have the lock
+      });
+      await this.#assertPasswordInSync({
+        skipCache: true,
+        skipLock: true, // skip lock since we already have the lock
+      });
+
       try {
         // update the encryption key with new password and update the Metadata Store
         const { encKey: newEncKey, authKeyPair: newAuthKeyPair } =
@@ -391,7 +395,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       } catch (error) {
         log('Error changing password', error);
         throw new Error(
-          SeedlessOnboardingControllerError.FailedToChangePassword,
+          SeedlessOnboardingControllerErrorMessage.FailedToChangePassword,
         );
       }
     });
@@ -424,16 +428,26 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * Verify the password validity by decrypting the vault.
    *
    * @param password - The password to verify.
+   * @param options - Optional options object.
+   * @param options.skipLock - Whether to skip the lock acquisition.
    * @returns A promise that resolves to the success of the operation.
    * @throws {Error} If the password is invalid or the vault is not initialized.
    */
-  async verifyVaultPassword(password: string): Promise<void> {
-    return await this.#withControllerLock(async () => {
+  async verifyVaultPassword(
+    password: string,
+    options?: {
+      skipLock?: boolean;
+    },
+  ): Promise<void> {
+    const doVerify = async () => {
       if (!this.state.vault) {
-        throw new Error(SeedlessOnboardingControllerError.VaultError);
+        throw new Error(SeedlessOnboardingControllerErrorMessage.VaultError);
       }
       await this.#vaultEncryptor.decrypt(password, this.state.vault);
-    });
+    };
+    return options?.skipLock
+      ? await doVerify()
+      : await this.#withControllerLock(doVerify);
   }
 
   /**
@@ -502,10 +516,11 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     oldPassword: string;
     globalPassword: string;
   }) {
-    // verify correct old password
-    await this.verifyVaultPassword(oldPassword);
-    // NOTE don't include verifyPassword in #withControllerLock since verifyPassword already acquires the controller lock
     return await this.#withControllerLock(async () => {
+      // verify correct old password
+      await this.verifyVaultPassword(oldPassword, {
+        skipLock: true, // skip lock since we already have the lock
+      });
       // update vault with latest globalPassword
       const { encKey, authKeyPair } = await this.#recoverEncKey(globalPassword);
       // update and encrypt the vault with new password
@@ -582,10 +597,12 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    *
    * @param options - Optional options object.
    * @param options.skipCache - If true, bypass the cache and force a fresh check.
+   * @param options.skipLock - Whether to skip the lock acquisition.
    * @returns A promise that resolves to true if the password is outdated, false otherwise.
    */
   async checkIsPasswordOutdated(options?: {
     skipCache?: boolean;
+    skipLock?: boolean;
   }): Promise<boolean> {
     // cache result to reduce load on infra
     // Check cache first unless skipCache is true
@@ -600,7 +617,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         return passwordOutdatedCache.isExpiredPwd;
       }
     }
-    return await this.#withControllerLock(async () => {
+
+    const doCheck = async () => {
       this.#assertIsAuthenticatedUser(this.state);
       const {
         nodeAuthTokens,
@@ -627,7 +645,11 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         state.passwordOutdatedCache = { isExpiredPwd, timestamp: Date.now() };
       });
       return isExpiredPwd;
-    });
+    };
+
+    return options?.skipLock
+      ? await doCheck()
+      : await this.#withControllerLock(doCheck);
   }
 
   #setUnlocked(): void {
@@ -666,7 +688,9 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       });
     } catch (error) {
       log('Error persisting local encryption key', error);
-      throw new Error(SeedlessOnboardingControllerError.FailedToPersistOprfKey);
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.FailedToPersistOprfKey,
+      );
     }
   }
 
@@ -786,7 +810,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     } catch (error) {
       log('Error encrypting and storing seed phrase backup', error);
       throw new Error(
-        SeedlessOnboardingControllerError.FailedToEncryptAndStoreSeedPhraseBackup,
+        SeedlessOnboardingControllerErrorMessage.FailedToEncryptAndStoreSeedPhraseBackup,
       );
     }
   }
@@ -819,11 +843,13 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       } = this.state;
 
       if (!encryptedVault) {
-        throw new Error(SeedlessOnboardingControllerError.VaultError);
+        throw new Error(SeedlessOnboardingControllerErrorMessage.VaultError);
       }
 
       if (!vaultEncryptionKey && !password) {
-        throw new Error(SeedlessOnboardingControllerError.MissingCredentials);
+        throw new Error(
+          SeedlessOnboardingControllerErrorMessage.MissingCredentials,
+        );
       }
 
       let decryptedVaultData: unknown;
@@ -845,12 +871,14 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         const parsedEncryptedVault = JSON.parse(encryptedVault);
 
         if (vaultEncryptionSalt !== parsedEncryptedVault.salt) {
-          throw new Error(SeedlessOnboardingControllerError.ExpiredCredentials);
+          throw new Error(
+            SeedlessOnboardingControllerErrorMessage.ExpiredCredentials,
+          );
         }
 
         if (typeof vaultEncryptionKey !== 'string') {
           throw new TypeError(
-            SeedlessOnboardingControllerError.WrongPasswordType,
+            SeedlessOnboardingControllerErrorMessage.WrongPasswordType,
           );
         }
 
@@ -1115,14 +1143,18 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     toprfAuthKeyPair: KeyPair;
   } {
     if (typeof data !== 'string') {
-      throw new Error(SeedlessOnboardingControllerError.InvalidVaultData);
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.InvalidVaultData,
+      );
     }
 
     let parsedVaultData: unknown;
     try {
       parsedVaultData = JSON.parse(data);
     } catch {
-      throw new Error(SeedlessOnboardingControllerError.InvalidVaultData);
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.InvalidVaultData,
+      );
     }
 
     this.#assertIsValidVaultData(parsedVaultData);
@@ -1145,7 +1177,9 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
 
   #assertIsUnlocked(): void {
     if (!this.#isUnlocked) {
-      throw new Error(SeedlessOnboardingControllerError.ControllerLocked);
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.ControllerLocked,
+      );
     }
   }
 
@@ -1172,7 +1206,9 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       !('userId' in value) ||
       typeof value.userId !== 'string'
     ) {
-      throw new Error(SeedlessOnboardingControllerError.MissingAuthUserInfo);
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.MissingAuthUserInfo,
+      );
     }
 
     if (
@@ -1181,7 +1217,9 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       !Array.isArray(value.nodeAuthTokens) ||
       value.nodeAuthTokens.length < 3 // At least 3 auth tokens are required for Threshold OPRF service
     ) {
-      throw new Error(SeedlessOnboardingControllerError.InsufficientAuthToken);
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.InsufficientAuthToken,
+      );
     }
   }
 
@@ -1189,7 +1227,9 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     value: unknown,
   ): asserts value is SRPBackedUpUserDetails {
     if (!this.state.authPubKey) {
-      throw new Error(SeedlessOnboardingControllerError.SRPNotBackedUpError);
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.SRPNotBackedUpError,
+      );
     }
   }
 
@@ -1208,14 +1248,18 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    *
    * @param options - The options for asserting the password is in sync.
    * @param options.skipCache - Whether to skip the cache check.
+   * @param options.skipLock - Whether to skip the lock acquisition.
    * @throws If the password is outdated.
    */
   async #assertPasswordInSync(options?: {
     skipCache?: boolean;
+    skipLock?: boolean;
   }): Promise<void> {
     const isPasswordOutdated = await this.checkIsPasswordOutdated(options);
     if (isPasswordOutdated) {
-      throw new Error(SeedlessOnboardingControllerError.OutdatedPassword);
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.OutdatedPassword,
+      );
     }
   }
 
@@ -1243,7 +1287,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       !('toprfAuthKeyPair' in value) || // toprfAuthKeyPair is not defined
       typeof value.toprfAuthKeyPair !== 'string' // toprfAuthKeyPair is not a string
     ) {
-      throw new Error(SeedlessOnboardingControllerError.VaultDataError);
+      throw new Error(SeedlessOnboardingControllerErrorMessage.VaultDataError);
     }
   }
 }
@@ -1256,11 +1300,13 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
  */
 function assertIsValidPassword(password: unknown): asserts password is string {
   if (typeof password !== 'string') {
-    throw new Error(SeedlessOnboardingControllerError.WrongPasswordType);
+    throw new Error(SeedlessOnboardingControllerErrorMessage.WrongPasswordType);
   }
 
   if (!password || !password.length) {
-    throw new Error(SeedlessOnboardingControllerError.InvalidEmptyPassword);
+    throw new Error(
+      SeedlessOnboardingControllerErrorMessage.InvalidEmptyPassword,
+    );
   }
 }
 

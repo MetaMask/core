@@ -6,7 +6,7 @@ import {
 } from '@metamask/utils';
 
 import {
-  SeedlessOnboardingControllerError,
+  SeedlessOnboardingControllerErrorMessage,
   SecretType,
   SecretMetadataVersion,
 } from './constants';
@@ -114,7 +114,9 @@ export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
       !('timestamp' in value) ||
       typeof value.timestamp !== 'number'
     ) {
-      throw new Error(SeedlessOnboardingControllerError.InvalidSecretMetadata);
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.InvalidSecretMetadata,
+      );
     }
   }
 

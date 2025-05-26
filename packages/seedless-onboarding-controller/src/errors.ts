@@ -4,7 +4,7 @@ import {
   TOPRFErrorCode,
 } from '@metamask/toprf-secure-backup';
 
-import { SeedlessOnboardingControllerError } from './constants';
+import { SeedlessOnboardingControllerErrorMessage } from './constants';
 
 /**
  * Get the error message from the TOPRF error code.
@@ -19,14 +19,43 @@ function getErrorMessageFromTOPRFErrorCode(
 ): string {
   switch (errorCode) {
     case TOPRFErrorCode.RateLimitExceeded:
-      return SeedlessOnboardingControllerError.TooManyLoginAttempts;
+      return SeedlessOnboardingControllerErrorMessage.TooManyLoginAttempts;
     case TOPRFErrorCode.CouldNotDeriveEncryptionKey:
-      return SeedlessOnboardingControllerError.IncorrectPassword;
+      return SeedlessOnboardingControllerErrorMessage.IncorrectPassword;
     case TOPRFErrorCode.CouldNotFetchPassword:
-      return SeedlessOnboardingControllerError.CouldNotRecoverPassword;
+      return SeedlessOnboardingControllerErrorMessage.CouldNotRecoverPassword;
     default:
       return defaultMessage;
   }
+}
+
+/**
+ * Check if the provided error is a rate limit error triggered by too many login attempts.
+ *
+ * Return a new TooManyLoginAttemptsError if the error is a rate limit error, otherwise undefined.
+ *
+ * @param error - The error to check.
+ * @returns The rate limit error if the error is a rate limit error, otherwise undefined.
+ */
+function getRateLimitErrorData(
+  error: TOPRFError,
+): RateLimitErrorData | undefined {
+  if (
+    error.meta && // error metadata must be present
+    error.code === TOPRFErrorCode.RateLimitExceeded &&
+    typeof error.meta.rateLimitDetails === 'object' &&
+    error.meta.rateLimitDetails !== null &&
+    'remainingTime' in error.meta.rateLimitDetails &&
+    typeof error.meta.rateLimitDetails.remainingTime === 'number' &&
+    'message' in error.meta.rateLimitDetails &&
+    typeof error.meta.rateLimitDetails.message === 'string'
+  ) {
+    return {
+      remainingTime: error.meta.rateLimitDetails.remainingTime,
+      message: error.meta.rateLimitDetails.message,
+    };
+  }
+  return undefined;
 }
 
 /**
@@ -48,12 +77,12 @@ export class PasswordSyncError extends Error {
     if (error instanceof TOPRFError) {
       const errorMessage = getErrorMessageFromTOPRFErrorCode(
         error.code,
-        SeedlessOnboardingControllerError.CouldNotRecoverPassword,
+        SeedlessOnboardingControllerErrorMessage.CouldNotRecoverPassword,
       );
       return new PasswordSyncError(errorMessage);
     }
     return new PasswordSyncError(
-      SeedlessOnboardingControllerError.CouldNotRecoverPassword,
+      SeedlessOnboardingControllerErrorMessage.CouldNotRecoverPassword,
     );
   }
 }
@@ -79,44 +108,15 @@ export class RecoveryError extends Error {
    */
   static getInstance(error: unknown): RecoveryError {
     if (error instanceof TOPRFError) {
-      const rateLimitErrorData = RecoveryError.getRateLimitErrorData(error);
+      const rateLimitErrorData = getRateLimitErrorData(error);
       const errorMessage = getErrorMessageFromTOPRFErrorCode(
         error.code,
-        SeedlessOnboardingControllerError.LoginFailedError,
+        SeedlessOnboardingControllerErrorMessage.LoginFailedError,
       );
       return new RecoveryError(errorMessage, rateLimitErrorData);
     }
     return new RecoveryError(
-      SeedlessOnboardingControllerError.LoginFailedError,
+      SeedlessOnboardingControllerErrorMessage.LoginFailedError,
     );
-  }
-
-  /**
-   * Check if the provided error is a rate limit error triggered by too many login attempts.
-   *
-   * Return a new TooManyLoginAttemptsError if the error is a rate limit error, otherwise undefined.
-   *
-   * @param error - The error to check.
-   * @returns The rate limit error if the error is a rate limit error, otherwise undefined.
-   */
-  static getRateLimitErrorData(
-    error: TOPRFError,
-  ): RateLimitErrorData | undefined {
-    if (
-      error.meta && // error metadata must be present
-      error.code === TOPRFErrorCode.RateLimitExceeded &&
-      typeof error.meta.rateLimitDetails === 'object' &&
-      error.meta.rateLimitDetails !== null &&
-      'remainingTime' in error.meta.rateLimitDetails &&
-      typeof error.meta.rateLimitDetails.remainingTime === 'number' &&
-      'message' in error.meta.rateLimitDetails &&
-      typeof error.meta.rateLimitDetails.message === 'string'
-    ) {
-      return {
-        remainingTime: error.meta.rateLimitDetails.remainingTime,
-        message: error.meta.rateLimitDetails.message,
-      };
-    }
-    return undefined;
   }
 }
