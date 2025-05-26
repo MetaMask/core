@@ -28,6 +28,7 @@ import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 import nock from 'nock';
 import * as sinon from 'sinon';
+import { useFakeTimers } from 'sinon';
 
 import { formatAggregatorNames } from './assetsUtil';
 import * as MutliChainAccountsServiceModule from './multi-chain-accounts-service';
@@ -66,6 +67,8 @@ import {
   buildCustomRpcEndpoint,
   buildInfuraNetworkConfiguration,
 } from '../../network-controller/tests/helpers';
+import type { TransactionMeta } from '../../transaction-controller/src/types';
+import { TransactionStatus } from '../../transaction-controller/src/types';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -211,16 +214,12 @@ describe('TokenDetectionController', () => {
       .get(getTokensPath(ChainId.mainnet))
       .reply(200, sampleTokenList)
       .get(
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `/token/${convertHexToDecimal(ChainId.mainnet)}?address=${
           tokenAFromList.address
         }`,
       )
       .reply(200, tokenAFromList)
       .get(
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `/token/${convertHexToDecimal(ChainId.mainnet)}?address=${
           tokenBFromList.address
         }`,
@@ -751,7 +750,7 @@ describe('TokenDetectionController', () => {
   describe('AccountsController:selectedAccountChange', () => {
     let clock: sinon.SinonFakeTimers;
     beforeEach(() => {
-      clock = sinon.useFakeTimers();
+      clock = useFakeTimers();
     });
 
     afterEach(() => {
@@ -3020,6 +3019,83 @@ describe('TokenDetectionController', () => {
       expect(result).toStrictEqual({ chain1: { nested: 'nestedData' } });
     });
   });
+
+  describe('TransactionController:transactionConfirmed', () => {
+    let clock: sinon.SinonFakeTimers;
+    beforeEach(() => {
+      clock = sinon.useFakeTimers();
+    });
+
+    afterEach(() => {
+      clock.restore();
+    });
+    it('calls detectTokens when a transaction is confirmed', async () => {
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+        [sampleTokenA.address]: new BN(1),
+      });
+      const firstSelectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
+      const secondSelectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000002',
+      });
+      await withController(
+        {
+          options: {
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            useAccountsAPI: true, // USING ACCOUNTS API
+          },
+          mocks: {
+            getSelectedAccount: firstSelectedAccount,
+          },
+        },
+        async ({
+          mockGetAccount,
+          mockTokenListGetState,
+          triggerTransactionConfirmed,
+          callActionSpy,
+        }) => {
+          mockMultiChainAccountsService();
+          mockTokenListGetState({
+            ...getDefaultTokenListState(),
+            tokensChainsCache: {
+              '0x1': {
+                timestamp: 0,
+                data: {
+                  [sampleTokenA.address]: {
+                    name: sampleTokenA.name,
+                    symbol: sampleTokenA.symbol,
+                    decimals: sampleTokenA.decimals,
+                    address: sampleTokenA.address,
+                    occurrences: 1,
+                    aggregators: sampleTokenA.aggregators,
+                    iconUrl: sampleTokenA.image,
+                  },
+                },
+              },
+            },
+          });
+
+          mockGetAccount(secondSelectedAccount);
+          triggerTransactionConfirmed({
+            chainId: '0x1',
+            status: TransactionStatus.confirmed,
+          } as unknown as TransactionMeta);
+          await advanceTime({ clock, duration: 1 });
+
+          expect(callActionSpy).toHaveBeenCalledWith(
+            'TokensController:addDetectedTokens',
+            [sampleTokenA],
+            {
+              chainId: ChainId.mainnet,
+              selectedAddress: secondSelectedAccount.address,
+            },
+          );
+        },
+      );
+    });
+  });
 });
 
 /**
@@ -3029,8 +3105,6 @@ describe('TokenDetectionController', () => {
  * @returns The constructed path.
  */
 function getTokensPath(chainId: Hex) {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
   return `/tokens/${convertHexToDecimal(
     chainId,
   )}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false`;
@@ -3054,6 +3128,7 @@ type WithControllerCallback<ReturnValue> = ({
   triggerPreferencesStateChange,
   triggerSelectedAccountChange,
   triggerNetworkDidChange,
+  triggerTransactionConfirmed,
 }: {
   controller: TokenDetectionController;
   mockGetAccount: (internalAccount: InternalAccount) => void;
@@ -3078,6 +3153,7 @@ type WithControllerCallback<ReturnValue> = ({
   triggerPreferencesStateChange: (state: PreferencesState) => void;
   triggerSelectedAccountChange: (account: InternalAccount) => void;
   triggerNetworkDidChange: (state: NetworkState) => void;
+  triggerTransactionConfirmed: (transactionMeta: TransactionMeta) => void;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = {
@@ -3259,6 +3335,12 @@ async function withController<ReturnValue>(
       },
       triggerNetworkDidChange: (state: NetworkState) => {
         messenger.publish('NetworkController:networkDidChange', state);
+      },
+      triggerTransactionConfirmed: (transactionMeta: TransactionMeta) => {
+        messenger.publish(
+          'TransactionController:transactionConfirmed',
+          transactionMeta,
+        );
       },
     });
   } finally {

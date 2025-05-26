@@ -413,13 +413,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       },
     );
 
-    // subscribe to   'TransactionController:transactionConfirmed',
+    // subscribe to 'TransactionController:transactionConfirmed',
     this.messagingSystem.subscribe(
       'TransactionController:transactionConfirmed',
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (transactionMeta) => {
-        console.log('transactionConfirmed', transactionMeta);
         await this.detectTokens({
           chainIds: [transactionMeta.chainId],
         });
