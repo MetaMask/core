@@ -105,6 +105,10 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       persist: true,
       anonymous: true,
     },
+    recoveryRatelimitCache: {
+      persist: true,
+      anonymous: true,
+    },
   };
 
 export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
@@ -1236,10 +1240,42 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   async #withRecoveryErrorHandler(
     callback: () => Promise<RecoverEncryptionKeyResult>,
   ): Promise<RecoverEncryptionKeyResult> {
+    const currentRecoveryAttempts =
+      this.state.recoveryRatelimitCache?.numberOfAttempts || 0;
+    let updatedRecoveryAttempts = currentRecoveryAttempts + 1;
+    let updatedRemainingTime =
+      this.state.recoveryRatelimitCache?.remainingTime || 0;
+
     try {
-      return await callback();
+      const result = await callback();
+
+      // reset the ratelimit error data
+      updatedRecoveryAttempts = 0;
+      updatedRemainingTime = 0;
+
+      return result;
     } catch (error) {
-      throw RecoveryError.getInstance(error);
+      const recoveryError = RecoveryError.getInstance(error, {
+        numberOfAttempts: updatedRecoveryAttempts,
+        remainingTime: updatedRemainingTime,
+      });
+
+      if (recoveryError.data?.numberOfAttempts) {
+        updatedRecoveryAttempts = recoveryError.data.numberOfAttempts;
+      }
+
+      if (recoveryError.data?.remainingTime) {
+        updatedRemainingTime = recoveryError.data.remainingTime;
+      }
+
+      throw recoveryError;
+    } finally {
+      this.update((state) => {
+        state.recoveryRatelimitCache = {
+          numberOfAttempts: updatedRecoveryAttempts,
+          remainingTime: updatedRemainingTime,
+        };
+      });
     }
   }
 
