@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 381.0.0 ([#5729](https://github.com/MetaMask/core/pull/5729))
+- Fix unmocked block tracker warning in NetworkController tests ([#5289](https://github.com/MetaMask/core/pull/5289))
+
 ### Fixed
 
 - Improved error handling in RPC service with more specific error types ([#5843](https://github.com/MetaMask/core/pull/5843)):

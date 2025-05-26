@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- add missing `promptToCreateSolanaAccount` flag ([#5856](https://github.com/MetaMask/core/pull/5856))
+- Release 402.0.0 ([#5820](https://github.com/MetaMask/core/pull/5820))
+
 ### Added
 
 - When `wallet_createSession` handler is called with `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp` (solana mainnet) as a requested scope, but there are not currently any accounts in the wallet supporting this scope, we now add a `promptToCreateSolanaAccount` to a metadata object on the requestPermissions call.
