@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Add event listener for KeyringController:accountRemoved instead of AccountsController:accountRemoved in TokenBalancesController and TokensController ([#5859](https://github.com/MetaMask/core/pull/5859))
+- **BREAKING:** Add event listener for `KeyringController:accountRemoved` instead of `AccountsController:accountRemoved` in `TokenBalancesController` and `TokensController` ([#5859](https://github.com/MetaMask/core/pull/5859))
 
 ## [64.0.0]
 
