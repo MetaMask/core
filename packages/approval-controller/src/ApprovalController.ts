@@ -32,6 +32,15 @@ const stateMetadata = {
   approvalFlows: { persist: false, anonymous: false },
 };
 
+const SnapApprovalTypes = new Set([
+  'wallet_installSnap',
+  'wallet_updateSnap',
+  'wallet_installSnapResult',
+]);
+
+const getAlreadyPendingSnapInstallFlowMessage = (origin: string) =>
+  `Snap installation flow already pending for origin ${origin}. Please wait.`;
+
 const getAlreadyPendingMessage = (origin: string, type: string) =>
   `Request of type '${type}' already pending for origin ${origin}. Please wait.`;
 
@@ -916,6 +925,8 @@ export class ApprovalController extends BaseController<
   ): Promise<unknown | AddResult> {
     this.#validateAddParams(id, origin, type, requestData, requestState);
 
+    this.#checkForSnapInstallFlow(type, origin, requestData || {});
+
     if (
       !this.#typesExcludedFromRateLimiting.includes(type) &&
       this.has({ origin, type })
@@ -1106,6 +1117,42 @@ export class ApprovalController extends BaseController<
           console.info('Failed to end flow', { id: opts.flowToEnd, error });
         }
       }
+    }
+  }
+
+  #checkForSnapInstallFlow(
+    type: string,
+    origin: string,
+    requestData: Record<string, Json>,
+  ) {
+    const pendingApprovals = Object.values(this.state.pendingApprovals);
+    const isSnapApproval = SnapApprovalTypes.has(type);
+    const isSnapConnectApproval =
+      type === 'wallet_requestPermissions' &&
+      Boolean(
+        (requestData?.permissions as Record<string, unknown>)?.wallet_snap,
+      );
+
+    if (!(isSnapApproval || isSnapConnectApproval)) {
+      return;
+    }
+
+    const hasSomeSnapInstallFlows = pendingApprovals.some((approval) => {
+      const isSnapApprovalType = SnapApprovalTypes.has(approval.type);
+      const isSnapConnectApprovalType = Boolean(
+        (approval.requestData?.permissions as Record<string, unknown>)
+          ?.wallet_snap,
+      );
+      return (
+        approval.origin === origin &&
+        (isSnapApprovalType || isSnapConnectApprovalType)
+      );
+    });
+
+    if (hasSomeSnapInstallFlows) {
+      throw rpcErrors.resourceUnavailable(
+        getAlreadyPendingSnapInstallFlowMessage(origin),
+      );
     }
   }
 }
