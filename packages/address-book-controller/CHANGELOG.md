@@ -9,9 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `AddressBookControllerContactUpdatedEvent` and `AddressBookControllerContactDeletedEvent` types for contact events ([#5779](https://github.com/MetaMask/core/pull/5779))
-- Add `list` method on `AddressBookController` to get all address book entries as an array ([#5779](https://github.com/MetaMask/core/pull/5779))
-- Register message handlers for `list`, `set`, and `delete` actions ([#5779](https://github.com/MetaMask/core/pull/5779))
+- Add contact event system ([#5779](https://github.com/MetaMask/core/pull/5779))
+  - Add `AddressBookControllerContactUpdatedEvent` and `AddressBookControllerContactDeletedEvent` types for contact events
+  - Add `list` method on `AddressBookController` to get all address book entries as an array
+  - Register message handlers for `list`, `set`, and `delete` actions
+  - Add `lastUpdatedAt` property to `AddressBookEntry` to track when contacts were last modified
 
 ### Changed
 

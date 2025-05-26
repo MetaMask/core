@@ -497,32 +497,125 @@ describe('AddressBookController', () => {
 
   it('lists all contacts', () => {
     const { controller } = arrangeMocks();
+
+    // Add multiple contacts to chain 1
     controller.set(
       '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-      'foo',
+      'Alice',
       toHex(1),
+      'First contact',
     );
     controller.set(
       '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d',
-      'bar',
+      'Bob',
+      toHex(1),
+      'Second contact',
+    );
+    controller.set(
+      '0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed',
+      'Charlie',
+      toHex(1),
+    );
+
+    // Add multiple contacts to chain 2
+    controller.set(
+      '0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359',
+      'David',
+      toHex(2),
+      'Chain 2 contact',
+    );
+    controller.set(
+      '0x4e83362442B8d1beC281594ceA3050c8EB01311C',
+      'Eve',
       toHex(2),
     );
 
+    // Add contact to chain 137 (Polygon)
+    controller.set(
+      '0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabaB',
+      'Frank',
+      toHex(137),
+      'Polygon contact',
+    );
+
     const contacts = controller.list();
-    expect(contacts).toHaveLength(2);
+
+    // Should have all 6 contacts
+    expect(contacts).toHaveLength(6);
+
+    // Verify chain 1 contacts
     expect(contacts).toContainEqual(
       expect.objectContaining({
         address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
         chainId: toHex(1),
-        name: 'foo',
+        name: 'Alice',
+        memo: 'First contact',
       }),
     );
     expect(contacts).toContainEqual(
       expect.objectContaining({
         address: '0xC38bF1aD06ef69F0c04E29DBeB4152B4175f0A8D',
-        chainId: toHex(2),
-        name: 'bar',
+        chainId: toHex(1),
+        name: 'Bob',
+        memo: 'Second contact',
       }),
     );
+    expect(contacts).toContainEqual(
+      expect.objectContaining({
+        address: '0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed',
+        chainId: toHex(1),
+        name: 'Charlie',
+        memo: '',
+      }),
+    );
+
+    // Verify chain 2 contacts
+    expect(contacts).toContainEqual(
+      expect.objectContaining({
+        address: '0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359',
+        chainId: toHex(2),
+        name: 'David',
+        memo: 'Chain 2 contact',
+      }),
+    );
+    expect(contacts).toContainEqual(
+      expect.objectContaining({
+        address: '0x4E83362442B8d1beC281594cEa3050c8EB01311C',
+        chainId: toHex(2),
+        name: 'Eve',
+        memo: '',
+      }),
+    );
+
+    // Verify chain 137 contact
+    expect(contacts).toContainEqual(
+      expect.objectContaining({
+        address: '0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabaB',
+        chainId: toHex(137),
+        name: 'Frank',
+        memo: 'Polygon contact',
+      }),
+    );
+
+    // Verify that contacts from different chains are all included
+    const chainIds = contacts.map((contact) => contact.chainId);
+    expect(chainIds).toContain(toHex(1));
+    expect(chainIds).toContain(toHex(2));
+    expect(chainIds).toContain(toHex(137));
+
+    // Verify we have the expected number of contacts per chain
+    const chain1Contacts = contacts.filter(
+      (contact) => contact.chainId === toHex(1),
+    );
+    const chain2Contacts = contacts.filter(
+      (contact) => contact.chainId === toHex(2),
+    );
+    const chain137Contacts = contacts.filter(
+      (contact) => contact.chainId === toHex(137),
+    );
+
+    expect(chain1Contacts).toHaveLength(3);
+    expect(chain2Contacts).toHaveLength(2);
+    expect(chain137Contacts).toHaveLength(1);
   });
 });

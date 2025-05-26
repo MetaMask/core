@@ -14,6 +14,18 @@ import {
 import type { Hex } from '@metamask/utils';
 
 /**
+ * ContactEntry representation
+ */
+export type ContactEntry = {
+  /** Hex address of a recipient account */
+  address: string;
+  /** Nickname associated with this address */
+  name: string;
+  /** Data time when an account as created/imported */
+  importTime?: number;
+};
+
+/**
  * The type of address.
  */
 export enum AddressType {
@@ -23,42 +35,30 @@ export enum AddressType {
 }
 
 /**
- * AddressBookEntry
- *
- * AddressBookEntry representation
- *
- * address - Hex address of a recipient account
- *
- * name - Nickname associated with this address
- *
- * chainId - Chain id identifies the current chain
- *
- * memo - User's note about address
- *
- * isEns - is the entry an ENS name
- *
- * addressType - is the type of this address
- *
- * lastUpdatedAt - timestamp of when this entry was last updated
+ * AddressBookEntry represents a contact in the address book.
  */
 export type AddressBookEntry = {
+  /** Hex address of a recipient account */
   address: string;
+  /** Nickname associated with this address */
   name: string;
+  /** Chain id identifies the current chain */
   chainId: Hex;
+  /** User's note about address */
   memo: string;
+  /** Indicates if the entry is an ENS name */
   isEns: boolean;
+  /** The type of this address */
   addressType?: AddressType;
+  /** Timestamp of when this entry was last updated */
   lastUpdatedAt?: number;
 };
 
 /**
- * AddressBookState
- *
- * Address book controller state
- *
- * addressBook - Array of contact entry objects
+ * State for the AddressBookController.
  */
 export type AddressBookControllerState = {
+  /** Map of chainId to address to contact entries */
   addressBook: { [chainId: Hex]: { [address: string]: AddressBookEntry } };
 };
 
@@ -66,6 +66,12 @@ export type AddressBookControllerState = {
  * The name of the {@link AddressBookController}.
  */
 export const controllerName = 'AddressBookController';
+
+/**
+ * Special chainId used for wallet's own accounts (internal MetaMask accounts).
+ * These entries don't trigger sync events as they are not user-created contacts.
+ */
+const WALLET_ACCOUNTS_CHAIN_ID = '*';
 
 /**
  * The action that can be performed to get the state of the {@link AddressBookController}.
@@ -207,17 +213,16 @@ export class AddressBookController extends BaseController<
    */
   list(): AddressBookEntry[] {
     const { addressBook } = this.state;
-    const contacts: AddressBookEntry[] = [];
 
-    Object.keys(addressBook).forEach((chainId) => {
-      const chainIdHex = chainId as Hex;
-      Object.keys(addressBook[chainIdHex]).forEach((address) => {
-        const contact = addressBook[chainIdHex][address];
-        contacts.push(contact);
-      });
-    });
+    return Object.keys(addressBook).reduce<AddressBookEntry[]>(
+      (acc, chainId) => {
+        const chainIdHex = chainId as Hex;
+        const chainContacts = Object.values(addressBook[chainIdHex]);
 
-    return contacts;
+        return [...acc, ...chainContacts];
+      },
+      [],
+    );
   }
 
   /**
@@ -250,11 +255,12 @@ export class AddressBookController extends BaseController<
     const deletedEntry = { ...this.state.addressBook[chainId][address] };
 
     this.update((state) => {
-      if (state.addressBook[chainId] && state.addressBook[chainId][address]) {
-        delete state.addressBook[chainId][address];
+      const chainContacts = state.addressBook[chainId];
+      if (chainContacts?.[address]) {
+        delete chainContacts[address];
 
         // Clean up empty chainId objects
-        if (Object.keys(state.addressBook[chainId]).length === 0) {
+        if (Object.keys(chainContacts).length === 0) {
           delete state.addressBook[chainId];
         }
       }
@@ -263,7 +269,7 @@ export class AddressBookController extends BaseController<
     // Skip sending delete event for global contacts with chainId '*'
     // These entries with chainId='*' are the wallet's own accounts (internal MetaMask accounts),
     // not user-created contacts. They don't need to trigger sync events.
-    if (String(chainId) !== '*') {
+    if (String(chainId) !== WALLET_ACCOUNTS_CHAIN_ID) {
       this.messagingSystem.publish(
         'AddressBookController:contactDeleted',
         deletedEntry,
@@ -323,7 +329,7 @@ export class AddressBookController extends BaseController<
     // Skip sending update event for global contacts with chainId '*'
     // These entries with chainId='*' are the wallet's own accounts (internal MetaMask accounts),
     // not user-created contacts. They don't need to trigger sync events.
-    if (String(chainId) !== '*') {
+    if (String(chainId) !== WALLET_ACCOUNTS_CHAIN_ID) {
       this.messagingSystem.publish(
         'AddressBookController:contactUpdated',
         entry,
