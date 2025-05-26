@@ -88,6 +88,9 @@ describe('ExtraTransactionsPublishHook', () => {
           params: BATCH_TRANSACTION_PARAMS_2_MOCK,
         },
       ],
+      disable7702: true,
+      disableHook: false,
+      disableSequential: false,
     });
   });
 

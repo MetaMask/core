@@ -1599,6 +1599,15 @@ export type TransactionBatchRequest = {
   /** Transactions to be submitted as part of the batch. */
   transactions: TransactionBatchSingleRequest[];
 
+  /** Whether or not to disable batch transaction processing through an EIP 7702 upgraded account. */
+  disable7702?: boolean;
+
+  /** Whether or not to disable batch transaction processing through a hook. */
+  disableHook?: boolean;
+
+  /** Whether or not to disable batch transaction through sequential batching. */
+  disableSequential?: boolean;
+
   /**
    * Callback to trigger security validation in the client.
    *

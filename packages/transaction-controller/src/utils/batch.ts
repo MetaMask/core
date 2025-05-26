@@ -106,20 +106,22 @@ export const ERROR_MESSAGE_NO_UPGRADE_CONTRACT =
 export async function addTransactionBatch(
   request: AddTransactionBatchRequest,
 ): Promise<TransactionBatchResult> {
-  const { getInternalAccounts, messenger, request: userRequest } = request;
+  const {
+    getInternalAccounts,
+    messenger,
+    request: transactionBatchRequest,
+  } = request;
   const sizeLimit = getBatchSizeLimit(messenger);
 
   validateBatchRequest({
     internalAccounts: getInternalAccounts(),
-    request: userRequest,
+    request: transactionBatchRequest,
     sizeLimit,
   });
 
-  log('Adding', userRequest);
+  log('Adding', transactionBatchRequest);
 
-  const chainId = request.getChainId(request.request.networkClientId);
-  const isChainSupportingEIP7702 = doesChainSupportEIP7702(chainId, messenger);
-  if (isChainSupportingEIP7702) {
+  if (!transactionBatchRequest.disable7702) {
     return await addTransactionBatchWith7702(request);
   }
 
@@ -264,6 +266,12 @@ async function addTransactionBatchWith7702(
 
   const chainId = getChainId(networkClientId);
   const ethQuery = request.getEthQuery(networkClientId);
+  const isChainSupported = doesChainSupportEIP7702(chainId, messenger);
+
+  if (!isChainSupported) {
+    log('Chain does not support EIP-7702', chainId);
+    throw rpcErrors.internal('Chain does not support EIP-7702');
+  }
 
   if (!publicKeyEIP7702) {
     throw rpcErrors.internal(ERROR_MESSGE_PUBLIC_KEY);
@@ -395,8 +403,20 @@ async function addTransactionBatchWithHook(
     getPendingTransactionTracker: request.getPendingTransactionTracker,
   });
 
+  const { request: transactionBatchRequest } = request;
+
   const publishBatchHook =
-    requestPublishBatchHook ?? sequentialPublishBatchHook.getHook();
+    (!transactionBatchRequest.disableHook && requestPublishBatchHook) ??
+    (!transactionBatchRequest.disableSequential &&
+      sequentialPublishBatchHook.getHook());
+  if (!publishBatchHook) {
+    log(`Can't process batch`, {
+      disable7702: transactionBatchRequest.disable7702,
+      disableHook: transactionBatchRequest.disableHook,
+      disableSequential: transactionBatchRequest.disableSequential,
+    });
+    throw rpcErrors.internal(`Can't process batch`);
+  }
 
   const chainId = getChainId(networkClientId);
   const batchId = generateBatchId();

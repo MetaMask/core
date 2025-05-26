@@ -249,6 +249,9 @@ describe('Batch Utils', () => {
               },
             },
           ],
+          disable7702: false,
+          disableHook: false,
+          disableSequential: false,
         },
         updateTransaction: updateTransactionMock,
         publishTransaction: publishTransactionMock,
@@ -258,7 +261,7 @@ describe('Batch Utils', () => {
     });
 
     it('returns generated batch ID', async () => {
-      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+      doesChainSupportEIP7702Mock.mockReturnValue(true);
 
       isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
         delegationAddress: undefined,
@@ -282,7 +285,7 @@ describe('Batch Utils', () => {
     });
 
     it('returns provided batch ID', async () => {
-      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+      doesChainSupportEIP7702Mock.mockReturnValue(true);
 
       isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
         delegationAddress: undefined,
@@ -308,7 +311,7 @@ describe('Batch Utils', () => {
     });
 
     it('adds generated EIP-7702 transaction', async () => {
-      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+      doesChainSupportEIP7702Mock.mockReturnValue(true);
 
       isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
         delegationAddress: undefined,
@@ -345,7 +348,7 @@ describe('Batch Utils', () => {
     });
 
     it('uses type 4 transaction if not upgraded', async () => {
-      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+      doesChainSupportEIP7702Mock.mockReturnValue(true);
 
       isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
         delegationAddress: undefined,
@@ -387,7 +390,7 @@ describe('Batch Utils', () => {
     });
 
     it('passes nested transactions to add transaction', async () => {
-      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+      doesChainSupportEIP7702Mock.mockReturnValue(true);
 
       isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
         delegationAddress: undefined,
@@ -428,7 +431,7 @@ describe('Batch Utils', () => {
     });
 
     it('determines transaction type for nested transactions', async () => {
-      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+      doesChainSupportEIP7702Mock.mockReturnValue(true);
 
       isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
         delegationAddress: undefined,
@@ -472,8 +475,16 @@ describe('Batch Utils', () => {
       );
     });
 
+    it('throws if chain not supported', async () => {
+      doesChainSupportEIP7702Mock.mockReturnValue(false);
+
+      await expect(addTransactionBatch(request)).rejects.toThrow(
+        rpcErrors.internal('Chain does not support EIP-7702'),
+      );
+    });
+
     it('throws if no public key', async () => {
-      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+      doesChainSupportEIP7702Mock.mockReturnValue(true);
 
       await expect(
         addTransactionBatch({ ...request, publicKeyEIP7702: undefined }),
@@ -481,7 +492,7 @@ describe('Batch Utils', () => {
     });
 
     it('throws if account upgraded to unsupported contract', async () => {
-      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+      doesChainSupportEIP7702Mock.mockReturnValue(true);
       isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
         delegationAddress: CONTRACT_ADDRESS_MOCK,
         isSupported: false,
@@ -493,7 +504,7 @@ describe('Batch Utils', () => {
     });
 
     it('throws if account not upgraded and no upgrade address', async () => {
-      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+      doesChainSupportEIP7702Mock.mockReturnValue(true);
 
       isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
         delegationAddress: undefined,
@@ -518,7 +529,7 @@ describe('Batch Utils', () => {
     });
 
     it('adds security alert ID to transaction', async () => {
-      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+      doesChainSupportEIP7702Mock.mockReturnValue(true);
 
       isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
         delegationAddress: undefined,
@@ -553,7 +564,7 @@ describe('Batch Utils', () => {
 
     describe('validates security', () => {
       it('using transaction params', async () => {
-        doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+        doesChainSupportEIP7702Mock.mockReturnValue(true);
 
         isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
           delegationAddress: undefined,
@@ -599,7 +610,7 @@ describe('Batch Utils', () => {
       });
 
       it('using delegation mock if not upgraded', async () => {
-        doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+        doesChainSupportEIP7702Mock.mockReturnValue(true);
 
         isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
           delegationAddress: undefined,
@@ -668,7 +679,7 @@ describe('Batch Utils', () => {
         addTransactionBatch({
           ...request,
           publishBatchHook,
-          request: { ...request.request },
+          request: { ...request.request, disable7702: true },
         }).catch(() => {
           // Intentionally empty
         });
@@ -779,7 +790,7 @@ describe('Batch Utils', () => {
         addTransactionBatch({
           ...request,
           publishBatchHook,
-          request: { ...request.request },
+          request: { ...request.request, disable7702: true },
         }).catch(() => {
           // Intentionally empty
         });
@@ -858,7 +869,7 @@ describe('Batch Utils', () => {
         addTransactionBatch({
           ...request,
           publishBatchHook,
-          request: { ...request.request },
+          request: { ...request.request, disable7702: true },
         }).catch(() => {
           // Intentionally empty
         });
@@ -930,6 +941,7 @@ describe('Batch Utils', () => {
           publishBatchHook,
           request: {
             ...request.request,
+            disable7702: true,
             transactions: [
               {
                 ...request.request.transactions[0],
@@ -1028,6 +1040,7 @@ describe('Batch Utils', () => {
           publishBatchHook,
           request: {
             ...request.request,
+            disable7702: true,
             transactions: [
               {
                 ...request.request.transactions[0],
@@ -1089,7 +1102,7 @@ describe('Batch Utils', () => {
         const resultPromise = addTransactionBatch({
           ...request,
           publishBatchHook,
-          request: { ...request.request },
+          request: { ...request.request, disable7702: true },
         });
 
         resultPromise.catch(() => {
@@ -1152,6 +1165,7 @@ describe('Batch Utils', () => {
           request: {
             ...request.request,
             requireApproval: false,
+            disable7702: true
           },
         }).catch(() => {
           // Intentionally empty
@@ -1208,6 +1222,7 @@ describe('Batch Utils', () => {
           request: {
             ...request.request,
             requireApproval: false,
+            disable7702: true
           },
         }).catch(() => {
           // Intentionally empty
@@ -1233,13 +1248,11 @@ describe('Batch Utils', () => {
     });
 
     describe('with sequential publish batch hook', () => {
-      beforeEach(() => {
-        doesChainSupportEIP7702Mock.mockReturnValueOnce(false);
-      });
-
       let sequentialPublishBatchHook: jest.MockedFn<PublishBatchHook>;
 
       beforeEach(() => {
+        doesChainSupportEIP7702Mock.mockReturnValue(false);
+
         sequentialPublishBatchHook = jest.fn();
 
         addTransactionMock
@@ -1326,6 +1339,7 @@ describe('Batch Utils', () => {
           request: {
             ...request.request,
             requireApproval: false,
+            disable7702: true
           },
         }).catch(() => {
           // Intentionally empty
@@ -1349,7 +1363,7 @@ describe('Batch Utils', () => {
           addTransactionBatch({
             ...request,
             publishBatchHook: undefined,
-            request: { ...request.request },
+            request: { ...request.request, disable7702: true },
           }),
         ).rejects.toThrow('Test error');
 

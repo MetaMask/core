@@ -107,6 +107,9 @@ export class ExtraTransactionsPublishHook {
       from,
       networkClientId,
       transactions,
+      disable7702: true,
+      disableHook: false,
+      disableSequential: false,
     });
 
     return resultPromise.promise;
