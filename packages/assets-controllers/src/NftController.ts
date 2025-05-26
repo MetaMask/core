@@ -2208,20 +2208,8 @@ export class NftController extends BaseController<
         'PhishingController:bulkScanUrls',
         urlsToCheck,
       );
-      // --- TEMPORARY TEST CODE START ---
-      console.log('Bulk Scan Response:', bulkScanResponse);
-      // --- TEMPORARY TEST CODE END ---
-
       // Apply scan results to all metadata objects
       Object.entries(bulkScanResponse.results).forEach(([url, result]) => {
-        // --- TEMPORARY TEST CODE START ---
-        // Hardcode a specific URL to be blocked for testing
-        if (url === 'http://test-malicious-nft-link.com') {
-            console.log(`Hardcoding BLOCK for URL: ${url}`);
-            // Ensure 'result' is mutable if it wasn't already; create a new object if needed
-            result = { ...result, recommendedAction: RecommendedAction.Block };
-        }
-        // --- TEMPORARY TEST CODE END ---
         if (result.recommendedAction === RecommendedAction.Block) {
           // Remove this URL from all metadata objects where it appears
           urlMap[url].forEach(({ metadataIndex, fieldName }) => {

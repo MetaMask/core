@@ -27,6 +27,7 @@ import type {
   NetworkClientId,
 } from '@metamask/network-controller';
 import { getDefaultNetworkControllerState } from '@metamask/network-controller';
+import type { BulkPhishingDetectionScanResponse } from '@metamask/phishing-controller';
 import {
   getDefaultPreferencesState,
   type PreferencesState,
@@ -61,6 +62,8 @@ import type {
   NftControllerMessenger,
   AllowedActions as NftControllerAllowedActions,
   AllowedEvents as NftControllerAllowedEvents,
+  PhishingControllerBulkScanUrlsAction,
+  NftMetadata,
 } from './NftController';
 import { NftController } from './NftController';
 
@@ -198,6 +201,10 @@ function setupController({
     ReturnType<AccountsControllerGetSelectedAccountAction['handler']>,
     Parameters<AccountsControllerGetSelectedAccountAction['handler']>
   >;
+  bulkScanUrlsMock?: jest.Mock<
+    Promise<BulkPhishingDetectionScanResponse>,
+    [string[]]
+  >;
   mockNetworkClientConfigurationsByNetworkClientId?: Record<
     NetworkClientId,
     NetworkClientConfiguration
@@ -313,7 +320,15 @@ function setupController({
     showApprovalRequest: jest.fn(),
   });
 
-  const nftControllerMessenger = messenger.getRestricted({
+  // Register the phishing controller mock if provided
+  if (bulkScanUrlsMock) {
+    messenger.registerActionHandler(
+      'PhishingController:bulkScanUrls',
+      bulkScanUrlsMock,
+    );
+  }
+
+  const nftControllerMessenger = messenger.getRestricted<typeof controllerName, PhishingControllerBulkScanUrlsAction['type'] | NftControllerAllowedActions['type'], NftControllerAllowedEvents['type']>({
     name: controllerName,
     allowedActions: [
       'ApprovalController:addRequest',
@@ -326,9 +341,9 @@ function setupController({
       'AssetsContractController:getERC721OwnerOf',
       'AssetsContractController:getERC1155BalanceOf',
       'AssetsContractController:getERC1155TokenURI',
+      'PhishingController:bulkScanUrls',
     ],
     allowedEvents: [
-      'AccountsController:selectedAccountChange',
       'AccountsController:selectedEvmAccountChange',
       'PreferencesController:stateChange',
       'NetworkController:networkDidChange',
@@ -338,8 +353,7 @@ function setupController({
   const nftController = new NftController({
     chainId: ChainId.mainnet,
     onNftAdded: jest.fn(),
-    // @ts-expect-error - Added incompatible event `AccountsController:selectedAccountChange` to allowlist for testing purposes
-    messenger: nftControllerMessenger,
+    messenger: nftControllerMessenger as NftControllerMessenger,
     ...options,
   });
 
@@ -5139,6 +5153,127 @@ describe('NftController', () => {
         allNfts: {},
         ignoredNfts: [],
       });
+    });
+  });
+
+  describe('phishing protection for NFT metadata', () => {
+    /**
+     * Tests for the NFT URL sanitization feature.
+     */
+    it('should sanitize malicious URLs when adding NFTs', async () => {
+      // Create a mock for the PhishingController:bulkScanUrls action
+      const mockBulkScanUrls = jest.fn().mockImplementation((urls: string[]) => {
+        const results: Record<string, { recommendedAction: string }> = {};
+        urls.forEach(url => {
+          if (url.includes('malicious')) {
+            results[url] = { recommendedAction: 'block' };
+          } else {
+            results[url] = { recommendedAction: 'allow' };
+          }
+        });
+        return Promise.resolve({ results });
+      });
+
+      // Use setupController and pass the mock
+      const { nftController } = setupController({
+        bulkScanUrlsMock: mockBulkScanUrls, // Pass the mock here
+      });
+
+      // Create NFT with malicious URLs
+      const nftWithMaliciousURLs: NftMetadata = {
+        name: 'Malicious NFT',
+        description: 'NFT with malicious links',
+        image: 'http://malicious-site.com/image.png',
+        externalLink: 'http://malicious-domain.com',
+        standard: ERC721,
+      };
+
+      // Create NFT with safe URLs
+      const nftWithSafeURLs: NftMetadata = {
+        name: 'Safe NFT',
+        description: 'NFT with safe links',
+        image: 'http://safe-site.com/image.png',
+        externalLink: 'http://legitimate-domain.com',
+        standard: ERC721,
+      };
+
+      // Add NFT with malicious URLs
+      await nftController.addNft('0xmalicious', '1', {
+        nftMetadata: nftWithMaliciousURLs,
+        userAddress: OWNER_ADDRESS,
+      });
+
+      // Add NFT with safe URLs
+      await nftController.addNft('0xsafe', '2', {
+        nftMetadata: nftWithSafeURLs,
+        userAddress: OWNER_ADDRESS,
+      });
+
+      // Verify the bulk scan was called
+      expect(mockBulkScanUrls).toHaveBeenCalled();
+
+      // Get the stored NFTs
+      const storedNfts = nftController.state.allNfts[OWNER_ADDRESS][ChainId.mainnet];
+
+      // Find the NFTs in storage
+      const maliciousNft = storedNfts.find(nft => nft.address === '0xmalicious');
+      const safeNft = storedNfts.find(nft => nft.address === '0xsafe');
+
+      // Verify the malicious URLs were sanitized
+      expect(maliciousNft?.image).toBeUndefined();
+      expect(maliciousNft?.externalLink).toBeUndefined();
+
+      // Verify other properties were preserved
+      expect(maliciousNft?.name).toBe('Malicious NFT');
+      expect(maliciousNft?.description).toBe('NFT with malicious links');
+
+      // Verify safe URLs were preserved
+      expect(safeNft?.image).toBe('http://safe-site.com/image.png');
+      expect(safeNft?.externalLink).toBe('http://legitimate-domain.com');
+    });
+
+    it('should handle errors during phishing detection when adding NFTs', async () => {
+      // Create a mock that throws an error
+      const mockBulkScanUrls = jest.fn().mockRejectedValue(new Error('Phishing detection failed'));
+
+      // Use setupController and pass the erroring mock
+      const { nftController } = setupController({
+        bulkScanUrlsMock: mockBulkScanUrls,
+      });
+
+      // Mock console.error
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      // Create NFT with URLs
+      const nftMetadata: NftMetadata = {
+        name: 'Test NFT',
+        description: 'Test description',
+        image: 'http://example.com/image.png',
+        externalLink: 'http://example.com',
+        standard: ERC721,
+      };
+
+      // Add NFT - should succeed even with phishing detection failure
+      await nftController.addNft('0xtest', '1', {
+        nftMetadata,
+        userAddress: OWNER_ADDRESS,
+      });
+
+      // Verify the bulk scan was called
+      expect(mockBulkScanUrls).toHaveBeenCalled();
+
+      // Verify the error was logged
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Error during bulk URL scanning:',
+        expect.any(Error)
+      );
+
+      // Verify NFT was added with original URLs intact
+      const storedNft = nftController.state.allNfts[OWNER_ADDRESS][ChainId.mainnet][0];
+      expect(storedNft.image).toBe('http://example.com/image.png');
+      expect(storedNft.externalLink).toBe('http://example.com');
+
+      consoleErrorSpy.mockRestore();
     });
   });
 });
