@@ -413,7 +413,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       },
     );
 
-    // subscribe to 'TransactionController:transactionConfirmed',
     this.messagingSystem.subscribe(
       'TransactionController:transactionConfirmed',
       async (transactionMeta) => {
