@@ -1417,7 +1417,7 @@ describe('AccountsController', () => {
           // 2. AccountsController:stateChange
           3,
           'AccountsController:accountRemoved',
-          { id: mockAccount3.id, address: mockAccount3.address },
+          mockAccount3.id,
         );
       });
     });

@@ -162,7 +162,7 @@ export type AccountsControllerAccountAddedEvent = {
 
 export type AccountsControllerAccountRemovedEvent = {
   type: `${typeof controllerName}:accountRemoved`;
-  payload: [{ id: string; address: string }];
+  payload: [AccountId];
 };
 
 export type AccountsControllerAccountRenamedEvent = {
@@ -862,12 +862,8 @@ export class AccountsController extends BaseController<
     }
 
     // Diff that we will use to publish events afterward.
-    type diffItem = {
-      id: string;
-      address: string;
-    };
     const diff = {
-      removed: [] as diffItem[],
+      removed: [] as string[],
       added: [] as InternalAccount[],
     };
 
@@ -878,10 +874,7 @@ export class AccountsController extends BaseController<
         for (const account of patch.removed) {
           delete internalAccounts.accounts[account.id];
 
-          diff.removed.push({
-            id: account.id,
-            address: account.address,
-          });
+          diff.removed.push(account.id);
         }
 
         for (const added of patch.added) {
@@ -928,11 +921,8 @@ export class AccountsController extends BaseController<
     });
 
     // Now publish events
-    for (const item of diff.removed) {
-      this.messagingSystem.publish('AccountsController:accountRemoved', {
-        id: item.id,
-        address: item.address,
-      });
+    for (const id of diff.removed) {
+      this.messagingSystem.publish('AccountsController:accountRemoved', id);
     }
 
     for (const account of diff.added) {

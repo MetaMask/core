@@ -196,7 +196,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
 
     this.messagingSystem.subscribe(
       'AccountsController:accountRemoved',
-      ({ address }) => this.#handleOnAccountRemoved(address),
+      (accountId: string) => this.#handleOnAccountRemoved(accountId),
     );
   }
 
@@ -286,9 +286,19 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
   /**
    * Handles changes when an account has been removed.
    *
-   * @param accountAddress - The account address being removed.
+   * @param accountId - The account id being removed.
    */
-  #handleOnAccountRemoved(accountAddress: string) {
+  #handleOnAccountRemoved(accountId: string) {
+    const accounts = this.messagingSystem.call(
+      'AccountsController:listAccounts',
+    );
+    const accountAddress = accounts.find(
+      (account) => account.id === accountId,
+    )?.address;
+    if (!accountAddress) {
+      return;
+    }
+
     this.update((state) => {
       delete state.tokenBalances[accountAddress as `0x${string}`];
     });

@@ -253,10 +253,7 @@ describe('MultichainTransactionsController', () => {
       lastUpdated: expect.any(Number),
     });
 
-    messenger.publish('AccountsController:accountRemoved', {
-      id: mockBtcAccount.id,
-      address: mockBtcAccount.address,
-    });
+    messenger.publish('AccountsController:accountRemoved', mockBtcAccount.id);
     mockListMultichainAccounts.mockReturnValue([]);
 
     expect(controller.state.nonEvmTransactions).toStrictEqual({});

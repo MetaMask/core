@@ -534,10 +534,7 @@ describe('MultichainAssetsController', () => {
       assetsMetadata: mockGetMetadataReturnValue.assets,
     });
     // Remove an EVM account
-    messenger.publish('AccountsController:accountRemoved', {
-      id: mockEthAccount.id,
-      address: mockEthAccount.address,
-    });
+    messenger.publish('AccountsController:accountRemoved', mockEthAccount.id);
 
     await advanceTime({ clock, duration: 1 });
 
@@ -583,10 +580,10 @@ describe('MultichainAssetsController', () => {
       assetsMetadata: mockGetMetadataReturnValue.assets,
     });
     // Remove the added solana account
-    messenger.publish('AccountsController:accountRemoved', {
-      id: mockSolanaAccount.id,
-      address: mockSolanaAccount.address,
-    });
+    messenger.publish(
+      'AccountsController:accountRemoved',
+      mockSolanaAccount.id,
+    );
 
     await advanceTime({ clock, duration: 1 });
 

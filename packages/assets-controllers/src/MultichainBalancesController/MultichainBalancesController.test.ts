@@ -272,10 +272,7 @@ describe('MultichainBalancesController', () => {
       },
     });
 
-    messenger.publish('AccountsController:accountRemoved', {
-      id: mockBtcAccount.id,
-      address: mockBtcAccount.address,
-    });
+    messenger.publish('AccountsController:accountRemoved', mockBtcAccount.id);
 
     expect(controller.state).toStrictEqual({
       balances: {},
