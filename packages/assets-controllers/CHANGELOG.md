@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Add event listener for `TransactionController:transactionConfirmed` on `TokenDetectionController` to trigger token detection ([#5859](https://github.com/MetaMask/core/pull/5859))
 
+### Changed
+
+- **BREAKING:** Add event listener for `KeyringController:accountRemoved` instead of `AccountsController:accountRemoved` in tokenBalancesController and tokensController ([#5859](https://github.com/MetaMask/core/pull/5859))
+
 ## [64.0.0]
 
 ### Added

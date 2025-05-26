@@ -1,7 +1,6 @@
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import type {
-  AccountsControllerAccountRemovedEvent,
   AccountsControllerGetSelectedAccountAction,
   AccountsControllerListAccountsAction,
 } from '@metamask/accounts-controller';
@@ -10,7 +9,12 @@ import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
-import { toChecksumHexAddress, toHex } from '@metamask/controller-utils';
+import {
+  isValidHexAddress,
+  toChecksumHexAddress,
+  toHex,
+} from '@metamask/controller-utils';
+import type { KeyringControllerAccountRemovedEvent } from '@metamask/keyring-controller';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
@@ -24,7 +28,7 @@ import type {
   PreferencesControllerStateChangeEvent,
   PreferencesState,
 } from '@metamask/preferences-controller';
-import type { Hex } from '@metamask/utils';
+import { isStrictHexString, type Hex } from '@metamask/utils';
 import type BN from 'bn.js';
 import type { Patch } from 'immer';
 import { isEqual } from 'lodash';
@@ -100,7 +104,7 @@ export type AllowedEvents =
   | TokensControllerStateChangeEvent
   | PreferencesControllerStateChangeEvent
   | NetworkControllerStateChangeEvent
-  | AccountsControllerAccountRemovedEvent;
+  | KeyringControllerAccountRemovedEvent;
 
 export type TokenBalancesControllerMessenger = RestrictedMessenger<
   typeof controllerName,
@@ -195,8 +199,8 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
     // subscribe to account removed event to cleanup stale balances
 
     this.messagingSystem.subscribe(
-      'AccountsController:accountRemoved',
-      (accountId: string) => this.#handleOnAccountRemoved(accountId),
+      'KeyringController:accountRemoved',
+      (accountAddress: string) => this.#handleOnAccountRemoved(accountAddress),
     );
   }
 
@@ -286,16 +290,13 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
   /**
    * Handles changes when an account has been removed.
    *
-   * @param accountId - The account id being removed.
+   * @param accountAddress - The account address being removed.
    */
-  #handleOnAccountRemoved(accountId: string) {
-    const accounts = this.messagingSystem.call(
-      'AccountsController:listAccounts',
-    );
-    const accountAddress = accounts.find(
-      (account) => account.id === accountId,
-    )?.address;
-    if (!accountAddress) {
+  #handleOnAccountRemoved(accountAddress: string) {
+    const isEthAddress =
+      isStrictHexString(accountAddress.toLowerCase()) &&
+      isValidHexAddress(accountAddress as Hex);
+    if (!isEthAddress) {
       return;
     }
 

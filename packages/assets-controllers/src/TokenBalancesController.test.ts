@@ -48,7 +48,7 @@ const setupController = ({
       'NetworkController:stateChange',
       'PreferencesController:stateChange',
       'TokensController:stateChange',
-      'AccountsController:accountRemoved',
+      'KeyringController:accountRemoved',
     ],
   });
 
@@ -747,13 +747,10 @@ describe('TokenBalancesController', () => {
   });
 
   describe('when accountRemoved is published', () => {
-    it('does not update state if account removed is not in the list of accounts', async () => {
+    it('does not update state if account removed is EVM account', async () => {
       const { controller, messenger, updateSpy } = setupController();
 
-      messenger.publish(
-        'AccountsController:accountRemoved',
-        '0x0000000000000000000000000000000000000000',
-      );
+      messenger.publish('KeyringController:accountRemoved', 'toto');
 
       expect(controller.state.tokenBalances).toStrictEqual({});
       expect(updateSpy).toHaveBeenCalledTimes(0);
@@ -822,7 +819,7 @@ describe('TokenBalancesController', () => {
         },
       });
 
-      messenger.publish('AccountsController:accountRemoved', account.id);
+      messenger.publish('KeyringController:accountRemoved', account.address);
 
       await advanceTime({ clock, duration: 1 });
 

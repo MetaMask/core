@@ -1,7 +1,6 @@
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import type {
-  AccountsControllerAccountRemovedEvent,
   AccountsControllerGetAccountAction,
   AccountsControllerGetSelectedAccountAction,
   AccountsControllerListAccountsAction,
@@ -26,6 +25,7 @@ import {
   isValidHexAddress,
   safelyExecute,
 } from '@metamask/controller-utils';
+import type { KeyringControllerAccountRemovedEvent } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
 import type {
@@ -37,7 +37,7 @@ import type {
   Provider,
 } from '@metamask/network-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
-import type { Hex } from '@metamask/utils';
+import { isStrictHexString, type Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
@@ -141,7 +141,7 @@ export type AllowedEvents =
   | NetworkControllerNetworkDidChangeEvent
   | TokenListStateChange
   | AccountsControllerSelectedEvmAccountChangeEvent
-  | AccountsControllerAccountRemovedEvent;
+  | KeyringControllerAccountRemovedEvent;
 
 /**
  * The messenger of the {@link TokensController}.
@@ -228,9 +228,8 @@ export class TokensController extends BaseController<
     );
 
     this.messagingSystem.subscribe(
-      'AccountsController:accountRemoved',
-      (accountAddress: string) =>
-        this.#handleOnAccountRemoved(accountAddress as Hex),
+      'KeyringController:accountRemoved',
+      (accountAddress: string) => this.#handleOnAccountRemoved(accountAddress),
     );
 
     this.messagingSystem.subscribe(
@@ -270,19 +269,16 @@ export class TokensController extends BaseController<
     );
   }
 
-  #handleOnAccountRemoved(accountId: string) {
-    // find the account address in allTokens, allDetectedTokens, allIgnoredTokens
-    const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
-    const accounts = this.messagingSystem.call(
-      'AccountsController:listAccounts',
-    );
-    const accountAddress = accounts.find(
-      (account) => account.id === accountId,
-    )?.address;
+  #handleOnAccountRemoved(accountAddress: string) {
+    const isEthAddress =
+      isStrictHexString(accountAddress.toLowerCase()) &&
+      isValidHexAddress(accountAddress as Hex);
 
-    if (!accountAddress) {
+    if (!isEthAddress) {
       return;
     }
+
+    const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
     const newAllTokens = cloneDeep(allTokens);
     const newAllDetectedTokens = cloneDeep(allDetectedTokens);
     const newAllIgnoredTokens = cloneDeep(allIgnoredTokens);
