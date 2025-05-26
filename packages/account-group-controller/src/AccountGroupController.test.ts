@@ -11,18 +11,18 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import {
   AccountGroupController,
+  AccountGroupCategory,
   DEFAULT_SUB_GROUP,
   getDefaultAccountGroupControllerState,
+  type AccountGroupControllerMessenger,
+  type AccountGroupId,
   type AccountGroupControllerActions,
   type AccountGroupControllerEvents,
   type AccountGroupControllerState,
   type AllowedActions,
   type AllowedEvents,
 } from './AccountGroupController';
-import type {
-  AccountGroupControllerMessenger,
-  AccountGroupId,
-} from './AccountGroupController';
+import { generateAccountGroupName } from './utils';
 
 const ETH_EOA_METHODS = [
   EthMethod.PersonalSign,
@@ -193,7 +193,7 @@ const MOCK_HARDWARE_ACCOUNT_1: InternalAccount = {
 
 describe('AccountGroupController', () => {
   describe('updateAccountGroups', () => {
-    it('should group accounts by entropy source, then snapId, then wallet type', async () => {
+    it('groups accounts by entropy source, then snapId, then wallet type', async () => {
       const { controller, messenger } = setup({});
 
       messenger.registerActionHandler(
@@ -211,45 +211,50 @@ describe('AccountGroupController', () => {
 
       await controller.updateAccountGroups();
 
+      const expectedGroupId1 = `${AccountGroupCategory.Entropy}:mock-keyring-id-1`;
+      const expectedGroupId2 = `${AccountGroupCategory.Entropy}:mock-keyring-id-2`;
+      const expectedSnapGroupId = `${AccountGroupCategory.Snap}:mock-snap-id-2`;
+      const expectedKeyringGroupId = `${AccountGroupCategory.Keyring}:${KeyringTypes.ledger}`;
+
       expect(controller.state.accountGroups.groups).toStrictEqual({
-        'mock-keyring-id-1': {
+        [expectedGroupId1]: {
           [DEFAULT_SUB_GROUP]: [MOCK_HD_ACCOUNT_1.id],
         },
-        'mock-keyring-id-2': {
+        [expectedGroupId2]: {
           [DEFAULT_SUB_GROUP]: [MOCK_HD_ACCOUNT_2.id, MOCK_SNAP_ACCOUNT_1.id],
         },
-        'mock-snap-id-2': {
+        [expectedSnapGroupId]: {
           [DEFAULT_SUB_GROUP]: [MOCK_SNAP_ACCOUNT_2.id],
         },
-        [KeyringTypes.ledger]: {
+        [expectedKeyringGroupId]: {
           [DEFAULT_SUB_GROUP]: [MOCK_HARDWARE_ACCOUNT_1.id],
+        },
+      });
+
+      expect(controller.state.accountGroupsMetadata).toStrictEqual({
+        [expectedGroupId1]: { name: 'Wallet 1' },
+        [expectedGroupId2]: { name: 'Wallet 2' },
+        [expectedSnapGroupId]: {
+          name: generateAccountGroupName(expectedSnapGroupId),
+        },
+        [expectedKeyringGroupId]: {
+          name: generateAccountGroupName(expectedKeyringGroupId),
         },
       });
     });
 
-    it('should warn and fall back to wallet type grouping if an HD account is missing entropySource', async () => {
+    it('warns and fall back to wallet type grouping if an HD account is missing entropySource', async () => {
       const consoleWarnSpy = jest
         .spyOn(console, 'warn')
         .mockImplementation(() => undefined);
       const { controller, messenger } = setup({});
 
       const mockHdAccountWithoutEntropy: InternalAccount = {
-        id: 'hd-account-no-entropy',
-        address: '0xHDADD',
-        metadata: {
-          name: 'HD Account Without Entropy',
-          keyring: {
-            type: KeyringTypes.hd,
-          },
-          importTime: Date.now(),
-          lastSelected: Date.now(),
+        ...MOCK_HD_ACCOUNT_1,
+        options: {
+          // No entropySource.
         },
-        methods: [...ETH_EOA_METHODS],
-        options: {},
-        type: EthAccountType.Eoa,
-        scopes: [EthScope.Eoa],
       };
-
       const listAccountsMock = jest
         .fn()
         .mockReturnValue([mockHdAccountWithoutEntropy]);
@@ -265,9 +270,9 @@ describe('AccountGroupController', () => {
       );
 
       expect(
-        controller.state.accountGroups.groups[KeyringTypes.hd]?.[
-          DEFAULT_SUB_GROUP
-        ],
+        controller.state.accountGroups.groups[
+          `${AccountGroupCategory.Keyring}:${KeyringTypes.hd}`
+        ]?.[DEFAULT_SUB_GROUP],
       ).toContain(mockHdAccountWithoutEntropy.id);
 
       expect(
@@ -277,83 +282,6 @@ describe('AccountGroupController', () => {
       ).toBeUndefined();
 
       consoleWarnSpy.mockRestore();
-    });
-  });
-
-  describe('listAccountGroups', () => {
-    it('should return an empty array if no groups exist', async () => {
-      const { controller } = setup({
-        state: {
-          accountGroups: { groups: {} },
-          accountGroupsMetadata: {},
-        },
-      });
-
-      const result = await controller.listAccountGroups();
-      expect(result).toStrictEqual([]);
-    });
-
-    it('should correctly map group data and metadata to AccountGroup objects', async () => {
-      const group1Id = 'group-id-1' as AccountGroupId;
-      const group2Id = 'group-id-2' as AccountGroupId;
-
-      const initialState: AccountGroupControllerState = {
-        accountGroups: {
-          groups: {
-            [group1Id]: {
-              [DEFAULT_SUB_GROUP]: ['account-1', 'account-2'],
-            },
-            [group2Id]: {
-              'sub-group-x': ['account-3'],
-            },
-          },
-        },
-        accountGroupsMetadata: {
-          [group1Id]: { name: 'Group 1 Name' },
-          [group2Id]: { name: 'Group 2 Name' },
-        },
-      };
-
-      const { controller } = setup({ state: initialState });
-      const result = await controller.listAccountGroups();
-
-      expect(result).toStrictEqual([
-        {
-          id: group1Id,
-          name: 'Group 1 Name',
-          subGroups: {
-            [DEFAULT_SUB_GROUP]: ['account-1', 'account-2'],
-          },
-        },
-        {
-          id: group2Id,
-          name: 'Group 2 Name',
-          subGroups: {
-            'sub-group-x': ['account-3'],
-          },
-        },
-      ]);
-    });
-
-    it('should throw a TypeError if metadata is missing for a group', async () => {
-      const groupIdWithMissingMetadata = 'group-missing-meta' as AccountGroupId;
-      const initialState: Partial<AccountGroupControllerState> = {
-        accountGroups: {
-          groups: {
-            [groupIdWithMissingMetadata]: {
-              [DEFAULT_SUB_GROUP]: ['account-x'],
-            },
-          },
-        },
-        // Metadata for groupIdWithMissingMetadata is deliberately omitted
-        accountGroupsMetadata: {},
-      };
-
-      const { controller } = setup({ state: initialState });
-
-      // Current implementation will throw: Cannot read properties of undefined (reading 'name')
-      // which is a TypeError.
-      await expect(controller.listAccountGroups()).rejects.toThrow(TypeError);
     });
   });
 });
