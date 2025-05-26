@@ -50,7 +50,7 @@
     "@metamask/base-controller": "^8.0.1"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/auto-changelog": "^5.0.2",
     "@sentry/core": "^9.22.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
