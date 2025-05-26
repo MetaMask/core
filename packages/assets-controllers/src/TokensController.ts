@@ -229,8 +229,7 @@ export class TokensController extends BaseController<
 
     this.messagingSystem.subscribe(
       'AccountsController:accountRemoved',
-      (accountAddress: string) =>
-        this.#handleOnAccountRemoved(accountAddress as Hex),
+      ({ address }) => this.#handleOnAccountRemoved(address),
     );
 
     this.messagingSystem.subscribe(
@@ -270,19 +269,8 @@ export class TokensController extends BaseController<
     );
   }
 
-  #handleOnAccountRemoved(accountId: string) {
-    // find the account address in allTokens, allDetectedTokens, allIgnoredTokens
+  #handleOnAccountRemoved(accountAddress: string) {
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
-    const accounts = this.messagingSystem.call(
-      'AccountsController:listAccounts',
-    );
-    const accountAddress = accounts.find(
-      (account) => account.id === accountId,
-    )?.address;
-
-    if (!accountAddress) {
-      return;
-    }
     const newAllTokens = cloneDeep(allTokens);
     const newAllDetectedTokens = cloneDeep(allDetectedTokens);
     const newAllIgnoredTokens = cloneDeep(allIgnoredTokens);

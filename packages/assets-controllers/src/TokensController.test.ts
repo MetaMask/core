@@ -3393,7 +3393,7 @@ describe('TokensController', () => {
         ({ controller, triggerAccountRemoved }) => {
           expect(controller.state).toStrictEqual(initialState);
 
-          triggerAccountRemoved(firstAccount.id);
+          triggerAccountRemoved(firstAccount.id, firstAccount.address);
 
           expect(controller.state).toStrictEqual({
             allTokens: {
@@ -3462,7 +3462,7 @@ describe('TokensController', () => {
         ({ controller, triggerAccountRemoved }) => {
           expect(controller.state).toStrictEqual(initialState);
 
-          triggerAccountRemoved(secondAccount.id);
+          triggerAccountRemoved(secondAccount.id, secondAccount.address);
 
           expect(controller.state).toStrictEqual(initialState);
         },
@@ -3486,7 +3486,7 @@ type WithControllerCallback<ReturnValue> = ({
   messenger: UnrestrictedMessenger;
   approvalController: ApprovalController;
   triggerSelectedAccountChange: (internalAccount: InternalAccount) => void;
-  triggerAccountRemoved: (accountId: string) => void;
+  triggerAccountRemoved: (accountId: string, accountAddress: string) => void;
   triggerNetworkStateChange: (
     networkState: NetworkState,
     patches: Patch[],
@@ -3613,8 +3613,11 @@ async function withController<ReturnValue>(
     );
   };
 
-  const triggerAccountRemoved = (accountId: string) => {
-    messenger.publish('AccountsController:accountRemoved', accountId);
+  const triggerAccountRemoved = (accountId: string, accountAddress: string) => {
+    messenger.publish('AccountsController:accountRemoved', {
+      id: accountId,
+      address: accountAddress,
+    });
   };
 
   const changeNetwork = ({

@@ -204,7 +204,7 @@ export class MultichainAssetsController extends BaseController<
     );
     this.messagingSystem.subscribe(
       'AccountsController:accountRemoved',
-      async (account) => await this.#handleOnAccountRemovedEvent(account),
+      async ({ id }) => await this.#handleOnAccountRemovedEvent(id),
     );
     this.messagingSystem.subscribe(
       'AccountsController:accountAssetListUpdated',

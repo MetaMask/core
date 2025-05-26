@@ -165,7 +165,7 @@ export class MultichainBalancesController extends BaseController<
 
     this.messagingSystem.subscribe(
       'AccountsController:accountRemoved',
-      (account: string) => this.#handleOnAccountRemoved(account),
+      ({ id }) => this.#handleOnAccountRemoved(id),
     );
     this.messagingSystem.subscribe(
       'AccountsController:accountBalancesUpdated',

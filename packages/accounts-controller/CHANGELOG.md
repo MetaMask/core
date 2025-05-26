@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add account address in payload for `AccountsController:accountRemoved` event ([#5859](https://github.com/MetaMask/core/pull/5859))
+
 ### Fixed
 
 - Populate `.options.entropySource` for new `InternalAccount`s before publishing `:accountAdded` ([#5841](https://github.com/MetaMask/core/pull/5841))
