@@ -142,7 +142,10 @@ function getAccountWalletControllerMessenger(
       'AccountsController:accountAdded',
       'AccountsController:accountRemoved',
     ],
-    allowedActions: ['AccountsController:listMultichainAccounts'],
+    allowedActions: [
+      'AccountsController:listMultichainAccounts',
+      'KeyringController:getState',
+    ],
   });
 }
 
@@ -194,6 +197,21 @@ describe('AccountWalletController', () => {
           MOCK_HARDWARE_ACCOUNT_1, // Has its own Keyring wallet
         ],
       );
+      messenger.registerActionHandler('KeyringController:getState', () => ({
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: KeyringTypes.hd,
+            metadata: { id: 'mock-keyring-id-1', name: 'HD Keyring 1' },
+            accounts: [],
+          },
+          {
+            type: KeyringTypes.hd,
+            metadata: { id: 'mock-keyring-id-2', name: 'HD Keyring 2' },
+            accounts: [],
+          },
+        ],
+      }));
 
       await controller.updateAccountWallets();
 
@@ -277,6 +295,10 @@ describe('AccountWalletController', () => {
         'AccountsController:listMultichainAccounts',
         () => [mockHdAccountWithoutEntropy],
       );
+      messenger.registerActionHandler('KeyringController:getState', () => ({
+        isUnlocked: true,
+        keyrings: [],
+      }));
 
       await controller.updateAccountWallets();
 
@@ -291,6 +313,72 @@ describe('AccountWalletController', () => {
         ]?.accounts,
       ).toContain(mockHdAccountWithoutEntropy.id);
       consoleWarnSpy.mockRestore();
+    });
+
+    it('handles Snap accounts with entropy source', async () => {
+      const { controller, messenger } = setup({});
+      const mockSnapAccountWithEntropy: InternalAccount = {
+        ...MOCK_SNAP_ACCOUNT_2,
+        options: { entropySource: 'snap-entropy-source' },
+        metadata: {
+          ...MOCK_SNAP_ACCOUNT_2.metadata,
+          snap: { id: 'snap-id', enabled: true, name: 'Test Snap' },
+        },
+      };
+      messenger.registerActionHandler(
+        'AccountsController:listMultichainAccounts',
+        () => [mockSnapAccountWithEntropy],
+      );
+      messenger.registerActionHandler('KeyringController:getState', () => ({
+        isUnlocked: true,
+        keyrings: [],
+      }));
+
+      await controller.updateAccountWallets();
+
+      const expectedWalletId = `${AccountWalletCategory.Entropy}:snap-entropy-source`;
+      const expectedGroupId = toDefaultAccountGroupId(expectedWalletId);
+      expect(
+        controller.state.accountWallets[expectedWalletId]?.groups[
+          expectedGroupId
+        ]?.accounts,
+      ).toContain(mockSnapAccountWithEntropy.id);
+    });
+
+    it('assigns unique names when wallets have duplicate base names', async () => {
+      const { controller, messenger } = setup({});
+      // Create entropy wallets that will both get "Wallet" as base name, then get numbered
+      const mockHdAccount1: InternalAccount = {
+        ...MOCK_HD_ACCOUNT_1,
+        options: { entropySource: 'entropy-1' },
+      };
+      const mockHdAccount2: InternalAccount = {
+        ...MOCK_HD_ACCOUNT_2,
+        id: 'mock-id-3',
+        options: { entropySource: 'entropy-2' },
+      };
+      messenger.registerActionHandler(
+        'AccountsController:listMultichainAccounts',
+        () => [mockHdAccount1, mockHdAccount2],
+      );
+      // Return empty keyrings so the entropy wallets don't get "Wallet X" names
+      messenger.registerActionHandler('KeyringController:getState', () => ({
+        isUnlocked: true,
+        keyrings: [],
+      }));
+
+      await controller.updateAccountWallets();
+
+      const wallet1Id = `${AccountWalletCategory.Entropy}:entropy-1`;
+      const wallet2Id = `${AccountWalletCategory.Entropy}:entropy-2`;
+
+      // Both should get "Wallet" as base name, then be numbered uniquely
+      expect(controller.state.accountWallets[wallet1Id]?.metadata.name).toBe(
+        'Wallet 1',
+      );
+      expect(controller.state.accountWallets[wallet2Id]?.metadata.name).toBe(
+        'Wallet 2',
+      );
     });
   });
 });

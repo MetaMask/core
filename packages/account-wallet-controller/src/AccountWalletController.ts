@@ -11,6 +11,7 @@ import {
   type RestrictedMessenger,
   BaseController,
 } from '@metamask/base-controller';
+import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { cloneDeep } from 'lodash';
@@ -74,7 +75,9 @@ export type AccountWalletControllerGetStateAction = ControllerGetStateAction<
   AccountWalletControllerState
 >;
 
-export type AllowedActions = AccountsControllerListMultichainAccountsAction;
+export type AllowedActions =
+  | AccountsControllerListMultichainAccountsAction
+  | KeyringControllerGetStateAction;
 
 export type AccountWalletControllerActions = never;
 
@@ -311,6 +314,16 @@ export class AccountWalletController extends BaseController<
 
         const walletId = toAccountWalletId(match.category, match.id);
         const groupId = toDefaultAccountGroupId(walletId); // Use a single-group for now until multichain accounts is supported.
+
+        let walletName: string | undefined;
+        if (match.category === AccountWalletCategory.Entropy) {
+          const hdKeyringIndex = this.#getHdKeyringIds().findIndex(
+            (id) => id === match.id,
+          );
+          if (hdKeyringIndex !== -1) {
+            walletName = `Wallet ${hdKeyringIndex + 1}`;
+          }
+        }
         if (!wallets[walletId]) {
           wallets[walletId] = {
             id: walletId,
@@ -321,7 +334,9 @@ export class AccountWalletController extends BaseController<
                 metadata: { name: DEFAULT_ACCOUNT_GROUP_NAME },
               },
             },
-            metadata: { name: generateAccountWalletName(walletId) },
+            metadata: {
+              name: walletName || generateAccountWalletName(walletId),
+            },
           };
         }
         wallets[walletId].groups[groupId].accounts.push(account.id);
@@ -341,5 +356,15 @@ export class AccountWalletController extends BaseController<
     return this.messagingSystem.call(
       'AccountsController:listMultichainAccounts',
     ) as InternalAccount[];
+  }
+
+  #getHdKeyringIds(): string[] {
+    const { keyrings } = this.messagingSystem.call(
+      'KeyringController:getState',
+    );
+
+    return keyrings
+      .filter((keyring) => keyring.type === KeyringTypes.hd)
+      .map((keyring) => keyring.metadata.id);
   }
 }
