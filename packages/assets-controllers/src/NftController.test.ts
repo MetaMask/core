@@ -5282,27 +5282,27 @@ describe('NftController', () => {
         results: {
           'http://malicious-image.com/image.png': {
             recommendedAction: RecommendedAction.Block,
-            'http://malicious-preview.com/preview.png': {
-              recommendedAction: RecommendedAction.Block,
-            },
-            'http://malicious-thumb.com/thumb.png': {
-              recommendedAction: RecommendedAction.Block,
-            },
-            'http://malicious-original.com/original.png': {
-              recommendedAction: RecommendedAction.Block,
-            },
-            'http://malicious-animation.com/animation.mp4': {
-              recommendedAction: RecommendedAction.Block,
-            },
-            'http://malicious-animation-orig.com/animation-orig.mp4': {
-              recommendedAction: RecommendedAction.Block,
-            },
-            'http://malicious-external.com': {
-              recommendedAction: RecommendedAction.Block,
-            },
-            'http://malicious-collection.com': {
-              recommendedAction: RecommendedAction.Block,
-            },
+          },
+          'http://malicious-preview.com/preview.png': {
+            recommendedAction: RecommendedAction.Block,
+          },
+          'http://malicious-thumb.com/thumb.png': {
+            recommendedAction: RecommendedAction.Block,
+          },
+          'http://malicious-original.com/original.png': {
+            recommendedAction: RecommendedAction.Block,
+          },
+          'http://malicious-animation.com/animation.mp4': {
+            recommendedAction: RecommendedAction.Block,
+          },
+          'http://malicious-animation-orig.com/animation-orig.mp4': {
+            recommendedAction: RecommendedAction.Block,
+          },
+          'http://malicious-external.com': {
+            recommendedAction: RecommendedAction.Block,
+          },
+          'http://malicious-collection.com': {
+            recommendedAction: RecommendedAction.Block,
           },
         },
       });
