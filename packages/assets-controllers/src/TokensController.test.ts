@@ -3339,6 +3339,136 @@ describe('TokensController', () => {
       );
     });
   });
+
+  describe('when accountRemoved is published', () => {
+    it('removes the list of tokens for the removed account', async () => {
+      const firstAddress = '0xA73d9021f67931563fDfe3E8f66261086319a1FC';
+      const secondAddress = '0xB73d9021f67931563fDfe3E8f66261086319a1FK';
+      const firstAccount = createMockInternalAccount({
+        address: firstAddress,
+      });
+      const secondAccount = createMockInternalAccount({
+        address: secondAddress,
+      });
+      const initialState: TokensControllerState = {
+        allTokens: {
+          [ChainId.mainnet]: {
+            [firstAddress]: [
+              {
+                address: '0x03',
+                symbol: 'barC',
+                decimals: 2,
+                aggregators: [],
+                image: undefined,
+                name: undefined,
+              },
+            ],
+            [secondAddress]: [
+              {
+                address: '0x04',
+                symbol: 'barD',
+                decimals: 2,
+                aggregators: [],
+                image: undefined,
+                name: undefined,
+              },
+            ],
+          },
+        },
+        allIgnoredTokens: {},
+        allDetectedTokens: {
+          [ChainId.mainnet]: {
+            [firstAddress]: [],
+            [secondAddress]: [],
+          },
+        },
+      };
+      await withController(
+        {
+          options: {
+            state: initialState,
+          },
+          listAccounts: [firstAccount, secondAccount],
+        },
+        ({ controller, triggerAccountRemoved }) => {
+          expect(controller.state).toStrictEqual(initialState);
+
+          triggerAccountRemoved(firstAccount.address);
+
+          expect(controller.state).toStrictEqual({
+            allTokens: {
+              [ChainId.mainnet]: {
+                [secondAddress]: [
+                  {
+                    address: '0x04',
+                    symbol: 'barD',
+                    decimals: 2,
+                    aggregators: [],
+                    image: undefined,
+                    name: undefined,
+                  },
+                ],
+              },
+            },
+            allIgnoredTokens: {},
+            allDetectedTokens: {
+              [ChainId.mainnet]: {
+                [secondAddress]: [],
+              },
+            },
+          });
+        },
+      );
+    });
+
+    it('removes an account with no tokens', async () => {
+      const firstAddress = '0xA73d9021f67931563fDfe3E8f66261086319a1FC';
+      const secondAddress = '0xB73d9021f67931563fDfe3E8f66261086319a1FK';
+      const firstAccount = createMockInternalAccount({
+        address: firstAddress,
+      });
+      const secondAccount = createMockInternalAccount({
+        address: secondAddress,
+      });
+      const initialState: TokensControllerState = {
+        allTokens: {
+          [ChainId.mainnet]: {
+            [firstAddress]: [
+              {
+                address: '0x03',
+                symbol: 'barC',
+                decimals: 2,
+                aggregators: [],
+                image: undefined,
+                name: undefined,
+              },
+            ],
+          },
+        },
+        allIgnoredTokens: {},
+        allDetectedTokens: {
+          [ChainId.mainnet]: {
+            [firstAddress]: [],
+          },
+        },
+      };
+      await withController(
+        {
+          options: {
+            state: initialState,
+          },
+          listAccounts: [firstAccount, secondAccount],
+        },
+        ({ controller, triggerAccountRemoved }) => {
+          expect(controller.state).toStrictEqual(initialState);
+
+          triggerAccountRemoved(secondAccount.address);
+
+          expect(controller.state).toStrictEqual(initialState);
+        },
+      );
+    });
+  });
 });
 
 type WithControllerCallback<ReturnValue> = ({
@@ -3347,6 +3477,7 @@ type WithControllerCallback<ReturnValue> = ({
   messenger,
   approvalController,
   triggerSelectedAccountChange,
+  triggerAccountRemoved,
 }: {
   controller: TokensController;
   changeNetwork: (networkControllerState: {
@@ -3355,6 +3486,7 @@ type WithControllerCallback<ReturnValue> = ({
   messenger: UnrestrictedMessenger;
   approvalController: ApprovalController;
   triggerSelectedAccountChange: (internalAccount: InternalAccount) => void;
+  triggerAccountRemoved: (accountAddress: string) => void;
   triggerNetworkStateChange: (
     networkState: NetworkState,
     patches: Patch[],
@@ -3378,6 +3510,7 @@ type WithControllerArgs<ReturnValue> =
           NetworkClientConfiguration
         >;
         mocks?: WithControllerMockArgs;
+        listAccounts?: InternalAccount[];
       },
       WithControllerCallback<ReturnValue>,
     ];
@@ -3403,6 +3536,7 @@ async function withController<ReturnValue>(
       options = {},
       mockNetworkClientConfigurationsByNetworkClientId = {},
       mocks = {} as WithControllerMockArgs,
+      listAccounts = [],
     },
     fn,
   ] = args.length === 2 ? args : [{}, args[0]];
@@ -3427,12 +3561,14 @@ async function withController<ReturnValue>(
       'NetworkController:getNetworkClientById',
       'AccountsController:getAccount',
       'AccountsController:getSelectedAccount',
+      'AccountsController:listAccounts',
     ],
     allowedEvents: [
       'NetworkController:networkDidChange',
       'NetworkController:stateChange',
       'AccountsController:selectedEvmAccountChange',
       'TokenListController:stateChange',
+      'KeyringController:accountRemoved',
     ],
   });
 
@@ -3452,6 +3588,12 @@ async function withController<ReturnValue>(
     ),
   );
 
+  const mockListAccounts = jest.fn().mockReturnValue(listAccounts);
+  messenger.registerActionHandler(
+    'AccountsController:listAccounts',
+    mockListAccounts,
+  );
+
   const controller = new TokensController({
     chainId: ChainId.mainnet,
     // The tests assume that this is set, but they shouldn't make that
@@ -3469,6 +3611,10 @@ async function withController<ReturnValue>(
       'AccountsController:selectedEvmAccountChange',
       internalAccount,
     );
+  };
+
+  const triggerAccountRemoved = (accountAddress: string) => {
+    messenger.publish('KeyringController:accountRemoved', accountAddress);
   };
 
   const changeNetwork = ({
@@ -3504,6 +3650,7 @@ async function withController<ReturnValue>(
     approvalController,
     triggerSelectedAccountChange,
     triggerNetworkStateChange,
+    triggerAccountRemoved,
     getAccountHandler,
     getSelectedAccountHandler,
   });

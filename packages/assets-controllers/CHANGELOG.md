@@ -7,9 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [65.0.0]
+
+### Added
+
+- **BREAKING:** Add event listener for `TransactionController:transactionConfirmed` on `TokenDetectionController` to trigger token detection ([#5859](https://github.com/MetaMask/core/pull/5859))
+
 ### Changed
 
-- Added optional`account` parameter to `fetchHistoricalPricesForAsset` method in `MultichainAssetsRatesController` ([#5833](https://github.com/MetaMask/core/pull/5833))
+- **BREAKING:** Add event listener for `KeyringController:accountRemoved` instead of `AccountsController:accountRemoved` in `TokenBalancesController` and `TokensController` ([#5859](https://github.com/MetaMask/core/pull/5859))
+
+## [64.0.0]
+
+### Added
+
+- **BREAKING:** Add event listener for `AccountsController:accountRemoved` on `TokenBalancesController` to remove token balances for the removed account ([#5726](https://github.com/MetaMask/core/pull/5726))
+
+- **BREAKING:** Add event listener for `AccountsController:accountRemoved` on `TokensController` to remove tokens for the removed account ([#5726](https://github.com/MetaMask/core/pull/5726))
+
+- **BREAKING:** Add `listAccounts` action to `TokensController` ([#5726](https://github.com/MetaMask/core/pull/5726))
+
+- **BREAKING:** Add `listAccounts` action to `TokenBalancesController` ([#5726](https://github.com/MetaMask/core/pull/5726))
+
+### Changed
+
+- TokenBalancesController will now check if balances has changed before updating the state ([#5726](https://github.com/MetaMask/core/pull/5726))
+
+## [63.1.0]
+
+### Changed
+
+- Added optional `account` parameter to `fetchHistoricalPricesForAsset` method in `MultichainAssetsRatesController` ([#5833](https://github.com/MetaMask/core/pull/5833))
 - Updated `TokenListController` `fetchTokenList` method to bail if cache is valid ([#5804](https://github.com/MetaMask/core/pull/5804))
   - also cleaned up internal state update logic
 - Bump `@metamask/controller-utils` to `^11.9.0` ([#5812](https://github.com/MetaMask/core/pull/5812))
@@ -1636,7 +1664,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@63.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@65.0.0...HEAD
+[65.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@64.0.0...@metamask/assets-controllers@65.0.0
+[64.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@63.1.0...@metamask/assets-controllers@64.0.0
+[63.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@63.0.0...@metamask/assets-controllers@63.1.0
 [63.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@62.0.0...@metamask/assets-controllers@63.0.0
 [62.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@61.1.0...@metamask/assets-controllers@62.0.0
 [61.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@61.0.0...@metamask/assets-controllers@61.1.0
