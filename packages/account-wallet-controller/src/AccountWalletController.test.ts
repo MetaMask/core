@@ -514,4 +514,57 @@ describe('AccountWalletController', () => {
       } as AccountWalletControllerState['accountWallets']);
     });
   });
+
+  describe('#handleAccountAdded', () => {
+    it('adds an account from the tree', async () => {
+      const { controller, messenger } = setup();
+      //
+      // 2 accounts that share the same entropy source (thus, same wallet).
+      const mockHdAccount1 = {
+        ...MOCK_HD_ACCOUNT_1,
+        options: {
+          entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        },
+      };
+      const mockHdAccount2 = {
+        ...MOCK_HD_ACCOUNT_2,
+        options: {
+          entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        },
+      };
+
+      // Create entropy wallets that will both get "Wallet" as base name, then get numbered
+      messenger.registerActionHandler(
+        'AccountsController:listMultichainAccounts',
+        () => [mockHdAccount1],
+      );
+      messenger.registerActionHandler('KeyringController:getState', () => ({
+        isUnlocked: true,
+        keyrings: [MOCK_HD_KEYRING_1],
+      }));
+
+      await controller.init();
+
+      messenger.publish('AccountsController:accountAdded', mockHdAccount2);
+
+      const walletId1 = toAccountWalletId(
+        AccountWalletCategory.Entropy,
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const walletId1Group = toDefaultAccountGroupId(walletId1);
+      expect(controller.state.accountWallets).toStrictEqual({
+        [walletId1]: {
+          id: walletId1,
+          groups: {
+            [walletId1Group]: {
+              id: walletId1Group,
+              metadata: { name: DEFAULT_ACCOUNT_GROUP_NAME },
+              accounts: [mockHdAccount1.id, mockHdAccount2.id], // HD account 2 got added.
+            },
+          },
+          metadata: { name: 'Wallet 1' },
+        },
+      } as AccountWalletControllerState['accountWallets']);
+    });
+  });
 });

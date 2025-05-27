@@ -222,6 +222,12 @@ export class AccountWalletController extends BaseController<
       (account: InternalAccount) => this.#matchGroupByKeyringType(account),
     ];
 
+    this.messagingSystem.subscribe(
+      'AccountsController:accountAdded',
+      (account) => {
+        this.#handleAccountAdded(account);
+      },
+    );
 
     this.messagingSystem.subscribe(
       'AccountsController:accountRemoved',
@@ -235,7 +241,19 @@ export class AccountWalletController extends BaseController<
     const wallets = {};
 
     // For now, we always re-compute all wallets, we do not re-use the existing state.
-    await this.#update(wallets);
+    for (const account of this.#listAccounts()) {
+      this.#insert(wallets, account);
+    }
+
+    this.update((state) => {
+      state.accountWallets = wallets;
+    });
+  }
+
+  #handleAccountAdded(account: InternalAccount) {
+    this.update((state) => {
+      this.#insert(state.accountWallets, account);
+    });
   }
 
   #handleAccountRemoved(accountId: AccountId) {
@@ -367,52 +385,48 @@ export class AccountWalletController extends BaseController<
     return `Wallet ${index + 1}`; // Use human indexing.
   }
 
-  async #update(
+  #insert(
     wallets: AccountWalletControllerState['accountWallets'],
-  ): Promise<void> {
-    for (const account of this.#listAccounts()) {
-      for (const rule of this.#rules) {
-        const match = rule(account);
+    account: InternalAccount,
+  ) {
+    for (const rule of this.#rules) {
+      const match = rule(account);
 
-        if (!match) {
-          // No match for that rule, we go to the next one.
-          continue;
-        }
-
-        const walletId = match.id;
-        const walletName = match.name;
-        const groupId = toDefaultAccountGroupId(walletId); // Use a single-group for now until multichain accounts is supported.
-        const groupName = DEFAULT_ACCOUNT_GROUP_NAME;
-
-        if (!wallets[walletId]) {
-          wallets[walletId] = {
-            id: walletId,
-            groups: {
-              [groupId]: {
-                id: groupId,
-                accounts: [],
-                metadata: { name: groupName },
-              },
-            },
-            metadata: {
-              name: walletName,
-            },
-          };
-        }
-        wallets[walletId].groups[groupId].accounts.push(account.id);
-
-        // Update the reverse mapping for this account.
-        this.#reverse.set(account.id, {
-          walletId,
-          groupId,
-        });
-        break;
+      if (!match) {
+        // No match for that rule, we go to the next one.
+        continue;
       }
-    }
 
-    this.update((state) => {
-      state.accountWallets = wallets;
-    });
+      const walletId = match.id;
+      const walletName = match.name;
+      const groupId = toDefaultAccountGroupId(walletId); // Use a single-group for now until multichain accounts is supported.
+      const groupName = DEFAULT_ACCOUNT_GROUP_NAME;
+
+      if (!wallets[walletId]) {
+        wallets[walletId] = {
+          id: walletId,
+          groups: {
+            [groupId]: {
+              id: groupId,
+              accounts: [],
+              metadata: { name: groupName },
+            },
+          },
+          metadata: {
+            name: walletName,
+          },
+        };
+      }
+      wallets[walletId].groups[groupId].accounts.push(account.id);
+
+      // Update the reverse mapping for this account.
+      this.#reverse.set(account.id, {
+        walletId,
+        groupId,
+      });
+
+      return;
+    }
   }
 
   #listAccounts(): InternalAccount[] {
