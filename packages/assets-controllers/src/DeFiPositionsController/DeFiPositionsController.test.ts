@@ -1,6 +1,10 @@
 import { BtcAccountType } from '@metamask/keyring-api';
 
-import type { DeFiPositionsControllerMessenger } from './DeFiPositionsController';
+import * as calculateDefiMetrics from './calculate-defi-metrics';
+import type {
+  DeFiPositionsControllerMessenger,
+  TrackingEventPayload,
+} from './DeFiPositionsController';
 import {
   DeFiPositionsController,
   getDefaultDefiPositionsControllerState,
@@ -44,18 +48,24 @@ type MainMessenger = Messenger<
  *
  * @param config - Configuration for the mock setup
  * @param config.isEnabled - Whether the controller is enabled
+ * @param config.mockTrackEvent - The mock track event function
  * @param config.mockFetchPositions - The mock fetch positions function
  * @param config.mockGroupDeFiPositions - The mock group positions function
+ * @param config.mockCalculateDefiMetrics - The mock calculate metrics function
  * @returns The controller instance, trigger functions, and spies
  */
 function setupController({
   isEnabled,
+  mockTrackEvent,
   mockFetchPositions = jest.fn(),
   mockGroupDeFiPositions = jest.fn(),
+  mockCalculateDefiMetrics = jest.fn(),
 }: {
   isEnabled?: () => boolean;
   mockFetchPositions?: jest.Mock;
   mockGroupDeFiPositions?: jest.Mock;
+  mockCalculateDefiMetrics?: jest.Mock;
+  mockTrackEvent?: jest.Mock;
 } = {}) {
   const messenger: MainMessenger = new Messenger();
 
@@ -88,11 +98,18 @@ function setupController({
     'groupDeFiPositions',
   );
 
+  const calculateDefiMetricsSpy = jest.spyOn(
+    calculateDefiMetrics,
+    'calculateDeFiPositionMetrics',
+  );
+  calculateDefiMetricsSpy.mockImplementation(mockCalculateDefiMetrics);
+
   groupDeFiPositionsSpy.mockImplementation(mockGroupDeFiPositions);
 
   const controller = new DeFiPositionsController({
     messenger: restrictedMessenger,
     isEnabled,
+    trackEvent: mockTrackEvent,
   });
 
   const updateSpy = jest.spyOn(controller, 'update' as never);
@@ -130,6 +147,8 @@ function setupController({
     updateSpy,
     mockFetchPositions,
     mockGroupDeFiPositions,
+    mockCalculateDefiMetrics,
+    mockTrackEvent,
   };
 }
 
@@ -199,6 +218,7 @@ describe('DeFiPositionsController', () => {
         [OWNER_ACCOUNTS[0].address]: 'mock-grouped-data-1',
         [OWNER_ACCOUNTS[1].address]: null,
       },
+      allDeFiPositionsCount: {},
     });
 
     expect(buildPositionsFetcherSpy).toHaveBeenCalled();
@@ -262,6 +282,7 @@ describe('DeFiPositionsController', () => {
       allDeFiPositions: {
         [OWNER_ACCOUNTS[0].address]: 'mock-grouped-data-1',
       },
+      allDeFiPositionsCount: {},
     });
 
     expect(buildPositionsFetcherSpy).toHaveBeenCalled();
@@ -330,6 +351,7 @@ describe('DeFiPositionsController', () => {
       allDeFiPositions: {
         [newAccountAddress]: 'mock-grouped-data-1',
       },
+      allDeFiPositionsCount: {},
     });
 
     expect(buildPositionsFetcherSpy).toHaveBeenCalled();
@@ -372,5 +394,115 @@ describe('DeFiPositionsController', () => {
     expect(mockGroupDeFiPositions).not.toHaveBeenCalled();
 
     expect(updateSpy).not.toHaveBeenCalled();
+  });
+
+  it('updates defi count and calls metrics', async () => {
+    const mockGroupDeFiPositions = jest
+      .fn()
+      .mockReturnValue('mock-grouped-data-1');
+
+    const mockTrackEvent = jest.fn();
+
+    const mockMetric1 = {
+      event: 'mock-event',
+      category: 'mock-category',
+      properties: {
+        totalPositions: 1,
+        totalMarketValueUSD: 1,
+      },
+    };
+
+    const mockMetric2 = {
+      event: 'mock-event',
+      category: 'mock-category',
+      properties: {
+        totalPositions: 2,
+        totalMarketValueUSD: 2,
+      },
+    };
+
+    const mockCalculateDefiMetrics = jest
+      .fn()
+      .mockReturnValueOnce(mockMetric1)
+      .mockReturnValueOnce(mockMetric2);
+
+    const { controller, triggerTransactionConfirmed } = setupController({
+      mockGroupDeFiPositions,
+      mockCalculateDefiMetrics,
+      mockTrackEvent,
+    });
+
+    await controller._executePoll();
+
+    expect(mockCalculateDefiMetrics).toHaveBeenCalled();
+    expect(mockCalculateDefiMetrics).toHaveBeenCalledWith(
+      controller.state.allDeFiPositions[OWNER_ACCOUNTS[0].address],
+    );
+
+    expect(controller.state.allDeFiPositionsCount).toStrictEqual({
+      [OWNER_ACCOUNTS[0].address]: mockMetric1.properties.totalPositions,
+      [OWNER_ACCOUNTS[1].address]: mockMetric2.properties.totalPositions,
+    });
+
+    expect(mockTrackEvent).toHaveBeenNthCalledWith(1, mockMetric1);
+    expect(mockTrackEvent).toHaveBeenNthCalledWith(2, mockMetric2);
+    expect(mockTrackEvent).toHaveBeenCalledTimes(2);
+    expect(mockTrackEvent).toHaveBeenNthCalledWith(1, mockMetric1);
+    expect(mockTrackEvent).toHaveBeenNthCalledWith(2, mockMetric2);
+  });
+
+  it('only calls track metric when position count changes', async () => {
+    const mockGroupDeFiPositions = jest
+      .fn()
+      .mockReturnValue('mock-grouped-data-1');
+    const mockTrackEvent = jest.fn();
+
+    const mockMetric1 = {
+      event: 'mock-event',
+      category: 'mock-category',
+      properties: {
+        totalPositions: 1,
+        totalMarketValueUSD: 1,
+      },
+    };
+
+    const mockMetric2 = {
+      event: 'mock-event',
+      category: 'mock-category',
+      properties: {
+        totalPositions: 2,
+        totalMarketValueUSD: 2,
+      },
+    };
+
+    const mockCalculateDefiMetrics = jest
+      .fn()
+      .mockReturnValueOnce(mockMetric1)
+      .mockReturnValueOnce(mockMetric2)
+      .mockReturnValueOnce(mockMetric2);
+
+    const { controller, triggerTransactionConfirmed } = setupController({
+      mockGroupDeFiPositions,
+      mockCalculateDefiMetrics,
+      mockTrackEvent,
+    });
+
+    triggerTransactionConfirmed(OWNER_ACCOUNTS[0].address);
+    triggerTransactionConfirmed(OWNER_ACCOUNTS[0].address);
+    triggerTransactionConfirmed(OWNER_ACCOUNTS[0].address);
+    await flushPromises();
+
+    expect(mockCalculateDefiMetrics).toHaveBeenCalled();
+    expect(mockCalculateDefiMetrics).toHaveBeenCalledWith(
+      controller.state.allDeFiPositions[OWNER_ACCOUNTS[0].address],
+    );
+
+    expect(controller.state.allDeFiPositionsCount).toStrictEqual({
+      [OWNER_ACCOUNTS[0].address]: mockMetric2.properties.totalPositions,
+    });
+
+    expect(mockTrackEvent).toHaveBeenCalledTimes(2);
+    expect(mockTrackEvent).toHaveBeenNthCalledWith(1, mockMetric1);
+    expect(mockTrackEvent).toHaveBeenNthCalledWith(2, mockMetric2);
   });
 });
