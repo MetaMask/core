@@ -1,12 +1,25 @@
 #!/usr/bin/env -S node --require "./node_modules/tsx/dist/preflight.cjs" --import "./node_modules/tsx/dist/loader.mjs"
 
-import { join, relative } from 'node:path';
-import { homedir } from 'node:os';
-import { Dir, readFileSync } from 'node:fs';
-import { copyFile, mkdir, opendir, rm, symlink, unlink } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import type { Dir } from 'node:fs';
+import {
+  copyFile,
+  mkdir,
+  opendir,
+  rm,
+  symlink,
+  unlink,
+} from 'node:fs/promises';
+import { homedir } from 'node:os';
+import { join, relative } from 'node:path';
 import { cwd, exit } from 'node:process';
 import { parse as parseYaml } from 'yaml';
+
+import { extractFrom } from './extract';
+import { parseArgs, printBanner } from './options';
+import type { Checksums } from './types';
+import { Architecture, Binary, Extension, Platform } from './types';
 import {
   getVersion,
   isCodedError,
@@ -14,10 +27,6 @@ import {
   say,
   transformChecksums,
 } from './utils';
-import { extractFrom } from './extract';
-import { parseArgs, printBanner } from './options';
-import type { Checksums } from './types';
-import { Architecture, Binary, Extension, Platform } from './types';
 
 /**
  * Determines the cache directory based on the .yarnrc.yml configuration.
