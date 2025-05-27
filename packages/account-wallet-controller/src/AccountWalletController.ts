@@ -165,25 +165,6 @@ export function toDefaultAccountGroupId(
   return toAccountGroupId(walletId, DEFAULT_ACCOUNT_GROUP_UNIQUE_ID);
 }
 
-/**
- * Parses a wallet ID and extract its category and its unique ID.
- *
- * @param walletId - The wallet ID.
- * @returns The parsed wallet ID.
- */
-export function parseWalletId(walletId: AccountWalletId): {
-  category: AccountWalletCategory;
-  id: string;
-} {
-  // TODO: Make it safer.
-  const [category, ...id] = walletId.split(':');
-
-  return {
-    category: category as AccountWalletCategory,
-    id: id.join(':'),
-  };
-}
-
 export class AccountWalletController extends BaseController<
   typeof controllerName,
   AccountWalletControllerState,
