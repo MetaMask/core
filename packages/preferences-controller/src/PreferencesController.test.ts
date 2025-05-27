@@ -542,6 +542,13 @@ describe('PreferencesController', () => {
     controller.setPrivacyMode(true);
     expect(controller.state.privacyMode).toBe(true);
   });
+
+  it('should set dismissSmartAccountSuggestionEnabled', () => {
+    const controller = setupPreferencesController();
+    expect(controller.state.dismissSmartAccountSuggestionEnabled).toBe(false);
+    controller.setDismissSmartAccountSuggestionEnabled(true);
+    expect(controller.state.dismissSmartAccountSuggestionEnabled).toBe(true);
+  });
 });
 
 /**
