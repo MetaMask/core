@@ -18,8 +18,8 @@ import { parse as parseYaml } from 'yaml';
 
 import { extractFrom } from './extract';
 import { parseArgs, printBanner } from './options';
-import type { Checksums } from './types';
-import { Architecture, Binary, Extension, Platform } from './types';
+import type { Checksums, Architecture, Binary } from './types';
+import { Extension, Platform } from './types';
 import {
   getVersion,
   isCodedError,
@@ -33,7 +33,7 @@ import {
  * If global cache is enabled, returns a path in the user's home directory.
  * Otherwise, returns a local cache path in the current working directory.
  *
- * @returns {string} The path to the cache directory.
+ * @returns The path to the cache directory
  */
 export function getCacheDirectory(): string {
   let enableGlobalCache = false;
@@ -57,12 +57,12 @@ export function getCacheDirectory(): string {
 /**
  * Generates the URL for downloading the Foundry binary archive.
  *
- * @param {string} repo - The GitHub repository (e.g., 'foundry-rs/foundry').
- * @param {string} tag - The release tag (e.g., 'v1.0.0').
- * @param {string} version - The version string.
- * @param {Platform} platform - The target platform (e.g., Platform.Linux).
- * @param {string} arch - The target architecture (e.g., 'amd64').
- * @returns {string} The URL for the binary archive.
+ * @param repo - The GitHub repository (e.g., 'foundry-rs/foundry')
+ * @param tag - The release tag (e.g., 'v1.0.0')
+ * @param version - The version string
+ * @param platform - The target platform (e.g., Platform.Linux)
+ * @param arch - The target architecture (e.g., 'amd64')
+ * @returns The URL for the binary archive
  */
 export function getBinaryArchiveUrl(
   repo: string,
@@ -78,13 +78,13 @@ export function getBinaryArchiveUrl(
 /**
  * Checks if binaries are already in the cache. If not, downloads and extracts them.
  *
- * @param {URL} url - The URL to download the binaries from.
- * @param {Binary[]} binaries - The list of binaries to download.
- * @param {string} cachePath - The path to the cache directory.
- * @param {Platform} platform - The target platform.
- * @param {Architecture} arch - The target architecture.
- * @param {Checksums} [checksums] - Optional checksums for verification.
- * @returns {Promise<Dir>} A promise that resolves to the directory containing the downloaded binaries.
+ * @param url - The URL to download the binaries from
+ * @param binaries - The list of binaries to download
+ * @param cachePath - The path to the cache directory
+ * @param platform - The target platform
+ * @param arch - The target architecture
+ * @param checksums - Optional checksums for verification
+ * @returns A promise that resolves to the directory containing the downloaded binaries
  */
 export async function checkAndDownloadBinaries(
   url: URL,
@@ -117,10 +117,10 @@ export async function checkAndDownloadBinaries(
 /**
  * Installs the downloaded binaries by creating symlinks or copying files.
  *
- * @param {Dir} downloadedBinaries - The directory containing the downloaded binaries.
- * @param {string} BIN_DIR - The target directory for installation.
- * @param {string} cachePath - The path to the cache directory.
- * @returns {Promise<void>} A promise that resolves when installation is complete.
+ * @param downloadedBinaries - The directory containing the downloaded binaries
+ * @param BIN_DIR - The target directory for installation
+ * @param cachePath - The path to the cache directory
+ * @returns A promise that resolves when installation is complete
  */
 export async function installBinaries(
   downloadedBinaries: Dir,
@@ -151,7 +151,7 @@ export async function installBinaries(
       await copyFile(target, path);
     }
     // check that it works by logging the version
-    say(`installed - ${getVersion(path)}`);
+    say(`installed - ${getVersion(path).toString()}`);
   }
 }
 
@@ -160,7 +160,7 @@ export async function installBinaries(
  * If the command is 'cache clean', it removes the cache directory.
  * Otherwise, it downloads and installs the specified binaries.
  *
- * @returns {Promise<void>} A promise that resolves when the operation is complete.
+ * @returns A promise that resolves when the operation is complete
  */
 export async function downloadAndInstallFoundryBinaries(): Promise<void> {
   const parsedArgs = parseArgs();
