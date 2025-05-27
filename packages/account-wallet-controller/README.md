@@ -1,14 +1,14 @@
-# `@metamask/account-group-controller`
+# `@metamask/account-wallet-controller`
 
 example
 
 ## Installation
 
-`yarn add @metamask/account-group-controller`
+`yarn add @metamask/account-wallet-controller`
 
 or
 
-`npm install @metamask/account-group-controller`
+`npm install @metamask/account-wallet-controller`
 
 ## Contributing
 

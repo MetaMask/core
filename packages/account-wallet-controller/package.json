@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/account-group-controller",
+  "name": "@metamask/account-wallet-controller",
   "version": "0.0.0",
   "description": "Controller to group account together based on some pre-defined rules",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/account-group-controller#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/account-wallet-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -37,15 +37,18 @@
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:docs": "typedoc",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/account-group-controller",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/account-wallet-controller",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/account-wallet-controller",
     "publish:preview": "yarn npm publish --tag preview",
-    "test": "jest --reporters=jest-silent-reporter",
-    "test:clean": "jest --clearCache",
-    "test:verbose": "jest --verbose",
-    "test:watch": "jest --watch"
+    "since-latest-release": "../../scripts/since-latest-release.sh",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
+    "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
+    "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^8.0.1"
+    "@metamask/base-controller": "^8.0.1",
+    "lodash": "^4.17.21"
   },
   "devDependencies": {
     "@metamask/accounts-controller": "^29.0.0",
@@ -53,6 +56,7 @@
     "@metamask/keyring-api": "^17.4.0",
     "@metamask/keyring-controller": "^22.0.0",
     "@types/jest": "^27.4.1",
+    "@types/lodash": "^4.14.191",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "ts-jest": "^27.1.4",

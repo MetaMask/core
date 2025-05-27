@@ -2427,9 +2427,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/account-group-controller@workspace:packages/account-group-controller":
+"@metamask/account-wallet-controller@workspace:packages/account-wallet-controller":
   version: 0.0.0-use.local
-  resolution: "@metamask/account-group-controller@workspace:packages/account-group-controller"
+  resolution: "@metamask/account-wallet-controller@workspace:packages/account-wallet-controller"
   dependencies:
     "@metamask/accounts-controller": "npm:^29.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
