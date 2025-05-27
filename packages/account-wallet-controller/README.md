@@ -1,6 +1,6 @@
 # `@metamask/account-wallet-controller`
 
-example
+Manages account wallets according to pre-defined grouping rules (entropy source, Snap IDs, keyring types) and organize wallets/groups of accounts in a tree structure.
 
 ## Installation
 
