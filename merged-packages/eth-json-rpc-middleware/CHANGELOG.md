@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.0.1]
+### Fixed
+- Bump `@metamask/eth-block-tracker` to 12.0.0 ([#372](https://github.com/MetaMask/eth-json-rpc-middleware/pull/372))
+  - `getLatestBlock` will no longer hang, but reject, if an error is thrown while making the request.
+  - This error will also no longer be wrapped under "PollingBlockTracker - encountered an error while attempting to update latest block".
+
 ## [17.0.0]
 ### Changed
 - **BREAKING:** Support version `2.0.0` of EIP-5792 ([#370](https://github.com/MetaMask/eth-json-rpc-middleware/pull/370))
@@ -320,7 +326,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `json-rpc-engine@5.3.0` ([#53](https://github.com/MetaMask/eth-json-rpc-middleware/pull/53))
 - `eth-rpc-errors@3.0.0` ([#55](https://github.com/MetaMask/eth-json-rpc-middleware/pull/55))
 
-[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v17.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v17.0.1...HEAD
+[17.0.1]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v17.0.0...v17.0.1
 [17.0.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v16.0.1...v17.0.0
 [16.0.1]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v16.0.0...v16.0.1
 [16.0.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v15.3.0...v16.0.0
