@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/eth-json-rpc-infura` to `^10.2.0`
+- Bump `@metamask/eth-json-rpc-infura` to `^10.2.0` ([#5867](https://github.com/MetaMask/core/pull/5867))
 
 ### Fixed
 
