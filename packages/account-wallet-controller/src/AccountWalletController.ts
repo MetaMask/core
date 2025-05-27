@@ -40,6 +40,10 @@ type AccountReverseMapping = {
   groupId: AccountGroupId;
 };
 
+type AccountWalletRuleFunction = (
+  account: InternalAccount,
+) => AccountWalletRuleMatch | undefined;
+
 export type AccountWalletId = `${AccountWalletCategory}:${string}`;
 export type AccountGroupId = `${AccountWalletId}:${string}`;
 
@@ -179,6 +183,8 @@ export class AccountWalletController extends BaseController<
 > {
   readonly #reverse: Map<AccountId, AccountReverseMapping>;
 
+  readonly #rules: AccountWalletRuleFunction[];
+
   /**
    * Constructor for AccountWalletController.
    *
@@ -205,6 +211,17 @@ export class AccountWalletController extends BaseController<
 
     // Reverse map to allow fast node access from an account ID.
     this.#reverse = new Map();
+
+    // Rules to apply to construct the wallets tree.
+    this.#rules = [
+      // 1. We group by entropy-source
+      (account: InternalAccount) => this.#matchGroupByEntropySource(account),
+      // 2. We group by Snap ID
+      (account: InternalAccount) => this.#matchGroupBySnapId(account),
+      // 3. We group by wallet type (this rule cannot fail and will group all non-matching accounts)
+      (account: InternalAccount) => this.#matchGroupByKeyringType(account),
+    ];
+
 
     this.messagingSystem.subscribe(
       'AccountsController:accountRemoved',
@@ -353,17 +370,8 @@ export class AccountWalletController extends BaseController<
   async #update(
     wallets: AccountWalletControllerState['accountWallets'],
   ): Promise<void> {
-    const rules = [
-      // 1. We group by entropy-source
-      (account: InternalAccount) => this.#matchGroupByEntropySource(account),
-      // 2. We group by Snap ID
-      (account: InternalAccount) => this.#matchGroupBySnapId(account),
-      // 3. We group by wallet type (this rule cannot fail and will group all non-matching accounts)
-      (account: InternalAccount) => this.#matchGroupByKeyringType(account),
-    ];
-
     for (const account of this.#listAccounts()) {
-      for (const rule of rules) {
+      for (const rule of this.#rules) {
         const match = rule(account);
 
         if (!match) {
