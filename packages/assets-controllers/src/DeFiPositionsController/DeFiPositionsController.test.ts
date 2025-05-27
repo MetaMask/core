@@ -1,10 +1,7 @@
 import { BtcAccountType } from '@metamask/keyring-api';
 
 import * as calculateDefiMetrics from './calculate-defi-metrics';
-import type {
-  DeFiPositionsControllerMessenger,
-  TrackingEventPayload,
-} from './DeFiPositionsController';
+import type { DeFiPositionsControllerMessenger } from './DeFiPositionsController';
 import {
   DeFiPositionsController,
   getDefaultDefiPositionsControllerState,
@@ -426,7 +423,7 @@ describe('DeFiPositionsController', () => {
       .mockReturnValueOnce(mockMetric1)
       .mockReturnValueOnce(mockMetric2);
 
-    const { controller, triggerTransactionConfirmed } = setupController({
+    const { controller } = setupController({
       mockGroupDeFiPositions,
       mockCalculateDefiMetrics,
       mockTrackEvent,
