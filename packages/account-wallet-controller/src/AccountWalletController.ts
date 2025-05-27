@@ -17,9 +17,6 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { stripSnapPrefix } from '@metamask/snaps-utils';
-import { cloneDeep } from 'lodash';
-
-import { generateAccountWalletName } from './utils';
 
 const controllerName = 'AccountWalletController';
 
@@ -324,7 +321,7 @@ export class AccountWalletController extends BaseController<
     );
 
     const index = keyrings
-      .filter((keyring) => keyring.type === KeyringTypes.hd)
+      .filter((keyring) => keyring.type === (KeyringTypes.hd as string))
       .findIndex((keyring) => keyring.metadata.id === entropySource);
 
     if (index === -1) {
