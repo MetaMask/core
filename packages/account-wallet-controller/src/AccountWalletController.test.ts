@@ -199,7 +199,7 @@ function setup({
     AccountWalletControllerActions | AllowedActions,
     AccountWalletControllerEvents | AllowedEvents
   >;
-}): {
+} = {}): {
   controller: AccountWalletController;
   messenger: Messenger<
     AccountWalletControllerActions | AllowedActions,
@@ -459,6 +459,59 @@ describe('AccountWalletController', () => {
       expect(controller.state.accountWallets[wallet2Id]?.metadata.name).toBe(
         'HD Wallet',
       );
+    });
+  });
+
+  describe('#handleAccountRemoved', () => {
+    it('removes an account from the tree', async () => {
+      const { controller, messenger } = setup();
+      //
+      // 2 accounts that share the same entropy source (thus, same wallet).
+      const mockHdAccount1 = {
+        ...MOCK_HD_ACCOUNT_1,
+        options: {
+          entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        },
+      };
+      const mockHdAccount2 = {
+        ...MOCK_HD_ACCOUNT_2,
+        options: {
+          entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        },
+      };
+
+      // Create entropy wallets that will both get "Wallet" as base name, then get numbered
+      messenger.registerActionHandler(
+        'AccountsController:listMultichainAccounts',
+        () => [mockHdAccount1, mockHdAccount2],
+      );
+      messenger.registerActionHandler('KeyringController:getState', () => ({
+        isUnlocked: true,
+        keyrings: [MOCK_HD_KEYRING_1],
+      }));
+
+      await controller.init();
+
+      messenger.publish('AccountsController:accountRemoved', mockHdAccount1.id);
+
+      const walletId1 = toAccountWalletId(
+        AccountWalletCategory.Entropy,
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const walletId1Group = toDefaultAccountGroupId(walletId1);
+      expect(controller.state.accountWallets).toStrictEqual({
+        [walletId1]: {
+          id: walletId1,
+          groups: {
+            [walletId1Group]: {
+              id: walletId1Group,
+              metadata: { name: DEFAULT_ACCOUNT_GROUP_NAME },
+              accounts: [mockHdAccount2.id], // HD account 1 got removed.
+            },
+          },
+          metadata: { name: 'Wallet 1' },
+        },
+      } as AccountWalletControllerState['accountWallets']);
     });
   });
 });

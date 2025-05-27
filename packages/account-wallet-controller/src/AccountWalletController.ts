@@ -35,6 +35,11 @@ type AccountWalletRuleMatch = {
   name: string;
 };
 
+type AccountReverseMapping = {
+  walletId: AccountWalletId;
+  groupId: AccountGroupId;
+};
+
 export type AccountWalletId = `${AccountWalletCategory}:${string}`;
 export type AccountGroupId = `${AccountWalletId}:${string}`;
 
@@ -172,6 +177,8 @@ export class AccountWalletController extends BaseController<
   AccountWalletControllerState,
   AccountWalletControllerMessenger
 > {
+  readonly #reverse: Map<AccountId, AccountReverseMapping>;
+
   /**
    * Constructor for AccountWalletController.
    *
@@ -195,6 +202,16 @@ export class AccountWalletController extends BaseController<
         ...state,
       },
     });
+
+    // Reverse map to allow fast node access from an account ID.
+    this.#reverse = new Map();
+
+    this.messagingSystem.subscribe(
+      'AccountsController:accountRemoved',
+      (accountId) => {
+        this.#handleAccountRemoved(accountId);
+      },
+    );
   }
 
   async init(): Promise<void> {
@@ -202,6 +219,22 @@ export class AccountWalletController extends BaseController<
 
     // For now, we always re-compute all wallets, we do not re-use the existing state.
     await this.#update(wallets);
+  }
+
+  #handleAccountRemoved(accountId: AccountId) {
+    const found = this.#reverse.get(accountId);
+
+    if (found) {
+      const { walletId, groupId } = found;
+      this.update((state) => {
+        const { accounts } = state.accountWallets[walletId].groups[groupId];
+
+        const index = accounts.indexOf(accountId);
+        if (index !== -1) {
+          accounts.splice(index, 1);
+        }
+      });
+    }
   }
 
   #hasKeyringType(account: InternalAccount, type: KeyringTypes): boolean {
@@ -359,6 +392,12 @@ export class AccountWalletController extends BaseController<
           };
         }
         wallets[walletId].groups[groupId].accounts.push(account.id);
+
+        // Update the reverse mapping for this account.
+        this.#reverse.set(account.id, {
+          walletId,
+          groupId,
+        });
         break;
       }
     }
