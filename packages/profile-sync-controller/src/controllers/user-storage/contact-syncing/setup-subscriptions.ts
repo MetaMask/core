@@ -27,8 +27,6 @@ export function setupContactSyncingSubscriptions(
           return;
         }
 
-        console.log('AddressBookController:contactUpdated', contactEntry);
-
         // Skip global accounts with chainId "*" : they are contacts bridged from accounts
         if (String(contactEntry.chainId) === '*') {
           return;
@@ -53,8 +51,6 @@ export function setupContactSyncingSubscriptions(
         if (!canPerformContactSyncing(options)) {
           return;
         }
-
-        console.log('AddressBookController:contactDeleted', contactEntry);
 
         // Skip global accounts with chainId "*" : they are contacts bridged from accounts
         if (String(contactEntry.chainId) === '*') {

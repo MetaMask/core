@@ -42,7 +42,7 @@ function createContactKey(contact: AddressBookEntry): string {
  * 4. Contact Naming Conflicts: When same contact has different names, uses most recent by timestamp.
  * 5. Local Updates: When a contact was updated locally, syncs changes to remote if local is newer.
  * 6. Remote Updates: When a contact was updated remotely, applies changes locally if remote is newer.
- * 7. Local Deletions: When a contact was deleted locally, marks it as deleted in remote storage.
+ * 7. Local Deletions: Handled by real-time event handlers (deleteContactInRemoteStorage) to prevent false positives.
  * 8. Remote Deletions: When a contact was deleted remotely, applies deletion locally.
  * 9. Concurrent Updates: Resolves conflicts using timestamps to determine the winner.
  * 10. Restore After Delete: If a contact is modified after being deleted, restores it.
@@ -63,12 +63,10 @@ export async function syncContactsWithUserStorage(
   } = config;
 
   try {
+    // Cannot perform sync, conditions not met
     if (!canPerformContactSyncing(options)) {
-      console.log('🔄 Contacts Sync: Cannot perform sync, conditions not met');
       return;
     }
-
-    console.log('🔄 Contacts Sync: Starting sync process');
 
     // Activate sync semaphore to prevent event loops
     await getUserStorageControllerInstance().setIsContactSyncingInProgress(
@@ -81,18 +79,12 @@ export async function syncContactsWithUserStorage(
         .call('AddressBookController:list')
         .filter((contact) => String(contact.chainId) !== '*') || [];
 
-    console.log('🔄 Contacts Sync: Local contacts', localVisibleContacts);
-
     // Get remote contacts from user storage API
     const remoteContacts = await getRemoteContacts(options);
-    console.log('🔄 Contacts Sync: Remote contacts', remoteContacts);
 
     // SCENARIO 1: First Sync - No remote contacts but local contacts exist
     if (!remoteContacts || remoteContacts.length === 0) {
       if (localVisibleContacts.length > 0) {
-        console.log(
-          '🔄 Contacts Sync: First sync - uploading local contacts to remote',
-        );
         await saveContactsToUserStorage(localVisibleContacts, options);
       }
       return;
@@ -126,26 +118,16 @@ export async function syncContactsWithUserStorage(
       if (remoteContact.deleted) {
         // SCENARIO 8: Remote deletion - should be applied locally if contact exists locally
         if (localContact) {
-          console.log(
-            '🔄 Contacts Sync: Applying remote deletion locally',
-            remoteContact,
-          );
           contactsToDeleteLocally.push(remoteContact);
 
-          // Invoke deletion callback if needed
           if (onContactDeleted) {
             onContactDeleted();
           }
         }
       } else if (!localContact) {
         // SCENARIO 2: New contact from remote - import to local
-        console.log(
-          '🔄 Contacts Sync: Importing new remote contact',
-          remoteContact,
-        );
         contactsToAddOrUpdateLocally.push(remoteContact);
 
-        // Invoke update callback if needed
         if (onContactUpdated) {
           onContactUpdated();
         }
@@ -162,35 +144,18 @@ export async function syncContactsWithUserStorage(
 
           if (localTimestamp >= remoteTimestamp) {
             // Local is newer (or same age) - use local version
-            console.log('🔄 Contacts Sync: Local wins by timestamp', {
-              local: localContact,
-              remote: remoteContact,
-              localTimestamp,
-              remoteTimestamp,
-            });
             contactsToUpdateRemotely.push(localContact);
           } else {
             // Remote is newer - use remote version
-            console.log('🔄 Contacts Sync: Remote wins by timestamp', {
-              local: localContact,
-              remote: remoteContact,
-              localTimestamp,
-              remoteTimestamp,
-            });
             contactsToAddOrUpdateLocally.push(remoteContact);
 
-            // Invoke update callback if needed
             if (onContactUpdated) {
               onContactUpdated();
             }
           }
-        } else {
-          // Content is identical, no action needed
-          console.log('🔄 Contacts Sync: Content identical, no action needed', {
-            local: localContact,
-            remote: remoteContact,
-          });
         }
+
+        // Else: content is identical, no action needed
       }
     }
 
@@ -201,76 +166,14 @@ export async function syncContactsWithUserStorage(
 
       if (!remoteContact) {
         // New local contact - add to remote
-        console.log(
-          '🔄 Contacts Sync: New local contact - adding to remote',
-          localContact,
-        );
         contactsToUpdateRemotely.push(localContact);
       }
-    }
-
-    // SCENARIO 7: Detect local deletions
-    // Skip for new device scenario (no local contacts but remote has contacts)
-    const isNewDeviceScenario =
-      localVisibleContacts.length === 0 && remoteContacts.length > 0;
-
-    if (!isNewDeviceScenario) {
-      // Find contacts that exist in remote but not locally (they were deleted locally)
-      const contactsToDeleteRemotely: SyncAddressBookEntry[] = [];
-
-      for (const remoteContact of remoteContacts) {
-        if (!remoteContact.deleted) {
-          const key = createContactKey(remoteContact);
-          if (!localContactsMap.has(key)) {
-            console.log(
-              '🔄 Contacts Sync: Contact deleted locally, marking as deleted in remote',
-              remoteContact,
-            );
-            contactsToDeleteRemotely.push(remoteContact);
-
-            // Invoke deletion callback if needed
-            if (onContactDeleted) {
-              onContactDeleted();
-            }
-          }
-        }
-      }
-
-      // Mark contacts as deleted in remote
-      if (contactsToDeleteRemotely.length > 0) {
-        const remoteContactsWithDeletions = [...remoteContacts];
-
-        for (const contactToDelete of contactsToDeleteRemotely) {
-          const key = createContactKey(contactToDelete);
-          const indexToDelete = remoteContactsWithDeletions.findIndex(
-            (c) => createContactKey(c) === key,
-          );
-
-          if (indexToDelete !== -1) {
-            const now = Date.now();
-            remoteContactsWithDeletions[indexToDelete] = {
-              ...remoteContactsWithDeletions[indexToDelete],
-              deleted: true,
-              deletedAt: now,
-              lastUpdatedAt: now,
-            };
-          }
-        }
-
-        // Save updated remote contacts with deletions
-        await saveContactsToUserStorage(remoteContactsWithDeletions, options);
-      }
-    } else {
-      console.log(
-        '🔄 Contacts Sync: Skipping local deletion detection - this is a new device',
-      );
     }
 
     // Apply local deletions
     for (const contact of contactsToDeleteLocally) {
       try {
-        console.log('🔄 Contacts Sync: Deleting contact locally', contact);
-        await getMessenger().call(
+        getMessenger().call(
           'AddressBookController:delete',
           contact.chainId,
           contact.address,
@@ -284,11 +187,7 @@ export async function syncContactsWithUserStorage(
     for (const contact of contactsToAddOrUpdateLocally) {
       if (!contact.deleted) {
         try {
-          console.log(
-            '🔄 Contacts Sync: Adding/updating contact locally',
-            contact,
-          );
-          await getMessenger().call(
+          getMessenger().call(
             'AddressBookController:set',
             contact.address,
             contact.name || '',
@@ -304,11 +203,6 @@ export async function syncContactsWithUserStorage(
 
     // Apply changes to remote storage
     if (contactsToUpdateRemotely.length > 0) {
-      console.log(
-        '🔄 Contacts Sync: Updating contacts in remote storage',
-        contactsToUpdateRemotely,
-      );
-
       // Update existing remote contacts with new contacts
       const updatedRemoteContacts = [...remoteContacts];
 
@@ -337,10 +231,7 @@ export async function syncContactsWithUserStorage(
       // Save updated contacts to remote storage
       await saveContactsToUserStorage(updatedRemoteContacts, options);
     }
-
-    console.log('🔄 Contacts Sync: Sync completed successfully');
   } catch (error) {
-    console.error('🔄 Contacts Sync: Error during sync', error);
     if (onContactSyncErroneousSituation) {
       onContactSyncErroneousSituation('Error synchronizing contacts', {
         error,
@@ -428,11 +319,6 @@ export async function updateContactInRemoteStorage(
     return;
   }
 
-  console.log(
-    '🔄 Contacts Sync: Updating single contact in remote storage',
-    contact,
-  );
-
   try {
     // Get current remote contacts or initialize empty array
     const remoteContacts = (await getRemoteContacts(options)) || [];
@@ -484,11 +370,6 @@ export async function deleteContactInRemoteStorage(
   if (!canPerformContactSyncing(options)) {
     return;
   }
-
-  console.log(
-    '🔄 Contacts Sync: Marking contact as deleted in remote storage',
-    contact,
-  );
 
   try {
     // Get current remote contacts
