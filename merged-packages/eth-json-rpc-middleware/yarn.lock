@@ -981,6 +981,19 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/eth-block-tracker@npm:^12.0.0":
+  version: 12.0.0
+  resolution: "@metamask/eth-block-tracker@npm:12.0.0"
+  dependencies:
+    "@metamask/eth-json-rpc-provider": ^4.1.5
+    "@metamask/safe-event-emitter": ^3.1.1
+    "@metamask/utils": ^11.0.1
+    json-rpc-random-id: ^1.0.1
+    pify: ^5.0.0
+  checksum: d64d5268abcaa146ac5a042e1d54acb338ebe545360fe86b4593499c0c964ce7124d181fddbd9a5839cb51988db44ef5e84525bc93bbe76fa257da34b6893cad
+  languageName: node
+  linkType: hard
+
 "@metamask/eth-json-rpc-infura@npm:^10.0.0":
   version: 10.0.0
   resolution: "@metamask/eth-json-rpc-infura@npm:10.0.0"
@@ -1024,7 +1037,7 @@ __metadata:
     "@metamask/eslint-config-jest": ^12.1.0
     "@metamask/eslint-config-nodejs": ^12.1.0
     "@metamask/eslint-config-typescript": ^12.1.0
-    "@metamask/eth-block-tracker": ^11.0.4
+    "@metamask/eth-block-tracker": ^12.0.0
     "@metamask/eth-json-rpc-provider": ^4.1.7
     "@metamask/eth-sig-util": ^8.1.2
     "@metamask/json-rpc-engine": ^10.0.2
