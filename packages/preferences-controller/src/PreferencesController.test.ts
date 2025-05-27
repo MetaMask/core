@@ -46,6 +46,7 @@ describe('PreferencesController', () => {
         sortCallback: 'stringNumeric',
       },
       privacyMode: false,
+      dismissSmartAccountSuggestionEnabled: false,
     });
   });
 
