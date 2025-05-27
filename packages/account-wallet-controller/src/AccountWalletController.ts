@@ -325,13 +325,11 @@ export class AccountWalletController extends BaseController<
       (account: InternalAccount) => this.#matchGroupByEntropySource(account),
       // 2. We group by Snap ID
       (account: InternalAccount) => this.#matchGroupBySnapId(account),
-      // 3. We group by wallet type
+      // 3. We group by wallet type (this rule cannot fail and will group all non-matching accounts)
       (account: InternalAccount) => this.#matchGroupByKeyringType(account),
     ];
 
     for (const account of this.#listAccounts()) {
-      let grouped = false;
-
       for (const rule of rules) {
         const match = rule(account);
 
@@ -361,17 +359,7 @@ export class AccountWalletController extends BaseController<
           };
         }
         wallets[walletId].groups[groupId].accounts.push(account.id);
-
-        // Mark this account as grouped
-        grouped = true;
         break;
-      }
-
-      // This should never happen, but we should still check for it.
-      if (!grouped) {
-        throw new Error(
-          `Account "${account.id}" could not be attached to any wallet/group`,
-        );
       }
     }
 
