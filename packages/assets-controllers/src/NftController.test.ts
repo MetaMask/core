@@ -333,7 +333,12 @@ function setupController({
     );
   }
 
-  const nftControllerMessenger = messenger.getRestricted<typeof controllerName, PhishingControllerBulkScanUrlsAction['type'] | NftControllerAllowedActions['type'], NftControllerAllowedEvents['type']>({
+  const nftControllerMessenger = messenger.getRestricted<
+    typeof controllerName,
+    | PhishingControllerBulkScanUrlsAction['type']
+    | NftControllerAllowedActions['type'],
+    NftControllerAllowedEvents['type']
+  >({
     name: controllerName,
     allowedActions: [
       'ApprovalController:addRequest',
