@@ -1,7 +1,7 @@
-import { ConstantBackoff } from '@metamask/controller-utils';
 import { rpcErrors } from '@metamask/rpc-errors';
+import type { Hex } from '@metamask/utils';
 
-import type { ProviderType } from './helpers';
+import type { MockRequest, ProviderType } from './helpers';
 import {
   buildMockParams,
   buildRequestWithReplacedBlockParam,
@@ -9,9 +9,8 @@ import {
   withMockedCommunications,
   withNetworkClient,
 } from './helpers';
-import { ignoreRejection } from '../../../../tests/helpers';
+import { testsForRpcFailoverBehavior } from './rpc-failover';
 import { NetworkClientType } from '../../src/types';
-import { buildRootMessenger } from '../helpers';
 
 type TestsForRpcMethodSupportingBlockParam = {
   providerType: ProviderType;
@@ -415,7 +414,7 @@ export function testsForRpcMethodSupportingBlockParam(
     });
 
     describe.each([
-      [405, 'The method does not exist / is not available.'],
+      [405, 'HTTP client error.'],
       [429, 'Request is being rate limited.'],
     ])(
       'if the RPC endpoint returns a %d response',
@@ -455,773 +454,83 @@ export function testsForRpcMethodSupportingBlockParam(
             await expect(promiseForResult).rejects.toThrow(errorMessage);
           });
         });
+      },
+    );
 
-        it('fails over to the provided alternate RPC endpoint after 15 unsuccessful attempts', async () => {
-          await withMockedCommunications(
-            { providerType },
-            async (primaryComms) => {
-              await withMockedCommunications(
-                {
-                  providerType: 'custom',
-                  customRpcUrl: 'https://failover.endpoint',
-                },
-                async (failoverComms) => {
-                  const request = {
-                    method,
-                    params: buildMockParams({ blockParam, blockParamIndex }),
-                  };
+    describe.each([500, 501, 505, 506, 507, 508, 510, 511])(
+      'if the RPC endpoint returns a %d response',
+      (httpStatus) => {
+        const errorMessage = 'RPC endpoint not found or unavailable.';
 
-                  // The first time a block-cacheable request is made, the
-                  // latest block number is retrieved through the block
-                  // tracker first. Note that to test that failovers work, all
-                  // we have to do is make this request fail.
-                  primaryComms.mockRpcCall({
-                    request: {
-                      method: 'eth_blockNumber',
-                      params: [],
-                    },
-                    response: {
-                      httpStatus,
-                    },
-                    times: 15,
-                  });
-                  // The block-ref middleware will make the request as
-                  // specified except that the block param is replaced with
-                  // the latest block number.
-                  failoverComms.mockNextBlockTrackerRequest({
-                    blockNumber: '0x100',
-                  });
-                  failoverComms.mockRpcCall({
-                    request: buildRequestWithReplacedBlockParam(
-                      request,
-                      blockParamIndex,
-                      '0x100',
-                    ),
-                    response: {
-                      result: 'ok',
-                    },
-                  });
+        it('throws a generic, undescriptive error', async () => {
+          await withMockedCommunications({ providerType }, async (comms) => {
+            const request = {
+              method,
+              params: buildMockParams({ blockParam, blockParamIndex }),
+            };
 
-                  const result = await withNetworkClient(
-                    {
-                      providerType,
-                      failoverRpcUrls: ['https://failover.endpoint'],
-                    },
-                    async ({ makeRpcCall, clock }) => {
-                      // The block tracker will keep trying to poll until the
-                      // eth_blockNumber request works, so we only have to make
-                      // the request once.
-                      return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
-                        makeRpcCall(request),
-                        clock,
-                      );
-                    },
-                  );
-
-                  expect(result).toBe('ok');
-                },
-              );
-            },
-          );
-        });
-
-        it('publishes the NetworkController:rpcEndpointUnavailable event when the failover occurs', async () => {
-          await withMockedCommunications(
-            { providerType },
-            async (primaryComms) => {
-              await withMockedCommunications(
-                {
-                  providerType: 'custom',
-                  customRpcUrl: 'https://failover.endpoint/',
-                },
-                async (failoverComms) => {
-                  const request = {
-                    method,
-                    params: buildMockParams({ blockParam, blockParamIndex }),
-                  };
-
-                  // The first time a block-cacheable request is made, the
-                  // latest block number is retrieved through the block
-                  // tracker first.
-                  primaryComms.mockNextBlockTrackerRequest({
-                    blockNumber: '0x100',
-                  });
-                  primaryComms.mockRpcCall({
-                    request: buildRequestWithReplacedBlockParam(
-                      request,
-                      blockParamIndex,
-                      '0x100',
-                    ),
-                    response: {
-                      httpStatus,
-                    },
-                    times: 15,
-                  });
-                  // The block-ref middleware will make the request as
-                  // specified except that the block param is replaced with
-                  // the latest block number.
-                  failoverComms.mockRpcCall({
-                    request: buildRequestWithReplacedBlockParam(
-                      request,
-                      blockParamIndex,
-                      '0x100',
-                    ),
-                    response: {
-                      result: 'ok',
-                    },
-                  });
-
-                  const messenger = buildRootMessenger();
-                  const rpcEndpointUnavailableEventHandler = jest.fn();
-                  messenger.subscribe(
-                    'NetworkController:rpcEndpointUnavailable',
-                    rpcEndpointUnavailableEventHandler,
-                  );
-
-                  await withNetworkClient(
-                    {
-                      providerType,
-                      failoverRpcUrls: ['https://failover.endpoint/'],
-                      messenger,
-                    },
-                    async ({ makeRpcCall, chainId, rpcUrl }) => {
-                      for (let i = 0; i < 14; i++) {
-                        await ignoreRejection(makeRpcCall(request));
-                      }
-                      await makeRpcCall(request);
-
-                      expect(
-                        rpcEndpointUnavailableEventHandler,
-                      ).toHaveBeenCalledWith({
-                        chainId,
-                        endpointUrl: rpcUrl,
-                        failoverEndpointUrl: 'https://failover.endpoint/',
-                        error: expect.objectContaining({
-                          message: errorMessage,
-                        }),
-                      });
-                    },
-                  );
-                },
-              );
-            },
-          );
-        });
-
-        it('publishes the NetworkController:rpcEndpointUnavailable event when the failover becomes unavailable', async () => {
-          await withMockedCommunications(
-            { providerType },
-            async (primaryComms) => {
-              await withMockedCommunications(
-                {
-                  providerType: 'custom',
-                  customRpcUrl: 'https://failover.endpoint/',
-                },
-                async (failoverComms) => {
-                  const request = {
-                    method,
-                    params: buildMockParams({ blockParam, blockParamIndex }),
-                  };
-
-                  // The first time a block-cacheable request is made, the
-                  // latest block number is retrieved through the block
-                  // tracker first.
-                  primaryComms.mockNextBlockTrackerRequest({
-                    blockNumber: '0x100',
-                  });
-                  primaryComms.mockRpcCall({
-                    request: buildRequestWithReplacedBlockParam(
-                      request,
-                      blockParamIndex,
-                      '0x100',
-                    ),
-                    response: {
-                      httpStatus,
-                    },
-                    times: 15,
-                  });
-                  // The block-ref middleware will make the request as
-                  // specified except that the block param is replaced with
-                  // the latest block number.
-                  failoverComms.mockRpcCall({
-                    request: buildRequestWithReplacedBlockParam(
-                      request,
-                      blockParamIndex,
-                      '0x100',
-                    ),
-                    response: {
-                      httpStatus,
-                    },
-                    times: 15,
-                  });
-
-                  const messenger = buildRootMessenger();
-                  const rpcEndpointUnavailableEventHandler = jest.fn();
-                  messenger.subscribe(
-                    'NetworkController:rpcEndpointUnavailable',
-                    rpcEndpointUnavailableEventHandler,
-                  );
-
-                  await withNetworkClient(
-                    {
-                      providerType,
-                      failoverRpcUrls: ['https://failover.endpoint/'],
-                      messenger,
-                    },
-                    async ({ makeRpcCall, chainId }) => {
-                      for (let i = 0; i < 14; i++) {
-                        await ignoreRejection(makeRpcCall(request));
-                      }
-                      for (let i = 0; i < 15; i++) {
-                        await ignoreRejection(makeRpcCall(request));
-                      }
-
-                      expect(
-                        rpcEndpointUnavailableEventHandler,
-                      ).toHaveBeenNthCalledWith(2, {
-                        chainId,
-                        endpointUrl: 'https://failover.endpoint/',
-                        error: expect.objectContaining({
-                          message: errorMessage,
-                        }),
-                      });
-                    },
-                  );
-                },
-              );
-            },
-          );
-        });
-
-        it('allows RPC service options to be customized', async () => {
-          const backoffDuration = 100;
-
-          await withMockedCommunications(
-            {
-              providerType,
-              expectedHeaders: {
-                'X-Foo': 'Bar',
+            // The first time a block-cacheable request is made, the
+            // block-cache middleware will request the latest block number
+            // through the block tracker to determine the cache key. Later,
+            // the block-ref middleware will request the latest block number
+            // again to resolve the value of "latest", but the block number is
+            // cached once made, so we only need to mock the request once.
+            comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+            // The block-ref middleware will make the request as specified
+            // except that the block param is replaced with the latest block
+            // number.
+            comms.mockRpcCall({
+              request: buildRequestWithReplacedBlockParam(
+                request,
+                blockParamIndex,
+                '0x100',
+              ),
+              response: {
+                httpStatus,
               },
-            },
-            async (primaryComms) => {
-              await withMockedCommunications(
-                {
-                  providerType: 'custom',
-                  customRpcUrl: 'https://failover.endpoint',
-                  expectedHeaders: {
-                    'X-Baz': 'Qux',
-                  },
-                },
-                async (failoverComms) => {
-                  const request = {
-                    method,
-                    params: buildMockParams({ blockParam, blockParamIndex }),
-                  };
+            });
+            const promiseForResult = withNetworkClient(
+              { providerType },
+              async ({ makeRpcCall }) => makeRpcCall(request),
+            );
 
-                  // The first time a block-cacheable request is made, the
-                  // latest block number is retrieved through the block
-                  // tracker first.
-                  primaryComms.mockNextBlockTrackerRequest({
-                    blockNumber: '0x100',
-                  });
-                  primaryComms.mockRpcCall({
-                    request: buildRequestWithReplacedBlockParam(
-                      request,
-                      blockParamIndex,
-                      '0x100',
-                    ),
-                    response: {
-                      httpStatus,
-                    },
-                    times: 6,
-                  });
-                  // The block-ref middleware will make the request as
-                  // specified except that the block param is replaced with
-                  // the latest block number.
-                  failoverComms.mockRpcCall({
-                    request: buildRequestWithReplacedBlockParam(
-                      request,
-                      blockParamIndex,
-                      '0x100',
-                    ),
-                    response: {
-                      result: 'ok',
-                    },
-                  });
+            await expect(promiseForResult).rejects.toThrow(errorMessage);
+          });
+        });
 
-                  const messenger = buildRootMessenger();
-
-                  const result = await withNetworkClient(
-                    {
-                      providerType,
-                      failoverRpcUrls: ['https://failover.endpoint'],
-                      messenger,
-                      getRpcServiceOptions: (rpcEndpointUrl) => {
-                        const commonOptions = { fetch, btoa };
-                        // We need to return different results.
-                        // eslint-disable-next-line jest/no-conditional-in-test
-                        if (rpcEndpointUrl === 'https://failover.endpoint') {
-                          const headers: HeadersInit = {
-                            'X-Baz': 'Qux',
-                          };
-                          return {
-                            ...commonOptions,
-                            fetchOptions: {
-                              headers,
-                            },
-                          };
-                        }
-                        const headers: HeadersInit = {
-                          'X-Foo': 'Bar',
-                        };
-                        return {
-                          ...commonOptions,
-                          fetchOptions: {
-                            headers,
-                          },
-                          policyOptions: {
-                            backoff: new ConstantBackoff(backoffDuration),
-                            maxRetries: 2,
-                            maxConsecutiveFailures: 6,
-                          },
-                        };
-                      },
-                    },
-                    async ({ makeRpcCall, clock }) => {
-                      messenger.subscribe(
-                        'NetworkController:rpcEndpointRequestRetried',
-                        () => {
-                          // Ensure that we advance to the next RPC request
-                          // retry, not the next block tracker request.
-                          // We also don't need to await this, it just needs to
-                          // be added to the promise queue.
-                          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                          clock.tickAsync(backoffDuration);
-                        },
-                      );
-
-                      for (let i = 0; i < 5; i++) {
-                        await ignoreRejection(makeRpcCall(request));
-                      }
-                      return await makeRpcCall(request);
-                    },
-                  );
-
-                  expect(result).toBe('ok');
-                },
-              );
-            },
-          );
+        testsForRpcFailoverBehavior({
+          providerType,
+          requestToCall: {
+            method,
+            params: buildMockParams({ blockParam, blockParamIndex }),
+          },
+          getRequestToMock: (request: MockRequest, blockNumber: Hex) => {
+            return buildRequestWithReplacedBlockParam(
+              request,
+              blockParamIndex,
+              blockNumber,
+            );
+          },
+          failure: {
+            httpStatus,
+          },
+          isRetriableFailure: false,
+          getExpectedError: () =>
+            expect.objectContaining({
+              message: errorMessage,
+            }),
+          getExpectedBreakError: () =>
+            expect.objectContaining({
+              message: `Fetch failed with status '${httpStatus}'`,
+            }),
         });
       },
     );
 
-    describe('if the RPC endpoint returns a response that is not 405, 429, 503, or 504', () => {
-      const httpStatus = 500;
-      const errorMessage = `Non-200 status code: '${httpStatus}'`;
-
-      it('throws a generic, undescriptive error', async () => {
-        await withMockedCommunications({ providerType }, async (comms) => {
-          const request = {
-            method,
-            params: buildMockParams({ blockParam, blockParamIndex }),
-          };
-
-          // The first time a block-cacheable request is made, the
-          // block-cache middleware will request the latest block number
-          // through the block tracker to determine the cache key. Later,
-          // the block-ref middleware will request the latest block number
-          // again to resolve the value of "latest", but the block number is
-          // cached once made, so we only need to mock the request once.
-          comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
-          // The block-ref middleware will make the request as specified
-          // except that the block param is replaced with the latest block
-          // number.
-          comms.mockRpcCall({
-            request: buildRequestWithReplacedBlockParam(
-              request,
-              blockParamIndex,
-              '0x100',
-            ),
-            response: {
-              id: 12345,
-              jsonrpc: '2.0',
-              error: 'some error',
-              httpStatus,
-            },
-          });
-          const promiseForResult = withNetworkClient(
-            { providerType },
-            async ({ makeRpcCall }) => makeRpcCall(request),
-          );
-
-          await expect(promiseForResult).rejects.toThrow(errorMessage);
-        });
-      });
-
-      it('fails over to the provided alternate RPC endpoint after 15 unsuccessful attempts', async () => {
-        await withMockedCommunications(
-          { providerType },
-          async (primaryComms) => {
-            await withMockedCommunications(
-              {
-                providerType: 'custom',
-                customRpcUrl: 'https://failover.endpoint',
-              },
-              async (failoverComms) => {
-                const request = {
-                  method,
-                  params: buildMockParams({ blockParam, blockParamIndex }),
-                };
-
-                // The first time a block-cacheable request is made, the
-                // latest block number is retrieved through the block
-                // tracker first.
-                primaryComms.mockNextBlockTrackerRequest({
-                  blockNumber: '0x100',
-                });
-                primaryComms.mockRpcCall({
-                  request: buildRequestWithReplacedBlockParam(
-                    request,
-                    blockParamIndex,
-                    '0x100',
-                  ),
-                  response: {
-                    httpStatus,
-                  },
-                  times: 15,
-                });
-                // The block-ref middleware will make the request as specified
-                // except that the block param is replaced with the latest
-                // block number.
-                failoverComms.mockNextBlockTrackerRequest({
-                  blockNumber: '0x100',
-                });
-                failoverComms.mockRpcCall({
-                  request: buildRequestWithReplacedBlockParam(
-                    request,
-                    blockParamIndex,
-                    '0x100',
-                  ),
-                  response: {
-                    result: 'ok',
-                  },
-                });
-
-                const result = await withNetworkClient(
-                  {
-                    providerType,
-                    failoverRpcUrls: ['https://failover.endpoint'],
-                  },
-                  async ({ makeRpcCall }) => {
-                    for (let i = 0; i < 14; i++) {
-                      await ignoreRejection(makeRpcCall(request));
-                    }
-                    return await makeRpcCall(request);
-                  },
-                );
-
-                expect(result).toBe('ok');
-              },
-            );
-          },
-        );
-      });
-
-      it('publishes the NetworkController:rpcEndpointUnavailable event when the failover occurs', async () => {
-        await withMockedCommunications(
-          { providerType },
-          async (primaryComms) => {
-            await withMockedCommunications(
-              {
-                providerType: 'custom',
-                customRpcUrl: 'https://failover.endpoint/',
-              },
-              async (failoverComms) => {
-                const request = {
-                  method,
-                  params: buildMockParams({ blockParam, blockParamIndex }),
-                };
-
-                // The first time a block-cacheable request is made, the
-                // latest block number is retrieved through the block
-                // tracker first.
-                primaryComms.mockNextBlockTrackerRequest({
-                  blockNumber: '0x100',
-                });
-                primaryComms.mockRpcCall({
-                  request: buildRequestWithReplacedBlockParam(
-                    request,
-                    blockParamIndex,
-                    '0x100',
-                  ),
-                  response: {
-                    httpStatus,
-                  },
-                  times: 15,
-                });
-                // The block-ref middleware will make the request as
-                // specified except that the block param is replaced with
-                // the latest block number.
-                failoverComms.mockRpcCall({
-                  request: buildRequestWithReplacedBlockParam(
-                    request,
-                    blockParamIndex,
-                    '0x100',
-                  ),
-                  response: {
-                    result: 'ok',
-                  },
-                });
-
-                const messenger = buildRootMessenger();
-                const rpcEndpointUnavailableEventHandler = jest.fn();
-                messenger.subscribe(
-                  'NetworkController:rpcEndpointUnavailable',
-                  rpcEndpointUnavailableEventHandler,
-                );
-
-                await withNetworkClient(
-                  {
-                    providerType,
-                    failoverRpcUrls: ['https://failover.endpoint/'],
-                    messenger,
-                  },
-                  async ({ makeRpcCall, chainId, rpcUrl }) => {
-                    for (let i = 0; i < 14; i++) {
-                      await ignoreRejection(makeRpcCall(request));
-                    }
-                    await makeRpcCall(request);
-
-                    expect(
-                      rpcEndpointUnavailableEventHandler,
-                    ).toHaveBeenCalledWith({
-                      chainId,
-                      endpointUrl: rpcUrl,
-                      failoverEndpointUrl: 'https://failover.endpoint/',
-                      error: expect.objectContaining({
-                        message: errorMessage,
-                      }),
-                    });
-                  },
-                );
-              },
-            );
-          },
-        );
-      });
-
-      it('publishes the NetworkController:rpcEndpointUnavailable event when the failover becomes unavailable', async () => {
-        await withMockedCommunications(
-          { providerType },
-          async (primaryComms) => {
-            await withMockedCommunications(
-              {
-                providerType: 'custom',
-                customRpcUrl: 'https://failover.endpoint/',
-              },
-              async (failoverComms) => {
-                const request = {
-                  method,
-                  params: buildMockParams({ blockParam, blockParamIndex }),
-                };
-
-                // The first time a block-cacheable request is made, the
-                // latest block number is retrieved through the block
-                // tracker first.
-                primaryComms.mockNextBlockTrackerRequest({
-                  blockNumber: '0x100',
-                });
-                primaryComms.mockRpcCall({
-                  request: buildRequestWithReplacedBlockParam(
-                    request,
-                    blockParamIndex,
-                    '0x100',
-                  ),
-                  response: {
-                    httpStatus,
-                  },
-                  times: 15,
-                });
-                // The block-ref middleware will make the request as
-                // specified except that the block param is replaced with
-                // the latest block number.
-                failoverComms.mockRpcCall({
-                  request: buildRequestWithReplacedBlockParam(
-                    request,
-                    blockParamIndex,
-                    '0x100',
-                  ),
-                  response: {
-                    httpStatus,
-                  },
-                  times: 15,
-                });
-
-                const messenger = buildRootMessenger();
-                const rpcEndpointUnavailableEventHandler = jest.fn();
-                messenger.subscribe(
-                  'NetworkController:rpcEndpointUnavailable',
-                  rpcEndpointUnavailableEventHandler,
-                );
-
-                await withNetworkClient(
-                  {
-                    providerType,
-                    failoverRpcUrls: ['https://failover.endpoint/'],
-                    messenger,
-                  },
-                  async ({ makeRpcCall, chainId }) => {
-                    for (let i = 0; i < 14; i++) {
-                      await ignoreRejection(makeRpcCall(request));
-                    }
-                    for (let i = 0; i < 15; i++) {
-                      await ignoreRejection(makeRpcCall(request));
-                    }
-
-                    expect(
-                      rpcEndpointUnavailableEventHandler,
-                    ).toHaveBeenNthCalledWith(2, {
-                      chainId,
-                      endpointUrl: 'https://failover.endpoint/',
-                      error: expect.objectContaining({
-                        message: errorMessage,
-                      }),
-                    });
-                  },
-                );
-              },
-            );
-          },
-        );
-      });
-
-      it('allows RPC service options to be customized', async () => {
-        const backoffDuration = 100;
-
-        await withMockedCommunications(
-          {
-            providerType,
-            expectedHeaders: {
-              'X-Foo': 'Bar',
-            },
-          },
-          async (primaryComms) => {
-            await withMockedCommunications(
-              {
-                providerType: 'custom',
-                customRpcUrl: 'https://failover.endpoint',
-                expectedHeaders: {
-                  'X-Baz': 'Qux',
-                },
-              },
-              async (failoverComms) => {
-                const request = {
-                  method,
-                  params: buildMockParams({ blockParam, blockParamIndex }),
-                };
-
-                // The first time a block-cacheable request is made, the
-                // latest block number is retrieved through the block
-                // tracker first.
-                primaryComms.mockNextBlockTrackerRequest({
-                  blockNumber: '0x100',
-                });
-                primaryComms.mockRpcCall({
-                  request: buildRequestWithReplacedBlockParam(
-                    request,
-                    blockParamIndex,
-                    '0x100',
-                  ),
-                  response: {
-                    httpStatus,
-                  },
-                  times: 6,
-                });
-                // The block-ref middleware will make the request as
-                // specified except that the block param is replaced with
-                // the latest block number.
-                failoverComms.mockRpcCall({
-                  request: buildRequestWithReplacedBlockParam(
-                    request,
-                    blockParamIndex,
-                    '0x100',
-                  ),
-                  response: {
-                    result: 'ok',
-                  },
-                });
-
-                const messenger = buildRootMessenger();
-
-                const result = await withNetworkClient(
-                  {
-                    providerType,
-                    failoverRpcUrls: ['https://failover.endpoint'],
-                    messenger,
-                    getRpcServiceOptions: (rpcEndpointUrl) => {
-                      const commonOptions = { fetch, btoa };
-                      // We need to return different results.
-                      // eslint-disable-next-line jest/no-conditional-in-test
-                      if (rpcEndpointUrl === 'https://failover.endpoint') {
-                        const headers: HeadersInit = {
-                          'X-Baz': 'Qux',
-                        };
-                        return {
-                          ...commonOptions,
-                          fetchOptions: {
-                            headers,
-                          },
-                        };
-                      }
-                      const headers: HeadersInit = {
-                        'X-Foo': 'Bar',
-                      };
-                      return {
-                        ...commonOptions,
-                        fetchOptions: {
-                          headers,
-                        },
-                        policyOptions: {
-                          backoff: new ConstantBackoff(backoffDuration),
-                          maxRetries: 2,
-                          maxConsecutiveFailures: 6,
-                        },
-                      };
-                    },
-                  },
-                  async ({ makeRpcCall, clock }) => {
-                    messenger.subscribe(
-                      'NetworkController:rpcEndpointRequestRetried',
-                      () => {
-                        // Ensure that we advance to the next RPC request
-                        // retry, not the next block tracker request.
-                        // We also don't need to await this, it just needs to
-                        // be added to the promise queue.
-                        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                        clock.tickAsync(backoffDuration);
-                      },
-                    );
-
-                    for (let i = 0; i < 5; i++) {
-                      await ignoreRejection(makeRpcCall(request));
-                    }
-                    return await makeRpcCall(request);
-                  },
-                );
-
-                expect(result).toBe('ok');
-              },
-            );
-          },
-        );
-      });
-    });
-
-    describe.each([503, 504])(
+    describe.each([502, 503, 504])(
       'if the RPC endpoint returns a %d response',
       (httpStatus) => {
-        const errorMessage = 'Gateway timeout';
+        const errorMessage = 'RPC endpoint not found or unavailable.';
 
         it('retries the request up to 5 times until there is a 200 response', async () => {
           await withMockedCommunications({ providerType }, async (comms) => {
@@ -1321,419 +630,35 @@ export function testsForRpcMethodSupportingBlockParam(
             await expect(promiseForResult).rejects.toThrow(errorMessage);
           });
         });
-
-        it('fails over to the provided alternate RPC endpoint after 15 unsuccessful attempts', async () => {
-          await withMockedCommunications(
-            { providerType },
-            async (primaryComms) => {
-              await withMockedCommunications(
-                {
-                  providerType: 'custom',
-                  customRpcUrl: 'https://failover.endpoint',
-                },
-                async (failoverComms) => {
-                  const request = {
-                    method,
-                    params: buildMockParams({ blockParam, blockParamIndex }),
-                  };
-
-                  // The first time a block-cacheable request is made, the
-                  // latest block number is retrieved through the block
-                  // tracker first. Note that to test that failovers work, all
-                  // we have to do is make this request fail.
-                  // TODO: We should be able to mock the request itself and not
-                  // the block tracker request, but cannot because of a bug in
-                  // eth-block-tracker.
-                  primaryComms.mockRpcCall({
-                    request: {
-                      method: 'eth_blockNumber',
-                      params: [],
-                    },
-                    response: {
-                      error: 'Some error',
-                      httpStatus,
-                    },
-                    times: 15,
-                  });
-                  // The block-ref middleware will make the request as
-                  // specified except that the block param is replaced with
-                  // the latest block number.
-                  failoverComms.mockNextBlockTrackerRequest({
-                    blockNumber: '0x100',
-                  });
-                  failoverComms.mockRpcCall({
-                    request: buildRequestWithReplacedBlockParam(
-                      request,
-                      blockParamIndex,
-                      '0x100',
-                    ),
-                    response: {
-                      result: 'ok',
-                    },
-                  });
-
-                  const result = await withNetworkClient(
-                    {
-                      providerType,
-                      failoverRpcUrls: ['https://failover.endpoint'],
-                    },
-                    async ({ makeRpcCall, clock }) => {
-                      // The block tracker will keep trying to poll until the
-                      // eth_blockNumber request works, so we only have to make
-                      // the request once.
-                      return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
-                        makeRpcCall(request),
-                        clock,
-                      );
-                    },
-                  );
-
-                  expect(result).toBe('ok');
-                },
-              );
-            },
-          );
-        });
-
-        it('publishes the NetworkController:rpcEndpointUnavailable event when the failover occurs', async () => {
-          const backoffDuration = 100;
-
-          await withMockedCommunications(
-            { providerType },
-            async (primaryComms) => {
-              await withMockedCommunications(
-                {
-                  providerType: 'custom',
-                  customRpcUrl: 'https://failover.endpoint/',
-                },
-                async (failoverComms) => {
-                  const request = {
-                    method,
-                    params: buildMockParams({ blockParam, blockParamIndex }),
-                  };
-
-                  // The first time a block-cacheable request is made, the
-                  // latest block number is retrieved through the block
-                  // tracker first.
-                  primaryComms.mockNextBlockTrackerRequest({
-                    blockNumber: '0x100',
-                  });
-                  primaryComms.mockRpcCall({
-                    request: buildRequestWithReplacedBlockParam(
-                      request,
-                      blockParamIndex,
-                      '0x100',
-                    ),
-                    response: {
-                      error: 'Some error',
-                      httpStatus,
-                    },
-                    times: 15,
-                  });
-                  // The block-ref middleware will make the request as
-                  // specified except that the block param is replaced with
-                  // the latest block number.
-                  failoverComms.mockRpcCall({
-                    request: buildRequestWithReplacedBlockParam(
-                      request,
-                      blockParamIndex,
-                      '0x100',
-                    ),
-                    response: {
-                      result: 'ok',
-                    },
-                  });
-
-                  const messenger = buildRootMessenger();
-                  const rpcEndpointUnavailableEventHandler = jest.fn();
-                  messenger.subscribe(
-                    'NetworkController:rpcEndpointUnavailable',
-                    rpcEndpointUnavailableEventHandler,
-                  );
-
-                  await withNetworkClient(
-                    {
-                      providerType,
-                      failoverRpcUrls: ['https://failover.endpoint/'],
-                      messenger,
-                      getRpcServiceOptions: () => ({
-                        fetch,
-                        btoa,
-                        policyOptions: {
-                          backoff: new ConstantBackoff(backoffDuration),
-                        },
-                      }),
-                    },
-                    async ({ makeRpcCall, chainId, clock, rpcUrl }) => {
-                      messenger.subscribe(
-                        'NetworkController:rpcEndpointRequestRetried',
-                        () => {
-                          // Ensure that we advance to the next RPC request
-                          // retry, not the next block tracker request.
-                          // We also don't need to await this, it just needs to
-                          // be added to the promise queue.
-                          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                          clock.tickAsync(backoffDuration);
-                        },
-                      );
-
-                      await ignoreRejection(makeRpcCall(request));
-                      await ignoreRejection(makeRpcCall(request));
-                      await makeRpcCall(request);
-
-                      expect(
-                        rpcEndpointUnavailableEventHandler,
-                      ).toHaveBeenCalledWith({
-                        chainId,
-                        endpointUrl: rpcUrl,
-                        failoverEndpointUrl: 'https://failover.endpoint/',
-                        error: expect.objectContaining({
-                          message: expect.stringContaining(errorMessage),
-                        }),
-                      });
-                    },
-                  );
-                },
-              );
-            },
-          );
-        });
-
-        it('publishes the NetworkController:rpcEndpointUnavailable event when the failover becomes unavailable', async () => {
-          const backoffDuration = 100;
-
-          await withMockedCommunications(
-            { providerType },
-            async (primaryComms) => {
-              await withMockedCommunications(
-                {
-                  providerType: 'custom',
-                  customRpcUrl: 'https://failover.endpoint/',
-                },
-                async (failoverComms) => {
-                  const request = {
-                    method,
-                    params: buildMockParams({ blockParam, blockParamIndex }),
-                  };
-
-                  // The first time a block-cacheable request is made, the
-                  // latest block number is retrieved through the block
-                  // tracker first. Note that to test that failovers work, all
-                  primaryComms.mockNextBlockTrackerRequest({
-                    blockNumber: '0x100',
-                  });
-                  primaryComms.mockRpcCall({
-                    request: buildRequestWithReplacedBlockParam(
-                      request,
-                      blockParamIndex,
-                      '0x100',
-                    ),
-                    response: {
-                      error: 'Some error',
-                      httpStatus,
-                    },
-                    times: 15,
-                  });
-                  // The block-ref middleware will make the request as
-                  // specified except that the block param is replaced with
-                  // the latest block number.
-                  failoverComms.mockRpcCall({
-                    request: buildRequestWithReplacedBlockParam(
-                      request,
-                      blockParamIndex,
-                      '0x100',
-                    ),
-                    response: {
-                      error: 'Some error',
-                      httpStatus,
-                    },
-                    times: 15,
-                  });
-                  // Block tracker requests on the primary will fail over
-                  failoverComms.mockNextBlockTrackerRequest({
-                    blockNumber: '0x100',
-                  });
-
-                  const messenger = buildRootMessenger();
-                  const rpcEndpointUnavailableEventHandler = jest.fn();
-                  messenger.subscribe(
-                    'NetworkController:rpcEndpointUnavailable',
-                    rpcEndpointUnavailableEventHandler,
-                  );
-
-                  await withNetworkClient(
-                    {
-                      providerType,
-                      failoverRpcUrls: ['https://failover.endpoint/'],
-                      messenger,
-                      getRpcServiceOptions: () => ({
-                        fetch,
-                        btoa,
-                        policyOptions: {
-                          backoff: new ConstantBackoff(backoffDuration),
-                        },
-                      }),
-                    },
-                    async ({ makeRpcCall, clock, chainId }) => {
-                      messenger.subscribe(
-                        'NetworkController:rpcEndpointRequestRetried',
-                        () => {
-                          // Ensure that we advance to the next RPC request
-                          // retry, not the next block tracker request.
-                          // We also don't need to await this, it just needs to
-                          // be added to the promise queue.
-                          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                          clock.tickAsync(backoffDuration);
-                        },
-                      );
-
-                      // Exceed max retries on primary
-                      await ignoreRejection(makeRpcCall(request));
-                      // Exceed max retries on primary again
-                      await ignoreRejection(makeRpcCall(request));
-                      // Exceed max retries on primary for final time, fail over
-                      await ignoreRejection(makeRpcCall(request));
-                      // Exceed max retries on failover
-                      await ignoreRejection(makeRpcCall(request));
-                      // Exceed max retries on failover
-                      await ignoreRejection(makeRpcCall(request));
-                      // Exceed max retries on failover for final time
-                      await ignoreRejection(makeRpcCall(request));
-
-                      expect(
-                        rpcEndpointUnavailableEventHandler,
-                      ).toHaveBeenNthCalledWith(2, {
-                        chainId,
-                        endpointUrl: 'https://failover.endpoint/',
-                        error: expect.objectContaining({
-                          message: expect.stringContaining(errorMessage),
-                        }),
-                      });
-                    },
-                  );
-                },
-              );
-            },
-          );
-        });
-
-        it('allows RPC service options to be customized', async () => {
-          const backoffDuration = 100;
-
-          await withMockedCommunications(
-            {
-              providerType,
-              expectedHeaders: {
-                'X-Foo': 'Bar',
-              },
-            },
-            async (primaryComms) => {
-              await withMockedCommunications(
-                {
-                  providerType: 'custom',
-                  customRpcUrl: 'https://failover.endpoint',
-                },
-                async (failoverComms) => {
-                  const request = {
-                    method,
-                    params: buildMockParams({ blockParam, blockParamIndex }),
-                  };
-
-                  // The first time a block-cacheable request is made, the
-                  // latest block number is retrieved through the block
-                  // tracker first.
-                  primaryComms.mockNextBlockTrackerRequest({
-                    blockNumber: '0x100',
-                  });
-                  primaryComms.mockRpcCall({
-                    request: buildRequestWithReplacedBlockParam(
-                      request,
-                      blockParamIndex,
-                      '0x100',
-                    ),
-                    response: {
-                      error: 'Some error',
-                      httpStatus,
-                    },
-                    times: 6,
-                  });
-                  // The block-ref middleware will make the request as
-                  // specified except that the block param is replaced with
-                  // the latest block number.
-                  failoverComms.mockRpcCall({
-                    request: buildRequestWithReplacedBlockParam(
-                      request,
-                      blockParamIndex,
-                      '0x100',
-                    ),
-                    response: {
-                      result: 'ok',
-                    },
-                  });
-
-                  const messenger = buildRootMessenger();
-
-                  const result = await withNetworkClient(
-                    {
-                      providerType,
-                      failoverRpcUrls: ['https://failover.endpoint'],
-                      messenger,
-                      getRpcServiceOptions: (rpcEndpointUrl) => {
-                        const commonOptions = { fetch, btoa };
-                        // We need to return different results.
-                        // eslint-disable-next-line jest/no-conditional-in-test
-                        if (rpcEndpointUrl === 'https://failover.endpoint') {
-                          const headers: HeadersInit = {
-                            'X-Baz': 'Qux',
-                          };
-                          return {
-                            ...commonOptions,
-                            fetchOptions: {
-                              headers,
-                            },
-                          };
-                        }
-                        const headers: HeadersInit = {
-                          'X-Foo': 'Bar',
-                        };
-                        return {
-                          ...commonOptions,
-                          fetchOptions: {
-                            headers,
-                          },
-                          policyOptions: {
-                            backoff: new ConstantBackoff(backoffDuration),
-                            maxRetries: 2,
-                            maxConsecutiveFailures: 6,
-                          },
-                        };
-                      },
-                    },
-                    async ({ makeRpcCall, clock }) => {
-                      messenger.subscribe(
-                        'NetworkController:rpcEndpointRequestRetried',
-                        () => {
-                          // Ensure that we advance to the next RPC request
-                          // retry, not the next block tracker request.
-                          // We also don't need to await this, it just needs to
-                          // be added to the promise queue.
-                          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                          clock.tickAsync(backoffDuration);
-                        },
-                      );
-
-                      // There are a total of 3 attempts (2 retries),
-                      // and we call this 2 times for a total of 6 failures
-                      await ignoreRejection(makeRpcCall(request));
-                      return await makeRpcCall(request);
-                    },
-                  );
-
-                  expect(result).toBe('ok');
-                },
-              );
-            },
-          );
+        testsForRpcFailoverBehavior({
+          providerType,
+          requestToCall: {
+            method,
+            params: buildMockParams({ blockParam, blockParamIndex }),
+          },
+          getRequestToMock: (request: MockRequest, blockNumber: Hex) => {
+            return buildRequestWithReplacedBlockParam(
+              request,
+              blockParamIndex,
+              blockNumber,
+            );
+          },
+          failure: {
+            httpStatus,
+          },
+          isRetriableFailure: true,
+          getExpectedError: () =>
+            expect.objectContaining({
+              message: expect.stringContaining(
+                'RPC endpoint not found or unavailable.',
+              ),
+            }),
+          getExpectedBreakError: () =>
+            expect.objectContaining({
+              message: expect.stringContaining(
+                `Fetch failed with status '${httpStatus}'`,
+              ),
+            }),
         });
       },
     );
@@ -1741,16 +666,17 @@ export function testsForRpcMethodSupportingBlockParam(
     describe.each(['ETIMEDOUT', 'ECONNRESET'])(
       'if a %s error is thrown while making the request',
       (errorCode) => {
+        const error = new Error(errorCode);
+        // @ts-expect-error `code` does not exist on the Error type, but is
+        // still used by Node.
+        error.code = errorCode;
+
         it('retries the request up to 5 times until it is successful', async () => {
           await withMockedCommunications({ providerType }, async (comms) => {
             const request = {
               method,
               params: buildMockParams({ blockParam, blockParamIndex }),
             };
-            const error = new Error(errorCode);
-            // @ts-expect-error `code` does not exist on the Error type, but is
-            // still used by Node.
-            error.code = errorCode;
 
             // The first time a block-cacheable request is made, the
             // block-cache middleware will request the latest block number
@@ -1806,10 +732,6 @@ export function testsForRpcMethodSupportingBlockParam(
               method,
               params: buildMockParams({ blockParam, blockParamIndex }),
             };
-            const error = new Error(errorCode);
-            // @ts-expect-error `code` does not exist on the Error type, but is
-            // still used by Node.
-            error.code = errorCode;
 
             // The first time a block-cacheable request is made, the
             // block-cache middleware will request the latest block number
@@ -1821,7 +743,6 @@ export function testsForRpcMethodSupportingBlockParam(
             // The block-ref middleware will make the request as specified
             // except that the block param is replaced with the latest block
             // number.
-
             comms.mockRpcCall({
               request: buildRequestWithReplacedBlockParam(
                 request,
@@ -1846,416 +767,25 @@ export function testsForRpcMethodSupportingBlockParam(
           });
         });
 
-        it('fails over to the provided alternate RPC endpoint after 15 unsuccessful attempts', async () => {
-          await withMockedCommunications(
-            { providerType },
-            async (primaryComms) => {
-              await withMockedCommunications(
-                {
-                  providerType: 'custom',
-                  customRpcUrl: 'https://failover.endpoint',
-                },
-                async (failoverComms) => {
-                  const request = {
-                    method,
-                    params: buildMockParams({ blockParam, blockParamIndex }),
-                  };
-                  const error = new Error(errorCode);
-                  // @ts-expect-error `code` does not exist on the Error type,
-                  // but is still used by Node.
-                  error.code = errorCode;
-
-                  // The first time a block-cacheable request is made, the
-                  // latest block number is retrieved through the block
-                  // tracker first. Note that to test that failovers work, all
-                  // we have to do is make this request fail.
-                  primaryComms.mockRpcCall({
-                    request: {
-                      method: 'eth_blockNumber',
-                      params: [],
-                    },
-                    error,
-                    times: 15,
-                  });
-                  // The block-ref middleware will make the request as
-                  // specified except that the block param is replaced with
-                  // the latest block number.
-                  failoverComms.mockNextBlockTrackerRequest({
-                    blockNumber: '0x100',
-                  });
-                  failoverComms.mockRpcCall({
-                    request: buildRequestWithReplacedBlockParam(
-                      request,
-                      blockParamIndex,
-                      '0x100',
-                    ),
-                    response: {
-                      result: 'ok',
-                    },
-                  });
-
-                  const result = await withNetworkClient(
-                    {
-                      providerType,
-                      failoverRpcUrls: ['https://failover.endpoint'],
-                    },
-                    async ({ makeRpcCall, clock }) => {
-                      // The block tracker will keep trying to poll until the
-                      // eth_blockNumber request works, so we only have to
-                      // make the request once.
-                      return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
-                        makeRpcCall(request),
-                        clock,
-                      );
-                    },
-                  );
-
-                  expect(result).toBe('ok');
-                },
-              );
-            },
-          );
-        });
-
-        it('publishes the NetworkController:rpcEndpointUnavailable event when the failover occurs', async () => {
-          const backoffDuration = 100;
-
-          await withMockedCommunications(
-            { providerType },
-            async (primaryComms) => {
-              await withMockedCommunications(
-                {
-                  providerType: 'custom',
-                  customRpcUrl: 'https://failover.endpoint',
-                },
-                async (failoverComms) => {
-                  const request = {
-                    method,
-                    params: buildMockParams({ blockParam, blockParamIndex }),
-                  };
-                  const error = new Error(errorCode);
-                  // @ts-expect-error `code` does not exist on the Error type,
-                  // but is still used by Node.
-                  error.code = errorCode;
-
-                  // The first time a block-cacheable request is made, the
-                  // latest block number is retrieved through the block
-                  // tracker first.
-                  primaryComms.mockNextBlockTrackerRequest({
-                    blockNumber: '0x100',
-                  });
-                  primaryComms.mockRpcCall({
-                    request: buildRequestWithReplacedBlockParam(
-                      request,
-                      blockParamIndex,
-                      '0x100',
-                    ),
-                    error,
-                    times: 15,
-                  });
-                  // The block-ref middleware will make the request as
-                  // specified except that the block param is replaced with
-                  // the latest block number.
-                  failoverComms.mockRpcCall({
-                    request: buildRequestWithReplacedBlockParam(
-                      request,
-                      blockParamIndex,
-                      '0x100',
-                    ),
-                    response: {
-                      result: 'ok',
-                    },
-                  });
-
-                  const messenger = buildRootMessenger();
-                  const rpcEndpointUnavailableEventHandler = jest.fn();
-                  messenger.subscribe(
-                    'NetworkController:rpcEndpointUnavailable',
-                    rpcEndpointUnavailableEventHandler,
-                  );
-
-                  await withNetworkClient(
-                    {
-                      providerType,
-                      failoverRpcUrls: ['https://failover.endpoint/'],
-                      messenger,
-                      getRpcServiceOptions: () => ({
-                        fetch,
-                        btoa,
-                        policyOptions: {
-                          backoff: new ConstantBackoff(backoffDuration),
-                        },
-                      }),
-                    },
-                    async ({ makeRpcCall, chainId, clock, rpcUrl }) => {
-                      messenger.subscribe(
-                        'NetworkController:rpcEndpointRequestRetried',
-                        () => {
-                          // Ensure that we advance to the next RPC request
-                          // retry, not the next block tracker request.
-                          // We also don't need to await this, it just needs to
-                          // be added to the promise queue.
-                          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                          clock.tickAsync(backoffDuration);
-                        },
-                      );
-
-                      await ignoreRejection(makeRpcCall(request));
-                      await ignoreRejection(makeRpcCall(request));
-                      await makeRpcCall(request);
-
-                      expect(
-                        rpcEndpointUnavailableEventHandler,
-                      ).toHaveBeenCalledWith({
-                        chainId,
-                        endpointUrl: rpcUrl,
-                        failoverEndpointUrl: 'https://failover.endpoint/',
-                        error: expect.objectContaining({
-                          message: `request to ${rpcUrl} failed, reason: ${errorCode}`,
-                        }),
-                      });
-                    },
-                  );
-                },
-              );
-            },
-          );
-        });
-
-        it('publishes the NetworkController:rpcEndpointUnavailable event when the failover becomes unavailable', async () => {
-          const backoffDuration = 100;
-
-          await withMockedCommunications(
-            { providerType },
-            async (primaryComms) => {
-              await withMockedCommunications(
-                {
-                  providerType: 'custom',
-                  customRpcUrl: 'https://failover.endpoint',
-                },
-                async (failoverComms) => {
-                  const request = {
-                    method,
-                    params: buildMockParams({ blockParam, blockParamIndex }),
-                  };
-                  const error = new Error(errorCode);
-                  // @ts-expect-error `code` does not exist on the Error type,
-                  // but is still used by Node.
-                  error.code = errorCode;
-
-                  // The first time a block-cacheable request is made, the
-                  // latest block number is retrieved through the block
-                  // tracker first.
-                  primaryComms.mockNextBlockTrackerRequest({
-                    blockNumber: '0x100',
-                  });
-                  primaryComms.mockRpcCall({
-                    request: buildRequestWithReplacedBlockParam(
-                      request,
-                      blockParamIndex,
-                      '0x100',
-                    ),
-                    error,
-                    times: 15,
-                  });
-                  // The block-ref middleware will make the request as
-                  // specified except that the block param is replaced with
-                  // the latest block number.
-                  failoverComms.mockRpcCall({
-                    request: buildRequestWithReplacedBlockParam(
-                      request,
-                      blockParamIndex,
-                      '0x100',
-                    ),
-                    error,
-                    times: 15,
-                  });
-                  // Block tracker requests on the primary will fail over
-                  failoverComms.mockNextBlockTrackerRequest({
-                    blockNumber: '0x100',
-                  });
-
-                  const messenger = buildRootMessenger();
-                  const rpcEndpointUnavailableEventHandler = jest.fn();
-                  messenger.subscribe(
-                    'NetworkController:rpcEndpointUnavailable',
-                    rpcEndpointUnavailableEventHandler,
-                  );
-
-                  await withNetworkClient(
-                    {
-                      providerType,
-                      failoverRpcUrls: ['https://failover.endpoint/'],
-                      messenger,
-                      getRpcServiceOptions: () => ({
-                        fetch,
-                        btoa,
-                        policyOptions: {
-                          backoff: new ConstantBackoff(backoffDuration),
-                        },
-                      }),
-                    },
-                    async ({ makeRpcCall, clock, chainId }) => {
-                      messenger.subscribe(
-                        'NetworkController:rpcEndpointRequestRetried',
-                        () => {
-                          // Ensure that we advance to the next RPC request
-                          // retry, not the next block tracker request.
-                          // We also don't need to await this, it just needs to
-                          // be added to the promise queue.
-                          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                          clock.tickAsync(backoffDuration);
-                        },
-                      );
-
-                      // Exceed max retries on primary
-                      await ignoreRejection(makeRpcCall(request));
-                      // Exceed max retries on primary again
-                      await ignoreRejection(makeRpcCall(request));
-                      // Exceed max retries on primary for final time, fail over
-                      await ignoreRejection(makeRpcCall(request));
-                      // Exceed max retries on failover
-                      await ignoreRejection(makeRpcCall(request));
-                      // Exceed max retries on failover
-                      await ignoreRejection(makeRpcCall(request));
-                      // Exceed max retries on failover for final time
-                      await ignoreRejection(makeRpcCall(request));
-
-                      expect(
-                        rpcEndpointUnavailableEventHandler,
-                      ).toHaveBeenNthCalledWith(2, {
-                        chainId,
-                        endpointUrl: 'https://failover.endpoint/',
-                        error: expect.objectContaining({
-                          message: `request to https://failover.endpoint/ failed, reason: ${errorCode}`,
-                        }),
-                      });
-                    },
-                  );
-                },
-              );
-            },
-          );
-        });
-
-        it('allows RPC service options to be customized', async () => {
-          const backoffDuration = 100;
-
-          await withMockedCommunications(
-            {
-              providerType,
-              expectedHeaders: {
-                'X-Foo': 'Bar',
-              },
-            },
-            async (primaryComms) => {
-              await withMockedCommunications(
-                {
-                  providerType: 'custom',
-                  customRpcUrl: 'https://failover.endpoint',
-                },
-                async (failoverComms) => {
-                  const request = {
-                    method,
-                    params: buildMockParams({ blockParam, blockParamIndex }),
-                  };
-                  const error = new Error(errorCode);
-                  // @ts-expect-error `code` does not exist on the Error type,
-                  // but is still used by Node.
-                  error.code = errorCode;
-
-                  // The first time a block-cacheable request is made, the
-                  // latest block number is retrieved through the block
-                  // tracker first.
-                  primaryComms.mockNextBlockTrackerRequest({
-                    blockNumber: '0x100',
-                  });
-                  primaryComms.mockRpcCall({
-                    request: buildRequestWithReplacedBlockParam(
-                      request,
-                      blockParamIndex,
-                      '0x100',
-                    ),
-                    error,
-                    times: 6,
-                  });
-                  // The block-ref middleware will make the request as
-                  // specified except that the block param is replaced with
-                  // the latest block number.
-                  failoverComms.mockRpcCall({
-                    request: buildRequestWithReplacedBlockParam(
-                      request,
-                      blockParamIndex,
-                      '0x100',
-                    ),
-                    response: {
-                      result: 'ok',
-                    },
-                  });
-
-                  const messenger = buildRootMessenger();
-
-                  const result = await withNetworkClient(
-                    {
-                      providerType,
-                      failoverRpcUrls: ['https://failover.endpoint'],
-                      messenger,
-                      getRpcServiceOptions: (rpcEndpointUrl) => {
-                        const commonOptions = { fetch, btoa };
-                        // We need to return different results.
-                        // eslint-disable-next-line jest/no-conditional-in-test
-                        if (rpcEndpointUrl === 'https://failover.endpoint') {
-                          const headers: HeadersInit = {
-                            'X-Baz': 'Qux',
-                          };
-                          return {
-                            ...commonOptions,
-                            fetchOptions: {
-                              headers,
-                            },
-                          };
-                        }
-                        const headers: HeadersInit = {
-                          'X-Foo': 'Bar',
-                        };
-                        return {
-                          ...commonOptions,
-                          fetchOptions: {
-                            headers,
-                          },
-                          policyOptions: {
-                            backoff: new ConstantBackoff(backoffDuration),
-                            maxRetries: 2,
-                            maxConsecutiveFailures: 6,
-                          },
-                        };
-                      },
-                    },
-                    async ({ makeRpcCall, clock }) => {
-                      messenger.subscribe(
-                        'NetworkController:rpcEndpointRequestRetried',
-                        () => {
-                          // Ensure that we advance to the next RPC request
-                          // retry, not the next block tracker request.
-                          // We also don't need to await this, it just needs to
-                          // be added to the promise queue.
-                          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                          clock.tickAsync(backoffDuration);
-                        },
-                      );
-
-                      // There are a total of 3 attempts (2 retries),
-                      // and we call this 2 times for a total of 6 failures
-                      await ignoreRejection(makeRpcCall(request));
-                      return await makeRpcCall(request);
-                    },
-                  );
-
-                  expect(result).toBe('ok');
-                },
-              );
-            },
-          );
+        testsForRpcFailoverBehavior({
+          providerType,
+          requestToCall: {
+            method,
+            params: buildMockParams({ blockParam, blockParamIndex }),
+          },
+          getRequestToMock: (request: MockRequest, blockNumber: Hex) => {
+            return buildRequestWithReplacedBlockParam(
+              request,
+              blockParamIndex,
+              blockNumber,
+            );
+          },
+          failure: error,
+          isRetriableFailure: true,
+          getExpectedError: (url: string) =>
+            expect.objectContaining({
+              message: `request to ${url} failed, reason: ${errorCode}`,
+            }),
         });
       },
     );
@@ -2362,421 +892,39 @@ export function testsForRpcMethodSupportingBlockParam(
         });
       });
 
-      it('fails over to the provided alternate RPC endpoint after 15 unsuccessful attempts', async () => {
-        await withMockedCommunications(
-          { providerType },
-          async (primaryComms) => {
-            await withMockedCommunications(
-              {
-                providerType: 'custom',
-                customRpcUrl: 'https://failover.endpoint',
-              },
-              async (failoverComms) => {
-                const request = {
-                  method,
-                  params: buildMockParams({ blockParam, blockParamIndex }),
-                };
-
-                // The first time a block-cacheable request is made, the
-                // latest block number is retrieved through the block tracker
-                // first. Note that to test that failovers work, all we have
-                // to do is make this request fail.
-                primaryComms.mockRpcCall({
-                  request: {
-                    method: 'eth_blockNumber',
-                    params: [],
-                  },
-                  response: {
-                    body: 'invalid JSON',
-                  },
-                  times: 15,
-                });
-                // The block-ref middleware will make the request as specified
-                // except that the block param is replaced with the latest
-                // block number.
-                failoverComms.mockNextBlockTrackerRequest({
-                  blockNumber: '0x100',
-                });
-                failoverComms.mockRpcCall({
-                  request: buildRequestWithReplacedBlockParam(
-                    request,
-                    blockParamIndex,
-                    '0x100',
-                  ),
-                  response: {
-                    result: 'ok',
-                  },
-                });
-
-                const result = await withNetworkClient(
-                  {
-                    providerType,
-                    failoverRpcUrls: ['https://failover.endpoint'],
-                  },
-                  async ({ makeRpcCall, clock }) => {
-                    // The block tracker will keep trying to poll until the
-                    // eth_blockNumber request works, so we only have to make
-                    // the request once.
-                    return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
-                      makeRpcCall(request),
-                      clock,
-                    );
-                  },
-                );
-
-                expect(result).toBe('ok');
-              },
-            );
-          },
-        );
-      });
-
-      it('publishes the NetworkController:rpcEndpointUnavailable event when the failover occurs', async () => {
-        const backoffDuration = 100;
-
-        await withMockedCommunications(
-          { providerType },
-          async (primaryComms) => {
-            await withMockedCommunications(
-              {
-                providerType: 'custom',
-                customRpcUrl: 'https://failover.endpoint',
-              },
-              async (failoverComms) => {
-                const request = {
-                  method,
-                  params: buildMockParams({ blockParam, blockParamIndex }),
-                };
-
-                // The first time a block-cacheable request is made, the
-                // latest block number is retrieved through the block
-                // tracker first.
-                primaryComms.mockNextBlockTrackerRequest({
-                  blockNumber: '0x100',
-                });
-                primaryComms.mockRpcCall({
-                  request: buildRequestWithReplacedBlockParam(
-                    request,
-                    blockParamIndex,
-                    '0x100',
-                  ),
-                  response: {
-                    body: 'invalid JSON',
-                  },
-                  times: 15,
-                });
-                // The block-ref middleware will make the request as specified
-                // except that the block param is replaced with the latest
-                // block number.
-                failoverComms.mockRpcCall({
-                  request: buildRequestWithReplacedBlockParam(
-                    request,
-                    blockParamIndex,
-                    '0x100',
-                  ),
-                  response: {
-                    result: 'ok',
-                  },
-                });
-
-                const messenger = buildRootMessenger();
-                const rpcEndpointUnavailableEventHandler = jest.fn();
-                messenger.subscribe(
-                  'NetworkController:rpcEndpointUnavailable',
-                  rpcEndpointUnavailableEventHandler,
-                );
-
-                await withNetworkClient(
-                  {
-                    providerType,
-                    failoverRpcUrls: ['https://failover.endpoint'],
-                    messenger,
-                    getRpcServiceOptions: () => ({
-                      fetch,
-                      btoa,
-                      policyOptions: {
-                        backoff: new ConstantBackoff(backoffDuration),
-                      },
-                    }),
-                  },
-                  async ({ makeRpcCall, chainId, clock, rpcUrl }) => {
-                    messenger.subscribe(
-                      'NetworkController:rpcEndpointRequestRetried',
-                      () => {
-                        // Ensure that we advance to the next RPC request
-                        // retry, not the next block tracker request.
-                        // We also don't need to await this, it just needs to
-                        // be added to the promise queue.
-                        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                        clock.tickAsync(backoffDuration);
-                      },
-                    );
-
-                    await ignoreRejection(makeRpcCall(request));
-                    await ignoreRejection(makeRpcCall(request));
-                    await makeRpcCall(request);
-
-                    expect(
-                      rpcEndpointUnavailableEventHandler,
-                    ).toHaveBeenCalledWith({
-                      chainId,
-                      endpointUrl: rpcUrl,
-                      failoverEndpointUrl: 'https://failover.endpoint/',
-                      error: expect.objectContaining({
-                        message: expect.stringContaining(errorMessage),
-                      }),
-                    });
-                  },
-                );
-              },
-            );
-          },
-        );
-      });
-
-      it('publishes the NetworkController:rpcEndpointUnavailable event when the failover becomes unavailable', async () => {
-        const backoffDuration = 100;
-
-        await withMockedCommunications(
-          { providerType },
-          async (primaryComms) => {
-            await withMockedCommunications(
-              {
-                providerType: 'custom',
-                customRpcUrl: 'https://failover.endpoint',
-              },
-              async (failoverComms) => {
-                const request = {
-                  method,
-                  params: buildMockParams({ blockParam, blockParamIndex }),
-                };
-
-                // The first time a block-cacheable request is made, the
-                // latest block number is retrieved through the block
-                // tracker first.
-                primaryComms.mockNextBlockTrackerRequest({
-                  blockNumber: '0x100',
-                });
-                primaryComms.mockRpcCall({
-                  request: buildRequestWithReplacedBlockParam(
-                    request,
-                    blockParamIndex,
-                    '0x100',
-                  ),
-                  response: {
-                    body: 'invalid JSON',
-                  },
-                  times: 15,
-                });
-                // The block-ref middleware will make the request as
-                // specified except that the block param is replaced with
-                // the latest block number.
-                failoverComms.mockRpcCall({
-                  request: buildRequestWithReplacedBlockParam(
-                    request,
-                    blockParamIndex,
-                    '0x100',
-                  ),
-                  response: {
-                    body: 'invalid JSON',
-                  },
-                  times: 15,
-                });
-                // Block tracker requests on the primary will fail over
-                failoverComms.mockNextBlockTrackerRequest({
-                  blockNumber: '0x100',
-                });
-
-                const messenger = buildRootMessenger();
-                const rpcEndpointUnavailableEventHandler = jest.fn();
-                messenger.subscribe(
-                  'NetworkController:rpcEndpointUnavailable',
-                  rpcEndpointUnavailableEventHandler,
-                );
-
-                await withNetworkClient(
-                  {
-                    providerType,
-                    failoverRpcUrls: ['https://failover.endpoint'],
-                    messenger,
-                    getRpcServiceOptions: () => ({
-                      fetch,
-                      btoa,
-                      policyOptions: {
-                        backoff: new ConstantBackoff(backoffDuration),
-                      },
-                    }),
-                  },
-                  async ({ makeRpcCall, clock, chainId }) => {
-                    messenger.subscribe(
-                      'NetworkController:rpcEndpointRequestRetried',
-                      () => {
-                        // Ensure that we advance to the next RPC request
-                        // retry, not the next block tracker request.
-                        // We also don't need to await this, it just needs to
-                        // be added to the promise queue.
-                        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                        clock.tickAsync(backoffDuration);
-                      },
-                    );
-
-                    // Exceed max retries on primary
-                    await ignoreRejection(makeRpcCall(request));
-                    // Exceed max retries on primary again
-                    await ignoreRejection(makeRpcCall(request));
-                    // Exceed max retries on primary for final time, fail over
-                    await ignoreRejection(makeRpcCall(request));
-                    // Exceed max retries on failover
-                    await ignoreRejection(makeRpcCall(request));
-                    // Exceed max retries on failover
-                    await ignoreRejection(makeRpcCall(request));
-                    // Exceed max retries on failover for final time
-                    await ignoreRejection(makeRpcCall(request));
-
-                    expect(
-                      rpcEndpointUnavailableEventHandler,
-                    ).toHaveBeenNthCalledWith(2, {
-                      chainId,
-                      endpointUrl: 'https://failover.endpoint/',
-                      error: expect.objectContaining({
-                        message: expect.stringContaining(errorMessage),
-                      }),
-                    });
-                  },
-                );
-              },
-            );
-          },
-        );
-      });
-
-      it('allows RPC service options to be customized', async () => {
-        const backoffDuration = 100;
-
-        await withMockedCommunications(
-          {
-            providerType,
-            expectedHeaders: {
-              'X-Foo': 'Bar',
-            },
-          },
-          async (primaryComms) => {
-            await withMockedCommunications(
-              {
-                providerType: 'custom',
-                customRpcUrl: 'https://failover.endpoint',
-              },
-              async (failoverComms) => {
-                const request = {
-                  method,
-                  params: buildMockParams({ blockParam, blockParamIndex }),
-                };
-
-                // The first time a block-cacheable request is made, the
-                // latest block number is retrieved through the block
-                // tracker first.
-                primaryComms.mockNextBlockTrackerRequest({
-                  blockNumber: '0x100',
-                });
-                primaryComms.mockRpcCall({
-                  request: buildRequestWithReplacedBlockParam(
-                    request,
-                    blockParamIndex,
-                    '0x100',
-                  ),
-                  response: {
-                    body: 'invalid JSON',
-                  },
-                  times: 6,
-                });
-                // The block-ref middleware will make the request as
-                // specified except that the block param is replaced with
-                // the latest block number.
-                failoverComms.mockRpcCall({
-                  request: buildRequestWithReplacedBlockParam(
-                    request,
-                    blockParamIndex,
-                    '0x100',
-                  ),
-                  response: {
-                    result: 'ok',
-                  },
-                });
-
-                const messenger = buildRootMessenger();
-
-                const result = await withNetworkClient(
-                  {
-                    providerType,
-                    failoverRpcUrls: ['https://failover.endpoint'],
-                    messenger,
-                    getRpcServiceOptions: (rpcEndpointUrl) => {
-                      const commonOptions = { fetch, btoa };
-                      // We need to return different results.
-                      // eslint-disable-next-line jest/no-conditional-in-test
-                      if (rpcEndpointUrl === 'https://failover.endpoint') {
-                        const headers: HeadersInit = {
-                          'X-Baz': 'Qux',
-                        };
-                        return {
-                          ...commonOptions,
-                          fetchOptions: {
-                            headers,
-                          },
-                        };
-                      }
-                      const headers: HeadersInit = {
-                        'X-Foo': 'Bar',
-                      };
-                      return {
-                        ...commonOptions,
-                        fetchOptions: {
-                          headers,
-                        },
-                        policyOptions: {
-                          backoff: new ConstantBackoff(backoffDuration),
-                          maxRetries: 2,
-                          maxConsecutiveFailures: 6,
-                        },
-                      };
-                    },
-                  },
-                  async ({ makeRpcCall, clock }) => {
-                    messenger.subscribe(
-                      'NetworkController:rpcEndpointRequestRetried',
-                      () => {
-                        // Ensure that we advance to the next RPC request
-                        // retry, not the next block tracker request.
-                        // We also don't need to await this, it just needs to
-                        // be added to the promise queue.
-                        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                        clock.tickAsync(backoffDuration);
-                      },
-                    );
-
-                    // There are a total of 3 attempts (2 retries),
-                    // and we call this 2 times for a total of 6 failures
-                    await ignoreRejection(makeRpcCall(request));
-                    return await makeRpcCall(request);
-                  },
-                );
-
-                expect(result).toBe('ok');
-              },
-            );
-          },
-        );
+      testsForRpcFailoverBehavior({
+        providerType,
+        requestToCall: {
+          method,
+          params: buildMockParams({ blockParam, blockParamIndex }),
+        },
+        getRequestToMock: (request: MockRequest, blockNumber: Hex) => {
+          return buildRequestWithReplacedBlockParam(
+            request,
+            blockParamIndex,
+            blockNumber,
+          );
+        },
+        failure: {
+          body: 'invalid JSON',
+        },
+        isRetriableFailure: true,
+        getExpectedError: () =>
+          expect.objectContaining({
+            message: expect.stringContaining(errorMessage),
+          }),
       });
     });
 
     describe('if making the request throws a connection error', () => {
+      const error = new TypeError('Failed to fetch');
+
       it('retries the request up to 5 times until there is no connection error', async () => {
         await withMockedCommunications({ providerType }, async (comms) => {
           const request = {
             method,
             params: buildMockParams({ blockParam, blockParamIndex }),
           };
-          const error = new TypeError('Failed to fetch');
 
           // The first time a block-cacheable request is made, the
           // block-cache middleware will request the latest block number
@@ -2832,7 +980,6 @@ export function testsForRpcMethodSupportingBlockParam(
             method,
             params: buildMockParams({ blockParam, blockParamIndex }),
           };
-          const error = new TypeError('Failed to fetch');
 
           // The first time a block-cacheable request is made, the
           // block-cache middleware will request the latest block number
@@ -2867,404 +1014,25 @@ export function testsForRpcMethodSupportingBlockParam(
         });
       });
 
-      it('fails over to the provided alternate RPC endpoint after 15 unsuccessful attempts', async () => {
-        await withMockedCommunications(
-          { providerType },
-          async (primaryComms) => {
-            await withMockedCommunications(
-              {
-                providerType: 'custom',
-                customRpcUrl: 'https://failover.endpoint',
-              },
-              async (failoverComms) => {
-                const request = {
-                  method,
-                  params: buildMockParams({ blockParam, blockParamIndex }),
-                };
-                const error = new TypeError('Failed to fetch');
-
-                // The first time a block-cacheable request is made, the
-                // latest block number is retrieved through the block tracker
-                // first. Note that to test that failovers work, all we
-                // have to do is make this request fail.
-                primaryComms.mockRpcCall({
-                  request: {
-                    method: 'eth_blockNumber',
-                    params: [],
-                  },
-                  error,
-                  times: 15,
-                });
-                // The block-ref middleware will make the request as specified
-                // except that the block param is replaced with the latest
-                // block number.
-                failoverComms.mockNextBlockTrackerRequest({
-                  blockNumber: '0x100',
-                });
-                failoverComms.mockRpcCall({
-                  request: buildRequestWithReplacedBlockParam(
-                    request,
-                    blockParamIndex,
-                    '0x100',
-                  ),
-                  response: {
-                    result: 'ok',
-                  },
-                });
-
-                const result = await withNetworkClient(
-                  {
-                    providerType,
-                    failoverRpcUrls: ['https://failover.endpoint'],
-                  },
-                  async ({ makeRpcCall, clock }) => {
-                    // The block tracker will keep trying to poll until the
-                    // eth_blockNumber request works, so we only have to make
-                    // the request once.
-                    return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
-                      makeRpcCall(request),
-                      clock,
-                    );
-                  },
-                );
-
-                expect(result).toBe('ok');
-              },
-            );
-          },
-        );
-      });
-
-      it('publishes the NetworkController:rpcEndpointUnavailable event when the failover occurs', async () => {
-        const backoffDuration = 100;
-
-        await withMockedCommunications(
-          { providerType },
-          async (primaryComms) => {
-            await withMockedCommunications(
-              {
-                providerType: 'custom',
-                customRpcUrl: 'https://failover.endpoint',
-              },
-              async (failoverComms) => {
-                const request = {
-                  method,
-                  params: buildMockParams({ blockParam, blockParamIndex }),
-                };
-                const error = new TypeError('Failed to fetch');
-
-                // The first time a block-cacheable request is made, the
-                // latest block number is retrieved through the block
-                // tracker first.
-                primaryComms.mockNextBlockTrackerRequest({
-                  blockNumber: '0x100',
-                });
-                primaryComms.mockRpcCall({
-                  request: buildRequestWithReplacedBlockParam(
-                    request,
-                    blockParamIndex,
-                    '0x100',
-                  ),
-                  error,
-                  times: 15,
-                });
-                // The block-ref middleware will make the request as specified
-                // except that the block param is replaced with the latest
-                // block number.
-                failoverComms.mockRpcCall({
-                  request: buildRequestWithReplacedBlockParam(
-                    request,
-                    blockParamIndex,
-                    '0x100',
-                  ),
-                  response: {
-                    result: 'ok',
-                  },
-                });
-
-                const messenger = buildRootMessenger();
-                const rpcEndpointUnavailableEventHandler = jest.fn();
-                messenger.subscribe(
-                  'NetworkController:rpcEndpointUnavailable',
-                  rpcEndpointUnavailableEventHandler,
-                );
-
-                await withNetworkClient(
-                  {
-                    providerType,
-                    failoverRpcUrls: ['https://failover.endpoint/'],
-                    messenger,
-                    getRpcServiceOptions: () => ({
-                      fetch,
-                      btoa,
-                      policyOptions: {
-                        backoff: new ConstantBackoff(backoffDuration),
-                      },
-                    }),
-                  },
-                  async ({ makeRpcCall, chainId, clock, rpcUrl }) => {
-                    messenger.subscribe(
-                      'NetworkController:rpcEndpointRequestRetried',
-                      () => {
-                        // Ensure that we advance to the next RPC request
-                        // retry, not the next block tracker request.
-                        // We also don't need to await this, it just needs to
-                        // be added to the promise queue.
-                        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                        clock.tickAsync(backoffDuration);
-                      },
-                    );
-
-                    await ignoreRejection(makeRpcCall(request));
-                    await ignoreRejection(makeRpcCall(request));
-                    await makeRpcCall(request);
-
-                    expect(
-                      rpcEndpointUnavailableEventHandler,
-                    ).toHaveBeenCalledWith({
-                      chainId,
-                      endpointUrl: rpcUrl,
-                      failoverEndpointUrl: 'https://failover.endpoint/',
-                      error: expect.objectContaining({
-                        message: `request to ${rpcUrl} failed, reason: Failed to fetch`,
-                      }),
-                    });
-                  },
-                );
-              },
-            );
-          },
-        );
-      });
-
-      it('publishes the NetworkController:rpcEndpointUnavailable event when the failover becomes unavailable', async () => {
-        const backoffDuration = 100;
-
-        await withMockedCommunications(
-          { providerType },
-          async (primaryComms) => {
-            await withMockedCommunications(
-              {
-                providerType: 'custom',
-                customRpcUrl: 'https://failover.endpoint',
-              },
-              async (failoverComms) => {
-                const request = {
-                  method,
-                  params: buildMockParams({ blockParam, blockParamIndex }),
-                };
-                const error = new TypeError('Failed to fetch');
-
-                // The first time a block-cacheable request is made, the
-                // latest block number is retrieved through the block
-                // tracker first.
-                primaryComms.mockNextBlockTrackerRequest({
-                  blockNumber: '0x100',
-                });
-                primaryComms.mockRpcCall({
-                  request: buildRequestWithReplacedBlockParam(
-                    request,
-                    blockParamIndex,
-                    '0x100',
-                  ),
-                  error,
-                  times: 15,
-                });
-                // The block-ref middleware will make the request as specified
-                // except that the block param is replaced with the latest
-                // block number.
-                failoverComms.mockRpcCall({
-                  request: buildRequestWithReplacedBlockParam(
-                    request,
-                    blockParamIndex,
-                    '0x100',
-                  ),
-                  error,
-                  times: 15,
-                });
-                // Block tracker requests on the primary will fail over
-                failoverComms.mockNextBlockTrackerRequest({
-                  blockNumber: '0x100',
-                });
-
-                const messenger = buildRootMessenger();
-                const rpcEndpointUnavailableEventHandler = jest.fn();
-                messenger.subscribe(
-                  'NetworkController:rpcEndpointUnavailable',
-                  rpcEndpointUnavailableEventHandler,
-                );
-
-                await withNetworkClient(
-                  {
-                    providerType,
-                    failoverRpcUrls: ['https://failover.endpoint/'],
-                    messenger,
-                    getRpcServiceOptions: () => ({
-                      fetch,
-                      btoa,
-                      policyOptions: {
-                        backoff: new ConstantBackoff(backoffDuration),
-                      },
-                    }),
-                  },
-                  async ({ makeRpcCall, clock, chainId }) => {
-                    messenger.subscribe(
-                      'NetworkController:rpcEndpointRequestRetried',
-                      () => {
-                        // Ensure that we advance to the next RPC request
-                        // retry, not the next block tracker request.
-                        // We also don't need to await this, it just needs to
-                        // be added to the promise queue.
-                        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                        clock.tickAsync(backoffDuration);
-                      },
-                    );
-
-                    // Exceed max retries on primary
-                    await ignoreRejection(makeRpcCall(request));
-                    // Exceed max retries on primary again
-                    await ignoreRejection(makeRpcCall(request));
-                    // Exceed max retries on primary for final time, fail over
-                    await ignoreRejection(makeRpcCall(request));
-                    // Exceed max retries on failover
-                    await ignoreRejection(makeRpcCall(request));
-                    // Exceed max retries on failover
-                    await ignoreRejection(makeRpcCall(request));
-                    // Exceed max retries on failover for final time
-                    await ignoreRejection(makeRpcCall(request));
-
-                    expect(
-                      rpcEndpointUnavailableEventHandler,
-                    ).toHaveBeenNthCalledWith(2, {
-                      chainId,
-                      endpointUrl: 'https://failover.endpoint/',
-                      error: expect.objectContaining({
-                        message: `request to https://failover.endpoint/ failed, reason: Failed to fetch`,
-                      }),
-                    });
-                  },
-                );
-              },
-            );
-          },
-        );
-      });
-
-      it('allows RPC service options to be customized', async () => {
-        const backoffDuration = 100;
-
-        await withMockedCommunications(
-          {
-            providerType,
-            expectedHeaders: {
-              'X-Foo': 'Bar',
-            },
-          },
-          async (primaryComms) => {
-            await withMockedCommunications(
-              {
-                providerType: 'custom',
-                customRpcUrl: 'https://failover.endpoint',
-              },
-              async (failoverComms) => {
-                const request = {
-                  method,
-                  params: buildMockParams({ blockParam, blockParamIndex }),
-                };
-                const error = new TypeError('Failed to fetch');
-
-                // The first time a block-cacheable request is made, the
-                // latest block number is retrieved through the block
-                // tracker first.
-                primaryComms.mockNextBlockTrackerRequest({
-                  blockNumber: '0x100',
-                });
-                primaryComms.mockRpcCall({
-                  request: buildRequestWithReplacedBlockParam(
-                    request,
-                    blockParamIndex,
-                    '0x100',
-                  ),
-                  error,
-                  times: 6,
-                });
-                // The block-ref middleware will make the request as
-                // specified except that the block param is replaced with
-                // the latest block number.
-                failoverComms.mockRpcCall({
-                  request: buildRequestWithReplacedBlockParam(
-                    request,
-                    blockParamIndex,
-                    '0x100',
-                  ),
-                  response: {
-                    result: 'ok',
-                  },
-                });
-
-                const messenger = buildRootMessenger();
-
-                const result = await withNetworkClient(
-                  {
-                    providerType,
-                    failoverRpcUrls: ['https://failover.endpoint'],
-                    messenger,
-                    getRpcServiceOptions: (rpcEndpointUrl) => {
-                      const commonOptions = { fetch, btoa };
-                      // We need to return different results.
-                      // eslint-disable-next-line jest/no-conditional-in-test
-                      if (rpcEndpointUrl === 'https://failover.endpoint') {
-                        const headers: HeadersInit = {
-                          'X-Baz': 'Qux',
-                        };
-                        return {
-                          ...commonOptions,
-                          fetchOptions: {
-                            headers,
-                          },
-                        };
-                      }
-                      const headers: HeadersInit = {
-                        'X-Foo': 'Bar',
-                      };
-                      return {
-                        ...commonOptions,
-                        fetchOptions: {
-                          headers,
-                        },
-                        policyOptions: {
-                          backoff: new ConstantBackoff(backoffDuration),
-                          maxRetries: 2,
-                          maxConsecutiveFailures: 6,
-                        },
-                      };
-                    },
-                  },
-                  async ({ makeRpcCall, clock }) => {
-                    messenger.subscribe(
-                      'NetworkController:rpcEndpointRequestRetried',
-                      () => {
-                        // Ensure that we advance to the next RPC request
-                        // retry, not the next block tracker request.
-                        // We also don't need to await this, it just needs to
-                        // be added to the promise queue.
-                        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                        clock.tickAsync(backoffDuration);
-                      },
-                    );
-
-                    // There are a total of 3 attempts (2 retries),
-                    // and we call this 2 times for a total of 6 failures
-                    await ignoreRejection(makeRpcCall(request));
-                    return await makeRpcCall(request);
-                  },
-                );
-
-                expect(result).toBe('ok');
-              },
-            );
-          },
-        );
+      testsForRpcFailoverBehavior({
+        providerType,
+        requestToCall: {
+          method,
+          params: buildMockParams({ blockParam, blockParamIndex }),
+        },
+        getRequestToMock: (request: MockRequest, blockNumber: Hex) => {
+          return buildRequestWithReplacedBlockParam(
+            request,
+            blockParamIndex,
+            blockNumber,
+          );
+        },
+        failure: error,
+        isRetriableFailure: true,
+        getExpectedError: (url: string) =>
+          expect.objectContaining({
+            message: `request to ${url} failed, reason: ${error.message}`,
+          }),
       });
     });
   });

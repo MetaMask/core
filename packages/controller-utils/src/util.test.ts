@@ -354,6 +354,26 @@ describe('util', () => {
     expect(toSmartContract4).toBe(true);
   });
 
+  describe('HttpError', () => {
+    it('stores the status as an instance variable', () => {
+      const httpError = new util.HttpError(500);
+
+      expect(httpError.httpStatus).toBe(500);
+    });
+
+    it('has the expected default message', () => {
+      const httpError = new util.HttpError(500);
+
+      expect(httpError.message).toBe(`Fetch failed with status '500'`);
+    });
+
+    it('allows setting a custom message', () => {
+      const httpError = new util.HttpError(500, 'custom message');
+
+      expect(httpError.message).toBe('custom message');
+    });
+  });
+
   describe('successfulFetch', () => {
     beforeEach(() => {
       nock(SOME_API).get(/.+/u).reply(200, { foo: 'bar' }).persist();
@@ -369,6 +389,12 @@ describe('util', () => {
     it('should throw error for an unsuccessful fetch', async () => {
       await expect(util.successfulFetch(SOME_FAILING_API)).rejects.toThrow(
         `Fetch failed with status '500' for request '${SOME_FAILING_API}'`,
+      );
+    });
+
+    it('throws an HttpError', async () => {
+      await expect(util.successfulFetch(SOME_FAILING_API)).rejects.toThrow(
+        util.HttpError,
       );
     });
   });

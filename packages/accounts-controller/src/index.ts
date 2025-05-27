@@ -4,6 +4,7 @@ export type {
   AccountsControllerGetStateAction,
   AccountsControllerSetSelectedAccountAction,
   AccountsControllerSetAccountNameAction,
+  AccountsControllerSetAccountNameAndSelectAccountAction,
   AccountsControllerListAccountsAction,
   AccountsControllerListMultichainAccountsAction,
   AccountsControllerUpdateAccountsAction,

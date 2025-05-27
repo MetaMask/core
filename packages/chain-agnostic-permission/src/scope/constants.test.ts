@@ -1,4 +1,8 @@
-import { KnownRpcMethods } from './constants';
+import {
+  KnownRpcMethods,
+  KnownSessionProperties,
+  isKnownSessionPropertyValue,
+} from './constants';
 
 describe('KnownRpcMethods', () => {
   it('should match the snapshot', () => {
@@ -9,6 +13,9 @@ describe('KnownRpcMethods', () => {
           "personal_sign",
           "eth_signTypedData_v4",
           "wallet_watchAsset",
+          "wallet_sendCalls",
+          "wallet_getCallsStatus",
+          "wallet_getCapabilities",
           "eth_sendTransaction",
           "eth_decrypt",
           "eth_getEncryptionPublicKey",
@@ -49,5 +56,26 @@ describe('KnownRpcMethods', () => {
         "solana": Array [],
       }
     `);
+  });
+});
+
+describe('KnownSessionProperties', () => {
+  it('should match the snapshot', () => {
+    expect(KnownSessionProperties).toMatchInlineSnapshot(`
+      Object {
+        "SolanaAccountChangedNotifications": "solana_accountChanged_notifications",
+      }
+    `);
+  });
+});
+
+describe('isKnownSessionPropertyValue', () => {
+  it('should return true for known session property values', () => {
+    expect(
+      isKnownSessionPropertyValue('solana_accountChanged_notifications'),
+    ).toBe(true);
+  });
+  it('should return false for unknown session property values', () => {
+    expect(isKnownSessionPropertyValue('unknown_session_property')).toBe(false);
   });
 });

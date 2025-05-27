@@ -12,11 +12,16 @@ import {
   enums,
   define,
   union,
+  assert,
 } from '@metamask/superstruct';
 import { isStrictHexString } from '@metamask/utils';
 
-import type { BridgeAsset, FeatureFlagResponse, QuoteResponse } from '../types';
-import { ActionTypes, BridgeFlag, FeeType } from '../types';
+import type {
+  BridgeAsset,
+  FeatureFlagsPlatformConfig,
+  QuoteResponse,
+} from '../types';
+import { ActionTypes, FeeType } from '../types';
 
 const HexAddressSchema = define('HexAddress', (v: unknown) =>
   isValidHexAddress(v as string, { allowNonPrefixed: false }),
@@ -48,15 +53,17 @@ const BridgeAssetSchema = type({
 
 export const validateFeatureFlagsResponse = (
   data: unknown,
-): data is FeatureFlagResponse => {
+): data is FeatureFlagsPlatformConfig => {
   const ChainConfigurationSchema = type({
     isActiveSrc: boolean(),
     isActiveDest: boolean(),
     refreshRate: optional(number()),
     topAssets: optional(array(string())),
+    isUnifiedUIEnabled: optional(boolean()),
   });
 
-  const ConfigSchema = type({
+  const PlatformConfigSchema = type({
+    minimumVersion: string(),
     refreshRate: number(),
     maxRefreshCount: number(),
     support: boolean(),
@@ -64,12 +71,7 @@ export const validateFeatureFlagsResponse = (
   });
 
   // Create schema for FeatureFlagResponse
-  const FeatureFlagResponseSchema = type({
-    [BridgeFlag.EXTENSION_CONFIG]: ConfigSchema,
-    [BridgeFlag.MOBILE_CONFIG]: ConfigSchema,
-  });
-
-  return is(data, FeatureFlagResponseSchema);
+  return is(data, PlatformConfigSchema);
 };
 
 export const validateSwapsTokenObject = (
@@ -134,5 +136,6 @@ export const validateQuoteResponse = (data: unknown): data is QuoteResponse => {
     estimatedProcessingTimeInSeconds: number(),
   });
 
-  return is(data, QuoteResponseSchema);
+  assert(data, QuoteResponseSchema);
+  return true;
 };

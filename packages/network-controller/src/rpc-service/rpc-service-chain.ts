@@ -99,11 +99,11 @@ export class RpcServiceChain implements RpcServiceRequestable {
    * @param fetchOptions - An options bag for {@link fetch} which further
    * specifies the request.
    * @returns The decoded JSON-RPC response from the endpoint.
-   * @throws A "method not found" error if the response status is 405.
-   * @throws A rate limiting error if the response HTTP status is 429.
-   * @throws A timeout error if the response HTTP status is 503 or 504.
-   * @throws A generic error if the response HTTP status is not 2xx but also not
-   * 405, 429, 503, or 504.
+   * @throws A 401 error if the response status is 401.
+   * @throws A "rate limiting" error if the response HTTP status is 429.
+   * @throws A "resource unavailable" error if the response status is 402, 404, or any 5xx.
+   * @throws A generic HTTP client error (-32100) for any other 4xx status codes.
+   * @throws A "parse" error if the response is not valid JSON.
    */
   async request<Params extends JsonRpcParams, Result extends Json>(
     jsonRpcRequest: JsonRpcRequest<Params> & { method: 'eth_getBlockByNumber' },
@@ -122,11 +122,11 @@ export class RpcServiceChain implements RpcServiceRequestable {
    * @param fetchOptions - An options bag for {@link fetch} which further
    * specifies the request.
    * @returns The decoded JSON-RPC response from the endpoint.
-   * @throws A "method not found" error if the response status is 405.
-   * @throws A rate limiting error if the response HTTP status is 429.
-   * @throws A timeout error if the response HTTP status is 503 or 504.
-   * @throws A generic error if the response HTTP status is not 2xx but also not
-   * 405, 429, 503, or 504.
+   * @throws A 401 error if the response status is 401.
+   * @throws A "rate limiting" error if the response HTTP status is 429.
+   * @throws A "resource unavailable" error if the response status is 402, 404, or any 5xx.
+   * @throws A generic HTTP client error (-32100) for any other 4xx status codes.
+   * @throws A "parse" error if the response is not valid JSON.
    */
   async request<Params extends JsonRpcParams, Result extends Json>(
     jsonRpcRequest: JsonRpcRequest<Params>,

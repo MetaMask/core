@@ -11,7 +11,7 @@ import type { AccountSyncingOptions } from './types';
 describe('user-storage/account-syncing/sync-utils', () => {
   describe('canPerformAccountSyncing', () => {
     const arrangeMocks = ({
-      isProfileSyncingEnabled = true,
+      isBackupAndSyncEnabled = true,
       isAccountSyncingEnabled = true,
       isAccountSyncingInProgress = false,
       messengerCallControllerAndAction = 'AuthenticationController:isSignedIn',
@@ -29,7 +29,7 @@ describe('user-storage/account-syncing/sync-utils', () => {
         }),
         getUserStorageControllerInstance: jest.fn().mockReturnValue({
           state: {
-            isProfileSyncingEnabled,
+            isBackupAndSyncEnabled,
             isAccountSyncingEnabled,
             isAccountSyncingInProgress,
           },
@@ -40,14 +40,14 @@ describe('user-storage/account-syncing/sync-utils', () => {
     };
 
     const failureCases = [
-      ['profile syncing is not enabled', { isProfileSyncingEnabled: false }],
+      ['backup and sync is not enabled', { isBackupAndSyncEnabled: false }],
       [
-        'profile syncing is not enabled but account syncing is',
-        { isProfileSyncingEnabled: false, isAccountSyncingEnabled: true },
+        'backup and sync is not enabled but account syncing is',
+        { isBackupAndSyncEnabled: false, isAccountSyncingEnabled: true },
       ],
       [
-        'profile syncing is enabled but not account syncing',
-        { isProfileSyncingEnabled: true, isAccountSyncingEnabled: false },
+        'backup and sync is enabled but not account syncing',
+        { isBackupAndSyncEnabled: true, isAccountSyncingEnabled: false },
       ],
       [
         'authentication is not enabled',

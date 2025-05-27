@@ -447,6 +447,11 @@ export type TransactionMeta = {
   txParams: TransactionParams;
 
   /**
+   * Initial transaction parameters before `afterAdd` hook was invoked.
+   */
+  txParamsOriginal?: TransactionParams;
+
+  /**
    * Transaction receipt.
    */
   txReceipt?: TransactionReceipt;
@@ -483,6 +488,36 @@ export type TransactionMeta = {
     error: string;
     message: string;
   };
+};
+
+/**
+ * Information about a batch transaction.
+ */
+export type TransactionBatchMeta = {
+  /**
+   * Network code as per EIP-155 for this transaction.
+   */
+  chainId: Hex;
+
+  /**
+   * ID of the associated transaction batch.
+   */
+  id: string;
+
+  /**
+   * Data for any EIP-7702 transactions.
+   */
+  transactions?: NestedTransactionMetadata[];
+
+  /**
+   * The ID of the network client used by the transaction.
+   */
+  networkClientId: NetworkClientId;
+
+  /**
+   * Origin this transaction was sent from.
+   */
+  origin?: string;
 };
 
 export type SendFlowHistoryEntry = {
@@ -627,6 +662,11 @@ export enum TransactionType {
    * An incoming (deposit) transaction.
    */
   incoming = 'incoming',
+
+  /**
+   * A transaction that deposits tokens into a lending contract.
+   */
+  lendingDeposit = 'lendingDeposit',
 
   /**
    * A transaction for personal sign.
@@ -935,6 +975,11 @@ export interface RemoteTransactionSourceRequest {
    * Whether to initially query the entire transaction history.
    */
   queryEntireHistory: boolean;
+
+  /**
+   * Additional tags to identify the source of the request.
+   */
+  tags?: string[];
 
   /**
    * Callback to update the cache.
@@ -1499,7 +1544,7 @@ export type BatchTransactionParams = {
 
 /** Metadata for a nested transaction within a standard transaction. */
 export type NestedTransactionMetadata = BatchTransactionParams & {
-  /** Type of the neted transaction. */
+  /** Type of the nested transaction. */
   type?: TransactionType;
 };
 
@@ -1705,8 +1750,11 @@ export type GasFeeToken = {
   /** Decimals of the token. */
   decimals: number;
 
-  /** The corresponding gas limit this token fee would equal. */
+  /** Estimated gas limit required for original transaction. */
   gas: Hex;
+
+  /** Estimated gas limit required for fee transfer. */
+  gasTransfer?: Hex;
 
   /** The corresponding maxFeePerGas this token fee would equal. */
   maxFeePerGas: Hex;
@@ -1756,3 +1804,13 @@ export type IsAtomicBatchSupportedResultEntry = {
   /** Address of the contract that the account would be upgraded to. */
   upgradeContractAddress?: Hex;
 };
+
+/**
+ * Custom logic to be executed after a transaction is added.
+ * Can optionally update the transaction by returning the `updateTransaction` callback.
+ */
+export type AfterAddHook = (request: {
+  transactionMeta: TransactionMeta;
+}) => Promise<{
+  updateTransaction?: (transaction: TransactionMeta) => void;
+}>;

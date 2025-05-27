@@ -11,7 +11,7 @@ import { add0x, createModuleLogger, remove0x } from '@metamask/utils';
 
 import { DELEGATION_PREFIX } from './eip7702';
 import { getGasEstimateBuffer, getGasEstimateFallback } from './feature-flags';
-import { simulateTransactions } from './simulation-api';
+import { simulateTransactions } from '../api/simulation-api';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import {
@@ -405,13 +405,13 @@ async function simulateGas({
     },
   });
 
-  const gasUsed = response?.transactions?.[0].gasUsed;
+  const gasLimit = response?.transactions?.[0].gasLimit;
 
-  if (!gasUsed) {
+  if (!gasLimit) {
     throw new Error('No simulated gas returned');
   }
 
-  return gasUsed;
+  return gasLimit;
 }
 
 /**

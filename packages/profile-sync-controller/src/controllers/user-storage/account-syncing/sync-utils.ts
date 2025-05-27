@@ -16,7 +16,7 @@ export function canPerformAccountSyncing(
   const { getMessenger, getUserStorageControllerInstance } = options;
 
   const {
-    isProfileSyncingEnabled,
+    isBackupAndSyncEnabled,
     isAccountSyncingEnabled,
     isAccountSyncingInProgress,
   } = getUserStorageControllerInstance().state;
@@ -25,7 +25,7 @@ export function canPerformAccountSyncing(
   );
 
   if (
-    !isProfileSyncingEnabled ||
+    !isBackupAndSyncEnabled ||
     !isAccountSyncingEnabled ||
     !isAuthEnabled ||
     isAccountSyncingInProgress

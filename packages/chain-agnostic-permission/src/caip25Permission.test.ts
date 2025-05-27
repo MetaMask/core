@@ -13,6 +13,7 @@ import {
   caip25CaveatBuilder,
   diffScopesForCaip25CaveatValue,
   generateCaip25Caveat,
+  getCaip25CaveatFromPermission,
 } from './caip25Permission';
 import { KnownSessionProperties } from './scope/constants';
 import * as ScopeSupported from './scope/supported';
@@ -1707,6 +1708,54 @@ describe('generateCaip25Caveat', () => {
           },
         ],
       },
+    });
+  });
+
+  describe('getCaip25CaveatFromPermission', () => {
+    it('returns the caip 25 caveat when the caveat exists', () => {
+      const caveat = {
+        type: Caip25CaveatType,
+        value: {
+          requiredScopes: {},
+          optionalScopes: {
+            'eip155:1': {
+              accounts: [],
+            },
+          },
+          sessionProperties: {},
+          isMultichainOrigin: false,
+        },
+      };
+      const result = getCaip25CaveatFromPermission({
+        caveats: [
+          {
+            type: 'other',
+            value: 'foo',
+          },
+          caveat,
+        ],
+      });
+
+      expect(result).toStrictEqual(caveat);
+    });
+
+    it('returns undefined when the caveat does not exist', () => {
+      const result = getCaip25CaveatFromPermission({
+        caveats: [
+          {
+            type: 'other',
+            value: 'foo',
+          },
+        ],
+      });
+
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined when the permission is undefined', () => {
+      const result = getCaip25CaveatFromPermission();
+
+      expect(result).toBeUndefined();
     });
   });
 });

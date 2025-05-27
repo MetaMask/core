@@ -31,6 +31,7 @@ export {
   TransactionController,
 } from './TransactionController';
 export type {
+  AfterAddHook,
   Authorization,
   AuthorizationList,
   BatchTransactionParams,
@@ -65,6 +66,7 @@ export type {
   SimulationError,
   SimulationToken,
   SimulationTokenBalanceChange,
+  TransactionBatchMeta,
   TransactionBatchRequest,
   TransactionBatchResult,
   TransactionError,

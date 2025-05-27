@@ -26,21 +26,13 @@ export type {
   BridgeStatusControllerResetStateAction,
   BridgeStatusControllerEvents,
   BridgeStatusControllerStateChangeEvent,
-  BridgeStatusControllerBridgeTransactionCompleteEvent,
-  BridgeStatusControllerBridgeTransactionFailedEvent,
   StartPollingForBridgeTxStatusArgs,
   StartPollingForBridgeTxStatusArgsSerialized,
   TokenAmountValuesSerialized,
   QuoteMetadataSerialized,
 } from './types';
 
-export {
-  StatusTypes,
-  BridgeId,
-  FeeType,
-  ActionTypes,
-  BridgeStatusAction,
-} from './types';
+export { BridgeId, FeeType, ActionTypes, BridgeStatusAction } from './types';
 
 export { BridgeStatusController } from './bridge-status-controller';
 
