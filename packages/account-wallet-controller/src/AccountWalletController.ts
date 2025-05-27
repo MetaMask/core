@@ -217,7 +217,7 @@ export class AccountWalletController extends BaseController<
     return account.metadata.keyring.type === (type as string);
   }
 
-  #shouldGroupByEntropySource(
+  #matchGroupByEntropySource(
     account: InternalAccount,
   ): AccountWalletRuleMatch | undefined {
     if (this.#hasKeyringType(account, KeyringTypes.hd)) {
@@ -255,7 +255,7 @@ export class AccountWalletController extends BaseController<
     return undefined;
   }
 
-  #shouldGroupBySnapId(
+  #matchGroupBySnapId(
     account: InternalAccount,
   ): AccountWalletRuleMatch | undefined {
     if (
@@ -272,7 +272,7 @@ export class AccountWalletController extends BaseController<
     return undefined;
   }
 
-  #shouldGroupByKeyringType(
+  #matchGroupByKeyringType(
     account: InternalAccount,
   ): AccountWalletRuleMatch | undefined {
     return {
@@ -355,11 +355,11 @@ export class AccountWalletController extends BaseController<
   async updateAccountWallets(): Promise<void> {
     const rules = [
       // 1. We group by entropy-source
-      (account: InternalAccount) => this.#shouldGroupByEntropySource(account),
+      (account: InternalAccount) => this.#matchGroupByEntropySource(account),
       // 2. We group by Snap ID
-      (account: InternalAccount) => this.#shouldGroupBySnapId(account),
+      (account: InternalAccount) => this.#matchGroupBySnapId(account),
       // 3. We group by wallet type
-      (account: InternalAccount) => this.#shouldGroupByKeyringType(account),
+      (account: InternalAccount) => this.#matchGroupByKeyringType(account),
     ];
 
     const wallets: AccountWalletControllerState['accountWallets'] = {};
