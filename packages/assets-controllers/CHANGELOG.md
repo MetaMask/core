@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [66.0.0]
+
 ### Added
 
 - Add phishing protection for NFT metadata URLs in `NftController` ([#5598](https://github.com/MetaMask/core/pull/5598))
@@ -1674,7 +1676,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@65.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@66.0.0...HEAD
+[66.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@65.0.0...@metamask/assets-controllers@66.0.0
 [65.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@64.0.0...@metamask/assets-controllers@65.0.0
 [64.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@63.1.0...@metamask/assets-controllers@64.0.0
 [63.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@63.0.0...@metamask/assets-controllers@63.1.0
