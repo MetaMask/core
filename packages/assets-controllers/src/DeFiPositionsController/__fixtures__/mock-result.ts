@@ -10,8 +10,6 @@ export const MOCK_EXPECTED_RESULT: { [key: Hex]: GroupedDeFiPositions } = {
         protocolDetails: {
           name: 'Aave V3',
           iconUrl: 'https://cryptologos.cc/logos/aave-aave-logo.png',
-          protocolId: 'aave-v3',
-          chainId: 1,
         },
         aggregatedMarketValue: 540,
         positionTypes: {
@@ -111,8 +109,6 @@ export const MOCK_EXPECTED_RESULT: { [key: Hex]: GroupedDeFiPositions } = {
           name: 'Lido',
           iconUrl:
             'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84/logo.png',
-          protocolId: 'lido',
-          chainId: 1,
         },
         aggregatedMarketValue: 20000,
         positionTypes: {
@@ -160,8 +156,6 @@ export const MOCK_EXPECTED_RESULT: { [key: Hex]: GroupedDeFiPositions } = {
           name: 'Uniswap V3',
           iconUrl:
             'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984/logo.png',
-          protocolId: 'uniswap-v3',
-          chainId: 0x2105,
         },
         aggregatedMarketValue: 9580,
         positionTypes: {

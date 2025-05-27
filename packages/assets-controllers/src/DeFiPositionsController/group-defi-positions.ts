@@ -16,8 +16,6 @@ export type GroupedDeFiPositions = {
       protocolDetails: {
         name: string;
         iconUrl: string;
-        protocolId: string;
-        chainId: number;
       };
       aggregatedMarketValue: number;
       positionTypes: {
@@ -75,8 +73,6 @@ export function groupDeFiPositions(
         protocolDetails: {
           name: protocolDisplayName,
           iconUrl,
-          protocolId,
-          chainId,
         },
         aggregatedMarketValue: 0,
         positionTypes: {},
