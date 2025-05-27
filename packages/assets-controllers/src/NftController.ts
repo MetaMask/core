@@ -1553,6 +1553,9 @@ export class NftController extends BaseController<
       );
       // Sanitize metadata
       nftMetadata = await this.#sanitizeNftMetadata(fetchedMetadata);
+    } else {
+      // Sanitize provided metadata
+      nftMetadata = await this.#sanitizeNftMetadata(nftMetadata);
     }
 
     const newNftContracts = await this.#addNftContract({
@@ -1638,12 +1641,6 @@ export class NftController extends BaseController<
       const unsanitizedMetadata = unsanitizedResults.map(
         (result) => result.newMetadata,
       );
-
-      // add nft with test URL to the metadata list
-      unsanitizedMetadata.push({
-        ...unsanitizedMetadata[0],
-        externalLink: 'http://scamsite.xyz',
-      });
 
       // Sanitize all metadata
       const sanitizedMetadata =

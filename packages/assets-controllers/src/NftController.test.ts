@@ -28,6 +28,7 @@ import type {
 } from '@metamask/network-controller';
 import { getDefaultNetworkControllerState } from '@metamask/network-controller';
 import type { BulkPhishingDetectionScanResponse } from '@metamask/phishing-controller';
+import { RecommendedAction } from '@metamask/phishing-controller';
 import {
   getDefaultPreferencesState,
   type PreferencesState,
@@ -66,6 +67,7 @@ import type {
   NftMetadata,
 } from './NftController';
 import { NftController } from './NftController';
+import type { Collection } from './NftDetectionController';
 
 const CRYPTOPUNK_ADDRESS = '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
 const ERC721_KUDOSADDRESS = '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163';
@@ -152,6 +154,8 @@ jest.mock('uuid', () => {
  * `AccountsController:getAccount` action.
  * @param args.getSelectedAccount - Used to construct mock versions of the
  * `AccountsController:getSelectedAccount` action.
+ * @param args.bulkScanUrlsMock - Used to construct mock versions of the
+ * `PhishingController:bulkScanUrls` action.
  * @param args.defaultSelectedAccount - The default selected account to use in
  * @returns A collection of test controllers and mocks.
  */
@@ -165,6 +169,7 @@ function setupController({
   getERC1155TokenURI,
   getAccount,
   getSelectedAccount,
+  bulkScanUrlsMock,
   mockNetworkClientConfigurationsByNetworkClientId = {},
   defaultSelectedAccount = OWNER_ACCOUNT,
 }: {
@@ -5161,25 +5166,27 @@ describe('NftController', () => {
      * Tests for the NFT URL sanitization feature.
      */
     it('should sanitize malicious URLs when adding NFTs', async () => {
-      // Create a mock for the PhishingController:bulkScanUrls action
-      const mockBulkScanUrls = jest.fn().mockImplementation((urls: string[]) => {
-        const results: Record<string, { recommendedAction: string }> = {};
-        urls.forEach(url => {
-          if (url.includes('malicious')) {
-            results[url] = { recommendedAction: 'block' };
-          } else {
-            results[url] = { recommendedAction: 'allow' };
-          }
-        });
-        return Promise.resolve({ results });
+      const mockBulkScanUrls = jest.fn().mockResolvedValue({
+        results: {
+          'http://malicious-site.com/image.png': {
+            recommendedAction: RecommendedAction.Block,
+          },
+          'http://malicious-domain.com': {
+            recommendedAction: RecommendedAction.Block,
+          },
+          'http://safe-site.com/image.png': {
+            recommendedAction: RecommendedAction.None,
+          },
+          'http://legitimate-domain.com': {
+            recommendedAction: RecommendedAction.None,
+          },
+        },
       });
 
-      // Use setupController and pass the mock
       const { nftController } = setupController({
-        bulkScanUrlsMock: mockBulkScanUrls, // Pass the mock here
+        bulkScanUrlsMock: mockBulkScanUrls,
       });
 
-      // Create NFT with malicious URLs
       const nftWithMaliciousURLs: NftMetadata = {
         name: 'Malicious NFT',
         description: 'NFT with malicious links',
@@ -5188,7 +5195,6 @@ describe('NftController', () => {
         standard: ERC721,
       };
 
-      // Create NFT with safe URLs
       const nftWithSafeURLs: NftMetadata = {
         name: 'Safe NFT',
         description: 'NFT with safe links',
@@ -5197,54 +5203,47 @@ describe('NftController', () => {
         standard: ERC721,
       };
 
-      // Add NFT with malicious URLs
       await nftController.addNft('0xmalicious', '1', {
         nftMetadata: nftWithMaliciousURLs,
         userAddress: OWNER_ADDRESS,
       });
 
-      // Add NFT with safe URLs
       await nftController.addNft('0xsafe', '2', {
         nftMetadata: nftWithSafeURLs,
         userAddress: OWNER_ADDRESS,
       });
 
-      // Verify the bulk scan was called
       expect(mockBulkScanUrls).toHaveBeenCalled();
 
-      // Get the stored NFTs
-      const storedNfts = nftController.state.allNfts[OWNER_ADDRESS][ChainId.mainnet];
+      const storedNfts =
+        nftController.state.allNfts[OWNER_ADDRESS][ChainId.mainnet];
 
-      // Find the NFTs in storage
-      const maliciousNft = storedNfts.find(nft => nft.address === '0xmalicious');
-      const safeNft = storedNfts.find(nft => nft.address === '0xsafe');
+      const maliciousNft = storedNfts.find(
+        (nft) => nft.address === '0xmalicious',
+      );
+      const safeNft = storedNfts.find((nft) => nft.address === '0xsafe');
 
-      // Verify the malicious URLs were sanitized
       expect(maliciousNft?.image).toBeUndefined();
       expect(maliciousNft?.externalLink).toBeUndefined();
 
-      // Verify other properties were preserved
       expect(maliciousNft?.name).toBe('Malicious NFT');
       expect(maliciousNft?.description).toBe('NFT with malicious links');
 
-      // Verify safe URLs were preserved
       expect(safeNft?.image).toBe('http://safe-site.com/image.png');
       expect(safeNft?.externalLink).toBe('http://legitimate-domain.com');
     });
 
     it('should handle errors during phishing detection when adding NFTs', async () => {
-      // Create a mock that throws an error
-      const mockBulkScanUrls = jest.fn().mockRejectedValue(new Error('Phishing detection failed'));
+      const mockBulkScanUrls = jest
+        .fn()
+        .mockRejectedValue(new Error('Phishing detection failed'));
 
-      // Use setupController and pass the erroring mock
       const { nftController } = setupController({
         bulkScanUrlsMock: mockBulkScanUrls,
       });
 
-      // Mock console.error
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
-      // Create NFT with URLs
       const nftMetadata: NftMetadata = {
         name: 'Test NFT',
         description: 'Test description',
@@ -5253,27 +5252,308 @@ describe('NftController', () => {
         standard: ERC721,
       };
 
-      // Add NFT - should succeed even with phishing detection failure
       await nftController.addNft('0xtest', '1', {
         nftMetadata,
         userAddress: OWNER_ADDRESS,
       });
 
-      // Verify the bulk scan was called
       expect(mockBulkScanUrls).toHaveBeenCalled();
 
-      // Verify the error was logged
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         'Error during bulk URL scanning:',
-        expect.any(Error)
+        expect.any(Error),
       );
 
-      // Verify NFT was added with original URLs intact
-      const storedNft = nftController.state.allNfts[OWNER_ADDRESS][ChainId.mainnet][0];
+      const storedNft =
+        nftController.state.allNfts[OWNER_ADDRESS][ChainId.mainnet][0];
       expect(storedNft.image).toBe('http://example.com/image.png');
       expect(storedNft.externalLink).toBe('http://example.com');
 
       consoleErrorSpy.mockRestore();
+    });
+
+    it('should sanitize all URL fields when they contain malicious URLs', async () => {
+      const mockBulkScanUrls = jest.fn().mockResolvedValue({
+        results: {
+          'http://malicious-image.com/image.png': {
+            recommendedAction: RecommendedAction.Block,
+            'http://malicious-preview.com/preview.png': {
+              recommendedAction: RecommendedAction.Block,
+            },
+            'http://malicious-thumb.com/thumb.png': {
+              recommendedAction: RecommendedAction.Block,
+            },
+            'http://malicious-original.com/original.png': {
+              recommendedAction: RecommendedAction.Block,
+            },
+            'http://malicious-animation.com/animation.mp4': {
+              recommendedAction: RecommendedAction.Block,
+            },
+            'http://malicious-animation-orig.com/animation-orig.mp4': {
+              recommendedAction: RecommendedAction.Block,
+            },
+            'http://malicious-external.com': {
+              recommendedAction: RecommendedAction.Block,
+            },
+            'http://malicious-collection.com': {
+              recommendedAction: RecommendedAction.Block,
+            },
+          },
+        },
+      });
+
+      const { nftController } = setupController({
+        bulkScanUrlsMock: mockBulkScanUrls,
+      });
+
+      // Create NFT with malicious URLs in all possible fields
+      const nftWithAllMaliciousURLs: NftMetadata = {
+        name: 'NFT with all URL fields',
+        description: 'Testing all URL fields',
+        image: 'http://malicious-image.com/image.png',
+        imagePreview: 'http://malicious-preview.com/preview.png',
+        imageThumbnail: 'http://malicious-thumb.com/thumb.png',
+        imageOriginal: 'http://malicious-original.com/original.png',
+        animation: 'http://malicious-animation.com/animation.mp4',
+        animationOriginal:
+          'http://malicious-animation-orig.com/animation-orig.mp4',
+        externalLink: 'http://malicious-external.com',
+        standard: ERC721,
+        collection: {
+          id: 'collection-1',
+          name: 'Test Collection',
+          externalLink: 'http://malicious-collection.com',
+        } as Collection & { externalLink?: string },
+      };
+
+      await nftController.addNft('0xallmalicious', '1', {
+        nftMetadata: nftWithAllMaliciousURLs,
+        userAddress: OWNER_ADDRESS,
+      });
+
+      const storedNft =
+        nftController.state.allNfts[OWNER_ADDRESS][ChainId.mainnet][0];
+
+      // Verify all URL fields were sanitized
+      expect(storedNft.image).toBeUndefined();
+      expect(storedNft.imagePreview).toBeUndefined();
+      expect(storedNft.imageThumbnail).toBeUndefined();
+      expect(storedNft.imageOriginal).toBeUndefined();
+      expect(storedNft.animation).toBeUndefined();
+      expect(storedNft.animationOriginal).toBeUndefined();
+      expect(storedNft.externalLink).toBeUndefined();
+      expect(
+        (storedNft.collection as Collection & { externalLink?: string })
+          ?.externalLink,
+      ).toBeUndefined();
+
+      // Verify non-URL fields were preserved
+      expect(storedNft.name).toBe('NFT with all URL fields');
+      expect(storedNft.description).toBe('Testing all URL fields');
+      expect(storedNft.collection?.id).toBe('collection-1');
+      expect(storedNft.collection?.name).toBe('Test Collection');
+    });
+
+    it('should handle mixed safe and malicious URLs correctly', async () => {
+      const mockBulkScanUrls = jest.fn().mockResolvedValue({
+        results: {
+          'http://safe-image.com/image.png': {
+            recommendedAction: RecommendedAction.None,
+          },
+          'http://malicious-preview.com/preview.png': {
+            recommendedAction: RecommendedAction.Block,
+          },
+          'http://safe-external.com': {
+            recommendedAction: RecommendedAction.None,
+          },
+        },
+      });
+
+      const { nftController } = setupController({
+        bulkScanUrlsMock: mockBulkScanUrls,
+      });
+
+      const nftWithMixedURLs: NftMetadata = {
+        name: 'Mixed URLs NFT',
+        description: 'Some safe, some malicious',
+        image: 'http://safe-image.com/image.png',
+        imagePreview: 'http://malicious-preview.com/preview.png',
+        externalLink: 'http://safe-external.com',
+        standard: ERC721,
+      };
+
+      await nftController.addNft('0xmixed', '1', {
+        nftMetadata: nftWithMixedURLs,
+        userAddress: OWNER_ADDRESS,
+      });
+
+      const storedNft =
+        nftController.state.allNfts[OWNER_ADDRESS][ChainId.mainnet][0];
+
+      // Verify only malicious URLs were removed
+      expect(storedNft.image).toBe('http://safe-image.com/image.png');
+      expect(storedNft.imagePreview).toBeUndefined();
+      expect(storedNft.externalLink).toBe('http://safe-external.com');
+    });
+
+    it('should handle non-http URLs and edge cases', async () => {
+      const mockBulkScanUrls = jest.fn().mockResolvedValue({ results: {} });
+
+      const { nftController } = setupController({
+        bulkScanUrlsMock: mockBulkScanUrls,
+      });
+
+      const nftWithEdgeCases: NftMetadata = {
+        name: 'Edge case NFT',
+        description: 'Testing edge cases',
+        image: 'ipfs://QmTest123', // IPFS URL - should not be scanned
+        imagePreview: '', // Empty string
+        externalLink: 'https://secure-site.com', // HTTPS URL
+        standard: ERC721,
+      };
+
+      await nftController.addNft('0xedge', '1', {
+        nftMetadata: nftWithEdgeCases,
+        userAddress: OWNER_ADDRESS,
+      });
+
+      // Verify only HTTP(S) URLs were sent for scanning
+      expect(mockBulkScanUrls).toHaveBeenCalledWith([
+        'https://secure-site.com',
+      ]);
+
+      const storedNft =
+        nftController.state.allNfts[OWNER_ADDRESS][ChainId.mainnet][0];
+
+      // Verify all fields are preserved as-is
+      expect(storedNft.image).toBe('ipfs://QmTest123');
+      expect(storedNft.imagePreview).toBe('');
+      expect(storedNft.externalLink).toBe('https://secure-site.com');
+    });
+
+    it('should handle bulk sanitization with multiple NFTs efficiently', async () => {
+      let scanCallCount = 0;
+      const mockBulkScanUrls = jest.fn().mockImplementation(() => {
+        scanCallCount += 1;
+        return Promise.resolve({
+          results: {
+            'http://image-0.com/image.png': {
+              recommendedAction: RecommendedAction.None,
+            },
+            'http://external-0.com': {
+              recommendedAction: RecommendedAction.None,
+            },
+            'http://image-1.com/image.png': {
+              recommendedAction: RecommendedAction.None,
+            },
+            'http://external-1.com': {
+              recommendedAction: RecommendedAction.None,
+            },
+            'http://image-2.com/image.png': {
+              recommendedAction: RecommendedAction.None,
+            },
+            'http://external-2.com': {
+              recommendedAction: RecommendedAction.None,
+            },
+            'http://image-3.com/image.png': {
+              recommendedAction: RecommendedAction.None,
+            },
+            'http://external-3.com': {
+              recommendedAction: RecommendedAction.None,
+            },
+            'http://image-4.com/image.png': {
+              recommendedAction: RecommendedAction.None,
+            },
+            'http://external-4.com': {
+              recommendedAction: RecommendedAction.None,
+            },
+          },
+        });
+      });
+
+      const { nftController } = setupController({
+        bulkScanUrlsMock: mockBulkScanUrls,
+      });
+
+      // Add multiple NFTs in sequence
+      const nftCount = 5;
+      for (let i = 0; i < nftCount; i++) {
+        await nftController.addNft(`0x0${i}`, `${i}`, {
+          nftMetadata: {
+            name: `NFT ${i}`,
+            description: `Description ${i}`,
+            image: `http://image-${i}.com/image.png`,
+            externalLink: `http://external-${i}.com`,
+            standard: ERC721,
+          },
+          userAddress: OWNER_ADDRESS,
+        });
+      }
+
+      // Verify bulk scan was called once per NFT (not batched in this flow)
+      expect(scanCallCount).toBe(nftCount);
+
+      // Verify all NFTs were added successfully
+      const storedNfts =
+        nftController.state.allNfts[OWNER_ADDRESS][ChainId.mainnet];
+      expect(storedNfts).toHaveLength(nftCount);
+    });
+
+    it('should not call phishing detection when no HTTP URLs are present', async () => {
+      const mockBulkScanUrls = jest.fn();
+
+      const { nftController } = setupController({
+        bulkScanUrlsMock: mockBulkScanUrls,
+      });
+
+      const nftWithoutHttpUrls: NftMetadata = {
+        name: 'No HTTP URLs',
+        description: 'This NFT has no HTTP URLs',
+        image: 'ipfs://QmTest123',
+        standard: ERC721,
+      };
+
+      await nftController.addNft('0xnohttp', '1', {
+        nftMetadata: nftWithoutHttpUrls,
+        userAddress: OWNER_ADDRESS,
+      });
+
+      // Verify phishing detection was not called
+      expect(mockBulkScanUrls).not.toHaveBeenCalled();
+
+      const storedNft =
+        nftController.state.allNfts[OWNER_ADDRESS][ChainId.mainnet][0];
+      expect(storedNft.image).toBe('ipfs://QmTest123');
+    });
+
+    it('should handle collection without externalLink field', async () => {
+      const mockBulkScanUrls = jest.fn().mockResolvedValue({ results: {} });
+
+      const { nftController } = setupController({
+        bulkScanUrlsMock: mockBulkScanUrls,
+      });
+
+      const nftWithCollectionNoLink: NftMetadata = {
+        name: 'NFT with collection',
+        description: 'Collection without external link',
+        image: 'http://image.com/image.png',
+        standard: ERC721,
+        collection: {
+          id: 'collection-1',
+          name: 'Test Collection',
+          // No externalLink field
+        },
+      };
+
+      await nftController.addNft('0xcollection', '1', {
+        nftMetadata: nftWithCollectionNoLink,
+        userAddress: OWNER_ADDRESS,
+      });
+
+      // Should not throw error
+      expect(mockBulkScanUrls).toHaveBeenCalledWith([
+        'http://image.com/image.png',
+      ]);
     });
   });
 });
