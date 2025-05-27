@@ -1,11 +1,12 @@
 import { execFileSync, execSync } from 'node:child_process';
 import { arch } from 'node:os';
+
 import {
   type Checksums,
   type PlatformArchChecksums,
   Architecture,
-  Binary,
-  Platform,
+  type Binary,
+  type Platform,
 } from './types';
 
 /**
@@ -20,7 +21,7 @@ export const noop = () => undefined;
  * {@link Architecture} values.
  *
  * @param architecture - The architecture string to normalize (e.g., 'x64', 'arm64')
- * @returns
+ * @returns The normalized architecture value
  */
 export function normalizeSystemArchitecture(
   architecture: string = arch(),
@@ -58,7 +59,7 @@ export function say(message: string) {
 /**
  * Get the version of the binary at the given path.
  *
- * @param binPath
+ * @param binPath - Path to the binary executable
  * @returns The `--version` reported by the binary
  * @throws If the binary fails to report its version
  */
@@ -78,6 +79,12 @@ support your system. If you believe this is an error, please report it.`;
   }
 }
 
+/**
+ * Type guard to check if an error has a code property.
+ *
+ * @param error - The error to check
+ * @returns True if the error has a code property
+ */
 export function isCodedError(
   error: unknown,
 ): error is Error & { code: string } {
@@ -93,7 +100,7 @@ export function isCodedError(
  * @param checksums - The CLI checksum object
  * @param targetPlatform - The build platform
  * @param targetArch - The build architecture
- * @returns
+ * @returns Platform and architecture specific checksums or null if no checksums provided
  */
 export function transformChecksums(
   checksums: Checksums | undefined,
