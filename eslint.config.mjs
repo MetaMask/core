@@ -75,9 +75,11 @@ const config = createConfig([
     rules: {
       // TODO: Re-enable this
       'n/no-sync': 'off',
-      'n/no-unsupported-features/node-builtins': 'off',
+      // TODO: These rules created more errors after the upgrade to ESLint 9.
+      // Re-enable these rules and address any lint violations.
+      'n/no-unsupported-features/node-builtins': 'warn',
       'n/no-missing-import': 'off',
-      'n/no-restricted-import': 'off',  // Allow Node.js built-in module imports
+      'n/no-restricted-import': 'off', // Allow Node.js built-in module imports
     },
   },
   {
