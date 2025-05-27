@@ -13,10 +13,19 @@ import {
   Platform,
 } from './types';
 
+/**
+ * Type guard to check if a string is a valid version string starting with 'v'.
+ *
+ * @param value - The string to check
+ * @returns True if the string is a valid version string
+ */
 function isVersionString(value: string): value is `v${string}` {
   return /^v\d/u.test(value);
 }
 
+/**
+ * Prints the Foundry banner to the console.
+ */
 export function printBanner() {
   console.log(`
 .xOx.xOx.xOx.xOx.xOx.xOx.xOx.xOx.xOx.xOx.xOx.xOx.xOx.xOx.xOx.xOx.xOx.xOx
@@ -37,6 +46,12 @@ Contribute : https://github.com/orgs/foundry-rs/projects/2/
 `);
 }
 
+/**
+ * Parses command line arguments and returns the parsed options.
+ *
+ * @param args - Command line arguments to parse
+ * @returns Parsed command line arguments
+ */
 export function parseArgs(args: string[] = argv.slice(2)) {
   const { $0, _, ...parsed } = yargs()
     // Ensure unrecognized commands/options are reported as errors.
@@ -78,6 +93,13 @@ export function parseArgs(args: string[] = argv.slice(2)) {
 
 const Binaries = Object.values(Binary) as BinariesTuple;
 
+/**
+ * Returns the command line options configuration.
+ *
+ * @param defaultPlatform - Default platform to use
+ * @param defaultArch - Default architecture to use
+ * @returns Command line options configuration
+ */
 function getOptions(
   defaultPlatform = platform(),
   defaultArch = normalizeSystemArchitecture(),
