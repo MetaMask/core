@@ -1,5 +1,6 @@
 {
   "metamask/accounts-controller": "team-accounts",
+  "metamask/account-wallet-controller": "team-accounts",
   "metamask/address-book-controller": "team-confirmations",
   "metamask/announcement-controller": "team-wallet-ux",
   "metamask/app-metadata-controller": "team-mobile-platform",
