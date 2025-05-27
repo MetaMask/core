@@ -277,7 +277,7 @@ export class AccountWalletController extends BaseController<
     return {
       category: AccountWalletCategory.Keyring,
       id: toAccountWalletId(AccountWalletCategory.Keyring, type),
-      name: this.#getKeyringName(type),
+      name: this.#getKeyringName(type as KeyringTypes),
     };
   }
 
@@ -293,26 +293,36 @@ export class AccountWalletController extends BaseController<
     return snap.manifest.proposedName;
   }
 
-  #getKeyringName(type: string) {
-    if (!type) {
-      return 'Keyring'; // Should not happen if specificIdentifier is present
+  #getKeyringName(type: KeyringTypes) {
+    switch (type) {
+      case KeyringTypes.simple: {
+        return 'Private Keys';
+      }
+      case KeyringTypes.hd: {
+        return 'HD Wallet';
+      }
+      case KeyringTypes.trezor: {
+        return 'Trezor';
+      }
+      case KeyringTypes.oneKey: {
+        return 'OneKey';
+      }
+      case KeyringTypes.ledger: {
+        return 'Ledger';
+      }
+      case KeyringTypes.lattice: {
+        return 'Lattice';
+      }
+      case KeyringTypes.qr: {
+        return 'QR';
+      }
+      case KeyringTypes.snap: {
+        return 'Snap Wallet';
+      }
+      default: {
+        return 'Unknown';
+      }
     }
-
-    const lowerType = type.toLowerCase();
-    if (lowerType === KeyringTypes.hd.toLowerCase()) {
-      return 'HD Wallet';
-    }
-    if (lowerType === KeyringTypes.ledger.toLowerCase()) {
-      return 'Ledger';
-    }
-    if (lowerType === KeyringTypes.trezor.toLowerCase()) {
-      return 'Trezor';
-    }
-    if (lowerType === KeyringTypes.snap.toLowerCase()) {
-      return 'Snap Wallet';
-    }
-
-    return type.charAt(0).toUpperCase() + type.slice(1);
   }
 
   #getEntropySourceName(entropySource: string): string | undefined {
