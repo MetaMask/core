@@ -2,12 +2,13 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 
 import {
   AccountWalletCategory,
-  DEFAULT_SUB_GROUP,
   type AccountWalletControllerState,
   type AccountWalletId,
   type AccountWallet,
   type AccountGroupId,
-  type Metadata,
+  type AccountWalletMetadata,
+  type AccountGroupMetadata,
+  toDefaultAccountGroupId,
 } from './AccountWalletController';
 import { generateAccountWalletName, toAccountWalletsList } from './utils';
 
@@ -101,16 +102,18 @@ describe('toAccountWalletsList', () => {
     const walletId1 =
       `${AccountWalletCategory.Entropy}:gid1` as AccountWalletId;
     const walletId2 = `${AccountWalletCategory.Snap}:gid2` as AccountWalletId;
-    const groupId1_1: AccountGroupId = 'groupA';
-    const groupMetadata1: Metadata = { name: 'Group A Meta' };
-    const walletMetadata1: Metadata = { name: 'My Wallet Meta' };
-    const walletMetadata2: Metadata = { name: 'My Snap Meta' };
+    const walletId1Group: AccountGroupId = `${walletId1}:groupA`;
+    const groupMetadata1: AccountGroupMetadata = { name: 'Group A Meta' };
+    const walletMetadata1: AccountWalletMetadata = { name: 'My Wallet Meta' };
+    const walletMetadata2: AccountWalletMetadata = { name: 'My Snap Meta' };
 
     const state: AccountWalletControllerState = {
       accountWallets: {
         [walletId1]: {
+          id: walletId1,
           groups: {
-            [groupId1_1]: {
+            [walletId1Group]: {
+              id: walletId1Group,
               accounts: ['acc1', 'acc2'],
               metadata: groupMetadata1,
             },
@@ -118,6 +121,7 @@ describe('toAccountWalletsList', () => {
           metadata: walletMetadata1,
         },
         [walletId2]: {
+          id: walletId2,
           groups: {},
           metadata: walletMetadata2,
         },
@@ -127,7 +131,11 @@ describe('toAccountWalletsList', () => {
     const expectedWallet1: AccountWallet = {
       id: walletId1,
       groups: {
-        [groupId1_1]: { accounts: ['acc1', 'acc2'], metadata: groupMetadata1 },
+        [walletId1Group]: {
+          id: walletId1Group,
+          accounts: ['acc1', 'acc2'],
+          metadata: groupMetadata1,
+        },
       },
       metadata: walletMetadata1,
     };
@@ -143,21 +151,34 @@ describe('toAccountWalletsList', () => {
 
   it('should use generated names for wallet metadata if name is missing', async () => {
     const walletId1 = `${AccountWalletCategory.Entropy}:abc` as AccountWalletId;
+    const walletId1Group = toDefaultAccountGroupId(walletId1);
+    const walletId1GroupMetadata: AccountWalletMetadata = { name: '' };
     const walletId2 =
       `${AccountWalletCategory.Keyring}:${KeyringTypes.ledger}` as AccountWalletId;
-    const group1_meta: Metadata = { name: '' };
+    const walletId2Group = toDefaultAccountGroupId(walletId2);
+    const walletId2GroupMetadata: AccountWalletMetadata = { name: '' };
 
     const state: AccountWalletControllerState = {
       accountWallets: {
         [walletId1]: {
+          id: walletId1,
           groups: {
-            [DEFAULT_SUB_GROUP]: { accounts: ['acc1'], metadata: group1_meta },
+            [walletId1Group]: {
+              id: walletId1Group,
+              accounts: ['acc1'],
+              metadata: walletId1GroupMetadata,
+            },
           },
-          metadata: { name: undefined } as unknown as Metadata,
+          metadata: { name: undefined } as unknown as AccountWalletMetadata,
         },
         [walletId2]: {
+          id: walletId2,
           groups: {
-            [DEFAULT_SUB_GROUP]: { accounts: ['acc2'], metadata: group1_meta },
+            [walletId2Group]: {
+              id: walletId1Group,
+              accounts: ['acc2'],
+              metadata: walletId2GroupMetadata,
+            },
           },
           metadata: { name: 'Explicit Ledger Name' },
         },
@@ -170,12 +191,12 @@ describe('toAccountWalletsList', () => {
     const wallet2Result = result.find((w) => w.id === walletId2);
 
     expect(wallet1Result?.metadata.name).toBe('Wallet');
-    expect(wallet1Result?.groups[DEFAULT_SUB_GROUP].accounts).toStrictEqual([
+    expect(wallet1Result?.groups[walletId1Group].accounts).toStrictEqual([
       'acc1',
     ]);
 
     expect(wallet2Result?.metadata.name).toBe('Explicit Ledger Name');
-    expect(wallet2Result?.groups[DEFAULT_SUB_GROUP].accounts).toStrictEqual([
+    expect(wallet2Result?.groups[walletId2Group].accounts).toStrictEqual([
       'acc2',
     ]);
   });
@@ -183,11 +204,14 @@ describe('toAccountWalletsList', () => {
   it('should return wallets even if their groups are empty', async () => {
     const walletIdWithEmptyGroups =
       `${AccountWalletCategory.Entropy}:emptyGroupWallet` as AccountWalletId;
-    const walletMetadata: Metadata = { name: 'Wallet With Empty Groups' };
+    const walletMetadata: AccountWalletMetadata = {
+      name: 'Wallet With Empty Groups',
+    };
 
     const state: AccountWalletControllerState = {
       accountWallets: {
         [walletIdWithEmptyGroups]: {
+          id: walletIdWithEmptyGroups,
           groups: {},
           metadata: walletMetadata,
         },

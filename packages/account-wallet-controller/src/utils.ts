@@ -1,12 +1,12 @@
 import { KeyringTypes } from '@metamask/keyring-controller';
 
-import {
-  AccountWalletCategory,
-  type AccountWallet,
-  type AccountWalletControllerState,
-  type AccountWalletId,
-  type Metadata,
+import type {
+  AccountWalletMetadata,
+  AccountWallet,
+  AccountWalletControllerState,
+  AccountWalletId,
 } from './AccountWalletController';
+import { AccountWalletCategory } from './AccountWalletController';
 
 /**
  * Formats a keyring type string into a more presentable name.
@@ -83,7 +83,7 @@ export async function toAccountWalletsList(
     (acc, [walletId, walletInstance]) => {
       const id = walletId as AccountWalletId;
 
-      const outputMetadata: Metadata = {
+      const outputMetadata: AccountWalletMetadata = {
         ...walletInstance.metadata,
         name: walletInstance.metadata?.name ?? generateAccountWalletName(id),
       };

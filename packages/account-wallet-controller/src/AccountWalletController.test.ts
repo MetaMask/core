@@ -12,7 +12,6 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import {
   AccountWalletController,
   AccountWalletCategory,
-  DEFAULT_SUB_GROUP,
   getDefaultAccountWalletControllerState,
   type AccountWalletControllerMessenger,
   type AccountWalletControllerActions,
@@ -20,7 +19,9 @@ import {
   type AccountWalletControllerState,
   type AllowedActions,
   type AllowedEvents,
-  type Metadata,
+  type AccountGroupMetadata,
+  toDefaultAccountGroupId,
+  DEFAULT_ACCOUNT_GROUP_NAME,
 } from './AccountWalletController';
 import { generateAccountWalletName } from './utils';
 
@@ -197,16 +198,27 @@ describe('AccountWalletController', () => {
       await controller.updateAccountWallets();
 
       const expectedWalletId1 = `${AccountWalletCategory.Entropy}:mock-keyring-id-1`;
+      const expectedWalletId1Group = toDefaultAccountGroupId(expectedWalletId1);
       const expectedWalletId2 = `${AccountWalletCategory.Entropy}:mock-keyring-id-2`;
+      const expectedWalletId2Group = toDefaultAccountGroupId(expectedWalletId2);
       const expectedSnapWalletId = `${AccountWalletCategory.Snap}:mock-snap-id-2`;
+      const expectedSnapWalletIdGroup =
+        toDefaultAccountGroupId(expectedSnapWalletId);
       const expectedKeyringWalletId = `${AccountWalletCategory.Keyring}:${KeyringTypes.ledger}`;
+      const expectedKeyringWalletIdGroup = toDefaultAccountGroupId(
+        expectedKeyringWalletId,
+      );
 
-      const mockDefaultGroupMetadata: Metadata = { name: '' };
+      const mockDefaultGroupMetadata: AccountGroupMetadata = {
+        name: DEFAULT_ACCOUNT_GROUP_NAME,
+      };
 
       expect(controller.state.accountWallets).toStrictEqual({
         [expectedWalletId1]: {
+          id: expectedWalletId1,
           groups: {
-            [DEFAULT_SUB_GROUP]: {
+            [expectedWalletId1Group]: {
+              id: expectedWalletId1Group,
               accounts: [MOCK_HD_ACCOUNT_1.id],
               metadata: mockDefaultGroupMetadata,
             },
@@ -214,8 +226,10 @@ describe('AccountWalletController', () => {
           metadata: { name: 'Wallet 1' },
         },
         [expectedWalletId2]: {
+          id: expectedWalletId2,
           groups: {
-            [DEFAULT_SUB_GROUP]: {
+            [expectedWalletId2Group]: {
+              id: expectedWalletId2Group,
               accounts: [MOCK_HD_ACCOUNT_2.id, MOCK_SNAP_ACCOUNT_1.id],
               metadata: mockDefaultGroupMetadata,
             },
@@ -223,8 +237,10 @@ describe('AccountWalletController', () => {
           metadata: { name: 'Wallet 2' },
         },
         [expectedSnapWalletId]: {
+          id: expectedSnapWalletId,
           groups: {
-            [DEFAULT_SUB_GROUP]: {
+            [expectedSnapWalletIdGroup]: {
+              id: expectedSnapWalletIdGroup,
               accounts: [MOCK_SNAP_ACCOUNT_2.id],
               metadata: mockDefaultGroupMetadata,
             },
@@ -232,8 +248,10 @@ describe('AccountWalletController', () => {
           metadata: { name: generateAccountWalletName(expectedSnapWalletId) },
         },
         [expectedKeyringWalletId]: {
+          id: expectedKeyringWalletId,
           groups: {
-            [DEFAULT_SUB_GROUP]: {
+            [expectedKeyringWalletIdGroup]: {
+              id: expectedKeyringWalletIdGroup,
               accounts: [MOCK_HARDWARE_ACCOUNT_1.id],
               metadata: mockDefaultGroupMetadata,
             },
@@ -266,9 +284,10 @@ describe('AccountWalletController', () => {
         "! Found an HD account with no entropy source: account won't be associated to its wallet",
       );
       const expectedKeyringWalletId = `${AccountWalletCategory.Keyring}:${KeyringTypes.hd}`;
+      const expectedGroupId = toDefaultAccountGroupId(expectedKeyringWalletId);
       expect(
         controller.state.accountWallets[expectedKeyringWalletId]?.groups[
-          DEFAULT_SUB_GROUP
+          expectedGroupId
         ]?.accounts,
       ).toContain(mockHdAccountWithoutEntropy.id);
       consoleWarnSpy.mockRestore();

@@ -13,7 +13,7 @@ import {
 } from '@metamask/base-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import cloneDeep from 'lodash/cloneDeep';
+import { cloneDeep } from 'lodash';
 
 import { generateAccountWalletName } from './utils';
 
@@ -26,35 +26,43 @@ export enum AccountWalletCategory {
   Default = 'default', // TODO: Remove `default` once we have multichain accounts.
 }
 
-export type AccountWalletId = `${AccountWalletCategory}:${string}` | string;
-export type AccountGroupId = string;
+type AccountWalletRuleMatch = {
+  id: string;
+  category: AccountWalletCategory;
+};
+
+export type AccountWalletId = `${AccountWalletCategory}:${string}`;
+export type AccountGroupId = `${AccountWalletId}:${string}`;
+
+// Do not export this one, we just use it to have a common type interface between group and wallet metadata.
+type Metadata = {
+  name: string;
+};
+
+export type AccountWalletMetadata = Metadata;
+
+export type AccountGroupMetadata = Metadata;
 
 export type AccountGroup = {
-  accounts: AccountId[]; // Blockchain Accounts
-  metadata: Metadata; // Assuming Metadata is a defined type
+  id: AccountGroupId;
+  // Blockchain Accounts:
+  accounts: AccountId[];
+  metadata: AccountGroupMetadata;
 };
 
 export type AccountWallet = {
   id: AccountWalletId;
+  // Account groups OR Multichain accounts (once avaialble).
   groups: {
     [accountGroup: AccountGroupId]: AccountGroup;
   };
-  metadata: Metadata; // Assuming Metadata is a defined type
+  metadata: AccountGroupMetadata; // Assuming Metadata is a defined type
 };
 
 export type AccountWalletControllerState = {
   accountWallets: {
-    // Wallet
-    [accountWallet: AccountWalletId]: {
-      // Multichain Account OR Account Group
-      groups: {
-        [accountGroup: AccountGroupId]: {
-          accounts: AccountId[]; // Blockchain Accounts
-          metadata: Metadata; // Assuming Metadata is a defined type
-        };
-      };
-      metadata: Metadata; // Assuming Metadata is a defined type
-    };
+    // Wallets:
+    [accountWallet: AccountWalletId]: AccountWallet;
   };
 };
 
@@ -109,20 +117,47 @@ export function getDefaultAccountWalletControllerState(): AccountWalletControlle
 }
 
 // TODO: For now we use this for the 2nd-level of the tree until we implements proper multichain accounts.
-export const DEFAULT_SUB_GROUP = 'default:default'; // This might need to be re-evaluated based on new structure
+export const DEFAULT_ACCOUNT_GROUP_UNIQUE_ID: string = 'default'; // This might need to be re-evaluated based on new structure
+export const DEFAULT_ACCOUNT_GROUP_NAME: string = 'Default';
 
 /**
- * Cast a generic ID to a wallet ID.
+ * Convert a unique ID to a wallet ID for a given category.
  *
  * @param category - The category of the wallet.
- * @param id - The ID of the wallet.
+ * @param id - The unique ID.
  * @returns The wallet ID.
  */
-function toAccountWalletId(
+export function toAccountWalletId(
   category: AccountWalletCategory,
-  id: string | undefined,
-): AccountWalletId | undefined {
-  return id ? `${category}:${id}` : undefined;
+  id: string,
+): AccountWalletId {
+  return `${category}:${id}`;
+}
+
+/**
+ * Convert a wallet ID and a unique ID to a group ID.
+ *
+ * @param walletId - The wallet ID.
+ * @param id - The unique ID.
+ * @returns The group ID.
+ */
+export function toAccountGroupId(
+  walletId: AccountWalletId,
+  id: string,
+): AccountGroupId {
+  return `${walletId}:${id}`;
+}
+
+/**
+ * Convert a wallet ID to the default group ID.
+ *
+ * @param walletId - The wallet ID.
+ * @returns The default group ID.
+ */
+export function toDefaultAccountGroupId(
+  walletId: AccountWalletId,
+): AccountGroupId {
+  return toAccountGroupId(walletId, DEFAULT_ACCOUNT_GROUP_UNIQUE_ID);
 }
 
 export class AccountWalletController extends BaseController<
@@ -159,7 +194,9 @@ export class AccountWalletController extends BaseController<
     return account.metadata.keyring.type === (type as string);
   }
 
-  #getEntropySource(account: InternalAccount): string | undefined {
+  #getEntropySource(
+    account: InternalAccount,
+  ): AccountWalletRuleMatch | undefined {
     if (this.#hasKeyringType(account, KeyringTypes.hd)) {
       // TODO: Maybe use superstruct to validate the structure of HD account since they are not strongly-typed for now?
       if (!account.options.entropySource) {
@@ -169,7 +206,10 @@ export class AccountWalletController extends BaseController<
         return undefined;
       }
 
-      return account.options.entropySource as string;
+      return {
+        category: AccountWalletCategory.Entropy,
+        id: account.options.entropySource as string,
+      };
     }
 
     // TODO: For now, we're not checking if the Snap is a preinstalled one, and we probably should...
@@ -182,27 +222,38 @@ export class AccountWalletController extends BaseController<
 
       if (entropySource) {
         // We blindly trust the `entropySource` for now, but it could be wrong since it comes from a Snap.
-        return entropySource as string;
+        return {
+          category: AccountWalletCategory.Entropy,
+          id: entropySource as string,
+        };
       }
     }
 
     return undefined;
   }
 
-  #getSnapId(account: InternalAccount): AccountWalletId | undefined {
+  #getSnapId(account: InternalAccount): AccountWalletRuleMatch | undefined {
     if (
       this.#hasKeyringType(account, KeyringTypes.snap) &&
       account.metadata.snap &&
       account.metadata.snap.enabled
     ) {
-      return account.metadata.snap.id;
+      return {
+        category: AccountWalletCategory.Snap,
+        id: account.metadata.snap.id,
+      };
     }
 
     return undefined;
   }
 
-  #getWalletType(account: InternalAccount): AccountWalletId | undefined {
-    return account.metadata.keyring.type as string;
+  #getKeyringType(
+    account: InternalAccount,
+  ): AccountWalletRuleMatch | undefined {
+    return {
+      category: AccountWalletCategory.Keyring,
+      id: account.metadata.keyring.type as string,
+    };
   }
 
   #assignUniqueWalletNames(
@@ -240,53 +291,46 @@ export class AccountWalletController extends BaseController<
   async updateAccountWallets(): Promise<void> {
     const rules = [
       // 1. We group by entropy-source
-      {
-        category: AccountWalletCategory.Entropy,
-        rule: (account: InternalAccount) => this.#getEntropySource(account),
-      },
+      (account: InternalAccount) => this.#getEntropySource(account),
       // 2. We group by Snap ID
-      {
-        category: AccountWalletCategory.Snap,
-        rule: (account: InternalAccount) => this.#getSnapId(account),
-      },
+      (account: InternalAccount) => this.#getSnapId(account),
       // 3. We group by wallet type
-      {
-        category: AccountWalletCategory.Keyring,
-        rule: (account: InternalAccount) => this.#getWalletType(account),
-      },
+      (account: InternalAccount) => this.#getKeyringType(account),
     ];
-    const initialWallets: AccountGroupsMetadata = {};
+
+    const wallets: AccountWalletControllerState['accountWallets'] = {};
 
     for (const account of this.#listAccounts()) {
-      for (const { category, rule } of rules) {
-        const walletId = toAccountWalletId(
-          category,
-          rule(account) ?? undefined,
-        );
+      for (const rule of rules) {
+        const match = rule(account);
 
-        if (!walletId) {
+        if (!match) {
+          // No match for that rule, we go to the next one.
           continue;
         }
 
-        if (!initialWallets[walletId]) {
-          initialWallets[walletId] = {
+        const walletId = toAccountWalletId(match.category, match.id);
+        const groupId = toDefaultAccountGroupId(walletId); // Use a single-group for now until multichain accounts is supported.
+        if (!wallets[walletId]) {
+          wallets[walletId] = {
+            id: walletId,
             groups: {
-              [DEFAULT_SUB_GROUP]: {
+              [groupId]: {
+                id: groupId,
                 accounts: [],
-                metadata: { name: '' },
+                metadata: { name: DEFAULT_ACCOUNT_GROUP_NAME },
               },
             },
             metadata: { name: generateAccountWalletName(walletId) },
           };
         }
-        initialWallets[walletId].groups[DEFAULT_SUB_GROUP].accounts.push(
-          account.id,
-        );
+        wallets[walletId].groups[groupId].accounts.push(account.id);
         break;
       }
     }
 
-    const finalWallets = this.#assignUniqueWalletNames(initialWallets);
+    // TODO: We might want to compute unique name in a more deterministic way!
+    const finalWallets = this.#assignUniqueWalletNames(wallets);
 
     this.update((state) => {
       state.accountWallets = finalWallets;
@@ -299,7 +343,3 @@ export class AccountWalletController extends BaseController<
     ) as InternalAccount[];
   }
 }
-
-export type Metadata = {
-  name: string;
-};
