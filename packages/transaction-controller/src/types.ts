@@ -488,6 +488,21 @@ export type TransactionMeta = {
     error: string;
     message: string;
   };
+
+  /**
+   * The signature of the swap.
+   */
+  signature?: string;
+
+  /**
+   * The expiration time of the swap signature.
+   */
+  sigExpiration?: number;
+
+  /**
+   * The API data of the swap.
+   */
+  apiData?: string;
 };
 
 export type SendFlowHistoryEntry = {

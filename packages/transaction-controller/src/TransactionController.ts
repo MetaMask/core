@@ -1119,6 +1119,9 @@ export class TransactionController extends BaseController<
       };
       traceContext?: unknown;
       type?: TransactionType;
+      signature?: string;
+      sigExpiration?: number;
+      apiData?: string;
     },
   ): Promise<Result> {
     log('Adding transaction', txParams, options);
@@ -1139,6 +1142,9 @@ export class TransactionController extends BaseController<
       swaps = {},
       traceContext,
       type,
+      signature,
+      sigExpiration,
+      apiData,
     } = options;
 
     txParams = normalizeTransactionParams(txParams);
@@ -1236,6 +1242,9 @@ export class TransactionController extends BaseController<
           type: transactionType,
           userEditedGasLimit: false,
           verifiedOnBlockchain: false,
+          signature,
+          sigExpiration,
+          apiData,
         };
 
     const { updateTransaction } = await this.#afterAdd({
