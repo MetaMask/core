@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- StaticIntervalPollingController now allows to set duration to key ([#5683](https://github.com/MetaMask/core/pull/5683))
+- StaticIntervalPollingController now allows starting a poll that will automatically stop after a given duration ([#5683](https://github.com/MetaMask/core/pull/5683))
 
 ### Changed
 
