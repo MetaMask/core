@@ -28,8 +28,9 @@ export enum AccountWalletCategory {
 }
 
 type AccountWalletRuleMatch = {
-  id: string;
   category: AccountWalletCategory;
+  id: AccountWalletId;
+  name: string;
 };
 
 export type AccountWalletId = `${AccountWalletCategory}:${string}`;
@@ -220,6 +221,8 @@ export class AccountWalletController extends BaseController<
   #matchGroupByEntropySource(
     account: InternalAccount,
   ): AccountWalletRuleMatch | undefined {
+    let entropySource: string | undefined;
+
     if (this.#hasKeyringType(account, KeyringTypes.hd)) {
       // TODO: Maybe use superstruct to validate the structure of HD account since they are not strongly-typed for now?
       if (!account.options.entropySource) {
@@ -229,10 +232,7 @@ export class AccountWalletController extends BaseController<
         return undefined;
       }
 
-      return {
-        category: AccountWalletCategory.Entropy,
-        id: account.options.entropySource as string,
-      };
+      entropySource = account.options.entropySource as string;
     }
 
     // TODO: For now, we're not checking if the Snap is a preinstalled one, and we probably should...
@@ -241,18 +241,31 @@ export class AccountWalletController extends BaseController<
       account.metadata.snap?.enabled
     ) {
       // Not all Snaps have an entropy-source and options are not typed yet, so we have to check manually here.
-      const { entropySource } = account.options;
-
-      if (entropySource) {
+      if (account.options.entropySource) {
         // We blindly trust the `entropySource` for now, but it could be wrong since it comes from a Snap.
-        return {
-          category: AccountWalletCategory.Entropy,
-          id: entropySource as string,
-        };
+        entropySource = account.options.entropySource as string;
       }
     }
 
-    return undefined;
+    if (!entropySource) {
+      return undefined;
+    }
+
+    // We check if we can get the name for that entropy source, if not this means this entropy does not match
+    // any HD keyrings, thus, is invalid (this account will be grouped by another rule).
+    const entropySourceName = this.#getEntropySourceName(entropySource);
+    if (!entropySourceName) {
+      console.warn(
+        '! Tried to name a wallet using an unknown entropy, this should not be possible.',
+      );
+      return undefined;
+    }
+
+    return {
+      category: AccountWalletCategory.Entropy,
+      id: toAccountWalletId(AccountWalletCategory.Entropy, entropySource),
+      name: entropySourceName,
+    };
   }
 
   #matchGroupBySnapId(
@@ -263,9 +276,12 @@ export class AccountWalletController extends BaseController<
       account.metadata.snap &&
       account.metadata.snap.enabled
     ) {
+      const { id } = account.metadata.snap;
+
       return {
         category: AccountWalletCategory.Snap,
-        id: account.metadata.snap.id,
+        id: toAccountWalletId(AccountWalletCategory.Snap, id),
+        name: this.#getSnapName(id as SnapId),
       };
     }
 
@@ -275,9 +291,12 @@ export class AccountWalletController extends BaseController<
   #matchGroupByKeyringType(
     account: InternalAccount,
   ): AccountWalletRuleMatch | undefined {
+    const { type } = account.metadata.keyring;
+
     return {
       category: AccountWalletCategory.Keyring,
-      id: account.metadata.keyring.type as string,
+      id: toAccountWalletId(AccountWalletCategory.Keyring, type),
+      name: this.#getKeyringName(type),
     };
   }
 
@@ -315,7 +334,7 @@ export class AccountWalletController extends BaseController<
     return type.charAt(0).toUpperCase() + type.slice(1);
   }
 
-  #getEntropySourceName(entropySource: string): string {
+  #getEntropySourceName(entropySource: string): string | undefined {
     const { keyrings } = this.messagingSystem.call(
       'KeyringController:getState',
     );
@@ -325,31 +344,10 @@ export class AccountWalletController extends BaseController<
       .findIndex((keyring) => keyring.metadata.id === entropySource);
 
     if (index === -1) {
-      console.warn(
-        '! Tried to name a wallet using an unknown entropy, this should not be possible.',
-      );
-      return `Wallet (unknown - ${entropySource})`; // Do we really want to use the entropy-source id for user-facing names?
+      return undefined;
     }
 
     return `Wallet ${index + 1}`; // Use human indexing.
-  }
-
-  #getWalletName(walletId: AccountWalletId): string {
-    const { category, id } = parseWalletId(walletId);
-
-    switch (category) {
-      case AccountWalletCategory.Default:
-        return 'Default';
-      case AccountWalletCategory.Entropy:
-        return this.#getEntropySourceName(id);
-      case AccountWalletCategory.Keyring:
-        return this.#getKeyringName(id);
-      case AccountWalletCategory.Snap:
-        return this.#getSnapName(id as SnapId);
-      default:
-    }
-
-    return id;
   }
 
   async updateAccountWallets(): Promise<void> {
@@ -373,8 +371,10 @@ export class AccountWalletController extends BaseController<
           continue;
         }
 
-        const walletId = toAccountWalletId(match.category, match.id);
+        const walletId = match.id;
+        const walletName = match.name;
         const groupId = toDefaultAccountGroupId(walletId); // Use a single-group for now until multichain accounts is supported.
+        const groupName = DEFAULT_ACCOUNT_GROUP_NAME;
 
         if (!wallets[walletId]) {
           wallets[walletId] = {
@@ -383,11 +383,11 @@ export class AccountWalletController extends BaseController<
               [groupId]: {
                 id: groupId,
                 accounts: [],
-                metadata: { name: DEFAULT_ACCOUNT_GROUP_NAME },
+                metadata: { name: groupName },
               },
             },
             metadata: {
-              name: this.#getWalletName(walletId),
+              name: walletName,
             },
           };
         }

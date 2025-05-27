@@ -390,7 +390,7 @@ describe('AccountWalletController', () => {
       ).toContain(mockSnapAccountWithEntropy.id);
     });
 
-    it('fallback to unique names when entropy cannot be found', async () => {
+    it('fallback to HD keyring category if entropy sources cannot be found', async () => {
       const { controller, messenger } = setup({});
       // Create entropy wallets that will both get "Wallet" as base name, then get numbered
       const mockHdAccount1: InternalAccount = {
@@ -405,29 +405,30 @@ describe('AccountWalletController', () => {
         'AccountsController:listMultichainAccounts',
         () => [mockHdAccount1, mockHdAccount2],
       );
-      // Return empty keyrings so the entropy wallets don't get "Wallet X" names
       messenger.registerActionHandler('KeyringController:getState', () => ({
         isUnlocked: true,
-        keyrings: [],
+        keyrings: [], // Entropy sources won't be found.
       }));
 
       await controller.updateAccountWallets();
 
+      // Since no entropy sources will be found, it will be categorized as a
+      // "Keyring" wallet
       const wallet1Id = toAccountWalletId(
-        AccountWalletCategory.Entropy,
-        MOCK_HD_KEYRING_1.metadata.id,
+        AccountWalletCategory.Keyring,
+        mockHdAccount1.metadata.keyring.type,
       );
       const wallet2Id = toAccountWalletId(
-        AccountWalletCategory.Entropy,
-        MOCK_HD_KEYRING_2.metadata.id,
+        AccountWalletCategory.Keyring,
+        mockHdAccount1.metadata.keyring.type,
       );
 
       // FIXME: Do we really want this behavior?
       expect(controller.state.accountWallets[wallet1Id]?.metadata.name).toBe(
-        `Wallet (unknown - ${MOCK_HD_KEYRING_1.metadata.id})`,
+        'HD Wallet',
       );
       expect(controller.state.accountWallets[wallet2Id]?.metadata.name).toBe(
-        `Wallet (unknown - ${MOCK_HD_KEYRING_2.metadata.id})`,
+        'HD Wallet',
       );
     });
   });
