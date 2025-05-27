@@ -18,6 +18,8 @@ import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controlle
 import type { SnapId } from '@metamask/snaps-sdk';
 import { stripSnapPrefix } from '@metamask/snaps-utils';
 
+import { getWalletNameFromKeyringType } from './names';
+
 const controllerName = 'AccountWalletController';
 
 export enum AccountWalletCategory {
@@ -195,6 +197,13 @@ export class AccountWalletController extends BaseController<
     });
   }
 
+  async init(): Promise<void> {
+    const wallets = {};
+
+    // For now, we always re-compute all wallets, we do not re-use the existing state.
+    await this.#update(wallets);
+  }
+
   #hasKeyringType(account: InternalAccount, type: KeyringTypes): boolean {
     return account.metadata.keyring.type === (type as string);
   }
@@ -277,52 +286,19 @@ export class AccountWalletController extends BaseController<
     return {
       category: AccountWalletCategory.Keyring,
       id: toAccountWalletId(AccountWalletCategory.Keyring, type),
-      name: this.#getKeyringName(type as KeyringTypes),
+      name: getWalletNameFromKeyringType(type as KeyringTypes),
     };
   }
 
   #getSnapName(snapId: SnapId): string {
     const snap = this.messagingSystem.call('SnapController:get', snapId);
+    const snapName = snap
+      ? // TODO: Handle localization here, but that's a "client thing", so we don't have a `core` controller
+        // to refer too.
+        snap.manifest.proposedName
+      : stripSnapPrefix(snapId);
 
-    if (!snap) {
-      return stripSnapPrefix(snapId);
-    }
-
-    // TODO: Handle localization here, but that's a "client thing", so we don't have a `core` controller
-    // to refer too.
-    return snap.manifest.proposedName;
-  }
-
-  #getKeyringName(type: KeyringTypes) {
-    switch (type) {
-      case KeyringTypes.simple: {
-        return 'Private Keys';
-      }
-      case KeyringTypes.hd: {
-        return 'HD Wallet';
-      }
-      case KeyringTypes.trezor: {
-        return 'Trezor';
-      }
-      case KeyringTypes.oneKey: {
-        return 'OneKey';
-      }
-      case KeyringTypes.ledger: {
-        return 'Ledger';
-      }
-      case KeyringTypes.lattice: {
-        return 'Lattice';
-      }
-      case KeyringTypes.qr: {
-        return 'QR';
-      }
-      case KeyringTypes.snap: {
-        return 'Snap Wallet';
-      }
-      default: {
-        return 'Unknown';
-      }
-    }
+    return `Snap: ${snapName}`;
   }
 
   #getEntropySourceName(entropySource: string): string | undefined {
@@ -341,7 +317,9 @@ export class AccountWalletController extends BaseController<
     return `Wallet ${index + 1}`; // Use human indexing.
   }
 
-  async updateAccountWallets(): Promise<void> {
+  async #update(
+    wallets: AccountWalletControllerState['accountWallets'],
+  ): Promise<void> {
     const rules = [
       // 1. We group by entropy-source
       (account: InternalAccount) => this.#matchGroupByEntropySource(account),
@@ -350,8 +328,6 @@ export class AccountWalletController extends BaseController<
       // 3. We group by wallet type
       (account: InternalAccount) => this.#matchGroupByKeyringType(account),
     ];
-
-    const wallets: AccountWalletControllerState['accountWallets'] = {};
 
     for (const account of this.#listAccounts()) {
       let grouped = false;

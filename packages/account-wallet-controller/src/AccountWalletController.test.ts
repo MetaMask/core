@@ -25,7 +25,7 @@ import {
   DEFAULT_ACCOUNT_GROUP_NAME,
   toAccountWalletId,
 } from './AccountWalletController';
-import { generateAccountWalletName } from './utils';
+import { getWalletNameFromKeyringType } from './names';
 
 type DeepPartial<T> = { [P in keyof T]?: DeepPartial<T[P]> };
 
@@ -39,7 +39,7 @@ const ETH_EOA_METHODS = [
 ] as const;
 
 const MOCK_SNAP_1 = {
-  id: 'mock-snap-id-1',
+  id: 'local:mock-snap-id-1',
   name: 'Mock Snap 1',
   enabled: true,
   manifest: {
@@ -48,7 +48,7 @@ const MOCK_SNAP_1 = {
 };
 
 const MOCK_SNAP_2 = {
-  id: 'mock-snap-id-2',
+  id: 'local:mock-snap-id-2',
   name: 'Mock Snap 2',
   enabled: true,
   manifest: {
@@ -217,7 +217,7 @@ function setup({
 }
 
 describe('AccountWalletController', () => {
-  describe('updateAccountWallets', () => {
+  describe('init', () => {
     it('groups accounts by entropy source, then snapId, then wallet type', async () => {
       const { controller, messenger } = setup({});
       messenger.registerActionHandler(
@@ -243,7 +243,7 @@ describe('AccountWalletController', () => {
           >,
       );
 
-      await controller.updateAccountWallets();
+      await controller.init();
 
       const expectedWalletId1 = toAccountWalletId(
         AccountWalletCategory.Entropy,
@@ -302,7 +302,7 @@ describe('AccountWalletController', () => {
               metadata: mockDefaultGroupMetadata,
             },
           },
-          metadata: { name: MOCK_SNAP_1.manifest.proposedName },
+          metadata: { name: `Snap: ${MOCK_SNAP_1.manifest.proposedName}` },
         },
         [expectedKeyringWalletId]: {
           id: expectedKeyringWalletId,
@@ -314,7 +314,9 @@ describe('AccountWalletController', () => {
             },
           },
           metadata: {
-            name: generateAccountWalletName(expectedKeyringWalletId),
+            name: getWalletNameFromKeyringType(
+              MOCK_HARDWARE_ACCOUNT_1.metadata.keyring.type as KeyringTypes,
+            ),
           },
         },
       });
@@ -339,7 +341,7 @@ describe('AccountWalletController', () => {
         keyrings: [],
       }));
 
-      await controller.updateAccountWallets();
+      await controller.init();
 
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         "! Found an HD account with no entropy source: account won't be associated to its wallet",
@@ -376,7 +378,7 @@ describe('AccountWalletController', () => {
         keyrings: [MOCK_HD_KEYRING_2],
       }));
 
-      await controller.updateAccountWallets();
+      await controller.init();
 
       const expectedWalletId = toAccountWalletId(
         AccountWalletCategory.Entropy,
@@ -388,6 +390,33 @@ describe('AccountWalletController', () => {
           expectedGroupId
         ]?.accounts,
       ).toContain(mockSnapAccountWithEntropy.id);
+    });
+
+    it('fallback to Snap ID if Snap cannot be found', async () => {
+      const { controller, messenger } = setup({});
+      messenger.registerActionHandler(
+        'AccountsController:listMultichainAccounts',
+        () => [MOCK_SNAP_ACCOUNT_1],
+      );
+      messenger.registerActionHandler('KeyringController:getState', () => ({
+        isUnlocked: true,
+        keyrings: [],
+      }));
+      messenger.registerActionHandler('SnapController:get', () => undefined); // Snap won't be found.
+
+      await controller.init();
+
+      // Since no entropy sources will be found, it will be categorized as a
+      // "Keyring" wallet
+      const wallet1Id = toAccountWalletId(
+        AccountWalletCategory.Snap,
+        MOCK_SNAP_1.id,
+      );
+
+      // FIXME: Do we really want this behavior?
+      expect(controller.state.accountWallets[wallet1Id]?.metadata.name).toBe(
+        'Snap: mock-snap-id-1',
+      );
     });
 
     it('fallback to HD keyring category if entropy sources cannot be found', async () => {
@@ -410,7 +439,7 @@ describe('AccountWalletController', () => {
         keyrings: [], // Entropy sources won't be found.
       }));
 
-      await controller.updateAccountWallets();
+      await controller.init();
 
       // Since no entropy sources will be found, it will be categorized as a
       // "Keyring" wallet
