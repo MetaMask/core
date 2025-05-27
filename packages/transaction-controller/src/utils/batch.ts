@@ -389,7 +389,6 @@ async function addTransactionBatchWithHook(
     origin,
     requireApproval,
     transactions: nestedTransactions,
-    useHook,
   } = userRequest;
 
   let resultCallbacks: AcceptResultCallbacks | undefined;
@@ -423,7 +422,7 @@ async function addTransactionBatchWithHook(
   const transactionCount = nestedTransactions.length;
   const collectHook = new CollectPublishHook(transactionCount);
   try {
-    if (requireApproval && useHook) {
+    if (requireApproval) {
       const txBatchMeta = newBatchMetadata({
         id: batchId,
         chainId,

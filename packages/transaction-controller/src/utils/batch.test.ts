@@ -736,7 +736,7 @@ describe('Batch Utils', () => {
           addTransactionBatch({
             ...request,
             publishBatchHook,
-            request: { ...request.request, origin },
+            request: { ...request.request, origin, disable7702: true },
           }).catch(() => {
             // Intentionally empty
           });
@@ -1381,7 +1381,7 @@ describe('Batch Utils', () => {
           ...request,
           publishBatchHook: undefined,
           messenger: MESSENGER_MOCK,
-          request: { ...request.request, origin: ORIGIN_MOCK },
+          request: { ...request.request, origin: ORIGIN_MOCK, disable7702: true },
         }).catch(() => {
           // Intentionally empty
         });
@@ -1422,6 +1422,7 @@ describe('Batch Utils', () => {
           request: {
             ...request.request,
             origin: ORIGIN_MOCK,
+            disable7702: true,
           },
         }).catch(() => {
           // Intentionally empty
