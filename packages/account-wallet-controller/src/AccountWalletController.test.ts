@@ -8,6 +8,7 @@ import {
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
 
 import {
   AccountWalletController,
@@ -22,6 +23,7 @@ import {
   type AccountGroupMetadata,
   toDefaultAccountGroupId,
   DEFAULT_ACCOUNT_GROUP_NAME,
+  toAccountWalletId,
 } from './AccountWalletController';
 import { generateAccountWalletName } from './utils';
 
@@ -36,10 +38,40 @@ const ETH_EOA_METHODS = [
   EthMethod.SignTypedDataV4,
 ] as const;
 
+const MOCK_SNAP_1 = {
+  id: 'mock-snap-id-1',
+  name: 'Mock Snap 1',
+  enabled: true,
+  manifest: {
+    proposedName: 'Mock Snap 1',
+  },
+};
+
+const MOCK_SNAP_2 = {
+  id: 'mock-snap-id-2',
+  name: 'Mock Snap 2',
+  enabled: true,
+  manifest: {
+    proposedName: 'Mock Snap 2',
+  },
+};
+
+const MOCK_HD_KEYRING_1 = {
+  type: KeyringTypes.hd,
+  metadata: { id: 'mock-keyring-id-1', name: 'HD Keyring 1' },
+  accounts: ['0x123'],
+};
+
+const MOCK_HD_KEYRING_2 = {
+  type: KeyringTypes.hd,
+  metadata: { id: 'mock-keyring-id-2', name: 'HD Keyring 1' },
+  accounts: ['0x456'],
+};
+
 const MOCK_HD_ACCOUNT_1: InternalAccount = {
   id: 'mock-id-1',
   address: '0x123',
-  options: { entropySource: 'mock-keyring-id-1' },
+  options: { entropySource: MOCK_HD_KEYRING_1.metadata.id },
   methods: [...ETH_EOA_METHODS],
   type: EthAccountType.Eoa,
   scopes: [EthScope.Eoa],
@@ -55,7 +87,7 @@ const MOCK_HD_ACCOUNT_1: InternalAccount = {
 const MOCK_HD_ACCOUNT_2: InternalAccount = {
   id: 'mock-id-2',
   address: '0x456',
-  options: { entropySource: 'mock-keyring-id-2' },
+  options: { entropySource: MOCK_HD_KEYRING_2.metadata.id },
   methods: [...ETH_EOA_METHODS],
   type: EthAccountType.Eoa,
   scopes: [EthScope.Eoa],
@@ -71,14 +103,14 @@ const MOCK_HD_ACCOUNT_2: InternalAccount = {
 const MOCK_SNAP_ACCOUNT_1: InternalAccount = {
   id: 'mock-snap-id-1',
   address: 'aabbccdd',
-  options: { entropySource: 'mock-keyring-id-2' }, // Note: shares entropy with MOCK_HD_ACCOUNT_2
+  options: { entropySource: MOCK_HD_KEYRING_2.metadata.id }, // Note: shares entropy with MOCK_HD_ACCOUNT_2
   methods: [...ETH_EOA_METHODS],
   type: SolAccountType.DataAccount,
   scopes: [SolScope.Mainnet],
   metadata: {
     name: 'Snap Acc 1',
     keyring: { type: KeyringTypes.snap },
-    snap: { id: 'mock-snap-id-1', enabled: true, name: 'Test Snap' },
+    snap: MOCK_SNAP_1,
     importTime: 0,
     lastSelected: 0,
   },
@@ -94,7 +126,7 @@ const MOCK_SNAP_ACCOUNT_2: InternalAccount = {
   metadata: {
     name: 'Snap Acc 2',
     keyring: { type: KeyringTypes.snap },
-    snap: { id: 'mock-snap-id-2', enabled: true, name: 'Another Snap' },
+    snap: MOCK_SNAP_2,
     importTime: 0,
     lastSelected: 0,
   },
@@ -145,6 +177,7 @@ function getAccountWalletControllerMessenger(
     allowedActions: [
       'AccountsController:listMultichainAccounts',
       'KeyringController:getState',
+      'SnapController:get',
     ],
   });
 }
@@ -199,27 +232,33 @@ describe('AccountWalletController', () => {
       );
       messenger.registerActionHandler('KeyringController:getState', () => ({
         isUnlocked: true,
-        keyrings: [
-          {
-            type: KeyringTypes.hd,
-            metadata: { id: 'mock-keyring-id-1', name: 'HD Keyring 1' },
-            accounts: [],
-          },
-          {
-            type: KeyringTypes.hd,
-            metadata: { id: 'mock-keyring-id-2', name: 'HD Keyring 2' },
-            accounts: [],
-          },
-        ],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
       }));
+      messenger.registerActionHandler(
+        'SnapController:get',
+        () =>
+          // TODO: Update this to avoid the unknown cast if possible.
+          MOCK_SNAP_1 as unknown as ReturnType<
+            SnapControllerGetSnap['handler']
+          >,
+      );
 
       await controller.updateAccountWallets();
 
-      const expectedWalletId1 = `${AccountWalletCategory.Entropy}:mock-keyring-id-1`;
+      const expectedWalletId1 = toAccountWalletId(
+        AccountWalletCategory.Entropy,
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
       const expectedWalletId1Group = toDefaultAccountGroupId(expectedWalletId1);
-      const expectedWalletId2 = `${AccountWalletCategory.Entropy}:mock-keyring-id-2`;
+      const expectedWalletId2 = toAccountWalletId(
+        AccountWalletCategory.Entropy,
+        MOCK_HD_KEYRING_2.metadata.id,
+      );
       const expectedWalletId2Group = toDefaultAccountGroupId(expectedWalletId2);
-      const expectedSnapWalletId = `${AccountWalletCategory.Snap}:mock-snap-id-2`;
+      const expectedSnapWalletId = toAccountWalletId(
+        AccountWalletCategory.Snap,
+        MOCK_SNAP_2.id,
+      );
       const expectedSnapWalletIdGroup =
         toDefaultAccountGroupId(expectedSnapWalletId);
       const expectedKeyringWalletId = `${AccountWalletCategory.Keyring}:${KeyringTypes.ledger}`;
@@ -263,7 +302,7 @@ describe('AccountWalletController', () => {
               metadata: mockDefaultGroupMetadata,
             },
           },
-          metadata: { name: generateAccountWalletName(expectedSnapWalletId) },
+          metadata: { name: MOCK_SNAP_1.manifest.proposedName },
         },
         [expectedKeyringWalletId]: {
           id: expectedKeyringWalletId,
@@ -305,7 +344,10 @@ describe('AccountWalletController', () => {
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         "! Found an HD account with no entropy source: account won't be associated to its wallet",
       );
-      const expectedKeyringWalletId = `${AccountWalletCategory.Keyring}:${KeyringTypes.hd}`;
+      const expectedKeyringWalletId = toAccountWalletId(
+        AccountWalletCategory.Keyring,
+        KeyringTypes.hd,
+      );
       const expectedGroupId = toDefaultAccountGroupId(expectedKeyringWalletId);
       expect(
         controller.state.accountWallets[expectedKeyringWalletId]?.groups[
@@ -319,10 +361,10 @@ describe('AccountWalletController', () => {
       const { controller, messenger } = setup({});
       const mockSnapAccountWithEntropy: InternalAccount = {
         ...MOCK_SNAP_ACCOUNT_2,
-        options: { entropySource: 'snap-entropy-source' },
+        options: { entropySource: MOCK_HD_KEYRING_2.metadata.id },
         metadata: {
           ...MOCK_SNAP_ACCOUNT_2.metadata,
-          snap: { id: 'snap-id', enabled: true, name: 'Test Snap' },
+          snap: MOCK_SNAP_2,
         },
       };
       messenger.registerActionHandler(
@@ -331,12 +373,15 @@ describe('AccountWalletController', () => {
       );
       messenger.registerActionHandler('KeyringController:getState', () => ({
         isUnlocked: true,
-        keyrings: [],
+        keyrings: [MOCK_HD_KEYRING_2],
       }));
 
       await controller.updateAccountWallets();
 
-      const expectedWalletId = `${AccountWalletCategory.Entropy}:snap-entropy-source`;
+      const expectedWalletId = toAccountWalletId(
+        AccountWalletCategory.Entropy,
+        MOCK_HD_KEYRING_2.metadata.id,
+      );
       const expectedGroupId = toDefaultAccountGroupId(expectedWalletId);
       expect(
         controller.state.accountWallets[expectedWalletId]?.groups[
@@ -345,17 +390,16 @@ describe('AccountWalletController', () => {
       ).toContain(mockSnapAccountWithEntropy.id);
     });
 
-    it('assigns unique names when wallets have duplicate base names', async () => {
+    it('fallback to unique names when entropy cannot be found', async () => {
       const { controller, messenger } = setup({});
       // Create entropy wallets that will both get "Wallet" as base name, then get numbered
       const mockHdAccount1: InternalAccount = {
         ...MOCK_HD_ACCOUNT_1,
-        options: { entropySource: 'entropy-1' },
+        options: { entropySource: MOCK_HD_KEYRING_1.metadata.id },
       };
       const mockHdAccount2: InternalAccount = {
         ...MOCK_HD_ACCOUNT_2,
-        id: 'mock-id-3',
-        options: { entropySource: 'entropy-2' },
+        options: { entropySource: MOCK_HD_KEYRING_2.metadata.id },
       };
       messenger.registerActionHandler(
         'AccountsController:listMultichainAccounts',
@@ -369,15 +413,21 @@ describe('AccountWalletController', () => {
 
       await controller.updateAccountWallets();
 
-      const wallet1Id = `${AccountWalletCategory.Entropy}:entropy-1`;
-      const wallet2Id = `${AccountWalletCategory.Entropy}:entropy-2`;
+      const wallet1Id = toAccountWalletId(
+        AccountWalletCategory.Entropy,
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const wallet2Id = toAccountWalletId(
+        AccountWalletCategory.Entropy,
+        MOCK_HD_KEYRING_2.metadata.id,
+      );
 
-      // Both should get "Wallet" as base name, then be numbered uniquely
+      // FIXME: Do we really want this behavior?
       expect(controller.state.accountWallets[wallet1Id]?.metadata.name).toBe(
-        'Wallet 1',
+        `Wallet (unknown - ${MOCK_HD_KEYRING_1.metadata.id})`,
       );
       expect(controller.state.accountWallets[wallet2Id]?.metadata.name).toBe(
-        'Wallet 2',
+        `Wallet (unknown - ${MOCK_HD_KEYRING_2.metadata.id})`,
       );
     });
   });

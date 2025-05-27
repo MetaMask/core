@@ -14,6 +14,9 @@ import {
 import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
+import type { SnapId } from '@metamask/snaps-sdk';
+import { stripSnapPrefix } from '@metamask/snaps-utils';
 import { cloneDeep } from 'lodash';
 
 import { generateAccountWalletName } from './utils';
@@ -77,7 +80,8 @@ export type AccountWalletControllerGetStateAction = ControllerGetStateAction<
 
 export type AllowedActions =
   | AccountsControllerListMultichainAccountsAction
-  | KeyringControllerGetStateAction;
+  | KeyringControllerGetStateAction
+  | SnapControllerGetSnap;
 
 export type AccountWalletControllerActions = never;
 
@@ -163,6 +167,25 @@ export function toDefaultAccountGroupId(
   return toAccountGroupId(walletId, DEFAULT_ACCOUNT_GROUP_UNIQUE_ID);
 }
 
+/**
+ * Parses a wallet ID and extract its category and its unique ID.
+ *
+ * @param walletId - The wallet ID.
+ * @returns The parsed wallet ID.
+ */
+export function parseWalletId(walletId: AccountWalletId): {
+  category: AccountWalletCategory;
+  id: string;
+} {
+  // TODO: Make it safer.
+  const [category, ...id] = walletId.split(':');
+
+  return {
+    category: category as AccountWalletCategory,
+    id: id.join(':'),
+  };
+}
+
 export class AccountWalletController extends BaseController<
   typeof controllerName,
   AccountWalletControllerState,
@@ -235,17 +258,6 @@ export class AccountWalletController extends BaseController<
     return undefined;
   }
 
-  #getEntropySourceName(entropySource: string): string | undefined {
-    const { keyrings } = this.messagingSystem.call(
-      'KeyringController:getState',
-    );
-
-    const hdKeyringIndex = keyrings
-      .filter((keyring) => keyring.type === KeyringTypes.hd)
-      .findIndex((keyring) => keyring.metadata.id === entropySource);
-    return hdKeyringIndex !== -1 ? `Wallet ${hdKeyringIndex + 1}` : undefined;
-  }
-
   #shouldGroupBySnapId(
     account: InternalAccount,
   ): AccountWalletRuleMatch | undefined {
@@ -272,36 +284,75 @@ export class AccountWalletController extends BaseController<
     };
   }
 
-  #assignUniqueWalletNames(
-    wallets: AccountGroupsMetadata,
-  ): AccountGroupsMetadata {
-    const baseNameMap = new Map<string, AccountWalletId[]>();
-    const finalWallets: AccountGroupsMetadata = cloneDeep(wallets);
+  #getSnapName(snapId: SnapId): string {
+    const snap = this.messagingSystem.call('SnapController:get', snapId);
 
-    for (const walletIdString in finalWallets) {
-      if (Object.prototype.hasOwnProperty.call(finalWallets, walletIdString)) {
-        const walletId = walletIdString as AccountWalletId;
-        const walletData = finalWallets[walletId];
-        const baseName = walletData.metadata.name; // Assumes name is already generated
-
-        if (!baseNameMap.has(baseName)) {
-          baseNameMap.set(baseName, []);
-        }
-        baseNameMap.get(baseName)?.push(walletId);
-      }
+    if (!snap) {
+      return stripSnapPrefix(snapId);
     }
 
-    for (const [baseName, walletIdsWithSameBaseName] of baseNameMap.entries()) {
-      if (walletIdsWithSameBaseName.length > 1) {
-        walletIdsWithSameBaseName.sort((a, b) => a.localeCompare(b));
-        let counter = 1;
-        for (const walletId of walletIdsWithSameBaseName) {
-          finalWallets[walletId].metadata.name = `${baseName} ${counter}`;
-          counter += 1;
-        }
-      }
+    // TODO: Handle localization here, but that's a "client thing", so we don't have a `core` controller
+    // to refer too.
+    return snap.manifest.proposedName;
+  }
+
+  #getKeyringName(type: string) {
+    if (!type) {
+      return 'Keyring'; // Should not happen if specificIdentifier is present
     }
-    return finalWallets;
+
+    const lowerType = type.toLowerCase();
+    if (lowerType === KeyringTypes.hd.toLowerCase()) {
+      return 'HD Wallet';
+    }
+    if (lowerType === KeyringTypes.ledger.toLowerCase()) {
+      return 'Ledger';
+    }
+    if (lowerType === KeyringTypes.trezor.toLowerCase()) {
+      return 'Trezor';
+    }
+    if (lowerType === KeyringTypes.snap.toLowerCase()) {
+      return 'Snap Wallet';
+    }
+
+    return type.charAt(0).toUpperCase() + type.slice(1);
+  }
+
+  #getEntropySourceName(entropySource: string): string {
+    const { keyrings } = this.messagingSystem.call(
+      'KeyringController:getState',
+    );
+
+    const index = keyrings
+      .filter((keyring) => keyring.type === KeyringTypes.hd)
+      .findIndex((keyring) => keyring.metadata.id === entropySource);
+
+    if (index === -1) {
+      console.warn(
+        '! Tried to name a wallet using an unknown entropy, this should not be possible.',
+      );
+      return `Wallet (unknown - ${entropySource})`; // Do we really want to use the entropy-source id for user-facing names?
+    }
+
+    return `Wallet ${index + 1}`; // Use human indexing.
+  }
+
+  #getWalletName(walletId: AccountWalletId): string {
+    const { category, id } = parseWalletId(walletId);
+
+    switch (category) {
+      case AccountWalletCategory.Default:
+        return 'Default';
+      case AccountWalletCategory.Entropy:
+        return this.#getEntropySourceName(id);
+      case AccountWalletCategory.Keyring:
+        return this.#getKeyringName(id);
+      case AccountWalletCategory.Snap:
+        return this.#getSnapName(id as SnapId);
+      default:
+    }
+
+    return id;
   }
 
   async updateAccountWallets(): Promise<void> {
@@ -328,10 +379,6 @@ export class AccountWalletController extends BaseController<
         const walletId = toAccountWalletId(match.category, match.id);
         const groupId = toDefaultAccountGroupId(walletId); // Use a single-group for now until multichain accounts is supported.
 
-        let walletName: string | undefined;
-        if (match.category === AccountWalletCategory.Entropy) {
-          walletName = this.#getEntropySourceName(match.id);
-        }
         if (!wallets[walletId]) {
           wallets[walletId] = {
             id: walletId,
@@ -343,7 +390,7 @@ export class AccountWalletController extends BaseController<
               },
             },
             metadata: {
-              name: walletName || generateAccountWalletName(walletId),
+              name: this.#getWalletName(walletId),
             },
           };
         }
@@ -352,11 +399,8 @@ export class AccountWalletController extends BaseController<
       }
     }
 
-    // TODO: We might want to compute unique name in a more deterministic way!
-    const finalWallets = this.#assignUniqueWalletNames(wallets);
-
     this.update((state) => {
-      state.accountWallets = finalWallets;
+      state.accountWallets = wallets;
     });
   }
 
