@@ -235,6 +235,17 @@ export class AccountWalletController extends BaseController<
     return undefined;
   }
 
+  #getEntropySourceName(entropySource: string): string | undefined {
+    const { keyrings } = this.messagingSystem.call(
+      'KeyringController:getState',
+    );
+
+    const hdKeyringIndex = keyrings
+      .filter((keyring) => keyring.type === KeyringTypes.hd)
+      .findIndex((keyring) => keyring.metadata.id === entropySource);
+    return hdKeyringIndex !== -1 ? `Wallet ${hdKeyringIndex + 1}` : undefined;
+  }
+
   #getSnapId(account: InternalAccount): AccountWalletRuleMatch | undefined {
     if (
       this.#hasKeyringType(account, KeyringTypes.snap) &&
@@ -317,12 +328,7 @@ export class AccountWalletController extends BaseController<
 
         let walletName: string | undefined;
         if (match.category === AccountWalletCategory.Entropy) {
-          const hdKeyringIndex = this.#getHdKeyringIds().findIndex(
-            (id) => id === match.id,
-          );
-          if (hdKeyringIndex !== -1) {
-            walletName = `Wallet ${hdKeyringIndex + 1}`;
-          }
+          walletName = this.#getEntropySourceName(match.id);
         }
         if (!wallets[walletId]) {
           wallets[walletId] = {
@@ -356,15 +362,5 @@ export class AccountWalletController extends BaseController<
     return this.messagingSystem.call(
       'AccountsController:listMultichainAccounts',
     ) as InternalAccount[];
-  }
-
-  #getHdKeyringIds(): string[] {
-    const { keyrings } = this.messagingSystem.call(
-      'KeyringController:getState',
-    );
-
-    return keyrings
-      .filter((keyring) => keyring.type === KeyringTypes.hd)
-      .map((keyring) => keyring.metadata.id);
   }
 }
