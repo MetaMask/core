@@ -2,9 +2,6 @@
   "packages/accounts-controller/src/AccountsController.test.ts": {
     "import-x/namespace": 1
   },
-  "packages/address-book-controller/src/AddressBookController.ts": {
-    "jsdoc/check-tag-names": 13
-  },
   "packages/approval-controller/src/ApprovalController.test.ts": {
     "import-x/order": 1,
     "jest/no-conditional-in-test": 16
@@ -72,9 +69,6 @@
   },
   "packages/assets-controllers/src/Standards/NftStandards/ERC721/ERC721Standard.ts": {
     "prettier/prettier": 1
-  },
-  "packages/assets-controllers/src/TokenBalancesController.test.ts": {
-    "import-x/order": 1
   },
   "packages/assets-controllers/src/TokenBalancesController.ts": {
     "@typescript-eslint/prefer-readonly": 4,
