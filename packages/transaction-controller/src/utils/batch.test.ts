@@ -1165,7 +1165,7 @@ describe('Batch Utils', () => {
           request: {
             ...request.request,
             requireApproval: false,
-            disable7702: true
+            disable7702: true,
           },
         }).catch(() => {
           // Intentionally empty
@@ -1222,7 +1222,7 @@ describe('Batch Utils', () => {
           request: {
             ...request.request,
             requireApproval: false,
-            disable7702: true
+            disable7702: true,
           },
         }).catch(() => {
           // Intentionally empty
@@ -1339,7 +1339,7 @@ describe('Batch Utils', () => {
           request: {
             ...request.request,
             requireApproval: false,
-            disable7702: true
+            disable7702: true,
           },
         }).catch(() => {
           // Intentionally empty
@@ -1381,7 +1381,11 @@ describe('Batch Utils', () => {
           ...request,
           publishBatchHook: undefined,
           messenger: MESSENGER_MOCK,
-          request: { ...request.request, origin: ORIGIN_MOCK, disable7702: true },
+          request: {
+            ...request.request,
+            origin: ORIGIN_MOCK,
+            disable7702: true,
+          },
         }).catch(() => {
           // Intentionally empty
         });
