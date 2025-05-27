@@ -28,7 +28,6 @@ class DownloadStream extends Stream.PassThrough {
  * @param redirects - The number of redirects that have occurred
  * @returns A stream of the download
  */
-
 export function startDownload(
   url: URL,
   options: DownloadOptions = {},
