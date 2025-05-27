@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [28.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/assets-controller` peer dependency to `^65.0.0` ([#5863](https://github.com/MetaMask/core/pull/5863))
+
+## [27.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/assets-controller` peer dependency to `^64.0.0` ([#5854](https://github.com/MetaMask/core/pull/5854))
+
 ## [26.0.0]
 
 ### Added
@@ -269,7 +281,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@26.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@28.0.0...HEAD
+[28.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@27.0.0...@metamask/bridge-controller@28.0.0
+[27.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@26.0.0...@metamask/bridge-controller@27.0.0
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@25.1.0...@metamask/bridge-controller@26.0.0
 [25.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@25.0.1...@metamask/bridge-controller@25.1.0
 [25.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@25.0.0...@metamask/bridge-controller@25.0.1
