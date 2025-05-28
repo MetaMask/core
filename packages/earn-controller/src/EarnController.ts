@@ -30,6 +30,7 @@ import {
   type LendingPosition,
   type GasLimitParams,
   type HistoricLendingMarketApys,
+  EarnEnvironments,
 } from '@metamask/stake-sdk';
 import {
   type TransactionController,
@@ -284,20 +285,24 @@ export class EarnController extends BaseController<
 
   #selectedNetworkClientId?: string;
 
-  readonly #earnApiService: EarnApiService = new EarnApiService();
+  readonly #earnApiService: EarnApiService;
 
   readonly #addTransactionFn: typeof TransactionController.prototype.addTransaction;
 
   readonly #supportedPooledStakingChains: number[];
 
+  readonly #env: EarnEnvironments;
+
   constructor({
     messenger,
     state = {},
     addTransactionFn,
+    env = EarnEnvironments.PROD,
   }: {
     messenger: EarnControllerMessenger;
     state?: Partial<EarnControllerState>;
     addTransactionFn: typeof TransactionController.prototype.addTransaction;
+    env?: EarnEnvironments;
   }) {
     super({
       name: controllerName,
@@ -308,6 +313,10 @@ export class EarnController extends BaseController<
         ...state,
       },
     });
+
+    this.#env = env;
+
+    this.#earnApiService = new EarnApiService(this.#env);
 
     // temporary array of supported chains
     // TODO: remove this once we export a supported chains list from the sdk
@@ -442,6 +451,7 @@ export class EarnController extends BaseController<
     // Initialize appropriate contracts based on chainId
     const config: EarnSdkConfig = {
       chainId: convertHexToDecimal(chainId),
+      env: this.#env,
     };
 
     try {

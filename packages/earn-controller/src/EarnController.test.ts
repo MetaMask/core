@@ -9,6 +9,7 @@ import {
   type PooledStakingApiService,
   type LendingApiService,
   type LendingMarket,
+  EarnEnvironments,
 } from '@metamask/stake-sdk';
 
 import type {
@@ -74,6 +75,10 @@ jest.mock('@metamask/stake-sdk', () => ({
   ChainId: {
     ETHEREUM: 1,
     HOODI: 560048,
+  },
+  EarnEnvironments: {
+    PROD: 'prod',
+    DEV: 'dev',
   },
   isSupportedLendingChain: jest.fn().mockReturnValue(true),
   isSupportedPooledStakingChain: jest.fn().mockReturnValue(true),
@@ -789,6 +794,24 @@ describe('EarnController', () => {
         ...customState,
       });
     });
+
+    it('initializes with default environment (PROD)', async () => {
+      await setupController();
+      expect(EarnSdk.create).toHaveBeenCalledWith(expect.any(Object), {
+        chainId: 1,
+        env: EarnEnvironments.PROD,
+      });
+    });
+
+    it('initializes with custom environment', async () => {
+      await setupController({
+        options: { env: EarnEnvironments.DEV },
+      });
+      expect(EarnSdk.create).toHaveBeenCalledWith(expect.any(Object), {
+        chainId: 1,
+        env: EarnEnvironments.DEV,
+      });
+    });
   });
 
   describe('SDK initialization', () => {
@@ -796,6 +819,7 @@ describe('EarnController', () => {
       await setupController();
       expect(EarnSdk.create).toHaveBeenCalledWith(expect.any(Object), {
         chainId: 1,
+        env: EarnEnvironments.PROD,
       });
     });
 
@@ -839,6 +863,35 @@ describe('EarnController', () => {
       expect(
         mockedEarnApiService?.pooledStaking?.getPooledStakes,
       ).toHaveBeenCalled();
+    });
+
+    it('reinitializes SDK with correct environment when network changes', async () => {
+      const { messenger } = await setupController({
+        options: { env: EarnEnvironments.DEV },
+        mockGetNetworkClientById: jest.fn(() => ({
+          configuration: { chainId: '0x2' },
+          provider: {
+            request: jest.fn(),
+            on: jest.fn(),
+            removeListener: jest.fn(),
+          },
+        })),
+      });
+
+      messenger.publish(
+        'NetworkController:stateChange',
+        {
+          ...getDefaultNetworkControllerState(),
+          selectedNetworkClientId: '2',
+        },
+        [],
+      );
+
+      expect(EarnSdk.create).toHaveBeenCalledTimes(2);
+      expect(EarnSdk.create).toHaveBeenNthCalledWith(2, expect.any(Object), {
+        chainId: 2,
+        env: EarnEnvironments.DEV,
+      });
     });
 
     it('does not initialize sdk if the provider is null', async () => {
