@@ -237,7 +237,7 @@ export class AccountWalletController extends BaseController<
     );
   }
 
-  async init(): Promise<void> {
+  init() {
     const wallets = {};
 
     // For now, we always re-compute all wallets, we do not re-use the existing state.

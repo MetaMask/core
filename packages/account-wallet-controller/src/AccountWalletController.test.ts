@@ -218,7 +218,7 @@ function setup({
 
 describe('AccountWalletController', () => {
   describe('init', () => {
-    it('groups accounts by entropy source, then snapId, then wallet type', async () => {
+    it('groups accounts by entropy source, then snapId, then wallet type', () => {
       const { controller, messenger } = setup({});
       messenger.registerActionHandler(
         'AccountsController:listMultichainAccounts',
@@ -243,7 +243,7 @@ describe('AccountWalletController', () => {
           >,
       );
 
-      await controller.init();
+      controller.init();
 
       const expectedWalletId1 = toAccountWalletId(
         AccountWalletCategory.Entropy,
@@ -322,7 +322,7 @@ describe('AccountWalletController', () => {
       });
     });
 
-    it('warns and fall back to wallet type grouping if an HD account is missing entropySource', async () => {
+    it('warns and fall back to wallet type grouping if an HD account is missing entropySource', () => {
       const consoleWarnSpy = jest
         .spyOn(console, 'warn')
         .mockImplementation(() => undefined);
@@ -341,7 +341,7 @@ describe('AccountWalletController', () => {
         keyrings: [],
       }));
 
-      await controller.init();
+      controller.init();
 
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         "! Found an HD account with no entropy source: account won't be associated to its wallet",
@@ -359,7 +359,7 @@ describe('AccountWalletController', () => {
       consoleWarnSpy.mockRestore();
     });
 
-    it('handles Snap accounts with entropy source', async () => {
+    it('handles Snap accounts with entropy source', () => {
       const { controller, messenger } = setup({});
       const mockSnapAccountWithEntropy: InternalAccount = {
         ...MOCK_SNAP_ACCOUNT_2,
@@ -378,7 +378,7 @@ describe('AccountWalletController', () => {
         keyrings: [MOCK_HD_KEYRING_2],
       }));
 
-      await controller.init();
+      controller.init();
 
       const expectedWalletId = toAccountWalletId(
         AccountWalletCategory.Entropy,
@@ -392,7 +392,7 @@ describe('AccountWalletController', () => {
       ).toContain(mockSnapAccountWithEntropy.id);
     });
 
-    it('fallback to Snap ID if Snap cannot be found', async () => {
+    it('fallback to Snap ID if Snap cannot be found', () => {
       const { controller, messenger } = setup({});
       messenger.registerActionHandler(
         'AccountsController:listMultichainAccounts',
@@ -404,7 +404,7 @@ describe('AccountWalletController', () => {
       }));
       messenger.registerActionHandler('SnapController:get', () => undefined); // Snap won't be found.
 
-      await controller.init();
+      controller.init();
 
       // Since no entropy sources will be found, it will be categorized as a
       // "Keyring" wallet
@@ -419,7 +419,7 @@ describe('AccountWalletController', () => {
       );
     });
 
-    it('fallback to HD keyring category if entropy sources cannot be found', async () => {
+    it('fallback to HD keyring category if entropy sources cannot be found', () => {
       const { controller, messenger } = setup({});
       // Create entropy wallets that will both get "Wallet" as base name, then get numbered
       const mockHdAccount1: InternalAccount = {
@@ -439,7 +439,7 @@ describe('AccountWalletController', () => {
         keyrings: [], // Entropy sources won't be found.
       }));
 
-      await controller.init();
+      controller.init();
 
       // Since no entropy sources will be found, it will be categorized as a
       // "Keyring" wallet
@@ -463,7 +463,7 @@ describe('AccountWalletController', () => {
   });
 
   describe('#handleAccountRemoved', () => {
-    it('removes an account from the tree', async () => {
+    it('removes an account from the tree', () => {
       const { controller, messenger } = setup();
       //
       // 2 accounts that share the same entropy source (thus, same wallet).
@@ -490,7 +490,7 @@ describe('AccountWalletController', () => {
         keyrings: [MOCK_HD_KEYRING_1],
       }));
 
-      await controller.init();
+      controller.init();
 
       messenger.publish('AccountsController:accountRemoved', mockHdAccount1.id);
 
@@ -516,7 +516,7 @@ describe('AccountWalletController', () => {
   });
 
   describe('#handleAccountAdded', () => {
-    it('adds an account from the tree', async () => {
+    it('adds an account from the tree', () => {
       const { controller, messenger } = setup();
       //
       // 2 accounts that share the same entropy source (thus, same wallet).
@@ -543,7 +543,7 @@ describe('AccountWalletController', () => {
         keyrings: [MOCK_HD_KEYRING_1],
       }));
 
-      await controller.init();
+      controller.init();
 
       messenger.publish('AccountsController:accountAdded', mockHdAccount2);
 
