@@ -279,15 +279,14 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
 
       const groupedDeFiPositions = groupDeFiPositions(defiPositionsResponse);
 
-      this.#updatePositionsCountMetrics(
-        groupedDeFiPositions,
-        accountAddress,
-      ).catch((error) => {
+      try {
+        this.#updatePositionsCountMetrics(groupedDeFiPositions, accountAddress);
+      } catch (error) {
         console.error(
           `Failed to update positions count for account ${accountAddress}:`,
           error,
         );
-      });
+      }
 
       return groupedDeFiPositions;
     } catch {
@@ -295,10 +294,10 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
     }
   }
 
-  async #updatePositionsCountMetrics(
+  #updatePositionsCountMetrics(
     groupedDeFiPositions: GroupedDeFiPositionsPerChain,
     accountAddress: string,
-  ): Promise<void> {
+  ) {
     // If no track event passed then skip the metrics update
     if (!this.#trackEvent) {
       return;
@@ -307,12 +306,12 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
     const defiMetrics = calculateDeFiPositionMetrics(groupedDeFiPositions);
     const { totalPositions } = defiMetrics.properties;
 
-    this.update((state) => {
-      if (totalPositions !== this.state.allDeFiPositionsCount[accountAddress]) {
+    if (totalPositions !== this.state.allDeFiPositionsCount[accountAddress]) {
+      this.update((state) => {
         state.allDeFiPositionsCount[accountAddress] = totalPositions;
+      });
 
-        this.#trackEvent?.(defiMetrics);
-      }
-    });
+      this.#trackEvent?.(defiMetrics);
+    }
   }
 }
