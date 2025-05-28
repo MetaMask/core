@@ -1,5 +1,5 @@
 import type { LendingMarket } from '@metamask/stake-sdk';
-import { createSelector, type Selector } from 'reselect';
+import { createSelector } from 'reselect';
 
 import type {
   EarnControllerState,
@@ -86,28 +86,54 @@ export const selectLendingPositionsByChainId = createSelector(
   },
 );
 
-export const selectLendingMarketsWithPosition: Selector<
-  EarnControllerState,
-  LendingMarketWithPosition[]
-> = createSelector(selectLendingPositionsWithMarket, (positionsWithMarket) => {
-  return positionsWithMarket
-    .filter(
-      (
-        position,
-      ): position is LendingPositionWithMarket & {
-        market: NonNullable<LendingPositionWithMarket['market']>;
-      } => position.market !== undefined,
-    )
-    .map((positionWithMarket) => {
+export const selectLendingPositionsByProtocolChainIdMarketId = createSelector(
+  selectLendingPositionsWithMarket,
+  (positionsWithMarket) =>
+    positionsWithMarket.reduce(
+      (acc, position) => {
+        acc[position.protocol] ??= {};
+        acc[position.protocol][position.chainId] ??= {};
+        acc[position.protocol][position.chainId][position.marketId] = position;
+        return acc;
+      },
+      {} as Record<
+        string,
+        Record<string, Record<string, LendingPositionWithMarket>>
+      >,
+    ),
+);
+
+export const selectLendingMarketsWithPosition = createSelector(
+  selectLendingPositionsByProtocolChainIdMarketId,
+  selectLendingMarkets,
+  (positionsByProtocolChainIdMarketId, lendingMarkets) =>
+    lendingMarkets.map((market) => {
+      const position =
+        positionsByProtocolChainIdMarketId?.[market.protocol]?.[
+          market.chainId
+        ]?.[market.id];
       return {
-        ...positionWithMarket.market,
-        position: {
-          ...positionWithMarket,
-          market: undefined,
-        },
+        ...market,
+        position: position || null,
       };
-    });
-});
+    }),
+);
+
+export const selectLendingMarketsByTokenAddress = createSelector(
+  selectLendingMarketsWithPosition,
+  (marketsWithPosition) => {
+    return marketsWithPosition.reduce(
+      (acc, market) => {
+        if (market.underlying?.address) {
+          acc[market.underlying.address] = acc[market.underlying.address] || [];
+          acc[market.underlying.address].push(market);
+        }
+        return acc;
+      },
+      {} as Record<string, LendingMarketWithPosition[]>,
+    );
+  },
+);
 
 export const selectLendingPositionsByProtocol = createSelector(
   selectLendingPositionsWithMarket,
@@ -148,3 +174,39 @@ export const selectLendingMarketForProtocolAndTokenAddress = (
     (marketsByProtocolAndTokenAddress) =>
       marketsByProtocolAndTokenAddress?.[protocol]?.[tokenAddress],
   );
+
+export const selectLendingMarketsByChainIdAndOutputTokenAddress =
+  createSelector(selectLendingMarketsWithPosition, (marketsWithPosition) =>
+    marketsWithPosition.reduce(
+      (acc, market) => {
+        if (market.outputToken?.address) {
+          acc[market.chainId] = acc?.[market.chainId] || {};
+          acc[market.chainId][market.outputToken.address] =
+            acc?.[market.chainId]?.[market.outputToken.address] || [];
+          acc[market.chainId][market.outputToken.address].push(market);
+        }
+        return acc;
+      },
+      {} as Record<string, Record<string, LendingMarketWithPosition[]>>,
+    ),
+  );
+
+export const selectLendingMarketsByChainIdAndTokenAddress = createSelector(
+  selectLendingMarketsWithPosition,
+  (marketsWithPosition) =>
+    marketsWithPosition.reduce(
+      (acc, market) => {
+        if (market.underlying?.address) {
+          acc[market.chainId] = acc?.[market.chainId] || {};
+          acc[market.chainId][market.underlying.address] =
+            acc?.[market.chainId]?.[market.underlying.address] || [];
+          acc[market.chainId][market.underlying.address].push(market);
+        }
+        return acc;
+      },
+      {} as Record<string, Record<string, LendingMarketWithPosition[]>>,
+    ),
+);
+
+export const selectIsLendingEligible = (state: EarnControllerState) =>
+  state.lending.isEligible;

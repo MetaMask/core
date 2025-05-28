@@ -51,7 +51,7 @@
     "@ethersproject/providers": "^5.7.0",
     "@metamask/base-controller": "^8.0.1",
     "@metamask/controller-utils": "^11.9.0",
-    "@metamask/stake-sdk": "3.0.0",
+    "@metamask/stake-sdk": "3.2.0",
     "reselect": "^5.1.1"
   },
   "devDependencies": {

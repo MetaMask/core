@@ -19,6 +19,8 @@ import type {
 import {
   EarnSdk,
   EarnApiService,
+  isSupportedPooledStakingChain,
+  isSupportedLendingChain,
   type LendingMarket,
   type PooledStake,
   type EarnSdkConfig,
@@ -27,6 +29,7 @@ import {
   type VaultApyAverages,
   type LendingPosition,
   type GasLimitParams,
+  type HistoricLendingMarketApys,
 } from '@metamask/stake-sdk';
 import {
   type TransactionController,
@@ -307,7 +310,7 @@ export class EarnController extends BaseController<
     });
 
     // temporary array of supported chains
-    // TODO: remove this once we have a more permanent solution
+    // TODO: remove this once we export a supported chains list from the sdk
     // from sdk or api to get lending and pooled staking chains
     this.#supportedPooledStakingChains = [1, 560048];
 
@@ -336,7 +339,7 @@ export class EarnController extends BaseController<
           this.#initializeSDK(
             networkControllerState.selectedNetworkClientId,
           ).catch(console.error);
-          if (this.#supportedPooledStakingChains.includes(chainId)) {
+          if (isSupportedPooledStakingChain(chainId)) {
             // only refresh pool staking data for the chain we are switching to
             this.refreshPooledStakingVaultMetadata(chainId).catch(
               console.error,
@@ -831,7 +834,7 @@ export class EarnController extends BaseController<
     const addressToUse = address ?? this.#getCurrentAccount()?.address;
     const chainIdToUse = chainId ?? this.#getCurrentChainId();
 
-    if (!addressToUse) {
+    if (!addressToUse || !isSupportedLendingChain(chainIdToUse)) {
       return [];
     }
 
@@ -866,8 +869,13 @@ export class EarnController extends BaseController<
     protocol: string;
     marketId: string;
     days?: number;
-  }) {
+  }): Promise<HistoricLendingMarketApys> | undefined {
     const chainIdToUse = chainId ?? this.#getCurrentChainId();
+
+    if (!isSupportedLendingChain(chainIdToUse)) {
+      return undefined;
+    }
+
     return this.#earnApiService.lending.getHistoricMarketApys(
       chainIdToUse,
       protocol,

@@ -75,6 +75,8 @@ jest.mock('@metamask/stake-sdk', () => ({
     ETHEREUM: 1,
     HOODI: 560048,
   },
+  isSupportedLendingChain: jest.fn().mockReturnValue(true),
+  isSupportedPooledStakingChain: jest.fn().mockReturnValue(true),
 }));
 
 /**
@@ -707,10 +709,19 @@ const setupController = async ({
 const EarnApiServiceMock = jest.mocked(EarnApiService);
 let mockedEarnApiService: Partial<EarnApiService>;
 
+const isSupportedLendingChainMock = jest.requireMock(
+  '@metamask/stake-sdk',
+).isSupportedLendingChain;
+const isSupportedPooledStakingChainMock = jest.requireMock(
+  '@metamask/stake-sdk',
+).isSupportedPooledStakingChain;
+
 describe('EarnController', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
+    isSupportedLendingChainMock.mockReturnValue(true);
+    isSupportedPooledStakingChainMock.mockReturnValue(true);
     // Apply EarnSdk mock before initializing EarnController
     (EarnSdk.create as jest.Mock).mockImplementation(() => ({
       contracts: {
@@ -1512,6 +1523,20 @@ describe('EarnController', () => {
 
         expect(result).toStrictEqual([]);
       });
+
+      it('returns empty array when chain is not supported', async () => {
+        isSupportedLendingChainMock.mockReturnValue(false);
+        const { controller } = await setupController();
+
+        const result = await controller.getLendingPositionHistory({
+          positionId: '1',
+          marketId: 'market1',
+          marketAddress: '0x123',
+          protocol: 'aave' as LendingMarket['protocol'],
+        });
+
+        expect(result).toStrictEqual([]);
+      });
     });
 
     describe('getLendingMarketDailyApysAndAverages', () => {
@@ -1552,6 +1577,18 @@ describe('EarnController', () => {
         expect(
           mockedEarnApiService.lending.getHistoricMarketApys,
         ).toHaveBeenCalledWith(1, 'aave', 'market1', 365);
+      });
+
+      it('returns undefined when chain is not supported', async () => {
+        isSupportedLendingChainMock.mockReturnValue(false);
+        const { controller } = await setupController();
+
+        const result = await controller.getLendingMarketDailyApysAndAverages({
+          protocol: 'aave' as LendingMarket['protocol'],
+          marketId: 'market1',
+        });
+
+        expect(result).toBeUndefined();
       });
     });
 

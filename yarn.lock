@@ -3024,8 +3024,8 @@ __metadata:
     "@metamask/base-controller": "npm:^8.0.1"
     "@metamask/controller-utils": "npm:^11.9.0"
     "@metamask/network-controller": "npm:^23.5.1"
-    "@metamask/stake-sdk": "npm:3.0.0",
-    "@metamask/transaction-controller": "npm:^57.0.0",
+    "@metamask/stake-sdk": "npm:3.2.0"
+    "@metamask/transaction-controller": "^57.0.0"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
@@ -4493,10 +4493,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/stake-sdk@npm:3.0.0":
-  version: 3.0.0
-  resolution: "@metamask/stake-sdk@npm:3.0.0"
-  checksum: 10/d4535c12e84ab616b3c178ac21fd6876b6fd7c682ed8d94ce8fec493694ff1c06970a22fee9942954c00b60a38fbb8f70caa17364927e4967c7e3776175d71ff
+"@metamask/stake-sdk@npm:3.2.0":
+  version: 3.2.0
+  resolution: "@metamask/stake-sdk@npm:3.2.0"
+  checksum: 10/54197bcc83ee014643e44d22f06768e8caee4a8093b920405a5d4e0517c587f12aeec20bace98ec8a49aad648d67444afca139e29c8ec39ae9d2305b435100a6
   languageName: node
   linkType: hard
 

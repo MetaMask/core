@@ -32,3 +32,5 @@ export {
   selectLendingPositionsWithMarket,
   selectLendingMarketsForChainId,
 } from './selectors';
+
+export * from '@metamask/stake-sdk';

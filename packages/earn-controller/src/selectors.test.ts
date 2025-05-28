@@ -17,6 +17,11 @@ import {
   selectLendingPositionsByProtocol,
   selectLendingMarketByProtocolAndTokenAddress,
   selectLendingMarketForProtocolAndTokenAddress,
+  selectLendingPositionsByProtocolChainIdMarketId,
+  selectLendingMarketsByTokenAddress,
+  selectLendingMarketsByChainIdAndOutputTokenAddress,
+  selectLendingMarketsByChainIdAndTokenAddress,
+  selectIsLendingEligible,
 } from './selectors';
 
 describe('Earn Controller Selectors', () => {
@@ -225,10 +230,7 @@ describe('Earn Controller Selectors', () => {
       expect(result).toHaveLength(2);
       expect(result[0]).toStrictEqual({
         ...mockMarket1,
-        position: {
-          ...mockPosition1,
-          market: undefined,
-        },
+        position: mockPosition1,
       });
     });
   });
@@ -250,19 +252,13 @@ describe('Earn Controller Selectors', () => {
         'aave-v3': {
           '0x123': {
             ...mockMarket1,
-            position: {
-              ...mockPosition1,
-              market: undefined,
-            },
+            position: mockPosition1,
           },
         },
         'compound-v3': {
           '0x456': {
             ...mockMarket2,
-            position: {
-              ...mockPosition2,
-              market: undefined,
-            },
+            position: mockPosition2,
           },
         },
       });
@@ -277,16 +273,144 @@ describe('Earn Controller Selectors', () => {
       )(mockState);
       expect(result).toStrictEqual({
         ...mockMarket1,
-        position: {
-          ...mockPosition1,
-          market: undefined,
-        },
+        position: mockPosition1,
       });
       const result2 = selectLendingMarketForProtocolAndTokenAddress(
         'invalid',
         'invalid',
       )(mockState);
       expect(result2).toBeUndefined();
+    });
+  });
+
+  describe('selectLendingPositionsByProtocolChainIdMarketId', () => {
+    it('should group positions by protocol, chainId, and marketId', () => {
+      const result = selectLendingPositionsByProtocolChainIdMarketId(mockState);
+      expect(result).toStrictEqual({
+        'aave-v3': {
+          1: {
+            market1: mockPosition1,
+          },
+        },
+        'compound-v3': {
+          2: {
+            market2: mockPosition2,
+          },
+        },
+      });
+    });
+  });
+
+  describe('selectLendingMarketsByTokenAddress', () => {
+    it('should group markets by token address', () => {
+      const result = selectLendingMarketsByTokenAddress(mockState);
+      expect(result).toStrictEqual({
+        '0x123': [
+          {
+            ...mockMarket1,
+            position: mockPosition1,
+          },
+        ],
+        '0x456': [
+          {
+            ...mockMarket2,
+            position: mockPosition2,
+          },
+        ],
+      });
+    });
+
+    it('should handle markets without positions', () => {
+      const stateWithoutPositions = {
+        ...mockState,
+        lending: {
+          ...mockState.lending,
+          positions: [],
+        },
+      };
+      const result = selectLendingMarketsByTokenAddress(stateWithoutPositions);
+      expect(result).toStrictEqual({
+        '0x123': [
+          {
+            ...mockMarket1,
+            position: null,
+          },
+        ],
+        '0x456': [
+          {
+            ...mockMarket2,
+            position: null,
+          },
+        ],
+      });
+    });
+  });
+
+  describe('selectLendingMarketsByChainIdAndOutputTokenAddress', () => {
+    it('should group markets by chainId and output token address', () => {
+      const result =
+        selectLendingMarketsByChainIdAndOutputTokenAddress(mockState);
+      expect(result).toStrictEqual({
+        1: {
+          '0x456': [
+            {
+              ...mockMarket1,
+              position: mockPosition1,
+            },
+          ],
+        },
+        2: {
+          '0xabc': [
+            {
+              ...mockMarket2,
+              position: mockPosition2,
+            },
+          ],
+        },
+      });
+    });
+  });
+
+  describe('selectLendingMarketsByChainIdAndTokenAddress', () => {
+    it('should group markets by chainId and token address', () => {
+      const result = selectLendingMarketsByChainIdAndTokenAddress(mockState);
+      expect(result).toStrictEqual({
+        1: {
+          '0x123': [
+            {
+              ...mockMarket1,
+              position: mockPosition1,
+            },
+          ],
+        },
+        2: {
+          '0x456': [
+            {
+              ...mockMarket2,
+              position: mockPosition2,
+            },
+          ],
+        },
+      });
+    });
+  });
+
+  describe('selectIsLendingEligible', () => {
+    it('should return the lending eligibility status', () => {
+      const result = selectIsLendingEligible(mockState);
+      expect(result).toBe(true);
+    });
+
+    it('should return false when lending is not eligible', () => {
+      const stateWithIneligibleLending = {
+        ...mockState,
+        lending: {
+          ...mockState.lending,
+          isEligible: false,
+        },
+      };
+      const result = selectIsLendingEligible(stateWithIneligibleLending);
+      expect(result).toBe(false);
     });
   });
 });
