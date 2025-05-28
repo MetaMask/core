@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/multichain-api-middleware",
-  "version": "0.4.0",
-  "description": "JSON-RPC methods and middleware to support the MetaMask Multichain API",
+  "name": "@metamask/error-reporting-service",
+  "version": "0.0.0",
+  "description": "Logs errors to an error reporting service such as Sentry",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/multichain-api-middleware#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/error-reporting-service#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -37,33 +37,21 @@
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:docs": "typedoc",
-    "changelog:update": "../../scripts/update-changelog.sh @metamask/multichain-api-middleware",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/multichain-api-middleware",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/error-reporting-service",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/error-reporting-service",
     "publish:preview": "yarn npm publish --tag preview",
-    "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
-    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
+    "since-latest-release": "../../scripts/since-latest-release.sh"
   },
   "dependencies": {
-    "@metamask/api-specs": "^0.14.0",
-    "@metamask/chain-agnostic-permission": "^0.7.0",
-    "@metamask/controller-utils": "^11.9.0",
-    "@metamask/json-rpc-engine": "^10.0.3",
-    "@metamask/network-controller": "^23.5.0",
-    "@metamask/permission-controller": "^11.0.6",
-    "@metamask/rpc-errors": "^7.0.2",
-    "@metamask/utils": "^11.2.0",
-    "@open-rpc/meta-schema": "^1.14.6",
-    "@open-rpc/schema-utils-js": "^2.0.5",
-    "jsonschema": "^1.4.1"
+    "@metamask/base-controller": "^8.0.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/eth-json-rpc-filters": "^9.0.0",
-    "@metamask/multichain-transactions-controller": "^1.0.0",
-    "@metamask/safe-event-emitter": "^3.0.0",
+    "@sentry/core": "^9.22.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional approval request when calling `addTransactionBatch` ([#5793](https://github.com/MetaMask/core/pull/5793))
+  - Add `transactionBatches` array to state.
+  - Add `TransactionBatchMeta` type.
+
+### Fixed
+
+- Support leading zeroes in `authorizationList` properties ([#5830](https://github.com/MetaMask/core/pull/5830))
+
 ## [56.2.0]
 
 ### Added

@@ -132,6 +132,10 @@ export type PreferencesState = {
    * Controls whether balance and assets are hidden or not
    */
   privacyMode: boolean;
+  /**
+   * Allow user to stop being prompted for smart account upgrade
+   */
+  dismissSmartAccountSuggestionEnabled: boolean;
 };
 
 const metadata = {
@@ -154,6 +158,7 @@ const metadata = {
   useSafeChainsListValidation: { persist: true, anonymous: true },
   tokenSortConfig: { persist: true, anonymous: true },
   privacyMode: { persist: true, anonymous: true },
+  dismissSmartAccountSuggestionEnabled: { persist: true, anonymous: true },
 };
 
 const name = 'PreferencesController';
@@ -233,6 +238,7 @@ export function getDefaultPreferencesState(): PreferencesState {
       sortCallback: 'stringNumeric',
     },
     privacyMode: false,
+    dismissSmartAccountSuggestionEnabled: false,
   };
 }
 
@@ -583,6 +589,20 @@ export class PreferencesController extends BaseController<
   setPrivacyMode(privacyMode: boolean) {
     this.update((state) => {
       state.privacyMode = privacyMode;
+    });
+  }
+
+  /**
+   * A setter for the user preferences dismiss smart account upgrade prompt.
+   *
+   * @param dismissSmartAccountSuggestionEnabled - true to dismiss smart account upgrade prompt, false to enable it.
+   */
+  setDismissSmartAccountSuggestionEnabled(
+    dismissSmartAccountSuggestionEnabled: boolean,
+  ) {
+    this.update((state) => {
+      state.dismissSmartAccountSuggestionEnabled =
+        dismissSmartAccountSuggestionEnabled;
     });
   }
 }
