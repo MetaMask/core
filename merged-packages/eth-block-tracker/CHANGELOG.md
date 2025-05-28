@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.1]
+
 ### Fixed
 
 - Fixed hanging `getLatestBlock()` promises when block tracker is stopped before request completion ([#320](https://github.com/MetaMask/eth-block-tracker/pull/320))
@@ -285,7 +287,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add RpcBlockTracker
 
-[Unreleased]: https://github.com/MetaMask/eth-block-tracker/compare/v12.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/eth-block-tracker/compare/v12.0.1...HEAD
+[12.0.1]: https://github.com/MetaMask/eth-block-tracker/compare/v12.0.0...v12.0.1
 [12.0.0]: https://github.com/MetaMask/eth-block-tracker/compare/v11.0.4...v12.0.0
 [11.0.4]: https://github.com/MetaMask/eth-block-tracker/compare/v11.0.3...v11.0.4
 [11.0.3]: https://github.com/MetaMask/eth-block-tracker/compare/v11.0.2...v11.0.3
