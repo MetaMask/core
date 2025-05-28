@@ -148,3 +148,5 @@
 /packages/bridge-status-controller/CHANGELOG.md         @MetaMask/swaps-engineers @MetaMask/wallet-framework-engineers
 /packages/app-metadata-controller/package.json        @MetaMask/mobile-platform @MetaMask/wallet-framework-engineers
 /packages/app-metadata-controller/CHANGELOG.md        @MetaMask/mobile-platform @MetaMask/wallet-framework-engineers
+/packages/foundryup/package.json @MetaMask/mobile-platform @MetaMask/extension-platform
+/packages/foundryup/CHANGELOG.md @MetaMask/mobile-platform @MetaMask/extension-platform
