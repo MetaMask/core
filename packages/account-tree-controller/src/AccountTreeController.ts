@@ -77,7 +77,7 @@ export type AccountTreeControllerState = {
     roots: {
       // Wallets:
       [accountGroupRoot: AccountGroupRootId]: AccountGroupRoot;
-    },
+    };
   };
 };
 
