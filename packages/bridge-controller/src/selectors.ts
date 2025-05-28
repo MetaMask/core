@@ -16,7 +16,6 @@ import {
 import { BRIDGE_PREFERRED_GAS_ESTIMATE } from './constants/bridge';
 import type {
   BridgeControllerState,
-  BridgeFeatureFlagsKey,
   ExchangeRate,
   GenericQuoteRequest,
   QuoteMetadata,
@@ -33,6 +32,7 @@ import {
   formatChainIdToCaip,
   formatChainIdToHex,
 } from './utils/caip-formatters';
+import { processFeatureFlags } from './utils/feature-flags';
 import {
   calcAdjustedReturn,
   calcCost,
@@ -56,11 +56,16 @@ type ExchangeRateControllerState = MultichainAssetsRatesControllerState &
 /**
  * The state of the bridge controller and all its dependency controllers
  */
+type RemoteFeatureFlagControllerState = {
+  remoteFeatureFlags: {
+    bridgeConfig: unknown;
+  };
+};
 export type BridgeAppState = BridgeControllerState & {
   gasFeeEstimates: GasFeeEstimates;
 } & ExchangeRateControllerState & {
     participateInMetaMetrics: boolean;
-  };
+  } & RemoteFeatureFlagControllerState;
 /**
  * Creates a structured selector for the bridge controller
  */
@@ -76,8 +81,36 @@ const createBridgeSelector = createSelector_.withTypes<BridgeAppState>();
 type BridgeQuotesClientParams = {
   sortOrder: SortOrder;
   selectedQuote: (QuoteResponse & QuoteMetadata) | null;
-  featureFlagsKey: BridgeFeatureFlagsKey;
 };
+
+const createFeatureFlagsSelector =
+  createSelector_.withTypes<RemoteFeatureFlagControllerState>();
+
+/**
+ * Selects the bridge feature flags
+ *
+ * @param state - The state of the bridge controller
+ * @returns The bridge feature flags
+ *
+ * @example
+ * ```ts
+ * const featureFlags = useSelector(state => selectBridgeFeatureFlags(state));
+ *
+ * Or
+ *
+ * export const selectBridgeFeatureFlags = createSelector(
+ * selectRemoteFeatureFlags,
+ *  (remoteFeatureFlags) =>
+ *    selectBridgeFeatureFlagsBase({
+ *      bridgeConfig: remoteFeatureFlags.bridgeConfig,
+ *    }),
+ * );
+ * ```
+ */
+export const selectBridgeFeatureFlags = createFeatureFlagsSelector(
+  [(state) => state.remoteFeatureFlags.bridgeConfig],
+  (bridgeConfig: unknown) => processFeatureFlags(bridgeConfig),
+);
 
 const getExchangeRateByChainIdAndAddress = (
   exchangeRateSources: ExchangeRateControllerState,
@@ -308,21 +341,18 @@ const selectActiveQuote = createBridgeSelector(
   (recommendedQuote, selectedQuote) => selectedQuote ?? recommendedQuote,
 );
 
-const selectIsQuoteGoingToRefresh = (
-  state: BridgeAppState,
-  { featureFlagsKey }: BridgeQuotesClientParams,
-) =>
-  state.quoteRequest.insufficientBal
-    ? false
-    : state.quotesRefreshCount <
-      state.bridgeFeatureFlags[featureFlagsKey].maxRefreshCount;
+const selectIsQuoteGoingToRefresh = createBridgeSelector(
+  [
+    selectBridgeFeatureFlags,
+    (state) => state.quoteRequest.insufficientBal,
+    (state) => state.quotesRefreshCount,
+  ],
+  (featureFlags, insufficientBal, quotesRefreshCount) =>
+    insufficientBal ? false : featureFlags.maxRefreshCount > quotesRefreshCount,
+);
 
 const selectQuoteRefreshRate = createBridgeSelector(
-  [
-    ({ bridgeFeatureFlags }, { featureFlagsKey }: BridgeQuotesClientParams) =>
-      bridgeFeatureFlags[featureFlagsKey],
-    (state) => state.quoteRequest.srcChainId,
-  ],
+  [selectBridgeFeatureFlags, (state) => state.quoteRequest.srcChainId],
   (featureFlags, srcChainId) =>
     (srcChainId
       ? featureFlags.chains[formatChainIdToCaip(srcChainId)]?.refreshRate
@@ -350,17 +380,15 @@ export const selectIsQuoteExpired = createBridgeSelector(
  * @param state - The state of the bridge controller and its dependency controllers
  * @param sortOrder - The sort order of the quotes
  * @param selectedQuote - The quote that is currently selected by the user, should be cleared by clients when the req params change
- * @param featureFlagsKey - The feature flags key for the client (e.g. `BridgeFeatureFlagsKey.EXTENSION_CONFIG`
  * @returns The activeQuote, recommendedQuote, sortedQuotes, and other quote fetching metadata
  *
  * @example
  * ```ts
  * const quotes = useSelector(state => selectBridgeQuotes(
- *   state.metamask,
+ *   { ...state.metamask, bridgeConfig: remoteFeatureFlags.bridgeConfig },
  *   {
  *     sortOrder: state.bridge.sortOrder,
  *     selectedQuote: state.bridge.selectedQuote,
- *     featureFlagsKey: BridgeFeatureFlagsKey.EXTENSION_CONFIG,
  *   }
  * ));
  * ```

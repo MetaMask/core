@@ -2,7 +2,7 @@ import type { BigNumber } from '@ethersproject/bignumber';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import type { StateMetadata } from '@metamask/base-controller';
-import type { ChainId } from '@metamask/controller-utils';
+import type { ChainId, TraceCallback } from '@metamask/controller-utils';
 import { SolScope } from '@metamask/keyring-api';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { NetworkClientId } from '@metamask/network-controller';
@@ -20,6 +20,7 @@ import {
   REFRESH_INTERVAL_MS,
 } from './constants/bridge';
 import { CHAIN_IDS } from './constants/chains';
+import { TraceName } from './constants/traces';
 import { selectIsAssetExchangeRateInState } from './selectors';
 import type { QuoteRequest } from './types';
 import {
@@ -31,13 +32,13 @@ import {
   type BridgeControllerState,
   type BridgeControllerMessenger,
   type FetchFunction,
-  BridgeFeatureFlagsKey,
   RequestStatus,
 } from './types';
 import { getAssetIdsForToken, toExchangeRates } from './utils/assets';
 import { hasSufficientBalance } from './utils/balance';
 import {
   getDefaultBridgeControllerState,
+  isCrossChain,
   isSolanaChainId,
   sumHexes,
 } from './utils/bridge';
@@ -46,11 +47,8 @@ import {
   formatChainIdToCaip,
   formatChainIdToHex,
 } from './utils/caip-formatters';
-import {
-  fetchAssetPrices,
-  fetchBridgeFeatureFlags,
-  fetchBridgeQuotes,
-} from './utils/fetch';
+import { getBridgeFeatureFlags } from './utils/feature-flags';
+import { fetchAssetPrices, fetchBridgeQuotes } from './utils/fetch';
 import { UnifiedSwapBridgeEventName } from './utils/metrics/constants';
 import {
   formatProviderLabel,
@@ -72,10 +70,6 @@ import { type CrossChainSwapsEventProperties } from './utils/metrics/types';
 import { isValidQuoteRequest } from './utils/quote';
 
 const metadata: StateMetadata<BridgeControllerState> = {
-  bridgeFeatureFlags: {
-    persist: false,
-    anonymous: false,
-  },
   quoteRequest: {
     persist: false,
     anonymous: false,
@@ -159,6 +153,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     properties: CrossChainSwapsEventProperties<T>,
   ) => void;
 
+  readonly #trace: TraceCallback;
+
   readonly #config: {
     customBridgeApiBaseUrl?: string;
   };
@@ -171,6 +167,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     fetchFn,
     config,
     trackMetaMetricsFn,
+    traceFn,
   }: {
     messenger: BridgeControllerMessenger;
     state?: Partial<BridgeControllerState>;
@@ -190,6 +187,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       eventName: T,
       properties: CrossChainSwapsEventProperties<T>,
     ) => void;
+    traceFn?: TraceCallback;
   }) {
     super({
       name: BRIDGE_CONTROLLER_NAME,
@@ -209,11 +207,12 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#fetchFn = fetchFn;
     this.#trackMetaMetricsFn = trackMetaMetricsFn;
     this.#config = config ?? {};
+    this.#trace = traceFn ?? (((_request, fn) => fn?.()) as TraceCallback);
 
     // Register action handlers
     this.messagingSystem.registerActionHandler(
-      `${BRIDGE_CONTROLLER_NAME}:setBridgeFeatureFlags`,
-      this.setBridgeFeatureFlags.bind(this),
+      `${BRIDGE_CONTROLLER_NAME}:setChainIntervalLength`,
+      this.setChainIntervalLength.bind(this),
     );
     this.messagingSystem.registerActionHandler(
       `${BRIDGE_CONTROLLER_NAME}:updateBridgeQuoteRequestParams`,
@@ -290,7 +289,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
       const networkClientId = this.#getSelectedNetworkClientId();
       // Set refresh rate based on the source chain before starting polling
-      this.#setIntervalLength();
+      this.setChainIntervalLength();
       this.startPolling({
         networkClientId,
         updatedQuoteRequest: {
@@ -424,39 +423,21 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         DEFAULT_BRIDGE_CONTROLLER_STATE.quotesRefreshCount;
       state.assetExchangeRates =
         DEFAULT_BRIDGE_CONTROLLER_STATE.assetExchangeRates;
-
-      // Keep feature flags
-      const originalFeatureFlags = state.bridgeFeatureFlags;
-      state.bridgeFeatureFlags = originalFeatureFlags;
     });
-  };
-
-  setBridgeFeatureFlags = async () => {
-    const bridgeFeatureFlags = await fetchBridgeFeatureFlags(
-      this.#clientId,
-      this.#fetchFn,
-      this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
-    );
-    this.update((state) => {
-      state.bridgeFeatureFlags = bridgeFeatureFlags;
-    });
-    this.#setIntervalLength();
   };
 
   /**
    * Sets the interval length based on the source chain
    */
-  readonly #setIntervalLength = () => {
+  setChainIntervalLength = () => {
     const { state } = this;
     const { srcChainId } = state.quoteRequest;
+    const bridgeFeatureFlags = getBridgeFeatureFlags(this.messagingSystem);
+
     const refreshRateOverride = srcChainId
-      ? state.bridgeFeatureFlags[BridgeFeatureFlagsKey.EXTENSION_CONFIG].chains[
-          formatChainIdToCaip(srcChainId)
-        ]?.refreshRate
+      ? bridgeFeatureFlags.chains[formatChainIdToCaip(srcChainId)]?.refreshRate
       : undefined;
-    const defaultRefreshRate =
-      state.bridgeFeatureFlags[BridgeFeatureFlagsKey.EXTENSION_CONFIG]
-        .refreshRate;
+    const defaultRefreshRate = bridgeFeatureFlags.refreshRate;
     this.setIntervalLength(refreshRateOverride ?? defaultRefreshRate);
   };
 
@@ -465,8 +446,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     updatedQuoteRequest,
     context,
   }: BridgePollingInput) => {
-    const { bridgeFeatureFlags, quotesInitialLoadTime, quotesRefreshCount } =
-      this.state;
     this.#abortController?.abort('New quote request');
     this.#abortController = new AbortController();
 
@@ -480,7 +459,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       state.quoteFetchError = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError;
     });
 
-    try {
+    const fetchQuotes = async () => {
       const quotes = await fetchBridgeQuotes(
         updatedQuoteRequest,
         // AbortController is always defined by this line, because we assign it a few lines above,
@@ -500,10 +479,29 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         state.quotes = quotesWithL1GasFees ?? quotesWithSolanaFees ?? quotes;
         state.quotesLoadingStatus = RequestStatus.FETCHED;
       });
+    };
+
+    try {
+      await this.#trace(
+        {
+          name: isCrossChain(
+            updatedQuoteRequest.srcChainId,
+            updatedQuoteRequest.destChainId,
+          )
+            ? TraceName.BridgeQuotesFetched
+            : TraceName.SwapQuotesFetched,
+          data: {
+            srcChainId: formatChainIdToCaip(updatedQuoteRequest.srcChainId),
+            destChainId: formatChainIdToCaip(updatedQuoteRequest.destChainId),
+          },
+        },
+        fetchQuotes,
+      );
     } catch (error) {
       const isAbortError = (error as Error).name === 'AbortError';
       const isAbortedDueToReset = error === RESET_STATE_ABORT_MESSAGE;
       if (isAbortedDueToReset || isAbortError) {
+        // Exit the function early to avoid other state updates
         return;
       }
 
@@ -518,31 +516,29 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         context,
       );
       console.log('Failed to fetch bridge quotes', error);
-    } finally {
-      const { maxRefreshCount } =
-        bridgeFeatureFlags[BridgeFeatureFlagsKey.EXTENSION_CONFIG];
-
-      const updatedQuotesRefreshCount = quotesRefreshCount + 1;
-      // Stop polling if the maximum number of refreshes has been reached
-      if (
-        updatedQuoteRequest.insufficientBal ||
-        (!updatedQuoteRequest.insufficientBal &&
-          updatedQuotesRefreshCount >= maxRefreshCount)
-      ) {
-        this.stopAllPolling();
-      }
-
-      // Update quote fetching stats
-      const quotesLastFetched = Date.now();
-      this.update((state) => {
-        state.quotesInitialLoadTime =
-          updatedQuotesRefreshCount === 1 && this.#quotesFirstFetched
-            ? quotesLastFetched - this.#quotesFirstFetched
-            : quotesInitialLoadTime;
-        state.quotesLastFetched = quotesLastFetched;
-        state.quotesRefreshCount = updatedQuotesRefreshCount;
-      });
     }
+    const bridgeFeatureFlags = getBridgeFeatureFlags(this.messagingSystem);
+    const { maxRefreshCount } = bridgeFeatureFlags;
+
+    // Stop polling if the maximum number of refreshes has been reached
+    if (
+      updatedQuoteRequest.insufficientBal ||
+      (!updatedQuoteRequest.insufficientBal &&
+        this.state.quotesRefreshCount >= maxRefreshCount)
+    ) {
+      this.stopAllPolling();
+    }
+
+    // Update quote fetching stats
+    const quotesLastFetched = Date.now();
+    this.update((state) => {
+      state.quotesInitialLoadTime =
+        state.quotesRefreshCount === 0 && this.#quotesFirstFetched
+          ? quotesLastFetched - this.#quotesFirstFetched
+          : this.state.quotesInitialLoadTime;
+      state.quotesLastFetched = quotesLastFetched;
+      state.quotesRefreshCount += 1;
+    });
   };
 
   readonly #appendL1GasFees = async (
@@ -668,7 +664,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #getRequestMetadata = (): Omit<
     RequestMetadata,
-    'stx_enabled' | 'usd_amount_source'
+    'stx_enabled' | 'usd_amount_source' | 'security_warnings'
   > => {
     return {
       slippage_limit: this.state.quoteRequest.slippage,
@@ -682,7 +678,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #getQuoteFetchData = (): Omit<
     QuoteFetchData,
-    'best_quote_provider'
+    'best_quote_provider' | 'price_impact'
   > => {
     return {
       can_submit: Boolean(this.state.quoteRequest.insufficientBal), // TODO check if balance is sufficient for network fees

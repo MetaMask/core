@@ -4,7 +4,6 @@ import type { Hex } from '@metamask/utils';
 
 import { CHAIN_IDS } from './chains';
 import type { BridgeControllerState } from '../types';
-import { BridgeFeatureFlagsKey } from '../types';
 
 // TODO read from feature flags
 export const ALLOWED_BRIDGE_CHAIN_IDS = [
@@ -45,6 +44,7 @@ export const DEFAULT_MAX_REFRESH_COUNT = 5;
 export const BRIDGE_CONTROLLER_NAME = 'BridgeController';
 
 export const DEFAULT_FEATURE_FLAG_CONFIG = {
+  minimumVersion: '0.0.0',
   refreshRate: REFRESH_INTERVAL_MS,
   maxRefreshCount: DEFAULT_MAX_REFRESH_COUNT,
   support: false,
@@ -52,10 +52,6 @@ export const DEFAULT_FEATURE_FLAG_CONFIG = {
 };
 
 export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState = {
-  bridgeFeatureFlags: {
-    [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: DEFAULT_FEATURE_FLAG_CONFIG,
-    [BridgeFeatureFlagsKey.MOBILE_CONFIG]: DEFAULT_FEATURE_FLAG_CONFIG,
-  },
   quoteRequest: {
     srcTokenAddress: AddressZero,
   },

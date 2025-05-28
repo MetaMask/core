@@ -33,6 +33,8 @@ import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
+import type { BulkPhishingDetectionScanResponse } from '@metamask/phishing-controller';
+import { RecommendedAction } from '@metamask/phishing-controller';
 import type {
   PreferencesControllerStateChangeEvent,
   PreferencesState,
@@ -232,6 +234,14 @@ export type NftControllerGetStateAction = ControllerGetStateAction<
 export type NftControllerActions = NftControllerGetStateAction;
 
 /**
+ * Action type for bulk scanning URLs with PhishingController
+ */
+export type PhishingControllerBulkScanUrlsAction = {
+  type: 'PhishingController:bulkScanUrls';
+  handler: (urls: string[]) => Promise<BulkPhishingDetectionScanResponse>;
+};
+
+/**
  * The external actions available to the {@link NftController}.
  */
 export type AllowedActions =
@@ -245,7 +255,8 @@ export type AllowedActions =
   | AssetsContractControllerGetERC721OwnerOfAction
   | AssetsContractControllerGetERC1155BalanceOfAction
   | AssetsContractControllerGetERC1155TokenURIAction
-  | NetworkControllerFindNetworkClientIdByChainIdAction;
+  | NetworkControllerFindNetworkClientIdByChainIdAction
+  | PhishingControllerBulkScanUrlsAction;
 
 export type AllowedEvents =
   | PreferencesControllerStateChangeEvent
@@ -774,7 +785,7 @@ export class NftController extends BaseController<
           )
         : undefined,
     ]);
-    return {
+    const metadata = {
       ...nftApiMetadata,
       name: blockchainMetadata?.name ?? nftApiMetadata?.name ?? null,
       description:
@@ -784,6 +795,8 @@ export class NftController extends BaseController<
         blockchainMetadata?.standard ?? nftApiMetadata?.standard ?? null,
       tokenURI: blockchainMetadata?.tokenURI ?? null,
     };
+    // Sanitize the metadata by checking external links against phishing protection
+    return await this.#sanitizeNftMetadata(metadata);
   }
 
   /**
@@ -1316,15 +1329,17 @@ export class NftController extends BaseController<
       asset.tokenId,
       networkClientId,
     );
+    // Sanitize metadata
+    const sanitizedMetadata = await this.#sanitizeNftMetadata(nftMetadata);
 
-    if (nftMetadata.standard && nftMetadata.standard !== type) {
+    if (sanitizedMetadata.standard && sanitizedMetadata.standard !== type) {
       throw rpcErrors.invalidInput(
-        `Suggested NFT of type ${nftMetadata.standard} does not match received type ${type}`,
+        `Suggested NFT of type ${sanitizedMetadata.standard} does not match received type ${type}`,
       );
     }
 
     const suggestedNftMeta: SuggestedNftMeta = {
-      asset: { ...asset, ...nftMetadata },
+      asset: { ...asset, ...sanitizedMetadata },
       type,
       id: random(),
       time: Date.now(),
@@ -1333,7 +1348,7 @@ export class NftController extends BaseController<
     };
     await this._requestApproval(suggestedNftMeta);
     const { address, tokenId } = asset;
-    const { name, standard, description, image } = nftMetadata;
+    const { name, standard, description, image } = sanitizedMetadata;
     await this.addNft(address, tokenId, networkClientId, {
       nftMetadata: {
         name: name ?? null,
@@ -1479,13 +1494,18 @@ export class NftController extends BaseController<
 
     const checksumHexAddress = toChecksumHexAddress(tokenAddress);
 
-    nftMetadata =
-      nftMetadata ||
-      (await this.#getNftInformation(
+    if (!nftMetadata) {
+      const fetchedMetadata = await this.#getNftInformation(
         checksumHexAddress,
         tokenId,
         networkClientId,
-      ));
+      );
+      // Sanitize metadata
+      nftMetadata = await this.#sanitizeNftMetadata(fetchedMetadata);
+    } else {
+      // Sanitize provided metadata
+      nftMetadata = await this.#sanitizeNftMetadata(nftMetadata);
+    }
 
     const newNftContracts = await this.#addNftContract(networkClientId, {
       tokenAddress: checksumHexAddress,
@@ -1550,7 +1570,9 @@ export class NftController extends BaseController<
           address: toChecksumHexAddress(nft.address),
         };
       });
-      const nftMetadataResults = await Promise.all(
+
+      // Get all unsanitized nft metadata
+      const unsanitizedResults = await Promise.all(
         nftsWithChecksumAdr.map(async (nft) => {
           // Each NFT should have a chainId; convert nft.chainId to networkClientId
           const networkClientId = this.messagingSystem.call(
@@ -1570,6 +1592,22 @@ export class NftController extends BaseController<
           };
         }),
       );
+
+      // Extract metadata
+      const unsanitizedMetadata = unsanitizedResults.map(
+        (result) => result.newMetadata,
+      );
+
+      // Sanitize all metadata
+      const sanitizedMetadata = await this.#bulkSanitizeNftMetadata(
+        unsanitizedMetadata as NftMetadata[],
+      );
+
+      // Reassemble the results with sanitized metadata
+      const nftMetadataResults = unsanitizedResults.map((result, index) => ({
+        nft: result.nft,
+        newMetadata: sanitizedMetadata[index],
+      }));
 
       // We want to avoid updating the state if the state and fetched nft info are the same
       const nftsWithDifferentMetadata: NftUpdate[] = [];
@@ -2105,6 +2143,121 @@ export class NftController extends BaseController<
     this.update(() => {
       return getDefaultNftControllerState();
     });
+  }
+
+  /**
+   * Sanitizes multiple NFT metadata objects by checking external links against PhishingController in a single bulk request
+   *
+   * @param metadataList - Array of NFT metadata objects to sanitize
+   * @returns Array of sanitized NFT metadata objects
+   */
+  async #bulkSanitizeNftMetadata(
+    metadataList: NftMetadata[],
+  ): Promise<NftMetadata[]> {
+    // Create a copy of the metadata list to avoid mutating the input
+    const sanitizedMetadataList = metadataList.map((metadata) => ({
+      ...metadata,
+    }));
+
+    // Maps URL to a list of {metadataIndex, fieldName} to track where each URL is used
+    const urlMap: Record<
+      string,
+      { metadataIndex: number; fieldName: string }[]
+    > = {};
+
+    const fieldsToCheck = [
+      'externalLink',
+      'image',
+      'imagePreview',
+      'imageThumbnail',
+      'imageOriginal',
+      'animation',
+      'animationOriginal',
+    ];
+
+    // Collect all URLs from all metadata objects
+    sanitizedMetadataList.forEach((metadata, metadataIndex) => {
+      // Check regular fields
+      for (const field of fieldsToCheck) {
+        const url = metadata[field as keyof NftMetadata];
+        if (typeof url === 'string' && url && url.startsWith('http')) {
+          if (!urlMap[url]) {
+            urlMap[url] = [];
+          }
+          urlMap[url].push({ metadataIndex, fieldName: field });
+        }
+      }
+
+      // Check collection links if they exist
+      if (metadata.collection) {
+        const { collection } = metadata;
+        if (
+          'externalLink' in collection &&
+          typeof collection.externalLink === 'string'
+        ) {
+          const url = collection.externalLink;
+          if (!urlMap[url]) {
+            urlMap[url] = [];
+          }
+          urlMap[url].push({
+            metadataIndex,
+            fieldName: 'collection.externalLink',
+          });
+        }
+      }
+    });
+
+    const urlsToCheck = Object.keys(urlMap);
+    if (urlsToCheck.length === 0) {
+      return sanitizedMetadataList;
+    }
+
+    try {
+      // Use bulkScanUrls to check all URLs at once
+      const bulkScanResponse = await this.messagingSystem.call(
+        'PhishingController:bulkScanUrls',
+        urlsToCheck,
+      );
+      // Apply scan results to all metadata objects
+      Object.entries(bulkScanResponse.results).forEach(([url, result]) => {
+        if (result.recommendedAction === RecommendedAction.Block) {
+          // Remove this URL from all metadata objects where it appears
+          urlMap[url].forEach(({ metadataIndex, fieldName }) => {
+            if (
+              fieldName === 'collection.externalLink' &&
+              sanitizedMetadataList[metadataIndex].collection // Check if collection exists
+            ) {
+              const { collection } = sanitizedMetadataList[metadataIndex];
+              // Ensure collection is not undefined again just to be safe before using 'in'
+              if (collection && 'externalLink' in collection) {
+                delete (collection as Record<string, unknown>).externalLink;
+              }
+            } else {
+              delete sanitizedMetadataList[metadataIndex][
+                fieldName as keyof NftMetadata
+              ];
+            }
+          });
+        }
+      });
+    } catch (error) {
+      console.error('Error during bulk URL scanning:', error);
+      // If bulk scan fails, we fall back to keeping all URLs
+    }
+
+    return sanitizedMetadataList;
+  }
+
+  /**
+   * Sanitizes NFT metadata by checking external links against PhishingController
+   *
+   * @param metadata - The NFT metadata to sanitize
+   * @returns Sanitized NFT metadata with potentially dangerous links removed
+   */
+  async #sanitizeNftMetadata(metadata: NftMetadata): Promise<NftMetadata> {
+    // Use the bulk sanitize function with just a single metadata object
+    const sanitized = await this.#bulkSanitizeNftMetadata([metadata]);
+    return sanitized[0];
   }
 }
 

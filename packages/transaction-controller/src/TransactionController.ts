@@ -69,7 +69,11 @@ import { RandomisedEstimationsGasFeeFlow } from './gas-flows/RandomisedEstimatio
 import { ScrollLayer1GasFeeFlow } from './gas-flows/ScrollLayer1GasFeeFlow';
 import { TestGasFeeFlow } from './gas-flows/TestGasFeeFlow';
 import { AccountsApiRemoteTransactionSource } from './helpers/AccountsApiRemoteTransactionSource';
-import { GasFeePoller, updateTransactionGasFees } from './helpers/GasFeePoller';
+import {
+  GasFeePoller,
+  updateTransactionGasProperties,
+  updateTransactionGasEstimates,
+} from './helpers/GasFeePoller';
 import type { IncomingTransactionOptions } from './helpers/IncomingTransactionHelper';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { MethodDataHelper } from './helpers/MethodDataHelper';
@@ -111,21 +115,31 @@ import type {
   IsAtomicBatchSupportedResult,
   IsAtomicBatchSupportedRequest,
   AfterAddHook,
+  GasFeeEstimateLevel as GasFeeEstimateLevelType,
+  TransactionBatchMeta,
 } from './types';
 import {
+  GasFeeEstimateLevel,
   TransactionEnvelopeType,
   TransactionType,
   TransactionStatus,
   SimulationErrorCode,
 } from './types';
-import { addTransactionBatch, isAtomicBatchSupported } from './utils/batch';
+import {
+  addTransactionBatch,
+  ERROR_MESSAGE_NO_UPGRADE_CONTRACT,
+  isAtomicBatchSupported,
+} from './utils/batch';
 import {
   DELEGATION_PREFIX,
+  doesChainSupportEIP7702,
+  ERROR_MESSGE_PUBLIC_KEY,
   generateEIP7702BatchTransaction,
   getDelegationAddress,
   signAuthorizationList,
 } from './utils/eip7702';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
+import { getEIP7702UpgradeContractAddress } from './utils/feature-flags';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
 import { getGasFeeFlow } from './utils/gas-flow';
@@ -143,6 +157,7 @@ import {
 } from './utils/nonce';
 import { prepareTransaction, serializeTransaction } from './utils/prepare';
 import { getTransactionParamsWithIncreasedGasFee } from './utils/retry';
+import type { GetSimulationDataRequest } from './utils/simulation';
 import { getSimulationData } from './utils/simulation';
 import {
   updatePostTransactionBalance,
@@ -171,6 +186,10 @@ import {
  */
 const metadata = {
   transactions: {
+    persist: true,
+    anonymous: false,
+  },
+  transactionBatches: {
     persist: true,
     anonymous: false,
   },
@@ -237,13 +256,16 @@ export type TransactionControllerState = {
   /** A list of TransactionMeta objects. */
   transactions: TransactionMeta[];
 
+  /** A list of TransactionBatchMeta objects. */
+  transactionBatches: TransactionBatchMeta[];
+
   /** Object containing all known method data information. */
   methodData: Record<string, MethodData>;
 
   /** Cache to optimise incoming transaction queries. */
   lastFetchedBlockNumbers: { [key: string]: number | string };
 
-  /** History of all tranasactions submitted from the wallet. */
+  /** History of all transactions submitted from the wallet. */
   submitHistory: SubmitHistoryEntry[];
 };
 
@@ -299,14 +321,6 @@ export type TransactionControllerOptions = {
   /** Whether to disable additional processing on swaps transactions. */
   disableSwaps: boolean;
 
-  /**
-   * Callback to determine whether gas fee updates should be enabled for a given transaction.
-   * Returns true to enable updates, false to disable them.
-   */
-  isAutomaticGasFeeUpdateEnabled?: (
-    transactionMeta: TransactionMeta,
-  ) => boolean;
-
   /** Whether or not the account supports EIP-1559. */
   getCurrentAccountEIP1559Compatibility?: () => Promise<boolean>;
 
@@ -341,6 +355,19 @@ export type TransactionControllerOptions = {
     /** API keys to be used for Etherscan requests to prevent rate limiting. */
     etherscanApiKeysByChainId?: Record<Hex, string>;
   };
+
+  /**
+   * Callback to determine whether gas fee updates should be enabled for a given transaction.
+   * Returns true to enable updates, false to disable them.
+   */
+  isAutomaticGasFeeUpdateEnabled?: (
+    transactionMeta: TransactionMeta,
+  ) => boolean;
+
+  /** Whether simulation should return EIP-7702 gas fee tokens. */
+  isEIP7702GasFeeTokensEnabled?: (
+    transactionMeta: TransactionMeta,
+  ) => Promise<boolean>;
 
   /** Whether the first time interaction check is enabled. */
   isFirstTimeInteractionEnabled?: () => boolean;
@@ -653,6 +680,7 @@ function getDefaultTransactionControllerState(): TransactionControllerState {
   return {
     methodData: {},
     transactions: [],
+    transactionBatches: [],
     lastFetchedBlockNumbers: {},
     submitHistory: [],
   };
@@ -722,6 +750,10 @@ export class TransactionController extends BaseController<
     transactionMeta: TransactionMeta,
   ) => boolean;
 
+  readonly #isEIP7702GasFeeTokensEnabled: (
+    transactionMeta: TransactionMeta,
+  ) => Promise<boolean>;
+
   readonly #isFirstTimeInteractionEnabled: () => boolean;
 
   readonly #isHistoryDisabled: boolean;
@@ -786,6 +818,7 @@ export class TransactionController extends BaseController<
       hooks,
       incomingTransactions = {},
       isAutomaticGasFeeUpdateEnabled,
+      isEIP7702GasFeeTokensEnabled,
       isFirstTimeInteractionEnabled,
       isSimulationEnabled,
       messenger,
@@ -833,6 +866,8 @@ export class TransactionController extends BaseController<
     this.#incomingTransactionOptions = incomingTransactions;
     this.#isAutomaticGasFeeUpdateEnabled =
       isAutomaticGasFeeUpdateEnabled ?? ((_txMeta: TransactionMeta) => false);
+    this.#isEIP7702GasFeeTokensEnabled =
+      isEIP7702GasFeeTokensEnabled ?? (() => Promise.resolve(false));
     this.#isFirstTimeInteractionEnabled =
       isFirstTimeInteractionEnabled ?? (() => true);
     this.#isHistoryDisabled = disableHistory ?? false;
@@ -925,12 +960,14 @@ export class TransactionController extends BaseController<
     };
 
     this.#incomingTransactionHelper = new IncomingTransactionHelper({
+      client: this.#incomingTransactionOptions.client,
       getCache: () => this.state.lastFetchedBlockNumbers,
       getCurrentAccount: () => this.#getSelectedAccount(),
       getLocalTransactions: () => this.state.transactions,
       includeTokenTransfers:
         this.#incomingTransactionOptions.includeTokenTransfers,
       isEnabled: this.#incomingTransactionOptions.isEnabled,
+      messenger: this.messagingSystem,
       queryEntireHistory: this.#incomingTransactionOptions.queryEntireHistory,
       remoteTransactionSource: new AccountsApiRemoteTransactionSource(),
       trimTransactions: this.#trimTransactionsForState.bind(this),
@@ -996,6 +1033,11 @@ export class TransactionController extends BaseController<
   async addTransactionBatch(
     request: TransactionBatchRequest,
   ): Promise<TransactionBatchResult> {
+    const { blockTracker } = this.messagingSystem.call(
+      `NetworkController:getNetworkClientById`,
+      request.networkClientId,
+    );
+
     return await addTransactionBatch({
       addTransaction: this.addTransaction.bind(this),
       getChainId: this.#getChainId.bind(this),
@@ -1008,6 +1050,18 @@ export class TransactionController extends BaseController<
       publicKeyEIP7702: this.#publicKeyEIP7702,
       request,
       updateTransaction: this.#updateTransactionInternal.bind(this),
+      publishTransaction: (
+        ethQuery: EthQuery,
+        transactionMeta: TransactionMeta,
+      ) => this.#publishTransaction(ethQuery, transactionMeta) as Promise<Hex>,
+      getPendingTransactionTracker: (networkClientId: NetworkClientId) =>
+        this.#createPendingTransactionTracker({
+          provider: this.#getProvider({ networkClientId }),
+          blockTracker,
+          chainId: this.#getChainId(networkClientId),
+          networkClientId,
+        }),
+      update: this.update.bind(this),
     });
   }
 
@@ -1116,7 +1170,6 @@ export class TransactionController extends BaseController<
         ? undefined
         : await this.#getPermittedAccounts?.(origin);
 
-    const selectedAddress = this.#getSelectedAccount().address;
     const internalAccounts = this.#getInternalAccounts();
 
     await validateTransactionOrigin({
@@ -1125,7 +1178,6 @@ export class TransactionController extends BaseController<
       internalAccounts,
       origin,
       permittedAddresses,
-      selectedAddress,
       txParams,
       type,
     });
@@ -1296,8 +1348,14 @@ export class TransactionController extends BaseController<
     this.#incomingTransactionHelper.stop();
   }
 
-  async updateIncomingTransactions() {
-    await this.#incomingTransactionHelper.update();
+  /**
+   * Update the incoming transactions by polling the remote transaction source.
+   *
+   * @param request - Request object.
+   * @param request.tags - Additional tags to identify the source of the request.
+   */
+  async updateIncomingTransactions({ tags }: { tags?: string[] } = {}) {
+    await this.#incomingTransactionHelper.update({ tags });
   }
 
   /**
@@ -1778,7 +1836,7 @@ export class TransactionController extends BaseController<
       maxFeePerGas,
       originalGasEstimate,
       userEditedGasLimit,
-      userFeeLevel,
+      userFeeLevel: userFeeLevelParam,
     }: {
       defaultGasEstimates?: string;
       estimateUsed?: string;
@@ -1806,34 +1864,71 @@ export class TransactionController extends BaseController<
       'updateTransactionGasFees',
     );
 
-    let transactionGasFees = {
-      txParams: {
-        gas,
-        gasLimit,
+    const clonedTransactionMeta = cloneDeep(transactionMeta);
+    const isTransactionGasFeeEstimatesExists = transactionMeta.gasFeeEstimates;
+    const isAutomaticGasFeeUpdateEnabled =
+      this.#isAutomaticGasFeeUpdateEnabled(transactionMeta);
+    const userFeeLevel = userFeeLevelParam as GasFeeEstimateLevelType;
+    const isOneOfFeeLevelSelected =
+      Object.values(GasFeeEstimateLevel).includes(userFeeLevel);
+    const shouldUpdateTxParamsGasFees =
+      isTransactionGasFeeEstimatesExists &&
+      isAutomaticGasFeeUpdateEnabled &&
+      isOneOfFeeLevelSelected;
+
+    if (shouldUpdateTxParamsGasFees) {
+      updateTransactionGasEstimates({
+        txMeta: clonedTransactionMeta,
+        userFeeLevel,
+      });
+    }
+
+    const txParamsUpdate = {
+      gas,
+      gasLimit,
+    };
+
+    if (shouldUpdateTxParamsGasFees) {
+      // Get updated values from clonedTransactionMeta if we're using automated fee updates
+      Object.assign(txParamsUpdate, {
+        gasPrice: clonedTransactionMeta.txParams.gasPrice,
+        maxPriorityFeePerGas:
+          clonedTransactionMeta.txParams.maxPriorityFeePerGas,
+        maxFeePerGas: clonedTransactionMeta.txParams.maxFeePerGas,
+      });
+    } else {
+      Object.assign(txParamsUpdate, {
         gasPrice,
         maxPriorityFeePerGas,
         maxFeePerGas,
-      },
+      });
+    }
+
+    const transactionGasFees = {
+      txParams: pickBy(txParamsUpdate),
       defaultGasEstimates,
       estimateUsed,
       estimateSuggested,
       originalGasEstimate,
       userEditedGasLimit,
       userFeeLevel,
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any;
+    };
 
-    // only update what is defined
-    transactionGasFees.txParams = pickBy(transactionGasFees.txParams);
-    transactionGasFees = pickBy(transactionGasFees);
+    const filteredTransactionGasFees = pickBy(transactionGasFees);
 
-    // merge updated gas values with existing transaction meta
-    const updatedMeta = merge({}, transactionMeta, transactionGasFees);
-
-    this.updateTransaction(
-      updatedMeta,
-      `${controllerName}:updateTransactionGasFees - gas values updated`,
+    this.#updateTransactionInternal(
+      {
+        transactionId,
+        note: `${controllerName}:updateTransactionGasFees - gas values updated`,
+        skipResimulateCheck: true,
+      },
+      (draftTxMeta) => {
+        const { txParams, ...otherProps } = filteredTransactionGasFees;
+        Object.assign(draftTxMeta, otherProps);
+        if (txParams) {
+          Object.assign(draftTxMeta.txParams, txParams);
+        }
+      },
     );
 
     return this.#getTransaction(transactionId) as TransactionMeta;
@@ -3962,14 +4057,8 @@ export class TransactionController extends BaseController<
       traceContext?: TraceContext;
     } = {},
   ) {
-    const {
-      id: transactionId,
-      chainId,
-      txParams,
-      simulationData: prevSimulationData,
-    } = transactionMeta;
-
-    const { from, to, value, data } = txParams;
+    const { id: transactionId, simulationData: prevSimulationData } =
+      transactionMeta;
 
     let simulationData: SimulationData = {
       error: {
@@ -3982,29 +4071,11 @@ export class TransactionController extends BaseController<
     let gasFeeTokens: GasFeeToken[] = [];
 
     if (this.#isSimulationEnabled()) {
-      const authorizationAddress = txParams?.authorizationList?.[0]?.address;
-
-      const senderCode =
-        authorizationAddress &&
-        ((DELEGATION_PREFIX + remove0x(authorizationAddress)) as Hex);
-
-      const result = await this.#trace(
-        { name: 'Simulate', parentContext: traceContext },
-        () =>
-          getSimulationData(
-            {
-              chainId,
-              from: from as Hex,
-              to: to as Hex,
-              value: value as Hex,
-              data: data as Hex,
-            },
-            {
-              blockTime,
-              senderCode,
-            },
-          ),
-      );
+      const result = await this.#getSimulationData({
+        blockTime,
+        traceContext,
+        transactionMeta,
+      });
 
       gasFeeTokens = result?.gasFeeTokens;
       simulationData = result?.simulationData;
@@ -4063,7 +4134,7 @@ export class TransactionController extends BaseController<
     this.#updateTransactionInternal(
       { transactionId, skipHistory: true },
       (txMeta) => {
-        updateTransactionGasFees({
+        updateTransactionGasProperties({
           txMeta,
           gasFeeEstimates,
           gasFeeEstimatesLoaded,
@@ -4163,7 +4234,7 @@ export class TransactionController extends BaseController<
   #isRejectError(error: Error & { code?: number }) {
     return [
       errorCodes.provider.userRejectedRequest,
-      errorCodes.rpc.methodNotSupported,
+      ErrorCode.RejectedUpgrade,
     ].includes(error.code as number);
   }
 
@@ -4235,5 +4306,101 @@ export class TransactionController extends BaseController<
       `${transactionMeta.id}:finished`,
       newTransactionMeta,
     );
+  }
+
+  async #getSimulationData({
+    blockTime,
+    traceContext,
+    transactionMeta,
+  }: {
+    blockTime?: number;
+    traceContext?: TraceContext;
+    transactionMeta: TransactionMeta;
+  }) {
+    const { chainId, delegationAddress, txParams } = transactionMeta;
+
+    const {
+      authorizationList: authorizationListRequest,
+      data,
+      from,
+      to,
+      value,
+    } = txParams;
+
+    const authorizationAddress = authorizationListRequest?.[0]?.address;
+
+    const senderCode =
+      authorizationAddress &&
+      ((DELEGATION_PREFIX + remove0x(authorizationAddress)) as Hex);
+
+    const is7702GasFeeTokensEnabled =
+      await this.#isEIP7702GasFeeTokensEnabled(transactionMeta);
+
+    const use7702Fees =
+      is7702GasFeeTokensEnabled &&
+      doesChainSupportEIP7702(chainId, this.messagingSystem);
+
+    let authorizationList:
+      | GetSimulationDataRequest['authorizationList']
+      | undefined = authorizationListRequest?.map((authorization) => ({
+      address: authorization.address,
+      from: from as Hex,
+    }));
+
+    if (use7702Fees && !delegationAddress && !authorizationList) {
+      authorizationList = this.#getSimulationAuthorizationList({
+        chainId,
+        from: from as Hex,
+      });
+    }
+
+    return await this.#trace(
+      { name: 'Simulate', parentContext: traceContext },
+      () =>
+        getSimulationData(
+          {
+            authorizationList,
+            chainId,
+            data: data as Hex,
+            from: from as Hex,
+            to: to as Hex,
+            value: value as Hex,
+          },
+          {
+            blockTime,
+            senderCode,
+            use7702Fees,
+          },
+        ),
+    );
+  }
+
+  #getSimulationAuthorizationList({
+    chainId,
+    from,
+  }: {
+    chainId: Hex;
+    from: Hex;
+  }): GetSimulationDataRequest['authorizationList'] | undefined {
+    if (!this.#publicKeyEIP7702) {
+      throw rpcErrors.internal(ERROR_MESSGE_PUBLIC_KEY);
+    }
+
+    const upgradeAddress = getEIP7702UpgradeContractAddress(
+      chainId,
+      this.messagingSystem,
+      this.#publicKeyEIP7702,
+    );
+
+    if (!upgradeAddress) {
+      throw rpcErrors.internal(ERROR_MESSAGE_NO_UPGRADE_CONTRACT);
+    }
+
+    return [
+      {
+        address: upgradeAddress,
+        from: from as Hex,
+      },
+    ];
   }
 }

@@ -49,6 +49,7 @@ const TOKEN_ID_MOCK = '0x5' as Hex;
 const OTHER_TOKEN_ID_MOCK = '0x6' as Hex;
 const ERROR_CODE_MOCK = 123;
 const ERROR_MESSAGE_MOCK = 'Test Error';
+const SENDER_CODE_MOCK = '0x1234' as Hex;
 
 // Regression test – leading zero in user address
 const USER_ADDRESS_WITH_LEADING_ZERO =
@@ -263,6 +264,34 @@ describe('Simulation Utils', () => {
   });
 
   describe('getSimulationData', () => {
+    it('includes code override in request if senderCode provided', async () => {
+      await getSimulationData(REQUEST_MOCK, { senderCode: SENDER_CODE_MOCK });
+
+      expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          overrides: {
+            [REQUEST_MOCK.from]: {
+              code: SENDER_CODE_MOCK,
+            },
+          },
+        }),
+      );
+    });
+
+    it('includes with7702 in request if use7702Fees set', async () => {
+      await getSimulationData(REQUEST_MOCK, { use7702Fees: true });
+
+      expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          suggestFees: expect.objectContaining({
+            with7702: true,
+          }),
+        }),
+      );
+    });
+
     describe('returns native balance change', () => {
       it.each([
         ['increased', BALANCE_1_MOCK, BALANCE_2_MOCK, false],
