@@ -50,7 +50,6 @@ const FROM_MOCK = '0x1234567890123456789012345678901234567890';
 const CONTRACT_ADDRESS_MOCK = '0xabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd';
 const TO_MOCK = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcdef';
 const DATA_MOCK = '0xabcdef';
-const GAS_MOCK = '0x80000';
 const GAS_TOTAL_MOCK = '0x100000';
 const VALUE_MOCK = '0x1234';
 const MESSENGER_MOCK = {
