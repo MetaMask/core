@@ -3186,15 +3186,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-json-rpc-infura@npm:^10.1.1":
-  version: 10.1.1
-  resolution: "@metamask/eth-json-rpc-infura@npm:10.1.1"
+"@metamask/eth-json-rpc-infura@npm:^10.2.0":
+  version: 10.2.0
+  resolution: "@metamask/eth-json-rpc-infura@npm:10.2.0"
   dependencies:
     "@metamask/eth-json-rpc-provider": "npm:^4.1.7"
     "@metamask/json-rpc-engine": "npm:^10.0.2"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/utils": "npm:^11.0.1"
-  checksum: 10/24296fd6d2dca4b9bda2692590eafcecc7318c2d2acf0b5a2e3f3670ffbe7ff0c6338779b8b31a69060cc7963e98d9bf354e3c0f43683371f1f2e9c7642dc763
+  checksum: 10/f3e2ac8f8657259978923bdb08cee660ae8e1f6a3f2a67c9e8b93a55030c42b0a8ba45e9321dd6d52f7a4309d1c4241745c2c292d6be0596dd4954ac38d586f6
   languageName: node
   linkType: hard
 
@@ -3838,7 +3838,7 @@ __metadata:
     "@metamask/base-controller": "npm:^8.0.1"
     "@metamask/controller-utils": "npm:^11.9.0"
     "@metamask/eth-block-tracker": "npm:^11.0.3"
-    "@metamask/eth-json-rpc-infura": "npm:^10.1.1"
+    "@metamask/eth-json-rpc-infura": "npm:^10.2.0"
     "@metamask/eth-json-rpc-middleware": "npm:^16.0.1"
     "@metamask/eth-json-rpc-provider": "npm:^4.1.8"
     "@metamask/eth-query": "npm:^4.0.0"
