@@ -14,6 +14,7 @@ import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { TransactionControllerTransactionConfirmedEvent } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
+import { calculateDeFiPositionMetrics } from './calculate-defi-metrics';
 import type { DefiPositionResponse } from './fetch-positions';
 import { buildPositionFetcher } from './fetch-positions';
 import {
@@ -28,9 +29,26 @@ const FETCH_POSITIONS_BATCH_SIZE = 10;
 
 const controllerName = 'DeFiPositionsController';
 
-type GroupedDeFiPositionsPerChain = {
+export type GroupedDeFiPositionsPerChain = {
   [chain: Hex]: GroupedDeFiPositions;
 };
+
+export type TrackingEventPayload = {
+  event: string;
+  category: string;
+  properties: {
+    totalPositions: number;
+    totalMarketValueUSD: number;
+    breakdown?: {
+      protocolId: string;
+      marketValueUSD: number;
+      chainId: Hex;
+      count: number;
+    }[];
+  };
+};
+
+type TrackEventHook = (event: TrackingEventPayload) => void;
 
 export type DeFiPositionsControllerState = {
   /**
@@ -39,10 +57,21 @@ export type DeFiPositionsControllerState = {
   allDeFiPositions: {
     [accountAddress: string]: GroupedDeFiPositionsPerChain | null;
   };
+
+  /**
+   * Object containing DeFi positions count per account
+   */
+  allDeFiPositionsCount: {
+    [accountAddress: string]: number;
+  };
 };
 
 const controllerMetadata: StateMetadata<DeFiPositionsControllerState> = {
   allDeFiPositions: {
+    persist: false,
+    anonymous: false,
+  },
+  allDeFiPositionsCount: {
     persist: false,
     anonymous: false,
   },
@@ -52,6 +81,7 @@ export const getDefaultDefiPositionsControllerState =
   (): DeFiPositionsControllerState => {
     return {
       allDeFiPositions: {},
+      allDeFiPositionsCount: {},
     };
   };
 
@@ -111,19 +141,24 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
 
   readonly #isEnabled: () => boolean;
 
+  readonly #trackEvent?: TrackEventHook;
+
   /**
    * DeFiPositionsController constuctor
    *
    * @param options - Constructor options.
    * @param options.messenger - The controller messenger.
    * @param options.isEnabled - Function that returns whether the controller is enabled. (default: () => true)
+   * @param options.trackEvent - Function to track events. (default: undefined)
    */
   constructor({
     messenger,
     isEnabled = () => true,
+    trackEvent,
   }: {
     messenger: DeFiPositionsControllerMessenger;
     isEnabled?: () => boolean;
+    trackEvent?: TrackEventHook;
   }) {
     super({
       name: controllerName,
@@ -166,6 +201,8 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
         await this.#updateAccountPositions(account.address);
       },
     );
+
+    this.#trackEvent = trackEvent;
   }
 
   async _executePoll(): Promise<void> {
@@ -240,9 +277,41 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
     try {
       const defiPositionsResponse = await this.#fetchPositions(accountAddress);
 
-      return groupDeFiPositions(defiPositionsResponse);
+      const groupedDeFiPositions = groupDeFiPositions(defiPositionsResponse);
+
+      try {
+        this.#updatePositionsCountMetrics(groupedDeFiPositions, accountAddress);
+      } catch (error) {
+        console.error(
+          `Failed to update positions count for account ${accountAddress}:`,
+          error,
+        );
+      }
+
+      return groupedDeFiPositions;
     } catch {
       return null;
+    }
+  }
+
+  #updatePositionsCountMetrics(
+    groupedDeFiPositions: GroupedDeFiPositionsPerChain,
+    accountAddress: string,
+  ) {
+    // If no track event passed then skip the metrics update
+    if (!this.#trackEvent) {
+      return;
+    }
+
+    const defiMetrics = calculateDeFiPositionMetrics(groupedDeFiPositions);
+    const { totalPositions } = defiMetrics.properties;
+
+    if (totalPositions !== this.state.allDeFiPositionsCount[accountAddress]) {
+      this.update((state) => {
+        state.allDeFiPositionsCount[accountAddress] = totalPositions;
+      });
+
+      this.#trackEvent?.(defiMetrics);
     }
   }
 }
