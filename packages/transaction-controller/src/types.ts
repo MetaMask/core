@@ -500,14 +500,19 @@ export type TransactionBatchMeta = {
   chainId: Hex;
 
   /**
+   * Address to send this transaction from.
+   */
+  from: string;
+
+  /**
+   * Maximum number of units of gas to use for this transaction batch.
+   */
+  gas?: string;
+
+  /**
    * ID of the associated transaction batch.
    */
   id: string;
-
-  /**
-   * Data for any EIP-7702 transactions.
-   */
-  transactions?: NestedTransactionMetadata[];
 
   /**
    * The ID of the network client used by the transaction.
@@ -518,6 +523,11 @@ export type TransactionBatchMeta = {
    * Origin this transaction was sent from.
    */
   origin?: string;
+
+  /**
+   * Data for any EIP-7702 transactions.
+   */
+  transactions?: NestedTransactionMetadata[];
 };
 
 export type SendFlowHistoryEntry = {
