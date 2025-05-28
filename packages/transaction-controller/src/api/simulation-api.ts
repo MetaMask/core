@@ -173,6 +173,9 @@ export type SimulationResponseTokenFee = {
   /** Conversation rate of 1 token to native WEI. */
   rateWei: Hex;
 
+  /** Portion of `balanceNeededToken` that is the fee paid to MetaMask. */
+  serviceFee?: Hex;
+
   /** Estimated gas limit required for fee transfer. */
   transferEstimate: Hex;
 };
@@ -199,6 +202,12 @@ export type SimulationResponseTransaction = {
     /** Token fee data for the fee level. */
     tokenFees: SimulationResponseTokenFee[];
   }[];
+
+  /**
+   * Estimated total gas cost of the transaction.
+   * Included in the stateDiff if `withGas` is true.
+   */
+  gasCost?: number;
 
   /** Required `gasLimit` for the transaction. */
   gasLimit?: Hex;

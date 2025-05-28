@@ -195,7 +195,11 @@ function getNativeBalanceChange(
     return undefined;
   }
 
-  return getSimulationBalanceChange(previousBalance, newBalance);
+  return getSimulationBalanceChange(
+    previousBalance,
+    newBalance,
+    transactionResponse.gasCost,
+  );
 }
 
 /**
@@ -622,13 +626,17 @@ function extractLogs(
  *
  * @param previousBalance - The previous balance.
  * @param newBalance - The new balance.
+ * @param offset - Optional offset to apply to the new balance.
  * @returns The balance change data or undefined if unchanged.
  */
 function getSimulationBalanceChange(
   previousBalance: Hex,
   newBalance: Hex,
+  offset: number = 0,
 ): SimulationBalanceChange | undefined {
-  const differenceBN = hexToBN(newBalance).sub(hexToBN(previousBalance));
+  const newBalanceBN = hexToBN(newBalance).add(new BN(offset));
+  const previousBalanceBN = hexToBN(previousBalance);
+  const differenceBN = newBalanceBN.sub(previousBalanceBN);
   const isDecrease = differenceBN.isNeg();
   const difference = toHex(differenceBN.abs());
 
@@ -639,7 +647,7 @@ function getSimulationBalanceChange(
 
   return {
     previousBalance,
-    newBalance,
+    newBalance: toHex(newBalanceBN),
     difference,
     isDecrease,
   };

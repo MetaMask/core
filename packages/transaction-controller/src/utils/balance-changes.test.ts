@@ -182,17 +182,20 @@ function createEventResponseMock(
  *
  * @param previousBalance - The previous balance.
  * @param newBalance - The new balance.
+ * @param gasCost - Gas cost of the transaction.
  * @returns Mock API response.
  */
 function createNativeBalanceResponse(
   previousBalance: string,
   newBalance: string,
+  gasCost: number = 0,
 ) {
   return {
     transactions: [
       {
         ...defaultResponseTx,
         return: encodeTo32ByteHex(previousBalance),
+        gasCost,
         stateDiff: {
           pre: {
             [USER_ADDRESS_MOCK]: { balance: previousBalance },
@@ -314,6 +317,24 @@ describe('Simulation Utils', () => {
 
         expect(result).toStrictEqual({
           nativeBalanceChange: undefined,
+          tokenBalanceChanges: [],
+        });
+      });
+
+      it('ignoring gas cost', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce(
+          createNativeBalanceResponse('0x3', '0x8', 2),
+        );
+
+        const result = await getBalanceChanges(REQUEST_MOCK);
+
+        expect(result).toStrictEqual({
+          nativeBalanceChange: {
+            difference: '0x7',
+            isDecrease: false,
+            newBalance: '0xa',
+            previousBalance: '0x3',
+          },
           tokenBalanceChanges: [],
         });
       });
