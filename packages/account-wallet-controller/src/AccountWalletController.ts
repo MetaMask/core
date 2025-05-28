@@ -197,7 +197,7 @@ export class AccountWalletController extends BaseController<
     state,
   }: {
     messenger: AccountWalletControllerMessenger;
-    state?: AccountWalletControllerState;
+    state?: Partial<AccountWalletControllerState>;
   }) {
     super({
       messenger,
