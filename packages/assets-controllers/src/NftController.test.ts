@@ -58,6 +58,8 @@ import type {
   PhishingControllerBulkScanUrlsAction,
   NftMetadata,
 } from './NftController';
+import { NftController } from './NftController';
+import type { Collection } from './NftDetectionController';
 import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
 import type {
   ExtractAvailableAction,
@@ -68,9 +70,6 @@ import {
   buildMockFindNetworkClientIdByChainId,
   buildMockGetNetworkClientById,
 } from '../../network-controller/tests/helpers';
-
-import { NftController } from './NftController';
-import type { Collection } from './NftDetectionController';
 
 const CRYPTOPUNK_ADDRESS = '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
 const ERC721_KUDOSADDRESS = '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163';
