@@ -832,49 +832,30 @@ export default class UserStorageController extends BaseController<
    * It will add new contacts to the address book list, update/merge conflicting contacts and re-upload the results in some cases to the user storage.
    */
   async syncContactsWithUserStorage(): Promise<void> {
-    console.log(
-      '📓 Contact Sync: Starting in UserStorageController.syncContactsWithUserStorage',
-    );
-    try {
-      const profileId = await this.#auth.getProfileId();
-      console.log('📓 Contact Sync: Got profileId', profileId);
+    const profileId = await this.#auth.getProfileId();
 
-      const config = {
-        onContactUpdated: () => {
-          console.log('📓 Contact Sync: Contact updated callback triggered');
-          this.#config?.contactSyncing?.onContactUpdated?.(profileId);
-        },
-        onContactDeleted: () => {
-          console.log('📓 Contact Sync: Contact deleted callback triggered');
-          this.#config?.contactSyncing?.onContactDeleted?.(profileId);
-        },
-        onContactSyncErroneousSituation: (
-          errorMessage: string,
-          sentryContext?: Record<string, unknown>,
-        ) => {
-          console.log(
-            '📓 Contact Sync: Error callback triggered',
-            errorMessage,
-          );
-          this.#config?.contactSyncing?.onContactSyncErroneousSituation?.(
-            profileId,
-            errorMessage,
-            sentryContext,
-          );
-        },
-      };
+    const config = {
+      onContactUpdated: () => {
+        this.#config?.contactSyncing?.onContactUpdated?.(profileId);
+      },
+      onContactDeleted: () => {
+        this.#config?.contactSyncing?.onContactDeleted?.(profileId);
+      },
+      onContactSyncErroneousSituation: (
+        errorMessage: string,
+        sentryContext?: Record<string, unknown>,
+      ) => {
+        this.#config?.contactSyncing?.onContactSyncErroneousSituation?.(
+          profileId,
+          errorMessage,
+          sentryContext,
+        );
+      },
+    };
 
-      await syncContactsWithUserStorage(config, {
-        getMessenger: () => this.messagingSystem,
-        getUserStorageControllerInstance: () => this,
-      });
-
-      console.log(
-        '📓 Contact Sync: Completed successfully in UserStorageController',
-      );
-    } catch (error) {
-      console.error('📓 Contact Sync: Error in UserStorageController', error);
-      throw error;
-    }
+    await syncContactsWithUserStorage(config, {
+      getMessenger: () => this.messagingSystem,
+      getUserStorageControllerInstance: () => this,
+    });
   }
 }
