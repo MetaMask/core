@@ -505,7 +505,7 @@ export type TransactionBatchMeta = {
   from: string;
 
   /**
-   * Maximum number of units of gas to use for this transaction.
+   * Maximum number of units of gas to use for this transaction batch.
    */
   gas?: string;
 

@@ -67,6 +67,7 @@ type AddTransactionBatchRequest = {
   getEthQuery: (networkClientId: string) => EthQuery;
   getInternalAccounts: () => Hex[];
   getTransaction: (id: string) => TransactionMeta;
+  isSimulationEnabled: () => boolean;
   messenger: TransactionControllerMessenger;
   publishBatchHook?: PublishBatchHook;
   publicKeyEIP7702?: Hex;
@@ -380,6 +381,7 @@ async function addTransactionBatchWithHook(
     publishBatchHook: requestPublishBatchHook,
     request: userRequest,
     update,
+    isSimulationEnabled,
   } = request;
 
   const {
@@ -387,12 +389,11 @@ async function addTransactionBatchWithHook(
     networkClientId,
     origin,
     requireApproval,
-    transactions: transactionBatches,
+    transactions: nestedTransactions,
     useHook,
   } = userRequest;
 
   let resultCallbacks: AcceptResultCallbacks | undefined;
-  let nestedTransactions: TransactionBatchSingleRequest[] = transactionBatches;
 
   log('Adding transaction batch using hook', userRequest);
 
@@ -412,26 +413,16 @@ async function addTransactionBatchWithHook(
   const collectHook = new CollectPublishHook(transactionCount);
   try {
     if (requireApproval && useHook) {
-      const { gasLimit, transactions: transactionsWithGas } =
-        await simulateGasBatch({
-          chainId,
-          from,
-          transactions: nestedTransactions,
-        });
-
-      // resigned the transactions with simulated gas
-      nestedTransactions = transactionsWithGas;
-
-      const txBatchMeta = newBatchMetadata({
-        id: batchId,
+      const txBatchMeta = await prepareApprovalData({
+        batchId,
         chainId,
-        networkClientId,
-        transactions: nestedTransactions,
-        origin,
         from,
-        gas: gasLimit,
+        isSimulationEnabled,
+        nestedTransactions,
+        networkClientId,
+        origin,
+        update,
       });
-      addBatchMetadata(txBatchMeta, update);
 
       resultCallbacks = (await requestApproval(txBatchMeta, messenger))
         .resultCallbacks;
@@ -618,18 +609,6 @@ async function requestApproval(
 }
 
 /**
- * Create a new batch metadata object.
- *
- * @param transactionBatchMeta - The transaction batch metadata object to be created.
- * @returns A new TransactionBatchMeta object.
- */
-function newBatchMetadata(
-  transactionBatchMeta: TransactionBatchMeta,
-): TransactionBatchMeta {
-  return transactionBatchMeta;
-}
-
-/**
  * Adds batch metadata to the transaction controller state.
  *
  * @param transactionBatchMeta - The transaction batch metadata to be added.
@@ -662,4 +641,62 @@ function wipeTransactionBatchById(
       (batch) => batch.id !== id,
     );
   });
+}
+
+/**
+ * Prepares the approval data for a transaction batch.
+ *
+ * @param options - The options object containing necessary parameters.
+ * @param options.batchId - The batch ID for the transaction batch.
+ * @param options.chainId - The chain ID of the transactions.
+ * @param options.from - The sender's address.
+ * @param options.isSimulationEnabled - A function to check if simulation is enabled.
+ * @param options.nestedTransactions - The array of nested transactions.
+ * @param options.networkClientId - The network client ID.
+ * @param options.origin - The origin of the transaction batch.
+ * @param options.update - The update function to modify the transaction controller state.
+ * @returns The prepared transaction batch metadata.
+ */
+async function prepareApprovalData({
+  batchId,
+  chainId,
+  from,
+  isSimulationEnabled,
+  nestedTransactions,
+  networkClientId,
+  origin,
+  update,
+}: {
+  batchId: Hex;
+  chainId: Hex;
+  from: Hex;
+  isSimulationEnabled: () => boolean;
+  nestedTransactions: TransactionBatchSingleRequest[];
+  networkClientId: string;
+  origin?: string;
+  update: UpdateStateCallback;
+}): Promise<TransactionBatchMeta> {
+  if (!isSimulationEnabled()) {
+    throw new Error('Simulation is not enabled');
+  }
+
+  const { gasLimit } = await simulateGasBatch({
+    chainId,
+    from,
+    transactions: nestedTransactions,
+  });
+
+  const txBatchMeta: TransactionBatchMeta = {
+    chainId,
+    from,
+    gas: gasLimit,
+    id: batchId,
+    networkClientId,
+    origin,
+    transactions: nestedTransactions,
+  };
+
+  addBatchMetadata(txBatchMeta, update);
+
+  return txBatchMeta;
 }

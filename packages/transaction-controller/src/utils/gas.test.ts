@@ -962,9 +962,7 @@ describe('gas', () => {
           from: FROM_MOCK,
           transactions: TRANSACTION_BATCH_REQUEST_MOCK,
         }),
-      ).rejects.toThrow(
-        'Simulated gas response does not match the number of transactions',
-      );
+      ).rejects.toThrow('Simulation response does not match transaction count');
 
       expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
     });

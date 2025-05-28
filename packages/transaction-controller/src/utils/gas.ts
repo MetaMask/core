@@ -231,30 +231,34 @@ export async function simulateGasBatch({
     !response?.transactions ||
     response.transactions.length !== transactions.length
   ) {
-    throw new Error(
-      'Simulated gas response does not match the number of transactions',
-    );
+    throw new Error('Simulation response does not match transaction count');
   }
 
-  let totalGasLimit = new BN(0);
+  const { transactionsWithGasLimit, totalGasLimit } = transactions.reduce(
+    (acc, transaction, index) => {
+      const gasLimit = response.transactions[index]?.gasLimit;
 
-  const transactionsWithGasLimit = transactions.map((transaction, index) => {
-    const gasLimit = response.transactions[index]?.gasLimit;
+      if (!gasLimit) {
+        throw new Error(`No simulated gas returned`);
+      }
 
-    if (!gasLimit) {
-      throw new Error(`No simulated gas returned`);
-    }
+      acc.totalGasLimit = acc.totalGasLimit.add(hexToBN(gasLimit));
 
-    totalGasLimit = totalGasLimit.add(hexToBN(gasLimit));
+      acc.transactionsWithGasLimit.push({
+        ...transaction,
+        params: {
+          ...transaction.params,
+          gas: gasLimit,
+        },
+      });
 
-    return {
-      ...transaction,
-      params: {
-        ...transaction.params,
-        gas: gasLimit,
-      },
-    };
-  });
+      return acc;
+    },
+    {
+      transactionsWithGasLimit: [] as TransactionBatchSingleRequest[],
+      totalGasLimit: new BN(0),
+    },
+  );
 
   return {
     transactions: transactionsWithGasLimit,

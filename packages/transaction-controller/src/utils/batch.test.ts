@@ -87,7 +87,6 @@ const TRANSACTION_BATCH_PARAMS_MOCK = {
   to: TO_MOCK,
   data: DATA_MOCK,
   value: VALUE_MOCK,
-  gas: GAS_MOCK,
 } as TransactionBatchSingleRequest['params'];
 
 /**
@@ -253,6 +252,7 @@ describe('Batch Utils', () => {
         getEthQuery: GET_ETH_QUERY_MOCK,
         getInternalAccounts: GET_INTERNAL_ACCOUNTS_MOCK,
         getTransaction: jest.fn(),
+        isSimulationEnabled: jest.fn().mockReturnValue(true),
         messenger: MESSENGER_MOCK,
         publicKeyEIP7702: PUBLIC_KEY_MOCK,
         request: {
@@ -1021,7 +1021,6 @@ describe('Batch Utils', () => {
                 data: DATA_MOCK,
                 to: TO_MOCK,
                 value: VALUE_MOCK,
-                gas: GAS_MOCK,
               },
               signedTx: TRANSACTION_SIGNATURE_2_MOCK,
             },
@@ -1387,6 +1386,19 @@ describe('Batch Utils', () => {
         });
       };
 
+      it('throws if simulation is not supported', async () => {
+        const isSimulationSupportedMock = jest.fn().mockReturnValue(false);
+
+        await expect(
+          addTransactionBatch({
+            ...request,
+            publishBatchHook: undefined,
+            isSimulationEnabled: () => isSimulationSupportedMock(),
+            request: { ...request.request, useHook: true },
+          }),
+        ).rejects.toThrow(rpcErrors.internal('Simulation is not enabled'));
+      });
+
       it('invokes sequentialPublishBatchHook when publishBatchHook is undefined', async () => {
         mockSequentialPublishBatchHookResults();
         setupSequentialPublishBatchHookMock(() => sequentialPublishBatchHook);
@@ -1526,11 +1538,9 @@ describe('Batch Utils', () => {
             transactions: [
               {
                 params: TRANSACTION_BATCH_PARAMS_MOCK,
-                type: TransactionType.contractInteraction,
               },
               {
                 params: TRANSACTION_BATCH_PARAMS_MOCK,
-                type: TransactionType.contractInteraction,
               },
             ],
             origin: ORIGIN_MOCK,
