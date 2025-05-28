@@ -821,6 +821,87 @@ describe('PollingBlockTracker', () => {
           );
         });
       });
+
+      it('should reject pending latest block request if block tracker is stopped before fetch completes on second getLatestBlock call', async () => {
+        const setTimeoutRecorder = recordCallsToSetTimeout();
+        const blockTrackerOptions = {
+          pollingInterval: 100,
+          blockResetDuration: 200,
+        };
+
+        await withPollingBlockTracker(
+          {
+            provider: {
+              stubs: [
+                {
+                  methodName: 'eth_blockNumber',
+                  result: '0x0',
+                },
+                {
+                  methodName: 'eth_blockNumber',
+                  result: '0x0',
+                },
+              ],
+            },
+            blockTracker: blockTrackerOptions,
+          },
+          async ({ blockTracker }) => {
+            // Step 1: Start the block tracker
+            blockTracker.on('latest', EMPTY_FUNCTION);
+
+            // Step 2: Wait for the first block update to resolve
+            await new Promise((resolve) => {
+              blockTracker.on('sync', resolve);
+            });
+            expect(blockTracker.getCurrentBlock()).toBe('0x0');
+            expect(blockTracker.isRunning()).toBe(true);
+
+            // Clear the current block to force a new request for the next getLatestBlock
+            // When the block tracker stops, there may be two `setTimeout`s in
+            // play: one to go to the next iteration of the block tracker
+            // loop, another to expire the current block number cache. We don't
+            // know which one has been added first, so we have to find it.
+            blockTracker.removeAllListeners();
+            await setTimeoutRecorder.nextMatchingDuration(
+              blockTrackerOptions.blockResetDuration,
+            );
+            expect(blockTracker.getCurrentBlock()).toBeNull();
+
+            // Restart the tracker for the second call
+            blockTracker.on('latest', EMPTY_FUNCTION);
+
+            // Step 3: Immediately after, call getLatestBlock
+            const secondBlockPromise = blockTracker.getLatestBlock();
+
+            // Step 4: Immediately after, stop the block tracker
+            blockTracker.removeAllListeners();
+
+            // Verify block tracker state
+            expect(blockTracker.isRunning()).toBe(false);
+            expect(blockTracker.getCurrentBlock()).toBeNull();
+
+            // The call to getLatestBlock would then never resolve (should be rejected)
+            await expect(secondBlockPromise).rejects.toThrow(
+              'Block tracker destroyed',
+            );
+
+            // Verify that the block reset timeout is set up
+            expect(
+              setTimeoutRecorder.calls.some((call) => {
+                return call.duration === blockTrackerOptions.blockResetDuration;
+              }),
+            ).toBe(true);
+
+            // Wait for the block reset timeout to complete
+            await setTimeoutRecorder.nextMatchingDuration(
+              blockTrackerOptions.blockResetDuration,
+            );
+
+            // Verify that the current block is still null after the timeout
+            expect(blockTracker.getCurrentBlock()).toBeNull();
+          },
+        );
+      });
     });
   });
 

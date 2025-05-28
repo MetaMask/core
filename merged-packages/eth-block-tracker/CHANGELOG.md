@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Fixed
+- Fixed hanging `getLatestBlock()` promises when block tracker is stopped before request completion ([#320](https://github.com/MetaMask/eth-block-tracker/pull/320))
+  - Pending `getLatestBlock()` requests are now properly rejected with "Block tracker destroyed" error when the tracker is stopped
 
 ## [12.0.0]
 ### Changed

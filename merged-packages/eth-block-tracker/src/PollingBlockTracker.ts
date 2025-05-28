@@ -99,9 +99,8 @@ export class PollingBlockTracker
 
   async destroy() {
     this._cancelBlockResetTimeout();
-    this._maybeEnd();
     super.removeAllListeners();
-    this.#rejectPendingLatestBlock(new Error('Block tracker destroyed'));
+    this._maybeEnd();
   }
 
   isRunning(): boolean {
@@ -217,6 +216,7 @@ export class PollingBlockTracker
     this._isRunning = false;
     this._setupBlockResetTimeout();
     this._end();
+    this.#rejectPendingLatestBlock(new Error('Block tracker destroyed'));
     this.emit('_ended');
   }
 
