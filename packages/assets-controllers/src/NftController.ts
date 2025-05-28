@@ -2128,7 +2128,6 @@ export class NftController extends BaseController<
       nftsToUpdate.length !== 0 &&
       nftsToUpdate.length < NFT_UPDATE_THRESHOLD
     ) {
-      // TODO: get the chainId for the NFT
       await this.updateNftMetadata({
         nfts: nftsToUpdate,
         userAddress: account.address,
