@@ -2427,9 +2427,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/account-wallet-controller@workspace:packages/account-wallet-controller":
+"@metamask/account-tree-controller@workspace:packages/account-tree-controller":
   version: 0.0.0-use.local
-  resolution: "@metamask/account-wallet-controller@workspace:packages/account-wallet-controller"
+  resolution: "@metamask/account-tree-controller@workspace:packages/account-tree-controller"
   dependencies:
     "@metamask/accounts-controller": "npm:^29.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"

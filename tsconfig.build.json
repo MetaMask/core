@@ -1,6 +1,6 @@
 {
   "references": [
-    { "path": "./packages/account-wallet-controller/tsconfig.build.json" },
+    { "path": "./packages/account-tree-controller/tsconfig.build.json" },
     { "path": "./packages/accounts-controller/tsconfig.build.json" },
     { "path": "./packages/address-book-controller/tsconfig.build.json" },
     { "path": "./packages/announcement-controller/tsconfig.build.json" },

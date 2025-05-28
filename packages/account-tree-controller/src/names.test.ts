@@ -1,13 +1,13 @@
 import { KeyringTypes } from '@metamask/keyring-controller';
 
-import { getWalletNameFromKeyringType } from './names';
+import { getAccountGroupRootNameFromKeyringType } from './names';
 
 describe('names', () => {
   describe('getWalletNameFromKeyringType', () => {
     it.each(Object.values(KeyringTypes))(
       'computes wallet name from: %s',
       (type) => {
-        const name = getWalletNameFromKeyringType(type as KeyringTypes);
+        const name = getAccountGroupRootNameFromKeyringType(type as KeyringTypes);
 
         expect(name).toBeDefined();
         expect(name.length).toBeGreaterThan(0);
@@ -15,7 +15,7 @@ describe('names', () => {
     );
 
     it('defaults to "Unknown" if keyring type is not known', () => {
-      const name = getWalletNameFromKeyringType(
+      const name = getAccountGroupRootNameFromKeyringType(
         'Not A Keyring Type' as KeyringTypes,
       );
 

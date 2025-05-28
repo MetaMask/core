@@ -18,41 +18,41 @@ import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controlle
 import type { SnapId } from '@metamask/snaps-sdk';
 import { stripSnapPrefix } from '@metamask/snaps-utils';
 
-import { getWalletNameFromKeyringType } from './names';
+import { getAccountGroupRootNameFromKeyringType } from './names';
 
-const controllerName = 'AccountWalletController';
+const controllerName = 'AccountTreeController';
 
-export enum AccountWalletCategory {
+export enum AccountGroupRootCategory {
   Entropy = 'entropy',
   Snap = 'snap',
   Keyring = 'keyring',
   Default = 'default', // TODO: Remove `default` once we have multichain accounts.
 }
 
-type AccountWalletRuleMatch = {
-  category: AccountWalletCategory;
-  id: AccountWalletId;
+type AccountTreeRuleMatch = {
+  category: AccountGroupRootCategory;
+  id: AccountGroupRootId;
   name: string;
 };
 
 type AccountReverseMapping = {
-  walletId: AccountWalletId;
+  walletId: AccountGroupRootId;
   groupId: AccountGroupId;
 };
 
-type AccountWalletRuleFunction = (
+type AccountGroupRootRuleFunction = (
   account: InternalAccount,
-) => AccountWalletRuleMatch | undefined;
+) => AccountTreeRuleMatch | undefined;
 
-export type AccountWalletId = `${AccountWalletCategory}:${string}`;
-export type AccountGroupId = `${AccountWalletId}:${string}`;
+export type AccountGroupRootId = `${AccountGroupRootCategory}:${string}`;
+export type AccountGroupId = `${AccountGroupRootId}:${string}`;
 
 // Do not export this one, we just use it to have a common type interface between group and wallet metadata.
 type Metadata = {
   name: string;
 };
 
-export type AccountWalletMetadata = Metadata;
+export type AccountGroupRootMetadata = Metadata;
 
 export type AccountGroupMetadata = Metadata;
 
@@ -63,28 +63,27 @@ export type AccountGroup = {
   metadata: AccountGroupMetadata;
 };
 
-export type AccountWallet = {
-  id: AccountWalletId;
-  // Account groups OR Multichain accounts (once avaialble).
+export type AccountGroupRoot = {
+  id: AccountGroupRootId;
+  // Account groups OR Multichain accounts (once available).
   groups: {
     [accountGroup: AccountGroupId]: AccountGroup;
   };
   metadata: AccountGroupMetadata; // Assuming Metadata is a defined type
 };
 
-export type AccountWalletControllerState = {
-  accountWallets: {
-    // Wallets:
-    [accountWallet: AccountWalletId]: AccountWallet;
+export type AccountTreeControllerState = {
+  accountTrees: {
+    roots: {
+      // Wallets:
+      [accountGroupRoot: AccountGroupRootId]: AccountGroupRoot;
+    },
   };
 };
 
-export type AccountGroupsMetadata =
-  AccountWalletControllerState['accountWallets'];
-
-export type AccountWalletControllerGetStateAction = ControllerGetStateAction<
+export type AccountTreeControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
-  AccountWalletControllerState
+  AccountTreeControllerState
 >;
 
 export type AllowedActions =
@@ -92,43 +91,45 @@ export type AllowedActions =
   | KeyringControllerGetStateAction
   | SnapControllerGetSnap;
 
-export type AccountWalletControllerActions = never;
+export type AccountTreeControllerActions = never;
 
-export type AccountWalletControllerChangeEvent = ControllerStateChangeEvent<
+export type AccountTreeControllerChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
-  AccountWalletControllerState
+  AccountTreeControllerState
 >;
 
 export type AllowedEvents =
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent;
 
-export type AccountWalletControllerEvents = never;
+export type AccountTreeControllerEvents = never;
 
-export type AccountWalletControllerMessenger = RestrictedMessenger<
+export type AccountTreeControllerMessenger = RestrictedMessenger<
   typeof controllerName,
-  AccountWalletControllerActions | AllowedActions,
-  AccountWalletControllerEvents | AllowedEvents,
+  AccountTreeControllerActions | AllowedActions,
+  AccountTreeControllerEvents | AllowedEvents,
   AllowedActions['type'],
   AllowedEvents['type']
 >;
 
-const accountWalletControllerMetadata: StateMetadata<AccountWalletControllerState> =
+const accountTreeControllerMetadata: StateMetadata<AccountTreeControllerState> =
   {
-    accountWallets: {
+    accountTrees: {
       persist: false, // We do re-recompute this state everytime.
       anonymous: false,
     },
   };
 
 /**
- * Gets default state of the `AccountWalletController`.
+ * Gets default state of the `AccountTreeController`.
  *
- * @returns The default state of the `AccountWalletController`.
+ * @returns The default state of the `AccountTreeController`.
  */
-export function getDefaultAccountWalletControllerState(): AccountWalletControllerState {
+export function getDefaultAccountTreeControllerState(): AccountTreeControllerState {
   return {
-    accountWallets: {},
+    accountTrees: {
+      roots: {},
+    },
   };
 }
 
@@ -137,56 +138,56 @@ export const DEFAULT_ACCOUNT_GROUP_UNIQUE_ID: string = 'default'; // This might 
 export const DEFAULT_ACCOUNT_GROUP_NAME: string = 'Default';
 
 /**
- * Convert a unique ID to a wallet ID for a given category.
+ * Convert a unique ID to a group root ID for a given category.
  *
- * @param category - The category of the wallet.
+ * @param category - The category of the account group root.
  * @param id - The unique ID.
- * @returns The wallet ID.
+ * @returns The group root ID.
  */
-export function toAccountWalletId(
-  category: AccountWalletCategory,
+export function toAccountGroupRootId(
+  category: AccountGroupRootCategory,
   id: string,
-): AccountWalletId {
+): AccountGroupRootId {
   return `${category}:${id}`;
 }
 
 /**
- * Convert a wallet ID and a unique ID to a group ID.
+ * Convert a group root ID and a unique ID to a group ID.
  *
- * @param walletId - The wallet ID.
+ * @param groupRootId - The group root ID.
  * @param id - The unique ID.
  * @returns The group ID.
  */
 export function toAccountGroupId(
-  walletId: AccountWalletId,
+  groupRootId: AccountGroupRootId,
   id: string,
 ): AccountGroupId {
-  return `${walletId}:${id}`;
+  return `${groupRootId}:${id}`;
 }
 
 /**
- * Convert a wallet ID to the default group ID.
+ * Convert a group root ID to the default group ID.
  *
- * @param walletId - The wallet ID.
+ * @param groupRootId - The group root ID.
  * @returns The default group ID.
  */
 export function toDefaultAccountGroupId(
-  walletId: AccountWalletId,
+  groupRootId: AccountGroupRootId,
 ): AccountGroupId {
-  return toAccountGroupId(walletId, DEFAULT_ACCOUNT_GROUP_UNIQUE_ID);
+  return toAccountGroupId(groupRootId, DEFAULT_ACCOUNT_GROUP_UNIQUE_ID);
 }
 
-export class AccountWalletController extends BaseController<
+export class AccountTreeController extends BaseController<
   typeof controllerName,
-  AccountWalletControllerState,
-  AccountWalletControllerMessenger
+  AccountTreeControllerState,
+  AccountTreeControllerMessenger
 > {
   readonly #reverse: Map<AccountId, AccountReverseMapping>;
 
-  readonly #rules: AccountWalletRuleFunction[];
+  readonly #rules: AccountGroupRootRuleFunction[];
 
   /**
-   * Constructor for AccountWalletController.
+   * Constructor for AccountTreeController.
    *
    * @param options - The controller options.
    * @param options.messenger - The messenger object.
@@ -196,15 +197,15 @@ export class AccountWalletController extends BaseController<
     messenger,
     state,
   }: {
-    messenger: AccountWalletControllerMessenger;
-    state?: Partial<AccountWalletControllerState>;
+    messenger: AccountTreeControllerMessenger;
+    state?: Partial<AccountTreeControllerState>;
   }) {
     super({
       messenger,
       name: controllerName,
-      metadata: accountWalletControllerMetadata,
+      metadata: accountTreeControllerMetadata,
       state: {
-        ...getDefaultAccountWalletControllerState(),
+        ...getDefaultAccountTreeControllerState(),
         ...state,
       },
     });
@@ -238,21 +239,21 @@ export class AccountWalletController extends BaseController<
   }
 
   init() {
-    const wallets = {};
+    const roots = {};
 
     // For now, we always re-compute all wallets, we do not re-use the existing state.
     for (const account of this.#listAccounts()) {
-      this.#insert(wallets, account);
+      this.#insert(roots, account);
     }
 
     this.update((state) => {
-      state.accountWallets = wallets;
+      state.accountTrees.roots = roots;
     });
   }
 
   #handleAccountAdded(account: InternalAccount) {
     this.update((state) => {
-      this.#insert(state.accountWallets, account);
+      this.#insert(state.accountTrees.roots, account);
     });
   }
 
@@ -262,7 +263,7 @@ export class AccountWalletController extends BaseController<
     if (found) {
       const { walletId, groupId } = found;
       this.update((state) => {
-        const { accounts } = state.accountWallets[walletId].groups[groupId];
+        const { accounts } = state.accountTrees.roots[walletId].groups[groupId];
 
         const index = accounts.indexOf(accountId);
         if (index !== -1) {
@@ -278,7 +279,7 @@ export class AccountWalletController extends BaseController<
 
   #matchGroupByEntropySource(
     account: InternalAccount,
-  ): AccountWalletRuleMatch | undefined {
+  ): AccountTreeRuleMatch | undefined {
     let entropySource: string | undefined;
 
     if (this.#hasKeyringType(account, KeyringTypes.hd)) {
@@ -320,15 +321,15 @@ export class AccountWalletController extends BaseController<
     }
 
     return {
-      category: AccountWalletCategory.Entropy,
-      id: toAccountWalletId(AccountWalletCategory.Entropy, entropySource),
+      category: AccountGroupRootCategory.Entropy,
+      id: toAccountGroupRootId(AccountGroupRootCategory.Entropy, entropySource),
       name: entropySourceName,
     };
   }
 
   #matchGroupBySnapId(
     account: InternalAccount,
-  ): AccountWalletRuleMatch | undefined {
+  ): AccountTreeRuleMatch | undefined {
     if (
       this.#hasKeyringType(account, KeyringTypes.snap) &&
       account.metadata.snap &&
@@ -337,8 +338,8 @@ export class AccountWalletController extends BaseController<
       const { id } = account.metadata.snap;
 
       return {
-        category: AccountWalletCategory.Snap,
-        id: toAccountWalletId(AccountWalletCategory.Snap, id),
+        category: AccountGroupRootCategory.Snap,
+        id: toAccountGroupRootId(AccountGroupRootCategory.Snap, id),
         name: this.#getSnapName(id as SnapId),
       };
     }
@@ -348,13 +349,13 @@ export class AccountWalletController extends BaseController<
 
   #matchGroupByKeyringType(
     account: InternalAccount,
-  ): AccountWalletRuleMatch | undefined {
+  ): AccountTreeRuleMatch | undefined {
     const { type } = account.metadata.keyring;
 
     return {
-      category: AccountWalletCategory.Keyring,
-      id: toAccountWalletId(AccountWalletCategory.Keyring, type),
-      name: getWalletNameFromKeyringType(type as KeyringTypes),
+      category: AccountGroupRootCategory.Keyring,
+      id: toAccountGroupRootId(AccountGroupRootCategory.Keyring, type),
+      name: getAccountGroupRootNameFromKeyringType(type as KeyringTypes),
     };
   }
 
@@ -386,7 +387,7 @@ export class AccountWalletController extends BaseController<
   }
 
   #insert(
-    wallets: AccountWalletControllerState['accountWallets'],
+    roots: { [accountGroupRootId: AccountGroupRootId]: AccountGroupRoot },
     account: InternalAccount,
   ) {
     for (const rule of this.#rules) {
@@ -402,8 +403,8 @@ export class AccountWalletController extends BaseController<
       const groupId = toDefaultAccountGroupId(walletId); // Use a single-group for now until multichain accounts is supported.
       const groupName = DEFAULT_ACCOUNT_GROUP_NAME;
 
-      if (!wallets[walletId]) {
-        wallets[walletId] = {
+      if (!roots[walletId]) {
+        roots[walletId] = {
           id: walletId,
           groups: {
             [groupId]: {
@@ -417,7 +418,7 @@ export class AccountWalletController extends BaseController<
           },
         };
       }
-      wallets[walletId].groups[groupId].accounts.push(account.id);
+      roots[walletId].groups[groupId].accounts.push(account.id);
 
       // Update the reverse mapping for this account.
       this.#reverse.set(account.id, {
