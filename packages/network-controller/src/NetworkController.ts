@@ -17,6 +17,7 @@ import {
   BUILT_IN_CUSTOM_NETWORKS_RPC,
   BUILT_IN_NETWORKS,
 } from '@metamask/controller-utils';
+import type { ErrorReportingServiceCaptureExceptionAction } from '@metamask/error-reporting-service';
 import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 import EthQuery from '@metamask/eth-query';
 import { errorCodes } from '@metamask/rpc-errors';
@@ -26,6 +27,7 @@ import type { Hex } from '@metamask/utils';
 import { hasProperty, isPlainObject, isStrictHexString } from '@metamask/utils';
 import deepEqual from 'fast-deep-equal';
 import type { Draft } from 'immer';
+import { produce } from 'immer';
 import { cloneDeep } from 'lodash';
 import type { Logger } from 'loglevel';
 import { createSelector } from 'reselect';
@@ -498,6 +500,11 @@ export type NetworkControllerEvents =
   | NetworkControllerRpcEndpointDegradedEvent
   | NetworkControllerRpcEndpointRequestRetriedEvent;
 
+/**
+ * All events that {@link NetworkController} calls internally.
+ */
+type AllowedEvents = never;
+
 export type NetworkControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   NetworkState
@@ -590,12 +597,17 @@ export type NetworkControllerActions =
   | NetworkControllerRemoveNetworkAction
   | NetworkControllerUpdateNetworkAction;
 
+/**
+ * All actions that {@link NetworkController} calls internally.
+ */
+type AllowedActions = ErrorReportingServiceCaptureExceptionAction;
+
 export type NetworkControllerMessenger = RestrictedMessenger<
   typeof controllerName,
-  NetworkControllerActions,
-  NetworkControllerEvents,
-  never,
-  never
+  NetworkControllerActions | AllowedActions,
+  NetworkControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
 >;
 
 /**
@@ -1003,7 +1015,7 @@ function deriveInfuraNetworkNameFromRpcEndpointUrl(
  * @param state - The NetworkController state to verify.
  * @throws if the state is invalid in some way.
  */
-function validateNetworkControllerState(state: NetworkState) {
+function validateInitialState(state: NetworkState) {
   const networkConfigurationEntries = Object.entries(
     state.networkConfigurationsByChainId,
   );
@@ -1054,14 +1066,44 @@ function validateNetworkControllerState(state: NetworkState) {
       'NetworkController state has invalid `networkConfigurationsByChainId`: Every RPC endpoint across all network configurations must have a unique `networkClientId`',
     );
   }
+}
 
-  if (!networkClientIds.includes(state.selectedNetworkClientId)) {
-    throw new Error(
-      // This ESLint rule mistakenly produces an error.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      `NetworkController state is invalid: \`selectedNetworkClientId\` '${state.selectedNetworkClientId}' does not refer to an RPC endpoint within a network configuration`,
-    );
-  }
+/**
+ * Checks that the given initial NetworkController state is internally
+ * consistent similar to `validateInitialState`, but if an anomaly is detected,
+ * it does its best to correct the state and logs an error to Sentry.
+ *
+ * @param state - The NetworkController state to verify.
+ * @param messenger - The NetworkController messenger.
+ * @returns The corrected state.
+ */
+function correctInitialState(
+  state: NetworkState,
+  messenger: NetworkControllerMessenger,
+): NetworkState {
+  const networkConfigurationsSortedByChainId = getNetworkConfigurations(
+    state,
+  ).sort((a, b) => a.chainId.localeCompare(b.chainId));
+  const networkClientIds = getAvailableNetworkClientIds(
+    networkConfigurationsSortedByChainId,
+  );
+
+  return produce(state, (newState) => {
+    if (!networkClientIds.includes(state.selectedNetworkClientId)) {
+      const firstNetworkConfiguration = networkConfigurationsSortedByChainId[0];
+      const newSelectedNetworkClientId =
+        firstNetworkConfiguration.rpcEndpoints[
+          firstNetworkConfiguration.defaultRpcEndpointIndex
+        ].networkClientId;
+      messenger.call(
+        'ErrorReportingService:captureException',
+        new Error(
+          `\`selectedNetworkClientId\` '${state.selectedNetworkClientId}' does not refer to an RPC endpoint within a network configuration; correcting to '${newSelectedNetworkClientId}'`,
+        ),
+      );
+      newState.selectedNetworkClientId = newSelectedNetworkClientId;
+    }
+  });
 }
 
 /**
@@ -1146,7 +1188,9 @@ export class NetworkController extends BaseController<
       ...getDefaultNetworkControllerState(additionalDefaultNetworks),
       ...state,
     };
-    validateNetworkControllerState(initialState);
+    validateInitialState(initialState);
+    const correctedInitialState = correctInitialState(initialState, messenger);
+
     if (!infuraProjectId || typeof infuraProjectId !== 'string') {
       throw new Error('Invalid Infura project ID');
     }
@@ -1168,7 +1212,7 @@ export class NetworkController extends BaseController<
         },
       },
       messenger,
-      state: initialState,
+      state: correctedInitialState,
     });
 
     this.#infuraProjectId = infuraProjectId;
