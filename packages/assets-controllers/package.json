@@ -1,6 +1,6 @@
 {
   "name": "@metamask/assets-controllers",
-  "version": "64.0.0",
+  "version": "65.0.0",
   "description": "Controllers which manage interactions involving ERC-20, ERC-721, and ERC-1155 tokens (including NFTs)",
   "keywords": [
     "MetaMask",
@@ -86,6 +86,7 @@
     "@metamask/keyring-snap-client": "^4.1.0",
     "@metamask/network-controller": "^23.5.0",
     "@metamask/permission-controller": "^11.0.6",
+    "@metamask/phishing-controller": "^12.5.0",
     "@metamask/preferences-controller": "^18.0.0",
     "@metamask/providers": "^21.0.0",
     "@metamask/snaps-controllers": "^11.2.1",
@@ -111,6 +112,7 @@
     "@metamask/keyring-controller": "^22.0.0",
     "@metamask/network-controller": "^23.0.0",
     "@metamask/permission-controller": "^11.0.0",
+    "@metamask/phishing-controller": "^12.5.0",
     "@metamask/preferences-controller": "^18.0.0",
     "@metamask/providers": "^21.0.0",
     "@metamask/snaps-controllers": "^11.0.0",
