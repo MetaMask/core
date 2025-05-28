@@ -2582,6 +2582,7 @@ __metadata:
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/network-controller": "npm:^23.5.0"
     "@metamask/permission-controller": "npm:^11.0.6"
+    "@metamask/phishing-controller": "npm:^12.5.0"
     "@metamask/polling-controller": "npm:^13.0.0"
     "@metamask/preferences-controller": "npm:^18.0.0"
     "@metamask/providers": "npm:^21.0.0"
@@ -2620,6 +2621,7 @@ __metadata:
     "@metamask/keyring-controller": ^22.0.0
     "@metamask/network-controller": ^23.0.0
     "@metamask/permission-controller": ^11.0.0
+    "@metamask/phishing-controller": ^12.5.0
     "@metamask/preferences-controller": ^18.0.0
     "@metamask/providers": ^21.0.0
     "@metamask/snaps-controllers": ^11.0.0
@@ -3993,7 +3995,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/phishing-controller@npm:^12.4.1, @metamask/phishing-controller@workspace:packages/phishing-controller":
+"@metamask/phishing-controller@npm:^12.4.1, @metamask/phishing-controller@npm:^12.5.0, @metamask/phishing-controller@workspace:packages/phishing-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/phishing-controller@workspace:packages/phishing-controller"
   dependencies:
