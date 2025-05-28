@@ -351,7 +351,9 @@ describe('foundryup', () => {
       const mockedOptions = jest.requireMock('./options');
 
       mockedOptions.parseArgs.mockReturnValue(mockArgs);
-      mockedOptions.printBanner.mockImplementation(jest.fn());
+      mockedOptions.printBanner.mockImplementation(() => {
+        // Intentionally empty - used to suppress test output
+      });
       mockedOptions.say.mockImplementation(jest.fn());
     });
 
@@ -433,9 +435,9 @@ describe('foundryup', () => {
   describe('printBanner', () => {
     it('should print the banner to the console', () => {
       const { printBanner } = jest.requireActual('./options');
-      const consoleSpy = jest
-        .spyOn(console, 'log')
-        .mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {
+        // Intentionally empty - used to suppress test output
+      });
       printBanner();
       expect(consoleSpy).toHaveBeenCalled();
       expect(consoleSpy.mock.calls[0][0]).toContain(

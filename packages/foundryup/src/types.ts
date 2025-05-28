@@ -8,11 +8,12 @@ type UnionToIntersection<U> = ((k: U) => void) extends (k: infer I) => void
   ? I
   : never;
 
-type LastInUnion<U extends PropertyKey> = UnionToIntersection<
-  U extends PropertyKey ? () => U : never
-> extends () => infer Last
-  ? Last
-  : never;
+type LastInUnion<U extends PropertyKey> =
+  UnionToIntersection<
+    U extends PropertyKey ? () => U : never
+  > extends () => infer Last
+    ? Last
+    : never;
 
 type UnionToTuple<U extends PropertyKey, Last = LastInUnion<U>> = [U] extends [
   never,
@@ -76,7 +77,9 @@ export type Checksums = {
 
 /**
  * Checksum type expected by application code, specific to the selected
- * {@link Platform} and {@link Architecture}. See also: {@link Checksums}.
+ * {@link Platform} and {@link Architecture}.
+ *
+ * See also: {@link Checksums}.
  */
 export type PlatformArchChecksums = {
   algorithm: string;

@@ -1,7 +1,7 @@
 import { platform } from 'node:os';
 import { argv, stdout } from 'node:process';
 import yargs from 'yargs/yargs';
-import { normalizeSystemArchitecture } from './utils';
+
 import {
   type Checksums,
   type ParsedOptions,
@@ -12,6 +12,7 @@ import {
   Binary,
   Platform,
 } from './types';
+import { normalizeSystemArchitecture } from './utils';
 
 /**
  * Type guard to check if a string is a valid version string starting with 'v'.

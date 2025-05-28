@@ -47,7 +47,10 @@ export function getCacheDirectory(): string {
       return join(cwd(), '.metamask', 'cache');
     }
     // For other errors, log but continue with default
-    console.warn('Warning: Error reading .yarnrc.yml, using local cache:', error);
+    console.warn(
+      'Warning: Error reading .yarnrc.yml, using local cache:',
+      error,
+    );
   }
   return enableGlobalCache
     ? join(homedir(), '.cache', 'metamask')
