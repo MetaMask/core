@@ -123,7 +123,7 @@ The project follows the same release process as the other libraries in the MetaM
    - Generally any changes that don't affect consumers of the package (e.g. lockfile changes or development environment changes) are omitted. Exceptions may be made for changes that might be of interest despite not having an effect upon the published package (e.g. major test improvements, security improvements, improved documentation, etc.).
    - Try to explain each change in terms that users of the package would understand (e.g. avoid referencing internal variables/concepts).
    - Consolidate related changes into one change entry if it makes it easier to explain.
-   - Run `yarn auto-changelog validate --rc` to check that the changelog is correctly formatted.
+   - Run `yarn auto-changelog validate --rc --prettier` to check that the changelog is correctly formatted.
 
 5. Review and QA the release.
 
