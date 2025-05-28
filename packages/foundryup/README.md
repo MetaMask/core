@@ -38,10 +38,6 @@ This all needs to work.
 
 You can try it here in the monorepo by running `yarn workspace @metamask/foundryup anvil`.
 
-
-
 ## Contributing
 
 This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).
-
-
