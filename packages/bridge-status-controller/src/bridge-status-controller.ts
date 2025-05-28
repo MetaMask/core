@@ -529,6 +529,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
   readonly #handleApprovalTx = async (
     quoteResponse: QuoteResponse<string | TxData> & QuoteMetadata,
+    requireApproval = false,
   ): Promise<TransactionMeta | undefined> => {
     if (quoteResponse.approval) {
       await this.#handleUSDTAllowanceReset(quoteResponse);
@@ -536,6 +537,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         transactionType: TransactionType.bridgeApproval,
         trade: quoteResponse.approval,
         quoteResponse,
+        requireApproval,
       });
       if (!approvalTxMeta) {
         throw new Error(
@@ -734,7 +736,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param quoteResponse - The quote response
    * @param isStxEnabledOnClient - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
    * @param requireApproval - Whether to prompt user to confirm the tx. Hardware wallets require true.
-   * @param requireApprova
    * @returns The transaction meta
    */
   submitTx = async (
@@ -763,7 +764,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       typeof quoteResponse.trade !== 'string'
     ) {
       // Set approval time and id if an approval tx is needed
-      const approvalTxMeta = await this.#handleApprovalTx(quoteResponse);
+      const approvalTxMeta = await this.#handleApprovalTx(
+        quoteResponse,
+        requireApproval,
+      );
       approvalTime = approvalTxMeta?.time;
       approvalTxId = approvalTxMeta?.id;
       // Handle smart transactions if enabled
