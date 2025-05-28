@@ -2584,7 +2584,7 @@ __metadata:
     "@metamask/permission-controller": "npm:^11.0.6"
     "@metamask/phishing-controller": "npm:^12.5.0"
     "@metamask/polling-controller": "npm:^13.0.0"
-    "@metamask/preferences-controller": "npm:^18.1.0"
+    "@metamask/preferences-controller": "npm:^18.0.0"
     "@metamask/providers": "npm:^21.0.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/snaps-controllers": "npm:^11.2.1"
@@ -4054,7 +4054,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/preferences-controller@npm:^18.1.0, @metamask/preferences-controller@workspace:packages/preferences-controller":
+"@metamask/preferences-controller@npm:^18.0.0, @metamask/preferences-controller@workspace:packages/preferences-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/preferences-controller@workspace:packages/preferences-controller"
   dependencies:
