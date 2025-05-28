@@ -126,6 +126,7 @@ function parseGasFeeTokens(response: SimulationResponse): GasFeeToken[] {
     amount: tokenFee.balanceNeededToken,
     balance: tokenFee.currentBalanceToken,
     decimals: tokenFee.token.decimals,
+    fee: tokenFee.serviceFee,
     gas: feeLevel.gas,
     gasTransfer: tokenFee.transferEstimate,
     maxFeePerGas: feeLevel.maxFeePerGas,
