@@ -11,6 +11,7 @@ import type { DownloadOptions } from './types';
 class DownloadStream extends Stream.PassThrough {
   /**
    * Returns a promise that resolves with the HTTP(S) IncomingMessage response.
+   *
    * @returns The HTTP(S) response stream.
    */
   async response(): Promise<IncomingMessage> {
@@ -37,7 +38,7 @@ export function startDownload(
   const MAX_REDIRECTS = options.maxRedirects ?? 5;
   const request = url.protocol === 'http:' ? httpRequest : httpsRequest;
   const stream = new DownloadStream();
-  request(url, options, async (response) => {
+  request(url, options, (response) => {
     stream.once('close', () => {
       response.destroy();
     });
@@ -56,7 +57,7 @@ export function startDownload(
       } else {
         // note: we don't emit a response until we're done redirecting, because
         // handlers only expect it to be emitted once.
-        await pipeline(
+        pipeline(
           startDownload(new URL(headers.location, url), options, redirects + 1)
             // emit the response event to the stream
             .once('response', stream.emit.bind(stream, 'response')),
@@ -80,7 +81,7 @@ export function startDownload(
       stream.emit('response', response);
 
       response.once('error', stream.emit.bind(stream, 'error'));
-      await pipeline(response, stream).catch(stream.emit.bind(stream, 'error'));
+      pipeline(response, stream).catch(stream.emit.bind(stream, 'error'));
     }
   })
     .once('error', stream.emit.bind(stream, 'error'))
