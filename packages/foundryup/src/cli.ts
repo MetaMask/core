@@ -15,7 +15,7 @@ downloadAndInstallFoundryBinaries().catch((error) => {
   /**
    * Log any error that occurs during installation and exit with code 1.
    *
-   * @param {unknown} error - The error thrown during installation.
+   * @param error - The error thrown during installation.
    */
   console.error('Error:', error);
   process.exit(1);
