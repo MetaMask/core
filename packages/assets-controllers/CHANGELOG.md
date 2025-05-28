@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: defi metrics ([#5868](https://github.com/MetaMask/core/pull/5868))
+- Release/412.0.0 ([#5870](https://github.com/MetaMask/core/pull/5870))
+
 ### Added
 
 - Add phishing protection for NFT metadata URLs in `NftController` ([#5598](https://github.com/MetaMask/core/pull/5598))
