@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/eth-json-rpc-infura` to `^10.2.0` ([#5867](https://github.com/MetaMask/core/pull/5867))
+
 ### Fixed
 
 - Improved error handling in RPC service with more specific error types ([#5843](https://github.com/MetaMask/core/pull/5843)):

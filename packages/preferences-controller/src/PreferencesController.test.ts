@@ -46,6 +46,7 @@ describe('PreferencesController', () => {
         sortCallback: 'stringNumeric',
       },
       privacyMode: false,
+      dismissSmartAccountSuggestionEnabled: false,
     });
   });
 
@@ -541,6 +542,13 @@ describe('PreferencesController', () => {
     expect(controller.state.privacyMode).toBe(false);
     controller.setPrivacyMode(true);
     expect(controller.state.privacyMode).toBe(true);
+  });
+
+  it('should set dismissSmartAccountSuggestionEnabled', () => {
+    const controller = setupPreferencesController();
+    expect(controller.state.dismissSmartAccountSuggestionEnabled).toBe(false);
+    controller.setDismissSmartAccountSuggestionEnabled(true);
+    expect(controller.state.dismissSmartAccountSuggestionEnabled).toBe(true);
   });
 });
 
