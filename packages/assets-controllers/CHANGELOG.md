@@ -16,7 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Add peer dependency on `@metamask/phishing-controller` ^12.5.0 ([#5598](https://github.com/MetaMask/core/pull/5598))
-- Bump `@metamask/preferences-controller` to `^18.1.0` ([#5870](https://github.com/MetaMask/core/pull/5870))
 
 ## [65.0.0]
 
