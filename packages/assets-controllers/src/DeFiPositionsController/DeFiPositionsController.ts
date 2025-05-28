@@ -266,28 +266,9 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
     const accountPositionsPerChain =
       await this.#fetchAccountPositions(accountAddress);
 
-    const defiMetrics =
-      accountPositionsPerChain && this.#trackEvent
-        ? calculateDeFiPositionMetrics(accountPositionsPerChain)
-        : undefined;
-
-    const metricsChanged =
-      defiMetrics &&
-      defiMetrics.properties.totalPositions !==
-        this.state.allDeFiPositionsCount[accountAddress];
-
     this.update((state) => {
       state.allDeFiPositions[accountAddress] = accountPositionsPerChain;
-
-      if (metricsChanged) {
-        state.allDeFiPositionsCount[accountAddress] =
-          defiMetrics.properties.totalPositions;
-      }
     });
-
-    if (metricsChanged) {
-      this.#trackEvent?.(defiMetrics);
-    }
   }
 
   async #fetchAccountPositions(
@@ -296,9 +277,42 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
     try {
       const defiPositionsResponse = await this.#fetchPositions(accountAddress);
 
-      return groupDeFiPositions(defiPositionsResponse);
+      const groupedDeFiPositions = groupDeFiPositions(defiPositionsResponse);
+
+      this.#updatePositionsCountMetrics(
+        groupedDeFiPositions,
+        accountAddress,
+      ).catch((error) => {
+        console.error(
+          `Failed to update positions count for account ${accountAddress}:`,
+          error,
+        );
+      });
+
+      return groupedDeFiPositions;
     } catch {
       return null;
     }
+  }
+
+  async #updatePositionsCountMetrics(
+    groupedDeFiPositions: GroupedDeFiPositionsPerChain,
+    accountAddress: string,
+  ): Promise<void> {
+    // If no track event passed then skip the metrics update
+    if (!this.#trackEvent) {
+      return;
+    }
+
+    const defiMetrics = calculateDeFiPositionMetrics(groupedDeFiPositions);
+    const { totalPositions } = defiMetrics.properties;
+
+    this.update((state) => {
+      if (totalPositions !== this.state.allDeFiPositionsCount[accountAddress]) {
+        state.allDeFiPositionsCount[accountAddress] = totalPositions;
+
+        this.#trackEvent?.(defiMetrics);
+      }
+    });
   }
 }
