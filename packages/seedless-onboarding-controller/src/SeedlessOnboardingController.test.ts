@@ -1629,6 +1629,54 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
+    it('should be able to fetch seed phrases with cached encryption key without providing password', async () => {
+      const mockToprfEncryptor = createMockToprfEncryptor();
+
+      const MOCK_ENCRYPTION_KEY =
+        mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
+      const MOCK_AUTH_KEY_PAIR =
+        mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
+
+      const mockResult = await createMockVault(
+        MOCK_ENCRYPTION_KEY,
+        MOCK_AUTH_KEY_PAIR,
+        MOCK_PASSWORD,
+        MOCK_NODE_AUTH_TOKENS,
+      );
+
+      const MOCK_VAULT = mockResult.encryptedMockVault;
+      const MOCK_VAULT_ENCRYPTION_KEY = mockResult.vaultEncryptionKey;
+      const MOCK_VAULT_ENCRYPTION_SALT = mockResult.vaultEncryptionSalt;
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            vault: MOCK_VAULT,
+            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
+          }),
+        },
+        async ({ controller }) => {
+          await controller.submitPassword(MOCK_PASSWORD);
+
+          const mockSecretDataGet = handleMockSecretDataGet({
+            status: 200,
+            body: createMockSecretDataGetResponse(
+              [MOCK_SEED_PHRASE],
+              MOCK_PASSWORD,
+            ),
+          });
+
+          const secretData = await controller.fetchAllSeedPhrases();
+
+          expect(mockSecretDataGet.isDone()).toBe(true);
+          expect(secretData).toBeDefined();
+          expect(secretData).toStrictEqual([MOCK_SEED_PHRASE]);
+        },
+      );
+    });
+
     it('should throw an error if the key recovery failed', async () => {
       await withController(
         {
