@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 399.0.0 ([#5812](https://github.com/MetaMask/core/pull/5812))
+
 ### Fixed
 
 - Populate `.options.entropySource` for new `InternalAccount`s before publishing `:accountAdded` ([#5841](https://github.com/MetaMask/core/pull/5841))
