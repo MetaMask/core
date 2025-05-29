@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [56.3.0]
+
 ### Added
 
 - Include `origin` for `wallet_sendCalls` requests to the security alerts API ([#5876](https://github.com/MetaMask/core/pull/5876))
@@ -1626,7 +1628,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@56.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@56.3.0...HEAD
+[56.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@56.2.0...@metamask/transaction-controller@56.3.0
 [56.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@56.1.0...@metamask/transaction-controller@56.2.0
 [56.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@56.0.0...@metamask/transaction-controller@56.1.0
 [56.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@55.0.2...@metamask/transaction-controller@56.0.0
