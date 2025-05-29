@@ -1,5 +1,53 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`BridgeController should handle errors from fetchBridgeQuotes 1`] = `
+Object {
+  "assetExchangeRates": Object {
+    "eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984": Object {
+      "exchangeRate": undefined,
+      "usdExchangeRate": "100",
+    },
+  },
+  "quoteFetchError": null,
+  "quoteRequest": Object {
+    "destChainId": "0x1",
+    "destTokenAddress": "0x0000000000000000000000000000000000000000",
+    "insufficientBal": false,
+    "srcChainId": "0xa",
+    "srcTokenAddress": "0x4200000000000000000000000000000000000006",
+    "srcTokenAmount": "991250000000000000",
+    "walletAddress": "eip:id/id:id/0x123",
+  },
+  "quotesInitialLoadTime": 10000,
+  "quotesLoadingStatus": 1,
+  "quotesRefreshCount": 1,
+}
+`;
+
+exports[`BridgeController should handle errors from fetchBridgeQuotes 2`] = `
+Object {
+  "assetExchangeRates": Object {
+    "eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984": Object {
+      "exchangeRate": undefined,
+      "usdExchangeRate": "100",
+    },
+  },
+  "quoteFetchError": null,
+  "quoteRequest": Object {
+    "destChainId": "0x1",
+    "destTokenAddress": "0x0000000000000000000000000000000000000000",
+    "insufficientBal": false,
+    "srcChainId": "0xa",
+    "srcTokenAddress": "0x4200000000000000000000000000000000000006",
+    "srcTokenAmount": "991250000000000000",
+    "walletAddress": "eip:id/id:id/0x123",
+  },
+  "quotesInitialLoadTime": 10000,
+  "quotesLoadingStatus": 1,
+  "quotesRefreshCount": 1,
+}
+`;
+
 exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller calls should track the Completed event 1`] = `
 Array [
   Array [
@@ -395,6 +443,58 @@ Array [
 `;
 
 exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote polling if request is valid 1`] = `
+Object {
+  "assetExchangeRates": Object {
+    "eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984": Object {
+      "exchangeRate": undefined,
+      "usdExchangeRate": "100",
+    },
+  },
+  "quoteFetchError": null,
+  "quoteRequest": Object {
+    "destChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+    "destTokenAddress": "123d1",
+    "insufficientBal": false,
+    "slippage": 0.5,
+    "srcChainId": "0x1",
+    "srcTokenAddress": "0x0000000000000000000000000000000000000000",
+    "srcTokenAmount": "10",
+    "walletAddress": "0x123",
+  },
+  "quotes": Array [],
+  "quotesInitialLoadTime": null,
+  "quotesLastFetched": null,
+  "quotesLoadingStatus": null,
+  "quotesRefreshCount": 0,
+}
+`;
+
+exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote polling if request is valid 2`] = `
+Object {
+  "assetExchangeRates": Object {
+    "eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984": Object {
+      "exchangeRate": undefined,
+      "usdExchangeRate": "100",
+    },
+  },
+  "quoteFetchError": null,
+  "quoteRequest": Object {
+    "destChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+    "destTokenAddress": "123d1",
+    "insufficientBal": false,
+    "slippage": 0.5,
+    "srcChainId": "0x1",
+    "srcTokenAddress": "0x0000000000000000000000000000000000000000",
+    "srcTokenAmount": "10",
+    "walletAddress": "0x123",
+  },
+  "quotesInitialLoadTime": 15000,
+  "quotesLoadingStatus": 1,
+  "quotesRefreshCount": 1,
+}
+`;
+
+exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote polling if request is valid 3`] = `
 Array [
   Array [
     "Unified SwapBridge Input Changed",
@@ -514,6 +614,26 @@ Array [
       "token_symbol_source": "ETH",
       "usd_amount_source": 100,
       "warnings": Array [],
+    },
+  ],
+  Array [
+    "Unified SwapBridge Quotes Requested",
+    Object {
+      "action_type": "crosschain-v1",
+      "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "chain_id_source": "eip155:1",
+      "custom_slippage": true,
+      "error_message": null,
+      "has_sufficient_funds": true,
+      "is_hardware_wallet": false,
+      "security_warnings": Array [],
+      "slippage_limit": 0.5,
+      "stx_enabled": true,
+      "swap_type": "crosschain",
+      "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
+      "token_address_source": "eip155:1/slip44:60",
+      "token_symbol_destination": "USDC",
+      "token_symbol_source": "ETH",
     },
   ],
 ]

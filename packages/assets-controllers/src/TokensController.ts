@@ -3,6 +3,7 @@ import { Web3Provider } from '@ethersproject/providers';
 import type {
   AccountsControllerGetAccountAction,
   AccountsControllerGetSelectedAccountAction,
+  AccountsControllerListAccountsAction,
   AccountsControllerSelectedEvmAccountChangeEvent,
 } from '@metamask/accounts-controller';
 import type { AddApprovalRequest } from '@metamask/approval-controller';
@@ -24,6 +25,7 @@ import {
   isValidHexAddress,
   safelyExecute,
 } from '@metamask/controller-utils';
+import type { KeyringControllerAccountRemovedEvent } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
 import type {
@@ -35,7 +37,7 @@ import type {
   Provider,
 } from '@metamask/network-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
-import type { Hex } from '@metamask/utils';
+import { isStrictHexString, type Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
@@ -124,7 +126,8 @@ export type AllowedActions =
   | AddApprovalRequest
   | NetworkControllerGetNetworkClientByIdAction
   | AccountsControllerGetAccountAction
-  | AccountsControllerGetSelectedAccountAction;
+  | AccountsControllerGetSelectedAccountAction
+  | AccountsControllerListAccountsAction;
 
 export type TokensControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -137,7 +140,8 @@ export type AllowedEvents =
   | NetworkControllerStateChangeEvent
   | NetworkControllerNetworkDidChangeEvent
   | TokenListStateChange
-  | AccountsControllerSelectedEvmAccountChangeEvent;
+  | AccountsControllerSelectedEvmAccountChangeEvent
+  | KeyringControllerAccountRemovedEvent;
 
 /**
  * The messenger of the {@link TokensController}.
@@ -224,6 +228,11 @@ export class TokensController extends BaseController<
     );
 
     this.messagingSystem.subscribe(
+      'KeyringController:accountRemoved',
+      (accountAddress: string) => this.#handleOnAccountRemoved(accountAddress),
+    );
+
+    this.messagingSystem.subscribe(
       'TokenListController:stateChange',
       ({ tokensChainsCache }) => {
         const { allTokens } = this.state;
@@ -258,6 +267,45 @@ export class TokensController extends BaseController<
         });
       },
     );
+  }
+
+  #handleOnAccountRemoved(accountAddress: string) {
+    const isEthAddress =
+      isStrictHexString(accountAddress.toLowerCase()) &&
+      isValidHexAddress(accountAddress);
+
+    if (!isEthAddress) {
+      return;
+    }
+
+    const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
+    const newAllTokens = cloneDeep(allTokens);
+    const newAllDetectedTokens = cloneDeep(allDetectedTokens);
+    const newAllIgnoredTokens = cloneDeep(allIgnoredTokens);
+
+    for (const chainId of Object.keys(newAllTokens)) {
+      if (newAllTokens[chainId as Hex][accountAddress]) {
+        delete newAllTokens[chainId as Hex][accountAddress];
+      }
+    }
+
+    for (const chainId of Object.keys(newAllDetectedTokens)) {
+      if (newAllDetectedTokens[chainId as Hex][accountAddress]) {
+        delete newAllDetectedTokens[chainId as Hex][accountAddress];
+      }
+    }
+
+    for (const chainId of Object.keys(newAllIgnoredTokens)) {
+      if (newAllIgnoredTokens[chainId as Hex][accountAddress]) {
+        delete newAllIgnoredTokens[chainId as Hex][accountAddress];
+      }
+    }
+
+    this.update((state) => {
+      state.allTokens = newAllTokens;
+      state.allIgnoredTokens = newAllIgnoredTokens;
+      state.allDetectedTokens = newAllDetectedTokens;
+    });
   }
 
   /**
