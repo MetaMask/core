@@ -650,7 +650,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       const { authPubKey: globalAuthPubKey } =
         await this.toprfClient.fetchAuthPubKey({
           nodeAuthTokens,
-          authConnectionId: groupedAuthConnectionId || authConnectionId,
+          authConnectionId,
+          groupedAuthConnectionId,
           userId,
         });
 
@@ -693,14 +694,14 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    */
   async #persistOprfKey(oprfKey: bigint, authPubKey: SEC1EncodedPublicKey) {
     this.#assertIsAuthenticatedUser(this.state);
-    const authConnectionId =
-      this.state.groupedAuthConnectionId || this.state.authConnectionId;
+    const { authConnectionId, groupedAuthConnectionId, userId } = this.state;
 
     try {
       await this.toprfClient.persistLocalKey({
         nodeAuthTokens: this.state.nodeAuthTokens,
         authConnectionId,
-        userId: this.state.userId,
+        groupedAuthConnectionId,
+        userId,
         oprfKey,
         authPubKey,
       });
@@ -749,14 +750,14 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     return this.#withRecoveryErrorHandler(async () => {
       this.#assertIsAuthenticatedUser(this.state);
 
-      const authConnectionId =
-        this.state.groupedAuthConnectionId || this.state.authConnectionId;
+      const { authConnectionId, groupedAuthConnectionId, userId } = this.state;
 
       const recoverEncKeyResult = await this.toprfClient.recoverEncKey({
         nodeAuthTokens: this.state.nodeAuthTokens,
         password,
         authConnectionId,
-        userId: this.state.userId,
+        groupedAuthConnectionId,
+        userId,
       });
       return recoverEncKeyResult;
     });
@@ -771,8 +772,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    */
   async #changeEncryptionKey(newPassword: string, oldPassword: string) {
     this.#assertIsAuthenticatedUser(this.state);
-    const authConnectionId =
-      this.state.groupedAuthConnectionId || this.state.authConnectionId;
+    const { authConnectionId, groupedAuthConnectionId, userId } = this.state;
 
     const {
       encKey,
@@ -783,7 +783,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     return await this.toprfClient.changeEncKey({
       nodeAuthTokens: this.state.nodeAuthTokens,
       authConnectionId,
-      userId: this.state.userId,
+      groupedAuthConnectionId,
+      userId,
       oldEncKey: encKey,
       oldAuthKeyPair: authKeyPair,
       newKeyShareIndex,
