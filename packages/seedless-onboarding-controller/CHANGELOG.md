@@ -19,5 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support multi SRP sync using social login. ([#5](https://github.com/Web3Auth/core/pull/5))
   - Update Metadata to support multiple types of secrets (SRP, PrivateKey).
   - Add `Controller Lock` which will sync with `Keyring Lock`.
+  - Updated `VaultEncryptor` type in constructor args and is compulsory to provided relevant encryptor to constructor.
+  - Added new non-persisted states, `encryptionKey` and `encryptionSalt` to decrypt the vault when password is not available.
+  - Update `password` param in `fetchAllSeedPhrases` method to optional. If password is not provided, `cached EncryptionKey` will be used.
 
 [Unreleased]: https://github.com/MetaMask/core/
