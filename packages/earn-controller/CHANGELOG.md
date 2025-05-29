@@ -7,13 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added new lending-related types:
+  - `LendingMarketWithPosition`
+  - `LendingPositionWithMarket`
+  - `LendingPositionWithMarketReference`
+- Added new lending-related selectors:
+  - `selectLendingMarkets`
+  - `selectLendingPositions`
+  - `selectLendingMarketsWithPosition`
+  - `selectLendingPositionsByProtocol`
+  - `selectLendingMarketByProtocolAndTokenAddress`
+  - `selectLendingMarketForProtocolAndTokenAddress`
+  - `selectLendingPositionsByChainId`
+  - `selectLendingMarketsByChainId`
+  - `selectLendingMarketsByProtocolAndId`
+  - `selectLendingMarketForProtocolAndId`
+  - `selectLendingPositionsWithMarket`
+  - `selectLendingMarketsForChainId`
+- Added exports from `@metamask/stake-sdk`
+
+### Changed
+
+- **BREAKING:** bump `@metamask/accounts-controller` peer dependency to `^30.0.0` ([#5888](https://github.com/MetaMask/core/pull/5888))
+- Bump `@metamask/controller-utils` to `^11.9.0` ([#5812](https://github.com/MetaMask/core/pull/5812))
+- Bump `@metamask/stake-sdk` dependency to `^3.2.0` ([#5828](https://github.com/MetaMask/core/pull/5828))
+- Add `@ethersproject/bignumber` as a dependency ([#5828](https://github.com/MetaMask/core/pull/5828))
+- Add `reselect` as a dependency ([#5828](https://github.com/MetaMask/core/pull/5828))
+- Remove StablecoinLendingState type
+- Remove StablecoinVault type
+- 
+
 ## [0.15.0]
 
 ### Changed
 
 - **BREAKING:** bump `@metamask/accounts-controller` peer dependency to `^30.0.0` ([#5888](https://github.com/MetaMask/core/pull/5888))
 - Bump `@metamask/controller-utils` to `^11.9.0` ([#5812](https://github.com/MetaMask/core/pull/5812))
-- **BREAKING:** bump `@metamask/stake-sdk` peer dependency to `3.0.0` ([#5828](https://github.com/MetaMask/core/pull/5828))
 
 ## [0.14.0]
 
