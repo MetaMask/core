@@ -7,9 +7,9 @@ import type {
 } from '@metamask/keyring-api';
 import {
   BtcAccountType,
+  BtcScope,
   EthAccountType,
   EthScope,
-  BtcScope,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -17,8 +17,8 @@ import type { NetworkClientId } from '@metamask/network-controller';
 import type { SnapControllerState } from '@metamask/snaps-controllers';
 import { SnapStatus } from '@metamask/snaps-utils';
 import type { CaipChainId } from '@metamask/utils';
-import * as uuid from 'uuid';
 import type { V4Options } from 'uuid';
+import * as uuid from 'uuid';
 
 import type {
   AccountsControllerActions,
@@ -178,6 +178,29 @@ function setLastSelectedAsAny(account: InternalAccount): InternalAccount {
   deepClonedAccount.metadata.lastSelected = expect.any(Number);
   deepClonedAccount.metadata.importTime = expect.any(Number);
   return deepClonedAccount;
+}
+
+/**
+ * Sets the `entropySource` property of the given `account` to the specified
+ * keyringId value.
+ *
+ * @param account - The account to modify.
+ * @param keyringId - The keyring ID to set as entropySource.
+ * @returns The modified account.
+ */
+function populateEntropySource(
+  account: InternalAccount,
+  keyringId: string,
+): InternalAccount {
+  return JSON.parse(
+    JSON.stringify({
+      ...account,
+      options: {
+        ...account.options,
+        entropySource: keyringId,
+      },
+    }),
+  ) as InternalAccount;
 }
 
 /**
@@ -501,12 +524,10 @@ describe('AccountsController', () => {
           {
             type: KeyringTypes.hd,
             accounts: [mockAccount.address],
-          },
-        ],
-        keyringsMetadata: [
-          {
-            id: 'mock-id',
-            name: 'mock-name',
+            metadata: {
+              id: 'mock-id',
+              name: 'mock-name',
+            },
           },
         ],
       };
@@ -534,7 +555,7 @@ describe('AccountsController', () => {
 
       messenger.publish(
         'KeyringController:stateChange',
-        { isUnlocked: true, keyrings: [], keyringsMetadata: [] },
+        { isUnlocked: true, keyrings: [] },
         [],
       );
 
@@ -553,12 +574,10 @@ describe('AccountsController', () => {
             accounts: [mockAccount.address, mockAccount2.address],
             type: KeyringTypes.hd,
             id: '123',
-          },
-        ],
-        keyringsMetadata: [
-          {
-            id: 'mock-id',
-            name: 'mock-name',
+            metadata: {
+              id: 'mock-id',
+              name: 'mock-name',
+            },
           },
         ],
       };
@@ -595,12 +614,10 @@ describe('AccountsController', () => {
             {
               type: KeyringTypes.hd,
               accounts: [mockAccount.address, mockAccount2.address],
-            },
-          ],
-          keyringsMetadata: [
-            {
-              id: 'mock-id',
-              name: 'mock-name',
+              metadata: {
+                id: 'mock-id',
+                name: 'mock-name',
+              },
             },
           ],
         };
@@ -627,7 +644,7 @@ describe('AccountsController', () => {
 
         expect(accounts).toStrictEqual([
           mockAccount,
-          setLastSelectedAsAny(mockAccount2),
+          setLastSelectedAsAny(populateEntropySource(mockAccount2, 'mock-id')),
         ]);
       });
 
@@ -654,20 +671,18 @@ describe('AccountsController', () => {
             {
               type: KeyringTypes.hd,
               accounts: [mockAccount.address],
+              metadata: {
+                id: 'mock-id',
+                name: 'mock-name',
+              },
             },
             {
               type: KeyringTypes.snap,
               accounts: [mockAccount3.address, mockAccount4.address],
-            },
-          ],
-          keyringsMetadata: [
-            {
-              id: 'mock-id',
-              name: 'mock-name',
-            },
-            {
-              id: 'mock-id2',
-              name: 'mock-name2',
+              metadata: {
+                id: 'mock-id2',
+                name: 'mock-name2',
+              },
             },
           ],
         };
@@ -731,20 +746,18 @@ describe('AccountsController', () => {
             {
               type: KeyringTypes.hd,
               accounts: [mockAccount.address],
+              metadata: {
+                id: 'mock-id',
+                name: 'mock-name',
+              },
             },
             {
               type: KeyringTypes.snap,
               accounts: [mockAccount3.address, mockAccount4.address],
-            },
-          ],
-          keyringsMetadata: [
-            {
-              id: 'mock-id',
-              name: 'mock-name',
-            },
-            {
-              id: 'mock-id2',
-              name: 'mock-name2',
+              metadata: {
+                id: 'mock-id2',
+                name: 'mock-name2',
+              },
             },
           ],
         };
@@ -792,6 +805,10 @@ describe('AccountsController', () => {
             {
               type: KeyringTypes.hd,
               accounts: [mockAccount.address],
+              metadata: {
+                id: 'mock-id',
+                name: 'mock-name',
+              },
             },
             {
               type: KeyringTypes.snap,
@@ -799,16 +816,10 @@ describe('AccountsController', () => {
               // to the state (like if the Snap did remove it right before the keyring controller
               // state change got triggered).
               accounts: [mockAccount3.address],
-            },
-          ],
-          keyringsMetadata: [
-            {
-              id: 'mock-id',
-              name: 'mock-name',
-            },
-            {
-              id: 'mock-id2',
-              name: 'mock-name2',
+              metadata: {
+                id: 'mock-id2',
+                name: 'mock-name2',
+              },
             },
           ],
         };
@@ -851,12 +862,10 @@ describe('AccountsController', () => {
                 mockAccount2.address,
                 mockAccount3.address,
               ],
-            },
-          ],
-          keyringsMetadata: [
-            {
-              id: 'mock-id',
-              name: 'mock-name',
+              metadata: {
+                id: 'mock-id',
+                name: 'mock-name',
+              },
             },
           ],
         };
@@ -890,6 +899,9 @@ describe('AccountsController', () => {
               name: 'Account 3',
               address: mockAccount3.address,
               keyringType: KeyringTypes.hd,
+              options: {
+                entropySource: 'mock-id',
+              },
             }),
           ),
         ]);
@@ -919,12 +931,10 @@ describe('AccountsController', () => {
                 mockAccount2.address,
                 mockAccount3.address,
               ],
-            },
-          ],
-          keyringsMetadata: [
-            {
-              id: 'mock-id',
-              name: 'mock-name',
+              metadata: {
+                id: 'mock-id',
+                name: 'mock-name',
+              },
             },
           ],
         };
@@ -957,7 +967,9 @@ describe('AccountsController', () => {
             name: 'Account 3',
             address: mockAccount3.address,
             keyringType: KeyringTypes.hd,
-            options: {},
+            options: {
+              entropySource: 'mock-id',
+            },
           }),
         ]);
       });
@@ -982,20 +994,18 @@ describe('AccountsController', () => {
             {
               type: KeyringTypes.hd,
               accounts: [],
+              metadata: {
+                id: 'mock-id',
+                name: 'mock-name',
+              },
             },
             {
               type: KeyringTypes.snap,
               accounts: [mockAccount3.address],
-            },
-          ],
-          keyringsMetadata: [
-            {
-              id: 'mock-id',
-              name: 'mock-name',
-            },
-            {
-              id: 'mock-id2',
-              name: 'mock-name2',
+              metadata: {
+                id: 'mock-id2',
+                name: 'mock-name2',
+              },
             },
           ],
         };
@@ -1032,12 +1042,10 @@ describe('AccountsController', () => {
             {
               type: KeyringTypes.hd,
               accounts: [mockAccount.address, mockAccount2.address],
-            },
-          ],
-          keyringsMetadata: [
-            {
-              id: 'mock-id',
-              name: 'mock-name',
+              metadata: {
+                id: 'mock-id',
+                name: 'mock-name',
+              },
             },
           ],
         };
@@ -1064,7 +1072,7 @@ describe('AccountsController', () => {
 
         expect(accounts).toStrictEqual([
           mockAccount,
-          setLastSelectedAsAny(mockAccount2),
+          setLastSelectedAsAny(populateEntropySource(mockAccount2, 'mock-id')),
         ]);
         expect(accountsController.getSelectedAccount().id).toBe(mockAccount.id);
       });
@@ -1093,12 +1101,10 @@ describe('AccountsController', () => {
             {
               type: KeyringTypes.hd,
               accounts: [mockAccount.address, mockAccount2.address],
-            },
-          ],
-          keyringsMetadata: [
-            {
-              id: 'mock-id',
-              name: 'mock-name',
+              metadata: {
+                id: 'mock-id',
+                name: 'mock-name',
+              },
             },
           ],
         };
@@ -1115,7 +1121,7 @@ describe('AccountsController', () => {
           // 2. AccountsController:stateChange
           3,
           'AccountsController:accountAdded',
-          setLastSelectedAsAny(mockAccount2),
+          setLastSelectedAsAny(populateEntropySource(mockAccount2, 'mock-id')),
         );
       });
     });
@@ -1132,12 +1138,10 @@ describe('AccountsController', () => {
             {
               type: KeyringTypes.hd,
               accounts: [mockAccount2.address],
-            },
-          ],
-          keyringsMetadata: [
-            {
-              id: 'mock-id',
-              name: 'mock-name',
+              metadata: {
+                id: 'mock-id',
+                name: 'mock-name',
+              },
             },
           ],
         };
@@ -1179,12 +1183,10 @@ describe('AccountsController', () => {
             {
               type: KeyringTypes.hd,
               accounts: [mockAccount.address, mockAccount2.address],
-            },
-          ],
-          keyringsMetadata: [
-            {
-              id: 'mock-id',
-              name: 'mock-name',
+              metadata: {
+                id: 'mock-id',
+                name: 'mock-name',
+              },
             },
           ],
         };
@@ -1245,12 +1247,10 @@ describe('AccountsController', () => {
             {
               type: KeyringTypes.hd,
               accounts: [mockAccount.address, mockAccount2.address],
-            },
-          ],
-          keyringsMetadata: [
-            {
-              id: 'mock-id',
-              name: 'mock-name',
+              metadata: {
+                id: 'mock-id',
+                name: 'mock-name',
+              },
             },
           ],
         };
@@ -1324,12 +1324,10 @@ describe('AccountsController', () => {
                 mockAccountWithoutLastSelected.address,
                 mockAccount2.address,
               ],
-            },
-          ],
-          keyringsMetadata: [
-            {
-              id: 'mock-id',
-              name: 'mock-name',
+              metadata: {
+                id: 'mock-id',
+                name: 'mock-name',
+              },
             },
           ],
         };
@@ -1400,12 +1398,10 @@ describe('AccountsController', () => {
             {
               type: KeyringTypes.hd,
               accounts: [mockAccount.address, mockAccount2.address],
-            },
-          ],
-          keyringsMetadata: [
-            {
-              id: 'mock-id',
-              name: 'mock-name',
+              metadata: {
+                id: 'mock-id',
+                name: 'mock-name',
+              },
             },
           ],
         };
@@ -1439,6 +1435,9 @@ describe('AccountsController', () => {
         name: 'Account 1',
         address: '0x456',
         keyringType: KeyringTypes.hd,
+        options: {
+          entropySource: 'mock-id',
+        },
       });
 
       mockUUIDWithNormalAccounts([
@@ -1452,12 +1451,10 @@ describe('AccountsController', () => {
           {
             type: KeyringTypes.hd,
             accounts: [mockReinitialisedAccount.address],
-          },
-        ],
-        keyringsMetadata: [
-          {
-            id: 'mock-id',
-            name: 'mock-name',
+            metadata: {
+              id: 'mock-id',
+              name: 'mock-name',
+            },
           },
         ],
       };
@@ -1554,12 +1551,10 @@ describe('AccountsController', () => {
                 mockExistingAccount1.address,
                 mockExistingAccount2.address,
               ],
-            },
-          ],
-          keyringsMetadata: [
-            {
-              id: 'mock-id',
-              name: 'mock-name',
+              metadata: {
+                id: 'mock-id',
+                name: 'mock-name',
+              },
             },
           ],
         };
@@ -1799,12 +1794,13 @@ describe('AccountsController', () => {
         'KeyringController:getState',
         mockGetState.mockReturnValue({
           keyrings: [
-            { type: KeyringTypes.hd, accounts: [mockAddress1, mockAddress2] },
-          ],
-          keyringsMetadata: [
             {
-              id: 'mock-keyring-id-0',
-              name: 'mock-keyring-id-name',
+              type: KeyringTypes.hd,
+              accounts: [mockAddress1, mockAddress2],
+              metadata: {
+                id: 'mock-keyring-id-0',
+                name: 'mock-keyring-id-name',
+              },
             },
           ],
         }),
@@ -1863,12 +1859,10 @@ describe('AccountsController', () => {
             {
               type: KeyringTypes.snap,
               accounts: [mockSnapAccount, mockSnapAccount2],
-            },
-          ],
-          keyringsMetadata: [
-            {
-              id: 'mock-keyring-id-1',
-              name: 'mock-keyring-id-name',
+              metadata: {
+                id: 'mock-keyring-id-1',
+                name: 'mock-keyring-id-name',
+              },
             },
           ],
         }),
@@ -1962,12 +1956,13 @@ describe('AccountsController', () => {
         'KeyringController:getState',
         mockGetState.mockReturnValue({
           keyrings: [
-            { type: KeyringTypes.hd, accounts: [mockAddress1, mockAddress2] },
-          ],
-          keyringsMetadata: [
             {
-              id: 'mock-keyring-id-0',
-              name: 'mock-keyring-id-name',
+              type: KeyringTypes.hd,
+              accounts: [mockAddress1, mockAddress2],
+              metadata: {
+                id: 'mock-keyring-id-0',
+                name: 'mock-keyring-id-name',
+              },
             },
           ],
         }),
@@ -2035,17 +2030,21 @@ describe('AccountsController', () => {
         'KeyringController:getState',
         mockGetState.mockReturnValue({
           keyrings: [
-            { type: KeyringTypes.hd, accounts: [mockAddress1] },
-            { type: KeyringTypes.snap, accounts: ['0x1234'] },
-          ],
-          keyringsMetadata: [
             {
-              id: 'mock-keyring-id-0',
-              name: 'mock-keyring-id-name',
+              type: KeyringTypes.hd,
+              accounts: [mockAddress1],
+              metadata: {
+                id: 'mock-keyring-id-0',
+                name: 'mock-keyring-id-name',
+              },
             },
             {
-              id: 'mock-keyring-id-1',
-              name: 'mock-keyring-id-name2',
+              type: KeyringTypes.snap,
+              accounts: ['0x1234'],
+              metadata: {
+                id: 'mock-keyring-id-1',
+                name: 'mock-keyring-id-name2',
+              },
             },
           ],
         }),
@@ -2103,17 +2102,21 @@ describe('AccountsController', () => {
         'KeyringController:getState',
         mockGetState.mockReturnValue({
           keyrings: [
-            { type: KeyringTypes.snap, accounts: ['0x1234'] },
-            { type: KeyringTypes.hd, accounts: [mockAddress1] },
-          ],
-          keyringsMetadata: [
             {
-              id: 'mock-keyring-id-0',
-              name: 'mock-keyring-id-name',
+              type: KeyringTypes.snap,
+              accounts: ['0x1234'],
+              metadata: {
+                id: 'mock-keyring-id-0',
+                name: 'mock-keyring-id-name',
+              },
             },
             {
-              id: 'mock-keyring-id-1',
-              name: 'mock-keyring-id-name2',
+              type: KeyringTypes.hd,
+              accounts: [mockAddress1],
+              metadata: {
+                id: 'mock-keyring-id-1',
+                name: 'mock-keyring-id-name2',
+              },
             },
           ],
         }),
@@ -2168,11 +2171,14 @@ describe('AccountsController', () => {
       messenger.registerActionHandler(
         'KeyringController:getState',
         mockGetState.mockReturnValue({
-          keyrings: [{ type: keyringType, accounts: [mockAddress1] }],
-          keyringsMetadata: [
+          keyrings: [
             {
-              id: 'mock-keyring-id-0',
-              name: 'mock-keyring-id-name',
+              type: keyringType,
+              accounts: [mockAddress1],
+              metadata: {
+                id: 'mock-keyring-id-0',
+                name: 'mock-keyring-id-name',
+              },
             },
           ],
         }),
@@ -2312,17 +2318,21 @@ describe('AccountsController', () => {
           'KeyringController:getState',
           mockGetState.mockReturnValue({
             keyrings: [
-              { type: KeyringTypes.snap, accounts: ['0x1234'] },
-              { type: KeyringTypes.hd, accounts: [mockAddress1] },
-            ],
-            keyringsMetadata: [
               {
-                id: 'mock-keyring-id-1',
-                name: 'mock-keyring-id-name',
+                type: KeyringTypes.snap,
+                accounts: ['0x1234'],
+                metadata: {
+                  id: 'mock-keyring-id-1',
+                  name: 'mock-keyring-id-name',
+                },
               },
               {
-                id: 'mock-keyring-id-2',
-                name: 'mock-keyring-id-name2',
+                type: KeyringTypes.hd,
+                accounts: [mockAddress1],
+                metadata: {
+                  id: 'mock-keyring-id-2',
+                  name: 'mock-keyring-id-name2',
+                },
               },
             ],
           }),
@@ -3076,20 +3086,18 @@ describe('AccountsController', () => {
           {
             type: 'HD Key Tree',
             accounts: [mockAccount.address],
+            metadata: {
+              id: 'mock-id',
+              name: 'mock-name',
+            },
           },
           {
             type: 'Simple Key Pair',
             accounts: simpleAddressess,
-          },
-        ],
-        keyringsMetadata: [
-          {
-            id: 'mock-id',
-            name: 'mock-name',
-          },
-          {
-            id: 'mock-id2',
-            name: 'mock-name2',
+            metadata: {
+              id: 'mock-id2',
+              name: 'mock-name2',
+            },
           },
         ],
       };

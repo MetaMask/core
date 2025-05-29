@@ -490,6 +490,36 @@ export type TransactionMeta = {
   };
 };
 
+/**
+ * Information about a batch transaction.
+ */
+export type TransactionBatchMeta = {
+  /**
+   * Network code as per EIP-155 for this transaction.
+   */
+  chainId: Hex;
+
+  /**
+   * ID of the associated transaction batch.
+   */
+  id: string;
+
+  /**
+   * Data for any EIP-7702 transactions.
+   */
+  transactions?: NestedTransactionMetadata[];
+
+  /**
+   * The ID of the network client used by the transaction.
+   */
+  networkClientId: NetworkClientId;
+
+  /**
+   * Origin this transaction was sent from.
+   */
+  origin?: string;
+};
+
 export type SendFlowHistoryEntry = {
   /**
    * String to indicate user interaction information.
@@ -945,6 +975,11 @@ export interface RemoteTransactionSourceRequest {
    * Whether to initially query the entire transaction history.
    */
   queryEntireHistory: boolean;
+
+  /**
+   * Additional tags to identify the source of the request.
+   */
+  tags?: string[];
 
   /**
    * Callback to update the cache.
@@ -1509,7 +1544,7 @@ export type BatchTransactionParams = {
 
 /** Metadata for a nested transaction within a standard transaction. */
 export type NestedTransactionMetadata = BatchTransactionParams & {
-  /** Type of the neted transaction. */
+  /** Type of the nested transaction. */
   type?: TransactionType;
 };
 

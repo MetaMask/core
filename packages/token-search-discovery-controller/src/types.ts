@@ -1,11 +1,12 @@
 // Function params
 
-type ParamsBase = {
+export type ParamsBase = {
   chains?: string[];
   limit?: string;
+  swappable?: boolean;
 };
 
-export type TokenSearchParams = ParamsBase & {
+export type TokenSearchParams = Omit<ParamsBase, 'swappable'> & {
   query?: string;
 };
 

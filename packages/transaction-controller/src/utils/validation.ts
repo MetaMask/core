@@ -16,6 +16,7 @@ import {
 export enum ErrorCode {
   DuplicateBundleId = 5720,
   BundleTooLarge = 5740,
+  RejectedUpgrade = 5750,
 }
 
 const TRANSACTION_ENVELOPE_TYPES_FEE_MARKET = [
@@ -534,9 +535,9 @@ function validateAuthorization(authorization: Authorization) {
 
   const { yParity } = authorization;
 
-  if (yParity && !['0x', '0x1'].includes(yParity)) {
+  if (yParity && !['0x0', '0x1'].includes(yParity)) {
     throw rpcErrors.invalidParams(
-      `Invalid transaction params: yParity must be '0x' or '0x1'. got: ${yParity}`,
+      `Invalid transaction params: yParity must be '0x0' or '0x1'. got: ${yParity}`,
     );
   }
 }

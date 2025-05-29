@@ -69,7 +69,11 @@ import { RandomisedEstimationsGasFeeFlow } from './gas-flows/RandomisedEstimatio
 import { ScrollLayer1GasFeeFlow } from './gas-flows/ScrollLayer1GasFeeFlow';
 import { TestGasFeeFlow } from './gas-flows/TestGasFeeFlow';
 import { AccountsApiRemoteTransactionSource } from './helpers/AccountsApiRemoteTransactionSource';
-import { GasFeePoller, updateTransactionGasFees } from './helpers/GasFeePoller';
+import {
+  GasFeePoller,
+  updateTransactionGasProperties,
+  updateTransactionGasEstimates,
+} from './helpers/GasFeePoller';
 import type { IncomingTransactionOptions } from './helpers/IncomingTransactionHelper';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { MethodDataHelper } from './helpers/MethodDataHelper';
@@ -111,8 +115,11 @@ import type {
   IsAtomicBatchSupportedResult,
   IsAtomicBatchSupportedRequest,
   AfterAddHook,
+  GasFeeEstimateLevel as GasFeeEstimateLevelType,
+  TransactionBatchMeta,
 } from './types';
 import {
+  GasFeeEstimateLevel,
   TransactionEnvelopeType,
   TransactionType,
   TransactionStatus,
@@ -182,6 +189,10 @@ const metadata = {
     persist: true,
     anonymous: false,
   },
+  transactionBatches: {
+    persist: true,
+    anonymous: false,
+  },
   methodData: {
     persist: true,
     anonymous: false,
@@ -245,13 +256,16 @@ export type TransactionControllerState = {
   /** A list of TransactionMeta objects. */
   transactions: TransactionMeta[];
 
+  /** A list of TransactionBatchMeta objects. */
+  transactionBatches: TransactionBatchMeta[];
+
   /** Object containing all known method data information. */
   methodData: Record<string, MethodData>;
 
   /** Cache to optimise incoming transaction queries. */
   lastFetchedBlockNumbers: { [key: string]: number | string };
 
-  /** History of all tranasactions submitted from the wallet. */
+  /** History of all transactions submitted from the wallet. */
   submitHistory: SubmitHistoryEntry[];
 };
 
@@ -666,6 +680,7 @@ function getDefaultTransactionControllerState(): TransactionControllerState {
   return {
     methodData: {},
     transactions: [],
+    transactionBatches: [],
     lastFetchedBlockNumbers: {},
     submitHistory: [],
   };
@@ -945,12 +960,14 @@ export class TransactionController extends BaseController<
     };
 
     this.#incomingTransactionHelper = new IncomingTransactionHelper({
+      client: this.#incomingTransactionOptions.client,
       getCache: () => this.state.lastFetchedBlockNumbers,
       getCurrentAccount: () => this.#getSelectedAccount(),
       getLocalTransactions: () => this.state.transactions,
       includeTokenTransfers:
         this.#incomingTransactionOptions.includeTokenTransfers,
       isEnabled: this.#incomingTransactionOptions.isEnabled,
+      messenger: this.messagingSystem,
       queryEntireHistory: this.#incomingTransactionOptions.queryEntireHistory,
       remoteTransactionSource: new AccountsApiRemoteTransactionSource(),
       trimTransactions: this.#trimTransactionsForState.bind(this),
@@ -1016,6 +1033,11 @@ export class TransactionController extends BaseController<
   async addTransactionBatch(
     request: TransactionBatchRequest,
   ): Promise<TransactionBatchResult> {
+    const { blockTracker } = this.messagingSystem.call(
+      `NetworkController:getNetworkClientById`,
+      request.networkClientId,
+    );
+
     return await addTransactionBatch({
       addTransaction: this.addTransaction.bind(this),
       getChainId: this.#getChainId.bind(this),
@@ -1028,6 +1050,18 @@ export class TransactionController extends BaseController<
       publicKeyEIP7702: this.#publicKeyEIP7702,
       request,
       updateTransaction: this.#updateTransactionInternal.bind(this),
+      publishTransaction: (
+        ethQuery: EthQuery,
+        transactionMeta: TransactionMeta,
+      ) => this.#publishTransaction(ethQuery, transactionMeta) as Promise<Hex>,
+      getPendingTransactionTracker: (networkClientId: NetworkClientId) =>
+        this.#createPendingTransactionTracker({
+          provider: this.#getProvider({ networkClientId }),
+          blockTracker,
+          chainId: this.#getChainId(networkClientId),
+          networkClientId,
+        }),
+      update: this.update.bind(this),
     });
   }
 
@@ -1314,8 +1348,14 @@ export class TransactionController extends BaseController<
     this.#incomingTransactionHelper.stop();
   }
 
-  async updateIncomingTransactions() {
-    await this.#incomingTransactionHelper.update();
+  /**
+   * Update the incoming transactions by polling the remote transaction source.
+   *
+   * @param request - Request object.
+   * @param request.tags - Additional tags to identify the source of the request.
+   */
+  async updateIncomingTransactions({ tags }: { tags?: string[] } = {}) {
+    await this.#incomingTransactionHelper.update({ tags });
   }
 
   /**
@@ -1796,7 +1836,7 @@ export class TransactionController extends BaseController<
       maxFeePerGas,
       originalGasEstimate,
       userEditedGasLimit,
-      userFeeLevel,
+      userFeeLevel: userFeeLevelParam,
     }: {
       defaultGasEstimates?: string;
       estimateUsed?: string;
@@ -1824,34 +1864,71 @@ export class TransactionController extends BaseController<
       'updateTransactionGasFees',
     );
 
-    let transactionGasFees = {
-      txParams: {
-        gas,
-        gasLimit,
+    const clonedTransactionMeta = cloneDeep(transactionMeta);
+    const isTransactionGasFeeEstimatesExists = transactionMeta.gasFeeEstimates;
+    const isAutomaticGasFeeUpdateEnabled =
+      this.#isAutomaticGasFeeUpdateEnabled(transactionMeta);
+    const userFeeLevel = userFeeLevelParam as GasFeeEstimateLevelType;
+    const isOneOfFeeLevelSelected =
+      Object.values(GasFeeEstimateLevel).includes(userFeeLevel);
+    const shouldUpdateTxParamsGasFees =
+      isTransactionGasFeeEstimatesExists &&
+      isAutomaticGasFeeUpdateEnabled &&
+      isOneOfFeeLevelSelected;
+
+    if (shouldUpdateTxParamsGasFees) {
+      updateTransactionGasEstimates({
+        txMeta: clonedTransactionMeta,
+        userFeeLevel,
+      });
+    }
+
+    const txParamsUpdate = {
+      gas,
+      gasLimit,
+    };
+
+    if (shouldUpdateTxParamsGasFees) {
+      // Get updated values from clonedTransactionMeta if we're using automated fee updates
+      Object.assign(txParamsUpdate, {
+        gasPrice: clonedTransactionMeta.txParams.gasPrice,
+        maxPriorityFeePerGas:
+          clonedTransactionMeta.txParams.maxPriorityFeePerGas,
+        maxFeePerGas: clonedTransactionMeta.txParams.maxFeePerGas,
+      });
+    } else {
+      Object.assign(txParamsUpdate, {
         gasPrice,
         maxPriorityFeePerGas,
         maxFeePerGas,
-      },
+      });
+    }
+
+    const transactionGasFees = {
+      txParams: pickBy(txParamsUpdate),
       defaultGasEstimates,
       estimateUsed,
       estimateSuggested,
       originalGasEstimate,
       userEditedGasLimit,
       userFeeLevel,
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any;
+    };
 
-    // only update what is defined
-    transactionGasFees.txParams = pickBy(transactionGasFees.txParams);
-    transactionGasFees = pickBy(transactionGasFees);
+    const filteredTransactionGasFees = pickBy(transactionGasFees);
 
-    // merge updated gas values with existing transaction meta
-    const updatedMeta = merge({}, transactionMeta, transactionGasFees);
-
-    this.updateTransaction(
-      updatedMeta,
-      `${controllerName}:updateTransactionGasFees - gas values updated`,
+    this.#updateTransactionInternal(
+      {
+        transactionId,
+        note: `${controllerName}:updateTransactionGasFees - gas values updated`,
+        skipResimulateCheck: true,
+      },
+      (draftTxMeta) => {
+        const { txParams, ...otherProps } = filteredTransactionGasFees;
+        Object.assign(draftTxMeta, otherProps);
+        if (txParams) {
+          Object.assign(draftTxMeta.txParams, txParams);
+        }
+      },
     );
 
     return this.#getTransaction(transactionId) as TransactionMeta;
@@ -4057,7 +4134,7 @@ export class TransactionController extends BaseController<
     this.#updateTransactionInternal(
       { transactionId, skipHistory: true },
       (txMeta) => {
-        updateTransactionGasFees({
+        updateTransactionGasProperties({
           txMeta,
           gasFeeEstimates,
           gasFeeEstimatesLoaded,
@@ -4157,7 +4234,7 @@ export class TransactionController extends BaseController<
   #isRejectError(error: Error & { code?: number }) {
     return [
       errorCodes.provider.userRejectedRequest,
-      errorCodes.rpc.methodNotSupported,
+      ErrorCode.RejectedUpgrade,
     ].includes(error.code as number);
   }
 

@@ -28,7 +28,6 @@ export type {
   L1GasFees,
   SolanaFees,
   QuoteMetadata,
-  BridgeToken,
   GasMultiplierByChainId,
   FeatureFlagResponse,
   BridgeAsset,
@@ -101,9 +100,14 @@ export {
   isSolanaChainId,
   getNativeAssetForChainId,
   getDefaultBridgeControllerState,
+  isCrossChain,
 } from './utils/bridge';
 
-export { isValidQuoteRequest, formatEtaInMinutes } from './utils/quote';
+export {
+  isValidQuoteRequest,
+  formatEtaInMinutes,
+  calcSlippagePercentage,
+} from './utils/quote';
 
 export { calcLatestSrcBalance } from './utils/balance';
 
@@ -129,3 +133,5 @@ export {
   selectIsQuoteExpired,
   selectBridgeFeatureFlags,
 } from './selectors';
+
+export { DEFAULT_FEATURE_FLAG_CONFIG } from './constants/bridge';
