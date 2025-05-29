@@ -24,6 +24,11 @@ const config = createConfig([
       // e.g. `txreceipt_status`, `signTypedData_v4`, `token_id`
       camelcase: 'off',
       'id-length': 'off',
+      'import-x/no-nodejs-modules': 'off',
+      'n/no-unsupported-features/node-builtins': 'off',
+      'n/no-missing-import': 'off',
+      'n/no-restricted-import': 'off',
+      'n/no-deprecated-api': 'off',
 
       // TODO: re-enble most of these rules
       'function-paren-newline': 'off',
@@ -73,6 +78,8 @@ const config = createConfig([
       // TODO: These rules created more errors after the upgrade to ESLint 9.
       // Re-enable these rules and address any lint violations.
       'n/no-unsupported-features/node-builtins': 'warn',
+      'n/no-missing-import': 'off',
+      'n/no-restricted-import': 'off', // Allow Node.js built-in module imports
     },
   },
   {
