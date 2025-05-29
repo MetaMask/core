@@ -10,6 +10,9 @@ export enum ClientType {
 export enum DistributionType {
   Main = 'main',
   Flask = 'flask',
+  /**
+   * @deprecated Use DistributionType Main with EnvironmentType Beta instead
+   */
   Beta = 'beta',
 }
 
@@ -17,6 +20,8 @@ export enum EnvironmentType {
   Production = 'prod',
   ReleaseCandidate = 'rc',
   Development = 'dev',
+  Beta = 'beta',
+  Test = 'test',
 }
 
 /** Type representing the feature flags collection */
