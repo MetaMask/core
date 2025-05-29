@@ -735,13 +735,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    *
    * @param quoteResponse - The quote response
    * @param isStxEnabledOnClient - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
-   * @param requireApproval - Whether to prompt user to confirm the tx. Hardware wallets require true.
+   * @param isHardwareAddress - Whether the wallet is a hardware wallet. Hardware wallets require approval.
    * @returns The transaction meta
    */
   submitTx = async (
     quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
     isStxEnabledOnClient: boolean,
-    requireApproval = false,
+    isHardwareAddress = false,
   ) => {
     let txMeta: (TransactionMeta & Partial<SolanaTransactionMeta>) | undefined;
     // Submit SOLANA tx
@@ -766,7 +766,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       // Set approval time and id if an approval tx is needed
       const approvalTxMeta = await this.#handleApprovalTx(
         quoteResponse,
-        requireApproval,
+        isHardwareAddress,
       );
       approvalTime = approvalTxMeta?.time;
       approvalTxId = approvalTxMeta?.id;
@@ -783,7 +783,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           trade: quoteResponse.trade,
           quoteResponse,
           approvalTxId,
-          requireApproval,
+          requireApproval: isHardwareAddress,
         });
       }
     }
