@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated `VaultEncryptor` type in constructor args and is compulsory to provided relevant encryptor to constructor.
   - Added new non-persisted states, `encryptionKey` and `encryptionSalt` to decrypt the vault when password is not available.
   - Update `password` param in `fetchAllSeedPhrases` method to optional. If password is not provided, `cached EncryptionKey` will be used.
-- Password sync features implementation. ([#6](https://github.com/Web3Auth/core/pull/6))
+- Password sync features implementation. ([#5877](https://github.com/MetaMask/core/pull/5877))
   - checkIsPasswordOutdated to check current password is outdated compare to global password
   - Add password outdated check to add SRPs / change password
   - recover old password using latest global password
