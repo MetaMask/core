@@ -27,9 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add password outdated check to add SRPs / change password
   - recover old password using latest global password
   - sync latest global password to reset vault to use latest password and persist latest auth pubkey
-- Updated `toprf-secure-backup` to `0.2.0`. ([#13](https://github.com/Web3Auth/core/pull/13))
+- Updated `toprf-secure-backup` to `0.3.0`. ([#5880](https://github.com/MetaMask/core/pull/5880))
   - added an optional constructor param, `topfKeyDeriver` to assist the `Key derivation` in `toprf-seucre-backup` sdk and adds an additinal security
-- Added new state value, `recoveryRatelimitCache` to the controller. ([#17](https://github.com/Web3Auth/core/pull/17))
-  - The new state can be used to parse the `RecoveryError` correctly and synchroize the error data (numberOfAttempts) across multiple devices.
+  - added new state value, `recoveryRatelimitCache` to the controller to parse the `RecoveryError` correctly and synchroize the error data (numberOfAttempts) across multiple devices.
 
 [Unreleased]: https://github.com/MetaMask/core/
