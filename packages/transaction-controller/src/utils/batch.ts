@@ -180,6 +180,7 @@ export async function addTransactionBatch(
         },
       ],
       delegationMock: txParams.authorizationList?.[0]?.address,
+      origin,
     };
 
     log('Security request', securityRequest);
