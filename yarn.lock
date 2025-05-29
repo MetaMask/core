@@ -2555,7 +2555,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/assets-controllers@npm:^65.0.0, @metamask/assets-controllers@workspace:packages/assets-controllers":
+"@metamask/assets-controllers@npm:^66.0.0, @metamask/assets-controllers@workspace:packages/assets-controllers":
   version: 0.0.0-use.local
   resolution: "@metamask/assets-controllers@workspace:packages/assets-controllers"
   dependencies:
@@ -2582,8 +2582,9 @@ __metadata:
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/network-controller": "npm:^23.5.0"
     "@metamask/permission-controller": "npm:^11.0.6"
+    "@metamask/phishing-controller": "npm:^12.5.0"
     "@metamask/polling-controller": "npm:^13.0.0"
-    "@metamask/preferences-controller": "npm:^18.0.0"
+    "@metamask/preferences-controller": "npm:^18.1.0"
     "@metamask/providers": "npm:^21.0.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/snaps-controllers": "npm:^11.2.1"
@@ -2620,6 +2621,7 @@ __metadata:
     "@metamask/keyring-controller": ^22.0.0
     "@metamask/network-controller": ^23.0.0
     "@metamask/permission-controller": ^11.0.0
+    "@metamask/phishing-controller": ^12.5.0
     "@metamask/preferences-controller": ^18.0.0
     "@metamask/providers": ^21.0.0
     "@metamask/snaps-controllers": ^11.0.0
@@ -2689,7 +2691,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/bridge-controller@npm:^28.0.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
+"@metamask/bridge-controller@npm:^29.0.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-controller@workspace:packages/bridge-controller"
   dependencies:
@@ -2699,7 +2701,7 @@ __metadata:
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
     "@metamask/accounts-controller": "npm:^29.0.0"
-    "@metamask/assets-controllers": "npm:^65.0.0"
+    "@metamask/assets-controllers": "npm:^66.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.1"
     "@metamask/controller-utils": "npm:^11.9.0"
@@ -2729,7 +2731,7 @@ __metadata:
     typescript: "npm:~5.2.2"
   peerDependencies:
     "@metamask/accounts-controller": ^29.0.0
-    "@metamask/assets-controllers": ^65.0.0
+    "@metamask/assets-controllers": ^66.0.0
     "@metamask/network-controller": ^23.0.0
     "@metamask/remote-feature-flag-controller": ^1.6.0
     "@metamask/snaps-controllers": ^11.0.0
@@ -2744,7 +2746,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^29.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.1"
-    "@metamask/bridge-controller": "npm:^28.0.0"
+    "@metamask/bridge-controller": "npm:^29.0.0"
     "@metamask/controller-utils": "npm:^11.9.0"
     "@metamask/gas-fee-controller": "npm:^23.0.0"
     "@metamask/keyring-api": "npm:^17.4.0"
@@ -2770,7 +2772,7 @@ __metadata:
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/accounts-controller": ^29.0.0
-    "@metamask/bridge-controller": ^28.0.0
+    "@metamask/bridge-controller": ^29.0.0
     "@metamask/gas-fee-controller": ^23.0.0
     "@metamask/multichain-transactions-controller": ^1.0.0
     "@metamask/network-controller": ^23.0.0
@@ -3064,7 +3066,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/error-reporting-service@workspace:packages/error-reporting-service":
+"@metamask/error-reporting-service@npm:^0.0.0, @metamask/error-reporting-service@workspace:packages/error-reporting-service":
   version: 0.0.0-use.local
   resolution: "@metamask/error-reporting-service@workspace:packages/error-reporting-service"
   dependencies:
@@ -3184,15 +3186,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-json-rpc-infura@npm:^10.1.1":
-  version: 10.1.1
-  resolution: "@metamask/eth-json-rpc-infura@npm:10.1.1"
+"@metamask/eth-json-rpc-infura@npm:^10.2.0":
+  version: 10.2.0
+  resolution: "@metamask/eth-json-rpc-infura@npm:10.2.0"
   dependencies:
     "@metamask/eth-json-rpc-provider": "npm:^4.1.7"
     "@metamask/json-rpc-engine": "npm:^10.0.2"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/utils": "npm:^11.0.1"
-  checksum: 10/24296fd6d2dca4b9bda2692590eafcecc7318c2d2acf0b5a2e3f3670ffbe7ff0c6338779b8b31a69060cc7963e98d9bf354e3c0f43683371f1f2e9c7642dc763
+  checksum: 10/f3e2ac8f8657259978923bdb08cee660ae8e1f6a3f2a67c9e8b93a55030c42b0a8ba45e9321dd6d52f7a4309d1c4241745c2c292d6be0596dd4954ac38d586f6
   languageName: node
   linkType: hard
 
@@ -3835,8 +3837,9 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.1"
     "@metamask/controller-utils": "npm:^11.9.0"
+    "@metamask/error-reporting-service": "npm:^0.0.0"
     "@metamask/eth-block-tracker": "npm:^12.0.1"
-    "@metamask/eth-json-rpc-infura": "npm:^10.1.1"
+    "@metamask/eth-json-rpc-infura": "npm:^10.2.0"
     "@metamask/eth-json-rpc-middleware": "npm:^17.0.1"
     "@metamask/eth-json-rpc-provider": "npm:^4.1.8"
     "@metamask/eth-query": "npm:^4.0.0"
@@ -3993,7 +3996,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/phishing-controller@npm:^12.4.1, @metamask/phishing-controller@workspace:packages/phishing-controller":
+"@metamask/phishing-controller@npm:^12.4.1, @metamask/phishing-controller@npm:^12.5.0, @metamask/phishing-controller@workspace:packages/phishing-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/phishing-controller@workspace:packages/phishing-controller"
   dependencies:
@@ -4052,7 +4055,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/preferences-controller@npm:^18.0.0, @metamask/preferences-controller@workspace:packages/preferences-controller":
+"@metamask/preferences-controller@npm:^18.1.0, @metamask/preferences-controller@workspace:packages/preferences-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/preferences-controller@workspace:packages/preferences-controller"
   dependencies:

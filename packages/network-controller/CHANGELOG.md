@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+### Changed
+
+- Block tracker errors will no longer be wrapped under "PollingBlockTracker - encountered an error while attempting to update latest block" ([#5860](https://github.com/MetaMask/core/pull/5860))
+- Bump dependencies ([#5867](https://github.com/MetaMask/core/pull/5867), [#5860](https://github.com/MetaMask/core/pull/5860))
+  - Bump `@metamask/eth-block-tracker` to `^12.0.1`
+  - Bump `@metamask/eth-json-rpc-infura` to `^10.2.0`
+  - Bump `@metamask/eth-json-rpc-middleware` to `^17.0.1`
+
 ### Fixed
 
 - Improved error handling in RPC service with more specific error types ([#5843](https://github.com/MetaMask/core/pull/5843)):
@@ -15,9 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 429 responses now throw a "Rate Limiting" error
   - Other 4xx responses now throw a generic HTTP client error
   - Invalid JSON responses now throw a "Parse" error
-- Bump `@metamask/eth-block-tracker` to ^12.0.0, `@metamask/eth-json-rpc-middleware` to ^17.0.1 ([#5860](https://github.com/MetaMask/core/pull/5860))
-  - This fixes the block tracker so that it will now reject if an error is thrown while making the request instead of hanging.
-  - Also, block tracker errors will no longer be wrapped under "PollingBlockTracker - encountered an error while attempting to update latest block".
+- Rather than throwing an error, NetworkController now corrects an invalid initial `selectedNetworkClientId` to point to the default RPC endpoint of the first network sorted by chain ID ([#5851](https://github.com/MetaMask/core/pull/5851))
+- Fix the block tracker so that it will now reject if an error is thrown while making the request instead of hanging ([#5860](https://github.com/MetaMask/core/pull/5860))
 
 ## [23.5.0]
 
