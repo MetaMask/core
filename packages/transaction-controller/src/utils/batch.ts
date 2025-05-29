@@ -305,6 +305,7 @@ async function addTransactionBatchWith7702(
         },
       ],
       delegationMock: txParams.authorizationList?.[0]?.address,
+      origin,
     };
 
     log('Security request', securityRequest);

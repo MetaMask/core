@@ -1707,6 +1707,9 @@ export type ValidateSecurityRequest = {
 
   /** Optional EIP-7702 delegation to mock for the transaction sender. */
   delegationMock?: Hex;
+
+  /** Origin of the request, such as a dApp hostname or `ORIGIN_METAMASK` if internal. */
+  origin?: string;
 };
 
 /** Data required to pay for transaction gas using an ERC-20 token. */
