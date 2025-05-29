@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/eth-json-rpc-infura` to `^10.2.0` ([#5867](https://github.com/MetaMask/core/pull/5867))
+
+### Fixed
+
+- Improved error handling in RPC service with more specific error types ([#5843](https://github.com/MetaMask/core/pull/5843)):
+  - 401 responses now throw an "Unauthorized" error
+  - 402/404/5xx responses now throw a "Resource Unavailable" error
+  - 429 responses now throw a "Rate Limiting" error
+  - Other 4xx responses now throw a generic HTTP client error
+  - Invalid JSON responses now throw a "Parse" error
+- Rather than throwing an error, NetworkController now corrects an invalid initial `selectedNetworkClientId` to point to the default RPC endpoint of the first network sorted by chain ID ([#5851](https://github.com/MetaMask/core/pull/5851))
+
+## [23.5.0]
+
+### Changed
+
+- Remove obsolete `eth_getBlockByNumber` error handling for load balancer errors ([#5808](https://github.com/MetaMask/core/pull/5808))
+- Bump `@metamask/controller-utils` to `^11.9.0` ([#5812](https://github.com/MetaMask/core/pull/5812))
+
+### Fixed
+
+- Improved handling of HTTP status codes to prevent unnecessary circuit breaker triggers ([#5798](https://github.com/MetaMask/core/pull/5798), [#5809](https://github.com/MetaMask/core/pull/5809))
+  - HTTP 4XX responses (e.g. rate limit errors) will no longer trigger the circuit breaker policy.
+
 ## [23.4.0]
 
 ### Added
@@ -839,7 +865,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.5.0...HEAD
+[23.5.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.4.0...@metamask/network-controller@23.5.0
 [23.4.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.3.0...@metamask/network-controller@23.4.0
 [23.3.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.2.0...@metamask/network-controller@23.3.0
 [23.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.1.0...@metamask/network-controller@23.2.0

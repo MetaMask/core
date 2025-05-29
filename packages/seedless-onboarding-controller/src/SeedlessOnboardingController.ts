@@ -319,15 +319,28 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    *
    * Decrypts the seed phrases and returns the decrypted seed phrases using the recovered encryption key from the password.
    *
-   * @param password - The password used to create new wallet and seedphrase
+   * @param password - The optional password used to create new wallet and seedphrase. If not provided, `cached Encryption Key` will be used.
    * @returns A promise that resolves to the seed phrase metadata.
    */
-  async fetchAllSeedPhrases(password: string): Promise<Uint8Array[]> {
+  async fetchAllSeedPhrases(password?: string): Promise<Uint8Array[]> {
     // assert that the user is authenticated before fetching the seed phrases
     this.#assertIsAuthenticatedUser(this.state);
 
     return await this.#withControllerLock(async () => {
-      const { encKey, authKeyPair } = await this.#recoverEncKey(password);
+      let encKey: Uint8Array;
+      let authKeyPair: KeyPair;
+
+      if (password) {
+        const recoverEncKeyResult = await this.#recoverEncKey(password);
+        encKey = recoverEncKeyResult.encKey;
+        authKeyPair = recoverEncKeyResult.authKeyPair;
+      } else {
+        this.#assertIsUnlocked();
+        // verify the password and unlock the vault
+        const keysFromVault = await this.#unlockVaultAndGetBackupEncKey();
+        encKey = keysFromVault.toprfEncryptionKey;
+        authKeyPair = keysFromVault.toprfAuthKeyPair;
+      }
 
       try {
         const secretData = await this.toprfClient.fetchAllSecretDataItems({
@@ -335,7 +348,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           authKeyPair,
         });
 
-        if (secretData?.length > 0) {
+        if (secretData?.length > 0 && password) {
+          // if password is provided, we need to create a new vault with the auth data. (supposedly the user is trying to rehydrate the wallet)
           await this.#createNewVaultWithAuthData({
             password,
             rawToprfEncryptionKey: encKey,

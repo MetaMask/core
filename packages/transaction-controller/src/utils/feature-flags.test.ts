@@ -13,6 +13,7 @@ import {
   getGasEstimateFallback,
   getGasEstimateBuffer,
   FeatureFlag,
+  getIncomingTransactionsPollingInterval,
 } from './feature-flags';
 import { isValidSignature } from './signature';
 import type { TransactionControllerMessenger } from '..';
@@ -678,6 +679,28 @@ describe('Feature Flags Utils', () => {
           messenger: controllerMessenger,
         }),
       ).toBe(GAS_BUFFER_5_MOCK);
+    });
+  });
+
+  describe('getIncomingTransactionsPollingInterval', () => {
+    it('returns default value if no feature flags set', () => {
+      mockFeatureFlags({});
+
+      expect(getIncomingTransactionsPollingInterval(controllerMessenger)).toBe(
+        1000 * 60 * 4,
+      );
+    });
+
+    it('returns value from remote feature flag controller', () => {
+      mockFeatureFlags({
+        [FeatureFlag.IncomingTransactions]: {
+          pollingIntervalMs: 5000,
+        },
+      });
+
+      expect(getIncomingTransactionsPollingInterval(controllerMessenger)).toBe(
+        5000,
+      );
     });
   });
 });
