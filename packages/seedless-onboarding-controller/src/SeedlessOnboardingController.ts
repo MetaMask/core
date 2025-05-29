@@ -4,16 +4,11 @@ import { BaseController } from '@metamask/base-controller';
 import type {
   KeyPair,
   NodeAuthTokens,
+  RecoverEncryptionKeyResult,
   SEC1EncodedPublicKey,
 } from '@metamask/toprf-secure-backup';
 import { ToprfSecureBackup } from '@metamask/toprf-secure-backup';
-import {
-  base64ToBytes,
-  bytesToBase64,
-  stringToBytes,
-  remove0x,
-  bigIntToHex,
-} from '@metamask/utils';
+import { base64ToBytes, bytesToBase64, bigIntToHex } from '@metamask/utils';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { Mutex } from 'async-mutex';
 
@@ -107,6 +102,10 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       anonymous: true,
     },
     passwordOutdatedCache: {
+      persist: true,
+      anonymous: true,
+    },
+    recoveryRatelimitCache: {
       persist: true,
       anonymous: true,
     },
@@ -207,17 +206,12 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           authConnection,
           socialLoginEmail,
         } = params;
-        const hashedIdTokenHexes = idTokens.map((idToken) => {
-          return remove0x(keccak256AndHexify(stringToBytes(idToken)));
-        });
+
         const authenticationResult = await this.toprfClient.authenticate({
-          authConnectionId: groupedAuthConnectionId || authConnectionId,
+          authConnectionId,
           userId,
-          idTokens: hashedIdTokenHexes,
-          groupedAuthConnectionParams: {
-            authConnectionId,
-            idTokens,
-          },
+          idTokens,
+          groupedAuthConnectionId,
         });
         // update the state with the authenticated user info
         this.update((state) => {
@@ -738,11 +732,12 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @throws RecoveryError - If failed to recover the encryption key.
    */
   async #recoverEncKey(password: string) {
-    this.#assertIsAuthenticatedUser(this.state);
-    const authConnectionId =
-      this.state.groupedAuthConnectionId || this.state.authConnectionId;
+    return this.#withRecoveryErrorHandler(async () => {
+      this.#assertIsAuthenticatedUser(this.state);
 
-    try {
+      const authConnectionId =
+        this.state.groupedAuthConnectionId || this.state.authConnectionId;
+
       const recoverEncKeyResult = await this.toprfClient.recoverEncKey({
         nodeAuthTokens: this.state.nodeAuthTokens,
         password,
@@ -750,9 +745,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         userId: this.state.userId,
       });
       return recoverEncKeyResult;
-    } catch (error) {
-      throw RecoveryError.getInstance(error);
-    }
+    });
   }
 
   /**
@@ -1241,6 +1234,54 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       throw new Error(
         SeedlessOnboardingControllerErrorMessage.SRPNotBackedUpError,
       );
+    }
+  }
+
+  /**
+   * Handle the recovery error and update the recovery error data after executing the given callback.
+   *
+   * @param recoveryCallback - The callback recovery function to execute.
+   * @returns The result of the callback function.
+   */
+  async #withRecoveryErrorHandler(
+    recoveryCallback: () => Promise<RecoverEncryptionKeyResult>,
+  ): Promise<RecoverEncryptionKeyResult> {
+    const currentRecoveryAttempts =
+      this.state.recoveryRatelimitCache?.numberOfAttempts || 0;
+    let updatedRecoveryAttempts = currentRecoveryAttempts + 1;
+    let updatedRemainingTime =
+      this.state.recoveryRatelimitCache?.remainingTime || 0;
+
+    try {
+      const result = await recoveryCallback();
+
+      // reset the ratelimit error data
+      updatedRecoveryAttempts = 0;
+      updatedRemainingTime = 0;
+
+      return result;
+    } catch (error) {
+      const recoveryError = RecoveryError.getInstance(error, {
+        numberOfAttempts: updatedRecoveryAttempts,
+        remainingTime: updatedRemainingTime,
+      });
+
+      if (recoveryError.data?.numberOfAttempts) {
+        updatedRecoveryAttempts = recoveryError.data.numberOfAttempts;
+      }
+
+      if (recoveryError.data?.remainingTime) {
+        updatedRemainingTime = recoveryError.data.remainingTime;
+      }
+
+      throw recoveryError;
+    } finally {
+      this.update((state) => {
+        state.recoveryRatelimitCache = {
+          numberOfAttempts: updatedRecoveryAttempts,
+          remainingTime: updatedRemainingTime,
+        };
+      });
     }
   }
 
