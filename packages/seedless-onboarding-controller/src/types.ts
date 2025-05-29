@@ -65,6 +65,21 @@ export type SRPBackedUpUserDetails = {
   authPubKey: string;
 };
 
+/**
+ * The data of the recovery error.
+ */
+export type RecoveryErrorData = {
+  /**
+   * The remaining time in seconds before the user can try again.
+   */
+  remainingTime: number;
+
+  /**
+   * The number of attempts made by the user.
+   */
+  numberOfAttempts: number;
+};
+
 // State
 export type SeedlessOnboardingControllerState =
   Partial<AuthenticatedUserDetails> &
@@ -96,6 +111,14 @@ export type SeedlessOnboardingControllerState =
        * Cache for checkIsPasswordOutdated result and timestamp.
        */
       passwordOutdatedCache?: { isExpiredPwd: boolean; timestamp: number };
+
+      /**
+       * The cached data of the recovery error.
+       *
+       * This data is used to cache the recovery error data to retrieve the accurate ratelimit remainingTime and numberOfAttempts.
+       * And it also helps to synchronize the recovery error data across multiple devices.
+       */
+      recoveryRatelimitCache?: RecoveryErrorData;
     };
 
 // Actions
