@@ -13,18 +13,30 @@ export enum AuthConnection {
   Apple = 'apple',
 }
 
+export enum SecretType {
+  Mnemonic = 'mnemonic',
+  PrivateKey = 'privateKey',
+}
+
+export enum SecretMetadataVersion {
+  V1 = 'v1',
+}
+
 export enum SeedlessOnboardingControllerErrorMessage {
+  ControllerLocked = `${controllerName} - The operation cannot be completed while the controller is locked.`,
   AuthenticationError = `${controllerName} - Authentication error`,
   MissingAuthUserInfo = `${controllerName} - Missing authenticated user information`,
   FailedToPersistOprfKey = `${controllerName} - Failed to persist OPRF key`,
   LoginFailedError = `${controllerName} - Login failed`,
   InsufficientAuthToken = `${controllerName} - Insufficient auth token`,
+  MissingCredentials = `${controllerName} - Cannot unlock vault without password and encryption key`,
+  ExpiredCredentials = `${controllerName} - Encryption key and salt provided are expired`,
   InvalidEmptyPassword = `${controllerName} - Password cannot be empty.`,
   WrongPasswordType = `${controllerName} - Password must be of type string.`,
   InvalidVaultData = `${controllerName} - Invalid vault data`,
   VaultDataError = `${controllerName} - The decrypted vault has an unexpected shape.`,
   VaultError = `${controllerName} - Cannot unlock without a previous vault.`,
-  InvalidSeedPhraseMetadata = `${controllerName} - Invalid seed phrase metadata`,
+  InvalidSecretMetadata = `${controllerName} - Invalid secret metadata`,
   FailedToEncryptAndStoreSeedPhraseBackup = `${controllerName} - Failed to encrypt and store seed phrase backup`,
   FailedToFetchSeedPhraseMetadata = `${controllerName} - Failed to fetch seed phrase metadata`,
   FailedToChangePassword = `${controllerName} - Failed to change password`,

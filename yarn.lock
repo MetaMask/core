@@ -4285,6 +4285,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.1"
     "@metamask/browser-passworder": "npm:^4.3.0"
+    "@metamask/keyring-controller": "npm:^22.0.0"
     "@metamask/toprf-secure-backup": "npm:^0.1.0"
     "@metamask/utils": "npm:^11.2.0"
     "@noble/ciphers": "npm:^0.5.2"
@@ -4301,6 +4302,8 @@ __metadata:
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
+  peerDependencies:
+    "@metamask/keyring-controller": ^22.0.0
   languageName: unknown
   linkType: soft
 
