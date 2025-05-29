@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial implementation of the seedless onboarding controller. ([#5671](https://github.com/MetaMask/core/pull/5671))
+- Initial implementation of the seedless onboarding controller. ([#5874](https://github.com/MetaMask/core/pull/5874))
   - Authenticate OAuth user using the seedless onboarding flow and determine if the user is already registered or not
   - Create a new Toprf key and backup seed phrase
   - Add a new seed phrase backup to the metadata store
