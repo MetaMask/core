@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [29.0.1]
 
-### Uncategorized
-
-- Release 415.0.0 ([#5882](https://github.com/MetaMask/core/pull/5882))
-- Release 399.0.0 ([#5812](https://github.com/MetaMask/core/pull/5812))
-
 ### Fixed
 
 - Prevent use of `undefined` Snap during `SnapController:stateChange` ([#5884](https://github.com/MetaMask/core/pull/5884))
