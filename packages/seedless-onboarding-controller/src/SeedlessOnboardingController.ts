@@ -12,13 +12,7 @@ import {
   TOPRFErrorCode,
   TOPRFError,
 } from '@metamask/toprf-secure-backup';
-import {
-  base64ToBytes,
-  bytesToBase64,
-  stringToBytes,
-  remove0x,
-  bigIntToHex,
-} from '@metamask/utils';
+import { base64ToBytes, bytesToBase64, bigIntToHex } from '@metamask/utils';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { Mutex } from 'async-mutex';
 
