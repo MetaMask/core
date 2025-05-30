@@ -996,18 +996,24 @@ export class AccountsController extends BaseController<
    * @param snapState - The new SnapControllerState.
    */
   #handleOnSnapStateChange(snapState: SnapControllerState) {
-    // only check if snaps changed in status
+    // Only check if Snaps changed in status.
     const { snaps } = snapState;
 
     const accounts: { id: string; enabled: boolean }[] = [];
     for (const account of this.listMultichainAccounts()) {
       if (account.metadata.snap) {
-        const snap: Snap = snaps[account.metadata.snap.id as SnapId];
-        const enabled = snap.enabled && !snap.blocked;
-        const metadata = account.metadata.snap;
+        const snap = snaps[account.metadata.snap.id as SnapId];
 
-        if (metadata.enabled !== enabled) {
-          accounts.push({ id: account.id, enabled });
+        if (snap) {
+          const enabled = snap.enabled && !snap.blocked;
+          const metadata = account.metadata.snap;
+
+          if (metadata.enabled !== enabled) {
+            accounts.push({ id: account.id, enabled });
+          }
+        } else {
+          // If Snap could not be found on the state, we consider it disabled.
+          accounts.push({ id: account.id, enabled: false });
         }
       }
     }
