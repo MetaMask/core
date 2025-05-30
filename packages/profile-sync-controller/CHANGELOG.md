@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: update accounts/snaps deps ([#5871](https://github.com/MetaMask/core/pull/5871))
+- Release 416.0.0 ([#5885](https://github.com/MetaMask/core/pull/5885))
+- Release 415.0.0 ([#5882](https://github.com/MetaMask/core/pull/5882))
+- Release 399.0.0 ([#5812](https://github.com/MetaMask/core/pull/5812))
+
 ## [15.0.0]
 
 ### Changed

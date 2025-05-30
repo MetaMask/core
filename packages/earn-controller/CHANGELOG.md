@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 416.0.0 ([#5885](https://github.com/MetaMask/core/pull/5885))
+- Release 415.0.0 ([#5882](https://github.com/MetaMask/core/pull/5882))
+- Release 414.0.0 ([#5878](https://github.com/MetaMask/core/pull/5878))
+- Release/406.0.0 ([#5845](https://github.com/MetaMask/core/pull/5845))
+- Release 400.0.0 ([#5815](https://github.com/MetaMask/core/pull/5815))
+
 ### Changed
 
 - Bump `@metamask/controller-utils` to `^11.9.0` ([#5812](https://github.com/MetaMask/core/pull/5812))
