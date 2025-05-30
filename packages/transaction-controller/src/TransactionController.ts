@@ -1042,19 +1042,8 @@ export class TransactionController extends BaseController<
       addTransaction: this.addTransaction.bind(this),
       getChainId: this.#getChainId.bind(this),
       getEthQuery: (networkClientId) => this.#getEthQuery({ networkClientId }),
+      getGasFeeEstimates: this.#getGasFeeEstimates,
       getInternalAccounts: this.#getInternalAccounts.bind(this),
-      getTransaction: (transactionId) =>
-        this.#getTransactionOrThrow(transactionId),
-      isSimulationEnabled: this.#isSimulationEnabled,
-      messenger: this.messagingSystem,
-      publishBatchHook: this.#publishBatchHook,
-      publicKeyEIP7702: this.#publicKeyEIP7702,
-      request,
-      updateTransaction: this.#updateTransactionInternal.bind(this),
-      publishTransaction: (
-        ethQuery: EthQuery,
-        transactionMeta: TransactionMeta,
-      ) => this.#publishTransaction(ethQuery, transactionMeta) as Promise<Hex>,
       getPendingTransactionTracker: (networkClientId: NetworkClientId) =>
         this.#createPendingTransactionTracker({
           provider: this.#getProvider({ networkClientId }),
@@ -1062,7 +1051,19 @@ export class TransactionController extends BaseController<
           chainId: this.#getChainId(networkClientId),
           networkClientId,
         }),
+      getTransaction: (transactionId) =>
+        this.#getTransactionOrThrow(transactionId),
+      isSimulationEnabled: this.#isSimulationEnabled,
+      messenger: this.messagingSystem,
+      publishBatchHook: this.#publishBatchHook,
+      publicKeyEIP7702: this.#publicKeyEIP7702,
+      publishTransaction: (
+        ethQuery: EthQuery,
+        transactionMeta: TransactionMeta,
+      ) => this.#publishTransaction(ethQuery, transactionMeta) as Promise<Hex>,
+      request,
       update: this.update.bind(this),
+      updateTransaction: this.#updateTransactionInternal.bind(this),
     });
   }
 
