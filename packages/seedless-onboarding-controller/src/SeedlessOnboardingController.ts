@@ -37,7 +37,8 @@ import type {
   SocialBackupsMetadata,
   SRPBackedUpUserDetails,
   VaultEncryptor,
-  GetNewRefreshToken,
+  RefreshJWTToken,
+  RevokeRefreshToken,
 } from './types';
 
 const log = createModuleLogger(projectLogger, controllerName);
@@ -115,6 +116,10 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       anonymous: true,
     },
     refreshToken: {
+      persist: true,
+      anonymous: true,
+    },
+    revokeToken: {
       persist: false,
       anonymous: true,
     },
@@ -133,7 +138,9 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
 
   readonly toprfClient: ToprfSecureBackup;
 
-  readonly #getNewRefreshToken: GetNewRefreshToken;
+  readonly #refreshJWTToken: RefreshJWTToken;
+
+  readonly #revokeRefreshToken: RevokeRefreshToken;
 
   /**
    * Controller lock state.
@@ -151,7 +158,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @param options.encryptor - An optional encryptor to use for encrypting and decrypting seedless onboarding vault.
    * @param options.toprfKeyDeriver - An optional key derivation interface for the TOPRF client.
    * @param options.network - The network to be used for the Seedless Onboarding flow.
-   * @param options.getNewRefreshToken - A function to get a new refresh token.
+   * @param options.refreshJWTToken - A function to get a new jwt token using refresh token.
+   * @param options.revokeRefreshToken - A function to revoke the refresh token.
    */
   constructor({
     messenger,
@@ -159,7 +167,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     encryptor,
     toprfKeyDeriver,
     network = Web3AuthNetwork.Mainnet,
-    getNewRefreshToken,
+    refreshJWTToken,
+    revokeRefreshToken,
   }: SeedlessOnboardingControllerOptions<EncryptionKey>) {
     super({
       name: controllerName,
@@ -176,7 +185,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       network,
       keyDeriver: toprfKeyDeriver,
     });
-    this.#getNewRefreshToken = getNewRefreshToken;
+    this.#refreshJWTToken = refreshJWTToken;
+    this.#revokeRefreshToken = revokeRefreshToken;
 
     // setup subscriptions to the keyring lock event
     // when the keyring is locked (wallet is locked), the controller will be cleared of its credentials
@@ -199,7 +209,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @param params.userId - user email or id from Social login
    * @param params.groupedAuthConnectionId - Optional grouped authConnectionId to be used for the authenticate request.
    * @param params.socialLoginEmail - The user email from Social login.
-   * @param params.refreshToken - Optional refresh token for refreshing expired nodeAuthTokens.
+   * @param params.refreshToken - refresh token for refreshing expired nodeAuthTokens.
+   * @param params.revokeToken - revoke token for revoking refresh token and get new refresh token and new revoke token.
    * @param params.skipLock - Optional flag to skip acquiring the controller lock.
    * You can pass this to use aggregate multiple OAuth connections. Useful when you want user to have same account while using different OAuth connections.
    * @returns A promise that resolves to the authentication result.
@@ -211,7 +222,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     userId: string;
     groupedAuthConnectionId?: string;
     socialLoginEmail?: string;
-    refreshToken: string;
+    refreshToken?: string;
+    revokeToken?: string;
     skipLock?: boolean;
   }) {
     const doAuthenticate = async () => {
@@ -224,6 +236,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           authConnection,
           socialLoginEmail,
           refreshToken,
+          revokeToken,
         } = params;
 
         const authenticationResult = await this.toprfClient.authenticate({
@@ -240,8 +253,13 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           state.userId = userId;
           state.authConnection = authConnection;
           state.socialLoginEmail = socialLoginEmail;
-          // Store refresh token in state for later vault creation
-          state.refreshToken = refreshToken;
+          if (refreshToken) {
+            state.refreshToken = refreshToken;
+          }
+          if (revokeToken) {
+            // Temporarily store revoke token in state for later vault creation
+            state.revokeToken = revokeToken;
+          }
         });
 
         return authenticationResult;
@@ -553,6 +571,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     return await this.#withControllerLock(async () => {
       await this.#unlockVaultAndGetBackupEncKey(password);
       this.#setUnlocked();
+      // revoke and recyle refresh token after unlock to keep refresh token fresh, avoid malicious use of leaked refresh token
+      await this.revokeRefreshToken(password);
     });
   }
 
@@ -565,7 +585,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     this.update((state) => {
       delete state.vaultEncryptionKey;
       delete state.vaultEncryptionSalt;
-      delete state.refreshToken;
+      delete state.revokeToken;
     });
 
     this.#isUnlocked = false;
@@ -727,9 +747,13 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       return isExpiredPwd;
     };
 
-    return options?.skipLock
-      ? await doCheck()
-      : await this.#withControllerLock(doCheck);
+    return await this.#executeWithTokenRefresh(
+      async () =>
+        options?.skipLock
+          ? await doCheck()
+          : await this.#withControllerLock(doCheck),
+      'checkIsPasswordOutdated',
+    );
   }
 
   #setUnlocked(): void {
@@ -920,7 +944,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     nodeAuthTokens: NodeAuthTokens;
     toprfEncryptionKey: Uint8Array;
     toprfAuthKeyPair: KeyPair;
-    refreshToken?: string;
+    revokeToken: string;
   }> {
     return this.#withVaultLock(async () => {
       const {
@@ -982,7 +1006,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         nodeAuthTokens,
         toprfEncryptionKey,
         toprfAuthKeyPair,
-        refreshToken,
+        revokeToken,
       } = this.#parseVaultData(decryptedVaultData);
 
       // update the state with the restored nodeAuthTokens
@@ -990,14 +1014,14 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         state.nodeAuthTokens = nodeAuthTokens;
         state.vaultEncryptionKey = updatedState.vaultEncryptionKey;
         state.vaultEncryptionSalt = updatedState.vaultEncryptionSalt;
-        state.refreshToken = refreshToken;
+        state.revokeToken = revokeToken;
       });
 
       return {
         nodeAuthTokens,
         toprfEncryptionKey,
         toprfAuthKeyPair,
-        refreshToken,
+        revokeToken,
       };
     });
   }
@@ -1112,6 +1136,13 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     rawToprfAuthKeyPair: KeyPair;
   }): Promise<void> {
     this.#assertIsAuthenticatedUser(this.state);
+
+    if (!this.state.revokeToken) {
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.InsufficientAuthToken,
+      );
+    }
+
     this.#setUnlocked();
 
     const { toprfEncryptionKey, toprfAuthKeyPair } = this.#serializeKeyData(
@@ -1123,7 +1154,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       authTokens: this.state.nodeAuthTokens,
       toprfEncryptionKey,
       toprfAuthKeyPair,
-      refreshToken: this.state.refreshToken,
+      revokeToken: this.state.revokeToken,
     });
 
     await this.#updateVault({
@@ -1239,7 +1270,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     nodeAuthTokens: NodeAuthTokens;
     toprfEncryptionKey: Uint8Array;
     toprfAuthKeyPair: KeyPair;
-    refreshToken: string;
+    revokeToken: string;
   } {
     if (typeof data !== 'string') {
       throw new Error(
@@ -1271,7 +1302,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       nodeAuthTokens: parsedVaultData.authTokens,
       toprfEncryptionKey: rawToprfEncryptionKey,
       toprfAuthKeyPair: rawToprfAuthKeyPair,
-      refreshToken: parsedVaultData.refreshToken,
+      revokeToken: parsedVaultData.revokeToken,
     };
   }
 
@@ -1317,6 +1348,12 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       !Array.isArray(value.nodeAuthTokens) ||
       value.nodeAuthTokens.length < 3 // At least 3 auth tokens are required for Threshold OPRF service
     ) {
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.InsufficientAuthToken,
+      );
+    }
+
+    if (!('refreshToken' in value) || typeof value.refreshToken !== 'string') {
       throw new Error(
         SeedlessOnboardingControllerErrorMessage.InsufficientAuthToken,
       );
@@ -1429,8 +1466,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       typeof value.toprfEncryptionKey !== 'string' || // toprfEncryptionKey is not a string
       !('toprfAuthKeyPair' in value) || // toprfAuthKeyPair is not defined
       typeof value.toprfAuthKeyPair !== 'string' || // toprfAuthKeyPair is not a string
-      !('refreshToken' in value) || // refreshToken is not defined
-      typeof value.refreshToken !== 'string' // refreshToken is not a string
+      !('revokeToken' in value) || // revokeToken is not defined
+      typeof value.revokeToken !== 'string' // revokeToken is not a string
     ) {
       throw new Error(SeedlessOnboardingControllerErrorMessage.VaultDataError);
     }
@@ -1449,26 +1486,25 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     const { refreshToken } = this.state;
     if (!refreshToken) {
       throw new Error(
-        SeedlessOnboardingControllerErrorMessage.MissingAuthUserInfo,
+        SeedlessOnboardingControllerErrorMessage.InsufficientAuthToken,
       );
     }
 
     this.#assertIsAuthenticatedUser(this.state);
 
     try {
-      const res = await this.#getNewRefreshToken({
+      const res = await this.#refreshJWTToken({
         connection: this.state.authConnection,
         refreshToken,
       });
-      const { idTokens, refreshToken: newRefreshToken } = res;
-      // re-authenticate with the new refresh token to set new node auth tokens and refresh token
+      const { idTokens } = res;
+      // re-authenticate with the new id tokens to set new node auth tokens
       await this.authenticate({
         idTokens,
         authConnection: this.state.authConnection,
         authConnectionId: this.state.authConnectionId,
         groupedAuthConnectionId: this.state.groupedAuthConnectionId,
         userId: this.state.userId,
-        refreshToken: newRefreshToken,
         skipLock: true,
       });
     } catch (error) {
@@ -1477,6 +1513,38 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         SeedlessOnboardingControllerErrorMessage.AuthenticationError,
       );
     }
+  }
+
+  /**
+   * Revoke the refresh token and get new refresh token and new revoke token.
+   * This method is to be called after unlock
+   *
+   * @param password - The password to re-encrypt new token in the vault.
+   */
+  async revokeRefreshToken(password: string) {
+    this.#assertIsUnlocked();
+    this.#assertIsAuthenticatedUser(this.state);
+    // get revoke token and backup encryption key from vault (should be unlocked already)
+    const { revokeToken, toprfEncryptionKey, toprfAuthKeyPair } =
+      await this.#unlockVaultAndGetBackupEncKey();
+
+    const { newRevokeToken, newRefreshToken } = await this.#revokeRefreshToken({
+      connection: this.state.authConnection,
+      revokeToken,
+    });
+
+    this.update((state) => {
+      // set new revoke token in state temporarily for persisting in vault
+      state.revokeToken = newRevokeToken;
+      // set new refresh token to persist in state
+      state.refreshToken = newRefreshToken;
+    });
+
+    await this.#createNewVaultWithAuthData({
+      password,
+      rawToprfEncryptionKey: toprfEncryptionKey,
+      rawToprfAuthKeyPair: toprfAuthKeyPair,
+    });
   }
 
   /**
