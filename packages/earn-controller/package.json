@@ -53,7 +53,7 @@
     "@metamask/stake-sdk": "^1.0.0"
   },
   "devDependencies": {
-    "@metamask/accounts-controller": "^29.0.0",
+    "@metamask/accounts-controller": "^29.0.1",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/network-controller": "^23.5.1",
     "@metamask/transaction-controller": "^56.3.0",
