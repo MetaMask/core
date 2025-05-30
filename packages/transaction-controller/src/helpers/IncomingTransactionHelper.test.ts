@@ -1,6 +1,7 @@
 import type { Hex } from '@metamask/utils';
 
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
+import type { TransactionControllerMessenger } from '..';
 import { flushPromises } from '../../../../tests/helpers';
 import {
   TransactionStatus,
@@ -8,8 +9,11 @@ import {
   type RemoteTransactionSource,
   type TransactionMeta,
 } from '../types';
+import { getIncomingTransactionsPollingInterval } from '../utils/feature-flags';
 
 jest.useFakeTimers();
+
+jest.mock('../utils/feature-flags');
 
 // eslint-disable-next-line jest/prefer-spy-on
 console.error = jest.fn();
@@ -18,6 +22,10 @@ const CHAIN_ID_MOCK = '0x1' as const;
 const ADDRESS_MOCK = '0x1';
 const SYSTEM_TIME_MOCK = 1000 * 60 * 60 * 24 * 2;
 const CACHE_MOCK = {};
+const MESSENGER_MOCK = {} as unknown as TransactionControllerMessenger;
+const TAG_MOCK = 'test1';
+const TAG_2_MOCK = 'test2';
+const CLIENT_MOCK = 'test-client';
 
 const CONTROLLER_ARGS_MOCK: ConstructorParameters<
   typeof IncomingTransactionHelper
@@ -40,6 +48,7 @@ const CONTROLLER_ARGS_MOCK: ConstructorParameters<
   },
   getCache: () => CACHE_MOCK,
   getLocalTransactions: () => [],
+  messenger: MESSENGER_MOCK,
   remoteTransactionSource: {} as RemoteTransactionSource,
   trimTransactions: (transactions) => transactions,
   updateCache: jest.fn(),
@@ -122,6 +131,10 @@ describe('IncomingTransactionHelper', () => {
     jest.resetAllMocks();
     jest.clearAllTimers();
     jest.setSystemTime(SYSTEM_TIME_MOCK);
+
+    jest
+      .mocked(getIncomingTransactionsPollingInterval)
+      .mockReturnValue(1000 * 30);
   });
 
   describe('on interval', () => {
@@ -156,6 +169,7 @@ describe('IncomingTransactionHelper', () => {
         cache: CACHE_MOCK,
         includeTokenTransfers: true,
         queryEntireHistory: true,
+        tags: ['automatic-polling'],
         updateCache: expect.any(Function),
         updateTransactions: false,
       });
@@ -450,6 +464,24 @@ describe('IncomingTransactionHelper', () => {
       await helper.update();
 
       expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('includes correct tags in remote transaction source request', async () => {
+      const remoteTransactionSource = createRemoteTransactionSourceMock([]);
+
+      const helper = new IncomingTransactionHelper({
+        ...CONTROLLER_ARGS_MOCK,
+        client: CLIENT_MOCK,
+        remoteTransactionSource,
+      });
+
+      await helper.update({ isInterval: false, tags: [TAG_MOCK, TAG_2_MOCK] });
+
+      expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tags: [CLIENT_MOCK, TAG_MOCK, TAG_2_MOCK],
+        }),
+      );
     });
   });
 });

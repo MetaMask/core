@@ -1,3 +1,4 @@
+import { StatusTypes } from '@metamask/bridge-controller';
 import {
   object,
   string,
@@ -10,8 +11,6 @@ import {
   nullable,
   assert,
 } from '@metamask/superstruct';
-
-import { StatusTypes } from '../types';
 
 export const validateBridgeStatusResponse = (data: unknown) => {
   const ChainIdSchema = union([number(), string()]);
@@ -53,5 +52,10 @@ export const validateBridgeStatusResponse = (data: unknown) => {
     refuel: optional(RefuelStatusResponseSchema),
   });
 
-  assert(data, StatusResponseSchema);
+  try {
+    assert(data, StatusResponseSchema);
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
 };

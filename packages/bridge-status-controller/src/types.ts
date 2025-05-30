@@ -2,7 +2,6 @@ import type {
   AccountsControllerGetAccountByAddressAction,
   AccountsControllerGetSelectedMultichainAccountAction,
 } from '@metamask/accounts-controller';
-import type { TokensControllerAddDetectedTokensAction } from '@metamask/assets-controllers';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -15,9 +14,11 @@ import type {
   Quote,
   QuoteMetadata,
   QuoteResponse,
+  StatusTypes,
   TxData,
 } from '@metamask/bridge-controller';
 import type { GetGasFeeState } from '@metamask/gas-fee-controller';
+import type { MultichainTransactionsControllerTransactionConfirmedEvent } from '@metamask/multichain-transactions-controller';
 import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
@@ -26,6 +27,8 @@ import type {
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type {
   TransactionControllerGetStateAction,
+  TransactionControllerTransactionConfirmedEvent,
+  TransactionControllerTransactionFailedEvent,
   TransactionMeta,
 } from '@metamask/transaction-controller';
 
@@ -45,13 +48,6 @@ export type FetchFunction = (
   init?: RequestInit,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ) => Promise<any>;
-
-export enum StatusTypes {
-  UNKNOWN = 'UNKNOWN',
-  FAILED = 'FAILED',
-  PENDING = 'PENDING',
-  COMPLETE = 'COMPLETE',
-}
 
 /**
  * These fields are specific to Solana transactions and can likely be infered from TransactionMeta
@@ -206,6 +202,7 @@ export type BridgeHistoryItem = {
   account: string;
   hasApprovalTx: boolean;
   approvalTxId?: string;
+  isStxEnabled?: boolean;
 };
 
 export enum BridgeStatusAction {
@@ -262,6 +259,7 @@ export type StartPollingForBridgeTxStatusArgs = {
   initialDestAssetBalance?: BridgeHistoryItem['initialDestAssetBalance'];
   targetContractAddress?: BridgeHistoryItem['targetContractAddress'];
   approvalTxId?: BridgeHistoryItem['approvalTxId'];
+  isStxEnabled?: BridgeHistoryItem['isStxEnabled'];
 };
 
 /**
@@ -321,20 +319,8 @@ export type BridgeStatusControllerStateChangeEvent = ControllerStateChangeEvent<
   BridgeStatusControllerState
 >;
 
-export type BridgeStatusControllerBridgeTransactionCompleteEvent = {
-  type: `${typeof BRIDGE_STATUS_CONTROLLER_NAME}:bridgeTransactionComplete`;
-  payload: [{ bridgeHistoryItem: BridgeHistoryItem }];
-};
-
-export type BridgeStatusControllerBridgeTransactionFailedEvent = {
-  type: `${typeof BRIDGE_STATUS_CONTROLLER_NAME}:bridgeTransactionFailed`;
-  payload: [{ bridgeHistoryItem: BridgeHistoryItem }];
-};
-
 export type BridgeStatusControllerEvents =
-  | BridgeStatusControllerStateChangeEvent
-  | BridgeStatusControllerBridgeTransactionCompleteEvent
-  | BridgeStatusControllerBridgeTransactionFailedEvent;
+  BridgeStatusControllerStateChangeEvent;
 
 /**
  * The external actions available to the BridgeStatusController.
@@ -347,14 +333,17 @@ type AllowedActions =
   | HandleSnapRequest
   | TransactionControllerGetStateAction
   | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>
+  | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>
   | GetGasFeeState
-  | AccountsControllerGetAccountByAddressAction
-  | TokensControllerAddDetectedTokensAction;
+  | AccountsControllerGetAccountByAddressAction;
 
 /**
  * The external events available to the BridgeStatusController.
  */
-type AllowedEvents = never;
+type AllowedEvents =
+  | MultichainTransactionsControllerTransactionConfirmedEvent
+  | TransactionControllerTransactionFailedEvent
+  | TransactionControllerTransactionConfirmedEvent;
 
 /**
  * The messenger for the BridgeStatusController.

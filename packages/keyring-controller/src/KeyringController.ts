@@ -22,7 +22,6 @@ import type { KeyringClass } from '@metamask/keyring-utils';
 import type { Eip1024EncryptedData, Hex, Json } from '@metamask/utils';
 import {
   add0x,
-  assert,
   assertIsStrictHexString,
   bytesToHex,
   hasProperty,
@@ -37,6 +36,7 @@ import { Mutex } from 'async-mutex';
 import type { MutexInterface } from 'async-mutex';
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
 import type { Patch } from 'immer';
+import { isEqual } from 'lodash';
 // When generating a ULID within the same millisecond, monotonicFactory provides some guarantees regarding sort order.
 import { ulid } from 'ulid';
 
@@ -91,10 +91,6 @@ export type KeyringControllerState = {
    * Representations of managed keyrings.
    */
   keyrings: KeyringObject[];
-  /**
-   * Metadata for each keyring.
-   */
-  keyringsMetadata: KeyringMetadata[];
   /**
    * The encryption key derived from the password and used to encrypt
    * the vault. This is only stored if the `cacheEncryptionKey` option
@@ -277,6 +273,10 @@ export type KeyringObject = {
    * Keyring type.
    */
   type: string;
+  /**
+   * Additional data associated with the keyring.
+   */
+  metadata: KeyringMetadata;
 };
 
 /**
@@ -318,6 +318,15 @@ export enum SignTypedDataVersion {
 export type SerializedKeyring = {
   type: string;
   data: Json;
+  metadata?: KeyringMetadata;
+};
+
+/**
+ * State/data that can be updated during a `withKeyring` operation.
+ */
+type SessionState = {
+  keyrings: SerializedKeyring[];
+  password?: string;
 };
 
 /**
@@ -472,7 +481,6 @@ export const getDefaultKeyringState = (): KeyringControllerState => {
   return {
     isUnlocked: false,
     keyrings: [],
-    keyringsMetadata: [],
   };
 };
 
@@ -556,12 +564,18 @@ function isSerializedKeyringsArray(
  *
  * Is used for adding the current keyrings to the state object.
  *
- * @param keyring - The keyring to display.
+ * @param keyringWithMetadata - The keyring and its metadata.
+ * @param keyringWithMetadata.keyring - The keyring to display.
+ * @param keyringWithMetadata.metadata - The metadata of the keyring.
  * @returns A keyring display object, with type and accounts properties.
  */
-async function displayForKeyring(
-  keyring: EthKeyring,
-): Promise<{ type: string; accounts: string[] }> {
+async function displayForKeyring({
+  keyring,
+  metadata,
+}: {
+  keyring: EthKeyring;
+  metadata: KeyringMetadata;
+}): Promise<KeyringObject> {
   const accounts = await keyring.getAccounts();
 
   return {
@@ -569,6 +583,7 @@ async function displayForKeyring(
     // Cast to `string[]` here is safe here because `accounts` has no nullish
     // values, and `normalize` returns `string` unless given a nullish value
     accounts: accounts.map(normalize) as string[],
+    metadata,
   };
 }
 
@@ -628,11 +643,9 @@ export class KeyringController extends BaseController<
 
   readonly #cacheEncryptionKey: boolean;
 
-  #keyrings: EthKeyring[];
+  #keyrings: { keyring: EthKeyring; metadata: KeyringMetadata }[];
 
   #unsupportedKeyrings: SerializedKeyring[];
-
-  #keyringsMetadata: KeyringMetadata[];
 
   #password?: string;
 
@@ -664,7 +677,6 @@ export class KeyringController extends BaseController<
         vault: { persist: true, anonymous: false },
         isUnlocked: { persist: false, anonymous: true },
         keyrings: { persist: false, anonymous: false },
-        keyringsMetadata: { persist: true, anonymous: false },
         encryptionKey: { persist: false, anonymous: false },
         encryptionSalt: { persist: false, anonymous: false },
       },
@@ -681,7 +693,6 @@ export class KeyringController extends BaseController<
 
     this.#encryptor = encryptor;
     this.#keyrings = [];
-    this.#keyringsMetadata = state?.keyringsMetadata?.slice() ?? [];
     this.#unsupportedKeyrings = [];
 
     // This option allows the controller to cache an exported key
@@ -979,7 +990,7 @@ export class KeyringController extends BaseController<
     const address = normalize(account);
 
     const candidates = await Promise.all(
-      this.#keyrings.map(async (keyring) => {
+      this.#keyrings.map(async ({ keyring }) => {
         return Promise.all([keyring, keyring.getAccounts()]);
       }),
     );
@@ -1016,7 +1027,9 @@ export class KeyringController extends BaseController<
    */
   getKeyringsByType(type: KeyringTypes | string): unknown[] {
     this.#assertIsUnlocked();
-    return this.#keyrings.filter((keyring) => keyring.type === type);
+    return this.#keyrings
+      .filter(({ keyring }) => keyring.type === type)
+      .map(({ keyring }) => keyring);
   }
 
   /**
@@ -1027,8 +1040,12 @@ export class KeyringController extends BaseController<
    * operation completes.
    */
   async persistAllKeyrings(): Promise<boolean> {
-    this.#assertIsUnlocked();
-    return this.#persistOrRollback(async () => true);
+    return this.#withRollback(async () => {
+      this.#assertIsUnlocked();
+
+      await this.#updateVault();
+      return true;
+    });
   }
 
   /**
@@ -1399,6 +1416,7 @@ export class KeyringController extends BaseController<
    */
   changePassword(password: string): Promise<void> {
     this.#assertIsUnlocked();
+
     return this.#persistOrRollback(async () => {
       assertIsValidPassword(password);
 
@@ -1427,14 +1445,29 @@ export class KeyringController extends BaseController<
     encryptionKey: string,
     encryptionSalt: string,
   ): Promise<void> {
-    return this.#withRollback(async () => {
-      this.#keyrings = await this.#unlockKeyrings(
+    const { newMetadata } = await this.#withRollback(async () => {
+      const result = await this.#unlockKeyrings(
         undefined,
         encryptionKey,
         encryptionSalt,
       );
       this.#setUnlocked();
+      return result;
     });
+
+    try {
+      // if new metadata has been generated during login, we
+      // can attempt to upgrade the vault.
+      await this.#withRollback(async () => {
+        if (newMetadata) {
+          await this.#updateVault();
+        }
+      });
+    } catch (error) {
+      // We don't want to throw an error if the upgrade fails
+      // since the controller is already unlocked.
+      console.error('Failed to update vault during login:', error);
+    }
   }
 
   /**
@@ -1445,10 +1478,26 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving when the operation completes.
    */
   async submitPassword(password: string): Promise<void> {
-    return this.#withRollback(async () => {
-      this.#keyrings = await this.#unlockKeyrings(password);
+    const { newMetadata } = await this.#withRollback(async () => {
+      const result = await this.#unlockKeyrings(password);
       this.#setUnlocked();
+      return result;
     });
+
+    try {
+      // If there are stronger encryption params available, or
+      // if new metadata has been generated during login, we
+      // can attempt to upgrade the vault.
+      await this.#withRollback(async () => {
+        if (newMetadata || this.#isNewEncryptionAvailable()) {
+          await this.#updateVault();
+        }
+      });
+    } catch (error) {
+      // We don't want to throw an error if the upgrade fails
+      // since the controller is already unlocked.
+      console.error('Failed to update vault during login:', error);
+    }
   }
 
   /**
@@ -1922,10 +1971,8 @@ export class KeyringController extends BaseController<
    * @returns The keyring.
    */
   #getKeyringById(keyringId: string): EthKeyring | undefined {
-    const index = this.state.keyringsMetadata.findIndex(
-      (metadata) => metadata.id === keyringId,
-    );
-    return this.#keyrings[index];
+    return this.#keyrings.find(({ metadata }) => metadata.id === keyringId)
+      ?.keyring;
   }
 
   /**
@@ -1936,7 +1983,7 @@ export class KeyringController extends BaseController<
    */
   #getKeyringByIdOrDefault(keyringId?: string): EthKeyring | undefined {
     if (!keyringId) {
-      return this.#keyrings[0] as EthKeyring;
+      return this.#keyrings[0]?.keyring;
     }
 
     return this.#getKeyringById(keyringId);
@@ -1949,11 +1996,13 @@ export class KeyringController extends BaseController<
    * @returns The keyring metadata.
    */
   #getKeyringMetadata(keyring: unknown): KeyringMetadata {
-    const index = this.#keyrings.findIndex(
-      (keyringCandidate) => keyringCandidate === keyring,
+    const keyringWithMetadata = this.#keyrings.find(
+      (candidate) => candidate.keyring === keyring,
     );
-    assert(index !== -1, KeyringControllerError.KeyringNotFound);
-    return this.#keyringsMetadata[index];
+    if (!keyringWithMetadata) {
+      throw new Error(KeyringControllerError.KeyringNotFound);
+    }
+    return keyringWithMetadata.metadata;
   }
 
   /**
@@ -2045,7 +2094,6 @@ export class KeyringController extends BaseController<
     this.#password = password;
 
     await this.#clearKeyrings();
-    this.#keyringsMetadata = [];
     await this.#createKeyringWithFirstAccount(keyring.type, keyring.opts);
     this.#setUnlocked();
   }
@@ -2129,13 +2177,13 @@ export class KeyringController extends BaseController<
       includeUnsupported: true,
     },
   ): Promise<SerializedKeyring[]> {
-    const serializedKeyrings = await Promise.all(
-      this.#keyrings.map(async (keyring) => {
-        const [type, data] = await Promise.all([
-          keyring.type,
-          keyring.serialize(),
-        ]);
-        return { type, data };
+    const serializedKeyrings: SerializedKeyring[] = await Promise.all(
+      this.#keyrings.map(async ({ keyring, metadata }) => {
+        return {
+          type: keyring.type,
+          data: await keyring.serialize(),
+          metadata,
+        };
       }),
     );
 
@@ -2147,18 +2195,46 @@ export class KeyringController extends BaseController<
   }
 
   /**
+   * Get a snapshot of session data held by class variables.
+   *
+   * @returns An object with serialized keyrings, keyrings metadata,
+   * and the user password.
+   */
+  async #getSessionState(): Promise<SessionState> {
+    return {
+      keyrings: await this.#getSerializedKeyrings(),
+      password: this.#password,
+    };
+  }
+
+  /**
    * Restore a serialized keyrings array.
    *
    * @param serializedKeyrings - The serialized keyrings array.
+   * @returns The restored keyrings.
    */
   async #restoreSerializedKeyrings(
     serializedKeyrings: SerializedKeyring[],
-  ): Promise<void> {
+  ): Promise<{
+    keyrings: { keyring: EthKeyring; metadata: KeyringMetadata }[];
+    newMetadata: boolean;
+  }> {
     await this.#clearKeyrings();
+    const keyrings: { keyring: EthKeyring; metadata: KeyringMetadata }[] = [];
+    let newMetadata = false;
 
     for (const serializedKeyring of serializedKeyrings) {
-      await this.#restoreKeyring(serializedKeyring);
+      const result = await this.#restoreKeyring(serializedKeyring);
+      if (result) {
+        const { keyring, metadata } = result;
+        keyrings.push({ keyring, metadata });
+        if (result.newMetadata) {
+          newMetadata = true;
+        }
+      }
     }
+
+    return { keyrings, newMetadata };
   }
 
   /**
@@ -2174,8 +2250,11 @@ export class KeyringController extends BaseController<
     password: string | undefined,
     encryptionKey?: string,
     encryptionSalt?: string,
-  ): Promise<EthKeyring[]> {
-    return this.#withVaultLock(async ({ releaseLock }) => {
+  ): Promise<{
+    keyrings: { keyring: EthKeyring; metadata: KeyringMetadata }[];
+    newMetadata: boolean;
+  }> {
+    return this.#withVaultLock(async () => {
       const encryptedVault = this.state.vault;
       if (!encryptedVault) {
         throw new Error(KeyringControllerError.VaultError);
@@ -2235,13 +2314,8 @@ export class KeyringController extends BaseController<
         throw new Error(KeyringControllerError.VaultDataError);
       }
 
-      await this.#restoreSerializedKeyrings(vault);
-
-      // The keyrings array and the keyringsMetadata array should
-      // always have the same length while the controller is unlocked.
-      if (this.#keyrings.length !== this.#keyringsMetadata.length) {
-        throw new Error(KeyringControllerError.KeyringMetadataLengthMismatch);
-      }
+      const { keyrings, newMetadata } =
+        await this.#restoreSerializedKeyrings(vault);
 
       const updatedKeyrings = await this.#getUpdatedKeyrings();
 
@@ -2253,20 +2327,7 @@ export class KeyringController extends BaseController<
         }
       });
 
-      if (
-        this.#password &&
-        (!this.#cacheEncryptionKey || !encryptionKey) &&
-        this.#encryptor.isVaultUpdated &&
-        !this.#encryptor.isVaultUpdated(encryptedVault)
-      ) {
-        // The lock needs to be released before persisting the keyrings
-        // to avoid deadlock
-        releaseLock();
-        // Re-encrypt the vault with safer method if one is available
-        await this.#updateVault();
-      }
-
-      return this.#keyrings;
+      return { keyrings, newMetadata };
     });
   }
 
@@ -2277,6 +2338,9 @@ export class KeyringController extends BaseController<
    */
   #updateVault(): Promise<boolean> {
     return this.#withVaultLock(async () => {
+      // Ensure no duplicate accounts are persisted.
+      await this.#assertNoDuplicateAccounts();
+
       const { encryptionKey, encryptionSalt, vault } = this.state;
       // READ THIS CAREFULLY:
       // We do check if the vault is still considered up-to-date, if not, we would not re-use the
@@ -2335,14 +2399,10 @@ export class KeyringController extends BaseController<
       }
 
       const updatedKeyrings = await this.#getUpdatedKeyrings();
-      if (updatedKeyrings.length !== this.#keyringsMetadata.length) {
-        throw new Error(KeyringControllerError.KeyringMetadataLengthMismatch);
-      }
 
       this.update((state) => {
         state.vault = updatedState.vault;
         state.keyrings = updatedKeyrings;
-        state.keyringsMetadata = this.#keyringsMetadata.slice();
         if (updatedState.encryptionKey) {
           state.encryptionKey = updatedState.encryptionKey;
           state.encryptionSalt = JSON.parse(updatedState.vault as string).salt;
@@ -2354,16 +2414,36 @@ export class KeyringController extends BaseController<
   }
 
   /**
+   * Check if there are new encryption parameters available.
+   *
+   * @returns A promise resolving to `void`.
+   */
+  #isNewEncryptionAvailable(): boolean {
+    const { vault } = this.state;
+
+    if (!vault || !this.#password || !this.#encryptor.isVaultUpdated) {
+      return false;
+    }
+
+    return !this.#encryptor.isVaultUpdated(vault);
+  }
+
+  /**
    * Retrieves all the accounts from keyrings instances
    * that are currently in memory.
    *
+   * @param additionalKeyrings - Additional keyrings to include in the search.
    * @returns A promise resolving to an array of accounts.
    */
-  async #getAccountsFromKeyrings(): Promise<string[]> {
-    const keyrings = this.#keyrings;
+  async #getAccountsFromKeyrings(
+    additionalKeyrings: EthKeyring[] = [],
+  ): Promise<string[]> {
+    const keyrings = this.#keyrings.map(({ keyring }) => keyring);
 
     const keyringArrays = await Promise.all(
-      keyrings.map(async (keyring) => keyring.getAccounts()),
+      [...keyrings, ...additionalKeyrings].map(async (keyring) =>
+        keyring.getAccounts(),
+      ),
     );
     const addresses = keyringArrays.reduce((res, arr) => {
       return res.concat(arr);
@@ -2410,11 +2490,7 @@ export class KeyringController extends BaseController<
   async #newKeyring(type: string, data?: unknown): Promise<EthKeyring> {
     const keyring = await this.#createKeyring(type, data);
 
-    if (this.#keyrings.length !== this.#keyringsMetadata.length) {
-      throw new Error('Keyring metadata missing');
-    }
-    this.#keyrings.push(keyring);
-    this.#keyringsMetadata.push(getDefaultKeyringMetadata());
+    this.#keyrings.push({ keyring, metadata: getDefaultKeyringMetadata() });
 
     return keyring;
   }
@@ -2471,8 +2547,6 @@ export class KeyringController extends BaseController<
       await keyring.addAccounts(1);
     }
 
-    await this.#checkForDuplicate(type, await keyring.getAccounts());
-
     if (type === KeyringTypes.qr) {
       // In case of a QR keyring type, we need to subscribe
       // to its events after creating it
@@ -2488,7 +2562,7 @@ export class KeyringController extends BaseController<
    */
   async #clearKeyrings() {
     this.#assertControllerMutexIsLocked();
-    for (const keyring of this.#keyrings) {
+    for (const { keyring } of this.#keyrings) {
       await this.#destroyKeyring(keyring);
     }
     this.#keyrings = [];
@@ -2504,22 +2578,31 @@ export class KeyringController extends BaseController<
    */
   async #restoreKeyring(
     serialized: SerializedKeyring,
-  ): Promise<EthKeyring | undefined> {
+  ): Promise<
+    | { keyring: EthKeyring; metadata: KeyringMetadata; newMetadata: boolean }
+    | undefined
+  > {
     this.#assertControllerMutexIsLocked();
 
     try {
-      const { type, data } = serialized;
+      const { type, data, metadata: serializedMetadata } = serialized;
+      let newMetadata = false;
+      let metadata = serializedMetadata;
       const keyring = await this.#createKeyring(type, data);
+      await this.#assertNoDuplicateAccounts([keyring]);
       // If metadata is missing, assume the data is from an installation before
       // we had keyring metadata.
-      if (this.#keyringsMetadata.length <= this.#keyrings.length) {
-        console.log(`Adding missing metadata for '${type}' keyring`);
-        this.#keyringsMetadata.push(getDefaultKeyringMetadata());
+      if (!metadata) {
+        newMetadata = true;
+        metadata = getDefaultKeyringMetadata();
       }
       // The keyring is added to the keyrings array only if it's successfully restored
       // and the metadata is successfully added to the controller
-      this.#keyrings.push(keyring);
-      return keyring;
+      this.#keyrings.push({
+        keyring,
+        metadata,
+      });
+      return { keyring, metadata, newMetadata };
     } catch (error) {
       console.error(error);
       this.#unsupportedKeyrings.push(serialized);
@@ -2548,64 +2631,39 @@ export class KeyringController extends BaseController<
    */
   async #removeEmptyKeyrings(): Promise<void> {
     this.#assertControllerMutexIsLocked();
-    const validKeyrings: EthKeyring[] = [];
-    const validKeyringMetadata: KeyringMetadata[] = [];
+    const validKeyrings: { keyring: EthKeyring; metadata: KeyringMetadata }[] =
+      [];
 
     // Since getAccounts returns a Promise
     // We need to wait to hear back form each keyring
     // in order to decide which ones are now valid (accounts.length > 0)
 
     await Promise.all(
-      this.#keyrings.map(async (keyring: EthKeyring, index: number) => {
+      this.#keyrings.map(async ({ keyring, metadata }) => {
         const accounts = await keyring.getAccounts();
         if (accounts.length > 0) {
-          validKeyrings.push(keyring);
-          validKeyringMetadata.push(this.#keyringsMetadata[index]);
+          validKeyrings.push({ keyring, metadata });
         } else {
           await this.#destroyKeyring(keyring);
         }
       }),
     );
     this.#keyrings = validKeyrings;
-    this.#keyringsMetadata = validKeyringMetadata;
   }
 
   /**
-   * Checks for duplicate keypairs, using the the first account in the given
-   * array. Rejects if a duplicate is found.
+   * Assert that there are no duplicate accounts in the keyrings.
    *
-   * Only supports 'Simple Key Pair'.
-   *
-   * @param type - The key pair type to check for.
-   * @param newAccountArray - Array of new accounts.
-   * @returns The account, if no duplicate is found.
+   * @param additionalKeyrings - Additional keyrings to include in the check.
+   * @throws If there are duplicate accounts.
    */
-  async #checkForDuplicate(
-    type: string,
-    newAccountArray: string[],
-  ): Promise<string[]> {
-    const accounts = await this.#getAccountsFromKeyrings();
+  async #assertNoDuplicateAccounts(
+    additionalKeyrings: EthKeyring[] = [],
+  ): Promise<void> {
+    const accounts = await this.#getAccountsFromKeyrings(additionalKeyrings);
 
-    switch (type) {
-      case KeyringTypes.simple: {
-        const isIncluded = Boolean(
-          accounts.find(
-            (key) =>
-              newAccountArray[0] &&
-              (key === newAccountArray[0] ||
-                key === remove0x(newAccountArray[0])),
-          ),
-        );
-
-        if (isIncluded) {
-          throw new Error(KeyringControllerError.DuplicatedAccount);
-        }
-        return newAccountArray;
-      }
-
-      default: {
-        return newAccountArray;
-      }
+    if (new Set(accounts).size !== accounts.length) {
+      throw new Error(KeyringControllerError.DuplicatedAccount);
     }
   }
 
@@ -2620,11 +2678,6 @@ export class KeyringController extends BaseController<
 
     this.update((state) => {
       state.isUnlocked = true;
-      // If new keyringsMetadata was generated during the unlock operation,
-      // we'll have to update the state with the new array
-      if (this.#keyringsMetadata.length > state.keyringsMetadata.length) {
-        state.keyringsMetadata = this.#keyringsMetadata.slice();
-      }
     });
     this.messagingSystem.publish(`${name}:unlock`);
   }
@@ -2642,7 +2695,7 @@ export class KeyringController extends BaseController<
 
   /**
    * Execute the given function after acquiring the controller lock
-   * and save the keyrings to state after it, or rollback to their
+   * and save the vault to state after it (only if needed), or rollback to their
    * previous state in case of error.
    *
    * @param callback - The function to execute.
@@ -2652,9 +2705,14 @@ export class KeyringController extends BaseController<
     callback: MutuallyExclusiveCallback<Result>,
   ): Promise<Result> {
     return this.#withRollback(async ({ releaseLock }) => {
+      const oldState = await this.#getSessionState();
       const callbackResult = await callback({ releaseLock });
-      // State is committed only if the operation is successful
-      await this.#updateVault();
+      const newState = await this.#getSessionState();
+
+      // State is committed only if the operation is successful and need to trigger a vault update.
+      if (!isEqual(oldState, newState)) {
+        await this.#updateVault();
+      }
 
       return callbackResult;
     });
@@ -2673,13 +2731,11 @@ export class KeyringController extends BaseController<
     return this.#withControllerLock(async ({ releaseLock }) => {
       const currentSerializedKeyrings = await this.#getSerializedKeyrings();
       const currentPassword = this.#password;
-      const currentKeyringsMetadata = this.#keyringsMetadata.slice();
 
       try {
         return await callback({ releaseLock });
       } catch (e) {
         // Keyrings and password are restored to their previous state
-        this.#keyringsMetadata = currentKeyringsMetadata;
         this.#password = currentPassword;
         await this.#restoreSerializedKeyrings(currentSerializedKeyrings);
 

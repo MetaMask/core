@@ -56,7 +56,12 @@ export const TESTNET_TICKER_SYMBOLS = {
  * Map of all built-in custom networks to their RPC endpoints.
  */
 export const BUILT_IN_CUSTOM_NETWORKS_RPC = {
+  /**
+   * @deprecated Please use `megaeth-testnet` instead.
+   */
   MEGAETH_TESTNET: 'https://carrot.megaeth.com/rpc',
+  'megaeth-testnet': 'https://carrot.megaeth.com/rpc',
+  'monad-testnet': 'https://testnet-rpc.monad.xyz',
 };
 
 /**
@@ -112,6 +117,13 @@ export const BUILT_IN_NETWORKS = {
       blockExplorerUrl: BlockExplorerUrl['megaeth-testnet'],
     },
   },
+  [NetworkType['monad-testnet']]: {
+    chainId: ChainId['monad-testnet'],
+    ticker: NetworksTicker['monad-testnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['monad-testnet'],
+    },
+  },
   [NetworkType.rpc]: {
     chainId: undefined,
     blockExplorerUrl: undefined,
@@ -153,6 +165,7 @@ export enum ApprovalType {
   SnapDialogDefault = 'snap_dialog',
   SwitchEthereumChain = 'wallet_switchEthereumChain',
   Transaction = 'transaction',
+  TransactionBatch = 'transaction_batch',
   Unlock = 'unlock',
   WalletConnect = 'wallet_connect',
   WalletRequestPermissions = 'wallet_requestPermissions',

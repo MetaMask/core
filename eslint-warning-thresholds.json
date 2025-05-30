@@ -2,9 +2,6 @@
   "packages/accounts-controller/src/AccountsController.test.ts": {
     "import-x/namespace": 1
   },
-  "packages/address-book-controller/src/AddressBookController.ts": {
-    "jsdoc/check-tag-names": 13
-  },
   "packages/approval-controller/src/ApprovalController.test.ts": {
     "import-x/order": 1,
     "jest/no-conditional-in-test": 16
@@ -73,9 +70,6 @@
   "packages/assets-controllers/src/Standards/NftStandards/ERC721/ERC721Standard.ts": {
     "prettier/prettier": 1
   },
-  "packages/assets-controllers/src/TokenBalancesController.test.ts": {
-    "import-x/order": 1
-  },
   "packages/assets-controllers/src/TokenBalancesController.ts": {
     "@typescript-eslint/prefer-readonly": 4,
     "jsdoc/check-tag-names": 4,
@@ -96,17 +90,12 @@
     "import-x/order": 3,
     "jest/no-conditional-in-test": 2
   },
-  "packages/assets-controllers/src/TokenListController.ts": {
-    "jsdoc/check-tag-names": 1,
-    "jsdoc/tag-lines": 7
-  },
   "packages/assets-controllers/src/TokenRatesController.test.ts": {
     "import-x/order": 3
   },
   "packages/assets-controllers/src/TokenRatesController.ts": {
-    "@typescript-eslint/prefer-readonly": 2,
-    "jsdoc/check-tag-names": 11,
-    "no-unused-private-class-members": 1
+    "@typescript-eslint/prefer-readonly": 1,
+    "jsdoc/check-tag-names": 11
   },
   "packages/assets-controllers/src/TokensController.test.ts": {
     "import-x/namespace": 1,
@@ -230,7 +219,7 @@
     "jest/no-conditional-in-test": 8
   },
   "packages/keyring-controller/src/KeyringController.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": 5,
+    "@typescript-eslint/no-unsafe-enum-comparison": 4,
     "@typescript-eslint/no-unused-vars": 1
   },
   "packages/keyring-controller/tests/mocks/mockKeyring.ts": {
@@ -438,9 +427,6 @@
   "packages/polling-controller/src/AbstractPollingController.ts": {
     "@typescript-eslint/prefer-readonly": 1
   },
-  "packages/preferences-controller/src/PreferencesController.test.ts": {
-    "prettier/prettier": 4
-  },
   "packages/queued-request-controller/src/QueuedRequestController.ts": {
     "@typescript-eslint/prefer-readonly": 2
   },
@@ -465,6 +451,12 @@
   },
   "packages/remote-feature-flag-controller/src/utils/user-segmentation-utils.ts": {
     "jsdoc/tag-lines": 2
+  },
+  "packages/seedless-onboarding-controller/src/errors.ts": {
+    "@typescript-eslint/no-unsafe-enum-comparison": 1
+  },
+  "packages/seedless-onboarding-controller/jest.environment.js": {
+    "n/no-unsupported-features/node-builtins": 1
   },
   "packages/selected-network-controller/src/SelectedNetworkController.ts": {
     "@typescript-eslint/prefer-readonly": 1,
