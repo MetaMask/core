@@ -4,16 +4,11 @@ import { BaseController } from '@metamask/base-controller';
 import type {
   KeyPair,
   NodeAuthTokens,
+  RecoverEncryptionKeyResult,
   SEC1EncodedPublicKey,
 } from '@metamask/toprf-secure-backup';
 import { ToprfSecureBackup } from '@metamask/toprf-secure-backup';
-import {
-  base64ToBytes,
-  bytesToBase64,
-  stringToBytes,
-  remove0x,
-  bigIntToHex,
-} from '@metamask/utils';
+import { base64ToBytes, bytesToBase64, bigIntToHex } from '@metamask/utils';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { Mutex } from 'async-mutex';
 
@@ -110,6 +105,10 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       persist: true,
       anonymous: true,
     },
+    recoveryRatelimitCache: {
+      persist: true,
+      anonymous: true,
+    },
   };
 
 export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
@@ -139,12 +138,14 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @param options.messenger - A restricted messenger.
    * @param options.state - Initial state to set on this controller.
    * @param options.encryptor - An optional encryptor to use for encrypting and decrypting seedless onboarding vault.
+   * @param options.toprfKeyDeriver - An optional key derivation interface for the TOPRF client.
    * @param options.network - The network to be used for the Seedless Onboarding flow.
    */
   constructor({
     messenger,
     state,
     encryptor,
+    toprfKeyDeriver,
     network = Web3AuthNetwork.Mainnet,
   }: SeedlessOnboardingControllerOptions<EncryptionKey>) {
     super({
@@ -160,6 +161,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     this.#vaultEncryptor = encryptor;
     this.toprfClient = new ToprfSecureBackup({
       network,
+      keyDeriver: toprfKeyDeriver,
     });
 
     // setup subscriptions to the keyring lock event
@@ -204,17 +206,12 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           authConnection,
           socialLoginEmail,
         } = params;
-        const hashedIdTokenHexes = idTokens.map((idToken) => {
-          return remove0x(keccak256AndHexify(stringToBytes(idToken)));
-        });
+
         const authenticationResult = await this.toprfClient.authenticate({
-          authConnectionId: groupedAuthConnectionId || authConnectionId,
+          authConnectionId,
           userId,
-          idTokens: hashedIdTokenHexes,
-          groupedAuthConnectionParams: {
-            authConnectionId,
-            idTokens,
-          },
+          idTokens,
+          groupedAuthConnectionId,
         });
         // update the state with the authenticated user info
         this.update((state) => {
@@ -254,9 +251,10 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
 
     return await this.#withControllerLock(async () => {
       // locally evaluate the encryption key from the password
-      const { encKey, authKeyPair, oprfKey } = this.toprfClient.createLocalKey({
-        password,
-      });
+      const { encKey, authKeyPair, oprfKey } =
+        await this.toprfClient.createLocalKey({
+          password,
+        });
 
       // encrypt and store the seed phrase backup
       await this.#encryptAndStoreSeedPhraseBackup({
@@ -652,7 +650,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       const { authPubKey: globalAuthPubKey } =
         await this.toprfClient.fetchAuthPubKey({
           nodeAuthTokens,
-          authConnectionId: groupedAuthConnectionId || authConnectionId,
+          authConnectionId,
+          groupedAuthConnectionId,
           userId,
         });
 
@@ -695,14 +694,14 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    */
   async #persistOprfKey(oprfKey: bigint, authPubKey: SEC1EncodedPublicKey) {
     this.#assertIsAuthenticatedUser(this.state);
-    const authConnectionId =
-      this.state.groupedAuthConnectionId || this.state.authConnectionId;
+    const { authConnectionId, groupedAuthConnectionId, userId } = this.state;
 
     try {
       await this.toprfClient.persistLocalKey({
         nodeAuthTokens: this.state.nodeAuthTokens,
         authConnectionId,
-        userId: this.state.userId,
+        groupedAuthConnectionId,
+        userId,
         oprfKey,
         authPubKey,
       });
@@ -748,21 +747,20 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @throws RecoveryError - If failed to recover the encryption key.
    */
   async #recoverEncKey(password: string) {
-    this.#assertIsAuthenticatedUser(this.state);
-    const authConnectionId =
-      this.state.groupedAuthConnectionId || this.state.authConnectionId;
+    return this.#withRecoveryErrorHandler(async () => {
+      this.#assertIsAuthenticatedUser(this.state);
 
-    try {
+      const { authConnectionId, groupedAuthConnectionId, userId } = this.state;
+
       const recoverEncKeyResult = await this.toprfClient.recoverEncKey({
         nodeAuthTokens: this.state.nodeAuthTokens,
         password,
         authConnectionId,
-        userId: this.state.userId,
+        groupedAuthConnectionId,
+        userId,
       });
       return recoverEncKeyResult;
-    } catch (error) {
-      throw RecoveryError.getInstance(error);
-    }
+    });
   }
 
   /**
@@ -774,8 +772,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    */
   async #changeEncryptionKey(newPassword: string, oldPassword: string) {
     this.#assertIsAuthenticatedUser(this.state);
-    const authConnectionId =
-      this.state.groupedAuthConnectionId || this.state.authConnectionId;
+    const { authConnectionId, groupedAuthConnectionId, userId } = this.state;
 
     const {
       encKey,
@@ -786,7 +783,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     return await this.toprfClient.changeEncKey({
       nodeAuthTokens: this.state.nodeAuthTokens,
       authConnectionId,
-      userId: this.state.userId,
+      groupedAuthConnectionId,
+      userId,
       oldEncKey: encKey,
       oldAuthKeyPair: authKeyPair,
       newKeyShareIndex,
@@ -1251,6 +1249,54 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       throw new Error(
         SeedlessOnboardingControllerErrorMessage.SRPNotBackedUpError,
       );
+    }
+  }
+
+  /**
+   * Handle the recovery error and update the recovery error data after executing the given callback.
+   *
+   * @param recoveryCallback - The callback recovery function to execute.
+   * @returns The result of the callback function.
+   */
+  async #withRecoveryErrorHandler(
+    recoveryCallback: () => Promise<RecoverEncryptionKeyResult>,
+  ): Promise<RecoverEncryptionKeyResult> {
+    const currentRecoveryAttempts =
+      this.state.recoveryRatelimitCache?.numberOfAttempts || 0;
+    let updatedRecoveryAttempts = currentRecoveryAttempts + 1;
+    let updatedRemainingTime =
+      this.state.recoveryRatelimitCache?.remainingTime || 0;
+
+    try {
+      const result = await recoveryCallback();
+
+      // reset the ratelimit error data
+      updatedRecoveryAttempts = 0;
+      updatedRemainingTime = 0;
+
+      return result;
+    } catch (error) {
+      const recoveryError = RecoveryError.getInstance(error, {
+        numberOfAttempts: updatedRecoveryAttempts,
+        remainingTime: updatedRemainingTime,
+      });
+
+      if (recoveryError.data?.numberOfAttempts) {
+        updatedRecoveryAttempts = recoveryError.data.numberOfAttempts;
+      }
+
+      if (recoveryError.data?.remainingTime) {
+        updatedRemainingTime = recoveryError.data.remainingTime;
+      }
+
+      throw recoveryError;
+    } finally {
+      this.update((state) => {
+        state.recoveryRatelimitCache = {
+          numberOfAttempts: updatedRecoveryAttempts,
+          remainingTime: updatedRemainingTime,
+        };
+      });
     }
   }
 

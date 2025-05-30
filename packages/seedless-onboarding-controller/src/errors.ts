@@ -5,6 +5,7 @@ import {
 } from '@metamask/toprf-secure-backup';
 
 import { SeedlessOnboardingControllerErrorMessage } from './constants';
+import type { RecoveryErrorData } from './types';
 
 /**
  * Get the error message from the TOPRF error code.
@@ -48,11 +49,17 @@ function getRateLimitErrorData(
     'remainingTime' in error.meta.rateLimitDetails &&
     typeof error.meta.rateLimitDetails.remainingTime === 'number' &&
     'message' in error.meta.rateLimitDetails &&
-    typeof error.meta.rateLimitDetails.message === 'string'
+    typeof error.meta.rateLimitDetails.message === 'string' &&
+    'lockTime' in error.meta.rateLimitDetails &&
+    typeof error.meta.rateLimitDetails.lockTime === 'number' &&
+    'guessCount' in error.meta.rateLimitDetails &&
+    typeof error.meta.rateLimitDetails.guessCount === 'number'
   ) {
     return {
       remainingTime: error.meta.rateLimitDetails.remainingTime,
       message: error.meta.rateLimitDetails.message,
+      lockTime: error.meta.rateLimitDetails.lockTime,
+      guessCount: error.meta.rateLimitDetails.guessCount,
     };
   }
   return undefined;
@@ -92,9 +99,9 @@ export class PasswordSyncError extends Error {
  * It extends the Error class and includes a data property that can be used to store additional information.
  */
 export class RecoveryError extends Error {
-  data: RateLimitErrorData | undefined;
+  data: RecoveryErrorData | undefined;
 
-  constructor(message: string, data?: RateLimitErrorData) {
+  constructor(message: string, data?: RecoveryErrorData) {
     super(message);
     this.data = data;
     this.name = 'SeedlessOnboardingController - RecoveryError';
@@ -104,19 +111,45 @@ export class RecoveryError extends Error {
    * Get an instance of the RecoveryError class.
    *
    * @param error - The error to get the instance of.
+   * @param cachedErrorData - The cached error data to help synchronize the recovery error data across multiple devices.
    * @returns The instance of the RecoveryError class.
    */
-  static getInstance(error: unknown): RecoveryError {
-    if (error instanceof TOPRFError) {
-      const rateLimitErrorData = getRateLimitErrorData(error);
-      const errorMessage = getErrorMessageFromTOPRFErrorCode(
-        error.code,
+  static getInstance(
+    error: unknown,
+    cachedErrorData?: RecoveryErrorData,
+  ): RecoveryError {
+    if (!(error instanceof TOPRFError)) {
+      return new RecoveryError(
         SeedlessOnboardingControllerErrorMessage.LoginFailedError,
       );
-      return new RecoveryError(errorMessage, rateLimitErrorData);
     }
-    return new RecoveryError(
+
+    const rateLimitErrorData = getRateLimitErrorData(error);
+    const recoveryErrorData = rateLimitErrorData
+      ? {
+          numberOfAttempts: rateLimitErrorData.guessCount,
+          remainingTime: rateLimitErrorData.remainingTime,
+        }
+      : undefined;
+
+    if (
+      rateLimitErrorData &&
+      recoveryErrorData &&
+      rateLimitErrorData.guessCount === cachedErrorData?.numberOfAttempts
+    ) {
+      // if the number of attempts is the same, we can assume that the previous attempt has been made from the same device.
+      // The `lockTime` value is the total ratelimit duration based on the `guessCount` value.
+      // The `remainingTime` value is the time that server acutally waits to block the recovery (count down from the `lockTime`) before the next attempt.
+      // However, due to the network delay and server processing time, the `remainingTime` value will be smaller than the `lockTime` value when it reaches to the client side.
+      // e.g. The actual remaining time is 30s, but when it reaches to the client side, it becomes less than 30s, but the `lockTime` value is still 30s.
+      // So, to enforce the user to follow the rate limit policy in the client side, we use the `lockTime` value to calculate the remaining time.
+      recoveryErrorData.remainingTime = rateLimitErrorData.lockTime;
+    }
+
+    const errorMessage = getErrorMessageFromTOPRFErrorCode(
+      error.code,
       SeedlessOnboardingControllerErrorMessage.LoginFailedError,
     );
+    return new RecoveryError(errorMessage, recoveryErrorData);
   }
 }
