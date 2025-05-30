@@ -213,15 +213,16 @@ export function buildMockFindNetworkClientIdByChainId(
   const defaultMockNetworkClientConfigurationsByNetworkClientId = Object.values(
     InfuraNetworkType,
   ).reduce((obj, infuraNetworkType) => {
+    const testNetworkClientConfig =
+      buildInfuraNetworkClientConfiguration(infuraNetworkType);
     return {
       ...obj,
-      [infuraNetworkType]:
-        buildInfuraNetworkClientConfiguration(infuraNetworkType),
+      [testNetworkClientConfig.chainId]: testNetworkClientConfig,
     };
   }, {});
   const mergedMockNetworkClientConfigurationsByNetworkClientId: Record<
-    NetworkClientId,
-    NetworkClientConfiguration
+    Hex,
+    InfuraNetworkClientConfiguration
   > = {
     ...defaultMockNetworkClientConfigurationsByNetworkClientId,
     ...mockNetworkClientConfigurationsByNetworkClientId,
@@ -230,15 +231,15 @@ export function buildMockFindNetworkClientIdByChainId(
   function findNetworkClientIdByChainId(chainId: Hex): NetworkClientId;
   // eslint-disable-next-line jsdoc/require-jsdoc
   function findNetworkClientIdByChainId(chainId: Hex): NetworkClientId {
-    const networkClientConfigForChainId = Object.entries(
-      mergedMockNetworkClientConfigurationsByNetworkClientId,
-    ).find(([_, value]) => value.chainId === chainId);
+    const networkClientConfigForChainId =
+      mergedMockNetworkClientConfigurationsByNetworkClientId[chainId];
     if (!networkClientConfigForChainId) {
       throw new Error(
         `Unknown chainId '${chainId}'. Please add it to mockNetworkClientConfigurationsByNetworkClientId.`,
       );
     }
-    return networkClientConfigForChainId[0];
+
+    return networkClientConfigForChainId.network;
   }
   return findNetworkClientIdByChainId;
 }
