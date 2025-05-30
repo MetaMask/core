@@ -31,6 +31,7 @@ export {
   selectLendingMarketForProtocolAndId,
   selectLendingPositionsWithMarket,
   selectLendingMarketsForChainId,
+  selectIsLendingEligible,
 } from './selectors';
 
 export * from '@metamask/stake-sdk';
