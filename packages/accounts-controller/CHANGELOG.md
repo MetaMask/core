@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Prevent use of `undefined` Snap during `SnapController:stateChange` ([#5884](https://github.com/MetaMask/core/pull/5884))
+  - We were assuming that the Snap will always be defined, but this might not always be true.
 - Populate `.options.entropySource` for new `InternalAccount`s before publishing `:accountAdded` ([#5841](https://github.com/MetaMask/core/pull/5841))
 
 ## [29.0.0]
