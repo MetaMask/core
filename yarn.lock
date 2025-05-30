@@ -4286,7 +4286,7 @@ __metadata:
     "@metamask/base-controller": "npm:^8.0.1"
     "@metamask/browser-passworder": "npm:^4.3.0"
     "@metamask/keyring-controller": "npm:^22.0.0"
-    "@metamask/toprf-secure-backup": "npm:^0.3.0"
+    "@metamask/toprf-secure-backup": "npm:^0.3.1"
     "@metamask/utils": "npm:^11.2.0"
     "@noble/ciphers": "npm:^0.5.2"
     "@noble/curves": "npm:^1.2.0"
@@ -4529,9 +4529,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/toprf-secure-backup@npm:^0.3.0":
-  version: 0.3.0
-  resolution: "@metamask/toprf-secure-backup@npm:0.3.0"
+"@metamask/toprf-secure-backup@npm:^0.3.1":
+  version: 0.3.1
+  resolution: "@metamask/toprf-secure-backup@npm:0.3.1"
   dependencies:
     "@metamask/auth-network-utils": "npm:^0.3.0"
     "@noble/ciphers": "npm:^1.2.1"
@@ -4543,7 +4543,7 @@ __metadata:
     "@toruslabs/fetch-node-details": "npm:^15.0.0"
     "@toruslabs/http-helpers": "npm:^8.1.1"
     bn.js: "npm:^5.2.1"
-  checksum: 10/9d3b8816c25f40b9d5ed726b32cae03d15442802ecbe816eff21a1bf9e3d681b749ae709d79b937f0f6ce122170ac6a6142f435d6bca5bd9ce8cf03cd0f40eab
+  checksum: 10/fec535a02236faf9b0dd4123a079e6f8f211d9fc9758944f823cc018ad5000957ed9402c38bbdf0fdfd660b365a10af52903438c477125db8a6880c325f09cdf
   languageName: node
   linkType: hard
 
