@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [16.0.0]
+
 ### Uncategorized
 
 - chore: update accounts/snaps deps ([#5871](https://github.com/MetaMask/core/pull/5871))
@@ -600,7 +602,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@15.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@16.0.0...HEAD
+[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@15.0.0...@metamask/profile-sync-controller@16.0.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@14.0.0...@metamask/profile-sync-controller@15.0.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@13.0.0...@metamask/profile-sync-controller@14.0.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@12.0.0...@metamask/profile-sync-controller@13.0.0

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.0.1]
+
 ### Changed
 
 - Bump `@metamask/keyring-api` peer dependency from `^17.4.0` to `^18.0.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
@@ -787,7 +789,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.0.1...HEAD
+[22.0.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.0.0...@metamask/keyring-controller@22.0.1
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.6...@metamask/keyring-controller@22.0.0
 [21.0.6]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.5...@metamask/keyring-controller@21.0.6
 [21.0.5]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.4...@metamask/keyring-controller@21.0.5
