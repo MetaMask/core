@@ -801,18 +801,13 @@ export class NftDetectionController extends BaseController<
             );
             const networkClientId = this.messagingSystem.call(
               'NetworkController:findNetworkClientIdByChainId',
-              toHex(chainId as number),
+              toHex(chainId),
             );
-            await this.#addNft(
-              contract,
-              tokenId,
-              networkClientId as NetworkClientId,
-              {
-                nftMetadata,
-                userAddress,
-                source: Source.Detected,
-              },
-            );
+            await this.#addNft(contract, tokenId, networkClientId, {
+              nftMetadata,
+              userAddress,
+              source: Source.Detected,
+            });
           }
         });
         await Promise.all(addNftPromises);

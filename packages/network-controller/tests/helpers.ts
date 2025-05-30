@@ -194,13 +194,13 @@ export function buildMockGetNetworkClientById(
 }
 
 /**
- * Builds a mock version of the `getNetworkClientIdByChainId` method on
+ * Builds a mock version of the `findNetworkClientIdByChainId` method on
  * NetworkController.
  *
  * @param mockNetworkClientConfigurationsByNetworkClientId - Allows for defining
  * the network client configuration — and thus the network client itself — that
  * belongs to a particular network client ID.
- * @returns The mock version of `getNetworkClientIdByChainId`.
+ * @returns The mock version of `findNetworkClientIdByChainId`.
  */
 export function buildMockFindNetworkClientIdByChainId(
   mockNetworkClientConfigurationsByNetworkClientId: Record<
@@ -225,9 +225,9 @@ export function buildMockFindNetworkClientIdByChainId(
     ...mockNetworkClientConfigurationsByNetworkClientId,
   };
 
-  function getNetworkClientIdByChainId(chainId: Hex): NetworkClientId;
+  function findNetworkClientIdByChainId(chainId: Hex): NetworkClientId;
   // eslint-disable-next-line jsdoc/require-jsdoc
-  function getNetworkClientIdByChainId(chainId: Hex): NetworkClientId {
+  function findNetworkClientIdByChainId(chainId: Hex): NetworkClientId {
     const networkClientConfigForChainId = Object.entries(
       mergedMockNetworkClientConfigurationsByNetworkClientId,
     ).find(([_, value]) => value.chainId === chainId);
@@ -238,8 +238,7 @@ export function buildMockFindNetworkClientIdByChainId(
     }
     return networkClientConfigForChainId[0];
   }
-
-  return getNetworkClientIdByChainId;
+  return findNetworkClientIdByChainId;
 }
 
 /**
