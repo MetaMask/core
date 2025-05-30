@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** bump `@metamask/accounts-controller` peer dependency to `^30.0.0` ([#TODO](https://github.com/MetaMask/core/pull/TODO))
+- **BREAKING:** bump `@metamask/accounts-controller` peer dependency to `^30.0.0` ([#5888](https://github.com/MetaMask/core/pull/5888))
 
 ## [56.3.0]
 
