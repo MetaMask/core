@@ -4,7 +4,7 @@ import type {
 } from '@metamask/approval-controller';
 import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
-import { rpcErrors } from '@metamask/rpc-errors';
+import { JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { bytesToHex, createModuleLogger } from '@metamask/utils';
 import type { WritableDraft } from 'immer/dist/internal.js';
@@ -122,7 +122,18 @@ export async function addTransactionBatch(
   log('Adding', transactionBatchRequest);
 
   if (!transactionBatchRequest.disable7702) {
-    return await addTransactionBatchWith7702(request);
+    try {
+      return await addTransactionBatchWith7702(request);
+    } catch (error: unknown) {
+      if (
+        error instanceof JsonRpcError &&
+        error.message === 'Chain does not support EIP-7702'
+      ) {
+        log('Falling back to hook-based batch processing');
+        return await addTransactionBatchWithHook(request);
+      }
+      throw error;
+    }
   }
 
   return await addTransactionBatchWithHook(request);
@@ -402,17 +413,18 @@ async function addTransactionBatchWithHook(
     getPendingTransactionTracker: request.getPendingTransactionTracker,
   });
 
-  const { request: transactionBatchRequest } = request;
+  const {
+    request: { disable7702, disableHook, disableSequential },
+  } = request;
 
   const publishBatchHook =
-    (!transactionBatchRequest.disableHook && requestPublishBatchHook) ??
-    (!transactionBatchRequest.disableSequential &&
-      sequentialPublishBatchHook.getHook());
+    (!disableHook && requestPublishBatchHook) ??
+    (!disableSequential && sequentialPublishBatchHook.getHook());
   if (!publishBatchHook) {
-    log(`Can't process batch`, {
-      disable7702: transactionBatchRequest.disable7702,
-      disableHook: transactionBatchRequest.disableHook,
-      disableSequential: transactionBatchRequest.disableSequential,
+    log(`No supported batch methods found`, {
+      disable7702,
+      disableHook,
+      disableSequential,
     });
     throw rpcErrors.internal(`Can't process batch`);
   }
