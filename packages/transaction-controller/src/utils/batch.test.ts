@@ -1,4 +1,5 @@
-import { rpcErrors } from '@metamask/rpc-errors';
+import { ORIGIN_METAMASK, type AddResult } from '@metamask/approval-controller';
+import { rpcErrors, errorCodes } from '@metamask/rpc-errors';
 
 import {
   ERROR_MESSAGE_NO_UPGRADE_CONTRACT,
@@ -16,6 +17,7 @@ import {
   getEIP7702UpgradeContractAddress,
 } from './feature-flags';
 import { validateBatchRequest } from './validation';
+import type { TransactionControllerState } from '..';
 import {
   TransactionEnvelopeType,
   type TransactionControllerMessenger,
@@ -47,7 +49,9 @@ const CONTRACT_ADDRESS_MOCK = '0xabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd';
 const TO_MOCK = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcdef';
 const DATA_MOCK = '0xabcdef';
 const VALUE_MOCK = '0x1234';
-const MESSENGER_MOCK = {} as TransactionControllerMessenger;
+const MESSENGER_MOCK = {
+  call: jest.fn().mockResolvedValue({}),
+} as unknown as TransactionControllerMessenger;
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
 const PUBLIC_KEY_MOCK = '0x112233';
 const BATCH_ID_CUSTOM_MOCK = '0x123456';
@@ -74,6 +78,86 @@ const TRANSACTION_META_MOCK = {
     value: VALUE_MOCK,
   },
 } as unknown as TransactionMeta;
+
+/**
+ * Mocks the `ApprovalController:addRequest` action for the `requestApproval` function in `batch.ts`.
+ *
+ * @param messenger - The mocked messenger instance.
+ * @param options - An options bag which will be used to create an action
+ * handler that places the approval request in a certain state.
+ * @returns An object which contains the mocked promise, functions to
+ * manually approve or reject the approval (and therefore the promise), and
+ * finally the mocked version of the action handler itself.
+ */
+function mockRequestApproval(
+  messenger: TransactionControllerMessenger,
+  options:
+    | {
+        state: 'approved';
+        result?: Partial<AddResult>;
+      }
+    | {
+        state: 'rejected';
+        error?: unknown;
+      }
+    | {
+        state: 'pending';
+      },
+): {
+  promise: Promise<AddResult>;
+  approve: (approvalResult?: Partial<AddResult>) => void;
+  reject: (rejectionError: unknown) => void;
+  actionHandlerMock: jest.Mock<
+    ReturnType<typeof messenger.call>,
+    Parameters<typeof messenger.call>
+  >;
+} {
+  let resolvePromise: (value: AddResult) => void;
+  let rejectPromise: (reason?: unknown) => void;
+  const promise = new Promise<AddResult>((resolve, reject) => {
+    resolvePromise = resolve;
+    rejectPromise = reject;
+  });
+
+  const approveTransaction = (approvalResult?: Partial<AddResult>) => {
+    resolvePromise({
+      resultCallbacks: {
+        success() {
+          // Mock success callback
+        },
+        error() {
+          // Mock error callback
+        },
+      },
+      ...approvalResult,
+    });
+  };
+
+  const rejectTransaction = (
+    rejectionError: unknown = {
+      code: errorCodes.provider.userRejectedRequest,
+    },
+  ) => {
+    rejectPromise(rejectionError);
+  };
+
+  const actionHandlerMock = jest.fn().mockReturnValue(promise);
+
+  if (options.state === 'approved') {
+    approveTransaction(options.result);
+  } else if (options.state === 'rejected') {
+    rejectTransaction(options.error);
+  }
+
+  messenger.call = actionHandlerMock;
+
+  return {
+    promise,
+    approve: approveTransaction,
+    reject: rejectTransaction,
+    actionHandlerMock,
+  };
+}
 
 describe('Batch Utils', () => {
   const doesChainSupportEIP7702Mock = jest.mocked(doesChainSupportEIP7702);
@@ -117,6 +201,8 @@ describe('Batch Utils', () => {
       AddBatchTransactionOptions['getPendingTransactionTracker']
     >;
 
+    let updateMock: jest.MockedFn<AddBatchTransactionOptions['update']>;
+
     let request: AddBatchTransactionOptions;
 
     beforeEach(() => {
@@ -126,6 +212,7 @@ describe('Batch Utils', () => {
       updateTransactionMock = jest.fn();
       publishTransactionMock = jest.fn();
       getPendingTransactionTrackerMock = jest.fn();
+      updateMock = jest.fn();
 
       determineTransactionTypeMock.mockResolvedValue({
         type: TransactionType.simpleSend,
@@ -166,6 +253,7 @@ describe('Batch Utils', () => {
         updateTransaction: updateTransactionMock,
         publishTransaction: publishTransactionMock,
         getPendingTransactionTracker: getPendingTransactionTrackerMock,
+        update: updateMock,
       };
     });
 
@@ -513,6 +601,7 @@ describe('Batch Utils', () => {
                 value: VALUE_MOCK,
               },
             ],
+            origin: ORIGIN_MOCK,
           },
           CHAIN_ID_MOCK,
         );
@@ -563,6 +652,7 @@ describe('Batch Utils', () => {
                 value: VALUE_MOCK,
               },
             ],
+            origin: ORIGIN_MOCK,
           },
           CHAIN_ID_MOCK,
         );
@@ -570,6 +660,12 @@ describe('Batch Utils', () => {
     });
 
     describe('with publish batch hook', () => {
+      beforeEach(() => {
+        mockRequestApproval(MESSENGER_MOCK, {
+          state: 'approved',
+        });
+      });
+
       it('adds each nested transaction', async () => {
         const publishBatchHook = jest.fn();
 
@@ -605,6 +701,59 @@ describe('Batch Utils', () => {
           },
         );
       });
+
+      it.each([
+        {
+          origin: ORIGIN_MOCK,
+          description: 'with defined origin',
+          expectedOrigin: ORIGIN_MOCK,
+        },
+        {
+          origin: undefined,
+          description: 'with undefined origin',
+          expectedOrigin: ORIGIN_METAMASK,
+        },
+      ])(
+        'requests approval for batch transactions $description',
+        async ({ origin, expectedOrigin }) => {
+          const publishBatchHook = jest.fn();
+
+          addTransactionMock.mockResolvedValueOnce({
+            transactionMeta: TRANSACTION_META_MOCK,
+            result: Promise.resolve(''),
+          });
+
+          generateEIP7702BatchTransactionMock.mockReturnValueOnce({
+            to: TO_MOCK,
+            data: DATA_MOCK,
+            value: VALUE_MOCK,
+          });
+
+          request.messenger = MESSENGER_MOCK;
+
+          addTransactionBatch({
+            ...request,
+            publishBatchHook,
+            request: { ...request.request, useHook: true, origin },
+          }).catch(() => {
+            // Intentionally empty
+          });
+
+          await flushPromises();
+
+          expect(MESSENGER_MOCK.call).toHaveBeenCalledWith(
+            'ApprovalController:addRequest',
+            expect.objectContaining({
+              id: expect.any(String),
+              origin: expectedOrigin,
+              requestData: { txBatchId: expect.any(String) },
+              expectsResult: true,
+              type: 'transaction_batch',
+            }),
+            true,
+          );
+        },
+      );
 
       it('calls publish batch hook', async () => {
         const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
@@ -1011,7 +1160,11 @@ describe('Batch Utils', () => {
         addTransactionBatch({
           ...request,
           publishBatchHook,
-          request: { ...request.request, useHook: true },
+          request: {
+            ...request.request,
+            useHook: true,
+            requireApproval: false,
+          },
         }).catch(() => {
           // Intentionally empty
         });
@@ -1064,7 +1217,11 @@ describe('Batch Utils', () => {
         addTransactionBatch({
           ...request,
           publishBatchHook,
-          request: { ...request.request, useHook: true },
+          request: {
+            ...request.request,
+            useHook: true,
+            requireApproval: false,
+          },
         }).catch(() => {
           // Intentionally empty
         });
@@ -1124,48 +1281,30 @@ describe('Batch Utils', () => {
           ([, options]) => options.publishHook,
         );
 
-        publishHooks[0]?.(
-          TRANSACTION_META_MOCK,
-          TRANSACTION_SIGNATURE_MOCK,
-        ).catch(() => {
-          // Intentionally empty
-        });
-
-        publishHooks[1]?.(
-          TRANSACTION_META_MOCK,
-          TRANSACTION_SIGNATURE_2_MOCK,
-        ).catch(() => {
-          // Intentionally empty
-        });
+        for (const [index, publishHook] of publishHooks.entries()) {
+          publishHook?.(
+            TRANSACTION_META_MOCK,
+            index === 0
+              ? TRANSACTION_SIGNATURE_MOCK
+              : TRANSACTION_SIGNATURE_2_MOCK,
+          ).catch(() => {
+            // Intentionally empty
+          });
+        }
 
         await flushPromises();
       };
 
-      it('calls sequentialPublishBatchHook when publishBatchHook is undefined', async () => {
+      const mockSequentialPublishBatchHookResults = () => {
         sequentialPublishBatchHook.mockResolvedValueOnce({
           results: [
-            {
-              transactionHash: TRANSACTION_HASH_MOCK,
-            },
-            {
-              transactionHash: TRANSACTION_HASH_2_MOCK,
-            },
+            { transactionHash: TRANSACTION_HASH_MOCK },
+            { transactionHash: TRANSACTION_HASH_2_MOCK },
           ],
         });
+      };
 
-        setupSequentialPublishBatchHookMock(() => sequentialPublishBatchHook);
-
-        addTransactionBatch({
-          ...request,
-          publishBatchHook: undefined,
-          request: { ...request.request, useHook: true },
-        }).catch(() => {
-          // Intentionally empty
-        });
-
-        await flushPromises();
-        await executePublishHooks();
-
+      const assertSequentialPublishBatchHookCalled = () => {
         expect(sequentialPublishBatchHookMock).toHaveBeenCalledTimes(1);
         expect(sequentialPublishBatchHook).toHaveBeenCalledTimes(1);
         expect(sequentialPublishBatchHook).toHaveBeenCalledWith({
@@ -1184,34 +1323,34 @@ describe('Batch Utils', () => {
             }),
           ],
         });
-      });
+      };
 
-      it('throws if sequentialPublishBatchHook does not return a result', async () => {
-        const publishBatchHookMock: jest.MockedFn<PublishBatchHook> = jest.fn();
-        publishBatchHookMock.mockResolvedValueOnce(undefined);
-        setupSequentialPublishBatchHookMock(() => publishBatchHookMock);
+      it('invokes sequentialPublishBatchHook when publishBatchHook is undefined', async () => {
+        mockSequentialPublishBatchHookResults();
+        setupSequentialPublishBatchHookMock(() => sequentialPublishBatchHook);
 
         const resultPromise = addTransactionBatch({
           ...request,
           publishBatchHook: undefined,
-          request: { ...request.request, useHook: true },
-        });
-
-        resultPromise.catch(() => {
+          request: {
+            ...request.request,
+            useHook: true,
+            requireApproval: false,
+          },
+        }).catch(() => {
           // Intentionally empty
         });
 
         await flushPromises();
         await executePublishHooks();
 
-        await expect(resultPromise).rejects.toThrow(
-          'Publish batch hook did not return a result',
-        );
-        await flushPromises();
-        expect(sequentialPublishBatchHookMock).toHaveBeenCalledTimes(1);
+        assertSequentialPublishBatchHookCalled();
+
+        const result = await resultPromise;
+        expect(result?.batchId).toMatch(/^0x[0-9a-f]{32}$/u);
       });
 
-      it('handles individual transaction failures when using sequentialPublishBatchHook', async () => {
+      it('throws an error when sequentialPublishBatchHook fails', async () => {
         setupSequentialPublishBatchHookMock(() => {
           throw new Error('Test error');
         });
@@ -1225,6 +1364,129 @@ describe('Batch Utils', () => {
         ).rejects.toThrow('Test error');
 
         expect(sequentialPublishBatchHookMock).toHaveBeenCalledTimes(1);
+      });
+
+      it('creates an approval request for sequential publish batch hook', async () => {
+        const { approve } = mockRequestApproval(MESSENGER_MOCK, {
+          state: 'approved',
+        });
+        mockSequentialPublishBatchHookResults();
+        setupSequentialPublishBatchHookMock(() => sequentialPublishBatchHook);
+
+        const resultPromise = addTransactionBatch({
+          ...request,
+          publishBatchHook: undefined,
+          messenger: MESSENGER_MOCK,
+          request: { ...request.request, useHook: true, origin: ORIGIN_MOCK },
+        }).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+        approve();
+        await executePublishHooks();
+
+        expect(MESSENGER_MOCK.call).toHaveBeenCalledWith(
+          'ApprovalController:addRequest',
+          expect.objectContaining({
+            id: expect.any(String),
+            origin: ORIGIN_MOCK,
+            requestData: { txBatchId: expect.any(String) },
+            expectsResult: true,
+            type: 'transaction_batch',
+          }),
+          true,
+        );
+
+        assertSequentialPublishBatchHookCalled();
+
+        const result = await resultPromise;
+        expect(result?.batchId).toMatch(/^0x[0-9a-f]{32}$/u);
+      });
+
+      it('saves a transaction batch and then cleans the specific batch by ID', async () => {
+        const { approve } = mockRequestApproval(MESSENGER_MOCK, {
+          state: 'approved',
+        });
+        mockSequentialPublishBatchHookResults();
+        setupSequentialPublishBatchHookMock(() => sequentialPublishBatchHook);
+
+        const resultPromise = addTransactionBatch({
+          ...request,
+          publishBatchHook: undefined,
+          messenger: MESSENGER_MOCK,
+          request: {
+            ...request.request,
+            useHook: true,
+            origin: ORIGIN_MOCK,
+          },
+        }).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+        approve();
+        await executePublishHooks();
+
+        expect(MESSENGER_MOCK.call).toHaveBeenCalledWith(
+          'ApprovalController:addRequest',
+          expect.objectContaining({
+            id: expect.any(String),
+            origin: ORIGIN_MOCK,
+            requestData: { txBatchId: expect.any(String) },
+            expectsResult: true,
+            type: 'transaction_batch',
+          }),
+          true,
+        );
+
+        expect(updateMock).toHaveBeenCalledTimes(2);
+        expect(updateMock).toHaveBeenCalledWith(expect.any(Function));
+
+        // Simulate the state update for adding the batch
+        const state = {
+          transactionBatches: [
+            { id: 'batch1', chainId: '0x1', transactions: [] },
+          ],
+        } as unknown as TransactionControllerState;
+
+        // Simulate adding the batch
+        updateMock.mock.calls[0][0](state);
+
+        expect(state.transactionBatches).toStrictEqual([
+          { id: 'batch1', chainId: '0x1', transactions: [] },
+          expect.objectContaining({
+            id: expect.any(String),
+            chainId: CHAIN_ID_MOCK,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+            transactions: [
+              expect.objectContaining({
+                params: {
+                  data: DATA_MOCK,
+                  to: TO_MOCK,
+                  value: VALUE_MOCK,
+                },
+              }),
+              expect.objectContaining({
+                params: {
+                  data: DATA_MOCK,
+                  to: TO_MOCK,
+                  value: VALUE_MOCK,
+                },
+              }),
+            ],
+            origin: ORIGIN_MOCK,
+          }),
+        ]);
+
+        await resultPromise;
+
+        // Simulate cleaning the specific batch by ID
+        updateMock.mock.calls[1][0](state);
+
+        expect(state.transactionBatches).toStrictEqual([
+          { id: 'batch1', chainId: '0x1', transactions: [] },
+        ]);
       });
     });
   });
@@ -1322,6 +1584,7 @@ describe('Batch Utils', () => {
         CHAIN_ID_MOCK,
         CHAIN_ID_2_MOCK,
       ]);
+      getEIP7702UpgradeContractAddressMock.mockReturnValueOnce(undefined);
 
       isAccountUpgradedToEIP7702Mock.mockResolvedValue({
         isSupported: false,
