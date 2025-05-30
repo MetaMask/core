@@ -97,15 +97,11 @@ export function testsForRpcMethodAssumingNoBlockParam(
   }
 
   it('hits the RPC endpoint and does not reuse the result of a previous request if the latest block number was updated since', async () => {
+    const pollingInterval = 1234;
     const requests = [{ method }, { method }];
     const mockResults = ['first result', 'second result'];
 
     await withMockedCommunications({ providerType }, async (comms) => {
-      // Note that we have to mock these requests in a specific order. The
-      // first block tracker request occurs because of the first RPC request.
-      // The second block tracker request, however, does not occur because of
-      // the second RPC request, but rather because we call `clock.runAll()`
-      // below.
       comms.mockNextBlockTrackerRequest({ blockNumber: '0x1' });
       comms.mockRpcCall({
         request: requests[0],
@@ -118,13 +114,32 @@ export function testsForRpcMethodAssumingNoBlockParam(
       });
 
       const results = await withNetworkClient(
-        { providerType },
-        async (client) => {
-          const firstResult = await client.makeRpcCall(requests[0]);
+        {
+          providerType,
+          getBlockTrackerOptions: () => ({
+            pollingInterval,
+          }),
+        },
+        async ({ blockTracker, makeRpcCall, clock }) => {
+          const waitForTwoBlocks = new Promise<void>((resolve) => {
+            let numberOfBlocks = 0;
+
+            // Start the block tracker
+            blockTracker.on('latest', () => {
+              numberOfBlocks += 1;
+              // eslint-disable-next-line jest/no-conditional-in-test
+              if (numberOfBlocks === 2) {
+                resolve();
+              }
+            });
+          });
+
+          const firstResult = await makeRpcCall(requests[0]);
           // Proceed to the next iteration of the block tracker so that a new
           // block is fetched and the current block is updated.
-          client.clock.runAll();
-          const secondResult = await client.makeRpcCall(requests[1]);
+          await clock.tickAsync(pollingInterval);
+          await waitForTwoBlocks;
+          const secondResult = await makeRpcCall(requests[1]);
           return [firstResult, secondResult];
         },
       );
@@ -293,7 +308,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
   });
 
   describe.each([
-    [405, 'HTTP client error.'],
+    [405, 'The method does not exist / is not available.'],
     [429, 'Request is being rate limited.'],
   ])(
     'if the RPC endpoint returns a %d response',
@@ -323,64 +338,62 @@ export function testsForRpcMethodAssumingNoBlockParam(
     },
   );
 
-  describe.each([500, 501, 505, 506, 507, 508, 510, 511])(
-    'if the RPC endpoint returns a %d response',
-    (httpStatus) => {
-      const errorMessage = 'RPC endpoint not found or unavailable.';
+  describe('if the RPC endpoint returns a response that is not 405, 429, 503, or 504', () => {
+    const httpStatus = 500;
+    const errorMessage = `Non-200 status code: '${httpStatus}'`;
 
-      it('throws a generic, undescriptive error', async () => {
-        await withMockedCommunications({ providerType }, async (comms) => {
-          const request = { method };
+    it('throws a generic, undescriptive error', async () => {
+      await withMockedCommunications({ providerType }, async (comms) => {
+        const request = { method };
 
-          // The first time a block-cacheable request is made, the latest block
-          // number is retrieved through the block tracker first. It doesn't
-          // matter what this is — it's just used as a cache key.
-          comms.mockNextBlockTrackerRequest();
-          comms.mockRpcCall({
-            request,
-            response: {
-              httpStatus,
-            },
-          });
-          const promiseForResult = withNetworkClient(
-            { providerType },
-            async ({ makeRpcCall }) => makeRpcCall(request),
-          );
-
-          await expect(promiseForResult).rejects.toThrow(errorMessage);
+        // The first time a block-cacheable request is made, the latest block
+        // number is retrieved through the block tracker first. It doesn't
+        // matter what this is — it's just used as a cache key.
+        comms.mockNextBlockTrackerRequest();
+        comms.mockRpcCall({
+          request,
+          response: {
+            httpStatus,
+          },
         });
-      });
+        const promiseForResult = withNetworkClient(
+          { providerType },
+          async ({ makeRpcCall }) => makeRpcCall(request),
+        );
 
-      testsForRpcFailoverBehavior({
-        providerType,
-        requestToCall: {
-          method,
-          params: [],
-        },
-        getRequestToMock: () => ({
-          method,
-          params: [],
+        await expect(promiseForResult).rejects.toThrow(errorMessage);
+      });
+    });
+
+    testsForRpcFailoverBehavior({
+      providerType,
+      requestToCall: {
+        method,
+        params: [],
+      },
+      getRequestToMock: () => ({
+        method,
+        params: [],
+      }),
+      failure: {
+        httpStatus,
+      },
+      isRetriableFailure: false,
+      getExpectedError: () =>
+        expect.objectContaining({
+          message: errorMessage,
         }),
-        failure: {
-          httpStatus,
-        },
-        isRetriableFailure: false,
-        getExpectedError: () =>
-          expect.objectContaining({
-            message: errorMessage,
-          }),
-        getExpectedBreakError: () =>
-          expect.objectContaining({
-            message: `Fetch failed with status '${httpStatus}'`,
-          }),
-      });
-    },
-  );
+      getExpectedBreakError: () =>
+        expect.objectContaining({
+          message: `Fetch failed with status '500'`,
+        }),
+    });
+  });
 
-  describe.each([502, 503, 504])(
+  describe.each([503, 504])(
     'if the RPC endpoint returns a %d response',
     (httpStatus) => {
-      const errorMessage = 'RPC endpoint not found or unavailable.';
+      const errorMessage = 'Gateway timeout';
 
       it('retries the request up to 5 times until there is a 200 response', async () => {
         await withMockedCommunications({ providerType }, async (comms) => {
