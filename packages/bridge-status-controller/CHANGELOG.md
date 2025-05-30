@@ -9,14 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [27.0.0]
 
-### Uncategorized
-
-- Release 416.0.0 ([#5885](https://github.com/MetaMask/core/pull/5885))
-- Release 415.0.0 ([#5882](https://github.com/MetaMask/core/pull/5882))
-- Release 414.0.0 ([#5878](https://github.com/MetaMask/core/pull/5878))
-
 ### Changed
 
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency to `^30.0.0` ([#TODO](https://github.com/MetaMask/core/pull/TODO))
+- **BREAKING:** Bump `@metamask/bridge-controller` peer dependency to `^30.0.0` ([#TODO](https://github.com/MetaMask/core/pull/TODO))
 - **BREAKING:** Bump `@metamask/snaps-controllers` peer dependency from `^11.0.0` to `^12.0.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
 - Bump `@metamask/keyring-api` dependency from `^17.4.0` to `^18.0.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
 

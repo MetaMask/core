@@ -9,16 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [36.0.0]
 
-### Uncategorized
-
-- Release 415.0.0 ([#5882](https://github.com/MetaMask/core/pull/5882))
-- Release 414.0.0 ([#5878](https://github.com/MetaMask/core/pull/5878))
-- Fix block tracker not resolving for failed requests ([#5860](https://github.com/MetaMask/core/pull/5860))
-- Release/406.0.0 ([#5845](https://github.com/MetaMask/core/pull/5845))
-- Release 400.0.0 ([#5815](https://github.com/MetaMask/core/pull/5815))
-
 ### Changed
 
+- **BREAKING:** bump `@metamask/transaction-controller` peer dependency to `^57.0.0` ([#5802](https://github.com/MetaMask/core/pull/5802))
 - Bump `@metamask/controller-utils` to `^11.9.0` ([#5812](https://github.com/MetaMask/core/pull/5812))
 
 ## [35.0.0]

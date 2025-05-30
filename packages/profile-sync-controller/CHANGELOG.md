@@ -9,12 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [16.0.0]
 
-### Uncategorized
+### Changed
 
-- chore: update accounts/snaps deps ([#5871](https://github.com/MetaMask/core/pull/5871))
-- Release 416.0.0 ([#5885](https://github.com/MetaMask/core/pull/5885))
-- Release 415.0.0 ([#5882](https://github.com/MetaMask/core/pull/5882))
-- Release 399.0.0 ([#5812](https://github.com/MetaMask/core/pull/5812))
+- **BREAKING:** bump `@metamask/accounts-controller` peer dependency to `^30.0.0` ([#TODO](https://github.com/MetaMask/core/pull/TODO))
+- **BREAKING:** bump `@metamask/snaps-controllers` peer dependency to `^12.0.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
+- **BREAKING:** bump `@metamask/providers` peer dependency to `^22.0.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
 
 ## [15.0.0]
 
