@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Update `NftController` and `NftDetectionController` to eliminate the dependency on the current chain ([#5622](https://github.com/MetaMask/core/pull/5622))
   - All functions that previously accepted networkClientId as an optional parameter now require it as a mandatory parameter.
+- **BREAKING:** Add `NetworkController:findNetworkClientIdByChainId` to allowed actions in `NftController` ([#5622](https://github.com/MetaMask/core/pull/5622))
+- **BREAKING:** Add `NetworkController:findNetworkClientIdByChainId` to allowed actions in `NftDetectionController` ([#5622](https://github.com/MetaMask/core/pull/5622))
 - Remove `sei` from constants `SUPPORTED_CURRENCIES` ([#5883](https://github.com/MetaMask/core/pull/5883))
 
 ## [66.0.0]
