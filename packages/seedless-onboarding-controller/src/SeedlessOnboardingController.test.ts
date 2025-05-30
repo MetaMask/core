@@ -101,6 +101,11 @@ const mockGetNewRefreshToken = jest.fn().mockResolvedValue({
   refreshToken: 'newRefreshToken',
 });
 
+const mockRevokeRefreshToken = jest.fn().mockResolvedValue({
+  newRevokeToken: 'newRevokeToken',
+  newRefreshToken: 'newRefreshToken',
+});
+
 const MOCK_KEYRING_ID = 'mock-keyring-id';
 const MOCK_SEED_PHRASE = stringToBytes(
   'horror pink muffin canal young photo magnet runway start elder patch until',
@@ -183,7 +188,8 @@ async function withController<ReturnValue>(
     encryptor,
     messenger,
     network: Web3AuthNetwork.Devnet,
-    getNewRefreshToken: mockGetNewRefreshToken,
+    refreshJWTToken: mockGetNewRefreshToken,
+    revokeRefreshToken: mockRevokeRefreshToken,
     ...rest,
   });
   const { toprfClient } = controller;
@@ -478,7 +484,8 @@ describe('SeedlessOnboardingController', () => {
       const controller = new SeedlessOnboardingController({
         messenger,
         encryptor: getDefaultSeedlessOnboardingVaultEncryptor(),
-        getNewRefreshToken: mockGetNewRefreshToken,
+        refreshJWTToken: mockGetNewRefreshToken,
+        revokeRefreshToken: mockRevokeRefreshToken,
       });
       expect(controller).toBeDefined();
       expect(controller.state).toStrictEqual(
@@ -495,7 +502,8 @@ describe('SeedlessOnboardingController', () => {
           new SeedlessOnboardingController({
             messenger,
             encryptor,
-            getNewRefreshToken: mockGetNewRefreshToken,
+            refreshJWTToken: mockGetNewRefreshToken,
+            revokeRefreshToken: mockRevokeRefreshToken,
           }),
       ).not.toThrow();
     });
