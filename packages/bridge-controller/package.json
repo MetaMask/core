@@ -61,7 +61,8 @@
     "@metamask/polling-controller": "^13.0.0",
     "@metamask/utils": "^11.2.0",
     "bignumber.js": "^9.1.2",
-    "reselect": "^5.1.1"
+    "reselect": "^5.1.1",
+    "uuid": "^8.3.2"
   },
   "devDependencies": {
     "@metamask/accounts-controller": "^30.0.0",

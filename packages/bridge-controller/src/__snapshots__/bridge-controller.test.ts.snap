@@ -8,6 +8,7 @@ Object {
       "usdExchangeRate": "100",
     },
   },
+  "minimumBalanceForRentExemptionInLamports": "0",
   "quoteFetchError": null,
   "quoteRequest": Object {
     "destChainId": "0x1",
@@ -32,6 +33,7 @@ Object {
       "usdExchangeRate": "100",
     },
   },
+  "minimumBalanceForRentExemptionInLamports": "0",
   "quoteFetchError": null,
   "quoteRequest": Object {
     "destChainId": "0x1",
@@ -450,6 +452,7 @@ Object {
       "usdExchangeRate": "100",
     },
   },
+  "minimumBalanceForRentExemptionInLamports": "0",
   "quoteFetchError": null,
   "quoteRequest": Object {
     "destChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -477,6 +480,7 @@ Object {
       "usdExchangeRate": "100",
     },
   },
+  "minimumBalanceForRentExemptionInLamports": "0",
   "quoteFetchError": null,
   "quoteRequest": Object {
     "destChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
