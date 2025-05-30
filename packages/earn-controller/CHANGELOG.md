@@ -32,6 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `selectLendingMarketsByChainIdAndOutputTokenAddress`
   - `selectLendingMarketsByChainIdAndTokenAddress`
 - Added exports from `@metamask/stake-sdk`
+  - `isSupportedLendingChain`
+  - `isSupportedPooledStakingChain`
+  - `CHAIN_ID_TO_AAVE_POOL_CONTRACT`
 
 ### Changed
 
@@ -42,7 +45,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `reselect` as a dependency ([#5828](https://github.com/MetaMask/core/pull/5828))
 - Remove StablecoinLendingState type
 - Remove StablecoinVault type
-- 
 
 ## [0.15.0]
 

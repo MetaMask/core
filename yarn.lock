@@ -3025,7 +3025,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^11.9.0"
     "@metamask/network-controller": "npm:^23.5.1"
     "@metamask/stake-sdk": "npm:3.2.0"
-    "@metamask/transaction-controller": "^57.0.0"
+    "@metamask/transaction-controller": "npm:^57.0.0"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
