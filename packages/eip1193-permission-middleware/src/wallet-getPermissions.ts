@@ -46,7 +46,7 @@ export const getPermissionsHandler = {
  */
 async function getPermissionsImplementation(
   _req: JsonRpcRequest<Json[]>,
-  res: PendingJsonRpcResponse<Json>,
+  res: PendingJsonRpcResponse,
   _next: AsyncJsonRpcEngineNextCallback,
   end: JsonRpcEngineEndCallback,
   {

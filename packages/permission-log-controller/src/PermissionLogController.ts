@@ -252,7 +252,7 @@ export class PermissionLogController extends BaseController<
    */
   #logResponse(
     entry: PermissionActivityLog,
-    response: PendingJsonRpcResponse<Json>,
+    response: PendingJsonRpcResponse,
     time: number,
   ) {
     if (!entry || !response) {

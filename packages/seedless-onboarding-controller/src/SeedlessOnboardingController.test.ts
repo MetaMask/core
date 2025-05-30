@@ -446,6 +446,10 @@ function getMockInitialControllerState(options?: {
     state.authPubKey = options.authPubKey ?? MOCK_AUTH_PUB_KEY;
   }
 
+  if (options?.withMockAuthPubKey || options?.authPubKey) {
+    state.authPubKey = options.authPubKey ?? MOCK_AUTH_PUB_KEY;
+  }
+
   if (options?.recoveryRatelimitCache) {
     state.recoveryRatelimitCache = options.recoveryRatelimitCache;
   }
