@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add contact syncing capability with conflict resolution b/w local and remote storage ([#5776](https://github.com/MetaMask/core/pull/5776))
+
 ## [15.0.0]
 
 ### Changed
