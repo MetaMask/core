@@ -57,7 +57,7 @@
     "lodash": "^4.17.21"
   },
   "devDependencies": {
-    "@metamask/accounts-controller": "^29.0.0",
+    "@metamask/accounts-controller": "^29.0.1",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-controller": "^22.0.0",
     "@metamask/network-controller": "^23.5.1",
