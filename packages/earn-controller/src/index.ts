@@ -32,6 +32,14 @@ export {
   selectLendingPositionsWithMarket,
   selectLendingMarketsForChainId,
   selectIsLendingEligible,
+  selectLendingPositionsByProtocolChainIdMarketId,
+  selectLendingMarketsByTokenAddress,
+  selectLendingMarketsByChainIdAndOutputTokenAddress,
+  selectLendingMarketsByChainIdAndTokenAddress,
 } from './selectors';
 
-export * from '@metamask/stake-sdk';
+export {
+  CHAIN_ID_TO_AAVE_POOL_CONTRACT,
+  isSupportedLendingChain,
+  isSupportedPooledStakingChain,
+} from '@metamask/stake-sdk';

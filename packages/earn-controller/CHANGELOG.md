@@ -27,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `selectLendingPositionsWithMarket`
   - `selectLendingMarketsForChainId`
   - `selectIsLendingEligible`
+  - `selectLendingPositionsByProtocolChainIdMarketId`
+  - `selectLendingMarketsByTokenAddress`
+  - `selectLendingMarketsByChainIdAndOutputTokenAddress`
+  - `selectLendingMarketsByChainIdAndTokenAddress`
 - Added exports from `@metamask/stake-sdk`
 
 ### Changed
