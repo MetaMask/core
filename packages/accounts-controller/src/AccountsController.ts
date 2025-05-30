@@ -32,7 +32,6 @@ import type {
   SnapStateChange,
 } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
-import type { Snap } from '@metamask/snaps-utils';
 import { type CaipChainId, isCaipChainId } from '@metamask/utils';
 import type { WritableDraft } from 'immer/dist/internal.js';
 
