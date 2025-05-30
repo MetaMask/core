@@ -400,9 +400,6 @@
     "jsdoc/check-tag-names": 2,
     "jsdoc/tag-lines": 1
   },
-  "packages/permission-log-controller/tests/PermissionLogController.test.ts": {
-    "import-x/order": 1
-  },
   "packages/phishing-controller/src/PhishingController.ts": {
     "jsdoc/check-tag-names": 38,
     "jsdoc/tag-lines": 1
@@ -449,6 +446,12 @@
   },
   "packages/remote-feature-flag-controller/src/utils/user-segmentation-utils.ts": {
     "jsdoc/tag-lines": 2
+  },
+  "packages/seedless-onboarding-controller/src/errors.ts": {
+    "@typescript-eslint/no-unsafe-enum-comparison": 1
+  },
+  "packages/seedless-onboarding-controller/jest.environment.js": {
+    "n/no-unsupported-features/node-builtins": 1
   },
   "packages/selected-network-controller/src/SelectedNetworkController.ts": {
     "@typescript-eslint/prefer-readonly": 1,

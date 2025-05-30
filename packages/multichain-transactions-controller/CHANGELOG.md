@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Bump `@metamask/snaps-controllers` peer dependency from `^11.0.0` to `^12.0.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
+- Bump `@metamask/keyring-api` peer dependency from `^17.4.0` to `^18.0.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
+- Bump `@metamask/keyring-internal-api` dependency from `^6.0.1` to `^6.2.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
+- Bump `@metamask/keyring-snap-client` dependency from `^4.1.0` to `^5.0.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
+- Bump `@metamask/snaps-sdk` dependency from `^6.22.0` to `^7.0.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
+- Bump `@metamask/snaps-utils` dependency from `^9.2.0` to `^9.4.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
+
 ## [1.0.0]
 
 ### Changed
