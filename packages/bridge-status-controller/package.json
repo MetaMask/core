@@ -58,7 +58,7 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@metamask/accounts-controller": "^29.0.0",
+    "@metamask/accounts-controller": "^29.0.1",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/bridge-controller": "^29.0.0",
     "@metamask/gas-fee-controller": "^23.0.0",
