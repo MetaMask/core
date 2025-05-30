@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump `@metamask/snaps-controllers` peer dependency from `^11.0.0` to `^12.0.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
 - Bump `@metamask/keyring-api` dependency from `^17.4.0` to `^18.0.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
 
+## [26.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/bridge-controller` peer dependency to `^29.0.0` ([#5872](https://github.com/MetaMask/core/pull/5872))
+
 ## [25.0.0]
 
 ### Changed
@@ -273,7 +279,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@25.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@26.0.0...HEAD
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@25.0.0...@metamask/bridge-status-controller@26.0.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@24.0.0...@metamask/bridge-status-controller@25.0.0
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@23.0.0...@metamask/bridge-status-controller@24.0.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@22.0.0...@metamask/bridge-status-controller@23.0.0

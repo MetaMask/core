@@ -56,12 +56,12 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@metamask/accounts-controller": "^29.0.0",
+    "@metamask/accounts-controller": "^29.0.1",
     "@metamask/approval-controller": "^7.1.3",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-controller": "^22.0.0",
     "@metamask/logging-controller": "^6.0.4",
-    "@metamask/network-controller": "^23.5.0",
+    "@metamask/network-controller": "^23.5.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
