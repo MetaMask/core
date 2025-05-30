@@ -33,10 +33,7 @@ import {
   type NftControllerState,
   type NftMetadata,
 } from './NftController';
-import type {
-  NetworkClientId,
-  NetworkControllerFindNetworkClientIdByChainIdAction,
-} from '../../network-controller/src/NetworkController';
+import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '../../network-controller/src/NetworkController';
 
 const controllerName = 'NftDetectionController';
 
