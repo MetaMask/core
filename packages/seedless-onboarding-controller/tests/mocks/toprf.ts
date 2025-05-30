@@ -39,6 +39,7 @@ export const MOCK_BATCH_SECRET_DATA_ADD_RESPONSE = {
 export const MOCK_SECRET_DATA_GET_RESPONSE = {
   success: true,
   data: [],
+  ids: [],
 };
 
 export const MOCK_ACQUIRE_METADATA_LOCK_RESPONSE = {

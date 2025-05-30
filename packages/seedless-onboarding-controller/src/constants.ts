@@ -1,5 +1,7 @@
 export const controllerName = 'SeedlessOnboardingController';
 
+export const PASSWORD_OUTDATED_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
 export enum Web3AuthNetwork {
   Mainnet = 'sapphire_mainnet',
   Devnet = 'sapphire_devnet',
@@ -42,4 +44,7 @@ export enum SeedlessOnboardingControllerErrorMessage {
   FailedToChangePassword = `${controllerName} - Failed to change password`,
   TooManyLoginAttempts = `${controllerName} - Too many login attempts`,
   IncorrectPassword = `${controllerName} - Incorrect password`,
+  OutdatedPassword = `${controllerName} - Outdated password`,
+  CouldNotRecoverPassword = `${controllerName} - Could not recover password`,
+  SRPNotBackedUpError = `${controllerName} - SRP not backed up`,
 }

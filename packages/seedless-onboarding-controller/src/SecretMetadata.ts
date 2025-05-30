@@ -20,11 +20,8 @@ type ISecretMetadata<DataType extends SecretDataType = Uint8Array> = {
   toBytes: () => Uint8Array;
 };
 
-/**
- * This is like `SecretMetadata`, but without the `data` and `toBytes`
- * methods in which the data is `base64` encoded for more compacted
- * metadata.
- */
+// SecretMetadata type without the data and toBytes methods
+// in which the data is base64 encoded for more compacted metadata
 type SecretMetadataJson<DataType extends SecretDataType> = Omit<
   ISecretMetadata<DataType>,
   'data' | 'toBytes'
