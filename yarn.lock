@@ -2580,7 +2580,7 @@ __metadata:
     "@metamask/keyring-internal-api": "npm:^6.2.0"
     "@metamask/keyring-snap-client": "npm:^5.0.0"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
-    "@metamask/network-controller": "npm:^23.5.0"
+    "@metamask/network-controller": "npm:^23.5.1"
     "@metamask/permission-controller": "npm:^11.0.6"
     "@metamask/phishing-controller": "npm:^12.5.0"
     "@metamask/polling-controller": "npm:^13.0.0"
@@ -3847,7 +3847,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/network-controller@npm:^23.5.0, @metamask/network-controller@npm:^23.5.1, @metamask/network-controller@workspace:packages/network-controller":
+"@metamask/network-controller@npm:^23.5.1, @metamask/network-controller@workspace:packages/network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/network-controller@workspace:packages/network-controller"
   dependencies:
