@@ -1103,12 +1103,105 @@ describe('BridgeController', function () {
     },
   ]);
 
+  // Both expected calls for Solana quotes (includes getMinimumBalanceForRentExemption + fee calls)
+  const solanaSnapCalls = [
+    [
+      'SnapController:handleRequest',
+      {
+        snapId: 'npm:@metamask/solana-snap',
+        origin: 'metamask',
+        handler: 'onProtocolRequest',
+        request: {
+          jsonrpc: '2.0',
+          method: ' ',
+          params: {
+            request: {
+              id: expect.any(String),
+              jsonrpc: '2.0',
+              method: 'getMinimumBalanceForRentExemption',
+              params: [0, 'confirmed'],
+            },
+            scope: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+          },
+        },
+      },
+    ],
+    ...getFeeSnapCalls,
+    [
+      'SnapController:handleRequest',
+      {
+        snapId: 'npm:@metamask/solana-snap',
+        origin: 'metamask',
+        handler: 'onProtocolRequest',
+        request: {
+          jsonrpc: '2.0',
+          method: ' ',
+          params: {
+            request: {
+              id: expect.any(String),
+              jsonrpc: '2.0',
+              method: 'getMinimumBalanceForRentExemption',
+              params: [0, 'confirmed'],
+            },
+            scope: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+          },
+        },
+      },
+    ],
+  ];
+
+  // calls for mixed quotes (just getMinimumBalanceForRentExemption calls, no fee calls)
+  const mixedQuotesSnapCalls = [
+    [
+      'SnapController:handleRequest',
+      {
+        snapId: 'npm:@metamask/solana-snap',
+        origin: 'metamask',
+        handler: 'onProtocolRequest',
+        request: {
+          jsonrpc: '2.0',
+          method: ' ',
+          params: {
+            request: {
+              id: expect.any(String),
+              jsonrpc: '2.0',
+              method: 'getMinimumBalanceForRentExemption',
+              params: [0, 'confirmed'],
+            },
+            scope: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+          },
+        },
+      },
+    ],
+    [
+      'SnapController:handleRequest',
+      {
+        snapId: 'npm:@metamask/solana-snap',
+        origin: 'metamask',
+        handler: 'onProtocolRequest',
+        request: {
+          jsonrpc: '2.0',
+          method: ' ',
+          params: {
+            request: {
+              id: expect.any(String),
+              jsonrpc: '2.0',
+              method: 'getMinimumBalanceForRentExemption',
+              params: [0, 'confirmed'],
+            },
+            scope: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+          },
+        },
+      },
+    ],
+  ];
+
   it.each([
     [
       'should append solanaFees for Solana quotes',
       mockBridgeQuotesSolErc20 as unknown as QuoteResponse[],
       '5000',
-      getFeeSnapCalls,
+      solanaSnapCalls,
     ],
     [
       'should not append solanaFees if selected account is not a snap',
@@ -1124,7 +1217,7 @@ describe('BridgeController', function () {
         ...mockBridgeQuotesErc20Native,
       ] as unknown as QuoteResponse[],
       undefined,
-      [],
+      mixedQuotesSnapCalls,
     ],
   ])(
     'updateBridgeQuoteRequestParams: %s',
@@ -1132,7 +1225,7 @@ describe('BridgeController', function () {
       _testTitle: string,
       quoteResponse: QuoteResponse[],
       expectedFees: string | undefined,
-      expectedSnapCalls: typeof getFeeSnapCalls,
+      expectedSnapCalls: typeof solanaSnapCalls,
       isSnapAccount = true,
     ) => {
       jest.useFakeTimers();
