@@ -6,6 +6,7 @@ import {
 } from './controller-integration';
 import { canPerformContactSyncing } from './sync-utils';
 import type { ContactSyncingOptions } from './types';
+import { isContactBridgedFromAccounts } from './utils';
 
 /**
  * Initialize and setup events to listen to for contact syncing
@@ -23,12 +24,10 @@ export function setupContactSyncingSubscriptions(
     (contactEntry: AddressBookEntry) => {
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
       (async () => {
-        if (!canPerformContactSyncing(options)) {
-          return;
-        }
-
-        // Skip global accounts with chainId "*" : they are contacts bridged from accounts
-        if (String(contactEntry.chainId) === '*') {
+        if (
+          !canPerformContactSyncing(options) ||
+          isContactBridgedFromAccounts(contactEntry)
+        ) {
           return;
         }
 
@@ -48,12 +47,10 @@ export function setupContactSyncingSubscriptions(
     (contactEntry: AddressBookEntry) => {
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
       (async () => {
-        if (!canPerformContactSyncing(options)) {
-          return;
-        }
-
-        // Skip global accounts with chainId "*" : they are contacts bridged from accounts
-        if (String(contactEntry.chainId) === '*') {
+        if (
+          !canPerformContactSyncing(options) ||
+          isContactBridgedFromAccounts(contactEntry)
+        ) {
           return;
         }
 

@@ -51,20 +51,6 @@ export const MOCK_LOCAL_CONTACTS = {
       lastUpdatedAt: NOW + 1000,
     } as AddressBookEntry,
   ],
-
-  // Contact that has been marked as deleted
-  ONE_DELETED: [
-    {
-      address: '0x123456789012345678901234567890abcdef1234',
-      name: 'Contact One',
-      chainId: '0x1',
-      memo: 'First contact',
-      isEns: false,
-      lastUpdatedAt: NOW,
-      deleted: true,
-      deletedAt: NOW + 2000,
-    } as AddressBookEntry,
-  ],
 };
 
 // Remote UserStorageContactEntry mock objects

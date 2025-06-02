@@ -114,9 +114,6 @@ export function mockUserStorageMessengerForContactSyncing(options?: {
       if (method === 'AuthenticationController:checkAndRequestRenewSession') {
         return true;
       }
-      if (method === 'PreferencesController:getState') {
-        return { selectedAddress: '0x123', identities: {} };
-      }
       if (method === 'UserService:performRequest') {
         // Mock successful API response for performRequest
         return { data: 'success' };

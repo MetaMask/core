@@ -8,6 +8,7 @@ import {
   mapUserStorageEntryToAddressBookEntry,
   type SyncAddressBookEntry,
 } from './utils';
+import { isContactBridgedFromAccounts } from './utils';
 import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
 
 // Define a constant to use as the key for storing all contacts
@@ -77,7 +78,7 @@ export async function syncContactsWithUserStorage(
     const localVisibleContacts =
       getMessenger()
         .call('AddressBookController:list')
-        .filter((contact) => String(contact.chainId) !== '*') || [];
+        .filter((contact) => !isContactBridgedFromAccounts(contact)) || [];
 
     // Get remote contacts from user storage API
     const remoteContacts = await getRemoteContacts(options);
@@ -119,18 +120,10 @@ export async function syncContactsWithUserStorage(
         // SCENARIO 8: Remote deletion - should be applied locally if contact exists locally
         if (localContact) {
           contactsToDeleteLocally.push(remoteContact);
-
-          if (onContactDeleted) {
-            onContactDeleted();
-          }
         }
       } else if (!localContact) {
         // SCENARIO 2: New contact from remote - import to local
         contactsToAddOrUpdateLocally.push(remoteContact);
-
-        if (onContactUpdated) {
-          onContactUpdated();
-        }
       } else {
         // SCENARIO 4 & 6: Contact exists on both sides - check for conflicts
         const hasContentDifference =
@@ -148,10 +141,6 @@ export async function syncContactsWithUserStorage(
           } else {
             // Remote is newer - use remote version
             contactsToAddOrUpdateLocally.push(remoteContact);
-
-            if (onContactUpdated) {
-              onContactUpdated();
-            }
           }
         }
 
@@ -178,6 +167,10 @@ export async function syncContactsWithUserStorage(
           contact.chainId,
           contact.address,
         );
+
+        if (onContactDeleted) {
+          onContactDeleted();
+        }
       } catch (error) {
         console.error('Error deleting contact:', error);
       }
@@ -195,6 +188,10 @@ export async function syncContactsWithUserStorage(
             contact.memo || '',
             contact.addressType,
           );
+
+          if (onContactUpdated) {
+            onContactUpdated();
+          }
         } catch (error) {
           console.error('Error updating contact:', error);
         }
@@ -236,6 +233,9 @@ export async function syncContactsWithUserStorage(
       onContactSyncErroneousSituation('Error synchronizing contacts', {
         error,
       });
+
+      // Re-throw the error to be handled by the caller
+      throw error;
     }
   } finally {
     await getUserStorageControllerInstance().setIsContactSyncingInProgress(
@@ -319,41 +319,34 @@ export async function updateContactInRemoteStorage(
     return;
   }
 
-  try {
-    // Get current remote contacts or initialize empty array
-    const remoteContacts = (await getRemoteContacts(options)) || [];
+  // Get current remote contacts or initialize empty array
+  const remoteContacts = (await getRemoteContacts(options)) || [];
 
-    // Find if this contact already exists in remote
-    const key = createContactKey(contact);
-    const existingIndex = remoteContacts.findIndex(
-      (c) => createContactKey(c) === key,
-    );
+  // Find if this contact already exists in remote
+  const key = createContactKey(contact);
+  const existingIndex = remoteContacts.findIndex(
+    (c) => createContactKey(c) === key,
+  );
 
-    const updatedRemoteContacts = [...remoteContacts];
+  const updatedRemoteContacts = [...remoteContacts];
 
-    // Create an updated entry with timestamp
-    const updatedEntry = {
-      ...contact,
-      lastUpdatedAt: contact.lastUpdatedAt || Date.now(),
-      deleted: false, // Explicitly set to false in case this was previously deleted
-    } as SyncAddressBookEntry;
+  // Create an updated entry with timestamp
+  const updatedEntry = {
+    ...contact,
+    lastUpdatedAt: contact.lastUpdatedAt || Date.now(),
+    deleted: false, // Explicitly set to false in case this was previously deleted
+  } as SyncAddressBookEntry;
 
-    if (existingIndex !== -1) {
-      // Update existing contact
-      updatedRemoteContacts[existingIndex] = updatedEntry;
-    } else {
-      // Add as new contact
-      updatedRemoteContacts.push(updatedEntry);
-    }
-
-    // Save to remote storage
-    await saveContactsToUserStorage(updatedRemoteContacts, options);
-  } catch (error) {
-    console.error(
-      '🔄 Contacts Sync: Error updating contact in remote storage',
-      error,
-    );
+  if (existingIndex !== -1) {
+    // Update existing contact
+    updatedRemoteContacts[existingIndex] = updatedEntry;
+  } else {
+    // Add as new contact
+    updatedRemoteContacts.push(updatedEntry);
   }
+
+  // Save to remote storage
+  await saveContactsToUserStorage(updatedRemoteContacts, options);
 }
 
 /**
@@ -371,36 +364,29 @@ export async function deleteContactInRemoteStorage(
     return;
   }
 
-  try {
-    // Get current remote contacts
-    const remoteContacts = (await getRemoteContacts(options)) || [];
+  // Get current remote contacts
+  const remoteContacts = (await getRemoteContacts(options)) || [];
 
-    // Find the contact in remote storage
-    const key = createContactKey(contact);
-    const existingIndex = remoteContacts.findIndex(
-      (c) => createContactKey(c) === key,
-    );
+  // Find the contact in remote storage
+  const key = createContactKey(contact);
+  const existingIndex = remoteContacts.findIndex(
+    (c) => createContactKey(c) === key,
+  );
 
-    // If the contact exists in remote storage
-    if (existingIndex !== -1) {
-      const updatedRemoteContacts = [...remoteContacts];
-      const now = Date.now();
+  // If the contact exists in remote storage
+  if (existingIndex !== -1) {
+    const updatedRemoteContacts = [...remoteContacts];
+    const now = Date.now();
 
-      // Mark the contact as deleted
-      updatedRemoteContacts[existingIndex] = {
-        ...updatedRemoteContacts[existingIndex],
-        deleted: true,
-        deletedAt: now,
-        lastUpdatedAt: now,
-      };
+    // Mark the contact as deleted
+    updatedRemoteContacts[existingIndex] = {
+      ...updatedRemoteContacts[existingIndex],
+      deleted: true,
+      deletedAt: now,
+      lastUpdatedAt: now,
+    };
 
-      // Save to remote storage
-      await saveContactsToUserStorage(updatedRemoteContacts, options);
-    }
-  } catch (error) {
-    console.error(
-      '🔄 Contacts Sync: Error marking contact as deleted in remote storage',
-      error,
-    );
+    // Save to remote storage
+    await saveContactsToUserStorage(updatedRemoteContacts, options);
   }
 }

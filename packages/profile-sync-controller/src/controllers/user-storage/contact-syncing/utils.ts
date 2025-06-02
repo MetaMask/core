@@ -27,10 +27,17 @@ export type SyncAddressBookEntry = AddressBookEntry & {
 export const mapAddressBookEntryToUserStorageEntry = (
   addressBookEntry: AddressBookEntry,
 ): UserStorageContactEntry => {
-  const { address, name, chainId, memo, addressType } = addressBookEntry;
+  const {
+    address,
+    name,
+    chainId,
+    memo,
+    addressType,
+    lastUpdatedAt,
+    deleted,
+    deletedAt,
+  } = addressBookEntry as SyncAddressBookEntry;
 
-  // Get sync metadata from the input or use current timestamp if not present
-  const syncAddressBookEntry = addressBookEntry as SyncAddressBookEntry;
   const now = Date.now();
 
   return {
@@ -40,13 +47,9 @@ export const mapAddressBookEntryToUserStorageEntry = (
     c: chainId,
     ...(memo ? { m: memo } : {}),
     ...(addressType ? { t: addressType } : {}),
-    lu: syncAddressBookEntry.lastUpdatedAt || now,
-    ...(syncAddressBookEntry.deleted
-      ? { d: syncAddressBookEntry.deleted }
-      : {}),
-    ...(syncAddressBookEntry.deletedAt
-      ? { dt: syncAddressBookEntry.deletedAt }
-      : {}),
+    lu: lastUpdatedAt || now,
+    ...(deleted ? { d: deleted } : {}),
+    ...(deletedAt ? { dt: deletedAt } : {}),
   };
 };
 
@@ -61,30 +64,33 @@ export const mapAddressBookEntryToUserStorageEntry = (
 export const mapUserStorageEntryToAddressBookEntry = (
   userStorageEntry: UserStorageContactEntry,
 ): SyncAddressBookEntry => {
-  // Create a standard AddressBookEntry
   const addressBookEntry: SyncAddressBookEntry = {
     address: toChecksumHexAddress(userStorageEntry.a),
     name: userStorageEntry.n,
     chainId: userStorageEntry.c,
     memo: userStorageEntry.m || '',
-    isEns: false, // This will be updated by the AddressBookController
+    isEns: false,
     ...(userStorageEntry.t
       ? { addressType: userStorageEntry.t as AddressType }
       : {}),
+    // Include remote metadata for sync operation only (not stored in AddressBookController)
+    ...(userStorageEntry.d ? { deleted: userStorageEntry.d } : {}),
+    ...(userStorageEntry.dt ? { deletedAt: userStorageEntry.dt } : {}),
+    ...(userStorageEntry.lu ? { lastUpdatedAt: userStorageEntry.lu } : {}),
   };
 
-  // Include remote metadata for sync operation only (not stored in AddressBookController)
-  if (userStorageEntry.d) {
-    addressBookEntry.deleted = userStorageEntry.d;
-  }
-
-  if (userStorageEntry.dt) {
-    addressBookEntry.deletedAt = userStorageEntry.dt;
-  }
-
-  if (userStorageEntry.lu) {
-    addressBookEntry.lastUpdatedAt = userStorageEntry.lu;
-  }
-
   return addressBookEntry;
+};
+
+/**
+ * Check if a contact entry is bridged from accounts
+ * Contacts with chainId "*" are global accounts bridged from the accounts system
+ *
+ * @param contactEntry - The contact entry to check
+ * @returns True if the contact is bridged from accounts
+ */
+export const isContactBridgedFromAccounts = (
+  contactEntry: AddressBookEntry,
+): boolean => {
+  return String(contactEntry.chainId) === '*';
 };
