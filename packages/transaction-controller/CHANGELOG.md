@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Default addTransactionBatch to EIP7702 if supported, otherwise use sequential batch ([5853](https://github.com/MetaMask/core/pull/5853))
+- Default addTransactionBatch to EIP7702 if supported, otherwise use sequential batch ([#5853](https://github.com/MetaMask/core/pull/5853))
 
 ### Fixed
 
