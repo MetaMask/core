@@ -47,7 +47,7 @@ export type WalletInvokeMethodRequest = JsonRpcRequest & {
  */
 async function walletInvokeMethodHandler(
   request: WalletInvokeMethodRequest,
-  response: PendingJsonRpcResponse<Json>,
+  response: PendingJsonRpcResponse,
   next: () => void,
   end: (error?: Error) => void,
   hooks: {

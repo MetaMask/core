@@ -326,6 +326,7 @@ export type TxData = {
 };
 
 export type FeatureFlagsPlatformConfig = {
+  minimumVersion: string;
   refreshRate: number;
   maxRefreshCount: number;
   support: boolean;

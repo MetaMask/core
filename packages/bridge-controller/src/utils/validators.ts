@@ -63,6 +63,7 @@ export const validateFeatureFlagsResponse = (
   });
 
   const PlatformConfigSchema = type({
+    minimumVersion: string(),
     refreshRate: number(),
     maxRefreshCount: number(),
     support: boolean(),

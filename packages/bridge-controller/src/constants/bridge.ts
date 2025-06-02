@@ -16,6 +16,7 @@ export const ALLOWED_BRIDGE_CHAIN_IDS = [
   CHAIN_IDS.ARBITRUM,
   CHAIN_IDS.LINEA_MAINNET,
   CHAIN_IDS.BASE,
+  CHAIN_IDS.SEI,
   SolScope.Mainnet,
 ] as const;
 
@@ -44,6 +45,7 @@ export const DEFAULT_MAX_REFRESH_COUNT = 5;
 export const BRIDGE_CONTROLLER_NAME = 'BridgeController';
 
 export const DEFAULT_FEATURE_FLAG_CONFIG = {
+  minimumVersion: '0.0.0',
   refreshRate: REFRESH_INTERVAL_MS,
   maxRefreshCount: DEFAULT_MAX_REFRESH_COUNT,
   support: false,

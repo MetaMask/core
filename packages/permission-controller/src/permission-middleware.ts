@@ -63,7 +63,7 @@ export function getPermissionMiddlewareFactory({
 
     const permissionsMiddleware = async (
       req: JsonRpcRequest<RestrictedMethodParameters>,
-      res: PendingJsonRpcResponse<Json>,
+      res: PendingJsonRpcResponse,
       next: AsyncJsonRpcEngineNextCallback,
     ): Promise<void> => {
       const { method, params } = req;
