@@ -823,6 +823,8 @@ describe('Batch Utils', () => {
             }),
             true,
           );
+          expect(simulateGasBatchMock).toHaveBeenCalledTimes(1);
+          expect(getGasFeesMock).toHaveBeenCalledTimes(1);
         },
       );
 
@@ -1527,6 +1529,8 @@ describe('Batch Utils', () => {
 
         const result = await resultPromise;
         expect(result?.batchId).toMatch(/^0x[0-9a-f]{32}$/u);
+        expect(simulateGasBatchMock).toHaveBeenCalledTimes(1);
+        expect(getGasFeesMock).toHaveBeenCalledTimes(1);
       });
 
       it('saves a transaction batch and then cleans the specific batch by ID', async () => {

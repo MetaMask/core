@@ -594,6 +594,7 @@ async function requestApproval(
   const type = 'transaction_batch';
   const requestData = { txBatchId: id };
 
+  log('Requesting approval for transaction batch', id);
   return (await messenger.call(
     'ApprovalController:addRequest',
     {
@@ -693,7 +694,7 @@ async function prepareApprovalData({
   if (!isSimulationEnabled()) {
     throw new Error('Simulation is not enabled');
   }
-
+  log('Preparing approval data for batch');
   const chainId = getChainId(networkClientId);
 
   const { gasLimit } = await simulateGasBatch({
@@ -732,6 +733,7 @@ async function prepareApprovalData({
 
   txBatchMeta.gasFeeEstimates = gasFeeResponse.estimates;
 
+  log('Saving transaction batch metadata', txBatchMeta);
   addBatchMetadata(txBatchMeta, update);
 
   return txBatchMeta;
