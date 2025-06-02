@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added an optional `getFailoverRpcs` parameter to `NetworkControllerOptions` constructor options.
+  - This allows platforms to provide and inject failover RPCs for different chainID's
+
 ## [23.5.1]
 
 ### Changed
