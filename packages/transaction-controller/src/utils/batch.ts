@@ -678,7 +678,9 @@ async function prepareApprovalData({
   update: UpdateStateCallback;
 }): Promise<TransactionBatchMeta> {
   if (!isSimulationEnabled()) {
-    throw new Error('Simulation is not enabled');
+    throw new Error(
+      'Cannot create transaction batch as simulation not supported',
+    );
   }
 
   const { gasLimit } = await simulateGasBatch({
