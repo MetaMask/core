@@ -340,6 +340,7 @@ async function addTransactionBatchWith7702(
         },
       ],
       delegationMock: txParams.authorizationList?.[0]?.address,
+      origin,
     };
 
     log('Security request', securityRequest);
@@ -692,7 +693,9 @@ async function prepareApprovalData({
   } = userRequest;
 
   if (!isSimulationEnabled()) {
-    throw new Error('Simulation is not enabled');
+    throw new Error(
+      'Cannot create transaction batch as simulation not supported',
+    );
   }
   log('Preparing approval data for batch');
   const chainId = getChainId(networkClientId);

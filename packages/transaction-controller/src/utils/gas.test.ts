@@ -903,7 +903,7 @@ describe('gas', () => {
       jest.resetAllMocks();
     });
 
-    it('returns simulated gas limits for each transaction and the total gas limit', async () => {
+    it('returns the total gas limit as a hex string', async () => {
       simulateTransactionsMock.mockResolvedValueOnce(
         SIMULATED_TRANSACTIONS_RESPONSE_MOCK,
       );
@@ -915,22 +915,6 @@ describe('gas', () => {
       });
 
       expect(result).toStrictEqual({
-        transactions: [
-          {
-            ...TRANSACTION_BATCH_REQUEST_MOCK[0],
-            params: {
-              ...TRANSACTION_BATCH_REQUEST_MOCK[0].params,
-              gas: GAS_MOCK_1,
-            },
-          },
-          {
-            ...TRANSACTION_BATCH_REQUEST_MOCK[1],
-            params: {
-              ...TRANSACTION_BATCH_REQUEST_MOCK[1].params,
-              gas: GAS_MOCK_2,
-            },
-          },
-        ],
         gasLimit: '0x7f328', // Total gas limit (21000 + 500000 = 521000)
       });
 
@@ -962,7 +946,9 @@ describe('gas', () => {
           from: FROM_MOCK,
           transactions: TRANSACTION_BATCH_REQUEST_MOCK,
         }),
-      ).rejects.toThrow('Simulation response does not match transaction count');
+      ).rejects.toThrow(
+        'Cannot estimate transaction batch total gas as simulation failed',
+      );
 
       expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
     });
@@ -981,7 +967,9 @@ describe('gas', () => {
           from: FROM_MOCK,
           transactions: TRANSACTION_BATCH_REQUEST_MOCK,
         }),
-      ).rejects.toThrow('No simulated gas returned');
+      ).rejects.toThrow(
+        'Cannot estimate transaction batch total gas as simulation failed',
+      );
 
       expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
     });
@@ -998,7 +986,6 @@ describe('gas', () => {
       });
 
       expect(result).toStrictEqual({
-        transactions: [],
         gasLimit: '0x0', // Total gas limit is 0
       });
 
@@ -1006,6 +993,24 @@ describe('gas', () => {
       expect(simulateTransactionsMock).toHaveBeenCalledWith(CHAIN_ID_MOCK, {
         transactions: [],
       });
+    });
+
+    it('throws an error if the simulation fails', async () => {
+      simulateTransactionsMock.mockRejectedValueOnce(
+        new Error('Simulation failed'),
+      );
+
+      await expect(
+        simulateGasBatch({
+          chainId: CHAIN_ID_MOCK,
+          from: FROM_MOCK,
+          transactions: TRANSACTION_BATCH_REQUEST_MOCK,
+        }),
+      ).rejects.toThrow(
+        'Cannot estimate transaction batch total gas as simulation failed',
+      );
+
+      expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
     });
   });
 });

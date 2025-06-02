@@ -35,7 +35,7 @@ export const revokePermissionsHandler = {
  */
 function revokePermissionsImplementation(
   req: JsonRpcRequest<Json[]>,
-  res: PendingJsonRpcResponse<Json>,
+  res: PendingJsonRpcResponse,
   _next: AsyncJsonRpcEngineNextCallback,
   end: JsonRpcEngineEndCallback,
   {

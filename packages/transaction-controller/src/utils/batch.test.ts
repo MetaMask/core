@@ -284,16 +284,6 @@ describe('Batch Utils', () => {
 
       simulateGasBatchMock.mockResolvedValue({
         gasLimit: GAS_TOTAL_MOCK,
-        transactions: [
-          {
-            params: TRANSACTION_BATCH_PARAMS_MOCK,
-            type: TransactionType.contractInteraction,
-          },
-          {
-            params: TRANSACTION_BATCH_PARAMS_MOCK,
-            type: TransactionType.contractInteraction,
-          },
-        ],
       });
 
       request = {
@@ -679,6 +669,7 @@ describe('Batch Utils', () => {
                 value: VALUE_MOCK,
               },
             ],
+            origin: ORIGIN_MOCK,
           },
           CHAIN_ID_MOCK,
         );
@@ -729,6 +720,7 @@ describe('Batch Utils', () => {
                 value: VALUE_MOCK,
               },
             ],
+            origin: ORIGIN_MOCK,
           },
           CHAIN_ID_MOCK,
         );
@@ -988,17 +980,6 @@ describe('Batch Utils', () => {
 
         simulateGasBatchMock.mockResolvedValueOnce({
           gasLimit: GAS_TOTAL_MOCK,
-          transactions: [
-            {
-              existingTransaction: EXISTING_TRANSACTION_MOCK,
-              params: TRANSACTION_BATCH_PARAMS_MOCK,
-              type: TransactionType.contractInteraction,
-            },
-            {
-              params: TRANSACTION_BATCH_PARAMS_MOCK,
-              type: TransactionType.contractInteraction,
-            },
-          ],
         });
 
         addTransactionMock
@@ -1095,25 +1076,9 @@ describe('Batch Utils', () => {
         const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
         const onPublish = jest.fn();
         const existingTransactionMock = {};
-        const EXISTING_TRANSACTION_MOCK = {
-          id: TRANSACTION_ID_2_MOCK,
-          onPublish,
-          signedTransaction: TRANSACTION_SIGNATURE_2_MOCK,
-        } as TransactionBatchSingleRequest['existingTransaction'];
 
         simulateGasBatchMock.mockResolvedValueOnce({
           gasLimit: GAS_TOTAL_MOCK,
-          transactions: [
-            {
-              existingTransaction: EXISTING_TRANSACTION_MOCK,
-              params: TRANSACTION_BATCH_PARAMS_MOCK,
-              type: TransactionType.contractInteraction,
-            },
-            {
-              params: TRANSACTION_BATCH_PARAMS_MOCK,
-              type: TransactionType.contractInteraction,
-            },
-          ],
         });
 
         addTransactionMock
@@ -1449,7 +1414,9 @@ describe('Batch Utils', () => {
             isSimulationEnabled: () => isSimulationSupportedMock(),
             request: { ...request.request, useHook: true },
           }),
-        ).rejects.toThrow(rpcErrors.internal('Simulation is not enabled'));
+        ).rejects.toThrow(
+          'Cannot create transaction batch as simulation not supported',
+        );
       });
 
       it('invokes sequentialPublishBatchHook when publishBatchHook is undefined', async () => {
@@ -1710,6 +1677,7 @@ describe('Batch Utils', () => {
         CHAIN_ID_MOCK,
         CHAIN_ID_2_MOCK,
       ]);
+      getEIP7702UpgradeContractAddressMock.mockReturnValueOnce(undefined);
 
       isAccountUpgradedToEIP7702Mock.mockResolvedValue({
         isSupported: false,
