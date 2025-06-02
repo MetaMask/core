@@ -479,7 +479,7 @@ describe('Batch Utils', () => {
       doesChainSupportEIP7702Mock.mockReturnValue(false);
 
       await expect(addTransactionBatch(request)).rejects.toThrow(
-        rpcErrors.internal('Chain does not support EIP-7702'),
+        rpcErrors.internal("Can't process batch"),
       );
     });
 
