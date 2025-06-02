@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0]
+
 ### Added
 
 - Initial implementation of the seedless onboarding controller. ([#5874](https://github.com/MetaMask/core/pull/5874))
@@ -31,4 +33,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - added an optional constructor param, `topfKeyDeriver` to assist the `Key derivation` in `toprf-seucre-backup` sdk and adds an additinal security
   - added new state value, `recoveryRatelimitCache` to the controller to parse the `RecoveryError` correctly and synchroize the error data (numberOfAttempts) across multiple devices.
 
-[Unreleased]: https://github.com/MetaMask/core/
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/seedless-onboarding-controller@1.0.0
