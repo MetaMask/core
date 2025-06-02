@@ -25,7 +25,6 @@ import {
   bytesToBase64,
   stringToBytes,
   bigIntToHex,
-  remove0x,
 } from '@metamask/utils';
 import type { webcrypto } from 'node:crypto';
 
