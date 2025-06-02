@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Bump `@metamask/assets-controller` peer dependency to `^68.0.0` ([#5894](https://github.com/MetaMask/core/pull/5894))
+
 ### Added
 
 - Add `SEI` network support ([#5695](https://github.com/MetaMask/core/pull/5695))
