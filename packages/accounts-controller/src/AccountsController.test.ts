@@ -7,9 +7,9 @@ import type {
 } from '@metamask/keyring-api';
 import {
   BtcAccountType,
+  BtcScope,
   EthAccountType,
   EthScope,
-  BtcScope,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -17,8 +17,8 @@ import type { NetworkClientId } from '@metamask/network-controller';
 import type { SnapControllerState } from '@metamask/snaps-controllers';
 import { SnapStatus } from '@metamask/snaps-utils';
 import type { CaipChainId } from '@metamask/utils';
-import * as uuid from 'uuid';
 import type { V4Options } from 'uuid';
+import * as uuid from 'uuid';
 
 import type {
   AccountsControllerActions,
@@ -181,6 +181,29 @@ function setLastSelectedAsAny(account: InternalAccount): InternalAccount {
 }
 
 /**
+ * Sets the `entropySource` property of the given `account` to the specified
+ * keyringId value.
+ *
+ * @param account - The account to modify.
+ * @param keyringId - The keyring ID to set as entropySource.
+ * @returns The modified account.
+ */
+function populateEntropySource(
+  account: InternalAccount,
+  keyringId: string,
+): InternalAccount {
+  return JSON.parse(
+    JSON.stringify({
+      ...account,
+      options: {
+        ...account.options,
+        entropySource: keyringId,
+      },
+    }),
+  ) as InternalAccount;
+}
+
+/**
  * Builds a new instance of the Messenger class for the AccountsController.
  *
  * @returns A new instance of the Messenger class for the AccountsController.
@@ -302,9 +325,7 @@ describe('AccountsController', () => {
             status: SnapStatus.Running,
           },
         },
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any as SnapControllerState;
+      } as unknown as SnapControllerState;
       const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -348,9 +369,7 @@ describe('AccountsController', () => {
             status: SnapStatus.Running,
           },
         },
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any as SnapControllerState;
+      } as unknown as SnapControllerState;
       const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -394,9 +413,7 @@ describe('AccountsController', () => {
             status: SnapStatus.Running,
           },
         },
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any as SnapControllerState;
+      } as unknown as SnapControllerState;
       const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -440,9 +457,7 @@ describe('AccountsController', () => {
             status: SnapStatus.Running,
           },
         },
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any as SnapControllerState;
+      } as unknown as SnapControllerState;
       const mockStateChange = jest.fn();
       const { accountsController } = setupAccountsController({
         initialState: {
@@ -471,6 +486,48 @@ describe('AccountsController', () => {
       messenger.publish('SnapController:stateChange', mockSnapChangeState, []);
       expect(updatedAccount.metadata.snap?.enabled).toBe(true);
       expect(mockStateChange).not.toHaveBeenCalled();
+    });
+
+    it('considers the Snap disabled if it cannot be found on the SnapController state', () => {
+      const messenger = buildMessenger();
+      const mockSnapAccount = createMockInternalAccount({
+        id: 'mock-id',
+        name: 'Snap Account 1',
+        address: '0x0',
+        keyringType: KeyringTypes.snap,
+        snap: {
+          id: 'mock-snap',
+          name: 'mock-snap-name',
+          enabled: true, // This Snap was enabled initially.
+        },
+      });
+      const mockSnapChangeState = {
+        snaps: {
+          // No `mock-snap` on the state, the Snap will be considered "disabled".
+        },
+      } as unknown as SnapControllerState;
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockSnapAccount.id]: mockSnapAccount,
+            },
+            selectedAccount: mockSnapAccount.id,
+          },
+        },
+        messenger,
+      });
+
+      // Initial state
+      const account = accountsController.getAccountExpect(mockSnapAccount.id);
+      expect(account.metadata.snap?.enabled).toBe(true);
+
+      // The Snap 'mock-snap' won't be found, so we will automatically consider it disabled.
+      messenger.publish('SnapController:stateChange', mockSnapChangeState, []);
+      const updatedAccount = accountsController.getAccountExpect(
+        mockSnapAccount.id,
+      );
+      expect(updatedAccount.metadata.snap?.enabled).toBe(false);
     });
   });
 
@@ -621,7 +678,7 @@ describe('AccountsController', () => {
 
         expect(accounts).toStrictEqual([
           mockAccount,
-          setLastSelectedAsAny(mockAccount2),
+          setLastSelectedAsAny(populateEntropySource(mockAccount2, 'mock-id')),
         ]);
       });
 
@@ -876,6 +933,9 @@ describe('AccountsController', () => {
               name: 'Account 3',
               address: mockAccount3.address,
               keyringType: KeyringTypes.hd,
+              options: {
+                entropySource: 'mock-id',
+              },
             }),
           ),
         ]);
@@ -941,7 +1001,9 @@ describe('AccountsController', () => {
             name: 'Account 3',
             address: mockAccount3.address,
             keyringType: KeyringTypes.hd,
-            options: {},
+            options: {
+              entropySource: 'mock-id',
+            },
           }),
         ]);
       });
@@ -1044,7 +1106,7 @@ describe('AccountsController', () => {
 
         expect(accounts).toStrictEqual([
           mockAccount,
-          setLastSelectedAsAny(mockAccount2),
+          setLastSelectedAsAny(populateEntropySource(mockAccount2, 'mock-id')),
         ]);
         expect(accountsController.getSelectedAccount().id).toBe(mockAccount.id);
       });
@@ -1093,7 +1155,7 @@ describe('AccountsController', () => {
           // 2. AccountsController:stateChange
           3,
           'AccountsController:accountAdded',
-          setLastSelectedAsAny(mockAccount2),
+          setLastSelectedAsAny(populateEntropySource(mockAccount2, 'mock-id')),
         );
       });
     });
@@ -1407,6 +1469,9 @@ describe('AccountsController', () => {
         name: 'Account 1',
         address: '0x456',
         keyringType: KeyringTypes.hd,
+        options: {
+          entropySource: 'mock-id',
+        },
       });
 
       mockUUIDWithNormalAccounts([

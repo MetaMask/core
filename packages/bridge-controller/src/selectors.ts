@@ -430,3 +430,10 @@ export const selectMaxBalanceButtonVisibilityForSrcToken = createBridgeSelector(
         new BigNumber(balanceValue ?? 0).gt(0),
     ),
 );
+
+export const selectMinimumBalanceForRentExemptionInSOL = (
+  state: BridgeAppState,
+) =>
+  new BigNumber(state.minimumBalanceForRentExemptionInLamports ?? 0)
+    .div(10 ** 9)
+    .toString();

@@ -2,11 +2,7 @@ import {
   invalidParams,
   type RequestedPermissions,
 } from '@metamask/permission-controller';
-import type {
-  Json,
-  JsonRpcRequest,
-  PendingJsonRpcResponse,
-} from '@metamask/utils';
+import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
 
 import { requestPermissionsHandler } from './wallet-requestPermissions';
 import {
@@ -44,7 +40,7 @@ const createMockedHandler = () => {
     .fn()
     .mockReturnValue({});
 
-  const response: PendingJsonRpcResponse<Json> = {
+  const response: PendingJsonRpcResponse = {
     jsonrpc: '2.0' as const,
     id: 0,
   };
