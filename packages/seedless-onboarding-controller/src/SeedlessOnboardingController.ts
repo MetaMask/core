@@ -710,22 +710,24 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     skipCache?: boolean;
     skipLock?: boolean;
   }): Promise<boolean> {
-    // cache result to reduce load on infra
-    // Check cache first unless skipCache is true
-    if (!options?.skipCache) {
-      const { passwordOutdatedCache } = this.state;
-      const now = Date.now();
-      const isCacheValid =
-        passwordOutdatedCache &&
-        now - passwordOutdatedCache.timestamp < PASSWORD_OUTDATED_CACHE_TTL_MS;
-
-      if (isCacheValid) {
-        return passwordOutdatedCache.isExpiredPwd;
-      }
-    }
-
-    const doCheck = async () => {
+    const doCheckIsPasswordExpired = async () => {
       this.#assertIsAuthenticatedUser(this.state);
+
+      // cache result to reduce load on infra
+      // Check cache first unless skipCache is true
+      if (!options?.skipCache) {
+        const { passwordOutdatedCache } = this.state;
+        const now = Date.now();
+        const isCacheValid =
+          passwordOutdatedCache &&
+          now - passwordOutdatedCache.timestamp <
+            PASSWORD_OUTDATED_CACHE_TTL_MS;
+
+        if (isCacheValid) {
+          return passwordOutdatedCache.isExpiredPwd;
+        }
+      }
+
       const {
         nodeAuthTokens,
         authConnectionId,
@@ -757,8 +759,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     return await this.#executeWithTokenRefresh(
       async () =>
         options?.skipLock
-          ? await doCheck()
-          : await this.#withControllerLock(doCheck),
+          ? await doCheckIsPasswordExpired()
+          : await this.#withControllerLock(doCheckIsPasswordExpired),
       'checkIsPasswordOutdated',
     );
   }
