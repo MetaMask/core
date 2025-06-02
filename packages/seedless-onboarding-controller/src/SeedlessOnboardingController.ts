@@ -211,8 +211,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @param params.socialLoginEmail - The user email from Social login.
    * @param params.refreshToken - refresh token for refreshing expired nodeAuthTokens.
    * @param params.revokeToken - revoke token for revoking refresh token and get new refresh token and new revoke token.
-   * @param params.skipLock - Optional flag to skip acquiring the controller lock.
-   * You can pass this to use aggregate multiple OAuth connections. Useful when you want user to have same account while using different OAuth connections.
+   * @param params.skipLock - Optional flag to skip acquiring the controller lock. (to prevent deadlock in case the caller already acquired the lock)
    * @returns A promise that resolves to the authentication result.
    */
   async authenticate(params: {
@@ -518,7 +517,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    *
    * @param password - The password to verify.
    * @param options - Optional options object.
-   * @param options.skipLock - Whether to skip the lock acquisition.
+   * @param options.skipLock - Whether to skip the lock acquisition. (to prevent deadlock in case the caller already acquired the lock)
    * @returns A promise that resolves to the success of the operation.
    * @throws {Error} If the password is invalid or the vault is not initialized.
    */
@@ -703,7 +702,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    *
    * @param options - Optional options object.
    * @param options.skipCache - If true, bypass the cache and force a fresh check.
-   * @param options.skipLock - Whether to skip the lock acquisition.
+   * @param options.skipLock - Whether to skip the lock acquisition. (to prevent deadlock in case the caller already acquired the lock)
    * @returns A promise that resolves to true if the password is outdated, false otherwise.
    */
   async checkIsPasswordOutdated(options?: {
@@ -1437,7 +1436,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    *
    * @param options - The options for asserting the password is in sync.
    * @param options.skipCache - Whether to skip the cache check.
-   * @param options.skipLock - Whether to skip the lock acquisition.
+   * @param options.skipLock - Whether to skip the lock acquisition. (to prevent deadlock in case the caller already acquired the lock)
    * @throws If the password is outdated.
    */
   async #assertPasswordInSync(options?: {
