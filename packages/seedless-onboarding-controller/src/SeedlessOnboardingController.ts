@@ -16,8 +16,8 @@ import { base64ToBytes, bytesToBase64, bigIntToHex } from '@metamask/utils';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { Mutex } from 'async-mutex';
 
+import type { AuthConnection } from './constants';
 import {
-  type AuthConnection,
   controllerName,
   PASSWORD_OUTDATED_CACHE_TTL_MS,
   SecretType,
@@ -39,6 +39,7 @@ import type {
   VaultEncryptor,
   RefreshJWTToken,
   RevokeRefreshToken,
+  DecodedNodeAuthToken,
 } from './types';
 
 const log = createModuleLogger(projectLogger, controllerName);
@@ -1589,6 +1590,14 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     operationName: string,
   ): Promise<T> {
     try {
+      if (this.checkNodeAuthTokenExpired()) {
+        log(
+          `JWT token expired during ${operationName}, attempting to refresh tokens`,
+          'node auth token exp check',
+        );
+        await this.refreshNodeAuthTokens();
+      }
+
       return await operation();
     } catch (error) {
       // Check if this is a token expiration error
@@ -1611,6 +1620,33 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         throw error;
       }
     }
+  }
+
+  /**
+   * Check if the current node auth token is expired.
+   *
+   * @returns True if the current node auth token is expired, false otherwise.
+   */
+  public checkNodeAuthTokenExpired(): boolean {
+    this.#assertIsAuthenticatedUser(this.state);
+
+    const { nodeAuthTokens } = this.state;
+    // all auth tokens should be expired at the same time so we can check the first one
+    const firstAuthToken = nodeAuthTokens[0]?.authToken;
+    // node auth token is base64 encoded json object
+    const decodedToken = this.#decodeNodeAuthToken(firstAuthToken);
+    // check if the token is expired
+    return decodedToken.exp < Date.now() / 1000;
+  }
+
+  /**
+   * Decode the node auth token from base64 to json object.
+   *
+   * @param token - The node auth token to decode.
+   * @returns The decoded node auth token.
+   */
+  #decodeNodeAuthToken(token: string): DecodedNodeAuthToken {
+    return JSON.parse(Buffer.from(token, 'base64').toString());
   }
 }
 

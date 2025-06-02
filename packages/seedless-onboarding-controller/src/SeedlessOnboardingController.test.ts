@@ -72,6 +72,7 @@ const groupedAuthConnectionId = 'auth-server';
 const userId = 'user-test@gmail.com';
 const idTokens = ['idToken'];
 const refreshToken = 'refreshToken';
+const revokeToken = 'revokeToken';
 
 const MOCK_NODE_AUTH_TOKENS = [
   {
@@ -90,21 +91,6 @@ const MOCK_NODE_AUTH_TOKENS = [
     nodePubKey: 'nodePubKey3',
   },
 ];
-
-/**
- * Mock getNewRefreshToken function for tests.
- *
- * @returns A promise that resolves to new idTokens and refreshToken.
- */
-const mockGetNewRefreshToken = jest.fn().mockResolvedValue({
-  idTokens: ['newIdToken'],
-  refreshToken: 'newRefreshToken',
-});
-
-const mockRevokeRefreshToken = jest.fn().mockResolvedValue({
-  newRevokeToken: 'newRevokeToken',
-  newRefreshToken: 'newRefreshToken',
-});
 
 const MOCK_KEYRING_ID = 'mock-keyring-id';
 const MOCK_SEED_PHRASE = stringToBytes(
@@ -127,6 +113,8 @@ type WithControllerCallback<ReturnValue, EKey> = ({
   messenger: SeedlessOnboardingControllerMessenger;
   baseMessenger: Messenger<AllowedActions, AllowedEvents>;
   toprfClient: ToprfSecureBackup;
+  mockRefreshJWTToken: jest.Mock;
+  mockRevokeRefreshToken: jest.Mock;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions<EKey> = Partial<
@@ -184,14 +172,26 @@ async function withController<ReturnValue>(
   const encryptor = new MockVaultEncryptor();
   const { messenger, baseMessenger } = mockSeedlessOnboardingMessenger();
 
+  const mockRefreshJWTToken = jest.fn().mockResolvedValue({
+    idTokens: ['newIdToken'],
+  });
+  const mockRevokeRefreshToken = jest.fn().mockResolvedValue({
+    newRevokeToken: 'newRevokeToken',
+    newRefreshToken: 'newRefreshToken',
+  });
+
   const controller = new SeedlessOnboardingController({
     encryptor,
     messenger,
     network: Web3AuthNetwork.Devnet,
-    refreshJWTToken: mockGetNewRefreshToken,
+    refreshJWTToken: mockRefreshJWTToken,
     revokeRefreshToken: mockRevokeRefreshToken,
     ...rest,
   });
+
+  // default node auth token not expired for testing
+  jest.spyOn(controller, 'checkNodeAuthTokenExpired').mockReturnValue(false);
+
   const { toprfClient } = controller;
   return await fn({
     controller,
@@ -200,6 +200,8 @@ async function withController<ReturnValue>(
     messenger,
     baseMessenger,
     toprfClient,
+    mockRefreshJWTToken,
+    mockRevokeRefreshToken,
   });
 }
 
@@ -358,7 +360,7 @@ async function mockCreateToprfKeyAndBackupSeedPhrase<EKey>(
  * @param authKeyPair - The authentication key pair.
  * @param MOCK_PASSWORD - The mock password.
  * @param authTokens - The authentication tokens.
- * @param mockRefreshToken - The refresh token.
+ * @param mockRevokeToken - The revoke token.
  *
  * @returns The mock vault data.
  */
@@ -367,7 +369,7 @@ async function createMockVault(
   authKeyPair: KeyPair,
   MOCK_PASSWORD: string,
   authTokens: NodeAuthTokens,
-  mockRefreshToken: string = refreshToken,
+  mockRevokeToken: string = revokeToken,
 ) {
   const encryptor = createMockVaultEncryptor();
 
@@ -378,7 +380,7 @@ async function createMockVault(
       sk: `0x${authKeyPair.sk.toString(16)}`,
       pk: bytesToBase64(authKeyPair.pk),
     }),
-    refreshToken: mockRefreshToken,
+    revokeToken: mockRevokeToken,
   });
 
   const { vault: encryptedMockVault, exportedKeyString } =
@@ -388,6 +390,7 @@ async function createMockVault(
     encryptedMockVault,
     vaultEncryptionKey: exportedKeyString,
     vaultEncryptionSalt: JSON.parse(encryptedMockVault).salt,
+    revokeToken: mockRevokeToken,
   };
 }
 
@@ -464,6 +467,7 @@ function getMockInitialControllerState(options?: {
     state.groupedAuthConnectionId = groupedAuthConnectionId;
     state.userId = userId;
     state.refreshToken = refreshToken;
+    state.revokeToken = revokeToken;
   }
 
   if (options?.withMockAuthPubKey || options?.authPubKey) {
@@ -480,11 +484,18 @@ function getMockInitialControllerState(options?: {
 describe('SeedlessOnboardingController', () => {
   describe('constructor', () => {
     it('should be able to instantiate', () => {
+      const mockRefreshJWTToken = jest.fn().mockResolvedValue({
+        idTokens: ['newIdToken'],
+      });
+      const mockRevokeRefreshToken = jest.fn().mockResolvedValue({
+        newRevokeToken: 'newRevokeToken',
+        newRefreshToken: 'newRefreshToken',
+      });
       const { messenger } = mockSeedlessOnboardingMessenger();
       const controller = new SeedlessOnboardingController({
         messenger,
         encryptor: getDefaultSeedlessOnboardingVaultEncryptor(),
-        refreshJWTToken: mockGetNewRefreshToken,
+        refreshJWTToken: mockRefreshJWTToken,
         revokeRefreshToken: mockRevokeRefreshToken,
       });
       expect(controller).toBeDefined();
@@ -494,6 +505,13 @@ describe('SeedlessOnboardingController', () => {
     });
 
     it('should be able to instantiate with an encryptor', () => {
+      const mockRefreshJWTToken = jest.fn().mockResolvedValue({
+        idTokens: ['newIdToken'],
+      });
+      const mockRevokeRefreshToken = jest.fn().mockResolvedValue({
+        newRevokeToken: 'newRevokeToken',
+        newRefreshToken: 'newRefreshToken',
+      });
       const { messenger } = mockSeedlessOnboardingMessenger();
       const encryptor = createMockVaultEncryptor();
 
@@ -502,7 +520,7 @@ describe('SeedlessOnboardingController', () => {
           new SeedlessOnboardingController({
             messenger,
             encryptor,
-            refreshJWTToken: mockGetNewRefreshToken,
+            refreshJWTToken: mockRefreshJWTToken,
             revokeRefreshToken: mockRevokeRefreshToken,
           }),
       ).not.toThrow();
@@ -560,6 +578,7 @@ describe('SeedlessOnboardingController', () => {
           authConnection,
           socialLoginEmail,
           refreshToken,
+          revokeToken,
         });
 
         expect(authResult).toBeDefined();
@@ -624,6 +643,7 @@ describe('SeedlessOnboardingController', () => {
           authConnection,
           socialLoginEmail,
           refreshToken,
+          revokeToken,
         });
 
         expect(authResult).toBeDefined();
@@ -669,6 +689,7 @@ describe('SeedlessOnboardingController', () => {
             authConnection,
             socialLoginEmail,
             refreshToken,
+            revokeToken,
           }),
         ).rejects.toThrow(
           SeedlessOnboardingControllerErrorMessage.AuthenticationError,
@@ -863,6 +884,7 @@ describe('SeedlessOnboardingController', () => {
             authConnection,
             socialLoginEmail,
             refreshToken,
+            revokeToken,
           });
 
           const { encKey, authKeyPair } = mockcreateLocalKey(
@@ -1614,6 +1636,7 @@ describe('SeedlessOnboardingController', () => {
             userId,
             authConnectionId,
             refreshToken,
+            revokeToken,
           },
         },
         async ({ controller, toprfClient, initialState, encryptor }) => {
@@ -2196,6 +2219,8 @@ describe('SeedlessOnboardingController', () => {
             userId,
             authConnectionId,
             authPubKey: MOCK_AUTH_PUB_KEY,
+            refreshToken,
+            revokeToken,
           },
         },
         async ({ controller, toprfClient }) => {
@@ -3010,7 +3035,7 @@ describe('SeedlessOnboardingController', () => {
               sk: bigIntToHex(newAuthKeyPair.sk),
               pk: bytesToBase64(newAuthKeyPair.pk),
             }),
-            refreshToken: controller.state.refreshToken,
+            revokeToken: controller.state.revokeToken,
           });
           expect(encryptorSpy).toHaveBeenCalledWith(
             GLOBAL_PASSWORD,
@@ -3164,15 +3189,6 @@ describe('SeedlessOnboardingController', () => {
     const MOCK_PASSWORD = 'mock-password';
     const NEW_MOCK_PASSWORD = 'new-mock-password';
 
-    beforeEach(() => {
-      // This resets both call history AND implementation
-      mockGetNewRefreshToken.mockReset();
-      mockGetNewRefreshToken.mockResolvedValue({
-        idTokens: ['newIdToken'],
-        refreshToken: 'newRefreshToken',
-      });
-    });
-
     describe('changePassword with token refresh', () => {
       it('should retry changePassword after refreshing expired tokens', async () => {
         await withController(
@@ -3182,7 +3198,7 @@ describe('SeedlessOnboardingController', () => {
               withMockAuthPubKey: true,
             }),
           },
-          async ({ controller, toprfClient }) => {
+          async ({ controller, toprfClient, mockRefreshJWTToken }) => {
             await mockCreateToprfKeyAndBackupSeedPhrase(
               toprfClient,
               controller,
@@ -3232,7 +3248,7 @@ describe('SeedlessOnboardingController', () => {
             await controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD);
 
             // Verify that getNewRefreshToken was called
-            expect(mockGetNewRefreshToken).toHaveBeenCalledWith({
+            expect(mockRefreshJWTToken).toHaveBeenCalledWith({
               connection: controller.state.authConnection,
               refreshToken,
             });
@@ -3254,7 +3270,7 @@ describe('SeedlessOnboardingController', () => {
               withMockAuthPubKey: true,
             }),
           },
-          async ({ controller, toprfClient }) => {
+          async ({ controller, toprfClient, mockRefreshJWTToken }) => {
             await mockCreateToprfKeyAndBackupSeedPhrase(
               toprfClient,
               controller,
@@ -3282,7 +3298,7 @@ describe('SeedlessOnboardingController', () => {
               });
 
             // Mock getNewRefreshToken to fail
-            mockGetNewRefreshToken.mockRejectedValueOnce(
+            mockRefreshJWTToken.mockRejectedValueOnce(
               new Error('Failed to get new refresh token'),
             );
 
@@ -3293,7 +3309,7 @@ describe('SeedlessOnboardingController', () => {
             );
 
             // Verify that getNewRefreshToken was called
-            expect(mockGetNewRefreshToken).toHaveBeenCalled();
+            expect(mockRefreshJWTToken).toHaveBeenCalled();
           },
         );
       });
@@ -3306,7 +3322,7 @@ describe('SeedlessOnboardingController', () => {
               withMockAuthPubKey: true,
             }),
           },
-          async ({ controller, toprfClient }) => {
+          async ({ controller, toprfClient, mockRefreshJWTToken }) => {
             await mockCreateToprfKeyAndBackupSeedPhrase(
               toprfClient,
               controller,
@@ -3335,7 +3351,7 @@ describe('SeedlessOnboardingController', () => {
             );
 
             // Verify that getNewRefreshToken was NOT called
-            expect(mockGetNewRefreshToken).not.toHaveBeenCalled();
+            expect(mockRefreshJWTToken).not.toHaveBeenCalled();
 
             // Verify that changeEncKey was only called once (no retry)
             expect(toprfClient.changeEncKey).toHaveBeenCalledTimes(1);
@@ -3384,7 +3400,12 @@ describe('SeedlessOnboardingController', () => {
               vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
             }),
           },
-          async ({ controller, toprfClient, encryptor }) => {
+          async ({
+            controller,
+            toprfClient,
+            encryptor,
+            mockRefreshJWTToken,
+          }) => {
             // Unlock controller first
             await controller.submitPassword(OLD_PASSWORD);
 
@@ -3428,9 +3449,9 @@ describe('SeedlessOnboardingController', () => {
             });
 
             // Verify that getNewRefreshToken was called
-            expect(mockGetNewRefreshToken).toHaveBeenCalledWith({
+            expect(mockRefreshJWTToken).toHaveBeenCalledWith({
               connection: controller.state.authConnection,
-              refreshToken,
+              refreshToken: 'newRefreshToken',
             });
 
             // Verify that recoverEncKey was called twice (once failed, once succeeded)
@@ -3452,7 +3473,7 @@ describe('SeedlessOnboardingController', () => {
                 sk: bigIntToHex(newAuthKeyPair.sk),
                 pk: bytesToBase64(newAuthKeyPair.pk),
               }),
-              refreshToken: controller.state.refreshToken,
+              revokeToken: controller.state.revokeToken,
             });
             expect(encryptorSpy).toHaveBeenCalledWith(
               GLOBAL_PASSWORD,
@@ -3478,7 +3499,7 @@ describe('SeedlessOnboardingController', () => {
               vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
             }),
           },
-          async ({ controller, toprfClient }) => {
+          async ({ controller, toprfClient, mockRefreshJWTToken }) => {
             // Unlock controller first
             await controller.submitPassword(OLD_PASSWORD);
 
@@ -3493,7 +3514,7 @@ describe('SeedlessOnboardingController', () => {
               });
 
             // Mock getNewRefreshToken to fail
-            mockGetNewRefreshToken.mockRejectedValueOnce(
+            mockRefreshJWTToken.mockRejectedValueOnce(
               new Error('Failed to get new refresh token'),
             );
 
@@ -3507,7 +3528,7 @@ describe('SeedlessOnboardingController', () => {
             );
 
             // Verify that getNewRefreshToken was called
-            expect(mockGetNewRefreshToken).toHaveBeenCalled();
+            expect(mockRefreshJWTToken).toHaveBeenCalled();
           },
         );
       });
@@ -3523,7 +3544,7 @@ describe('SeedlessOnboardingController', () => {
               vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
             }),
           },
-          async ({ controller, toprfClient }) => {
+          async ({ controller, toprfClient, mockRefreshJWTToken }) => {
             // Unlock controller first
             await controller.submitPassword(OLD_PASSWORD);
 
@@ -3542,7 +3563,7 @@ describe('SeedlessOnboardingController', () => {
             );
 
             // Verify that getNewRefreshToken was NOT called
-            expect(mockGetNewRefreshToken).not.toHaveBeenCalled();
+            expect(mockRefreshJWTToken).not.toHaveBeenCalled();
 
             // Verify that recoverEncKey was only called once (no retry)
             expect(toprfClient.recoverEncKey).toHaveBeenCalledTimes(1);
@@ -3581,7 +3602,7 @@ describe('SeedlessOnboardingController', () => {
               vaultEncryptionSalt,
             }),
           },
-          async ({ controller, toprfClient }) => {
+          async ({ controller, toprfClient, mockRefreshJWTToken }) => {
             mockFetchAuthPubKey(
               toprfClient,
               base64ToBytes(controller.state.authPubKey as string),
@@ -3612,7 +3633,7 @@ describe('SeedlessOnboardingController', () => {
             );
 
             // Verify that getNewRefreshToken was called
-            expect(mockGetNewRefreshToken).toHaveBeenCalled();
+            expect(mockRefreshJWTToken).toHaveBeenCalled();
 
             // Verify that addSecretDataItem was called twice
             expect(toprfClient.addSecretDataItem).toHaveBeenCalledTimes(2);
@@ -3629,7 +3650,7 @@ describe('SeedlessOnboardingController', () => {
               withMockAuthenticatedUser: true,
             }),
           },
-          async ({ controller, toprfClient }) => {
+          async ({ controller, toprfClient, mockRefreshJWTToken }) => {
             await mockCreateToprfKeyAndBackupSeedPhrase(
               toprfClient,
               controller,
@@ -3665,7 +3686,7 @@ describe('SeedlessOnboardingController', () => {
             const result = await controller.fetchAllSeedPhrases(MOCK_PASSWORD);
 
             expect(result).toStrictEqual([]);
-            expect(mockGetNewRefreshToken).toHaveBeenCalled();
+            expect(mockRefreshJWTToken).toHaveBeenCalled();
             expect(toprfClient.fetchAllSecretDataItems).toHaveBeenCalledTimes(
               2,
             );
@@ -3682,7 +3703,7 @@ describe('SeedlessOnboardingController', () => {
               withMockAuthenticatedUser: true,
             }),
           },
-          async ({ controller, toprfClient }) => {
+          async ({ controller, toprfClient, mockRefreshJWTToken }) => {
             await mockCreateToprfKeyAndBackupSeedPhrase(
               toprfClient,
               controller,
@@ -3721,7 +3742,7 @@ describe('SeedlessOnboardingController', () => {
               MOCK_KEYRING_ID,
             );
 
-            expect(mockGetNewRefreshToken).toHaveBeenCalled();
+            expect(mockRefreshJWTToken).toHaveBeenCalled();
             expect(toprfClient.persistLocalKey).toHaveBeenCalledTimes(2);
           },
         );
@@ -3752,7 +3773,7 @@ describe('SeedlessOnboardingController', () => {
               vaultEncryptionSalt,
             }),
           },
-          async ({ controller, toprfClient }) => {
+          async ({ controller, toprfClient, mockRefreshJWTToken }) => {
             await controller.submitPassword(MOCK_PASSWORD);
 
             // Mock authenticate for token refresh
@@ -3779,24 +3800,16 @@ describe('SeedlessOnboardingController', () => {
 
             await controller.refreshNodeAuthTokens();
 
-            expect(mockGetNewRefreshToken).toHaveBeenCalledWith({
+            expect(mockRefreshJWTToken).toHaveBeenCalledWith({
               connection: controller.state.authConnection,
-              refreshToken,
+              refreshToken: 'newRefreshToken',
             });
 
             expect(toprfClient.authenticate).toHaveBeenCalledWith({
-              authConnectionId:
-                // eslint-disable-next-line jest/no-conditional-in-test
-                controller.state.groupedAuthConnectionId ||
-                controller.state.authConnectionId,
+              authConnectionId: controller.state.authConnectionId,
               userId: controller.state.userId,
-              idTokens: ['newIdToken'].map((idToken) => {
-                return remove0x(keccak256AndHexify(stringToBytes(idToken)));
-              }),
-              groupedAuthConnectionParams: {
-                authConnectionId: controller.state.authConnectionId,
-                idTokens: ['newIdToken'],
-              },
+              idTokens: ['newIdToken'],
+              groupedAuthConnectionId: controller.state.groupedAuthConnectionId,
             });
           },
         );
@@ -3808,39 +3821,6 @@ describe('SeedlessOnboardingController', () => {
             SeedlessOnboardingControllerErrorMessage.ControllerLocked,
           );
         });
-      });
-
-      it('should throw error if no refresh token is available', async () => {
-        const mockToprfEncryptor = createMockToprfEncryptor();
-        const MOCK_ENCRYPTION_KEY =
-          mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
-        const MOCK_AUTH_KEY_PAIR =
-          mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
-        const { encryptedMockVault, vaultEncryptionKey, vaultEncryptionSalt } =
-          await createMockVault(
-            MOCK_ENCRYPTION_KEY,
-            MOCK_AUTH_KEY_PAIR,
-            MOCK_PASSWORD,
-            MOCK_NODE_AUTH_TOKENS,
-          );
-
-        await withController(
-          {
-            state: getMockInitialControllerState({
-              withMockAuthenticatedUser: false,
-              vault: encryptedMockVault,
-              vaultEncryptionKey,
-              vaultEncryptionSalt,
-            }),
-          },
-          async ({ controller }) => {
-            await controller.submitPassword(MOCK_PASSWORD);
-
-            await expect(controller.refreshNodeAuthTokens()).rejects.toThrow(
-              SeedlessOnboardingControllerErrorMessage.MissingAuthUserInfo,
-            );
-          },
-        );
       });
     });
   });

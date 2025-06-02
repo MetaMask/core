@@ -310,3 +310,17 @@ export type SecretMetadataOptions = {
    */
   version: SecretMetadataVersion;
 };
+
+export type DecodedNodeAuthToken = {
+  /**
+   * The expiration time of the token in seconds.
+   */
+  exp: number;
+  temp_key_x: string;
+  temp_key_y: string;
+  aud: string;
+  verifier_name: string;
+  verifier_id: string;
+  scope: string;
+  signature: string;
+};
