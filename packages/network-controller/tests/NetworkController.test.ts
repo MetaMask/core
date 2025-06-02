@@ -697,6 +697,96 @@ describe('NetworkController', () => {
         },
       );
     });
+
+    it('initializes the state with failover RPCs from getFailoverRpcs option', async () => {
+      const getFailoverRpcs = (chainId: Hex) => {
+        if (chainId === '0x1') {
+          return [
+            'https://eth-mainnet.failover.com',
+            'https://mainnet-backup.rpc.io',
+          ];
+        }
+        if (chainId === '0xaa36a7') {
+          return ['https://sepolia.failover.com'];
+        }
+        return undefined;
+      };
+
+      await withController({ getFailoverRpcs }, ({ controller }) => {
+        expect(
+          controller.state.networkConfigurationsByChainId['0x1'].rpcEndpoints[0]
+            .failoverUrls,
+        ).toStrictEqual([
+          'https://eth-mainnet.failover.com',
+          'https://mainnet-backup.rpc.io',
+        ]);
+        expect(
+          controller.state.networkConfigurationsByChainId['0xaa36a7']
+            .rpcEndpoints[0].failoverUrls,
+        ).toStrictEqual(['https://sepolia.failover.com']);
+        expect(
+          controller.state.networkConfigurationsByChainId['0xe705']
+            .rpcEndpoints[0].failoverUrls,
+        ).toStrictEqual([]);
+      });
+    });
+
+    it('initializes the state with failover RPCs for additional networks', async () => {
+      const getFailoverRpcs = (chainId: Hex) => {
+        if (chainId === '0x18c6') {
+          return [
+            'https://mega-testnet.failover.com',
+            'https://mega-backup.rpc.io',
+          ];
+        }
+        return undefined;
+      };
+
+      await withController(
+        {
+          additionalDefaultNetworks: [
+            ChainId[BuiltInNetworkName.MegaETHTestnet],
+          ],
+          getFailoverRpcs,
+        },
+        ({ controller }) => {
+          expect(
+            controller.state.networkConfigurationsByChainId['0x18c6']
+              .rpcEndpoints[0].failoverUrls,
+          ).toEqual([
+            'https://mega-testnet.failover.com',
+            'https://mega-backup.rpc.io',
+          ]);
+        },
+      );
+    });
+
+    it('handles empty or undefined results from getFailoverRpcs', async () => {
+      const getFailoverRpcs = (chainId: Hex) => {
+        if (chainId === '0x1') {
+          return [];
+        }
+        if (chainId === '0xaa36a7') {
+          return undefined;
+        }
+        return undefined;
+      };
+
+      await withController({ getFailoverRpcs }, ({ controller }) => {
+        expect(
+          controller.state.networkConfigurationsByChainId['0x1'].rpcEndpoints[0]
+            .failoverUrls,
+        ).toStrictEqual([]);
+        expect(
+          controller.state.networkConfigurationsByChainId['0xaa36a7']
+            .rpcEndpoints[0].failoverUrls,
+        ).toStrictEqual([]);
+        expect(
+          controller.state.networkConfigurationsByChainId['0xe705']
+            .rpcEndpoints[0].failoverUrls,
+        ).toStrictEqual([]);
+      });
+    });
   });
 
   describe('enableRpcFailover', () => {

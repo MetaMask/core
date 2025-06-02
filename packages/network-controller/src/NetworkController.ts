@@ -655,11 +655,19 @@ export type NetworkControllerOptions = {
    * An array of Hex Chain IDs representing the additional networks to be included as default.
    */
   additionalDefaultNetworks?: AdditionalDefaultNetwork[];
+
   /**
    * Whether or not requests sent to unavailable RPC endpoints should be
    * automatically diverted to configured failover RPC endpoints.
    */
   isRpcFailoverEnabled?: boolean;
+  /**
+   * A function that can be used to provide default failover RPCs that the the consumer can provide.
+   *
+   * @param chainId Hex chainId for a given network
+   * @returns array of failover RPCs for the given network
+   */
+  getFailoverRpcs?: (chainId: Hex) => string[] | undefined;
 };
 
 /**
@@ -667,13 +675,17 @@ export type NetworkControllerOptions = {
  * which will be used if it has not been provided to the constructor.
  *
  * @param [additionalDefaultNetworks] - An array of Hex Chain IDs representing the additional networks to be included as default.
+ * @param [getFailoverRpcs] - function to provide failover RPCs
  * @returns The default value for `networkConfigurationsByChainId`.
  */
 function getDefaultNetworkConfigurationsByChainId(
   additionalDefaultNetworks: AdditionalDefaultNetwork[] = [],
+  getFailoverRpcs?: NetworkControllerOptions['getFailoverRpcs'],
 ): Record<Hex, NetworkConfiguration> {
-  const infuraNetworks = getDefaultInfuraNetworkConfigurationsByChainId();
-  const customNetworks = getDefaultCustomNetworkConfigurationsByChainId();
+  const infuraNetworks =
+    getDefaultInfuraNetworkConfigurationsByChainId(getFailoverRpcs);
+  const customNetworks =
+    getDefaultCustomNetworkConfigurationsByChainId(getFailoverRpcs);
 
   return additionalDefaultNetworks.reduce<Record<Hex, NetworkConfiguration>>(
     (obj, chainId) => {
@@ -690,12 +702,12 @@ function getDefaultNetworkConfigurationsByChainId(
 /**
  * Constructs a `networkConfigurationsByChainId` object for all default Infura networks.
  *
+ * @param [getFailoverRpcs] - function to provide failover RPCs
  * @returns The `networkConfigurationsByChainId` object of all Infura networks.
  */
-function getDefaultInfuraNetworkConfigurationsByChainId(): Record<
-  Hex,
-  NetworkConfiguration
-> {
+function getDefaultInfuraNetworkConfigurationsByChainId(
+  getFailoverRpcs?: NetworkControllerOptions['getFailoverRpcs'],
+): Record<Hex, NetworkConfiguration> {
   return Object.values(InfuraNetworkType).reduce<
     Record<Hex, NetworkConfiguration>
   >((obj, infuraNetworkType) => {
@@ -719,7 +731,7 @@ function getDefaultInfuraNetworkConfigurationsByChainId(): Record<
       nativeCurrency: NetworksTicker[infuraNetworkType],
       rpcEndpoints: [
         {
-          failoverUrls: [],
+          failoverUrls: getFailoverRpcs?.(chainId) ?? [],
           networkClientId: infuraNetworkType,
           type: RpcEndpointType.Infura,
           url: rpcEndpointUrl,
@@ -734,21 +746,23 @@ function getDefaultInfuraNetworkConfigurationsByChainId(): Record<
 /**
  * Constructs a `networkConfigurationsByChainId` object for all default custom networks.
  *
+ * @param [getFailoverRpcs] - function to provide failover RPCs
  * @returns The `networkConfigurationsByChainId` object of all custom networks.
  */
-function getDefaultCustomNetworkConfigurationsByChainId(): Record<
-  Hex,
-  NetworkConfiguration
-> {
+function getDefaultCustomNetworkConfigurationsByChainId(
+  getFailoverRpcs?: NetworkControllerOptions['getFailoverRpcs'],
+): Record<Hex, NetworkConfiguration> {
   // Create the `networkConfigurationsByChainId` objects explicitly,
   // Because it is not always guaranteed that the custom networks are included in the
   // default networks.
   return {
     [ChainId['megaeth-testnet']]: getCustomNetworkConfiguration(
       CustomNetworkType['megaeth-testnet'],
+      getFailoverRpcs,
     ),
     [ChainId['monad-testnet']]: getCustomNetworkConfiguration(
       CustomNetworkType['monad-testnet'],
+      getFailoverRpcs,
     ),
   };
 }
@@ -757,24 +771,27 @@ function getDefaultCustomNetworkConfigurationsByChainId(): Record<
  * Constructs a `NetworkConfiguration` object by `CustomNetworkType`.
  *
  * @param customNetworkType - The type of the custom network.
+ * @param [getFailoverRpcs] - function to provide failover RPCs
  * @returns The `NetworkConfiguration` object.
  */
 function getCustomNetworkConfiguration(
   customNetworkType: CustomNetworkType,
+  getFailoverRpcs?: NetworkControllerOptions['getFailoverRpcs'],
 ): NetworkConfiguration {
   const { ticker, rpcPrefs } = BUILT_IN_NETWORKS[customNetworkType];
   const rpcEndpointUrl = BUILT_IN_CUSTOM_NETWORKS_RPC[customNetworkType];
+  const chainId = ChainId[customNetworkType];
 
   return {
     blockExplorerUrls: [rpcPrefs.blockExplorerUrl],
-    chainId: ChainId[customNetworkType],
+    chainId,
     defaultRpcEndpointIndex: 0,
     defaultBlockExplorerUrlIndex: 0,
     name: NetworkNickname[customNetworkType],
     nativeCurrency: ticker,
     rpcEndpoints: [
       {
-        failoverUrls: [],
+        failoverUrls: getFailoverRpcs?.(chainId) ?? [],
         networkClientId: customNetworkType,
         type: RpcEndpointType.Custom,
         url: rpcEndpointUrl,
@@ -788,14 +805,19 @@ function getCustomNetworkConfiguration(
  * used if not provided to the constructor.
  *
  * @param [additionalDefaultNetworks] - An array of Hex Chain IDs representing the additional networks to be included as default.
+ * @param [getFailoverRpcs] - function to provide failover RPCs
  * @returns The default NetworkController state.
  */
 export function getDefaultNetworkControllerState(
   additionalDefaultNetworks?: AdditionalDefaultNetwork[],
+  getFailoverRpcs?: NetworkControllerOptions['getFailoverRpcs'],
 ): NetworkState {
   const networksMetadata = {};
   const networkConfigurationsByChainId =
-    getDefaultNetworkConfigurationsByChainId(additionalDefaultNetworks);
+    getDefaultNetworkConfigurationsByChainId(
+      additionalDefaultNetworks,
+      getFailoverRpcs,
+    );
 
   return {
     selectedNetworkClientId: InfuraNetworkType.mainnet,
@@ -1183,9 +1205,13 @@ export class NetworkController extends BaseController<
       getBlockTrackerOptions,
       additionalDefaultNetworks,
       isRpcFailoverEnabled = false,
+      getFailoverRpcs,
     } = options;
     const initialState = {
-      ...getDefaultNetworkControllerState(additionalDefaultNetworks),
+      ...getDefaultNetworkControllerState(
+        additionalDefaultNetworks,
+        getFailoverRpcs,
+      ),
       ...state,
     };
     validateInitialState(initialState);
