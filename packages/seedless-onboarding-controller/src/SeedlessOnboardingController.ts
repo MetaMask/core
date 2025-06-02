@@ -650,14 +650,18 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     globalPassword: string;
   }): Promise<{ password: string }> {
     return await this.#withControllerLock(async () => {
-      const currentDeviceAuthPubKey = this.#recoverAuthPubKey();
-      const { password: currentDevicePassword } = await this.#recoverPassword({
-        targetPwPubKey: currentDeviceAuthPubKey,
-        globalPassword,
-      });
-      return {
-        password: currentDevicePassword,
-      };
+      return await this.#executeWithTokenRefresh(async () => {
+        const currentDeviceAuthPubKey = this.#recoverAuthPubKey();
+        const { password: currentDevicePassword } = await this.#recoverPassword(
+          {
+            targetPwPubKey: currentDeviceAuthPubKey,
+            globalPassword,
+          },
+        );
+        return {
+          password: currentDevicePassword,
+        };
+      }, 'recoverCurrentDevicePassword');
     });
   }
 
@@ -687,6 +691,9 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       });
       return res;
     } catch (error) {
+      if (this.#isTokenExpiredError(error)) {
+        throw error;
+      }
       throw PasswordSyncError.getInstance(error);
     }
   }
