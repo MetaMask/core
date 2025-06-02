@@ -627,6 +627,7 @@ describe('Batch Utils', () => {
                 value: VALUE_MOCK,
               },
             ],
+            origin: ORIGIN_MOCK,
           },
           CHAIN_ID_MOCK,
         );
@@ -677,6 +678,7 @@ describe('Batch Utils', () => {
                 value: VALUE_MOCK,
               },
             ],
+            origin: ORIGIN_MOCK,
           },
           CHAIN_ID_MOCK,
         );
@@ -1651,6 +1653,7 @@ describe('Batch Utils', () => {
         CHAIN_ID_MOCK,
         CHAIN_ID_2_MOCK,
       ]);
+      getEIP7702UpgradeContractAddressMock.mockReturnValueOnce(undefined);
 
       isAccountUpgradedToEIP7702Mock.mockResolvedValue({
         isSupported: false,

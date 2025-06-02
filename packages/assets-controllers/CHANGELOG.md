@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [68.0.0]
+
+### Changed
+
+- **BREAKING:** Update `NftController` and `NftDetectionController` to eliminate the dependency on the current chain ([#5622](https://github.com/MetaMask/core/pull/5622))
+  - All functions that previously accepted networkClientId as an optional parameter now require it as a mandatory parameter.
+- **BREAKING:** Add `NetworkController:findNetworkClientIdByChainId` to allowed actions in `NftController` ([#5622](https://github.com/MetaMask/core/pull/5622))
+- **BREAKING:** Add `NetworkController:findNetworkClientIdByChainId` to allowed actions in `NftDetectionController` ([#5622](https://github.com/MetaMask/core/pull/5622))
+
+## [67.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency to `^30.0.0` ([#5888](https://github.com/MetaMask/core/pull/5888))
+- **BREAKING:** Bump `@metamask/transaction-controller` peer dependency to `^57.0.0` ([#5888](https://github.com/MetaMask/core/pull/5888))
+- **BREAKING:** Bump `@metamask/providers` peer dependency from `^21.0.0` to `^22.0.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
+- **BREAKING:** Bump `@metamask/snaps-controllers` peer dependency from `^11.0.0` to `^12.0.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
+- Remove `sei` from constants `SUPPORTED_CURRENCIES` ([#5883](https://github.com/MetaMask/core/pull/5883))
+
+## [66.0.0]
+
+### Added
+
+- Add optional parameter to track DeFi metrics when positions are being fetched ([#5868](https://github.com/MetaMask/core/pull/5868))
+- Add phishing protection for NFT metadata URLs in `NftController` ([#5598](https://github.com/MetaMask/core/pull/5598))
+  - NFT metadata URLs are now scanned for malicious content using the `PhishingController`
+  - Malicious URLs in NFT metadata fields (image, externalLink, etc.) are automatically sanitized
+
+### Changed
+
+- **BREAKING:** Add peer dependency on `@metamask/phishing-controller` ^12.5.0 ([#5598](https://github.com/MetaMask/core/pull/5598))
+
 ## [65.0.0]
 
 ### Added
@@ -1664,7 +1696,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@65.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@68.0.0...HEAD
+[68.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@67.0.0...@metamask/assets-controllers@68.0.0
+[67.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@66.0.0...@metamask/assets-controllers@67.0.0
+[66.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@65.0.0...@metamask/assets-controllers@66.0.0
 [65.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@64.0.0...@metamask/assets-controllers@65.0.0
 [64.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@63.1.0...@metamask/assets-controllers@64.0.0
 [63.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@63.0.0...@metamask/assets-controllers@63.1.0
