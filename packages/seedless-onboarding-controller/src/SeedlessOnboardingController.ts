@@ -225,7 +225,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     revokeToken?: string;
     skipLock?: boolean;
   }) {
-    const doAuthenticate = async () => {
+    const doAuthenticateWithNodes = async () => {
       try {
         const {
           idTokens,
@@ -270,8 +270,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       }
     };
     return params.skipLock
-      ? await doAuthenticate()
-      : await this.#withControllerLock(doAuthenticate);
+      ? await doAuthenticateWithNodes()
+      : await this.#withControllerLock(doAuthenticateWithNodes);
   }
 
   /**
@@ -287,11 +287,11 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     seedPhrase: Uint8Array,
     keyringId: string,
   ): Promise<void> {
-    // to make sure that fail fast,
-    // assert that the user is authenticated before creating the TOPRF key and backing up the seed phrase
-    this.#assertIsAuthenticatedUser(this.state);
-
     return await this.#withControllerLock(async () => {
+      // to make sure that fail fast,
+      // assert that the user is authenticated before creating the TOPRF key and backing up the seed phrase
+      this.#assertIsAuthenticatedUser(this.state);
+
       // locally evaluate the encryption key from the password
       const { encKey, authKeyPair, oprfKey } =
         await this.toprfClient.createLocalKey({
@@ -377,10 +377,10 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @returns A promise that resolves to the seed phrase metadata.
    */
   async fetchAllSeedPhrases(password?: string): Promise<Uint8Array[]> {
-    // assert that the user is authenticated before fetching the seed phrases
-    this.#assertIsAuthenticatedUser(this.state);
-
     return await this.#withControllerLock(async () => {
+      // assert that the user is authenticated before fetching the seed phrases
+      this.#assertIsAuthenticatedUser(this.state);
+
       let encKey: Uint8Array;
       let authKeyPair: KeyPair;
 
@@ -1363,7 +1363,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
 
     if (!('refreshToken' in value) || typeof value.refreshToken !== 'string') {
       throw new Error(
-        SeedlessOnboardingControllerErrorMessage.InsufficientAuthToken,
+        SeedlessOnboardingControllerErrorMessage.InvalidRefreshToken,
       );
     }
   }
