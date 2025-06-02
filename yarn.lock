@@ -4305,7 +4305,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
   peerDependencies:
-    "@metamask/keyring-controller": ^22.0.1
+    "@metamask/keyring-controller": ^22.0.0
   languageName: unknown
   linkType: soft
 
