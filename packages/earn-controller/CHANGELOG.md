@@ -7,6 +7,81 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Added `addTransactionFn` option to the controller contructor which accepts the `TransactionController` `addTransaction` method ([#5828](https://github.com/MetaMask/core/pull/5828))
+- Added `@ethersproject/bignumber` as a dependency ([#5828](https://github.com/MetaMask/core/pull/5828))
+- Added `reselect` as a dependency ([#5828](https://github.com/MetaMask/core/pull/5828))
+- Added new lending-related types: ([#5828](https://github.com/MetaMask/core/pull/5828))
+  - `LendingMarketWithPosition`
+  - `LendingPositionWithMarket`
+  - `LendingPositionWithMarketReference`
+- Added new lending-related selectors: ([#5828](https://github.com/MetaMask/core/pull/5828))
+  - `selectLendingMarkets`
+  - `selectLendingPositions`
+  - `selectLendingMarketsWithPosition`
+  - `selectLendingPositionsByProtocol`
+  - `selectLendingMarketByProtocolAndTokenAddress`
+  - `selectLendingMarketForProtocolAndTokenAddress`
+  - `selectLendingPositionsByChainId`
+  - `selectLendingMarketsByChainId`
+  - `selectLendingMarketsByProtocolAndId`
+  - `selectLendingMarketForProtocolAndId`
+  - `selectLendingPositionsWithMarket`
+  - `selectLendingMarketsForChainId`
+  - `selectIsLendingEligible`
+  - `selectLendingPositionsByProtocolChainIdMarketId`
+  - `selectLendingMarketsByTokenAddress`
+  - `selectLendingMarketsByChainIdAndOutputTokenAddress`
+  - `selectLendingMarketsByChainIdAndTokenAddress`
+- Added exports from `@metamask/stake-sdk`: ([#5828](https://github.com/MetaMask/core/pull/5828))
+  - `isSupportedLendingChain`
+  - `isSupportedPooledStakingChain`
+  - `CHAIN_ID_TO_AAVE_POOL_CONTRACT`
+- Added new lending-related methods to `EarnController`: ([#5828](https://github.com/MetaMask/core/pull/5828))
+  - `refreshLendingMarkets`
+  - `refreshLendingPositions`
+  - `refreshLendingEligibility`
+  - `refreshLendingData`
+  - `getLendingPositionHistory`
+  - `getLendingMarketDailyApysAndAverages`
+  - `executeLendingDeposit`
+  - `executeLendingWithdraw`
+  - `executeLendingTokenApprove`
+  - `getLendingTokenAllowance`
+  - `getLendingTokenMaxWithdraw`
+  - `getLendingTokenMaxDeposit`
+- **BREAKING:** Added `lending` key to the controller state to replace `stablecoin_lending` ([#5828](https://github.com/MetaMask/core/pull/5828))
+- Added optional `env` option which accepts an `EarnEnvironments` enum ([#5828](https://github.com/MetaMask/core/pull/5828))
+- Added async lending state data update on constructor initialization ([#5828](https://github.com/MetaMask/core/pull/5828))
+- Added refresh of lending positions and market data when the network state is updated ([#5828](https://github.com/MetaMask/core/pull/5828))
+- Added refresh of lending positions when the user account address is updated ([#5828](https://github.com/MetaMask/core/pull/5828))
+- Added refresh of lending positions when a transaction matching lending type is confirmed ([#5828](https://github.com/MetaMask/core/pull/5828))
+
+### Changed
+
+- **BREAKING:** Updated `refreshPooledStakingVaultDailyApys` method to take chain id as its first param ([#5828](https://github.com/MetaMask/core/pull/5828))
+- **BREAKING:** bump `@metamask/accounts-controller` peer dependency to `^30.0.0` ([#5888](https://github.com/MetaMask/core/pull/5888))
+- **BREAKING:** updates controller state to allow pooled staking data to be stored per supported chain id ([#5828](https://github.com/MetaMask/core/pull/5828))
+- Updated `refreshPooledStakingData` to refresh pooled staking data for all supported chains ([#5828](https://github.com/MetaMask/core/pull/5828))
+- Updated these methods to take an optional chain id to control which chain data is fetched for ([#5828](https://github.com/MetaMask/core/pull/5828))
+  - `refreshPooledStakingVaultMetadata`
+  - `refreshPooledStakes`
+  - `refreshPooledStakingVaultDailyApys`
+  - `refreshPooledStakingVaultApyAverages`
+- Updated `refreshStakingEligibility` to update the eligibility in the lending state scope as well pooled staking ([#5828](https://github.com/MetaMask/core/pull/5828))
+- Updated `refreshPooledStakes` method to take an optional chain id to control which chain data is fetched for ([#5828](https://github.com/MetaMask/core/pull/5828))
+- Updated to refresh pooled staking data for all chains when the network state is updated ([#5828](https://github.com/MetaMask/core/pull/5828))
+- Bump `@metamask/controller-utils` to `^11.9.0` ([#5812](https://github.com/MetaMask/core/pull/5812))
+- Bump `@metamask/stake-sdk` dependency to `^3.2.0` ([#5828](https://github.com/MetaMask/core/pull/5828))
+
+### Removed
+
+- **BREAKING:** Removed lending-related types: ([#5828](https://github.com/MetaMask/core/pull/5828))
+  - `StablecoinLendingState`
+  - `StablecoinVault`
+- **BREAKING:** Removed `stablecoin_lending` key from the controller state to replace with `lending` ([#5828](https://github.com/MetaMask/core/pull/5828))
+
 ## [0.15.0]
 
 ### Changed
