@@ -6,6 +6,7 @@ import {
   NetworksTicker,
   toHex,
 } from '@metamask/controller-utils';
+import type { Hex } from '@metamask/utils';
 import { v4 as uuidV4 } from 'uuid';
 
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
@@ -192,6 +193,55 @@ export function buildMockGetNetworkClientById(
   }
 
   return getNetworkClientById;
+}
+
+/**
+ * Builds a mock version of the `findNetworkClientIdByChainId` method on
+ * NetworkController.
+ *
+ * @param mockNetworkClientConfigurationsByNetworkClientId - Allows for defining
+ * the network client configuration — and thus the network client itself — that
+ * belongs to a particular network client ID.
+ * @returns The mock version of `findNetworkClientIdByChainId`.
+ */
+export function buildMockFindNetworkClientIdByChainId(
+  mockNetworkClientConfigurationsByNetworkClientId: Record<
+    Hex,
+    NetworkClientConfiguration
+  > = {},
+): NetworkController['findNetworkClientIdByChainId'] {
+  const defaultMockNetworkClientConfigurationsByNetworkClientId = Object.values(
+    InfuraNetworkType,
+  ).reduce((obj, infuraNetworkType) => {
+    const testNetworkClientConfig =
+      buildInfuraNetworkClientConfiguration(infuraNetworkType);
+    return {
+      ...obj,
+      [testNetworkClientConfig.chainId]: testNetworkClientConfig,
+    };
+  }, {});
+  const mergedMockNetworkClientConfigurationsByNetworkClientId: Record<
+    Hex,
+    InfuraNetworkClientConfiguration
+  > = {
+    ...defaultMockNetworkClientConfigurationsByNetworkClientId,
+    ...mockNetworkClientConfigurationsByNetworkClientId,
+  };
+
+  function findNetworkClientIdByChainId(chainId: Hex): NetworkClientId;
+  // eslint-disable-next-line jsdoc/require-jsdoc
+  function findNetworkClientIdByChainId(chainId: Hex): NetworkClientId {
+    const networkClientConfigForChainId =
+      mergedMockNetworkClientConfigurationsByNetworkClientId[chainId];
+    if (!networkClientConfigForChainId) {
+      throw new Error(
+        `Unknown chainId '${chainId}'. Please add it to mockNetworkClientConfigurationsByNetworkClientId.`,
+      );
+    }
+
+    return networkClientConfigForChainId.network;
+  }
+  return findNetworkClientIdByChainId;
 }
 
 /**
