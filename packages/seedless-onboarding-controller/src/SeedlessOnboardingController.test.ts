@@ -44,6 +44,7 @@ import {
 import type {
   AllowedActions,
   AllowedEvents,
+  RecoveryErrorData,
   SeedlessOnboardingControllerMessenger,
   SeedlessOnboardingControllerOptions,
   SeedlessOnboardingControllerState,
@@ -208,7 +209,7 @@ function mockcreateLocalKey(toprfClient: ToprfSecureBackup, password: string) {
   const oprfKey = BigInt(0);
   const seed = stringToBytes(password);
 
-  jest.spyOn(toprfClient, 'createLocalKey').mockReturnValue({
+  jest.spyOn(toprfClient, 'createLocalKey').mockResolvedValueOnce({
     encKey,
     authKeyPair,
     oprfKey,
@@ -408,6 +409,7 @@ async function decryptVault(vault: string, password: string) {
  * @param options.vault - The mock vault data.
  * @param options.vaultEncryptionKey - The mock vault encryption key.
  * @param options.vaultEncryptionSalt - The mock vault encryption salt.
+ * @param options.recoveryRatelimitCache - The mock rate limit details cache.
  * @returns The initial controller state with the mock authenticated user.
  */
 function getMockInitialControllerState(options?: {
@@ -417,6 +419,7 @@ function getMockInitialControllerState(options?: {
   vault?: string;
   vaultEncryptionKey?: string;
   vaultEncryptionSalt?: string;
+  recoveryRatelimitCache?: RecoveryErrorData;
 }): Partial<SeedlessOnboardingControllerState> {
   const state = getDefaultSeedlessOnboardingControllerState();
 
@@ -441,6 +444,14 @@ function getMockInitialControllerState(options?: {
 
   if (options?.withMockAuthPubKey || options?.authPubKey) {
     state.authPubKey = options.authPubKey ?? MOCK_AUTH_PUB_KEY;
+  }
+
+  if (options?.withMockAuthPubKey || options?.authPubKey) {
+    state.authPubKey = options.authPubKey ?? MOCK_AUTH_PUB_KEY;
+  }
+
+  if (options?.recoveryRatelimitCache) {
+    state.recoveryRatelimitCache = options.recoveryRatelimitCache;
   }
 
   return state;
@@ -471,6 +482,42 @@ describe('SeedlessOnboardingController', () => {
             encryptor,
           }),
       ).not.toThrow();
+    });
+
+    it('should be able to instantiate with a toprfKeyDeriver', async () => {
+      const deriveKeySpy = jest.fn();
+      const MOCK_PASSWORD = 'mock-password';
+
+      const keyDeriver = {
+        deriveKey: (seed: Uint8Array, salt: Uint8Array) => {
+          deriveKeySpy(seed, salt);
+          return Promise.resolve(new Uint8Array());
+        },
+      };
+
+      await withController(
+        {
+          toprfKeyDeriver: keyDeriver,
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          // persist the local enc key
+          jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
+          // encrypt and store the secret data
+          const mockSecretDataAdd = handleMockSecretDataAdd();
+
+          await controller.createToprfKeyAndBackupSeedPhrase(
+            MOCK_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+
+          expect(mockSecretDataAdd.isDone()).toBe(true);
+          expect(deriveKeySpy).toHaveBeenCalled();
+        },
+      );
     });
   });
 
@@ -1715,8 +1762,10 @@ describe('SeedlessOnboardingController', () => {
           jest.spyOn(toprfClient, 'recoverEncKey').mockRejectedValueOnce(
             new TOPRFError(1009, 'Rate limit exceeded', {
               rateLimitDetails: {
-                remainingTime: 300,
+                remainingTime: 250,
                 message: 'Rate limit in effect',
+                lockTime: 300,
+                guessCount: 7,
               },
             }),
           );
@@ -1727,11 +1776,59 @@ describe('SeedlessOnboardingController', () => {
             new RecoveryError(
               SeedlessOnboardingControllerErrorMessage.TooManyLoginAttempts,
               {
-                remainingTime: 10,
-                message: 'Rate limit exceeded',
+                remainingTime: 250,
+                numberOfAttempts: 7,
               },
             ),
           );
+
+          expect(controller.state.recoveryRatelimitCache).toStrictEqual({
+            remainingTime: 250,
+            numberOfAttempts: 7,
+          });
+        },
+      );
+    });
+
+    it('should use cached value for TooManyLoginAttempts error', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            recoveryRatelimitCache: {
+              remainingTime: 30,
+              numberOfAttempts: 4,
+            },
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          jest.spyOn(toprfClient, 'recoverEncKey').mockRejectedValueOnce(
+            new TOPRFError(1009, 'Rate limit exceeded', {
+              rateLimitDetails: {
+                remainingTime: 58, // decreased by 3 seconds due to the network delay and server processing time
+                message: 'Rate limit in effect',
+                lockTime: 60,
+                guessCount: 5,
+              },
+            }),
+          );
+
+          await expect(
+            controller.fetchAllSeedPhrases(MOCK_PASSWORD),
+          ).rejects.toStrictEqual(
+            new RecoveryError(
+              SeedlessOnboardingControllerErrorMessage.TooManyLoginAttempts,
+              {
+                remainingTime: 60,
+                numberOfAttempts: 5,
+              },
+            ),
+          );
+
+          expect(controller.state.recoveryRatelimitCache).toStrictEqual({
+            remainingTime: 60,
+            numberOfAttempts: 5,
+          });
         },
       );
     });
