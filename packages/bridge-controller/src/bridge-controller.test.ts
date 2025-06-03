@@ -874,6 +874,7 @@ describe('BridgeController', function () {
       mockBridgeQuotesErc20Native as QuoteResponse[],
       bigIntToHex(BigInt('2608710388388') * 2n),
       12,
+      bigIntToHex(BigInt('2608710388388')),
     ],
     [
       'should append l1GasFees if srcChain is 10 and srcToken is native',
@@ -887,13 +888,20 @@ describe('BridgeController', function () {
       undefined,
       0,
     ],
+    [
+      'should filter out quote if getL1Fees returns undefined',
+      mockBridgeQuotesNativeErc20 as unknown as QuoteResponse[],
+      undefined,
+      2,
+    ],
   ])(
     'updateBridgeQuoteRequestParams: %s',
     async (
       _testTitle: string,
       quoteResponse: QuoteResponse[],
-      l1GasFeesInHexWei: Hex | undefined,
+      tradeL1GasFeesInHexWei: Hex | undefined,
       getLayer1GasFeeMockCallCount: number,
+      approvalL1GasFeesInHexWei: Hex | undefined = undefined,
     ) => {
       jest.useFakeTimers();
       const stopAllPollingSpy = jest.spyOn(bridgeController, 'stopAllPolling');
@@ -906,7 +914,11 @@ describe('BridgeController', function () {
         provider: jest.fn(),
         selectedNetworkClientId: 'selectedNetworkClientId',
       } as never);
-      getLayer1GasFeeMock.mockResolvedValue('0x25F63418AA4');
+      // eslint-disable-next-line jest/no-conditional-in-test
+      if (approvalL1GasFeesInHexWei) {
+        getLayer1GasFeeMock.mockResolvedValueOnce(approvalL1GasFeesInHexWei);
+      }
+      getLayer1GasFeeMock.mockResolvedValueOnce(tradeL1GasFeesInHexWei);
 
       const fetchBridgeQuotesSpy = jest
         .spyOn(fetchUtils, 'fetchBridgeQuotes')
@@ -993,7 +1005,10 @@ describe('BridgeController', function () {
         }),
       );
       quotes.forEach((quote) => {
-        const expectedQuote = { ...quote, l1GasFeesInHexWei };
+        const expectedQuote = {
+          ...quote,
+          l1GasFeesInHexWei: tradeL1GasFeesInHexWei,
+        };
         // eslint-disable-next-line jest/prefer-strict-equal
         expect(quote).toEqual(expectedQuote);
       });
