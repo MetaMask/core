@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Base network to default infura networks ([#5902](https://github.com/MetaMask/core/pull/5902))
+  - Network changes were added in `@metamask/controller-utils`
+
 ## [23.5.1]
 
 ### Changed
