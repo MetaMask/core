@@ -9,11 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [10.0.0]
 
-### Uncategorized
+### Changed
 
-- Revert "Release 422.0.0 (#5904)" ([#5904](https://github.com/MetaMask/core/pull/5904))
-- Release 422.0.0 ([#5904](https://github.com/MetaMask/core/pull/5904))
-- feat(backup & sync): use entropySourceId to sync accounts for Multi-SRP ([#5753](https://github.com/MetaMask/core/pull/5753))
+- **BREAKING:** bump `@metamask/profile-sync-controller` peer dependency to `^17.0.0` ([#5906](https://github.com/MetaMask/core/pull/5906))
 
 ## [9.0.0]
 

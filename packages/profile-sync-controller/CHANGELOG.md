@@ -9,15 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [17.0.0]
 
-### Uncategorized
-
-- Revert "Release 422.0.0 (#5904)" ([#5904](https://github.com/MetaMask/core/pull/5904))
-
 ### Added
 
-- Add account syncing support for multiple SRPs ([#5753](https://github.com/MetaMask/core/pull/5753))
+- **BREAKING:** Add multi-SRP support for authentication and user storage ([#5753](https://github.com/MetaMask/core/pull/5753))
   - Add `entropySource` based authentication support for multiple SRPs
   - Add `entropySource` optional parameter for `UserStorageController` CRUD methods
+  - Rename `sessionData` in `AuthenticationControllerState` to `srpSessionData`
+  - Update `AuthenticationController.performSignIn` to return `string[]` rather than `string`
+  - Add `AccountsController:updateAccounts` as a required allowed action to the `UserStorageController` messenger
+  - Add `listEntropySources` to `UserStorageController`
+  - Render `UserStorageController.syncInternalAccountsWithUserStorage` compatible with multi-SRP
 
 ## [16.0.0]
 
