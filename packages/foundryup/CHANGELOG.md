@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release of the foundryup package ([#5810](https://github.com/MetaMask/core/pull/5810))
+- Initial release of the foundryup package ([#5810](https://github.com/MetaMask/core/pull/5810), [#5909](https://github.com/MetaMask/core/pull/5909))
   - `foundryup` is a cross-platform tool that installs and manages Foundry binaries with MetaMask-specific defaults for use in development and end-to-end testing workflows. Features included:
     - CLI tool for managing Foundry binaries in MetaMask's development environment
     - Support for downloading and installing `forge`, `anvil`, `cast`, and `chisel` binaries
