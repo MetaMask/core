@@ -1860,6 +1860,10 @@ export type AfterAddHook = (request: {
  */
 export type AfterSimulateHook = (request: {
   transactionMeta: TransactionMeta;
-}) => Promise<{
-  updateTransaction?: (transaction: TransactionMeta) => void;
-}>;
+}) => Promise<
+  | {
+      skipSimulation?: boolean;
+      updateTransaction?: (transaction: TransactionMeta) => void;
+    }
+  | undefined
+>;

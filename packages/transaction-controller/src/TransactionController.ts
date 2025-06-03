@@ -789,6 +789,8 @@ export class TransactionController extends BaseController<
 
   readonly #signAbortCallbacks: Map<string, () => void> = new Map();
 
+  readonly #skipSimulationTransactionIds: Set<string> = new Set();
+
   readonly #testGasFeeFlows: boolean;
 
   readonly #trace: TraceCallback;
@@ -2840,6 +2842,8 @@ export class TransactionController extends BaseController<
             this.#failTransaction(meta, error, actionId);
           }
         }
+      } finally {
+        this.#skipSimulationTransactionIds.delete(transactionId);
       }
     }
 
@@ -4080,7 +4084,10 @@ export class TransactionController extends BaseController<
 
     let gasFeeTokens: GasFeeToken[] = [];
 
-    if (this.#isSimulationEnabled()) {
+    const isBalanceChangesSkipped =
+      this.#skipSimulationTransactionIds.has(transactionId);
+
+    if (this.#isSimulationEnabled() && !isBalanceChangesSkipped) {
       simulationData = await this.#trace(
         { name: 'Simulate', parentContext: traceContext },
         () =>
@@ -4113,10 +4120,10 @@ export class TransactionController extends BaseController<
       });
     }
 
-    let finalTransactionMeta = this.#getTransaction(transactionId);
+    const latestTransactionMeta = this.#getTransaction(transactionId);
 
     /* istanbul ignore if */
-    if (!finalTransactionMeta) {
+    if (!latestTransactionMeta) {
       log(
         'Cannot update simulation data as transaction not found',
         transactionId,
@@ -4126,7 +4133,7 @@ export class TransactionController extends BaseController<
       return;
     }
 
-    finalTransactionMeta = this.#updateTransactionInternal(
+    const updatedTransactionMeta = this.#updateTransactionInternal(
       {
         transactionId,
         note: 'TransactionController#updateSimulationData - Update simulation data',
@@ -4134,45 +4141,16 @@ export class TransactionController extends BaseController<
       },
       (txMeta) => {
         txMeta.gasFeeTokens = gasFeeTokens;
-        txMeta.simulationData = simulationData;
+
+        if (!isBalanceChangesSkipped) {
+          txMeta.simulationData = simulationData;
+        }
       },
     );
 
-    if (ethQuery) {
-      log('Calling afterSimulate hook', finalTransactionMeta);
+    log('Updated simulation data', transactionId, updatedTransactionMeta);
 
-      const result = await this.#afterSimulate({
-        transactionMeta: finalTransactionMeta,
-      });
-
-      if (result?.updateTransaction) {
-        log('Updating transaction with afterSimulate data');
-
-        finalTransactionMeta = this.#updateTransactionInternal(
-          { transactionId },
-          result.updateTransaction,
-        );
-
-        const { estimatedGas } = await estimateGas({
-          chainId: finalTransactionMeta.chainId,
-          ethQuery,
-          isSimulationEnabled: this.#isSimulationEnabled(),
-          messenger: this.messagingSystem,
-          txParams: { ...finalTransactionMeta.txParams, gas: undefined },
-        });
-
-        log('Updating gas following afterSimulate hook', estimatedGas);
-
-        finalTransactionMeta = this.#updateTransactionInternal(
-          { transactionId },
-          (txMeta) => {
-            txMeta.txParams.gas = estimatedGas;
-          },
-        );
-      }
-    }
-
-    log('Updated simulation data', transactionId, finalTransactionMeta);
+    await this.#runAfterSimulateHook(updatedTransactionMeta);
   }
 
   #onGasFeePollerTransactionUpdate({
@@ -4361,5 +4339,47 @@ export class TransactionController extends BaseController<
       `${transactionMeta.id}:finished`,
       newTransactionMeta,
     );
+  }
+
+  async #runAfterSimulateHook(transactionMeta: TransactionMeta) {
+    log('Calling afterSimulate hook', transactionMeta);
+
+    const { id: transactionId, networkClientId } = transactionMeta;
+
+    const result = await this.#afterSimulate({
+      transactionMeta,
+    });
+
+    const { skipSimulation, updateTransaction } = result || {};
+
+    if (skipSimulation) {
+      this.#skipSimulationTransactionIds.add(transactionId);
+    } else {
+      this.#skipSimulationTransactionIds.delete(transactionId);
+    }
+
+    if (!updateTransaction) {
+      return;
+    }
+
+    const updatedTransactionMeta = this.#updateTransactionInternal(
+      { transactionId, skipResimulateCheck: true },
+      updateTransaction,
+    );
+
+    log('Updated transaction with afterSimulate data', updatedTransactionMeta);
+
+    const { txParams } = updatedTransactionMeta;
+
+    const { gas: estimatedGas } = await this.estimateGas(
+      { ...txParams, gas: undefined },
+      networkClientId,
+    );
+
+    log('Updating gas following afterSimulate hook', estimatedGas);
+
+    this.#updateTransactionInternal({ transactionId }, (txMeta) => {
+      txMeta.txParams.gas = estimatedGas;
+    });
   }
 }
