@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0]
+
 ### Added
 
 - **BREAKING:** Added `addTransactionFn` option to the controller contructor which accepts the `TransactionController` `addTransaction` method ([#5828](https://github.com/MetaMask/core/pull/5828))
@@ -187,7 +189,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.15.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.15.0...@metamask/earn-controller@1.0.0
 [0.15.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.14.0...@metamask/earn-controller@0.15.0
 [0.14.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.13.0...@metamask/earn-controller@0.14.0
 [0.13.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.12.0...@metamask/earn-controller@0.13.0
