@@ -1583,6 +1583,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     operationName: string,
   ): Promise<T> {
     try {
+      // proactively check for expired tokens and refresh them if needed
       if (this.checkNodeAuthTokenExpired()) {
         log(
           `JWT token expired during ${operationName}, attempting to refresh tokens`,
