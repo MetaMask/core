@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [11.10.0]
 
-### Uncategorized
-
-- Release 399.0.0 ([#5812](https://github.com/MetaMask/core/pull/5812))
-- Release/389.0.0 ([#5765](https://github.com/MetaMask/core/pull/5765))
-
 ### Added
 
 - Add `TransactionBatch` in approval types enum ([#5793](https://github.com/MetaMask/core/pull/5793))

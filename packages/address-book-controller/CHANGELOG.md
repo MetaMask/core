@@ -9,13 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [6.1.0]
 
-### Uncategorized
-
-- Release 319.0.0 ([#5439](https://github.com/MetaMask/core/pull/5439))
-- Revert "Release 319.0.0 (#5437)" ([#5437](https://github.com/MetaMask/core/pull/5437))
-- Release 319.0.0 ([#5437](https://github.com/MetaMask/core/pull/5437))
-- feat: add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/core/pull/5301))
-
 ### Added
 
 - Add contact event system ([#5779](https://github.com/MetaMask/core/pull/5779))
@@ -23,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `list` method on `AddressBookController` to get all address book entries as an array
   - Register message handlers for `list`, `set`, and `delete` actions
   - Add `lastUpdatedAt` property to `AddressBookEntry` to track when contacts were last modified
+- Add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/core/pull/5301))
 
 ### Changed
 
