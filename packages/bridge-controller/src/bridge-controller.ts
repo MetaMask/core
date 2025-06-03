@@ -757,6 +757,12 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...baseProperties,
         };
       case UnifiedSwapBridgeEventName.QuotesRequested:
+        return {
+          ...this.#getRequestParams(),
+          ...this.#getRequestMetadata(),
+          has_sufficient_funds: !this.state.quoteRequest.insufficientBal,
+          ...baseProperties,
+        };
       case UnifiedSwapBridgeEventName.QuoteError:
         return {
           ...this.#getRequestParams(),
