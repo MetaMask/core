@@ -2,7 +2,7 @@ import type {
   AccountsControllerListAccountsAction,
   AccountsControllerUpdateAccountMetadataAction,
   AccountsControllerAccountRenamedEvent,
-  AccountsControllerAccountAddedEvent,
+  AccountsControllerUpdateAccountsAction,
 } from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
@@ -12,6 +12,7 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import {
+  KeyringTypes,
   type KeyringControllerGetStateAction,
   type KeyringControllerLockEvent,
   type KeyringControllerUnlockEvent,
@@ -233,6 +234,7 @@ export type AllowedActions =
   // Account Syncing
   | AccountsControllerListAccountsAction
   | AccountsControllerUpdateAccountMetadataAction
+  | AccountsControllerUpdateAccountsAction
   | KeyringControllerWithKeyringAction
   // Network Syncing
   | NetworkControllerGetStateAction
@@ -253,7 +255,6 @@ export type AllowedEvents =
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
   // Account Syncing Events
-  | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRenamedEvent
   // Network Syncing Events
   | NetworkControllerNetworkRemovedEvent;
@@ -289,9 +290,10 @@ export default class UserStorageController extends BaseController<
   readonly #userStorage: UserStorage;
 
   readonly #auth = {
-    getProfileId: async () => {
+    getProfileId: async (entropySourceId?: string) => {
       const sessionProfile = await this.messagingSystem.call(
         'AuthenticationController:getSessionProfile',
+        entropySourceId,
       );
       return sessionProfile?.profileId;
     },
@@ -359,17 +361,22 @@ export default class UserStorageController extends BaseController<
       {
         env: Env.PRD,
         auth: {
-          getAccessToken: () =>
+          getAccessToken: (entropySourceId?: string) =>
             this.messagingSystem.call(
               'AuthenticationController:getBearerToken',
+              entropySourceId,
             ),
-          getUserProfile: async () => {
+          getUserProfile: async (entropySourceId?: string) => {
             return await this.messagingSystem.call(
               'AuthenticationController:getSessionProfile',
+              entropySourceId,
             );
           },
-          signMessage: (message) =>
-            this.#snapSignMessage(message as `metamask:${string}`),
+          signMessage: (message: string, entropySourceId?: string) =>
+            this.#snapSignMessage(
+              message as `metamask:${string}`,
+              entropySourceId,
+            ),
         },
       },
       {
@@ -450,14 +457,17 @@ export default class UserStorageController extends BaseController<
    * Developers can extend the entry path and entry name through the `schema.ts` file.
    *
    * @param path - string in the form of `${feature}.${key}` that matches schema
+   * @param entropySourceId - The entropy source ID used to generate the encryption key.
    * @returns the decrypted string contents found from user storage (or null if not found)
    */
   public async performGetStorage(
     path: UserStoragePathWithFeatureAndKey,
+    entropySourceId?: string,
   ): Promise<string | null> {
     return await this.#userStorage.getItem(path, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
       validateAgainstSchema: true,
+      entropySourceId,
     });
   }
 
@@ -466,14 +476,17 @@ export default class UserStorageController extends BaseController<
    * Developers can extend the entry path through the `schema.ts` file.
    *
    * @param path - string in the form of `${feature}` that matches schema
+   * @param entropySourceId - The entropy source ID used to generate the encryption key.
    * @returns the array of decrypted string contents found from user storage (or null if not found)
    */
   public async performGetStorageAllFeatureEntries(
     path: UserStoragePathWithFeatureOnly,
+    entropySourceId?: string,
   ): Promise<string[] | null> {
     return await this.#userStorage.getAllFeatureItems(path, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
       validateAgainstSchema: true,
+      entropySourceId,
     });
   }
 
@@ -483,15 +496,18 @@ export default class UserStorageController extends BaseController<
    *
    * @param path - string in the form of `${feature}.${key}` that matches schema
    * @param value - The string data you want to store.
+   * @param entropySourceId - The entropy source ID used to generate the encryption key.
    * @returns nothing. NOTE that an error is thrown if fails to store data.
    */
   public async performSetStorage(
     path: UserStoragePathWithFeatureAndKey,
     value: string,
+    entropySourceId?: string,
   ): Promise<void> {
     return await this.#userStorage.setItem(path, value, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
       validateAgainstSchema: true,
+      entropySourceId,
     });
   }
 
@@ -501,6 +517,7 @@ export default class UserStorageController extends BaseController<
    *
    * @param path - string in the form of `${feature}` that matches schema
    * @param values - data to store, in the form of an array of `[entryKey, entryValue]` pairs
+   * @param entropySourceId - The entropy source ID used to generate the encryption key.
    * @returns nothing. NOTE that an error is thrown if fails to store data.
    */
   public async performBatchSetStorage<
@@ -508,10 +525,12 @@ export default class UserStorageController extends BaseController<
   >(
     path: FeatureName,
     values: [UserStorageFeatureKeys<FeatureName>, string][],
+    entropySourceId?: string,
   ): Promise<void> {
     return await this.#userStorage.batchSetItems(path, values, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
       validateAgainstSchema: true,
+      entropySourceId,
     });
   }
 
@@ -519,14 +538,17 @@ export default class UserStorageController extends BaseController<
    * Allows deletion of user data. Developers can extend the entry path and entry name through the `schema.ts` file.
    *
    * @param path - string in the form of `${feature}.${key}` that matches schema
+   * @param entropySourceId - The entropy source ID used to generate the encryption key.
    * @returns nothing. NOTE that an error is thrown if fails to delete data.
    */
   public async performDeleteStorage(
     path: UserStoragePathWithFeatureAndKey,
+    entropySourceId?: string,
   ): Promise<void> {
     return await this.#userStorage.deleteItem(path, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
       validateAgainstSchema: true,
+      entropySourceId,
     });
   }
 
@@ -535,12 +557,17 @@ export default class UserStorageController extends BaseController<
    * Developers can extend the entry path through the `schema.ts` file.
    *
    * @param path - string in the form of `${feature}` that matches schema
+   * @param entropySourceId - The entropy source ID used to generate the encryption key.
    * @returns nothing. NOTE that an error is thrown if fails to delete data.
    */
   public async performDeleteStorageAllFeatureEntries(
     path: UserStoragePathWithFeatureOnly,
+    entropySourceId?: string,
   ): Promise<void> {
-    return await this.#userStorage.deleteAllFeatureItems(path);
+    return await this.#userStorage.deleteAllFeatureItems(path, {
+      nativeScryptCrypto: this.#nativeScryptCrypto,
+      entropySourceId,
+    });
   }
 
   /**
@@ -549,6 +576,7 @@ export default class UserStorageController extends BaseController<
    *
    * @param path - string in the form of `${feature}` that matches schema
    * @param values - data to store, in the form of an array of entryKey[]
+   * @param entropySourceId - The entropy source ID used to generate the encryption key.
    * @returns nothing. NOTE that an error is thrown if fails to store data.
    */
   public async performBatchDeleteStorage<
@@ -556,8 +584,12 @@ export default class UserStorageController extends BaseController<
   >(
     path: FeatureName,
     values: UserStorageFeatureKeys<FeatureName>[],
+    entropySourceId?: string,
   ): Promise<void> {
-    return await this.#userStorage.batchDeleteItems(path, values);
+    return await this.#userStorage.batchDeleteItems(path, values, {
+      nativeScryptCrypto: this.#nativeScryptCrypto,
+      entropySourceId,
+    });
   }
 
   /**
@@ -578,15 +610,42 @@ export default class UserStorageController extends BaseController<
     this.#storageKeyCache = {};
   }
 
+  /**
+   * Lists all the available HD keyring metadata IDs.
+   * These IDs can be used in a multi-SRP context to segregate data specific to different SRPs.
+   *
+   * @returns A promise that resolves to an array of HD keyring metadata IDs.
+   */
+  async listEntropySources() {
+    if (!this.#isUnlocked) {
+      throw new Error(
+        'listEntropySources - unable to list entropy sources, wallet is locked',
+      );
+    }
+
+    const { keyrings } = this.messagingSystem.call(
+      'KeyringController:getState',
+    );
+    return keyrings
+      .filter((keyring) => keyring.type === KeyringTypes.hd.toString())
+      .map((keyring) => keyring.metadata.id);
+  }
+
   #_snapSignMessageCache: Record<`metamask:${string}`, string> = {};
 
   /**
    * Signs a specific message using an underlying auth snap.
    *
    * @param message - A specific tagged message to sign.
+   * @param entropySourceId - The entropy source ID used to derive the key,
+   * when multiple sources are available (Multi-SRP).
    * @returns A Signature created by the snap.
    */
-  async #snapSignMessage(message: `metamask:${string}`): Promise<string> {
+  async #snapSignMessage(
+    message: `metamask:${string}`,
+    entropySourceId?: string,
+  ): Promise<string> {
+    // the message is SRP specific already, so there's no need to use the entropySourceId in the cache
     if (this.#_snapSignMessageCache[message]) {
       return this.#_snapSignMessageCache[message];
     }
@@ -599,7 +658,7 @@ export default class UserStorageController extends BaseController<
 
     const result = (await this.messagingSystem.call(
       'SnapController:handleRequest',
-      createSnapSignMessageRequest(message),
+      createSnapSignMessageRequest(message, entropySourceId),
     )) as string;
 
     this.#_snapSignMessageCache[message] = result;
@@ -683,28 +742,46 @@ export default class UserStorageController extends BaseController<
    * It will add new accounts to the internal accounts list, update/merge conflicting names and re-upload the results in some cases to the user storage.
    */
   async syncInternalAccountsWithUserStorage(): Promise<void> {
-    const profileId = await this.#auth.getProfileId();
+    const entropySourceIds = await this.listEntropySources();
 
-    await syncInternalAccountsWithUserStorage(
-      {
-        maxNumberOfAccountsToAdd:
-          this.#config?.accountSyncing?.maxNumberOfAccountsToAdd,
-        onAccountAdded: () =>
-          this.#config?.accountSyncing?.onAccountAdded?.(profileId),
-        onAccountNameUpdated: () =>
-          this.#config?.accountSyncing?.onAccountNameUpdated?.(profileId),
-        onAccountSyncErroneousSituation: (situationMessage, sentryContext) =>
-          this.#config?.accountSyncing?.onAccountSyncErroneousSituation?.(
-            profileId,
-            situationMessage,
-            sentryContext,
-          ),
-      },
-      {
-        getMessenger: () => this.messagingSystem,
-        getUserStorageControllerInstance: () => this,
-      },
-    );
+    try {
+      for (const entropySourceId of entropySourceIds) {
+        const profileId = await this.#auth.getProfileId(entropySourceId);
+
+        await syncInternalAccountsWithUserStorage(
+          {
+            maxNumberOfAccountsToAdd:
+              this.#config?.accountSyncing?.maxNumberOfAccountsToAdd,
+            onAccountAdded: () =>
+              this.#config?.accountSyncing?.onAccountAdded?.(profileId),
+            onAccountNameUpdated: () =>
+              this.#config?.accountSyncing?.onAccountNameUpdated?.(profileId),
+            onAccountSyncErroneousSituation: (
+              situationMessage,
+              sentryContext,
+            ) =>
+              this.#config?.accountSyncing?.onAccountSyncErroneousSituation?.(
+                profileId,
+                situationMessage,
+                sentryContext,
+              ),
+          },
+          {
+            getMessenger: () => this.messagingSystem,
+            getUserStorageControllerInstance: () => this,
+          },
+          entropySourceId,
+        );
+      }
+
+      // We do this here and not in the finally statement because we want to make sure that
+      // the accounts are saved / updated / deleted at least once before we set this flag
+      await this.setHasAccountSyncingSyncedAtLeastOnce(true);
+    } catch (e) {
+      // Silently fail for now
+      // istanbul ignore next
+      console.error(e);
+    }
   }
 
   /**
