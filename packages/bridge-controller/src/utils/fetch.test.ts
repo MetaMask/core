@@ -236,6 +236,7 @@ describe('fetch', () => {
         {
           ...mockBridgeQuotesErc20Erc20[0],
           quote: {
+            bridgeId: 'socket',
             srcAsset: {
               ...mockBridgeQuotesErc20Erc20[0].quote.srcAsset,
               decimals: undefined,
@@ -245,7 +246,8 @@ describe('fetch', () => {
         {
           ...mockBridgeQuotesErc20Erc20[1],
           quote: {
-            srcAsset: {
+            bridgeId: 'socket',
+            destAsset: {
               ...mockBridgeQuotesErc20Erc20[1].quote.destAsset,
               address: undefined,
             },
