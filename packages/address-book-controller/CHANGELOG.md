@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Revert "Release 422.0.0 (#5904)" ([#5904](https://github.com/MetaMask/core/pull/5904))
+
 ### Added
 
 - Add contact event system ([#5779](https://github.com/MetaMask/core/pull/5779))
