@@ -1,5 +1,10 @@
 import { Contract } from '@ethersproject/contracts';
-import { SolScope } from '@metamask/keyring-api';
+import {
+  EthAccountType,
+  EthScope,
+  SolAccountType,
+  SolScope,
+} from '@metamask/keyring-api';
 import type { Hex } from '@metamask/utils';
 import { bigIntToHex } from '@metamask/utils';
 import nock from 'nock';
@@ -666,6 +671,10 @@ describe('BridgeController', function () {
         // eslint-disable-next-line jest/no-conditional-in-test
         if (actionType === 'AccountsController:getSelectedMultichainAccount') {
           return {
+            type: SolAccountType.DataAccount,
+            id: 'account1',
+            scopes: [SolScope.Mainnet],
+            methods: [],
             address: '0x123',
             metadata: {
               snap: {
@@ -673,11 +682,16 @@ describe('BridgeController', function () {
                 name: 'Solana Snap',
                 enabled: true,
               },
-            } as never,
+              name: 'Account 1',
+              importTime: 1717334400,
+              keyring: {
+                type: 'Keyring',
+              },
+            },
             options: {
               scope: 'mainnet',
             },
-          } as never;
+          };
         }
         // eslint-disable-next-line jest/no-conditional-in-test
         if (actionType === 'NetworkController:getNetworkClientById') {
@@ -1253,18 +1267,49 @@ describe('BridgeController', function () {
             isSnapAccount
           ) {
             return {
+              type: SolAccountType.DataAccount,
+              id: 'account1',
+              scopes: [SolScope.Mainnet],
+              methods: [],
               address: '0x123',
               metadata: {
+                name: 'Account 1',
+                importTime: 1717334400,
+                keyring: {
+                  type: 'Keyring',
+                },
                 snap: {
                   id: 'npm:@metamask/solana-snap',
                   name: 'Solana Snap',
                   enabled: true,
                 },
-              } as never,
+              },
               options: {
                 scope: 'mainnet',
               },
-            } as never;
+            };
+          }
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (
+            actionType === 'AccountsController:getSelectedMultichainAccount'
+          ) {
+            return {
+              type: EthAccountType.Eoa,
+              id: 'account1',
+              scopes: [EthScope.Eoa],
+              methods: [],
+              address: '0x123',
+              metadata: {
+                name: 'Account 1',
+                importTime: 1717334400,
+                keyring: {
+                  type: 'Keyring',
+                },
+              },
+              options: {
+                scope: 'mainnet',
+              },
+            };
           }
           // eslint-disable-next-line jest/no-conditional-in-test
           if (actionType === 'SnapController:handleRequest') {
