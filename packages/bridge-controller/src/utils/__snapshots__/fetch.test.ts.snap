@@ -1,0 +1,18 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`fetch fetchBridgeQuotes should filter out malformed bridge quotes 1`] = `
+Array [
+  Array [
+    [StructError: At path: quote -- Expected an object, but received: undefined],
+  ],
+  Array [
+    [StructError: At path: quote -- Expected an object, but received: undefined],
+  ],
+  Array [
+    [StructError: At path: quote.requestId -- Expected a string, but received: undefined],
+  ],
+  Array [
+    [StructError: At path: quote.requestId -- Expected a string, but received: undefined],
+  ],
+]
+`;
