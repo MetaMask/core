@@ -1654,4 +1654,73 @@ describe('BridgeController', function () {
       expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
     });
   });
+
+  describe('trackUnifiedSwapBridgeEvent client-side call exceptions', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      messengerMock.call.mockImplementation(
+        (
+          ...args: Parameters<BridgeControllerMessenger['call']>
+        ): ReturnType<BridgeControllerMessenger['call']> => {
+          const actionType = args[0];
+          if (
+            actionType === 'AccountsController:getSelectedMultichainAccount'
+          ) {
+            return {
+              type: SolAccountType.DataAccount,
+              id: 'account1',
+              scopes: [SolScope.Mainnet],
+              methods: [],
+              address: '0x123',
+              metadata: {
+                snap: {
+                  id: 'npm:@metamask/solana-snap',
+                  name: 'Solana Snap',
+                  enabled: true,
+                },
+                name: 'Account 1',
+                importTime: 1717334400,
+              } as never,
+              options: {
+                scope: 'mainnet',
+              },
+            };
+          }
+          return {
+            provider: jest.fn() as never,
+            selectedNetworkClientId: 'selectedNetworkClientId',
+            rpcUrl: 'https://mainnet.infura.io/v3/123',
+            configuration: {
+              chainId: 'eip155:1',
+            },
+          } as never;
+        },
+      );
+    });
+
+    it('should not track the event if the account keyring type is not set', () => {
+      const errorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(jest.fn());
+      bridgeController.trackUnifiedSwapBridgeEvent(
+        UnifiedSwapBridgeEventName.QuotesReceived,
+        {
+          warnings: ['warning1'],
+          usd_quoted_gas: 0,
+          gas_included: false,
+          quoted_time_minutes: 10,
+          usd_quoted_return: 100,
+          price_impact: 0,
+          provider: 'provider_bridge',
+          best_quote_provider: 'provider_bridge2',
+        },
+      );
+      expect(trackMetaMetricsFn).toHaveBeenCalledTimes(0);
+      expect(errorSpy).toHaveBeenCalledTimes(1);
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Error tracking cross-chain swaps MetaMetrics event',
+        new TypeError("Cannot read properties of undefined (reading 'type')"),
+      );
+    });
+  });
 });
