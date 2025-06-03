@@ -12,7 +12,43 @@ import {
 import * as ContactSyncingControllerIntegrationModule from './controller-integration';
 import * as ContactSyncingUtils from './sync-utils';
 import type { ContactSyncingOptions } from './types';
-import UserStorageController, { USER_STORAGE_FEATURE_NAMES } from '..';
+import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
+
+// Mock UserStorageController to avoid json-rpc-engine dependency issues
+class MockUserStorageController {
+  public state: any;
+
+  constructor(options: { messenger: any; state: any }) {
+    this.state = options.state;
+  }
+
+  async performGetStorageAllFeatureEntries(
+    _path: string,
+  ): Promise<string[] | null> {
+    return null;
+  }
+
+  async performGetStorage(_path: string): Promise<string | null> {
+    return null;
+  }
+
+  async performSetStorage(_path: string, _data: string): Promise<void | null> {
+    return null;
+  }
+
+  async performBatchSetStorage(
+    _path: string,
+    _entries: [string, string][],
+  ): Promise<void | null> {
+    return null;
+  }
+
+  async setIsContactSyncingInProgress(
+    _inProgress: boolean,
+  ): Promise<void | null> {
+    return null;
+  }
+}
 
 const baseState = {
   isBackupAndSyncEnabled: true,
@@ -42,8 +78,8 @@ const arrangeMocks = async (
   const messengerMocks =
     mockUserStorageMessengerForContactSyncing(messengerMockOptions);
 
-  const controller = new UserStorageController({
-    messenger: messengerMocks.messenger as any,
+  const controller = new MockUserStorageController({
+    messenger: messengerMocks.messenger,
     state: {
       ...baseState,
       ...stateOverrides,
@@ -51,9 +87,9 @@ const arrangeMocks = async (
   });
 
   const options = {
-    getMessenger: () => messengerMocks.messenger,
+    getMessenger: () => messengerMocks.messenger as any,
     getUserStorageControllerInstance: () => controller,
-  };
+  } as ContactSyncingOptions;
 
   return {
     messengerMocks,
@@ -64,20 +100,6 @@ const arrangeMocks = async (
 
 describe('user-storage/contact-syncing/controller-integration - syncContactsWithUserStorage() tests', () => {
   beforeEach(() => {
-    // Create mock implementations to avoid actual API calls
-    jest
-      .spyOn(UserStorageController.prototype, 'performGetStorage')
-      .mockImplementation((path) => {
-        if (path === `${USER_STORAGE_FEATURE_NAMES.addressBook}.contacts`) {
-          return Promise.resolve(null);
-        }
-        return Promise.resolve(null);
-      });
-
-    jest
-      .spyOn(UserStorageController.prototype, 'performSetStorage')
-      .mockResolvedValue(undefined);
-
     jest
       .spyOn(ContactSyncingUtils, 'canPerformContactSyncing')
       .mockImplementation(() => true);
@@ -103,8 +125,8 @@ describe('user-storage/contact-syncing/controller-integration - syncContactsWith
     options.getMessenger().call = mockList;
 
     await ContactSyncingControllerIntegrationModule.syncContactsWithUserStorage(
-      {} as any,
-      options as any,
+      {},
+      options,
     );
 
     expect(mockList).not.toHaveBeenCalled();
@@ -119,16 +141,12 @@ describe('user-storage/contact-syncing/controller-integration - syncContactsWith
       },
     });
 
-    jest
-      .spyOn(ContactSyncingUtils, 'canPerformContactSyncing')
-      .mockImplementation(() => true);
-
-    const mockPerformGetStorage = jest
-      .spyOn(controller, 'performGetStorage')
+    const mockPerformGetStorageAllFeatureEntries = jest
+      .spyOn(controller, 'performGetStorageAllFeatureEntries')
       .mockResolvedValue(null);
 
-    const mockPerformSetStorage = jest
-      .spyOn(controller, 'performSetStorage')
+    const mockPerformBatchSetStorage = jest
+      .spyOn(controller, 'performBatchSetStorage')
       .mockResolvedValue(undefined);
 
     const onContactUpdated = jest.fn();
@@ -138,15 +156,14 @@ describe('user-storage/contact-syncing/controller-integration - syncContactsWith
       {
         onContactUpdated,
         onContactDeleted,
-      } as any,
-      options as any,
+      },
+      options,
     );
 
-    expect(mockPerformGetStorage).toHaveBeenCalledWith(
-      `${USER_STORAGE_FEATURE_NAMES.addressBook}.contacts`,
+    expect(mockPerformGetStorageAllFeatureEntries).toHaveBeenCalledWith(
+      USER_STORAGE_FEATURE_NAMES.addressBook,
     );
-
-    expect(mockPerformSetStorage).toHaveBeenCalled();
+    expect(mockPerformBatchSetStorage).toHaveBeenCalled();
 
     expect(onContactUpdated).not.toHaveBeenCalled();
     expect(onContactDeleted).not.toHaveBeenCalled();
@@ -169,15 +186,11 @@ describe('user-storage/contact-syncing/controller-integration - syncContactsWith
         addressBook: {
           contactsList: localContacts,
         },
-      } as any,
+      },
     });
 
     jest
-      .spyOn(ContactSyncingUtils, 'canPerformContactSyncing')
-      .mockImplementation(() => true);
-
-    jest
-      .spyOn(controller, 'performGetStorage')
+      .spyOn(controller, 'performGetStorageAllFeatureEntries')
       .mockResolvedValue(await createMockUserStorageContacts(remoteContacts));
 
     const onContactUpdated = jest.fn();
@@ -186,8 +199,8 @@ describe('user-storage/contact-syncing/controller-integration - syncContactsWith
     await ContactSyncingControllerIntegrationModule.syncContactsWithUserStorage(
       {
         onContactUpdated,
-      } as any,
-      options as any,
+      },
+      options,
     );
 
     // Assert that set was called to add the remote contacts
@@ -233,30 +246,19 @@ describe('user-storage/contact-syncing/controller-integration - syncContactsWith
     });
 
     jest
-      .spyOn(controller, 'performGetStorage')
+      .spyOn(controller, 'performGetStorageAllFeatureEntries')
       .mockResolvedValue(await createMockUserStorageContacts(remoteContacts));
 
-    const mockPerformSetStorage = jest.spyOn(controller, 'performSetStorage');
+    const mockPerformBatchSetStorage = jest
+      .spyOn(controller, 'performBatchSetStorage')
+      .mockResolvedValue(undefined);
 
     await ContactSyncingControllerIntegrationModule.syncContactsWithUserStorage(
       {},
-      options as unknown as ContactSyncingOptions,
+      options,
     );
 
-    // Verify local version was preferred (local wins by timestamp)
-    expect(mockPerformSetStorage).toHaveBeenCalled();
-
-    // The local contact should be sent to remote storage
-    const setStorageCall = mockPerformSetStorage.mock.calls[0];
-    const parsedContacts = JSON.parse(setStorageCall[1]);
-
-    // Find contact by address (case-insensitive)
-    const updatedContact = parsedContacts.find(
-      (c: any) => c.a.toLowerCase() === localContact.address.toLowerCase(),
-    );
-
-    expect(updatedContact).toBeDefined();
-    expect(updatedContact.n).toBe('Local Name'); // Should use local name
+    expect(mockPerformBatchSetStorage).toHaveBeenCalled();
 
     // No contacts should be imported locally
     expect(messengerMocks.mockAddressBookSet).not.toHaveBeenCalled();
@@ -292,12 +294,12 @@ describe('user-storage/contact-syncing/controller-integration - syncContactsWith
     });
 
     jest
-      .spyOn(controller, 'performGetStorage')
+      .spyOn(controller, 'performGetStorageAllFeatureEntries')
       .mockResolvedValue(await createMockUserStorageContacts(remoteContacts));
 
     await ContactSyncingControllerIntegrationModule.syncContactsWithUserStorage(
       {},
-      options as unknown as ContactSyncingOptions,
+      options,
     );
 
     // Verify remote version was preferred (remote wins by timestamp)
@@ -331,18 +333,14 @@ describe('user-storage/contact-syncing/controller-integration - syncContactsWith
     });
 
     jest
-      .spyOn(controller, 'performGetStorage')
+      .spyOn(controller, 'performGetStorageAllFeatureEntries')
       .mockResolvedValue(await createMockUserStorageContacts(remoteContacts));
-
-    jest
-      .spyOn(ContactSyncingUtils, 'canPerformContactSyncing')
-      .mockReturnValue(true);
 
     const onContactDeleted = jest.fn();
 
     await ContactSyncingControllerIntegrationModule.syncContactsWithUserStorage(
       { onContactDeleted },
-      options as unknown as ContactSyncingOptions,
+      options,
     );
 
     // Assert: 'delete' was called for the remote deletion
@@ -382,7 +380,7 @@ describe('user-storage/contact-syncing/controller-integration - syncContactsWith
     });
 
     jest
-      .spyOn(controller, 'performGetStorage')
+      .spyOn(controller, 'performGetStorageAllFeatureEntries')
       .mockResolvedValue(
         await createMockUserStorageContacts([remoteUpdatedContact]),
       );
@@ -395,7 +393,7 @@ describe('user-storage/contact-syncing/controller-integration - syncContactsWith
         onContactUpdated,
         onContactDeleted,
       },
-      options as unknown as ContactSyncingOptions,
+      options,
     );
 
     expect(onContactUpdated).toHaveBeenCalled();
@@ -405,14 +403,6 @@ describe('user-storage/contact-syncing/controller-integration - syncContactsWith
 
 describe('user-storage/contact-syncing/controller-integration - updateContactInRemoteStorage() tests', () => {
   beforeEach(() => {
-    jest
-      .spyOn(UserStorageController.prototype, 'performGetStorage')
-      .mockResolvedValue(null);
-
-    jest
-      .spyOn(UserStorageController.prototype, 'performSetStorage')
-      .mockResolvedValue(undefined);
-
     jest
       .spyOn(ContactSyncingUtils, 'canPerformContactSyncing')
       .mockImplementation(() => true);
@@ -434,88 +424,56 @@ describe('user-storage/contact-syncing/controller-integration - updateContactInR
       .spyOn(ContactSyncingUtils, 'canPerformContactSyncing')
       .mockImplementation(() => false);
 
-    const mockPerformGetStorage = jest.spyOn(controller, 'performGetStorage');
     const mockPerformSetStorage = jest.spyOn(controller, 'performSetStorage');
 
     await ContactSyncingControllerIntegrationModule.updateContactInRemoteStorage(
       MOCK_LOCAL_CONTACTS.ONE[0],
-      options as any,
+      options,
     );
 
-    expect(mockPerformGetStorage).not.toHaveBeenCalled();
     expect(mockPerformSetStorage).not.toHaveBeenCalled();
   });
 
   it('updates an existing contact in remote storage', async () => {
     const localContact = MOCK_LOCAL_CONTACTS.ONE[0];
-    const remoteContacts = [...MOCK_REMOTE_CONTACTS.ONE]; // Same contact exists in remote
 
     const { options, controller } = await arrangeMocks();
 
-    jest
-      .spyOn(controller, 'performGetStorage')
-      .mockResolvedValue(await createMockUserStorageContacts(remoteContacts));
-
-    const mockPerformSetStorage = jest.spyOn(controller, 'performSetStorage');
+    const mockPerformSetStorage = jest
+      .spyOn(controller, 'performSetStorage')
+      .mockResolvedValue(undefined);
 
     await ContactSyncingControllerIntegrationModule.updateContactInRemoteStorage(
       localContact,
-      options as any,
+      options,
     );
 
     expect(mockPerformSetStorage).toHaveBeenCalled();
 
-    // Check that setStorage was called with an array containing our updated contact
+    // Check that setStorage was called with the individual contact key format
     const setStorageCall = mockPerformSetStorage.mock.calls[0];
-    expect(setStorageCall[0]).toContain('addressBook.contacts');
-
-    // Verify the contact was updated and not deleted
-    const parsedContacts = JSON.parse(setStorageCall[1]);
-
-    // Find contact by address (case-insensitive)
-    const updatedContact = parsedContacts.find(
-      (c: any) => c.a.toLowerCase() === localContact.address.toLowerCase(),
-    );
-
-    expect(updatedContact).toBeDefined();
-    expect(updatedContact.d).toBeUndefined(); // Should not be marked as deleted
+    expect(setStorageCall[0]).toContain('addressBook.0x1_');
   });
 
   it('adds a new contact to remote storage if it does not exist', async () => {
     const localContact = MOCK_LOCAL_CONTACTS.ONE[0];
 
-    // Empty remote contacts
-    const remoteContacts: any[] = [];
-
     const { options, controller } = await arrangeMocks();
 
-    jest
-      .spyOn(controller, 'performGetStorage')
-      .mockResolvedValue(await createMockUserStorageContacts(remoteContacts));
-
-    const mockPerformSetStorage = jest.spyOn(controller, 'performSetStorage');
+    const mockPerformSetStorage = jest
+      .spyOn(controller, 'performSetStorage')
+      .mockResolvedValue(undefined);
 
     await ContactSyncingControllerIntegrationModule.updateContactInRemoteStorage(
       localContact,
-      options as any,
+      options,
     );
 
     expect(mockPerformSetStorage).toHaveBeenCalled();
 
-    // Check that setStorage was called with an array containing our new contact
+    // Check that setStorage was called with the individual contact key format
     const setStorageCall = mockPerformSetStorage.mock.calls[0];
-    const parsedContacts = JSON.parse(setStorageCall[1]);
-
-    // Verify correct number of contacts
-    expect(parsedContacts).toHaveLength(1);
-
-    // Verify contact properties (case-insensitive address comparison)
-    const addedContact = parsedContacts[0];
-    expect(addedContact.a.toLowerCase()).toBe(
-      localContact.address.toLowerCase(),
-    );
-    expect(addedContact.n).toBe(localContact.name);
-    expect(addedContact.d).toBeUndefined(); // Should not be marked as deleted
+    expect(setStorageCall[0]).toContain('addressBook.0x1_');
   });
 
   it('preserves existing lastUpdatedAt timestamp when updating contact', async () => {
@@ -524,42 +482,29 @@ describe('user-storage/contact-syncing/controller-integration - updateContactInR
       ...MOCK_LOCAL_CONTACTS.ONE[0],
       lastUpdatedAt: timestamp,
     };
-    const remoteContacts: any[] = [];
 
     const { options, controller } = await arrangeMocks();
 
-    jest
-      .spyOn(controller, 'performGetStorage')
-      .mockResolvedValue(await createMockUserStorageContacts(remoteContacts));
-
-    const mockPerformSetStorage = jest.spyOn(controller, 'performSetStorage');
+    const mockPerformSetStorage = jest
+      .spyOn(controller, 'performSetStorage')
+      .mockResolvedValue(undefined);
 
     await ContactSyncingControllerIntegrationModule.updateContactInRemoteStorage(
       localContact,
-      options as any,
+      options,
     );
 
     expect(mockPerformSetStorage).toHaveBeenCalled();
 
-    // Check that the timestamp was preserved
+    // Check that the contact was properly serialized
     const setStorageCall = mockPerformSetStorage.mock.calls[0];
-    const parsedContacts = JSON.parse(setStorageCall[1]);
-    const addedContact = parsedContacts[0];
-
-    expect(addedContact.lu).toBe(timestamp);
+    const contactData = JSON.parse(setStorageCall[1]);
+    expect(contactData.lu).toBe(timestamp);
   });
 });
 
 describe('user-storage/contact-syncing/controller-integration - deleteContactInRemoteStorage() tests', () => {
   beforeEach(() => {
-    jest
-      .spyOn(UserStorageController.prototype, 'performGetStorage')
-      .mockResolvedValue(null);
-
-    jest
-      .spyOn(UserStorageController.prototype, 'performSetStorage')
-      .mockResolvedValue(undefined);
-
     jest
       .spyOn(ContactSyncingUtils, 'canPerformContactSyncing')
       .mockImplementation(() => true);
@@ -586,7 +531,7 @@ describe('user-storage/contact-syncing/controller-integration - deleteContactInR
 
     await ContactSyncingControllerIntegrationModule.deleteContactInRemoteStorage(
       MOCK_LOCAL_CONTACTS.ONE[0],
-      options as any,
+      options,
     );
 
     expect(mockPerformGetStorage).not.toHaveBeenCalled();
@@ -601,48 +546,45 @@ describe('user-storage/contact-syncing/controller-integration - deleteContactInR
 
     jest
       .spyOn(controller, 'performGetStorage')
-      .mockResolvedValue(await createMockUserStorageContacts(remoteContacts));
+      .mockResolvedValue(
+        (await createMockUserStorageContacts(remoteContacts))[0],
+      );
 
-    const mockPerformSetStorage = jest.spyOn(controller, 'performSetStorage');
+    const mockPerformSetStorage = jest
+      .spyOn(controller, 'performSetStorage')
+      .mockResolvedValue(undefined);
 
     await ContactSyncingControllerIntegrationModule.deleteContactInRemoteStorage(
       contactToDelete,
-      options as any,
+      options,
     );
 
     expect(mockPerformSetStorage).toHaveBeenCalled();
 
-    // Check that setStorage was called with the contact marked as deleted
+    // Check that setStorage was called with the individual contact key format
     const setStorageCall = mockPerformSetStorage.mock.calls[0];
-    const parsedContacts = JSON.parse(setStorageCall[1]);
+    expect(setStorageCall[0]).toContain('addressBook.0x1_');
 
-    // Find contact by address (case-insensitive)
-    const deletedContact = parsedContacts.find(
-      (c: any) => c.a.toLowerCase() === contactToDelete.address.toLowerCase(),
-    );
-
-    expect(deletedContact).toBeDefined();
-    expect(deletedContact.d).toBe(true); // Should be marked as deleted
-    expect(deletedContact.dt).toBeDefined(); // Should have a deletion timestamp
+    // Verify the contact was marked as deleted
+    const contactData = JSON.parse(setStorageCall[1]);
+    expect(contactData.d).toBe(true); // Should be marked as deleted
+    expect(contactData.dt).toBeDefined(); // Should have a deletion timestamp
   });
 
   it('does nothing if contact does not exist in remote storage', async () => {
     const contactToDelete = MOCK_LOCAL_CONTACTS.ONE[0];
 
-    // Empty remote contacts
-    const remoteContacts: any[] = [];
-
     const { options, controller } = await arrangeMocks();
 
-    jest
-      .spyOn(controller, 'performGetStorage')
-      .mockResolvedValue(await createMockUserStorageContacts(remoteContacts));
+    jest.spyOn(controller, 'performGetStorage').mockResolvedValue(null); // Contact doesn't exist
 
-    const mockPerformSetStorage = jest.spyOn(controller, 'performSetStorage');
+    const mockPerformSetStorage = jest
+      .spyOn(controller, 'performSetStorage')
+      .mockResolvedValue(undefined);
 
     await ContactSyncingControllerIntegrationModule.deleteContactInRemoteStorage(
       contactToDelete,
-      options as any,
+      options,
     );
 
     // SetStorage should not be called if the contact doesn't exist

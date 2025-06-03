@@ -11,9 +11,6 @@ import {
 import { isContactBridgedFromAccounts } from './utils';
 import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
 
-// Define a constant to use as the key for storing all contacts
-export const ADDRESS_BOOK_CONTACTS_KEY = 'contacts';
-
 export type SyncContactsWithUserStorageConfig = {
   onContactSyncErroneousSituation?: (
     errorMessage: string,
@@ -30,7 +27,10 @@ export type SyncContactsWithUserStorageConfig = {
  * @returns A unique string key
  */
 function createContactKey(contact: AddressBookEntry): string {
-  return `${contact.chainId}:${contact.address.toLowerCase()}`;
+  if (!contact.address) {
+    throw new Error('Contact address is required to create storage key');
+  }
+  return `${contact.chainId}_${contact.address.toLowerCase()}`;
 }
 
 /**
@@ -78,7 +78,8 @@ export async function syncContactsWithUserStorage(
     const localVisibleContacts =
       getMessenger()
         .call('AddressBookController:list')
-        .filter((contact) => !isContactBridgedFromAccounts(contact)) || [];
+        .filter((contact) => !isContactBridgedFromAccounts(contact))
+        .filter((contact) => contact.address && contact.chainId) || [];
 
     // Get remote contacts from user storage API
     const remoteContacts = await getRemoteContacts(options);
@@ -91,6 +92,11 @@ export async function syncContactsWithUserStorage(
       return;
     }
 
+    // Filter remote contacts to exclude invalid ones
+    const validRemoteContacts = remoteContacts.filter(
+      (contact) => contact.address && contact.chainId,
+    );
+
     // Prepare maps for efficient lookup
     const localContactsMap = new Map<string, AddressBookEntry>();
     const remoteContactsMap = new Map<string, SyncAddressBookEntry>();
@@ -100,7 +106,7 @@ export async function syncContactsWithUserStorage(
       localContactsMap.set(key, contact);
     });
 
-    remoteContacts.forEach((contact) => {
+    validRemoteContacts.forEach((contact) => {
       const key = createContactKey(contact);
       remoteContactsMap.set(key, contact);
     });
@@ -111,7 +117,7 @@ export async function syncContactsWithUserStorage(
     const contactsToUpdateRemotely: AddressBookEntry[] = [];
 
     // SCENARIO 2 & 6: Process remote contacts - handle new device sync and remote updates
-    for (const remoteContact of remoteContacts) {
+    for (const remoteContact of validRemoteContacts) {
       const key = createContactKey(remoteContact);
       const localContact = localContactsMap.get(key);
 
@@ -201,7 +207,7 @@ export async function syncContactsWithUserStorage(
     // Apply changes to remote storage
     if (contactsToUpdateRemotely.length > 0) {
       // Update existing remote contacts with new contacts
-      const updatedRemoteContacts = [...remoteContacts];
+      const updatedRemoteContacts = [...validRemoteContacts];
 
       for (const localContact of contactsToUpdateRemotely) {
         const key = createContactKey(localContact);
@@ -256,22 +262,22 @@ async function getRemoteContacts(
   const { getUserStorageControllerInstance } = options;
 
   try {
-    const remoteContactsJson =
-      await getUserStorageControllerInstance().performGetStorage(
-        `${USER_STORAGE_FEATURE_NAMES.addressBook}.${ADDRESS_BOOK_CONTACTS_KEY}`,
+    const remoteContactsJsonArray =
+      await getUserStorageControllerInstance().performGetStorageAllFeatureEntries(
+        USER_STORAGE_FEATURE_NAMES.addressBook,
       );
 
-    if (!remoteContactsJson) {
+    if (!remoteContactsJsonArray || remoteContactsJsonArray.length === 0) {
       return null;
     }
 
-    // Parse the JSON and convert each entry from UserStorageContactEntry to AddressBookEntry
-    const remoteStorageEntries = JSON.parse(
-      remoteContactsJson,
-    ) as UserStorageContactEntry[];
-    return remoteStorageEntries.map((entry) =>
-      mapUserStorageEntryToAddressBookEntry(entry),
-    );
+    // Parse each JSON entry and convert from UserStorageContactEntry to AddressBookEntry
+    const remoteStorageEntries = remoteContactsJsonArray.map((contactJson) => {
+      const entry = JSON.parse(contactJson) as UserStorageContactEntry;
+      return mapUserStorageEntryToAddressBookEntry(entry);
+    });
+
+    return remoteStorageEntries;
   } catch {
     return null;
   }
@@ -293,14 +299,16 @@ async function saveContactsToUserStorage(
     return;
   }
 
-  // Convert each AddressBookEntry to UserStorageContactEntry format before saving
-  const storageEntries = contacts.map((contact) =>
-    mapAddressBookEntryToUserStorageEntry(contact),
-  );
+  // Convert each AddressBookEntry to UserStorageContactEntry format and create key-value pairs
+  const storageEntries: [string, string][] = contacts.map((contact) => {
+    const key = createContactKey(contact);
+    const storageEntry = mapAddressBookEntryToUserStorageEntry(contact);
+    return [key, JSON.stringify(storageEntry)];
+  });
 
-  await getUserStorageControllerInstance().performSetStorage(
-    `${USER_STORAGE_FEATURE_NAMES.addressBook}.${ADDRESS_BOOK_CONTACTS_KEY}`,
-    JSON.stringify(storageEntries),
+  await getUserStorageControllerInstance().performBatchSetStorage(
+    USER_STORAGE_FEATURE_NAMES.addressBook,
+    storageEntries,
   );
 }
 
@@ -315,20 +323,15 @@ export async function updateContactInRemoteStorage(
   contact: AddressBookEntry,
   options: ContactSyncingOptions,
 ): Promise<void> {
-  if (!canPerformContactSyncing(options)) {
+  if (
+    !canPerformContactSyncing(options) ||
+    !contact.address ||
+    !contact.chainId
+  ) {
     return;
   }
 
-  // Get current remote contacts or initialize empty array
-  const remoteContacts = (await getRemoteContacts(options)) || [];
-
-  // Find if this contact already exists in remote
-  const key = createContactKey(contact);
-  const existingIndex = remoteContacts.findIndex(
-    (c) => createContactKey(c) === key,
-  );
-
-  const updatedRemoteContacts = [...remoteContacts];
+  const { getUserStorageControllerInstance } = options;
 
   // Create an updated entry with timestamp
   const updatedEntry = {
@@ -337,16 +340,14 @@ export async function updateContactInRemoteStorage(
     deleted: false, // Explicitly set to false in case this was previously deleted
   } as SyncAddressBookEntry;
 
-  if (existingIndex !== -1) {
-    // Update existing contact
-    updatedRemoteContacts[existingIndex] = updatedEntry;
-  } else {
-    // Add as new contact
-    updatedRemoteContacts.push(updatedEntry);
-  }
+  const key = createContactKey(contact);
+  const storageEntry = mapAddressBookEntryToUserStorageEntry(updatedEntry);
 
-  // Save to remote storage
-  await saveContactsToUserStorage(updatedRemoteContacts, options);
+  // Save individual contact to remote storage
+  await getUserStorageControllerInstance().performSetStorage(
+    `${USER_STORAGE_FEATURE_NAMES.addressBook}.${key}`,
+    JSON.stringify(storageEntry),
+  );
 }
 
 /**
@@ -360,33 +361,51 @@ export async function deleteContactInRemoteStorage(
   contact: AddressBookEntry,
   options: ContactSyncingOptions,
 ): Promise<void> {
-  if (!canPerformContactSyncing(options)) {
+  if (
+    !canPerformContactSyncing(options) ||
+    !contact.address ||
+    !contact.chainId
+  ) {
     return;
   }
 
-  // Get current remote contacts
-  const remoteContacts = (await getRemoteContacts(options)) || [];
-
-  // Find the contact in remote storage
+  const { getUserStorageControllerInstance } = options;
   const key = createContactKey(contact);
-  const existingIndex = remoteContacts.findIndex(
-    (c) => createContactKey(c) === key,
-  );
 
-  // If the contact exists in remote storage
-  if (existingIndex !== -1) {
-    const updatedRemoteContacts = [...remoteContacts];
-    const now = Date.now();
+  try {
+    // Try to get the existing contact first
+    const existingContactJson =
+      await getUserStorageControllerInstance().performGetStorage(
+        `${USER_STORAGE_FEATURE_NAMES.addressBook}.${key}`,
+      );
 
-    // Mark the contact as deleted
-    updatedRemoteContacts[existingIndex] = {
-      ...updatedRemoteContacts[existingIndex],
-      deleted: true,
-      deletedAt: now,
-      lastUpdatedAt: now,
-    };
+    if (existingContactJson) {
+      // Mark the existing contact as deleted
+      const existingStorageEntry = JSON.parse(
+        existingContactJson,
+      ) as UserStorageContactEntry;
+      const existingContact =
+        mapUserStorageEntryToAddressBookEntry(existingStorageEntry);
 
-    // Save to remote storage
-    await saveContactsToUserStorage(updatedRemoteContacts, options);
+      const now = Date.now();
+      const deletedContact = {
+        ...existingContact,
+        deleted: true,
+        deletedAt: now,
+        lastUpdatedAt: now,
+      } as SyncAddressBookEntry;
+
+      const deletedStorageEntry =
+        mapAddressBookEntryToUserStorageEntry(deletedContact);
+
+      // Save the deleted contact back to storage
+      await getUserStorageControllerInstance().performSetStorage(
+        `${USER_STORAGE_FEATURE_NAMES.addressBook}.${key}`,
+        JSON.stringify(deletedStorageEntry),
+      );
+    }
+  } catch {
+    // If contact doesn't exist in remote storage, no need to mark as deleted
+    console.warn('Contact not found in remote storage for deletion:', key);
   }
 }

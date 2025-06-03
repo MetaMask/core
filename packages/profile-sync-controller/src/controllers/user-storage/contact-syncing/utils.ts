@@ -73,7 +73,7 @@ export const mapUserStorageEntryToAddressBookEntry = (
     ...(userStorageEntry.t
       ? { addressType: userStorageEntry.t as AddressType }
       : {}),
-    // Include remote metadata for sync operation only (not stored in AddressBookController)
+  // Include remote metadata for sync operation only (not stored in AddressBookController)
     ...(userStorageEntry.d ? { deleted: userStorageEntry.d } : {}),
     ...(userStorageEntry.dt ? { deletedAt: userStorageEntry.dt } : {}),
     ...(userStorageEntry.lu ? { lastUpdatedAt: userStorageEntry.lu } : {}),

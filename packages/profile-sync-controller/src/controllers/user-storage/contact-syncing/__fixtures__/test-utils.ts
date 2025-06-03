@@ -140,6 +140,6 @@ export function mockUserStorageMessengerForContactSyncing(options?: {
   };
 }
 
-export const createMockUserStorageContacts = async (contacts: unknown) => {
-  return JSON.stringify(contacts);
+export const createMockUserStorageContacts = async (contacts: unknown[]) => {
+  return contacts.map((contact) => JSON.stringify(contact));
 };
