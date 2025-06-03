@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.1.0]
+
 ### Added
 
 - Add contact event system ([#5779](https://github.com/MetaMask/core/pull/5779))
@@ -14,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `list` method on `AddressBookController` to get all address book entries as an array
   - Register message handlers for `list`, `set`, and `delete` actions
   - Add `lastUpdatedAt` property to `AddressBookEntry` to track when contacts were last modified
+- Add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/core/pull/5301))
 
 ### Changed
 
@@ -220,7 +223,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.1.0...HEAD
+[6.1.0]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.0.3...@metamask/address-book-controller@6.1.0
 [6.0.3]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.0.2...@metamask/address-book-controller@6.0.3
 [6.0.2]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.0.1...@metamask/address-book-controller@6.0.2
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.0.0...@metamask/address-book-controller@6.0.1
