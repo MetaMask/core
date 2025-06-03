@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat(backup & sync): use entropySourceId to sync accounts for Multi-SRP ([#5753](https://github.com/MetaMask/core/pull/5753))
+
 ## [9.0.0]
 
 ### Changed
