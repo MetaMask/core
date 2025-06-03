@@ -116,14 +116,6 @@ export const getFeatureAndKeyFromPath = <T extends boolean>(
     : UserStorageGenericFeatureAndKey;
 };
 
-export const isPathWithFeatureAndKey = (
-  path: string,
-): path is UserStoragePathWithFeatureAndKey => {
-  const pathRegex = /^\w+\.\w+$/u;
-
-  return pathRegex.test(path);
-};
-
 /**
  * Constructs a unique entry path for a user.
  * This can be done due to the uniqueness of the storage key (no users will share the same storage key).

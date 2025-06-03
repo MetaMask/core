@@ -44,12 +44,6 @@ export type SimulationRequestTransaction = {
 
 /** Request to the simulation API to simulate transactions. */
 export type SimulationRequest = {
-  /**
-   * Transactions to be sequentially simulated.
-   * State changes impact subsequent transactions in the list.
-   */
-  transactions: SimulationRequestTransaction[];
-
   blockOverrides?: {
     time?: Hex;
   };
@@ -84,10 +78,28 @@ export type SimulationRequest = {
   };
 
   /**
+   * Transactions to be sequentially simulated.
+   * State changes impact subsequent transactions in the list.
+   */
+  transactions: SimulationRequestTransaction[];
+
+  /**
    * Whether to include call traces in the response.
    * Defaults to false.
    */
   withCallTrace?: boolean;
+
+  /**
+   * Whether to include the default block data in the simulation.
+   * Defaults to false.
+   */
+  withDefaultBlockOverrides?: boolean;
+
+  /**
+   * Whether to use the gas fees in the simulation.
+   * Defaults to false.
+   */
+  withGas?: boolean;
 
   /**
    * Whether to include event logs in the response.
@@ -161,6 +173,9 @@ export type SimulationResponseTokenFee = {
   /** Conversation rate of 1 token to native WEI. */
   rateWei: Hex;
 
+  /** Portion of `balanceNeededToken` that is the fee paid to MetaMask. */
+  serviceFee?: Hex;
+
   /** Estimated gas limit required for fee transfer. */
   transferEstimate: Hex;
 };
@@ -187,6 +202,12 @@ export type SimulationResponseTransaction = {
     /** Token fee data for the fee level. */
     tokenFees: SimulationResponseTokenFee[];
   }[];
+
+  /**
+   * Estimated total gas cost of the transaction.
+   * Included in the stateDiff if `withGas` is true.
+   */
+  gasCost?: number;
 
   /** Required `gasLimit` for the transaction. */
   gasLimit?: Hex;

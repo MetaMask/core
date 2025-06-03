@@ -47,6 +47,7 @@
     { "path": "./packages/rate-limit-controller/tsconfig.build.json" },
     { "path": "./packages/remote-feature-flag-controller/tsconfig.build.json" },
     { "path": "./packages/sample-controllers/tsconfig.build.json" },
+    { "path": "./packages/seedless-onboarding-controller/tsconfig.build.json" },
     { "path": "./packages/selected-network-controller/tsconfig.build.json" },
     { "path": "./packages/signature-controller/tsconfig.build.json" },
     {

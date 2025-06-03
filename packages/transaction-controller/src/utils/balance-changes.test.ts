@@ -1,12 +1,11 @@
 import type { LogDescription } from '@ethersproject/abi';
 import { Interface } from '@ethersproject/abi';
+import { query } from '@metamask/controller-utils';
+import type EthQuery from '@metamask/eth-query';
 import { type Hex } from '@metamask/utils';
 
-import {
-  getSimulationData,
-  SupportedToken,
-  type GetSimulationDataRequest,
-} from './simulation';
+import type { GetBalanceChangesRequest } from './balance-changes';
+import { getBalanceChanges, SupportedToken } from './balance-changes';
 import type {
   SimulationResponseLog,
   SimulationResponseTransaction,
@@ -22,6 +21,11 @@ import {
 import { SimulationErrorCode, SimulationTokenStandard } from '../types';
 
 jest.mock('../api/simulation-api');
+
+jest.mock('@metamask/controller-utils', () => ({
+  ...jest.requireActual('@metamask/controller-utils'),
+  query: jest.fn(),
+}));
 
 // Utility function to encode addresses and values to 32-byte ABI format
 const encodeTo32ByteHex = (value: string | number): Hex => {
@@ -49,15 +53,24 @@ const TOKEN_ID_MOCK = '0x5' as Hex;
 const OTHER_TOKEN_ID_MOCK = '0x6' as Hex;
 const ERROR_CODE_MOCK = 123;
 const ERROR_MESSAGE_MOCK = 'Test Error';
-const SENDER_CODE_MOCK = '0x1234' as Hex;
 
 // Regression test – leading zero in user address
 const USER_ADDRESS_WITH_LEADING_ZERO =
   '0x0012333333333333333333333333333333333333' as Hex;
 
-const REQUEST_MOCK: GetSimulationDataRequest = {
+const REQUEST_MOCK: GetBalanceChangesRequest = {
   chainId: '0x1',
-  from: USER_ADDRESS_MOCK,
+  ethQuery: {
+    sendAsync: jest.fn(),
+  } as EthQuery,
+  txParams: {
+    data: '0x123',
+    from: USER_ADDRESS_MOCK,
+    gas: '0xaaa',
+    maxFeePerGas: '0xbbb',
+    maxPriorityFeePerGas: '0xabc',
+    value: '0xddd',
+  },
 };
 
 const PARSED_ERC20_TRANSFER_EVENT_MOCK = {
@@ -169,17 +182,20 @@ function createEventResponseMock(
  *
  * @param previousBalance - The previous balance.
  * @param newBalance - The new balance.
+ * @param gasCost - Gas cost of the transaction.
  * @returns Mock API response.
  */
 function createNativeBalanceResponse(
   previousBalance: string,
   newBalance: string,
+  gasCost: number = 0,
 ) {
   return {
     transactions: [
       {
         ...defaultResponseTx,
         return: encodeTo32ByteHex(previousBalance),
+        gasCost,
         stateDiff: {
           pre: {
             [USER_ADDRESS_MOCK]: { balance: previousBalance },
@@ -258,40 +274,15 @@ function mockParseLog({
 
 describe('Simulation Utils', () => {
   const simulateTransactionsMock = jest.mocked(simulateTransactions);
+  const queryMock = jest.mocked(query);
 
   beforeEach(() => {
+    jest.resetAllMocks();
     jest.spyOn(Interface.prototype, 'encodeFunctionData').mockReturnValue('');
+    queryMock.mockResolvedValue('0xFFFFFFFFFFFF');
   });
 
-  describe('getSimulationData', () => {
-    it('includes code override in request if senderCode provided', async () => {
-      await getSimulationData(REQUEST_MOCK, { senderCode: SENDER_CODE_MOCK });
-
-      expect(simulateTransactionsMock).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          overrides: {
-            [REQUEST_MOCK.from]: {
-              code: SENDER_CODE_MOCK,
-            },
-          },
-        }),
-      );
-    });
-
-    it('includes with7702 in request if use7702Fees set', async () => {
-      await getSimulationData(REQUEST_MOCK, { use7702Fees: true });
-
-      expect(simulateTransactionsMock).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          suggestFees: expect.objectContaining({
-            with7702: true,
-          }),
-        }),
-      );
-    });
-
+  describe('getBalanceChanges', () => {
     describe('returns native balance change', () => {
       it.each([
         ['increased', BALANCE_1_MOCK, BALANCE_2_MOCK, false],
@@ -303,9 +294,9 @@ describe('Simulation Utils', () => {
             createNativeBalanceResponse(previousBalance, newBalance),
           );
 
-          const result = await getSimulationData(REQUEST_MOCK);
+          const result = await getBalanceChanges(REQUEST_MOCK);
 
-          expect(result.simulationData).toStrictEqual({
+          expect(result).toStrictEqual({
             nativeBalanceChange: {
               difference: DIFFERENCE_MOCK,
               isDecrease,
@@ -322,10 +313,28 @@ describe('Simulation Utils', () => {
           createNativeBalanceResponse(BALANCE_1_MOCK, BALANCE_1_MOCK),
         );
 
-        const result = await getSimulationData(REQUEST_MOCK);
+        const result = await getBalanceChanges(REQUEST_MOCK);
 
-        expect(result.simulationData).toStrictEqual({
+        expect(result).toStrictEqual({
           nativeBalanceChange: undefined,
+          tokenBalanceChanges: [],
+        });
+      });
+
+      it('ignoring gas cost', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce(
+          createNativeBalanceResponse('0x3', '0x8', 2),
+        );
+
+        const result = await getBalanceChanges(REQUEST_MOCK);
+
+        expect(result).toStrictEqual({
+          nativeBalanceChange: {
+            difference: '0x7',
+            isDecrease: false,
+            newBalance: '0xa',
+            previousBalance: '0x3',
+          },
           tokenBalanceChanges: [],
         });
       });
@@ -432,12 +441,12 @@ describe('Simulation Utils', () => {
               createBalanceOfResponse(previousBalances, newBalances),
             );
 
-          const result = await getSimulationData({
-            chainId: '0x1',
-            from,
+          const result = await getBalanceChanges({
+            ...REQUEST_MOCK,
+            txParams: { ...REQUEST_MOCK.txParams, from },
           });
 
-          expect(result.simulationData).toStrictEqual({
+          expect(result).toStrictEqual({
             nativeBalanceChange: undefined,
             tokenBalanceChanges: [
               {
@@ -482,9 +491,9 @@ describe('Simulation Utils', () => {
             ),
           );
 
-        const result = await getSimulationData(REQUEST_MOCK);
+        const result = await getBalanceChanges(REQUEST_MOCK);
 
-        expect(result.simulationData).toStrictEqual({
+        expect(result).toStrictEqual({
           nativeBalanceChange: undefined,
           tokenBalanceChanges: [
             {
@@ -538,9 +547,9 @@ describe('Simulation Utils', () => {
             createBalanceOfResponse([BALANCE_2_MOCK], [BALANCE_1_MOCK]),
           );
 
-        const result = await getSimulationData(REQUEST_MOCK);
+        const result = await getBalanceChanges(REQUEST_MOCK);
 
-        expect(result.simulationData).toStrictEqual({
+        expect(result).toStrictEqual({
           nativeBalanceChange: undefined,
           tokenBalanceChanges: [
             {
@@ -582,9 +591,9 @@ describe('Simulation Utils', () => {
             ),
           );
 
-        const result = await getSimulationData(REQUEST_MOCK);
+        const result = await getBalanceChanges(REQUEST_MOCK);
 
-        expect(result.simulationData).toStrictEqual({
+        expect(result).toStrictEqual({
           nativeBalanceChange: undefined,
           tokenBalanceChanges: [
             {
@@ -643,7 +652,7 @@ describe('Simulation Utils', () => {
             ),
           );
 
-        const result = await getSimulationData(REQUEST_MOCK);
+        const result = await getBalanceChanges(REQUEST_MOCK);
 
         expect(simulateTransactionsMock).toHaveBeenCalledTimes(2);
 
@@ -656,28 +665,42 @@ describe('Simulation Utils', () => {
             transactions: [
               // ERC-20 balance before minting.
               {
-                from: REQUEST_MOCK.from,
+                authorizationList: undefined,
+                from: REQUEST_MOCK.txParams.from,
                 to: CONTRACT_ADDRESS_2_MOCK,
                 data: expect.any(String),
               },
               // Minting ERC-721 token.
-              REQUEST_MOCK,
+              {
+                authorizationList: undefined,
+                data: REQUEST_MOCK.txParams.data,
+                from: REQUEST_MOCK.txParams.from,
+                gas: REQUEST_MOCK.txParams.gas,
+                maxFeePerGas: REQUEST_MOCK.txParams.maxFeePerGas,
+                maxPriorityFeePerGas:
+                  REQUEST_MOCK.txParams.maxPriorityFeePerGas,
+                value: REQUEST_MOCK.txParams.value,
+              },
               // ERC-721 owner after minting.
               {
-                from: REQUEST_MOCK.from,
+                authorizationList: undefined,
+                from: REQUEST_MOCK.txParams.from,
                 to: CONTRACT_ADDRESS_1_MOCK,
                 data: expect.any(String),
               },
               // ERC-20 balance before minting.
               {
-                from: REQUEST_MOCK.from,
+                authorizationList: undefined,
+                from: REQUEST_MOCK.txParams.from,
                 to: CONTRACT_ADDRESS_2_MOCK,
                 data: expect.any(String),
               },
             ],
+            withDefaultBlockOverrides: true,
+            withGas: true,
           },
         );
-        expect(result.simulationData).toStrictEqual({
+        expect(result).toStrictEqual({
           nativeBalanceChange: undefined,
           tokenBalanceChanges: [
             {
@@ -713,9 +736,9 @@ describe('Simulation Utils', () => {
             createBalanceOfResponse([BALANCE_1_MOCK], [BALANCE_2_MOCK]),
           );
 
-        const result = await getSimulationData(REQUEST_MOCK);
+        const result = await getBalanceChanges(REQUEST_MOCK);
 
-        expect(result.simulationData).toStrictEqual({
+        expect(result).toStrictEqual({
           nativeBalanceChange: undefined,
           tokenBalanceChanges: [],
         });
@@ -737,9 +760,9 @@ describe('Simulation Utils', () => {
           createEventResponseMock([createLogMock(CONTRACT_ADDRESS_1_MOCK)]),
         );
 
-        const result = await getSimulationData(REQUEST_MOCK);
+        const result = await getBalanceChanges(REQUEST_MOCK);
 
-        expect(result.simulationData).toStrictEqual({
+        expect(result).toStrictEqual({
           nativeBalanceChange: undefined,
           tokenBalanceChanges: [],
         });
@@ -758,9 +781,9 @@ describe('Simulation Utils', () => {
             createBalanceOfResponse([BALANCE_1_MOCK], [BALANCE_1_MOCK]),
           );
 
-        const result = await getSimulationData(REQUEST_MOCK);
+        const result = await getBalanceChanges(REQUEST_MOCK);
 
-        expect(result.simulationData).toStrictEqual({
+        expect(result).toStrictEqual({
           nativeBalanceChange: undefined,
           tokenBalanceChanges: [],
         });
@@ -775,9 +798,9 @@ describe('Simulation Utils', () => {
             createBalanceOfResponse([BALANCE_1_MOCK], [BALANCE_2_MOCK]),
           );
 
-        const result = await getSimulationData(REQUEST_MOCK);
+        const result = await getBalanceChanges(REQUEST_MOCK);
 
-        expect(result.simulationData).toStrictEqual({
+        expect(result).toStrictEqual({
           nativeBalanceChange: undefined,
           tokenBalanceChanges: [
             {
@@ -826,9 +849,9 @@ describe('Simulation Utils', () => {
             ],
           });
 
-        const result = await getSimulationData(REQUEST_MOCK);
+        const result = await getBalanceChanges(REQUEST_MOCK);
 
-        expect(result.simulationData).toStrictEqual({
+        expect(result).toStrictEqual({
           nativeBalanceChange: undefined,
           tokenBalanceChanges: [
             {
@@ -852,9 +875,9 @@ describe('Simulation Utils', () => {
           message: ERROR_MESSAGE_MOCK,
         });
 
-        const result = await getSimulationData(REQUEST_MOCK);
+        const result = await getBalanceChanges(REQUEST_MOCK);
 
-        expect(result.simulationData).toStrictEqual({
+        expect(result).toStrictEqual({
           error: {
             code: ERROR_CODE_MOCK,
             message: ERROR_MESSAGE_MOCK,
@@ -868,9 +891,9 @@ describe('Simulation Utils', () => {
           code: ERROR_CODE_MOCK,
         });
 
-        const result = await getSimulationData(REQUEST_MOCK);
+        const result = await getBalanceChanges(REQUEST_MOCK);
 
-        expect(result.simulationData).toStrictEqual({
+        expect(result).toStrictEqual({
           error: {
             code: ERROR_CODE_MOCK,
             message: undefined,
@@ -888,9 +911,9 @@ describe('Simulation Utils', () => {
           )
           .mockResolvedValueOnce(createBalanceOfResponse([], []));
 
-        const result = await getSimulationData(REQUEST_MOCK);
+        const result = await getBalanceChanges(REQUEST_MOCK);
 
-        expect(result.simulationData).toStrictEqual({
+        expect(result).toStrictEqual({
           error: {
             code: SimulationErrorCode.InvalidResponse,
             message: new SimulationInvalidResponseError().message,
@@ -909,9 +932,9 @@ describe('Simulation Utils', () => {
           ],
         });
 
-        const result = await getSimulationData(REQUEST_MOCK);
+        const result = await getBalanceChanges(REQUEST_MOCK);
 
-        expect(result.simulationData).toStrictEqual({
+        expect(result).toStrictEqual({
           error: {
             code: SimulationErrorCode.Reverted,
             message: new SimulationRevertedError().message,
@@ -930,9 +953,9 @@ describe('Simulation Utils', () => {
           ],
         });
 
-        const result = await getSimulationData(REQUEST_MOCK);
+        const result = await getBalanceChanges(REQUEST_MOCK);
 
-        expect(result.simulationData).toStrictEqual({
+        expect(result).toStrictEqual({
           error: {
             code: undefined,
             message: 'test 1 2 3',
@@ -947,9 +970,9 @@ describe('Simulation Utils', () => {
           message: 'test insufficient funds for gas test',
         });
 
-        const result = await getSimulationData(REQUEST_MOCK);
+        const result = await getBalanceChanges(REQUEST_MOCK);
 
-        expect(result.simulationData).toStrictEqual({
+        expect(result).toStrictEqual({
           error: {
             code: SimulationErrorCode.Reverted,
             message: new SimulationRevertedError().message,
@@ -959,162 +982,150 @@ describe('Simulation Utils', () => {
       });
     });
 
-    describe('returns gas fee tokens', () => {
-      it('using token fee data', async () => {
-        simulateTransactionsMock.mockResolvedValueOnce({
-          transactions: [
+    it('includes authorization list in API request if in params', async () => {
+      await getBalanceChanges({
+        ...REQUEST_MOCK,
+        txParams: {
+          ...REQUEST_MOCK.txParams,
+          authorizationList: [
             {
-              fees: [
-                {
-                  gas: '0x1',
-                  maxFeePerGas: '0x2',
-                  maxPriorityFeePerGas: '0x3',
-                  tokenFees: [
-                    {
-                      token: {
-                        address: CONTRACT_ADDRESS_1_MOCK,
-                        decimals: 3,
-                        symbol: 'TEST1',
-                      },
-                      balanceNeededToken: '0x4',
-                      currentBalanceToken: '0x5',
-                      feeRecipient: '0x6',
-                      rateWei: '0x7',
-                      transferEstimate: '0x7a',
-                    },
-                    {
-                      token: {
-                        address: CONTRACT_ADDRESS_2_MOCK,
-                        decimals: 4,
-                        symbol: 'TEST2',
-                      },
-                      balanceNeededToken: '0x8',
-                      currentBalanceToken: '0x9',
-                      feeRecipient: '0xa',
-                      rateWei: '0xb',
-                      transferEstimate: '0xba',
-                    },
-                  ],
-                },
-              ],
-              return: '0x',
+              address: CONTRACT_ADDRESS_2_MOCK,
+              chainId: '0x321',
+              nonce: '0x1',
+              r: '0x2',
+              s: '0x3',
+              yParity: '0x1',
             },
           ],
-        });
-
-        const result = await getSimulationData(REQUEST_MOCK);
-
-        expect(result.gasFeeTokens).toStrictEqual([
-          {
-            amount: '0x4',
-            balance: '0x5',
-            decimals: 3,
-            gas: '0x1',
-            gasTransfer: '0x7a',
-            maxFeePerGas: '0x2',
-            maxPriorityFeePerGas: '0x3',
-            rateWei: '0x7',
-            recipient: '0x6',
-            symbol: 'TEST1',
-            tokenAddress: CONTRACT_ADDRESS_1_MOCK,
-          },
-          {
-            amount: '0x8',
-            balance: '0x9',
-            decimals: 4,
-            gas: '0x1',
-            gasTransfer: '0xba',
-            maxFeePerGas: '0x2',
-            maxPriorityFeePerGas: '0x3',
-            rateWei: '0xb',
-            recipient: '0xa',
-            symbol: 'TEST2',
-            tokenAddress: CONTRACT_ADDRESS_2_MOCK,
-          },
-        ]);
+        },
       });
 
-      it('using first fee level', async () => {
-        simulateTransactionsMock.mockResolvedValueOnce({
+      expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
+      expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
           transactions: [
-            {
-              fees: [
+            expect.objectContaining({
+              authorizationList: [
                 {
-                  gas: '0x1',
-                  maxFeePerGas: '0x2',
-                  maxPriorityFeePerGas: '0x3',
-                  tokenFees: [
-                    {
-                      token: {
-                        address: CONTRACT_ADDRESS_1_MOCK,
-                        decimals: 3,
-                        symbol: 'TEST1',
-                      },
-                      balanceNeededToken: '0x4',
-                      currentBalanceToken: '0x5',
-                      feeRecipient: '0x6',
-                      rateWei: '0x7',
-                      transferEstimate: '0x7a',
-                    },
-                  ],
-                },
-                {
-                  gas: '0x8',
-                  maxFeePerGas: '0x9',
-                  maxPriorityFeePerGas: '0xa',
-                  tokenFees: [
-                    {
-                      token: {
-                        address: CONTRACT_ADDRESS_2_MOCK,
-                        decimals: 4,
-                        symbol: 'TEST2',
-                      },
-                      balanceNeededToken: '0xb',
-                      currentBalanceToken: '0xc',
-                      feeRecipient: '0xd',
-                      rateWei: '0xe',
-                      transferEstimate: '0xee',
-                    },
-                  ],
+                  address: CONTRACT_ADDRESS_2_MOCK,
+                  from: USER_ADDRESS_MOCK,
                 },
               ],
-              return: '0x',
-            },
+            }),
           ],
+        }),
+      );
+    });
+
+    describe('overrides balance in API request if insufficient balance due to', () => {
+      it('gas fee', async () => {
+        queryMock.mockResolvedValue('0x7d182d');
+
+        await getBalanceChanges({
+          ...REQUEST_MOCK,
+          txParams: {
+            ...REQUEST_MOCK.txParams,
+            value: '0x0',
+          },
         });
 
-        const result = await getSimulationData(REQUEST_MOCK);
-
-        expect(result.gasFeeTokens).toStrictEqual([
-          {
-            amount: '0x4',
-            balance: '0x5',
-            decimals: 3,
-            gas: '0x1',
-            gasTransfer: '0x7a',
-            maxFeePerGas: '0x2',
-            maxPriorityFeePerGas: '0x3',
-            rateWei: '0x7',
-            recipient: '0x6',
-            symbol: 'TEST1',
-            tokenAddress: CONTRACT_ADDRESS_1_MOCK,
-          },
-        ]);
+        expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
+        expect(simulateTransactionsMock).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            overrides: {
+              [USER_ADDRESS_MOCK]: {
+                balance: '0x7d182e',
+              },
+            },
+          }),
+        );
       });
 
-      it('as empty if missing data', async () => {
-        simulateTransactionsMock.mockResolvedValueOnce({
-          transactions: [
-            {
-              fees: [],
-              return: '0x',
-            },
-          ],
+      it('legacy gas fee', async () => {
+        queryMock.mockResolvedValue('0xc1f3d');
+
+        await getBalanceChanges({
+          ...REQUEST_MOCK,
+          txParams: {
+            ...REQUEST_MOCK.txParams,
+            gasPrice: '0x123',
+            maxFeePerGas: undefined,
+            maxPriorityFeePerGas: undefined,
+            value: '0x0',
+          },
         });
 
-        const result = await getSimulationData(REQUEST_MOCK);
+        expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
+        expect(simulateTransactionsMock).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            overrides: {
+              [USER_ADDRESS_MOCK]: {
+                balance: '0xc1f3e',
+              },
+            },
+          }),
+        );
+      });
 
-        expect(result.gasFeeTokens).toStrictEqual([]);
+      it('value', async () => {
+        queryMock.mockResolvedValue('0x122');
+
+        await getBalanceChanges({
+          ...REQUEST_MOCK,
+          txParams: {
+            ...REQUEST_MOCK.txParams,
+            gas: '0x0',
+            value: '0x123',
+          },
+        });
+
+        expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
+        expect(simulateTransactionsMock).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            overrides: {
+              [USER_ADDRESS_MOCK]: {
+                balance: '0x123',
+              },
+            },
+          }),
+        );
+      });
+
+      it('nested transaction value', async () => {
+        queryMock.mockResolvedValue('0x332');
+
+        await getBalanceChanges({
+          ...REQUEST_MOCK,
+          nestedTransactions: [
+            {
+              value: '0x111',
+            },
+            {
+              value: '0x222',
+            },
+          ],
+          txParams: {
+            ...REQUEST_MOCK.txParams,
+            gas: '0x0',
+            value: '0x0',
+          },
+        });
+
+        expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
+        expect(simulateTransactionsMock).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            overrides: {
+              [USER_ADDRESS_MOCK]: {
+                balance: '0x333',
+              },
+            },
+          }),
+        );
       });
     });
   });
