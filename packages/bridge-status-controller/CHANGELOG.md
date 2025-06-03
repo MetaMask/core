@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [29.1.0]
 
-### Uncategorized
-
-- Release/424.0.0 ([#5912](https://github.com/MetaMask/core/pull/5912))
-
 ### Added
 
 - Include all invalid status properties in sentry logs ([#5913](https://github.com/MetaMask/core/pull/5913))
