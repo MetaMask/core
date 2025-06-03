@@ -22,6 +22,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Cache management commands for cleaning downloaded binaries
     - Automatic version detection and management of Foundry releases
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/foundryup@1.0.1...HEAD
-[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/foundryup@1.0.0...@metamask/foundryup@1.0.1
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/foundryup@1.0.0...HEAD
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/foundryup@1.0.0
