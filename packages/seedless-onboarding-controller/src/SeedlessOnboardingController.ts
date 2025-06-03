@@ -1491,15 +1491,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @returns A promise that resolves to the new nodeAuthTokens.
    */
   async refreshNodeAuthTokens(): Promise<void> {
-    this.#assertIsUnlocked();
-    const { refreshToken } = this.state;
-    if (!refreshToken) {
-      throw new Error(
-        SeedlessOnboardingControllerErrorMessage.InsufficientAuthToken,
-      );
-    }
-
     this.#assertIsAuthenticatedUser(this.state);
+    const { refreshToken } = this.state;
 
     try {
       const res = await this.#refreshJWTToken({

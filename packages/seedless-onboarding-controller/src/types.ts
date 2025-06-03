@@ -54,6 +54,11 @@ export type AuthenticatedUserDetails = {
    * The user email from Social login.
    */
   socialLoginEmail: string;
+
+  /**
+   * The refresh token used to refresh expired nodeAuthTokens.
+   */
+  refreshToken: string;
 };
 
 export type SRPBackedUpUserDetails = {

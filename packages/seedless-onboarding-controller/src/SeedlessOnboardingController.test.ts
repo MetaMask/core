@@ -3814,10 +3814,10 @@ describe('SeedlessOnboardingController', () => {
         );
       });
 
-      it('should throw error if controller is locked', async () => {
+      it('should throw error if controller not authenticated', async () => {
         await withController(async ({ controller }) => {
           await expect(controller.refreshNodeAuthTokens()).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.ControllerLocked,
+            SeedlessOnboardingControllerErrorMessage.MissingAuthUserInfo,
           );
         });
       });
