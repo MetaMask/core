@@ -1037,6 +1037,7 @@ export class TransactionController extends BaseController<
       getInternalAccounts: this.#getInternalAccounts.bind(this),
       getTransaction: (transactionId) =>
         this.#getTransactionOrThrow(transactionId),
+      isSimulationEnabled: this.#isSimulationEnabled,
       messenger: this.messagingSystem,
       publishBatchHook: this.#publishBatchHook,
       publicKeyEIP7702: this.#publicKeyEIP7702,
