@@ -102,23 +102,18 @@ export const ChainId = {
 export type ChainId = (typeof ChainId)[keyof typeof ChainId];
 
 export enum NetworksTicker {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   mainnet = 'ETH',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   goerli = 'GoerliETH',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   sepolia = 'SepoliaETH',
   'linea-goerli' = 'LineaETH',
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
   'linea-sepolia' = 'LineaETH',
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
   'linea-mainnet' = 'ETH',
   'megaeth-testnet' = 'MegaETH',
   'monad-testnet' = 'MON',
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
   'base-mainnet' = 'ETH',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   rpc = '',
 }
 
