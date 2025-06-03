@@ -1772,6 +1772,9 @@ export type GasFeeToken = {
   /** Decimals of the token. */
   decimals: number;
 
+  /** Portion of the amount that is the fee paid to MetaMask. */
+  fee?: Hex;
+
   /** Estimated gas limit required for original transaction. */
   gas: Hex;
 

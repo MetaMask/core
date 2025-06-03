@@ -7,6 +7,7 @@ import type {
 import type { GasFeeEstimates } from '@metamask/gas-fee-controller';
 import type { CaipAssetType } from '@metamask/utils';
 import { isStrictHexString } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 import { orderBy } from 'lodash';
 import {
   createSelector as createSelector_,
@@ -404,3 +405,10 @@ export const selectBridgeQuotes = createStructuredBridgeSelector({
   quotesInitialLoadTimeMs: (state) => state.quotesInitialLoadTime,
   isQuoteGoingToRefresh: selectIsQuoteGoingToRefresh,
 });
+
+export const selectMinimumBalanceForRentExemptionInSOL = (
+  state: BridgeAppState,
+) =>
+  new BigNumber(state.minimumBalanceForRentExemptionInLamports ?? 0)
+    .div(10 ** 9)
+    .toString();

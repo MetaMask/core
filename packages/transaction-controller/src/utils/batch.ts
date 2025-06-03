@@ -390,6 +390,7 @@ async function addTransactionBatchWithHook(
     publishBatchHook: requestPublishBatchHook,
     request: userRequest,
     update,
+    isSimulationEnabled,
   } = request;
 
   const {
