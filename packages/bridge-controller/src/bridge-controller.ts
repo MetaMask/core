@@ -606,16 +606,16 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       }),
     );
 
-    const quotesWithL1GasFees: (QuoteResponse & L1GasFees)[] = [];
-
-    (await l1GasFeePromises).forEach((result) => {
+    const quotesWithL1GasFees = (await l1GasFeePromises).reduce<
+      (QuoteResponse & L1GasFees)[]
+    >((acc, result) => {
       if (result.status === 'fulfilled' && result.value) {
-        quotesWithL1GasFees.push(result.value);
-      }
-      if (result.status === 'rejected') {
+        acc.push(result.value);
+      } else if (result.status === 'rejected') {
         console.error('Error calculating L1 gas fees for quote', result.reason);
       }
-    });
+      return acc;
+    }, []);
 
     return quotesWithL1GasFees;
   };
@@ -680,16 +680,16 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       }),
     );
 
-    const quotesWithSolanaFees: (QuoteResponse & SolanaFees)[] = [];
-
-    (await solanaFeePromises).forEach((result) => {
+    const quotesWithSolanaFees = (await solanaFeePromises).reduce<
+      (QuoteResponse & SolanaFees)[]
+    >((acc, result) => {
       if (result.status === 'fulfilled' && result.value) {
-        quotesWithSolanaFees.push(result.value);
-      }
-      if (result.status === 'rejected') {
+        acc.push(result.value);
+      } else if (result.status === 'rejected') {
         console.error('Error calculating solana fees for quote', result.reason);
       }
-    });
+      return acc;
+    }, []);
 
     return quotesWithSolanaFees;
   };
