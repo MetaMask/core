@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `gas` property to `TransactionBatchMeta`, populated using simulation API ([#5852](https://github.com/MetaMask/core/pull/5852))
 
+### Changed
+
+- Bump `@metamask/controller-utils` to `^11.10.0` ([#5904](https://github.com/MetaMask/core/pull/5904))
+
 ## [57.0.0]
 
 ### Changed
