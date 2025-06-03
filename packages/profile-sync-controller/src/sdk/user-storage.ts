@@ -39,6 +39,7 @@ export type GetUserStorageAllFeatureEntriesResponse = {
 export type UserStorageMethodOptions = {
   validateAgainstSchema?: boolean;
   nativeScryptCrypto?: NativeScrypt;
+  entropySourceId?: string;
 };
 
 type ErrorMessage = {
@@ -98,19 +99,21 @@ export class UserStorage {
 
   async deleteAllFeatureItems(
     path: UserStorageGenericFeatureName,
+    options?: UserStorageMethodOptions,
   ): Promise<void> {
-    return this.#deleteUserStorageAllFeatureEntries(path);
+    return this.#deleteUserStorageAllFeatureEntries(path, options);
   }
 
   async batchDeleteItems(
     path: UserStorageGenericFeatureName,
     values: UserStorageGenericFeatureKey[],
+    options?: UserStorageMethodOptions,
   ) {
-    return this.#batchDeleteUserStorage(path, values);
+    return this.#batchDeleteUserStorage(path, values, options);
   }
 
-  async getStorageKey(): Promise<string> {
-    const userProfile = await this.config.auth.getUserProfile();
+  async getStorageKey(entropySourceId?: string): Promise<string> {
+    const userProfile = await this.config.auth.getUserProfile(entropySourceId);
     const message = `metamask:${userProfile.profileId}` as const;
 
     const storageKey = await this.options.storage?.getStorageKey(message);
@@ -118,7 +121,10 @@ export class UserStorage {
       return storageKey;
     }
 
-    const storageKeySignature = await this.config.auth.signMessage(message);
+    const storageKeySignature = await this.config.auth.signMessage(
+      message,
+      entropySourceId,
+    );
     const hashedStorageKeySignature = createSHA256Hash(storageKeySignature);
     await this.options.storage?.setStorageKey(
       message,
@@ -132,9 +138,10 @@ export class UserStorage {
     data: string,
     options?: UserStorageMethodOptions,
   ): Promise<void> {
+    const entropySourceId = options?.entropySourceId;
     try {
-      const headers = await this.#getAuthorizationHeader();
-      const storageKey = await this.getStorageKey();
+      const headers = await this.#getAuthorizationHeader(entropySourceId);
+      const storageKey = await this.getStorageKey(entropySourceId);
       const encryptedData = await encryption.encryptString(
         data,
         storageKey,
@@ -179,13 +186,14 @@ export class UserStorage {
     data: [string, string][],
     options?: UserStorageMethodOptions,
   ): Promise<void> {
+    const entropySourceId = options?.entropySourceId;
     try {
       if (!data.length) {
         return;
       }
 
-      const headers = await this.#getAuthorizationHeader();
-      const storageKey = await this.getStorageKey();
+      const headers = await this.#getAuthorizationHeader(entropySourceId);
+      const storageKey = await this.getStorageKey(entropySourceId);
 
       const encryptedData = await Promise.all(
         data.map(async (d) => {
@@ -233,9 +241,10 @@ export class UserStorage {
   async #batchUpsertUserStorageWithAlreadyHashedAndEncryptedEntries(
     path: UserStorageGenericPathWithFeatureOnly,
     encryptedData: [string, string][],
+    entropySourceId?: string,
   ): Promise<void> {
     try {
-      const headers = await this.#getAuthorizationHeader();
+      const headers = await this.#getAuthorizationHeader(entropySourceId);
 
       const url = new URL(STORAGE_URL(this.env, path));
 
@@ -273,9 +282,10 @@ export class UserStorage {
     path: UserStorageGenericPathWithFeatureAndKey,
     options?: UserStorageMethodOptions,
   ): Promise<string | null> {
+    const entropySourceId = options?.entropySourceId;
     try {
-      const headers = await this.#getAuthorizationHeader();
-      const storageKey = await this.getStorageKey();
+      const headers = await this.#getAuthorizationHeader(entropySourceId);
+      const storageKey = await this.getStorageKey(entropySourceId);
       const encryptedPath = createEntryPath(path, storageKey, {
         validateAgainstSchema: Boolean(options?.validateAgainstSchema),
       });
@@ -335,9 +345,10 @@ export class UserStorage {
     path: UserStorageGenericPathWithFeatureOnly,
     options?: UserStorageMethodOptions,
   ): Promise<string[] | null> {
+    const entropySourceId = options?.entropySourceId;
     try {
-      const headers = await this.#getAuthorizationHeader();
-      const storageKey = await this.getStorageKey();
+      const headers = await this.#getAuthorizationHeader(entropySourceId);
+      const storageKey = await this.getStorageKey(entropySourceId);
 
       const url = new URL(STORAGE_URL(this.env, path));
 
@@ -404,6 +415,7 @@ export class UserStorage {
         await this.#batchUpsertUserStorageWithAlreadyHashedAndEncryptedEntries(
           path,
           reEncryptedEntries,
+          entropySourceId,
         );
       }
 
@@ -423,9 +435,10 @@ export class UserStorage {
     path: UserStorageGenericPathWithFeatureAndKey,
     options?: UserStorageMethodOptions,
   ): Promise<void> {
+    const entropySourceId = options?.entropySourceId;
     try {
-      const headers = await this.#getAuthorizationHeader();
-      const storageKey = await this.getStorageKey();
+      const headers = await this.#getAuthorizationHeader(entropySourceId);
+      const storageKey = await this.getStorageKey(entropySourceId);
       const encryptedPath = createEntryPath(path, storageKey, {
         validateAgainstSchema: Boolean(options?.validateAgainstSchema),
       });
@@ -469,9 +482,11 @@ export class UserStorage {
 
   async #deleteUserStorageAllFeatureEntries(
     path: UserStorageGenericPathWithFeatureOnly,
+    options?: UserStorageMethodOptions,
   ): Promise<void> {
     try {
-      const headers = await this.#getAuthorizationHeader();
+      const entropySourceId = options?.entropySourceId;
+      const headers = await this.#getAuthorizationHeader(entropySourceId);
 
       const url = new URL(STORAGE_URL(this.env, path));
 
@@ -510,18 +525,20 @@ export class UserStorage {
 
   async #batchDeleteUserStorage(
     path: UserStorageGenericPathWithFeatureOnly,
-    data: string[],
+    keysToDelete: string[],
+    options?: UserStorageMethodOptions,
   ): Promise<void> {
     try {
-      if (!data.length) {
+      if (!keysToDelete.length) {
         return;
       }
 
-      const headers = await this.#getAuthorizationHeader();
-      const storageKey = await this.getStorageKey();
+      const entropySourceId = options?.entropySourceId;
+      const headers = await this.#getAuthorizationHeader(entropySourceId);
+      const storageKey = await this.getStorageKey(entropySourceId);
 
-      const encryptedData = await Promise.all(
-        data.map(async (d) => this.#createEntryKey(d, storageKey)),
+      const rawEntryKeys = keysToDelete.map((d) =>
+        this.#createEntryKey(d, storageKey),
       );
 
       const url = new URL(STORAGE_URL(this.env, path));
@@ -533,7 +550,7 @@ export class UserStorage {
           ...headers,
         },
 
-        body: JSON.stringify({ batch_delete: encryptedData }),
+        body: JSON.stringify({ batch_delete: rawEntryKeys }),
       });
 
       if (!response.ok) {
@@ -556,12 +573,13 @@ export class UserStorage {
   }
 
   #createEntryKey(key: string, storageKey: string): string {
-    const hashedKey = createSHA256Hash(key + storageKey);
-    return hashedKey;
+    return createSHA256Hash(key + storageKey);
   }
 
-  async #getAuthorizationHeader(): Promise<{ Authorization: string }> {
-    const accessToken = await this.config.auth.getAccessToken();
+  async #getAuthorizationHeader(
+    entropySourceId?: string,
+  ): Promise<{ Authorization: string }> {
+    const accessToken = await this.config.auth.getAccessToken(entropySourceId);
     return { Authorization: `Bearer ${accessToken}` };
   }
 }
