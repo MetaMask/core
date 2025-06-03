@@ -1167,7 +1167,7 @@ describe('TokenDetectionController', () => {
             await advanceTime({ clock, duration: 1 });
 
             expect(mockTokens).toHaveBeenNthCalledWith(1, {
-              chainIds: ['0x1', '0xaa36a7', '0xe705', '0xe708'],
+              chainIds: ['0x1', '0xaa36a7', '0xe705', '0xe708', '0x2105'],
               selectedAddress: secondSelectedAccount.address,
             });
           },
