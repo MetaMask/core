@@ -31,7 +31,7 @@ export function createScaffoldMiddleware(handlers: {
       return handler(req, res, next, end);
     }
     // if handler is some other value, use as result
-    (res as JsonRpcSuccess<Json>).result = handler;
+    (res as JsonRpcSuccess).result = handler;
     return end();
   };
 }
