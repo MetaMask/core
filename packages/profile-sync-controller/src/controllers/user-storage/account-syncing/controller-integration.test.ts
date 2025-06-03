@@ -1,6 +1,7 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import {
+  MOCK_ENTROPY_SOURCE_IDS,
   MOCK_INTERNAL_ACCOUNTS,
   MOCK_USER_STORAGE_ACCOUNTS,
 } from './__fixtures__/mockAccounts';
@@ -65,18 +66,22 @@ const arrangeMocks = async (
     getUserStorageControllerInstance: () => controller,
   };
 
+  const entropySourceIds = [
+    'MOCK_ENTROPY_SOURCE_ID',
+    'MOCK_ENTROPY_SOURCE_ID2',
+  ];
+
   return {
     messengerMocks,
     controller,
     options,
+    entropySourceIds,
   };
 };
 
 describe('user-storage/account-syncing/controller-integration - saveInternalAccountsListToUserStorage() tests', () => {
-  it.todo('returns void if account syncing is not enabled');
-
   it('returns void if account syncing is enabled but the internal accounts list is empty', async () => {
-    const { controller, options } = await arrangeMocks({});
+    const { controller, options, entropySourceIds } = await arrangeMocks({});
 
     const mockPerformBatchSetStorage = jest
       .spyOn(controller, 'performBatchSetStorage')
@@ -88,6 +93,7 @@ describe('user-storage/account-syncing/controller-integration - saveInternalAcco
 
     await AccountSyncingControllerIntegrationModule.saveInternalAccountsListToUserStorage(
       options,
+      entropySourceIds[0],
     );
 
     expect(mockPerformBatchSetStorage).not.toHaveBeenCalled();
@@ -96,11 +102,12 @@ describe('user-storage/account-syncing/controller-integration - saveInternalAcco
 
 describe('user-storage/account-syncing/controller-integration - syncInternalAccountsWithUserStorage() tests', () => {
   it('returns void if UserStorage is not enabled', async () => {
-    const { controller, messengerMocks, options } = await arrangeMocks({
-      stateOverrides: {
-        isBackupAndSyncEnabled: false,
-      },
-    });
+    const { controller, messengerMocks, options, entropySourceIds } =
+      await arrangeMocks({
+        stateOverrides: {
+          isBackupAndSyncEnabled: false,
+        },
+      });
 
     await mockEndpointGetUserStorage();
 
@@ -109,15 +116,35 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
     await AccountSyncingControllerIntegrationModule.syncInternalAccountsWithUserStorage(
       {},
       options,
+      entropySourceIds[0],
     );
 
     expect(messengerMocks.mockAccountsListAccounts).not.toHaveBeenCalled();
   });
 
-  it.todo('returns void if account syncing feature flag is disabled');
+  it('returns void if account syncing is disabled', async () => {
+    const { controller, options, entropySourceIds, messengerMocks } =
+      await arrangeMocks({
+        stateOverrides: {
+          isAccountSyncingEnabled: false,
+        },
+      });
+
+    await mockEndpointGetUserStorage();
+
+    await controller.setIsAccountSyncingReadyToBeDispatched(true);
+
+    await AccountSyncingControllerIntegrationModule.syncInternalAccountsWithUserStorage(
+      {},
+      options,
+      entropySourceIds[0],
+    );
+
+    expect(messengerMocks.mockAccountsListAccounts).not.toHaveBeenCalled();
+  });
 
   it('throws if AccountsController:listAccounts fails or returns an empty list', async () => {
-    const { options } = await arrangeMocks({
+    const { options, entropySourceIds } = await arrangeMocks({
       messengerMockOptions: {
         accounts: {
           accountsList: [],
@@ -142,6 +169,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
       AccountSyncingControllerIntegrationModule.syncInternalAccountsWithUserStorage(
         {},
         options,
+        entropySourceIds[0],
       ),
     ).rejects.toThrow(expect.any(Error));
 
@@ -149,13 +177,13 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
   });
 
   it('uploads accounts list to user storage if user storage is empty', async () => {
-    const { options } = await arrangeMocks({
+    const { options, entropySourceIds } = await arrangeMocks({
       messengerMockOptions: {
         accounts: {
           accountsList: MOCK_INTERNAL_ACCOUNTS.ALL.slice(
             0,
             2,
-          ) as InternalAccount[],
+          ) as unknown as InternalAccount[],
         },
       },
     });
@@ -181,7 +209,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
           const expectedBody = createExpectedAccountSyncBatchUpsertBody(
             MOCK_INTERNAL_ACCOUNTS.ALL.slice(0, 2).map((account) => [
               account.address,
-              account as InternalAccount,
+              account as unknown as InternalAccount,
             ]),
             MOCK_STORAGE_KEY,
           );
@@ -194,6 +222,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
     await AccountSyncingControllerIntegrationModule.syncInternalAccountsWithUserStorage(
       {},
       options,
+      entropySourceIds[0],
     );
     mockAPI.mockEndpointGetUserStorage.done();
 
@@ -201,11 +230,12 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
     expect(mockAPI.mockEndpointBatchUpsertUserStorage.isDone()).toBe(true);
   });
 
-  it('creates internal accounts if user storage has more accounts. it also updates hasAccountSyncingSyncedAtLeastOnce accordingly', async () => {
-    const { messengerMocks, controller, options } = await arrangeMocks({
+  it('creates internal accounts if user storage has more accounts', async () => {
+    const { messengerMocks, options, entropySourceIds } = await arrangeMocks({
       messengerMockOptions: {
         accounts: {
-          accountsList: MOCK_INTERNAL_ACCOUNTS.ONE as InternalAccount[],
+          accountsList:
+            MOCK_INTERNAL_ACCOUNTS.ONE as unknown as InternalAccount[],
         },
       },
     });
@@ -248,6 +278,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
     await AccountSyncingControllerIntegrationModule.syncInternalAccountsWithUserStorage(
       {},
       options,
+      entropySourceIds[0],
     );
 
     mockAPI.mockEndpointGetUserStorage.done();
@@ -262,15 +293,123 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
       numberOfAddedAccounts,
     );
     expect(mockAPI.mockEndpointBatchDeleteUserStorage.isDone()).toBe(true);
+  });
 
-    expect(controller.state.hasAccountSyncingSyncedAtLeastOnce).toBe(true);
+  it('manages multi-SRP accounts correctly', async () => {
+    const { messengerMocks, options, entropySourceIds } = await arrangeMocks({
+      messengerMockOptions: {
+        accounts: {
+          accountsList: [
+            MOCK_INTERNAL_ACCOUNTS.MULTI_SRP[0],
+            MOCK_INTERNAL_ACCOUNTS.MULTI_SRP[2],
+          ] as unknown as InternalAccount[],
+        },
+      },
+    });
+
+    // Multi-SRP account syncing happens sequentially for each entropy source
+    // This is done in UserStorageController, so here we trigger the function manually for each entropy source
+
+    // SRP 1 Sync
+    const mockAPISrp1 = {
+      mockEndpointGetUserStorageSrp1:
+        await mockEndpointGetUserStorageAllFeatureEntries(
+          USER_STORAGE_FEATURE_NAMES.accounts,
+          {
+            status: 200,
+            body: await createMockUserStorageEntries(
+              MOCK_USER_STORAGE_ACCOUNTS.MULTI_SRP[MOCK_ENTROPY_SOURCE_IDS[0]],
+            ),
+          },
+        ),
+      // These two mocks below don't happen in reality, but we need to mock them to avoid
+      // the test to fail because the internal accounts list doesn't match, and creates erroneous situations
+      // Since this is not what we are testing here, this is fine
+      mockEndpointBatchDeleteUserStorage: mockEndpointBatchDeleteUserStorage(
+        USER_STORAGE_FEATURE_NAMES.accounts,
+        undefined,
+      ),
+      mockEndpointBatchUpsertUserStorage: mockEndpointBatchUpsertUserStorage(
+        USER_STORAGE_FEATURE_NAMES.accounts,
+      ),
+    };
+
+    await AccountSyncingControllerIntegrationModule.syncInternalAccountsWithUserStorage(
+      {},
+      options,
+      entropySourceIds[0],
+    );
+
+    const numberOfAddedAccountsSrp1 =
+      MOCK_USER_STORAGE_ACCOUNTS.MULTI_SRP[MOCK_ENTROPY_SOURCE_IDS[0]].length -
+      MOCK_INTERNAL_ACCOUNTS.MULTI_SRP.filter(
+        (a) => a.options.entropySource === MOCK_ENTROPY_SOURCE_IDS[0],
+      ).length +
+      1;
+
+    expect(messengerMocks.mockWithKeyringSelector).toHaveBeenCalledWith({
+      id: MOCK_ENTROPY_SOURCE_IDS[0],
+    });
+    expect(messengerMocks.mockKeyringAddAccounts).toHaveBeenCalledWith(
+      numberOfAddedAccountsSrp1,
+    );
+
+    mockAPISrp1.mockEndpointGetUserStorageSrp1.persist(false);
+    mockAPISrp1.mockEndpointBatchDeleteUserStorage.done();
+
+    // SRP 2 Sync
+    const mockAPISrp2 = {
+      mockEndpointGetUserStorageSrp2:
+        await mockEndpointGetUserStorageAllFeatureEntries(
+          USER_STORAGE_FEATURE_NAMES.accounts,
+          {
+            status: 200,
+            body: await createMockUserStorageEntries(
+              MOCK_USER_STORAGE_ACCOUNTS.MULTI_SRP[MOCK_ENTROPY_SOURCE_IDS[1]],
+            ),
+          },
+        ),
+      // This doesn't happen in reality, but we need to mock it to avoid
+      // the test to fail because the internal accounts list doesn't match since this is not what we are testing here
+      mockEndpointBatchDeleteUserStorage: mockEndpointBatchDeleteUserStorage(
+        USER_STORAGE_FEATURE_NAMES.accounts,
+        undefined,
+      ),
+    };
+
+    await AccountSyncingControllerIntegrationModule.syncInternalAccountsWithUserStorage(
+      {},
+      options,
+      entropySourceIds[1],
+    );
+
+    const numberOfAddedAccountsSrp2 =
+      MOCK_USER_STORAGE_ACCOUNTS.MULTI_SRP[MOCK_ENTROPY_SOURCE_IDS[1]].length -
+      MOCK_INTERNAL_ACCOUNTS.MULTI_SRP.filter(
+        (a) => a.options.entropySource === MOCK_ENTROPY_SOURCE_IDS[1],
+      ).length +
+      1;
+
+    expect(messengerMocks.mockWithKeyringSelector).toHaveBeenCalledWith({
+      id: MOCK_ENTROPY_SOURCE_IDS[1],
+    });
+    expect(messengerMocks.mockKeyringAddAccounts).toHaveBeenCalledWith(
+      numberOfAddedAccountsSrp2,
+    );
+
+    mockAPISrp1.mockEndpointBatchUpsertUserStorage.done();
+    mockAPISrp2.mockEndpointGetUserStorageSrp2.done();
+    mockAPISrp2.mockEndpointBatchDeleteUserStorage.done();
+
+    expect(mockAPISrp1.mockEndpointGetUserStorageSrp1.isDone()).toBe(true);
+    expect(mockAPISrp2.mockEndpointGetUserStorageSrp2.isDone()).toBe(true);
   });
 
   describe('handles corrupted user storage gracefully', () => {
     const arrangeMocksForBogusAccounts = async (persist = true) => {
       const accountsList =
-        MOCK_INTERNAL_ACCOUNTS.ONE_DEFAULT_NAME as InternalAccount[];
-      const { messengerMocks, options } = await arrangeMocks({
+        MOCK_INTERNAL_ACCOUNTS.ONE_DEFAULT_NAME as unknown as InternalAccount[];
+      const { messengerMocks, options, entropySourceIds } = await arrangeMocks({
         messengerMockOptions: {
           accounts: {
             accountsList,
@@ -286,6 +425,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
         messengerMocks,
         accountsList,
         userStorageList,
+        entropySourceIds,
         mockAPI: {
           mockEndpointGetUserStorage:
             await mockEndpointGetUserStorageAllFeatureEntries(
@@ -325,11 +465,13 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
     };
 
     it('does not save the bogus account to user storage, and deletes it from user storage', async () => {
-      const { options, mockAPI } = await arrangeMocksForBogusAccounts();
+      const { options, mockAPI, entropySourceIds } =
+        await arrangeMocksForBogusAccounts();
 
       await AccountSyncingControllerIntegrationModule.syncInternalAccountsWithUserStorage(
         {},
         options,
+        entropySourceIds[0],
       );
 
       expect(mockAPI.mockEndpointGetUserStorage.isDone()).toBe(true);
@@ -341,7 +483,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
       it('and logs if the final state is incorrect', async () => {
         const onAccountSyncErroneousSituation = jest.fn();
 
-        const { options, userStorageList, accountsList } =
+        const { options, userStorageList, accountsList, entropySourceIds } =
           await arrangeMocksForBogusAccounts(false);
 
         await mockEndpointGetUserStorageAllFeatureEntries(
@@ -357,6 +499,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
             onAccountSyncErroneousSituation,
           },
           options,
+          entropySourceIds[0],
         );
 
         expect(onAccountSyncErroneousSituation).toHaveBeenCalledTimes(2);
@@ -385,7 +528,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
       it('and logs if the final state is correct', async () => {
         const onAccountSyncErroneousSituation = jest.fn();
 
-        const { options, userStorageList, accountsList } =
+        const { options, userStorageList, accountsList, entropySourceIds } =
           await arrangeMocksForBogusAccounts(false);
 
         await mockEndpointGetUserStorageAllFeatureEntries(
@@ -401,6 +544,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
             onAccountSyncErroneousSituation,
           },
           options,
+          entropySourceIds[0],
         );
 
         expect(onAccountSyncErroneousSituation).toHaveBeenCalledTimes(2);
@@ -429,10 +573,11 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
   });
 
   it('fires the onAccountAdded callback when adding an account', async () => {
-    const { options } = await arrangeMocks({
+    const { options, entropySourceIds } = await arrangeMocks({
       messengerMockOptions: {
         accounts: {
-          accountsList: MOCK_INTERNAL_ACCOUNTS.ONE as InternalAccount[],
+          accountsList:
+            MOCK_INTERNAL_ACCOUNTS.ONE as unknown as InternalAccount[],
         },
       },
     });
@@ -479,6 +624,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
         onAccountAdded,
       },
       options,
+      entropySourceIds[0],
     );
 
     mockAPI.mockEndpointGetUserStorage.done();
@@ -492,13 +638,13 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
   });
 
   it('does not create internal accounts if user storage has less accounts', async () => {
-    const { messengerMocks, options } = await arrangeMocks({
+    const { messengerMocks, options, entropySourceIds } = await arrangeMocks({
       messengerMockOptions: {
         accounts: {
           accountsList: MOCK_INTERNAL_ACCOUNTS.ALL.slice(
             0,
             2,
-          ) as InternalAccount[],
+          ) as unknown as InternalAccount[],
         },
       },
     });
@@ -522,6 +668,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
     await AccountSyncingControllerIntegrationModule.syncInternalAccountsWithUserStorage(
       {},
       options,
+      entropySourceIds[0],
     );
 
     mockAPI.mockEndpointGetUserStorage.done();
@@ -535,11 +682,11 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
 
   describe('User storage name is a default name', () => {
     it('does not update the internal account name if both user storage and internal accounts have default names', async () => {
-      const { messengerMocks, options } = await arrangeMocks({
+      const { messengerMocks, options, entropySourceIds } = await arrangeMocks({
         messengerMockOptions: {
           accounts: {
             accountsList:
-              MOCK_INTERNAL_ACCOUNTS.ONE_DEFAULT_NAME as InternalAccount[],
+              MOCK_INTERNAL_ACCOUNTS.ONE_DEFAULT_NAME as unknown as InternalAccount[],
           },
         },
       });
@@ -560,6 +707,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
       await AccountSyncingControllerIntegrationModule.syncInternalAccountsWithUserStorage(
         {},
         options,
+        entropySourceIds[0],
       );
 
       mockAPI.mockEndpointGetUserStorage.done();
@@ -570,11 +718,11 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
     });
 
     it('does not update the internal account name if the internal account name is custom without last updated', async () => {
-      const { messengerMocks, options } = await arrangeMocks({
+      const { messengerMocks, options, entropySourceIds } = await arrangeMocks({
         messengerMockOptions: {
           accounts: {
             accountsList:
-              MOCK_INTERNAL_ACCOUNTS.ONE_CUSTOM_NAME_WITHOUT_LAST_UPDATED as InternalAccount[],
+              MOCK_INTERNAL_ACCOUNTS.ONE_CUSTOM_NAME_WITHOUT_LAST_UPDATED as unknown as InternalAccount[],
           },
         },
       });
@@ -598,6 +746,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
       await AccountSyncingControllerIntegrationModule.syncInternalAccountsWithUserStorage(
         {},
         options,
+        entropySourceIds[0],
       );
 
       mockAPI.mockEndpointGetUserStorage.done();
@@ -609,11 +758,11 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
     });
 
     it('does not update the internal account name if the internal account name is custom with last updated', async () => {
-      const { messengerMocks, options } = await arrangeMocks({
+      const { messengerMocks, options, entropySourceIds } = await arrangeMocks({
         messengerMockOptions: {
           accounts: {
             accountsList:
-              MOCK_INTERNAL_ACCOUNTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED as InternalAccount[],
+              MOCK_INTERNAL_ACCOUNTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED as unknown as InternalAccount[],
           },
         },
       });
@@ -637,6 +786,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
       await AccountSyncingControllerIntegrationModule.syncInternalAccountsWithUserStorage(
         {},
         options,
+        entropySourceIds[0],
       );
 
       mockAPI.mockEndpointGetUserStorage.done();
@@ -650,11 +800,11 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
 
   describe('User storage name is a custom name without last updated', () => {
     it('updates the internal account name if the internal account name is a default name', async () => {
-      const { messengerMocks, options } = await arrangeMocks({
+      const { messengerMocks, options, entropySourceIds } = await arrangeMocks({
         messengerMockOptions: {
           accounts: {
             accountsList:
-              MOCK_INTERNAL_ACCOUNTS.ONE_DEFAULT_NAME as InternalAccount[],
+              MOCK_INTERNAL_ACCOUNTS.ONE_DEFAULT_NAME as unknown as InternalAccount[],
           },
         },
       });
@@ -675,6 +825,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
       await AccountSyncingControllerIntegrationModule.syncInternalAccountsWithUserStorage(
         {},
         options,
+        entropySourceIds[0],
       );
 
       mockAPI.mockEndpointGetUserStorage.done();
@@ -691,11 +842,11 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
     });
 
     it('does not update internal account name if both user storage and internal accounts have custom names without last updated', async () => {
-      const { messengerMocks, options } = await arrangeMocks({
+      const { messengerMocks, options, entropySourceIds } = await arrangeMocks({
         messengerMockOptions: {
           accounts: {
             accountsList:
-              MOCK_INTERNAL_ACCOUNTS.ONE_CUSTOM_NAME_WITHOUT_LAST_UPDATED as InternalAccount[],
+              MOCK_INTERNAL_ACCOUNTS.ONE_CUSTOM_NAME_WITHOUT_LAST_UPDATED as unknown as InternalAccount[],
           },
         },
       });
@@ -716,6 +867,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
       await AccountSyncingControllerIntegrationModule.syncInternalAccountsWithUserStorage(
         {},
         options,
+        entropySourceIds[0],
       );
 
       mockAPI.mockEndpointGetUserStorage.done();
@@ -726,11 +878,11 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
     });
 
     it('does not update the internal account name if the internal account name is custom with last updated', async () => {
-      const { messengerMocks, options } = await arrangeMocks({
+      const { messengerMocks, options, entropySourceIds } = await arrangeMocks({
         messengerMockOptions: {
           accounts: {
             accountsList:
-              MOCK_INTERNAL_ACCOUNTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED as InternalAccount[],
+              MOCK_INTERNAL_ACCOUNTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED as unknown as InternalAccount[],
           },
         },
       });
@@ -754,6 +906,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
       await AccountSyncingControllerIntegrationModule.syncInternalAccountsWithUserStorage(
         {},
         options,
+        entropySourceIds[0],
       );
 
       mockAPI.mockEndpointGetUserStorage.done();
@@ -765,11 +918,11 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
     });
 
     it('fires the onAccountNameUpdated callback when renaming an internal account', async () => {
-      const { options } = await arrangeMocks({
+      const { options, entropySourceIds } = await arrangeMocks({
         messengerMockOptions: {
           accounts: {
             accountsList:
-              MOCK_INTERNAL_ACCOUNTS.ONE_DEFAULT_NAME as InternalAccount[],
+              MOCK_INTERNAL_ACCOUNTS.ONE_DEFAULT_NAME as unknown as InternalAccount[],
           },
         },
       });
@@ -794,6 +947,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
           onAccountNameUpdated,
         },
         options,
+        entropySourceIds[0],
       );
 
       mockAPI.mockEndpointGetUserStorage.done();
@@ -804,11 +958,11 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
 
   describe('User storage name is a custom name with last updated', () => {
     it('updates the internal account name if the internal account name is a default name', async () => {
-      const { messengerMocks, options } = await arrangeMocks({
+      const { messengerMocks, options, entropySourceIds } = await arrangeMocks({
         messengerMockOptions: {
           accounts: {
             accountsList:
-              MOCK_INTERNAL_ACCOUNTS.ONE_DEFAULT_NAME as InternalAccount[],
+              MOCK_INTERNAL_ACCOUNTS.ONE_DEFAULT_NAME as unknown as InternalAccount[],
           },
         },
       });
@@ -829,6 +983,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
       await AccountSyncingControllerIntegrationModule.syncInternalAccountsWithUserStorage(
         {},
         options,
+        entropySourceIds[0],
       );
 
       mockAPI.mockEndpointGetUserStorage.done();
@@ -845,11 +1000,11 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
     });
 
     it('updates the internal account name and last updated if the internal account name is a custom name without last updated', async () => {
-      const { messengerMocks, options } = await arrangeMocks({
+      const { messengerMocks, options, entropySourceIds } = await arrangeMocks({
         messengerMockOptions: {
           accounts: {
             accountsList:
-              MOCK_INTERNAL_ACCOUNTS.ONE_CUSTOM_NAME_WITHOUT_LAST_UPDATED as InternalAccount[],
+              MOCK_INTERNAL_ACCOUNTS.ONE_CUSTOM_NAME_WITHOUT_LAST_UPDATED as unknown as InternalAccount[],
           },
         },
       });
@@ -870,6 +1025,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
       await AccountSyncingControllerIntegrationModule.syncInternalAccountsWithUserStorage(
         {},
         options,
+        entropySourceIds[0],
       );
 
       mockAPI.mockEndpointGetUserStorage.done();
@@ -888,11 +1044,11 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
     });
 
     it('updates the internal account name and last updated if the user storage account is more recent', async () => {
-      const { messengerMocks, options } = await arrangeMocks({
+      const { messengerMocks, options, entropySourceIds } = await arrangeMocks({
         messengerMockOptions: {
           accounts: {
             accountsList:
-              MOCK_INTERNAL_ACCOUNTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED as InternalAccount[],
+              MOCK_INTERNAL_ACCOUNTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED as unknown as InternalAccount[],
           },
         },
       });
@@ -913,6 +1069,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
       await AccountSyncingControllerIntegrationModule.syncInternalAccountsWithUserStorage(
         {},
         options,
+        entropySourceIds[0],
       );
 
       mockAPI.mockEndpointGetUserStorage.done();
@@ -931,11 +1088,11 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
     });
 
     it('does not update the internal account if the user storage account is less recent', async () => {
-      const { messengerMocks, options } = await arrangeMocks({
+      const { messengerMocks, options, entropySourceIds } = await arrangeMocks({
         messengerMockOptions: {
           accounts: {
             accountsList:
-              MOCK_INTERNAL_ACCOUNTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED_MOST_RECENT as InternalAccount[],
+              MOCK_INTERNAL_ACCOUNTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED_MOST_RECENT as unknown as InternalAccount[],
           },
         },
       });
@@ -959,6 +1116,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
       await AccountSyncingControllerIntegrationModule.syncInternalAccountsWithUserStorage(
         {},
         options,
+        entropySourceIds[0],
       );
 
       mockAPI.mockEndpointGetUserStorage.done();
@@ -985,7 +1143,7 @@ describe('user-storage/account-syncing/controller-integration - saveInternalAcco
     );
 
     await AccountSyncingControllerIntegrationModule.saveInternalAccountToUserStorage(
-      MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
+      MOCK_INTERNAL_ACCOUNTS.ONE[0] as unknown as InternalAccount,
       options,
     );
 
@@ -1003,7 +1161,7 @@ describe('user-storage/account-syncing/controller-integration - saveInternalAcco
     };
 
     await AccountSyncingControllerIntegrationModule.saveInternalAccountToUserStorage(
-      MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
+      MOCK_INTERNAL_ACCOUNTS.ONE[0] as unknown as InternalAccount,
       options,
     );
 
@@ -1020,7 +1178,7 @@ describe('user-storage/account-syncing/controller-integration - saveInternalAcco
 
     await expect(
       AccountSyncingControllerIntegrationModule.saveInternalAccountToUserStorage(
-        MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
+        MOCK_INTERNAL_ACCOUNTS.ONE[0] as unknown as InternalAccount,
         options,
       ),
     ).rejects.toThrow(expect.any(Error));
@@ -1032,7 +1190,7 @@ describe('user-storage/account-syncing/controller-integration - saveInternalAcco
         messengerMockOptions: {
           accounts: {
             accountsList:
-              MOCK_INTERNAL_ACCOUNTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED_MOST_RECENT as InternalAccount[],
+              MOCK_INTERNAL_ACCOUNTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED_MOST_RECENT as unknown as InternalAccount[],
           },
         },
       });
@@ -1078,7 +1236,7 @@ describe('user-storage/account-syncing/controller-integration - saveInternalAcco
 
       messengerMocks.baseMessenger.publish(
         'AccountsController:accountRenamed',
-        MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
+        MOCK_INTERNAL_ACCOUNTS.ONE[0] as unknown as InternalAccount,
       );
 
       expect(mockSaveInternalAccountToUserStorage).toHaveBeenCalledWith(
@@ -1099,34 +1257,10 @@ describe('user-storage/account-syncing/controller-integration - saveInternalAcco
 
       messengerMocks.baseMessenger.publish(
         'AccountsController:accountRenamed',
-        MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
+        MOCK_INTERNAL_ACCOUNTS.ONE[0] as unknown as InternalAccount,
       );
 
       expect(mockSaveInternalAccountToUserStorage).not.toHaveBeenCalled();
-    });
-
-    it('saves an internal account to user storage when the AccountsController:accountAdded event is fired', async () => {
-      const { controller, messengerMocks } = await arrangeMocksForAccounts();
-
-      // We need to sync at least once before we listen for other controller events
-      await controller.setHasAccountSyncingSyncedAtLeastOnce(true);
-
-      const mockSaveInternalAccountToUserStorage = jest
-        .spyOn(
-          AccountSyncingControllerIntegrationModule,
-          'saveInternalAccountToUserStorage',
-        )
-        .mockImplementation();
-
-      messengerMocks.baseMessenger.publish(
-        'AccountsController:accountAdded',
-        MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
-      );
-
-      expect(mockSaveInternalAccountToUserStorage).toHaveBeenCalledWith(
-        MOCK_INTERNAL_ACCOUNTS.ONE[0],
-        expect.anything(),
-      );
     });
   });
 });

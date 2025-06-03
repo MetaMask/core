@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add contact syncing capability with conflict resolution b/w local and remote storage ([#5776](https://github.com/MetaMask/core/pull/5776))
+- Add account syncing support for multiple SRPs ([#5753](https://github.com/MetaMask/core/pull/5753))
+  - Add `entropySource` based authentication support for multiple SRPs
+  - Add `entropySource` optional parameter for `UserStorageController` CRUD methods
 
 ## [16.0.0]
 
