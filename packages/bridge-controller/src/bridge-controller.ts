@@ -6,7 +6,7 @@ import type { ChainId, TraceCallback } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import type { TransactionParams } from '@metamask/transaction-controller';
+import type { TransactionController } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
 import { numberToHex, type Hex } from '@metamask/utils';
 
@@ -145,10 +145,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #clientId: string;
 
-  readonly #getLayer1GasFee: (params: {
-    transactionParams: TransactionParams;
-    chainId: ChainId;
-  }) => Promise<string>;
+  readonly #getLayer1GasFee: typeof TransactionController.prototype.getLayer1GasFee;
 
   readonly #fetchFn: FetchFunction;
 
@@ -179,10 +176,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     messenger: BridgeControllerMessenger;
     state?: Partial<BridgeControllerState>;
     clientId: BridgeClientId;
-    getLayer1GasFee: (params: {
-      transactionParams: TransactionParams;
-      chainId: ChainId;
-    }) => Promise<string>;
+    getLayer1GasFee: typeof TransactionController.prototype.getLayer1GasFee;
     fetchFn: FetchFunction;
     config?: {
       customBridgeApiBaseUrl?: string;
