@@ -568,38 +568,53 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     });
 
     // Only append L1 gas fees if all quotes are for either optimism or base
-    if (!hasInvalidQuotes) {
-      return await Promise.all(
-        quotes.map(async (quoteResponse) => {
-          const { quote, trade, approval } = quoteResponse;
-          const chainId = numberToHex(quote.srcChainId) as ChainId;
-
-          const getTxParams = (txData: TxData) => ({
-            from: txData.from,
-            to: txData.to,
-            value: txData.value,
-            data: txData.data,
-            gasLimit: txData.gasLimit?.toString(),
-          });
-          const approvalL1GasFees = approval
-            ? await this.#getLayer1GasFee({
-                transactionParams: getTxParams(approval),
-                chainId,
-              })
-            : '0';
-          const tradeL1GasFees = await this.#getLayer1GasFee({
-            transactionParams: getTxParams(trade),
-            chainId,
-          });
-          return {
-            ...quoteResponse,
-            l1GasFeesInHexWei: sumHexes(approvalL1GasFees, tradeL1GasFees),
-          };
-        }),
-      );
+    if (hasInvalidQuotes) {
+      return undefined;
     }
 
-    return undefined;
+    const l1GasFeePromises = Promise.allSettled(
+      quotes.map(async (quoteResponse) => {
+        const { quote, trade, approval } = quoteResponse;
+        const chainId = numberToHex(quote.srcChainId) as ChainId;
+
+        const getTxParams = (txData: TxData) => ({
+          from: txData.from,
+          to: txData.to,
+          value: txData.value,
+          data: txData.data,
+          gasLimit: txData.gasLimit?.toString(),
+        });
+        const approvalL1GasFees = approval
+          ? await this.#getLayer1GasFee({
+              transactionParams: getTxParams(approval),
+              chainId,
+            })
+          : '0x0';
+        const tradeL1GasFees = await this.#getLayer1GasFee({
+          transactionParams: getTxParams(trade),
+          chainId,
+        });
+
+        if (approvalL1GasFees === undefined || tradeL1GasFees === undefined) {
+          return undefined;
+        }
+
+        return {
+          ...quoteResponse,
+          l1GasFeesInHexWei: sumHexes(approvalL1GasFees, tradeL1GasFees),
+        };
+      }),
+    );
+
+    const quotesWithL1GasFees: (QuoteResponse & L1GasFees)[] = [];
+
+    (await l1GasFeePromises).forEach((result) => {
+      if (result.status === 'fulfilled' && result.value) {
+        quotesWithL1GasFees.push(result.value);
+      }
+    });
+
+    return quotesWithL1GasFees;
   };
 
   readonly #setMinimumBalanceForRentExemptionInLamports = async (
