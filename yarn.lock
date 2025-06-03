@@ -2708,7 +2708,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/bridge-controller@npm:^31.0.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
+"@metamask/bridge-controller@npm:^32.0.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-controller@workspace:packages/bridge-controller"
   dependencies:
@@ -2764,7 +2764,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^30.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.1"
-    "@metamask/bridge-controller": "npm:^31.0.0"
+    "@metamask/bridge-controller": "npm:^32.0.0"
     "@metamask/controller-utils": "npm:^11.9.0"
     "@metamask/gas-fee-controller": "npm:^23.0.0"
     "@metamask/keyring-api": "npm:^18.0.0"
@@ -2790,7 +2790,7 @@ __metadata:
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/accounts-controller": ^30.0.0
-    "@metamask/bridge-controller": ^31.0.0
+    "@metamask/bridge-controller": ^32.0.0
     "@metamask/gas-fee-controller": ^23.0.0
     "@metamask/multichain-transactions-controller": ^2.0.0
     "@metamask/network-controller": ^23.0.0
@@ -3018,17 +3018,19 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/earn-controller@workspace:packages/earn-controller"
   dependencies:
+    "@ethersproject/bignumber": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
     "@metamask/accounts-controller": "npm:^30.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.1"
     "@metamask/controller-utils": "npm:^11.9.0"
     "@metamask/network-controller": "npm:^23.5.1"
-    "@metamask/stake-sdk": "npm:^1.0.0"
+    "@metamask/stake-sdk": "npm:^3.2.0"
     "@metamask/transaction-controller": "npm:^57.0.0"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
+    reselect: "npm:^5.1.1"
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -4492,10 +4494,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/stake-sdk@npm:^1.0.0":
-  version: 1.0.0
-  resolution: "@metamask/stake-sdk@npm:1.0.0"
-  checksum: 10/96e3fff677aab96e9d26a98c719623ccac59a13e367f2a8fe66174fb00a36fbe32dd6b4664335801a690b2f3744010e6c8e88a4db678742dc6c0d04c0caaf9bb
+"@metamask/stake-sdk@npm:^3.2.0":
+  version: 3.2.0
+  resolution: "@metamask/stake-sdk@npm:3.2.0"
+  checksum: 10/54197bcc83ee014643e44d22f06768e8caee4a8093b920405a5d4e0517c587f12aeec20bace98ec8a49aad648d67444afca139e29c8ec39ae9d2305b435100a6
   languageName: node
   linkType: hard
 

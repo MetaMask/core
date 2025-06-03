@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [32.0.0]
+
+### Added
+
+- **BREAKING:** Add required property `minimumBalanceForRentExemptionInLamports` to `BridgeState` ([#5827](https://github.com/MetaMask/core/pull/5827))
+- Add selector `selectMinimumBalanceForRentExemptionInSOL` ([#5827](https://github.com/MetaMask/core/pull/5827))
+
+### Changed
+
+- Add new dependency `uuid` ([#5827](https://github.com/MetaMask/core/pull/5827))
+
 ## [31.0.0]
 
 ### Added
@@ -63,12 +74,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added optional `isUnifiedUIEnabled` flag to chain-level feature-flag `ChainConfiguration` type and updated the validation schema to accept the new flag ([#5783](https://github.com/MetaMask/core/pull/5783))
 - Add and export `calcSlippagePercentage`, a utility that calculates the absolute slippage percentage based on the adjusted return and the sent amount ([#5723](https://github.com/MetaMask/core/pull/5723)).
 - Error logs for invalid getQuote responses ([#5816](https://github.com/MetaMask/core/pull/5816))
-- **BREAKING:** Add required property `minimumBalanceForRentExemptionInLamports` to `BridgeState` ([#5827](https://github.com/MetaMask/core/pull/5827))
-- Add selector `selectMinimumBalanceForRentExemptionInSOL` ([#5827](https://github.com/MetaMask/core/pull/5827))
 
 ### Changed
 
-- Add new dependency `uuid` ([#5827](https://github.com/MetaMask/core/pull/5827))
 - Bump `@metamask/controller-utils` to `^11.9.0` ([#5812](https://github.com/MetaMask/core/pull/5812))
 
 ## [25.0.1]
@@ -311,7 +319,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@31.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@32.0.0...HEAD
+[32.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@31.0.0...@metamask/bridge-controller@32.0.0
 [31.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@30.0.0...@metamask/bridge-controller@31.0.0
 [30.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@29.0.0...@metamask/bridge-controller@30.0.0
 [29.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@28.0.0...@metamask/bridge-controller@29.0.0
