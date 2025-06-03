@@ -1,3 +1,4 @@
+/* eslint-disable jest/no-conditional-in-test */
 import { Contract } from '@ethersproject/contracts';
 import {
   EthAccountType,
@@ -5,8 +6,6 @@ import {
   SolAccountType,
   SolScope,
 } from '@metamask/keyring-api';
-import type { Hex } from '@metamask/utils';
-import { bigIntToHex } from '@metamask/utils';
 import nock from 'nock';
 
 import { BridgeController } from './bridge-controller';
@@ -668,7 +667,6 @@ describe('BridgeController', function () {
       ): ReturnType<BridgeControllerMessenger['call']> => {
         const actionType = args[0];
 
-        // eslint-disable-next-line jest/no-conditional-in-test
         if (actionType === 'AccountsController:getSelectedMultichainAccount') {
           return {
             type: SolAccountType.DataAccount,
@@ -693,7 +691,7 @@ describe('BridgeController', function () {
             },
           };
         }
-        // eslint-disable-next-line jest/no-conditional-in-test
+
         if (actionType === 'NetworkController:getNetworkClientById') {
           return {
             configuration: { rpcUrl: 'https://rpc.tenderly.co' },
@@ -838,11 +836,9 @@ describe('BridgeController', function () {
       // Setup
       const mockMessenger = {
         call: jest.fn().mockImplementation((methodName) => {
-          // eslint-disable-next-line jest/no-conditional-in-test
           if (methodName === 'NetworkController:getNetworkClientById') {
             return { provider: null };
           }
-          // eslint-disable-next-line jest/no-conditional-in-test
           if (methodName === 'NetworkController:getState') {
             return { selectedNetworkClientId: 'testNetworkClientId' };
           }
@@ -872,37 +868,47 @@ describe('BridgeController', function () {
     [
       'should append l1GasFees if srcChain is 10 and srcToken is erc20',
       mockBridgeQuotesErc20Native as QuoteResponse[],
-      bigIntToHex(BigInt('2608710388388') * 2n),
-      12,
-      bigIntToHex(BigInt('2608710388388')),
+      ['0x2', '0x1'],
+      [6, 12],
     ],
     [
       'should append l1GasFees if srcChain is 10 and srcToken is native',
       mockBridgeQuotesNativeErc20 as unknown as QuoteResponse[],
-      bigIntToHex(BigInt('2608710388388')),
-      2,
+      ['0x1', '0x1'],
+      [2, 2],
     ],
     [
       'should not append l1GasFees if srcChain is not 10',
       mockBridgeQuotesNativeErc20Eth as unknown as QuoteResponse[],
-      undefined,
-      0,
+      [],
+      [2, 0],
     ],
     [
       'should filter out quote if getL1Fees returns undefined',
-      mockBridgeQuotesNativeErc20 as unknown as QuoteResponse[],
-      undefined,
-      2,
+      mockBridgeQuotesErc20Native as unknown as QuoteResponse[],
+      ['0x2', undefined],
+      [5, 12],
+    ],
+    [
+      'should filter out quote if L1 fee calculation fails',
+      mockBridgeQuotesErc20Native as unknown as QuoteResponse[],
+      ['0x2', '0x1', 'L1 gas fee calculation failed'],
+      [5, 11],
     ],
   ])(
     'updateBridgeQuoteRequestParams: %s',
     async (
       _testTitle: string,
       quoteResponse: QuoteResponse[],
-      tradeL1GasFeesInHexWei: Hex | undefined,
-      getLayer1GasFeeMockCallCount: number,
-      approvalL1GasFeesInHexWei: Hex | undefined = undefined,
+      [totalL1GasFeesInHexWei, tradeL1GasFeesInHexWei, tradeL1GasFeeError]: (
+        | string
+        | undefined
+      )[],
+      [expectedQuotesLength, expectedGetLayer1GasFeeMockCallCount]: number[],
     ) => {
+      const errorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(jest.fn());
       jest.useFakeTimers();
       const stopAllPollingSpy = jest.spyOn(bridgeController, 'stopAllPolling');
       const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
@@ -914,11 +920,27 @@ describe('BridgeController', function () {
         provider: jest.fn(),
         selectedNetworkClientId: 'selectedNetworkClientId',
       } as never);
-      // eslint-disable-next-line jest/no-conditional-in-test
-      if (approvalL1GasFeesInHexWei) {
-        getLayer1GasFeeMock.mockResolvedValueOnce(approvalL1GasFeesInHexWei);
+
+      for (const [index, quote] of quoteResponse.entries()) {
+        if (tradeL1GasFeeError && index === 0) {
+          getLayer1GasFeeMock.mockRejectedValueOnce(
+            new Error(tradeL1GasFeeError),
+          );
+          continue;
+        }
+
+        if (quote.approval) {
+          getLayer1GasFeeMock.mockResolvedValueOnce('0x1');
+        }
+
+        if (tradeL1GasFeesInHexWei === undefined && index === 0) {
+          getLayer1GasFeeMock.mockResolvedValueOnce(undefined);
+          continue;
+        }
+        getLayer1GasFeeMock.mockResolvedValueOnce(
+          tradeL1GasFeesInHexWei ?? '0x1',
+        );
       }
-      getLayer1GasFeeMock.mockResolvedValueOnce(tradeL1GasFeesInHexWei);
 
       const fetchBridgeQuotesSpy = jest
         .spyOn(fetchUtils, 'fetchBridgeQuotes')
@@ -997,6 +1019,7 @@ describe('BridgeController', function () {
       jest.advanceTimersByTime(1500);
       await flushPromises();
       const { quotes } = bridgeController.state;
+      expect(quotes).toHaveLength(expectedQuotesLength);
       expect(bridgeController.state).toStrictEqual(
         expect.objectContaining({
           quoteRequest: { ...quoteRequest, insufficientBal: true },
@@ -1007,7 +1030,7 @@ describe('BridgeController', function () {
       quotes.forEach((quote) => {
         const expectedQuote = {
           ...quote,
-          l1GasFeesInHexWei: tradeL1GasFeesInHexWei,
+          l1GasFeesInHexWei: totalL1GasFeesInHexWei,
         };
         // eslint-disable-next-line jest/prefer-strict-equal
         expect(quote).toEqual(expectedQuote);
@@ -1017,8 +1040,10 @@ describe('BridgeController', function () {
       expect(firstFetchTime).toBeGreaterThan(0);
 
       expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(
-        getLayer1GasFeeMockCallCount,
+        expectedGetLayer1GasFeeMockCallCount,
       );
+
+      expect(errorSpy).toHaveBeenCalledTimes(tradeL1GasFeeError ? 1 : 0);
     },
   );
 
@@ -1275,9 +1300,7 @@ describe('BridgeController', function () {
         ): ReturnType<BridgeControllerMessenger['call']> => {
           const actionType = args[0];
 
-          // eslint-disable-next-line jest/no-conditional-in-test
           if (
-            // eslint-disable-next-line jest/no-conditional-in-test
             actionType === 'AccountsController:getSelectedMultichainAccount' &&
             isSnapAccount
           ) {
@@ -1304,7 +1327,6 @@ describe('BridgeController', function () {
               },
             };
           }
-          // eslint-disable-next-line jest/no-conditional-in-test
           if (
             actionType === 'AccountsController:getSelectedMultichainAccount'
           ) {
@@ -1326,7 +1348,6 @@ describe('BridgeController', function () {
               },
             };
           }
-          // eslint-disable-next-line jest/no-conditional-in-test
           if (actionType === 'SnapController:handleRequest') {
             return { value: '5000' } as never;
           }

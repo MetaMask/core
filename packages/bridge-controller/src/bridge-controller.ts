@@ -612,6 +612,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       if (result.status === 'fulfilled' && result.value) {
         quotesWithL1GasFees.push(result.value);
       }
+      if (result.status === 'rejected') {
+        console.error('Error calculating L1 gas fees for quote', result.reason);
+      }
     });
 
     return quotesWithL1GasFees;
