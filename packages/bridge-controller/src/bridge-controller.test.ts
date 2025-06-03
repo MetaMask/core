@@ -1259,12 +1259,14 @@ describe('BridgeController', function () {
     [
       'should append solanaFees for Solana quotes',
       mockBridgeQuotesSolErc20 as unknown as QuoteResponse[],
+      2,
       '5000',
       solanaSnapCalls,
     ],
     [
       'should not append solanaFees if selected account is not a snap',
       mockBridgeQuotesSolErc20 as unknown as QuoteResponse[],
+      2,
       undefined,
       [],
       false,
@@ -1275,6 +1277,7 @@ describe('BridgeController', function () {
         ...mockBridgeQuotesSolErc20,
         ...mockBridgeQuotesErc20Native,
       ] as unknown as QuoteResponse[],
+      8,
       undefined,
       mixedQuotesSnapCalls,
     ],
@@ -1283,6 +1286,7 @@ describe('BridgeController', function () {
     async (
       _testTitle: string,
       quoteResponse: QuoteResponse[],
+      expectedQuotesLength: number,
       expectedFees: string | undefined,
       expectedSnapCalls: typeof solanaSnapCalls,
       isSnapAccount = true,
@@ -1415,6 +1419,8 @@ describe('BridgeController', function () {
       );
 
       expect(snapCalls).toMatchObject(expectedSnapCalls);
+
+      expect(quotes).toHaveLength(expectedQuotesLength);
     },
   );
 

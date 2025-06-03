@@ -657,7 +657,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       return undefined;
     }
 
-    return await Promise.all(
+    const solanaFeePromises = Promise.allSettled(
       quotes.map(async (quoteResponse) => {
         const { trade } = quoteResponse;
         const selectedAccount = this.#getMultichainSelectedAccount();
@@ -679,6 +679,19 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         return quoteResponse;
       }),
     );
+
+    const quotesWithSolanaFees: (QuoteResponse & SolanaFees)[] = [];
+
+    (await solanaFeePromises).forEach((result) => {
+      if (result.status === 'fulfilled' && result.value) {
+        quotesWithSolanaFees.push(result.value);
+      }
+      if (result.status === 'rejected') {
+        console.error('Error calculating solana fees for quote', result.reason);
+      }
+    });
+
+    return quotesWithSolanaFees;
   };
 
   #getMultichainSelectedAccount() {
