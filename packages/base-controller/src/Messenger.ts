@@ -1,5 +1,3 @@
-import { RestrictedMessenger } from './RestrictedMessenger';
-
 export type ActionHandler<
   Action extends ActionConstraint,
   ActionType = Action['type'],
@@ -80,56 +78,61 @@ type EventSubscriptionMap<
   SelectorFunction<Event, Event['type'], ReturnValue> | undefined
 >;
 
-/**
- * A namespaced string
- *
- * This type verifies that the string Name is prefixed by the string Name followed by a colon.
- *
- * @template Namespace - The namespace we're checking for.
- * @template Name - The full string, including the namespace.
- */
-export type NamespacedBy<
-  Namespace extends string,
-  Name extends string,
-> = Name extends `${Namespace}:${string}` ? Name : never;
-
-export type NotNamespacedBy<
-  Namespace extends string,
-  Name extends string,
-> = Name extends `${Namespace}:${string}` ? never : Name;
-
 export type NamespacedName<Namespace extends string = string> =
   `${Namespace}:${string}`;
 
-type NarrowToNamespace<Name, Namespace extends string> = Name extends {
-  type: `${Namespace}:${string}`;
-}
-  ? Name
-  : never;
-
-type NarrowToAllowed<Name, Allowed extends string> = Name extends {
-  type: Allowed;
-}
-  ? Name
-  : never;
+/**
+ * A messenger that actions and/or events can be delegated to.
+ *
+ * This is a minimal type interface to avoid complex incompatibilities resulting from generics.
+ */
+type DelegatedMessenger<
+  Action extends ActionConstraint,
+  Event extends EventConstraint,
+  Namespace extends string,
+> = Pick<
+  Messenger<Action, Event, Namespace>,
+  | 'publishDelegated'
+  | 'registerDelegatedActionHandler'
+  | 'registerDelegatedInitialEventPayload'
+  | 'unregisterDelegatedActionHandler'
+>;
 
 /**
  * A message broker for "actions" and "events".
  *
  * The messenger allows registering functions as 'actions' that can be called elsewhere,
  * and it allows publishing and subscribing to events. Both actions and events are identified by
- * unique strings.
+ * unique strings prefixed by a namespace (which is delimited by a colon, e.g.
+ * `Namespace:actionName`).
  *
  * @template Action - A type union of all Action types.
  * @template Event - A type union of all Event types.
+ * @template Namespace - The namespace for the messenger.
  */
 export class Messenger<
   Action extends ActionConstraint,
   Event extends EventConstraint,
+  Namespace extends string,
 > {
-  readonly #actions = new Map<Action['type'], unknown>();
+  readonly #namespace: Namespace;
+
+  readonly #actions = new Map<Action['type'], Action['handler']>();
 
   readonly #events = new Map<Event['type'], EventSubscriptionMap<Event>>();
+
+  readonly #delegatedEventSubscriptions = new Map<
+    Event['type'],
+    Map<
+      DelegatedMessenger<Action, Event>,
+      ExtractEventHandler<Event, Event['type']>
+    >
+  >();
+
+  readonly #delegatedActionHandlers = new Map<
+    Action['type'],
+    Set<DelegatedMessenger<Action, Event>>
+  >();
 
   /**
    * A map of functions for getting the initial event payload.
@@ -150,6 +153,15 @@ export class Messenger<
   >();
 
   /**
+   * Construct a messenger.
+   *
+   * @param namespace - The messenger namespace.
+   */
+  constructor(namespace: Namespace) {
+    this.#namespace = namespace;
+  }
+
+  /**
    * Register an action handler.
    *
    * This will make the registered function available to call via the `call` method.
@@ -160,7 +172,41 @@ export class Messenger<
    * @throws Will throw when a handler has been registered for this action type already.
    * @template ActionType - A type union of Action type strings.
    */
-  registerActionHandler<ActionType extends Action['type']>(
+
+  registerActionHandler<
+    ActionType extends Action['type'] & NamespacedName<Namespace>,
+  >(actionType: ActionType, handler: ActionHandler<Action, ActionType>) {
+    /* istanbul ignore if */ // Branch unreachable with valid types
+    if (!this.#isInCurrentNamespace(actionType)) {
+      throw new Error(
+        `Only allowed registering action handlers prefixed by '${
+          this.#namespace
+        }:'`,
+      );
+    }
+    this.#registerActionHandler(actionType, handler);
+  }
+
+  /**
+   * Register a delegated action handler.
+   *
+   * This will make the registered function available to call via the `call` method.
+   *
+   * @deprecated Do not call this directly, instead use the `delegate` method.
+   * @param actionType - The action type. This is a unqiue identifier for this action.
+   * @param handler - The action handler. This function gets called when the `call` method is
+   * invoked with the given action type.
+   * @throws Will throw when a handler has been registered for this action type already.
+   * @template ActionType - A type union of Action type strings.
+   */
+  registerDelegatedActionHandler<ActionType extends Action['type']>(
+    actionType: ActionType,
+    handler: ActionHandler<Action, ActionType>,
+  ) {
+    this.#registerActionHandler(actionType, handler);
+  }
+
+  #registerActionHandler<ActionType extends Action['type']>(
     actionType: ActionType,
     handler: ActionHandler<Action, ActionType>,
   ) {
@@ -180,10 +226,48 @@ export class Messenger<
    * @param actionType - The action type. This is a unqiue identifier for this action.
    * @template ActionType - A type union of Action type strings.
    */
-  unregisterActionHandler<ActionType extends Action['type']>(
+
+  unregisterActionHandler<
+    ActionType extends Action['type'] & NamespacedName<Namespace>,
+  >(actionType: ActionType) {
+    /* istanbul ignore if */ // Branch unreachable with valid types
+    if (!this.#isInCurrentNamespace(actionType)) {
+      throw new Error(
+        `Only allowed unregistering action handlers prefixed by '${
+          this.#namespace
+        }:'`,
+      );
+    }
+    this.#unregisterActionHandler(actionType);
+  }
+
+  /**
+   * Unregister a delegated action handler.
+   *
+   * This will prevent this action from being called.
+   *
+   * @deprecated Do not call this directly, instead use the `delegate` method.
+   * @param actionType - The action type. This is a unqiue identifier for this action.
+   * @template ActionType - A type union of Action type strings.
+   */
+  unregisterDelegatedActionHandler<ActionType extends Action['type']>(
+    actionType: ActionType,
+  ) {
+    this.#unregisterActionHandler(actionType);
+  }
+
+  #unregisterActionHandler<ActionType extends Action['type']>(
     actionType: ActionType,
   ) {
     this.#actions.delete(actionType);
+    const delegatedMessengers = this.#delegatedActionHandlers.get(actionType);
+    if (!delegatedMessengers) {
+      return;
+    }
+    for (const messenger of delegatedMessengers) {
+      messenger.unregisterDelegatedActionHandler(actionType);
+    }
+    this.#delegatedActionHandlers.delete(actionType);
   }
 
   /**
@@ -456,5 +540,15 @@ export class Messenger<
       allowedActions,
       allowedEvents,
     });
+  }
+
+  /**
+   * Determine whether the given name is within the current namespace.
+   *
+   * @param name - The name to check
+   * @returns Whether the name is within the current namespace
+   */
+  #isInCurrentNamespace(name: string): name is NamespacedName<Namespace> {
+    return name.startsWith(`${this.#namespace}:`);
   }
 }
