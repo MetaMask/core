@@ -127,7 +127,7 @@ export type SeedlessOnboardingControllerState =
 
       /**
        * The refresh token used to refresh expired nodeAuthTokens.
-       * This is temporarily stored in state during authentication and then persisted in the vault.
+       * This is persisted in state.
        */
       refreshToken?: string;
 
