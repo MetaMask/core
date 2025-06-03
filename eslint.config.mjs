@@ -24,11 +24,6 @@ const config = createConfig([
       // e.g. `txreceipt_status`, `signTypedData_v4`, `token_id`
       camelcase: 'off',
       'id-length': 'off',
-      'n/no-unsupported-features/node-builtins': 'off',
-      'n/no-missing-import': 'off',
-      'n/no-restricted-import': 'off',
-      'n/no-deprecated-api': 'off',
-
       // TODO: re-enble most of these rules
       'function-paren-newline': 'off',
       'id-denylist': 'off',
@@ -228,6 +223,10 @@ const config = createConfig([
     files: ['packages/foundryup/**/*.{js,ts}'],
     rules: {
       'import-x/no-nodejs-modules': 'off',
+      'n/no-unsupported-features/node-builtins': 'off',
+      'n/no-missing-import': 'off',
+      'n/no-restricted-import': 'off',
+      'n/no-deprecated-api': 'off',
     },
   },
 ]);
