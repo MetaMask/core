@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0]
+
 ### Changed
 
 - Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
+- Add `swappable` param to token discovery controller and API service ([#5819](https://github.com/MetaMask/core/pull/5819))
 
 ## [3.1.0]
 
@@ -69,7 +72,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This service is responsible for making search related requests to the Portfolio API
   - Specifically, it handles the `tokens-search` endpoint which returns a list of tokens based on the provided query parameters
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@3.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@3.2.0...HEAD
+[3.2.0]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@3.1.0...@metamask/token-search-discovery-controller@3.2.0
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@3.0.0...@metamask/token-search-discovery-controller@3.1.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@2.1.0...@metamask/token-search-discovery-controller@3.0.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@2.0.0...@metamask/token-search-discovery-controller@2.1.0

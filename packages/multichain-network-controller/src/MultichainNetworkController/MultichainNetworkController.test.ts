@@ -196,7 +196,11 @@ function setupController({
         [EthAccountType.Erc4337]: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
         [SolAccountType.DataAccount]:
           'So11111111111111111111111111111111111111112',
-        [BtcAccountType.P2wpkh]: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+        [BtcAccountType.P2pkh]: '1AXaVdPBb6zqrTMb6ebrBb9g3JmeAPGeCF',
+        [BtcAccountType.P2sh]: '3KQPirCGGbVyWJLGuWN6VPC7uLeiarYB7x',
+        [BtcAccountType.P2wpkh]: 'bc1q4degm5k044n9xv3ds7d8l6hfavydte6wn6sesw',
+        [BtcAccountType.P2tr]:
+          'bc1pxfxst7zrkw39vzh0pchq5ey0q7z6u739cudhz5vmg89wa4kyyp9qzrf5sp',
       };
     const mockAccountAddress = mockAccountAddressByAccountType[accountType];
 

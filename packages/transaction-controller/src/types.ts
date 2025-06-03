@@ -490,6 +490,46 @@ export type TransactionMeta = {
   };
 };
 
+/**
+ * Information about a batch transaction.
+ */
+export type TransactionBatchMeta = {
+  /**
+   * Network code as per EIP-155 for this transaction.
+   */
+  chainId: Hex;
+
+  /**
+   * Address to send this transaction from.
+   */
+  from: string;
+
+  /**
+   * Maximum number of units of gas to use for this transaction batch.
+   */
+  gas?: string;
+
+  /**
+   * ID of the associated transaction batch.
+   */
+  id: string;
+
+  /**
+   * The ID of the network client used by the transaction.
+   */
+  networkClientId: NetworkClientId;
+
+  /**
+   * Origin this transaction was sent from.
+   */
+  origin?: string;
+
+  /**
+   * Data for any EIP-7702 transactions.
+   */
+  transactions?: NestedTransactionMetadata[];
+};
+
 export type SendFlowHistoryEntry = {
   /**
    * String to indicate user interaction information.
@@ -1514,7 +1554,7 @@ export type BatchTransactionParams = {
 
 /** Metadata for a nested transaction within a standard transaction. */
 export type NestedTransactionMetadata = BatchTransactionParams & {
-  /** Type of the neted transaction. */
+  /** Type of the nested transaction. */
   type?: TransactionType;
 };
 
@@ -1707,6 +1747,9 @@ export type ValidateSecurityRequest = {
 
   /** Optional EIP-7702 delegation to mock for the transaction sender. */
   delegationMock?: Hex;
+
+  /** Origin of the request, such as a dApp hostname or `ORIGIN_METAMASK` if internal. */
+  origin?: string;
 };
 
 /** Data required to pay for transaction gas using an ERC-20 token. */
@@ -1719,6 +1762,9 @@ export type GasFeeToken = {
 
   /** Decimals of the token. */
   decimals: number;
+
+  /** Portion of the amount that is the fee paid to MetaMask. */
+  fee?: Hex;
 
   /** Estimated gas limit required for original transaction. */
   gas: Hex;

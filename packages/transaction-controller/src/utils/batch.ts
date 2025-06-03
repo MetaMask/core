@@ -1,7 +1,13 @@
+import type {
+  AcceptResultCallbacks,
+  AddResult,
+} from '@metamask/approval-controller';
+import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { bytesToHex, createModuleLogger } from '@metamask/utils';
+import type { WritableDraft } from 'immer/dist/internal.js';
 import { parse, v4 } from 'uuid';
 
 import {
@@ -15,7 +21,9 @@ import {
   getEIP7702SupportedChains,
   getEIP7702UpgradeContractAddress,
 } from './feature-flags';
+import { simulateGasBatch } from './gas';
 import { validateBatchRequest } from './validation';
+import type { TransactionControllerState } from '..';
 import {
   determineTransactionType,
   type BatchTransactionParams,
@@ -38,6 +46,7 @@ import type {
   ValidateSecurityRequest,
   IsAtomicBatchSupportedResult,
   IsAtomicBatchSupportedResultEntry,
+  TransactionBatchMeta,
 } from '../types';
 import {
   TransactionEnvelopeType,
@@ -46,12 +55,19 @@ import {
   TransactionType,
 } from '../types';
 
+type UpdateStateCallback = (
+  callback: (
+    state: WritableDraft<TransactionControllerState>,
+  ) => void | TransactionControllerState,
+) => void;
+
 type AddTransactionBatchRequest = {
   addTransaction: TransactionController['addTransaction'];
   getChainId: (networkClientId: string) => Hex;
   getEthQuery: (networkClientId: string) => EthQuery;
   getInternalAccounts: () => Hex[];
   getTransaction: (id: string) => TransactionMeta;
+  isSimulationEnabled: () => boolean;
   messenger: TransactionControllerMessenger;
   publishBatchHook?: PublishBatchHook;
   publicKeyEIP7702?: Hex;
@@ -67,6 +83,7 @@ type AddTransactionBatchRequest = {
   getPendingTransactionTracker: (
     networkClientId: string,
   ) => PendingTransactionTracker;
+  update: UpdateStateCallback;
 };
 
 type IsAtomicBatchSupportedRequestInternal = {
@@ -314,13 +331,12 @@ async function addTransactionBatchWith7702(
         },
       ],
       delegationMock: txParams.authorizationList?.[0]?.address,
+      origin,
     };
 
     log('Security request', securityRequest);
 
-    /* istanbul ignore next */
     validateSecurity(securityRequest, chainId).catch((error) => {
-      /* istanbul ignore next */
       log('Security validation failed', error);
     });
   }
@@ -360,14 +376,25 @@ async function addTransactionBatchWith7702(
 async function addTransactionBatchWithHook(
   request: AddTransactionBatchRequest,
 ): Promise<TransactionBatchResult> {
-  const { publishBatchHook: requestPublishBatchHook, request: userRequest } =
-    request;
+  const {
+    getChainId,
+    messenger,
+    publishBatchHook: requestPublishBatchHook,
+    request: userRequest,
+    update,
+    isSimulationEnabled,
+  } = request;
 
   const {
     from,
     networkClientId,
+    origin,
+    requireApproval,
     transactions: nestedTransactions,
+    useHook,
   } = userRequest;
+
+  let resultCallbacks: AcceptResultCallbacks | undefined;
 
   log('Adding transaction batch using hook', userRequest);
 
@@ -381,13 +408,31 @@ async function addTransactionBatchWithHook(
   const publishBatchHook =
     requestPublishBatchHook ?? sequentialPublishBatchHook.getHook();
 
+  const chainId = getChainId(networkClientId);
   const batchId = generateBatchId();
   const transactionCount = nestedTransactions.length;
   const collectHook = new CollectPublishHook(transactionCount);
-  const publishHook = collectHook.getHook();
-  const hookTransactions: Omit<PublishBatchHookTransaction, 'signedTx'>[] = [];
-
   try {
+    if (requireApproval && useHook) {
+      const txBatchMeta = await prepareApprovalData({
+        batchId,
+        chainId,
+        from,
+        isSimulationEnabled,
+        nestedTransactions,
+        networkClientId,
+        origin,
+        update,
+      });
+
+      resultCallbacks = (await requestApproval(txBatchMeta, messenger))
+        .resultCallbacks;
+    }
+
+    const publishHook = collectHook.getHook();
+    const hookTransactions: Omit<PublishBatchHookTransaction, 'signedTx'>[] =
+      [];
+
     for (const nestedTransaction of nestedTransactions) {
       const hookTransaction = await processTransactionWithHook(
         batchId,
@@ -425,6 +470,7 @@ async function addTransactionBatchWithHook(
     );
 
     collectHook.success(transactionHashes);
+    resultCallbacks?.success();
 
     log('Completed batch transaction with hook', transactionHashes);
 
@@ -435,8 +481,12 @@ async function addTransactionBatchWithHook(
     log('Publish batch hook failed', error);
 
     collectHook.error(error);
+    resultCallbacks?.error(error as Error);
 
     throw error;
+  } finally {
+    log('Cleaning up publish batch hook', batchId);
+    wipeTransactionBatchById(update, batchId);
   }
 }
 
@@ -528,4 +578,128 @@ async function processTransactionWithHook(
     id,
     params: newParams,
   };
+}
+
+/**
+ * Requests approval for a transaction batch by interacting with the ApprovalController.
+ *
+ * @param txBatchMeta - Metadata for the transaction batch, including its ID and origin.
+ * @param messenger - The messenger instance used to communicate with the ApprovalController.
+ * @returns A promise that resolves to the result of adding the approval request.
+ */
+async function requestApproval(
+  txBatchMeta: TransactionBatchMeta,
+  messenger: TransactionControllerMessenger,
+): Promise<AddResult> {
+  const id = String(txBatchMeta.id);
+  const { origin } = txBatchMeta;
+  const type = 'transaction_batch';
+  const requestData = { txBatchId: id };
+
+  return (await messenger.call(
+    'ApprovalController:addRequest',
+    {
+      id,
+      origin: origin || ORIGIN_METAMASK,
+      requestData,
+      expectsResult: true,
+      type,
+    },
+    true,
+  )) as Promise<AddResult>;
+}
+
+/**
+ * Adds batch metadata to the transaction controller state.
+ *
+ * @param transactionBatchMeta - The transaction batch metadata to be added.
+ * @param update - The update function to modify the transaction controller state.
+ */
+function addBatchMetadata(
+  transactionBatchMeta: TransactionBatchMeta,
+  update: UpdateStateCallback,
+) {
+  update((state) => {
+    state.transactionBatches = [
+      ...state.transactionBatches,
+      transactionBatchMeta,
+    ];
+  });
+}
+
+/**
+ * Wipes a specific transaction batch from the transaction controller state by its ID.
+ *
+ * @param update - The update function to modify the transaction controller state.
+ * @param id - The ID of the transaction batch to be wiped.
+ */
+function wipeTransactionBatchById(
+  update: UpdateStateCallback,
+  id: string,
+): void {
+  update((state) => {
+    state.transactionBatches = state.transactionBatches.filter(
+      (batch) => batch.id !== id,
+    );
+  });
+}
+
+/**
+ * Prepares the approval data for a transaction batch.
+ *
+ * @param options - The options object containing necessary parameters.
+ * @param options.batchId - The batch ID for the transaction batch.
+ * @param options.chainId - The chain ID of the transactions.
+ * @param options.from - The sender's address.
+ * @param options.isSimulationEnabled - A function to check if simulation is enabled.
+ * @param options.nestedTransactions - The array of nested transactions.
+ * @param options.networkClientId - The network client ID.
+ * @param options.origin - The origin of the transaction batch.
+ * @param options.update - The update function to modify the transaction controller state.
+ * @returns The prepared transaction batch metadata.
+ */
+async function prepareApprovalData({
+  batchId,
+  chainId,
+  from,
+  isSimulationEnabled,
+  nestedTransactions,
+  networkClientId,
+  origin,
+  update,
+}: {
+  batchId: Hex;
+  chainId: Hex;
+  from: Hex;
+  isSimulationEnabled: () => boolean;
+  nestedTransactions: TransactionBatchSingleRequest[];
+  networkClientId: string;
+  origin?: string;
+  update: UpdateStateCallback;
+}): Promise<TransactionBatchMeta> {
+  if (!isSimulationEnabled()) {
+    throw new Error(
+      'Cannot create transaction batch as simulation not supported',
+    );
+  }
+
+  const { gasLimit } = await simulateGasBatch({
+    chainId,
+    from,
+    transactions: nestedTransactions,
+  });
+
+  const txBatchMeta: TransactionBatchMeta = {
+    chainId,
+    from,
+    gas: gasLimit,
+    id: batchId,
+    networkClientId,
+    origin,
+    transactions: nestedTransactions,
+  };
+
+  addBatchMetadata(txBatchMeta, update);
+
+  return txBatchMeta;
 }
