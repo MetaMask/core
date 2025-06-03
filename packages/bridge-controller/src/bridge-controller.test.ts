@@ -201,6 +201,10 @@ describe('BridgeController', function () {
   };
 
   it('updateBridgeQuoteRequestParams should update the quoteRequest state', async function () {
+    messengerMock.call.mockReturnValue({
+      currentCurrency: 'usd',
+    } as never);
+
     await bridgeController.updateBridgeQuoteRequestParams(
       { srcChainId: 1 },
       metricsContext,
