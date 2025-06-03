@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0]
+
 ### Uncategorized
 
 - feat: add `@metamask/foundryup` package ([#5810](https://github.com/MetaMask/core/pull/5810))
 
-[Unreleased]: https://github.com/MetaMask/core/
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/foundryup@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/foundryup@1.0.0
