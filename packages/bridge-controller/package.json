@@ -53,7 +53,7 @@
     "@ethersproject/contracts": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
     "@metamask/base-controller": "^8.0.1",
-    "@metamask/controller-utils": "^11.10.0",
+    "@metamask/controller-utils": "^11.9.0",
     "@metamask/gas-fee-controller": "^23.0.0",
     "@metamask/keyring-api": "^18.0.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
