@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Now forward `KeyringRequest.origin` when submitting transactions ([#5918](https://github.com/MetaMask/core/pull/5918))
+  - This is a new requirement when using the Snap platform version `7.0.0` and the keyring API version `18.0.0`.
+
 ## [29.1.0]
 
 ### Added
