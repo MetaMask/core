@@ -13,7 +13,6 @@ import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controlle
 import {
   AccountTreeController,
   AccountGroupRootCategory,
-  getDefaultAccountTreeControllerState,
   type AccountTreeControllerMessenger,
   type AccountTreeControllerActions,
   type AccountTreeControllerEvents,
@@ -26,8 +25,6 @@ import {
   toAccountGroupRootId,
 } from './AccountTreeController';
 import { getAccountGroupRootNameFromKeyringType } from './names';
-
-type DeepPartial<T> = { [P in keyof T]?: DeepPartial<T[P]> };
 
 const ETH_EOA_METHODS = [
   EthMethod.PersonalSign,
@@ -194,7 +191,7 @@ function setup({
   state = {},
   messenger = getRootMessenger(),
 }: {
-  state?: DeepPartial<AccountTreeControllerState>; // Use DeepPartial for flexibility
+  state?: Partial<AccountTreeControllerState>;
   messenger?: Messenger<
     AccountTreeControllerActions | AllowedActions,
     AccountTreeControllerEvents | AllowedEvents
@@ -208,10 +205,7 @@ function setup({
 } {
   const controller = new AccountTreeController({
     messenger: getAccountTreeControllerMessenger(messenger),
-    state: {
-      ...getDefaultAccountTreeControllerState(),
-      ...(state as AccountTreeControllerState),
-    }, // Cast state after merging
+    state,
   });
   return { controller, messenger };
 }
@@ -219,7 +213,7 @@ function setup({
 describe('AccountTreeController', () => {
   describe('init', () => {
     it('groups accounts by entropy source, then snapId, then wallet type', () => {
-      const { controller, messenger } = setup({});
+      const { controller, messenger } = setup();
       messenger.registerActionHandler(
         'AccountsController:listMultichainAccounts',
         () => [
@@ -330,7 +324,7 @@ describe('AccountTreeController', () => {
       const consoleWarnSpy = jest
         .spyOn(console, 'warn')
         .mockImplementation(() => undefined);
-      const { controller, messenger } = setup({});
+      const { controller, messenger } = setup();
       const mockHdAccountWithoutEntropy: InternalAccount = {
         ...MOCK_HD_ACCOUNT_1,
         id: 'mock-no-entropy-id',
@@ -364,7 +358,7 @@ describe('AccountTreeController', () => {
     });
 
     it('handles Snap accounts with entropy source', () => {
-      const { controller, messenger } = setup({});
+      const { controller, messenger } = setup();
       const mockSnapAccountWithEntropy: InternalAccount = {
         ...MOCK_SNAP_ACCOUNT_2,
         options: { entropySource: MOCK_HD_KEYRING_2.metadata.id },
@@ -397,7 +391,7 @@ describe('AccountTreeController', () => {
     });
 
     it('fallback to Snap ID if Snap cannot be found', () => {
-      const { controller, messenger } = setup({});
+      const { controller, messenger } = setup();
       messenger.registerActionHandler(
         'AccountsController:listMultichainAccounts',
         () => [MOCK_SNAP_ACCOUNT_1],
@@ -424,7 +418,7 @@ describe('AccountTreeController', () => {
     });
 
     it('fallback to HD keyring category if entropy sources cannot be found', () => {
-      const { controller, messenger } = setup({});
+      const { controller, messenger } = setup();
       // Create entropy wallets that will both get "Wallet" as base name, then get numbered
       const mockHdAccount1: InternalAccount = {
         ...MOCK_HD_ACCOUNT_1,
