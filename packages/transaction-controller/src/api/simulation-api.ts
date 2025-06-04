@@ -3,6 +3,10 @@ import { createModuleLogger, type Hex } from '@metamask/utils';
 
 import { SimulationChainNotSupportedError, SimulationError } from '../errors';
 import { projectLogger } from '../logger';
+import {
+  CODE_DELEGATION_MANAGER_NO_SIGNATURE_ERRORS,
+  DELEGATION_MANAGER_ADDRESS,
+} from '../constants';
 
 const log = createModuleLogger(projectLogger, 'simulation-api');
 
