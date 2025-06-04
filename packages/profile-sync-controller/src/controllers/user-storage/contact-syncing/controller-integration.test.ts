@@ -178,7 +178,7 @@ describe('user-storage/contact-syncing/controller-integration - syncContactsWith
 
     // Make sure remote contacts aren't already deleted
     remoteContacts.forEach((c: any) => {
-      c.d = false;
+      delete c.dt; // Remove any deletedAt timestamp
     });
 
     const { options, controller, messengerMocks } = await arrangeMocks({
@@ -321,7 +321,6 @@ describe('user-storage/contact-syncing/controller-integration - syncContactsWith
     const remoteContacts = [...MOCK_REMOTE_CONTACTS.ONE_DELETED]; // Same contact but deleted remotely
 
     // Make sure the remote contact is actually marked as deleted
-    (remoteContacts[0] as any).d = true; // Explicitly mark as deleted
     (remoteContacts[0] as any).dt = Date.now(); // Set a deletedAt timestamp
 
     const { options, controller, messengerMocks } = await arrangeMocks({
@@ -360,7 +359,6 @@ describe('user-storage/contact-syncing/controller-integration - syncContactsWith
     // Create a locally deleted contact
     const localDeletedContact = {
       ...MOCK_LOCAL_CONTACTS.ONE[0],
-      deleted: true,
       deletedAt,
     };
 
@@ -567,7 +565,6 @@ describe('user-storage/contact-syncing/controller-integration - deleteContactInR
 
     // Verify the contact was marked as deleted
     const contactData = JSON.parse(setStorageCall[1]);
-    expect(contactData.d).toBe(true); // Should be marked as deleted
     expect(contactData.dt).toBeDefined(); // Should have a deletion timestamp
   });
 

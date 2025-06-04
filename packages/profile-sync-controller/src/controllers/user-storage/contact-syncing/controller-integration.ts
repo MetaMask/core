@@ -79,23 +79,19 @@ export async function syncContactsWithUserStorage(
       getMessenger()
         .call('AddressBookController:list')
         .filter((contact) => !isContactBridgedFromAccounts(contact))
-        .filter((contact) => contact.address && contact.chainId) || [];
+        .filter(
+          (contact) =>
+            contact.address && contact.chainId && contact.name?.trim(),
+        ) || [];
 
     // Get remote contacts from user storage API
     const remoteContacts = await getRemoteContacts(options);
 
-    // SCENARIO 1: First Sync - No remote contacts but local contacts exist
-    if (!remoteContacts || remoteContacts.length === 0) {
-      if (localVisibleContacts.length > 0) {
-        await saveContactsToUserStorage(localVisibleContacts, options);
-      }
-      return;
-    }
-
-    // Filter remote contacts to exclude invalid ones
-    const validRemoteContacts = remoteContacts.filter(
-      (contact) => contact.address && contact.chainId,
-    );
+    // Filter remote contacts to exclude invalid ones (or empty array if no remote contacts)
+    const validRemoteContacts =
+      remoteContacts?.filter(
+        (contact) => contact.address && contact.chainId && contact.name?.trim(),
+      ) || [];
 
     // Prepare maps for efficient lookup
     const localContactsMap = new Map<string, AddressBookEntry>();
@@ -122,7 +118,7 @@ export async function syncContactsWithUserStorage(
       const localContact = localContactsMap.get(key);
 
       // Handle remote contact based on its status and local existence
-      if (remoteContact.deleted) {
+      if (remoteContact.deletedAt) {
         // SCENARIO 8: Remote deletion - should be applied locally if contact exists locally
         if (localContact) {
           contactsToDeleteLocally.push(remoteContact);
@@ -154,13 +150,13 @@ export async function syncContactsWithUserStorage(
       }
     }
 
-    // SCENARIO 3 & 5: Process local contacts not in remote
+    // SCENARIO 1, 3 & 5: Process local contacts not in remote - handles first sync and new local contacts
     for (const localContact of localVisibleContacts) {
       const key = createContactKey(localContact);
       const remoteContact = remoteContactsMap.get(key);
 
       if (!remoteContact) {
-        // New local contact - add to remote
+        // New local contact or first sync - add to remote
         contactsToUpdateRemotely.push(localContact);
       }
     }
@@ -184,7 +180,7 @@ export async function syncContactsWithUserStorage(
 
     // Apply local additions/updates
     for (const contact of contactsToAddOrUpdateLocally) {
-      if (!contact.deleted) {
+      if (!contact.deletedAt) {
         try {
           getMessenger().call(
             'AddressBookController:set',
@@ -219,7 +215,6 @@ export async function syncContactsWithUserStorage(
         const updatedEntry = {
           ...localContact,
           lastUpdatedAt: now,
-          deleted: false, // Ensure it's not deleted
         } as SyncAddressBookEntry;
 
         if (existingIndex !== -1) {
@@ -326,7 +321,8 @@ export async function updateContactInRemoteStorage(
   if (
     !canPerformContactSyncing(options) ||
     !contact.address ||
-    !contact.chainId
+    !contact.chainId ||
+    !contact.name?.trim()
   ) {
     return;
   }
@@ -337,7 +333,6 @@ export async function updateContactInRemoteStorage(
   const updatedEntry = {
     ...contact,
     lastUpdatedAt: contact.lastUpdatedAt || Date.now(),
-    deleted: false, // Explicitly set to false in case this was previously deleted
   } as SyncAddressBookEntry;
 
   const key = createContactKey(contact);
@@ -364,7 +359,8 @@ export async function deleteContactInRemoteStorage(
   if (
     !canPerformContactSyncing(options) ||
     !contact.address ||
-    !contact.chainId
+    !contact.chainId ||
+    !contact.name?.trim()
   ) {
     return;
   }
@@ -390,7 +386,6 @@ export async function deleteContactInRemoteStorage(
       const now = Date.now();
       const deletedContact = {
         ...existingContact,
-        deleted: true,
         deletedAt: now,
         lastUpdatedAt: now,
       } as SyncAddressBookEntry;

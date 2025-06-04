@@ -82,7 +82,6 @@ describe('user-storage/contact-syncing/utils', () => {
         memo: mockMemo,
         isEns: false,
         lastUpdatedAt: mockTimestamp,
-        deleted: true,
         deletedAt: mockDeletedTimestamp,
       } as SyncAddressBookEntry;
 
@@ -96,7 +95,6 @@ describe('user-storage/contact-syncing/utils', () => {
         c: mockChainId,
         m: mockMemo,
         lu: mockTimestamp,
-        d: true,
         dt: mockDeletedTimestamp,
       });
     });
@@ -158,7 +156,6 @@ describe('user-storage/contact-syncing/utils', () => {
         c: mockChainId,
         m: mockMemo,
         lu: mockTimestamp,
-        d: true,
         dt: mockDeletedTimestamp,
       };
 
@@ -172,7 +169,6 @@ describe('user-storage/contact-syncing/utils', () => {
         memo: mockMemo,
         isEns: false,
         lastUpdatedAt: mockTimestamp,
-        deleted: true,
         deletedAt: mockDeletedTimestamp,
       });
     });

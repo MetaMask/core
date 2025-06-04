@@ -13,7 +13,6 @@ import type { UserStorageContactEntry } from './types';
  */
 export type SyncAddressBookEntry = AddressBookEntry & {
   lastUpdatedAt?: number;
-  deleted?: boolean;
   deletedAt?: number;
 };
 
@@ -34,7 +33,6 @@ export const mapAddressBookEntryToUserStorageEntry = (
     memo,
     addressType,
     lastUpdatedAt,
-    deleted,
     deletedAt,
   } = addressBookEntry as SyncAddressBookEntry;
 
@@ -48,7 +46,6 @@ export const mapAddressBookEntryToUserStorageEntry = (
     ...(memo ? { m: memo } : {}),
     ...(addressType ? { t: addressType } : {}),
     lu: lastUpdatedAt || now,
-    ...(deleted ? { d: deleted } : {}),
     ...(deletedAt ? { dt: deletedAt } : {}),
   };
 };
@@ -74,7 +71,6 @@ export const mapUserStorageEntryToAddressBookEntry = (
       ? { addressType: userStorageEntry.t as AddressType }
       : {}),
     // Include remote metadata for sync operation only (not stored in AddressBookController)
-    ...(userStorageEntry.d ? { deleted: userStorageEntry.d } : {}),
     ...(userStorageEntry.dt ? { deletedAt: userStorageEntry.dt } : {}),
     ...(userStorageEntry.lu ? { lastUpdatedAt: userStorageEntry.lu } : {}),
   };
