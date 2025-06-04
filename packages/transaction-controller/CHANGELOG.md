@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Include gas limit and gas fees in simulation requests ([#5754](https://github.com/MetaMask/core/pull/5754))
   - Add optional `fee` property to `GasFeeToken`.
+- Default addTransactionBatch to EIP7702 if supported, otherwise use sequential batch ([#5853](https://github.com/MetaMask/core/pull/5853))
 
 ## [57.0.0]
 
