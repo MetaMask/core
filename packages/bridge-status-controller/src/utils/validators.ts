@@ -10,6 +10,7 @@ import {
   type,
   nullable,
   assert,
+  StructError,
 } from '@metamask/superstruct';
 
 export const validateBridgeStatusResponse = (data: unknown) => {
@@ -52,10 +53,21 @@ export const validateBridgeStatusResponse = (data: unknown) => {
     refuel: optional(RefuelStatusResponseSchema),
   });
 
+  const validationFailures: { [path: string]: string } = {};
   try {
     assert(data, StatusResponseSchema);
   } catch (error) {
-    console.error(error);
+    if (error instanceof StructError) {
+      error.failures().forEach(({ branch, path, message }) => {
+        const pathString = path?.join('.') || 'unknown';
+        validationFailures[pathString] =
+          `[${branch?.[0]?.bridge || 'unknown'}] ${message}`;
+      });
+    }
     throw error;
+  } finally {
+    if (Object.keys(validationFailures).length > 0) {
+      console.error(`Bridge status validation failed`, validationFailures);
+    }
   }
 };

@@ -7,12 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.0.0]
+
 ### Added
 
 - Add contact syncing capability with conflict resolution b/w local and remote storage ([#5776](https://github.com/MetaMask/core/pull/5776))
 - Add account syncing support for multiple SRPs ([#5753](https://github.com/MetaMask/core/pull/5753))
+
+- **BREAKING:** Add multi-SRP support for authentication and user storage ([#5753](https://github.com/MetaMask/core/pull/5753))
   - Add `entropySource` based authentication support for multiple SRPs
   - Add `entropySource` optional parameter for `UserStorageController` CRUD methods
+  - Rename `sessionData` in `AuthenticationControllerState` to `srpSessionData`
+  - Update `AuthenticationController.performSignIn` to return `string[]` rather than `string`
+  - Add `AccountsController:updateAccounts` as a required allowed action to the `UserStorageController` messenger
+  - Add `listEntropySources` to `UserStorageController`
+  - Render `UserStorageController.syncInternalAccountsWithUserStorage` compatible with multi-SRP
 
 ## [16.0.0]
 
@@ -608,7 +617,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@16.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@17.0.0...HEAD
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@16.0.0...@metamask/profile-sync-controller@17.0.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@15.0.0...@metamask/profile-sync-controller@16.0.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@14.0.0...@metamask/profile-sync-controller@15.0.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@13.0.0...@metamask/profile-sync-controller@14.0.0

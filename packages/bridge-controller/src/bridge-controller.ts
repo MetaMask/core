@@ -6,7 +6,7 @@ import type { ChainId, TraceCallback } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import type { TransactionParams } from '@metamask/transaction-controller';
+import type { TransactionController } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
 import { numberToHex, type Hex } from '@metamask/utils';
 
@@ -145,10 +145,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #clientId: string;
 
-  readonly #getLayer1GasFee: (params: {
-    transactionParams: TransactionParams;
-    chainId: ChainId;
-  }) => Promise<string>;
+  readonly #getLayer1GasFee: typeof TransactionController.prototype.getLayer1GasFee;
 
   readonly #fetchFn: FetchFunction;
 
@@ -179,10 +176,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     messenger: BridgeControllerMessenger;
     state?: Partial<BridgeControllerState>;
     clientId: BridgeClientId;
-    getLayer1GasFee: (params: {
-      transactionParams: TransactionParams;
-      chainId: ChainId;
-    }) => Promise<string>;
+    getLayer1GasFee: typeof TransactionController.prototype.getLayer1GasFee;
     fetchFn: FetchFunction;
     config?: {
       customBridgeApiBaseUrl?: string;
@@ -574,38 +568,56 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     });
 
     // Only append L1 gas fees if all quotes are for either optimism or base
-    if (!hasInvalidQuotes) {
-      return await Promise.all(
-        quotes.map(async (quoteResponse) => {
-          const { quote, trade, approval } = quoteResponse;
-          const chainId = numberToHex(quote.srcChainId) as ChainId;
-
-          const getTxParams = (txData: TxData) => ({
-            from: txData.from,
-            to: txData.to,
-            value: txData.value,
-            data: txData.data,
-            gasLimit: txData.gasLimit?.toString(),
-          });
-          const approvalL1GasFees = approval
-            ? await this.#getLayer1GasFee({
-                transactionParams: getTxParams(approval),
-                chainId,
-              })
-            : '0';
-          const tradeL1GasFees = await this.#getLayer1GasFee({
-            transactionParams: getTxParams(trade),
-            chainId,
-          });
-          return {
-            ...quoteResponse,
-            l1GasFeesInHexWei: sumHexes(approvalL1GasFees, tradeL1GasFees),
-          };
-        }),
-      );
+    if (hasInvalidQuotes) {
+      return undefined;
     }
 
-    return undefined;
+    const l1GasFeePromises = Promise.allSettled(
+      quotes.map(async (quoteResponse) => {
+        const { quote, trade, approval } = quoteResponse;
+        const chainId = numberToHex(quote.srcChainId) as ChainId;
+
+        const getTxParams = (txData: TxData) => ({
+          from: txData.from,
+          to: txData.to,
+          value: txData.value,
+          data: txData.data,
+          gasLimit: txData.gasLimit?.toString(),
+        });
+        const approvalL1GasFees = approval
+          ? await this.#getLayer1GasFee({
+              transactionParams: getTxParams(approval),
+              chainId,
+            })
+          : '0x0';
+        const tradeL1GasFees = await this.#getLayer1GasFee({
+          transactionParams: getTxParams(trade),
+          chainId,
+        });
+
+        if (approvalL1GasFees === undefined || tradeL1GasFees === undefined) {
+          return undefined;
+        }
+
+        return {
+          ...quoteResponse,
+          l1GasFeesInHexWei: sumHexes(approvalL1GasFees, tradeL1GasFees),
+        };
+      }),
+    );
+
+    const quotesWithL1GasFees = (await l1GasFeePromises).reduce<
+      (QuoteResponse & L1GasFees)[]
+    >((acc, result) => {
+      if (result.status === 'fulfilled' && result.value) {
+        acc.push(result.value);
+      } else if (result.status === 'rejected') {
+        console.error('Error calculating L1 gas fees for quote', result.reason);
+      }
+      return acc;
+    }, []);
+
+    return quotesWithL1GasFees;
   };
 
   readonly #setMinimumBalanceForRentExemptionInLamports = async (
@@ -645,7 +657,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       return undefined;
     }
 
-    return await Promise.all(
+    const solanaFeePromises = Promise.allSettled(
       quotes.map(async (quoteResponse) => {
         const { trade } = quoteResponse;
         const selectedAccount = this.#getMultichainSelectedAccount();
@@ -667,6 +679,19 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         return quoteResponse;
       }),
     );
+
+    const quotesWithSolanaFees = (await solanaFeePromises).reduce<
+      (QuoteResponse & SolanaFees)[]
+    >((acc, result) => {
+      if (result.status === 'fulfilled' && result.value) {
+        acc.push(result.value);
+      } else if (result.status === 'rejected') {
+        console.error('Error calculating solana fees for quote', result.reason);
+      }
+      return acc;
+    }, []);
+
+    return quotesWithSolanaFees;
   };
 
   #getMultichainSelectedAccount() {
