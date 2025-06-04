@@ -26,7 +26,6 @@ export enum AccountWalletCategory {
   Entropy = 'entropy',
   Snap = 'snap',
   Keyring = 'keyring',
-  Default = 'default', // TODO: Remove `default` once we have multichain accounts.
 }
 
 type AccountTreeRuleMatch = {
