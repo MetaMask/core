@@ -40,15 +40,15 @@ import {
   REFRESH_INTERVAL_MS,
   TraceName,
 } from './constants';
-import { type BridgeStatusControllerMessenger } from './types';
 import type {
   BridgeStatusControllerState,
   StartPollingForBridgeTxStatusArgsSerialized,
   FetchFunction,
-  BridgeClientId,
   SolanaTransactionMeta,
   BridgeHistoryItem,
 } from './types';
+import { type BridgeStatusControllerMessenger } from './types';
+import { BridgeClientId } from './types';
 import {
   fetchBridgeTxStatus,
   getStatusRequestWithSrcTxHash,
@@ -911,6 +911,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             }),
         );
       } else {
+        const delay = (ms: number) =>
+          new Promise((resolve) => setTimeout(resolve, ms));
+
+        // For hardware wallets on Mobile, this is fixes an issue where the Ledger does not get prompted for the 2nd approval
+        if (requireApproval && this.#clientId === BridgeClientId.MOBILE) {
+          await delay(2000);
+        }
+
         txMeta = await this.#trace(
           {
             name: isBridgeTx
