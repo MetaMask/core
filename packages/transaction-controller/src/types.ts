@@ -1610,7 +1610,6 @@ export type TransactionBatchRequest = {
   transactions: TransactionBatchSingleRequest[];
 
   /** Whether to disable batch transaction processing via an EIP-7702 upgraded account. */
-
   disable7702?: boolean;
 
   /** Whether to disable batch transaction via the `publishBatch` hook. */
@@ -1618,6 +1617,15 @@ export type TransactionBatchRequest = {
 
   /** Whether to disable batch transaction via sequential transactions. */
   disableSequential?: boolean;
+
+  /**
+   * Whether to use the publish batch hook to submit the batch.
+   * Defaults to false.
+   *
+   * @deprecated This is no longer used and will be removed in a future version.
+   * Use `disableHook`, `disable7702` and `disableSequential`.
+   */
+  useHook?: boolean;
 
   /**
    * Callback to trigger security validation in the client.
