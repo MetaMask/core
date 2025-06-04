@@ -72,6 +72,7 @@ import type {
   PublishHook,
   GasFeeToken,
   GasFeeEstimates,
+  SimulationData,
 } from './types';
 import {
   GasFeeEstimateLevel,
@@ -83,22 +84,17 @@ import {
   TransactionType,
   WalletDevice,
 } from './types';
+import { getBalanceChanges } from './utils/balance-changes';
 import { addTransactionBatch } from './utils/batch';
-import {
-  DELEGATION_PREFIX,
-  doesChainSupportEIP7702,
-  getDelegationAddress,
-} from './utils/eip7702';
-import { getEIP7702UpgradeContractAddress } from './utils/feature-flags';
+import { getDelegationAddress } from './utils/eip7702';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
+import { getGasFeeTokens } from './utils/gas-fee-tokens';
 import { updateGasFees } from './utils/gas-fees';
 import { getGasFeeFlow } from './utils/gas-flow';
 import {
   getTransactionLayer1GasFee,
   updateTransactionLayer1GasFee,
 } from './utils/layer1-gas-fee-flow';
-import type { GetSimulationDataResult } from './utils/simulation';
-import { getSimulationData } from './utils/simulation';
 import {
   updatePostTransactionBalance,
   updateSwapsTransaction,
@@ -138,10 +134,11 @@ jest.mock('./hooks/ExtraTransactionsPublishHook');
 jest.mock('./utils/batch');
 jest.mock('./utils/feature-flags');
 jest.mock('./utils/gas');
+jest.mock('./utils/gas-fee-tokens');
 jest.mock('./utils/gas-fees');
 jest.mock('./utils/gas-flow');
 jest.mock('./utils/layer1-gas-fee-flow');
-jest.mock('./utils/simulation');
+jest.mock('./utils/balance-changes');
 jest.mock('./utils/swaps');
 jest.mock('uuid');
 
@@ -466,27 +463,24 @@ const TRANSACTION_META_2_MOCK = {
   },
 } as TransactionMeta;
 
-const SIMULATION_DATA_RESULT_MOCK: GetSimulationDataResult = {
-  gasFeeTokens: [],
-  simulationData: {
-    nativeBalanceChange: {
-      previousBalance: '0x0',
-      newBalance: '0x1',
-      difference: '0x1',
+const SIMULATION_DATA_RESULT_MOCK: SimulationData = {
+  nativeBalanceChange: {
+    previousBalance: '0x0',
+    newBalance: '0x1',
+    difference: '0x1',
+    isDecrease: false,
+  },
+  tokenBalanceChanges: [
+    {
+      address: '0x123',
+      standard: SimulationTokenStandard.erc721,
+      id: '0x456',
+      previousBalance: '0x1',
+      newBalance: '0x3',
+      difference: '0x2',
       isDecrease: false,
     },
-    tokenBalanceChanges: [
-      {
-        address: '0x123',
-        standard: SimulationTokenStandard.erc721,
-        id: '0x456',
-        previousBalance: '0x1',
-        newBalance: '0x3',
-        difference: '0x2',
-        isDecrease: false,
-      },
-    ],
-  },
+  ],
 };
 
 const GAS_FEE_TOKEN_MOCK: GasFeeToken = {
@@ -539,7 +533,8 @@ describe('TransactionController', () => {
   const updateTransactionGasEstimatesMock = jest.mocked(
     updateTransactionGasEstimates,
   );
-  const getSimulationDataMock = jest.mocked(getSimulationData);
+  const getBalanceChangesMock = jest.mocked(getBalanceChanges);
+  const getGasFeeTokensMock = jest.mocked(getGasFeeTokens);
   const getTransactionLayer1GasFeeMock = jest.mocked(
     getTransactionLayer1GasFee,
   );
@@ -551,10 +546,6 @@ describe('TransactionController', () => {
   const addTransactionBatchMock = jest.mocked(addTransactionBatch);
   const methodDataHelperClassMock = jest.mocked(MethodDataHelper);
   const getDelegationAddressMock = jest.mocked(getDelegationAddress);
-  const doesChainSupportEIP7702Mock = jest.mocked(doesChainSupportEIP7702);
-  const getEIP7702UpgradeContractAddressMock = jest.mocked(
-    getEIP7702UpgradeContractAddress,
-  );
 
   let mockEthQuery: EthQuery;
   let getNonceLockSpy: jest.Mock;
@@ -2193,7 +2184,7 @@ describe('TransactionController', () => {
 
     describe('updates simulation data', () => {
       it('by default', async () => {
-        getSimulationDataMock.mockResolvedValueOnce(
+        getBalanceChangesMock.mockResolvedValueOnce(
           SIMULATION_DATA_RESULT_MOCK,
         );
 
@@ -2211,29 +2202,28 @@ describe('TransactionController', () => {
 
         await flushPromises();
 
-        expect(getSimulationDataMock).toHaveBeenCalledTimes(1);
-        expect(getSimulationDataMock).toHaveBeenCalledWith(
-          {
-            chainId: MOCK_NETWORK.chainId,
+        expect(getBalanceChangesMock).toHaveBeenCalledTimes(1);
+        expect(getBalanceChangesMock).toHaveBeenCalledWith({
+          blockTime: undefined,
+          chainId: MOCK_NETWORK.chainId,
+          ethQuery: expect.any(Object),
+          nestedTransactions: undefined,
+          txParams: {
             data: undefined,
             from: ACCOUNT_MOCK,
             to: ACCOUNT_MOCK,
+            type: TransactionEnvelopeType.legacy,
             value: '0x0',
           },
-          {
-            blockTime: undefined,
-            senderCode: undefined,
-            use7702Fees: false,
-          },
-        );
+        });
 
         expect(controller.state.transactions[0].simulationData).toStrictEqual(
-          SIMULATION_DATA_RESULT_MOCK.simulationData,
+          SIMULATION_DATA_RESULT_MOCK,
         );
       });
 
       it('with error if simulation disabled', async () => {
-        getSimulationDataMock.mockResolvedValueOnce(
+        getBalanceChangesMock.mockResolvedValueOnce(
           SIMULATION_DATA_RESULT_MOCK,
         );
 
@@ -2251,7 +2241,7 @@ describe('TransactionController', () => {
           },
         );
 
-        expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
+        expect(getBalanceChangesMock).toHaveBeenCalledTimes(0);
         expect(controller.state.transactions[0].simulationData).toStrictEqual({
           error: {
             code: SimulationErrorCode.Disabled,
@@ -2262,7 +2252,7 @@ describe('TransactionController', () => {
       });
 
       it('unless approval not required', async () => {
-        getSimulationDataMock.mockResolvedValueOnce(
+        getBalanceChangesMock.mockResolvedValueOnce(
           SIMULATION_DATA_RESULT_MOCK,
         );
 
@@ -2276,163 +2266,14 @@ describe('TransactionController', () => {
           { requireApproval: false, networkClientId: NETWORK_CLIENT_ID_MOCK },
         );
 
-        expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
+        expect(getBalanceChangesMock).toHaveBeenCalledTimes(0);
         expect(controller.state.transactions[0].simulationData).toBeUndefined();
-      });
-
-      it('with sender code if type 4', async () => {
-        getSimulationDataMock.mockResolvedValueOnce(
-          SIMULATION_DATA_RESULT_MOCK,
-        );
-
-        const { controller } = setupController();
-
-        await controller.addTransaction(
-          {
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_MOCK,
-            authorizationList: [
-              {
-                address: ACCOUNT_2_MOCK,
-              },
-            ],
-          },
-          {
-            networkClientId: NETWORK_CLIENT_ID_MOCK,
-          },
-        );
-
-        await flushPromises();
-
-        expect(getSimulationDataMock).toHaveBeenCalledWith(
-          expect.any(Object),
-          expect.objectContaining({
-            senderCode: DELEGATION_PREFIX + ACCOUNT_2_MOCK.slice(2),
-          }),
-        );
-      });
-
-      it('with use7702Fees if isEIP7702GasFeeTokensEnabled returns true and chain supports 7702', async () => {
-        isEIP7702GasFeeTokensEnabledMock.mockResolvedValueOnce(true);
-        doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
-        getDelegationAddressMock.mockResolvedValueOnce(ACCOUNT_2_MOCK);
-
-        getSimulationDataMock.mockResolvedValueOnce(
-          SIMULATION_DATA_RESULT_MOCK,
-        );
-
-        const { controller } = setupController();
-
-        await controller.addTransaction(
-          {
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_MOCK,
-          },
-          {
-            networkClientId: NETWORK_CLIENT_ID_MOCK,
-          },
-        );
-
-        await flushPromises();
-
-        expect(getSimulationDataMock).toHaveBeenCalledWith(
-          expect.any(Object),
-          expect.objectContaining({
-            use7702Fees: true,
-          }),
-        );
-      });
-
-      it('with authorization list if isEIP7702GasFeeTokensEnabled returns true and no delegation address', async () => {
-        isEIP7702GasFeeTokensEnabledMock.mockResolvedValueOnce(true);
-        doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
-
-        getSimulationDataMock.mockResolvedValueOnce(
-          SIMULATION_DATA_RESULT_MOCK,
-        );
-
-        getEIP7702UpgradeContractAddressMock.mockReturnValueOnce(
-          ACCOUNT_2_MOCK,
-        );
-
-        const { controller } = setupController();
-
-        await controller.addTransaction(
-          {
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_MOCK,
-          },
-          {
-            networkClientId: NETWORK_CLIENT_ID_MOCK,
-          },
-        );
-
-        await flushPromises();
-
-        expect(getSimulationDataMock).toHaveBeenCalledWith(
-          expect.objectContaining({
-            authorizationList: [
-              {
-                address: ACCOUNT_2_MOCK,
-                from: ACCOUNT_MOCK,
-              },
-            ],
-          }),
-          expect.any(Object),
-        );
-      });
-
-      it('with authorization list if in transaction params', async () => {
-        getSimulationDataMock.mockResolvedValueOnce(
-          SIMULATION_DATA_RESULT_MOCK,
-        );
-
-        const { controller } = setupController();
-
-        await controller.addTransaction(
-          {
-            authorizationList: [
-              {
-                address: ACCOUNT_2_MOCK,
-                chainId: CHAIN_ID_MOCK,
-                nonce: toHex(NONCE_MOCK),
-                r: '0x1',
-                s: '0x2',
-                yParity: '0x1',
-              },
-            ],
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_MOCK,
-          },
-          {
-            networkClientId: NETWORK_CLIENT_ID_MOCK,
-          },
-        );
-
-        await flushPromises();
-
-        expect(getSimulationDataMock).toHaveBeenCalledWith(
-          expect.objectContaining({
-            authorizationList: [
-              {
-                address: ACCOUNT_2_MOCK,
-                from: ACCOUNT_MOCK,
-              },
-            ],
-          }),
-          expect.any(Object),
-        );
       });
     });
 
     describe('updates gas fee tokens', () => {
       it('by default', async () => {
-        getSimulationDataMock.mockResolvedValueOnce({
-          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
-          simulationData: {
-            tokenBalanceChanges: [],
-          },
-        });
+        getGasFeeTokensMock.mockResolvedValueOnce([GAS_FEE_TOKEN_MOCK]);
 
         const { controller } = setupController();
 
@@ -2454,12 +2295,7 @@ describe('TransactionController', () => {
       });
 
       it('unless approval not required', async () => {
-        getSimulationDataMock.mockResolvedValueOnce({
-          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
-          simulationData: {
-            tokenBalanceChanges: [],
-          },
-        });
+        getGasFeeTokensMock.mockResolvedValueOnce([GAS_FEE_TOKEN_MOCK]);
 
         const { controller } = setupController();
 
@@ -2471,7 +2307,7 @@ describe('TransactionController', () => {
           { requireApproval: false, networkClientId: NETWORK_CLIENT_ID_MOCK },
         );
 
-        expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
+        expect(getBalanceChangesMock).toHaveBeenCalledTimes(0);
         expect(controller.state.transactions[0].gasFeeTokens).toBeUndefined();
       });
     });
@@ -7235,7 +7071,7 @@ describe('TransactionController', () => {
         updateToInitialState: true,
       });
 
-      expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
+      expect(getBalanceChangesMock).toHaveBeenCalledTimes(0);
 
       shouldResimulateMock.mockReturnValueOnce({
         blockTime: 123,
@@ -7246,19 +7082,18 @@ describe('TransactionController', () => {
 
       await flushPromises();
 
-      expect(getSimulationDataMock).toHaveBeenCalledTimes(1);
-      expect(getSimulationDataMock).toHaveBeenCalledWith(
-        {
+      expect(getBalanceChangesMock).toHaveBeenCalledTimes(1);
+      expect(getBalanceChangesMock).toHaveBeenCalledWith({
+        blockTime: 123,
+        ethQuery: expect.any(Object),
+        nestedTransactions: undefined,
+        txParams: {
+          data: undefined,
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
           value: TRANSACTION_META_MOCK.txParams.value,
         },
-        {
-          blockTime: 123,
-          senderCode: undefined,
-          use7702Fees: false,
-        },
-      );
+      });
     });
 
     it('does not trigger simulation loop', async () => {
@@ -7276,7 +7111,7 @@ describe('TransactionController', () => {
         updateToInitialState: true,
       });
 
-      expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
+      expect(getBalanceChangesMock).toHaveBeenCalledTimes(0);
 
       shouldResimulateMock.mockReturnValue({
         blockTime: 123,
@@ -7287,19 +7122,18 @@ describe('TransactionController', () => {
 
       await flushPromises();
 
-      expect(getSimulationDataMock).toHaveBeenCalledTimes(1);
-      expect(getSimulationDataMock).toHaveBeenCalledWith(
-        {
+      expect(getBalanceChangesMock).toHaveBeenCalledTimes(1);
+      expect(getBalanceChangesMock).toHaveBeenCalledWith({
+        blockTime: 123,
+        ethQuery: expect.any(Object),
+        nestedTransactions: undefined,
+        txParams: {
+          data: undefined,
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
           value: TRANSACTION_META_MOCK.txParams.value,
         },
-        {
-          blockTime: 123,
-          senderCode: undefined,
-          use7702Fees: false,
-        },
-      );
+      });
     });
   });
 

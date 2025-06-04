@@ -20,6 +20,7 @@
     { "path": "./packages/ens-controller/tsconfig.build.json" },
     { "path": "./packages/error-reporting-service/tsconfig.build.json" },
     { "path": "./packages/eth-json-rpc-provider/tsconfig.build.json" },
+    { "path": "./packages/foundryup/tsconfig.build.json" },
     { "path": "./packages/gas-fee-controller/tsconfig.build.json" },
     { "path": "./packages/json-rpc-engine/tsconfig.build.json" },
     { "path": "./packages/json-rpc-middleware-stream/tsconfig.build.json" },
@@ -47,6 +48,7 @@
     { "path": "./packages/rate-limit-controller/tsconfig.build.json" },
     { "path": "./packages/remote-feature-flag-controller/tsconfig.build.json" },
     { "path": "./packages/sample-controllers/tsconfig.build.json" },
+    { "path": "./packages/seedless-onboarding-controller/tsconfig.build.json" },
     { "path": "./packages/selected-network-controller/tsconfig.build.json" },
     { "path": "./packages/signature-controller/tsconfig.build.json" },
     {

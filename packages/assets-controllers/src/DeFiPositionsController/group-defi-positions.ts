@@ -13,7 +13,10 @@ export type GroupedDeFiPositions = {
   aggregatedMarketValue: number;
   protocols: {
     [protocolId: string]: {
-      protocolDetails: { name: string; iconUrl: string };
+      protocolDetails: {
+        name: string;
+        iconUrl: string;
+      };
       aggregatedMarketValue: number;
       positionTypes: {
         [key in PositionType]?: {

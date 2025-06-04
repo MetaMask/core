@@ -7,6 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [32.1.0]
+
+### Added
+
+- Include all invalid quote properties in sentry logs ([#5913](https://github.com/MetaMask/core/pull/5913))
+
+## [32.0.1]
+
+### Fixed
+
+- Remove `error_message` property from QuotesRequested event payload ([#5900](https://github.com/MetaMask/core/pull/5900))
+- Fail gracefully when fee calculations return invalid value or throw errors
+  - Filter out single quote if `TransactionController.getLayer1GasFee` returns `undefined` ([#5910](https://github.com/MetaMask/core/pull/5910))
+  - Filter out single quote if an error is thrown by `getLayer1GasFee` ([#5910](https://github.com/MetaMask/core/pull/5910))
+  - Filter out single quote if an error is thrown by Solana snap's `getFeeForTransaction` method ([#5910](https://github.com/MetaMask/core/pull/5910))
+
+## [32.0.0]
+
+### Added
+
+- **BREAKING:** Add required property `minimumBalanceForRentExemptionInLamports` to `BridgeState` ([#5827](https://github.com/MetaMask/core/pull/5827))
+- Add selector `selectMinimumBalanceForRentExemptionInSOL` ([#5827](https://github.com/MetaMask/core/pull/5827))
+
+### Changed
+
+- Add new dependency `uuid` ([#5827](https://github.com/MetaMask/core/pull/5827))
+
+## [31.0.0]
+
+### Added
+
+- Add `SEI` network support ([#5695](https://github.com/MetaMask/core/pull/5695))
+  - Add `SEI` into constants `ALLOWED_BRIDGE_CHAIN_IDS`, `SWAPS_TOKEN_OBJECT` and `NETWORK_TO_NAME_MAP`
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/assets-controller` peer dependency to `^68.0.0` ([#5894](https://github.com/MetaMask/core/pull/5894))
+
+## [30.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/assets-controller` peer dependency to `^67.0.0` ([#5888](https://github.com/MetaMask/core/pull/5888))
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency to `^30.0.0` ([#5888](https://github.com/MetaMask/core/pull/5888))
+- **BREAKING:** Bump `@metamask/transaction-controller` peer dependency to `^57.0.0` ([#5888](https://github.com/MetaMask/core/pull/5888))
+- **BREAKING:** Bump `@metamask/snaps-controllers` peer dependency from `^11.0.0` to `^12.0.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
+- Bump `@metamask/keyring-api` dependency from `^17.4.0` to `^18.0.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
+
+## [29.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/assets-controller` peer dependency to `^66.0.0` ([#5872](https://github.com/MetaMask/core/pull/5872))
+
 ## [28.0.0]
 
 ### Changed
@@ -281,7 +335,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@28.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@32.1.0...HEAD
+[32.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@32.0.1...@metamask/bridge-controller@32.1.0
+[32.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@32.0.0...@metamask/bridge-controller@32.0.1
+[32.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@31.0.0...@metamask/bridge-controller@32.0.0
+[31.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@30.0.0...@metamask/bridge-controller@31.0.0
+[30.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@29.0.0...@metamask/bridge-controller@30.0.0
+[29.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@28.0.0...@metamask/bridge-controller@29.0.0
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@27.0.0...@metamask/bridge-controller@28.0.0
 [27.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@26.0.0...@metamask/bridge-controller@27.0.0
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@25.1.0...@metamask/bridge-controller@26.0.0
