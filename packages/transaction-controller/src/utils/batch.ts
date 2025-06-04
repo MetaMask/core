@@ -127,14 +127,13 @@ export async function addTransactionBatch(
     try {
       return await addTransactionBatchWith7702(request);
     } catch (error: unknown) {
-      if (
+      const isEIP7702NotSupportedError =
         error instanceof JsonRpcError &&
-        error.message === 'Chain does not support EIP-7702'
-      ) {
-        log('Falling back to hook-based batch processing');
-        return await addTransactionBatchWithHook(request);
+        error.message === 'Chain does not support EIP-7702';
+
+      if (!isEIP7702NotSupportedError) {
+        throw error;
       }
-      throw error;
     }
   }
 
@@ -417,9 +416,7 @@ async function addTransactionBatchWithHook(
     getPendingTransactionTracker: request.getPendingTransactionTracker,
   });
 
-  const {
-    request: { disable7702, disableHook, disableSequential },
-  } = request;
+  const { disable7702, disableHook, disableSequential } = userRequest;
 
   const publishBatchHook =
     (!disableHook && requestPublishBatchHook) ??
