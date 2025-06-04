@@ -341,6 +341,10 @@ describe('BridgeController', function () {
       });
     });
 
+    const consoleLogSpy = jest
+      .spyOn(console, 'log')
+      .mockImplementationOnce(jest.fn());
+
     const quoteParams = {
       srcChainId: '0x1',
       destChainId: SolScope.Mainnet,
@@ -473,6 +477,11 @@ describe('BridgeController', function () {
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(3);
     // eslint-disable-next-line jest/no-restricted-matchers
     expect(bridgeController.state).toMatchSnapshot();
+    expect(consoleLogSpy).toHaveBeenCalledTimes(1);
+    expect(consoleLogSpy).toHaveBeenCalledWith(
+      'Failed to fetch bridge quotes',
+      new Error('Network error'),
+    );
 
     // Next fetch succeeds
     jest.advanceTimersByTime(15000);
@@ -1057,6 +1066,10 @@ describe('BridgeController', function () {
 
     jest.spyOn(balanceUtils, 'hasSufficientBalance').mockResolvedValue(true);
 
+    const consoleLogSpy = jest
+      .spyOn(console, 'log')
+      .mockImplementationOnce(jest.fn());
+
     // Fetch throws unknown Error
     fetchBridgeQuotesSpy.mockImplementationOnce(async () => {
       return await new Promise((_resolve, reject) => {
@@ -1144,6 +1157,11 @@ describe('BridgeController', function () {
     expect(quotes2).toStrictEqual(mockBridgeQuotesNativeErc20Eth);
 
     expect(quotesLastFetched2).toBe(quotesLastFetched);
+    expect(consoleLogSpy).toHaveBeenCalledTimes(1);
+    expect(consoleLogSpy).toHaveBeenCalledWith(
+      'Failed to fetch bridge quotes',
+      new Error('Other error'),
+    );
   });
 
   const getFeeSnapCalls = mockBridgeQuotesSolErc20.map(({ trade }) => [
@@ -1178,7 +1196,7 @@ describe('BridgeController', function () {
               id: expect.any(String),
               jsonrpc: '2.0',
               method: 'getMinimumBalanceForRentExemption',
-              params: [0, 'confirmed'],
+              params: [0, { commitment: 'confirmed' }],
             },
             scope: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
           },
@@ -1200,7 +1218,7 @@ describe('BridgeController', function () {
               id: expect.any(String),
               jsonrpc: '2.0',
               method: 'getMinimumBalanceForRentExemption',
-              params: [0, 'confirmed'],
+              params: [0, { commitment: 'confirmed' }],
             },
             scope: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
           },
@@ -1225,7 +1243,7 @@ describe('BridgeController', function () {
               id: expect.any(String),
               jsonrpc: '2.0',
               method: 'getMinimumBalanceForRentExemption',
-              params: [0, 'confirmed'],
+              params: [0, { commitment: 'confirmed' }],
             },
             scope: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
           },
@@ -1246,7 +1264,7 @@ describe('BridgeController', function () {
               id: expect.any(String),
               jsonrpc: '2.0',
               method: 'getMinimumBalanceForRentExemption',
-              params: [0, 'confirmed'],
+              params: [0, { commitment: 'confirmed' }],
             },
             scope: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
           },
