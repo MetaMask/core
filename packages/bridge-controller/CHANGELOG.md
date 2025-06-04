@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fetch `minimumBalanceForRentExemptionInLamports` asynchronously to prevent blocking the getQuote network call
+- Fix invalid `getMinimumBalanceForRentExemption` commitment parameter
+
 ## [32.1.0]
 
 ### Added
