@@ -1,7 +1,11 @@
+/* eslint-disable jest/no-conditional-in-test */
 import { Contract } from '@ethersproject/contracts';
-import { SolScope } from '@metamask/keyring-api';
-import type { Hex } from '@metamask/utils';
-import { bigIntToHex } from '@metamask/utils';
+import {
+  EthAccountType,
+  EthScope,
+  SolAccountType,
+  SolScope,
+} from '@metamask/keyring-api';
 import nock from 'nock';
 
 import { BridgeController } from './bridge-controller';
@@ -201,6 +205,10 @@ describe('BridgeController', function () {
   };
 
   it('updateBridgeQuoteRequestParams should update the quoteRequest state', async function () {
+    messengerMock.call.mockReturnValue({
+      currentCurrency: 'usd',
+    } as never);
+
     await bridgeController.updateBridgeQuoteRequestParams(
       { srcChainId: 1 },
       metricsContext,
@@ -659,9 +667,12 @@ describe('BridgeController', function () {
       ): ReturnType<BridgeControllerMessenger['call']> => {
         const actionType = args[0];
 
-        // eslint-disable-next-line jest/no-conditional-in-test
         if (actionType === 'AccountsController:getSelectedMultichainAccount') {
           return {
+            type: SolAccountType.DataAccount,
+            id: 'account1',
+            scopes: [SolScope.Mainnet],
+            methods: [],
             address: '0x123',
             metadata: {
               snap: {
@@ -669,13 +680,18 @@ describe('BridgeController', function () {
                 name: 'Solana Snap',
                 enabled: true,
               },
-            } as never,
+              name: 'Account 1',
+              importTime: 1717334400,
+              keyring: {
+                type: 'Keyring',
+              },
+            },
             options: {
               scope: 'mainnet',
             },
-          } as never;
+          };
         }
-        // eslint-disable-next-line jest/no-conditional-in-test
+
         if (actionType === 'NetworkController:getNetworkClientById') {
           return {
             configuration: { rpcUrl: 'https://rpc.tenderly.co' },
@@ -820,11 +836,9 @@ describe('BridgeController', function () {
       // Setup
       const mockMessenger = {
         call: jest.fn().mockImplementation((methodName) => {
-          // eslint-disable-next-line jest/no-conditional-in-test
           if (methodName === 'NetworkController:getNetworkClientById') {
             return { provider: null };
           }
-          // eslint-disable-next-line jest/no-conditional-in-test
           if (methodName === 'NetworkController:getState') {
             return { selectedNetworkClientId: 'testNetworkClientId' };
           }
@@ -854,29 +868,47 @@ describe('BridgeController', function () {
     [
       'should append l1GasFees if srcChain is 10 and srcToken is erc20',
       mockBridgeQuotesErc20Native as QuoteResponse[],
-      bigIntToHex(BigInt('2608710388388') * 2n),
-      12,
+      ['0x2', '0x1'],
+      [6, 12],
     ],
     [
       'should append l1GasFees if srcChain is 10 and srcToken is native',
       mockBridgeQuotesNativeErc20 as unknown as QuoteResponse[],
-      bigIntToHex(BigInt('2608710388388')),
-      2,
+      ['0x1', '0x1'],
+      [2, 2],
     ],
     [
       'should not append l1GasFees if srcChain is not 10',
       mockBridgeQuotesNativeErc20Eth as unknown as QuoteResponse[],
-      undefined,
-      0,
+      [],
+      [2, 0],
+    ],
+    [
+      'should filter out quote if getL1Fees returns undefined',
+      mockBridgeQuotesErc20Native as unknown as QuoteResponse[],
+      ['0x2', undefined],
+      [5, 12],
+    ],
+    [
+      'should filter out quote if L1 fee calculation fails',
+      mockBridgeQuotesErc20Native as unknown as QuoteResponse[],
+      ['0x2', '0x1', 'L1 gas fee calculation failed'],
+      [5, 11],
     ],
   ])(
     'updateBridgeQuoteRequestParams: %s',
     async (
       _testTitle: string,
       quoteResponse: QuoteResponse[],
-      l1GasFeesInHexWei: Hex | undefined,
-      getLayer1GasFeeMockCallCount: number,
+      [totalL1GasFeesInHexWei, tradeL1GasFeesInHexWei, tradeL1GasFeeError]: (
+        | string
+        | undefined
+      )[],
+      [expectedQuotesLength, expectedGetLayer1GasFeeMockCallCount]: number[],
     ) => {
+      const errorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(jest.fn());
       jest.useFakeTimers();
       const stopAllPollingSpy = jest.spyOn(bridgeController, 'stopAllPolling');
       const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
@@ -888,7 +920,27 @@ describe('BridgeController', function () {
         provider: jest.fn(),
         selectedNetworkClientId: 'selectedNetworkClientId',
       } as never);
-      getLayer1GasFeeMock.mockResolvedValue('0x25F63418AA4');
+
+      for (const [index, quote] of quoteResponse.entries()) {
+        if (tradeL1GasFeeError && index === 0) {
+          getLayer1GasFeeMock.mockRejectedValueOnce(
+            new Error(tradeL1GasFeeError),
+          );
+          continue;
+        }
+
+        if (quote.approval) {
+          getLayer1GasFeeMock.mockResolvedValueOnce('0x1');
+        }
+
+        if (tradeL1GasFeesInHexWei === undefined && index === 0) {
+          getLayer1GasFeeMock.mockResolvedValueOnce(undefined);
+          continue;
+        }
+        getLayer1GasFeeMock.mockResolvedValueOnce(
+          tradeL1GasFeesInHexWei ?? '0x1',
+        );
+      }
 
       const fetchBridgeQuotesSpy = jest
         .spyOn(fetchUtils, 'fetchBridgeQuotes')
@@ -967,6 +1019,7 @@ describe('BridgeController', function () {
       jest.advanceTimersByTime(1500);
       await flushPromises();
       const { quotes } = bridgeController.state;
+      expect(quotes).toHaveLength(expectedQuotesLength);
       expect(bridgeController.state).toStrictEqual(
         expect.objectContaining({
           quoteRequest: { ...quoteRequest, insufficientBal: true },
@@ -975,7 +1028,10 @@ describe('BridgeController', function () {
         }),
       );
       quotes.forEach((quote) => {
-        const expectedQuote = { ...quote, l1GasFeesInHexWei };
+        const expectedQuote = {
+          ...quote,
+          l1GasFeesInHexWei: totalL1GasFeesInHexWei,
+        };
         // eslint-disable-next-line jest/prefer-strict-equal
         expect(quote).toEqual(expectedQuote);
       });
@@ -984,8 +1040,10 @@ describe('BridgeController', function () {
       expect(firstFetchTime).toBeGreaterThan(0);
 
       expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(
-        getLayer1GasFeeMockCallCount,
+        expectedGetLayer1GasFeeMockCallCount,
       );
+
+      expect(errorSpy).toHaveBeenCalledTimes(tradeL1GasFeeError ? 1 : 0);
     },
   );
 
@@ -1104,16 +1162,111 @@ describe('BridgeController', function () {
     },
   ]);
 
+  // Both expected calls for Solana quotes (includes getMinimumBalanceForRentExemption + fee calls)
+  const solanaSnapCalls = [
+    [
+      'SnapController:handleRequest',
+      {
+        snapId: 'npm:@metamask/solana-snap',
+        origin: 'metamask',
+        handler: 'onProtocolRequest',
+        request: {
+          jsonrpc: '2.0',
+          method: ' ',
+          params: {
+            request: {
+              id: expect.any(String),
+              jsonrpc: '2.0',
+              method: 'getMinimumBalanceForRentExemption',
+              params: [0, 'confirmed'],
+            },
+            scope: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+          },
+        },
+      },
+    ],
+    ...getFeeSnapCalls,
+    [
+      'SnapController:handleRequest',
+      {
+        snapId: 'npm:@metamask/solana-snap',
+        origin: 'metamask',
+        handler: 'onProtocolRequest',
+        request: {
+          jsonrpc: '2.0',
+          method: ' ',
+          params: {
+            request: {
+              id: expect.any(String),
+              jsonrpc: '2.0',
+              method: 'getMinimumBalanceForRentExemption',
+              params: [0, 'confirmed'],
+            },
+            scope: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+          },
+        },
+      },
+    ],
+  ];
+
+  // calls for mixed quotes (just getMinimumBalanceForRentExemption calls, no fee calls)
+  const mixedQuotesSnapCalls = [
+    [
+      'SnapController:handleRequest',
+      {
+        snapId: 'npm:@metamask/solana-snap',
+        origin: 'metamask',
+        handler: 'onProtocolRequest',
+        request: {
+          jsonrpc: '2.0',
+          method: ' ',
+          params: {
+            request: {
+              id: expect.any(String),
+              jsonrpc: '2.0',
+              method: 'getMinimumBalanceForRentExemption',
+              params: [0, 'confirmed'],
+            },
+            scope: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+          },
+        },
+      },
+    ],
+    [
+      'SnapController:handleRequest',
+      {
+        snapId: 'npm:@metamask/solana-snap',
+        origin: 'metamask',
+        handler: 'onProtocolRequest',
+        request: {
+          jsonrpc: '2.0',
+          method: ' ',
+          params: {
+            request: {
+              id: expect.any(String),
+              jsonrpc: '2.0',
+              method: 'getMinimumBalanceForRentExemption',
+              params: [0, 'confirmed'],
+            },
+            scope: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+          },
+        },
+      },
+    ],
+  ];
+
   it.each([
     [
       'should append solanaFees for Solana quotes',
       mockBridgeQuotesSolErc20 as unknown as QuoteResponse[],
+      2,
       '5000',
-      getFeeSnapCalls,
+      solanaSnapCalls,
     ],
     [
       'should not append solanaFees if selected account is not a snap',
       mockBridgeQuotesSolErc20 as unknown as QuoteResponse[],
+      2,
       undefined,
       [],
       false,
@@ -1124,16 +1277,18 @@ describe('BridgeController', function () {
         ...mockBridgeQuotesSolErc20,
         ...mockBridgeQuotesErc20Native,
       ] as unknown as QuoteResponse[],
+      8,
       undefined,
-      [],
+      mixedQuotesSnapCalls,
     ],
   ])(
     'updateBridgeQuoteRequestParams: %s',
     async (
       _testTitle: string,
       quoteResponse: QuoteResponse[],
+      expectedQuotesLength: number,
       expectedFees: string | undefined,
-      expectedSnapCalls: typeof getFeeSnapCalls,
+      expectedSnapCalls: typeof solanaSnapCalls,
       isSnapAccount = true,
     ) => {
       jest.useFakeTimers();
@@ -1149,27 +1304,54 @@ describe('BridgeController', function () {
         ): ReturnType<BridgeControllerMessenger['call']> => {
           const actionType = args[0];
 
-          // eslint-disable-next-line jest/no-conditional-in-test
           if (
-            // eslint-disable-next-line jest/no-conditional-in-test
             actionType === 'AccountsController:getSelectedMultichainAccount' &&
             isSnapAccount
           ) {
             return {
+              type: SolAccountType.DataAccount,
+              id: 'account1',
+              scopes: [SolScope.Mainnet],
+              methods: [],
               address: '0x123',
               metadata: {
+                name: 'Account 1',
+                importTime: 1717334400,
+                keyring: {
+                  type: 'Keyring',
+                },
                 snap: {
                   id: 'npm:@metamask/solana-snap',
                   name: 'Solana Snap',
                   enabled: true,
                 },
-              } as never,
+              },
               options: {
                 scope: 'mainnet',
               },
-            } as never;
+            };
           }
-          // eslint-disable-next-line jest/no-conditional-in-test
+          if (
+            actionType === 'AccountsController:getSelectedMultichainAccount'
+          ) {
+            return {
+              type: EthAccountType.Eoa,
+              id: 'account1',
+              scopes: [EthScope.Eoa],
+              methods: [],
+              address: '0x123',
+              metadata: {
+                name: 'Account 1',
+                importTime: 1717334400,
+                keyring: {
+                  type: 'Keyring',
+                },
+              },
+              options: {
+                scope: 'mainnet',
+              },
+            };
+          }
           if (actionType === 'SnapController:handleRequest') {
             return { value: '5000' } as never;
           }
@@ -1237,6 +1419,8 @@ describe('BridgeController', function () {
       );
 
       expect(snapCalls).toMatchObject(expectedSnapCalls);
+
+      expect(quotes).toHaveLength(expectedQuotesLength);
     },
   );
 
@@ -1510,6 +1694,75 @@ describe('BridgeController', function () {
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
       // eslint-disable-next-line jest/no-restricted-matchers
       expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
+    });
+  });
+
+  describe('trackUnifiedSwapBridgeEvent client-side call exceptions', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      messengerMock.call.mockImplementation(
+        (
+          ...args: Parameters<BridgeControllerMessenger['call']>
+        ): ReturnType<BridgeControllerMessenger['call']> => {
+          const actionType = args[0];
+          if (
+            actionType === 'AccountsController:getSelectedMultichainAccount'
+          ) {
+            return {
+              type: SolAccountType.DataAccount,
+              id: 'account1',
+              scopes: [SolScope.Mainnet],
+              methods: [],
+              address: '0x123',
+              metadata: {
+                snap: {
+                  id: 'npm:@metamask/solana-snap',
+                  name: 'Solana Snap',
+                  enabled: true,
+                },
+                name: 'Account 1',
+                importTime: 1717334400,
+              } as never,
+              options: {
+                scope: 'mainnet',
+              },
+            };
+          }
+          return {
+            provider: jest.fn() as never,
+            selectedNetworkClientId: 'selectedNetworkClientId',
+            rpcUrl: 'https://mainnet.infura.io/v3/123',
+            configuration: {
+              chainId: 'eip155:1',
+            },
+          } as never;
+        },
+      );
+    });
+
+    it('should not track the event if the account keyring type is not set', () => {
+      const errorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(jest.fn());
+      bridgeController.trackUnifiedSwapBridgeEvent(
+        UnifiedSwapBridgeEventName.QuotesReceived,
+        {
+          warnings: ['warning1'],
+          usd_quoted_gas: 0,
+          gas_included: false,
+          quoted_time_minutes: 10,
+          usd_quoted_return: 100,
+          price_impact: 0,
+          provider: 'provider_bridge',
+          best_quote_provider: 'provider_bridge2',
+        },
+      );
+      expect(trackMetaMetricsFn).toHaveBeenCalledTimes(0);
+      expect(errorSpy).toHaveBeenCalledTimes(1);
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Error tracking cross-chain swaps MetaMetrics event',
+        new TypeError("Cannot read properties of undefined (reading 'type')"),
+      );
     });
   });
 });

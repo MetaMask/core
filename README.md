@@ -39,6 +39,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/ens-controller`](packages/ens-controller)
 - [`@metamask/error-reporting-service`](packages/error-reporting-service)
 - [`@metamask/eth-json-rpc-provider`](packages/eth-json-rpc-provider)
+- [`@metamask/foundryup`](packages/foundryup)
 - [`@metamask/gas-fee-controller`](packages/gas-fee-controller)
 - [`@metamask/json-rpc-engine`](packages/json-rpc-engine)
 - [`@metamask/json-rpc-middleware-stream`](packages/json-rpc-middleware-stream)
@@ -62,6 +63,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/rate-limit-controller`](packages/rate-limit-controller)
 - [`@metamask/remote-feature-flag-controller`](packages/remote-feature-flag-controller)
 - [`@metamask/sample-controllers`](packages/sample-controllers)
+- [`@metamask/seedless-onboarding-controller`](packages/seedless-onboarding-controller)
 - [`@metamask/selected-network-controller`](packages/selected-network-controller)
 - [`@metamask/signature-controller`](packages/signature-controller)
 - [`@metamask/token-search-discovery-controller`](packages/token-search-discovery-controller)
@@ -95,6 +97,7 @@ linkStyle default opacity:0.5
   ens_controller(["@metamask/ens-controller"]);
   error_reporting_service(["@metamask/error-reporting-service"]);
   eth_json_rpc_provider(["@metamask/eth-json-rpc-provider"]);
+  foundryup(["@metamask/foundryup"]);
   gas_fee_controller(["@metamask/gas-fee-controller"]);
   json_rpc_engine(["@metamask/json-rpc-engine"]);
   json_rpc_middleware_stream(["@metamask/json-rpc-middleware-stream"]);
@@ -118,6 +121,7 @@ linkStyle default opacity:0.5
   rate_limit_controller(["@metamask/rate-limit-controller"]);
   remote_feature_flag_controller(["@metamask/remote-feature-flag-controller"]);
   sample_controllers(["@metamask/sample-controllers"]);
+  seedless_onboarding_controller(["@metamask/seedless-onboarding-controller"]);
   selected_network_controller(["@metamask/selected-network-controller"]);
   signature_controller(["@metamask/signature-controller"]);
   token_search_discovery_controller(["@metamask/token-search-discovery-controller"]);

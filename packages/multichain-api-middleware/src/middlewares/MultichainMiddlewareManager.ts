@@ -4,16 +4,12 @@ import type {
   JsonRpcEngineNextCallback,
 } from '@metamask/json-rpc-engine';
 import { rpcErrors } from '@metamask/rpc-errors';
-import type {
-  Json,
-  JsonRpcRequest,
-  PendingJsonRpcResponse,
-} from '@metamask/utils';
+import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
 
 export type ExtendedJsonRpcMiddleware = {
   (
     req: JsonRpcRequest & { scope: string },
-    res: PendingJsonRpcResponse<Json>,
+    res: PendingJsonRpcResponse,
     next: JsonRpcEngineNextCallback,
     end: JsonRpcEngineEndCallback,
   ): void;

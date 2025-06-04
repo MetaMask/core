@@ -51,7 +51,7 @@ import {
   JsonRpcError,
 } from '@metamask/rpc-errors';
 import type { Hex, Json } from '@metamask/utils';
-import { add0x, hexToNumber, remove0x } from '@metamask/utils';
+import { add0x, hexToNumber } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
 import { EventEmitter } from 'events';
@@ -125,22 +125,16 @@ import {
   TransactionStatus,
   SimulationErrorCode,
 } from './types';
+import { getBalanceChanges } from './utils/balance-changes';
+import { addTransactionBatch, isAtomicBatchSupported } from './utils/batch';
 import {
-  addTransactionBatch,
-  ERROR_MESSAGE_NO_UPGRADE_CONTRACT,
-  isAtomicBatchSupported,
-} from './utils/batch';
-import {
-  DELEGATION_PREFIX,
-  doesChainSupportEIP7702,
-  ERROR_MESSGE_PUBLIC_KEY,
   generateEIP7702BatchTransaction,
   getDelegationAddress,
   signAuthorizationList,
 } from './utils/eip7702';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
-import { getEIP7702UpgradeContractAddress } from './utils/feature-flags';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
+import { getGasFeeTokens } from './utils/gas-fee-tokens';
 import { updateGasFees } from './utils/gas-fees';
 import { getGasFeeFlow } from './utils/gas-flow';
 import {
@@ -157,8 +151,6 @@ import {
 } from './utils/nonce';
 import { prepareTransaction, serializeTransaction } from './utils/prepare';
 import { getTransactionParamsWithIncreasedGasFee } from './utils/retry';
-import type { GetSimulationDataRequest } from './utils/simulation';
-import { getSimulationData } from './utils/simulation';
 import {
   updatePostTransactionBalance,
   updateSwapsTransaction,
@@ -1045,6 +1037,7 @@ export class TransactionController extends BaseController<
       getInternalAccounts: this.#getInternalAccounts.bind(this),
       getTransaction: (transactionId) =>
         this.#getTransactionOrThrow(transactionId),
+      isSimulationEnabled: this.#isSimulationEnabled,
       messenger: this.messagingSystem,
       publishBatchHook: this.#publishBatchHook,
       publicKeyEIP7702: this.#publicKeyEIP7702,
@@ -4057,8 +4050,14 @@ export class TransactionController extends BaseController<
       traceContext?: TraceContext;
     } = {},
   ) {
-    const { id: transactionId, simulationData: prevSimulationData } =
-      transactionMeta;
+    const {
+      chainId,
+      id: transactionId,
+      nestedTransactions,
+      networkClientId,
+      simulationData: prevSimulationData,
+      txParams,
+    } = transactionMeta;
 
     let simulationData: SimulationData = {
       error: {
@@ -4071,14 +4070,17 @@ export class TransactionController extends BaseController<
     let gasFeeTokens: GasFeeToken[] = [];
 
     if (this.#isSimulationEnabled()) {
-      const result = await this.#getSimulationData({
-        blockTime,
-        traceContext,
-        transactionMeta,
-      });
-
-      gasFeeTokens = result?.gasFeeTokens;
-      simulationData = result?.simulationData;
+      simulationData = await this.#trace(
+        { name: 'Simulate', parentContext: traceContext },
+        () =>
+          getBalanceChanges({
+            blockTime,
+            chainId,
+            ethQuery: this.#getEthQuery({ networkClientId }),
+            nestedTransactions,
+            txParams,
+          }),
+      );
 
       if (
         blockTime &&
@@ -4090,6 +4092,14 @@ export class TransactionController extends BaseController<
           isUpdatedAfterSecurityCheck: true,
         };
       }
+
+      gasFeeTokens = await getGasFeeTokens({
+        chainId,
+        isEIP7702GasFeeTokensEnabled: this.#isEIP7702GasFeeTokensEnabled,
+        messenger: this.messagingSystem,
+        publicKeyEIP7702: this.#publicKeyEIP7702,
+        transactionMeta,
+      });
     }
 
     const finalTransactionMeta = this.#getTransaction(transactionId);
@@ -4306,101 +4316,5 @@ export class TransactionController extends BaseController<
       `${transactionMeta.id}:finished`,
       newTransactionMeta,
     );
-  }
-
-  async #getSimulationData({
-    blockTime,
-    traceContext,
-    transactionMeta,
-  }: {
-    blockTime?: number;
-    traceContext?: TraceContext;
-    transactionMeta: TransactionMeta;
-  }) {
-    const { chainId, delegationAddress, txParams } = transactionMeta;
-
-    const {
-      authorizationList: authorizationListRequest,
-      data,
-      from,
-      to,
-      value,
-    } = txParams;
-
-    const authorizationAddress = authorizationListRequest?.[0]?.address;
-
-    const senderCode =
-      authorizationAddress &&
-      ((DELEGATION_PREFIX + remove0x(authorizationAddress)) as Hex);
-
-    const is7702GasFeeTokensEnabled =
-      await this.#isEIP7702GasFeeTokensEnabled(transactionMeta);
-
-    const use7702Fees =
-      is7702GasFeeTokensEnabled &&
-      doesChainSupportEIP7702(chainId, this.messagingSystem);
-
-    let authorizationList:
-      | GetSimulationDataRequest['authorizationList']
-      | undefined = authorizationListRequest?.map((authorization) => ({
-      address: authorization.address,
-      from: from as Hex,
-    }));
-
-    if (use7702Fees && !delegationAddress && !authorizationList) {
-      authorizationList = this.#getSimulationAuthorizationList({
-        chainId,
-        from: from as Hex,
-      });
-    }
-
-    return await this.#trace(
-      { name: 'Simulate', parentContext: traceContext },
-      () =>
-        getSimulationData(
-          {
-            authorizationList,
-            chainId,
-            data: data as Hex,
-            from: from as Hex,
-            to: to as Hex,
-            value: value as Hex,
-          },
-          {
-            blockTime,
-            senderCode,
-            use7702Fees,
-          },
-        ),
-    );
-  }
-
-  #getSimulationAuthorizationList({
-    chainId,
-    from,
-  }: {
-    chainId: Hex;
-    from: Hex;
-  }): GetSimulationDataRequest['authorizationList'] | undefined {
-    if (!this.#publicKeyEIP7702) {
-      throw rpcErrors.internal(ERROR_MESSGE_PUBLIC_KEY);
-    }
-
-    const upgradeAddress = getEIP7702UpgradeContractAddress(
-      chainId,
-      this.messagingSystem,
-      this.#publicKeyEIP7702,
-    );
-
-    if (!upgradeAddress) {
-      throw rpcErrors.internal(ERROR_MESSAGE_NO_UPGRADE_CONTRACT);
-    }
-
-    return [
-      {
-        address: upgradeAddress,
-        from: from as Hex,
-      },
-    ];
   }
 }

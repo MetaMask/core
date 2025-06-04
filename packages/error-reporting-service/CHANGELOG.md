@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0]
+
 ### Added
 
-- Initial release ([#5849](https://github.com/MetaMask/core/pull/5849))
+- Initial release ([#5882](https://github.com/MetaMask/core/pull/5882))
 
-[Unreleased]: https://github.com/MetaMask/core/
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/error-reporting-service@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/error-reporting-service@1.0.0

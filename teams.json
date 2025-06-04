@@ -43,8 +43,10 @@
   "metamask/signature-controller": "team-confirmations",
   "metamask/transaction-controller": "team-confirmations",
   "metamask/user-operation-controller": "team-confirmations",
-  "metamask/multichain-transactions-controller": "team-sol,team-accounts",
+  "metamask/multichain-transactions-controller": "team-solana,team-accounts",
   "metamask/token-search-discovery-controller": "team-portfolio",
   "metamask/earn-controller": "team-earn",
-  "metamask/error-reporting-service": "team-wallet-framework"
+  "metamask/error-reporting-service": "team-wallet-framework",
+  "metamask/foundryup": "team-mobile-platform,team-extension-platform",
+  "metamask/seedless-onboarding-controller": "team-web3auth"
 }
