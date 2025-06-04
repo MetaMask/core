@@ -93,7 +93,7 @@ export type AllowedActions =
 
 export type AccountTreeControllerActions = never;
 
-export type AccountTreeControllerChangeEvent = ControllerStateChangeEvent<
+export type AccountTreeControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
   AccountTreeControllerState
 >;
