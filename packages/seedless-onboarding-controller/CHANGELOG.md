@@ -34,3 +34,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@1.0.0...HEAD
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/seedless-onboarding-controller@1.0.0
+
+## [1.0.1]
+
+### Added
+
+- Add refresh and revoke token handling ([#5917](https://github.com/MetaMask/core/pull/5917))
+  - persist refresh token in state
+  - store revoke token in vault
+  - check for token expired in toprf call, refresh token and retry if expired
+  - revoke refresh token and replace with new one after password submit to prevent malicious use if refresh token leak in persisted state
+
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@1.0.1...HEAD
+[1.0.1]: https://github.com/MetaMask/core/releases/tag/@metamask/seedless-onboarding-controller@1.0.1
