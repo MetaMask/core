@@ -1,5 +1,4 @@
 import type { AddressBookEntry } from '@metamask/address-book-controller';
-import { toChecksumHexAddress } from '@metamask/controller-utils';
 
 import { USER_STORAGE_VERSION, USER_STORAGE_VERSION_KEY } from './constants';
 import type { UserStorageContactEntry } from './types';
@@ -34,7 +33,7 @@ describe('user-storage/contact-syncing/utils', () => {
         chainId: mockChainId,
         name: mockName,
         memo: mockMemo,
-        isEns: false,
+        isEns: true,
       };
 
       const userStorageEntry =
@@ -46,6 +45,7 @@ describe('user-storage/contact-syncing/utils', () => {
         n: mockName,
         c: mockChainId,
         m: mockMemo,
+        e: true,
         // lu will be generated with Date.now(), so we just check it exists
         lu: expect.any(Number),
       });
@@ -122,6 +122,29 @@ describe('user-storage/contact-syncing/utils', () => {
       // Ensure memo is not included when empty
       expect(userStorageEntry.m).toBeUndefined();
     });
+
+    it('should map ENS field correctly', () => {
+      const addressBookEntry: AddressBookEntry = {
+        address: mockAddress,
+        chainId: mockChainId,
+        name: mockName,
+        memo: mockMemo,
+        isEns: true,
+      };
+
+      const userStorageEntry =
+        mapAddressBookEntryToUserStorageEntry(addressBookEntry);
+
+      expect(userStorageEntry).toStrictEqual({
+        [USER_STORAGE_VERSION_KEY]: USER_STORAGE_VERSION,
+        a: mockAddress,
+        n: mockName,
+        c: mockChainId,
+        m: mockMemo,
+        e: true,
+        lu: expect.any(Number),
+      });
+    });
   });
 
   describe('mapUserStorageEntryToAddressBookEntry', () => {
@@ -132,6 +155,7 @@ describe('user-storage/contact-syncing/utils', () => {
         n: mockName,
         c: mockChainId,
         m: mockMemo,
+        e: true,
         lu: mockTimestamp,
       };
 
@@ -143,7 +167,7 @@ describe('user-storage/contact-syncing/utils', () => {
         chainId: mockChainId,
         name: mockName,
         memo: mockMemo,
-        isEns: false,
+        isEns: true,
         lastUpdatedAt: mockTimestamp,
       });
     });
@@ -191,26 +215,6 @@ describe('user-storage/contact-syncing/utils', () => {
         memo: '',
         isEns: false,
       });
-    });
-
-    it('should normalize addresses to checksummed format', () => {
-      // Use lowercase address for this test specifically
-      const lowerCaseAddress = mockAddress.toLowerCase();
-      const userStorageEntry: UserStorageContactEntry = {
-        [USER_STORAGE_VERSION_KEY]: USER_STORAGE_VERSION,
-        a: lowerCaseAddress,
-        n: mockName,
-        c: mockChainId,
-      };
-
-      const addressBookEntry =
-        mapUserStorageEntryToAddressBookEntry(userStorageEntry);
-
-      expect(addressBookEntry.address).toBe(
-        toChecksumHexAddress(lowerCaseAddress),
-      );
-      // Also verify it matches our mockAddress which is already in checksum format
-      expect(addressBookEntry.address).toBe(mockAddress);
     });
   });
 });

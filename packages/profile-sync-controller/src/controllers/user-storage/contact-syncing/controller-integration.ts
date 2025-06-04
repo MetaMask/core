@@ -202,32 +202,20 @@ export async function syncContactsWithUserStorage(
 
     // Apply changes to remote storage
     if (contactsToUpdateRemotely.length > 0) {
-      // Update existing remote contacts with new contacts
-      const updatedRemoteContacts = [...validRemoteContacts];
-
+      const updatedRemoteContacts: Record<string, SyncAddressBookEntry> = {};
       for (const localContact of contactsToUpdateRemotely) {
         const key = createContactKey(localContact);
-        const existingIndex = updatedRemoteContacts.findIndex(
-          (c) => createContactKey(c) === key,
-        );
-
-        const now = Date.now();
-        const updatedEntry = {
-          ...localContact,
-          lastUpdatedAt: now,
-        } as SyncAddressBookEntry;
-
-        if (existingIndex !== -1) {
-          // Update existing contact
-          updatedRemoteContacts[existingIndex] = updatedEntry;
-        } else {
-          // Add new contact
-          updatedRemoteContacts.push(updatedEntry);
-        }
+        updatedRemoteContacts[key] = {
+          ...remoteContactsMap.get(key), // Start with an existing remote contact if it exists
+          ...localContact, // override with local changes
+          lastUpdatedAt: Date.now(), // mark as updated
+        };
       }
-
       // Save updated contacts to remote storage
-      await saveContactsToUserStorage(updatedRemoteContacts, options);
+      await saveContactsToUserStorage(
+        Object.values(updatedRemoteContacts),
+        options,
+      );
     }
   } catch (error) {
     if (onContactSyncErroneousSituation) {

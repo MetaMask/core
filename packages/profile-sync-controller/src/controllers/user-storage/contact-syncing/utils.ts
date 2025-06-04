@@ -2,7 +2,6 @@ import type {
   AddressBookEntry,
   AddressType,
 } from '@metamask/address-book-controller';
-import { toChecksumHexAddress } from '@metamask/controller-utils';
 
 import { USER_STORAGE_VERSION_KEY, USER_STORAGE_VERSION } from './constants';
 import type { UserStorageContactEntry } from './types';
@@ -32,6 +31,7 @@ export const mapAddressBookEntryToUserStorageEntry = (
     chainId,
     memo,
     addressType,
+    isEns,
     lastUpdatedAt,
     deletedAt,
   } = addressBookEntry as SyncAddressBookEntry;
@@ -40,11 +40,12 @@ export const mapAddressBookEntryToUserStorageEntry = (
 
   return {
     [USER_STORAGE_VERSION_KEY]: USER_STORAGE_VERSION,
-    a: toChecksumHexAddress(address),
+    a: address,
     n: name,
     c: chainId,
     ...(memo ? { m: memo } : {}),
     ...(addressType ? { t: addressType } : {}),
+    ...(isEns ? { e: isEns } : {}),
     lu: lastUpdatedAt || now,
     ...(deletedAt ? { dt: deletedAt } : {}),
   };
@@ -62,11 +63,11 @@ export const mapUserStorageEntryToAddressBookEntry = (
   userStorageEntry: UserStorageContactEntry,
 ): SyncAddressBookEntry => {
   const addressBookEntry: SyncAddressBookEntry = {
-    address: toChecksumHexAddress(userStorageEntry.a),
+    address: userStorageEntry.a,
     name: userStorageEntry.n,
     chainId: userStorageEntry.c,
     memo: userStorageEntry.m || '',
-    isEns: false,
+    isEns: userStorageEntry.e || false,
     ...(userStorageEntry.t
       ? { addressType: userStorageEntry.t as AddressType }
       : {}),

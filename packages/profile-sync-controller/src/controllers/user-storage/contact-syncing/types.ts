@@ -23,6 +23,8 @@ export type UserStorageContactEntry = {
   m?: string;
   /** the addressType 't' of the contact (optional) */
   t?: string;
+  /** the isEns flag 'e' of the contact (optional) */
+  e?: boolean;
   /** the lastUpdatedAt timestamp 'lu' of the contact */
   lu?: number;
   /** the deletedAt timestamp 'dt' of the contact (optional) */
