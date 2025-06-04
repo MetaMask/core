@@ -109,7 +109,9 @@ module.exports = defineConfig({
 
         // All non-root packages must set up ESM- and CommonJS-compatible
         // exports correctly.
-        expectCorrectWorkspaceExports(workspace);
+        if (workspace.ident !== '@metamask/foundryup') {
+          expectCorrectWorkspaceExports(workspace);
+        }
 
         // All non-root packages must have the same "build" script.
         expectWorkspaceField(

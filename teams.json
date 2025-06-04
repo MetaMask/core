@@ -47,5 +47,6 @@
   "metamask/token-search-discovery-controller": "team-portfolio",
   "metamask/earn-controller": "team-earn",
   "metamask/error-reporting-service": "team-wallet-framework",
+  "metamask/foundryup": "team-mobile-platform,team-extension-platform",
   "metamask/seedless-onboarding-controller": "team-web3auth"
 }
