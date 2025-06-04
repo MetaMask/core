@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `gas` property to `TransactionBatchMeta`, populated using simulation API ([#5852](https://github.com/MetaMask/core/pull/5852))
 
+### Changed
+
+- Include gas limit and gas fees in simulation requests ([#5754](https://github.com/MetaMask/core/pull/5754))
+  - Add optional `fee` property to `GasFeeToken`.
+
 ## [57.0.0]
 
 ### Changed
@@ -27,11 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add optional approval request when calling `addTransactionBatch` ([#5793](https://github.com/MetaMask/core/pull/5793))
   - Add `transactionBatches` array to state.
   - Add `TransactionBatchMeta` type.
-
-### Changed
-
-- Include gas limit and gas fees in simulation requests ([#5754](https://github.com/MetaMask/core/pull/5754))
-  - Add optional `fee` property to `GasFeeToken`.
 
 ### Fixed
 
