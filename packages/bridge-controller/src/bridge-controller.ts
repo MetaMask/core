@@ -509,9 +509,19 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         },
         fetchQuotes,
       );
-      await this.#setMinimumBalanceForRentExemptionInLamports(
+      // This is not awaited to prevent blocking quote fetching if the snap takes too long to respond
+      this.#setMinimumBalanceForRentExemptionInLamports(
         updatedQuoteRequest.srcChainId,
-      );
+      ).catch((error) => {
+        console.error(
+          'Error setting minimum balance for rent exemption',
+          error,
+        );
+        this.update((state) => {
+          state.minimumBalanceForRentExemptionInLamports =
+            DEFAULT_BRIDGE_CONTROLLER_STATE.minimumBalanceForRentExemptionInLamports;
+        });
+      });
     } catch (error) {
       const isAbortError = (error as Error).name === 'AbortError';
       const isAbortedDueToReset = error === RESET_STATE_ABORT_MESSAGE;
@@ -625,26 +635,17 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   ) => {
     const selectedAccount = this.#getMultichainSelectedAccount();
 
-    try {
-      if (isSolanaChainId(srcChainId) && selectedAccount?.metadata?.snap?.id) {
-        const fees = (await this.messagingSystem.call(
-          'SnapController:handleRequest',
-          getMinimumBalanceForRentExemptionRequest(
-            selectedAccount.metadata.snap?.id,
-          ),
-        )) as string;
-        this.update((state) => {
-          state.minimumBalanceForRentExemptionInLamports = fees;
-        });
-        return;
-      }
-    } catch (error) {
-      console.error('Error setting minimum balance for rent exemption', error);
+    if (isSolanaChainId(srcChainId) && selectedAccount?.metadata?.snap?.id) {
+      const fees = (await this.messagingSystem.call(
+        'SnapController:handleRequest',
+        getMinimumBalanceForRentExemptionRequest(
+          selectedAccount.metadata.snap?.id,
+        ),
+      )) as string;
+      this.update((state) => {
+        state.minimumBalanceForRentExemptionInLamports = fees;
+      });
     }
-    this.update((state) => {
-      state.minimumBalanceForRentExemptionInLamports =
-        DEFAULT_BRIDGE_CONTROLLER_STATE.minimumBalanceForRentExemptionInLamports;
-    });
   };
 
   readonly #appendSolanaFees = async (
