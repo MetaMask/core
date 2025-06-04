@@ -22,7 +22,22 @@ export const getMockAuthNonceResponse = () => {
   return {
     url: MOCK_NONCE_URL,
     requestMethod: 'GET',
-    response: MOCK_NONCE_RESPONSE,
+    response: (
+      _?: unknown,
+      path?: string,
+      getE2ESrpIdentifierForPublicKey?: (publicKey: string) => string,
+    ) => {
+      // The goal here is to have this identifier bubble all the way up to being the access token
+      // That way, we can use it to segregate data in the test environment
+      const identifier = path?.split('?identifier=')[1];
+      const e2eIdentifier = getE2ESrpIdentifierForPublicKey?.(identifier ?? '');
+
+      return {
+        ...MOCK_NONCE_RESPONSE,
+        nonce: e2eIdentifier ?? MOCK_NONCE_RESPONSE.nonce,
+        identifier: MOCK_NONCE_RESPONSE.identifier,
+      };
+    },
   } satisfies MockResponse;
 };
 
@@ -32,7 +47,23 @@ export const getMockAuthLoginResponse = () => {
   return {
     url: MOCK_SRP_LOGIN_URL,
     requestMethod: 'POST',
-    response: MOCK_LOGIN_RESPONSE,
+    // In case this mock is used in an E2E test, we populate token, profile_id and identifier_id with the e2eIdentifier
+    // to make it easier to segregate data in the test environment.
+    response: (requestJsonBody?: { raw_message: string }) => {
+      const splittedRawMessage = requestJsonBody?.raw_message.split(':');
+      const e2eIdentifier = splittedRawMessage?.[splittedRawMessage.length - 2];
+
+      return {
+        ...MOCK_LOGIN_RESPONSE,
+        token: e2eIdentifier ?? MOCK_LOGIN_RESPONSE.token,
+        profile: {
+          ...MOCK_LOGIN_RESPONSE.profile,
+          profile_id: e2eIdentifier ?? MOCK_LOGIN_RESPONSE.profile.profile_id,
+          identifier_id:
+            e2eIdentifier ?? MOCK_LOGIN_RESPONSE.profile.identifier_id,
+        },
+      };
+    },
   } satisfies MockResponse;
 };
 
@@ -42,6 +73,18 @@ export const getMockAuthAccessTokenResponse = () => {
   return {
     url: MOCK_OIDC_TOKEN_URL,
     requestMethod: 'POST',
-    response: MOCK_OATH_TOKEN_RESPONSE,
+    response: (requestJsonBody?: string) => {
+      // We end up setting the access token to the e2eIdentifier in the test environment
+      // This is then attached to every request's Authorization header
+      // and used to segregate data in the test environment
+      const e2eIdentifier = new URLSearchParams(requestJsonBody).get(
+        'assertion',
+      );
+
+      return {
+        ...MOCK_OATH_TOKEN_RESPONSE,
+        access_token: e2eIdentifier ?? MOCK_OATH_TOKEN_RESPONSE.access_token,
+      };
+    },
   } satisfies MockResponse;
 };
