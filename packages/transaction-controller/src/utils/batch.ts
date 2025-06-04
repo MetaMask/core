@@ -416,7 +416,8 @@ async function addTransactionBatchWithHook(
     getPendingTransactionTracker: request.getPendingTransactionTracker,
   });
 
-  let { disable7702, disableHook, disableSequential, useHook } = userRequest;
+  let { disable7702, disableSequential } = userRequest;
+  const { disableHook, useHook } = userRequest;
 
   // use hook is a temporary alias for disable7702 and disableSequential
   if (useHook) {
