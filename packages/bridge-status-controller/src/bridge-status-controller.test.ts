@@ -52,8 +52,16 @@ import { flushPromises } from '../../../tests/helpers';
 import { CHAIN_IDS } from '../../bridge-controller/src/constants/chains';
 import type { MultichainTransactionsControllerEvents } from '../../multichain-transactions-controller/src/MultichainTransactionsController';
 
+const mockUuidV4 = 'test-uuid-1234';
+
 jest.mock('uuid', () => ({
-  v4: () => 'test-uuid-1234',
+  v4: () => mockUuidV4,
+}));
+
+// FIXME: For now, the accounts packages do use a different major version of `uuid`, so we need to mock
+// explicitly this version for now!
+jest.mock('@metamask/keyring-snap-client/node_modules/uuid', () => ({
+  v4: () => mockUuidV4,
 }));
 
 const mockIsEthUsdt = jest.fn();
@@ -1431,7 +1439,12 @@ describe('BridgeStatusController', () => {
 
     it('should successfully submit a Solana transaction', async () => {
       mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
-      mockMessengerCall.mockResolvedValueOnce('signature');
+      mockMessengerCall.mockResolvedValueOnce({
+        pending: false,
+        result: {
+          signature: 'signature',
+        },
+      });
 
       mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
       mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
