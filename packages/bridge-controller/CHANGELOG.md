@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [32.1.0]
+
 ### Added
 
 - Export `selectMaxBalanceButtonVisibilityForSrcToken` selector that determines whether the user is allowed to transfer their maximum balance ([#5836](https://github.com/MetaMask/core/pull/5836))
@@ -334,7 +336,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@32.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@32.1.0...HEAD
+[32.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@32.0.1...@metamask/bridge-controller@32.1.0
 [32.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@32.0.0...@metamask/bridge-controller@32.0.1
 [32.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@31.0.0...@metamask/bridge-controller@32.0.0
 [31.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@30.0.0...@metamask/bridge-controller@31.0.0
