@@ -1867,3 +1867,16 @@ export type AfterSimulateHook = (request: {
     }
   | undefined
 >;
+
+/**
+ * Custom logic to be executed before a transaction is signed.
+ * Can optionally update the transaction by returning the `updateTransaction` callback.
+ */
+export type BeforeSignHook = (request: {
+  transactionMeta: TransactionMeta;
+}) => Promise<
+  | {
+      updateTransaction?: (transaction: TransactionMeta) => void;
+    }
+  | undefined
+>;
