@@ -433,6 +433,6 @@ export class AccountTreeController extends BaseController<
   #listAccounts(): InternalAccount[] {
     return this.messagingSystem.call(
       'AccountsController:listMultichainAccounts',
-    ) as InternalAccount[];
+    );
   }
 }
