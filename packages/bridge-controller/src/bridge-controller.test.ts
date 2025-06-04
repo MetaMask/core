@@ -1,3 +1,4 @@
+/* eslint-disable jest/no-restricted-matchers */
 /* eslint-disable jest/no-conditional-in-test */
 import { Contract } from '@ethersproject/contracts';
 import {
@@ -25,7 +26,7 @@ import {
   type QuoteResponse,
 } from './types';
 import * as balanceUtils from './utils/balance';
-import { getNativeAssetForChainId } from './utils/bridge';
+import { getNativeAssetForChainId, isSolanaChainId } from './utils/bridge';
 import { formatChainIdToCaip } from './utils/caip-formatters';
 import * as fetchUtils from './utils/fetch';
 import {
@@ -42,6 +43,10 @@ import mockBridgeQuotesNativeErc20 from '../tests/mock-quotes-native-erc20.json'
 import mockBridgeQuotesSolErc20 from '../tests/mock-quotes-sol-erc20.json';
 
 const EMPTY_INIT_STATE = DEFAULT_BRIDGE_CONTROLLER_STATE;
+
+jest.mock('uuid', () => ({
+  v4: () => 'test-uuid-1234',
+}));
 
 const messengerMock = {
   call: jest.fn(),
@@ -281,7 +286,7 @@ describe('BridgeController', function () {
     });
 
     expect(trackMetaMetricsFn).toHaveBeenCalledTimes(3);
-    // eslint-disable-next-line jest/no-restricted-matchers
+
     expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
   });
 
@@ -475,7 +480,7 @@ describe('BridgeController', function () {
     );
     await flushPromises();
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(3);
-    // eslint-disable-next-line jest/no-restricted-matchers
+
     expect(bridgeController.state).toMatchSnapshot();
     expect(consoleLogSpy).toHaveBeenCalledTimes(1);
     expect(consoleLogSpy).toHaveBeenCalledWith(
@@ -489,7 +494,7 @@ describe('BridgeController', function () {
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(4);
     const { quotesLastFetched, quotes, ...stateWithoutTimestamp } =
       bridgeController.state;
-    // eslint-disable-next-line jest/no-restricted-matchers
+
     expect(stateWithoutTimestamp).toMatchSnapshot();
     expect(quotes).toStrictEqual([
       ...mockBridgeQuotesNativeErc20Eth,
@@ -504,8 +509,243 @@ describe('BridgeController', function () {
     expect(getLayer1GasFeeMock).not.toHaveBeenCalled();
 
     expect(trackMetaMetricsFn).toHaveBeenCalledTimes(9);
-    // eslint-disable-next-line jest/no-restricted-matchers
+
     expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
+  });
+
+  it('updateBridgeQuoteRequestParams should reset minimumBalanceForRentExemptionInLamports if getMinimumBalanceForRentExemption call fails', async function () {
+    jest.useFakeTimers();
+    jest.clearAllMocks();
+    jest.spyOn(balanceUtils, 'hasSufficientBalance').mockResolvedValue(false);
+    const consoleErrorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(jest.fn());
+    const consoleWarnSpy = jest
+      .spyOn(console, 'warn')
+      .mockImplementation(jest.fn());
+
+    const setupMessengerMock = (shouldMinBalanceFail = false) => {
+      messengerMock.call.mockImplementation(
+        (
+          ...args: Parameters<BridgeControllerMessenger['call']>
+        ): ReturnType<BridgeControllerMessenger['call']> => {
+          const [actionType, params] = args;
+
+          if (actionType === 'CurrencyRateController:getState') {
+            throw new Error('Currency rate error');
+          }
+
+          if (
+            actionType === 'AccountsController:getSelectedMultichainAccount'
+          ) {
+            return {
+              type: SolAccountType.DataAccount,
+              id: 'account1',
+              scopes: [SolScope.Mainnet],
+              methods: [],
+              address: '0x123',
+              metadata: {
+                name: 'Account 1',
+                importTime: 1717334400,
+                keyring: {
+                  type: 'Keyring',
+                },
+                snap: {
+                  id: 'npm:@metamask/solana-snap',
+                  name: 'Solana Snap',
+                  enabled: true,
+                },
+              },
+              options: {
+                scope: SolScope.Mainnet,
+              },
+            };
+          }
+
+          if (actionType === 'SnapController:handleRequest') {
+            return new Promise((resolve, reject) => {
+              if (
+                (params as { handler: string })?.handler === 'onProtocolRequest'
+              ) {
+                if (shouldMinBalanceFail) {
+                  return setTimeout(() => {
+                    reject(new Error('Min balance error'));
+                  }, 200);
+                }
+                return setTimeout(() => {
+                  resolve('5000');
+                }, 200);
+              }
+              return setTimeout(() => {
+                resolve({ value: '14' });
+              }, 100);
+            });
+          }
+          return {
+            provider: jest.fn() as never,
+            selectedNetworkClientId: 'selectedNetworkClientId',
+          } as never;
+        },
+      );
+    };
+    jest
+      .spyOn(selectors, 'selectIsAssetExchangeRateInState')
+      .mockReturnValue(true);
+
+    setupMessengerMock();
+    const fetchBridgeQuotesSpy = jest
+      .spyOn(fetchUtils, 'fetchBridgeQuotes')
+      .mockImplementation(async () => {
+        return await new Promise((resolve) => {
+          return setTimeout(() => {
+            resolve(mockBridgeQuotesSolErc20 as never);
+          }, 2000);
+        });
+      });
+
+    const quoteParams = {
+      srcChainId: SolScope.Mainnet,
+      destChainId: SolScope.Mainnet,
+      srcTokenAddress: '0x0000000000000000000000000000000000000000',
+      destTokenAddress: '0x123',
+      srcTokenAmount: '1000000000000000000',
+      walletAddress: '0x123',
+      slippage: 0.5,
+    };
+
+    /*
+    Set quote request with Solana srcChainId
+    */
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteParams,
+      metricsContext,
+    );
+
+    // Initial state check
+    expect(bridgeController.state).toStrictEqual(
+      expect.objectContaining({
+        quoteRequest: { ...quoteParams },
+        minimumBalanceForRentExemptionInLamports: '0',
+        quotesLoadingStatus:
+          DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLoadingStatus,
+      }),
+    );
+
+    // Advance timers and check loading state
+    jest.advanceTimersByTime(200);
+    await flushPromises();
+    expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
+    expect(bridgeController.state).toStrictEqual(
+      expect.objectContaining({
+        minimumBalanceForRentExemptionInLamports: '5000',
+        quotes: [],
+        quotesLoadingStatus: RequestStatus.LOADING,
+      }),
+    );
+
+    // Advance timers and check final state
+    jest.advanceTimersByTime(2600);
+    await flushPromises();
+    jest.advanceTimersByTime(100);
+    await flushPromises();
+    expect(bridgeController.state).toStrictEqual(
+      expect.objectContaining({
+        minimumBalanceForRentExemptionInLamports: '5000',
+        quotes: mockBridgeQuotesSolErc20.map((quote) => ({
+          ...quote,
+          solanaFeesInLamports: '14',
+        })),
+        quotesLoadingStatus: RequestStatus.FETCHED,
+      }),
+    );
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
+    expect(
+      messengerMock.call.mock.calls.filter(([action]) =>
+        action.includes('SnapController'),
+      ),
+    ).toHaveLength(3);
+
+    /*
+    Update quote request params to EVM and back to Solana
+    */
+    await bridgeController.updateBridgeQuoteRequestParams(
+      { ...quoteParams, srcChainId: '0x1' },
+      metricsContext,
+    );
+    jest.advanceTimersByTime(2000);
+    expect(bridgeController.state).toStrictEqual(
+      expect.objectContaining({
+        minimumBalanceForRentExemptionInLamports: '0',
+        quotes: [],
+        quotesLoadingStatus: RequestStatus.LOADING,
+      }),
+    );
+
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteParams,
+      metricsContext,
+    );
+    jest.advanceTimersByTime(3510);
+    await flushPromises();
+    expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(3);
+    expect(bridgeController.state).toStrictEqual(
+      expect.objectContaining({
+        minimumBalanceForRentExemptionInLamports: '5000',
+        quotes: mockBridgeQuotesSolErc20.map((quote) => ({
+          ...quote,
+          solanaFeesInLamports: '14',
+        })),
+        quotesLoadingStatus: RequestStatus.FETCHED,
+      }),
+    );
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
+    expect(
+      messengerMock.call.mock.calls.filter(([action]) =>
+        action.includes('SnapController'),
+      ),
+    ).toHaveLength(8);
+
+    /*
+    Test min balance fetch failure
+    */
+    setupMessengerMock(true);
+    await bridgeController.updateBridgeQuoteRequestParams(
+      { ...quoteParams, srcTokenAmount: '11111' },
+      metricsContext,
+    );
+
+    // Check states during failure scenario
+    jest.advanceTimersByTime(2210);
+    await flushPromises();
+    expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(4);
+    expect(bridgeController.state).toStrictEqual(
+      expect.objectContaining({
+        minimumBalanceForRentExemptionInLamports: '0',
+        quotes: mockBridgeQuotesSolErc20.map((quote) => ({
+          ...quote,
+          solanaFeesInLamports: '14',
+        })),
+        quotesLoadingStatus: RequestStatus.FETCHED,
+      }),
+    );
+
+    // Verify error handling
+    expect(consoleErrorSpy.mock.calls).toMatchSnapshot();
+    expect(
+      messengerMock.call.mock.calls.filter(([action]) =>
+        action.includes('SnapController'),
+      ),
+    ).toHaveLength(11);
+    expect(
+      messengerMock.call.mock.calls.filter(([action]) =>
+        action.includes('SnapController'),
+      ),
+    ).toMatchSnapshot();
+    expect(consoleWarnSpy).toHaveBeenCalledTimes(4);
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      'Failed to fetch asset exchange rates',
+      new Error('Currency rate error'),
+    );
   });
 
   it('updateBridgeQuoteRequestParams should only poll once if insufficientBal=true', async function () {
@@ -641,7 +881,7 @@ describe('BridgeController', function () {
         best_quote_provider: 'provider_bridge2',
       },
     );
-    // eslint-disable-next-line jest/no-restricted-matchers
+
     expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
 
     // After 2nd fetch
@@ -1140,7 +1380,7 @@ describe('BridgeController', function () {
     await flushPromises();
     const { quotes, quotesLastFetched, ...stateWithoutQuotes } =
       bridgeController.state;
-    // eslint-disable-next-line jest/no-restricted-matchers
+
     expect(stateWithoutQuotes).toMatchSnapshot();
     expect(quotes).toStrictEqual(mockBridgeQuotesNativeErc20Eth);
     expect(quotesLastFetched).toBeCloseTo(Date.now());
@@ -1152,7 +1392,7 @@ describe('BridgeController', function () {
       quotesLastFetched: quotesLastFetched2,
       ...stateWithoutQuotes2
     } = bridgeController.state;
-    // eslint-disable-next-line jest/no-restricted-matchers
+
     expect(stateWithoutQuotes2).toMatchSnapshot();
     expect(quotes2).toStrictEqual(mockBridgeQuotesNativeErc20Eth);
 
@@ -1164,130 +1404,21 @@ describe('BridgeController', function () {
     );
   });
 
-  const getFeeSnapCalls = mockBridgeQuotesSolErc20.map(({ trade }) => [
-    'SnapController:handleRequest',
-    {
-      snapId: 'npm:@metamask/solana-snap',
-      origin: 'metamask',
-      handler: 'onRpcRequest',
-      request: {
-        method: 'getFeeForTransaction',
-        params: {
-          transaction: trade,
-          scope: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
-        },
-      },
-    },
-  ]);
-
-  // Both expected calls for Solana quotes (includes getMinimumBalanceForRentExemption + fee calls)
-  const solanaSnapCalls = [
-    [
-      'SnapController:handleRequest',
-      {
-        snapId: 'npm:@metamask/solana-snap',
-        origin: 'metamask',
-        handler: 'onProtocolRequest',
-        request: {
-          jsonrpc: '2.0',
-          method: ' ',
-          params: {
-            request: {
-              id: expect.any(String),
-              jsonrpc: '2.0',
-              method: 'getMinimumBalanceForRentExemption',
-              params: [0, { commitment: 'confirmed' }],
-            },
-            scope: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
-          },
-        },
-      },
-    ],
-    ...getFeeSnapCalls,
-    [
-      'SnapController:handleRequest',
-      {
-        snapId: 'npm:@metamask/solana-snap',
-        origin: 'metamask',
-        handler: 'onProtocolRequest',
-        request: {
-          jsonrpc: '2.0',
-          method: ' ',
-          params: {
-            request: {
-              id: expect.any(String),
-              jsonrpc: '2.0',
-              method: 'getMinimumBalanceForRentExemption',
-              params: [0, { commitment: 'confirmed' }],
-            },
-            scope: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
-          },
-        },
-      },
-    ],
-  ];
-
-  // calls for mixed quotes (just getMinimumBalanceForRentExemption calls, no fee calls)
-  const mixedQuotesSnapCalls = [
-    [
-      'SnapController:handleRequest',
-      {
-        snapId: 'npm:@metamask/solana-snap',
-        origin: 'metamask',
-        handler: 'onProtocolRequest',
-        request: {
-          jsonrpc: '2.0',
-          method: ' ',
-          params: {
-            request: {
-              id: expect.any(String),
-              jsonrpc: '2.0',
-              method: 'getMinimumBalanceForRentExemption',
-              params: [0, { commitment: 'confirmed' }],
-            },
-            scope: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
-          },
-        },
-      },
-    ],
-    [
-      'SnapController:handleRequest',
-      {
-        snapId: 'npm:@metamask/solana-snap',
-        origin: 'metamask',
-        handler: 'onProtocolRequest',
-        request: {
-          jsonrpc: '2.0',
-          method: ' ',
-          params: {
-            request: {
-              id: expect.any(String),
-              jsonrpc: '2.0',
-              method: 'getMinimumBalanceForRentExemption',
-              params: [0, { commitment: 'confirmed' }],
-            },
-            scope: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
-          },
-        },
-      },
-    ],
-  ];
-
   it.each([
     [
       'should append solanaFees for Solana quotes',
       mockBridgeQuotesSolErc20 as unknown as QuoteResponse[],
       2,
       '5000',
-      solanaSnapCalls,
+      '300',
     ],
     [
       'should not append solanaFees if selected account is not a snap',
       mockBridgeQuotesSolErc20 as unknown as QuoteResponse[],
       2,
       undefined,
-      [],
-      false,
+      '0',
+      true,
     ],
     [
       'should handle mixed Solana and non-Solana quotes by not appending fees',
@@ -1297,7 +1428,7 @@ describe('BridgeController', function () {
       ] as unknown as QuoteResponse[],
       8,
       undefined,
-      mixedQuotesSnapCalls,
+      '1',
     ],
   ])(
     'updateBridgeQuoteRequestParams: %s',
@@ -1306,8 +1437,8 @@ describe('BridgeController', function () {
       quoteResponse: QuoteResponse[],
       expectedQuotesLength: number,
       expectedFees: string | undefined,
-      expectedSnapCalls: typeof solanaSnapCalls,
-      isSnapAccount = true,
+      expectedMinBalance: string | undefined,
+      isEvmAccount = false,
     ) => {
       jest.useFakeTimers();
       const stopAllPollingSpy = jest.spyOn(bridgeController, 'stopAllPolling');
@@ -1320,12 +1451,30 @@ describe('BridgeController', function () {
         (
           ...args: Parameters<BridgeControllerMessenger['call']>
         ): ReturnType<BridgeControllerMessenger['call']> => {
-          const actionType = args[0];
+          const [actionType, params] = args;
 
           if (
-            actionType === 'AccountsController:getSelectedMultichainAccount' &&
-            isSnapAccount
+            actionType === 'AccountsController:getSelectedMultichainAccount'
           ) {
+            if (isEvmAccount) {
+              return {
+                type: EthAccountType.Eoa,
+                id: 'account1',
+                scopes: [EthScope.Eoa],
+                methods: [],
+                address: '0x123',
+                metadata: {
+                  name: 'Account 1',
+                  importTime: 1717334400,
+                  keyring: {
+                    type: 'Keyring',
+                  },
+                },
+                options: {
+                  scope: 'mainnet',
+                },
+              };
+            }
             return {
               type: SolAccountType.DataAccount,
               id: 'account1',
@@ -1345,33 +1494,24 @@ describe('BridgeController', function () {
                 },
               },
               options: {
-                scope: 'mainnet',
+                scope: SolScope.Mainnet,
               },
             };
           }
-          if (
-            actionType === 'AccountsController:getSelectedMultichainAccount'
-          ) {
-            return {
-              type: EthAccountType.Eoa,
-              id: 'account1',
-              scopes: [EthScope.Eoa],
-              methods: [],
-              address: '0x123',
-              metadata: {
-                name: 'Account 1',
-                importTime: 1717334400,
-                keyring: {
-                  type: 'Keyring',
-                },
-              },
-              options: {
-                scope: 'mainnet',
-              },
-            };
-          }
+
           if (actionType === 'SnapController:handleRequest') {
-            return { value: '5000' } as never;
+            return new Promise((resolve) => {
+              if (
+                (params as { handler: string })?.handler === 'onProtocolRequest'
+              ) {
+                return setTimeout(() => {
+                  resolve(expectedMinBalance);
+                }, 200);
+              }
+              return setTimeout(() => {
+                resolve({ value: expectedFees });
+              }, 100);
+            });
           }
           return {
             provider: jest.fn() as never,
@@ -1410,25 +1550,38 @@ describe('BridgeController', function () {
       expect(hasSufficientBalanceSpy).not.toHaveBeenCalled();
 
       // Loading state
-      jest.advanceTimersByTime(500);
+      jest.advanceTimersByTime(201);
+      await flushPromises();
+      expect(bridgeController.state).toStrictEqual(
+        expect.objectContaining({
+          quotesLoadingStatus: RequestStatus.LOADING,
+          quotes: [],
+          minimumBalanceForRentExemptionInLamports: expectedMinBalance,
+        }),
+      );
+      jest.advanceTimersByTime(295);
       await flushPromises();
       expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
 
       // After fetch completes
-      jest.advanceTimersByTime(1500);
+      jest.advanceTimersByTime(2601);
       await flushPromises();
 
+      jest.advanceTimersByTime(100);
+      await flushPromises();
       const { quotes } = bridgeController.state;
       expect(bridgeController.state).toStrictEqual(
         expect.objectContaining({
-          quotesLoadingStatus: 1,
+          quotesLoadingStatus: RequestStatus.FETCHED,
           quotesRefreshCount: 1,
         }),
       );
 
       // Verify Solana fees
       quotes.forEach((quote) => {
-        expect(quote.solanaFeesInLamports).toBe(expectedFees);
+        expect(quote.solanaFeesInLamports).toBe(
+          isSolanaChainId(quote.quote.srcChainId) ? expectedFees : undefined,
+        );
       });
 
       // Verify snap interaction
@@ -1436,7 +1589,7 @@ describe('BridgeController', function () {
         ([methodName]) => methodName === 'SnapController:handleRequest',
       );
 
-      expect(snapCalls).toMatchObject(expectedSnapCalls);
+      expect(snapCalls).toMatchSnapshot();
 
       expect(quotes).toHaveLength(expectedQuotesLength);
     },
@@ -1469,7 +1622,7 @@ describe('BridgeController', function () {
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
-      // eslint-disable-next-line jest/no-restricted-matchers
+
       expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
     });
 
@@ -1479,7 +1632,7 @@ describe('BridgeController', function () {
         { abc: 1 },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
-      // eslint-disable-next-line jest/no-restricted-matchers
+
       expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
     });
 
@@ -1497,7 +1650,7 @@ describe('BridgeController', function () {
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
-      // eslint-disable-next-line jest/no-restricted-matchers
+
       expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
     });
 
@@ -1513,7 +1666,7 @@ describe('BridgeController', function () {
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
-      // eslint-disable-next-line jest/no-restricted-matchers
+
       expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
     });
 
@@ -1531,7 +1684,7 @@ describe('BridgeController', function () {
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
-      // eslint-disable-next-line jest/no-restricted-matchers
+
       expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
     });
 
@@ -1550,7 +1703,7 @@ describe('BridgeController', function () {
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
-      // eslint-disable-next-line jest/no-restricted-matchers
+
       expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
     });
 
@@ -1569,7 +1722,7 @@ describe('BridgeController', function () {
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
-      // eslint-disable-next-line jest/no-restricted-matchers
+
       expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
     });
   });
@@ -1577,18 +1730,16 @@ describe('BridgeController', function () {
   describe('trackUnifiedSwapBridgeEvent bridge-status-controller calls', () => {
     beforeEach(() => {
       jest.clearAllMocks();
-      messengerMock.call.mockImplementation(
-        (): ReturnType<BridgeControllerMessenger['call']> => {
-          return {
-            provider: jest.fn() as never,
-            selectedNetworkClientId: 'selectedNetworkClientId',
-            rpcUrl: 'https://mainnet.infura.io/v3/123',
-            configuration: {
-              chainId: 'eip155:1',
-            },
-          } as never;
-        },
-      );
+      messengerMock.call.mockImplementation(() => {
+        return {
+          provider: jest.fn() as never,
+          selectedNetworkClientId: 'selectedNetworkClientId',
+          rpcUrl: 'https://mainnet.infura.io/v3/123',
+          configuration: {
+            chainId: 'eip155:1',
+          },
+        } as never;
+      });
     });
 
     it('should track the SnapConfirmationViewed event', () => {
@@ -1605,7 +1756,7 @@ describe('BridgeController', function () {
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
-      // eslint-disable-next-line jest/no-restricted-matchers
+
       expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
     });
 
@@ -1635,7 +1786,7 @@ describe('BridgeController', function () {
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
-      // eslint-disable-next-line jest/no-restricted-matchers
+
       expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
     });
 
@@ -1673,7 +1824,7 @@ describe('BridgeController', function () {
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
-      // eslint-disable-next-line jest/no-restricted-matchers
+
       expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
     });
 
@@ -1710,7 +1861,7 @@ describe('BridgeController', function () {
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
-      // eslint-disable-next-line jest/no-restricted-matchers
+
       expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
     });
   });
