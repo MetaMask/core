@@ -1440,6 +1440,8 @@ describe('BridgeStatusController', () => {
     it('should successfully submit a Solana transaction', async () => {
       mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
       mockMessengerCall.mockResolvedValueOnce({
+        // We now use a `KeyringClient` to dispatch keyring requests, thus
+        // the return type has to follow this shape:
         pending: false,
         result: {
           signature: 'signature',
