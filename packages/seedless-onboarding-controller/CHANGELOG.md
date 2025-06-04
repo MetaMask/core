@@ -30,5 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated `toprf-secure-backup` to `0.3.1`. ([#5880](https://github.com/MetaMask/core/pull/5880))
   - added an optional constructor param, `topfKeyDeriver` to assist the `Key derivation` in `toprf-seucre-backup` sdk and adds an additinal security
   - added new state value, `recoveryRatelimitCache` to the controller to parse the `RecoveryError` correctly and synchroize the error data (numberOfAttempts) across multiple devices.
+- Add refresh and revoke token handling ([#5917](https://github.com/MetaMask/core/pull/5917))
+  - persist refresh token in state
+  - store revoke token in vault
+  - check for token expired in toprf call, refresh token and retry if expired
+  - revoke refresh token and replace with new one after password submit to prevent malicious use if refresh token leak in persisted state
 
 [Unreleased]: https://github.com/MetaMask/core/
