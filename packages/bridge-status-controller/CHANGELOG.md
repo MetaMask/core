@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [29.1.0]
+
 ### Added
 
 - Include all invalid status properties in sentry logs ([#5913](https://github.com/MetaMask/core/pull/5913))
@@ -301,7 +303,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@29.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@29.1.0...HEAD
+[29.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@29.0.0...@metamask/bridge-status-controller@29.1.0
 [29.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@28.0.0...@metamask/bridge-status-controller@29.0.0
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@27.0.0...@metamask/bridge-status-controller@28.0.0
 [27.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@26.0.0...@metamask/bridge-status-controller@27.0.0
