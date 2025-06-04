@@ -251,15 +251,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       ...paramsToUpdate,
     };
 
-    if (
-      paramsToUpdate.srcChainId &&
-      paramsToUpdate.srcChainId !== this.state.quoteRequest.srcChainId
-    ) {
-      await this.#setMinimumBalanceForRentExemptionInLamports(
-        paramsToUpdate.srcChainId,
-      );
-    }
-
     this.update((state) => {
       state.quoteRequest = updatedQuoteRequest;
       state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
