@@ -14,5 +14,5 @@ export type {
 } from './AccountTreeController';
 export {
   AccountTreeController,
-  getDefaultAccountTreeControllerState
+  getDefaultAccountTreeControllerState,
 } from './AccountTreeController';

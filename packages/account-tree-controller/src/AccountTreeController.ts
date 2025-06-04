@@ -18,11 +18,11 @@ import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controlle
 import type { SnapId } from '@metamask/snaps-sdk';
 import { stripSnapPrefix } from '@metamask/snaps-utils';
 
-import { getAccountGroupRootNameFromKeyringType } from './names';
+import { getAccountWalletNameFromKeyringType } from './names';
 
 const controllerName = 'AccountTreeController';
 
-export enum AccountGroupRootCategory {
+export enum AccountWalletCategory {
   Entropy = 'entropy',
   Snap = 'snap',
   Keyring = 'keyring',
@@ -30,29 +30,29 @@ export enum AccountGroupRootCategory {
 }
 
 type AccountTreeRuleMatch = {
-  category: AccountGroupRootCategory;
-  id: AccountGroupRootId;
+  category: AccountWalletCategory;
+  id: AccountWalletId;
   name: string;
 };
 
-type AccountReverseMapping = {
-  walletId: AccountGroupRootId;
-  groupId: AccountGroupId;
-};
-
-type AccountGroupRootRuleFunction = (
+type AccountTreeRuleFunction = (
   account: InternalAccount,
 ) => AccountTreeRuleMatch | undefined;
 
-export type AccountGroupRootId = `${AccountGroupRootCategory}:${string}`;
-export type AccountGroupId = `${AccountGroupRootId}:${string}`;
+type AccountReverseMapping = {
+  walletId: AccountWalletId;
+  groupId: AccountGroupId;
+};
+
+export type AccountWalletId = `${AccountWalletCategory}:${string}`;
+export type AccountGroupId = `${AccountWalletId}:${string}`;
 
 // Do not export this one, we just use it to have a common type interface between group and wallet metadata.
 type Metadata = {
   name: string;
 };
 
-export type AccountGroupRootMetadata = Metadata;
+export type AccountWalletMetadata = Metadata;
 
 export type AccountGroupMetadata = Metadata;
 
@@ -63,20 +63,20 @@ export type AccountGroup = {
   metadata: AccountGroupMetadata;
 };
 
-export type AccountGroupRoot = {
-  id: AccountGroupRootId;
+export type AccountWallet = {
+  id: AccountWalletId;
   // Account groups OR Multichain accounts (once available).
   groups: {
-    [accountGroup: AccountGroupId]: AccountGroup;
+    [groupId: AccountGroupId]: AccountGroup;
   };
   metadata: AccountGroupMetadata; // Assuming Metadata is a defined type
 };
 
 export type AccountTreeControllerState = {
-  accountTrees: {
-    roots: {
+  accountTree: {
+    wallets: {
       // Wallets:
-      [accountGroupRoot: AccountGroupRootId]: AccountGroupRoot;
+      [walletId: AccountWalletId]: AccountWallet;
     };
   };
 };
@@ -114,7 +114,7 @@ export type AccountTreeControllerMessenger = RestrictedMessenger<
 
 const accountTreeControllerMetadata: StateMetadata<AccountTreeControllerState> =
   {
-    accountTrees: {
+    accountTree: {
       persist: false, // We do re-recompute this state everytime.
       anonymous: false,
     },
@@ -127,8 +127,8 @@ const accountTreeControllerMetadata: StateMetadata<AccountTreeControllerState> =
  */
 export function getDefaultAccountTreeControllerState(): AccountTreeControllerState {
   return {
-    accountTrees: {
-      roots: {},
+    accountTree: {
+      wallets: {},
     },
   };
 }
@@ -138,43 +138,43 @@ export const DEFAULT_ACCOUNT_GROUP_UNIQUE_ID: string = 'default'; // This might 
 export const DEFAULT_ACCOUNT_GROUP_NAME: string = 'Default';
 
 /**
- * Convert a unique ID to a group root ID for a given category.
+ * Convert a unique ID to a wallet ID for a given category.
  *
- * @param category - The category of the account group root.
- * @param id - The unique ID.
- * @returns The group root ID.
+ * @param category - A wallet category.
+ * @param id - A unique ID.
+ * @returns A wallet ID.
  */
-export function toAccountGroupRootId(
-  category: AccountGroupRootCategory,
+export function toAccountWalletId(
+  category: AccountWalletCategory,
   id: string,
-): AccountGroupRootId {
+): AccountWalletId {
   return `${category}:${id}`;
 }
 
 /**
- * Convert a group root ID and a unique ID to a group ID.
+ * Convert a wallet ID and a unique ID, to a group ID.
  *
- * @param groupRootId - The group root ID.
- * @param id - The unique ID.
- * @returns The group ID.
+ * @param walletId - A wallet ID.
+ * @param id - A unique ID.
+ * @returns A group ID.
  */
 export function toAccountGroupId(
-  groupRootId: AccountGroupRootId,
+  walletId: AccountWalletId,
   id: string,
 ): AccountGroupId {
-  return `${groupRootId}:${id}`;
+  return `${walletId}:${id}`;
 }
 
 /**
- * Convert a group root ID to the default group ID.
+ * Convert a wallet ID to the default group ID.
  *
- * @param groupRootId - The group root ID.
+ * @param walletId - A wallet ID.
  * @returns The default group ID.
  */
 export function toDefaultAccountGroupId(
-  groupRootId: AccountGroupRootId,
+  walletId: AccountWalletId,
 ): AccountGroupId {
-  return toAccountGroupId(groupRootId, DEFAULT_ACCOUNT_GROUP_UNIQUE_ID);
+  return toAccountGroupId(walletId, DEFAULT_ACCOUNT_GROUP_UNIQUE_ID);
 }
 
 export class AccountTreeController extends BaseController<
@@ -184,7 +184,7 @@ export class AccountTreeController extends BaseController<
 > {
   readonly #reverse: Map<AccountId, AccountReverseMapping>;
 
-  readonly #rules: AccountGroupRootRuleFunction[];
+  readonly #rules: AccountTreeRuleFunction[];
 
   /**
    * Constructor for AccountTreeController.
@@ -239,21 +239,21 @@ export class AccountTreeController extends BaseController<
   }
 
   init() {
-    const roots = {};
+    const wallets = {};
 
     // For now, we always re-compute all wallets, we do not re-use the existing state.
     for (const account of this.#listAccounts()) {
-      this.#insert(roots, account);
+      this.#insert(wallets, account);
     }
 
     this.update((state) => {
-      state.accountTrees.roots = roots;
+      state.accountTree.wallets = wallets;
     });
   }
 
   #handleAccountAdded(account: InternalAccount) {
     this.update((state) => {
-      this.#insert(state.accountTrees.roots, account);
+      this.#insert(state.accountTree.wallets, account);
     });
   }
 
@@ -263,7 +263,8 @@ export class AccountTreeController extends BaseController<
     if (found) {
       const { walletId, groupId } = found;
       this.update((state) => {
-        const { accounts } = state.accountTrees.roots[walletId].groups[groupId];
+        const { accounts } =
+          state.accountTree.wallets[walletId].groups[groupId];
 
         const index = accounts.indexOf(accountId);
         if (index !== -1) {
@@ -321,8 +322,8 @@ export class AccountTreeController extends BaseController<
     }
 
     return {
-      category: AccountGroupRootCategory.Entropy,
-      id: toAccountGroupRootId(AccountGroupRootCategory.Entropy, entropySource),
+      category: AccountWalletCategory.Entropy,
+      id: toAccountWalletId(AccountWalletCategory.Entropy, entropySource),
       name: entropySourceName,
     };
   }
@@ -338,8 +339,8 @@ export class AccountTreeController extends BaseController<
       const { id } = account.metadata.snap;
 
       return {
-        category: AccountGroupRootCategory.Snap,
-        id: toAccountGroupRootId(AccountGroupRootCategory.Snap, id),
+        category: AccountWalletCategory.Snap,
+        id: toAccountWalletId(AccountWalletCategory.Snap, id),
         name: this.#getSnapName(id as SnapId),
       };
     }
@@ -353,9 +354,9 @@ export class AccountTreeController extends BaseController<
     const { type } = account.metadata.keyring;
 
     return {
-      category: AccountGroupRootCategory.Keyring,
-      id: toAccountGroupRootId(AccountGroupRootCategory.Keyring, type),
-      name: getAccountGroupRootNameFromKeyringType(type as KeyringTypes),
+      category: AccountWalletCategory.Keyring,
+      id: toAccountWalletId(AccountWalletCategory.Keyring, type),
+      name: getAccountWalletNameFromKeyringType(type as KeyringTypes),
     };
   }
 
@@ -387,7 +388,7 @@ export class AccountTreeController extends BaseController<
   }
 
   #insert(
-    roots: { [accountGroupRootId: AccountGroupRootId]: AccountGroupRoot },
+    wallets: { [walletId: AccountWalletId]: AccountWallet },
     account: InternalAccount,
   ) {
     for (const rule of this.#rules) {
@@ -403,8 +404,8 @@ export class AccountTreeController extends BaseController<
       const groupId = toDefaultAccountGroupId(walletId); // Use a single-group for now until multichain accounts is supported.
       const groupName = DEFAULT_ACCOUNT_GROUP_NAME;
 
-      if (!roots[walletId]) {
-        roots[walletId] = {
+      if (!wallets[walletId]) {
+        wallets[walletId] = {
           id: walletId,
           groups: {
             [groupId]: {
@@ -418,7 +419,7 @@ export class AccountTreeController extends BaseController<
           },
         };
       }
-      roots[walletId].groups[groupId].accounts.push(account.id);
+      wallets[walletId].groups[groupId].accounts.push(account.id);
 
       // Update the reverse mapping for this account.
       this.#reverse.set(account.id, {

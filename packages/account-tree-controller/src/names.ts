@@ -6,7 +6,7 @@ import { KeyringTypes } from '@metamask/keyring-controller';
  * @param type - Keyring's type.
  * @returns Wallet name.
  */
-export function getAccountGroupRootNameFromKeyringType(type: KeyringTypes) {
+export function getAccountWalletNameFromKeyringType(type: KeyringTypes) {
   switch (type) {
     case KeyringTypes.simple: {
       return 'Private Keys';

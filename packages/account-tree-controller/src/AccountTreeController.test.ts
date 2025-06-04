@@ -12,7 +12,7 @@ import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controlle
 
 import {
   AccountTreeController,
-  AccountGroupRootCategory,
+  AccountWalletCategory,
   type AccountTreeControllerMessenger,
   type AccountTreeControllerActions,
   type AccountTreeControllerEvents,
@@ -22,9 +22,9 @@ import {
   type AccountGroupMetadata,
   toDefaultAccountGroupId,
   DEFAULT_ACCOUNT_GROUP_NAME,
-  toAccountGroupRootId,
+  toAccountWalletId,
 } from './AccountTreeController';
-import { getAccountGroupRootNameFromKeyringType } from './names';
+import { getAccountWalletNameFromKeyringType } from './names';
 
 const ETH_EOA_METHODS = [
   EthMethod.PersonalSign,
@@ -239,23 +239,23 @@ describe('AccountTreeController', () => {
 
       controller.init();
 
-      const expectedWalletId1 = toAccountGroupRootId(
-        AccountGroupRootCategory.Entropy,
+      const expectedWalletId1 = toAccountWalletId(
+        AccountWalletCategory.Entropy,
         MOCK_HD_KEYRING_1.metadata.id,
       );
       const expectedWalletId1Group = toDefaultAccountGroupId(expectedWalletId1);
-      const expectedWalletId2 = toAccountGroupRootId(
-        AccountGroupRootCategory.Entropy,
+      const expectedWalletId2 = toAccountWalletId(
+        AccountWalletCategory.Entropy,
         MOCK_HD_KEYRING_2.metadata.id,
       );
       const expectedWalletId2Group = toDefaultAccountGroupId(expectedWalletId2);
-      const expectedSnapWalletId = toAccountGroupRootId(
-        AccountGroupRootCategory.Snap,
+      const expectedSnapWalletId = toAccountWalletId(
+        AccountWalletCategory.Snap,
         MOCK_SNAP_2.id,
       );
       const expectedSnapWalletIdGroup =
         toDefaultAccountGroupId(expectedSnapWalletId);
-      const expectedKeyringWalletId = `${AccountGroupRootCategory.Keyring}:${KeyringTypes.ledger}`;
+      const expectedKeyringWalletId = `${AccountWalletCategory.Keyring}:${KeyringTypes.ledger}`;
       const expectedKeyringWalletIdGroup = toDefaultAccountGroupId(
         expectedKeyringWalletId,
       );
@@ -265,8 +265,8 @@ describe('AccountTreeController', () => {
       };
 
       expect(controller.state).toStrictEqual({
-        accountTrees: {
-          roots: {
+        accountTree: {
+          wallets: {
             [expectedWalletId1]: {
               id: expectedWalletId1,
               groups: {
@@ -310,14 +310,14 @@ describe('AccountTreeController', () => {
                 },
               },
               metadata: {
-                name: getAccountGroupRootNameFromKeyringType(
+                name: getAccountWalletNameFromKeyringType(
                   MOCK_HARDWARE_ACCOUNT_1.metadata.keyring.type as KeyringTypes,
                 ),
               },
             },
           },
         },
-      });
+      } as AccountTreeControllerState);
     });
 
     it('warns and fall back to wallet type grouping if an HD account is missing entropySource', () => {
@@ -344,13 +344,13 @@ describe('AccountTreeController', () => {
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         "! Found an HD account with no entropy source: account won't be associated to its wallet",
       );
-      const expectedKeyringWalletId = toAccountGroupRootId(
-        AccountGroupRootCategory.Keyring,
+      const expectedKeyringWalletId = toAccountWalletId(
+        AccountWalletCategory.Keyring,
         KeyringTypes.hd,
       );
       const expectedGroupId = toDefaultAccountGroupId(expectedKeyringWalletId);
       expect(
-        controller.state.accountTrees.roots[expectedKeyringWalletId]?.groups[
+        controller.state.accountTree.wallets[expectedKeyringWalletId]?.groups[
           expectedGroupId
         ]?.accounts,
       ).toContain(mockHdAccountWithoutEntropy.id);
@@ -378,13 +378,13 @@ describe('AccountTreeController', () => {
 
       controller.init();
 
-      const expectedWalletId = toAccountGroupRootId(
-        AccountGroupRootCategory.Entropy,
+      const expectedWalletId = toAccountWalletId(
+        AccountWalletCategory.Entropy,
         MOCK_HD_KEYRING_2.metadata.id,
       );
       const expectedGroupId = toDefaultAccountGroupId(expectedWalletId);
       expect(
-        controller.state.accountTrees.roots[expectedWalletId]?.groups[
+        controller.state.accountTree.wallets[expectedWalletId]?.groups[
           expectedGroupId
         ]?.accounts,
       ).toContain(mockSnapAccountWithEntropy.id);
@@ -406,14 +406,14 @@ describe('AccountTreeController', () => {
 
       // Since no entropy sources will be found, it will be categorized as a
       // "Keyring" wallet
-      const wallet1Id = toAccountGroupRootId(
-        AccountGroupRootCategory.Snap,
+      const wallet1Id = toAccountWalletId(
+        AccountWalletCategory.Snap,
         MOCK_SNAP_1.id,
       );
 
       // FIXME: Do we really want this behavior?
       expect(
-        controller.state.accountTrees.roots[wallet1Id]?.metadata.name,
+        controller.state.accountTree.wallets[wallet1Id]?.metadata.name,
       ).toBe('Snap: mock-snap-id-1');
     });
 
@@ -441,21 +441,21 @@ describe('AccountTreeController', () => {
 
       // Since no entropy sources will be found, it will be categorized as a
       // "Keyring" wallet
-      const wallet1Id = toAccountGroupRootId(
-        AccountGroupRootCategory.Keyring,
+      const wallet1Id = toAccountWalletId(
+        AccountWalletCategory.Keyring,
         mockHdAccount1.metadata.keyring.type,
       );
-      const wallet2Id = toAccountGroupRootId(
-        AccountGroupRootCategory.Keyring,
+      const wallet2Id = toAccountWalletId(
+        AccountWalletCategory.Keyring,
         mockHdAccount1.metadata.keyring.type,
       );
 
       // FIXME: Do we really want this behavior?
       expect(
-        controller.state.accountTrees.roots[wallet1Id]?.metadata.name,
+        controller.state.accountTree.wallets[wallet1Id]?.metadata.name,
       ).toBe('HD Wallet');
       expect(
-        controller.state.accountTrees.roots[wallet2Id]?.metadata.name,
+        controller.state.accountTree.wallets[wallet2Id]?.metadata.name,
       ).toBe('HD Wallet');
     });
   });
@@ -492,14 +492,14 @@ describe('AccountTreeController', () => {
 
       messenger.publish('AccountsController:accountRemoved', mockHdAccount1.id);
 
-      const walletId1 = toAccountGroupRootId(
-        AccountGroupRootCategory.Entropy,
+      const walletId1 = toAccountWalletId(
+        AccountWalletCategory.Entropy,
         MOCK_HD_KEYRING_1.metadata.id,
       );
       const walletId1Group = toDefaultAccountGroupId(walletId1);
       expect(controller.state).toStrictEqual({
-        accountTrees: {
-          roots: {
+        accountTree: {
+          wallets: {
             [walletId1]: {
               id: walletId1,
               groups: {
@@ -513,7 +513,7 @@ describe('AccountTreeController', () => {
             },
           },
         },
-      });
+      } as AccountTreeControllerState);
     });
   });
 
@@ -549,14 +549,14 @@ describe('AccountTreeController', () => {
 
       messenger.publish('AccountsController:accountAdded', mockHdAccount2);
 
-      const walletId1 = toAccountGroupRootId(
-        AccountGroupRootCategory.Entropy,
+      const walletId1 = toAccountWalletId(
+        AccountWalletCategory.Entropy,
         MOCK_HD_KEYRING_1.metadata.id,
       );
       const walletId1Group = toDefaultAccountGroupId(walletId1);
       expect(controller.state).toStrictEqual({
-        accountTrees: {
-          roots: {
+        accountTree: {
+          wallets: {
             [walletId1]: {
               id: walletId1,
               groups: {
@@ -570,7 +570,7 @@ describe('AccountTreeController', () => {
             },
           },
         },
-      });
+      } as AccountTreeControllerState);
     });
   });
 });
