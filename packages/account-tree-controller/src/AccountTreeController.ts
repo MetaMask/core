@@ -24,8 +24,8 @@ const controllerName = 'AccountTreeController';
 
 export enum AccountWalletCategory {
   Entropy = 'entropy',
-  Snap = 'snap',
   Keyring = 'keyring',
+  Snap = 'snap',
 }
 
 type AccountTreeRuleMatch = {
