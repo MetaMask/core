@@ -1148,7 +1148,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
 
     if (!this.state.revokeToken) {
       throw new Error(
-        SeedlessOnboardingControllerErrorMessage.InsufficientAuthToken,
+        SeedlessOnboardingControllerErrorMessage.InvalidRevokeToken,
       );
     }
 
