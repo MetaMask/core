@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: explicitly pass networkClientId for nftController ([#5622](https://github.com/MetaMask/core/pull/5622))
+
 ## [23.5.1]
 
 ### Changed
