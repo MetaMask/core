@@ -12,4 +12,7 @@ export type {
   AccountGroupId,
   AccountGroupMetadata,
 } from './AccountTreeController';
-export { AccountTreeController } from './AccountTreeController';
+export {
+  AccountTreeController,
+  getDefaultAccountTreeControllerState
+} from './AccountTreeController';
