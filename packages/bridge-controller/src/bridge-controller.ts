@@ -272,6 +272,14 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         DEFAULT_BRIDGE_CONTROLLER_STATE.quotesRefreshCount;
       state.quotesInitialLoadTime =
         DEFAULT_BRIDGE_CONTROLLER_STATE.quotesInitialLoadTime;
+      // Reset required minimum balance if the source chain is not Solana
+      if (
+        updatedQuoteRequest.srcChainId &&
+        !isSolanaChainId(updatedQuoteRequest.srcChainId)
+      ) {
+        state.minimumBalanceForRentExemptionInLamports =
+          DEFAULT_BRIDGE_CONTROLLER_STATE.minimumBalanceForRentExemptionInLamports;
+      }
     });
 
     await this.#fetchAssetExchangeRates(updatedQuoteRequest).catch((error) =>
