@@ -466,7 +466,7 @@ describe('AccountTreeController', () => {
     });
   });
 
-  describe('#handleAccountRemoved', () => {
+  describe('on AccountsController:accountRemoved', () => {
     it('removes an account from the tree', () => {
       const { controller, messenger } = setup();
       //
@@ -523,7 +523,7 @@ describe('AccountTreeController', () => {
     });
   });
 
-  describe('#handleAccountAdded', () => {
+  describe('on AccountsController:accountAdded', () => {
     it('adds an account from the tree', () => {
       const { controller, messenger } = setup();
       //
