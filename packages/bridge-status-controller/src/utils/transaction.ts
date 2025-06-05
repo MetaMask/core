@@ -7,6 +7,7 @@ import {
   type QuoteMetadata,
   type QuoteResponse,
 } from '@metamask/bridge-controller';
+import type { KeyringRequest } from '@metamask/keyring-api';
 import { SolScope } from '@metamask/keyring-api';
 import {
   TransactionStatus,
@@ -126,31 +127,23 @@ export const handleLineaDelay = async (
 export const getKeyringRequest = (
   quoteResponse: Omit<QuoteResponse<string>, 'approval'> & QuoteMetadata,
   selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
-) => {
+): KeyringRequest => {
   const keyringReqId = uuid();
-  const snapRequestId = uuid();
 
   return {
+    // An origin is now required on the inner-request. We use `'metamask'` here since
+    // those requests will be dispatched by MetaMask itself (internal use only).
     origin: 'metamask',
-    snapId: selectedAccount.metadata.snap?.id as never,
-    handler: 'onKeyringRequest' as never,
     request: {
-      id: keyringReqId,
-      jsonrpc: '2.0',
-      method: 'keyring_submitRequest',
       params: {
-        request: {
-          params: {
-            account: { address: selectedAccount.address },
-            transaction: quoteResponse.trade,
-            scope: SolScope.Mainnet,
-          },
-          method: 'signAndSendTransaction',
-        },
-        id: snapRequestId,
-        account: selectedAccount.id,
+        account: { address: selectedAccount.address },
+        transaction: quoteResponse.trade,
         scope: SolScope.Mainnet,
       },
+      method: 'signAndSendTransaction',
     },
+    id: keyringReqId,
+    account: selectedAccount.id,
+    scope: SolScope.Mainnet,
   };
 };

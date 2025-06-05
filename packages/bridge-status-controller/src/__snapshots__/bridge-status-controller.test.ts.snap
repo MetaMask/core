@@ -2866,6 +2866,7 @@ Array [
         "params": Object {
           "account": undefined,
           "id": "test-uuid-1234",
+          "origin": "metamask",
           "request": Object {
             "method": "signAndSendTransaction",
             "params": Object {

@@ -19,7 +19,10 @@ import {
 import type { TraceCallback } from '@metamask/controller-utils';
 import { toHex } from '@metamask/controller-utils';
 import { EthAccountType } from '@metamask/keyring-api';
+import { KeyringClient } from '@metamask/keyring-snap-client';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
+import type { SnapId } from '@metamask/snaps-sdk';
+import { HandlerType } from '@metamask/snaps-utils';
 import type {
   TransactionController,
   TransactionParams,
@@ -30,6 +33,7 @@ import {
   type TransactionMeta,
 } from '@metamask/transaction-controller';
 import type { UserOperationController } from '@metamask/user-operation-controller';
+import type { Json, JsonRpcRequest } from '@metamask/utils';
 import { numberToHex, type Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
@@ -537,6 +541,24 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    */
 
   /**
+   * Gets a keyring client for a given Snap ID.
+   *
+   * @param snapId - The Snap ID.
+   * @returns The keyring client.
+   */
+  #getKeyringClient(snapId: SnapId): KeyringClient {
+    return new KeyringClient({
+      send: async (request: JsonRpcRequest) =>
+        (await this.messagingSystem.call('SnapController:handleRequest', {
+          snapId,
+          origin: 'metamask',
+          handler: HandlerType.OnKeyringRequest,
+          request,
+        })) as Promise<Json>,
+    });
+  }
+
+  /**
    * Submits the transaction to the snap using the keyring rpc method
    * This adds an approval tx to the ApprovalsController in the background
    * The client needs to handle the approval tx by redirecting to the confirmation page with the approvalTxId in the URL
@@ -559,9 +581,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         'Failed to submit cross-chain swap transaction: undefined snap id',
       );
     }
+
+    const keyringClient = this.#getKeyringClient(
+      selectedAccount.metadata.snap.id as SnapId,
+    );
     const keyringRequest = getKeyringRequest(quoteResponse, selectedAccount);
-    const keyringResponse = (await this.messagingSystem.call(
-      'SnapController:handleRequest',
+    const keyringResponse = (await keyringClient.submitRequest(
       keyringRequest,
     )) as string | { result: Record<string, string> };
 
