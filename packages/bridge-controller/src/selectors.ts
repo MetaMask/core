@@ -25,6 +25,7 @@ import type {
 import { RequestStatus, SortOrder } from './types';
 import {
   getNativeAssetForChainId,
+  isCrossChain,
   isNativeAddress,
   isSolanaChainId,
 } from './utils/bridge';
@@ -405,6 +406,30 @@ export const selectBridgeQuotes = createStructuredBridgeSelector({
   quotesInitialLoadTimeMs: (state) => state.quotesInitialLoadTime,
   isQuoteGoingToRefresh: selectIsQuoteGoingToRefresh,
 });
+
+type MaxBalanceButtonVisibilityClientParams = {
+  isStxEnabled: boolean;
+  balanceValue: string;
+};
+export const selectMaxBalanceButtonVisibilityForSrcToken = createBridgeSelector(
+  [
+    (state) => state.quoteRequest.srcTokenAddress,
+    (state) => state.quoteRequest.srcChainId,
+    (state) => state.quoteRequest.destChainId,
+    (_, { isStxEnabled }: MaxBalanceButtonVisibilityClientParams) =>
+      isStxEnabled,
+    (_, { balanceValue }: MaxBalanceButtonVisibilityClientParams) =>
+      balanceValue,
+  ],
+
+  (srcTokenAddress, srcChainId, destChainId, isStxEnabled, balanceValue) =>
+    Boolean(
+      srcChainId &&
+        !isCrossChain(srcChainId, destChainId) &&
+        (isNativeAddress(srcTokenAddress) ? isStxEnabled : true) &&
+        new BigNumber(balanceValue ?? 0).gt(0),
+    ),
+);
 
 export const selectMinimumBalanceForRentExemptionInSOL = (
   state: BridgeAppState,
