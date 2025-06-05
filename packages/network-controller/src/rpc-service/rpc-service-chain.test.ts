@@ -1,3 +1,4 @@
+import { errorCodes } from '@metamask/rpc-errors';
 import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 import type { SinonFakeTimers } from 'sinon';
@@ -194,7 +195,7 @@ describe('RpcServiceChain', () => {
       // Retry the first endpoint until max retries is hit.
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
-          code: -32002,
+          code: errorCodes.rpc.resourceUnavailable,
           message: 'RPC endpoint not found or unavailable.',
           data: {
             httpStatus: 503,
@@ -204,7 +205,7 @@ describe('RpcServiceChain', () => {
       // Retry the first endpoint again, until max retries is hit.
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
-          code: -32002,
+          code: errorCodes.rpc.resourceUnavailable,
           message: 'RPC endpoint not found or unavailable.',
           data: {
             httpStatus: 503,
@@ -216,7 +217,7 @@ describe('RpcServiceChain', () => {
       // be retried, until max retries is hit.
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
-          code: -32002,
+          code: errorCodes.rpc.resourceUnavailable,
           message: 'RPC endpoint not found or unavailable.',
           data: {
             httpStatus: 503,
@@ -227,7 +228,7 @@ describe('RpcServiceChain', () => {
       // second endpoint, until max retries is hit.
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
-          code: -32002,
+          code: errorCodes.rpc.resourceUnavailable,
           message: 'RPC endpoint not found or unavailable.',
           data: {
             httpStatus: 503,
@@ -341,7 +342,7 @@ describe('RpcServiceChain', () => {
         rpcServiceChain.request(jsonRpcRequest, fetchOptions),
       ).rejects.toThrow(
         expect.objectContaining({
-          code: -32002,
+          code: errorCodes.rpc.resourceUnavailable,
           message: 'RPC endpoint not found or unavailable.',
           data: {
             httpStatus: 503,
@@ -353,7 +354,7 @@ describe('RpcServiceChain', () => {
         rpcServiceChain.request(jsonRpcRequest, fetchOptions),
       ).rejects.toThrow(
         expect.objectContaining({
-          code: -32002,
+          code: errorCodes.rpc.resourceUnavailable,
           message: 'RPC endpoint not found or unavailable.',
           data: {
             httpStatus: 503,
@@ -367,7 +368,7 @@ describe('RpcServiceChain', () => {
         rpcServiceChain.request(jsonRpcRequest, fetchOptions),
       ).rejects.toThrow(
         expect.objectContaining({
-          code: -32002,
+          code: errorCodes.rpc.resourceUnavailable,
           message: 'RPC endpoint not found or unavailable.',
           data: {
             httpStatus: 503,
@@ -380,7 +381,7 @@ describe('RpcServiceChain', () => {
         rpcServiceChain.request(jsonRpcRequest, fetchOptions),
       ).rejects.toThrow(
         expect.objectContaining({
-          code: -32002,
+          code: errorCodes.rpc.resourceUnavailable,
           message: 'RPC endpoint not found or unavailable.',
           data: {
             httpStatus: 503,
@@ -472,7 +473,7 @@ describe('RpcServiceChain', () => {
       // Retry the first endpoint until max retries is hit.
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
-          code: -32002,
+          code: errorCodes.rpc.resourceUnavailable,
           message: 'RPC endpoint not found or unavailable.',
           data: {
             httpStatus: 503,
@@ -482,7 +483,7 @@ describe('RpcServiceChain', () => {
       // Retry the first endpoint again, until max retries is hit.
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
-          code: -32002,
+          code: errorCodes.rpc.resourceUnavailable,
           message: 'RPC endpoint not found or unavailable.',
           data: {
             httpStatus: 503,
@@ -494,7 +495,7 @@ describe('RpcServiceChain', () => {
       // be retried, until max retries is hit.
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
-          code: -32002,
+          code: errorCodes.rpc.resourceUnavailable,
           message: 'RPC endpoint not found or unavailable.',
           data: {
             httpStatus: 503,
@@ -505,7 +506,7 @@ describe('RpcServiceChain', () => {
       // second endpoint, until max retries is hit.
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
-          code: -32002,
+          code: errorCodes.rpc.resourceUnavailable,
           message: 'RPC endpoint not found or unavailable.',
           data: {
             httpStatus: 503,
@@ -611,7 +612,7 @@ describe('RpcServiceChain', () => {
       // Retry the first endpoint until max retries is hit.
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
-          code: -32002,
+          code: errorCodes.rpc.resourceUnavailable,
           message: 'RPC endpoint not found or unavailable.',
           data: {
             httpStatus: 503,
@@ -621,7 +622,7 @@ describe('RpcServiceChain', () => {
       // Retry the first endpoint again, until max retries is hit.
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
-          code: -32002,
+          code: errorCodes.rpc.resourceUnavailable,
           message: 'RPC endpoint not found or unavailable.',
           data: {
             httpStatus: 503,
@@ -633,7 +634,7 @@ describe('RpcServiceChain', () => {
       // be retried, until max retries is hit.
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
-          code: -32002,
+          code: errorCodes.rpc.resourceUnavailable,
           message: 'RPC endpoint not found or unavailable.',
           data: {
             httpStatus: 503,
@@ -644,7 +645,7 @@ describe('RpcServiceChain', () => {
       // second endpoint, until max retries is hit.
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
-          code: -32002,
+          code: errorCodes.rpc.resourceUnavailable,
           message: 'RPC endpoint not found or unavailable.',
           data: {
             httpStatus: 503,
@@ -750,7 +751,7 @@ describe('RpcServiceChain', () => {
       // Retry the first endpoint until max retries is hit.
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
-          code: -32002,
+          code: errorCodes.rpc.resourceUnavailable,
           message: 'RPC endpoint not found or unavailable.',
           data: {
             httpStatus: 503,
@@ -760,7 +761,7 @@ describe('RpcServiceChain', () => {
       // Retry the first endpoint again, until max retries is hit.
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
-          code: -32002,
+          code: errorCodes.rpc.resourceUnavailable,
           message: 'RPC endpoint not found or unavailable.',
           data: {
             httpStatus: 503,
@@ -772,7 +773,7 @@ describe('RpcServiceChain', () => {
       // be retried, until max retries is hit.
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
-          code: -32002,
+          code: errorCodes.rpc.resourceUnavailable,
           message: 'RPC endpoint not found or unavailable.',
           data: {
             httpStatus: 503,
@@ -783,7 +784,7 @@ describe('RpcServiceChain', () => {
       // second endpoint, until max retries is hit.
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expect.objectContaining({
-          code: -32002,
+          code: errorCodes.rpc.resourceUnavailable,
           message: 'RPC endpoint not found or unavailable.',
           data: {
             httpStatus: 503,
