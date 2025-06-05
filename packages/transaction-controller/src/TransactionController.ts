@@ -1321,7 +1321,6 @@ export class TransactionController extends BaseController<
 
       if (requireApproval !== false) {
         this.#updateSimulationData(addedTransactionMeta, {
-          ethQuery,
           traceContext,
         }).catch((error) => {
           log('Error while updating simulation data', error);
@@ -3995,7 +3994,6 @@ export class TransactionController extends BaseController<
       if (!shouldSkipHistory) {
         transactionMeta = updateTransactionHistory(
           transactionMeta,
-          originalTransactionMeta,
           note ?? 'Transaction updated',
         );
       }
@@ -4103,11 +4101,9 @@ export class TransactionController extends BaseController<
     transactionMeta: TransactionMeta,
     {
       blockTime,
-      ethQuery,
       traceContext,
     }: {
       blockTime?: number;
-      ethQuery?: EthQuery;
       traceContext?: TraceContext;
     } = {},
   ) {

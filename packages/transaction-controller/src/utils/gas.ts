@@ -12,10 +12,6 @@ import { add0x, createModuleLogger, remove0x } from '@metamask/utils';
 import { DELEGATION_PREFIX } from './eip7702';
 import { getGasEstimateBuffer, getGasEstimateFallback } from './feature-flags';
 import { simulateTransactions } from '../api/simulation-api';
-import {
-  CODE_DELEGATION_MANAGER_NO_SIGNATURE_ERRORS,
-  DELEGATION_MANAGER_ADDRESS,
-} from '../constants';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import {
@@ -144,7 +140,6 @@ export async function estimateGas({
     } else if (ignoreDelegationSignatures && isSimulationEnabled) {
       estimatedGas = await simulateGas({
         chainId,
-        ignoreDelegationSignatures,
         transaction: request,
       });
     } else {
@@ -388,19 +383,16 @@ async function estimateGasUpgradeWithDataToSelf(
  * @param options - The options object.
  * @param options.chainId - The chain ID of the transaction.
  * @param options.delegationAddress - The delegation address of the sender to mock.
- * @param options.ignoreDelegationSignatures - Ignore signature errors if submitting delegations to the DelegationManager.
  * @param options.transaction - The transaction parameters.
  * @returns The simulated gas.
  */
 async function simulateGas({
   chainId,
   delegationAddress,
-  ignoreDelegationSignatures,
   transaction,
 }: {
   chainId: Hex;
   delegationAddress?: Hex;
-  ignoreDelegationSignatures?: boolean;
   transaction: TransactionParams;
 }): Promise<Hex> {
   const response = await simulateTransactions(chainId, {
@@ -418,13 +410,6 @@ async function simulateGas({
           delegationAddress &&
           ((DELEGATION_PREFIX + remove0x(delegationAddress)) as Hex),
       },
-      ...(ignoreDelegationSignatures
-        ? {
-            [DELEGATION_MANAGER_ADDRESS]: {
-              code: CODE_DELEGATION_MANAGER_NO_SIGNATURE_ERRORS,
-            },
-          }
-        : {}),
     },
   });
 
