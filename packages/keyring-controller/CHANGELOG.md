@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.0.2]
+
 ### Fixed
 
 - Fixed serialized keyring comparison when establishing whether a vault update is needed ([#5928](https://github.com/MetaMask/core/pull/5928))
@@ -794,7 +796,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.0.2...HEAD
+[22.0.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.0.1...@metamask/keyring-controller@22.0.2
 [22.0.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.0.0...@metamask/keyring-controller@22.0.1
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.6...@metamask/keyring-controller@22.0.0
 [21.0.6]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.5...@metamask/keyring-controller@21.0.6
