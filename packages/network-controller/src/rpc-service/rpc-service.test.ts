@@ -347,7 +347,7 @@ describe('RpcService', () => {
         });
         await expect(promise).rejects.toThrow(
           expect.objectContaining({
-            code: -33100,
+            code: -32100,
             message: 'Unauthorized.',
             data: {
               httpStatus: 401,
