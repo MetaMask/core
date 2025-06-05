@@ -9,9 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.0]
 
-### Uncategorized
+### Added
 
-- feat: add `AccountTreeController` ([#5847](https://github.com/MetaMask/core/pull/5847))
+- Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
+  - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.1.0...HEAD
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/account-tree-controller@0.1.0
