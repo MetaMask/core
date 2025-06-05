@@ -250,34 +250,59 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     this.#assertIsAuthenticatedUser(this.state);
 
     return await this.#withControllerLock(async () => {
-      // locally evaluate the encryption key from the password
-      const { encKey, authKeyPair, oprfKey } =
-        await this.toprfClient.createLocalKey({
+      let encKey: Uint8Array | null = null;
+      let authKeyPair: KeyPair | null = null;
+      let oprfKey: bigint | null = null;
+      let seed: Uint8Array | null = null;
+
+      try {
+        // locally evaluate the encryption key from the password
+        const localKeyResult = await this.toprfClient.createLocalKey({
           password,
         });
 
-      // encrypt and store the seed phrase backup
-      await this.#encryptAndStoreSeedPhraseBackup({
-        keyringId,
-        seedPhrase,
-        encKey,
-        authKeyPair,
-      });
+        ({ encKey, authKeyPair, oprfKey, seed } = localKeyResult);
 
-      // store/persist the encryption key shares
-      // We store the seed phrase metadata in the metadata store first. If this operation fails,
-      // we avoid persisting the encryption key shares to prevent a situation where a user appears
-      // to have an account but with no associated data.
-      await this.#persistOprfKey(oprfKey, authKeyPair.pk);
-      // create a new vault with the resulting authentication data
-      await this.#createNewVaultWithAuthData({
-        password,
-        rawToprfEncryptionKey: encKey,
-        rawToprfAuthKeyPair: authKeyPair,
-      });
-      this.#persistAuthPubKey({
-        authPubKey: authKeyPair.pk,
-      });
+        // encrypt and store the seed phrase backup
+        await this.#encryptAndStoreSeedPhraseBackup({
+          keyringId,
+          seedPhrase,
+          encKey,
+          authKeyPair,
+        });
+
+        // store/persist the encryption key shares
+        // We store the seed phrase metadata in the metadata store first. If this operation fails,
+        // we avoid persisting the encryption key shares to prevent a situation where a user appears
+        // to have an account but with no associated data.
+        await this.#persistOprfKey(oprfKey, authKeyPair.pk);
+        // create a new vault with the resulting authentication data
+        await this.#createNewVaultWithAuthData({
+          password,
+          rawToprfEncryptionKey: encKey,
+          rawToprfAuthKeyPair: authKeyPair,
+        });
+        this.#persistAuthPubKey({
+          authPubKey: authKeyPair.pk,
+        });
+      } finally {
+        // Clean up sensitive key material
+        if (encKey) {
+          encKey.fill(0);
+          encKey = null;
+        }
+        if (seed) {
+          seed.fill(0);
+          seed = null;
+        }
+        if (authKeyPair) {
+          // Note: authKeyPair.sk is a BigInt which cannot be reliably cleared from memory in JavaScript
+          authKeyPair.pk.fill(0);
+          authKeyPair = null;
+        }
+        // Note: oprfKey is a BigInt which cannot be reliably cleared from memory in JavaScript
+        oprfKey = null;
+      }
     });
   }
 
@@ -298,17 +323,32 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         skipCache: true,
         skipLock: true, // skip lock since we already have the lock
       });
-      // verify the password and unlock the vault
-      const { toprfEncryptionKey, toprfAuthKeyPair } =
-        await this.#unlockVaultAndGetBackupEncKey();
+      let toprfEncryptionKey: Uint8Array | null = null;
+      let toprfAuthKeyPair: KeyPair | null = null;
 
-      // encrypt and store the seed phrase backup
-      await this.#encryptAndStoreSeedPhraseBackup({
-        keyringId,
-        seedPhrase,
-        encKey: toprfEncryptionKey,
-        authKeyPair: toprfAuthKeyPair,
-      });
+      try {
+        // verify the password and unlock the vault
+        ({ toprfEncryptionKey, toprfAuthKeyPair } =
+          await this.#unlockVaultAndGetBackupEncKey());
+
+        // encrypt and store the seed phrase backup
+        await this.#encryptAndStoreSeedPhraseBackup({
+          keyringId,
+          seedPhrase,
+          encKey: toprfEncryptionKey,
+          authKeyPair: toprfAuthKeyPair,
+        });
+      } finally {
+        // Clean up sensitive key material
+        if (toprfEncryptionKey) {
+          toprfEncryptionKey.fill(0);
+          toprfEncryptionKey = null;
+        }
+        if (toprfAuthKeyPair) {
+          toprfAuthKeyPair.pk.fill(0);
+          toprfAuthKeyPair = null;
+        }
+      }
     });
   }
 
@@ -325,50 +365,59 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     this.#assertIsAuthenticatedUser(this.state);
 
     return await this.#withControllerLock(async () => {
-      let encKey: Uint8Array;
-      let authKeyPair: KeyPair;
-
-      if (password) {
-        const recoverEncKeyResult = await this.#recoverEncKey(password);
-        encKey = recoverEncKeyResult.encKey;
-        authKeyPair = recoverEncKeyResult.authKeyPair;
-      } else {
-        this.#assertIsUnlocked();
-        // verify the password and unlock the vault
-        const keysFromVault = await this.#unlockVaultAndGetBackupEncKey();
-        encKey = keysFromVault.toprfEncryptionKey;
-        authKeyPair = keysFromVault.toprfAuthKeyPair;
-      }
+      let encKey: Uint8Array | null = null;
+      let authKeyPair: KeyPair | null = null;
 
       try {
-        const secretData = await this.toprfClient.fetchAllSecretDataItems({
-          decKey: encKey,
-          authKeyPair,
-        });
-
-        if (secretData?.length > 0 && password) {
-          // if password is provided, we need to create a new vault with the auth data. (supposedly the user is trying to rehydrate the wallet)
-          await this.#createNewVaultWithAuthData({
-            password,
-            rawToprfEncryptionKey: encKey,
-            rawToprfAuthKeyPair: authKeyPair,
-          });
-
-          this.#persistAuthPubKey({
-            authPubKey: authKeyPair.pk,
-          });
+        if (password) {
+          ({ encKey, authKeyPair } = await this.#recoverEncKey(password));
+        } else {
+          this.#assertIsUnlocked();
+          // verify the password and unlock the vault
+          ({ toprfEncryptionKey: encKey, toprfAuthKeyPair: authKeyPair } =
+            await this.#unlockVaultAndGetBackupEncKey());
         }
 
-        const secrets = SecretMetadata.parseSecretsFromMetadataStore(
-          secretData,
-          SecretType.Mnemonic,
-        );
-        return secrets.map((secret) => secret.data);
-      } catch (error) {
-        log('Error fetching seed phrase metadata', error);
-        throw new Error(
-          SeedlessOnboardingControllerErrorMessage.FailedToFetchSeedPhraseMetadata,
-        );
+        try {
+          const secretData = await this.toprfClient.fetchAllSecretDataItems({
+            decKey: encKey,
+            authKeyPair,
+          });
+
+          if (secretData?.length > 0 && password) {
+            // if password is provided, we need to create a new vault with the auth data. (supposedly the user is trying to rehydrate the wallet)
+            await this.#createNewVaultWithAuthData({
+              password,
+              rawToprfEncryptionKey: encKey,
+              rawToprfAuthKeyPair: authKeyPair,
+            });
+
+            this.#persistAuthPubKey({
+              authPubKey: authKeyPair.pk,
+            });
+          }
+
+          const secrets = SecretMetadata.parseSecretsFromMetadataStore(
+            secretData,
+            SecretType.Mnemonic,
+          );
+          return secrets.map((secret) => secret.data);
+        } catch (error) {
+          log('Error fetching seed phrase metadata', error);
+          throw new Error(
+            SeedlessOnboardingControllerErrorMessage.FailedToFetchSeedPhraseMetadata,
+          );
+        }
+      } finally {
+        // Clean up sensitive key material
+        if (encKey) {
+          encKey.fill(0);
+          encKey = null;
+        }
+        if (authKeyPair) {
+          authKeyPair.pk.fill(0);
+          authKeyPair = null;
+        }
       }
     });
   }
@@ -394,10 +443,13 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         skipLock: true, // skip lock since we already have the lock
       });
 
+      let newEncKey: Uint8Array | null = null;
+      let newAuthKeyPair: KeyPair | null = null;
+
       try {
         // update the encryption key with new password and update the Metadata Store
-        const { encKey: newEncKey, authKeyPair: newAuthKeyPair } =
-          await this.#changeEncryptionKey(newPassword, oldPassword);
+        ({ encKey: newEncKey, authKeyPair: newAuthKeyPair } =
+          await this.#changeEncryptionKey(newPassword, oldPassword));
 
         // update and encrypt the vault with new password
         await this.#createNewVaultWithAuthData({
@@ -415,6 +467,16 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         throw new Error(
           SeedlessOnboardingControllerErrorMessage.FailedToChangePassword,
         );
+      } finally {
+        // Clean up sensitive key material
+        if (newEncKey) {
+          newEncKey.fill(0);
+          newEncKey = null;
+        }
+        if (newAuthKeyPair) {
+          newAuthKeyPair.pk.fill(0);
+          newAuthKeyPair = null;
+        }
       }
     });
   }
@@ -498,8 +560,25 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    */
   async submitPassword(password: string): Promise<void> {
     return await this.#withControllerLock(async () => {
-      await this.#unlockVaultAndGetBackupEncKey(password);
-      this.#setUnlocked();
+      let toprfEncryptionKey: Uint8Array | null = null;
+      let toprfAuthKeyPair: KeyPair | null = null;
+
+      try {
+        ({ toprfEncryptionKey, toprfAuthKeyPair } =
+          await this.#unlockVaultAndGetBackupEncKey(password));
+
+        this.#setUnlocked();
+      } finally {
+        // Clean up sensitive key material
+        if (toprfEncryptionKey) {
+          toprfEncryptionKey.fill(0);
+          toprfEncryptionKey = null;
+        }
+        if (toprfAuthKeyPair) {
+          toprfAuthKeyPair.pk.fill(0);
+          toprfAuthKeyPair = null;
+        }
+      }
     });
   }
 
@@ -539,19 +618,36 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       await this.verifyVaultPassword(oldPassword, {
         skipLock: true, // skip lock since we already have the lock
       });
-      // update vault with latest globalPassword
-      const { encKey, authKeyPair } = await this.#recoverEncKey(globalPassword);
-      // update and encrypt the vault with new password
-      await this.#createNewVaultWithAuthData({
-        password: globalPassword,
-        rawToprfEncryptionKey: encKey,
-        rawToprfAuthKeyPair: authKeyPair,
-      });
-      // persist the latest global password authPubKey
-      this.#persistAuthPubKey({
-        authPubKey: authKeyPair.pk,
-      });
-      this.#resetPasswordOutdatedCache();
+
+      let encKey: Uint8Array | null = null;
+      let authKeyPair: KeyPair | null = null;
+
+      try {
+        // update vault with latest globalPassword
+        ({ encKey, authKeyPair } = await this.#recoverEncKey(globalPassword));
+
+        // update and encrypt the vault with new password
+        await this.#createNewVaultWithAuthData({
+          password: globalPassword,
+          rawToprfEncryptionKey: encKey,
+          rawToprfAuthKeyPair: authKeyPair,
+        });
+        // persist the latest global password authPubKey
+        this.#persistAuthPubKey({
+          authPubKey: authKeyPair.pk,
+        });
+        this.#resetPasswordOutdatedCache();
+      } finally {
+        // Clean up sensitive key material
+        if (encKey) {
+          encKey.fill(0);
+          encKey = null;
+        }
+        if (authKeyPair) {
+          authKeyPair.pk.fill(0);
+          authKeyPair = null;
+        }
+      }
     });
   }
 
@@ -595,10 +691,13 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     targetPwPubKey: SEC1EncodedPublicKey;
     globalPassword: string;
   }): Promise<{ password: string }> {
-    const { encKey: latestPwEncKey, authKeyPair: latestPwAuthKeyPair } =
-      await this.#recoverEncKey(globalPassword);
+    let latestPwEncKey: Uint8Array | null = null;
+    let latestPwAuthKeyPair: KeyPair | null = null;
 
     try {
+      ({ encKey: latestPwEncKey, authKeyPair: latestPwAuthKeyPair } =
+        await this.#recoverEncKey(globalPassword));
+
       const res = await this.toprfClient.recoverPassword({
         targetPwPubKey,
         curEncKey: latestPwEncKey,
@@ -607,6 +706,16 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       return res;
     } catch (error) {
       throw PasswordSyncError.getInstance(error);
+    } finally {
+      // Clean up sensitive key material
+      if (latestPwEncKey) {
+        latestPwEncKey.fill(0);
+        latestPwEncKey = null;
+      }
+      if (latestPwAuthKeyPair) {
+        latestPwAuthKeyPair.pk.fill(0);
+        latestPwAuthKeyPair = null;
+      }
     }
   }
 
@@ -774,23 +883,39 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     this.#assertIsAuthenticatedUser(this.state);
     const { authConnectionId, groupedAuthConnectionId, userId } = this.state;
 
-    const {
-      encKey,
-      authKeyPair,
-      keyShareIndex: newKeyShareIndex,
-    } = await this.#recoverEncKey(oldPassword);
+    let encKey: Uint8Array | null = null;
+    let authKeyPair: KeyPair | null = null;
+    let newKeyShareIndex: number;
 
-    return await this.toprfClient.changeEncKey({
-      nodeAuthTokens: this.state.nodeAuthTokens,
-      authConnectionId,
-      groupedAuthConnectionId,
-      userId,
-      oldEncKey: encKey,
-      oldAuthKeyPair: authKeyPair,
-      newKeyShareIndex,
-      oldPassword,
-      newPassword,
-    });
+    try {
+      ({
+        encKey,
+        authKeyPair,
+        keyShareIndex: newKeyShareIndex,
+      } = await this.#recoverEncKey(oldPassword));
+
+      return await this.toprfClient.changeEncKey({
+        nodeAuthTokens: this.state.nodeAuthTokens,
+        authConnectionId,
+        groupedAuthConnectionId,
+        userId,
+        oldEncKey: encKey,
+        oldAuthKeyPair: authKeyPair,
+        newKeyShareIndex,
+        oldPassword,
+        newPassword,
+      });
+    } finally {
+      // Clean up sensitive key material
+      if (encKey) {
+        encKey.fill(0);
+        encKey = null;
+      }
+      if (authKeyPair) {
+        authKeyPair.pk.fill(0);
+        authKeyPair = null;
+      }
+    }
   }
 
   /**
