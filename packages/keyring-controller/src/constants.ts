@@ -4,6 +4,7 @@ export enum KeyringControllerError {
   UnsafeDirectKeyringAccess = 'KeyringController - Returning keyring instances is unsafe',
   WrongPasswordType = 'KeyringController - Password must be of type string.',
   InvalidEmptyPassword = 'KeyringController - Password cannot be empty.',
+  CacheEncryptionKeyDisabled = 'KeyringController - Cache encryption key is disabled.',
   NoFirstAccount = 'KeyringController - First Account not found.',
   DuplicatedAccount = 'KeyringController - The account you are trying to import is a duplicate',
   VaultError = 'KeyringController - Cannot unlock without a previous vault.',
