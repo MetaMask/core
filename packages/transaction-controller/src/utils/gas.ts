@@ -98,6 +98,12 @@ export async function estimateGas({
   const request = { ...txParams };
   const { authorizationList, data, from, value, to } = request;
 
+  if (ignoreDelegationSignatures && !isSimulationEnabled) {
+    throw new Error(
+      'Gas estimation with ignored delegation signatures is not supported as simulation disabled',
+    );
+  }
+
   const { gasLimit: blockGasLimit, number: blockNumber } =
     await getLatestBlock(ethQuery);
 
