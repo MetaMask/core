@@ -2775,12 +2775,12 @@ __metadata:
     "@metamask/base-controller": "npm:^8.0.1"
     "@metamask/bridge-controller": "npm:^32.1.1"
     "@metamask/controller-utils": "npm:^11.9.0"
+    "@metamask/eth-snap-keyring": "npm:^13.0.0"
     "@metamask/gas-fee-controller": "npm:^23.0.0"
     "@metamask/keyring-api": "npm:^18.0.0"
     "@metamask/multichain-transactions-controller": "npm:^2.0.0"
     "@metamask/network-controller": "npm:^23.5.1"
     "@metamask/polling-controller": "npm:^13.0.0"
-    "@metamask/snaps-controllers": "npm:^12.3.1"
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/transaction-controller": "npm:^57.1.0"
     "@metamask/user-operation-controller": "npm:^36.0.0"
@@ -2803,7 +2803,6 @@ __metadata:
     "@metamask/gas-fee-controller": ^23.0.0
     "@metamask/multichain-transactions-controller": ^2.0.0
     "@metamask/network-controller": ^23.0.0
-    "@metamask/snaps-controllers": ^12.0.0
     "@metamask/transaction-controller": ^57.0.0
   languageName: unknown
   linkType: soft
