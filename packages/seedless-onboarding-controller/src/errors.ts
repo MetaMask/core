@@ -155,3 +155,5 @@ export class RecoveryError extends Error {
     return new RecoveryError(errorMessage, recoveryErrorData);
   }
 }
+
+export { getErrorMessageFromTOPRFErrorCode };

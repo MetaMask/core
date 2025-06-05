@@ -1584,7 +1584,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   ): Promise<T> {
     try {
       // proactively check for expired tokens and refresh them if needed
-      if (this.checkNodeAuthTokenExpired()) {
+      const isNodeAuthTokenExpired = this.checkNodeAuthTokenExpired();
+      if (isNodeAuthTokenExpired) {
         log(
           `JWT token expired during ${operationName}, attempting to refresh tokens`,
           'node auth token exp check',
@@ -1628,7 +1629,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     // all auth tokens should be expired at the same time so we can check the first one
     const firstAuthToken = nodeAuthTokens[0]?.authToken;
     // node auth token is base64 encoded json object
-    const decodedToken = this.#decodeNodeAuthToken(firstAuthToken);
+    const decodedToken = this.decodeNodeAuthToken(firstAuthToken);
     // check if the token is expired
     return decodedToken.exp < Date.now() / 1000;
   }
@@ -1639,7 +1640,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @param token - The node auth token to decode.
    * @returns The decoded node auth token.
    */
-  #decodeNodeAuthToken(token: string): DecodedNodeAuthToken {
+  decodeNodeAuthToken(token: string): DecodedNodeAuthToken {
     return JSON.parse(Buffer.from(token, 'base64').toString());
   }
 }
