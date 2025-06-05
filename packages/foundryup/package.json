@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/address-book-controller",
-  "version": "6.1.0",
-  "description": "Manages a list of recipient addresses associated with nicknames",
+  "name": "@metamask/foundryup",
+  "version": "1.0.0",
+  "description": "foundryup",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/address-book-controller#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/foundryup#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -17,49 +17,41 @@
   "license": "MIT",
   "sideEffects": false,
   "exports": {
-    ".": {
-      "import": {
-        "types": "./dist/index.d.mts",
-        "default": "./dist/index.mjs"
-      },
-      "require": {
-        "types": "./dist/index.d.cts",
-        "default": "./dist/index.cjs"
-      }
-    },
     "./package.json": "./package.json"
   },
-  "main": "./dist/index.cjs",
-  "types": "./dist/index.d.cts",
+  "bin": {
+    "mm-foundryup": "./dist/cli.mjs"
+  },
   "files": [
     "dist/"
   ],
   "scripts": {
+    "anvil": "node_modules/.bin/anvil",
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:docs": "typedoc",
-    "changelog:update": "../../scripts/update-changelog.sh @metamask/address-book-controller",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/address-book-controller",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/foundryup",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/foundryup",
     "publish:preview": "yarn npm publish --tag preview",
-    "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
-    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
-  },
-  "dependencies": {
-    "@metamask/base-controller": "^8.0.1",
-    "@metamask/controller-utils": "^11.9.0",
-    "@metamask/utils": "^11.2.0"
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
+    "since-latest-release": "../../scripts/since-latest-release.sh"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@types/jest": "^27.4.1",
+    "@types/unzipper": "^0.10.10",
+    "@types/yargs": "^17.0.32",
+    "@types/yargs-parser": "^21.0.3",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
+    "nock": "^13.3.1",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.2.2"
+    "typescript": "~5.2.2",
+    "yaml": "^2.3.4"
   },
   "engines": {
     "node": "^18.18 || >=20"
@@ -67,5 +59,14 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
-  }
+  },
+  "dependencies": {
+    "minipass": "^7.1.2",
+    "tar": "^7.4.3",
+    "unzipper": "^0.12.3",
+    "yargs": "^17.7.2",
+    "yargs-parser": "^21.1.1"
+  },
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.cts"
 }

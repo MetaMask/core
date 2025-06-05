@@ -58,7 +58,7 @@
     "@metamask/accounts-controller": "^30.0.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/network-controller": "^23.5.1",
-    "@metamask/transaction-controller": "^57.0.0",
+    "@metamask/transaction-controller": "^57.1.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",

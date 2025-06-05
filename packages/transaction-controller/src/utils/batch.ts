@@ -8,7 +8,7 @@ import type {
   FetchGasFeeEstimateOptions,
   GasFeeState,
 } from '@metamask/gas-fee-controller';
-import { rpcErrors } from '@metamask/rpc-errors';
+import { JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { bytesToHex, createModuleLogger } from '@metamask/utils';
 import type { WritableDraft } from 'immer/dist/internal.js';
@@ -117,24 +117,36 @@ export const ERROR_MESSAGE_NO_UPGRADE_CONTRACT =
 export async function addTransactionBatch(
   request: AddTransactionBatchRequest,
 ): Promise<TransactionBatchResult> {
-  const { getInternalAccounts, messenger, request: userRequest } = request;
+  const {
+    getInternalAccounts,
+    messenger,
+    request: transactionBatchRequest,
+  } = request;
   const sizeLimit = getBatchSizeLimit(messenger);
 
   validateBatchRequest({
     internalAccounts: getInternalAccounts(),
-    request: userRequest,
+    request: transactionBatchRequest,
     sizeLimit,
   });
 
-  const { useHook } = userRequest;
+  log('Adding', transactionBatchRequest);
 
-  log('Adding', userRequest);
+  if (!transactionBatchRequest.disable7702) {
+    try {
+      return await addTransactionBatchWith7702(request);
+    } catch (error: unknown) {
+      const isEIP7702NotSupportedError =
+        error instanceof JsonRpcError &&
+        error.message === 'Chain does not support EIP-7702';
 
-  if (useHook) {
-    return await addTransactionBatchWithHook(request);
+      if (!isEIP7702NotSupportedError) {
+        throw error;
+      }
+    }
   }
 
-  return await addTransactionBatchWith7702(request);
+  return await addTransactionBatchWithHook(request);
 }
 
 /**
@@ -397,7 +409,6 @@ async function addTransactionBatchWithHook(
     networkClientId,
     requireApproval,
     transactions: nestedTransactions,
-    useHook,
   } = userRequest;
 
   let resultCallbacks: AcceptResultCallbacks | undefined;
@@ -411,14 +422,33 @@ async function addTransactionBatchWithHook(
     getPendingTransactionTracker: request.getPendingTransactionTracker,
   });
 
+  let { disable7702, disableSequential } = userRequest;
+  const { disableHook, useHook } = userRequest;
+
+  // use hook is a temporary alias for disable7702 and disableSequential
+  if (useHook) {
+    disable7702 = true;
+    disableSequential = true;
+  }
+
   const publishBatchHook =
-    requestPublishBatchHook ?? sequentialPublishBatchHook.getHook();
+    (!disableHook && requestPublishBatchHook) ??
+    (!disableSequential && sequentialPublishBatchHook.getHook());
+
+  if (!publishBatchHook) {
+    log(`No supported batch methods found`, {
+      disable7702,
+      disableHook,
+      disableSequential,
+    });
+    throw rpcErrors.internal(`Can't process batch`);
+  }
 
   const batchId = generateBatchId();
   const transactionCount = nestedTransactions.length;
   const collectHook = new CollectPublishHook(transactionCount);
   try {
-    if (requireApproval && useHook) {
+    if (requireApproval) {
       const txBatchMeta = await prepareApprovalData({
         batchId,
         request,
