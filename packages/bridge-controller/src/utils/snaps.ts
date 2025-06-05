@@ -15,7 +15,7 @@ export const getMinimumBalanceForRentExemptionRequest = (snapId: string) => {
           id: uuid(),
           jsonrpc: '2.0',
           method: 'getMinimumBalanceForRentExemption',
-          params: [0, 'confirmed'],
+          params: [0, { commitment: 'confirmed' }],
         },
       },
     },
