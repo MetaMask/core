@@ -2705,12 +2705,14 @@ export class KeyringController extends BaseController<
     callback: MutuallyExclusiveCallback<Result>,
   ): Promise<Result> {
     return this.#withRollback(async ({ releaseLock }) => {
-      const oldState = JSON.stringify(await this.#getSessionState());
+      const oldState = await this.#getSessionState();
       const callbackResult = await callback({ releaseLock });
-      const newState = JSON.stringify(await this.#getSessionState());
+      const newState = await this.#getSessionState();
 
       // State is committed only if the operation is successful and need to trigger a vault update.
-      if (!isEqual(oldState, newState)) {
+      // We use `JSON.stringify` when comparing states to handle cases where keyrings return
+      // shallow copies of their internal state, which may cause false negatives.
+      if (JSON.stringify(oldState) !== JSON.stringify(newState)) {
         await this.#updateVault();
       }
 
