@@ -488,7 +488,7 @@ export class RpcService implements AbstractRpcService {
       if (error instanceof HttpError) {
         const status = error.httpStatus;
         if (status === 401) {
-          throw new JsonRpcError(-33100, 'Unauthorized.', {
+          throw new JsonRpcError(-32100, 'Unauthorized.', {
             httpStatus: status,
           });
         }
