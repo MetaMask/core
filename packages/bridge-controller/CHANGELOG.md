@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [32.1.1]
 
-### Uncategorized
-
-- Release 426.0.0 ([#5920](https://github.com/MetaMask/core/pull/5920))
-
 ### Fixed
 
 - Fetch `minimumBalanceForRentExemptionInLamports` asynchronously to prevent blocking the getQuote network call ([#5921](https://github.com/MetaMask/core/pull/5921))
