@@ -2,7 +2,7 @@
 /* eslint-disable jest/no-conditional-in-test */
 
 import { HttpError } from '@metamask/controller-utils';
-import { rpcErrors } from '@metamask/rpc-errors';
+import { errorCodes, rpcErrors } from '@metamask/rpc-errors';
 import nock from 'nock';
 import { FetchError } from 'node-fetch';
 import { useFakeTimers } from 'sinon';
@@ -440,7 +440,7 @@ describe('RpcService', () => {
           });
           await expect(promise).rejects.toThrow(
             expect.objectContaining({
-              code: -32002,
+              code: errorCodes.rpc.resourceUnavailable,
               message: 'RPC endpoint not found or unavailable.',
               data: {
                 httpStatus,
@@ -532,7 +532,7 @@ describe('RpcService', () => {
         });
         await expect(promise).rejects.toThrow(
           expect.objectContaining({
-            code: -32005,
+            code: errorCodes.rpc.limitExceeded,
             message: 'Request is being rate limited.',
             data: {
               httpStatus: 429,
