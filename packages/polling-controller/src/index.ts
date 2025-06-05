@@ -8,4 +8,6 @@ export {
   StaticIntervalPollingController,
 } from './StaticIntervalPollingController';
 
+export { getKey } from './AbstractPollingController';
+
 export type { IPollingController } from './types';
