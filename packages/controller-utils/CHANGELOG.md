@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `TransactionBatch` in approval types enum ([#5793](https://github.com/MetaMask/core/pull/5793))
+- Add Base network to default networks ([#5902](https://github.com/MetaMask/core/pull/5902))
+  - Add `base-mainnet` to `BUILT_IN_NETWORKS`
+  - Add `base-mainnet` to `InfuraNetworkType`
+  - Add `BaseMainnet` to `BuiltInNetworkName` enum
+  - Add `base-mainnet` to `ChainId` type
+  - Add `BaseMainnet` to `NetworksTicker` enum
+  - Add `BaseMainnet` to `BlockExplorerUrl` quasi-enum
+  - Add `BaseMainnet` to `NetworkNickname` quasi-enum
 
 ## [11.9.0]
 

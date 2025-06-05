@@ -20,6 +20,7 @@ Each package in this repository has its own README where you can find installati
 
 <!-- start package list -->
 
+- [`@metamask/account-tree-controller`](packages/account-tree-controller)
 - [`@metamask/accounts-controller`](packages/accounts-controller)
 - [`@metamask/address-book-controller`](packages/address-book-controller)
 - [`@metamask/announcement-controller`](packages/announcement-controller)
@@ -78,6 +79,7 @@ Each package in this repository has its own README where you can find installati
 %%{ init: { 'flowchart': { 'curve': 'bumpX' } } }%%
 graph LR;
 linkStyle default opacity:0.5
+  account_wallet_controller(["@metamask/account-tree-controller"]);
   accounts_controller(["@metamask/accounts-controller"]);
   address_book_controller(["@metamask/address-book-controller"]);
   announcement_controller(["@metamask/announcement-controller"]);
@@ -127,6 +129,9 @@ linkStyle default opacity:0.5
   token_search_discovery_controller(["@metamask/token-search-discovery-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
   user_operation_controller(["@metamask/user-operation-controller"]);
+  account_wallet_controller --> base_controller;
+  account_wallet_controller --> accounts_controller;
+  account_wallet_controller --> keyring_controller;
   accounts_controller --> base_controller;
   accounts_controller --> keyring_controller;
   accounts_controller --> network_controller;
