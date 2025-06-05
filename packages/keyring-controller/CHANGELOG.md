@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed serialized keyring comparison when establishing whether a vault update is needed ([]())
+  - The vault update was being skipped when a keyring class returns an object shallow copy through `.serialize()`.
+
 ## [22.0.1]
 
 ### Changed
