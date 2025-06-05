@@ -59,7 +59,7 @@
   "devDependencies": {
     "@metamask/accounts-controller": "^30.0.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^22.0.1",
+    "@metamask/keyring-controller": "^22.0.2",
     "@metamask/network-controller": "^23.5.1",
     "@types/jest": "^27.4.1",
     "@types/lodash": "^4.14.191",
