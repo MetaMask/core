@@ -15,6 +15,7 @@ import {
   getActionType,
   formatChainIdToCaip,
   isCrossChain,
+  isHardwareWallet,
 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { toHex } from '@metamask/controller-utils';
@@ -50,6 +51,7 @@ import type {
 import { type BridgeStatusControllerMessenger } from './types';
 import { BridgeClientId } from './types';
 import {
+  delay,
   fetchBridgeTxStatus,
   getStatusRequestWithSrcTxHash,
 } from './utils/bridge-status';
@@ -597,7 +599,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   readonly #handleApprovalTx = async (
     isBridgeTx: boolean,
     quoteResponse: QuoteResponse<string | TxData> & QuoteMetadata,
-    requireApproval: boolean,
+    requireApproval = false,
   ): Promise<TransactionMeta | undefined> => {
     const { approval } = quoteResponse;
 
@@ -835,14 +837,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    *
    * @param quoteResponse - The quote response
    * @param isStxEnabledOnClient - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
-   * @param requireApproval - Whether to require approval for the transaction
    * @returns The transaction meta
    */
   submitTx = async (
     quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
     isStxEnabledOnClient: boolean,
-    requireApproval: boolean,
-  ) => {
+  ): Promise<TransactionMeta & Partial<SolanaTransactionMeta>> => {
     let txMeta: (TransactionMeta & Partial<SolanaTransactionMeta>) | undefined;
 
     const isBridgeTx = isCrossChain(
@@ -881,6 +881,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       !isSolanaChainId(quoteResponse.quote.srcChainId) &&
       typeof quoteResponse.trade !== 'string'
     ) {
+      const requireApproval =
+        this.#clientId === BridgeClientId.MOBILE &&
+        isHardwareWallet(this.#getMultichainSelectedAccount());
+
       // Set approval time and id if an approval tx is needed
       const approvalTxMeta = await this.#handleApprovalTx(
         isBridgeTx,
@@ -911,11 +915,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             }),
         );
       } else {
-        const delay = (ms: number) =>
-          new Promise((resolve) => setTimeout(resolve, ms));
-
         // For hardware wallets on Mobile, this is fixes an issue where the Ledger does not get prompted for the 2nd approval
-        if (requireApproval && this.#clientId === BridgeClientId.MOBILE) {
+        if (requireApproval) {
           await delay(2000);
         }
 
