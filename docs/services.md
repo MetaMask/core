@@ -256,4 +256,4 @@ const gasPrices = await this.#messagingSystem.call(
 
 ## Learning more
 
-The [`sample-controllers` package](../packages/sample-controllers) has a full example of the service pattern, including JSDoc. Check it out and feel free to copy and paste the code you see to your own project.
+The [`sample-controllers`](../packages/sample-controllers) package has a full example of the service pattern, including JSDoc. Check it out and feel free to copy and paste the code you see to your own project.
