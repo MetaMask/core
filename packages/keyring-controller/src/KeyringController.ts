@@ -847,7 +847,7 @@ export class KeyringController extends BaseController<
   ): Promise<KeyringMetadata> {
     this.#assertIsUnlocked();
 
-    if (type === KeyringTypes.qr) {
+    if (type === (KeyringTypes.qr as string)) {
       return this.#getKeyringMetadata(await this.getOrAddQRKeyring());
     }
 
@@ -1095,7 +1095,7 @@ export class KeyringController extends BaseController<
           const [input, password] = args;
           try {
             wallet = importers.fromEtherWallet(input, password);
-          } catch (e) {
+          } catch {
             wallet = wallet || (await Wallet.fromV3(input, password, true));
           }
           privateKey = bytesToHex(wallet.getPrivateKey());
@@ -2358,7 +2358,9 @@ export class KeyringController extends BaseController<
       const serializedKeyrings = await this.#getSerializedKeyrings();
 
       if (
-        !serializedKeyrings.some((keyring) => keyring.type === KeyringTypes.hd)
+        !serializedKeyrings.some(
+          (keyring) => keyring.type === (KeyringTypes.hd as string),
+        )
       ) {
         throw new Error(KeyringControllerError.NoHdKeyring);
       }
@@ -2533,7 +2535,10 @@ export class KeyringController extends BaseController<
       await keyring.init();
     }
 
-    if (type === KeyringTypes.hd && (!isObject(data) || !data.mnemonic)) {
+    if (
+      type === (KeyringTypes.hd as string) &&
+      (!isObject(data) || !data.mnemonic)
+    ) {
       if (!keyring.generateRandomMnemonic) {
         throw new Error(
           KeyringControllerError.UnsupportedGenerateRandomMnemonic,
@@ -2547,7 +2552,7 @@ export class KeyringController extends BaseController<
       await keyring.addAccounts(1);
     }
 
-    if (type === KeyringTypes.qr) {
+    if (type === (KeyringTypes.qr as string)) {
       // In case of a QR keyring type, we need to subscribe
       // to its events after creating it
       this.#subscribeToQRKeyringEvents(keyring as unknown as QRKeyring);
