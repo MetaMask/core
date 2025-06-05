@@ -1504,8 +1504,73 @@ describe('Batch Utils', () => {
 
         const result = await resultPromise;
         expect(result?.batchId).toMatch(/^0x[0-9a-f]{32}$/u);
+      });
+
+      it('updates gas properties', async () => {
+        const { approve } = mockRequestApproval(MESSENGER_MOCK, {
+          state: 'approved',
+        });
+        mockSequentialPublishBatchHookResults();
+        setupSequentialPublishBatchHookMock(() => sequentialPublishBatchHook);
+
+        const resultPromise = addTransactionBatch({
+          ...request,
+          publishBatchHook: undefined,
+          messenger: MESSENGER_MOCK,
+          request: {
+            ...request.request,
+            origin: ORIGIN_MOCK,
+            disable7702: true,
+          },
+        }).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+        approve();
+        await executePublishHooks();
+
+        await resultPromise;
+
         expect(simulateGasBatchMock).toHaveBeenCalledTimes(1);
+        expect(simulateGasBatchMock).toHaveBeenCalledWith({
+          chainId: CHAIN_ID_MOCK,
+          from: FROM_MOCK,
+          transactions: [
+            {
+              params: TRANSACTION_BATCH_PARAMS_MOCK,
+            },
+            {
+              params: TRANSACTION_BATCH_PARAMS_MOCK,
+            },
+          ],
+        });
         expect(getGasFeesMock).toHaveBeenCalledTimes(1);
+        expect(getGasFeesMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            gasFeeControllerData: expect.any(Object),
+            messenger: MESSENGER_MOCK,
+            transactionMeta: {
+              chainId: CHAIN_ID_MOCK,
+              gas: GAS_TOTAL_MOCK,
+              from: FROM_MOCK,
+              networkClientId: NETWORK_CLIENT_ID_MOCK,
+              txParams: { from: FROM_MOCK, gas: GAS_TOTAL_MOCK },
+              origin: ORIGIN_MOCK,
+              id: expect.any(String),
+              status: 'unapproved',
+              time: expect.any(Number),
+              transactions: [
+                {
+                  params: TRANSACTION_BATCH_PARAMS_MOCK,
+                },
+                {
+                  params: TRANSACTION_BATCH_PARAMS_MOCK,
+                },
+              ],
+            },
+          }),
+        );
       });
 
       it('saves a transaction batch and then cleans the specific batch by ID', async () => {

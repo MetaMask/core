@@ -530,9 +530,6 @@ export type TransactionBatchMeta = {
   /** Current status of the transaction. */
   status: TransactionStatus;
 
-  /** When the transaction was created. */
-  time: number;
-
   /**
    * Data for any EIP-7702 transactions.
    */

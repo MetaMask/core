@@ -71,28 +71,28 @@ type AddTransactionBatchRequest = {
   addTransaction: TransactionController['addTransaction'];
   getChainId: (networkClientId: string) => Hex;
   getEthQuery: (networkClientId: string) => EthQuery;
+  getGasFeeEstimates: (
+    options: FetchGasFeeEstimateOptions,
+  ) => Promise<GasFeeState>;
   getInternalAccounts: () => Hex[];
+  getPendingTransactionTracker: (
+    networkClientId: string,
+  ) => PendingTransactionTracker;
   getTransaction: (id: string) => TransactionMeta;
   isSimulationEnabled: () => boolean;
   messenger: TransactionControllerMessenger;
   publishBatchHook?: PublishBatchHook;
-  publicKeyEIP7702?: Hex;
-  request: TransactionBatchRequest;
-  updateTransaction: (
-    options: { transactionId: string },
-    callback: (transactionMeta: TransactionMeta) => void,
-  ) => void;
   publishTransaction: (
     _ethQuery: EthQuery,
     transactionMeta: TransactionMeta,
   ) => Promise<Hex>;
-  getPendingTransactionTracker: (
-    networkClientId: string,
-  ) => PendingTransactionTracker;
+  publicKeyEIP7702?: Hex;
+  request: TransactionBatchRequest;
   update: UpdateStateCallback;
-  getGasFeeEstimates: (
-    options: FetchGasFeeEstimateOptions,
-  ) => Promise<GasFeeState>;
+  updateTransaction: (
+    options: { transactionId: string },
+    callback: (transactionMeta: TransactionMeta) => void,
+  ) => void;
 };
 
 type IsAtomicBatchSupportedRequestInternal = {
@@ -681,11 +681,10 @@ function wipeTransactionBatchById(
  * @returns A new TransactionBatchMeta object.
  */
 function newBatchMetadata(
-  transactionBatchMeta: Omit<TransactionBatchMeta, 'time' | 'status'>,
+  transactionBatchMeta: Omit<TransactionBatchMeta, 'status'>,
 ): TransactionBatchMeta {
   return {
     ...transactionBatchMeta,
-    time: Date.now(),
     status: TransactionStatus.unapproved,
   };
 }
@@ -722,6 +721,8 @@ async function prepareApprovalData({
     transactions: nestedTransactions,
   } = userRequest;
 
+  const ethQuery = getEthQuery(networkClientId);
+
   if (!isSimulationEnabled()) {
     throw new Error(
       'Cannot create transaction batch as simulation not supported',
@@ -752,7 +753,7 @@ async function prepareApprovalData({
   });
 
   const gasFeeResponse = await defaultGasFeeFlow.getGasFees({
-    ethQuery: getEthQuery(networkClientId),
+    ethQuery,
     gasFeeControllerData,
     messenger,
     transactionMeta: {
@@ -761,6 +762,7 @@ async function prepareApprovalData({
         from,
         gas: gasLimit,
       },
+      time: Date.now(),
     },
   });
 
