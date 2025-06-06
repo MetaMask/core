@@ -155,41 +155,23 @@ describe('NetworkVisibilityController', () => {
 
   describe('onNetworkControllerStateChange', () => {
     it('should update orderedNetworkList when new networks are added', () => {
-      const mockNetworkConfig = buildNetworkConfig({
-        chainId: CHAIN_IDS.SEPOLIA,
-        name: 'Sepolia Test Network',
-        nativeCurrency: 'ETH',
-        blockExplorerUrls: ['https://sepolia.etherscan.io'],
-        rpcEndpoints: [
-          {
-            type: RpcEndpointType.Custom,
-            networkClientId: 'test-client-id',
-            url: 'https://sepolia.infura.io/v3/123',
-            failoverUrls: [],
-          },
-        ],
-      });
-
       const mockNetworkState: NetworkState = {
         ...getDefaultNetworkControllerState(),
         selectedNetworkClientId: 'mainnet',
         networkConfigurationsByChainId: {
-          [CHAIN_IDS.SEPOLIA]: mockNetworkConfig,
+          // Use a non-test network instead of Sepolia
+          '0x1': buildNetworkConfig({
+            chainId: '0x1',
+            name: 'Ethereum Mainnet',
+          }),
         },
-        networksMetadata: {
-          'test-client-id': {
-            EIPS: {
-              1559: true,
-            },
-            status: NetworkStatus.Available,
-          },
-        },
+        networksMetadata: {},
       };
 
       messenger.publish('NetworkController:stateChange', mockNetworkState, []);
 
       const { state } = controller;
-      const expectedNetworks = [toEvmCaipChainId(CHAIN_IDS.SEPOLIA)];
+      const expectedNetworks = [toEvmCaipChainId('0x1')];
       expect(state.orderedNetworkList).toHaveLength(1);
       expectedNetworks.forEach((networkId) => {
         expect(
@@ -203,6 +185,7 @@ describe('NetworkVisibilityController', () => {
         ...getDefaultNetworkControllerState(),
         selectedNetworkClientId: 'mainnet',
         networkConfigurationsByChainId: {
+          // Add all test networks
           [CHAIN_IDS.SEPOLIA]: buildNetworkConfig({
             chainId: CHAIN_IDS.SEPOLIA,
             name: 'Sepolia Test Network',
@@ -214,16 +197,51 @@ describe('NetworkVisibilityController', () => {
           [CHAIN_IDS.LOCALHOST]: buildNetworkConfig({
             chainId: CHAIN_IDS.LOCALHOST,
             name: 'Localhost Test Network',
-          }), // This is a test network
+          }),
+          [CHAIN_IDS.MEGAETH_TESTNET]: buildNetworkConfig({
+            chainId: CHAIN_IDS.MEGAETH_TESTNET,
+            name: 'MegaETH Test Network',
+          }),
+          [CHAIN_IDS.MONAD_TESTNET]: buildNetworkConfig({
+            chainId: CHAIN_IDS.MONAD_TESTNET,
+            name: 'Monad Test Network',
+          }),
+          // Add a non-test network
+          '0x1': buildNetworkConfig({
+            chainId: '0x1',
+            name: 'Ethereum Mainnet',
+          }),
         },
         networksMetadata: {},
       };
 
+      // First add all networks to the ordered list
+      controller.updateNetworksList([
+        toEvmCaipChainId(CHAIN_IDS.SEPOLIA),
+        toEvmCaipChainId(CHAIN_IDS.LINEA_SEPOLIA),
+        toEvmCaipChainId(CHAIN_IDS.LOCALHOST),
+        toEvmCaipChainId(CHAIN_IDS.MEGAETH_TESTNET),
+        toEvmCaipChainId(CHAIN_IDS.MONAD_TESTNET),
+        toEvmCaipChainId('0x1'),
+      ]);
+
+      // Update network state
       messenger.publish('NetworkController:stateChange', mockNetworkState, []);
 
       const { state } = controller;
       const chainIds = state.orderedNetworkList.map((n) => n.networkId);
+
+      // Verify that all test networks are filtered out
+      expect(chainIds).not.toContain(toEvmCaipChainId(CHAIN_IDS.SEPOLIA));
+      expect(chainIds).not.toContain(toEvmCaipChainId(CHAIN_IDS.LINEA_SEPOLIA));
       expect(chainIds).not.toContain(toEvmCaipChainId(CHAIN_IDS.LOCALHOST));
+      expect(chainIds).not.toContain(
+        toEvmCaipChainId(CHAIN_IDS.MEGAETH_TESTNET),
+      );
+      expect(chainIds).not.toContain(toEvmCaipChainId(CHAIN_IDS.MONAD_TESTNET));
+
+      // Verify that non-test networks are preserved
+      expect(chainIds).toContain(toEvmCaipChainId('0x1'));
     });
 
     it('should preserve non-EVM networks (BTC and SOL)', () => {
@@ -232,9 +250,10 @@ describe('NetworkVisibilityController', () => {
         ...getDefaultNetworkControllerState(),
         selectedNetworkClientId: 'mainnet',
         networkConfigurationsByChainId: {
-          [CHAIN_IDS.SEPOLIA]: buildNetworkConfig({
-            chainId: CHAIN_IDS.SEPOLIA,
-            name: 'Sepolia Test Network',
+          // Use a non-test network
+          '0x1': buildNetworkConfig({
+            chainId: '0x1',
+            name: 'Ethereum Mainnet',
           }),
         },
         networksMetadata: {},
@@ -242,7 +261,7 @@ describe('NetworkVisibilityController', () => {
 
       // Add BTC and SOL to the network list
       controller.updateNetworksList([
-        toEvmCaipChainId(CHAIN_IDS.SEPOLIA),
+        toEvmCaipChainId('0x1'),
         BtcScope.Mainnet,
         SolScope.Mainnet,
       ]);
@@ -252,10 +271,11 @@ describe('NetworkVisibilityController', () => {
 
       const { state } = controller;
       const expectedNetworks = [
-        toEvmCaipChainId(CHAIN_IDS.SEPOLIA),
+        toEvmCaipChainId('0x1'),
         BtcScope.Mainnet,
         SolScope.Mainnet,
       ];
+      expect(state.orderedNetworkList).toHaveLength(3);
       expectedNetworks.forEach((networkId) => {
         expect(
           state.orderedNetworkList.some((n) => n.networkId === networkId),
@@ -269,13 +289,14 @@ describe('NetworkVisibilityController', () => {
         ...getDefaultNetworkControllerState(),
         selectedNetworkClientId: 'mainnet',
         networkConfigurationsByChainId: {
-          [CHAIN_IDS.SEPOLIA]: buildNetworkConfig({
-            chainId: CHAIN_IDS.SEPOLIA,
-            name: 'Sepolia Test Network',
+          // Use non-test networks
+          '0x1': buildNetworkConfig({
+            chainId: '0x1',
+            name: 'Ethereum Mainnet',
           }),
-          [CHAIN_IDS.LINEA_SEPOLIA]: buildNetworkConfig({
-            chainId: CHAIN_IDS.LINEA_SEPOLIA,
-            name: 'Linea Sepolia Test Network',
+          '0x89': buildNetworkConfig({
+            chainId: '0x89',
+            name: 'Polygon Mainnet',
           }),
         },
         networksMetadata: {},
@@ -292,9 +313,9 @@ describe('NetworkVisibilityController', () => {
         ...getDefaultNetworkControllerState(),
         selectedNetworkClientId: 'mainnet',
         networkConfigurationsByChainId: {
-          [CHAIN_IDS.SEPOLIA]: buildNetworkConfig({
-            chainId: CHAIN_IDS.SEPOLIA,
-            name: 'Sepolia Test Network',
+          '0x1': buildNetworkConfig({
+            chainId: '0x1',
+            name: 'Ethereum Mainnet',
           }),
         },
         networksMetadata: {},
@@ -309,7 +330,7 @@ describe('NetworkVisibilityController', () => {
       const { state } = controller;
       expect(state.orderedNetworkList).toHaveLength(1);
       expect(state.orderedNetworkList[0].networkId).toBe(
-        toEvmCaipChainId(CHAIN_IDS.SEPOLIA),
+        toEvmCaipChainId('0x1'),
       );
     });
 
@@ -325,6 +346,113 @@ describe('NetworkVisibilityController', () => {
 
       const { state } = controller;
       expect(state.orderedNetworkList).toHaveLength(0);
+    });
+
+    it('should filter out all test networks defined in TEST_CHAINS', () => {
+      const mockNetworkState: NetworkState = {
+        ...getDefaultNetworkControllerState(),
+        selectedNetworkClientId: 'mainnet',
+        networkConfigurationsByChainId: {
+          // Add all test networks
+          [CHAIN_IDS.SEPOLIA]: buildNetworkConfig({
+            chainId: CHAIN_IDS.SEPOLIA,
+            name: 'Sepolia Test Network',
+          }),
+          [CHAIN_IDS.LINEA_SEPOLIA]: buildNetworkConfig({
+            chainId: CHAIN_IDS.LINEA_SEPOLIA,
+            name: 'Linea Sepolia Test Network',
+          }),
+          [CHAIN_IDS.LOCALHOST]: buildNetworkConfig({
+            chainId: CHAIN_IDS.LOCALHOST,
+            name: 'Localhost Test Network',
+          }),
+          [CHAIN_IDS.MEGAETH_TESTNET]: buildNetworkConfig({
+            chainId: CHAIN_IDS.MEGAETH_TESTNET,
+            name: 'MegaETH Test Network',
+          }),
+          [CHAIN_IDS.MONAD_TESTNET]: buildNetworkConfig({
+            chainId: CHAIN_IDS.MONAD_TESTNET,
+            name: 'Monad Test Network',
+          }),
+          // Add a non-test network
+          '0x1': buildNetworkConfig({
+            chainId: '0x1',
+            name: 'Ethereum Mainnet',
+          }),
+        },
+        networksMetadata: {},
+      };
+
+      // First add all networks to the ordered list
+      controller.updateNetworksList([
+        toEvmCaipChainId(CHAIN_IDS.SEPOLIA),
+        toEvmCaipChainId(CHAIN_IDS.LINEA_SEPOLIA),
+        toEvmCaipChainId(CHAIN_IDS.LOCALHOST),
+        toEvmCaipChainId(CHAIN_IDS.MEGAETH_TESTNET),
+        toEvmCaipChainId(CHAIN_IDS.MONAD_TESTNET),
+        toEvmCaipChainId('0x1'),
+      ]);
+
+      // Update network state
+      messenger.publish('NetworkController:stateChange', mockNetworkState, []);
+
+      const { state } = controller;
+      const chainIds = state.orderedNetworkList.map((n) => n.networkId);
+
+      // Verify that all test networks are filtered out
+      expect(chainIds).not.toContain(toEvmCaipChainId(CHAIN_IDS.SEPOLIA));
+      expect(chainIds).not.toContain(toEvmCaipChainId(CHAIN_IDS.LINEA_SEPOLIA));
+      expect(chainIds).not.toContain(toEvmCaipChainId(CHAIN_IDS.LOCALHOST));
+      expect(chainIds).not.toContain(
+        toEvmCaipChainId(CHAIN_IDS.MEGAETH_TESTNET),
+      );
+      expect(chainIds).not.toContain(toEvmCaipChainId(CHAIN_IDS.MONAD_TESTNET));
+
+      // Verify that non-test networks are preserved
+      expect(chainIds).toContain(toEvmCaipChainId('0x1'));
+    });
+
+    it('should preserve non-EVM networks (BTC and SOL) even when they are not in networkConfigurationsByChainId', () => {
+      const mockNetworkState: NetworkState = {
+        ...getDefaultNetworkControllerState(),
+        selectedNetworkClientId: 'mainnet',
+        networkConfigurationsByChainId: {
+          // Only include EVM networks
+          '0x1': buildNetworkConfig({
+            chainId: '0x1',
+            name: 'Ethereum Mainnet',
+          }),
+        },
+        networksMetadata: {},
+      };
+
+      // First add all networks including non-EVM networks
+      controller.updateNetworksList([
+        toEvmCaipChainId('0x1'),
+        BtcScope.Mainnet,
+        SolScope.Mainnet,
+      ]);
+
+      // Update network state
+      messenger.publish('NetworkController:stateChange', mockNetworkState, []);
+
+      const { state } = controller;
+      const chainIds = state.orderedNetworkList.map((n) => n.networkId);
+
+      // Verify that EVM network is preserved
+      expect(chainIds).toContain(toEvmCaipChainId('0x1'));
+
+      // Verify that non-EVM networks are preserved even though they're not in networkConfigurationsByChainId
+      expect(chainIds).toContain(BtcScope.Mainnet);
+      expect(chainIds).toContain(SolScope.Mainnet);
+
+      // Verify the exact order and length
+      expect(state.orderedNetworkList).toHaveLength(3);
+      expect(state.orderedNetworkList[0].networkId).toBe(
+        toEvmCaipChainId('0x1'),
+      );
+      expect(state.orderedNetworkList[1].networkId).toBe(BtcScope.Mainnet);
+      expect(state.orderedNetworkList[2].networkId).toBe(SolScope.Mainnet);
     });
   });
 });
