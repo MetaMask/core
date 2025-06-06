@@ -2392,6 +2392,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@lavamoat/aa@npm:^4.3.2":
+  version: 4.3.2
+  resolution: "@lavamoat/aa@npm:4.3.2"
+  dependencies:
+    resolve: "npm:1.22.10"
+  bin:
+    lavamoat-ls: src/cli.js
+  checksum: 10/a13300a65a0628be5b32360f5ddd68e1e5f356f00d13191de08900a6df4ee713a9558abb688d7a852ba35e5bb6b0114f95cd26e107c81be11c204cd1619590cf
+  languageName: node
+  linkType: hard
+
 "@lavamoat/allow-scripts@npm:^3.0.4":
   version: 3.2.0
   resolution: "@lavamoat/allow-scripts@npm:3.2.0"
@@ -2406,6 +2417,22 @@ __metadata:
   bin:
     allow-scripts: src/cli.js
   checksum: 10/21afb11ce25c0b2c9763bfb8f1127bb89f304ed83f64e00955c4d3007216a0ee553b777359e9ded874c61b3d7fa8d19ff8a35881cd3816985adab4d6b58bcb07
+  languageName: node
+  linkType: hard
+
+"@lavamoat/allow-scripts@npm:^3.3.3":
+  version: 3.3.3
+  resolution: "@lavamoat/allow-scripts@npm:3.3.3"
+  dependencies:
+    "@lavamoat/aa": "npm:^4.3.2"
+    "@npmcli/run-script": "npm:8.1.0"
+    bin-links: "npm:4.0.4"
+    npm-normalize-package-bin: "npm:3.0.1"
+    type-fest: "npm:4.40.1"
+    yargs: "npm:17.7.2"
+  bin:
+    allow-scripts: src/cli.js
+  checksum: 10/1fec7771baa3cba70e1c0f384886231cee9d8ee0400508e119c8c91521d305d83ef17cc23344d1c0f0c4f892da62712ce065f10ddb796965d489f94b7c958b40
   languageName: node
   linkType: hard
 
@@ -3960,6 +3987,29 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metamask/network-visibility-controller@workspace:packages/network-visibility-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/network-visibility-controller@workspace:packages/network-visibility-controller"
+  dependencies:
+    "@lavamoat/allow-scripts": "npm:^3.3.3"
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/base-controller": "npm:^8.0.1"
+    "@metamask/error-reporting-service": "npm:^1.0.0"
+    "@metamask/keyring-api": "npm:^18.0.0"
+    "@metamask/keyring-snap-client": "npm:^5.0.0"
+    "@metamask/multichain-network-controller": "npm:^0.8.0"
+    "@metamask/network-controller": "npm:^23.5.1"
+    "@metamask/providers": "npm:^19.0.0"
+    "@types/jest": "npm:^27.4.1"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^27.5.1"
+    ts-jest: "npm:^27.1.4"
+    typedoc: "npm:^0.24.8"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~4.9.5"
+  languageName: unknown
+  linkType: soft
+
 "@metamask/nonce-tracker@npm:^6.0.0":
   version: 6.0.0
   resolution: "@metamask/nonce-tracker@npm:6.0.0"
@@ -4206,6 +4256,27 @@ __metadata:
     webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
   languageName: unknown
   linkType: soft
+
+"@metamask/providers@npm:^19.0.0":
+  version: 19.0.0
+  resolution: "@metamask/providers@npm:19.0.0"
+  dependencies:
+    "@metamask/json-rpc-engine": "npm:^10.0.2"
+    "@metamask/json-rpc-middleware-stream": "npm:^8.0.6"
+    "@metamask/object-multiplex": "npm:^2.0.0"
+    "@metamask/rpc-errors": "npm:^7.0.2"
+    "@metamask/safe-event-emitter": "npm:^3.1.1"
+    "@metamask/utils": "npm:^11.0.1"
+    detect-browser: "npm:^5.2.0"
+    extension-port-stream: "npm:^4.1.0"
+    fast-deep-equal: "npm:^3.1.3"
+    is-stream: "npm:^2.0.0"
+    readable-stream: "npm:^3.6.2"
+  peerDependencies:
+    webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
+  checksum: 10/e45b2e90aa45db689bed582e85181d6964daff3c4b651ffc8503edcec2206a1b76677c0ae6fc0b29cef37a1b33775545e73bd1cf62802a4fc5e2841973cdafb6
+  languageName: node
+  linkType: hard
 
 "@metamask/providers@npm:^22.1.0":
   version: 22.1.0
@@ -10340,6 +10411,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"is-core-module@npm:^2.16.0":
+  version: 2.16.1
+  resolution: "is-core-module@npm:2.16.1"
+  dependencies:
+    hasown: "npm:^2.0.2"
+  checksum: 10/452b2c2fb7f889cbbf7e54609ef92cf6c24637c568acc7e63d166812a0fb365ae8a504c333a29add8bdb1686704068caa7f4e4b639b650dde4f00a038b8941fb
+  languageName: node
+  linkType: hard
+
 "is-docker@npm:^3.0.0":
   version: 3.0.0
   resolution: "is-docker@npm:3.0.0"
@@ -13246,6 +13326,19 @@ __metadata:
   languageName: node
   linkType: hard
 
+"resolve@npm:1.22.10":
+  version: 1.22.10
+  resolution: "resolve@npm:1.22.10"
+  dependencies:
+    is-core-module: "npm:^2.16.0"
+    path-parse: "npm:^1.0.7"
+    supports-preserve-symlinks-flag: "npm:^1.0.0"
+  bin:
+    resolve: bin/resolve
+  checksum: 10/0a398b44da5c05e6e421d70108822c327675febb880eebe905587628de401854c61d5df02866ff34fc4cb1173a51c9f0e84a94702738df3611a62e2acdc68181
+  languageName: node
+  linkType: hard
+
 "resolve@npm:1.22.8, resolve@npm:^1.20.0, resolve@npm:^1.22.3, resolve@npm:^1.22.4":
   version: 1.22.8
   resolution: "resolve@npm:1.22.8"
@@ -13256,6 +13349,19 @@ __metadata:
   bin:
     resolve: bin/resolve
   checksum: 10/c473506ee01eb45cbcfefb68652ae5759e092e6b0fb64547feadf9736a6394f258fbc6f88e00c5ca36d5477fbb65388b272432a3600fa223062e54333c156753
+  languageName: node
+  linkType: hard
+
+"resolve@patch:resolve@npm%3A1.22.10#optional!builtin<compat/resolve>":
+  version: 1.22.10
+  resolution: "resolve@patch:resolve@npm%3A1.22.10#optional!builtin<compat/resolve>::version=1.22.10&hash=c3c19d"
+  dependencies:
+    is-core-module: "npm:^2.16.0"
+    path-parse: "npm:^1.0.7"
+    supports-preserve-symlinks-flag: "npm:^1.0.0"
+  bin:
+    resolve: bin/resolve
+  checksum: 10/d4d878bfe3702d215ea23e75e0e9caf99468e3db76f5ca100d27ebdc527366fee3877e54bce7d47cc72ca8952fc2782a070d238bfa79a550eeb0082384c3b81a
   languageName: node
   linkType: hard
 
@@ -14409,6 +14515,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"type-fest@npm:4.40.1":
+  version: 4.40.1
+  resolution: "type-fest@npm:4.40.1"
+  checksum: 10/907767cd7889c8f17d94f4a811ec27c33339a9134f6842a1a56b4d6ee87cb1d6b01332f366a3f03adc10923fd6d511d73b73076f7ab5256bf5c0b43a03ab6e8b
+  languageName: node
+  linkType: hard
+
 "type-fest@npm:^0.12.0":
   version: 0.12.0
   resolution: "type-fest@npm:0.12.0"
@@ -14502,6 +14615,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"typescript@npm:~4.9.5":
+  version: 4.9.5
+  resolution: "typescript@npm:4.9.5"
+  bin:
+    tsc: bin/tsc
+    tsserver: bin/tsserver
+  checksum: 10/458f7220ab11e0fc191514cc41be1707645ec9a8c2d609448a448e18c522cef9646f58728f6811185a4c35613dacdf6c98cf8965c88b3541d0288c47291e4300
+  languageName: node
+  linkType: hard
+
 "typescript@npm:~5.2.2":
   version: 5.2.2
   resolution: "typescript@npm:5.2.2"
@@ -14509,6 +14632,16 @@ __metadata:
     tsc: bin/tsc
     tsserver: bin/tsserver
   checksum: 10/d65e50eb849bd21ff8677e5b9447f9c6e74777e346afd67754934264dcbf4bd59e7d2473f6062d9a015d66bd573311166357e3eb07fea0b52859cf9bb2b58555
+  languageName: node
+  linkType: hard
+
+"typescript@patch:typescript@npm%3A~4.9.5#optional!builtin<compat/typescript>":
+  version: 4.9.5
+  resolution: "typescript@patch:typescript@npm%3A4.9.5#optional!builtin<compat/typescript>::version=4.9.5&hash=289587"
+  bin:
+    tsc: bin/tsc
+    tsserver: bin/tsserver
+  checksum: 10/5659316360b5cc2d6f5931b346401fa534107b68b60179cf14970e27978f0936c1d5c46f4b5b8175f8cba0430f522b3ce355b4b724c0ea36ce6c0347fab25afd
   languageName: node
   linkType: hard
 

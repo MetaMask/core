@@ -1,0 +1,78 @@
+{
+  "name": "@metamask/network-visibility-controller",
+  "version": "0.0.0",
+  "description": "Handles user-facing network state for how networks are displayed and interacted with.",
+  "keywords": [
+    "MetaMask",
+    "Ethereum"
+  ],
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/network-visibility-controller#readme",
+  "bugs": {
+    "url": "https://github.com/MetaMask/core/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MetaMask/core.git"
+  },
+  "license": "MIT",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/types/index.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/types/index.d.ts",
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
+    "build:docs": "typedoc",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/network-visibility-controller",
+    "publish:preview": "yarn npm publish --tag preview",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
+    "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
+    "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
+  },
+  "devDependencies": {
+    "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/network-controller": "^23.5.1",
+    "@types/jest": "^27.4.1",
+    "deepmerge": "^4.2.2",
+    "jest": "^27.5.1",
+    "ts-jest": "^27.1.4",
+    "typedoc": "^0.24.8",
+    "typedoc-plugin-missing-exports": "^2.0.0",
+    "typescript": "~4.9.5"
+  },
+  "engines": {
+    "node": "^18.18 || >=20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "dependencies": {
+    "@lavamoat/allow-scripts": "^3.3.3",
+    "@metamask/base-controller": "^8.0.1",
+    "@metamask/error-reporting-service": "^1.0.0",
+    "@metamask/keyring-api": "^18.0.0",
+    "@metamask/keyring-snap-client": "^5.0.0",
+    "@metamask/multichain-network-controller": "^0.8.0",
+    "@metamask/providers": "^19.0.0"
+  },
+  "peerDependencies": {
+    "@metamask/network-controller": "^23.0.0"
+  },
+  "lavamoat": {
+    "allowScripts": {
+      "@metamask/multichain-network-controller>@metamask/accounts-controller>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>keccak": false,
+      "@metamask/multichain-network-controller>@metamask/accounts-controller>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>secp256k1": false
+    }
+  }
+}

@@ -35,6 +35,7 @@
     { "path": "./packages/multichain/tsconfig.build.json" },
     { "path": "./packages/name-controller/tsconfig.build.json" },
     { "path": "./packages/network-controller/tsconfig.build.json" },
+    { "path": "./packages/network-visibility-controller/tsconfig.build.json" },
     {
       "path": "./packages/notification-services-controller/tsconfig.build.json"
     },
