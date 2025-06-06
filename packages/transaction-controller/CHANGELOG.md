@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `gasFeeEstimates` property to `TransactionBatchMeta`, populated using `DefaultGasFeeFlow` ([#5886](https://github.com/MetaMask/core/pull/5886))
 
+### Fixed
+
+- Avoid coercing `publishBatchHook` to a boolean ([#5934](https://github.com/MetaMask/core/pull/5934))
+
 ## [57.1.0]
 
 ### Added

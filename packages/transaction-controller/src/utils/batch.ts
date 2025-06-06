@@ -431,9 +431,12 @@ async function addTransactionBatchWithHook(
     disableSequential = true;
   }
 
-  const publishBatchHook =
-    (!disableHook && requestPublishBatchHook) ??
-    (!disableSequential && sequentialPublishBatchHook.getHook());
+  let publishBatchHook = null;
+  if (!disableHook) {
+    publishBatchHook = requestPublishBatchHook;
+  } else if (!disableSequential) {
+    publishBatchHook = sequentialPublishBatchHook.getHook();
+  }
 
   if (!publishBatchHook) {
     log(`No supported batch methods found`, {

@@ -41,7 +41,7 @@ import MockEncryptor, {
 } from '../tests/mocks/mockEncryptor';
 import { MockErc4337Keyring } from '../tests/mocks/mockErc4337Keyring';
 import { MockKeyring } from '../tests/mocks/mockKeyring';
-import MockShallowGetAccountsKeyring from '../tests/mocks/mockShallowGetAccountsKeyring';
+import MockShallowKeyring from '../tests/mocks/mockShallowKeyring';
 import { buildMockTransaction } from '../tests/mocks/mockTransaction';
 
 jest.mock('uuid', () => {
@@ -404,16 +404,14 @@ describe('KeyringController', () => {
       it('should not throw when `keyring.getAccounts()` returns a shallow copy', async () => {
         await withController(
           {
-            keyringBuilders: [
-              keyringBuilderFactory(MockShallowGetAccountsKeyring),
-            ],
+            keyringBuilders: [keyringBuilderFactory(MockShallowKeyring)],
           },
           async ({ controller }) => {
-            await controller.addNewKeyring(MockShallowGetAccountsKeyring.type);
+            await controller.addNewKeyring(MockShallowKeyring.type);
             // TODO: This is a temporary workaround while `addNewAccountForKeyring` is not
             // removed.
             const mockKeyring = controller.getKeyringsByType(
-              MockShallowGetAccountsKeyring.type,
+              MockShallowKeyring.type,
             )[0] as EthKeyring;
 
             jest
@@ -3530,6 +3528,28 @@ describe('KeyringController', () => {
               });
 
               expect(mockStateChange).toHaveBeenCalled();
+            },
+          );
+        });
+
+        it('should update the vault if the keyring is being updated but `keyring.serialize()` includes a shallow copy', async () => {
+          await withController(
+            { keyringBuilders: [keyringBuilderFactory(MockShallowKeyring)] },
+            async ({ controller, messenger }) => {
+              await controller.addNewKeyring(MockShallowKeyring.type);
+              const mockStateChange = jest.fn();
+              messenger.subscribe(
+                'KeyringController:stateChange',
+                mockStateChange,
+              );
+
+              await controller.withKeyring(
+                { type: MockShallowKeyring.type },
+                async ({ keyring }) => keyring.addAccounts(1),
+              );
+
+              expect(mockStateChange).toHaveBeenCalled();
+              expect(controller.state.keyrings[1].accounts).toHaveLength(1);
             },
           );
         });
