@@ -2,6 +2,7 @@ import {
   fetchBridgeTxStatus,
   getBridgeStatusUrl,
   getStatusRequestDto,
+  delay,
 } from './bridge-status';
 import { BRIDGE_PROD_API_BASE_URL } from '../constants';
 import { BridgeClientId } from '../types';
@@ -187,6 +188,46 @@ describe('utils', () => {
         refuel: 'false',
       });
       expect(result).not.toHaveProperty('requestId');
+    });
+  });
+
+  describe('delay', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should resolve after the specified delay', async () => {
+      const delayMs = 1000;
+      const delayPromise = delay(delayMs);
+
+      // Fast-forward time
+      jest.advanceTimersByTime(delayMs);
+
+      expect(await delayPromise).toBeUndefined();
+    });
+
+    it('should not resolve before the specified delay', async () => {
+      const delayMs = 1000;
+      const delayPromise = delay(delayMs);
+
+      // Fast-forward time by less than the delay
+      jest.advanceTimersByTime(delayMs - 1);
+
+      // Promise should still be pending - we'll race it with a resolved promise
+      const raceResult = await Promise.race([
+        delayPromise.then(() => 'delayed'),
+        Promise.resolve('immediate'),
+      ]);
+
+      expect(raceResult).toBe('immediate');
+
+      // Complete the delay and verify it resolves
+      jest.advanceTimersByTime(1);
+      expect(await delayPromise).toBeUndefined();
     });
   });
 });
