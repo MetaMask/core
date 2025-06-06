@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add Base network to default infura networks ([#5902](https://github.com/MetaMask/core/pull/5902))
   - Network changes were added in `@metamask/controller-utils`
+- Add HTTP `502` status code to the list of retriable errors ([#5923](https://github.com/MetaMask/core/pull/5923))
+
+### Fixed
+
+- Recategorize HTTP errors or malformed responses received from RPC endpoints so they are no longer represented as internal JSON-RPC errors ([#5923](https://github.com/MetaMask/core/pull/5923)):
+  - 401 responses are now represented as "Unauthorized" errors (code -32100)
+  - 402/404/5xx responses are now represented as "Resource Unavailable" errors (code -32002)
+  - 429 responses are still represented as "Limit Exceeded" errors (code -32005) but the error object now contains the HTTP status code
+  - Other 4xx responses are now represented as generic HTTP client errors (code -32100)
+  - Invalid JSON responses are now represented as "Parse" errors (code -32700)
 
 ## [23.5.1]
 
