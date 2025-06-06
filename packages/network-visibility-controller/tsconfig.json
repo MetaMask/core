@@ -12,8 +12,5 @@
     { "path": "../../packages/multichain-network-controller" },
     { "path": "../../packages/controller-utils" }
   ],
-  "include": [
-    "../../types",
-    "./src"
-  ]
+  "include": ["../../types", "./src"]
 }

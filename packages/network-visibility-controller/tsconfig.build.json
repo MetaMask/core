@@ -8,7 +8,9 @@
   "references": [
     { "path": "../../packages/base-controller/tsconfig.build.json" },
     { "path": "../../packages/network-controller/tsconfig.build.json" },
-    { "path": "../../packages/multichain-network-controller/tsconfig.build.json" },
+    {
+      "path": "../../packages/multichain-network-controller/tsconfig.build.json"
+    },
     { "path": "../../packages/controller-utils/tsconfig.build.json" }
   ],
   "include": ["../../types", "./src"]
