@@ -3,7 +3,6 @@ import { BtcScope, SolScope } from '@metamask/keyring-api';
 import { toEvmCaipChainId } from '@metamask/multichain-network-controller';
 import {
   RpcEndpointType,
-  NetworkStatus,
   getDefaultNetworkControllerState,
 } from '@metamask/network-controller';
 import type {
@@ -111,7 +110,7 @@ describe('NetworkVisibilityController', () => {
       controller.setEnabledNetworks(chainId);
 
       const { state } = controller;
-      expect(state.enabledNetworkMap).toEqual({
+      expect(state.enabledNetworkMap).toStrictEqual({
         [chainId]: true,
       });
     });
