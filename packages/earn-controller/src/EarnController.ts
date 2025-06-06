@@ -98,11 +98,11 @@ const stakingTransactionTypes = new Set<StakingTransactionTypes>([
 
 type LendingTransactionTypes =
   | TransactionType.lendingDeposit
-  | 'lendingWithdraw';
+  | TransactionType.lendingWithdraw;
 
 const lendingTransactionTypes = new Set<LendingTransactionTypes>([
   TransactionType.lendingDeposit,
-  'lendingWithdraw',
+  TransactionType.lendingWithdraw,
 ]);
 
 /**

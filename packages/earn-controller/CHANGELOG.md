@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Replace hardcoded `"lendingWithdraw"` in `LendingTransactionTypes` with `TransactionType.lendingWithdraw` ([#5936](https://github.com/MetaMask/core/pull/5936))
+
 ## [1.0.0]
 
 ### Added
