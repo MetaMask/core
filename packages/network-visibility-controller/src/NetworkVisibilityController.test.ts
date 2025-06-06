@@ -74,4 +74,52 @@ describe('NetworkVisibilityController', () => {
       expect(state.orderedNetworkList).toHaveLength(0);
     });
   });
+
+  describe('setEnabledNetworks', () => {
+    it('should enable a single network', () => {
+      const chainId = toEvmCaipChainId(CHAIN_IDS.SEPOLIA);
+      controller.setEnabledNetworks(chainId);
+
+      const { state } = controller;
+      expect(state.enabledNetworkMap).toEqual({
+        [chainId]: true,
+      });
+    });
+
+    it('should enable multiple networks', () => {
+      const chainIds = [
+        toEvmCaipChainId(CHAIN_IDS.SEPOLIA),
+        toEvmCaipChainId(CHAIN_IDS.LINEA_SEPOLIA),
+      ];
+      controller.setEnabledNetworks(chainIds);
+
+      const { state } = controller;
+      chainIds.forEach((chainId) => {
+        expect(state.enabledNetworkMap[chainId]).toBe(true);
+      });
+    });
+
+    it('should disable previously enabled networks', () => {
+      // First enable some networks
+      const initialChainIds = [
+        toEvmCaipChainId(CHAIN_IDS.SEPOLIA),
+        toEvmCaipChainId(CHAIN_IDS.LINEA_SEPOLIA),
+      ];
+      controller.setEnabledNetworks(initialChainIds);
+
+      // Then enable a different set
+      const newChainIds = [toEvmCaipChainId(CHAIN_IDS.LOCALHOST)];
+      controller.setEnabledNetworks(newChainIds);
+
+      const { state } = controller;
+      // New networks should be enabled
+      newChainIds.forEach((chainId) => {
+        expect(state.enabledNetworkMap[chainId]).toBe(true);
+      });
+      // Previously enabled networks should be disabled
+      initialChainIds.forEach((chainId) => {
+        expect(state.enabledNetworkMap[chainId]).toBeUndefined();
+      });
+    });
+  });
 });
