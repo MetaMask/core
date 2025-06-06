@@ -7,10 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
+### Changed
 
-- chore: update accounts/snaps deps ([#5871](https://github.com/MetaMask/core/pull/5871))
-- Release 415.0.0 ([#5882](https://github.com/MetaMask/core/pull/5882))
+- Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
 
 ## [4.1.0]
 

@@ -7,13 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 426.0.0 ([#5920](https://github.com/MetaMask/core/pull/5920))
+## [1.1.0]
 
 ### Changed
 
 - Replace hardcoded `"lendingWithdraw"` in `LendingTransactionTypes` with `TransactionType.lendingWithdraw` ([#5936](https://github.com/MetaMask/core/pull/5936))
+- Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
 
 ## [1.0.0]
 
@@ -197,7 +196,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@1.1.0...HEAD
+[1.1.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@1.0.0...@metamask/earn-controller@1.1.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.15.0...@metamask/earn-controller@1.0.0
 [0.15.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.14.0...@metamask/earn-controller@0.15.0
 [0.14.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.13.0...@metamask/earn-controller@0.14.0
