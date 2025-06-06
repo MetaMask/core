@@ -5,6 +5,14 @@ import type {
   AccountsControllerUpdateAccountsAction,
 } from '@metamask/accounts-controller';
 import type {
+  AddressBookControllerContactUpdatedEvent,
+  AddressBookControllerContactDeletedEvent,
+  AddressBookControllerActions,
+  AddressBookControllerListAction,
+  AddressBookControllerSetAction,
+  AddressBookControllerDeleteAction,
+} from '@metamask/address-book-controller';
+import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   RestrictedMessenger,
@@ -34,6 +42,8 @@ import {
 } from './account-syncing/controller-integration';
 import { setupAccountSyncingSubscriptions } from './account-syncing/setup-subscriptions';
 import { BACKUPANDSYNC_FEATURES } from './constants';
+import { syncContactsWithUserStorage } from './contact-syncing/controller-integration';
+import { setupContactSyncingSubscriptions } from './contact-syncing/setup-subscriptions';
 import {
   performMainNetworkSync,
   startNetworkSyncing,
@@ -70,6 +80,14 @@ export type UserStorageControllerState = {
    */
   isAccountSyncingEnabled: boolean;
   /**
+   * Condition used by UI to determine if contact syncing is enabled.
+   */
+  isContactSyncingEnabled: boolean;
+  /**
+   * Condition used by UI to determine if contact syncing is in progress.
+   */
+  isContactSyncingInProgress: boolean;
+  /**
    * Condition used to determine if account syncing has been dispatched at least once.
    * This is used for event listeners to determine if they should be triggered.
    * This is also used in E2E tests for verification purposes.
@@ -93,6 +111,8 @@ export const defaultState: UserStorageControllerState = {
   isBackupAndSyncEnabled: true,
   isBackupAndSyncUpdateLoading: false,
   isAccountSyncingEnabled: true,
+  isContactSyncingEnabled: true,
+  isContactSyncingInProgress: false,
   hasAccountSyncingSyncedAtLeastOnce: false,
   isAccountSyncingReadyToBeDispatched: false,
   isAccountSyncingInProgress: false,
@@ -110,6 +130,14 @@ const metadata: StateMetadata<UserStorageControllerState> = {
   isAccountSyncingEnabled: {
     persist: true,
     anonymous: true,
+  },
+  isContactSyncingEnabled: {
+    persist: true,
+    anonymous: true,
+  },
+  isContactSyncingInProgress: {
+    persist: false,
+    anonymous: false,
   },
   hasAccountSyncingSyncedAtLeastOnce: {
     persist: true,
@@ -154,7 +182,29 @@ type ControllerConfig = {
       sentryContext?: Record<string, unknown>,
     ) => void;
   };
+  contactSyncing?: {
+    /**
+     * Callback that fires when contact sync updates a contact.
+     * This is used for analytics.
+     */
+    onContactUpdated?: (profileId: string) => void;
 
+    /**
+     * Callback that fires when contact sync deletes a contact.
+     * This is used for analytics.
+     */
+    onContactDeleted?: (profileId: string) => void;
+
+    /**
+     * Callback that fires when an erroneous situation happens during contact sync.
+     * This is used for analytics.
+     */
+    onContactSyncErroneousSituation?: (
+      profileId: string,
+      situationMessage: string,
+      sentryContext?: Record<string, unknown>,
+    ) => void;
+  };
   networkSyncing?: {
     maxNumberOfNetworksToAdd?: number;
     /**
@@ -240,7 +290,12 @@ export type AllowedActions =
   | NetworkControllerGetStateAction
   | NetworkControllerAddNetworkAction
   | NetworkControllerRemoveNetworkAction
-  | NetworkControllerUpdateNetworkAction;
+  | NetworkControllerUpdateNetworkAction
+  // Contact Syncing
+  | AddressBookControllerListAction
+  | AddressBookControllerSetAction
+  | AddressBookControllerDeleteAction
+  | AddressBookControllerActions;
 
 // Messenger events
 export type UserStorageControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -257,7 +312,10 @@ export type AllowedEvents =
   // Account Syncing Events
   | AccountsControllerAccountRenamedEvent
   // Network Syncing Events
-  | NetworkControllerNetworkRemovedEvent;
+  | NetworkControllerNetworkRemovedEvent
+  // Address Book Events
+  | AddressBookControllerContactUpdatedEvent
+  | AddressBookControllerContactDeletedEvent;
 
 // Messenger
 export type UserStorageControllerMessenger = RestrictedMessenger<
@@ -396,6 +454,12 @@ export default class UserStorageController extends BaseController<
 
     // Account Syncing
     setupAccountSyncingSubscriptions({
+      getUserStorageControllerInstance: () => this,
+      getMessenger: () => this.messagingSystem,
+    });
+
+    // Contact Syncing
+    setupContactSyncingSubscriptions({
       getUserStorageControllerInstance: () => this,
       getMessenger: () => this.messagingSystem,
     });
@@ -689,6 +753,10 @@ export default class UserStorageController extends BaseController<
         if (feature === BACKUPANDSYNC_FEATURES.accountSyncing) {
           state.isAccountSyncingEnabled = enabled;
         }
+
+        if (feature === BACKUPANDSYNC_FEATURES.contactSyncing) {
+          state.isContactSyncingEnabled = enabled;
+        }
       });
     } catch (e) {
       // istanbul ignore next
@@ -733,6 +801,19 @@ export default class UserStorageController extends BaseController<
   ): Promise<void> {
     this.update((state) => {
       state.isAccountSyncingInProgress = isAccountSyncingInProgress;
+    });
+  }
+
+  /**
+   * Sets the isContactSyncingInProgress flag to prevent infinite loops during contact synchronization
+   *
+   * @param isContactSyncingInProgress - Whether contact syncing is in progress
+   */
+  async setIsContactSyncingInProgress(
+    isContactSyncingInProgress: boolean,
+  ): Promise<void> {
+    this.update((state) => {
+      state.isContactSyncingInProgress = isContactSyncingInProgress;
     });
   }
 
@@ -819,6 +900,39 @@ export default class UserStorageController extends BaseController<
 
     this.update((s) => {
       s.hasNetworkSyncingSyncedAtLeastOnce = true;
+    });
+  }
+
+  /**
+   * Syncs the address book list with the user storage address book list.
+   * This method is used to make sure that the address book list is up-to-date with the user storage address book list and vice-versa.
+   * It will add new contacts to the address book list, update/merge conflicting contacts and re-upload the results in some cases to the user storage.
+   */
+  async syncContactsWithUserStorage(): Promise<void> {
+    const profileId = await this.#auth.getProfileId();
+
+    const config = {
+      onContactUpdated: () => {
+        this.#config?.contactSyncing?.onContactUpdated?.(profileId);
+      },
+      onContactDeleted: () => {
+        this.#config?.contactSyncing?.onContactDeleted?.(profileId);
+      },
+      onContactSyncErroneousSituation: (
+        errorMessage: string,
+        sentryContext?: Record<string, unknown>,
+      ) => {
+        this.#config?.contactSyncing?.onContactSyncErroneousSituation?.(
+          profileId,
+          errorMessage,
+          sentryContext,
+        );
+      },
+    };
+
+    await syncContactsWithUserStorage(config, {
+      getMessenger: () => this.messagingSystem,
+      getUserStorageControllerInstance: () => this,
     });
   }
 }
