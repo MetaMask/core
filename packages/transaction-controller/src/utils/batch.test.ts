@@ -1535,6 +1535,7 @@ describe('Batch Utils', () => {
             ...request.request,
             origin: ORIGIN_MOCK,
             disable7702: true,
+            disableHook: true,
           },
         }).catch(() => {
           // Intentionally empty
