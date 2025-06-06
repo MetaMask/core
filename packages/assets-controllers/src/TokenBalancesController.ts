@@ -469,7 +469,8 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
     accountAddress: Hex;
     tokenAddresses: Hex[];
   }): Promise<Record<Hex, Hex | null>> {
-    if (!tokenAddresses.length) {
+    // Return early if no token addresses provided
+    if (tokenAddresses.length === 0) {
       return {};
     }
 
