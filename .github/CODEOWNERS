@@ -13,6 +13,7 @@
 
 ## Assets Team
 /packages/assets-controllers         @MetaMask/metamask-assets
+/packages/network-visibility-controller @MetaMask/metamask-assets
 
 ## Confirmations Team
 /packages/address-book-controller           @MetaMask/confirmations
@@ -159,3 +160,5 @@
 /packages/foundryup/CHANGELOG.md @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/wallet-framework-engineers
 /packages/seedless-onboarding-controller/package.json @MetaMask/web3auth @MetaMask/wallet-framework-engineers
 /packages/seedless-onboarding-controller/CHANGELOG.md @MetaMask/web3auth @MetaMask/wallet-framework-engineers
+/packages/network-visibility-controller/package.json @MetaMask/metamask-assets @MetaMask/wallet-framework-engineers
+/packages/network-visibility-controller/CHANGELOG.md @MetaMask/metamask-assets @MetaMask/wallet-framework-engineers

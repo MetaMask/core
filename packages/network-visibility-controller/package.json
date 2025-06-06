@@ -1,7 +1,7 @@
 {
   "name": "@metamask/network-visibility-controller",
   "version": "0.0.0",
-  "description": "Handles user-facing network state for how networks are displayed and interacted with.",
+  "description": "Handles user-facing network state for how networks are displayed and interacted with",
   "keywords": [
     "MetaMask",
     "Ethereum"
@@ -18,14 +18,19 @@
   "sideEffects": false,
   "exports": {
     ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/types/index.d.ts"
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./package.json": "./package.json"
   },
-  "main": "./dist/index.js",
-  "types": "./dist/types/index.d.ts",
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.cts",
   "files": [
     "dist/"
   ],
@@ -33,6 +38,8 @@
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:docs": "typedoc",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/network-visibility-controller",
+    "since-latest-release": "../../scripts/since-latest-release.sh",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/network-visibility-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -40,15 +47,18 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "devDependencies": {
+    "@lavamoat/allow-scripts": "^3.0.4",
     "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/error-reporting-service": "^1.0.0",
     "@metamask/network-controller": "^23.5.1",
+    "@metamask/providers": "^22.1.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~4.9.5"
+    "typescript": "~5.2.2"
   },
   "engines": {
     "node": "^18.18 || >=20"
@@ -58,16 +68,15 @@
     "registry": "https://registry.npmjs.org/"
   },
   "dependencies": {
-    "@lavamoat/allow-scripts": "^3.3.3",
     "@metamask/base-controller": "^8.0.1",
-    "@metamask/error-reporting-service": "^1.0.0",
     "@metamask/keyring-api": "^18.0.0",
     "@metamask/keyring-snap-client": "^5.0.0",
-    "@metamask/multichain-network-controller": "^0.8.0",
-    "@metamask/providers": "^19.0.0"
+    "@metamask/multichain-network-controller": "^0.8.0"
   },
   "peerDependencies": {
-    "@metamask/network-controller": "^23.0.0"
+    "@metamask/error-reporting-service": "^1.0.0",
+    "@metamask/network-controller": "^23.0.0",
+    "@metamask/providers": "^22.0.0"
   },
   "lavamoat": {
     "allowScripts": {

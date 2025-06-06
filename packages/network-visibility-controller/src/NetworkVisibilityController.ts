@@ -1,5 +1,5 @@
-// eslint-disable-next-line @typescript-eslint/consistent-type-imports
-import { BaseController, RestrictedMessenger } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
+import type { RestrictedMessenger } from '@metamask/base-controller';
 import { BtcScope, SolScope } from '@metamask/keyring-api';
 import { toEvmCaipChainId } from '@metamask/multichain-network-controller';
 import type {
