@@ -59,7 +59,7 @@
     "@metamask/accounts-controller": "^30.0.0",
     "@metamask/approval-controller": "^7.1.3",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^22.0.1",
+    "@metamask/keyring-controller": "^22.0.2",
     "@metamask/logging-controller": "^6.0.4",
     "@metamask/network-controller": "^23.5.1",
     "@types/jest": "^27.4.1",
