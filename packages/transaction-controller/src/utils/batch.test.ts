@@ -494,9 +494,12 @@ describe('Batch Utils', () => {
     it('throws if chain not supported', async () => {
       doesChainSupportEIP7702Mock.mockReturnValue(false);
 
-      await expect(addTransactionBatch(request)).rejects.toThrow(
-        rpcErrors.internal("Can't process batch"),
-      );
+      await expect(
+        addTransactionBatch({
+          ...request,
+          request: { ...request.request, disableSequential: true },
+        }),
+      ).rejects.toThrow(rpcErrors.internal("Can't process batch"));
     });
 
     it('throws if no public key', async () => {

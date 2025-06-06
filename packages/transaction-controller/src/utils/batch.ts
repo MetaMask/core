@@ -416,19 +416,20 @@ async function addTransactionBatchWithHook(
     getPendingTransactionTracker: request.getPendingTransactionTracker,
   });
 
-  let { disable7702, disableSequential } = userRequest;
-  const { disableHook, useHook } = userRequest;
+  let { disable7702 } = userRequest;
+  const { disableHook, disableSequential, useHook } = userRequest;
 
   // use hook is a temporary alias for disable7702 and disableSequential
   if (useHook) {
     disable7702 = true;
-    disableSequential = true;
   }
 
   const publishBatchHook =
-    (!disableHook && requestPublishBatchHook) ??
-    (!disableSequential && sequentialPublishBatchHook.getHook());
-  if (!publishBatchHook) {
+    !disableHook && requestPublishBatchHook
+      ? requestPublishBatchHook
+      : sequentialPublishBatchHook.getHook();
+
+  if (disableSequential) {
     log(`No supported batch methods found`, {
       disable7702,
       disableHook,
