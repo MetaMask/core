@@ -6,6 +6,10 @@ export type ParamsBase = {
   swappable?: boolean;
 };
 
+export type TokenSearchFormattedParams = ParamsBase & {
+  query: string;
+};
+
 export type TokenSearchParams = Omit<ParamsBase, 'swappable'> & {
   query?: string;
 };

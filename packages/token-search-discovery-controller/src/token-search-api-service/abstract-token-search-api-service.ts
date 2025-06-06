@@ -1,5 +1,7 @@
 import type {
+  MoralisTokenResponseItem,
   SwappableTokenSearchParams,
+  TokenSearchFormattedParams,
   TokenSearchParams,
   TokenSearchResponseItem,
 } from '../types';
@@ -27,4 +29,14 @@ export abstract class AbstractTokenSearchApiService {
   abstract searchSwappableTokens(
     swappableTokenSearchParams: SwappableTokenSearchParams,
   ): Promise<TokenSearchResponseItem[]>;
+
+  /**
+   * Fetches formatted token search results from the portfolio API.
+   *
+   * @param tokenSearchFormattedParams - Search parameters including name, and optional limit {@link TokenSearchFormattedParams}
+   * @returns A promise resolving to an array of {@link MoralisTokenResponseItem}
+   */
+  abstract searchTokensFormatted(
+    tokenSearchFormattedParams: TokenSearchFormattedParams,
+  ): Promise<MoralisTokenResponseItem[]>;
 }

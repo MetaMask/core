@@ -103,6 +103,10 @@ describe('TokenSearchDiscoveryController', () => {
     async searchSwappableTokens(): Promise<TokenSearchResponseItem[]> {
       return mockSearchResults;
     }
+
+    async searchTokensFormatted(): Promise<MoralisTokenResponseItem[]> {
+      return mockTrendingResults;
+    }
   }
 
   class MockTokenDiscoveryService extends AbstractTokenDiscoveryApiService {
@@ -179,6 +183,15 @@ describe('TokenSearchDiscoveryController', () => {
     });
   });
 
+  describe('searchTokensFormatted', () => {
+    it('should return formatted search results', async () => {
+      const results = await mainController.searchTokensFormatted({
+        query: 'test',
+      });
+      expect(results).toStrictEqual(mockTrendingResults);
+    });
+  });
+
   describe('getTrendingTokens', () => {
     it('should return trending results', async () => {
       const results = await mainController.getTrendingTokens({});
@@ -213,6 +226,10 @@ describe('TokenSearchDiscoveryController', () => {
       }
 
       async searchSwappableTokens(): Promise<TokenSearchResponseItem[]> {
+        return [];
+      }
+
+      async searchTokensFormatted(): Promise<MoralisTokenResponseItem[]> {
         return [];
       }
     }
