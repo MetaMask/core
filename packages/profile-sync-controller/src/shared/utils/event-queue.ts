@@ -1,5 +1,5 @@
 export class EventQueue {
-  private queue: (() => Promise<void>)[] = [];
+  queue: (() => Promise<void>)[] = [];
 
   public push(callback: () => Promise<void>) {
     this.queue.push(callback);
@@ -9,8 +9,11 @@ export class EventQueue {
     while (this.queue.length > 0) {
       const event = this.queue[0];
 
-      await event();
-      this.queue = this.queue.filter((e) => e !== event);
+      try {
+        await event();
+      } finally {
+        this.queue = this.queue.filter((e) => e !== event);
+      }
     }
   }
 }
