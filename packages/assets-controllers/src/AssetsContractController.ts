@@ -276,10 +276,6 @@ export class AssetsContractController {
     return this.#ipfsGateway;
   }
 
-  /*   get chainId() {
-    return this.#chainId;
-  } */
-
   /**
    * Get the relevant provider instance.
    *

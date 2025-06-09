@@ -906,7 +906,6 @@ describe('AssetsContractController with NetworkClientId', () => {
   it('should get the staked ethereum balance for an address', async () => {
     const { assetsContract, messenger, networkClientConfiguration } =
       await setupAssetContractControllers();
-    // assetsContract.setProvider(provider);
 
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
@@ -967,7 +966,6 @@ describe('AssetsContractController with NetworkClientId', () => {
 
   it('should default staked ethereum balance to undefined if network is not supported', async () => {
     const { assetsContract } = await setupAssetContractControllers();
-    // assetsContract.setProvider(provider);
 
     const balance = await assetsContract.getStakedBalanceForChain(
       TEST_ACCOUNT_PUBLIC_ADDRESS,
