@@ -1,4 +1,4 @@
-import { rpcErrors } from '@metamask/rpc-errors';
+import { errorCodes, rpcErrors } from '@metamask/rpc-errors';
 
 import type { ProviderType } from './helpers';
 import {
@@ -13,6 +13,9 @@ type TestsForRpcMethodAssumingNoBlockParamOptions = {
   providerType: ProviderType;
   numberOfParameters: number;
 };
+
+const UNAUTHORIZED_CODE = -32006;
+const HTTP_CLIENT_ERROR_CODE = -32050;
 
 /**
  * Defines tests which exercise the behavior exhibited by an RPC method which is
@@ -308,12 +311,19 @@ export function testsForRpcMethodAssumingNoBlockParam(
   });
 
   describe.each([
-    [405, 'HTTP client error.'],
-    [429, 'Request is being rate limited.'],
+    [401, UNAUTHORIZED_CODE],
+    [402, errorCodes.rpc.resourceUnavailable],
+    [404, errorCodes.rpc.resourceUnavailable],
+    [422, HTTP_CLIENT_ERROR_CODE],
+    [429, errorCodes.rpc.limitExceeded],
   ])(
     'if the RPC endpoint returns a %d response',
-    (httpStatus, errorMessage) => {
-      it('throws a custom error', async () => {
+    (httpStatus, rpcErrorCode) => {
+      const expectedError = expect.objectContaining({
+        code: rpcErrorCode,
+      });
+
+      it('throws a custom error without retrying the request', async () => {
         await withMockedCommunications({ providerType }, async (comms) => {
           const request = { method };
 
@@ -332,7 +342,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
             async ({ makeRpcCall }) => makeRpcCall(request),
           );
 
-          await expect(promiseForResult).rejects.toThrow(errorMessage);
+          await expect(promiseForResult).rejects.toThrow(expectedError);
         });
       });
     },
@@ -341,7 +351,9 @@ export function testsForRpcMethodAssumingNoBlockParam(
   describe.each([500, 501, 505, 506, 507, 508, 510, 511])(
     'if the RPC endpoint returns a %d response',
     (httpStatus) => {
-      const errorMessage = 'RPC endpoint not found or unavailable.';
+      const expectedError = expect.objectContaining({
+        code: errorCodes.rpc.resourceUnavailable,
+      });
 
       it('throws a generic, undescriptive error', async () => {
         await withMockedCommunications({ providerType }, async (comms) => {
@@ -362,7 +374,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
             async ({ makeRpcCall }) => makeRpcCall(request),
           );
 
-          await expect(promiseForResult).rejects.toThrow(errorMessage);
+          await expect(promiseForResult).rejects.toThrow(expectedError);
         });
       });
 
@@ -380,10 +392,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
           httpStatus,
         },
         isRetriableFailure: false,
-        getExpectedError: () =>
-          expect.objectContaining({
-            message: errorMessage,
-          }),
+        getExpectedError: () => expectedError,
         getExpectedBreakError: () =>
           expect.objectContaining({
             message: `Fetch failed with status '${httpStatus}'`,
@@ -395,7 +404,9 @@ export function testsForRpcMethodAssumingNoBlockParam(
   describe.each([502, 503, 504])(
     'if the RPC endpoint returns a %d response',
     (httpStatus) => {
-      const errorMessage = 'RPC endpoint not found or unavailable.';
+      const expectedError = expect.objectContaining({
+        code: errorCodes.rpc.resourceUnavailable,
+      });
 
       it('retries the request up to 5 times until there is a 200 response', async () => {
         await withMockedCommunications({ providerType }, async (comms) => {
@@ -462,7 +473,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
               );
             },
           );
-          await expect(promiseForResult).rejects.toThrow(errorMessage);
+          await expect(promiseForResult).rejects.toThrow(expectedError);
         });
       });
 
@@ -480,10 +491,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
           httpStatus,
         },
         isRetriableFailure: true,
-        getExpectedError: () =>
-          expect.objectContaining({
-            message: expect.stringContaining(errorMessage),
-          }),
+        getExpectedError: () => expectedError,
         getExpectedBreakError: () =>
           expect.objectContaining({
             message: expect.stringContaining(
@@ -587,7 +595,9 @@ export function testsForRpcMethodAssumingNoBlockParam(
   );
 
   describe('if the RPC endpoint responds with invalid JSON', () => {
-    const errorMessage = 'not valid JSON';
+    const expectedError = expect.objectContaining({
+      code: errorCodes.rpc.parse,
+    });
 
     it('retries the request up to 5 times until it responds with valid JSON', async () => {
       await withMockedCommunications({ providerType }, async (comms) => {
@@ -653,7 +663,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
           },
         );
 
-        await expect(promiseForResult).rejects.toThrow(errorMessage);
+        await expect(promiseForResult).rejects.toThrow(expectedError);
       });
     });
 
@@ -671,9 +681,10 @@ export function testsForRpcMethodAssumingNoBlockParam(
         body: 'invalid JSON',
       },
       isRetriableFailure: true,
-      getExpectedError: () =>
+      getExpectedError: () => expectedError,
+      getExpectedBreakError: () =>
         expect.objectContaining({
-          message: expect.stringContaining(errorMessage),
+          message: expect.stringContaining('invalid json'),
         }),
     });
   });

@@ -2,7 +2,7 @@
 /* eslint-disable jest/no-conditional-in-test */
 
 import { HttpError } from '@metamask/controller-utils';
-import { errorCodes, rpcErrors } from '@metamask/rpc-errors';
+import { errorCodes } from '@metamask/rpc-errors';
 import nock from 'nock';
 import { FetchError } from 'node-fetch';
 import { useFakeTimers } from 'sinon';
@@ -11,6 +11,9 @@ import type { SinonFakeTimers } from 'sinon';
 import type { AbstractRpcService } from './abstract-rpc-service';
 import { RpcService } from './rpc-service';
 import { DEFAULT_CIRCUIT_BREAK_DURATION } from '../../../controller-utils/src/create-service-policy';
+
+const UNAUTHORIZED_CODE = -32006;
+const HTTP_CLIENT_ERROR_CODE = -32050;
 
 describe('RpcService', () => {
   let clock: SinonFakeTimers;
@@ -351,7 +354,7 @@ describe('RpcService', () => {
         });
         await expect(promise).rejects.toThrow(
           expect.objectContaining({
-            code: -32006,
+            code: UNAUTHORIZED_CODE,
             message: 'Unauthorized.',
             data: {
               httpStatus: 401,
@@ -606,7 +609,7 @@ describe('RpcService', () => {
     });
 
     describe('when the endpoint has a 4xx response that is not 401, 402, 404, or 429', () => {
-      const httpStatus = 403;
+      const httpStatus = 422;
 
       it('throws a generic HTTP client error without retrying the request', async () => {
         const endpointUrl = 'https://rpc.example.chain';
@@ -632,7 +635,7 @@ describe('RpcService', () => {
         });
         await expect(promise).rejects.toThrow(
           expect.objectContaining({
-            code: -32050,
+            code: HTTP_CLIENT_ERROR_CODE,
             message: 'RPC endpoint returned HTTP client error.',
             data: {
               httpStatus,
