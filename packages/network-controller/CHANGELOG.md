@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [23.6.0]
+
 ### Added
 
 - Add Base network to default infura networks ([#5902](https://github.com/MetaMask/core/pull/5902))
@@ -21,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 429 responses are still represented as "Limit Exceeded" errors (code -32005) but the error object now contains the HTTP status code
   - Other 4xx responses are now represented as generic HTTP client errors (code -32100)
   - Invalid JSON responses are now represented as "Parse" errors (code -32700)
+
+### Changed
+
+- Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
 
 ## [23.5.1]
 
@@ -881,7 +887,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.5.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.6.0...HEAD
+[23.6.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.5.1...@metamask/network-controller@23.6.0
 [23.5.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.5.0...@metamask/network-controller@23.5.1
 [23.5.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.4.0...@metamask/network-controller@23.5.0
 [23.4.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.3.0...@metamask/network-controller@23.4.0
