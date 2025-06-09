@@ -1364,7 +1364,12 @@ describe('Batch Utils', () => {
             ...request,
             publishBatchHook: undefined,
             isSimulationEnabled: () => isSimulationSupportedMock(),
-            request: { ...request.request, useHook: true },
+            request: {
+              ...request.request,
+              disable7702: true,
+              disableHook: true,
+              disableSequential: false,
+            },
           }),
         ).rejects.toThrow(`Can't process batch`);
       });
@@ -1380,6 +1385,8 @@ describe('Batch Utils', () => {
             ...request.request,
             requireApproval: false,
             disable7702: true,
+            disableHook: true,
+            disableSequential: false,
           },
         }).catch(() => {
           // Intentionally empty
@@ -1403,7 +1410,12 @@ describe('Batch Utils', () => {
           addTransactionBatch({
             ...request,
             publishBatchHook: undefined,
-            request: { ...request.request, disable7702: true },
+            request: {
+              ...request.request,
+              disable7702: true,
+              disableHook: true,
+              disableSequential: false,
+            },
           }),
         ).rejects.toThrow('Test error');
 
@@ -1425,6 +1437,8 @@ describe('Batch Utils', () => {
             ...request.request,
             origin: ORIGIN_MOCK,
             disable7702: true,
+            disableHook: true,
+            disableSequential: false,
           },
         }).catch(() => {
           // Intentionally empty
@@ -1467,6 +1481,8 @@ describe('Batch Utils', () => {
             ...request.request,
             origin: ORIGIN_MOCK,
             disable7702: true,
+            disableHook: true,
+            disableSequential: false,
           },
         }).catch(() => {
           // Intentionally empty
