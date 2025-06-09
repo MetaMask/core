@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add formatted search function to token discovery controller ([#5932](https://github.com/MetaMask/core/pull/5932))
+
 ## [3.2.0]
 
 ### Changed
