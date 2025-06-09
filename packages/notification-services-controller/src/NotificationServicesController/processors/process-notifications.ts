@@ -83,3 +83,9 @@ export function safeProcessNotification(
     return undefined;
   }
 }
+
+const isNotUndefined = <Item>(t?: Item): t is Item => Boolean(t);
+export const processAndFilterNotifications = (
+  ns: RawNotificationUnion[],
+  readIds: string[],
+) => ns.map((n) => safeProcessNotification(n, readIds)).filter(isNotUndefined);
