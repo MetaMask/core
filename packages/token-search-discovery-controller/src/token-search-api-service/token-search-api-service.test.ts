@@ -203,12 +203,14 @@ describe('TokenSearchApiService', () => {
     it('should return formatted search results', async () => {
       nock(TEST_API_URLS.BASE_URL)
         .get('/tokens-search/formatted')
-        .query({ query: 'TEST', limit: '10' })
+        .query({ query: 'TEST', limit: '10', swappable: 'true', chains: '0x1' })
         .reply(200, mockFormattedResults);
 
       const results = await service.searchTokensFormatted({
         query: 'TEST',
         limit: '10',
+        swappable: true,
+        chains: ['0x1'],
       });
       expect(results).toStrictEqual(mockFormattedResults);
     });
