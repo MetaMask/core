@@ -8,7 +8,7 @@ import {
   createServicePolicy,
   handleWhen,
 } from '@metamask/controller-utils';
-import { errorCodes, JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
+import { JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest } from '@metamask/utils';
 import {
   getErrorMessage,
