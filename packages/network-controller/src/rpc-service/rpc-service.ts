@@ -8,9 +8,10 @@ import {
   createServicePolicy,
   handleWhen,
 } from '@metamask/controller-utils';
-import { JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
+import { errorCodes, JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest } from '@metamask/utils';
 import {
+  getErrorMessage,
   hasProperty,
   type Json,
   type JsonRpcParams,
@@ -170,6 +171,22 @@ function isNockError(message: string) {
 }
 
 /**
+ * Determine whether the given error message indicates a failure to parse JSON.
+ *
+ * This is different in tests vs. implementation code because it may manifest as
+ * a FetchError or a SyntaxError.
+ *
+ * @param error - The error object to test.
+ * @returns True if the error indicates a JSON parse error, false otherwise.
+ */
+function isJsonParseError(error: unknown) {
+  return (
+    error instanceof SyntaxError ||
+    /invalid json/iu.test(getErrorMessage(error))
+  );
+}
+
+/**
  * Guarantees a URL, even given a string. This is useful for checking components
  * of that URL.
  *
@@ -249,7 +266,7 @@ export class RpcService implements AbstractRpcService {
           // Ignore errors where the request failed to establish
           isConnectionError(error) ||
           // Ignore server sent HTML error pages or truncated JSON responses
-          error.message.includes('not valid JSON') ||
+          isJsonParseError(error) ||
           // Ignore server overload errors
           ('httpStatus' in error &&
             (error.httpStatus === 502 ||
@@ -338,11 +355,11 @@ export class RpcService implements AbstractRpcService {
    * @param fetchOptions - An options bag for {@link fetch} which further
    * specifies the request.
    * @returns The decoded JSON-RPC response from the endpoint.
-   * @throws A 401 error if the response status is 401.
-   * @throws A "rate limiting" error if the response HTTP status is 429.
-   * @throws A "resource unavailable" error if the response status is 402, 404, or any 5xx.
-   * @throws A generic HTTP client error (-32100) for any other 4xx status codes.
-   * @throws A "parse" error if the response is not valid JSON.
+   * @throws An "authorized" JSON-RPC error (code -32006) if the response HTTP status is 401.
+   * @throws A "rate limiting" JSON-RPC error (code -32005) if the response HTTP status is 429.
+   * @throws A "resource unavailable" JSON-RPC error (code -32002) if the response HTTP status is 402, 404, or any 5xx.
+   * @throws A generic HTTP client JSON-RPC error (code -32050) for any other 4xx HTTP status codes.
+   * @throws A "parse" JSON-RPC error (code -32700) if the response is not valid JSON.
    */
   async request<Params extends JsonRpcParams, Result extends Json>(
     jsonRpcRequest: JsonRpcRequest<Params> & { method: 'eth_getBlockByNumber' },
@@ -362,11 +379,11 @@ export class RpcService implements AbstractRpcService {
    * @param fetchOptions - An options bag for {@link fetch} which further
    * specifies the request.
    * @returns The decoded JSON-RPC response from the endpoint.
-   * @throws A 401 error if the response status is 401.
-   * @throws A "rate limiting" error if the response HTTP status is 429.
-   * @throws A "resource unavailable" error if the response status is 402, 404, or any 5xx.
-   * @throws A generic HTTP client error (-32100) for any other 4xx status codes.
-   * @throws A "parse" error if the response is not valid JSON.
+   * @throws An "authorized" JSON-RPC error (code -32006) if the response HTTP status is 401.
+   * @throws A "rate limiting" JSON-RPC error (code -32005) if the response HTTP status is 429.
+   * @throws A "resource unavailable" JSON-RPC error (code -32002) if the response HTTP status is 402, 404, or any 5xx.
+   * @throws A generic HTTP client JSON-RPC error (code -32050) for any other 4xx HTTP status codes.
+   * @throws A "parse" JSON-RPC error (code -32700) if the response is not valid JSON.
    */
   async request<Params extends JsonRpcParams, Result extends Json>(
     jsonRpcRequest: JsonRpcRequest<Params>,
@@ -488,7 +505,7 @@ export class RpcService implements AbstractRpcService {
       if (error instanceof HttpError) {
         const status = error.httpStatus;
         if (status === 401) {
-          throw new JsonRpcError(-32100, 'Unauthorized.', {
+          throw new JsonRpcError(-32006, 'Unauthorized.', {
             httpStatus: status,
           });
         }
@@ -510,12 +527,16 @@ export class RpcService implements AbstractRpcService {
         }
 
         // Handle all other 4xx errors as generic HTTP client errors
-        throw new JsonRpcError(-32100, 'HTTP client error.', {
-          httpStatus: status,
-        });
-      } else if (error instanceof SyntaxError) {
+        throw new JsonRpcError(
+          -32050,
+          'RPC endpoint returned HTTP client error.',
+          {
+            httpStatus: status,
+          },
+        );
+      } else if (isJsonParseError(error)) {
         throw rpcErrors.parse({
-          message: 'Could not parse response as it is not valid JSON.',
+          message: 'RPC endpoint did not return JSON.',
         });
       }
       throw error;
