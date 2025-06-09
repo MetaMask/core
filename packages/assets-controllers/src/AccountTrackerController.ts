@@ -193,13 +193,18 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
     this.messagingSystem.subscribe(
       'AccountsController:selectedEvmAccountChange',
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      () => this.refresh(this.#getNetworkClientIds()),
+      (newAddress, prevAddress) => {
+        if (newAddress !== prevAddress) {
+          // Making an async call for this new event
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          this.refresh(this.#getNetworkClientIds());
+        }
+      },
+      (event): string => event.address,
     );
   }
 
-  private syncAccounts(newChainId: string) {
+  private syncAccounts(newChainIds: string[]) {
     const accountsByChainId = cloneDeep(this.state.accountsByChainId);
     const { selectedNetworkClientId } = this.messagingSystem.call(
       'NetworkController:getState',
@@ -213,12 +218,15 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
     const existing = Object.keys(accountsByChainId?.[currentChainId] ?? {});
 
-    if (!accountsByChainId[newChainId]) {
-      accountsByChainId[newChainId] = {};
-      existing.forEach((address) => {
-        accountsByChainId[newChainId][address] = { balance: '0x0' };
-      });
-    }
+    // Initialize new chain IDs if they don't exist
+    newChainIds.forEach((newChainId) => {
+      if (!accountsByChainId[newChainId]) {
+        accountsByChainId[newChainId] = {};
+        existing.forEach((address) => {
+          accountsByChainId[newChainId][address] = { balance: '0x0' };
+        });
+      }
+    });
 
     // Note: The address from the preferences controller are checksummed
     // The addresses from the accounts controller are lowercased
@@ -249,9 +257,11 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       });
     });
 
-    this.update((state) => {
-      state.accountsByChainId = accountsByChainId;
-    });
+    if (!isEqual(this.state.accountsByChainId, accountsByChainId)) {
+      this.update((state) => {
+        state.accountsByChainId = accountsByChainId;
+      });
+    }
   }
 
   /**
@@ -331,7 +341,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       const updatePromises = networkClientIds.map(async (networkClientId) => {
         const { chainId, ethQuery } =
           this.#getCorrectNetworkClient(networkClientId);
-        this.syncAccounts(chainId);
+        this.syncAccounts([chainId]);
         const { accountsByChainId } = this.state;
         const { isMultiAccountBalancesEnabled } = this.messagingSystem.call(
           'PreferencesController:getState',
@@ -394,28 +404,28 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       // Wait for all networkClientId updates to settle in parallel
       const allResults = await Promise.allSettled(updatePromises);
 
-      // Update the state once all networkClientId updates are completed
+      // Build a _copy_ of the current state and track whether anything changed
+      const nextAccountsByChainId: AccountTrackerControllerState['accountsByChainId'] =
+        cloneDeep(this.state.accountsByChainId);
+      let hasChanges = false;
+
       allResults.forEach((result) => {
-        if (result.status !== 'fulfilled') {
-          return;
+        if (result.status === 'fulfilled') {
+          const { chainId, accountsForChain } = result.value;
+          // Only mark as changed if the incoming data differs
+          if (!isEqual(nextAccountsByChainId[chainId], accountsForChain)) {
+            nextAccountsByChainId[chainId] = accountsForChain;
+            hasChanges = true;
+          }
         }
-        const { chainId, accountsForChain } = result.value;
-
-        // skip if nothing was fetched
-        if (Object.keys(accountsForChain).length === 0) {
-          return;
-        }
-
-        // skip if nothing actually changed
-        if (isEqual(this.state.accountsByChainId[chainId], accountsForChain)) {
-          return;
-        }
-
-        // only mutate the state if there is something to update
-        this.update((state) => {
-          state.accountsByChainId[chainId] = accountsForChain;
-        });
       });
+
+      // call `update` only when something is new / different
+      if (hasChanges) {
+        this.update((state) => {
+          state.accountsByChainId = nextAccountsByChainId;
+        });
+      }
     } finally {
       releaseLock();
     }
