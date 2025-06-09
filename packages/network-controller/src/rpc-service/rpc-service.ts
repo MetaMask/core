@@ -483,11 +483,11 @@ export class RpcService implements AbstractRpcService {
    * @param fetchOptions - The options for `fetch`; will be combined with the
    * fetch options passed to the constructor
    * @returns The decoded JSON-RPC response from the endpoint.
-   * @throws A 401 error if the response status is 401.
-   * @throws A "rate limiting" error if the response HTTP status is 429.
-   * @throws A "resource unavailable" error if the response status is 402, 404, or any 5xx.
-   * @throws A generic HTTP client error (-32100) for any other 4xx status codes.
-   * @throws A "parse" error if the response is not valid JSON.
+   * @throws An "authorized" JSON-RPC error (code -32006) if the response HTTP status is 401.
+   * @throws A "rate limiting" JSON-RPC error (code -32005) if the response HTTP status is 429.
+   * @throws A "resource unavailable" JSON-RPC error (code -32002) if the response HTTP status is 402, 404, or any 5xx.
+   * @throws A generic HTTP client JSON-RPC error (code -32050) for any other 4xx HTTP status codes.
+   * @throws A "parse" JSON-RPC error (code -32700) if the response is not valid JSON.
    */
   async #processRequest<Result extends Json>(
     fetchOptions: FetchOptions,
