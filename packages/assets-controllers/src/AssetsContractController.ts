@@ -293,7 +293,6 @@ export class AssetsContractController {
       }
       return new Web3Provider(provider);
     } catch (error) {
-      // console.error(error);
       throw new Error(error as string);
     }
   }
