@@ -24,7 +24,7 @@ import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { PreferencesControllerGetStateAction } from '@metamask/preferences-controller';
 import { assert } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
-import { cloneDeep } from 'lodash';
+import { cloneDeep, isEqual } from 'lodash';
 
 import type {
   AssetsContractController,
@@ -396,12 +396,25 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
       // Update the state once all networkClientId updates are completed
       allResults.forEach((result) => {
-        if (result.status === 'fulfilled') {
-          const { chainId, accountsForChain } = result.value;
-          this.update((state) => {
-            state.accountsByChainId[chainId] = accountsForChain;
-          });
+        if (result.status !== 'fulfilled') {
+          return;
         }
+        const { chainId, accountsForChain } = result.value;
+
+        // skip if nothing was fetched
+        if (Object.keys(accountsForChain).length === 0) {
+          return;
+        }
+
+        // skip if nothing actually changed
+        if (isEqual(this.state.accountsByChainId[chainId], accountsForChain)) {
+          return;
+        }
+
+        // only mutate the state if there is something to update
+        this.update((state) => {
+          state.accountsByChainId[chainId] = accountsForChain;
+        });
       });
     } finally {
       releaseLock();
