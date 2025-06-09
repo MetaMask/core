@@ -10,6 +10,7 @@ import {
   withNetworkClient,
 } from './helpers';
 import { testsForRpcFailoverBehavior } from './rpc-failover';
+import { CUSTOM_RPC_ERRORS } from '../../src/rpc-service/rpc-service';
 import { NetworkClientType } from '../../src/types';
 
 type TestsForRpcMethodSupportingBlockParam = {
@@ -17,9 +18,6 @@ type TestsForRpcMethodSupportingBlockParam = {
   blockParamIndex: number;
   numberOfParameters: number;
 };
-
-const UNAUTHORIZED_CODE = -32006;
-const HTTP_CLIENT_ERROR_CODE = -32050;
 
 /**
  * Defines tests which exercise the behavior exhibited by an RPC method that
@@ -432,10 +430,10 @@ export function testsForRpcMethodSupportingBlockParam(
     });
 
     describe.each([
-      [401, UNAUTHORIZED_CODE],
+      [401, CUSTOM_RPC_ERRORS.unauthorized],
       [402, errorCodes.rpc.resourceUnavailable],
       [404, errorCodes.rpc.resourceUnavailable],
-      [422, HTTP_CLIENT_ERROR_CODE],
+      [422, CUSTOM_RPC_ERRORS.httpClientError],
       [429, errorCodes.rpc.limitExceeded],
     ])(
       'if the RPC endpoint returns a %d response',

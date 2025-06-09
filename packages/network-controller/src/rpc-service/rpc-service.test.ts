@@ -9,11 +9,8 @@ import { useFakeTimers } from 'sinon';
 import type { SinonFakeTimers } from 'sinon';
 
 import type { AbstractRpcService } from './abstract-rpc-service';
-import { RpcService } from './rpc-service';
+import { CUSTOM_RPC_ERRORS, RpcService } from './rpc-service';
 import { DEFAULT_CIRCUIT_BREAK_DURATION } from '../../../controller-utils/src/create-service-policy';
-
-const UNAUTHORIZED_CODE = -32006;
-const HTTP_CLIENT_ERROR_CODE = -32050;
 
 describe('RpcService', () => {
   let clock: SinonFakeTimers;
@@ -354,7 +351,7 @@ describe('RpcService', () => {
         });
         await expect(promise).rejects.toThrow(
           expect.objectContaining({
-            code: UNAUTHORIZED_CODE,
+            code: CUSTOM_RPC_ERRORS.unauthorized,
             message: 'Unauthorized.',
             data: {
               httpStatus: 401,
@@ -635,7 +632,7 @@ describe('RpcService', () => {
         });
         await expect(promise).rejects.toThrow(
           expect.objectContaining({
-            code: HTTP_CLIENT_ERROR_CODE,
+            code: CUSTOM_RPC_ERRORS.httpClientError,
             message: 'RPC endpoint returned HTTP client error.',
             data: {
               httpStatus,

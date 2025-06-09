@@ -127,6 +127,16 @@ export const CONNECTION_ERRORS = [
 ];
 
 /**
+ * Custom JSON-RPC error codes for specific cases.
+ *
+ * These should be moved to `@metamask/rpc-errors` eventually.
+ */
+export const CUSTOM_RPC_ERRORS = {
+  unauthorized: -32006,
+  httpClientError: -32080,
+} as const;
+
+/**
  * Determines whether the given error represents a failure to reach the network
  * after request parameters have been validated.
  *
@@ -505,9 +515,13 @@ export class RpcService implements AbstractRpcService {
       if (error instanceof HttpError) {
         const status = error.httpStatus;
         if (status === 401) {
-          throw new JsonRpcError(-32006, 'Unauthorized.', {
-            httpStatus: status,
-          });
+          throw new JsonRpcError(
+            CUSTOM_RPC_ERRORS.unauthorized,
+            'Unauthorized.',
+            {
+              httpStatus: status,
+            },
+          );
         }
         if (status === 429) {
           throw rpcErrors.limitExceeded({
@@ -528,7 +542,7 @@ export class RpcService implements AbstractRpcService {
 
         // Handle all other 4xx errors as generic HTTP client errors
         throw new JsonRpcError(
-          -32050,
+          CUSTOM_RPC_ERRORS.httpClientError,
           'RPC endpoint returned HTTP client error.',
           {
             httpStatus: status,
