@@ -672,10 +672,10 @@ describe('AccountTrackerController', () => {
           mockedQuery
             .mockReturnValueOnce(Promise.resolve('0x10'))
             .mockReturnValueOnce(Promise.resolve('0x20'));
-          const result = await controller.syncBalanceWithAddresses([
-            ADDRESS_1,
-            ADDRESS_2,
-          ]);
+          const result = await controller.syncBalanceWithAddresses(
+            [ADDRESS_1, ADDRESS_2],
+            'mainnet',
+          );
           expect(result[ADDRESS_1].balance).toBe('0x10');
           expect(result[ADDRESS_2].balance).toBe('0x20');
         },
@@ -697,10 +697,10 @@ describe('AccountTrackerController', () => {
           mockedQuery
             .mockReturnValueOnce(Promise.resolve('0x10'))
             .mockReturnValueOnce(Promise.resolve('0x20'));
-          const result = await controller.syncBalanceWithAddresses([
-            ADDRESS_1,
-            ADDRESS_2,
-          ]);
+          const result = await controller.syncBalanceWithAddresses(
+            [ADDRESS_1, ADDRESS_2],
+            'mainnet',
+          );
           expect(result[ADDRESS_1].balance).toBe('0x10');
           expect(result[ADDRESS_2].balance).toBe('0x20');
           expect(result[ADDRESS_1].stakedBalance).toBe('0x1');

@@ -14,7 +14,6 @@ import type {
   NetworkControllerGetSelectedNetworkClientAction,
   NetworkControllerGetStateAction,
   NetworkControllerNetworkDidChangeEvent,
-  Provider,
 } from '@metamask/network-controller';
 import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
 import { getKnownPropertyNames, type Hex } from '@metamask/utils';
@@ -219,30 +218,17 @@ export class AssetsContractController {
 
   protected messagingSystem: AssetsContractControllerMessenger;
 
-  #provider: Provider | undefined;
-
   #ipfsGateway: string;
-
-  #chainId: Hex;
 
   /**
    * Creates a AssetsContractController instance.
    *
    * @param options - The controller options.
    * @param options.messenger - The messenger.
-   * @param options.chainId - The chain ID of the current network.
    */
-  constructor({
-    messenger,
-    chainId: initialChainId,
-  }: {
-    messenger: AssetsContractControllerMessenger;
-    chainId: Hex;
-  }) {
+  constructor({ messenger }: { messenger: AssetsContractControllerMessenger }) {
     this.messagingSystem = messenger;
-    this.#provider = undefined;
     this.#ipfsGateway = IPFS_DEFAULT_GATEWAY_URL;
-    this.#chainId = initialChainId;
 
     this.#registerActionHandlers();
     this.#registerEventSubscriptions();
@@ -284,37 +270,15 @@ export class AssetsContractController {
         this.#ipfsGateway = ipfsGateway;
       },
     );
-
-    this.messagingSystem.subscribe(
-      `NetworkController:networkDidChange`,
-      ({ selectedNetworkClientId }) => {
-        const chainId = this.#getCorrectChainId(selectedNetworkClientId);
-
-        if (this.#chainId !== chainId) {
-          this.#chainId = chainId;
-          // @ts-expect-error TODO: remove this annotation once the `Eip1193Provider` class is released
-          this.#provider = this.#getCorrectProvider();
-        }
-      },
-    );
-  }
-
-  /**
-   * Sets a new provider.
-   *
-   * @param provider - Provider used to create a new underlying Web3 instance
-   */
-  setProvider(provider: Provider | undefined) {
-    this.#provider = provider;
   }
 
   get ipfsGateway() {
     return this.#ipfsGateway;
   }
 
-  get chainId() {
+  /*   get chainId() {
     return this.#chainId;
-  }
+  } */
 
   /**
    * Get the relevant provider instance.
@@ -322,20 +286,20 @@ export class AssetsContractController {
    * @param networkClientId - Network Client ID.
    * @returns Web3Provider instance.
    */
-  #getCorrectProvider(networkClientId?: NetworkClientId): Web3Provider {
-    const provider = networkClientId
-      ? this.messagingSystem.call(
-          `NetworkController:getNetworkClientById`,
-          networkClientId,
-        ).provider
-      : (this.messagingSystem.call('NetworkController:getSelectedNetworkClient')
-          ?.provider ?? this.#provider);
-
-    if (provider === undefined) {
-      throw new Error(MISSING_PROVIDER_ERROR);
+  #getCorrectProvider(networkClientId: NetworkClientId): Web3Provider {
+    try {
+      const { provider } = this.messagingSystem.call(
+        `NetworkController:getNetworkClientById`,
+        networkClientId,
+      );
+      if (provider === undefined) {
+        throw new Error(MISSING_PROVIDER_ERROR);
+      }
+      return new Web3Provider(provider);
+    } catch (error) {
+      // console.error(error);
+      throw new Error(error as string);
     }
-
-    return new Web3Provider(provider);
   }
 
   /**
@@ -344,16 +308,15 @@ export class AssetsContractController {
    * @param networkClientId - Network Client ID used to get the provider.
    * @returns Hex chain ID.
    */
-  #getCorrectChainId(networkClientId?: NetworkClientId): Hex {
-    if (networkClientId) {
-      const networkClientConfiguration = this.messagingSystem.call(
-        'NetworkController:getNetworkConfigurationByNetworkClientId',
-        networkClientId,
-      );
-      if (networkClientConfiguration) {
-        return networkClientConfiguration.chainId;
-      }
+  #getCorrectChainId(networkClientId: NetworkClientId): Hex {
+    const networkClientConfiguration = this.messagingSystem.call(
+      'NetworkController:getNetworkConfigurationByNetworkClientId',
+      networkClientId,
+    );
+    if (networkClientConfiguration) {
+      return networkClientConfiguration.chainId;
     }
+
     const { selectedNetworkClientId } = this.messagingSystem.call(
       'NetworkController:getState',
     );
@@ -361,7 +324,7 @@ export class AssetsContractController {
       'NetworkController:getNetworkClientById',
       selectedNetworkClientId,
     );
-    return networkClient.configuration?.chainId ?? this.#chainId;
+    return networkClient.configuration?.chainId;
   }
 
   /**
@@ -370,7 +333,7 @@ export class AssetsContractController {
    * @param networkClientId - Network Client ID used to get the provider.
    * @returns ERC20Standard instance.
    */
-  getERC20Standard(networkClientId?: NetworkClientId): ERC20Standard {
+  getERC20Standard(networkClientId: NetworkClientId): ERC20Standard {
     const provider = this.#getCorrectProvider(networkClientId);
     return new ERC20Standard(provider);
   }
@@ -381,7 +344,7 @@ export class AssetsContractController {
    * @param networkClientId - Network Client ID used to get the provider.
    * @returns ERC721Standard instance.
    */
-  getERC721Standard(networkClientId?: NetworkClientId): ERC721Standard {
+  getERC721Standard(networkClientId: NetworkClientId): ERC721Standard {
     const provider = this.#getCorrectProvider(networkClientId);
     return new ERC721Standard(provider);
   }
@@ -392,7 +355,7 @@ export class AssetsContractController {
    * @param networkClientId - Network Client ID used to get the provider.
    * @returns ERC1155Standard instance.
    */
-  getERC1155Standard(networkClientId?: NetworkClientId): ERC1155Standard {
+  getERC1155Standard(networkClientId: NetworkClientId): ERC1155Standard {
     const provider = this.#getCorrectProvider(networkClientId);
     return new ERC1155Standard(provider);
   }
@@ -408,7 +371,7 @@ export class AssetsContractController {
   async getERC20BalanceOf(
     address: string,
     selectedAddress: string,
-    networkClientId?: NetworkClientId,
+    networkClientId: NetworkClientId,
   ): Promise<BN> {
     const erc20Standard = this.getERC20Standard(networkClientId);
     return erc20Standard.getBalanceOf(address, selectedAddress);
@@ -423,7 +386,7 @@ export class AssetsContractController {
    */
   async getERC20TokenDecimals(
     address: string,
-    networkClientId?: NetworkClientId,
+    networkClientId: NetworkClientId,
   ): Promise<string> {
     const erc20Standard = this.getERC20Standard(networkClientId);
     return erc20Standard.getTokenDecimals(address);
@@ -438,7 +401,7 @@ export class AssetsContractController {
    */
   async getERC20TokenName(
     address: string,
-    networkClientId?: NetworkClientId,
+    networkClientId: NetworkClientId,
   ): Promise<string> {
     const erc20Standard = this.getERC20Standard(networkClientId);
     return erc20Standard.getTokenName(address);
@@ -457,7 +420,7 @@ export class AssetsContractController {
     address: string,
     selectedAddress: string,
     index: number,
-    networkClientId?: NetworkClientId,
+    networkClientId: NetworkClientId,
   ): Promise<string> {
     const erc721Standard = this.getERC721Standard(networkClientId);
     return erc721Standard.getNftTokenId(address, selectedAddress, index);
@@ -467,16 +430,16 @@ export class AssetsContractController {
    * Enumerate assets assigned to an owner.
    *
    * @param tokenAddress - ERC721 asset contract address.
+   * @param networkClientId - Network Client ID to fetch the provider with.
    * @param userAddress - Current account public address.
    * @param tokenId - ERC721 asset identifier.
-   * @param networkClientId - Network Client ID to fetch the provider with.
    * @returns Promise resolving to an object containing the token standard and a set of details which depend on which standard the token supports.
    */
   async getTokenStandardAndDetails(
     tokenAddress: string,
+    networkClientId: NetworkClientId,
     userAddress?: string,
     tokenId?: string,
-    networkClientId?: NetworkClientId,
   ): Promise<{
     standard: string;
     tokenURI?: string | undefined;
@@ -540,7 +503,7 @@ export class AssetsContractController {
   async getERC721TokenURI(
     address: string,
     tokenId: string,
-    networkClientId?: NetworkClientId,
+    networkClientId: NetworkClientId,
   ): Promise<string> {
     const erc721Standard = this.getERC721Standard(networkClientId);
     return erc721Standard.getTokenURI(address, tokenId);
@@ -555,7 +518,7 @@ export class AssetsContractController {
    */
   async getERC721AssetName(
     address: string,
-    networkClientId?: NetworkClientId,
+    networkClientId: NetworkClientId,
   ): Promise<string> {
     const erc721Standard = this.getERC721Standard(networkClientId);
     return erc721Standard.getAssetName(address);
@@ -570,7 +533,7 @@ export class AssetsContractController {
    */
   async getERC721AssetSymbol(
     address: string,
-    networkClientId?: NetworkClientId,
+    networkClientId: NetworkClientId,
   ): Promise<string> {
     const erc721Standard = this.getERC721Standard(networkClientId);
     return erc721Standard.getAssetSymbol(address);
@@ -587,7 +550,7 @@ export class AssetsContractController {
   async getERC721OwnerOf(
     address: string,
     tokenId: string,
-    networkClientId?: NetworkClientId,
+    networkClientId: NetworkClientId,
   ): Promise<string> {
     const erc721Standard = this.getERC721Standard(networkClientId);
     return erc721Standard.getOwnerOf(address, tokenId);
@@ -604,7 +567,7 @@ export class AssetsContractController {
   async getERC1155TokenURI(
     address: string,
     tokenId: string,
-    networkClientId?: NetworkClientId,
+    networkClientId: NetworkClientId,
   ): Promise<string> {
     const erc1155Standard = this.getERC1155Standard(networkClientId);
     return erc1155Standard.getTokenURI(address, tokenId);
@@ -623,7 +586,7 @@ export class AssetsContractController {
     userAddress: string,
     nftAddress: string,
     nftId: string,
-    networkClientId?: NetworkClientId,
+    networkClientId: NetworkClientId,
   ): Promise<BN> {
     const erc1155Standard = this.getERC1155Standard(networkClientId);
     return erc1155Standard.getBalanceOf(nftAddress, userAddress, nftId);
@@ -646,7 +609,7 @@ export class AssetsContractController {
     recipientAddress: string,
     nftId: string,
     qty: string,
-    networkClientId?: NetworkClientId,
+    networkClientId: NetworkClientId,
   ): Promise<void> {
     const erc1155Standard = this.getERC1155Standard(networkClientId);
     return erc1155Standard.transferSingle(
@@ -670,7 +633,7 @@ export class AssetsContractController {
   async getBalancesInSingleCall(
     selectedAddress: string,
     tokensToDetect: string[],
-    networkClientId?: NetworkClientId,
+    networkClientId: NetworkClientId,
   ) {
     const chainId = this.#getCorrectChainId(networkClientId);
     const provider = this.#getCorrectProvider(networkClientId);
@@ -712,7 +675,7 @@ export class AssetsContractController {
    */
   async getStakedBalanceForChain(
     address: string,
-    networkClientId?: NetworkClientId,
+    networkClientId: NetworkClientId,
   ): Promise<StakedBalance> {
     const chainId = this.#getCorrectChainId(networkClientId);
     const provider = this.#getCorrectProvider(networkClientId);
