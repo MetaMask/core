@@ -9,7 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Migrated to notification v2 endpoints ([#5945](https://github.com/MetaMask/core/pull/5945))
+
+  - `https://trigger.api.cx.metamask.io/api/v2` for managing out notification subscriptions
+  - `https://notification.api.cx.metamask.io/api/v2` for fetching notifications (in-app notifications)
+  - `https://push.api.cx.metamask.io/v2` for subscribing push notifications
+  - Renamed method `updateOnChainTriggersByAccount` to `enableAccounts` in `NotificationServicesController`
+  - Renamed method `deleteOnChainTriggersByAccount` to `disableAccounts` in `NotificationServicesController`
+  - Deprecated `updateTriggerPushNotifications` from `NotificationServicesPushController` and will be removed in a subsequent release.
+
 - Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
+
+### Removed
+
+- **BREAKING:** Migrated to notification v2 endpoints ([#5945](https://github.com/MetaMask/core/pull/5945))
+
+  - removed `NotificationServicesPushController:updateTriggerPushNotifications` action from `NotificationServicesController`
+  - removed `UserStorageController` usage from `NotificationServicesController`.
 
 ## [10.0.0]
 
