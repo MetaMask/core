@@ -337,11 +337,17 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     );
     const releaseLock = await this.#refreshMutex.acquire();
     try {
+      const chainIds = networkClientIds.map((networkClientId) => {
+        const { chainId } = this.#getCorrectNetworkClient(networkClientId);
+        return chainId;
+      });
+
+      this.syncAccounts(chainIds);
+
       // Create an array of promises for each networkClientId
       const updatePromises = networkClientIds.map(async (networkClientId) => {
         const { chainId, ethQuery } =
           this.#getCorrectNetworkClient(networkClientId);
-        this.syncAccounts([chainId]);
         const { accountsByChainId } = this.state;
         const { isMultiAccountBalancesEnabled } = this.messagingSystem.call(
           'PreferencesController:getState',
@@ -420,7 +426,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
         }
       });
 
-      // call `update` only when something is new / different
+      // 👇🏻 call `update` only when something is new / different
       if (hasChanges) {
         this.update((state) => {
           state.accountsByChainId = nextAccountsByChainId;
