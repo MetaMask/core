@@ -85,6 +85,7 @@ export {
   GasFeeEstimateType,
   SimulationErrorCode,
   SimulationTokenStandard,
+  TransactionContainerType,
   TransactionEnvelopeType,
   TransactionStatus,
   TransactionType,

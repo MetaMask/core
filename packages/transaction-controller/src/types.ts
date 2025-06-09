@@ -70,6 +70,12 @@ export type TransactionMeta = {
   chainId: Hex;
 
   /**
+   * List of container types applied to the original transaction data.
+   * For example, through delegations.
+   */
+  containerTypes?: TransactionContainerType[];
+
+  /**
    * A string representing a name of transaction contract method.
    */
   contractMethodName?: string;
@@ -793,6 +799,11 @@ export enum TransactionType {
    * Increase the allowance by a given increment
    */
   tokenMethodIncreaseAllowance = 'increaseAllowance',
+}
+
+export enum TransactionContainerType {
+  /** Transaction has been converted to a delegation including caveats to validate the simulated balance changes. */
+  EnforcedSimulations = 'enforcedSimulations',
 }
 
 /**
