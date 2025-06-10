@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Implement proper cleanup of sensitive cryptographic material in SeedlessOnboardingController ([#5926](https://github.com/MetaMask/core/pull/5926))
+
 ## [1.0.0]
 
 ### Added
