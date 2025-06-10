@@ -30,6 +30,7 @@ import { validateBatchRequest } from './validation';
 import type { TransactionControllerState } from '..';
 import {
   determineTransactionType,
+  GasFeeEstimateLevel,
   TransactionStatus,
   type BatchTransactionParams,
   type TransactionController,
@@ -37,6 +38,7 @@ import {
   type TransactionMeta,
 } from '..';
 import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow';
+import { updateTransactionGasEstimates } from '../helpers/GasFeePoller';
 import type { PendingTransactionTracker } from '../helpers/PendingTransactionTracker';
 import { CollectPublishHook } from '../hooks/CollectPublishHook';
 import { SequentialPublishBatchHook } from '../hooks/SequentialPublishBatchHook';
@@ -444,12 +446,13 @@ async function addTransactionBatchWithHook(
     throw rpcErrors.internal(`Can't process batch`);
   }
 
+  let txBatchMeta: TransactionBatchMeta | undefined;
   const batchId = generateBatchId();
   const transactionCount = nestedTransactions.length;
   const collectHook = new CollectPublishHook(transactionCount);
   try {
     if (requireApproval) {
-      const txBatchMeta = await prepareApprovalData({
+      txBatchMeta = await prepareApprovalData({
         batchId,
         request,
       });
@@ -468,6 +471,7 @@ async function addTransactionBatchWithHook(
         nestedTransaction,
         publishHook,
         request,
+        txBatchMeta,
       );
 
       hookTransactions.push(hookTransaction);
@@ -526,6 +530,7 @@ async function addTransactionBatchWithHook(
  * @param nestedTransaction - The nested transaction request.
  * @param publishHook - The publish hook to use for each transaction.
  * @param request - The request object including the user request and necessary callbacks.
+ * @param txBatchMeta - Metadata for the transaction batch.
  * @returns The single transaction request to be processed by the publish batch hook.
  */
 async function processTransactionWithHook(
@@ -533,6 +538,7 @@ async function processTransactionWithHook(
   nestedTransaction: TransactionBatchSingleRequest,
   publishHook: PublishHook,
   request: AddTransactionBatchRequest,
+  txBatchMeta?: TransactionBatchMeta,
 ) {
   const { existingTransaction, params } = nestedTransaction;
 
@@ -569,20 +575,24 @@ async function processTransactionWithHook(
       params,
     };
   }
+  console.log('>>>>>>>> params', params);
+  const txMeta = { ...txBatchMeta, txParams: { ...params, from } };
 
-  const { transactionMeta } = await addTransaction(
-    {
-      ...params,
-      from,
-    },
-    {
-      batchId,
-      disableGasBuffer: true,
-      networkClientId,
-      publishHook,
-      requireApproval: false,
-    },
-  );
+  if (txBatchMeta) {
+    updateTransactionGasEstimates({
+      txMeta: txMeta as TransactionMeta,
+      userFeeLevel: GasFeeEstimateLevel.Medium,
+    });
+    console.log('>>>>>>>> txMeta', txMeta.txParams);
+  }
+
+  const { transactionMeta } = await addTransaction(txMeta.txParams, {
+    batchId,
+    disableGasBuffer: true,
+    networkClientId,
+    publishHook,
+    requireApproval: false,
+  });
 
   const { id, txParams } = transactionMeta;
   const data = txParams.data as Hex | undefined;
@@ -722,7 +732,9 @@ async function prepareApprovalData({
     transactions: nestedTransactions,
   } = userRequest;
 
+  console.log('>>>>>>>> isSimulationEnabled', isSimulationEnabled());
   if (!isSimulationEnabled()) {
+    console.log('throwing error');
     throw new Error(
       'Cannot create transaction batch as simulation not supported',
     );

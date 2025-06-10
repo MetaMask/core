@@ -916,6 +916,7 @@ export class TransactionController extends BaseController<
       getGasFeeControllerEstimates: this.#getGasFeeEstimates,
       getProvider: (networkClientId) => this.#getProvider({ networkClientId }),
       getTransactions: () => this.state.transactions,
+      getTransactionBatches: () => this.state.transactionBatches,
       layer1GasFeeFlows: this.#layer1GasFeeFlows,
       messenger: this.messagingSystem,
       onStateChange: (listener) => {
@@ -929,6 +930,11 @@ export class TransactionController extends BaseController<
     gasFeePoller.hub.on(
       'transaction-updated',
       this.#onGasFeePollerTransactionUpdate.bind(this),
+    );
+
+    gasFeePoller.hub.on(
+      'transaction-batch-updated',
+      this.#onGasFeePollerTransactionBatchUpdate.bind(this),
     );
 
     this.#methodDataHelper = new MethodDataHelper({
@@ -4154,6 +4160,36 @@ export class TransactionController extends BaseController<
         });
       },
     );
+  }
+
+  #onGasFeePollerTransactionBatchUpdate({
+    transactionBatchId,
+    gasFeeEstimates,
+  }: {
+    transactionBatchId: Hex;
+    gasFeeEstimates?: GasFeeEstimates;
+  }) {
+    const batch = this.state.transactionBatches.find(
+      (txBatch) => txBatch.id === transactionBatchId,
+    );
+    if (!batch) {
+      return;
+    }
+
+    batch.gasFeeEstimates = gasFeeEstimates;
+
+    this.#updateTransactionBatch(batch);
+  }
+
+  #updateTransactionBatch(batch: TransactionBatchMeta) {
+    this.update((state) => {
+      const index = state.transactionBatches.findIndex(
+        (b) => b.id === batch.id,
+      );
+      if (index >= 0) {
+        state.transactionBatches[index] = batch;
+      }
+    });
   }
 
   #getSelectedAccount() {
