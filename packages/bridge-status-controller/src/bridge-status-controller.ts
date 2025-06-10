@@ -915,11 +915,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             }),
         );
       } else {
-        // For hardware wallets on Mobile, this is fixes an issue where the Ledger does not get prompted for the 2nd approval
-        if (requireApproval) {
-          await delay(2000);
-        }
-
         txMeta = await this.#trace(
           {
             name: isBridgeTx
