@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: add `EventQueue` class util to guarantee the order of user-storage updates ([#5937](https://github.com/MetaMask/core/pull/5937))
+- Release/430.0.0 ([#5935](https://github.com/MetaMask/core/pull/5935))
+- Release 429.0.0 ([#5930](https://github.com/MetaMask/core/pull/5930))
+
 ### Added
 
 - Add a new `EventQueue` class util that introduces two public methods, `push` and `run`
