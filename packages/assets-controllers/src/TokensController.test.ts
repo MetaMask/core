@@ -3375,7 +3375,12 @@ describe('TokensController', () => {
             ],
           },
         },
-        allIgnoredTokens: {},
+        allIgnoredTokens: {
+          [ChainId.mainnet]: {
+            [firstAddress]: [],
+            [secondAddress]: [],
+          },
+        },
         allDetectedTokens: {
           [ChainId.mainnet]: {
             [firstAddress]: [],
@@ -3410,7 +3415,11 @@ describe('TokensController', () => {
                 ],
               },
             },
-            allIgnoredTokens: {},
+            allIgnoredTokens: {
+              [ChainId.mainnet]: {
+                [secondAddress]: [],
+              },
+            },
             allDetectedTokens: {
               [ChainId.mainnet]: {
                 [secondAddress]: [],
