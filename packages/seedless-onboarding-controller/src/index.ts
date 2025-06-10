@@ -19,5 +19,6 @@ export {
   Web3AuthNetwork,
   SeedlessOnboardingControllerErrorMessage,
   AuthConnection,
+  SecretType,
 } from './constants';
 export { RecoveryError } from './errors';
