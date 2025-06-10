@@ -7,9 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.10.0]
+
 ### Added
 
 - Add `TransactionBatch` in approval types enum ([#5793](https://github.com/MetaMask/core/pull/5793))
+- Add Base network to default networks ([#5902](https://github.com/MetaMask/core/pull/5902))
+  - Add `base-mainnet` to `BUILT_IN_NETWORKS`
+  - Add `base-mainnet` to `InfuraNetworkType`
+  - Add `BaseMainnet` to `BuiltInNetworkName` enum
+  - Add `base-mainnet` to `ChainId` type
+  - Add `BaseMainnet` to `NetworksTicker` enum
+  - Add `BaseMainnet` to `BlockExplorerUrl` quasi-enum
+  - Add `BaseMainnet` to `NetworkNickname` quasi-enum
 
 ## [11.9.0]
 
@@ -519,7 +529,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.9.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.10.0...HEAD
+[11.10.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.9.0...@metamask/controller-utils@11.10.0
 [11.9.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.8.0...@metamask/controller-utils@11.9.0
 [11.8.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.7.0...@metamask/controller-utils@11.8.0
 [11.7.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.6.0...@metamask/controller-utils@11.7.0

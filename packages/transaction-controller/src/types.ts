@@ -530,9 +530,6 @@ export type TransactionBatchMeta = {
   /** Current status of the transaction. */
   status: TransactionStatus;
 
-  /** When the transaction was created. */
-  time: number;
-
   /**
    * Data for any EIP-7702 transactions.
    */
@@ -686,6 +683,11 @@ export enum TransactionType {
    * A transaction that deposits tokens into a lending contract.
    */
   lendingDeposit = 'lendingDeposit',
+
+  /**
+   * A transaction that withdraws tokens from a lending contract.
+   */
+  lendingWithdraw = 'lendingWithdraw',
 
   /**
    * A transaction for personal sign.
