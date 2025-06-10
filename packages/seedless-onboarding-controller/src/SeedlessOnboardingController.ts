@@ -694,18 +694,20 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     let latestPwEncKey: Uint8Array | null = null;
     let latestPwAuthKeyPair: KeyPair | null = null;
 
-    ({ encKey: latestPwEncKey, authKeyPair: latestPwAuthKeyPair } =
-      await this.#recoverEncKey(globalPassword));
-
     try {
-      const res = await this.toprfClient.recoverPassword({
-        targetPwPubKey,
-        curEncKey: latestPwEncKey,
-        curAuthKeyPair: latestPwAuthKeyPair,
-      });
-      return res;
-    } catch (error) {
-      throw PasswordSyncError.getInstance(error);
+      ({ encKey: latestPwEncKey, authKeyPair: latestPwAuthKeyPair } =
+        await this.#recoverEncKey(globalPassword));
+
+      try {
+        const res = await this.toprfClient.recoverPassword({
+          targetPwPubKey,
+          curEncKey: latestPwEncKey,
+          curAuthKeyPair: latestPwAuthKeyPair,
+        });
+        return res;
+      } catch (error) {
+        throw PasswordSyncError.getInstance(error);
+      }
     } finally {
       // Clean up sensitive key material
       if (latestPwEncKey) {
