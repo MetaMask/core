@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed `chainId` in constructor in `AssetsContractController` ([#5941](https://github.com/MetaMask/core/pull/5941))
 - Make `networkClientId` mandatory field in all functions in `AssetsContractController` ([#5941](https://github.com/MetaMask/core/pull/5941))
 
+### Fixed
+
+- Prevented `AccountTrackerController` from updating state with empty or unchanged account balance data during refresh ([#5942](https://github.com/MetaMask/core/pull/5942))
+  - Added guards to skip state updates when fetched balances are empty or identical to existing state
+  - Reduces unnecessary `stateChange` emissions and preserves previously-cached balances under network failure scenarios
+
 ## [68.1.0]
 
 ### Added
