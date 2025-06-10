@@ -169,7 +169,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     clientId,
     getLayer1GasFee,
     fetchFn,
-    fetchWithCacheFn,
     config,
     trackMetaMetricsFn,
     traceFn,
@@ -178,7 +177,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     state?: Partial<BridgeControllerState>;
     clientId: BridgeClientId;
     getLayer1GasFee: typeof TransactionController.prototype.getLayer1GasFee;
-    fetchWithCacheFn?: FetchFunction;
     fetchFn: FetchFunction;
     config?: {
       customBridgeApiBaseUrl?: string;
@@ -207,12 +205,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#abortController = new AbortController();
     this.#getLayer1GasFee = getLayer1GasFee;
     this.#clientId = clientId;
-    this.#fetchFn = (url, options) => {
-      const { cacheOptions, ...otherOptions } = options ?? {};
-      return cacheOptions && fetchWithCacheFn
-        ? fetchWithCacheFn(url, { cacheOptions, ...otherOptions })
-        : fetchFn(url, options);
-    };
+    this.#fetchFn = fetchFn;
     this.#trackMetaMetricsFn = trackMetaMetricsFn;
     this.#config = config ?? {};
     this.#trace = traceFn ?? (((_request, fn) => fn?.()) as TraceCallback);
