@@ -1494,6 +1494,7 @@ export class KeyringController extends BaseController<
       // the new password.
       if (this.#cacheEncryptionKey) {
         this.update((state) => {
+          // TODO these are not recovered on rollback
           delete state.encryptionKey;
           delete state.encryptionSalt;
         });
@@ -2859,12 +2860,22 @@ export class KeyringController extends BaseController<
     return this.#withControllerLock(async ({ releaseLock }) => {
       const currentSerializedKeyrings = await this.#getSerializedKeyrings();
       const currentPassword = this.#password;
+      const currentEncryptedEncryptionKey = this.state.encryptedEncryptionKey;
 
       try {
         return await callback({ releaseLock });
       } catch (e) {
-        // Keyrings and password are restored to their previous state
+        // Restore previous state.
         this.#password = currentPassword;
+
+        this.update((state) => {
+          if (currentEncryptedEncryptionKey !== undefined) {
+            state.encryptedEncryptionKey = currentEncryptedEncryptionKey;
+          } else {
+            delete state.encryptedEncryptionKey;
+          }
+        });
+
         await this.#restoreSerializedKeyrings(currentSerializedKeyrings);
 
         throw e;

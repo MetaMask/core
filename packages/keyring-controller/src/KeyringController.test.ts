@@ -913,6 +913,24 @@ describe('KeyringController', () => {
         },
       );
     });
+
+    it('should unlock with old key after change password failed', async () => {
+      await withController(
+        { cacheEncryptionKey: true, envelopeEncryption: true },
+        async ({ controller, encryptor }) => {
+          // Make change password fail.
+          jest.spyOn(encryptor, 'importKey').mockImplementationOnce(() => {
+            throw new Error('Not implemented');
+          });
+          await expect(controller.changePassword(password2)).rejects.toThrow(
+            'Not implemented',
+          );
+
+          // Check that old password still works.
+          expect(await controller.submitPassword(password)).toBeUndefined();
+        },
+      );
+    });
   });
 
   describe('setLocked', () => {
