@@ -3904,9 +3904,12 @@ describe('SeedlessOnboardingController', () => {
               isNewUser: false,
             });
 
-            await controller.addNewSeedPhraseBackup(
+            await controller.addNewSecretData(
               NEW_KEY_RING.seedPhrase,
-              NEW_KEY_RING.id,
+              SecretType.Mnemonic,
+              {
+                keyringId: NEW_KEY_RING.id,
+              },
             );
 
             // Verify that getNewRefreshToken was called
@@ -3960,7 +3963,7 @@ describe('SeedlessOnboardingController', () => {
 
             await controller.submitPassword(MOCK_PASSWORD);
 
-            const result = await controller.fetchAllSeedPhrases(MOCK_PASSWORD);
+            const result = await controller.fetchAllSecretData(MOCK_PASSWORD);
 
             expect(result).toStrictEqual([]);
             expect(mockRefreshJWTToken).toHaveBeenCalled();
