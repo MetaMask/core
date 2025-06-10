@@ -679,6 +679,11 @@ export enum TransactionType {
   lendingDeposit = 'lendingDeposit',
 
   /**
+   * A transaction that withdraws tokens from a lending contract.
+   */
+  lendingWithdraw = 'lendingWithdraw',
+
+  /**
    * A transaction for personal sign.
    */
   personalSign = 'personal_sign',
