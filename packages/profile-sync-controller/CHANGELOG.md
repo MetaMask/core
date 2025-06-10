@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add a new `EventQueue` class util that introduces two public methods, `push` and `run`
+  - Add an instance of `EventQueue` to `UserStorageController`
+  - Event subscriptions for `AccountsController:accountAdded` and `AccountsController:accountRenamed` are now pushing their callbacks to the `UserStorageController` instance of `EventQueue`, so that we stay in control of the order these callbacks are fulfilled.
+
 ## [17.0.0]
 
 ### Added
