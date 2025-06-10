@@ -12,8 +12,27 @@ export function setupAccountSyncingSubscriptions(
 ) {
   const { getMessenger, getUserStorageControllerInstance } = options;
 
-  // We don't listen to `AccountsController:accountAdded`
-  // because it publishes `AccountsController:accountRenamed` in any case.
+  getMessenger().subscribe(
+    'AccountsController:accountAdded',
+
+    async (account) => {
+      if (
+        !canPerformAccountSyncing(options) ||
+        !getUserStorageControllerInstance().state
+          .hasAccountSyncingSyncedAtLeastOnce
+      ) {
+        return;
+      }
+
+      const { eventQueue } = getUserStorageControllerInstance();
+
+      eventQueue.push(
+        async () => await saveInternalAccountToUserStorage(account, options),
+      );
+      await eventQueue.run();
+    },
+  );
+
   getMessenger().subscribe(
     'AccountsController:accountRenamed',
 
@@ -26,7 +45,12 @@ export function setupAccountSyncingSubscriptions(
         return;
       }
 
-      await saveInternalAccountToUserStorage(account, options);
+      const { eventQueue } = getUserStorageControllerInstance();
+
+      eventQueue.push(
+        async () => await saveInternalAccountToUserStorage(account, options),
+      );
+      await eventQueue.run();
     },
   );
 }
