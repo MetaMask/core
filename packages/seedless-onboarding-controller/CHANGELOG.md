@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Added `PrivateKey sync` feature to the controller. ([#5948](https://github.com/MetaMask/core/pull/5948))
+- **breaking** Updated controller methods signatures.
+  - removed `addNewSeedPhraseBackup` and replaced with `addNewSecretData` method.
+  - added `addNewSecretData` method implementation to support adding different secret data types.
+  - renamed `fetchAllSeedPhrases` method to `fetchAllSecretData` and updated the return value to `Record<SecretType, Uint8Array[]>`.
+  - added new error message, `MissingKeyringId` which will throw if no `keyringId` is provided during seed phrase (Mnemonic) backup.
+
 ## [1.0.0]
 
 ### Added
