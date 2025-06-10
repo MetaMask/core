@@ -1,4 +1,5 @@
 import { MockToprfEncryptorDecryptor } from './toprfEncryptor';
+import type { SecretType } from '../../src/constants';
 
 export const TOPRF_BASE_URL = /https:\/\/node-[1-5]\.dev-node\.web3auth\.io/u;
 
@@ -74,7 +75,9 @@ export const MULTIPLE_MOCK_SECRET_METADATA = [
  * @returns The mock secret data get response
  */
 export function createMockSecretDataGetResponse<
-  T extends Uint8Array | { data: Uint8Array; timestamp: number },
+  T extends
+    | Uint8Array
+    | { data: Uint8Array; timestamp?: number; type?: SecretType },
 >(secretDataArr: T[], password: string) {
   const mockToprfEncryptor = new MockToprfEncryptorDecryptor();
   const ids: string[] = [];
@@ -82,16 +85,19 @@ export function createMockSecretDataGetResponse<
   const encryptedSecretData = secretDataArr.map((secretData) => {
     let b64SecretData: string;
     let timestamp = Date.now();
+    let type: SecretType | undefined;
     if (secretData instanceof Uint8Array) {
       b64SecretData = Buffer.from(secretData).toString('base64');
     } else {
       b64SecretData = Buffer.from(secretData.data).toString('base64');
-      timestamp = secretData.timestamp;
+      timestamp = secretData.timestamp || Date.now();
+      type = secretData.type;
     }
 
     const metadata = JSON.stringify({
       data: b64SecretData,
       timestamp,
+      type,
     });
 
     return mockToprfEncryptor.encrypt(
