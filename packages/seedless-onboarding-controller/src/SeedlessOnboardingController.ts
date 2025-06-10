@@ -837,10 +837,10 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   }): Promise<void> {
     const { options, data, encKey, authKeyPair, type } = params;
 
-    const seedPhraseMetadata = new SecretMetadata(data, {
+    const secretMetadata = new SecretMetadata(data, {
       type,
     });
-    const secretData = seedPhraseMetadata.toBytes();
+    const secretData = secretMetadata.toBytes();
 
     const keyringId = options?.keyringId as string;
     if (type === SecretType.Mnemonic && !keyringId) {
