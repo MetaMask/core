@@ -677,11 +677,13 @@ export default class NotificationServicesController extends BaseController<
       const { bearerToken } = await this.#getBearerToken();
       const { accounts } = this.#accounts.listAccounts();
       const addressesWithNotifications =
-        await OnChainNotifications.getOnChainNotificationsConfig(
+        await OnChainNotifications.getOnChainNotificationsConfigCached(
           bearerToken,
           accounts,
         );
-      const addresses = addressesWithNotifications.map((a) => a.address);
+      const addresses = addressesWithNotifications
+        .filter((a) => Boolean(a.enabled))
+        .map((a) => a.address);
       if (addresses.length > 0) {
         await this.#pushNotifications.enablePushNotifications(addresses);
       }
@@ -706,7 +708,7 @@ export default class NotificationServicesController extends BaseController<
       // Retrieve user storage
       const { bearerToken } = await this.#getBearerToken();
       const addressesWithNotifications =
-        await OnChainNotifications.getOnChainNotificationsConfig(
+        await OnChainNotifications.getOnChainNotificationsConfigCached(
           bearerToken,
           accounts,
         );
@@ -769,26 +771,32 @@ export default class NotificationServicesController extends BaseController<
 
       // 1. See if has enabled notifications before
       const addressesWithNotifications =
-        await OnChainNotifications.getOnChainNotificationsConfig(
+        await OnChainNotifications.getOnChainNotificationsConfigCached(
           bearerToken,
           accounts,
         );
 
-      // Notifications have been enabled before, so returning early
-      if (addressesWithNotifications.length > 0 && !opts?.resetNotifications) {
-        return;
+      // Notifications API can return array with addresses set to false
+      // So assert that at least one address is enabled
+      let accountsWithNotifications = addressesWithNotifications
+        .filter((a) => Boolean(a.enabled))
+        .map((a) => a.address);
+
+      // 2. Enable Notifications (if no accounts subscribed or we are resetting)
+      if (accountsWithNotifications.length === 0 || opts?.resetNotifications) {
+        await OnChainNotifications.updateOnChainNotifications(
+          bearerToken,
+          accounts.map((address) => ({ address, enabled: true })),
+        );
+        accountsWithNotifications = accounts;
       }
 
-      // 2. Create Notifications
-      await OnChainNotifications.updateOnChainNotifications(
-        bearerToken,
-        accounts.map((address) => ({ address, enabled: true })),
-      );
-
       // 3. Lazily enable push notifications (FCM may take some time, so keeps UI unblocked)
-      this.#pushNotifications.enablePushNotifications(accounts).catch(() => {
-        // Do Nothing
-      });
+      this.#pushNotifications
+        .enablePushNotifications(accountsWithNotifications)
+        .catch(() => {
+          // Do Nothing
+        });
 
       // Update the state of the controller
       this.update((state) => {
@@ -956,10 +964,16 @@ export default class NotificationServicesController extends BaseController<
         try {
           const { bearerToken } = await this.#getBearerToken();
           const { accounts } = this.#accounts.listAccounts();
+          const addressesWithNotifications = (
+            await OnChainNotifications.getOnChainNotificationsConfigCached(
+              bearerToken,
+              accounts,
+            )
+          ).map((a) => a.address);
           const notifications =
             await OnChainNotifications.getOnChainNotifications(
               bearerToken,
-              accounts,
+              addressesWithNotifications,
             ).catch(() => []);
           rawOnChainNotifications.push(...notifications);
         } catch {

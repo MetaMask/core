@@ -1,5 +1,6 @@
 import log from 'loglevel';
 
+import { notificationsConfigCache } from './notification-config-cache';
 import { toRawOnChainNotification } from '../../shared/to-raw-notification';
 import type {
   OnChainRawNotification,
@@ -34,14 +35,23 @@ export const NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT = `${NOTIFICATION_API}/a
  *
  * @param bearerToken - jwt
  * @param addresses - list of addresses to check
+ * NOTE the API will return addresses config with false if they have not been created before.
+ * NOTE this is cached for 1s to prevent multiple update calls
  * @returns object of notification config, or null if missing
  */
-export async function getOnChainNotificationsConfig(
+export async function getOnChainNotificationsConfigCached(
   bearerToken: string,
   addresses: string[],
 ) {
   if (addresses.length === 0) {
     return [];
+  }
+
+  addresses = addresses.map((a) => a.toLowerCase());
+
+  const cached = notificationsConfigCache.get(addresses);
+  if (cached) {
+    return cached;
   }
 
   type RequestBody = { address: string }[];
@@ -56,7 +66,13 @@ export async function getOnChainNotificationsConfig(
     .then<Response | null>((r) => (r.ok ? r.json() : null))
     .catch(() => null);
 
-  return data ?? [];
+  const result = data ?? [];
+
+  if (result.length > 0) {
+    notificationsConfigCache.set(result);
+  }
+
+  return result;
 }
 
 /**
@@ -74,6 +90,11 @@ export async function updateOnChainNotifications(
     return;
   }
 
+  addresses = addresses.map((a) => {
+    a.address = a.address.toLowerCase();
+    return a;
+  });
+
   type RequestBody = { address: string; enabled: boolean }[];
   const body: RequestBody = addresses;
   await makeApiCall(
@@ -81,7 +102,9 @@ export async function updateOnChainNotifications(
     TRIGGER_API_NOTIFICATIONS_ENDPOINT,
     'POST',
     body,
-  ).catch(() => null);
+  )
+    .then(() => notificationsConfigCache.replace(addresses))
+    .catch(() => null);
 }
 
 /**
@@ -98,6 +121,8 @@ export async function getOnChainNotifications(
   if (addresses.length === 0) {
     return [];
   }
+
+  addresses = addresses.map((a) => a.toLowerCase());
 
   type RequestBody = { address: string }[];
   const body: RequestBody = addresses.map((address) => ({ address }));

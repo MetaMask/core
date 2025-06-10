@@ -16,10 +16,11 @@ describe('On Chain Notifications - getOnChainNotificationsConfig()', () => {
       body: [{ address: '0xTestAddress', enabled: true }],
     });
 
-    const result = await OnChainNotifications.getOnChainNotificationsConfig(
-      MOCK_BEARER_TOKEN,
-      MOCK_ADDRESSES,
-    );
+    const result =
+      await OnChainNotifications.getOnChainNotificationsConfigCached(
+        MOCK_BEARER_TOKEN,
+        MOCK_ADDRESSES,
+      );
 
     expect(mockEndpoint.isDone()).toBe(true);
     expect(result).toStrictEqual([{ address: '0xTestAddress', enabled: true }]);
@@ -28,10 +29,11 @@ describe('On Chain Notifications - getOnChainNotificationsConfig()', () => {
   it('should bail early if given a list of empty addresses', async () => {
     const mockEndpoint = mockGetOnChainNotificationsConfig();
 
-    const result = await OnChainNotifications.getOnChainNotificationsConfig(
-      MOCK_BEARER_TOKEN,
-      [],
-    );
+    const result =
+      await OnChainNotifications.getOnChainNotificationsConfigCached(
+        MOCK_BEARER_TOKEN,
+        [],
+      );
 
     expect(mockEndpoint.isDone()).toBe(false); // bailed early before API was called
     expect(result).toStrictEqual([]);
@@ -43,10 +45,11 @@ describe('On Chain Notifications - getOnChainNotificationsConfig()', () => {
       body: { error: 'mock api failure' },
     });
 
-    const result = await OnChainNotifications.getOnChainNotificationsConfig(
-      MOCK_BEARER_TOKEN,
-      MOCK_ADDRESSES,
-    );
+    const result =
+      await OnChainNotifications.getOnChainNotificationsConfigCached(
+        MOCK_BEARER_TOKEN,
+        MOCK_ADDRESSES,
+      );
 
     expect(mockBadEndpoint.isDone()).toBe(true);
     expect(result).toStrictEqual([]);

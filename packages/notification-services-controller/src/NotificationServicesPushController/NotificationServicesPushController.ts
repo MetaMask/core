@@ -245,8 +245,9 @@ export default class NotificationServicesPushController extends BaseController<
 
     if (command.type === 'disable') {
       this.update((state) => {
+        // Note we do not want to clear the old FCM token
+        // We can send it as an old token to our backend to cleanup next time turned on
         state.isPushEnabled = false;
-        state.fcmToken = '';
         state.isUpdatingFCMToken = false;
       });
     }

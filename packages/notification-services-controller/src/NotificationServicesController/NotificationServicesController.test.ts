@@ -37,6 +37,7 @@ import type {
 import { processFeatureAnnouncement } from './processors';
 import { processNotification } from './processors/process-notifications';
 import { processSnapNotification } from './processors/process-snap-notifications';
+import { notificationsConfigCache } from './services/notification-config-cache';
 import type { INotification } from './types';
 import type {
   NotificationServicesPushControllerDisablePushNotificationsAction,
@@ -58,6 +59,11 @@ const featureAnnouncementsEnv = {
 const mockErrorLog = () =>
   jest.spyOn(log, 'error').mockImplementation(jest.fn());
 const mockWarnLog = () => jest.spyOn(log, 'warn').mockImplementation(jest.fn());
+
+// Removing caches to avoid interference
+const clearAPICache = () => {
+  notificationsConfigCache.clear();
+};
 
 describe('metamask-notifications - constructor()', () => {
   it('initializes state & override state', () => {
@@ -375,6 +381,10 @@ describe('metamask-notifications - createOnChainTriggers()', () => {
     };
   };
 
+  beforeEach(() => {
+    clearAPICache();
+  });
+
   it('create new triggers and push notifications if there are no existing notifications', async () => {
     const {
       messenger,
@@ -402,7 +412,7 @@ describe('metamask-notifications - createOnChainTriggers()', () => {
     expect(mockEnablePushNotifications).toHaveBeenCalled();
   });
 
-  it('returns early if notifications already exist and not resetting', async () => {
+  it('does not register notifications when notifications already exist and not resetting (however does update push registrations)', async () => {
     const {
       messenger,
       mockEnablePushNotifications,
@@ -425,8 +435,8 @@ describe('metamask-notifications - createOnChainTriggers()', () => {
     await controller.createOnChainTriggers();
 
     expect(mockGetConfig.isDone()).toBe(true);
-    expect(mockUpdateNotifications.isDone()).toBe(false);
-    expect(mockEnablePushNotifications).not.toHaveBeenCalled();
+    expect(mockUpdateNotifications.isDone()).toBe(false); // we do not update notification subscriptions
+    expect(mockEnablePushNotifications).toHaveBeenCalled(); // but we do lazily update push subscriptions
   });
 
   it('creates new triggers when resetNotifications is true even if notifications exist', async () => {
@@ -477,7 +487,7 @@ describe('metamask-notifications - createOnChainTriggers()', () => {
   });
 });
 
-describe('metamask-notifications - disableAccounts', () => {
+describe('metamask-notifications - disableAccounts()', () => {
   const arrangeMocks = () => {
     const messengerMocks = mockNotificationMessenger();
     const mockUpdateNotifications = mockUpdateOnChainNotifications();
@@ -569,6 +579,8 @@ describe('metamask-notifications - fetchAndUpdateMetamaskNotifications()', () =>
         body: mockFeatureAnnouncementAPIResult,
       });
 
+    const mockNotificationConfigAPI = mockGetOnChainNotificationsConfig();
+
     const mockOnChainNotificationsAPIResult = [createMockNotificationEthSent()];
     const mockOnChainNotificationsAPI = mockGetOnChainNotifications({
       status: 200,
@@ -577,6 +589,7 @@ describe('metamask-notifications - fetchAndUpdateMetamaskNotifications()', () =>
 
     return {
       ...messengerMocks,
+      mockNotificationConfigAPI,
       mockFeatureAnnouncementAPIResult,
       mockFeatureAnnouncementsAPI,
       mockOnChainNotificationsAPIResult,
@@ -601,6 +614,10 @@ describe('metamask-notifications - fetchAndUpdateMetamaskNotifications()', () =>
 
     return controller;
   };
+
+  beforeEach(() => {
+    clearAPICache();
+  });
 
   it('processes and shows all notifications (announcements, wallet, and snap notifications)', async () => {
     const { messenger } = arrangeMocks();
@@ -931,6 +948,10 @@ describe('metamask-notifications - enableMetamaskNotifications()', () => {
     return { ...messengerMocks, mockGetConfig, mockUpdateNotifications };
   };
 
+  beforeEach(() => {
+    clearAPICache();
+  });
+
   it('should sign a user in if not already signed in', async () => {
     const mocks = arrangeMocks();
     mocks.mockIsSignedIn.mockReturnValue(false); // mock that auth is not enabled
@@ -974,7 +995,7 @@ describe('metamask-notifications - enableMetamaskNotifications()', () => {
     expect(mocks.mockUpdateNotifications.isDone()).toBe(true);
   });
 
-  it('should not create new notifications when enabling an account that already has notifications', async () => {
+  it('should not create new notification subscriptions when enabling an account that already has notifications', async () => {
     const mocks = arrangeMocks({
       // Mock existing notifications
       mockGetConfig: () =>
