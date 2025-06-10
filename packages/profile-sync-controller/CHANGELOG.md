@@ -9,15 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [17.1.0]
 
-### Uncategorized
-
-- feat: add `EventQueue` class util to guarantee the order of user-storage updates ([#5937](https://github.com/MetaMask/core/pull/5937))
-- Release/430.0.0 ([#5935](https://github.com/MetaMask/core/pull/5935))
-- Release 429.0.0 ([#5930](https://github.com/MetaMask/core/pull/5930))
-
 ### Added
 
-- Add a new `EventQueue` class util that introduces two public methods, `push` and `run`
+- Add `EventQueue` class util to guarantee the order of some user-storage updates ([#5937](https://github.com/MetaMask/core/pull/5937))
   - Add an instance of `EventQueue` to `UserStorageController`
   - Event subscriptions for `AccountsController:accountAdded` and `AccountsController:accountRenamed` are now pushing their callbacks to the `UserStorageController` instance of `EventQueue`, so that we stay in control of the order these callbacks are fulfilled.
 
