@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `gasFeeEstimates` property to `TransactionBatchMeta`, populated using `DefaultGasFeeFlow` ([#5886](https://github.com/MetaMask/core/pull/5886))
 
+### Changed
+
+- Extend `GasFeePoller` to support gas updates for unapproved `transactionBatches`, emitting `transaction-batch-updated` with `gasFeeEstimates`. ([#5950](https://github.com/MetaMask/core/pull/5950))
+
 ## [57.2.0]
 
 ### Added

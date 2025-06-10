@@ -306,7 +306,6 @@ describe('GasFeePoller', () => {
     describe('if unapproved transaction batches', () => {
       let getGasFeesMock: jest.Mock;
       beforeEach(() => {
-        // getTransactionsMock.mockReturnValue([]);
         getGasFeesMock = jest.fn().mockResolvedValue({
           estimates: FEE_MARKET_GAS_FEE_ESTIMATES_MOCK,
         });
@@ -335,7 +334,7 @@ describe('GasFeePoller', () => {
       it('calls gas fee flow for batches', async () => {
         getGasFeeControllerEstimatesMock.mockResolvedValue({});
 
-        const gasFeePoller = new GasFeePoller(constructorOptions);
+        new GasFeePoller(constructorOptions);
 
         triggerOnStateChange();
         await flushPromises();
@@ -360,7 +359,7 @@ describe('GasFeePoller', () => {
       });
 
       it('creates polling timeout for batches', async () => {
-        const gasFeePoller = new GasFeePoller(constructorOptions);
+        new GasFeePoller(constructorOptions);
 
         triggerOnStateChange();
         await flushPromises();
@@ -374,7 +373,7 @@ describe('GasFeePoller', () => {
       });
 
       it('does not create additional polling timeout on subsequent state changes', async () => {
-        const gasFeePoller = new GasFeePoller(constructorOptions);
+        new GasFeePoller(constructorOptions);
 
         triggerOnStateChange();
         await flushPromises();
@@ -431,7 +430,7 @@ describe('GasFeePoller', () => {
             },
           ]);
 
-          const gasFeePoller = new GasFeePoller(constructorOptions);
+          new GasFeePoller(constructorOptions);
 
           triggerOnStateChange();
           await flushPromises();
