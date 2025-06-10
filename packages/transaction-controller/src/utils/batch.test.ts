@@ -1419,6 +1419,7 @@ describe('Batch Utils', () => {
 
       it('throws if simulation is not supported', async () => {
         const isSimulationSupportedMock = jest.fn().mockReturnValue(false);
+        setupSequentialPublishBatchHookMock(() => sequentialPublishBatchHook);
 
         await expect(
           addTransactionBatch({
@@ -1427,9 +1428,27 @@ describe('Batch Utils', () => {
             isSimulationEnabled: () => isSimulationSupportedMock(),
             request: {
               ...request.request,
-              disable7702: true,
               disableHook: true,
               disableSequential: false,
+            },
+          }),
+        ).rejects.toThrow(
+          `Cannot create transaction batch as simulation not supported`,
+        );
+      });
+
+      it('throws if no supported methods found', async () => {
+        const isSimulationSupportedMock = jest.fn().mockReturnValue(false);
+        setupSequentialPublishBatchHookMock(() => sequentialPublishBatchHook);
+
+        await expect(
+          addTransactionBatch({
+            ...request,
+            publishBatchHook: undefined,
+            isSimulationEnabled: () => isSimulationSupportedMock(),
+            request: {
+              ...request.request,
+              useHook: true,
             },
           }),
         ).rejects.toThrow(`Can't process batch`);

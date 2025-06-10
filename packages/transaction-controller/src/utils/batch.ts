@@ -434,6 +434,7 @@ async function addTransactionBatchWithHook(
   }
 
   let publishBatchHook = null;
+
   if (!disableHook) {
     publishBatchHook = requestPublishBatchHook;
   } else if (!disableSequential) {
@@ -578,7 +579,7 @@ async function processTransactionWithHook(
       params,
     };
   }
-  console.log('>>>>>>>> params', params);
+
   const txMeta = { ...txBatchMeta, txParams: { ...params, from } };
 
   if (txBatchMeta) {
@@ -586,7 +587,6 @@ async function processTransactionWithHook(
       txMeta: txMeta as TransactionMeta,
       userFeeLevel: GasFeeEstimateLevel.Medium,
     });
-    console.log('>>>>>>>> txMeta', txMeta.txParams);
   }
 
   const { transactionMeta } = await addTransaction(txMeta.txParams, {
@@ -736,9 +736,7 @@ async function prepareApprovalData({
 
   const ethQuery = getEthQuery(networkClientId);
 
-  console.log('>>>>>>>> isSimulationEnabled', isSimulationEnabled());
   if (!isSimulationEnabled()) {
-    console.log('throwing error');
     throw new Error(
       'Cannot create transaction batch as simulation not supported',
     );

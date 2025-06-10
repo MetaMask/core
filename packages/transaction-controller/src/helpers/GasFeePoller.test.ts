@@ -55,7 +55,6 @@ const TRANSACTION_BATCH_META_MOCK: TransactionBatchMeta = {
   chainId: CHAIN_ID_MOCK,
   networkClientId: NETWORK_CLIENT_ID_MOCK,
   status: TransactionStatus.unapproved,
-  time: 0,
   transactions: [
     {
       gas: '0x5208',
@@ -351,7 +350,7 @@ describe('GasFeePoller', () => {
             chainId: TRANSACTION_BATCH_META_MOCK.chainId,
             networkClientId: TRANSACTION_BATCH_META_MOCK.networkClientId,
             status: TRANSACTION_BATCH_META_MOCK.status,
-            time: TRANSACTION_BATCH_META_MOCK.time,
+            time: expect.any(Number),
             txParams: {
               from: TRANSACTION_BATCH_META_MOCK.from,
               type: TransactionEnvelopeType.feeMarket,

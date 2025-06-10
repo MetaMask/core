@@ -274,6 +274,7 @@ export class GasFeePoller {
           ...txBatchMeta.transactions?.[0],
           from: txBatchMeta.from,
         },
+        time: Date.now(),
       },
     };
 
