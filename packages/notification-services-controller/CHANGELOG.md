@@ -25,7 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Migrated to notification v2 endpoints ([#5945](https://github.com/MetaMask/core/pull/5945))
 
   - removed `NotificationServicesPushController:updateTriggerPushNotifications` action from `NotificationServicesController`
-  - removed `UserStorageController` usage from `NotificationServicesController`.
+  - removed `UserStorageController:getStorageKey` action from `NotificationServicesController`
+  - removed `UserStorageController:performGetStorage` action from `NotificationServicesController`
+  - removed `UserStorageController:performSetStorage` action from `NotificationServicesController`
 
 ## [10.0.0]
 
