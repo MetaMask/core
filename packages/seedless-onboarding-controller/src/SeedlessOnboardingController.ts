@@ -694,10 +694,10 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     let latestPwEncKey: Uint8Array | null = null;
     let latestPwAuthKeyPair: KeyPair | null = null;
 
-    try {
-      ({ encKey: latestPwEncKey, authKeyPair: latestPwAuthKeyPair } =
-        await this.#recoverEncKey(globalPassword));
+    ({ encKey: latestPwEncKey, authKeyPair: latestPwAuthKeyPair } =
+      await this.#recoverEncKey(globalPassword));
 
+    try {
       const res = await this.toprfClient.recoverPassword({
         targetPwPubKey,
         curEncKey: latestPwEncKey,

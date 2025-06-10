@@ -209,11 +209,15 @@ function mockcreateLocalKey(toprfClient: ToprfSecureBackup, password: string) {
   const oprfKey = BigInt(0);
   const seed = stringToBytes(password);
 
+  // Return copies to controller to simulate real TOPRF client behavior
   jest.spyOn(toprfClient, 'createLocalKey').mockResolvedValueOnce({
-    encKey,
-    authKeyPair,
+    encKey: new Uint8Array(encKey),
+    authKeyPair: {
+      sk: authKeyPair.sk,
+      pk: new Uint8Array(authKeyPair.pk),
+    },
     oprfKey,
-    seed,
+    seed: new Uint8Array(seed),
   });
 
   return {
@@ -263,9 +267,13 @@ function mockRecoverEncKey(
   const authKeyPair = mockToprfEncryptor.deriveAuthKeyPair(password);
   const rateLimitResetResult = Promise.resolve();
 
+  // Return copies to controller to simulate real TOPRF client behavior
   jest.spyOn(toprfClient, 'recoverEncKey').mockResolvedValueOnce({
-    encKey,
-    authKeyPair,
+    encKey: new Uint8Array(encKey),
+    authKeyPair: {
+      sk: authKeyPair.sk,
+      pk: new Uint8Array(authKeyPair.pk),
+    },
     rateLimitResetResult,
     keyShareIndex: 1,
   });
@@ -295,9 +303,13 @@ function mockChangeEncKey(
   const encKey = mockToprfEncryptor.deriveEncKey(newPassword);
   const authKeyPair = mockToprfEncryptor.deriveAuthKeyPair(newPassword);
 
+  // Return copies to controller to simulate real TOPRF client behavior
   jest.spyOn(toprfClient, 'changeEncKey').mockResolvedValueOnce({
-    encKey,
-    authKeyPair,
+    encKey: new Uint8Array(encKey),
+    authKeyPair: {
+      sk: authKeyPair.sk,
+      pk: new Uint8Array(authKeyPair.pk),
+    },
   });
 
   return { encKey, authKeyPair };
@@ -2949,9 +2961,13 @@ describe('SeedlessOnboardingController', () => {
           const newAuthKeyPair =
             mockToprfEncryptor.deriveAuthKeyPair(GLOBAL_PASSWORD);
 
+          // Return copies to controller to simulate real TOPRF client behavior
           recoverEncKeySpy.mockResolvedValueOnce({
-            encKey: newEncKey,
-            authKeyPair: newAuthKeyPair,
+            encKey: new Uint8Array(newEncKey),
+            authKeyPair: {
+              sk: newAuthKeyPair.sk,
+              pk: new Uint8Array(newAuthKeyPair.pk),
+            },
             rateLimitResetResult: Promise.resolve(),
             keyShareIndex: 1,
           });
@@ -3103,9 +3119,13 @@ describe('SeedlessOnboardingController', () => {
           const newAuthKeyPair =
             mockToprfEncryptor.deriveAuthKeyPair(GLOBAL_PASSWORD);
 
+          // Return copies to controller to simulate real TOPRF client behavior
           recoverEncKeySpy.mockResolvedValueOnce({
-            encKey: newEncKey,
-            authKeyPair: newAuthKeyPair,
+            encKey: new Uint8Array(newEncKey),
+            authKeyPair: {
+              sk: newAuthKeyPair.sk,
+              pk: new Uint8Array(newAuthKeyPair.pk),
+            },
             rateLimitResetResult: Promise.resolve(),
             keyShareIndex: 1,
           });
