@@ -68,7 +68,7 @@ export type AccountWallet = {
   groups: {
     [groupId: AccountGroupId]: AccountGroup;
   };
-  metadata: AccountGroupMetadata; // Assuming Metadata is a defined type
+  metadata: AccountWalletMetadata; // Assuming Metadata is a defined type
 };
 
 export type AccountTreeControllerState = {
