@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Now requires a new `withSnapKeyringFn` parameter when constructing the controller. ([#5924](https://github.com/MetaMask/core/pull/5924))
+  - This will be used to access the `SnapKeyring` instance and submit keyring request to a Snap.
+- **BREAKING:** No longer depend on `@metamask/snaps-controllers` dependency. ([#5924](https://github.com/MetaMask/core/pull/5924))
+  - The Snap request handling is now delegated to the `SnapKeyring` via the new `withSnapKeyringFn` callback.
 - Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
 
 ## [29.1.0]

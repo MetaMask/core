@@ -540,6 +540,7 @@ const executePollingWithPendingStatus = async () => {
     messenger: getMessengerMock(),
     clientId: BridgeClientId.EXTENSION,
     fetchFn: jest.fn(),
+    withSnapKeyringFn: jest.fn(),
     addTransactionFn: jest.fn(),
     estimateGasFeeFn: jest.fn(),
     addUserOperationFromTransactionFn: jest.fn(),
@@ -566,6 +567,10 @@ const executePollingWithPendingStatus = async () => {
 
 // Define mocks at the top level
 const mockFetchFn = jest.fn();
+const mockWithSnapKeyringFn = jest.fn();
+const mockKeyring = {
+  submitRequest: jest.fn(),
+};
 const mockMessengerCall = jest.fn();
 const mockSelectedAccount = {
   id: 'test-account-id',
@@ -593,6 +598,7 @@ const getController = (call: jest.Mock, traceFn?: jest.Mock) => {
     } as never,
     clientId: BridgeClientId.EXTENSION,
     fetchFn: mockFetchFn,
+    withSnapKeyringFn: mockWithSnapKeyringFn,
     addTransactionFn,
     estimateGasFeeFn,
     addUserOperationFromTransactionFn,
@@ -614,6 +620,13 @@ describe('BridgeStatusController', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.clearAllTimers();
+
+    // We re-wire up the mocked Snap keyring callback, so we can just
+    // use `mockSnapKeyring.submitRequest` when we need to mock Snap
+    // keyring requests.
+    mockWithSnapKeyringFn.mockImplementation(async (callback) => {
+      return await callback({ keyring: mockKeyring });
+    });
   });
 
   describe('constructor', () => {
@@ -622,6 +635,7 @@ describe('BridgeStatusController', () => {
         messenger: getMessengerMock(),
         clientId: BridgeClientId.EXTENSION,
         fetchFn: jest.fn(),
+        withSnapKeyringFn: jest.fn(),
         addTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
         addUserOperationFromTransactionFn: jest.fn(),
@@ -635,6 +649,7 @@ describe('BridgeStatusController', () => {
         messenger: getMessengerMock(),
         clientId: BridgeClientId.EXTENSION,
         fetchFn: jest.fn(),
+        withSnapKeyringFn: jest.fn(),
         addTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
         addUserOperationFromTransactionFn: jest.fn(),
@@ -672,6 +687,7 @@ describe('BridgeStatusController', () => {
         },
         clientId: BridgeClientId.EXTENSION,
         fetchFn: jest.fn(),
+        withSnapKeyringFn: jest.fn(),
         addTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
       });
@@ -694,6 +710,7 @@ describe('BridgeStatusController', () => {
         messenger: getMessengerMock(),
         clientId: BridgeClientId.EXTENSION,
         fetchFn: jest.fn(),
+        withSnapKeyringFn: jest.fn(),
         addTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
         addUserOperationFromTransactionFn: jest.fn(),
@@ -732,6 +749,7 @@ describe('BridgeStatusController', () => {
         messenger: messengerMock,
         clientId: BridgeClientId.EXTENSION,
         fetchFn: jest.fn(),
+        withSnapKeyringFn: jest.fn(),
         addTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
         addUserOperationFromTransactionFn: jest.fn(),
@@ -813,6 +831,7 @@ describe('BridgeStatusController', () => {
         messenger: messengerMock,
         clientId: BridgeClientId.EXTENSION,
         fetchFn: jest.fn(),
+        withSnapKeyringFn: jest.fn(),
         addTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
         addUserOperationFromTransactionFn: jest.fn(),
@@ -852,6 +871,7 @@ describe('BridgeStatusController', () => {
         messenger: messengerMock,
         clientId: BridgeClientId.EXTENSION,
         fetchFn: jest.fn(),
+        withSnapKeyringFn: jest.fn(),
         addTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
         addUserOperationFromTransactionFn: jest.fn(),
@@ -893,6 +913,7 @@ describe('BridgeStatusController', () => {
         messenger: messengerMock,
         clientId: BridgeClientId.EXTENSION,
         fetchFn: jest.fn(),
+        withSnapKeyringFn: jest.fn(),
         addTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
         addUserOperationFromTransactionFn: jest.fn(),
@@ -956,6 +977,7 @@ describe('BridgeStatusController', () => {
         messenger: messengerMock,
         clientId: BridgeClientId.EXTENSION,
         fetchFn: jest.fn(),
+        withSnapKeyringFn: jest.fn(),
         addTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
         addUserOperationFromTransactionFn: jest.fn(),
@@ -1044,6 +1066,7 @@ describe('BridgeStatusController', () => {
         messenger: messengerMock,
         clientId: BridgeClientId.EXTENSION,
         fetchFn: jest.fn(),
+        withSnapKeyringFn: jest.fn(),
         addTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
         addUserOperationFromTransactionFn: jest.fn(),
@@ -1131,6 +1154,7 @@ describe('BridgeStatusController', () => {
         messenger: messengerMock,
         clientId: BridgeClientId.EXTENSION,
         fetchFn: jest.fn(),
+        withSnapKeyringFn: jest.fn(),
         addTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
         addUserOperationFromTransactionFn: jest.fn(),
@@ -1232,6 +1256,7 @@ describe('BridgeStatusController', () => {
         messenger: messengerMock,
         clientId: BridgeClientId.EXTENSION,
         fetchFn: jest.fn(),
+        withSnapKeyringFn: jest.fn(),
         addTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
         addUserOperationFromTransactionFn: jest.fn(),
@@ -1430,8 +1455,9 @@ describe('BridgeStatusController', () => {
     });
 
     it('should successfully submit a Solana transaction', async () => {
+      mockKeyring.submitRequest.mockResolvedValueOnce('signature');
+
       mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
-      mockMessengerCall.mockResolvedValueOnce('signature');
 
       mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
       mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
@@ -1486,7 +1512,7 @@ describe('BridgeStatusController', () => {
 
     it('should handle snap controller errors', async () => {
       mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
-      mockMessengerCall.mockRejectedValueOnce(new Error('Snap error'));
+      mockKeyring.submitRequest.mockRejectedValueOnce(new Error('Snap error'));
 
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
@@ -2244,6 +2270,7 @@ describe('BridgeStatusController', () => {
         messenger: mockBridgeStatusMessenger,
         clientId: BridgeClientId.EXTENSION,
         fetchFn: jest.fn(),
+        withSnapKeyringFn: jest.fn(),
         addTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
         addUserOperationFromTransactionFn: jest.fn(),

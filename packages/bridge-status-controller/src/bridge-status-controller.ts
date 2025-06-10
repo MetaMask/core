@@ -18,6 +18,7 @@ import {
 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { toHex } from '@metamask/controller-utils';
+import type { SnapKeyring } from '@metamask/eth-snap-keyring';
 import { EthAccountType } from '@metamask/keyring-api';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type {
@@ -79,6 +80,11 @@ const metadata: StateMetadata<BridgeStatusControllerState> = {
   },
 };
 
+// Expecting a bound function that calls KeyringController.withKeyring selecting the Snap keyring
+type WithSnapKeyringFn = <ReturnType>(
+  operation: ({ keyring }: { keyring: SnapKeyring }) => Promise<ReturnType>,
+) => Promise<ReturnType>;
+
 /** The input to start polling for the {@link BridgeStatusController} */
 type BridgeStatusPollingInput = FetchBridgeTxStatusArgs;
 
@@ -105,6 +111,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
   readonly #estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee;
 
+  readonly #withSnapKeyringFn: WithSnapKeyringFn;
+
   readonly #addUserOperationFromTransactionFn?: typeof UserOperationController.prototype.addUserOperationFromTransaction;
 
   readonly #trace: TraceCallback;
@@ -116,6 +124,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     fetchFn,
     addTransactionFn,
     addUserOperationFromTransactionFn,
+    withSnapKeyringFn,
     estimateGasFeeFn,
     config,
     traceFn,
@@ -126,6 +135,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     fetchFn: FetchFunction;
     addTransactionFn: typeof TransactionController.prototype.addTransaction;
     estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee;
+    withSnapKeyringFn: WithSnapKeyringFn;
     addUserOperationFromTransactionFn?: typeof UserOperationController.prototype.addUserOperationFromTransaction;
     config?: {
       customBridgeApiBaseUrl?: string;
@@ -147,6 +157,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     this.#fetchFn = fetchFn;
     this.#addTransactionFn = addTransactionFn;
     this.#addUserOperationFromTransactionFn = addUserOperationFromTransactionFn;
+    this.#withSnapKeyringFn = withSnapKeyringFn;
     this.#estimateGasFeeFn = estimateGasFeeFn;
     this.#config = {
       customBridgeApiBaseUrl:
@@ -560,10 +571,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       );
     }
     const keyringRequest = getKeyringRequest(quoteResponse, selectedAccount);
-    const keyringResponse = (await this.messagingSystem.call(
-      'SnapController:handleRequest',
-      keyringRequest,
-    )) as string | { result: Record<string, string> };
+    const keyringResponse = await this.#withSnapKeyringFn(
+      async ({ keyring }) => {
+        return (await keyring.submitRequest(keyringRequest)) as
+          | string
+          | { result: Record<string, string> };
+      },
+    );
 
     // The extension client actually redirects before it can do anytyhing with this meta
     const txMeta = handleSolanaTxResponse(
