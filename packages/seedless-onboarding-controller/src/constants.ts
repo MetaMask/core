@@ -41,6 +41,7 @@ export enum SeedlessOnboardingControllerErrorMessage {
   VaultDataError = `${controllerName} - The decrypted vault has an unexpected shape.`,
   VaultError = `${controllerName} - Cannot unlock without a previous vault.`,
   InvalidSecretMetadata = `${controllerName} - Invalid secret metadata`,
+  MissingKeyringId = `${controllerName} - Keyring ID is required to store SRP backups.`,
   FailedToEncryptAndStoreSeedPhraseBackup = `${controllerName} - Failed to encrypt and store seed phrase backup`,
   FailedToFetchSeedPhraseMetadata = `${controllerName} - Failed to fetch seed phrase metadata`,
   FailedToChangePassword = `${controllerName} - Failed to change password`,
