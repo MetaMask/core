@@ -3965,7 +3965,7 @@ describe('SeedlessOnboardingController', () => {
 
             const result = await controller.fetchAllSecretData(MOCK_PASSWORD);
 
-            expect(result).toStrictEqual([]);
+            expect(result).toStrictEqual({ mnemonic: [], privateKey: [] });
             expect(mockRefreshJWTToken).toHaveBeenCalled();
             expect(toprfClient.fetchAllSecretDataItems).toHaveBeenCalledTimes(
               2,
