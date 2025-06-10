@@ -257,11 +257,14 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         });
 
       // encrypt and store the seed phrase backup
-      await this.#encryptAndStoreSeedPhraseBackup({
-        keyringId,
-        seedPhrase,
+      await this.#encryptAndStoreSecretData({
+        data: seedPhrase,
+        type: SecretType.Mnemonic,
         encKey,
         authKeyPair,
+        options: {
+          keyringId,
+        },
       });
 
       // store/persist the encryption key shares
@@ -282,45 +285,55 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   }
 
   /**
-   * Add a new seed phrase backup to the metadata store.
+   * encrypt and add a new secret data to the metadata store.
    *
-   * @param seedPhrase - The seed phrase to backup.
-   * @param keyringId - The keyring id of the backup seed phrase.
+   * @param data - The data to add.
+   * @param type - The type of the secret data.
+   * @param options - Optional options object, which includes optional data to be added to the metadata store.
+   * @param options.keyringId - The keyring id of the backup keyring (SRP).
    * @returns A promise that resolves to the success of the operation.
    */
-  async addNewSeedPhraseBackup(
-    seedPhrase: Uint8Array,
-    keyringId: string,
+  async addNewSecretData(
+    data: Uint8Array,
+    type: SecretType,
+    options?: {
+      keyringId?: string;
+    },
   ): Promise<void> {
     return await this.#withControllerLock(async () => {
       this.#assertIsUnlocked();
+
       await this.#assertPasswordInSync({
         skipCache: true,
         skipLock: true, // skip lock since we already have the lock
       });
+
       // verify the password and unlock the vault
       const { toprfEncryptionKey, toprfAuthKeyPair } =
         await this.#unlockVaultAndGetBackupEncKey();
 
       // encrypt and store the seed phrase backup
-      await this.#encryptAndStoreSeedPhraseBackup({
-        keyringId,
-        seedPhrase,
+      await this.#encryptAndStoreSecretData({
+        data,
+        type,
         encKey: toprfEncryptionKey,
         authKeyPair: toprfAuthKeyPair,
+        options,
       });
     });
   }
 
   /**
-   * Fetches all encrypted seed phrases and metadata for user's account from the metadata store.
+   * Fetches all encrypted secret data and metadata for user's account from the metadata store.
    *
-   * Decrypts the seed phrases and returns the decrypted seed phrases using the recovered encryption key from the password.
+   * Decrypts the secret data and returns the decrypted secret data using the recovered encryption key from the password.
    *
    * @param password - The optional password used to create new wallet and seedphrase. If not provided, `cached Encryption Key` will be used.
-   * @returns A promise that resolves to the seed phrase metadata.
+   * @returns A promise that resolves to the secret data.
    */
-  async fetchAllSeedPhrases(password?: string): Promise<Uint8Array[]> {
+  async fetchAllSecretData(
+    password?: string,
+  ): Promise<Record<SecretType, Uint8Array[]>> {
     // assert that the user is authenticated before fetching the seed phrases
     this.#assertIsAuthenticatedUser(this.state);
 
@@ -359,11 +372,18 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           });
         }
 
-        const secrets = SecretMetadata.parseSecretsFromMetadataStore(
-          secretData,
-          SecretType.Mnemonic,
-        );
-        return secrets.map((secret) => secret.data);
+        const result: Record<SecretType, Uint8Array[]> = {
+          mnemonic: [],
+          privateKey: [],
+        };
+        const secrets =
+          SecretMetadata.parseSecretsFromMetadataStore(secretData);
+
+        secrets.forEach((secret) => {
+          result[secret.type].push(secret.data);
+        });
+
+        return result;
       } catch (error) {
         log('Error fetching seed phrase metadata', error);
         throw new Error(
@@ -797,34 +817,58 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * Encrypt and store the seed phrase backup in the metadata store.
    *
    * @param params - The parameters for encrypting and storing the seed phrase backup.
-   * @param params.keyringId - The keyring id of the backup seed phrase.
-   * @param params.seedPhrase - The seed phrase to store.
+   * @param params.data - The seed phrase to store.
+   * @param params.type - The type of the secret data.
    * @param params.encKey - The encryption key to store.
    * @param params.authKeyPair - The authentication key pair to store.
+   * @param params.options - Optional options object, which includes optional data to be added to the metadata store.
+   * @param params.options.keyringId - The keyring id of the backup keyring (SRP).
    *
    * @returns A promise that resolves to the success of the operation.
    */
-  async #encryptAndStoreSeedPhraseBackup(params: {
-    keyringId: string;
-    seedPhrase: Uint8Array;
+  async #encryptAndStoreSecretData(params: {
+    data: Uint8Array;
+    type: SecretType;
     encKey: Uint8Array;
     authKeyPair: KeyPair;
+    options?: {
+      keyringId?: string;
+    };
   }): Promise<void> {
-    try {
-      const { keyringId, seedPhrase, encKey, authKeyPair } = params;
+    const { options, data, encKey, authKeyPair, type } = params;
 
-      const seedPhraseMetadata = new SecretMetadata(seedPhrase);
-      const secretData = seedPhraseMetadata.toBytes();
-      await this.#withPersistedSeedPhraseBackupsState(async () => {
-        await this.toprfClient.addSecretDataItem({
-          encKey,
-          secretData,
-          authKeyPair,
+    const secretMetadata = new SecretMetadata(data, {
+      type,
+    });
+    const secretData = secretMetadata.toBytes();
+
+    const keyringId = options?.keyringId as string;
+    if (type === SecretType.Mnemonic && !keyringId) {
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.MissingKeyringId,
+      );
+    }
+
+    try {
+      if (type === SecretType.Mnemonic) {
+        await this.#withPersistedSeedPhraseBackupsState(async () => {
+          await this.toprfClient.addSecretDataItem({
+            encKey,
+            secretData,
+            authKeyPair,
+          });
+          return {
+            keyringId,
+            seedPhrase: data,
+          };
         });
-        return {
-          keyringId,
-          seedPhrase,
-        };
+        return;
+      }
+
+      await this.toprfClient.addSecretDataItem({
+        encKey,
+        secretData,
+        authKeyPair,
       });
     } catch (error) {
       log('Error encrypting and storing seed phrase backup', error);

@@ -832,4 +832,70 @@ describe('TokenBalancesController', () => {
       });
     });
   });
+
+  describe('getErc20Balances', () => {
+    const chainId = '0x1';
+    const account = '0x0000000000000000000000000000000000000000';
+    const tokenA = '0x00000000000000000000000000000000000000a1';
+    const tokenB = '0x00000000000000000000000000000000000000b2';
+
+    afterEach(() => {
+      // make sure spies do not leak between tests
+      jest.restoreAllMocks();
+    });
+
+    it('returns an **empty object** if no token addresses are provided', async () => {
+      const { controller } = setupController();
+      const balances = await controller.getErc20Balances({
+        chainId,
+        accountAddress: account,
+        tokenAddresses: [],
+      });
+
+      expect(balances).toStrictEqual({});
+    });
+
+    it('maps **each address to a hex balance** on success', async () => {
+      const bal1 = 42;
+      const bal2 = 0;
+
+      jest.spyOn(multicall, 'multicallOrFallback').mockResolvedValueOnce([
+        { success: true, value: new BN(bal1) },
+        { success: true, value: new BN(bal2) },
+      ]);
+
+      const { controller } = setupController();
+
+      const balances = await controller.getErc20Balances({
+        chainId,
+        accountAddress: account,
+        tokenAddresses: [tokenA, tokenB],
+      });
+
+      expect(balances).toStrictEqual({
+        [tokenA]: toHex(bal1),
+        [tokenB]: toHex(bal2), // zero balance is still a success
+      });
+    });
+
+    it('returns **null** for tokens whose `balanceOf` call failed', async () => {
+      jest.spyOn(multicall, 'multicallOrFallback').mockResolvedValueOnce([
+        { success: false, value: null },
+        { success: true, value: new BN(7) },
+      ]);
+
+      const { controller } = setupController();
+
+      const balances = await controller.getErc20Balances({
+        chainId,
+        accountAddress: account,
+        tokenAddresses: [tokenA, tokenB],
+      });
+
+      expect(balances).toStrictEqual({
+        [tokenA]: null, // failed call
+        [tokenB]: toHex(7), // succeeded call
+      });
+    });
+  });
 });
