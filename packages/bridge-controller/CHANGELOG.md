@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Pass abortSignal to spot-prices fetch call, which cancels exchange rate fetching when quote parameters change ([#5953](https://github.com/MetaMask/core/pull/5953))
+
 ### Changed
 
+- Remove cacheOptions from fetch calls that don't need to be cached ([#5953](https://github.com/MetaMask/core/pull/5953))
 - Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
 
 ## [32.1.1]
