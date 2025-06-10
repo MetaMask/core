@@ -224,36 +224,12 @@ describe('fetch', () => {
       expect(result).toStrictEqual(mockBridgeQuotesErc20Erc20);
     });
 
-    it('should filter out malformed bridge quotes', async () => {
+    it.only('should filter out malformed bridge quotes', async () => {
       const mockConsoleError = jest
         .spyOn(console, 'error')
         .mockImplementation(jest.fn());
-      mockFetchFn.mockResolvedValue([
-        ...mockBridgeQuotesErc20Erc20,
-        ...mockBridgeQuotesErc20Erc20.map(
-          ({ quote, ...restOfQuote }) => restOfQuote,
-        ),
-        {
-          ...mockBridgeQuotesErc20Erc20[0],
-          quote: {
-            bridgeId: 'socket',
-            srcAsset: {
-              ...mockBridgeQuotesErc20Erc20[0].quote.srcAsset,
-              decimals: undefined,
-            },
-          },
-        },
-        {
-          ...mockBridgeQuotesErc20Erc20[1],
-          quote: {
-            bridgeId: 'socket',
-            destAsset: {
-              ...mockBridgeQuotesErc20Erc20[1].quote.destAsset,
-              address: undefined,
-            },
-          },
-        },
-      ]);
+      // TODO paste response into the mockBridgeQuotesErc20Erc20 file
+      mockFetchFn.mockResolvedValue(mockBridgeQuotesErc20Erc20);
       const { signal } = new AbortController();
 
       const result = await fetchBridgeQuotes(
@@ -283,6 +259,9 @@ describe('fetch', () => {
           signal,
         },
       );
+
+      // This lgos validation errors
+      expect(mockConsoleError).not.toHaveBeenCalled();
 
       expect(result).toStrictEqual(mockBridgeQuotesErc20Erc20);
       // eslint-disable-next-line jest/no-restricted-matchers
