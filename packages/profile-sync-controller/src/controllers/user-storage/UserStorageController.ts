@@ -2,6 +2,7 @@ import type {
   AccountsControllerListAccountsAction,
   AccountsControllerUpdateAccountMetadataAction,
   AccountsControllerAccountRenamedEvent,
+  AccountsControllerAccountAddedEvent,
   AccountsControllerUpdateAccountsAction,
 } from '@metamask/accounts-controller';
 import type {
@@ -55,6 +56,7 @@ import {
   type UserStoragePathWithFeatureOnly,
 } from '../../shared/storage-schema';
 import type { NativeScrypt } from '../../shared/types/encryption';
+import { EventQueue } from '../../shared/utils/event-queue';
 import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests';
 import type {
   AuthenticationControllerGetBearerToken,
@@ -311,6 +313,7 @@ export type AllowedEvents =
   | KeyringControllerUnlockEvent
   // Account Syncing Events
   | AccountsControllerAccountRenamedEvent
+  | AccountsControllerAccountAddedEvent
   // Network Syncing Events
   | NetworkControllerNetworkRemovedEvent
   // Address Book Events
@@ -389,6 +392,8 @@ export default class UserStorageController extends BaseController<
   };
 
   readonly #nativeScryptCrypto: NativeScrypt | undefined = undefined;
+
+  eventQueue = new EventQueue();
 
   constructor({
     messenger,

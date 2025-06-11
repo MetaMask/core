@@ -1262,5 +1262,29 @@ describe('user-storage/account-syncing/controller-integration - saveInternalAcco
 
       expect(mockSaveInternalAccountToUserStorage).not.toHaveBeenCalled();
     });
+
+    it('saves an internal account to user storage when the AccountsController:accountAdded event is fired', async () => {
+      const { controller, messengerMocks } = await arrangeMocksForAccounts();
+
+      // We need to sync at least once before we listen for other controller events
+      await controller.setHasAccountSyncingSyncedAtLeastOnce(true);
+
+      const mockSaveInternalAccountToUserStorage = jest
+        .spyOn(
+          AccountSyncingControllerIntegrationModule,
+          'saveInternalAccountToUserStorage',
+        )
+        .mockImplementation();
+
+      messengerMocks.baseMessenger.publish(
+        'AccountsController:accountAdded',
+        MOCK_INTERNAL_ACCOUNTS.ONE[0] as unknown as InternalAccount,
+      );
+
+      expect(mockSaveInternalAccountToUserStorage).toHaveBeenCalledWith(
+        MOCK_INTERNAL_ACCOUNTS.ONE[0],
+        expect.anything(),
+      );
+    });
   });
 });
