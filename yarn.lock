@@ -3867,37 +3867,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/multichain@workspace:packages/multichain":
-  version: 0.0.0-use.local
-  resolution: "@metamask/multichain@workspace:packages/multichain"
-  dependencies:
-    "@metamask/api-specs": "npm:^0.14.0"
-    "@metamask/auto-changelog": "npm:^3.4.4"
-    "@metamask/controller-utils": "npm:^11.10.0"
-    "@metamask/eth-json-rpc-filters": "npm:^9.0.0"
-    "@metamask/json-rpc-engine": "npm:^10.0.3"
-    "@metamask/network-controller": "npm:^23.6.0"
-    "@metamask/permission-controller": "npm:^11.0.6"
-    "@metamask/rpc-errors": "npm:^7.0.2"
-    "@metamask/safe-event-emitter": "npm:^3.0.0"
-    "@metamask/utils": "npm:^11.2.0"
-    "@open-rpc/meta-schema": "npm:^1.14.6"
-    "@open-rpc/schema-utils-js": "npm:^2.0.5"
-    "@types/jest": "npm:^27.4.1"
-    deepmerge: "npm:^4.2.2"
-    jest: "npm:^27.5.1"
-    jsonschema: "npm:^1.4.1"
-    lodash: "npm:^4.17.21"
-    ts-jest: "npm:^27.1.4"
-    typedoc: "npm:^0.24.8"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
-  peerDependencies:
-    "@metamask/network-controller": ^23.0.0
-    "@metamask/permission-controller": ^11.0.0
-  languageName: unknown
-  linkType: soft
-
 "@metamask/name-controller@workspace:packages/name-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/name-controller@workspace:packages/name-controller"
