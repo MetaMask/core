@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Extend `GasFeePoller` to support gas updates for unapproved `transactionBatches`, emitting `transaction-batch-updated` with `gasFeeEstimates`. ([#5950](https://github.com/MetaMask/core/pull/5950))
 
+## [57.3.0]
+
+### Added
+
+- Add `SEI` network support ([#5694](https://github.com/MetaMask/core/pull/5694))
+  - Add account address relationship API support
+  - Add incoming transactions API support
+
 ## [57.2.0]
 
 ### Added
@@ -1668,7 +1676,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.3.0...HEAD
+[57.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.2.0...@metamask/transaction-controller@57.3.0
 [57.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.1.0...@metamask/transaction-controller@57.2.0
 [57.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.0.0...@metamask/transaction-controller@57.1.0
 [57.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@56.3.0...@metamask/transaction-controller@57.0.0
