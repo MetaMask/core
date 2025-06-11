@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Adjust function signature of `captureException` option so it expects an `Error` instead of `unknown` ([#5968](https://github.com/MetaMask/core/pull/5968))
   - This matches the patched version of `captureException` from `@sentry/react-native` that mobile uses
-  - It also matches the type of the `captureException` method and action that the servicee exports
+  - It also matches the type of the `captureException` method and action that the service exports
 
 ## [1.0.0]
 
