@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `Verified` to `RecommendedAction` for `scanUrl` ([#5962](https://github.com/MetaMask/core/pull/5962))
+- Added `Verified` to `RecommendedAction` for `scanUrl` ([#5964](https://github.com/MetaMask/core/pull/5964))
 
 ### Changed
 
