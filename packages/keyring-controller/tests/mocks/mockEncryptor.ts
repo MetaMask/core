@@ -101,6 +101,14 @@ export default class MockEncryptor implements ExportableKeyEncryptor {
     return JSON.parse(key);
   }
 
+  async exportKey(key: unknown) {
+    return JSON.stringify(key);
+  }
+
+  async keyFromPassword(password: string, salt?: string): Promise<unknown> {
+    return deriveKey(password, salt ?? generateSalt());
+  }
+
   async updateVault(_vault: string, _password: string) {
     return _vault;
   }
