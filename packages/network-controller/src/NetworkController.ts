@@ -7,6 +7,7 @@ import { BaseController } from '@metamask/base-controller';
 import type { Partialize } from '@metamask/controller-utils';
 import {
   InfuraNetworkType,
+  CustomNetworkType,
   NetworkType,
   isSafeChainId,
   isInfuraNetworkType,
@@ -15,8 +16,9 @@ import {
   NetworkNickname,
   BUILT_IN_CUSTOM_NETWORKS_RPC,
   BUILT_IN_NETWORKS,
-  BuiltInNetworkName,
 } from '@metamask/controller-utils';
+import type { ErrorReportingServiceCaptureExceptionAction } from '@metamask/error-reporting-service';
+import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 import EthQuery from '@metamask/eth-query';
 import { errorCodes } from '@metamask/rpc-errors';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
@@ -25,6 +27,7 @@ import type { Hex } from '@metamask/utils';
 import { hasProperty, isPlainObject, isStrictHexString } from '@metamask/utils';
 import deepEqual from 'fast-deep-equal';
 import type { Draft } from 'immer';
+import { produce } from 'immer';
 import { cloneDeep } from 'lodash';
 import type { Logger } from 'loglevel';
 import { createSelector } from 'reselect';
@@ -497,6 +500,11 @@ export type NetworkControllerEvents =
   | NetworkControllerRpcEndpointDegradedEvent
   | NetworkControllerRpcEndpointRequestRetriedEvent;
 
+/**
+ * All events that {@link NetworkController} calls internally.
+ */
+type AllowedEvents = never;
+
 export type NetworkControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   NetworkState
@@ -589,12 +597,17 @@ export type NetworkControllerActions =
   | NetworkControllerRemoveNetworkAction
   | NetworkControllerUpdateNetworkAction;
 
+/**
+ * All actions that {@link NetworkController} calls internally.
+ */
+type AllowedActions = ErrorReportingServiceCaptureExceptionAction;
+
 export type NetworkControllerMessenger = RestrictedMessenger<
   typeof controllerName,
-  NetworkControllerActions,
-  NetworkControllerEvents,
-  never,
-  never
+  NetworkControllerActions | AllowedActions,
+  NetworkControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
 >;
 
 /**
@@ -621,20 +634,32 @@ export type NetworkControllerOptions = {
    */
   log?: Logger;
   /**
-   * A function that can be used to customize the options passed to a
-   * RPC service constructed for an RPC endpoint. The object that the function
-   * should return is the same as {@link RpcServiceOptions}, except that
-   * `failoverService` and `endpointUrl` are not accepted (as they are filled in
-   * automatically).
+   * A function that can be used to customize a RPC service constructed for an
+   * RPC endpoint. The function takes the URL of the endpoint and should return
+   * an object with type {@link RpcServiceOptions}, minus `failoverService`
+   * and `endpointUrl` (as they are filled in automatically).
    */
   getRpcServiceOptions: (
     rpcEndpointUrl: string,
   ) => Omit<RpcServiceOptions, 'failoverService' | 'endpointUrl'>;
-
+  /**
+   * A function that can be used to customize a block tracker constructed for an
+   * RPC endpoint. The function takes the URL of the endpoint and should return
+   * an object of type {@link PollingBlockTrackerOptions}, minus `provider` (as
+   * it is filled in automatically).
+   */
+  getBlockTrackerOptions?: (
+    rpcEndpointUrl: string,
+  ) => Omit<PollingBlockTrackerOptions, 'provider'>;
   /**
    * An array of Hex Chain IDs representing the additional networks to be included as default.
    */
   additionalDefaultNetworks?: AdditionalDefaultNetwork[];
+  /**
+   * Whether or not requests sent to unavailable RPC endpoints should be
+   * automatically diverted to configured failover RPC endpoints.
+   */
+  isRpcFailoverEnabled?: boolean;
 };
 
 /**
@@ -715,25 +740,46 @@ function getDefaultCustomNetworkConfigurationsByChainId(): Record<
   Hex,
   NetworkConfiguration
 > {
-  const { ticker, rpcPrefs } =
-    BUILT_IN_NETWORKS[BuiltInNetworkName.MegaETHTestnet];
+  // Create the `networkConfigurationsByChainId` objects explicitly,
+  // Because it is not always guaranteed that the custom networks are included in the
+  // default networks.
   return {
-    [ChainId[BuiltInNetworkName.MegaETHTestnet]]: {
-      blockExplorerUrls: [rpcPrefs.blockExplorerUrl],
-      chainId: ChainId[BuiltInNetworkName.MegaETHTestnet],
-      defaultRpcEndpointIndex: 0,
-      defaultBlockExplorerUrlIndex: 0,
-      name: NetworkNickname[BuiltInNetworkName.MegaETHTestnet],
-      nativeCurrency: ticker,
-      rpcEndpoints: [
-        {
-          failoverUrls: [],
-          networkClientId: BuiltInNetworkName.MegaETHTestnet,
-          type: RpcEndpointType.Custom,
-          url: BUILT_IN_CUSTOM_NETWORKS_RPC.MEGAETH_TESTNET,
-        },
-      ],
-    },
+    [ChainId['megaeth-testnet']]: getCustomNetworkConfiguration(
+      CustomNetworkType['megaeth-testnet'],
+    ),
+    [ChainId['monad-testnet']]: getCustomNetworkConfiguration(
+      CustomNetworkType['monad-testnet'],
+    ),
+  };
+}
+
+/**
+ * Constructs a `NetworkConfiguration` object by `CustomNetworkType`.
+ *
+ * @param customNetworkType - The type of the custom network.
+ * @returns The `NetworkConfiguration` object.
+ */
+function getCustomNetworkConfiguration(
+  customNetworkType: CustomNetworkType,
+): NetworkConfiguration {
+  const { ticker, rpcPrefs } = BUILT_IN_NETWORKS[customNetworkType];
+  const rpcEndpointUrl = BUILT_IN_CUSTOM_NETWORKS_RPC[customNetworkType];
+
+  return {
+    blockExplorerUrls: [rpcPrefs.blockExplorerUrl],
+    chainId: ChainId[customNetworkType],
+    defaultRpcEndpointIndex: 0,
+    defaultBlockExplorerUrlIndex: 0,
+    name: NetworkNickname[customNetworkType],
+    nativeCurrency: ticker,
+    rpcEndpoints: [
+      {
+        failoverUrls: [],
+        networkClientId: customNetworkType,
+        type: RpcEndpointType.Custom,
+        url: rpcEndpointUrl,
+      },
+    ],
   };
 }
 
@@ -969,7 +1015,7 @@ function deriveInfuraNetworkNameFromRpcEndpointUrl(
  * @param state - The NetworkController state to verify.
  * @throws if the state is invalid in some way.
  */
-function validateNetworkControllerState(state: NetworkState) {
+function validateInitialState(state: NetworkState) {
   const networkConfigurationEntries = Object.entries(
     state.networkConfigurationsByChainId,
   );
@@ -1020,14 +1066,44 @@ function validateNetworkControllerState(state: NetworkState) {
       'NetworkController state has invalid `networkConfigurationsByChainId`: Every RPC endpoint across all network configurations must have a unique `networkClientId`',
     );
   }
+}
 
-  if (!networkClientIds.includes(state.selectedNetworkClientId)) {
-    throw new Error(
-      // This ESLint rule mistakenly produces an error.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      `NetworkController state is invalid: \`selectedNetworkClientId\` '${state.selectedNetworkClientId}' does not refer to an RPC endpoint within a network configuration`,
-    );
-  }
+/**
+ * Checks that the given initial NetworkController state is internally
+ * consistent similar to `validateInitialState`, but if an anomaly is detected,
+ * it does its best to correct the state and logs an error to Sentry.
+ *
+ * @param state - The NetworkController state to verify.
+ * @param messenger - The NetworkController messenger.
+ * @returns The corrected state.
+ */
+function correctInitialState(
+  state: NetworkState,
+  messenger: NetworkControllerMessenger,
+): NetworkState {
+  const networkConfigurationsSortedByChainId = getNetworkConfigurations(
+    state,
+  ).sort((a, b) => a.chainId.localeCompare(b.chainId));
+  const networkClientIds = getAvailableNetworkClientIds(
+    networkConfigurationsSortedByChainId,
+  );
+
+  return produce(state, (newState) => {
+    if (!networkClientIds.includes(state.selectedNetworkClientId)) {
+      const firstNetworkConfiguration = networkConfigurationsSortedByChainId[0];
+      const newSelectedNetworkClientId =
+        firstNetworkConfiguration.rpcEndpoints[
+          firstNetworkConfiguration.defaultRpcEndpointIndex
+        ].networkClientId;
+      messenger.call(
+        'ErrorReportingService:captureException',
+        new Error(
+          `\`selectedNetworkClientId\` '${state.selectedNetworkClientId}' does not refer to an RPC endpoint within a network configuration; correcting to '${newSelectedNetworkClientId}'`,
+        ),
+      );
+      newState.selectedNetworkClientId = newSelectedNetworkClientId;
+    }
+  });
 }
 
 /**
@@ -1080,9 +1156,16 @@ export class NetworkController extends BaseController<
 
   readonly #getRpcServiceOptions: NetworkControllerOptions['getRpcServiceOptions'];
 
+  readonly #getBlockTrackerOptions: NetworkControllerOptions['getBlockTrackerOptions'];
+
   #networkConfigurationsByNetworkClientId: Map<
     NetworkClientId,
     NetworkConfiguration
+  >;
+
+  #isRpcFailoverEnabled: Exclude<
+    NetworkControllerOptions['isRpcFailoverEnabled'],
+    undefined
   >;
 
   /**
@@ -1097,13 +1180,17 @@ export class NetworkController extends BaseController<
       infuraProjectId,
       log,
       getRpcServiceOptions,
+      getBlockTrackerOptions,
       additionalDefaultNetworks,
+      isRpcFailoverEnabled = false,
     } = options;
     const initialState = {
       ...getDefaultNetworkControllerState(additionalDefaultNetworks),
       ...state,
     };
-    validateNetworkControllerState(initialState);
+    validateInitialState(initialState);
+    const correctedInitialState = correctInitialState(initialState, messenger);
+
     if (!infuraProjectId || typeof infuraProjectId !== 'string') {
       throw new Error('Invalid Infura project ID');
     }
@@ -1125,12 +1212,14 @@ export class NetworkController extends BaseController<
         },
       },
       messenger,
-      state: initialState,
+      state: correctedInitialState,
     });
 
     this.#infuraProjectId = infuraProjectId;
     this.#log = log;
     this.#getRpcServiceOptions = getRpcServiceOptions;
+    this.#getBlockTrackerOptions = getBlockTrackerOptions;
+    this.#isRpcFailoverEnabled = isRpcFailoverEnabled;
 
     this.#previouslySelectedNetworkClientId =
       this.state.selectedNetworkClientId;
@@ -1227,6 +1316,65 @@ export class NetworkController extends BaseController<
       `${this.name}:updateNetwork`,
       this.updateNetwork.bind(this),
     );
+  }
+
+  /**
+   * Enables the RPC failover functionality. That is, if any RPC endpoints are
+   * configured with failover URLs, then traffic will automatically be diverted
+   * to them if those RPC endpoints are unavailable.
+   */
+  enableRpcFailover() {
+    this.#updateRpcFailoverEnabled(true);
+  }
+
+  /**
+   * Disables the RPC failover functionality. That is, even if any RPC endpoints
+   * are configured with failover URLs, then traffic will not automatically be
+   * diverted to them if those RPC endpoints are unavailable.
+   */
+  disableRpcFailover() {
+    this.#updateRpcFailoverEnabled(false);
+  }
+
+  /**
+   * Enables or disables the RPC failover functionality, depending on the
+   * boolean given. This is done by reconstructing all network clients that were
+   * originally configured with failover URLs so that those URLs are either
+   * honored or ignored. Network client IDs will be preserved so as not to
+   * invalidate state in other controllers.
+   *
+   * @param newIsRpcFailoverEnabled - Whether or not to enable or disable the
+   * RPC failover functionality.
+   */
+  #updateRpcFailoverEnabled(newIsRpcFailoverEnabled: boolean) {
+    if (this.#isRpcFailoverEnabled === newIsRpcFailoverEnabled) {
+      return;
+    }
+
+    const autoManagedNetworkClientRegistry =
+      this.#ensureAutoManagedNetworkClientRegistryPopulated();
+
+    for (const networkClientsById of Object.values(
+      autoManagedNetworkClientRegistry,
+    )) {
+      for (const networkClientId of Object.keys(networkClientsById)) {
+        // Type assertion: We can assume that `networkClientId` is valid here.
+        const networkClient =
+          networkClientsById[
+            networkClientId as keyof typeof networkClientsById
+          ];
+        if (
+          networkClient.configuration.failoverRpcUrls &&
+          networkClient.configuration.failoverRpcUrls.length > 0
+        ) {
+          newIsRpcFailoverEnabled
+            ? networkClient.enableRpcFailover()
+            : networkClient.disableRpcFailover();
+        }
+      }
+    }
+
+    this.#isRpcFailoverEnabled = newIsRpcFailoverEnabled;
   }
 
   /**
@@ -2638,7 +2786,9 @@ export class NetworkController extends BaseController<
             ticker: networkFields.nativeCurrency,
           },
           getRpcServiceOptions: this.#getRpcServiceOptions,
+          getBlockTrackerOptions: this.#getBlockTrackerOptions,
           messenger: this.messagingSystem,
+          isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
         });
       } else {
         autoManagedNetworkClientRegistry[NetworkClientType.Custom][
@@ -2652,7 +2802,9 @@ export class NetworkController extends BaseController<
             ticker: networkFields.nativeCurrency,
           },
           getRpcServiceOptions: this.#getRpcServiceOptions,
+          getBlockTrackerOptions: this.#getBlockTrackerOptions,
           messenger: this.messagingSystem,
+          isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
         });
       }
     }
@@ -2812,7 +2964,9 @@ export class NetworkController extends BaseController<
                 ticker: networkConfiguration.nativeCurrency,
               },
               getRpcServiceOptions: this.#getRpcServiceOptions,
+              getBlockTrackerOptions: this.#getBlockTrackerOptions,
               messenger: this.messagingSystem,
+              isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
             }),
           ] as const;
         }
@@ -2827,7 +2981,9 @@ export class NetworkController extends BaseController<
               ticker: networkConfiguration.nativeCurrency,
             },
             getRpcServiceOptions: this.#getRpcServiceOptions,
+            getBlockTrackerOptions: this.#getBlockTrackerOptions,
             messenger: this.messagingSystem,
+            isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
           }),
         ] as const;
       });

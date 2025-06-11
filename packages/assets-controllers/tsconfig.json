@@ -12,6 +12,7 @@
     { "path": "../keyring-controller" },
     { "path": "../network-controller" },
     { "path": "../preferences-controller" },
+    { "path": "../phishing-controller" },
     { "path": "../polling-controller" },
     { "path": "../permission-controller" },
     { "path": "../transaction-controller" }

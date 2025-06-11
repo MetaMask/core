@@ -1,7 +1,7 @@
+import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { AccountSyncingOptions, UserStorageAccount } from './types';
-import { mapInternalAccountsListToPrimarySRPHdKeyringInternalAccountsList } from './utils';
 import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
 
 /**
@@ -16,7 +16,7 @@ export function canPerformAccountSyncing(
   const { getMessenger, getUserStorageControllerInstance } = options;
 
   const {
-    isProfileSyncingEnabled,
+    isBackupAndSyncEnabled,
     isAccountSyncingEnabled,
     isAccountSyncingInProgress,
   } = getUserStorageControllerInstance().state;
@@ -25,7 +25,7 @@ export function canPerformAccountSyncing(
   );
 
   if (
-    !isProfileSyncingEnabled ||
+    !isBackupAndSyncEnabled ||
     !isAccountSyncingEnabled ||
     !isAuthEnabled ||
     isAccountSyncingInProgress
@@ -42,21 +42,35 @@ export function canPerformAccountSyncing(
  * and are from the HD keyring
  *
  * @param options - parameters used for getting the list of internal accounts
+ * @param entropySourceId - The entropy source ID used to derive the key,
+ * when multiple sources are available (Multi-SRP).
  * @returns the list of internal accounts
  */
 export async function getInternalAccountsList(
   options: AccountSyncingOptions,
+  entropySourceId: string,
 ): Promise<InternalAccount[]> {
   const { getMessenger } = options;
 
-  // eslint-disable-next-line @typescript-eslint/await-thenable
-  const internalAccountsList = await getMessenger().call(
+  let internalAccountsList = getMessenger().call(
     'AccountsController:listAccounts',
   );
 
-  return await mapInternalAccountsListToPrimarySRPHdKeyringInternalAccountsList(
-    internalAccountsList,
-    options,
+  const doEachInternalAccountHaveEntropySource = internalAccountsList.every(
+    (account) => Boolean(account.options.entropySource),
+  );
+
+  if (!doEachInternalAccountHaveEntropySource) {
+    await getMessenger().call('AccountsController:updateAccounts');
+    internalAccountsList = getMessenger().call(
+      'AccountsController:listAccounts',
+    );
+  }
+
+  return internalAccountsList.filter(
+    (account) =>
+      entropySourceId === account.options.entropySource &&
+      account.metadata.keyring.type === String(KeyringTypes.hd), // sync only EVM accounts until we support multichain accounts
   );
 }
 
@@ -64,16 +78,20 @@ export async function getInternalAccountsList(
  * Get the list of user storage accounts
  *
  * @param options - parameters used for getting the list of user storage accounts
+ * @param entropySourceId - The entropy source ID used to derive the storage key,
+ * when multiple sources are available (Multi-SRP).
  * @returns the list of user storage accounts
  */
 export async function getUserStorageAccountsList(
   options: AccountSyncingOptions,
+  entropySourceId?: string,
 ): Promise<UserStorageAccount[] | null> {
   const { getUserStorageControllerInstance } = options;
 
   const rawAccountsListResponse =
     await getUserStorageControllerInstance().performGetStorageAllFeatureEntries(
       USER_STORAGE_FEATURE_NAMES.accounts,
+      entropySourceId,
     );
 
   return (

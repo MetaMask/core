@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.0.2]
+
+### Fixed
+
+- Fixed serialized keyring comparison when establishing whether a vault update is needed ([#5928](https://github.com/MetaMask/core/pull/5928))
+  - The vault update was being skipped when a keyring class returns an object shallow copy through `.serialize()`.
+
+## [22.0.1]
+
+### Changed
+
+- Bump `@metamask/keyring-api` dependency from `^17.4.0` to `^18.0.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
+- Bump `@metamask/keyring-internal-api` dependency from `^6.0.1` to `^6.2.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
+
+## [22.0.0]
+
+### Changed
+
+- **BREAKING** `keyringsMetadata` has been removed from the controller state ([#5725](https://github.com/MetaMask/core/pull/5725))
+  - The metadata is now stored in each keyring object in the `state.keyrings` array.
+  - When updating to this version, we recommend removing the `keyringsMetadata` state and all state referencing a keyring ID with a migration. New metadata will be generated for each keyring automatically after the update.
+
+### Fixed
+
+- Keyrings with duplicate accounts are skipped as unsupported on unlock ([#5775](https://github.com/MetaMask/core/pull/5775))
+
+## [21.0.6]
+
+### Changed
+
+- Prevent emitting `:stateChange` from `withKeyring` unnecessarily ([#5732](https://github.com/MetaMask/core/pull/5732))
+
+## [21.0.5]
+
+### Changed
+
+- Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
+
+### Fixed
+
+- The vault encryption upgrade fails gracefully during login ([#5740](https://github.com/MetaMask/core/pull/5740))
+
+## [21.0.4]
+
+### Fixed
+
+- Ensure no duplicate accounts are persisted ([#5710](https://github.com/MetaMask/core/pull/5710))
+
 ## [21.0.3]
 
 ### Changed
@@ -748,7 +796,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.0.2...HEAD
+[22.0.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.0.1...@metamask/keyring-controller@22.0.2
+[22.0.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.0.0...@metamask/keyring-controller@22.0.1
+[22.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.6...@metamask/keyring-controller@22.0.0
+[21.0.6]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.5...@metamask/keyring-controller@21.0.6
+[21.0.5]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.4...@metamask/keyring-controller@21.0.5
+[21.0.4]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.3...@metamask/keyring-controller@21.0.4
 [21.0.3]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.2...@metamask/keyring-controller@21.0.3
 [21.0.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.1...@metamask/keyring-controller@21.0.2
 [21.0.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.0...@metamask/keyring-controller@21.0.1

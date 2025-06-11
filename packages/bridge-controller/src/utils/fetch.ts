@@ -1,83 +1,25 @@
+import { StructError } from '@metamask/superstruct';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 import { Duration } from '@metamask/utils';
 
 import {
   formatAddressToCaipReference,
-  formatChainIdToCaip,
   formatChainIdToDec,
 } from './caip-formatters';
-import {
-  validateFeatureFlagsResponse,
-  validateQuoteResponse,
-  validateSwapsTokenObject,
-} from './validators';
-import { DEFAULT_FEATURE_FLAG_CONFIG } from '../constants/bridge';
+import { validateQuoteResponse, validateSwapsTokenObject } from './validators';
 import type {
   QuoteResponse,
-  BridgeFeatureFlags,
   FetchFunction,
-  ChainConfiguration,
   GenericQuoteRequest,
   QuoteRequest,
   BridgeAsset,
 } from '../types';
-import { BridgeFlag, BridgeFeatureFlagsKey } from '../types';
 
 const CACHE_REFRESH_TEN_MINUTES = 10 * Duration.Minute;
 
 export const getClientIdHeader = (clientId: string) => ({
   'X-Client-Id': clientId,
 });
-
-/**
- * Fetches the bridge feature flags
- *
- * @param clientId - The client ID for metrics
- * @param fetchFn - The fetch function to use
- * @param bridgeApiBaseUrl - The base URL for the bridge API
- * @returns The bridge feature flags
- */
-export async function fetchBridgeFeatureFlags(
-  clientId: string,
-  fetchFn: FetchFunction,
-  bridgeApiBaseUrl: string,
-): Promise<BridgeFeatureFlags> {
-  const url = `${bridgeApiBaseUrl}/getAllFeatureFlags`;
-  const rawFeatureFlags: unknown = await fetchFn(url, {
-    headers: getClientIdHeader(clientId),
-    cacheOptions: { cacheRefreshTime: CACHE_REFRESH_TEN_MINUTES },
-    functionName: 'fetchBridgeFeatureFlags',
-  });
-
-  if (validateFeatureFlagsResponse(rawFeatureFlags)) {
-    const getChainsObj = (chains: Record<number, ChainConfiguration>) =>
-      Object.entries(chains).reduce(
-        (acc, [chainId, value]) => ({
-          ...acc,
-          [formatChainIdToCaip(chainId)]: value,
-        }),
-        {},
-      );
-
-    return {
-      [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: {
-        ...rawFeatureFlags[BridgeFlag.EXTENSION_CONFIG],
-        chains: getChainsObj(
-          rawFeatureFlags[BridgeFlag.EXTENSION_CONFIG].chains,
-        ),
-      },
-      [BridgeFeatureFlagsKey.MOBILE_CONFIG]: {
-        ...rawFeatureFlags[BridgeFlag.MOBILE_CONFIG],
-        chains: getChainsObj(rawFeatureFlags[BridgeFlag.MOBILE_CONFIG].chains),
-      },
-    };
-  }
-
-  return {
-    [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: DEFAULT_FEATURE_FLAG_CONFIG,
-    [BridgeFeatureFlagsKey.MOBILE_CONFIG]: DEFAULT_FEATURE_FLAG_CONFIG,
-  };
-}
 
 /**
  * Returns a list of enabled (unblocked) tokens
@@ -162,9 +104,30 @@ export async function fetchBridgeQuotes(
     functionName: 'fetchBridgeQuotes',
   });
 
+  const validationFailuresByAggregator: {
+    [aggregator: string]: Set<string>;
+  } = {};
   const filteredQuotes = quotes.filter((quoteResponse: unknown) => {
-    return validateQuoteResponse(quoteResponse);
+    try {
+      return validateQuoteResponse(quoteResponse);
+    } catch (error) {
+      if (error instanceof StructError) {
+        error.failures().forEach(({ branch, path }) => {
+          const aggregatorId = branch?.[0]?.quote?.bridgeId;
+          if (!validationFailuresByAggregator[aggregatorId]) {
+            validationFailuresByAggregator[aggregatorId] = new Set([]);
+          }
+          const pathString = path?.join('.') || 'unknown';
+          validationFailuresByAggregator[aggregatorId].add(pathString);
+        });
+      }
+      return false;
+    }
   });
+
+  if (Object.keys(validationFailuresByAggregator).length > 0) {
+    console.error('Quote validation failed', validationFailuresByAggregator);
+  }
   return filteredQuotes as QuoteResponse[];
 }
 

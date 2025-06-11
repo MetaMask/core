@@ -9,7 +9,195 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
+
+## [32.1.1]
+
+### Fixed
+
+- Fetch `minimumBalanceForRentExemptionInLamports` asynchronously to prevent blocking the getQuote network call ([#5921](https://github.com/MetaMask/core/pull/5921))
+- Fix invalid `getMinimumBalanceForRentExemption` commitment parameter ([#5921](https://github.com/MetaMask/core/pull/5921))
+
+## [32.1.0]
+
+### Added
+
+- Include all invalid quote properties in sentry logs ([#5913](https://github.com/MetaMask/core/pull/5913))
+
+## [32.0.1]
+
+### Fixed
+
+- Remove `error_message` property from QuotesRequested event payload ([#5900](https://github.com/MetaMask/core/pull/5900))
+- Fail gracefully when fee calculations return invalid value or throw errors
+  - Filter out single quote if `TransactionController.getLayer1GasFee` returns `undefined` ([#5910](https://github.com/MetaMask/core/pull/5910))
+  - Filter out single quote if an error is thrown by `getLayer1GasFee` ([#5910](https://github.com/MetaMask/core/pull/5910))
+  - Filter out single quote if an error is thrown by Solana snap's `getFeeForTransaction` method ([#5910](https://github.com/MetaMask/core/pull/5910))
+
+## [32.0.0]
+
+### Added
+
+- **BREAKING:** Add required property `minimumBalanceForRentExemptionInLamports` to `BridgeState` ([#5827](https://github.com/MetaMask/core/pull/5827))
+- Add selector `selectMinimumBalanceForRentExemptionInSOL` ([#5827](https://github.com/MetaMask/core/pull/5827))
+
+### Changed
+
+- Add new dependency `uuid` ([#5827](https://github.com/MetaMask/core/pull/5827))
+
+## [31.0.0]
+
+### Added
+
+- Add `SEI` network support ([#5695](https://github.com/MetaMask/core/pull/5695))
+  - Add `SEI` into constants `ALLOWED_BRIDGE_CHAIN_IDS`, `SWAPS_TOKEN_OBJECT` and `NETWORK_TO_NAME_MAP`
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/assets-controller` peer dependency to `^68.0.0` ([#5894](https://github.com/MetaMask/core/pull/5894))
+
+## [30.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/assets-controller` peer dependency to `^67.0.0` ([#5888](https://github.com/MetaMask/core/pull/5888))
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency to `^30.0.0` ([#5888](https://github.com/MetaMask/core/pull/5888))
+- **BREAKING:** Bump `@metamask/transaction-controller` peer dependency to `^57.0.0` ([#5888](https://github.com/MetaMask/core/pull/5888))
+- **BREAKING:** Bump `@metamask/snaps-controllers` peer dependency from `^11.0.0` to `^12.0.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
+- Bump `@metamask/keyring-api` dependency from `^17.4.0` to `^18.0.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
+
+## [29.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/assets-controller` peer dependency to `^66.0.0` ([#5872](https://github.com/MetaMask/core/pull/5872))
+
+## [28.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/assets-controller` peer dependency to `^65.0.0` ([#5863](https://github.com/MetaMask/core/pull/5863))
+
+## [27.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/assets-controller` peer dependency to `^64.0.0` ([#5854](https://github.com/MetaMask/core/pull/5854))
+
+## [26.0.0]
+
+### Added
+
+- **BREAKING:** Added a required `minimumVersion` to feature flag response schema ([#5834](https://github.com/MetaMask/core/pull/5834))
+
+### Changed
+
+- Consume `bridgeConfigV2` in the feature flag response schema for Mobile and export `DEFAULT_FEATURE_FLAG_CONFIG` ([#5837](https://github.com/MetaMask/core/pull/5837))
+
+## [25.1.0]
+
+### Added
+
+- Added optional `isUnifiedUIEnabled` flag to chain-level feature-flag `ChainConfiguration` type and updated the validation schema to accept the new flag ([#5783](https://github.com/MetaMask/core/pull/5783))
+- Add and export `calcSlippagePercentage`, a utility that calculates the absolute slippage percentage based on the adjusted return and the sent amount ([#5723](https://github.com/MetaMask/core/pull/5723)).
+- Error logs for invalid getQuote responses ([#5816](https://github.com/MetaMask/core/pull/5816))
+
+### Changed
+
+- Bump `@metamask/controller-utils` to `^11.9.0` ([#5812](https://github.com/MetaMask/core/pull/5812))
+
+## [25.0.1]
+
+### Fixed
+
+- Use zero address as solana's default native address instead of assetId ([#5799](https://github.com/MetaMask/core/pull/5799))
+
+## [25.0.0]
+
+### Changed
+
+- **BREAKING:** bump `@metamask/accounts-controller` peer dependency to `^29.0.0` ([#5802](https://github.com/MetaMask/core/pull/5802))
+- **BREAKING:** bump `@metamask/assets-controllers` peer dependency to `^63.0.0` ([#5802](https://github.com/MetaMask/core/pull/5802))
+- **BREAKING:** bump `@metamask/transaction-controller` peer dependency to `^56.0.0` ([#5802](https://github.com/MetaMask/core/pull/5802))
+
+## [24.0.0]
+
+### Added
+
+- Sentry traces for `BridgeQuotesFetched` and `SwapQuotesFetched` events ([#5780](https://github.com/MetaMask/core/pull/5780))
+- Export `isCrossChain` utility ([#5780](https://github.com/MetaMask/core/pull/5780))
+
+### Changed
+
+- **BREAKING:** Remove `BridgeToken` export ([#5768](https://github.com/MetaMask/core/pull/5768))
+- `traceFn` added to BridgeController constructor to enable clients to pass in a custom sentry trace handler ([#5768](https://github.com/MetaMask/core/pull/5768))
+
+## [23.0.0]
+
+### Changed
+
+- **BREAKING** Rename `QuoteResponse.bridgePriceData` to `priceData` ([#5784](https://github.com/MetaMask/core/pull/5784))
+
+### Fixed
+
+- Handle cancelled bridge quote polling gracefully by skipping state updates ([#5787](https://github.com/MetaMask/core/pull/5787))
+
+## [22.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/assets-controller` peer dependency to `^62.0.0` ([#5780](https://github.com/MetaMask/core/pull/5780))
+- Bump `@metamask/controller-utils` to `^11.8.0` ([#5765](https://github.com/MetaMask/core/pull/5765))
+
+## [21.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency to `^28.0.0` ([#5763](https://github.com/MetaMask/core/pull/5763))
+- **BREAKING:** Bump `@metamask/assets-controller` peer dependency to `^61.0.0` ([#5763](https://github.com/MetaMask/core/pull/5763))
+- **BREAKING:** Bump `@metamask/transaction-controller` peer dependency to `^55.0.0` ([#5763](https://github.com/MetaMask/core/pull/5763))
+
+## [20.0.0]
+
+### Changed
+
+- Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
+- Update `Quote` type with `bridgePriceData`, which includes metadata about transferred amounts and the trade's priceImpact ([#5721](https://github.com/MetaMask/core/pull/5721))
+- Include submitted quote's `priceImpact` as a property in analytics events ([#5721](https://github.com/MetaMask/core/pull/5721))
+- **BREAKING:** Add additional required properties to Submitted, Completed, Failed and SnapConfirmationViewed events ([#5721](https://github.com/MetaMask/core/pull/5721))
+- **BREAKING:** Use `RemoteFeatureFlagController` to fetch feature flags, removed client specific feature flag keys. The feature flags you receive are now client specific based on the `RemoteFeatureFlagController` state. ([#5708](https://github.com/MetaMask/core/pull/5708))
+
+### Fixed
+
+- Update MetricsSwapType.SINGLE to `single_chain` to match segment events schema ([#5721](https://github.com/MetaMask/core/pull/5721))
+
+## [19.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/assets-controllers` peer dependency to `^60.0.0` ([#5717](https://github.com/MetaMask/core/pull/5717))
+
+## [18.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/assets-controllers` peer dependency to `^59.0.0` ([#5712](https://github.com/MetaMask/core/pull/5712))
+
+## [17.0.0]
+
+### Added
+
+- Add analytics events for the Unified SwapBridge experience ([#5684](https://github.com/MetaMask/core/pull/5684))
+
+### Changed
+
 - Bump `@metamask/multichain-network-controller` dependency to `^0.5.1` ([#5678](https://github.com/MetaMask/core/pull/5678))
+- **BREAKING:** trackMetaMetricsFn added to BridgeController constructor to enable clients to pass in a custom analytics handler ([#5684](https://github.com/MetaMask/core/pull/5684))
+- **BREAKING:** added a context argument to `updateBridgeQuoteRequestParams` to provide values required for analytics events ([#5684](https://github.com/MetaMask/core/pull/5684))
+
+### Fixed
+
+- Fixes undefined native EVM exchange rates and snap handler calls ([#5696](https://github.com/MetaMask/core/pull/5696))
 
 ## [16.0.0]
 
@@ -158,7 +346,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@16.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@32.1.1...HEAD
+[32.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@32.1.0...@metamask/bridge-controller@32.1.1
+[32.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@32.0.1...@metamask/bridge-controller@32.1.0
+[32.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@32.0.0...@metamask/bridge-controller@32.0.1
+[32.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@31.0.0...@metamask/bridge-controller@32.0.0
+[31.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@30.0.0...@metamask/bridge-controller@31.0.0
+[30.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@29.0.0...@metamask/bridge-controller@30.0.0
+[29.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@28.0.0...@metamask/bridge-controller@29.0.0
+[28.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@27.0.0...@metamask/bridge-controller@28.0.0
+[27.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@26.0.0...@metamask/bridge-controller@27.0.0
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@25.1.0...@metamask/bridge-controller@26.0.0
+[25.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@25.0.1...@metamask/bridge-controller@25.1.0
+[25.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@25.0.0...@metamask/bridge-controller@25.0.1
+[25.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@24.0.0...@metamask/bridge-controller@25.0.0
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@23.0.0...@metamask/bridge-controller@24.0.0
+[23.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@22.0.0...@metamask/bridge-controller@23.0.0
+[22.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@21.0.0...@metamask/bridge-controller@22.0.0
+[21.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@20.0.0...@metamask/bridge-controller@21.0.0
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@19.0.0...@metamask/bridge-controller@20.0.0
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@18.0.0...@metamask/bridge-controller@19.0.0
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@17.0.0...@metamask/bridge-controller@18.0.0
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@16.0.0...@metamask/bridge-controller@17.0.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@15.0.0...@metamask/bridge-controller@16.0.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@14.0.0...@metamask/bridge-controller@15.0.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@13.0.0...@metamask/bridge-controller@14.0.0

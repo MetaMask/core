@@ -143,8 +143,6 @@ export const SUPPORTED_CURRENCIES = [
   'bits',
   // Satoshi
   'sats',
-  // Sei
-  'sei',
 ] as const;
 
 /**
@@ -259,6 +257,8 @@ export const SUPPORTED_CHAIN_IDS = [
   '0xe708',
   // Sei Mainnet
   '0x531',
+  // Sonic Mainnet
+  '0x92',
 ] as const;
 
 /**

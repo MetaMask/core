@@ -17,9 +17,9 @@ export const MOCK_HEX = '0xabcdef0123456789';
 const MOCK_KEY = Buffer.alloc(32);
 const INVALID_PASSWORD_ERROR = 'Incorrect password.';
 
-let cacheVal: string;
-
 export default class MockEncryptor implements ExportableKeyEncryptor {
+  cacheVal?: string;
+
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async encrypt(password: string, dataObj: any) {
@@ -34,13 +34,13 @@ export default class MockEncryptor implements ExportableKeyEncryptor {
       throw new Error(INVALID_PASSWORD_ERROR);
     }
 
-    return JSON.parse(cacheVal) ?? {};
+    return JSON.parse(this.cacheVal || '') ?? {};
   }
 
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async encryptWithKey(_key: unknown, dataObj: any) {
-    cacheVal = JSON.stringify(dataObj);
+    this.cacheVal = JSON.stringify(dataObj);
     return {
       data: MOCK_HEX,
       iv: 'anIv',

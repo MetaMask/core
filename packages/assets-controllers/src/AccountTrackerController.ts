@@ -24,12 +24,13 @@ import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { PreferencesControllerGetStateAction } from '@metamask/preferences-controller';
 import { assert } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
-import { cloneDeep } from 'lodash';
+import { cloneDeep, isEqual } from 'lodash';
 
 import type {
   AssetsContractController,
   StakedBalance,
 } from './AssetsContractController';
+import { reduceInBatchesSerially, TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 
 /**
  * The name of the {@link AccountTrackerController}.
@@ -124,7 +125,7 @@ export type AccountTrackerControllerMessenger = RestrictedMessenger<
 
 /** The input to start polling for the {@link AccountTrackerController} */
 type AccountTrackerPollingInput = {
-  networkClientId: NetworkClientId;
+  networkClientIds: NetworkClientId[];
 };
 
 /**
@@ -192,13 +193,18 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
     this.messagingSystem.subscribe(
       'AccountsController:selectedEvmAccountChange',
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      () => this.refresh(),
+      (newAddress, prevAddress) => {
+        if (newAddress !== prevAddress) {
+          // Making an async call for this new event
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          this.refresh(this.#getNetworkClientIds());
+        }
+      },
+      (event): string => event.address,
     );
   }
 
-  private syncAccounts(newChainId: string) {
+  private syncAccounts(newChainIds: string[]) {
     const accountsByChainId = cloneDeep(this.state.accountsByChainId);
     const { selectedNetworkClientId } = this.messagingSystem.call(
       'NetworkController:getState',
@@ -212,12 +218,15 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
     const existing = Object.keys(accountsByChainId?.[currentChainId] ?? {});
 
-    if (!accountsByChainId[newChainId]) {
-      accountsByChainId[newChainId] = {};
-      existing.forEach((address) => {
-        accountsByChainId[newChainId][address] = { balance: '0x0' };
-      });
-    }
+    // Initialize new chain IDs if they don't exist
+    newChainIds.forEach((newChainId) => {
+      if (!accountsByChainId[newChainId]) {
+        accountsByChainId[newChainId] = {};
+        existing.forEach((address) => {
+          accountsByChainId[newChainId][address] = { balance: '0x0' };
+        });
+      }
+    });
 
     // Note: The address from the preferences controller are checksummed
     // The addresses from the accounts controller are lowercased
@@ -248,9 +257,11 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       });
     });
 
-    this.update((state) => {
-      state.accountsByChainId = accountsByChainId;
-    });
+    if (!isEqual(this.state.accountsByChainId, accountsByChainId)) {
+      this.update((state) => {
+        state.accountsByChainId = accountsByChainId;
+      });
+    }
   }
 
   /**
@@ -283,17 +294,34 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   }
 
   /**
+   * Retrieves the list of network client IDs.
+   *
+   * @returns An array of network client IDs.
+   */
+  #getNetworkClientIds(): NetworkClientId[] {
+    const { networkConfigurationsByChainId } = this.messagingSystem.call(
+      'NetworkController:getState',
+    );
+    return Object.values(networkConfigurationsByChainId).flatMap(
+      (networkConfiguration) =>
+        networkConfiguration.rpcEndpoints.map(
+          (rpcEndpoint) => rpcEndpoint.networkClientId,
+        ),
+    );
+  }
+
+  /**
    * Refreshes the balances of the accounts using the networkClientId
    *
    * @param input - The input for the poll.
-   * @param input.networkClientId - The network client ID used to get balances.
+   * @param input.networkClientIds - The network client IDs used to get balances.
    */
   async _executePoll({
-    networkClientId,
+    networkClientIds,
   }: AccountTrackerPollingInput): Promise<void> {
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    this.refresh(networkClientId);
+    this.refresh(networkClientIds);
   }
 
   /**
@@ -301,51 +329,109 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
    * If multi-account is disabled, only updates the selected account balance.
    * If multi-account is enabled, updates balances for all accounts.
    *
-   * @param networkClientId - Optional networkClientId to fetch a network client with
+   * @param networkClientIds - Optional network client IDs to fetch a network client with
    */
-  async refresh(networkClientId?: NetworkClientId) {
+  async refresh(networkClientIds: NetworkClientId[]) {
     const selectedAccount = this.messagingSystem.call(
       'AccountsController:getSelectedAccount',
     );
     const releaseLock = await this.#refreshMutex.acquire();
     try {
-      const { chainId, ethQuery } =
-        this.#getCorrectNetworkClient(networkClientId);
-      this.syncAccounts(chainId);
-      const { accountsByChainId } = this.state;
-      const { isMultiAccountBalancesEnabled } = this.messagingSystem.call(
-        'PreferencesController:getState',
-      );
+      const chainIds = networkClientIds.map((networkClientId) => {
+        const { chainId } = this.#getCorrectNetworkClient(networkClientId);
+        return chainId;
+      });
 
-      const accountsToUpdate = isMultiAccountBalancesEnabled
-        ? Object.keys(accountsByChainId[chainId])
-        : [toChecksumHexAddress(selectedAccount.address)];
+      this.syncAccounts(chainIds);
 
-      const accountsForChain = { ...accountsByChainId[chainId] };
-      for (const address of accountsToUpdate) {
-        const balance = await this.#getBalanceFromChain(address, ethQuery);
-        if (balance) {
-          accountsForChain[address] = {
-            balance,
-          };
-        }
-        if (this.#includeStakedAssets) {
-          const stakedBalance = await this.#getStakedBalanceForChain(
-            address,
-            networkClientId,
-          );
-          if (stakedBalance) {
-            accountsForChain[address] = {
-              ...accountsForChain[address],
-              stakedBalance,
-            };
+      // Create an array of promises for each networkClientId
+      const updatePromises = networkClientIds.map(async (networkClientId) => {
+        const { chainId, ethQuery } =
+          this.#getCorrectNetworkClient(networkClientId);
+        const { accountsByChainId } = this.state;
+        const { isMultiAccountBalancesEnabled } = this.messagingSystem.call(
+          'PreferencesController:getState',
+        );
+
+        const accountsToUpdate = isMultiAccountBalancesEnabled
+          ? Object.keys(accountsByChainId[chainId])
+          : [toChecksumHexAddress(selectedAccount.address)];
+
+        const accountsForChain = { ...accountsByChainId[chainId] };
+
+        // Process accounts in batches using reduceInBatchesSerially
+        await reduceInBatchesSerially<string, void>({
+          values: accountsToUpdate,
+          batchSize: TOKEN_PRICES_BATCH_SIZE,
+          initialResult: undefined,
+          eachBatch: async (workingResult: void, batch: string[]) => {
+            const balancePromises = batch.map(async (address: string) => {
+              const balancePromise = this.#getBalanceFromChain(
+                address,
+                ethQuery,
+              );
+              const stakedBalancePromise = this.#includeStakedAssets
+                ? this.#getStakedBalanceForChain(address, networkClientId)
+                : Promise.resolve(null);
+
+              const [balanceResult, stakedBalanceResult] =
+                await Promise.allSettled([
+                  balancePromise,
+                  stakedBalancePromise,
+                ]);
+
+              // Update account balances
+              if (balanceResult.status === 'fulfilled' && balanceResult.value) {
+                accountsForChain[address] = {
+                  balance: balanceResult.value,
+                };
+              }
+
+              if (
+                stakedBalanceResult.status === 'fulfilled' &&
+                stakedBalanceResult.value
+              ) {
+                accountsForChain[address] = {
+                  ...accountsForChain[address],
+                  stakedBalance: stakedBalanceResult.value,
+                };
+              }
+            });
+
+            await Promise.allSettled(balancePromises);
+            return workingResult;
+          },
+        });
+
+        // After all batches are processed, return the updated data
+        return { chainId, accountsForChain };
+      });
+
+      // Wait for all networkClientId updates to settle in parallel
+      const allResults = await Promise.allSettled(updatePromises);
+
+      // Build a _copy_ of the current state and track whether anything changed
+      const nextAccountsByChainId: AccountTrackerControllerState['accountsByChainId'] =
+        cloneDeep(this.state.accountsByChainId);
+      let hasChanges = false;
+
+      allResults.forEach((result) => {
+        if (result.status === 'fulfilled') {
+          const { chainId, accountsForChain } = result.value;
+          // Only mark as changed if the incoming data differs
+          if (!isEqual(nextAccountsByChainId[chainId], accountsForChain)) {
+            nextAccountsByChainId[chainId] = accountsForChain;
+            hasChanges = true;
           }
         }
-      }
-
-      this.update((state) => {
-        state.accountsByChainId[chainId] = accountsForChain;
       });
+
+      // 👇🏻 call `update` only when something is new / different
+      if (hasChanges) {
+        this.update((state) => {
+          state.accountsByChainId = nextAccountsByChainId;
+        });
+      }
     } finally {
       releaseLock();
     }

@@ -254,6 +254,19 @@ describe('gas-fees', () => {
         );
       });
 
+      it('to medium if no request maxFeePerGas or maxPriorityFeePerGas but suggested gasPrice available', async () => {
+        delete updateGasFeeRequest.txMeta.txParams.maxFeePerGas;
+        delete updateGasFeeRequest.txMeta.txParams.maxPriorityFeePerGas;
+
+        mockGasFeeFlowMockResponse(FLOW_RESPONSE_GAS_PRICE_MOCK);
+
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.txMeta.userFeeLevel).toBe(
+          UserFeeLevel.MEDIUM,
+        );
+      });
+
       it('to suggested medium maxFeePerGas if request gas price and request maxPriorityFeePerGas', async () => {
         updateGasFeeRequest.txMeta.txParams.gasPrice = '0x456';
         updateGasFeeRequest.txMeta.txParams.maxPriorityFeePerGas = '0x789';
@@ -474,14 +487,6 @@ describe('gas-fees', () => {
     });
 
     describe('sets userFeeLevel', () => {
-      it('to undefined if not eip1559', async () => {
-        updateGasFeeRequest.eip1559 = false;
-
-        await updateGasFees(updateGasFeeRequest);
-
-        expect(updateGasFeeRequest.txMeta.userFeeLevel).toBeUndefined();
-      });
-
       it('to saved userFeeLevel if saved gas fees defined', async () => {
         updateGasFeeRequest.txMeta.type = TransactionType.simpleSend;
         updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce({
@@ -574,5 +579,38 @@ describe('gweiDecimalToWeiDecimal', () => {
   it('handles very large values', () => {
     expect(gweiDecimalToWeiDecimal('1000000')).toBe('1000000000000000');
     expect(gweiDecimalToWeiDecimal(1000000)).toBe('1000000000000000');
+  });
+
+  it('handles values with many decimal places', () => {
+    expect(gweiDecimalToWeiDecimal('1.123456789123')).toBe('1123456789');
+    expect(gweiDecimalToWeiDecimal(1.123456789123)).toBe('1123456789');
+  });
+
+  it('handles small decimal values', () => {
+    expect(gweiDecimalToWeiDecimal('0.000000001')).toBe('1');
+    expect(gweiDecimalToWeiDecimal(0.000000001)).toBe('1');
+    expect(gweiDecimalToWeiDecimal('0.00000001')).toBe('10');
+  });
+
+  it('handles string values with leading zeros', () => {
+    expect(gweiDecimalToWeiDecimal('00.1')).toBe('100000000');
+    expect(gweiDecimalToWeiDecimal('01.5')).toBe('1500000000');
+  });
+
+  it('handles string values with trailing zeros', () => {
+    expect(gweiDecimalToWeiDecimal('1.500')).toBe('1500000000');
+    expect(gweiDecimalToWeiDecimal('123.450000')).toBe('123450000000');
+  });
+
+  it('handles extremely small values', () => {
+    expect(gweiDecimalToWeiDecimal('0.000000000001')).toBe('0');
+    expect(gweiDecimalToWeiDecimal(0.000000000001)).toBe('0');
+  });
+
+  it('handles scientific notation inputs', () => {
+    expect(gweiDecimalToWeiDecimal('1e-9')).toBe('1');
+    expect(gweiDecimalToWeiDecimal(1e-9)).toBe('1');
+    expect(gweiDecimalToWeiDecimal('1e9')).toBe('1000000000000000000');
+    expect(gweiDecimalToWeiDecimal(1e9)).toBe('1000000000000000000');
   });
 });

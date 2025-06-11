@@ -115,7 +115,7 @@ export class AccountsApiRemoteTransactionSource
     cursor?: string,
     timestamp?: number,
   ): Promise<TransactionResponse[]> {
-    const { address, queryEntireHistory } = request;
+    const { address, queryEntireHistory, tags } = request;
     const transactions: TransactionResponse[] = [];
 
     let hasNextPage = true;
@@ -136,6 +136,7 @@ export class AccountsApiRemoteTransactionSource
           cursor: currentCursor,
           sortDirection: 'ASC',
           startTimestamp,
+          tags,
         });
 
         pageCount += 1;

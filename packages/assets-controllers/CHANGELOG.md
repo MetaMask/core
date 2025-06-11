@@ -7,11 +7,173 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
+- Add `getErc20Balances` function within `TokenBalancesController` to support fetching ERC-20 token balances for a given address and token list ([#5925](https://github.com/MetaMask/core/pull/5925))
+  - This modular service simplifies balance retrieval logic and can be reused across different parts of the controller
+
+### Fixed
+
+- Prevented `AccountTrackerController` from updating state with empty or unchanged account balance data during refresh ([#5942](https://github.com/MetaMask/core/pull/5942))
+  - Added guards to skip state updates when fetched balances are empty or identical to existing state
+  - Reduces unnecessary `stateChange` emissions and preserves previously-cached balances under network failure scenarios
+
+## [68.1.0]
+
+### Added
+
+- Added Base Network for networks to track in `TokenDetectionController` ([#5902](https://github.com/MetaMask/core/pull/5902))
+  - Network changes were added in `@metamask/controller-utils`
+- Added Metamask pooled staking token for Ethereum Hoodi testnet ([#5855](https://github.com/MetaMask/core/pull/5855))
+
+### Changed
+
+- Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
+- Add `getErc20Balances` function within `TokenBalancesController` to support fetching ERC-20 token balances for a given address and token list ([#5925](https://github.com/MetaMask/core/pull/5925))
+  - This modular service simplifies balance retrieval logic and can be reused across different parts of the controller
+
+## [68.0.0]
+
+### Changed
+
+- **BREAKING:** Update `NftController` and `NftDetectionController` to eliminate the dependency on the current chain ([#5622](https://github.com/MetaMask/core/pull/5622))
+  - All functions that previously accepted networkClientId as an optional parameter now require it as a mandatory parameter.
+- **BREAKING:** Add `NetworkController:findNetworkClientIdByChainId` to allowed actions in `NftController` ([#5622](https://github.com/MetaMask/core/pull/5622))
+- **BREAKING:** Add `NetworkController:findNetworkClientIdByChainId` to allowed actions in `NftDetectionController` ([#5622](https://github.com/MetaMask/core/pull/5622))
+
+## [67.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency to `^30.0.0` ([#5888](https://github.com/MetaMask/core/pull/5888))
+- **BREAKING:** Bump `@metamask/transaction-controller` peer dependency to `^57.0.0` ([#5888](https://github.com/MetaMask/core/pull/5888))
+- **BREAKING:** Bump `@metamask/providers` peer dependency from `^21.0.0` to `^22.0.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
+- **BREAKING:** Bump `@metamask/snaps-controllers` peer dependency from `^11.0.0` to `^12.0.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
+- Remove `sei` from constants `SUPPORTED_CURRENCIES` ([#5883](https://github.com/MetaMask/core/pull/5883))
+
+## [66.0.0]
+
+### Added
+
+- Add optional parameter to track DeFi metrics when positions are being fetched ([#5868](https://github.com/MetaMask/core/pull/5868))
+- Add phishing protection for NFT metadata URLs in `NftController` ([#5598](https://github.com/MetaMask/core/pull/5598))
+  - NFT metadata URLs are now scanned for malicious content using the `PhishingController`
+  - Malicious URLs in NFT metadata fields (image, externalLink, etc.) are automatically sanitized
+
+### Changed
+
+- **BREAKING:** Add peer dependency on `@metamask/phishing-controller` ^12.5.0 ([#5598](https://github.com/MetaMask/core/pull/5598))
+
+## [65.0.0]
+
+### Added
+
+- **BREAKING:** Add event listener for `TransactionController:transactionConfirmed` on `TokenDetectionController` to trigger token detection ([#5859](https://github.com/MetaMask/core/pull/5859))
+
+### Changed
+
+- **BREAKING:** Add event listener for `KeyringController:accountRemoved` instead of `AccountsController:accountRemoved` in `TokenBalancesController` and `TokensController` ([#5859](https://github.com/MetaMask/core/pull/5859))
+
+## [64.0.0]
+
+### Added
+
+- **BREAKING:** Add event listener for `AccountsController:accountRemoved` on `TokenBalancesController` to remove token balances for the removed account ([#5726](https://github.com/MetaMask/core/pull/5726))
+
+- **BREAKING:** Add event listener for `AccountsController:accountRemoved` on `TokensController` to remove tokens for the removed account ([#5726](https://github.com/MetaMask/core/pull/5726))
+
+- **BREAKING:** Add `listAccounts` action to `TokensController` ([#5726](https://github.com/MetaMask/core/pull/5726))
+
+- **BREAKING:** Add `listAccounts` action to `TokenBalancesController` ([#5726](https://github.com/MetaMask/core/pull/5726))
+
+### Changed
+
+- TokenBalancesController will now check if balances has changed before updating the state ([#5726](https://github.com/MetaMask/core/pull/5726))
+
+## [63.1.0]
+
+### Changed
+
+- Added optional `account` parameter to `fetchHistoricalPricesForAsset` method in `MultichainAssetsRatesController` ([#5833](https://github.com/MetaMask/core/pull/5833))
+- Updated `TokenListController` `fetchTokenList` method to bail if cache is valid ([#5804](https://github.com/MetaMask/core/pull/5804))
+  - also cleaned up internal state update logic
+- Bump `@metamask/controller-utils` to `^11.9.0` ([#5812](https://github.com/MetaMask/core/pull/5812))
+
+## [63.0.0]
+
+### Changed
+
+- **BREAKING:** bump `@metamask/keyring-controller` peer dependency to `^22.0.0` ([#5802](https://github.com/MetaMask/core/pull/5802))
+- **BREAKING:** bump `@metamask/accounts-controller` peer dependency to `^29.0.0` ([#5802](https://github.com/MetaMask/core/pull/5802))
+- **BREAKING:** bump `@metamask/preferences-controller` peer dependency to `^18.0.0` ([#5802](https://github.com/MetaMask/core/pull/5802))
+- **BREAKING:** bump `@metamask/transaction-controller` peer dependency to `^56.0.0` ([#5802](https://github.com/MetaMask/core/pull/5802))
+
+## [62.0.0]
+
+### Added
+
+- Add event `MultichainAssetsController:accountAssetListUpdated` in MultichainAssetsController to notify when new assets are detected for an account ([#5761](https://github.com/MetaMask/core/pull/5761))
+
+### Changed
+
+- **BREAKING:** Removed subscription to `MultichainAssetsController:stateChange` in `MultichainAssetsRatesController` and add subscription to `MultichainAssetsController:accountAssetListUpdated` ([#5761](https://github.com/MetaMask/core/pull/5761))
+- **BREAKING:** Removed subscription to `MultichainAssetsController:stateChange` in `MultichainBalancesController` and add subscription to `MultichainAssetsController:accountAssetListUpdated` ([#5761](https://github.com/MetaMask/core/pull/5761))
+
+## [61.1.0]
+
+### Changed
+
+- Bump `@metamask/controller-utils` to `^11.8.0` ([#5765](https://github.com/MetaMask/core/pull/5765))
+- Update `DEFI_POSITIONS_API_URL` to use the production endpoint ([#5769](https://github.com/MetaMask/core/pull/5769))
+
+## [61.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency to `^28.0.0` ([#5763](https://github.com/MetaMask/core/pull/5763))
+- **BREAKING:** Bump `@metamask/transaction-controller` peer dependency to `^55.0.0` ([#5763](https://github.com/MetaMask/core/pull/5763))
+- Bump `@metamask/base-controller` from `^8.0.0` to `^8.0.1` ([#5722](https://github.com/MetaMask/core/pull/5722))
+
+## [60.0.0]
+
+### Added
+
+- Add support for 'Sonic Mainnet' chainId in the list of SUPPORTED_CHAIN_IDS. ([#5711](https://github.com/MetaMask/core/pull/5711))
+
+### Changed
+
+- Refactor `TokensController` to remove reliance on a single selected network ([#5659](https://github.com/MetaMask/core/pull/5659))
+  - `TokensController` methods now require `networkClientId` as an explicit parameter.
+  - Token management logic is fully parameterized by `chainId`, allowing multi-chain token handling and improving reliability across network changes.
+  - Internal state updates and token metadata fetching are scoped to the corresponding `chainId`
+
+### Removed
+
+- **BREAKING:** Remove deprecated `chainId` instance property from `TokensController` ([#5659](https://github.com/MetaMask/core/pull/5659))
+  - All chain context is now derived from `networkClientId` at the method level.
+
+## [59.0.0]
+
 ### Added
 
 - Add `SEI` network support ([#5610](https://github.com/MetaMask/core/pull/5610))
   - Add token detection support
   - Add NFT detection support
+
+### Changed
+
+- Refactor `TokenRatesController` to support processing multiple chains simultaneously ([#5645](https://github.com/MetaMask/core/pull/5645))
+  - The controller now supports an array of chain IDs rather than a single value, simplifying the polling process by allowing iteration over all chains in a single loop
+- Refactor `AccountTrackerController` to support processing multiple chains simultaneously ([#5680](https://github.com/MetaMask/core/pull/5680))
+  - The controller now accepts an array of chain IDs instead of a single value, streamlining the polling process by iterating over all chains in one loop
+
+### Removed
+
+- **BREAKING:** Eliminate legacy network dependency handling in `TokenRatesController` ([#5645](https://github.com/MetaMask/core/pull/5645))
+  - We're no longer relying on the currently selected network.
+- **BREAKING:** Eliminate legacy network dependency handling in `AccountTrackerController` ([#5680](https://github.com/MetaMask/core/pull/5680))
+  - We're no longer relying on the currently selected network.
 
 ## [58.0.0]
 
@@ -61,9 +223,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Remove deprecated state fields scoped to the current chain ([#5310](https://github.com/MetaMask/core/pull/5310))
   - This change removes the following state fields from the following controllers:
     - `TokensControllerState`
-      - `detectedTokens` (replaced by `detectedTokensByChainId`)
-      - `ignoredTokens` (replaced by `ignoredTokensByChainId`)
-      - `tokens` (replaced by `tokensByChainId`)
+      - `detectedTokens` (replaced by `allDetectedTokens`)
+      - `ignoredTokens` (replaced by `allIgnoredTokens`)
+      - `tokens` (replaced by `allTokens`)
     - `TokenListControllerState`
       - `tokenList` (replaced by `tokensChainsCache`)
     - `AccountTrackerControllerState`
@@ -1560,7 +1722,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@58.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@68.1.0...HEAD
+[68.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@68.0.0...@metamask/assets-controllers@68.1.0
+[68.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@67.0.0...@metamask/assets-controllers@68.0.0
+[67.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@66.0.0...@metamask/assets-controllers@67.0.0
+[66.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@65.0.0...@metamask/assets-controllers@66.0.0
+[65.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@64.0.0...@metamask/assets-controllers@65.0.0
+[64.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@63.1.0...@metamask/assets-controllers@64.0.0
+[63.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@63.0.0...@metamask/assets-controllers@63.1.0
+[63.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@62.0.0...@metamask/assets-controllers@63.0.0
+[62.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@61.1.0...@metamask/assets-controllers@62.0.0
+[61.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@61.0.0...@metamask/assets-controllers@61.1.0
+[61.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@60.0.0...@metamask/assets-controllers@61.0.0
+[60.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@59.0.0...@metamask/assets-controllers@60.0.0
+[59.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@58.0.0...@metamask/assets-controllers@59.0.0
 [58.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@57.0.0...@metamask/assets-controllers@58.0.0
 [57.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@56.0.0...@metamask/assets-controllers@57.0.0
 [56.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@55.0.1...@metamask/assets-controllers@56.0.0

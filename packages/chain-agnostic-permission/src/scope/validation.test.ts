@@ -1,10 +1,5 @@
-import { KnownSessionProperties } from './constants';
 import type { ExternalScopeObject } from './types';
-import {
-  isValidScope,
-  getValidScopes,
-  isKnownSessionPropertyValue,
-} from './validation';
+import { isValidScope, getValidScopes } from './validation';
 
 const validScopeString = 'eip155:1';
 const validScopeObject: ExternalScopeObject = {
@@ -179,30 +174,6 @@ describe('Scope Validation', () => {
           'eip155:5': validScopeObjectWithAccounts,
         },
       });
-    });
-  });
-  describe('isKnownSessionPropertyValue', () => {
-    it('should return true for known session property values', () => {
-      expect(
-        isKnownSessionPropertyValue(
-          KnownSessionProperties.SolanaAccountChangedNotifications,
-        ),
-      ).toBe(true);
-
-      expect(
-        isKnownSessionPropertyValue('solana_accountChanged_notifications'),
-      ).toBe(true);
-    });
-
-    it('should return false for unknown session property values', () => {
-      expect(isKnownSessionPropertyValue('unknown_property')).toBe(false);
-      expect(isKnownSessionPropertyValue('')).toBe(false);
-      expect(
-        isKnownSessionPropertyValue('solana_accountChanged_notification'),
-      ).toBe(false);
-      expect(
-        isKnownSessionPropertyValue('SOLANA_ACCOUNTCHANGED_NOTIFICATIONS'),
-      ).toBe(false);
     });
   });
 });

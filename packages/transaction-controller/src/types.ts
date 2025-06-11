@@ -447,6 +447,11 @@ export type TransactionMeta = {
   txParams: TransactionParams;
 
   /**
+   * Initial transaction parameters before `afterAdd` hook was invoked.
+   */
+  txParamsOriginal?: TransactionParams;
+
+  /**
    * Transaction receipt.
    */
   txReceipt?: TransactionReceipt;
@@ -483,6 +488,46 @@ export type TransactionMeta = {
     error: string;
     message: string;
   };
+};
+
+/**
+ * Information about a batch transaction.
+ */
+export type TransactionBatchMeta = {
+  /**
+   * Network code as per EIP-155 for this transaction.
+   */
+  chainId: Hex;
+
+  /**
+   * Address to send this transaction from.
+   */
+  from: string;
+
+  /**
+   * Maximum number of units of gas to use for this transaction batch.
+   */
+  gas?: string;
+
+  /**
+   * ID of the associated transaction batch.
+   */
+  id: string;
+
+  /**
+   * The ID of the network client used by the transaction.
+   */
+  networkClientId: NetworkClientId;
+
+  /**
+   * Origin this transaction was sent from.
+   */
+  origin?: string;
+
+  /**
+   * Data for any EIP-7702 transactions.
+   */
+  transactions?: NestedTransactionMetadata[];
 };
 
 export type SendFlowHistoryEntry = {
@@ -627,6 +672,16 @@ export enum TransactionType {
    * An incoming (deposit) transaction.
    */
   incoming = 'incoming',
+
+  /**
+   * A transaction that deposits tokens into a lending contract.
+   */
+  lendingDeposit = 'lendingDeposit',
+
+  /**
+   * A transaction that withdraws tokens from a lending contract.
+   */
+  lendingWithdraw = 'lendingWithdraw',
 
   /**
    * A transaction for personal sign.
@@ -935,6 +990,11 @@ export interface RemoteTransactionSourceRequest {
    * Whether to initially query the entire transaction history.
    */
   queryEntireHistory: boolean;
+
+  /**
+   * Additional tags to identify the source of the request.
+   */
+  tags?: string[];
 
   /**
    * Callback to update the cache.
@@ -1499,7 +1559,7 @@ export type BatchTransactionParams = {
 
 /** Metadata for a nested transaction within a standard transaction. */
 export type NestedTransactionMetadata = BatchTransactionParams & {
-  /** Type of the neted transaction. */
+  /** Type of the nested transaction. */
   type?: TransactionType;
 };
 
@@ -1554,9 +1614,21 @@ export type TransactionBatchRequest = {
   /** Transactions to be submitted as part of the batch. */
   transactions: TransactionBatchSingleRequest[];
 
+  /** Whether to disable batch transaction processing via an EIP-7702 upgraded account. */
+  disable7702?: boolean;
+
+  /** Whether to disable batch transaction via the `publishBatch` hook. */
+  disableHook?: boolean;
+
+  /** Whether to disable batch transaction via sequential transactions. */
+  disableSequential?: boolean;
+
   /**
    * Whether to use the publish batch hook to submit the batch.
    * Defaults to false.
+   *
+   * @deprecated This is no longer used and will be removed in a future version.
+   * Use `disableHook`, `disable7702` and `disableSequential`.
    */
   useHook?: boolean;
 
@@ -1692,6 +1764,9 @@ export type ValidateSecurityRequest = {
 
   /** Optional EIP-7702 delegation to mock for the transaction sender. */
   delegationMock?: Hex;
+
+  /** Origin of the request, such as a dApp hostname or `ORIGIN_METAMASK` if internal. */
+  origin?: string;
 };
 
 /** Data required to pay for transaction gas using an ERC-20 token. */
@@ -1705,8 +1780,14 @@ export type GasFeeToken = {
   /** Decimals of the token. */
   decimals: number;
 
-  /** The corresponding gas limit this token fee would equal. */
+  /** Portion of the amount that is the fee paid to MetaMask. */
+  fee?: Hex;
+
+  /** Estimated gas limit required for original transaction. */
   gas: Hex;
+
+  /** Estimated gas limit required for fee transfer. */
+  gasTransfer?: Hex;
 
   /** The corresponding maxFeePerGas this token fee would equal. */
   maxFeePerGas: Hex;
@@ -1756,3 +1837,13 @@ export type IsAtomicBatchSupportedResultEntry = {
   /** Address of the contract that the account would be upgraded to. */
   upgradeContractAddress?: Hex;
 };
+
+/**
+ * Custom logic to be executed after a transaction is added.
+ * Can optionally update the transaction by returning the `updateTransaction` callback.
+ */
+export type AfterAddHook = (request: {
+  transactionMeta: TransactionMeta;
+}) => Promise<{
+  updateTransaction?: (transaction: TransactionMeta) => void;
+}>;

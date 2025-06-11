@@ -1,5 +1,5 @@
 import { errorCodes } from '@metamask/rpc-errors';
-import type { Json, PendingJsonRpcResponse } from '@metamask/utils';
+import type { PendingJsonRpcResponse } from '@metamask/utils';
 
 import type { QueuedRequestControllerEnqueueRequestAction } from './QueuedRequestController';
 import { createQueuedRequestMiddleware } from './QueuedRequestMiddleware';
@@ -237,7 +237,7 @@ function getRequestDefaults(): QueuedRequestMiddlewareJsonRpcRequest {
  *
  * @returns A partial response request
  */
-function getPendingResponseDefault(): PendingJsonRpcResponse<Json> {
+function getPendingResponseDefault(): PendingJsonRpcResponse {
   return {
     id: 'doesnt matter',
     jsonrpc: '2.0' as const,

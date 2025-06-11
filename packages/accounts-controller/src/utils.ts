@@ -1,4 +1,4 @@
-import { isCustodyKeyring, KeyringTypes } from '@metamask/keyring-controller';
+import { KeyringTypes } from '@metamask/keyring-controller';
 import { hexToBytes } from '@metamask/utils';
 import { sha256 } from 'ethereum-cryptography/sha256';
 import type { V4Options } from 'uuid';
@@ -11,12 +11,6 @@ import { v4 as uuid } from 'uuid';
  * @returns The name of the keyring type.
  */
 export function keyringTypeToName(keyringType: string): string {
-  // Custody keyrings are a special case, as they are not a single type
-  // they just start with the prefix `Custody`
-  if (isCustodyKeyring(keyringType)) {
-    return 'Custody';
-  }
-
   switch (keyringType) {
     case KeyringTypes.simple: {
       return 'Account';
@@ -84,4 +78,24 @@ export function isNormalKeyringType(keyringType: KeyringTypes): boolean {
   // Right now, we only have to "exclude" Snap accounts, but this might need to be
   // adapted later on if we have new kind of keyrings!
   return keyringType !== KeyringTypes.snap;
+}
+
+/**
+ * Check if a keyring is a HD keyring.
+ *
+ * @param keyringType - The account's keyring type.
+ * @returns True if the keyring is a HD keyring, false otherwise.
+ */
+export function isHdKeyringType(keyringType: KeyringTypes): boolean {
+  return keyringType === KeyringTypes.hd;
+}
+
+/**
+ * Get the derivation path for the index of an account within a HD keyring.
+ *
+ * @param index - The account index.
+ * @returns The derivation path.
+ */
+export function getDerivationPathForIndex(index: number): string {
+  return `m/44'/60'/0'/0/${index}`;
 }

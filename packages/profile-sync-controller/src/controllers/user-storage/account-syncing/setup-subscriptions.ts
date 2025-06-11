@@ -15,7 +15,6 @@ export function setupAccountSyncingSubscriptions(
   getMessenger().subscribe(
     'AccountsController:accountAdded',
 
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     async (account) => {
       if (
         !canPerformAccountSyncing(options) ||
@@ -25,14 +24,18 @@ export function setupAccountSyncingSubscriptions(
         return;
       }
 
-      await saveInternalAccountToUserStorage(account, options);
+      const { eventQueue } = getUserStorageControllerInstance();
+
+      eventQueue.push(
+        async () => await saveInternalAccountToUserStorage(account, options),
+      );
+      await eventQueue.run();
     },
   );
 
   getMessenger().subscribe(
     'AccountsController:accountRenamed',
 
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     async (account) => {
       if (
         !canPerformAccountSyncing(options) ||
@@ -42,7 +45,12 @@ export function setupAccountSyncingSubscriptions(
         return;
       }
 
-      await saveInternalAccountToUserStorage(account, options);
+      const { eventQueue } = getUserStorageControllerInstance();
+
+      eventQueue.push(
+        async () => await saveInternalAccountToUserStorage(account, options),
+      );
+      await eventQueue.run();
     },
   );
 }

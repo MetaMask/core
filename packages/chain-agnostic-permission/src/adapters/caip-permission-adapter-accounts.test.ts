@@ -3,9 +3,14 @@ import type { CaipAccountId } from '@metamask/utils';
 import {
   getEthAccounts,
   setEthAccounts,
-  setPermittedAccounts,
+  setNonSCACaipAccountIdsInCaip25CaveatValue,
+  getCaipAccountIdsFromScopesObjects,
+  getCaipAccountIdsFromCaip25CaveatValue,
+  isCaipAccountIdInPermittedAccountIds,
+  isInternalAccountInPermittedAccountIds,
 } from './caip-permission-adapter-accounts';
 import type { Caip25CaveatValue } from '../caip25Permission';
+import type { InternalScopesObject } from '../scope/types';
 
 describe('CAIP-25 eth_accounts adapters', () => {
   describe('getEthAccounts', () => {
@@ -187,7 +192,7 @@ describe('CAIP-25 eth_accounts adapters', () => {
     });
   });
 
-  describe('setPermittedAccounts', () => {
+  describe('setNonSCACaipAccountIdsInCaip25CaveatValue', () => {
     it('returns a CAIP-25 caveat value with all scopeObject.accounts set to accounts provided', () => {
       const input: Caip25CaveatValue = {
         requiredScopes: {
@@ -216,7 +221,10 @@ describe('CAIP-25 eth_accounts adapters', () => {
         'bip122:000000000019d6689c085ae165831e93:xyz789',
       ];
 
-      const result = setPermittedAccounts(input, permittedAccounts);
+      const result = setNonSCACaipAccountIdsInCaip25CaveatValue(
+        input,
+        permittedAccounts,
+      );
 
       expect(result).toStrictEqual({
         requiredScopes: {
@@ -252,7 +260,7 @@ describe('CAIP-25 eth_accounts adapters', () => {
         isMultichainOrigin: false,
       };
 
-      const result = setPermittedAccounts(input, [
+      const result = setNonSCACaipAccountIdsInCaip25CaveatValue(input, [
         'eip155:1:0xabc',
       ] as CaipAccountId[]);
 
@@ -281,7 +289,7 @@ describe('CAIP-25 eth_accounts adapters', () => {
         isMultichainOrigin: false,
       };
 
-      const result = setPermittedAccounts(input, []);
+      const result = setNonSCACaipAccountIdsInCaip25CaveatValue(input, []);
 
       expect(result).toStrictEqual({
         requiredScopes: {
@@ -310,7 +318,7 @@ describe('CAIP-25 eth_accounts adapters', () => {
         isMultichainOrigin: false,
       };
 
-      const result = setPermittedAccounts(input, [
+      const result = setNonSCACaipAccountIdsInCaip25CaveatValue(input, [
         'eip155:1:0xabc',
         'solana:4sGjMW1sUnHzSxGspuhpqLDx6wiyjNtZ:pubkey123',
       ]);
@@ -346,7 +354,7 @@ describe('CAIP-25 eth_accounts adapters', () => {
         isMultichainOrigin: false,
       };
 
-      const result = setPermittedAccounts(input, [
+      const result = setNonSCACaipAccountIdsInCaip25CaveatValue(input, [
         'eip155:1:0xabc',
         'eip155:5:0xdef',
         'eip155:137:0xghi',
@@ -366,6 +374,326 @@ describe('CAIP-25 eth_accounts adapters', () => {
         sessionProperties: {},
         isMultichainOrigin: false,
       });
+    });
+  });
+
+  describe('getCaipAccountIdsFromScopesObjects', () => {
+    it('returns all unique account IDs from multiple scopes objects', () => {
+      const scopesObjects = [
+        {
+          'eip155:1': {
+            accounts: [
+              'eip155:1:0x1234567890123456789012345678901234567890',
+              'eip155:1:0x2345678901234567890123456789012345678901',
+            ],
+          },
+        },
+        {
+          'eip155:5': {
+            accounts: [
+              'eip155:5:0x1234567890123456789012345678901234567890',
+              'eip155:5:0x3456789012345678901234567890123456789012',
+            ],
+          },
+        },
+        {
+          'bip122:000000000019d6689c085ae165831e93': {
+            accounts: [
+              'bip122:000000000019d6689c085ae165831e93:128Lkh3S7CkDTBZ8W7BbpsN3YYizJMp8p6',
+            ],
+          },
+        },
+      ] as InternalScopesObject[];
+
+      const result = getCaipAccountIdsFromScopesObjects(scopesObjects);
+
+      expect(result).toStrictEqual([
+        'eip155:1:0x1234567890123456789012345678901234567890',
+        'eip155:1:0x2345678901234567890123456789012345678901',
+        'eip155:5:0x1234567890123456789012345678901234567890',
+        'eip155:5:0x3456789012345678901234567890123456789012',
+        'bip122:000000000019d6689c085ae165831e93:128Lkh3S7CkDTBZ8W7BbpsN3YYizJMp8p6',
+      ]);
+    });
+
+    it('returns an empty array if all the scopes objects are empty', () => {
+      const result = getCaipAccountIdsFromScopesObjects([
+        {},
+        {},
+      ] as InternalScopesObject[]);
+      expect(result).toStrictEqual([]);
+    });
+
+    it('returns an empty array if the array of scopes objects is empty', () => {
+      const result = getCaipAccountIdsFromScopesObjects(
+        [] as InternalScopesObject[],
+      );
+      expect(result).toStrictEqual([]);
+    });
+
+    it('eliminates duplicate accounts across different scopes objects', () => {
+      const scopesObjects = [
+        {
+          'eip155:1': {
+            accounts: ['eip155:1:0x1234567890123456789012345678901234567890'],
+          },
+          'eip155:5': {
+            accounts: ['eip155:5:0x3456789012345678901234567890123456789012'],
+          },
+        },
+        {
+          'eip155:5': {
+            accounts: ['eip155:5:0x3456789012345678901234567890123456789012'],
+          },
+        },
+      ] as InternalScopesObject[];
+
+      const result = getCaipAccountIdsFromScopesObjects(scopesObjects);
+      expect(result).toStrictEqual([
+        'eip155:1:0x1234567890123456789012345678901234567890',
+        'eip155:5:0x3456789012345678901234567890123456789012',
+      ]);
+    });
+  });
+
+  describe('getCaipAccountIdsFromCaip25CaveatValue', () => {
+    it('returns all unique account IDs from both required and optional scopes', () => {
+      const caveatValue: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: [
+              'eip155:1:0x1234567890123456789012345678901234567890',
+              'eip155:1:0x2345678901234567890123456789012345678901',
+            ],
+          },
+          'bip122:000000000019d6689c085ae165831e93': {
+            accounts: [
+              'bip122:000000000019d6689c085ae165831e93:128Lkh3S7CkDTBZ8W7BbpsN3YYizJMp8p6',
+            ],
+          },
+        } as InternalScopesObject,
+        optionalScopes: {
+          'eip155:5': {
+            accounts: [
+              'eip155:5:0x1234567890123456789012345678901234567890',
+              'eip155:5:0x3456789012345678901234567890123456789012',
+            ],
+          },
+          wallet: {
+            accounts: [],
+          },
+        } as InternalScopesObject,
+        sessionProperties: {},
+        isMultichainOrigin: false,
+      };
+
+      const result = getCaipAccountIdsFromCaip25CaveatValue(caveatValue);
+
+      expect(result).toStrictEqual([
+        'eip155:1:0x1234567890123456789012345678901234567890',
+        'eip155:1:0x2345678901234567890123456789012345678901',
+        'bip122:000000000019d6689c085ae165831e93:128Lkh3S7CkDTBZ8W7BbpsN3YYizJMp8p6',
+        'eip155:5:0x1234567890123456789012345678901234567890',
+        'eip155:5:0x3456789012345678901234567890123456789012',
+      ]);
+    });
+
+    it('returns an empty array if there are no accounts in any scopes', () => {
+      const caveatValue: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:1': { accounts: [] },
+        } as InternalScopesObject,
+        optionalScopes: {
+          'eip155:5': { accounts: [] },
+        } as InternalScopesObject,
+        sessionProperties: {},
+        isMultichainOrigin: false,
+      };
+
+      const result = getCaipAccountIdsFromCaip25CaveatValue(caveatValue);
+      expect(result).toStrictEqual([]);
+    });
+
+    it('returns an empty array if both required and optional scopes are empty', () => {
+      const caveatValue: Caip25CaveatValue = {
+        requiredScopes: {} as InternalScopesObject,
+        optionalScopes: {} as InternalScopesObject,
+        sessionProperties: {},
+        isMultichainOrigin: false,
+      };
+
+      const result = getCaipAccountIdsFromCaip25CaveatValue(caveatValue);
+      expect(result).toStrictEqual([]);
+    });
+
+    it('eliminates duplicate accounts across required and optional scopes', () => {
+      const caveatValue: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0x1234567890123456789012345678901234567890'],
+          },
+          'eip155:5': {
+            accounts: ['eip155:5:0x3456789012345678901234567890123456789012'],
+          },
+        } as InternalScopesObject,
+        optionalScopes: {
+          'eip155:5': {
+            accounts: ['eip155:5:0x3456789012345678901234567890123456789012'],
+          },
+        } as InternalScopesObject,
+        sessionProperties: {},
+        isMultichainOrigin: false,
+      };
+
+      const result = getCaipAccountIdsFromCaip25CaveatValue(caveatValue);
+      expect(result).toStrictEqual([
+        'eip155:1:0x1234567890123456789012345678901234567890',
+        'eip155:5:0x3456789012345678901234567890123456789012',
+      ]);
+    });
+  });
+
+  describe('isInternalAccountInPermittedAccountIds', () => {
+    it('returns false if there are no permitted account ids', () => {
+      const result = isInternalAccountInPermittedAccountIds(
+        // @ts-expect-error partial internal account
+        {
+          scopes: ['eip155:0'],
+          address: '0xdeadbeef',
+        },
+        [],
+      );
+      expect(result).toBe(false);
+    });
+
+    it('returns false if there are no exact matching namespaces', () => {
+      const result = isInternalAccountInPermittedAccountIds(
+        // @ts-expect-error partial internal account
+        {
+          scopes: ['eip155:1'],
+          address: '0xdeadbeef',
+        },
+        ['solana:1:0xdeadbeef'],
+      );
+      expect(result).toBe(false);
+    });
+
+    it('returns true if there are exact matching permitted account ids', () => {
+      const result = isInternalAccountInPermittedAccountIds(
+        // @ts-expect-error partial internal account
+        {
+          scopes: ['eip155:1'],
+          address: '0xdeadbeef',
+        },
+        ['eip155:1:0xdeadbeef'],
+      );
+      expect(result).toBe(true);
+    });
+
+    it('returns true if there are exact matching evm references but mismatched address casing', () => {
+      const result = isInternalAccountInPermittedAccountIds(
+        // @ts-expect-error partial internal account
+        {
+          scopes: ['eip155:1'],
+          address: '0xdeadbeef',
+        },
+        ['eip155:1:0xdeadBEEF'],
+      );
+      expect(result).toBe(true);
+    });
+
+    it('returns false if there are exact matching non-evm references but mismatched address casing', () => {
+      const result = isInternalAccountInPermittedAccountIds(
+        // @ts-expect-error partial internal account
+        {
+          scopes: ['solana:0'],
+          address: '0xdeadbeef',
+        },
+        ['solana:1:0xdeadbeef'],
+      );
+      expect(result).toBe(false);
+    });
+
+    it('returns true if there are null reference matching evm references', () => {
+      const result = isInternalAccountInPermittedAccountIds(
+        // @ts-expect-error partial internal account
+        {
+          scopes: ['eip155:0'],
+          address: '0xdeadbeef',
+        },
+        ['eip155:1:0xdeadbeef'],
+      );
+      expect(result).toBe(true);
+    });
+
+    it('returns false if there are no exact matching non-evm references', () => {
+      const result = isInternalAccountInPermittedAccountIds(
+        // @ts-expect-error partial internal account
+        {
+          scopes: ['solana:0'],
+          address: '0xdeadbeef',
+        },
+        ['solana:1:0xdeadbeef'],
+      );
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('isCaipAccountIdInPermittedAccountIds', () => {
+    it('returns false if there are no permitted account ids', () => {
+      const result = isCaipAccountIdInPermittedAccountIds(
+        'eip155:1:0xdeadbeef',
+        [],
+      );
+      expect(result).toBe(false);
+    });
+
+    it('returns false if there are no exact matching namespaces', () => {
+      const result = isCaipAccountIdInPermittedAccountIds(
+        'eip155:1:0xdeadbeef',
+        ['solana:1:0xdeadbeef'],
+      );
+      expect(result).toBe(false);
+    });
+
+    it('returns true if there are exact matching permitted account ids', () => {
+      const result = isCaipAccountIdInPermittedAccountIds(
+        'eip155:1:0xdeadbeef',
+        ['eip155:1:0xdeadbeef'],
+      );
+      expect(result).toBe(true);
+    });
+
+    it('returns true if there are exact matching evm references but mismatched address casing', () => {
+      const result = isCaipAccountIdInPermittedAccountIds(
+        'eip155:1:0xdeadbeef',
+        ['eip155:1:0xdeadBEEF'],
+      );
+      expect(result).toBe(true);
+    });
+
+    it('returns false if there are exact matching non-evm references but mismatched address casing', () => {
+      const result = isCaipAccountIdInPermittedAccountIds(
+        'solana:1:0xdeadbeef',
+        ['solana:1:0xdeadBEEF'],
+      );
+      expect(result).toBe(false);
+    });
+
+    it('returns true if there are null reference matching evm references', () => {
+      const result = isCaipAccountIdInPermittedAccountIds(
+        'eip155:0:0xdeadbeef',
+        ['eip155:1:0xdeadbeef'],
+      );
+      expect(result).toBe(true);
+    });
+
+    it('returns false if there are no exact matching non-evm references', () => {
+      const result = isCaipAccountIdInPermittedAccountIds(
+        'solana:0:0xdeadbeef',
+        ['solana:1:0xdeadbeef'],
+      );
+      expect(result).toBe(false);
     });
   });
 });

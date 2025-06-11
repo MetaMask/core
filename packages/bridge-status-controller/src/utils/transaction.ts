@@ -3,9 +3,11 @@ import type { TxData } from '@metamask/bridge-controller';
 import {
   ChainId,
   formatChainIdToHex,
+  isCrossChain,
   type QuoteMetadata,
   type QuoteResponse,
 } from '@metamask/bridge-controller';
+import { SolScope } from '@metamask/keyring-api';
 import {
   TransactionStatus,
   TransactionType,
@@ -83,6 +85,11 @@ export const handleSolanaTxResponse = (
   }
 
   const hexChainId = formatChainIdToHex(quoteResponse.quote.srcChainId);
+  const isBridgeTx = isCrossChain(
+    quoteResponse.quote.srcChainId,
+    quoteResponse.quote.destChainId,
+  );
+
   // Create a transaction meta object with bridge-specific fields
   return {
     ...getTxMetaFields(quoteResponse),
@@ -91,13 +98,13 @@ export const handleSolanaTxResponse = (
     chainId: hexChainId,
     networkClientId: snapId ?? hexChainId,
     txParams: { from: selectedAccountAddress, data: quoteResponse.trade },
-    type: TransactionType.bridge,
+    type: isBridgeTx ? TransactionType.bridge : TransactionType.swap,
     status: TransactionStatus.submitted,
     hash, // Add the transaction signature as hash
     origin: snapId,
     // Add an explicit bridge flag to mark this as a Solana transaction
     isSolana: true, // TODO deprecate this and use chainId
-    isBridgeTx: true, // TODO deprecate this and use type
+    isBridgeTx,
   };
 };
 
@@ -136,13 +143,13 @@ export const getKeyringRequest = (
           params: {
             account: { address: selectedAccount.address },
             transaction: quoteResponse.trade,
-            scope: selectedAccount.options.scope,
+            scope: SolScope.Mainnet,
           },
           method: 'signAndSendTransaction',
         },
         id: snapRequestId,
         account: selectedAccount.id,
-        scope: selectedAccount.options.scope,
+        scope: SolScope.Mainnet,
       },
     },
   };

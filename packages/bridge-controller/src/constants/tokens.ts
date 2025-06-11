@@ -27,7 +27,6 @@ export type SwapsTokenObject = {
 };
 
 const DEFAULT_TOKEN_ADDRESS = '0x0000000000000000000000000000000000000000';
-const DEFAULT_SOLANA_TOKEN_ADDRESS = `${SolScope.Mainnet}/slip44:501`;
 
 const CURRENCY_SYMBOLS = {
   ARBITRUM: 'ETH',
@@ -53,6 +52,7 @@ const CURRENCY_SYMBOLS = {
   MOONRIVER: 'MOVR',
   ONE: 'ONE',
   SOL: 'SOL',
+  SEI: 'SEI',
 } as const;
 
 const ETH_SWAPS_TOKEN_OBJECT = {
@@ -134,8 +134,16 @@ const BASE_SWAPS_TOKEN_OBJECT = {
 const SOLANA_SWAPS_TOKEN_OBJECT = {
   symbol: CURRENCY_SYMBOLS.SOL,
   name: 'Solana',
-  address: DEFAULT_SOLANA_TOKEN_ADDRESS,
+  address: DEFAULT_TOKEN_ADDRESS,
   decimals: 9,
+  iconUrl: '',
+} as const;
+
+const SEI_SWAPS_TOKEN_OBJECT = {
+  symbol: CURRENCY_SYMBOLS.SEI,
+  name: 'Sei',
+  address: DEFAULT_TOKEN_ADDRESS,
+  decimals: 18,
   iconUrl: '',
 } as const;
 
@@ -154,6 +162,7 @@ export const SWAPS_CHAINID_DEFAULT_TOKEN_MAP = {
   [CHAIN_IDS.ZKSYNC_ERA]: ZKSYNC_ERA_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.LINEA_MAINNET]: LINEA_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.BASE]: BASE_SWAPS_TOKEN_OBJECT,
+  [CHAIN_IDS.SEI]: SEI_SWAPS_TOKEN_OBJECT,
   [SolScope.Mainnet]: SOLANA_SWAPS_TOKEN_OBJECT,
 } as const;
 
@@ -176,4 +185,5 @@ export const SYMBOL_TO_SLIP44_MAP: Record<
   BNB: 'slip44:714',
   AVAX: 'slip44:9000',
   TESTETH: 'slip44:60',
+  SEI: 'slip44:19000118',
 };

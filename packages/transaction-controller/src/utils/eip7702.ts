@@ -21,6 +21,7 @@ import type {
 export const DELEGATION_PREFIX = '0xef0100';
 export const BATCH_FUNCTION_NAME = 'execute';
 export const CALLS_SIGNATURE = '(address,uint256,bytes)[]';
+export const ERROR_MESSGE_PUBLIC_KEY = 'EIP-7702 public key not specified';
 
 const UNSUPPORTED_PARAMS = [
   'gas',
@@ -243,15 +244,14 @@ async function signAuthorization(
   );
 
   const r = signature.slice(0, 66) as Hex;
-  const s = `0x${signature.slice(66, 130)}` as Hex;
+  const s = add0x(signature.slice(66, 130));
   const v = parseInt(signature.slice(130, 132), 16);
-  const yParity = v - 27 === 0 ? '0x' : '0x1';
-  const finalNonce = nonceDecimal === 0 ? '0x' : nonce;
+  const yParity = toHex(v - 27 === 0 ? 0 : 1);
 
   const result: Required<Authorization> = {
     address,
     chainId,
-    nonce: finalNonce,
+    nonce,
     r,
     s,
     yParity,

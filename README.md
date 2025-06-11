@@ -20,6 +20,7 @@ Each package in this repository has its own README where you can find installati
 
 <!-- start package list -->
 
+- [`@metamask/account-tree-controller`](packages/account-tree-controller)
 - [`@metamask/accounts-controller`](packages/accounts-controller)
 - [`@metamask/address-book-controller`](packages/address-book-controller)
 - [`@metamask/announcement-controller`](packages/announcement-controller)
@@ -33,10 +34,13 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/chain-agnostic-permission`](packages/chain-agnostic-permission)
 - [`@metamask/composable-controller`](packages/composable-controller)
 - [`@metamask/controller-utils`](packages/controller-utils)
+- [`@metamask/delegation-controller`](packages/delegation-controller)
 - [`@metamask/earn-controller`](packages/earn-controller)
 - [`@metamask/eip1193-permission-middleware`](packages/eip1193-permission-middleware)
 - [`@metamask/ens-controller`](packages/ens-controller)
+- [`@metamask/error-reporting-service`](packages/error-reporting-service)
 - [`@metamask/eth-json-rpc-provider`](packages/eth-json-rpc-provider)
+- [`@metamask/foundryup`](packages/foundryup)
 - [`@metamask/gas-fee-controller`](packages/gas-fee-controller)
 - [`@metamask/json-rpc-engine`](packages/json-rpc-engine)
 - [`@metamask/json-rpc-middleware-stream`](packages/json-rpc-middleware-stream)
@@ -60,6 +64,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/rate-limit-controller`](packages/rate-limit-controller)
 - [`@metamask/remote-feature-flag-controller`](packages/remote-feature-flag-controller)
 - [`@metamask/sample-controllers`](packages/sample-controllers)
+- [`@metamask/seedless-onboarding-controller`](packages/seedless-onboarding-controller)
 - [`@metamask/selected-network-controller`](packages/selected-network-controller)
 - [`@metamask/signature-controller`](packages/signature-controller)
 - [`@metamask/token-search-discovery-controller`](packages/token-search-discovery-controller)
@@ -74,6 +79,7 @@ Each package in this repository has its own README where you can find installati
 %%{ init: { 'flowchart': { 'curve': 'bumpX' } } }%%
 graph LR;
 linkStyle default opacity:0.5
+  account_wallet_controller(["@metamask/account-tree-controller"]);
   accounts_controller(["@metamask/accounts-controller"]);
   address_book_controller(["@metamask/address-book-controller"]);
   announcement_controller(["@metamask/announcement-controller"]);
@@ -87,10 +93,13 @@ linkStyle default opacity:0.5
   chain_agnostic_permission(["@metamask/chain-agnostic-permission"]);
   composable_controller(["@metamask/composable-controller"]);
   controller_utils(["@metamask/controller-utils"]);
+  delegation_controller(["@metamask/delegation-controller"]);
   earn_controller(["@metamask/earn-controller"]);
   eip1193_permission_middleware(["@metamask/eip1193-permission-middleware"]);
   ens_controller(["@metamask/ens-controller"]);
+  error_reporting_service(["@metamask/error-reporting-service"]);
   eth_json_rpc_provider(["@metamask/eth-json-rpc-provider"]);
+  foundryup(["@metamask/foundryup"]);
   gas_fee_controller(["@metamask/gas-fee-controller"]);
   json_rpc_engine(["@metamask/json-rpc-engine"]);
   json_rpc_middleware_stream(["@metamask/json-rpc-middleware-stream"]);
@@ -114,11 +123,15 @@ linkStyle default opacity:0.5
   rate_limit_controller(["@metamask/rate-limit-controller"]);
   remote_feature_flag_controller(["@metamask/remote-feature-flag-controller"]);
   sample_controllers(["@metamask/sample-controllers"]);
+  seedless_onboarding_controller(["@metamask/seedless-onboarding-controller"]);
   selected_network_controller(["@metamask/selected-network-controller"]);
   signature_controller(["@metamask/signature-controller"]);
   token_search_discovery_controller(["@metamask/token-search-discovery-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
   user_operation_controller(["@metamask/user-operation-controller"]);
+  account_wallet_controller --> base_controller;
+  account_wallet_controller --> accounts_controller;
+  account_wallet_controller --> keyring_controller;
   accounts_controller --> base_controller;
   accounts_controller --> keyring_controller;
   accounts_controller --> network_controller;
@@ -136,19 +149,27 @@ linkStyle default opacity:0.5
   assets_controllers --> network_controller;
   assets_controllers --> permission_controller;
   assets_controllers --> preferences_controller;
+  assets_controllers --> transaction_controller;
   base_controller --> json_rpc_engine;
   bridge_controller --> base_controller;
   bridge_controller --> controller_utils;
+  bridge_controller --> gas_fee_controller;
+  bridge_controller --> multichain_network_controller;
   bridge_controller --> polling_controller;
   bridge_controller --> accounts_controller;
+  bridge_controller --> assets_controllers;
   bridge_controller --> eth_json_rpc_provider;
   bridge_controller --> network_controller;
+  bridge_controller --> remote_feature_flag_controller;
   bridge_controller --> transaction_controller;
   bridge_status_controller --> base_controller;
-  bridge_status_controller --> bridge_controller;
   bridge_status_controller --> controller_utils;
   bridge_status_controller --> polling_controller;
+  bridge_status_controller --> user_operation_controller;
   bridge_status_controller --> accounts_controller;
+  bridge_status_controller --> bridge_controller;
+  bridge_status_controller --> gas_fee_controller;
+  bridge_status_controller --> multichain_transactions_controller;
   bridge_status_controller --> network_controller;
   bridge_status_controller --> transaction_controller;
   chain_agnostic_permission --> controller_utils;
@@ -156,10 +177,14 @@ linkStyle default opacity:0.5
   chain_agnostic_permission --> permission_controller;
   composable_controller --> base_controller;
   composable_controller --> json_rpc_engine;
+  delegation_controller --> base_controller;
+  delegation_controller --> accounts_controller;
+  delegation_controller --> keyring_controller;
   earn_controller --> base_controller;
   earn_controller --> controller_utils;
   earn_controller --> accounts_controller;
   earn_controller --> network_controller;
+  earn_controller --> transaction_controller;
   eip1193_permission_middleware --> chain_agnostic_permission;
   eip1193_permission_middleware --> controller_utils;
   eip1193_permission_middleware --> json_rpc_engine;
@@ -183,10 +208,13 @@ linkStyle default opacity:0.5
   multichain --> network_controller;
   multichain --> permission_controller;
   multichain_api_middleware --> chain_agnostic_permission;
+  multichain_api_middleware --> controller_utils;
   multichain_api_middleware --> json_rpc_engine;
   multichain_api_middleware --> network_controller;
   multichain_api_middleware --> permission_controller;
+  multichain_api_middleware --> multichain_transactions_controller;
   multichain_network_controller --> base_controller;
+  multichain_network_controller --> controller_utils;
   multichain_network_controller --> accounts_controller;
   multichain_network_controller --> keyring_controller;
   multichain_network_controller --> network_controller;

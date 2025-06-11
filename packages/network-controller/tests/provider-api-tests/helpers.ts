@@ -1,6 +1,7 @@
 import type { JSONRPCResponse } from '@json-rpc-specification/meta-schema';
 import type { InfuraNetworkType } from '@metamask/controller-utils';
 import { BUILT_IN_NETWORKS } from '@metamask/controller-utils';
+import type { BlockTracker } from '@metamask/eth-block-tracker';
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import EthQuery from '@metamask/eth-query';
 import type { Hex } from '@metamask/utils';
@@ -73,7 +74,7 @@ function buildScopeForMockingRequests(
 
 // TODO: Replace `any` with type
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Request = { method: string; params?: any[] };
+export type MockRequest = { method: string; params?: any[] };
 type Response = {
   id?: number | string;
   jsonrpc?: '2.0';
@@ -85,11 +86,11 @@ type Response = {
   result?: any;
   httpStatus?: number;
 };
-type BodyOrResponse = { body: JSONRPCResponse | string } | Response;
+export type MockResponse = { body: JSONRPCResponse | string } | Response;
 type CurriedMockRpcCallOptions = {
-  request: Request;
+  request: MockRequest;
   // The response data.
-  response?: BodyOrResponse;
+  response?: MockResponse;
   /**
    * An error to throw while making the request.
    * Takes precedence over `response`.
@@ -285,7 +286,7 @@ async function mockAllBlockTrackerRequests({
  * response if it is successful or rejects with the error from the JSON-RPC
  * response otherwise.
  */
-function makeRpcCall(ethQuery: EthQuery, request: Request) {
+function makeRpcCall(ethQuery: EthQuery, request: MockRequest) {
   return new Promise((resolve, reject) => {
     debug('[makeRpcCall] making request', request);
     // TODO: Replace `any` with type
@@ -311,8 +312,10 @@ export type MockOptions = {
   customChainId?: Hex;
   customTicker?: string;
   getRpcServiceOptions?: NetworkControllerOptions['getRpcServiceOptions'];
+  getBlockTrackerOptions?: NetworkControllerOptions['getBlockTrackerOptions'];
   expectedHeaders?: Record<string, string>;
   messenger?: RootMessenger;
+  isRpcFailoverEnabled?: boolean;
 };
 
 export type MockCommunications = {
@@ -386,17 +389,15 @@ export async function withMockedCommunications(
 }
 
 type MockNetworkClient = {
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  blockTracker: any;
+  blockTracker: BlockTracker;
   provider: SafeEventEmitterProvider;
   clock: sinon.SinonFakeTimers;
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  makeRpcCall: (request: Request) => Promise<any>;
+  makeRpcCall: (request: MockRequest) => Promise<any>;
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  makeRpcCallsInSeries: (requests: Request[]) => Promise<any[]>;
+  makeRpcCallsInSeries: (requests: MockRequest[]) => Promise<any[]>;
   messenger: RootMessenger;
   chainId: Hex;
   rpcUrl: string;
@@ -472,7 +473,10 @@ export async function waitForPromiseToBeFulfilledAfterRunningAllTimers(
  * @param options.customTicker - The ticker of the custom RPC endpoint, assuming
  * that `providerType` is "custom" (default: "ETH").
  * @param options.getRpcServiceOptions - RPC service options factory.
+ * @param options.getBlockTrackerOptions - Block tracker options factory.
  * @param options.messenger - The root messenger to use in tests.
+ * @param options.isRpcFailoverEnabled - Whether or not the RPC failover
+ * functionality is enabled.
  * @param fn - A function which will be called with an object that allows
  * interaction with the network client.
  * @returns The return value of the given function.
@@ -486,7 +490,9 @@ export async function withNetworkClient(
     customChainId = '0x1',
     customTicker = 'ETH',
     getRpcServiceOptions = () => ({ fetch, btoa }),
+    getBlockTrackerOptions = () => ({}),
     messenger = buildRootMessenger(),
+    isRpcFailoverEnabled = false,
   }: MockOptions,
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -537,7 +543,9 @@ export async function withNetworkClient(
   const networkClient = createNetworkClient({
     configuration: networkClientConfiguration,
     getRpcServiceOptions,
+    getBlockTrackerOptions,
     messenger: networkControllerMessenger,
+    isRpcFailoverEnabled,
   });
   /* eslint-disable-next-line n/no-process-env */
   process.env.IN_TEST = inTest;
@@ -545,10 +553,10 @@ export async function withNetworkClient(
   const { provider, blockTracker } = networkClient;
 
   const ethQuery = new EthQuery(provider);
-  const curriedMakeRpcCall = (request: Request) =>
+  const curriedMakeRpcCall = (request: MockRequest) =>
     makeRpcCall(ethQuery, request);
-  const makeRpcCallsInSeries = async (requests: Request[]) => {
-    const responses = [];
+  const makeRpcCallsInSeries = async (requests: MockRequest[]) => {
+    const responses: unknown[] = [];
     for (const request of requests) {
       responses.push(await curriedMakeRpcCall(request));
     }
@@ -621,7 +629,7 @@ export function buildMockParams({
  * @returns The updated request object.
  */
 export function buildRequestWithReplacedBlockParam(
-  { method, params = [] }: Request,
+  { method, params = [] }: MockRequest,
   blockParamIndex: number,
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

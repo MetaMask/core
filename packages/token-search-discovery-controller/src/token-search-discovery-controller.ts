@@ -16,6 +16,7 @@ import type {
   TopLosersParams,
   BlueChipParams,
   SwappableTokenSearchParams,
+  TokenSearchFormattedParams,
 } from './types';
 
 // === GENERAL ===
@@ -169,6 +170,14 @@ export class TokenSearchDiscoveryController extends BaseController<
     });
 
     return results;
+  }
+
+  async searchTokensFormatted(
+    tokenSearchFormattedParams: TokenSearchFormattedParams,
+  ): Promise<MoralisTokenResponseItem[]> {
+    return this.#tokenSearchService.searchTokensFormatted(
+      tokenSearchFormattedParams,
+    );
   }
 
   async getTrendingTokens(

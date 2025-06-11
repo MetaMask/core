@@ -7,11 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
+
+## [0.8.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency to `^30.0.0` ([#5888](https://github.com/MetaMask/core/pull/5888))
+- Bump `@metamask/keyring-api` dependency from `^17.4.0` to `^18.0.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
+- Bump `@metamask/keyring-internal-api` dependency from `^6.0.1` to `^6.2.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
+- Bump `@metamask/controller-utils` to `^11.9.0` ([#5812](https://github.com/MetaMask/core/pull/5812))
+
+## [0.7.0]
+
+### Changed
+
+- **BREAKING:** bump `@metamask/accounts-controller` peer dependency to `^29.0.0` ([#5802](https://github.com/MetaMask/core/pull/5802))
+- Bump `@metamask/controller-utils` to `^11.8.0` ([#5765](https://github.com/MetaMask/core/pull/5765))
+
+## [0.6.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` to `^28.0.0` ([#5763](https://github.com/MetaMask/core/pull/5763))
+- Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
+
 ## [0.5.1]
 
 ### Changed
 
 - Updated to restrict `getNetworksWithTransactionActivityByAccounts` to EVM networks only while non-EVM network endpoint support is being completed. Full multi-chain support will be restored in the coming weeks ([#5677](https://github.com/MetaMask/core/pull/5677))
+- Updated network activity API requests to have batching support to handle URL length limitations, allowing the controller to fetch network activity for any number of accounts ([#5752](https://github.com/MetaMask/core/pull/5752))
 
 ## [0.5.0]
 
@@ -77,7 +105,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Handle both EVM and non-EVM network and account switching for the associated network.
   - Act as a proxy for the `NetworkController` (for EVM network changes).
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@0.5.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@0.8.0...HEAD
+[0.8.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@0.7.0...@metamask/multichain-network-controller@0.8.0
+[0.7.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@0.6.0...@metamask/multichain-network-controller@0.7.0
+[0.6.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@0.5.1...@metamask/multichain-network-controller@0.6.0
 [0.5.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@0.5.0...@metamask/multichain-network-controller@0.5.1
 [0.5.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@0.4.0...@metamask/multichain-network-controller@0.5.0
 [0.4.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@0.3.0...@metamask/multichain-network-controller@0.4.0
