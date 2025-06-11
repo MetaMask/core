@@ -739,18 +739,6 @@ describe('KeyringController', () => {
           expect(controller.state.encryptionSalt).toBeDefined();
         });
       });
-
-      it('should not set encryptionKey and encryptionSalt in state', async () => {
-        await withController(
-          { skipVaultCreation: false },
-          async ({ controller }) => {
-            await controller.createNewVaultAndKeychain(password);
-
-            expect(controller.state).not.toHaveProperty('encryptionKey');
-            expect(controller.state).not.toHaveProperty('encryptionSalt');
-          },
-        );
-      });
     });
   });
 

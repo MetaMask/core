@@ -461,6 +461,10 @@ export type ExportableKeyEncryptor<EncryptionKey = unknown> =
       exportable?: boolean,
       opts?: encryptorUtils.KeyDerivationOptions,
     ) => Promise<EncryptionKey>;
+    /**
+     * Generates a random salt for key derivation.
+     */
+    generateSalt: typeof encryptorUtils.generateSalt;
   };
 
 export type KeyringSelector =
@@ -1489,7 +1493,7 @@ export class KeyringController extends BaseController<
       assertIsValidPassword(password);
 
       // Update encryption key.
-      this.#initEncryptionKey(
+      await this.#initEncryptionKey(
         password,
         encryptionKey
           ? { useEnvelopeEncryption: true, encryptionKey }
@@ -2163,7 +2167,7 @@ export class KeyringController extends BaseController<
       delete state.encryptionSalt;
     });
 
-    this.#initEncryptionKey(
+    await this.#initEncryptionKey(
       password,
       encryptionKey
         ? {
@@ -2203,7 +2207,7 @@ export class KeyringController extends BaseController<
         ),
       };
     } else {
-      const salt = encryptorUtils.generateSalt();
+      const salt = this.#encryptor.generateSalt();
       const key = await this.#encryptor.keyFromPassword(password, salt, true);
       this.#encryptionKey = {
         salt,
@@ -2470,6 +2474,12 @@ export class KeyringController extends BaseController<
         key,
         serializedKeyrings,
       );
+      if (this.#encryptionKey.salt) {
+        // if the password is being used to encrypt the vault directly
+        // (i.e. no envelope encryption), we need to include the salt
+        // used to derive the encryption key.
+        encryptedVault.salt = this.#encryptionKey.salt;
+      }
       const updatedState: Partial<KeyringControllerState> = {
         vault: JSON.stringify(encryptedVault),
         encryptionKey: this.#encryptionKey.exported,
@@ -2492,7 +2502,10 @@ export class KeyringController extends BaseController<
         state.keyrings = updatedKeyrings;
         state.encryptionKey = updatedState.encryptionKey;
         state.encryptionSalt = updatedState.encryptionSalt;
-        if (updatedState.encryptedEncryptionKey) {
+        if (
+          updatedState.encryptedEncryptionKey &&
+          updatedState.encryptedEncryptionKey !== state.encryptedEncryptionKey
+        ) {
           state.encryptedEncryptionKey = updatedState.encryptedEncryptionKey;
         }
       });

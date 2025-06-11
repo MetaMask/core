@@ -92,6 +92,12 @@ export default class MockEncryptor implements ExportableKeyEncryptor {
       typeof ciphertext === 'string' ? JSON.parse(ciphertext) : ciphertext;
     const data = JSON.parse(ciphertextObj.data);
     if (!isEqual(data.tag, { key, iv: ciphertextObj.iv })) {
+      console.log('Decryption failed: key or iv does not match.', {
+        key,
+        iv: ciphertextObj.iv,
+        tag: data.tag,
+      });
+
       throw new Error(DECRYPTION_ERROR);
     }
     return data.value;
@@ -105,8 +111,8 @@ export default class MockEncryptor implements ExportableKeyEncryptor {
     return JSON.stringify(key);
   }
 
-  async keyFromPassword(password: string, salt?: string): Promise<unknown> {
-    return deriveKey(password, salt ?? generateSalt());
+  async keyFromPassword(password: string, salt: string): Promise<unknown> {
+    return deriveKey(password, salt);
   }
 
   async updateVault(_vault: string, _password: string) {
@@ -115,6 +121,10 @@ export default class MockEncryptor implements ExportableKeyEncryptor {
 
   isVaultUpdated(_vault: string) {
     return true;
+  }
+
+  generateSalt() {
+    return generateSalt();
   }
 }
 
