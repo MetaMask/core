@@ -514,24 +514,18 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   /**
    * Update the backup metadata state for the given seed phrase.
    *
-   * @param data - The data to backup, can be a single backup or array of backups.
-   * @param data.keyringId - The keyring id associated with the backup seed phrase.
-   * @param data.seedPhrase - The seed phrase to update the backup metadata state.
+   * @param secretData - The data to backup, can be a single backup or array of backups.
+   * @param secretData.keyringId - The keyring id associated with the backup seed phrase.
+   * @param secretData.seedPhrase - The seed phrase to update the backup metadata state.
    */
   updateBackupMetadataState(
-    data:
-      | {
-          keyringId: string;
-          seedPhrase: Uint8Array;
-        }
-      | {
-          keyringId: string;
-          seedPhrase: Uint8Array;
-        }[],
+    secretData:
+      | (Omit<SocialBackupsMetadata, 'hash'> & { data: Uint8Array })
+      | (Omit<SocialBackupsMetadata, 'hash'> & { data: Uint8Array })[],
   ) {
     this.#assertIsUnlocked();
 
-    this.#filterDupesAndUpdateSocialBackupsMetadata(data);
+    this.#filterDupesAndUpdateSocialBackupsMetadata(secretData);
   }
 
   /**
@@ -561,19 +555,21 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   }
 
   /**
-   * Get the hash of the seed phrase backup for the given seed phrase, from the state.
+   * Get backup state of the given secret data, from the controller state.
    *
-   * If the given seed phrase is not backed up and not found in the state, it will return `undefined`.
+   * If the given secret data is not backed up and not found in the state, it will return `undefined`.
    *
-   * @param seedPhrase - The seed phrase to get the hash of.
-   * @returns A promise that resolves to the hash of the seed phrase backup.
+   * @param data - The data to get the backup state of.
+   * @param type - The type of the secret data.
+   * @returns The backup state of the given secret data.
    */
-  getSeedPhraseBackupHash(
-    seedPhrase: Uint8Array,
+  getSecretDataBackupState(
+    data: Uint8Array,
+    type: SecretType = SecretType.Mnemonic,
   ): SocialBackupsMetadata | undefined {
-    const seedPhraseHash = keccak256AndHexify(seedPhrase);
+    const secretDataHash = keccak256AndHexify(data);
     return this.state.socialBackupsMetadata.find(
-      (backup) => backup.hash === seedPhraseHash,
+      (backup) => backup.hash === secretDataHash && backup.type === type,
     );
   }
 
@@ -935,6 +931,12 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   }): Promise<void> {
     const { options, data, encKey, authKeyPair, type } = params;
 
+    // before encrypting and create backup, we will check the state if the secret data is already backed up
+    const backupState = this.getSecretDataBackupState(data, type);
+    if (backupState) {
+      return;
+    }
+
     const secretMetadata = new SecretMetadata(data, {
       type,
     });
@@ -948,25 +950,17 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     }
 
     try {
-      if (type === SecretType.Mnemonic) {
-        await this.#withPersistedSeedPhraseBackupsState(async () => {
-          await this.toprfClient.addSecretDataItem({
-            encKey,
-            secretData,
-            authKeyPair,
-          });
-          return {
-            keyringId,
-            seedPhrase: data,
-          };
+      await this.#withPersistedSeedPhraseBackupsState(async () => {
+        await this.toprfClient.addSecretDataItem({
+          encKey,
+          secretData,
+          authKeyPair,
         });
-        return;
-      }
-
-      await this.toprfClient.addSecretDataItem({
-        encKey,
-        secretData,
-        authKeyPair,
+        return {
+          keyringId,
+          data,
+          type,
+        };
       });
     } catch (error) {
       if (this.#isTokenExpiredError(error)) {
@@ -1098,14 +1092,10 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @throws Rethrows any errors from the callback with additional logging
    */
   async #withPersistedSeedPhraseBackupsState(
-    createSeedPhraseBackupCallback: () => Promise<{
-      keyringId: string;
-      seedPhrase: Uint8Array;
-    }>,
-  ): Promise<{
-    keyringId: string;
-    seedPhrase: Uint8Array;
-  }> {
+    createSeedPhraseBackupCallback: () => Promise<
+      Omit<SocialBackupsMetadata, 'hash'> & { data: Uint8Array }
+    >,
+  ): Promise<Omit<SocialBackupsMetadata, 'hash'> & { data: Uint8Array }> {
     try {
       const newBackup = await createSeedPhraseBackupCallback();
 
@@ -1122,40 +1112,46 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * Updates the social backups metadata state by adding new unique seed phrase backups.
    * This method ensures no duplicate backups are stored by checking the hash of each seed phrase.
    *
-   * @param data - The backup data to add to the state
-   * @param data.id - The identifier for the backup
-   * @param data.seedPhrase - The seed phrase to backup as a Uint8Array
+   * @param secretData - The backup data to add to the state
+   * @param secretData.data - The secret data to backup as a Uint8Array
+   * @param secretData.keyringId - The optional keyring id of the backup keyring (SRP).
+   * @param secretData.type - The type of the secret data.
    */
   #filterDupesAndUpdateSocialBackupsMetadata(
-    data:
+    secretData:
       | {
-          keyringId: string;
-          seedPhrase: Uint8Array;
+          data: Uint8Array;
+          keyringId?: string;
+          type: SecretType;
         }
       | {
-          keyringId: string;
-          seedPhrase: Uint8Array;
+          data: Uint8Array;
+          keyringId?: string;
+          type: SecretType;
         }[],
   ) {
     const currentBackupsMetadata = this.state.socialBackupsMetadata;
 
-    const newBackupsMetadata = Array.isArray(data) ? data : [data];
+    const newBackupsMetadata = Array.isArray(secretData)
+      ? secretData
+      : [secretData];
     const filteredNewBackupsMetadata: SocialBackupsMetadata[] = [];
 
     // filter out the backed up metadata that already exists in the state
     // to prevent duplicates
     newBackupsMetadata.forEach((item) => {
-      const { keyringId, seedPhrase } = item;
-      const backupHash = keccak256AndHexify(seedPhrase);
+      const { keyringId, data, type } = item;
+      const backupHash = keccak256AndHexify(data);
 
       const backupStateAlreadyExisted = currentBackupsMetadata.some(
-        (backup) => backup.hash === backupHash,
+        (backup) => backup.hash === backupHash && backup.type === type,
       );
 
       if (!backupStateAlreadyExisted) {
         filteredNewBackupsMetadata.push({
-          id: keyringId,
+          keyringId,
           hash: backupHash,
+          type,
         });
       }
     });
