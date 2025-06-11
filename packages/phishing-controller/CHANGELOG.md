@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Revert "release: 435.0.0 (#5965)" ([#5965](https://github.com/MetaMask/core/pull/5965))
+- release: 435.0.0 ([#5965](https://github.com/MetaMask/core/pull/5965))
+
 ### Added
 
 - Added `Verified` to `RecommendedAction` for `scanUrl` ([#5964](https://github.com/MetaMask/core/pull/5964))
