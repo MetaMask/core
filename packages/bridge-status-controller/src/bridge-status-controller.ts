@@ -880,6 +880,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       !isSolanaChainId(quoteResponse.quote.srcChainId) &&
       typeof quoteResponse.trade !== 'string'
     ) {
+      // For hardware wallets on Mobile, this is fixes an issue where the Ledger does not get prompted for the 2nd approval
+      // Extension does not have this issue
       const requireApproval =
         this.#clientId === BridgeClientId.MOBILE &&
         isHardwareWallet(this.#getMultichainSelectedAccount());
