@@ -919,7 +919,7 @@ describe('KeyringController', () => {
         { cacheEncryptionKey: true, envelopeEncryption: true },
         async ({ controller, encryptor }) => {
           // Make change password fail.
-          jest.spyOn(encryptor, 'importKey').mockImplementationOnce(() => {
+          jest.spyOn(encryptor, 'encryptWithKey').mockImplementationOnce(() => {
             throw new Error('Not implemented');
           });
           await expect(controller.changePassword(password2)).rejects.toThrow(
