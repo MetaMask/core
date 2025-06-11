@@ -109,7 +109,7 @@ export type KeyringControllerState = {
 
 export type KeyringControllerMemState = Omit<
   KeyringControllerState,
-  'vault' | 'encryptionKey' | 'encryptionSalt'
+  'vault' | 'encryptionKey' | 'encryptionSalt' // TODO do we need to update this?
 >;
 
 export type KeyringControllerGetStateAction = {
