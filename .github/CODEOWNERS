@@ -129,8 +129,6 @@
 /packages/phishing-controller/CHANGELOG.md    @MetaMask/product-safety @MetaMask/wallet-framework-engineers
 /packages/profile-sync-controller/package.json    @MetaMask/identity @MetaMask/wallet-framework-engineers
 /packages/profile-sync-controller/CHANGELOG.md    @MetaMask/identity @MetaMask/wallet-framework-engineers
-/packages/multichain/package.json                 @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
-/packages/multichain/CHANGELOG.md                 @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
 /packages/queued-request-controller/package.json  @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
 /packages/queued-request-controller/CHANGELOG.md  @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
 /packages/selected-network-controller/package.json @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
