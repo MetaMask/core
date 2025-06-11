@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [29.2.0]
 
-### Uncategorized
-
-- Release/427.0.0 ([#5922](https://github.com/MetaMask/core/pull/5922))
-- Release 426.0.0 ([#5920](https://github.com/MetaMask/core/pull/5920))
-
 ### Changed
 
 - Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
