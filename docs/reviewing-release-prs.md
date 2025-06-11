@@ -152,7 +152,7 @@ If there are any packages being bumped whose new versions do not align to this s
 
 ## 5. Review wording of existing changelog entries
 
-Next, look over the changelogs of the packages which will be released to ensure that they are well formed and that they list all changes that will be released.
+Next, look over the changelogs of the packages which will be released to ensure that they are well-formed and that they list all changes that will be released.
 
 The [Keep a Changelog](https://keepachangelog.com/) specification defines a standard format for changelogs, and all MetaMask repositories, including the core monorepo, follow this format.
 
