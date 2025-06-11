@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** NetworkController messenger now requires the `ErrorReportingService:captureException` action to be allowed ([#5970](https://github.com/MetaMask/core/pull/5970))
+  - This change was actually made in 23.5.1, but is being logged as a breaking change here for completeness.
+- **BREAKING:** Move `@metamask/error-reporting-service` to peer dependencies ([#5970](https://github.com/MetaMask/core/pull/5970))
+  - This change should have been made in 23.5.1 along with the above change.
+
 ## [23.6.0]
 
 ### Added
