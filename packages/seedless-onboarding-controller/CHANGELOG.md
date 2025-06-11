@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - added `addNewSecretData` method implementation to support adding different secret data types.
   - renamed `fetchAllSeedPhrases` method to `fetchAllSecretData` and updated the return value to `Record<SecretType, Uint8Array[]>`.
   - added new error message, `MissingKeyringId` which will throw if no `keyringId` is provided during seed phrase (Mnemonic) backup.
-- Added a check for `duplicate data` before adding it to the metadata store. ([]())
+- Added a check for `duplicate data` before adding it to the metadata store. ([#5955](https://github.com/MetaMask/core/pull/5955))
   - renamed `getSeedPhraseBackupHash` to `getSecretDataBackupState` and added optional param (`type`) to look for data with specific type in the controller backup state.
   - updated `updateBackupMetadataState` method param with `{ keyringId?: string; data: Uint8Array; type: SecretType }`. Previously , `{ keyringId: string; seedPhrase: Uint8Array }`.
 
