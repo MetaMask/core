@@ -107,11 +107,6 @@ export type KeyringControllerState = {
   encryptedEncryptionKey?: string;
 };
 
-export type KeyringControllerPersistentState = Omit<
-  KeyringControllerState,
-  'isUnlocked' | 'keyrings' | 'encryptionKey' | 'encryptionSalt'
->;
-
 export type KeyringControllerMemState = Omit<
   KeyringControllerState,
   'vault' | 'encryptionKey' | 'encryptionSalt'
@@ -2296,13 +2291,6 @@ export class KeyringController extends BaseController<
     };
   }
 
-  async #getPersistentState(): Promise<KeyringControllerPersistentState> {
-    return {
-      vault: this.state.vault,
-      encryptedEncryptionKey: this.state.encryptedEncryptionKey,
-    };
-  }
-
   /**
    * Restore a serialized keyrings array.
    *
@@ -2865,20 +2853,9 @@ export class KeyringController extends BaseController<
     callback: MutuallyExclusiveCallback<Result>,
   ): Promise<Result> {
     return this.#withRollback(async ({ releaseLock }) => {
-      const oldControllerState = JSON.stringify(this.#getPersistentState());
       const oldState = JSON.stringify(await this.#getSessionState());
       const callbackResult = await callback({ releaseLock });
-      const newControllerState = JSON.stringify(this.#getPersistentState());
       const newState = JSON.stringify(await this.#getSessionState());
-
-      // We should never alter the controller state from within the callback.
-      if (!isEqual(oldControllerState, newControllerState)) {
-        // Attempt to revert the update.
-        this.update(() => JSON.parse(oldControllerState));
-        throw new Error(
-          KeyringControllerError.StateChangedWhileExecutingCallback,
-        );
-      }
 
       // State is committed only if the operation is successful and need to trigger a vault update.
       if (!isEqual(oldState, newState)) {
