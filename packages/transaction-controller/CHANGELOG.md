@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `gasFeeEstimates` property to `TransactionBatchMeta`, populated using `DefaultGasFeeFlow` ([#5886](https://github.com/MetaMask/core/pull/5886))
+- Add `SEI` network support ([#5694](https://github.com/MetaMask/core/pull/5694))
+  - Add account address relationship API support
+  - Add incoming transactions API support
 
 ## [57.2.0]
 
