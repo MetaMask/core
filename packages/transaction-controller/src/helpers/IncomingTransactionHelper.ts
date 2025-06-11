@@ -14,7 +14,7 @@ export type IncomingTransactionOptions = {
   updateTransactions?: boolean;
 };
 
-const INTERVAL = 1000 * 30; // 30 Seconds
+const INTERVAL = 1000 * 60 * 4; // 4 Minutes
 
 export class IncomingTransactionHelper {
   hub: EventEmitter;
