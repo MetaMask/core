@@ -3048,7 +3048,7 @@ describe('KeyringController', () => {
                 // TODO actually this does trigger re-encryption. The catch is
                 // that this test is run with cacheEncryptionKey enabled, so
                 // `encryptWithKey` is being used instead of `encrypt`. Hence,
-                // the spy on `encrypt` doesn't trigger. 🤦‍♂️
+                // the spy on `encrypt` doesn't trigger.
                 await controller.submitPassword(password);
 
                 expect(encryptSpy).not.toHaveBeenCalled();
