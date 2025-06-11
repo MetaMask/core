@@ -51,7 +51,6 @@ import type {
 import { type BridgeStatusControllerMessenger } from './types';
 import { BridgeClientId } from './types';
 import {
-  delay,
   fetchBridgeTxStatus,
   getStatusRequestWithSrcTxHash,
 } from './utils/bridge-status';
