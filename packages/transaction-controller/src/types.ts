@@ -504,6 +504,9 @@ export type TransactionBatchMeta = {
    */
   from: string;
 
+  /** Alternate EIP-1559 gas fee estimates for multiple priority levels. */
+  gasFeeEstimates?: GasFeeEstimates;
+
   /**
    * Maximum number of units of gas to use for this transaction batch.
    */
@@ -523,6 +526,9 @@ export type TransactionBatchMeta = {
    * Origin this transaction was sent from.
    */
   origin?: string;
+
+  /** Current status of the transaction. */
+  status: TransactionStatus;
 
   /**
    * Data for any EIP-7702 transactions.
