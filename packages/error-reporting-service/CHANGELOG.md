@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Adjust type of `captureException` option to match method ([#5968](https://github.com/MetaMask/core/pull/5968))
+
 ## [1.0.0]
 
 ### Added

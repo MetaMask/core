@@ -16,6 +16,17 @@ describe('ErrorReportingService', () => {
       // This assertion is just here to appease the ESLint Jest rules
       expect(errorReportingService).toBeInstanceOf(ErrorReportingService);
     });
+
+    it('allows a function that takes an Error to be passed', () => {
+      const messenger = buildMessenger();
+      const errorReportingService = new ErrorReportingService({
+        messenger,
+        captureException: (error: Error) => sentryCaptureException(error),
+      });
+
+      // This assertion is just here to appease the ESLint Jest rules
+      expect(errorReportingService).toBeInstanceOf(ErrorReportingService);
+    });
   });
 
   describe('captureException', () => {
