@@ -9,13 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.1]
 
-### Uncategorized
-
-- fix(account-tree-controller): fix `AccountWallet` type ([#5947](https://github.com/MetaMask/core/pull/5947))
-- Release 429.0.0 ([#5930](https://github.com/MetaMask/core/pull/5930))
-
 ### Fixed
 
+- Fix `AccountWallet.metadata` type ([#5947](https://github.com/MetaMask/core/pull/5947))
+  - Was using `AccountGroupMetadata` instead of `AccountWalletMetadata`.
 - Add `AccountTreeControllerStateChangeEvent` to `AccountTreeControllerEvents` ([#5958](https://github.com/MetaMask/core/pull/5958))
 
 ## [0.1.0]
