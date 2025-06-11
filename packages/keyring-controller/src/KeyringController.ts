@@ -2453,8 +2453,7 @@ export class KeyringController extends BaseController<
       // Ensure no duplicate accounts are persisted.
       await this.#assertNoDuplicateAccounts();
 
-      const { encryptionKey, encryptionSalt, vault, encryptedEncryptionKey } =
-        this.state;
+      const { encryptionKey, encryptionSalt, vault } = this.state;
 
       // READ THIS CAREFULLY:
       // We do check if the vault is still considered up-to-date, if not, we would not re-use the
@@ -2508,21 +2507,6 @@ export class KeyringController extends BaseController<
             const importedKey = await this.#encryptor.importKey(
               this.#encryptionKey,
             );
-            const vaultJSON = await this.#encryptor.encryptWithKey(
-              importedKey,
-              serializedKeyrings,
-            );
-            updatedState.vault = JSON.stringify(vaultJSON);
-          } else if (encryptedEncryptionKey) {
-            // Decrypt key and update cached key.
-            const decryptedKey = (await this.#encryptor.decrypt(
-              this.#password,
-              encryptedEncryptionKey,
-            )) as string;
-            updatedState.encryptionKey = decryptedKey;
-
-            // Encrypt and update vault.
-            const importedKey = await this.#encryptor.importKey(decryptedKey);
             const vaultJSON = await this.#encryptor.encryptWithKey(
               importedKey,
               serializedKeyrings,
