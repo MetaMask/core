@@ -7,14 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [13.1.0]
-
-### Uncategorized
-
-- Release 415.0.0 ([#5882](https://github.com/MetaMask/core/pull/5882))
-- Release 381.0.0 ([#5729](https://github.com/MetaMask/core/pull/5729))
-- Release 338.0.0 ([#5518](https://github.com/MetaMask/core/pull/5518))
-
 ### Changed
 
 - Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
@@ -254,8 +246,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@13.1.0...HEAD
-[13.1.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@13.0.0...@metamask/polling-controller@13.1.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@13.0.0...HEAD
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@12.0.3...@metamask/polling-controller@13.0.0
 [12.0.3]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@12.0.2...@metamask/polling-controller@12.0.3
 [12.0.2]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@12.0.1...@metamask/polling-controller@12.0.2

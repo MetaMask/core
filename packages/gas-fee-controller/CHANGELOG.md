@@ -7,16 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [23.1.0]
-
-### Uncategorized
-
-- Release 415.0.0 ([#5882](https://github.com/MetaMask/core/pull/5882))
-- Fix unmocked block tracker warning in GasFeeController tests ([#5297](https://github.com/MetaMask/core/pull/5297))
-- Release 381.0.0 ([#5729](https://github.com/MetaMask/core/pull/5729))
-- chore: remove `goerli` and `linea goerli` from `network-controller` as default network ([#5560](https://github.com/MetaMask/core/pull/5560))
-- Release 338.0.0 ([#5518](https://github.com/MetaMask/core/pull/5518))
-
 ### Changed
 
 - Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
@@ -426,8 +416,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@23.1.0...HEAD
-[23.1.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@23.0.0...@metamask/gas-fee-controller@23.1.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@23.0.0...HEAD
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@22.0.3...@metamask/gas-fee-controller@23.0.0
 [22.0.3]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@22.0.2...@metamask/gas-fee-controller@22.0.3
 [22.0.2]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@22.0.1...@metamask/gas-fee-controller@22.0.2
