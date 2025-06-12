@@ -816,6 +816,18 @@ describe('KeyringController', () => {
       );
     });
 
+    it('should create new vault with encryption key from key seed', async () => {
+      await withController(
+        { cacheEncryptionKey: true, skipVaultCreation: true },
+        async ({ controller }) => {
+          const key = await controller.deriveKeyFromSeed(password);
+          await controller.createNewVaultAndKeychain(password, key);
+          expect(controller.state.encryptionKey).toBeDefined();
+          expect(controller.state.encryptedEncryptionKey).toBeDefined();
+        },
+      );
+    });
+
     it('should throw error if creating new vault with encryption key and cacheEncryptionKey is false', async () => {
       await withController(
         { cacheEncryptionKey: false, skipVaultCreation: true },
