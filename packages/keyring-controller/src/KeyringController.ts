@@ -816,22 +816,29 @@ export class KeyringController extends BaseController<
    * @param password - Password to unlock keychain.
    * @param seed - A BIP39-compliant seed phrase as Uint8Array,
    * either as a string or an array of UTF-8 bytes that represent the string.
+   * @param encryptionKey - Optional encryption key to encrypt the new vault. If
+   * set, envelope encryption will be used.
    * @returns Promise resolving when the operation ends successfully.
    */
   async createNewVaultAndRestore(
     password: string,
     seed: Uint8Array,
+    encryptionKey?: string,
   ): Promise<void> {
     return this.#persistOrRollback(async () => {
       assertIsValidPassword(password);
 
-      await this.#createNewVaultWithKeyring(password, {
-        type: KeyringTypes.hd,
-        opts: {
-          mnemonic: seed,
-          numberOfAccounts: 1,
+      await this.#createNewVaultWithKeyring(
+        password,
+        {
+          type: KeyringTypes.hd,
+          opts: {
+            mnemonic: seed,
+            numberOfAccounts: 1,
+          },
         },
-      });
+        encryptionKey,
+      );
     });
   }
 
