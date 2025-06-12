@@ -526,7 +526,7 @@ const getMessengerMock = ({
             bridgeConfig: {
               support: true,
               chains: {
-                [srcChainId]: {
+                [ChainId.SOLANA]: {
                   isSnapConfirmationEnabled: false,
                 },
               },
@@ -586,7 +586,7 @@ const mockMessengerCall = jest.fn().mockImplementation((method: string) => {
         bridgeConfig: {
           support: true,
           chains: {
-            42161: {
+            [ChainId.SOLANA]: {
               isSnapConfirmationEnabled: false,
             },
           },
@@ -1515,6 +1515,19 @@ describe('BridgeStatusController', () => {
 
     it('should handle snap controller errors', async () => {
       mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
+      // Mock the RemoteFeatureFlagController:getState call that happens in getBridgeFeatureFlags
+      mockMessengerCall.mockReturnValueOnce({
+        remoteFeatureFlags: {
+          bridgeConfig: {
+            support: true,
+            chains: {
+              [ChainId.SOLANA]: {
+                isSnapConfirmationEnabled: false,
+              },
+            },
+          },
+        },
+      });
       mockMessengerCall.mockRejectedValueOnce(new Error('Snap error'));
 
       const { controller, startPollingForBridgeTxStatusSpy } =
