@@ -41,11 +41,6 @@ export class GasPricesService {
   }) {
     this.#messenger = messenger;
     this.#fetch = fetchFunction;
-
-    this.#messenger.registerActionHandler(
-      `${SERVICE_NAME}:fetchGasPrices`,
-      this.fetchGasPrices.bind(this),
-    );
   }
 }
 ```
@@ -467,4 +462,4 @@ class SendController extends BaseController {
 
 ## Learning more
 
-The [`sample-controllers`](../packages/sample-controllers) package has a full example of the service pattern, including JSDoc. Check it out and feel free to copy and paste the code you see to your own project.
+The [`sample-controllers`](../packages/sample-controllers) package has a full example of the data service pattern. including JSDoc for all types, classes, and methods. Check it out and feel free to copy and paste the code you see to your own project.
