@@ -374,94 +374,96 @@ export type GenericEncryptor = {
  * An encryptor interface that supports encrypting and decrypting
  * serializable data with a password, and exporting and importing keys.
  */
-export type ExportableKeyEncryptor<EncryptionKey = unknown> =
-  GenericEncryptor & {
-    /**
-     * Encrypts the given object with the given encryption key.
-     *
-     * @param key - The encryption key to encrypt with.
-     * @param object - The object to encrypt.
-     * @returns The encryption result.
-     */
-    encryptWithKey: (
-      key: EncryptionKey,
-      object: Json,
-    ) => Promise<encryptorUtils.EncryptionResult>;
-    /**
-     * Encrypts the given object with the given password, and returns the
-     * encryption result and the exported key string.
-     *
-     * @param password - The password to encrypt with.
-     * @param object - The object to encrypt.
-     * @param salt - The optional salt to use for encryption.
-     * @returns The encrypted string and the exported key string.
-     */
-    encryptWithDetail: (
-      password: string,
-      object: Json,
-      salt?: string,
-    ) => Promise<encryptorUtils.DetailedEncryptionResult>;
-    /**
-     * Decrypts the given encrypted string with the given encryption key.
-     *
-     * @param key - The encryption key to decrypt with.
-     * @param encryptedString - The encrypted string to decrypt.
-     * @returns The decrypted object.
-     */
-    decryptWithKey: (
-      key: EncryptionKey,
-      encryptedString: string,
-    ) => Promise<unknown>;
-    /**
-     * Decrypts the given encrypted string with the given password, and returns
-     * the decrypted object and the salt and exported key string used for
-     * encryption.
-     *
-     * @param password - The password to decrypt with.
-     * @param encryptedString - The encrypted string to decrypt.
-     * @returns The decrypted object and the salt and exported key string used for
-     * encryption.
-     */
-    decryptWithDetail: (
-      password: string,
-      encryptedString: string,
-    ) => Promise<encryptorUtils.DetailedDecryptResult>;
-    /**
-     * Generates an encryption key from exported key string.
-     *
-     * @param key - The exported key string.
-     * @returns The encryption key.
-     */
-    importKey: (key: string) => Promise<EncryptionKey>;
-    /**
-     * Exports the encryption key as a string.
-     *
-     * @param key - The encryption key to export.
-     * @returns The exported key string.
-     */
-    exportKey: (key: EncryptionKey) => Promise<string>;
-    /**
-     * Derives an encryption key from a password.
-     *
-     * @param password - The password to derive the key from.
-     * @param salt - The salt to use for key derivation.
-     * @param exportable - Whether the key should be exportable or not.
-     * @param options - Optional key derivation options.
-     * @returns The derived encryption key.
-     */
-    keyFromPassword: (
-      password: string,
-      salt: string,
-      exportable?: boolean,
-      // setting this to unknown as currently each client has different
-      // key derivation options
-      keyDerivationOptions?: unknown,
-    ) => Promise<EncryptionKey>;
-    /**
-     * Generates a random salt for key derivation.
-     */
-    generateSalt: typeof encryptorUtils.generateSalt;
-  };
+export type ExportableKeyEncryptor<
+  EncryptionKey = unknown,
+  SupportedKeyDerivationParams = unknown,
+> = GenericEncryptor & {
+  /**
+   * Encrypts the given object with the given encryption key.
+   *
+   * @param key - The encryption key to encrypt with.
+   * @param object - The object to encrypt.
+   * @returns The encryption result.
+   */
+  encryptWithKey: (
+    key: EncryptionKey,
+    object: Json,
+  ) => Promise<encryptorUtils.EncryptionResult>;
+  /**
+   * Encrypts the given object with the given password, and returns the
+   * encryption result and the exported key string.
+   *
+   * @param password - The password to encrypt with.
+   * @param object - The object to encrypt.
+   * @param salt - The optional salt to use for encryption.
+   * @returns The encrypted string and the exported key string.
+   */
+  encryptWithDetail: (
+    password: string,
+    object: Json,
+    salt?: string,
+  ) => Promise<encryptorUtils.DetailedEncryptionResult>;
+  /**
+   * Decrypts the given encrypted string with the given encryption key.
+   *
+   * @param key - The encryption key to decrypt with.
+   * @param encryptedString - The encrypted string to decrypt.
+   * @returns The decrypted object.
+   */
+  decryptWithKey: (
+    key: EncryptionKey,
+    encryptedString: string,
+  ) => Promise<unknown>;
+  /**
+   * Decrypts the given encrypted string with the given password, and returns
+   * the decrypted object and the salt and exported key string used for
+   * encryption.
+   *
+   * @param password - The password to decrypt with.
+   * @param encryptedString - The encrypted string to decrypt.
+   * @returns The decrypted object and the salt and exported key string used for
+   * encryption.
+   */
+  decryptWithDetail: (
+    password: string,
+    encryptedString: string,
+  ) => Promise<encryptorUtils.DetailedDecryptResult>;
+  /**
+   * Generates an encryption key from exported key string.
+   *
+   * @param key - The exported key string.
+   * @returns The encryption key.
+   */
+  importKey: (key: string) => Promise<EncryptionKey>;
+  /**
+   * Exports the encryption key as a string.
+   *
+   * @param key - The encryption key to export.
+   * @returns The exported key string.
+   */
+  exportKey: (key: EncryptionKey) => Promise<string>;
+  /**
+   * Derives an encryption key from a password.
+   *
+   * @param password - The password to derive the key from.
+   * @param salt - The salt to use for key derivation.
+   * @param exportable - Whether the key should be exportable or not.
+   * @param options - Optional key derivation options.
+   * @returns The derived encryption key.
+   */
+  keyFromPassword: (
+    password: string,
+    salt: string,
+    exportable?: boolean,
+    // setting this to unknown as currently each client has different
+    // key derivation options
+    keyDerivationOptions?: SupportedKeyDerivationParams,
+  ) => Promise<EncryptionKey>;
+  /**
+   * Generates a random salt for key derivation.
+   */
+  generateSalt: typeof encryptorUtils.generateSalt;
+};
 
 export type KeyringSelector =
   | {

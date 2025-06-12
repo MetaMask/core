@@ -111,12 +111,18 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
     },
   };
 
-export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
+export class SeedlessOnboardingController<
+  EncryptionKey,
+  SupportedKeyDerivationOptions,
+> extends BaseController<
   typeof controllerName,
   SeedlessOnboardingControllerState,
   SeedlessOnboardingControllerMessenger
 > {
-  readonly #vaultEncryptor: VaultEncryptor<EncryptionKey>;
+  readonly #vaultEncryptor: VaultEncryptor<
+    EncryptionKey,
+    SupportedKeyDerivationOptions
+  >;
 
   readonly #controllerOperationMutex = new Mutex();
 
@@ -147,7 +153,10 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     encryptor,
     toprfKeyDeriver,
     network = Web3AuthNetwork.Mainnet,
-  }: SeedlessOnboardingControllerOptions<EncryptionKey>) {
+  }: SeedlessOnboardingControllerOptions<
+    EncryptionKey,
+    SupportedKeyDerivationOptions
+  >) {
     super({
       name: controllerName,
       metadata: seedlessOnboardingMetadata,

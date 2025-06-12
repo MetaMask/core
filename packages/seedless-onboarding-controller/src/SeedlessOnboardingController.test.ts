@@ -1,6 +1,9 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
 import type { Messenger } from '@metamask/base-controller';
-import type { EncryptionKey } from '@metamask/browser-passworder';
+import type {
+  EncryptionKey,
+  KeyDerivationOptions,
+} from '@metamask/browser-passworder';
 import {
   encrypt,
   decrypt,
@@ -8,6 +11,9 @@ import {
   encryptWithDetail,
   decryptWithKey as decryptWithKeyBrowserPassworder,
   importKey as importKeyBrowserPassworder,
+  exportKey as exportKeyBrowserPassworder,
+  generateSalt as generateSaltBrowserPassworder,
+  keyFromPassword as keyFromPasswordBrowserPassworder,
 } from '@metamask/browser-passworder';
 import {
   TOPRFError,
@@ -99,27 +105,34 @@ const MOCK_AUTH_PUB_KEY = 'A09CwPHdl/qo2AjBOHen5d4QORaLedxOrSdgReq8IhzQ';
 const MOCK_AUTH_PUB_KEY_OUTDATED =
   'Ao2sa8imX7SD4KE4fJLoJ/iBufmaBxSFygG1qUhW2qAb';
 
-type WithControllerCallback<ReturnValue, EKey> = ({
-  controller,
-  initialState,
-  encryptor,
-  messenger,
-}: {
-  controller: SeedlessOnboardingController<EKey>;
-  encryptor: VaultEncryptor<EKey>;
-  initialState: SeedlessOnboardingControllerState;
-  messenger: SeedlessOnboardingControllerMessenger;
-  baseMessenger: Messenger<AllowedActions, AllowedEvents>;
-  toprfClient: ToprfSecureBackup;
-}) => Promise<ReturnValue> | ReturnValue;
+type WithControllerCallback<ReturnValue, EKey, SupportedKeyDerivationOptions> =
+  ({
+    controller,
+    initialState,
+    encryptor,
+    messenger,
+  }: {
+    controller: SeedlessOnboardingController<
+      EKey,
+      SupportedKeyDerivationOptions
+    >;
+    encryptor: VaultEncryptor<EKey, KeyDerivationOptions>;
+    initialState: SeedlessOnboardingControllerState;
+    messenger: SeedlessOnboardingControllerMessenger;
+    baseMessenger: Messenger<AllowedActions, AllowedEvents>;
+    toprfClient: ToprfSecureBackup;
+  }) => Promise<ReturnValue> | ReturnValue;
 
-type WithControllerOptions<EKey> = Partial<
-  SeedlessOnboardingControllerOptions<EKey>
+type WithControllerOptions<EKey, SupportedKeyDerivationOptions> = Partial<
+  SeedlessOnboardingControllerOptions<EKey, SupportedKeyDerivationOptions>
 >;
 
-type WithControllerArgs<ReturnValue, EKey> =
-  | [WithControllerCallback<ReturnValue, EKey>]
-  | [WithControllerOptions<EKey>, WithControllerCallback<ReturnValue, EKey>];
+type WithControllerArgs<ReturnValue, EKey, SupportedKeyDerivationOptions> =
+  | [WithControllerCallback<ReturnValue, EKey, SupportedKeyDerivationOptions>]
+  | [
+      WithControllerOptions<EKey, SupportedKeyDerivationOptions>,
+      WithControllerCallback<ReturnValue, EKey, SupportedKeyDerivationOptions>,
+    ];
 
 /**
  * Get the default vault encryptor for the Seedless Onboarding Controller.
@@ -139,6 +152,9 @@ function getDefaultSeedlessOnboardingVaultEncryptor() {
       payload: unknown,
     ) => Promise<unknown>,
     importKey: importKeyBrowserPassworder,
+    exportKey: exportKeyBrowserPassworder,
+    generateSalt: generateSaltBrowserPassworder,
+    keyFromPassword: keyFromPasswordBrowserPassworder,
   };
 }
 
@@ -162,13 +178,20 @@ function createMockVaultEncryptor() {
  * @returns Whatever the callback returns.
  */
 async function withController<ReturnValue>(
-  ...args: WithControllerArgs<ReturnValue, EncryptionKey | webcrypto.CryptoKey>
+  ...args: WithControllerArgs<
+    ReturnValue,
+    EncryptionKey | webcrypto.CryptoKey,
+    KeyDerivationOptions
+  >
 ) {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
   const encryptor = new MockVaultEncryptor();
   const { messenger, baseMessenger } = mockSeedlessOnboardingMessenger();
 
-  const controller = new SeedlessOnboardingController({
+  const controller = new SeedlessOnboardingController<
+    EncryptionKey | webcrypto.CryptoKey,
+    KeyDerivationOptions
+  >({
     encryptor,
     messenger,
     network: Web3AuthNetwork.Devnet,
@@ -313,9 +336,12 @@ function mockChangeEncKey(
  * @param seedPhrase - The mock seed phrase.
  * @param keyringId - The mock keyring id.
  */
-async function mockCreateToprfKeyAndBackupSeedPhrase<EKey>(
+async function mockCreateToprfKeyAndBackupSeedPhrase<
+  EKey,
+  SupportedKeyDerivationOptions,
+>(
   toprfClient: ToprfSecureBackup,
-  controller: SeedlessOnboardingController<EKey>,
+  controller: SeedlessOnboardingController<EKey, SupportedKeyDerivationOptions>,
   password: string,
   seedPhrase: Uint8Array,
   keyringId: string,
@@ -462,7 +488,10 @@ describe('SeedlessOnboardingController', () => {
   describe('constructor', () => {
     it('should be able to instantiate', () => {
       const { messenger } = mockSeedlessOnboardingMessenger();
-      const controller = new SeedlessOnboardingController({
+      const controller = new SeedlessOnboardingController<
+        EncryptionKey | webcrypto.CryptoKey,
+        KeyDerivationOptions
+      >({
         messenger,
         encryptor: getDefaultSeedlessOnboardingVaultEncryptor(),
       });

@@ -9,7 +9,8 @@ import { webcrypto } from 'node:crypto';
 import type { VaultEncryptor } from '../../src/types';
 
 export default class MockVaultEncryptor
-  implements VaultEncryptor<EncryptionKey | webcrypto.CryptoKey>
+  implements
+    VaultEncryptor<EncryptionKey | webcrypto.CryptoKey, KeyDerivationOptions>
 {
   DEFAULT_DERIVATION_PARAMS: KeyDerivationOptions = {
     algorithm: 'PBKDF2',
@@ -85,7 +86,7 @@ export default class MockVaultEncryptor
 
   async keyFromPassword(
     password: string,
-    salt: string = this.DEFAULT_SALT,
+    salt: string,
     exportable: boolean = true,
     opts: KeyDerivationOptions = this.DEFAULT_DERIVATION_PARAMS,
   ) {
@@ -216,5 +217,9 @@ export default class MockVaultEncryptor
 
     const result = await this.decryptWithKey(key, payload);
     return result;
+  }
+
+  generateSalt(): string {
+    return this.DEFAULT_SALT;
   }
 }
