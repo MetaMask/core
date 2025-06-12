@@ -114,4 +114,9 @@ export enum RecommendedAction {
    * Block means it is highly likely to be malicious
    */
   Block = 'BLOCK',
+  /**
+   * Verified means it has been associated as an official domain of a
+   * company or organization and/or a top Web3 domain.
+   */
+  Verified = 'VERIFIED',
 }
