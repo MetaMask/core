@@ -16,16 +16,18 @@ import type {
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
-import type {
-  SnapId,
-  AssetConversion,
-  OnAssetsConversionArguments,
-  OnAssetsConversionResponse,
-  OnAssetHistoricalPriceArguments,
-  OnAssetHistoricalPriceResponse,
-  HistoricalPriceIntervals,
+import {
+  type SnapId,
+  type AssetConversion,
+  type OnAssetsConversionArguments,
+  type OnAssetsConversionResponse,
+  type OnAssetHistoricalPriceArguments,
+  type OnAssetHistoricalPriceResponse,
+  type HistoricalPriceIntervals,
 } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
+import { object, array, tuple, number } from '@metamask/superstruct';
+import { assertStruct } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import type { Draft } from 'immer';
 
@@ -40,6 +42,12 @@ import type {
   MultichainAssetsControllerAccountAssetListUpdatedEvent,
   MultichainAssetsControllerState,
 } from '../MultichainAssetsController';
+
+const GetHistoricalPricesResponseStruct = object({
+  prices: array(tuple([number(), number()])),
+  marketCaps: array(tuple([number(), number()])),
+  totalVolumes: array(tuple([number(), number()])),
+});
 
 /**
  * The name of the MultichainAssetsRatesController.
@@ -398,7 +406,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
         );
         // const historicalPricesResponse = await this.#handleSnapRequest({
         //   snapId: selectedAccount?.metadata.snap?.id as SnapId,
-        //   handler: HandlerType.OnAssetHistoricalPrice,
+        // handler: HandlerType.OnAssetHistoricalPrice,
         //   params: {
         //     from: asset,
         //     to: currentCaipCurrency,
@@ -649,6 +657,9 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
 
           const response: HistoricalPricesApiResponse =
             await fetchResponse.json();
+
+          // Add assertion similar to snap
+          assertStruct(response, GetHistoricalPricesResponseStruct);
 
           return {
             timePeriod,
