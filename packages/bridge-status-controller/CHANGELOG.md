@@ -21,10 +21,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [29.1.0]
 
-### Changed
-
-- Bump `@metamask/bridge-controller` to `^32.1.1` ([#5922](https://github.com/MetaMask/core/pull/5922))
-
 ### Added
 
 - Include all invalid status properties in sentry logs ([#5913](https://github.com/MetaMask/core/pull/5913))
