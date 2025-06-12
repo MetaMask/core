@@ -3041,7 +3041,7 @@ describe('KeyringController', () => {
             // the wrong encryptionKey type
             12341234,
           ),
-        ).rejects.toThrow(KeyringControllerError.WrongPasswordType);
+        ).rejects.toThrow(KeyringControllerError.WrongEncryptionKeyType);
       });
     });
   });
