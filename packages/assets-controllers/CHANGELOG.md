@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release/435.0.0 ([#5967](https://github.com/MetaMask/core/pull/5967))
-- Revert "release: 435.0.0 (#5965)" ([#5965](https://github.com/MetaMask/core/pull/5965))
-- release: 435.0.0 ([#5965](https://github.com/MetaMask/core/pull/5965))
-
 ### Changed
 
 - Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
