@@ -26,7 +26,7 @@ We'll start by making a new file in the `src/` directory, `gas-prices-service.ts
 - A messenger (which we'll define below).
 - A `fetch` function. This is useful so that we don't have to rely on a particular JavaScript runtime or environment where a global `fetch` function may not exist (or may be accessible using a different syntax).
 
-``` typescript
+```typescript
 export class GasPricesService {
   readonly #messenger: GasPricesServiceMessenger;
 
@@ -80,7 +80,7 @@ export class GasPricesService {
 
 Next we'll define the messenger. We give the messenger a namespace, and we expose the method we added above as a messenger action:
 
-``` typescript
+```typescript
 // (top of file)
 
 import type { RestrictedMessenger } from '@metamask/base-controller';
@@ -113,13 +113,13 @@ export type GasPricesServiceMessenger = RestrictedMessenger<
 
 Note that we need to add `@metamask/base-controller` as a direct dependency of the package to bring in the `RestrictedMessenger` type (here we assume that our package is called `@metamask/gas-prices-controller`):
 
-``` shell
+```shell
 yarn workspace @metamask/gas-prices-controller add @metamask/base-controller
 ```
 
 Finally we will register the method as an action handler on the messenger:
 
-``` typescript
+```typescript
 // ...
 
 export class GasPricesService {
@@ -149,7 +149,7 @@ export class GasPricesService {
 
 <details><summary><b>View whole file</b></summary><br />
 
-``` typescript
+```typescript
 import type { RestrictedMessenger } from '@metamask/base-controller';
 
 const SERVICE_NAME = 'GasPricesService';
@@ -215,6 +215,7 @@ export class GasPricesService {
   }
 }
 ```
+
 </details>
 
 Finally, we go into the `index.ts` for our package and we export the various parts of the data service module that consumers need. Note that we do _not_ export `AllowedActions` and `AllowedEvents`:
@@ -270,7 +271,7 @@ describe('GasPricesService', () => {
 
 To make this work, we need to import the `Messenger` class from `@metamask/base-controller`. We also make a little helper to build a messenger:
 
-``` typescript
+```typescript
 import { Messenger } from '@metamask/base-controller';
 
 // ...
@@ -322,7 +323,7 @@ describe('GasPricesService', () => {
 
 <details><summary><b>View whole file</b></summary><br />
 
-``` typescript
+```typescript
 import nock from 'nock';
 
 import type { GasPricesServiceMessenger } from './gas-prices-service';
@@ -386,6 +387,7 @@ function buildMessenger(): GasPricesServiceMessenger {
   });
 }
 ```
+
 </details>
 
 ## How to use a data service
