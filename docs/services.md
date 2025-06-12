@@ -1,28 +1,90 @@
-# Services
+# Data Services
 
-## What is a service?
+## What is a data service?
 
-A **service** is best used to wrap interactions with an external API, which might be used to sync accounts, retrieve information about NFTs, or manage feature flags.
+A **data service** is a pattern for making interactions with an external API (fetching token prices, storing accounts, etc.). It is implemented as a plain TypeScript class with methods that are exposed through the messaging system.
 
-## How to write a service
+## Why use this pattern?
 
-Let's say that we want to make a service that uses an API to retrieve gas prices. To do this, we will define a class which has a single method. We will then expose that method through a restricted messenger which will allow consuming code to use our service without needing direct access.
+If you want to talk to an API, it might be tempting to define a method in the controller or a function in a separate file. However, implementing the data service pattern is advantageous for the following reasons:
 
-Assuming that we are within a package directory in the monorepo, e.g. `packages/gas-prices-service`, we would start by adding `@metamask/base-controller` as a direct dependency of the package:
+1. The pattern provides an abstraction that allows for implementing and reusing strategies that are common when working with external APIs, such as batching, automatic retries with exponential backoff, etc.
+2. By integrating with the messaging system, other parts of the application can make use of the data service without needing to go through the controller, or in fact, without needing a reference to the data service at all.
 
+## How to create a data service
+
+Let's say that we want to make a data service that uses an API to retrieve gas prices. Here are the steps we'll follow:
+
+1. We will define a class which has a single method. (Data service classes can have more than one method, but we will keep things simple for now.)
+1. We will have our class take a messenger and a `fetch` function.
+1. We will define a type for the messenger, exposing the method as an action.
+
+### Implementation file
+
+We'll start by making a new file in the `src/` directory, `gas-prices-service.ts`, and here we will define the data service class. We'll have the constructor take two arguments:
+
+- A messenger (which we'll define below).
+- A `fetch` function. This is useful so that we don't have to rely on a particular JavaScript runtime or environment where a global `fetch` function may not exist (or may be accessible using a different syntax).
+
+``` typescript
+export class GasPricesService {
+  readonly #messenger: GasPricesServiceMessenger;
+
+  readonly #fetch: typeof fetch;
+
+  constructor({
+    messenger,
+    fetch: fetchFunction,
+  }: {
+    messenger: GasPricesServiceMessenger;
+    fetch: typeof fetch;
+  }) {
+    this.#messenger = messenger;
+    this.#fetch = fetchFunction;
+
+    this.#messenger.registerActionHandler(
+      `${SERVICE_NAME}:fetchGasPrices`,
+      this.fetchGasPrices.bind(this),
+    );
+  }
+}
 ```
-yarn workspace @metamask/gas-prices-service add @metamask/base-controller
-```
 
-Then, making a new file in the `src/` directory, `gas-prices-service.ts`, we would import that package at the top of our file:
+We'll also add the single method that we mentioned above, using the given `fetch` option to make the request:
 
 ```typescript
-import { RestrictedMessenger } from '@metamask/base-controller';
+// (top of file)
+
+type GasPricesResponse = {
+  data: {
+    low: number;
+    average: number;
+    high: number;
+  };
+};
+
+const API_BASE_URL = 'https://example.com/gas-prices';
+
+export class GasPricesService {
+  // ...
+
+  async fetchGasPrices(chainId: Hex): Promise<GasPricesResponse> {
+    const response = await this.#fetch(`${API_BASE_URL}/${chainId}`);
+    // Type assertion: We have to assume the shape of the response data.
+    const gasPricesResponse =
+      (await response.json()) as unknown as GasPricesResponse;
+    return gasPricesResponse.data;
+  }
+}
 ```
 
-Next we'll define a type for the messenger. We'll first define the actions and events that our messenger shares and then all of the actions and events that it is allowed to access. Our service class will have a method called `fetchGasPrices`, so we only need one public action:
+Next we'll define the messenger. We give the messenger a namespace, and we expose the method we added above as a messenger action:
 
-```typescript
+``` typescript
+// (top of file)
+
+import type { RestrictedMessenger } from '@metamask/base-controller';
+
 const SERVICE_NAME = 'GasPricesService';
 
 export type GasPricesServiceFetchGasPricesAction = {
@@ -45,11 +107,74 @@ export type GasPricesServiceMessenger = RestrictedMessenger<
   AllowedActions['type'],
   AllowedEvents['type']
 >;
+
+// ...
 ```
 
-Next we define the type of the response that the API will have:
+Note that we need to add `@metamask/base-controller` as a direct dependency of the package to bring in the `RestrictedMessenger` type (here we assume that our package is called `@metamask/gas-prices-controller`):
 
-```typescript
+``` shell
+yarn workspace @metamask/gas-prices-controller add @metamask/base-controller
+```
+
+Finally we will register the method as an action handler on the messenger:
+
+``` typescript
+// ...
+
+export class GasPricesService {
+  readonly #messenger: GasPricesServiceMessenger;
+
+  readonly #fetch: typeof fetch;
+
+  constructor({
+    messenger,
+    fetch: fetchFunction,
+  }: {
+    messenger: GasPricesServiceMessenger;
+    fetch: typeof fetch;
+  }) {
+    this.#messenger = messenger;
+    this.#fetch = fetchFunction;
+
+    // Note the action being registered here
+    this.#messenger.registerActionHandler(
+      `${SERVICE_NAME}:fetchGasPrices`,
+      this.fetchGasPrices.bind(this),
+    );
+  }
+
+  // ...
+```
+
+<details><summary><b>View whole file</b></summary><br />
+
+``` typescript
+import type { RestrictedMessenger } from '@metamask/base-controller';
+
+const SERVICE_NAME = 'GasPricesService';
+
+export type GasPricesServiceFetchGasPricesAction = {
+  type: `${typeof SERVICE_NAME}:fetchGasPrices`;
+  handler: GasPricesService['fetchGasPrices'];
+};
+
+export type GasPricesServiceActions = GasPricesServiceFetchGasPricesAction;
+
+type AllowedActions = never;
+
+export type GasPricesServiceEvents = never;
+
+type AllowedEvents = never;
+
+export type GasPricesServiceMessenger = RestrictedMessenger<
+  typeof SERVICE_NAME,
+  GasPricesServiceActions | AllowedActions,
+  GasPricesServiceEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
+>;
+
 type GasPricesResponse = {
   data: {
     low: number;
@@ -57,16 +182,7 @@ type GasPricesResponse = {
     high: number;
   };
 };
-```
 
-Finally we define the service class itself. We have the constructor take two arguments:
-
-- The messenger that we defined above.
-- A fetch function so that we don't have to rely on a particular JavaScript runtime or environment where a global `fetch` function may not exist (or may be accessible using a different syntax)
-
-We also add the single method that we mentioned above, and we register it as an action handler on the messenger.
-
-```typescript
 const API_BASE_URL = 'https://example.com/gas-prices';
 
 export class GasPricesService {
@@ -99,8 +215,9 @@ export class GasPricesService {
   }
 }
 ```
+</details>
 
-Finally, we go into the `index.ts` for our package and we export the various parts of the service module that consumers need. Note that we do _not_ export `AllowedActions` and `AllowedEvents`:
+Finally, we go into the `index.ts` for our package and we export the various parts of the data service module that consumers need. Note that we do _not_ export `AllowedActions` and `AllowedEvents`:
 
 ```typescript
 export type {
@@ -112,15 +229,100 @@ export type {
 export { GasPricesService } from './gas-prices-service';
 ```
 
-Great, we've finished the implementation. Now let's write some tests. We'll create a file `gas-prices-service.test.ts`. Note:
+### Test file
 
-- We pass in the global `fetch` (available in Node >= 18).
-- We use `nock` to mock the request.
-- We test not only the method but also the messenger action.
-- We also add a function to help us build the messenger.
+Great, we've finished the implementation. Now let's write some tests.
+
+We'll create a file `gas-prices-service.test.ts`, and we'll start by adding a test for the `fetchGasPrices` method. Note that we use `nock` to mock the request:
 
 ```typescript
+import nock from 'nock';
+
+import type { GasPricesServiceMessenger } from './gas-prices-service';
+import { GasPricesService } from './gas-prices-service';
+
+describe('GasPricesService', () => {
+  describe('fetchGasPrices', () => {
+    it('returns a slightly cleaned up version of what the API returns', async () => {
+      nock('https://example.com/gas-prices')
+        .get('/0x1.json')
+        .reply(200, {
+          data: {
+            low: 5,
+            average: 10,
+            high: 15,
+          },
+        });
+      const messenger = buildMessenger();
+      const gasPricesService = new GasPricesService({ messenger, fetch });
+
+      const gasPricesResponse = await gasPricesService.fetchGasPrices('0x1');
+
+      expect(gasPricesResponse).toStrictEqual({
+        low: 5,
+        average: 10,
+        high: 15,
+      });
+    });
+  });
+});
+```
+
+To make this work, we need to import the `Messenger` class from `@metamask/base-controller`. We also make a little helper to build a messenger:
+
+``` typescript
 import { Messenger } from '@metamask/base-controller';
+
+// ...
+
+function buildMessenger(): GasPricesServiceMessenger {
+  return new Messenger().getRestricted({
+    name: 'GasPricesService',
+    allowedActions: [],
+    allowedEvents: [],
+  });
+}
+```
+
+We're not done yet, though. The method isn't the only thing that consumers can use; they can also use the messenger action, so we need to make sure that works too:
+
+```typescript
+// ...
+
+describe('GasPricesService', () => {
+  // ...
+
+  describe('GasPricesService:fetchGasPrices', () => {
+    it('returns a slightly cleaned up version of what the API returns', async () => {
+      nock('https://example.com/gas-prices')
+        .get('/0x1.json')
+        .reply(200, {
+          data: {
+            low: 5,
+            average: 10,
+            high: 15,
+          },
+        });
+      const messenger = buildMessenger();
+      const gasPricesService = new GasPricesService({ messenger, fetch });
+
+      const gasPricesResponse = await gasPricesService.fetchGasPrices('0x1');
+
+      expect(gasPricesResponse).toStrictEqual({
+        low: 5,
+        average: 10,
+        high: 15,
+      });
+    });
+  });
+});
+
+// ...
+```
+
+<details><summary><b>View whole file</b></summary><br />
+
+``` typescript
 import nock from 'nock';
 
 import type { GasPricesServiceMessenger } from './gas-prices-service';
@@ -184,14 +386,13 @@ function buildMessenger(): GasPricesServiceMessenger {
   });
 }
 ```
+</details>
 
-And that's it!
+## How to use a data service
 
-## How to use a service
+Let's say that we wanted to use our data service that we built above. To do this, we will instantiate the messenger for the data service — which itself relies on a global messenger — and then the data service itself.
 
-Let's say that we wanted to use our service that we built above. To do this, we will instantiate the messenger for the service — which itself relies on a global messenger — and then the service itself.
-
-First we need to import the service:
+First we need to import the data service:
 
 ```typescript
 import { GasPricesService } from '@metamask/gas-prices-service';
@@ -203,7 +404,7 @@ Then we create a global messenger:
 const globalMessenger = new Messenger();
 ```
 
-Then we create a messenger restricted to the actions and events GasPricesService exposes. In this case we don't need to specify anything for `allowedActions` and `allowedEvents` because the messenger does not need actions or events from any other messengers:
+Then we create a messenger for the GasPricesService:
 
 ```typescript
 const gasPricesServiceMessenger = globalMessenger.getRestricted({
@@ -212,7 +413,7 @@ const gasPricesServiceMessenger = globalMessenger.getRestricted({
 });
 ```
 
-Now we instantiate the service to register the action handler on the global messenger. We assume we have a global `fetch` function available:
+Now we instantiate the data service to register the action handler on the global messenger. We assume we have a global `fetch` function available:
 
 ```typescript
 const gasPricesService = new GasPricesService({
@@ -221,9 +422,11 @@ const gasPricesService = new GasPricesService({
 });
 ```
 
-Great! Now that we've set up the service and its messenger action, we can use it somewhere else.
+Great! Now that we've set up the data service and its messenger action, we can use it somewhere else.
 
-Let's say we had a controller and we wanted to use it there. All we'd need to do is define that controller's messenger type to allow access to `GasPricesService:fetchGasPrices`. This code would probably be the controller package itself. For instance if we had a file `packages/send-controller/send-controller.ts`, we might have:
+Let's say we wanted to use it in a controller. We'd just need to allow that controller's messenger access to `GasPricesService:fetchGasPrices` by passing it via the `allowedActions` option.
+
+This code would probably be in the controller package itself. For instance, if we had a file `packages/send-controller/send-controller.ts`, we might have:
 
 ```typescript
 import { GasPricesServiceFetchGasPricesAction } from '@metamask/gas-prices-service';
@@ -248,10 +451,16 @@ type SendControllerMessenger = RestrictedMessenger<
 Then, later on in our controller, we could say:
 
 ```typescript
-const gasPrices = await this.#messagingSystem.call(
-  'GasPricesService:fetchGasPrices',
-);
-// ... use gasPrices somehow ...
+class SendController extends BaseController {
+  // ...
+
+  await someMethodThatUsesGasPrices() {
+    const gasPrices = await this.#messagingSystem.call(
+      'GasPricesService:fetchGasPrices',
+    );
+    // ... use gasPrices somehow ...
+  }
+}
 ```
 
 ## Learning more
