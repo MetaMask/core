@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added optional `SupportedKeyDerivationOptions` type parameter to the `ExportableKeyEncryptor` type ([#5963](https://github.com/MetaMask/core/pull/5963))
+  - This type parameter allows specifying the key derivation options supported by the injected encryptor.
+
 ### Changed
 
 - **BREAKING:** The `cacheEncryptionKey` parameter has been removed from the `KeyringController` constructor options ([#5963](https://github.com/MetaMask/core/pull/5963))
@@ -14,11 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** The `submitEncryptionKey` method does not accept an `encryptionSalt` argument anymore ([#5963](https://github.com/MetaMask/core/pull/5963))
   - The encryption salt is now always taken from the vault.
 - **BREAKING:** The `KeyringController` constructor now requries an encryptor supporting the `keyFromPassword`, `exportKey` and `generateSalt` methods ([#5963](https://github.com/MetaMask/core/pull/5963))
-
-### Added
-
-- Added optional `SupportedKeyDerivationOptions` type parameter to the `ExportableKeyEncryptor` type ([#5963](https://github.com/MetaMask/core/pull/5963))
-  - This type parameter allows specifying the key derivation options supported by the injected encryptor.
 
 ## [22.0.2]
 
