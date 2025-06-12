@@ -2511,11 +2511,9 @@ describe('KeyringController', () => {
       await withController(async ({ controller, encryptor }) => {
         const newPassword = 'new-password';
         const keyFromPasswordSpy = jest.spyOn(encryptor, 'keyFromPassword');
-        const spiedEncryptionFn = jest.spyOn(encryptor, 'encryptWithKey');
 
         await controller.changePassword(newPassword);
 
-        // we pick the first argument of the first call
         expect(keyFromPasswordSpy).toHaveBeenCalledWith(
           newPassword,
           controller.state.encryptionSalt,
@@ -3022,7 +3020,7 @@ describe('KeyringController', () => {
     });
 
     it('should throw error if vault unlocked has an unexpected shape', async () => {
-      await withController(async ({ controller, initialState, encryptor }) => {
+      await withController(async ({ controller, encryptor }) => {
         jest.spyOn(encryptor, 'decryptWithKey').mockResolvedValueOnce([
           {
             foo: 'bar',
@@ -3036,7 +3034,7 @@ describe('KeyringController', () => {
     });
 
     it('should throw error if encryptionKey is of an unexpected type', async () => {
-      await withController(async ({ controller, initialState }) => {
+      await withController(async ({ controller }) => {
         await expect(
           controller.submitEncryptionKey(
             // @ts-expect-error we are testing the case of a user using

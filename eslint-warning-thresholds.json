@@ -213,10 +213,10 @@
   },
   "packages/keyring-controller/src/KeyringController.test.ts": {
     "import-x/namespace": 14,
-    "jest/no-conditional-in-test": 8
+    "jest/no-conditional-in-test": 7
   },
   "packages/keyring-controller/src/KeyringController.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": 4,
+    "@typescript-eslint/no-unsafe-enum-comparison": 3,
     "@typescript-eslint/no-unused-vars": 1
   },
   "packages/keyring-controller/tests/mocks/mockKeyring.ts": {
@@ -260,7 +260,6 @@
     "import-x/order": 1
   },
   "packages/multichain/src/adapters/caip-permission-adapter-eth-accounts.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": 1,
     "jsdoc/tag-lines": 5
   },
   "packages/multichain/src/adapters/caip-permission-adapter-permittedChains.test.ts": {
@@ -325,7 +324,7 @@
     "jsdoc/require-returns": 1
   },
   "packages/multichain/src/scope/supported.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": 6
+    "@typescript-eslint/no-unsafe-enum-comparison": 3
   },
   "packages/multichain/src/scope/validation.ts": {
     "jsdoc/tag-lines": 2

@@ -64,7 +64,7 @@ export default class MockEncryptor implements ExportableKeyEncryptor {
     };
   }
 
-  async decryptWithKey(key: unknown, text: string) {
+  async decryptWithKey(_key: unknown, _text: string) {
     return JSON.parse(this.cacheVal || '') ?? {};
   }
 
