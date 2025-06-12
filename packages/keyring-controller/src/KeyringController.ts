@@ -2124,6 +2124,8 @@ export class KeyringController extends BaseController<
    * is generated and used to derive the key.
    *
    * @param password - The password to use for decryption or derivation.
+   * @param options - Options for the key derivation.
+   * @param options.ignoreVautKeyMetadata - Whether to ignore the vault key metadata
    */
   async #deriveEncryptionKey(
     password: string,
