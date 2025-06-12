@@ -54,7 +54,6 @@
 ## Wallet API Platform Team
 /packages/chain-agnostic-permission        @MetaMask/wallet-api-platform-engineers
 /packages/eip1193-permission-middleware    @MetaMask/wallet-api-platform-engineers
-/packages/multichain                       @MetaMask/wallet-api-platform-engineers
 /packages/multichain-api-middleware        @MetaMask/wallet-api-platform-engineers
 /packages/queued-request-controller        @MetaMask/wallet-api-platform-engineers
 /packages/selected-network-controller      @MetaMask/wallet-api-platform-engineers
