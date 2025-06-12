@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - renamed `fetchAllSeedPhrases` method to `fetchAllSecretData` and updated the return value to `Record<SecretType, Uint8Array[]>`.
   - added new error message, `MissingKeyringId` which will throw if no `keyringId` is provided during seed phrase (Mnemonic) backup.
 
+### Changed
+
+- **BREAKING:** `SeedlessOnboardingController` now requires an additional `SupportedKeyDerivationOptions` type parameter ([#5963](https://github.com/MetaMask/core/pull/5963))
+
 ## [1.0.0]
 
 ### Added
