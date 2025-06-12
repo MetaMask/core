@@ -564,7 +564,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     }
 
     const bridgeFeatureFlags = getBridgeFeatureFlags(this.messagingSystem);
-    const request = bridgeFeatureFlags?.chains?.[SolScope.Mainnet]?.isSnapConfirmationEnabled
+    const request = bridgeFeatureFlags?.chains?.[SolScope.Mainnet]
+      ?.isSnapConfirmationEnabled
       ? getKeyringRequest(quoteResponse, selectedAccount)
       : getClientRequest(quoteResponse, selectedAccount);
     const requestResponse = (await this.messagingSystem.call(
