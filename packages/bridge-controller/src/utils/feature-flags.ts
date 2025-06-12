@@ -3,10 +3,7 @@ import type { RemoteFeatureFlagControllerState } from '@metamask/remote-feature-
 import { formatChainIdToCaip } from './caip-formatters';
 import { validateFeatureFlagsResponse } from './validators';
 import { DEFAULT_FEATURE_FLAG_CONFIG } from '../constants/bridge';
-import type {
-  FeatureFlagsPlatformConfig,
-  ChainConfiguration,
-} from '../types';
+import type { FeatureFlagsPlatformConfig, ChainConfiguration } from '../types';
 
 export const formatFeatureFlags = (
   bridgeFeatureFlags: FeatureFlagsPlatformConfig,
@@ -43,7 +40,9 @@ export const processFeatureFlags = (
  */
 export function getBridgeFeatureFlags<
   T extends {
-    call(action: 'RemoteFeatureFlagController:getState'): RemoteFeatureFlagControllerState;
+    call(
+      action: 'RemoteFeatureFlagController:getState',
+    ): RemoteFeatureFlagControllerState;
   },
 >(messenger: T): FeatureFlagsPlatformConfig {
   // This will return the bridgeConfig for the current platform even without specifying the platform
