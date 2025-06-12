@@ -100,7 +100,6 @@ export async function fetchBridgeQuotes(
   const quotes: unknown[] = await fetchFn(url, {
     headers: getClientIdHeader(clientId),
     signal,
-    cacheOptions: { cacheRefreshTime: 0 },
     functionName: 'fetchBridgeQuotes',
   });
 
@@ -136,8 +135,9 @@ const fetchAssetPricesForCurrency = async (request: {
   assetIds: Set<CaipAssetType>;
   clientId: string;
   fetchFn: FetchFunction;
+  signal?: AbortSignal;
 }): Promise<Record<CaipAssetType, { [currency: string]: string }>> => {
-  const { currency, assetIds, clientId, fetchFn } = request;
+  const { currency, assetIds, clientId, fetchFn, signal } = request;
   const validAssetIds = Array.from(assetIds).filter(Boolean);
   if (validAssetIds.length === 0) {
     return {};
@@ -150,7 +150,7 @@ const fetchAssetPricesForCurrency = async (request: {
   const url = `https://price.api.cx.metamask.io/v3/spot-prices?${queryParams}`;
   const priceApiResponse = (await fetchFn(url, {
     headers: getClientIdHeader(clientId),
-    cacheOptions: { cacheRefreshTime: Number(Duration.Second * 30) },
+    signal,
     functionName: 'fetchAssetExchangeRates',
   })) as Record<CaipAssetType, { [currency: string]: number }>;
 

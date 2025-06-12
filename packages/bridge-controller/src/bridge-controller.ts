@@ -377,6 +377,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       currencies: new Set([currency]),
       clientId: this.#clientId,
       fetchFn: this.#fetchFn,
+      signal: this.#abortController?.signal,
     });
     const exchangeRates = toExchangeRates(currency, pricesByAssetId);
     this.update((state) => {

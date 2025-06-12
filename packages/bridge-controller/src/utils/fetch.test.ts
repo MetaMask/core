@@ -173,9 +173,6 @@ describe('fetch', () => {
       expect(mockFetchFn).toHaveBeenCalledWith(
         'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&destWalletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&insufficientBal=false&resetApproval=false&slippage=0.5',
         {
-          cacheOptions: {
-            cacheRefreshTime: 0,
-          },
           functionName: 'fetchBridgeQuotes',
           headers: { 'X-Client-Id': 'extension' },
           signal,
@@ -212,9 +209,6 @@ describe('fetch', () => {
       expect(mockFetchFn).toHaveBeenCalledWith(
         'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&destWalletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&insufficientBal=false&resetApproval=false&slippage=0.5',
         {
-          cacheOptions: {
-            cacheRefreshTime: 0,
-          },
           functionName: 'fetchBridgeQuotes',
           headers: { 'X-Client-Id': 'extension' },
           signal,
@@ -275,9 +269,6 @@ describe('fetch', () => {
       expect(mockFetchFn).toHaveBeenCalledWith(
         'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&destWalletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&insufficientBal=false&resetApproval=false&slippage=0.5',
         {
-          cacheOptions: {
-            cacheRefreshTime: 0,
-          },
           functionName: 'fetchBridgeQuotes',
           headers: { 'X-Client-Id': 'extension' },
           signal,
@@ -296,6 +287,7 @@ describe('fetch', () => {
     });
 
     it('should fetch and combine prices for multiple currencies successfully', async () => {
+      const abortController = new AbortController();
       mockFetchFn
         .mockResolvedValueOnce({
           'eip155:1/erc20:0x123': { USD: '1.5' },
@@ -315,6 +307,7 @@ describe('fetch', () => {
         baseUrl: 'https://api.example.com',
         fetchFn: mockFetchFn,
         clientId: 'test',
+        signal: abortController.signal,
         assetIds: new Set([
           'eip155:1/erc20:0x123',
           'eip155:1/erc20:0x456',
@@ -340,7 +333,7 @@ describe('fetch', () => {
         'https://price.api.cx.metamask.io/v3/spot-prices?assetIds=eip155%3A1%2Ferc20%3A0x123%2Ceip155%3A1%2Ferc20%3A0x456&vsCurrency=USD',
         {
           headers: { 'X-Client-Id': 'test' },
-          cacheOptions: { cacheRefreshTime: 30000 },
+          signal: abortController.signal,
           functionName: 'fetchAssetExchangeRates',
         },
       );
@@ -348,7 +341,7 @@ describe('fetch', () => {
         'https://price.api.cx.metamask.io/v3/spot-prices?assetIds=eip155%3A1%2Ferc20%3A0x123%2Ceip155%3A1%2Ferc20%3A0x456&vsCurrency=EUR',
         {
           headers: { 'X-Client-Id': 'test' },
-          cacheOptions: { cacheRefreshTime: 30000 },
+          signal: abortController.signal,
           functionName: 'fetchAssetExchangeRates',
         },
       );
