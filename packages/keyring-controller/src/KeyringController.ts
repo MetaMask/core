@@ -432,6 +432,7 @@ export type ExportableKeyEncryptor<EncryptionKey = unknown> =
      * @returns The encryption key.
      */
     importKey: (key: string) => Promise<EncryptionKey>;
+    generateKey: () => Promise<string>;
   };
 
 export type KeyringSelector =
@@ -1485,7 +1486,7 @@ export class KeyringController extends BaseController<
       this.#password = password;
 
       // Update encryption key.
-      this.#updateCachedEncryptionKey(encryptionKey);
+      await this.#updateCachedEncryptionKey(encryptionKey);
 
       // We need to clear encryption key and salt from state
       // to force the controller to re-encrypt the vault using
@@ -2161,7 +2162,7 @@ export class KeyringController extends BaseController<
 
     this.#password = password;
 
-    this.#updateCachedEncryptionKey(encryptionKey);
+    await this.#updateCachedEncryptionKey(encryptionKey);
 
     await this.#clearKeyrings();
     await this.#createKeyringWithFirstAccount(keyring.type, keyring.opts);
@@ -2173,11 +2174,12 @@ export class KeyringController extends BaseController<
    *
    * @param encryptionKey - Optional new vault encryption key.
    */
-  #updateCachedEncryptionKey(encryptionKey?: string) {
-    if (!encryptionKey && this.state.encryptedEncryptionKey) {
-      this.#encryptionKey = this.state.encryptionKey;
-    } else {
+  async #updateCachedEncryptionKey(encryptionKey?: string) {
+    if (encryptionKey) {
       this.#encryptionKey = encryptionKey;
+    } else {
+      assertIsExportableKeyEncryptor(this.#encryptor);
+      this.#encryptionKey = await this.#encryptor.generateKey();
     }
   }
 

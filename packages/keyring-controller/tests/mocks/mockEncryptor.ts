@@ -108,6 +108,10 @@ export default class MockEncryptor implements ExportableKeyEncryptor {
   isVaultUpdated(_vault: string) {
     return true;
   }
+
+  generateKey(): Promise<string> {
+    return Promise.resolve(MOCK_ENCRYPTION_KEY);
+  }
 }
 
 function generateSalt() {
