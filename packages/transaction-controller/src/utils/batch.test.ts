@@ -578,7 +578,6 @@ describe('Batch Utils', () => {
 
     describe('validates security', () => {
       it('using transaction params', async () => {
-
         isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
           delegationAddress: undefined,
           isSupported: true,
