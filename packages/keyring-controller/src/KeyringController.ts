@@ -2168,10 +2168,7 @@ export class KeyringController extends BaseController<
    * @param encryptionKey - The encryption key to use.
    * @param encryptionSalt - The salt to use for the encryption key.
    */
-  async #useEncryptionKey(
-    encryptionKey: string,
-    encryptionSalt: string,
-  ): Promise<void> {
+  #useEncryptionKey(encryptionKey: string, encryptionSalt: string): void {
     this.#assertControllerMutexIsLocked();
 
     if (
@@ -2355,7 +2352,7 @@ export class KeyringController extends BaseController<
         await this.#deriveEncryptionKey(credentials.password);
       } else {
         const { exportedEncryptionKey } = credentials;
-        await this.#useEncryptionKey(
+        this.#useEncryptionKey(
           exportedEncryptionKey,
           parsedEncryptedVault.salt,
         );
