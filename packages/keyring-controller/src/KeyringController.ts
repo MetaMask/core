@@ -453,6 +453,9 @@ export type ExportableKeyEncryptor<EncryptionKey = unknown> =
       password: string,
       salt: string,
       exportable?: boolean,
+      // setting this to unknown as currently each client has different
+      // key derivation options
+      keyDerivationOptions?: unknown,
     ) => Promise<EncryptionKey>;
     /**
      * Generates a random salt for key derivation.
@@ -1497,6 +1500,12 @@ export class KeyringController extends BaseController<
       // can attempt to upgrade the vault.
       await this.#withRollback(async () => {
         if (newMetadata || this.#isNewEncryptionAvailable()) {
+          await this.#deriveEncryptionKey(password, {
+            // If the vault is being upgraded, we want to ignore the metadata
+            // that is already in the vault, so we can effectively
+            // re-encrypt the vault with the new encryption config.
+            ignoreVautKeyMetadata: true,
+          });
           await this.#updateVault();
         }
       });
@@ -2116,7 +2125,12 @@ export class KeyringController extends BaseController<
    *
    * @param password - The password to use for decryption or derivation.
    */
-  async #deriveEncryptionKey(password: string): Promise<void> {
+  async #deriveEncryptionKey(
+    password: string,
+    options: { ignoreVautKeyMetadata: boolean } = {
+      ignoreVautKeyMetadata: false,
+    },
+  ): Promise<void> {
     this.#assertControllerMutexIsLocked();
     const { vault } = this.state;
 
@@ -2124,18 +2138,22 @@ export class KeyringController extends BaseController<
       throw new TypeError(KeyringControllerError.WrongPasswordType);
     }
 
-    let salt: string;
-    if (vault) {
-      salt = JSON.parse(vault).salt;
+    let salt: string, keyMetadata: unknown;
+    if (vault && !options.ignoreVautKeyMetadata) {
+      const parsedVault = JSON.parse(vault);
+      salt = parsedVault.salt;
+      keyMetadata = parsedVault.keyMetadata;
     } else {
       salt = this.#encryptor.generateSalt();
     }
 
+    const exportedEncryptionKey = await this.#encryptor.exportKey(
+      await this.#encryptor.keyFromPassword(password, salt, true, keyMetadata),
+    );
+
     this.#encryptionKey = {
       salt,
-      exported: await this.#encryptor.exportKey(
-        await this.#encryptor.keyFromPassword(password, salt, true),
-      ),
+      exported: exportedEncryptionKey,
     };
   }
 
@@ -2153,6 +2171,13 @@ export class KeyringController extends BaseController<
     encryptionSalt: string,
   ): Promise<void> {
     this.#assertControllerMutexIsLocked();
+
+    if (
+      typeof encryptionKey !== 'string' ||
+      typeof encryptionSalt !== 'string'
+    ) {
+      throw new TypeError(KeyringControllerError.WrongEncryptionKeyType);
+    }
 
     this.#encryptionKey = {
       salt: encryptionSalt,

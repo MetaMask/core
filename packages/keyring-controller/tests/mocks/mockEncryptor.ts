@@ -14,7 +14,7 @@ export const MOCK_ENCRYPTION_SALT =
 export const MOCK_HARDCODED_KEY = 'key';
 export const MOCK_HEX = '0xabcdef0123456789';
 // eslint-disable-next-line no-restricted-globals
-const MOCK_KEY = Buffer.alloc(32);
+export const MOCK_KEY = Buffer.alloc(32);
 const INVALID_PASSWORD_ERROR = 'Incorrect password.';
 
 export default class MockEncryptor implements ExportableKeyEncryptor {
@@ -65,20 +65,19 @@ export default class MockEncryptor implements ExportableKeyEncryptor {
   }
 
   async decryptWithKey(key: unknown, text: string) {
-    return this.decrypt(key as string, text);
+    return JSON.parse(this.cacheVal || '') ?? {};
   }
 
-  async keyFromPassword(_password: string) {
-    return MOCK_KEY;
+  async keyFromPassword(_password: string, _salt?: string) {
+    return JSON.parse(MOCK_ENCRYPTION_KEY);
   }
 
   async importKey(key: string) {
-    if (key === '{}') {
-      throw new TypeError(
-        `Failed to execute 'importKey' on 'SubtleCrypto': The provided value is not of type '(ArrayBuffer or ArrayBufferView or JsonWebKey)'.`,
-      );
-    }
-    return null;
+    return JSON.parse(key);
+  }
+
+  async exportKey(key: unknown) {
+    return JSON.stringify(key);
   }
 
   async updateVault(_vault: string, _password: string) {
