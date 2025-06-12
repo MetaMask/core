@@ -29,6 +29,7 @@ export const SUPPORTED_CHAIN_IDS: Hex[] = [
   CHAIN_IDS.OPTIMISM,
   CHAIN_IDS.ARBITRUM,
   CHAIN_IDS.SCROLL,
+  CHAIN_IDS.SEI,
 ];
 
 const log = createModuleLogger(
@@ -114,7 +115,7 @@ export class AccountsApiRemoteTransactionSource
     cursor?: string,
     timestamp?: number,
   ): Promise<TransactionResponse[]> {
-    const { address, queryEntireHistory } = request;
+    const { address, queryEntireHistory, tags } = request;
     const transactions: TransactionResponse[] = [];
 
     let hasNextPage = true;
@@ -135,6 +136,7 @@ export class AccountsApiRemoteTransactionSource
           cursor: currentCursor,
           sortDirection: 'ASC',
           startTimestamp,
+          tags,
         });
 
         pageCount += 1;

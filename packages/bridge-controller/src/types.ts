@@ -64,6 +64,7 @@ export type ChainConfiguration = {
   isActiveDest: boolean;
   refreshRate?: number;
   topAssets?: string[];
+  isUnifiedUIEnabled?: boolean;
 };
 
 export type L1GasFees = {
@@ -276,7 +277,7 @@ export type Quote = {
   bridges: string[];
   steps: Step[];
   refuel?: RefuelData;
-  bridgePriceData?: {
+  priceData?: {
     totalFromAmountUsd?: string;
     totalToAmountUsd?: string;
     priceImpact?: string;
@@ -325,6 +326,7 @@ export type TxData = {
 };
 
 export type FeatureFlagsPlatformConfig = {
+  minimumVersion: string;
   refreshRate: number;
   maxRefreshCount: number;
   support: boolean;
@@ -359,6 +361,11 @@ export type BridgeControllerState = {
    * Asset exchange rates for EVM and multichain assets that are not indexed by the assets controllers
    */
   assetExchangeRates: Record<CaipAssetType, ExchangeRate>;
+  /**
+   * When the src token is SOL, this needs to be subtracted from their balance to determine
+   * the max amount that can be sent.
+   */
+  minimumBalanceForRentExemptionInLamports: string | null;
 };
 
 export type BridgeControllerAction<

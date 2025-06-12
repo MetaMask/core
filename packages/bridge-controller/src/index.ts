@@ -28,7 +28,6 @@ export type {
   L1GasFees,
   SolanaFees,
   QuoteMetadata,
-  BridgeToken,
   GasMultiplierByChainId,
   FeatureFlagResponse,
   BridgeAsset,
@@ -101,9 +100,14 @@ export {
   isSolanaChainId,
   getNativeAssetForChainId,
   getDefaultBridgeControllerState,
+  isCrossChain,
 } from './utils/bridge';
 
-export { isValidQuoteRequest, formatEtaInMinutes } from './utils/quote';
+export {
+  isValidQuoteRequest,
+  formatEtaInMinutes,
+  calcSlippagePercentage,
+} from './utils/quote';
 
 export { calcLatestSrcBalance } from './utils/balance';
 
@@ -119,13 +123,9 @@ export {
   selectBridgeQuotes,
   type BridgeAppState,
   selectExchangeRateByChainIdAndAddress,
-  /**
-   * Returns whether a quote is expired
-   *
-   * @param state The state of the bridge controller and its dependency controllers
-   * @param currentTimeInMs The current timestamp in milliseconds (e.g. `Date.now()`)
-   * @returns Whether the quote is expired
-   */
   selectIsQuoteExpired,
   selectBridgeFeatureFlags,
+  selectMinimumBalanceForRentExemptionInSOL,
 } from './selectors';
+
+export { DEFAULT_FEATURE_FLAG_CONFIG } from './constants/bridge';

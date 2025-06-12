@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [30.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/providers` peer dependency from `^21.0.0` to `^22.0.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
+- **BREAKING:** Bump `@metamask/snaps-controllers` peer dependency from `^11.0.0` to `^12.0.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
+
+## [29.0.1]
+
+### Fixed
+
+- Prevent use of `undefined` Snap during `SnapController:stateChange` ([#5884](https://github.com/MetaMask/core/pull/5884))
+  - We were assuming that the Snap will always be defined, but this might not always be true.
+- Populate `.options.entropySource` for new `InternalAccount`s before publishing `:accountAdded` ([#5841](https://github.com/MetaMask/core/pull/5841))
+
+## [29.0.0]
+
+### Changed
+
+- **BREAKING:** bump `@metamask/keyring-controller` peer dependency to `^22.0.0` ([#5802](https://github.com/MetaMask/core/pull/5802))
+
 ## [28.0.0]
 
 ### Added
@@ -528,7 +549,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@28.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@30.0.0...HEAD
+[30.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@29.0.1...@metamask/accounts-controller@30.0.0
+[29.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@29.0.0...@metamask/accounts-controller@29.0.1
+[29.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@28.0.0...@metamask/accounts-controller@29.0.0
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@27.0.0...@metamask/accounts-controller@28.0.0
 [27.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@26.1.0...@metamask/accounts-controller@27.0.0
 [26.1.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@26.0.0...@metamask/accounts-controller@26.1.0

@@ -8,6 +8,7 @@ export type {
   MultichainAssetsControllerGetStateAction,
   MultichainAssetsControllerStateChangeEvent,
   MultichainAssetsControllerActions,
-  MultichainAssetsControllerEvents,
   MultichainAssetsControllerMessenger,
+  MultichainAssetsControllerAccountAssetListUpdatedEvent,
+  MultichainAssetsControllerEvents,
 } from './MultichainAssetsController';

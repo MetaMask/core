@@ -67,7 +67,7 @@ type GrantedPermissions = Awaited<
  */
 async function requestPermissionsImplementation(
   req: JsonRpcRequest<[RequestedPermissions]> & { origin: string },
-  res: PendingJsonRpcResponse<Json>,
+  res: PendingJsonRpcResponse,
   _next: AsyncJsonRpcEngineNextCallback,
   end: JsonRpcEngineEndCallback,
   {

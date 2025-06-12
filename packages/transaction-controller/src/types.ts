@@ -70,6 +70,12 @@ export type TransactionMeta = {
   chainId: Hex;
 
   /**
+   * List of container types applied to the original transaction data.
+   * For example, through delegations.
+   */
+  containerTypes?: TransactionContainerType[];
+
+  /**
    * A string representing a name of transaction contract method.
    */
   contractMethodName?: string;
@@ -490,6 +496,52 @@ export type TransactionMeta = {
   };
 };
 
+/**
+ * Information about a batch transaction.
+ */
+export type TransactionBatchMeta = {
+  /**
+   * Network code as per EIP-155 for this transaction.
+   */
+  chainId: Hex;
+
+  /**
+   * Address to send this transaction from.
+   */
+  from: string;
+
+  /** Alternate EIP-1559 gas fee estimates for multiple priority levels. */
+  gasFeeEstimates?: GasFeeEstimates;
+
+  /**
+   * Maximum number of units of gas to use for this transaction batch.
+   */
+  gas?: string;
+
+  /**
+   * ID of the associated transaction batch.
+   */
+  id: string;
+
+  /**
+   * The ID of the network client used by the transaction.
+   */
+  networkClientId: NetworkClientId;
+
+  /**
+   * Origin this transaction was sent from.
+   */
+  origin?: string;
+
+  /** Current status of the transaction. */
+  status: TransactionStatus;
+
+  /**
+   * Data for any EIP-7702 transactions.
+   */
+  transactions?: NestedTransactionMetadata[];
+};
+
 export type SendFlowHistoryEntry = {
   /**
    * String to indicate user interaction information.
@@ -639,6 +691,11 @@ export enum TransactionType {
   lendingDeposit = 'lendingDeposit',
 
   /**
+   * A transaction that withdraws tokens from a lending contract.
+   */
+  lendingWithdraw = 'lendingWithdraw',
+
+  /**
    * A transaction for personal sign.
    */
   personalSign = 'personal_sign',
@@ -742,6 +799,11 @@ export enum TransactionType {
    * Increase the allowance by a given increment
    */
   tokenMethodIncreaseAllowance = 'increaseAllowance',
+}
+
+export enum TransactionContainerType {
+  /** Transaction has been converted to a delegation including caveats to validate the simulated balance changes. */
+  EnforcedSimulations = 'enforcedSimulations',
 }
 
 /**
@@ -945,6 +1007,11 @@ export interface RemoteTransactionSourceRequest {
    * Whether to initially query the entire transaction history.
    */
   queryEntireHistory: boolean;
+
+  /**
+   * Additional tags to identify the source of the request.
+   */
+  tags?: string[];
 
   /**
    * Callback to update the cache.
@@ -1509,7 +1576,7 @@ export type BatchTransactionParams = {
 
 /** Metadata for a nested transaction within a standard transaction. */
 export type NestedTransactionMetadata = BatchTransactionParams & {
-  /** Type of the neted transaction. */
+  /** Type of the nested transaction. */
   type?: TransactionType;
 };
 
@@ -1564,9 +1631,21 @@ export type TransactionBatchRequest = {
   /** Transactions to be submitted as part of the batch. */
   transactions: TransactionBatchSingleRequest[];
 
+  /** Whether to disable batch transaction processing via an EIP-7702 upgraded account. */
+  disable7702?: boolean;
+
+  /** Whether to disable batch transaction via the `publishBatch` hook. */
+  disableHook?: boolean;
+
+  /** Whether to disable batch transaction via sequential transactions. */
+  disableSequential?: boolean;
+
   /**
    * Whether to use the publish batch hook to submit the batch.
    * Defaults to false.
+   *
+   * @deprecated This is no longer used and will be removed in a future version.
+   * Use `disableHook`, `disable7702` and `disableSequential`.
    */
   useHook?: boolean;
 
@@ -1702,6 +1781,9 @@ export type ValidateSecurityRequest = {
 
   /** Optional EIP-7702 delegation to mock for the transaction sender. */
   delegationMock?: Hex;
+
+  /** Origin of the request, such as a dApp hostname or `ORIGIN_METAMASK` if internal. */
+  origin?: string;
 };
 
 /** Data required to pay for transaction gas using an ERC-20 token. */
@@ -1714,6 +1796,9 @@ export type GasFeeToken = {
 
   /** Decimals of the token. */
   decimals: number;
+
+  /** Portion of the amount that is the fee paid to MetaMask. */
+  fee?: Hex;
 
   /** Estimated gas limit required for original transaction. */
   gas: Hex;
@@ -1779,3 +1864,30 @@ export type AfterAddHook = (request: {
 }) => Promise<{
   updateTransaction?: (transaction: TransactionMeta) => void;
 }>;
+
+/**
+ * Custom logic to be executed after a transaction is simulated.
+ * Can optionally update the transaction by returning the `updateTransaction` callback.
+ */
+export type AfterSimulateHook = (request: {
+  transactionMeta: TransactionMeta;
+}) => Promise<
+  | {
+      skipSimulation?: boolean;
+      updateTransaction?: (transaction: TransactionMeta) => void;
+    }
+  | undefined
+>;
+
+/**
+ * Custom logic to be executed before a transaction is signed.
+ * Can optionally update the transaction by returning the `updateTransaction` callback.
+ */
+export type BeforeSignHook = (request: {
+  transactionMeta: TransactionMeta;
+}) => Promise<
+  | {
+      updateTransaction?: (transaction: TransactionMeta) => void;
+    }
+  | undefined
+>;

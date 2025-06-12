@@ -57,15 +57,11 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
   });
 
   it('hits the RPC endpoint and does not reuse the result of a previous request if the latest block number was updated since', async () => {
+    const pollingInterval = 1234;
     const requests = [{ method }, { method }];
     const mockResults = [{ blockHash: '0x100' }, { blockHash: '0x200' }];
 
     await withMockedCommunications({ providerType }, async (comms) => {
-      // Note that we have to mock these requests in a specific order. The
-      // first block tracker request occurs because of the first RPC
-      // request. The second block tracker request, however, does not occur
-      // because of the second RPC request, but rather because we call
-      // `clock.runAll()` below.
       comms.mockNextBlockTrackerRequest({ blockNumber: '0x1' });
       comms.mockRpcCall({
         request: requests[0],
@@ -78,13 +74,32 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
       });
 
       const results = await withNetworkClient(
-        { providerType },
-        async (client) => {
-          const firstResult = await client.makeRpcCall(requests[0]);
+        {
+          providerType,
+          getBlockTrackerOptions: () => ({
+            pollingInterval,
+          }),
+        },
+        async ({ blockTracker, makeRpcCall, clock }) => {
+          const waitForTwoBlocks = new Promise<void>((resolve) => {
+            let numberOfBlocks = 0;
+
+            // Start the block tracker
+            blockTracker.on('latest', () => {
+              numberOfBlocks += 1;
+              // eslint-disable-next-line jest/no-conditional-in-test
+              if (numberOfBlocks === 2) {
+                resolve();
+              }
+            });
+          });
+
+          const firstResult = await makeRpcCall(requests[0]);
           // Proceed to the next iteration of the block tracker so that a new
           // block is fetched and the current block is updated.
-          client.clock.runAll();
-          const secondResult = await client.makeRpcCall(requests[1]);
+          await clock.tickAsync(pollingInterval);
+          await waitForTwoBlocks;
+          const secondResult = await makeRpcCall(requests[1]);
           return [firstResult, secondResult];
         },
       );
@@ -364,26 +379,6 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
           await expect(promiseForResult).rejects.toThrow(errorMessage);
         });
       });
-
-      testsForRpcFailoverBehavior({
-        providerType,
-        requestToCall: {
-          method,
-          params: [],
-        },
-        getRequestToMock: () => ({
-          method,
-          params: [],
-        }),
-        failure: {
-          httpStatus,
-        },
-        isRetriableFailure: false,
-        getExpectedError: () =>
-          expect.objectContaining({
-            message: errorMessage,
-          }),
-      });
     },
   );
 
@@ -431,6 +426,10 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
       getExpectedError: () =>
         expect.objectContaining({
           message: errorMessage,
+        }),
+      getExpectedBreakError: () =>
+        expect.objectContaining({
+          message: `Fetch failed with status '500'`,
         }),
     });
   });
@@ -526,6 +525,12 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
         getExpectedError: () =>
           expect.objectContaining({
             message: expect.stringContaining(errorMessage),
+          }),
+        getExpectedBreakError: () =>
+          expect.objectContaining({
+            message: expect.stringContaining(
+              `Fetch failed with status '${httpStatus}'`,
+            ),
           }),
       });
     },

@@ -3,17 +3,17 @@ import type { Json, Hex } from '@metamask/utils';
 
 /**
  * A test keyring that returns a shallow copy of the accounts array
- * when calling getAccounts().
+ * when calling `getAccounts()` and `serialize()`.
  *
  * This is used to test the `KeyringController`'s behavior when using this
  * keyring, to make sure that, for example, the keyring's
  * accounts array is not not used to determinate the added account after
  * an operation.
  */
-export default class MockShallowGetAccountsKeyring implements EthKeyring {
-  static type = 'Mock Shallow getAccounts Keyring';
+export default class MockShallowKeyring implements EthKeyring {
+  static type = 'Mock Shallow Keyring';
 
-  public type = MockShallowGetAccountsKeyring.type;
+  public type = MockShallowKeyring.type;
 
   public accounts: Hex[];
 
@@ -24,7 +24,10 @@ export default class MockShallowGetAccountsKeyring implements EthKeyring {
   }
 
   async serialize(): Promise<Json> {
-    return {};
+    return {
+      // Shallow copy
+      accounts: this.accounts,
+    };
   }
 
   async deserialize(state: { accounts: Hex[] }) {

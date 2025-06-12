@@ -14,6 +14,7 @@ import {
   calcSwapRate,
   calcCost,
   formatEtaInMinutes,
+  calcSlippagePercentage,
 } from './quote';
 import type {
   GenericQuoteRequest,
@@ -160,27 +161,32 @@ describe('Quote Metadata Utils', () => {
   });
 
   describe('calcSentAmount', () => {
-    const mockQuote: Quote = {
-      srcTokenAmount: '1000000000',
-      srcAsset: { decimals: 6 },
-      feeData: {
-        metabridge: { amount: '100000000' },
-      },
-    } as Quote;
-
     it('should calculate sent amount correctly with exchange rates', () => {
+      const mockQuote: Quote = {
+        srcTokenAmount: '12555423',
+        srcAsset: { decimals: 6 },
+        feeData: {
+          metabridge: { amount: '100000000' },
+        },
+      } as Quote;
       const result = calcSentAmount(mockQuote, {
-        exchangeRate: '2',
+        exchangeRate: '2.14',
         usdExchangeRate: '1.5',
       });
 
-      // 1000000000 + 100000000 = 1100000000, then divided by 10^6
-      expect(result.amount).toBe('1100');
-      expect(result.valueInCurrency).toBe('2200');
-      expect(result.usd).toBe('1650');
+      expect(result.amount).toBe('112.555423');
+      expect(result.valueInCurrency).toBe('240.86860522');
+      expect(result.usd).toBe('168.8331345');
     });
 
     it('should handle missing exchange rates', () => {
+      const mockQuote: Quote = {
+        srcTokenAmount: '1000000000',
+        srcAsset: { decimals: 6 },
+        feeData: {
+          metabridge: { amount: '100000000' },
+        },
+      } as Quote;
       const result = calcSentAmount(mockQuote, {});
 
       expect(result.amount).toBe('1100');
@@ -189,6 +195,13 @@ describe('Quote Metadata Utils', () => {
     });
 
     it('should handle zero values', () => {
+      const mockQuote: Quote = {
+        srcTokenAmount: '0',
+        srcAsset: { decimals: 6 },
+        feeData: {
+          metabridge: { amount: '0' },
+        },
+      } as Quote;
       const zeroQuote = {
         ...mockQuote,
         srcTokenAmount: '0',
@@ -371,6 +384,157 @@ describe('Quote Metadata Utils', () => {
         parseFloat(result.amount),
       );
     });
+
+    it('should handle missing exchange rates', () => {
+      const result = calcEstimatedAndMaxTotalGasFee({
+        bridgeQuote: mockBridgeQuote,
+        estimatedBaseFeeInDecGwei: '50',
+        maxFeePerGasInDecGwei: '100',
+        maxPriorityFeePerGasInDecGwei: '2',
+        exchangeRate: undefined,
+        usdExchangeRate: undefined,
+      });
+
+      expect(result.valueInCurrency).toBeNull();
+      expect(result.valueInCurrencyMax).toBeNull();
+      expect(result.usd).toBeNull();
+      expect(result.usdMax).toBeNull();
+      expect(result.amount).toBeDefined();
+      expect(result.amountMax).toBeDefined();
+    });
+
+    it('should handle only display currency exchange rate', () => {
+      const result = calcEstimatedAndMaxTotalGasFee({
+        bridgeQuote: mockBridgeQuote,
+        estimatedBaseFeeInDecGwei: '50',
+        maxFeePerGasInDecGwei: '100',
+        maxPriorityFeePerGasInDecGwei: '2',
+        exchangeRate: '2000',
+        usdExchangeRate: undefined,
+      });
+
+      expect(result.valueInCurrency).toBeDefined();
+      expect(result.valueInCurrencyMax).toBeDefined();
+      expect(result.usd).toBeNull();
+      expect(result.usdMax).toBeNull();
+    });
+
+    it('should handle only USD exchange rate', () => {
+      const result = calcEstimatedAndMaxTotalGasFee({
+        bridgeQuote: mockBridgeQuote,
+        estimatedBaseFeeInDecGwei: '50',
+        maxFeePerGasInDecGwei: '100',
+        maxPriorityFeePerGasInDecGwei: '2',
+        exchangeRate: undefined,
+        usdExchangeRate: '1500',
+      });
+
+      expect(result.valueInCurrency).toBeNull();
+      expect(result.valueInCurrencyMax).toBeNull();
+      expect(result.usd).toBeDefined();
+      expect(result.usdMax).toBeDefined();
+    });
+
+    it('should handle zero gas limits', () => {
+      const zeroGasQuote = {
+        quote: {} as Quote,
+        trade: { gasLimit: 0 },
+        approval: { gasLimit: 0 },
+        l1GasFeesInHexWei: '0x0',
+        estimatedProcessingTimeInSeconds: 60,
+      } as QuoteResponse & L1GasFees;
+
+      const result = calcEstimatedAndMaxTotalGasFee({
+        bridgeQuote: zeroGasQuote,
+        estimatedBaseFeeInDecGwei: '50',
+        maxFeePerGasInDecGwei: '100',
+        maxPriorityFeePerGasInDecGwei: '2',
+        exchangeRate: '2000',
+        usdExchangeRate: '1500',
+      });
+
+      expect(result.amount).toBe('0');
+      expect(result.amountMax).toBe('0');
+      expect(result.valueInCurrency).toBe('0');
+      expect(result.usd).toBe('0');
+    });
+
+    it('should handle missing approval', () => {
+      const noApprovalQuote = {
+        quote: {} as Quote,
+        trade: { gasLimit: 21000 },
+        approval: undefined,
+        l1GasFeesInHexWei: '0x5AF3107A4000',
+        estimatedProcessingTimeInSeconds: 60,
+      } as QuoteResponse & L1GasFees;
+
+      const result = calcEstimatedAndMaxTotalGasFee({
+        bridgeQuote: noApprovalQuote,
+        estimatedBaseFeeInDecGwei: '50',
+        maxFeePerGasInDecGwei: '100',
+        maxPriorityFeePerGasInDecGwei: '2',
+        exchangeRate: '2000',
+        usdExchangeRate: '1500',
+      });
+
+      expect(result.amount).toBeDefined();
+      expect(result.amountMax).toBeDefined();
+      expect(parseFloat(result.amountMax)).toBeGreaterThan(
+        parseFloat(result.amount),
+      );
+    });
+
+    it('should handle missing trade gasLimit', () => {
+      const noGasLimitQuote = {
+        quote: {} as Quote,
+        trade: { gasLimit: undefined },
+        approval: { gasLimit: 46000 },
+        l1GasFeesInHexWei: '0x5AF3107A4000',
+        estimatedProcessingTimeInSeconds: 60,
+      } as unknown as QuoteResponse & L1GasFees;
+
+      const result = calcEstimatedAndMaxTotalGasFee({
+        bridgeQuote: noGasLimitQuote,
+        estimatedBaseFeeInDecGwei: '50',
+        maxFeePerGasInDecGwei: '100',
+        maxPriorityFeePerGasInDecGwei: '2',
+        exchangeRate: '2000',
+        usdExchangeRate: '1500',
+      });
+
+      expect(result.amount).toBeDefined();
+      expect(result.amountMax).toBeDefined();
+    });
+
+    it('should handle large gas limits and fees', () => {
+      const largeGasQuote = {
+        quote: {} as Quote,
+        trade: { gasLimit: 1000000 },
+        approval: { gasLimit: 500000 },
+        l1GasFeesInHexWei: '0x1BC16D674EC80000', // 2 ETH in wei
+        estimatedProcessingTimeInSeconds: 60,
+      } as QuoteResponse & L1GasFees;
+
+      const result = calcEstimatedAndMaxTotalGasFee({
+        bridgeQuote: largeGasQuote,
+        estimatedBaseFeeInDecGwei: '100',
+        maxFeePerGasInDecGwei: '200',
+        maxPriorityFeePerGasInDecGwei: '10',
+        exchangeRate: '3000',
+        usdExchangeRate: '2500',
+      });
+
+      expect(parseFloat(result.amount)).toBeGreaterThan(2); // Should be > 2 ETH due to L1 fees
+      expect(parseFloat(result.amountMax)).toBeGreaterThan(
+        parseFloat(result.amount),
+      );
+      expect(result.valueInCurrency).toBeDefined();
+      expect(result.usd).toBeDefined();
+      expect(parseFloat(result.valueInCurrency as string)).toBeGreaterThan(
+        6000,
+      );
+      expect(parseFloat(result.usd as string)).toBeGreaterThan(5000);
+    });
   });
 
   describe('formatEtaInMinutes', () => {
@@ -520,6 +684,47 @@ describe('Quote Metadata Utils', () => {
 
       expect(result.valueInCurrency).toBeNull();
       expect(result.usd).toBeNull();
+    });
+  });
+
+  describe('calcSlippagePercentage', () => {
+    it.each([
+      ['100', null, '100', null, '0'],
+      ['95', '95', '100', '100', '5'],
+      ['98.3', '98.3', '100', '100', '1.7'],
+      [null, '100', null, '100', '0'],
+      [null, null, null, '100', null],
+      ['105', '105', '100', '100', '5'],
+    ])(
+      'calcSlippagePercentage: calculate slippage absolute value for received amount %p, usd %p, sent amount %p, usd %p to expected slippage %p',
+      (
+        returnValueInCurrency: string | null,
+        returnUsd: string | null,
+        sentValueInCurrency: string | null,
+        sentUsd: string | null,
+        expectedSlippage: string | null,
+      ) => {
+        const result = calcSlippagePercentage(
+          {
+            valueInCurrency: returnValueInCurrency,
+            usd: returnUsd,
+          },
+          {
+            amount: '1000',
+            valueInCurrency: sentValueInCurrency,
+            usd: sentUsd,
+          },
+        );
+        expect(result).toBe(expectedSlippage);
+      },
+    );
+
+    it('should handle edge case with zero values', () => {
+      const result = calcSlippagePercentage(
+        { valueInCurrency: '0', usd: '0' },
+        { amount: '100', valueInCurrency: '100', usd: '100' },
+      );
+      expect(result).toBe('100');
     });
   });
 });

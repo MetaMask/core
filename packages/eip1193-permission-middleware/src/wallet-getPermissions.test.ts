@@ -65,7 +65,7 @@ const createMockedHandler = () => {
     }),
   );
   const getAccounts = jest.fn().mockReturnValue([]);
-  const response: PendingJsonRpcResponse<Json> = {
+  const response: PendingJsonRpcResponse = {
     jsonrpc: '2.0' as const,
     id: 0,
   };

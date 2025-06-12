@@ -15,12 +15,19 @@ import {
   MAX_GAS_BLOCK_PERCENT,
   INTRINSIC_GAS,
   DUMMY_AUTHORIZATION_SIGNATURE,
+  simulateGasBatch,
 } from './gas';
-import type { SimulationResponse } from '../api/simulation-api';
+import type {
+  SimulationResponse,
+  SimulationResponseTransaction,
+} from '../api/simulation-api';
 import { simulateTransactions } from '../api/simulation-api';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import { TransactionEnvelopeType, type TransactionMeta } from '../types';
-import type { AuthorizationList } from '../types';
+import type {
+  AuthorizationList,
+  TransactionBatchSingleRequest,
+} from '../types';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
@@ -607,6 +614,54 @@ describe('gas', () => {
       ]);
     });
 
+    describe('with ignoreDelegationSignatures', () => {
+      it('returns gas limit from simulation', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              gasLimit: toHex(SIMULATE_GAS_MOCK) as Hex,
+            },
+          ],
+        } as SimulationResponse);
+
+        mockQuery({
+          getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+          estimateGasResponse: toHex(GAS_2_MOCK),
+        });
+
+        const result = await estimateGas({
+          chainId: CHAIN_ID_MOCK,
+          ethQuery: ETH_QUERY_MOCK,
+          ignoreDelegationSignatures: true,
+          isSimulationEnabled: true,
+          messenger: MESSENGER_MOCK,
+          txParams: TRANSACTION_META_MOCK.txParams,
+        });
+
+        expect(result).toStrictEqual({
+          estimatedGas: toHex(SIMULATE_GAS_MOCK),
+          blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+          simulationFails: undefined,
+          isUpgradeWithDataToSelf: false,
+        });
+      });
+
+      it('throws if simulation disabled', async () => {
+        await expect(
+          estimateGas({
+            chainId: CHAIN_ID_MOCK,
+            ethQuery: ETH_QUERY_MOCK,
+            ignoreDelegationSignatures: true,
+            isSimulationEnabled: false,
+            messenger: MESSENGER_MOCK,
+            txParams: TRANSACTION_META_MOCK.txParams,
+          }),
+        ).rejects.toThrow(
+          'Gas estimation with ignored delegation signatures is not supported as simulation disabled',
+        );
+      });
+    });
+
     describe('with type 4 transaction and data to self', () => {
       it('returns combination of provider estimate and simulation', async () => {
         mockQuery({
@@ -617,7 +672,7 @@ describe('gas', () => {
         simulateTransactionsMock.mockResolvedValueOnce({
           transactions: [
             {
-              gasUsed: toHex(SIMULATE_GAS_MOCK) as Hex,
+              gasLimit: toHex(SIMULATE_GAS_MOCK) as Hex,
             },
           ],
         } as SimulationResponse);
@@ -859,6 +914,151 @@ describe('gas', () => {
       );
 
       expect(result).toBe(toHex(maxGasLimit));
+    });
+  });
+
+  describe('simulateGasBatch', () => {
+    const FROM_MOCK = '0xabc';
+    const TO_MOCK = '0xdef';
+    const VALUE_MOCK = '0x1';
+    const VALUE_MOCK_2 = '0x2';
+    const DATA_MOCK = '0xabcdef';
+    const DATA_MOCK_2 = '0x123456';
+    const GAS_MOCK_1 = '0x5208'; // 21000 gas
+    const GAS_MOCK_2 = '0x7a120'; // 500000 gas
+    const TRANSACTION_BATCH_REQUEST_MOCK = [
+      {
+        params: {
+          data: DATA_MOCK,
+          to: TO_MOCK,
+          value: VALUE_MOCK,
+        },
+      },
+      {
+        params: {
+          data: DATA_MOCK_2,
+          to: TO_MOCK,
+          value: VALUE_MOCK_2,
+        },
+      },
+    ] as TransactionBatchSingleRequest[];
+
+    const SIMULATED_TRANSACTIONS_RESPONSE_MOCK = {
+      transactions: [{ gasLimit: GAS_MOCK_1 }, { gasLimit: GAS_MOCK_2 }],
+    } as unknown as SimulationResponse;
+
+    beforeEach(() => {
+      jest.resetAllMocks();
+    });
+
+    it('returns the total gas limit as a hex string', async () => {
+      simulateTransactionsMock.mockResolvedValueOnce(
+        SIMULATED_TRANSACTIONS_RESPONSE_MOCK,
+      );
+
+      const result = await simulateGasBatch({
+        chainId: CHAIN_ID_MOCK,
+        from: FROM_MOCK,
+        transactions: TRANSACTION_BATCH_REQUEST_MOCK,
+      });
+
+      expect(result).toStrictEqual({
+        gasLimit: '0x7f328', // Total gas limit (21000 + 500000 = 521000)
+      });
+
+      expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
+      expect(simulateTransactionsMock).toHaveBeenCalledWith(CHAIN_ID_MOCK, {
+        transactions: [
+          {
+            ...TRANSACTION_BATCH_REQUEST_MOCK[0].params,
+            from: FROM_MOCK,
+          },
+          {
+            ...TRANSACTION_BATCH_REQUEST_MOCK[1].params,
+            from: FROM_MOCK,
+          },
+        ],
+      });
+    });
+
+    it('throws an error if the simulated response does not match the number of transactions', async () => {
+      simulateTransactionsMock.mockResolvedValueOnce({
+        transactions: [
+          { gasLimit: GAS_MOCK_1 } as unknown as SimulationResponseTransaction,
+        ], // Only one transaction returned
+      });
+
+      await expect(
+        simulateGasBatch({
+          chainId: CHAIN_ID_MOCK,
+          from: FROM_MOCK,
+          transactions: TRANSACTION_BATCH_REQUEST_MOCK,
+        }),
+      ).rejects.toThrow(
+        'Cannot estimate transaction batch total gas as simulation failed',
+      );
+
+      expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('throws an error if no simulated gas is returned for a transaction', async () => {
+      simulateTransactionsMock.mockResolvedValueOnce({
+        transactions: [
+          { gasLimit: undefined },
+          { gasLimit: GAS_MOCK_2 },
+        ] as unknown as SimulationResponseTransaction[],
+      });
+
+      await expect(
+        simulateGasBatch({
+          chainId: CHAIN_ID_MOCK,
+          from: FROM_MOCK,
+          transactions: TRANSACTION_BATCH_REQUEST_MOCK,
+        }),
+      ).rejects.toThrow(
+        'Cannot estimate transaction batch total gas as simulation failed',
+      );
+
+      expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('handles empty transactions gracefully', async () => {
+      simulateTransactionsMock.mockResolvedValueOnce({
+        transactions: [],
+      });
+
+      const result = await simulateGasBatch({
+        chainId: CHAIN_ID_MOCK,
+        from: FROM_MOCK,
+        transactions: [],
+      });
+
+      expect(result).toStrictEqual({
+        gasLimit: '0x0', // Total gas limit is 0
+      });
+
+      expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
+      expect(simulateTransactionsMock).toHaveBeenCalledWith(CHAIN_ID_MOCK, {
+        transactions: [],
+      });
+    });
+
+    it('throws an error if the simulation fails', async () => {
+      simulateTransactionsMock.mockRejectedValueOnce(
+        new Error('Simulation failed'),
+      );
+
+      await expect(
+        simulateGasBatch({
+          chainId: CHAIN_ID_MOCK,
+          from: FROM_MOCK,
+          transactions: TRANSACTION_BATCH_REQUEST_MOCK,
+        }),
+      ).rejects.toThrow(
+        'Cannot estimate transaction batch total gas as simulation failed',
+      );
+
+      expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
     });
   });
 });

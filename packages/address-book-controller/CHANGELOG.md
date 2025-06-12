@@ -9,8 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
+
+## [6.1.0]
+
+### Added
+
+- Add contact event system ([#5779](https://github.com/MetaMask/core/pull/5779))
+  - Add `AddressBookControllerContactUpdatedEvent` and `AddressBookControllerContactDeletedEvent` types for contact events
+  - Add `list` method on `AddressBookController` to get all address book entries as an array
+  - Register message handlers for `list`, `set`, and `delete` actions
+  - Add optional `lastUpdatedAt` property to `AddressBookEntry` to track when contacts were last modified
+
+### Changed
+
 - Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
-- Bump `@metamask/controller-utils` to `^11.8.0` ([#5583](https://github.com/MetaMask/core/pull/5583), [#5765](https://github.com/MetaMask/core/pull/5765))
+- Bump `@metamask/controller-utils` to `^11.9.0` ([#5583](https://github.com/MetaMask/core/pull/5583), [#5765](https://github.com/MetaMask/core/pull/5765), [#5812](https://github.com/MetaMask/core/pull/5812))
+
+### Fixed
+
+- Fix `delete` method to clean up empty chainId objects when the last address in a chain is deleted ([#5779](https://github.com/MetaMask/core/pull/5779))
 
 ## [6.0.3]
 
@@ -208,7 +226,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.1.0...HEAD
+[6.1.0]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.0.3...@metamask/address-book-controller@6.1.0
 [6.0.3]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.0.2...@metamask/address-book-controller@6.0.3
 [6.0.2]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.0.1...@metamask/address-book-controller@6.0.2
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.0.0...@metamask/address-book-controller@6.0.1

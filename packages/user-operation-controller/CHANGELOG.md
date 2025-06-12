@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
+- Bump `@metamask/transaction-controller` to `^57.3.0` ([#5954](https://github.com/MetaMask/core/pull/5954))
+
+## [36.0.0]
+
+### Changed
+
+- **BREAKING:** bump `@metamask/transaction-controller` peer dependency to `^57.0.0` ([#5802](https://github.com/MetaMask/core/pull/5802))
+- Bump `@metamask/controller-utils` to `^11.9.0` ([#5812](https://github.com/MetaMask/core/pull/5812))
+
+## [35.0.0]
+
+### Changed
+
+- **BREAKING:** bump `@metamask/keyring-controller` peer dependency to `^22.0.0` ([#5802](https://github.com/MetaMask/core/pull/5802))
+- **BREAKING:** bump `@metamask/transaction-controller` peer dependency to `^56.0.0` ([#5802](https://github.com/MetaMask/core/pull/5802))
 - Bump `@metamask/controller-utils` to `^11.8.0` ([#5765](https://github.com/MetaMask/core/pull/5765))
 
 ## [34.0.0]
@@ -407,7 +423,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#3749](https://github.com/MetaMask/core/pull/3749))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@34.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@36.0.0...HEAD
+[36.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@35.0.0...@metamask/user-operation-controller@36.0.0
+[35.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@34.0.0...@metamask/user-operation-controller@35.0.0
 [34.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@33.0.0...@metamask/user-operation-controller@34.0.0
 [33.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@32.0.0...@metamask/user-operation-controller@33.0.0
 [32.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@31.0.0...@metamask/user-operation-controller@32.0.0

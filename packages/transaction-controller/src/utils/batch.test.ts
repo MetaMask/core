@@ -1,4 +1,5 @@
-import { rpcErrors } from '@metamask/rpc-errors';
+import { ORIGIN_METAMASK, type AddResult } from '@metamask/approval-controller';
+import { rpcErrors, errorCodes } from '@metamask/rpc-errors';
 
 import {
   ERROR_MESSAGE_NO_UPGRADE_CONTRACT,
@@ -15,16 +16,26 @@ import {
   getEIP7702SupportedChains,
   getEIP7702UpgradeContractAddress,
 } from './feature-flags';
+import { simulateGasBatch } from './gas';
 import { validateBatchRequest } from './validation';
+import type { TransactionControllerState } from '..';
 import {
   TransactionEnvelopeType,
   type TransactionControllerMessenger,
   type TransactionMeta,
   determineTransactionType,
   TransactionType,
+  GasFeeEstimateLevel,
+  GasFeeEstimateType,
 } from '..';
 import { flushPromises } from '../../../../tests/helpers';
-import type { PublishBatchHook } from '../types';
+import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow';
+import { SequentialPublishBatchHook } from '../hooks/SequentialPublishBatchHook';
+import type {
+  GasFeeFlow,
+  PublishBatchHook,
+  TransactionBatchSingleRequest,
+} from '../types';
 
 jest.mock('./eip7702');
 jest.mock('./feature-flags');
@@ -35,6 +46,9 @@ jest.mock('./validation', () => ({
   validateBatchRequest: jest.fn(),
 }));
 
+jest.mock('../hooks/SequentialPublishBatchHook');
+jest.mock('./gas');
+
 type AddBatchTransactionOptions = Parameters<typeof addTransactionBatch>[0];
 
 const CHAIN_ID_MOCK = '0x123';
@@ -43,8 +57,11 @@ const FROM_MOCK = '0x1234567890123456789012345678901234567890';
 const CONTRACT_ADDRESS_MOCK = '0xabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd';
 const TO_MOCK = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcdef';
 const DATA_MOCK = '0xabcdef';
+const GAS_TOTAL_MOCK = '0x100000';
 const VALUE_MOCK = '0x1234';
-const MESSENGER_MOCK = {} as TransactionControllerMessenger;
+const MESSENGER_MOCK = {
+  call: jest.fn().mockResolvedValue({}),
+} as unknown as TransactionControllerMessenger;
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
 const PUBLIC_KEY_MOCK = '0x112233';
 const BATCH_ID_CUSTOM_MOCK = '0x123456';
@@ -58,6 +75,7 @@ const TRANSACTION_SIGNATURE_MOCK = '0xabc';
 const TRANSACTION_SIGNATURE_2_MOCK = '0xdef';
 const ERROR_MESSAGE_MOCK = 'Test error';
 const SECURITY_ALERT_ID_MOCK = '123-456';
+const ORIGIN_MOCK = 'test.com';
 const UPGRADE_CONTRACT_ADDRESS_MOCK =
   '0xfedfedfedfedfedfedfedfedfedfedfedfedfedf';
 
@@ -71,11 +89,112 @@ const TRANSACTION_META_MOCK = {
   },
 } as unknown as TransactionMeta;
 
+const TRANSACTION_BATCH_PARAMS_MOCK = {
+  to: TO_MOCK,
+  data: DATA_MOCK,
+  value: VALUE_MOCK,
+} as TransactionBatchSingleRequest['params'];
+
+/**
+ * Mocks the `ApprovalController:addRequest` action for the `requestApproval` function in `batch.ts`.
+ *
+ * @param messenger - The mocked messenger instance.
+ * @param options - An options bag which will be used to create an action
+ * handler that places the approval request in a certain state.
+ * @returns An object which contains the mocked promise, functions to
+ * manually approve or reject the approval (and therefore the promise), and
+ * finally the mocked version of the action handler itself.
+ */
+function mockRequestApproval(
+  messenger: TransactionControllerMessenger,
+  options:
+    | {
+        state: 'approved';
+        result?: Partial<AddResult>;
+      }
+    | {
+        state: 'rejected';
+        error?: unknown;
+      }
+    | {
+        state: 'pending';
+      },
+): {
+  promise: Promise<AddResult>;
+  approve: (approvalResult?: Partial<AddResult>) => void;
+  reject: (rejectionError: unknown) => void;
+  actionHandlerMock: jest.Mock<
+    ReturnType<typeof messenger.call>,
+    Parameters<typeof messenger.call>
+  >;
+} {
+  let resolvePromise: (value: AddResult) => void;
+  let rejectPromise: (reason?: unknown) => void;
+  const promise = new Promise<AddResult>((resolve, reject) => {
+    resolvePromise = resolve;
+    rejectPromise = reject;
+  });
+
+  const approveTransaction = (approvalResult?: Partial<AddResult>) => {
+    resolvePromise({
+      resultCallbacks: {
+        success() {
+          // Mock success callback
+        },
+        error() {
+          // Mock error callback
+        },
+      },
+      ...approvalResult,
+    });
+  };
+
+  const rejectTransaction = (
+    rejectionError: unknown = {
+      code: errorCodes.provider.userRejectedRequest,
+    },
+  ) => {
+    rejectPromise(rejectionError);
+  };
+
+  const actionHandlerMock = jest.fn().mockReturnValue(promise);
+
+  if (options.state === 'approved') {
+    approveTransaction(options.result);
+  } else if (options.state === 'rejected') {
+    rejectTransaction(options.error);
+  }
+
+  messenger.call = actionHandlerMock;
+
+  return {
+    promise,
+    approve: approveTransaction,
+    reject: rejectTransaction,
+    actionHandlerMock,
+  };
+}
+
+/**
+ * Creates a mock GasFeeFlow.
+ *
+ * @returns The mock GasFeeFlow.
+ */
+function createGasFeeFlowMock(): jest.Mocked<GasFeeFlow> {
+  return {
+    matchesTransaction: jest.fn(),
+    getGasFees: jest.fn(),
+  };
+}
+
 describe('Batch Utils', () => {
   const doesChainSupportEIP7702Mock = jest.mocked(doesChainSupportEIP7702);
   const getEIP7702SupportedChainsMock = jest.mocked(getEIP7702SupportedChains);
   const validateBatchRequestMock = jest.mocked(validateBatchRequest);
   const determineTransactionTypeMock = jest.mocked(determineTransactionType);
+  const sequentialPublishBatchHookMock = jest.mocked(
+    SequentialPublishBatchHook,
+  );
 
   const isAccountUpgradedToEIP7702Mock = jest.mocked(
     isAccountUpgradedToEIP7702,
@@ -88,6 +207,8 @@ describe('Batch Utils', () => {
   const generateEIP7702BatchTransactionMock = jest.mocked(
     generateEIP7702BatchTransaction,
   );
+
+  const simulateGasBatchMock = jest.mocked(simulateGasBatch);
 
   describe('addTransactionBatch', () => {
     let addTransactionMock: jest.MockedFn<
@@ -102,6 +223,22 @@ describe('Batch Utils', () => {
       AddBatchTransactionOptions['updateTransaction']
     >;
 
+    let publishTransactionMock: jest.MockedFn<
+      AddBatchTransactionOptions['publishTransaction']
+    >;
+
+    let getPendingTransactionTrackerMock: jest.MockedFn<
+      AddBatchTransactionOptions['getPendingTransactionTracker']
+    >;
+
+    let updateMock: jest.MockedFn<AddBatchTransactionOptions['update']>;
+
+    let getGasFeeEstimatesMock: jest.MockedFn<
+      AddBatchTransactionOptions['getGasFeeEstimates']
+    >;
+
+    let getGasFeesMock: jest.Mock;
+
     let request: AddBatchTransactionOptions;
 
     beforeEach(() => {
@@ -109,6 +246,35 @@ describe('Batch Utils', () => {
       addTransactionMock = jest.fn();
       getChainIdMock = jest.fn();
       updateTransactionMock = jest.fn();
+      publishTransactionMock = jest.fn();
+      getPendingTransactionTrackerMock = jest.fn();
+      updateMock = jest.fn();
+
+      getGasFeeEstimatesMock = jest
+        .fn()
+        .mockResolvedValue(createGasFeeFlowMock());
+
+      getGasFeesMock = jest.fn().mockResolvedValue({
+        estimates: {
+          type: GasFeeEstimateType.FeeMarket,
+          [GasFeeEstimateLevel.Low]: {
+            maxFeePerGas: '0x1',
+            maxPriorityFeePerGas: '0x1',
+          },
+          [GasFeeEstimateLevel.Medium]: {
+            maxFeePerGas: '0x2',
+            maxPriorityFeePerGas: '0x1',
+          },
+          [GasFeeEstimateLevel.High]: {
+            maxFeePerGas: '0x3',
+            maxPriorityFeePerGas: '0x1',
+          },
+        },
+      });
+
+      jest
+        .spyOn(DefaultGasFeeFlow.prototype, 'getGasFees')
+        .mockImplementation(getGasFeesMock);
 
       determineTransactionTypeMock.mockResolvedValue({
         type: TransactionType.simpleSend,
@@ -116,17 +282,23 @@ describe('Batch Utils', () => {
 
       getChainIdMock.mockReturnValue(CHAIN_ID_MOCK);
 
+      simulateGasBatchMock.mockResolvedValue({
+        gasLimit: GAS_TOTAL_MOCK,
+      });
+
       request = {
         addTransaction: addTransactionMock,
         getChainId: getChainIdMock,
         getEthQuery: GET_ETH_QUERY_MOCK,
         getInternalAccounts: GET_INTERNAL_ACCOUNTS_MOCK,
         getTransaction: jest.fn(),
+        isSimulationEnabled: jest.fn().mockReturnValue(true),
         messenger: MESSENGER_MOCK,
         publicKeyEIP7702: PUBLIC_KEY_MOCK,
         request: {
           from: FROM_MOCK,
           networkClientId: NETWORK_CLIENT_ID_MOCK,
+          origin: ORIGIN_MOCK,
           requireApproval: true,
           transactions: [
             {
@@ -144,13 +316,20 @@ describe('Batch Utils', () => {
               },
             },
           ],
+          disable7702: false,
+          disableHook: false,
+          disableSequential: false,
         },
         updateTransaction: updateTransactionMock,
+        publishTransaction: publishTransactionMock,
+        getPendingTransactionTracker: getPendingTransactionTrackerMock,
+        update: updateMock,
+        getGasFeeEstimates: getGasFeeEstimatesMock,
       };
     });
 
     it('returns generated batch ID', async () => {
-      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+      doesChainSupportEIP7702Mock.mockReturnValue(true);
 
       isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
         delegationAddress: undefined,
@@ -174,7 +353,7 @@ describe('Batch Utils', () => {
     });
 
     it('returns provided batch ID', async () => {
-      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+      doesChainSupportEIP7702Mock.mockReturnValue(true);
 
       isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
         delegationAddress: undefined,
@@ -200,7 +379,7 @@ describe('Batch Utils', () => {
     });
 
     it('adds generated EIP-7702 transaction', async () => {
-      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+      doesChainSupportEIP7702Mock.mockReturnValue(true);
 
       isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
         delegationAddress: undefined,
@@ -230,13 +409,14 @@ describe('Batch Utils', () => {
         },
         expect.objectContaining({
           networkClientId: NETWORK_CLIENT_ID_MOCK,
+          origin: ORIGIN_MOCK,
           requireApproval: true,
         }),
       );
     });
 
     it('uses type 4 transaction if not upgraded', async () => {
-      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+      doesChainSupportEIP7702Mock.mockReturnValue(true);
 
       isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
         delegationAddress: undefined,
@@ -278,7 +458,7 @@ describe('Batch Utils', () => {
     });
 
     it('passes nested transactions to add transaction', async () => {
-      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+      doesChainSupportEIP7702Mock.mockReturnValue(true);
 
       isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
         delegationAddress: undefined,
@@ -319,7 +499,7 @@ describe('Batch Utils', () => {
     });
 
     it('determines transaction type for nested transactions', async () => {
-      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+      doesChainSupportEIP7702Mock.mockReturnValue(true);
 
       isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
         delegationAddress: undefined,
@@ -364,15 +544,15 @@ describe('Batch Utils', () => {
     });
 
     it('throws if chain not supported', async () => {
-      doesChainSupportEIP7702Mock.mockReturnValueOnce(false);
+      doesChainSupportEIP7702Mock.mockReturnValue(false);
 
       await expect(addTransactionBatch(request)).rejects.toThrow(
-        rpcErrors.internal('Chain does not support EIP-7702'),
+        rpcErrors.internal("Can't process batch"),
       );
     });
 
     it('throws if no public key', async () => {
-      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+      doesChainSupportEIP7702Mock.mockReturnValue(true);
 
       await expect(
         addTransactionBatch({ ...request, publicKeyEIP7702: undefined }),
@@ -380,7 +560,7 @@ describe('Batch Utils', () => {
     });
 
     it('throws if account upgraded to unsupported contract', async () => {
-      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+      doesChainSupportEIP7702Mock.mockReturnValue(true);
       isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
         delegationAddress: CONTRACT_ADDRESS_MOCK,
         isSupported: false,
@@ -392,7 +572,7 @@ describe('Batch Utils', () => {
     });
 
     it('throws if account not upgraded and no upgrade address', async () => {
-      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+      doesChainSupportEIP7702Mock.mockReturnValue(true);
 
       isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
         delegationAddress: undefined,
@@ -417,7 +597,7 @@ describe('Batch Utils', () => {
     });
 
     it('adds security alert ID to transaction', async () => {
-      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+      doesChainSupportEIP7702Mock.mockReturnValue(true);
 
       isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
         delegationAddress: undefined,
@@ -452,7 +632,7 @@ describe('Batch Utils', () => {
 
     describe('validates security', () => {
       it('using transaction params', async () => {
-        doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+        doesChainSupportEIP7702Mock.mockReturnValue(true);
 
         isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
           delegationAddress: undefined,
@@ -492,13 +672,14 @@ describe('Batch Utils', () => {
                 value: VALUE_MOCK,
               },
             ],
+            origin: ORIGIN_MOCK,
           },
           CHAIN_ID_MOCK,
         );
       });
 
       it('using delegation mock if not upgraded', async () => {
-        doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+        doesChainSupportEIP7702Mock.mockReturnValue(true);
 
         isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
           delegationAddress: undefined,
@@ -542,6 +723,7 @@ describe('Batch Utils', () => {
                 value: VALUE_MOCK,
               },
             ],
+            origin: ORIGIN_MOCK,
           },
           CHAIN_ID_MOCK,
         );
@@ -549,6 +731,13 @@ describe('Batch Utils', () => {
     });
 
     describe('with publish batch hook', () => {
+      beforeEach(() => {
+        mockRequestApproval(MESSENGER_MOCK, {
+          state: 'approved',
+        });
+        doesChainSupportEIP7702Mock.mockReturnValueOnce(false);
+      });
+
       it('adds each nested transaction', async () => {
         const publishBatchHook = jest.fn();
 
@@ -560,7 +749,7 @@ describe('Batch Utils', () => {
         addTransactionBatch({
           ...request,
           publishBatchHook,
-          request: { ...request.request, useHook: true },
+          request: { ...request.request, disable7702: true },
         }).catch(() => {
           // Intentionally empty
         });
@@ -569,12 +758,7 @@ describe('Batch Utils', () => {
 
         expect(addTransactionMock).toHaveBeenCalledTimes(2);
         expect(addTransactionMock).toHaveBeenCalledWith(
-          {
-            data: DATA_MOCK,
-            from: FROM_MOCK,
-            to: TO_MOCK,
-            value: VALUE_MOCK,
-          },
+          { ...TRANSACTION_BATCH_PARAMS_MOCK, from: FROM_MOCK },
           {
             batchId: expect.any(String),
             disableGasBuffer: true,
@@ -584,6 +768,61 @@ describe('Batch Utils', () => {
           },
         );
       });
+
+      it.each([
+        {
+          origin: ORIGIN_MOCK,
+          description: 'with defined origin',
+          expectedOrigin: ORIGIN_MOCK,
+        },
+        {
+          origin: undefined,
+          description: 'with undefined origin',
+          expectedOrigin: ORIGIN_METAMASK,
+        },
+      ])(
+        'requests approval for batch transactions $description',
+        async ({ origin, expectedOrigin }) => {
+          const publishBatchHook = jest.fn();
+
+          addTransactionMock.mockResolvedValueOnce({
+            transactionMeta: TRANSACTION_META_MOCK,
+            result: Promise.resolve(''),
+          });
+
+          generateEIP7702BatchTransactionMock.mockReturnValueOnce({
+            to: TO_MOCK,
+            data: DATA_MOCK,
+            value: VALUE_MOCK,
+          });
+
+          request.messenger = MESSENGER_MOCK;
+
+          addTransactionBatch({
+            ...request,
+            publishBatchHook,
+            request: { ...request.request, origin, disable7702: true },
+          }).catch(() => {
+            // Intentionally empty
+          });
+
+          await flushPromises();
+
+          expect(MESSENGER_MOCK.call).toHaveBeenCalledWith(
+            'ApprovalController:addRequest',
+            expect.objectContaining({
+              id: expect.any(String),
+              origin: expectedOrigin,
+              requestData: { txBatchId: expect.any(String) },
+              expectsResult: true,
+              type: 'transaction_batch',
+            }),
+            true,
+          );
+          expect(simulateGasBatchMock).toHaveBeenCalledTimes(1);
+          expect(getGasFeesMock).toHaveBeenCalledTimes(1);
+        },
+      );
 
       it('calls publish batch hook', async () => {
         const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
@@ -618,7 +857,7 @@ describe('Batch Utils', () => {
         addTransactionBatch({
           ...request,
           publishBatchHook,
-          request: { ...request.request, useHook: true },
+          request: { ...request.request, disable7702: true },
         }).catch(() => {
           // Intentionally empty
         });
@@ -697,7 +936,7 @@ describe('Batch Utils', () => {
         addTransactionBatch({
           ...request,
           publishBatchHook,
-          request: { ...request.request, useHook: true },
+          request: { ...request.request, disable7702: true },
         }).catch(() => {
           // Intentionally empty
         });
@@ -737,6 +976,16 @@ describe('Batch Utils', () => {
         const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
         const onPublish = jest.fn();
 
+        const EXISTING_TRANSACTION_MOCK = {
+          id: TRANSACTION_ID_2_MOCK,
+          onPublish,
+          signedTransaction: TRANSACTION_SIGNATURE_2_MOCK,
+        } as TransactionBatchSingleRequest['existingTransaction'];
+
+        simulateGasBatchMock.mockResolvedValueOnce({
+          gasLimit: GAS_TOTAL_MOCK,
+        });
+
         addTransactionMock
           .mockResolvedValueOnce({
             transactionMeta: {
@@ -769,18 +1018,14 @@ describe('Batch Utils', () => {
           publishBatchHook,
           request: {
             ...request.request,
+            disable7702: true,
             transactions: [
               {
                 ...request.request.transactions[0],
-                existingTransaction: {
-                  id: TRANSACTION_ID_2_MOCK,
-                  onPublish,
-                  signedTransaction: TRANSACTION_SIGNATURE_2_MOCK,
-                },
+                existingTransaction: EXISTING_TRANSACTION_MOCK,
               },
               request.request.transactions[1],
             ],
-            useHook: true,
           },
         }).catch(() => {
           // Intentionally empty
@@ -810,7 +1055,11 @@ describe('Batch Utils', () => {
           transactions: [
             {
               id: TRANSACTION_ID_2_MOCK,
-              params: { data: DATA_MOCK, to: TO_MOCK, value: VALUE_MOCK },
+              params: {
+                data: DATA_MOCK,
+                to: TO_MOCK,
+                value: VALUE_MOCK,
+              },
               signedTx: TRANSACTION_SIGNATURE_2_MOCK,
             },
             {
@@ -831,6 +1080,10 @@ describe('Batch Utils', () => {
         const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
         const onPublish = jest.fn();
         const existingTransactionMock = {};
+
+        simulateGasBatchMock.mockResolvedValueOnce({
+          gasLimit: GAS_TOTAL_MOCK,
+        });
 
         addTransactionMock
           .mockResolvedValueOnce({
@@ -868,6 +1121,7 @@ describe('Batch Utils', () => {
           publishBatchHook,
           request: {
             ...request.request,
+            disable7702: true,
             transactions: [
               {
                 ...request.request.transactions[0],
@@ -879,7 +1133,6 @@ describe('Batch Utils', () => {
               },
               request.request.transactions[1],
             ],
-            useHook: true,
           },
         }).catch(() => {
           // Intentionally empty
@@ -930,7 +1183,7 @@ describe('Batch Utils', () => {
         const resultPromise = addTransactionBatch({
           ...request,
           publishBatchHook,
-          request: { ...request.request, useHook: true },
+          request: { ...request.request, disable7702: true },
         });
 
         resultPromise.catch(() => {
@@ -964,15 +1217,6 @@ describe('Batch Utils', () => {
         );
       });
 
-      it('throws if no publish batch hook', async () => {
-        await expect(
-          addTransactionBatch({
-            ...request,
-            request: { ...request.request, useHook: true },
-          }),
-        ).rejects.toThrow(rpcErrors.internal('No publish batch hook provided'));
-      });
-
       it('rejects individual publish hooks if batch hook throws', async () => {
         const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
 
@@ -999,7 +1243,11 @@ describe('Batch Utils', () => {
         addTransactionBatch({
           ...request,
           publishBatchHook,
-          request: { ...request.request, useHook: true },
+          request: {
+            ...request.request,
+            requireApproval: false,
+            disable7702: true,
+          },
         }).catch(() => {
           // Intentionally empty
         });
@@ -1052,7 +1300,11 @@ describe('Batch Utils', () => {
         addTransactionBatch({
           ...request,
           publishBatchHook,
-          request: { ...request.request, useHook: true },
+          request: {
+            ...request.request,
+            requireApproval: false,
+            disable7702: true,
+          },
         }).catch(() => {
           // Intentionally empty
         });
@@ -1075,9 +1327,357 @@ describe('Batch Utils', () => {
         await expect(publishHookPromise1).rejects.toThrow(ERROR_MESSAGE_MOCK);
       });
     });
+
+    describe('with sequential publish batch hook', () => {
+      let sequentialPublishBatchHook: jest.MockedFn<PublishBatchHook>;
+
+      beforeEach(() => {
+        doesChainSupportEIP7702Mock.mockReturnValue(false);
+
+        sequentialPublishBatchHook = jest.fn();
+
+        addTransactionMock
+          .mockResolvedValueOnce({
+            transactionMeta: {
+              ...TRANSACTION_META_MOCK,
+              id: TRANSACTION_ID_MOCK,
+            },
+            result: Promise.resolve(''),
+          })
+          .mockResolvedValueOnce({
+            transactionMeta: {
+              ...TRANSACTION_META_MOCK,
+              id: TRANSACTION_ID_2_MOCK,
+            },
+            result: Promise.resolve(''),
+          });
+      });
+
+      const setupSequentialPublishBatchHookMock = (
+        hookImplementation: () => PublishBatchHook | undefined,
+      ) => {
+        sequentialPublishBatchHookMock.mockReturnValue({
+          getHook: hookImplementation,
+        } as unknown as SequentialPublishBatchHook);
+      };
+
+      const executePublishHooks = async () => {
+        const publishHooks = addTransactionMock.mock.calls.map(
+          ([, options]) => options.publishHook,
+        );
+
+        for (const [index, publishHook] of publishHooks.entries()) {
+          publishHook?.(
+            TRANSACTION_META_MOCK,
+            index === 0
+              ? TRANSACTION_SIGNATURE_MOCK
+              : TRANSACTION_SIGNATURE_2_MOCK,
+          ).catch(() => {
+            // Intentionally empty
+          });
+        }
+
+        await flushPromises();
+      };
+
+      const mockSequentialPublishBatchHookResults = () => {
+        sequentialPublishBatchHook.mockResolvedValueOnce({
+          results: [
+            { transactionHash: TRANSACTION_HASH_MOCK },
+            { transactionHash: TRANSACTION_HASH_2_MOCK },
+          ],
+        });
+      };
+
+      const assertSequentialPublishBatchHookCalled = () => {
+        expect(sequentialPublishBatchHookMock).toHaveBeenCalledTimes(1);
+        expect(sequentialPublishBatchHook).toHaveBeenCalledTimes(1);
+        expect(sequentialPublishBatchHook).toHaveBeenCalledWith({
+          from: FROM_MOCK,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          transactions: [
+            expect.objectContaining({
+              id: TRANSACTION_ID_MOCK,
+              params: { data: DATA_MOCK, to: TO_MOCK, value: VALUE_MOCK },
+              signedTx: TRANSACTION_SIGNATURE_MOCK,
+            }),
+            expect.objectContaining({
+              id: TRANSACTION_ID_2_MOCK,
+              params: { data: DATA_MOCK, to: TO_MOCK, value: VALUE_MOCK },
+              signedTx: TRANSACTION_SIGNATURE_2_MOCK,
+            }),
+          ],
+        });
+      };
+
+      it('throws if simulation is not supported', async () => {
+        const isSimulationSupportedMock = jest.fn().mockReturnValue(false);
+
+        await expect(
+          addTransactionBatch({
+            ...request,
+            publishBatchHook: undefined,
+            isSimulationEnabled: () => isSimulationSupportedMock(),
+            request: {
+              ...request.request,
+              disable7702: true,
+              disableHook: true,
+              disableSequential: false,
+            },
+          }),
+        ).rejects.toThrow(`Can't process batch`);
+      });
+
+      it('invokes sequentialPublishBatchHook when publishBatchHook is undefined', async () => {
+        mockSequentialPublishBatchHookResults();
+        setupSequentialPublishBatchHookMock(() => sequentialPublishBatchHook);
+
+        const resultPromise = addTransactionBatch({
+          ...request,
+          publishBatchHook: undefined,
+          request: {
+            ...request.request,
+            requireApproval: false,
+            disable7702: true,
+            disableHook: true,
+            disableSequential: false,
+          },
+        }).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+        await executePublishHooks();
+
+        assertSequentialPublishBatchHookCalled();
+
+        const result = await resultPromise;
+        expect(result?.batchId).toMatch(/^0x[0-9a-f]{32}$/u);
+      });
+
+      it('throws an error when sequentialPublishBatchHook fails', async () => {
+        setupSequentialPublishBatchHookMock(() => {
+          throw new Error('Test error');
+        });
+
+        await expect(
+          addTransactionBatch({
+            ...request,
+            publishBatchHook: undefined,
+            request: {
+              ...request.request,
+              disable7702: true,
+              disableHook: true,
+              disableSequential: false,
+            },
+          }),
+        ).rejects.toThrow('Test error');
+
+        expect(sequentialPublishBatchHookMock).toHaveBeenCalledTimes(1);
+      });
+
+      it('creates an approval request for sequential publish batch hook', async () => {
+        const { approve } = mockRequestApproval(MESSENGER_MOCK, {
+          state: 'approved',
+        });
+        mockSequentialPublishBatchHookResults();
+        setupSequentialPublishBatchHookMock(() => sequentialPublishBatchHook);
+
+        const resultPromise = addTransactionBatch({
+          ...request,
+          publishBatchHook: undefined,
+          messenger: MESSENGER_MOCK,
+          request: {
+            ...request.request,
+            origin: ORIGIN_MOCK,
+            disable7702: true,
+            disableHook: true,
+            disableSequential: false,
+          },
+        }).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+        approve();
+        await executePublishHooks();
+
+        expect(MESSENGER_MOCK.call).toHaveBeenCalledWith(
+          'ApprovalController:addRequest',
+          expect.objectContaining({
+            id: expect.any(String),
+            origin: ORIGIN_MOCK,
+            requestData: { txBatchId: expect.any(String) },
+            expectsResult: true,
+            type: 'transaction_batch',
+          }),
+          true,
+        );
+
+        assertSequentialPublishBatchHookCalled();
+
+        const result = await resultPromise;
+        expect(result?.batchId).toMatch(/^0x[0-9a-f]{32}$/u);
+      });
+
+      it('updates gas properties', async () => {
+        const { approve } = mockRequestApproval(MESSENGER_MOCK, {
+          state: 'approved',
+        });
+        mockSequentialPublishBatchHookResults();
+        setupSequentialPublishBatchHookMock(() => sequentialPublishBatchHook);
+
+        const resultPromise = addTransactionBatch({
+          ...request,
+          publishBatchHook: undefined,
+          messenger: MESSENGER_MOCK,
+          request: {
+            ...request.request,
+            origin: ORIGIN_MOCK,
+            disable7702: true,
+            disableHook: true,
+          },
+        }).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+        approve();
+        await executePublishHooks();
+
+        await resultPromise;
+
+        expect(simulateGasBatchMock).toHaveBeenCalledTimes(1);
+        expect(simulateGasBatchMock).toHaveBeenCalledWith({
+          chainId: CHAIN_ID_MOCK,
+          from: FROM_MOCK,
+          transactions: [
+            {
+              params: TRANSACTION_BATCH_PARAMS_MOCK,
+            },
+            {
+              params: TRANSACTION_BATCH_PARAMS_MOCK,
+            },
+          ],
+        });
+        expect(getGasFeesMock).toHaveBeenCalledTimes(1);
+        expect(getGasFeesMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            gasFeeControllerData: expect.any(Object),
+            messenger: MESSENGER_MOCK,
+            transactionMeta: {
+              chainId: CHAIN_ID_MOCK,
+              gas: GAS_TOTAL_MOCK,
+              from: FROM_MOCK,
+              networkClientId: NETWORK_CLIENT_ID_MOCK,
+              txParams: { from: FROM_MOCK, gas: GAS_TOTAL_MOCK },
+              origin: ORIGIN_MOCK,
+              id: expect.any(String),
+              status: 'unapproved',
+              time: expect.any(Number),
+              transactions: [
+                {
+                  params: TRANSACTION_BATCH_PARAMS_MOCK,
+                },
+                {
+                  params: TRANSACTION_BATCH_PARAMS_MOCK,
+                },
+              ],
+            },
+          }),
+        );
+      });
+
+      it('saves a transaction batch and then cleans the specific batch by ID', async () => {
+        const { approve } = mockRequestApproval(MESSENGER_MOCK, {
+          state: 'approved',
+        });
+        mockSequentialPublishBatchHookResults();
+        setupSequentialPublishBatchHookMock(() => sequentialPublishBatchHook);
+
+        const resultPromise = addTransactionBatch({
+          ...request,
+          publishBatchHook: undefined,
+          messenger: MESSENGER_MOCK,
+          request: {
+            ...request.request,
+            origin: ORIGIN_MOCK,
+            disable7702: true,
+            disableHook: true,
+            disableSequential: false,
+          },
+        }).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+        approve();
+        await executePublishHooks();
+
+        expect(MESSENGER_MOCK.call).toHaveBeenCalledWith(
+          'ApprovalController:addRequest',
+          expect.objectContaining({
+            id: expect.any(String),
+            origin: ORIGIN_MOCK,
+            requestData: { txBatchId: expect.any(String) },
+            expectsResult: true,
+            type: 'transaction_batch',
+          }),
+          true,
+        );
+
+        expect(updateMock).toHaveBeenCalledTimes(2);
+        expect(updateMock).toHaveBeenCalledWith(expect.any(Function));
+
+        // Simulate the state update for adding the batch
+        const state = {
+          transactionBatches: [
+            { id: 'batch1', chainId: '0x1', transactions: [] },
+          ],
+        } as unknown as TransactionControllerState;
+
+        // Simulate adding the batch
+        updateMock.mock.calls[0][0](state);
+
+        expect(state.transactionBatches).toStrictEqual([
+          { id: 'batch1', chainId: '0x1', transactions: [] },
+          expect.objectContaining({
+            id: expect.any(String),
+            chainId: CHAIN_ID_MOCK,
+            gas: GAS_TOTAL_MOCK,
+            from: FROM_MOCK,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+            transactions: [
+              {
+                params: TRANSACTION_BATCH_PARAMS_MOCK,
+              },
+              {
+                params: TRANSACTION_BATCH_PARAMS_MOCK,
+              },
+            ],
+            origin: ORIGIN_MOCK,
+          }),
+        ]);
+
+        await resultPromise;
+
+        // Simulate cleaning the specific batch by ID
+        updateMock.mock.calls[1][0](state);
+
+        expect(state.transactionBatches).toStrictEqual([
+          { id: 'batch1', chainId: '0x1', transactions: [] },
+        ]);
+        expect(simulateGasBatchMock).toHaveBeenCalledTimes(1);
+        expect(getGasFeesMock).toHaveBeenCalledTimes(1);
+      });
+    });
   });
 
   describe('isAtomicBatchSupported', () => {
+    beforeEach(() => {
+      jest.resetAllMocks();
+    });
+
     it('includes all feature flag chains if chain IDs not specified', async () => {
       getEIP7702SupportedChainsMock.mockReturnValueOnce([
         CHAIN_ID_MOCK,
@@ -1166,10 +1766,12 @@ describe('Batch Utils', () => {
     });
 
     it('does not throw if error getting provider', async () => {
+      getEIP7702UpgradeContractAddressMock.mockReturnValue(undefined);
       getEIP7702SupportedChainsMock.mockReturnValueOnce([
         CHAIN_ID_MOCK,
         CHAIN_ID_2_MOCK,
       ]);
+      getEIP7702UpgradeContractAddressMock.mockReturnValueOnce(undefined);
 
       isAccountUpgradedToEIP7702Mock.mockResolvedValue({
         isSupported: false,

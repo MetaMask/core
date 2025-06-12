@@ -1,3 +1,4 @@
+import { StructError } from '@metamask/superstruct';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 import { Duration } from '@metamask/utils';
 
@@ -103,9 +104,30 @@ export async function fetchBridgeQuotes(
     functionName: 'fetchBridgeQuotes',
   });
 
+  const validationFailuresByAggregator: {
+    [aggregator: string]: Set<string>;
+  } = {};
   const filteredQuotes = quotes.filter((quoteResponse: unknown) => {
-    return validateQuoteResponse(quoteResponse);
+    try {
+      return validateQuoteResponse(quoteResponse);
+    } catch (error) {
+      if (error instanceof StructError) {
+        error.failures().forEach(({ branch, path }) => {
+          const aggregatorId = branch?.[0]?.quote?.bridgeId;
+          if (!validationFailuresByAggregator[aggregatorId]) {
+            validationFailuresByAggregator[aggregatorId] = new Set([]);
+          }
+          const pathString = path?.join('.') || 'unknown';
+          validationFailuresByAggregator[aggregatorId].add(pathString);
+        });
+      }
+      return false;
+    }
   });
+
+  if (Object.keys(validationFailuresByAggregator).length > 0) {
+    console.error('Quote validation failed', validationFailuresByAggregator);
+  }
   return filteredQuotes as QuoteResponse[];
 }
 
