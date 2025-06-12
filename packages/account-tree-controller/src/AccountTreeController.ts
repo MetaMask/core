@@ -101,7 +101,7 @@ export type AllowedEvents =
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent;
 
-export type AccountTreeControllerEvents = never;
+export type AccountTreeControllerEvents = AccountTreeControllerStateChangeEvent;
 
 export type AccountTreeControllerMessenger = RestrictedMessenger<
   typeof controllerName,
