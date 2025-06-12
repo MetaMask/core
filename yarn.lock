@@ -3065,7 +3065,7 @@ __metadata:
     "@metamask/base-controller": "npm:^8.0.1"
     "@metamask/controller-utils": "npm:^11.10.0"
     "@metamask/network-controller": "npm:^23.6.0"
-    "@metamask/stake-sdk": "npm:^3.2.0"
+    "@metamask/stake-sdk": "npm:^3.2.1"
     "@metamask/transaction-controller": "npm:^57.3.0"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
@@ -3867,37 +3867,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/multichain@workspace:packages/multichain":
-  version: 0.0.0-use.local
-  resolution: "@metamask/multichain@workspace:packages/multichain"
-  dependencies:
-    "@metamask/api-specs": "npm:^0.14.0"
-    "@metamask/auto-changelog": "npm:^3.4.4"
-    "@metamask/controller-utils": "npm:^11.10.0"
-    "@metamask/eth-json-rpc-filters": "npm:^9.0.0"
-    "@metamask/json-rpc-engine": "npm:^10.0.3"
-    "@metamask/network-controller": "npm:^23.6.0"
-    "@metamask/permission-controller": "npm:^11.0.6"
-    "@metamask/rpc-errors": "npm:^7.0.2"
-    "@metamask/safe-event-emitter": "npm:^3.0.0"
-    "@metamask/utils": "npm:^11.2.0"
-    "@open-rpc/meta-schema": "npm:^1.14.6"
-    "@open-rpc/schema-utils-js": "npm:^2.0.5"
-    "@types/jest": "npm:^27.4.1"
-    deepmerge: "npm:^4.2.2"
-    jest: "npm:^27.5.1"
-    jsonschema: "npm:^1.4.1"
-    lodash: "npm:^4.17.21"
-    ts-jest: "npm:^27.1.4"
-    typedoc: "npm:^0.24.8"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
-  peerDependencies:
-    "@metamask/network-controller": ^23.0.0
-    "@metamask/permission-controller": ^11.0.0
-  languageName: unknown
-  linkType: soft
-
 "@metamask/name-controller@workspace:packages/name-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/name-controller@workspace:packages/name-controller"
@@ -4561,10 +4530,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/stake-sdk@npm:^3.2.0":
-  version: 3.2.0
-  resolution: "@metamask/stake-sdk@npm:3.2.0"
-  checksum: 10/54197bcc83ee014643e44d22f06768e8caee4a8093b920405a5d4e0517c587f12aeec20bace98ec8a49aad648d67444afca139e29c8ec39ae9d2305b435100a6
+"@metamask/stake-sdk@npm:^3.2.1":
+  version: 3.2.1
+  resolution: "@metamask/stake-sdk@npm:3.2.1"
+  checksum: 10/7404ac54e2bd426158b0ae92a2f4c420ef551d18d8a14293c5760b1da1c48cab88df9a7dcce7133f91bbe7899f6c2016642f0e41e170353b6b9ae4c6423d2ad5
   languageName: node
   linkType: hard
 
