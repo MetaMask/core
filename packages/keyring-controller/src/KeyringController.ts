@@ -324,7 +324,7 @@ type CachedEncryptionKey = {
   /**
    * The salt used to derive the encryption key.
    */
-  salt?: string;
+  salt: string;
 };
 
 /**
