@@ -25,10 +25,17 @@ import {
   type TransactionMeta,
   determineTransactionType,
   TransactionType,
+  GasFeeEstimateLevel,
+  GasFeeEstimateType,
 } from '..';
 import { flushPromises } from '../../../../tests/helpers';
+import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow';
 import { SequentialPublishBatchHook } from '../hooks/SequentialPublishBatchHook';
-import type { PublishBatchHook, TransactionBatchSingleRequest } from '../types';
+import type {
+  GasFeeFlow,
+  PublishBatchHook,
+  TransactionBatchSingleRequest,
+} from '../types';
 
 jest.mock('./eip7702');
 jest.mock('./feature-flags');
@@ -168,6 +175,18 @@ function mockRequestApproval(
   };
 }
 
+/**
+ * Creates a mock GasFeeFlow.
+ *
+ * @returns The mock GasFeeFlow.
+ */
+function createGasFeeFlowMock(): jest.Mocked<GasFeeFlow> {
+  return {
+    matchesTransaction: jest.fn(),
+    getGasFees: jest.fn(),
+  };
+}
+
 describe('Batch Utils', () => {
   const doesChainSupportEIP7702Mock = jest.mocked(doesChainSupportEIP7702);
   const getEIP7702SupportedChainsMock = jest.mocked(getEIP7702SupportedChains);
@@ -214,6 +233,12 @@ describe('Batch Utils', () => {
 
     let updateMock: jest.MockedFn<AddBatchTransactionOptions['update']>;
 
+    let getGasFeeEstimatesMock: jest.MockedFn<
+      AddBatchTransactionOptions['getGasFeeEstimates']
+    >;
+
+    let getGasFeesMock: jest.Mock;
+
     let request: AddBatchTransactionOptions;
 
     beforeEach(() => {
@@ -224,6 +249,32 @@ describe('Batch Utils', () => {
       publishTransactionMock = jest.fn();
       getPendingTransactionTrackerMock = jest.fn();
       updateMock = jest.fn();
+
+      getGasFeeEstimatesMock = jest
+        .fn()
+        .mockResolvedValue(createGasFeeFlowMock());
+
+      getGasFeesMock = jest.fn().mockResolvedValue({
+        estimates: {
+          type: GasFeeEstimateType.FeeMarket,
+          [GasFeeEstimateLevel.Low]: {
+            maxFeePerGas: '0x1',
+            maxPriorityFeePerGas: '0x1',
+          },
+          [GasFeeEstimateLevel.Medium]: {
+            maxFeePerGas: '0x2',
+            maxPriorityFeePerGas: '0x1',
+          },
+          [GasFeeEstimateLevel.High]: {
+            maxFeePerGas: '0x3',
+            maxPriorityFeePerGas: '0x1',
+          },
+        },
+      });
+
+      jest
+        .spyOn(DefaultGasFeeFlow.prototype, 'getGasFees')
+        .mockImplementation(getGasFeesMock);
 
       determineTransactionTypeMock.mockResolvedValue({
         type: TransactionType.simpleSend,
@@ -273,6 +324,7 @@ describe('Batch Utils', () => {
         publishTransaction: publishTransactionMock,
         getPendingTransactionTracker: getPendingTransactionTrackerMock,
         update: updateMock,
+        getGasFeeEstimates: getGasFeeEstimatesMock,
       };
     });
 
@@ -767,6 +819,8 @@ describe('Batch Utils', () => {
             }),
             true,
           );
+          expect(simulateGasBatchMock).toHaveBeenCalledTimes(1);
+          expect(getGasFeesMock).toHaveBeenCalledTimes(1);
         },
       );
 
@@ -1364,7 +1418,12 @@ describe('Batch Utils', () => {
             ...request,
             publishBatchHook: undefined,
             isSimulationEnabled: () => isSimulationSupportedMock(),
-            request: { ...request.request, useHook: true },
+            request: {
+              ...request.request,
+              disable7702: true,
+              disableHook: true,
+              disableSequential: false,
+            },
           }),
         ).rejects.toThrow(`Can't process batch`);
       });
@@ -1380,6 +1439,8 @@ describe('Batch Utils', () => {
             ...request.request,
             requireApproval: false,
             disable7702: true,
+            disableHook: true,
+            disableSequential: false,
           },
         }).catch(() => {
           // Intentionally empty
@@ -1403,7 +1464,12 @@ describe('Batch Utils', () => {
           addTransactionBatch({
             ...request,
             publishBatchHook: undefined,
-            request: { ...request.request, disable7702: true },
+            request: {
+              ...request.request,
+              disable7702: true,
+              disableHook: true,
+              disableSequential: false,
+            },
           }),
         ).rejects.toThrow('Test error');
 
@@ -1425,6 +1491,8 @@ describe('Batch Utils', () => {
             ...request.request,
             origin: ORIGIN_MOCK,
             disable7702: true,
+            disableHook: true,
+            disableSequential: false,
           },
         }).catch(() => {
           // Intentionally empty
@@ -1452,6 +1520,74 @@ describe('Batch Utils', () => {
         expect(result?.batchId).toMatch(/^0x[0-9a-f]{32}$/u);
       });
 
+      it('updates gas properties', async () => {
+        const { approve } = mockRequestApproval(MESSENGER_MOCK, {
+          state: 'approved',
+        });
+        mockSequentialPublishBatchHookResults();
+        setupSequentialPublishBatchHookMock(() => sequentialPublishBatchHook);
+
+        const resultPromise = addTransactionBatch({
+          ...request,
+          publishBatchHook: undefined,
+          messenger: MESSENGER_MOCK,
+          request: {
+            ...request.request,
+            origin: ORIGIN_MOCK,
+            disable7702: true,
+            disableHook: true,
+          },
+        }).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+        approve();
+        await executePublishHooks();
+
+        await resultPromise;
+
+        expect(simulateGasBatchMock).toHaveBeenCalledTimes(1);
+        expect(simulateGasBatchMock).toHaveBeenCalledWith({
+          chainId: CHAIN_ID_MOCK,
+          from: FROM_MOCK,
+          transactions: [
+            {
+              params: TRANSACTION_BATCH_PARAMS_MOCK,
+            },
+            {
+              params: TRANSACTION_BATCH_PARAMS_MOCK,
+            },
+          ],
+        });
+        expect(getGasFeesMock).toHaveBeenCalledTimes(1);
+        expect(getGasFeesMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            gasFeeControllerData: expect.any(Object),
+            messenger: MESSENGER_MOCK,
+            transactionMeta: {
+              chainId: CHAIN_ID_MOCK,
+              gas: GAS_TOTAL_MOCK,
+              from: FROM_MOCK,
+              networkClientId: NETWORK_CLIENT_ID_MOCK,
+              txParams: { from: FROM_MOCK, gas: GAS_TOTAL_MOCK },
+              origin: ORIGIN_MOCK,
+              id: expect.any(String),
+              status: 'unapproved',
+              time: expect.any(Number),
+              transactions: [
+                {
+                  params: TRANSACTION_BATCH_PARAMS_MOCK,
+                },
+                {
+                  params: TRANSACTION_BATCH_PARAMS_MOCK,
+                },
+              ],
+            },
+          }),
+        );
+      });
+
       it('saves a transaction batch and then cleans the specific batch by ID', async () => {
         const { approve } = mockRequestApproval(MESSENGER_MOCK, {
           state: 'approved',
@@ -1467,6 +1603,8 @@ describe('Batch Utils', () => {
             ...request.request,
             origin: ORIGIN_MOCK,
             disable7702: true,
+            disableHook: true,
+            disableSequential: false,
           },
         }).catch(() => {
           // Intentionally empty
@@ -1529,6 +1667,8 @@ describe('Batch Utils', () => {
         expect(state.transactionBatches).toStrictEqual([
           { id: 'batch1', chainId: '0x1', transactions: [] },
         ]);
+        expect(simulateGasBatchMock).toHaveBeenCalledTimes(1);
+        expect(getGasFeesMock).toHaveBeenCalledTimes(1);
       });
     });
   });
@@ -1626,6 +1766,7 @@ describe('Batch Utils', () => {
     });
 
     it('does not throw if error getting provider', async () => {
+      getEIP7702UpgradeContractAddressMock.mockReturnValue(undefined);
       getEIP7702SupportedChainsMock.mockReturnValueOnce([
         CHAIN_ID_MOCK,
         CHAIN_ID_2_MOCK,

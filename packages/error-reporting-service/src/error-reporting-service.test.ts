@@ -6,7 +6,18 @@ import { ErrorReportingService } from './error-reporting-service';
 
 describe('ErrorReportingService', () => {
   describe('constructor', () => {
-    it('allows the Sentry captureException function to be passed', () => {
+    it('takes a `captureException` option that expects an Error to be passed', () => {
+      const messenger = buildMessenger();
+      const errorReportingService = new ErrorReportingService({
+        messenger,
+        captureException: (error: Error) => sentryCaptureException(error),
+      });
+
+      // This assertion is just here to appease the ESLint Jest rules
+      expect(errorReportingService).toBeInstanceOf(ErrorReportingService);
+    });
+
+    it('allows the Sentry `captureException` function to be passed as the `captureException` option', () => {
       const messenger = buildMessenger();
       const errorReportingService = new ErrorReportingService({
         messenger,
@@ -19,7 +30,7 @@ describe('ErrorReportingService', () => {
   });
 
   describe('captureException', () => {
-    it('calls the captureException function supplied to the constructor with the given arguments', () => {
+    it('calls the `captureException` function supplied to the constructor with the given arguments', () => {
       const messenger = buildMessenger();
       const captureExceptionMock = jest.fn();
       const errorReportingService = new ErrorReportingService({
@@ -35,7 +46,7 @@ describe('ErrorReportingService', () => {
   });
 
   describe('ErrorReportingService:captureException', () => {
-    it('calls the captureException function supplied to the constructor with the given arguments', () => {
+    it('calls the `captureException` function supplied to the constructor with the given arguments', () => {
       const messenger = buildMessenger();
       const captureExceptionMock = jest.fn();
       new ErrorReportingService({

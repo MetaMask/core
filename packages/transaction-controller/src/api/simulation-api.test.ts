@@ -1,6 +1,9 @@
+import type { Hex } from '@metamask/utils';
+import { cloneDeep } from 'lodash';
+
 import type { SimulationRequest, SimulationResponse } from './simulation-api';
 import { simulateTransactions } from './simulation-api';
-import { CHAIN_IDS } from '../constants';
+import { CHAIN_IDS, DELEGATION_MANAGER_ADDRESSES } from '../constants';
 
 const CHAIN_ID_MOCK = '0x1';
 const CHAIN_ID_MOCK_DECIMAL = 1;
@@ -125,6 +128,26 @@ describe('Simulation API Utils', () => {
         code: ERROR_CODE_MOCK,
         message: ERROR_MESSAGE_MOCK,
       } as unknown as Error);
+    });
+
+    it('overrides DelegationManager code', async () => {
+      const request = cloneDeep(REQUEST_MOCK);
+      request.transactions[0].to =
+        DELEGATION_MANAGER_ADDRESSES[0].toUpperCase() as Hex;
+
+      await simulateTransactions(CHAIN_ID_MOCK, request);
+
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+
+      const requestBody = JSON.parse(
+        fetchMock.mock.calls[1][1]?.body as string,
+      );
+
+      expect(
+        requestBody.params[0].overrides[DELEGATION_MANAGER_ADDRESSES[0]],
+      ).toStrictEqual({
+        code: expect.any(String),
+      });
     });
   });
 });

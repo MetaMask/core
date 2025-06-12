@@ -68,7 +68,7 @@ export type AccountWallet = {
   groups: {
     [groupId: AccountGroupId]: AccountGroup;
   };
-  metadata: AccountGroupMetadata; // Assuming Metadata is a defined type
+  metadata: AccountWalletMetadata;
 };
 
 export type AccountTreeControllerState = {
@@ -101,7 +101,7 @@ export type AllowedEvents =
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent;
 
-export type AccountTreeControllerEvents = never;
+export type AccountTreeControllerEvents = AccountTreeControllerStateChangeEvent;
 
 export type AccountTreeControllerMessenger = RestrictedMessenger<
   typeof controllerName,
