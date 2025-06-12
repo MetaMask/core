@@ -520,6 +520,19 @@ const getMessengerMock = ({
             },
           ],
         };
+      } else if (method === 'RemoteFeatureFlagController:getState') {
+        return {
+          remoteFeatureFlags: {
+            bridgeConfig: {
+              support: true,
+              chains: {
+                [srcChainId]: {
+                  isSnapConfirmationEnabled: false,
+                },
+              },
+            },
+          },
+        };
       }
       return null;
     }),
@@ -566,7 +579,23 @@ const executePollingWithPendingStatus = async () => {
 
 // Define mocks at the top level
 const mockFetchFn = jest.fn();
-const mockMessengerCall = jest.fn();
+const mockMessengerCall = jest.fn().mockImplementation((method: string) => {
+  if (method === 'RemoteFeatureFlagController:getState') {
+    return {
+      remoteFeatureFlags: {
+        bridgeConfig: {
+          support: true,
+          chains: {
+            42161: {
+              isSnapConfirmationEnabled: false,
+            },
+          },
+        },
+      },
+    };
+  }
+  return null;
+});
 const mockSelectedAccount = {
   id: 'test-account-id',
   address: '0xaccount1',
