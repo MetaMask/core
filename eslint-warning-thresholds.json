@@ -2,9 +2,6 @@
   "packages/accounts-controller/src/AccountsController.test.ts": {
     "import-x/namespace": 1
   },
-  "packages/address-book-controller/src/AddressBookController.ts": {
-    "jsdoc/check-tag-names": 13
-  },
   "packages/approval-controller/src/ApprovalController.test.ts": {
     "import-x/order": 1,
     "jest/no-conditional-in-test": 16
@@ -39,13 +36,11 @@
   },
   "packages/assets-controllers/src/NftController.test.ts": {
     "import-x/namespace": 9,
-    "import-x/order": 3,
-    "jest/no-conditional-in-test": 8
+    "jest/no-conditional-in-test": 6
   },
   "packages/assets-controllers/src/NftController.ts": {
     "@typescript-eslint/prefer-readonly": 1,
-    "jsdoc/check-tag-names": 46,
-    "jsdoc/tag-lines": 4
+    "jsdoc/check-tag-names": 46
   },
   "packages/assets-controllers/src/NftDetectionController.test.ts": {
     "import-x/namespace": 6,
@@ -72,9 +67,6 @@
   },
   "packages/assets-controllers/src/Standards/NftStandards/ERC721/ERC721Standard.ts": {
     "prettier/prettier": 1
-  },
-  "packages/assets-controllers/src/TokenBalancesController.test.ts": {
-    "import-x/order": 1
   },
   "packages/assets-controllers/src/TokenBalancesController.ts": {
     "@typescript-eslint/prefer-readonly": 4,
@@ -169,7 +161,6 @@
     "jsdoc/check-tag-names": 5
   },
   "packages/controller-utils/src/types.ts": {
-    "@typescript-eslint/no-duplicate-enum-values": 2,
     "jsdoc/tag-lines": 1
   },
   "packages/controller-utils/src/util.test.ts": {
@@ -265,80 +256,6 @@
   "packages/message-manager/src/utils.ts": {
     "@typescript-eslint/no-unused-vars": 1
   },
-  "packages/multichain/src/adapters/caip-permission-adapter-eth-accounts.test.ts": {
-    "import-x/order": 1
-  },
-  "packages/multichain/src/adapters/caip-permission-adapter-eth-accounts.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": 1,
-    "jsdoc/tag-lines": 5
-  },
-  "packages/multichain/src/adapters/caip-permission-adapter-permittedChains.test.ts": {
-    "import-x/order": 1
-  },
-  "packages/multichain/src/adapters/caip-permission-adapter-permittedChains.ts": {
-    "jsdoc/tag-lines": 5
-  },
-  "packages/multichain/src/adapters/caip-permission-adapter-session-scopes.test.ts": {
-    "@typescript-eslint/no-unused-vars": 2
-  },
-  "packages/multichain/src/caip25Permission.test.ts": {
-    "@typescript-eslint/no-unused-vars": 5
-  },
-  "packages/multichain/src/caip25Permission.ts": {
-    "@typescript-eslint/no-unused-vars": 1
-  },
-  "packages/multichain/src/handlers/wallet-getSession.ts": {
-    "@typescript-eslint/no-unused-vars": 1,
-    "jsdoc/require-returns": 1
-  },
-  "packages/multichain/src/handlers/wallet-invokeMethod.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": 1,
-    "@typescript-eslint/no-unused-vars": 1,
-    "jsdoc/require-returns": 1
-  },
-  "packages/multichain/src/handlers/wallet-revokeSession.test.ts": {
-    "import-x/order": 1,
-    "prettier/prettier": 2
-  },
-  "packages/multichain/src/handlers/wallet-revokeSession.ts": {
-    "@typescript-eslint/no-unused-vars": 1,
-    "jsdoc/require-returns": 1
-  },
-  "packages/multichain/src/middlewares/MultichainMiddlewareManager.test.ts": {
-    "prettier/prettier": 1
-  },
-  "packages/multichain/src/middlewares/MultichainSubscriptionManager.ts": {
-    "@typescript-eslint/prefer-readonly": 2,
-    "import-x/order": 1
-  },
-  "packages/multichain/src/middlewares/multichainMethodCallValidator.test.ts": {
-    "@typescript-eslint/prefer-promise-reject-errors": 20
-  },
-  "packages/multichain/src/scope/assert.test.ts": {
-    "@typescript-eslint/no-unused-vars": 3
-  },
-  "packages/multichain/src/scope/assert.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": 1
-  },
-  "packages/multichain/src/scope/authorization.test.ts": {
-    "@typescript-eslint/no-unused-vars": 2
-  },
-  "packages/multichain/src/scope/errors.ts": {
-    "jsdoc/tag-lines": 5
-  },
-  "packages/multichain/src/scope/filter.test.ts": {
-    "jest/no-conditional-in-test": 9
-  },
-  "packages/multichain/src/scope/filter.ts": {
-    "@typescript-eslint/no-unused-vars": 1,
-    "jsdoc/require-returns": 1
-  },
-  "packages/multichain/src/scope/supported.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": 6
-  },
-  "packages/multichain/src/scope/validation.ts": {
-    "jsdoc/tag-lines": 2
-  },
   "packages/name-controller/src/NameController.ts": {
     "@typescript-eslint/no-unsafe-enum-comparison": 1,
     "@typescript-eslint/prefer-readonly": 2
@@ -408,9 +325,6 @@
     "jsdoc/check-tag-names": 2,
     "jsdoc/tag-lines": 1
   },
-  "packages/permission-log-controller/tests/PermissionLogController.test.ts": {
-    "import-x/order": 1
-  },
   "packages/phishing-controller/src/PhishingController.ts": {
     "jsdoc/check-tag-names": 38,
     "jsdoc/tag-lines": 1
@@ -457,6 +371,12 @@
   },
   "packages/remote-feature-flag-controller/src/utils/user-segmentation-utils.ts": {
     "jsdoc/tag-lines": 2
+  },
+  "packages/seedless-onboarding-controller/jest.environment.js": {
+    "n/no-unsupported-features/node-builtins": 1
+  },
+  "packages/seedless-onboarding-controller/src/errors.ts": {
+    "@typescript-eslint/no-unsafe-enum-comparison": 1
   },
   "packages/selected-network-controller/src/SelectedNetworkController.ts": {
     "@typescript-eslint/prefer-readonly": 1,

@@ -1,6 +1,11 @@
 import { convertHexToDecimal } from '@metamask/controller-utils';
 import { createModuleLogger, type Hex } from '@metamask/utils';
+import { cloneDeep } from 'lodash';
 
+import {
+  CODE_DELEGATION_MANAGER_NO_SIGNATURE_ERRORS,
+  DELEGATION_MANAGER_ADDRESSES,
+} from '../constants';
 import { SimulationChainNotSupportedError, SimulationError } from '../errors';
 import { projectLogger } from '../logger';
 
@@ -44,12 +49,6 @@ export type SimulationRequestTransaction = {
 
 /** Request to the simulation API to simulate transactions. */
 export type SimulationRequest = {
-  /**
-   * Transactions to be sequentially simulated.
-   * State changes impact subsequent transactions in the list.
-   */
-  transactions: SimulationRequestTransaction[];
-
   blockOverrides?: {
     time?: Hex;
   };
@@ -84,10 +83,28 @@ export type SimulationRequest = {
   };
 
   /**
+   * Transactions to be sequentially simulated.
+   * State changes impact subsequent transactions in the list.
+   */
+  transactions: SimulationRequestTransaction[];
+
+  /**
    * Whether to include call traces in the response.
    * Defaults to false.
    */
   withCallTrace?: boolean;
+
+  /**
+   * Whether to include the default block data in the simulation.
+   * Defaults to false.
+   */
+  withDefaultBlockOverrides?: boolean;
+
+  /**
+   * Whether to use the gas fees in the simulation.
+   * Defaults to false.
+   */
+  withGas?: boolean;
 
   /**
    * Whether to include event logs in the response.
@@ -161,6 +178,9 @@ export type SimulationResponseTokenFee = {
   /** Conversation rate of 1 token to native WEI. */
   rateWei: Hex;
 
+  /** Portion of `balanceNeededToken` that is the fee paid to MetaMask. */
+  serviceFee?: Hex;
+
   /** Estimated gas limit required for fee transfer. */
   transferEstimate: Hex;
 };
@@ -187,6 +207,12 @@ export type SimulationResponseTransaction = {
     /** Token fee data for the fee level. */
     tokenFees: SimulationResponseTokenFee[];
   }[];
+
+  /**
+   * Estimated total gas cost of the transaction.
+   * Included in the stateDiff if `withGas` is true.
+   */
+  gasCost?: number;
 
   /** Required `gasLimit` for the transaction. */
   gasLimit?: Hex;
@@ -242,10 +268,12 @@ export async function simulateTransactions(
 ): Promise<SimulationResponse> {
   const url = await getSimulationUrl(chainId);
 
-  log('Sending request', url, request);
-
   const requestId = requestIdCounter;
   requestIdCounter += 1;
+
+  const finalRequest = finalizeRequest(request);
+
+  log('Sending request', url, request);
 
   const response = await fetch(url, {
     method: 'POST',
@@ -253,7 +281,7 @@ export async function simulateTransactions(
       id: String(requestId),
       jsonrpc: '2.0',
       method: RPC_METHOD,
-      params: [request],
+      params: [finalRequest],
     }),
   });
 
@@ -307,4 +335,35 @@ async function getNetworkData(): Promise<SimulationNetworkResponse> {
  */
 function getUrl(subdomain: string): string {
   return BASE_URL.replace('{0}', subdomain);
+}
+
+/**
+ * Finalize the simulation request.
+ * Overrides the DelegationManager code to remove signature errors.
+ * Temporary pending support in the simulation API.
+ *
+ * @param request - The simulation request to finalize.
+ * @returns The finalized simulation request.
+ */
+function finalizeRequest(request: SimulationRequest): SimulationRequest {
+  const newRequest = cloneDeep(request);
+
+  for (const transaction of newRequest.transactions) {
+    const normalizedTo = transaction.to?.toLowerCase() as Hex;
+
+    const isToDelegationManager =
+      DELEGATION_MANAGER_ADDRESSES.includes(normalizedTo);
+
+    if (!isToDelegationManager) {
+      continue;
+    }
+
+    newRequest.overrides = newRequest.overrides || {};
+
+    newRequest.overrides[normalizedTo] = {
+      code: CODE_DELEGATION_MANAGER_NO_SIGNATURE_ERRORS,
+    };
+  }
+
+  return newRequest;
 }

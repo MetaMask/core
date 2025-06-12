@@ -1,5 +1,7 @@
 import type { NotNamespacedBy } from '@metamask/base-controller';
 import { Messenger } from '@metamask/base-controller';
+import type { KeyringObject } from '@metamask/keyring-controller';
+import { KeyringTypes } from '@metamask/keyring-controller';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 
 import type {
@@ -8,6 +10,7 @@ import type {
   UserStorageControllerMessenger,
 } from '..';
 import { MOCK_LOGIN_RESPONSE } from '../../authentication/mocks';
+import { MOCK_ENTROPY_SOURCE_IDS } from '../account-syncing/__fixtures__/mockAccounts';
 import { MOCK_STORAGE_KEY_SIGNATURE } from '../mocks';
 
 type GetHandler<ActionType extends AllowedActions['type']> = Extract<
@@ -69,8 +72,8 @@ export function createCustomUserStorageMessenger(props?: {
     allowedEvents: props?.overrideEvents ?? [
       'KeyringController:lock',
       'KeyringController:unlock',
-      'AccountsController:accountAdded',
       'AccountsController:accountRenamed',
+      'AccountsController:accountAdded',
       'NetworkController:networkRemoved',
     ],
   });
@@ -99,6 +102,14 @@ export function mockUserStorageMessenger(
     overrideMessengers ?? createCustomUserStorageMessenger();
 
   const mockSnapGetPublicKey = jest.fn().mockResolvedValue('MOCK_PUBLIC_KEY');
+  const mockSnapGetAllPublicKeys = jest
+    .fn()
+    .mockResolvedValue(
+      MOCK_ENTROPY_SOURCE_IDS.map((entropySourceId) => [
+        entropySourceId,
+        'MOCK_PUBLIC_KEY',
+      ]),
+    );
   const mockSnapSignMessage = jest
     .fn()
     .mockResolvedValue(MOCK_STORAGE_KEY_SIGNATURE);
@@ -117,7 +128,7 @@ export function mockUserStorageMessenger(
 
   const mockAuthPerformSignIn = typedMockFn(
     'AuthenticationController:performSignIn',
-  ).mockResolvedValue('New Access Token');
+  ).mockResolvedValue(['New Access Token']);
 
   const mockAuthIsSignedIn = typedMockFn(
     'AuthenticationController:isSignedIn',
@@ -126,18 +137,38 @@ export function mockUserStorageMessenger(
   const mockKeyringWithKeyring = typedMockFn('KeyringController:withKeyring');
   const mockKeyringGetAccounts = jest.fn();
   const mockKeyringAddAccounts = jest.fn();
+  const mockWithKeyringSelector = jest.fn();
 
   const mockKeyringGetState = typedMockFn(
     'KeyringController:getState',
   ).mockReturnValue({
     isUnlocked: true,
-    keyrings: [],
+    keyrings: [
+      {
+        type: KeyringTypes.hd,
+        metadata: {
+          name: '1',
+          id: MOCK_ENTROPY_SOURCE_IDS[0],
+        },
+      },
+      {
+        type: KeyringTypes.hd,
+        metadata: {
+          name: '2',
+          id: MOCK_ENTROPY_SOURCE_IDS[1],
+        },
+      },
+    ] as unknown as KeyringObject[],
   });
 
   const mockAccountsListAccounts = jest.fn();
 
   const mockAccountsUpdateAccountMetadata = typedMockFn(
     'AccountsController:updateAccountMetadata',
+  ).mockResolvedValue(true as never);
+
+  const mockAccountsUpdateAccounts = typedMockFn(
+    'AccountsController:updateAccounts',
   ).mockResolvedValue(true as never);
 
   const mockNetworkControllerGetState = typedMockFn(
@@ -168,6 +199,10 @@ export function mockUserStorageMessenger(
       const [, params] = typedArgs;
       if (params.request.method === 'getPublicKey') {
         return mockSnapGetPublicKey();
+      }
+
+      if (params.request.method === 'getAllPublicKeys') {
+        return mockSnapGetAllPublicKeys();
       }
 
       if (params.request.method === 'signMessage') {
@@ -203,7 +238,9 @@ export function mockUserStorageMessenger(
 
     if (actionType === 'KeyringController:withKeyring') {
       const [, ...params] = typedArgs;
-      const [, operation] = params;
+      const [selector, operation] = params;
+
+      mockWithKeyringSelector(selector);
 
       const keyring = {
         getAccounts: mockKeyringGetAccounts,
@@ -217,6 +254,10 @@ export function mockUserStorageMessenger(
 
     if (actionType === 'AccountsController:listAccounts') {
       return mockAccountsListAccounts();
+    }
+
+    if (actionType === 'AccountsController:updateAccounts') {
+      return mockAccountsUpdateAccounts();
     }
 
     if (typedArgs[0] === 'AccountsController:updateAccountMetadata') {
@@ -253,6 +294,7 @@ export function mockUserStorageMessenger(
     messenger,
     mockSnapGetPublicKey,
     mockSnapSignMessage,
+    mockSnapGetAllPublicKeys,
     mockAuthGetBearerToken,
     mockAuthGetSessionProfile,
     mockAuthPerformSignIn,
@@ -261,6 +303,7 @@ export function mockUserStorageMessenger(
     mockKeyringAddAccounts,
     mockKeyringWithKeyring,
     mockKeyringGetState,
+    mockWithKeyringSelector,
     mockAccountsUpdateAccountMetadata,
     mockAccountsListAccounts,
     mockNetworkControllerGetState,

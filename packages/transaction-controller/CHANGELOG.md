@@ -7,6 +7,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `afterSimulate` and `beforeSign` hooks to constructor ([#5503](https://github.com/MetaMask/core/pull/5503))
+  - Add `AfterSimulateHook` type.
+  - Add `BeforeSignHook` type.
+  - Add `TransactionContainerType` enum.
+  - Add `TransactionControllerEstimateGasAction` type.
+  - Add optional `containerTypes` property to `TransactionMeta`.
+  - Add optional `ignoreDelegationSignatures` boolean to `estimateGas` method.
+- Add `gasFeeEstimates` property to `TransactionBatchMeta`, populated using `DefaultGasFeeFlow` ([#5886](https://github.com/MetaMask/core/pull/5886))
+
+## [57.3.0]
+
+### Added
+
+- Add `SEI` network support ([#5694](https://github.com/MetaMask/core/pull/5694))
+  - Add account address relationship API support
+  - Add incoming transactions API support
+
+## [57.2.0]
+
+### Added
+
+- Add `lendingWithdraw` to `TransactionType` ([#5936](https://github.com/MetaMask/core/pull/5936))
+
+### Changed
+
+- Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
+
+### Fixed
+
+- Avoid coercing `publishBatchHook` to a boolean ([#5934](https://github.com/MetaMask/core/pull/5934))
+
+## [57.1.0]
+
+### Added
+
+- Add `gas` property to `TransactionBatchMeta`, populated using simulation API ([#5852](https://github.com/MetaMask/core/pull/5852))
+
+### Changed
+
+- Include gas limit and gas fees in simulation requests ([#5754](https://github.com/MetaMask/core/pull/5754))
+  - Add optional `fee` property to `GasFeeToken`.
+- Default addTransactionBatch to EIP7702 if supported, otherwise use sequential batch ([#5853](https://github.com/MetaMask/core/pull/5853))
+
+## [57.0.0]
+
+### Changed
+
+- **BREAKING:** bump `@metamask/accounts-controller` peer dependency to `^30.0.0` ([#5888](https://github.com/MetaMask/core/pull/5888))
+
+## [56.3.0]
+
+### Added
+
+- Include `origin` for `wallet_sendCalls` requests to the security alerts API ([#5876](https://github.com/MetaMask/core/pull/5876))
+  - Extend `ValidateSecurityRequest` with `origin` property.
+  - Send `origin` via `validateSecurity` callback.
+- Add optional approval request when calling `addTransactionBatch` ([#5793](https://github.com/MetaMask/core/pull/5793))
+  - Add `transactionBatches` array to state.
+  - Add `TransactionBatchMeta` type.
+
+### Fixed
+
+- Support leading zeroes in `authorizationList` properties ([#5830](https://github.com/MetaMask/core/pull/5830))
+
 ## [56.2.0]
 
 ### Added
@@ -1613,7 +1679,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@56.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.3.0...HEAD
+[57.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.2.0...@metamask/transaction-controller@57.3.0
+[57.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.1.0...@metamask/transaction-controller@57.2.0
+[57.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.0.0...@metamask/transaction-controller@57.1.0
+[57.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@56.3.0...@metamask/transaction-controller@57.0.0
+[56.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@56.2.0...@metamask/transaction-controller@56.3.0
 [56.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@56.1.0...@metamask/transaction-controller@56.2.0
 [56.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@56.0.0...@metamask/transaction-controller@56.1.0
 [56.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@55.0.2...@metamask/transaction-controller@56.0.0

@@ -16,6 +16,7 @@ export const ALLOWED_BRIDGE_CHAIN_IDS = [
   CHAIN_IDS.ARBITRUM,
   CHAIN_IDS.LINEA_MAINNET,
   CHAIN_IDS.BASE,
+  CHAIN_IDS.SEI,
   SolScope.Mainnet,
 ] as const;
 
@@ -62,6 +63,7 @@ export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState = {
   quoteFetchError: null,
   quotesRefreshCount: 0,
   assetExchangeRates: {},
+  minimumBalanceForRentExemptionInLamports: '0',
 };
 
 export const METABRIDGE_CHAIN_TO_ADDRESS_MAP: Record<Hex, string> = {

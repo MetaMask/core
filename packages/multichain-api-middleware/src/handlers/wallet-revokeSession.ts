@@ -8,7 +8,7 @@ import {
   UnrecognizedSubjectError,
 } from '@metamask/permission-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
-import type { JsonRpcSuccess, Json, JsonRpcRequest } from '@metamask/utils';
+import type { JsonRpcSuccess, JsonRpcRequest } from '@metamask/utils';
 
 /**
  * Handler for the `wallet_revokeSession` RPC method as specified by [CAIP-285](https://chainagnostic.org/CAIPs/caip-285).
@@ -27,7 +27,7 @@ import type { JsonRpcSuccess, Json, JsonRpcRequest } from '@metamask/utils';
  */
 async function walletRevokeSessionHandler(
   _request: JsonRpcRequest & { origin: string },
-  response: JsonRpcSuccess<Json>,
+  response: JsonRpcSuccess,
   _next: JsonRpcEngineNextCallback,
   end: JsonRpcEngineEndCallback,
   hooks: {

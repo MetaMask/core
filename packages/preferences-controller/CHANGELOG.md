@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
+
+## [18.1.0]
+
+### Added
+
+- Add `dismissSmartAccountSuggestionEnabled` preference ([#5866](https://github.com/MetaMask/core/pull/5866))
+
+### Changed
+
 - Bump `@metamask/controller-utils` to `^11.9.0` ([#5812](https://github.com/MetaMask/core/pull/5812))
 
 ## [18.0.0]
@@ -364,7 +374,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.1.0...HEAD
+[18.1.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.0.0...@metamask/preferences-controller@18.1.0
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@17.0.0...@metamask/preferences-controller@18.0.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@16.0.0...@metamask/preferences-controller@17.0.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@15.0.2...@metamask/preferences-controller@16.0.0

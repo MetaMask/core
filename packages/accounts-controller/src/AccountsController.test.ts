@@ -325,9 +325,7 @@ describe('AccountsController', () => {
             status: SnapStatus.Running,
           },
         },
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any as SnapControllerState;
+      } as unknown as SnapControllerState;
       const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -371,9 +369,7 @@ describe('AccountsController', () => {
             status: SnapStatus.Running,
           },
         },
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any as SnapControllerState;
+      } as unknown as SnapControllerState;
       const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -417,9 +413,7 @@ describe('AccountsController', () => {
             status: SnapStatus.Running,
           },
         },
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any as SnapControllerState;
+      } as unknown as SnapControllerState;
       const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -463,9 +457,7 @@ describe('AccountsController', () => {
             status: SnapStatus.Running,
           },
         },
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any as SnapControllerState;
+      } as unknown as SnapControllerState;
       const mockStateChange = jest.fn();
       const { accountsController } = setupAccountsController({
         initialState: {
@@ -494,6 +486,48 @@ describe('AccountsController', () => {
       messenger.publish('SnapController:stateChange', mockSnapChangeState, []);
       expect(updatedAccount.metadata.snap?.enabled).toBe(true);
       expect(mockStateChange).not.toHaveBeenCalled();
+    });
+
+    it('considers the Snap disabled if it cannot be found on the SnapController state', () => {
+      const messenger = buildMessenger();
+      const mockSnapAccount = createMockInternalAccount({
+        id: 'mock-id',
+        name: 'Snap Account 1',
+        address: '0x0',
+        keyringType: KeyringTypes.snap,
+        snap: {
+          id: 'mock-snap',
+          name: 'mock-snap-name',
+          enabled: true, // This Snap was enabled initially.
+        },
+      });
+      const mockSnapChangeState = {
+        snaps: {
+          // No `mock-snap` on the state, the Snap will be considered "disabled".
+        },
+      } as unknown as SnapControllerState;
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockSnapAccount.id]: mockSnapAccount,
+            },
+            selectedAccount: mockSnapAccount.id,
+          },
+        },
+        messenger,
+      });
+
+      // Initial state
+      const account = accountsController.getAccountExpect(mockSnapAccount.id);
+      expect(account.metadata.snap?.enabled).toBe(true);
+
+      // The Snap 'mock-snap' won't be found, so we will automatically consider it disabled.
+      messenger.publish('SnapController:stateChange', mockSnapChangeState, []);
+      const updatedAccount = accountsController.getAccountExpect(
+        mockSnapAccount.id,
+      );
+      expect(updatedAccount.metadata.snap?.enabled).toBe(false);
     });
   });
 

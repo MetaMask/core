@@ -8,6 +8,7 @@ Object {
       "usdExchangeRate": "100",
     },
   },
+  "minimumBalanceForRentExemptionInLamports": "0",
   "quoteFetchError": null,
   "quoteRequest": Object {
     "destChainId": "0x1",
@@ -32,6 +33,7 @@ Object {
       "usdExchangeRate": "100",
     },
   },
+  "minimumBalanceForRentExemptionInLamports": "0",
   "quoteFetchError": null,
   "quoteRequest": Object {
     "destChainId": "0x1",
@@ -392,7 +394,6 @@ Array [
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
-      "error_message": null,
       "has_sufficient_funds": true,
       "is_hardware_wallet": false,
       "security_warnings": Array [],
@@ -442,6 +443,218 @@ Array [
 ]
 `;
 
+exports[`BridgeController updateBridgeQuoteRequestParams should reset minimumBalanceForRentExemptionInLamports if getMinimumBalanceForRentExemption call fails 1`] = `
+Array [
+  Array [
+    "Error setting minimum balance for rent exemption",
+    [Error: Min balance error],
+  ],
+]
+`;
+
+exports[`BridgeController updateBridgeQuoteRequestParams should reset minimumBalanceForRentExemptionInLamports if getMinimumBalanceForRentExemption call fails 2`] = `
+Array [
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onProtocolRequest",
+      "origin": "metamask",
+      "request": Object {
+        "jsonrpc": "2.0",
+        "method": " ",
+        "params": Object {
+          "request": Object {
+            "id": "test-uuid-1234",
+            "jsonrpc": "2.0",
+            "method": "getMinimumBalanceForRentExemption",
+            "params": Array [
+              0,
+              Object {
+                "commitment": "confirmed",
+              },
+            ],
+          },
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onRpcRequest",
+      "origin": "metamask",
+      "request": Object {
+        "method": "getFeeForTransaction",
+        "params": Object {
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+          "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onRpcRequest",
+      "origin": "metamask",
+      "request": Object {
+        "method": "getFeeForTransaction",
+        "params": Object {
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+          "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAIEnLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHz7U6VQBhniAZG564p5JhG+y5+5uEABjxPtimE61bsqsz4TFeaDdmFmlW16xBf2qhUAUla7cIQjqp3HfLznM1aZqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVZ0EED+QHqrBQRqB+cbMfYZjXZcTe9r+CfdbguirL8P49t1pWG6qWtPmFmciR1xbrt4IW+b1nNcz2N5abYbCcsDgByJFz/oyJeNAhYJfn7erTZs6xJHjnuAV0v/cuH6iQNCzB1ajK9lOERjgtFNI8XDODau1kgDlDaRIGFfFNP09KMWgsU3Ye36HzgEdq38sqvZDFOifcDzPxfPOcDxeZgLShtMST0fB39lSGQI7f01fZv+JVg5S4qIF2zdmCAhSAAwZGb+UhFzL/7K26csOb57yM5bvF9xJrLEObOkAAAACMlyWPTiSJ8bs9ECkUjg2DC1oTmdr/EIQEjnvY2+n4WQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABt324ddloZPZy+FGzut5rBy0he1fWzeROoz1hX7/AKkEedVb8jHAbu50xW7OaBUH/bGy3qP0jlECsc2iVrwTj1E+LF26QsO9gzDavYNO6ZflUDWJ+gBV9eCQ5OcuzAMStD/6J/XX9kp0wJsfKVh53ksJqzbfyd1RSzIap7OM5egJanTpAxnCBLW4j9Mn+DAuluhVY4cEgRJ9Pah1VqYQXzWdRJXp28EMpR0GPlVtcnRtTGlBHjaRvhFYLMMzzMD6CQoABQLAXBUACgAJA0ANAwAAAAAACwYAAQIbDA0ACwYAAwAcDA0BAQwCAAMMAgAAAFBGFTsAAAAADQEDAREOKQ0PAAMEBQEcGw4OEA4dDx4SBAYTFBUNBxYICQ4fDwYFFxgZGiAhIiMNKMEgmzNB1pyBAwIAAAAaZAABOGQBAlBGFTsAAAAAP4hnBwAAAABkAAANAwMAAAEJEQUAAgEbDLwBj+v8wtNahk0AAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOCjcXQcAAAAAAAAAAAAAAACUXhgAAAAAABb1AwAAAAAAGABuuH/gY8j1t421m3ekiET/qFVeKhVA3SJVS5OH/NW+oQMAAAAAAAAAAAAAAABCAAAAAAAAAAAAAAAAAAAAAAAAQrPV80YDAAAACwLaZwAAAAAAAAAAAAAAAAAAAAClqm4hcbQW4dJ+xTyowT2z+RqJzQADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAARE9whapJMxiYg1Y/S9bROWrjXfldZCFcyME/snbeFkkhAUXFisYKQMaKiVZfTkrqqg0GkW+iGFAaIHEbhkRX4YCBLoWvHI1OH2T2gSmTlKhBREUDA0H",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onRpcRequest",
+      "origin": "metamask",
+      "request": Object {
+        "method": "getFeeForTransaction",
+        "params": Object {
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+          "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onRpcRequest",
+      "origin": "metamask",
+      "request": Object {
+        "method": "getFeeForTransaction",
+        "params": Object {
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+          "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAIEnLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHz7U6VQBhniAZG564p5JhG+y5+5uEABjxPtimE61bsqsz4TFeaDdmFmlW16xBf2qhUAUla7cIQjqp3HfLznM1aZqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVZ0EED+QHqrBQRqB+cbMfYZjXZcTe9r+CfdbguirL8P49t1pWG6qWtPmFmciR1xbrt4IW+b1nNcz2N5abYbCcsDgByJFz/oyJeNAhYJfn7erTZs6xJHjnuAV0v/cuH6iQNCzB1ajK9lOERjgtFNI8XDODau1kgDlDaRIGFfFNP09KMWgsU3Ye36HzgEdq38sqvZDFOifcDzPxfPOcDxeZgLShtMST0fB39lSGQI7f01fZv+JVg5S4qIF2zdmCAhSAAwZGb+UhFzL/7K26csOb57yM5bvF9xJrLEObOkAAAACMlyWPTiSJ8bs9ECkUjg2DC1oTmdr/EIQEjnvY2+n4WQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABt324ddloZPZy+FGzut5rBy0he1fWzeROoz1hX7/AKkEedVb8jHAbu50xW7OaBUH/bGy3qP0jlECsc2iVrwTj1E+LF26QsO9gzDavYNO6ZflUDWJ+gBV9eCQ5OcuzAMStD/6J/XX9kp0wJsfKVh53ksJqzbfyd1RSzIap7OM5egJanTpAxnCBLW4j9Mn+DAuluhVY4cEgRJ9Pah1VqYQXzWdRJXp28EMpR0GPlVtcnRtTGlBHjaRvhFYLMMzzMD6CQoABQLAXBUACgAJA0ANAwAAAAAACwYAAQIbDA0ACwYAAwAcDA0BAQwCAAMMAgAAAFBGFTsAAAAADQEDAREOKQ0PAAMEBQEcGw4OEA4dDx4SBAYTFBUNBxYICQ4fDwYFFxgZGiAhIiMNKMEgmzNB1pyBAwIAAAAaZAABOGQBAlBGFTsAAAAAP4hnBwAAAABkAAANAwMAAAEJEQUAAgEbDLwBj+v8wtNahk0AAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOCjcXQcAAAAAAAAAAAAAAACUXhgAAAAAABb1AwAAAAAAGABuuH/gY8j1t421m3ekiET/qFVeKhVA3SJVS5OH/NW+oQMAAAAAAAAAAAAAAABCAAAAAAAAAAAAAAAAAAAAAAAAQrPV80YDAAAACwLaZwAAAAAAAAAAAAAAAAAAAAClqm4hcbQW4dJ+xTyowT2z+RqJzQADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAARE9whapJMxiYg1Y/S9bROWrjXfldZCFcyME/snbeFkkhAUXFisYKQMaKiVZfTkrqqg0GkW+iGFAaIHEbhkRX4YCBLoWvHI1OH2T2gSmTlKhBREUDA0H",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onProtocolRequest",
+      "origin": "metamask",
+      "request": Object {
+        "jsonrpc": "2.0",
+        "method": " ",
+        "params": Object {
+          "request": Object {
+            "id": "test-uuid-1234",
+            "jsonrpc": "2.0",
+            "method": "getMinimumBalanceForRentExemption",
+            "params": Array [
+              0,
+              Object {
+                "commitment": "confirmed",
+              },
+            ],
+          },
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onRpcRequest",
+      "origin": "metamask",
+      "request": Object {
+        "method": "getFeeForTransaction",
+        "params": Object {
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+          "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onRpcRequest",
+      "origin": "metamask",
+      "request": Object {
+        "method": "getFeeForTransaction",
+        "params": Object {
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+          "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAIEnLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHz7U6VQBhniAZG564p5JhG+y5+5uEABjxPtimE61bsqsz4TFeaDdmFmlW16xBf2qhUAUla7cIQjqp3HfLznM1aZqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVZ0EED+QHqrBQRqB+cbMfYZjXZcTe9r+CfdbguirL8P49t1pWG6qWtPmFmciR1xbrt4IW+b1nNcz2N5abYbCcsDgByJFz/oyJeNAhYJfn7erTZs6xJHjnuAV0v/cuH6iQNCzB1ajK9lOERjgtFNI8XDODau1kgDlDaRIGFfFNP09KMWgsU3Ye36HzgEdq38sqvZDFOifcDzPxfPOcDxeZgLShtMST0fB39lSGQI7f01fZv+JVg5S4qIF2zdmCAhSAAwZGb+UhFzL/7K26csOb57yM5bvF9xJrLEObOkAAAACMlyWPTiSJ8bs9ECkUjg2DC1oTmdr/EIQEjnvY2+n4WQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABt324ddloZPZy+FGzut5rBy0he1fWzeROoz1hX7/AKkEedVb8jHAbu50xW7OaBUH/bGy3qP0jlECsc2iVrwTj1E+LF26QsO9gzDavYNO6ZflUDWJ+gBV9eCQ5OcuzAMStD/6J/XX9kp0wJsfKVh53ksJqzbfyd1RSzIap7OM5egJanTpAxnCBLW4j9Mn+DAuluhVY4cEgRJ9Pah1VqYQXzWdRJXp28EMpR0GPlVtcnRtTGlBHjaRvhFYLMMzzMD6CQoABQLAXBUACgAJA0ANAwAAAAAACwYAAQIbDA0ACwYAAwAcDA0BAQwCAAMMAgAAAFBGFTsAAAAADQEDAREOKQ0PAAMEBQEcGw4OEA4dDx4SBAYTFBUNBxYICQ4fDwYFFxgZGiAhIiMNKMEgmzNB1pyBAwIAAAAaZAABOGQBAlBGFTsAAAAAP4hnBwAAAABkAAANAwMAAAEJEQUAAgEbDLwBj+v8wtNahk0AAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOCjcXQcAAAAAAAAAAAAAAACUXhgAAAAAABb1AwAAAAAAGABuuH/gY8j1t421m3ekiET/qFVeKhVA3SJVS5OH/NW+oQMAAAAAAAAAAAAAAABCAAAAAAAAAAAAAAAAAAAAAAAAQrPV80YDAAAACwLaZwAAAAAAAAAAAAAAAAAAAAClqm4hcbQW4dJ+xTyowT2z+RqJzQADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAARE9whapJMxiYg1Y/S9bROWrjXfldZCFcyME/snbeFkkhAUXFisYKQMaKiVZfTkrqqg0GkW+iGFAaIHEbhkRX4YCBLoWvHI1OH2T2gSmTlKhBREUDA0H",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onProtocolRequest",
+      "origin": "metamask",
+      "request": Object {
+        "jsonrpc": "2.0",
+        "method": " ",
+        "params": Object {
+          "request": Object {
+            "id": "test-uuid-1234",
+            "jsonrpc": "2.0",
+            "method": "getMinimumBalanceForRentExemption",
+            "params": Array [
+              0,
+              Object {
+                "commitment": "confirmed",
+              },
+            ],
+          },
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onRpcRequest",
+      "origin": "metamask",
+      "request": Object {
+        "method": "getFeeForTransaction",
+        "params": Object {
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+          "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onRpcRequest",
+      "origin": "metamask",
+      "request": Object {
+        "method": "getFeeForTransaction",
+        "params": Object {
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+          "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAIEnLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHz7U6VQBhniAZG564p5JhG+y5+5uEABjxPtimE61bsqsz4TFeaDdmFmlW16xBf2qhUAUla7cIQjqp3HfLznM1aZqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVZ0EED+QHqrBQRqB+cbMfYZjXZcTe9r+CfdbguirL8P49t1pWG6qWtPmFmciR1xbrt4IW+b1nNcz2N5abYbCcsDgByJFz/oyJeNAhYJfn7erTZs6xJHjnuAV0v/cuH6iQNCzB1ajK9lOERjgtFNI8XDODau1kgDlDaRIGFfFNP09KMWgsU3Ye36HzgEdq38sqvZDFOifcDzPxfPOcDxeZgLShtMST0fB39lSGQI7f01fZv+JVg5S4qIF2zdmCAhSAAwZGb+UhFzL/7K26csOb57yM5bvF9xJrLEObOkAAAACMlyWPTiSJ8bs9ECkUjg2DC1oTmdr/EIQEjnvY2+n4WQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABt324ddloZPZy+FGzut5rBy0he1fWzeROoz1hX7/AKkEedVb8jHAbu50xW7OaBUH/bGy3qP0jlECsc2iVrwTj1E+LF26QsO9gzDavYNO6ZflUDWJ+gBV9eCQ5OcuzAMStD/6J/XX9kp0wJsfKVh53ksJqzbfyd1RSzIap7OM5egJanTpAxnCBLW4j9Mn+DAuluhVY4cEgRJ9Pah1VqYQXzWdRJXp28EMpR0GPlVtcnRtTGlBHjaRvhFYLMMzzMD6CQoABQLAXBUACgAJA0ANAwAAAAAACwYAAQIbDA0ACwYAAwAcDA0BAQwCAAMMAgAAAFBGFTsAAAAADQEDAREOKQ0PAAMEBQEcGw4OEA4dDx4SBAYTFBUNBxYICQ4fDwYFFxgZGiAhIiMNKMEgmzNB1pyBAwIAAAAaZAABOGQBAlBGFTsAAAAAP4hnBwAAAABkAAANAwMAAAEJEQUAAgEbDLwBj+v8wtNahk0AAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOCjcXQcAAAAAAAAAAAAAAACUXhgAAAAAABb1AwAAAAAAGABuuH/gY8j1t421m3ekiET/qFVeKhVA3SJVS5OH/NW+oQMAAAAAAAAAAAAAAABCAAAAAAAAAAAAAAAAAAAAAAAAQrPV80YDAAAACwLaZwAAAAAAAAAAAAAAAAAAAAClqm4hcbQW4dJ+xTyowT2z+RqJzQADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAARE9whapJMxiYg1Y/S9bROWrjXfldZCFcyME/snbeFkkhAUXFisYKQMaKiVZfTkrqqg0GkW+iGFAaIHEbhkRX4YCBLoWvHI1OH2T2gSmTlKhBREUDA0H",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+]
+`;
+
 exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote polling if request is valid 1`] = `
 Object {
   "assetExchangeRates": Object {
@@ -450,6 +663,7 @@ Object {
       "usdExchangeRate": "100",
     },
   },
+  "minimumBalanceForRentExemptionInLamports": "0",
   "quoteFetchError": null,
   "quoteRequest": Object {
     "destChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -477,6 +691,7 @@ Object {
       "usdExchangeRate": "100",
     },
   },
+  "minimumBalanceForRentExemptionInLamports": "0",
   "quoteFetchError": null,
   "quoteRequest": Object {
     "destChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -535,7 +750,6 @@ Array [
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
-      "error_message": null,
       "has_sufficient_funds": true,
       "is_hardware_wallet": false,
       "security_warnings": Array [],
@@ -557,7 +771,6 @@ Array [
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
-      "error_message": null,
       "has_sufficient_funds": true,
       "is_hardware_wallet": false,
       "security_warnings": Array [],
@@ -579,7 +792,6 @@ Array [
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
-      "error_message": null,
       "has_sufficient_funds": true,
       "is_hardware_wallet": false,
       "security_warnings": Array [],
@@ -623,7 +835,6 @@ Array [
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
-      "error_message": null,
       "has_sufficient_funds": true,
       "is_hardware_wallet": false,
       "security_warnings": Array [],
@@ -667,3 +878,97 @@ Array [
   ],
 ]
 `;
+
+exports[`BridgeController updateBridgeQuoteRequestParams: should append solanaFees for Solana quotes 1`] = `
+Array [
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onProtocolRequest",
+      "origin": "metamask",
+      "request": Object {
+        "jsonrpc": "2.0",
+        "method": " ",
+        "params": Object {
+          "request": Object {
+            "id": "test-uuid-1234",
+            "jsonrpc": "2.0",
+            "method": "getMinimumBalanceForRentExemption",
+            "params": Array [
+              0,
+              Object {
+                "commitment": "confirmed",
+              },
+            ],
+          },
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onRpcRequest",
+      "origin": "metamask",
+      "request": Object {
+        "method": "getFeeForTransaction",
+        "params": Object {
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+          "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onRpcRequest",
+      "origin": "metamask",
+      "request": Object {
+        "method": "getFeeForTransaction",
+        "params": Object {
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+          "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAIEnLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHz7U6VQBhniAZG564p5JhG+y5+5uEABjxPtimE61bsqsz4TFeaDdmFmlW16xBf2qhUAUla7cIQjqp3HfLznM1aZqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVZ0EED+QHqrBQRqB+cbMfYZjXZcTe9r+CfdbguirL8P49t1pWG6qWtPmFmciR1xbrt4IW+b1nNcz2N5abYbCcsDgByJFz/oyJeNAhYJfn7erTZs6xJHjnuAV0v/cuH6iQNCzB1ajK9lOERjgtFNI8XDODau1kgDlDaRIGFfFNP09KMWgsU3Ye36HzgEdq38sqvZDFOifcDzPxfPOcDxeZgLShtMST0fB39lSGQI7f01fZv+JVg5S4qIF2zdmCAhSAAwZGb+UhFzL/7K26csOb57yM5bvF9xJrLEObOkAAAACMlyWPTiSJ8bs9ECkUjg2DC1oTmdr/EIQEjnvY2+n4WQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABt324ddloZPZy+FGzut5rBy0he1fWzeROoz1hX7/AKkEedVb8jHAbu50xW7OaBUH/bGy3qP0jlECsc2iVrwTj1E+LF26QsO9gzDavYNO6ZflUDWJ+gBV9eCQ5OcuzAMStD/6J/XX9kp0wJsfKVh53ksJqzbfyd1RSzIap7OM5egJanTpAxnCBLW4j9Mn+DAuluhVY4cEgRJ9Pah1VqYQXzWdRJXp28EMpR0GPlVtcnRtTGlBHjaRvhFYLMMzzMD6CQoABQLAXBUACgAJA0ANAwAAAAAACwYAAQIbDA0ACwYAAwAcDA0BAQwCAAMMAgAAAFBGFTsAAAAADQEDAREOKQ0PAAMEBQEcGw4OEA4dDx4SBAYTFBUNBxYICQ4fDwYFFxgZGiAhIiMNKMEgmzNB1pyBAwIAAAAaZAABOGQBAlBGFTsAAAAAP4hnBwAAAABkAAANAwMAAAEJEQUAAgEbDLwBj+v8wtNahk0AAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOCjcXQcAAAAAAAAAAAAAAACUXhgAAAAAABb1AwAAAAAAGABuuH/gY8j1t421m3ekiET/qFVeKhVA3SJVS5OH/NW+oQMAAAAAAAAAAAAAAABCAAAAAAAAAAAAAAAAAAAAAAAAQrPV80YDAAAACwLaZwAAAAAAAAAAAAAAAAAAAAClqm4hcbQW4dJ+xTyowT2z+RqJzQADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAARE9whapJMxiYg1Y/S9bROWrjXfldZCFcyME/snbeFkkhAUXFisYKQMaKiVZfTkrqqg0GkW+iGFAaIHEbhkRX4YCBLoWvHI1OH2T2gSmTlKhBREUDA0H",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+]
+`;
+
+exports[`BridgeController updateBridgeQuoteRequestParams: should handle mixed Solana and non-Solana quotes by not appending fees 1`] = `
+Array [
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onProtocolRequest",
+      "origin": "metamask",
+      "request": Object {
+        "jsonrpc": "2.0",
+        "method": " ",
+        "params": Object {
+          "request": Object {
+            "id": "test-uuid-1234",
+            "jsonrpc": "2.0",
+            "method": "getMinimumBalanceForRentExemption",
+            "params": Array [
+              0,
+              Object {
+                "commitment": "confirmed",
+              },
+            ],
+          },
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+]
+`;
+
+exports[`BridgeController updateBridgeQuoteRequestParams: should not append solanaFees if selected account is not a snap 1`] = `Array []`;

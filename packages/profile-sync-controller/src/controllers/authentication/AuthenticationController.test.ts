@@ -10,24 +10,38 @@ import {
   MOCK_LOGIN_RESPONSE,
   MOCK_OATH_TOKEN_RESPONSE,
 } from './mocks/mockResponses';
+import type { LoginResponse } from '../../sdk';
 import { Platform } from '../../sdk';
 import { arrangeAuthAPIs } from '../../sdk/__fixtures__/auth';
 
-const mockSignedInState = (): AuthenticationControllerState => ({
-  isSignedIn: true,
-  sessionData: {
-    token: {
-      accessToken: MOCK_OATH_TOKEN_RESPONSE.access_token,
-      expiresIn: Date.now() + 3600,
-      obtainedAt: 0,
-    },
-    profile: {
-      identifierId: MOCK_LOGIN_RESPONSE.profile.identifier_id,
-      profileId: MOCK_LOGIN_RESPONSE.profile.profile_id,
-      metaMetricsId: MOCK_LOGIN_RESPONSE.profile.metametrics_id,
-    },
-  },
-});
+const MOCK_ENTROPY_SOURCE_IDS = [
+  'MOCK_ENTROPY_SOURCE_ID',
+  'MOCK_ENTROPY_SOURCE_ID2',
+];
+
+const mockSignedInState = (): AuthenticationControllerState => {
+  const srpSessionData = {} as Record<string, LoginResponse>;
+
+  MOCK_ENTROPY_SOURCE_IDS.forEach((id) => {
+    srpSessionData[id] = {
+      token: {
+        accessToken: MOCK_OATH_TOKEN_RESPONSE.access_token,
+        expiresIn: Date.now() + 3600,
+        obtainedAt: 0,
+      },
+      profile: {
+        identifierId: MOCK_LOGIN_RESPONSE.profile.identifier_id,
+        profileId: MOCK_LOGIN_RESPONSE.profile.profile_id,
+        metaMetricsId: MOCK_LOGIN_RESPONSE.profile.metametrics_id,
+      },
+    };
+  });
+
+  return {
+    isSignedIn: true,
+    srpSessionData,
+  };
+};
 
 describe('authentication/authentication-controller - constructor() tests', () => {
   it('should initialize with default state', () => {
@@ -38,7 +52,7 @@ describe('authentication/authentication-controller - constructor() tests', () =>
     });
 
     expect(controller.state.isSignedIn).toBe(false);
-    expect(controller.state.sessionData).toBeUndefined();
+    expect(controller.state.srpSessionData).toBeUndefined();
   });
 
   it('should initialize with override state', () => {
@@ -50,7 +64,7 @@ describe('authentication/authentication-controller - constructor() tests', () =>
     });
 
     expect(controller.state.isSignedIn).toBe(true);
-    expect(controller.state.sessionData).toBeDefined();
+    expect(controller.state.srpSessionData).toBeDefined();
   });
 
   it('should throw an error if metametrics is not provided', () => {
@@ -64,25 +78,35 @@ describe('authentication/authentication-controller - constructor() tests', () =>
 });
 
 describe('authentication/authentication-controller - performSignIn() tests', () => {
-  it('should create access token and update state', async () => {
+  it('should create access token(s) and update state', async () => {
     const metametrics = createMockAuthMetaMetrics();
     const mockEndpoints = arrangeAuthAPIs();
-    const { messenger, mockSnapGetPublicKey, mockSnapSignMessage } =
-      createMockAuthenticationMessenger();
+    const {
+      messenger,
+      mockSnapGetPublicKey,
+      mockSnapGetAllPublicKeys,
+      mockSnapSignMessage,
+    } = createMockAuthenticationMessenger();
 
     const controller = new AuthenticationController({ messenger, metametrics });
 
     const result = await controller.performSignIn();
-    expect(mockSnapGetPublicKey).toHaveBeenCalled();
-    expect(mockSnapSignMessage).toHaveBeenCalled();
+    expect(mockSnapGetAllPublicKeys).toHaveBeenCalledTimes(1);
+    expect(mockSnapGetPublicKey).toHaveBeenCalledTimes(2);
+    expect(mockSnapSignMessage).toHaveBeenCalledTimes(1);
     mockEndpoints.mockNonceUrl.done();
     mockEndpoints.mockSrpLoginUrl.done();
     mockEndpoints.mockOAuth2TokenUrl.done();
-    expect(result).toBe(MOCK_OATH_TOKEN_RESPONSE.access_token);
+    expect(result).toStrictEqual([
+      MOCK_OATH_TOKEN_RESPONSE.access_token,
+      MOCK_OATH_TOKEN_RESPONSE.access_token,
+    ]);
 
     // Assert - state shows user is logged in
     expect(controller.state.isSignedIn).toBe(true);
-    expect(controller.state.sessionData).toBeDefined();
+    for (const id of MOCK_ENTROPY_SOURCE_IDS) {
+      expect(controller.state.srpSessionData?.[id]).toBeDefined();
+    }
   });
 
   it('leverages the _snapSignMessageCache', async () => {
@@ -101,7 +125,9 @@ describe('authentication/authentication-controller - performSignIn() tests', () 
     mockEndpoints.mockSrpLoginUrl.done();
     mockEndpoints.mockOAuth2TokenUrl.done();
     expect(controller.state.isSignedIn).toBe(true);
-    expect(controller.state.sessionData).toBeDefined();
+    for (const id of MOCK_ENTROPY_SOURCE_IDS) {
+      expect(controller.state.srpSessionData?.[id]).toBeDefined();
+    }
   });
 
   it('should error when nonce endpoint fails', async () => {
@@ -134,9 +160,10 @@ describe('authentication/authentication-controller - performSignIn() tests', () 
     await expect(controller.performSignIn()).rejects.toThrow(expect.any(Error));
 
     baseMessenger.publish('KeyringController:unlock');
-    expect(await controller.performSignIn()).toBe(
+    expect(await controller.performSignIn()).toStrictEqual([
       MOCK_OATH_TOKEN_RESPONSE.access_token,
-    );
+      MOCK_OATH_TOKEN_RESPONSE.access_token,
+    ]);
   });
 
   /**
@@ -188,7 +215,7 @@ describe('authentication/authentication-controller - performSignOut() tests', ()
 
     controller.performSignOut();
     expect(controller.state.isSignedIn).toBe(false);
-    expect(controller.state.sessionData).toBeUndefined();
+    expect(controller.state.srpSessionData).toBeUndefined();
   });
 });
 
@@ -207,7 +234,7 @@ describe('authentication/authentication-controller - getBearerToken() tests', ()
     );
   });
 
-  it('should return original access token in state', async () => {
+  it('should return original access token(s) in state', async () => {
     const metametrics = createMockAuthMetaMetrics();
     const { messenger } = createMockAuthenticationMessenger();
     const originalState = mockSignedInState();
@@ -217,9 +244,20 @@ describe('authentication/authentication-controller - getBearerToken() tests', ()
       metametrics,
     });
 
-    const result = await controller.getBearerToken();
-    expect(result).toBeDefined();
-    expect(result).toBe(originalState.sessionData?.token.accessToken);
+    const resultWithoutEntropySourceId = await controller.getBearerToken();
+    expect(resultWithoutEntropySourceId).toBeDefined();
+    expect(resultWithoutEntropySourceId).toBe(
+      originalState.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]]?.token
+        .accessToken,
+    );
+
+    for (const id of MOCK_ENTROPY_SOURCE_IDS) {
+      const resultWithEntropySourceId = await controller.getBearerToken(id);
+      expect(resultWithEntropySourceId).toBeDefined();
+      expect(resultWithEntropySourceId).toBe(
+        originalState.srpSessionData?.[id]?.token.accessToken,
+      );
+    }
   });
 
   it('should return new access token if state is invalid', async () => {
@@ -228,13 +266,15 @@ describe('authentication/authentication-controller - getBearerToken() tests', ()
     mockAuthenticationFlowEndpoints();
     const originalState = mockSignedInState();
     // eslint-disable-next-line jest/no-conditional-in-test
-    if (originalState.sessionData) {
-      originalState.sessionData.token.accessToken =
-        MOCK_OATH_TOKEN_RESPONSE.access_token;
+    if (originalState.srpSessionData) {
+      originalState.srpSessionData[
+        MOCK_ENTROPY_SOURCE_IDS[0]
+      ].token.accessToken = MOCK_OATH_TOKEN_RESPONSE.access_token;
 
       const d = new Date();
       d.setMinutes(d.getMinutes() - 31); // expires at 30 mins
-      originalState.sessionData.token.expiresIn = d.getTime();
+      originalState.srpSessionData[MOCK_ENTROPY_SOURCE_IDS[0]].token.expiresIn =
+        d.getTime();
     }
 
     const controller = new AuthenticationController({
@@ -259,12 +299,15 @@ describe('authentication/authentication-controller - getBearerToken() tests', ()
     // Invalid/old state
     const originalState = mockSignedInState();
     // eslint-disable-next-line jest/no-conditional-in-test
-    if (originalState.sessionData) {
-      originalState.sessionData.token.accessToken = 'ACCESS_TOKEN_1';
+    if (originalState.srpSessionData) {
+      originalState.srpSessionData[
+        MOCK_ENTROPY_SOURCE_IDS[0]
+      ].token.accessToken = 'ACCESS_TOKEN_1';
 
       const d = new Date();
       d.setMinutes(d.getMinutes() - 31); // expires at 30 mins
-      originalState.sessionData.token.expiresIn = d.getTime();
+      originalState.srpSessionData[MOCK_ENTROPY_SOURCE_IDS[0]].token.expiresIn =
+        d.getTime();
     }
 
     // Mock wallet is locked
@@ -297,7 +340,7 @@ describe('authentication/authentication-controller - getSessionProfile() tests',
     );
   });
 
-  it('should return original access token in state', async () => {
+  it('should return original user profile(s) in state', async () => {
     const metametrics = createMockAuthMetaMetrics();
     const { messenger } = createMockAuthenticationMessenger();
     const originalState = mockSignedInState();
@@ -307,24 +350,36 @@ describe('authentication/authentication-controller - getSessionProfile() tests',
       metametrics,
     });
 
-    const result = await controller.getSessionProfile();
-    expect(result).toBeDefined();
-    expect(result).toStrictEqual(originalState.sessionData?.profile);
+    const resultWithoutEntropySourceId = await controller.getSessionProfile();
+    expect(resultWithoutEntropySourceId).toBeDefined();
+    expect(resultWithoutEntropySourceId).toStrictEqual(
+      originalState.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]]?.profile,
+    );
+
+    for (const id of MOCK_ENTROPY_SOURCE_IDS) {
+      const resultWithEntropySourceId = await controller.getSessionProfile(id);
+      expect(resultWithEntropySourceId).toBeDefined();
+      expect(resultWithEntropySourceId).toStrictEqual(
+        originalState.srpSessionData?.[id]?.profile,
+      );
+    }
   });
 
-  it('should return new access token if state is invalid', async () => {
+  it('should return new user profile if state is invalid', async () => {
     const metametrics = createMockAuthMetaMetrics();
     const { messenger } = createMockAuthenticationMessenger();
     mockAuthenticationFlowEndpoints();
     const originalState = mockSignedInState();
     // eslint-disable-next-line jest/no-conditional-in-test
-    if (originalState.sessionData) {
-      originalState.sessionData.profile.identifierId =
-        MOCK_LOGIN_RESPONSE.profile.identifier_id;
+    if (originalState.srpSessionData) {
+      originalState.srpSessionData[
+        MOCK_ENTROPY_SOURCE_IDS[0]
+      ].profile.identifierId = MOCK_LOGIN_RESPONSE.profile.identifier_id;
 
       const d = new Date();
       d.setMinutes(d.getMinutes() - 31); // expires at 30 mins
-      originalState.sessionData.token.expiresIn = d.getTime();
+      originalState.srpSessionData[MOCK_ENTROPY_SOURCE_IDS[0]].token.expiresIn =
+        d.getTime();
     }
 
     const controller = new AuthenticationController({
@@ -350,13 +405,15 @@ describe('authentication/authentication-controller - getSessionProfile() tests',
     // Invalid/old state
     const originalState = mockSignedInState();
     // eslint-disable-next-line jest/no-conditional-in-test
-    if (originalState.sessionData) {
-      originalState.sessionData.profile.identifierId =
-        MOCK_LOGIN_RESPONSE.profile.identifier_id;
+    if (originalState.srpSessionData) {
+      originalState.srpSessionData[
+        MOCK_ENTROPY_SOURCE_IDS[0]
+      ].profile.identifierId = MOCK_LOGIN_RESPONSE.profile.identifier_id;
 
       const d = new Date();
       d.setMinutes(d.getMinutes() - 31); // expires at 30 mins
-      originalState.sessionData.token.expiresIn = d.getTime();
+      originalState.srpSessionData[MOCK_ENTROPY_SOURCE_IDS[0]].token.expiresIn =
+        d.getTime();
     }
 
     // Mock wallet is locked
@@ -426,8 +483,14 @@ function createAuthenticationMessenger() {
  */
 function createMockAuthenticationMessenger() {
   const { baseMessenger, messenger } = createAuthenticationMessenger();
+
   const mockCall = jest.spyOn(messenger, 'call');
   const mockSnapGetPublicKey = jest.fn().mockResolvedValue('MOCK_PUBLIC_KEY');
+  const mockSnapGetAllPublicKeys = jest
+    .fn()
+    .mockResolvedValue(
+      MOCK_ENTROPY_SOURCE_IDS.map((id) => [id, 'MOCK_PUBLIC_KEY']),
+    );
   const mockSnapSignMessage = jest
     .fn()
     .mockResolvedValue('MOCK_SIGNED_MESSAGE');
@@ -441,6 +504,10 @@ function createMockAuthenticationMessenger() {
     if (actionType === 'SnapController:handleRequest') {
       if (params?.request.method === 'getPublicKey') {
         return mockSnapGetPublicKey();
+      }
+
+      if (params?.request.method === 'getAllPublicKeys') {
+        return mockSnapGetAllPublicKeys();
       }
 
       if (params?.request.method === 'signMessage') {
@@ -467,6 +534,7 @@ function createMockAuthenticationMessenger() {
     messenger,
     baseMessenger,
     mockSnapGetPublicKey,
+    mockSnapGetAllPublicKeys,
     mockSnapSignMessage,
     mockKeyringControllerGetState,
   };

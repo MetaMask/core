@@ -7,6 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [29.1.1]
+
+### Changed
+
+- Bump `@metamask/bridge-controller` to `^32.1.2` ([#5969](https://github.com/MetaMask/core/pull/5969))
+- Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
+- Bump `@metamask/transaction-controller` to `^57.3.0` ([#5954](https://github.com/MetaMask/core/pull/5954))
+
+### Fixed
+
+- Properly prompt for confirmation on Ledger on Mobile for bridge transactions ([#5931](https://github.com/MetaMask/core/pull/5931))
+
+## [29.1.0]
+
+### Added
+
+- Include all invalid status properties in sentry logs ([#5913](https://github.com/MetaMask/core/pull/5913))
+
+## [29.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/bridge-controller` peer dependency to `^32.0.0` ([#5896](https://github.com/MetaMask/core/pull/5896))
+
+## [28.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/bridge-controller` peer dependency to `^31.0.0` ([#5894](https://github.com/MetaMask/core/pull/5894))
+
+## [27.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency to `^30.0.0` ([#5888](https://github.com/MetaMask/core/pull/5888))
+- **BREAKING:** Bump `@metamask/bridge-controller` peer dependency to `^30.0.0` ([#5888](https://github.com/MetaMask/core/pull/5888))
+- **BREAKING:** Bump `@metamask/transactions-controller` peer dependency to `^57.0.0` ([#5888](https://github.com/MetaMask/core/pull/5888))
+- **BREAKING:** Bump `@metamask/multichain-transactions-controller` peer dependency to `^2.0.0` ([#5888](https://github.com/MetaMask/core/pull/5888))
+- **BREAKING:** Bump `@metamask/snaps-controllers` peer dependency from `^11.0.0` to `^12.0.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
+- Bump `@metamask/keyring-api` dependency from `^17.4.0` to `^18.0.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
+
+## [26.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/bridge-controller` peer dependency to `^29.0.0` ([#5872](https://github.com/MetaMask/core/pull/5872))
+
+## [25.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/bridge-controller` peer dependency to `^28.0.0` ([#5863](https://github.com/MetaMask/core/pull/5863))
+
+## [24.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/bridge-controller` peer dependency to `^27.0.0` ([#5845](https://github.com/MetaMask/core/pull/5845))
+
 ## [23.0.0]
 
 ### Added
@@ -256,7 +315,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@23.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@29.1.1...HEAD
+[29.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@29.1.0...@metamask/bridge-status-controller@29.1.1
+[29.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@29.0.0...@metamask/bridge-status-controller@29.1.0
+[29.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@28.0.0...@metamask/bridge-status-controller@29.0.0
+[28.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@27.0.0...@metamask/bridge-status-controller@28.0.0
+[27.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@26.0.0...@metamask/bridge-status-controller@27.0.0
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@25.0.0...@metamask/bridge-status-controller@26.0.0
+[25.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@24.0.0...@metamask/bridge-status-controller@25.0.0
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@23.0.0...@metamask/bridge-status-controller@24.0.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@22.0.0...@metamask/bridge-status-controller@23.0.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@21.0.0...@metamask/bridge-status-controller@22.0.0
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@20.1.0...@metamask/bridge-status-controller@21.0.0

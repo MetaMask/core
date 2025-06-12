@@ -225,6 +225,9 @@ describe('fetch', () => {
     });
 
     it('should filter out malformed bridge quotes', async () => {
+      const mockConsoleError = jest
+        .spyOn(console, 'error')
+        .mockImplementation(jest.fn());
       mockFetchFn.mockResolvedValue([
         ...mockBridgeQuotesErc20Erc20,
         ...mockBridgeQuotesErc20Erc20.map(
@@ -233,6 +236,7 @@ describe('fetch', () => {
         {
           ...mockBridgeQuotesErc20Erc20[0],
           quote: {
+            bridgeId: 'socket',
             srcAsset: {
               ...mockBridgeQuotesErc20Erc20[0].quote.srcAsset,
               decimals: undefined,
@@ -242,7 +246,8 @@ describe('fetch', () => {
         {
           ...mockBridgeQuotesErc20Erc20[1],
           quote: {
-            srcAsset: {
+            bridgeId: 'socket',
+            destAsset: {
               ...mockBridgeQuotesErc20Erc20[1].quote.destAsset,
               address: undefined,
             },
@@ -280,6 +285,8 @@ describe('fetch', () => {
       );
 
       expect(result).toStrictEqual(mockBridgeQuotesErc20Erc20);
+      // eslint-disable-next-line jest/no-restricted-matchers
+      expect(mockConsoleError.mock.calls).toMatchSnapshot();
     });
   });
 

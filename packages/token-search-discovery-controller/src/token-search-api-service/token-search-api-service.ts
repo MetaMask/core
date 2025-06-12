@@ -1,6 +1,8 @@
 import { AbstractTokenSearchApiService } from './abstract-token-search-api-service';
 import type {
+  MoralisTokenResponseItem,
   SwappableTokenSearchParams,
+  TokenSearchFormattedParams,
   TokenSearchParams,
   TokenSearchResponseItem,
 } from '../types';
@@ -55,6 +57,45 @@ export class TokenSearchApiService extends AbstractTokenSearchApiService {
 
     if (swappableTokenSearchParams?.limit) {
       url.searchParams.append('limit', swappableTokenSearchParams.limit);
+    }
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Portfolio API request failed with status: ${response.status}`,
+      );
+    }
+
+    return response.json();
+  }
+
+  async searchTokensFormatted(
+    tokenSearchFormattedParams: TokenSearchFormattedParams,
+  ): Promise<MoralisTokenResponseItem[]> {
+    const url = new URL('/tokens-search/formatted', this.#baseUrl);
+    url.searchParams.append('query', tokenSearchFormattedParams.query);
+
+    if (
+      tokenSearchFormattedParams?.chains &&
+      tokenSearchFormattedParams.chains.length > 0
+    ) {
+      url.searchParams.append(
+        'chains',
+        tokenSearchFormattedParams.chains.join(),
+      );
+    }
+    if (tokenSearchFormattedParams?.limit) {
+      url.searchParams.append('limit', tokenSearchFormattedParams.limit);
+    }
+
+    if (tokenSearchFormattedParams?.swappable) {
+      url.searchParams.append('swappable', 'true');
     }
 
     const response = await fetch(url, {

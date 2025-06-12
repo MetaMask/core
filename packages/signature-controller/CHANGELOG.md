@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
+
+## [30.0.0]
+
+### Changed
+
+- **BREAKING:** bump `@metamask/accounts-controller` peer dependency to `^30.0.0` ([#5888](https://github.com/MetaMask/core/pull/5888))
 - Bump `@metamask/controller-utils` to `^11.9.0` ([#5812](https://github.com/MetaMask/core/pull/5812))
 
 ## [29.0.0]
@@ -523,7 +530,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@29.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@30.0.0...HEAD
+[30.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@29.0.0...@metamask/signature-controller@30.0.0
 [29.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@28.0.0...@metamask/signature-controller@29.0.0
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@27.1.0...@metamask/signature-controller@28.0.0
 [27.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@27.0.0...@metamask/signature-controller@27.1.0
