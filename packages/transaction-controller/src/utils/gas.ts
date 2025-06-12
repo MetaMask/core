@@ -74,6 +74,7 @@ export async function updateGas(request: UpdateGasRequest) {
  * @param options - The options object.
  * @param options.chainId - The chain ID of the transaction.
  * @param options.ethQuery - The EthQuery instance to interact with the network.
+ * @param options.ignoreDelegationSignatures - Ignore signature errors if submitting delegations to the DelegationManager.
  * @param options.isSimulationEnabled - Whether the simulation is enabled.
  * @param options.messenger - The messenger instance for communication.
  * @param options.txParams - The transaction parameters.
@@ -82,18 +83,26 @@ export async function updateGas(request: UpdateGasRequest) {
 export async function estimateGas({
   chainId,
   ethQuery,
+  ignoreDelegationSignatures,
   isSimulationEnabled,
   messenger,
   txParams,
 }: {
   chainId: Hex;
   ethQuery: EthQuery;
+  ignoreDelegationSignatures?: boolean;
   isSimulationEnabled: boolean;
   messenger: TransactionControllerMessenger;
   txParams: TransactionParams;
 }) {
   const request = { ...txParams };
   const { authorizationList, data, from, value, to } = request;
+
+  if (ignoreDelegationSignatures && !isSimulationEnabled) {
+    throw new Error(
+      'Gas estimation with ignored delegation signatures is not supported as simulation disabled',
+    );
+  }
 
   const { gasLimit: blockGasLimit, number: blockNumber } =
     await getLatestBlock(ethQuery);
@@ -136,6 +145,11 @@ export async function estimateGas({
         ethQuery,
         chainId,
       );
+    } else if (ignoreDelegationSignatures && isSimulationEnabled) {
+      estimatedGas = await simulateGas({
+        chainId,
+        transaction: request,
+      });
     } else {
       estimatedGas = await query(ethQuery, 'estimateGas', [request]);
     }
