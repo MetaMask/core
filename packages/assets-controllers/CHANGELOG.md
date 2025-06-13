@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [68.2.0]
 
+### Added
+
+- Added `getErc20Balances` function within `TokenBalancesController` to support fetching ERC-20 token balances for a given address and token list ([#5925](https://github.com/MetaMask/core/pull/5925))
+  - This modular service simplifies balance retrieval logic and can be reused across different parts of the controller
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` to `^57.3.0` ([#5954](https://github.com/MetaMask/core/pull/5954))
@@ -27,8 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added Base Network for networks to track in `TokenDetectionController` ([#5902](https://github.com/MetaMask/core/pull/5902))
   - Network changes were added in `@metamask/controller-utils`
 - Added Metamask pooled staking token for Ethereum Hoodi testnet ([#5855](https://github.com/MetaMask/core/pull/5855))
-- Added `getErc20Balances` function within `TokenBalancesController` to support fetching ERC-20 token balances for a given address and token list ([#5925](https://github.com/MetaMask/core/pull/5925))
-  - This modular service simplifies balance retrieval logic and can be reused across different parts of the controller
 
 ### Changed
 
