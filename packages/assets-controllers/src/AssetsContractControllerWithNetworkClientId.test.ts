@@ -165,9 +165,9 @@ describe('AssetsContractController with NetworkClientId', () => {
         await messenger.call(
           `AssetsContractController:getTokenStandardAndDetails`,
           'BaDeRc20AdDrEsS',
+          'mainnet',
           TEST_ACCOUNT_PUBLIC_ADDRESS,
           undefined,
-          'mainnet',
         ),
     ).rejects.toThrow(error);
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
@@ -232,9 +232,9 @@ describe('AssetsContractController with NetworkClientId', () => {
     const standardAndDetails = await messenger.call(
       `AssetsContractController:getTokenStandardAndDetails`,
       ERC721_GODS_ADDRESS,
+      'mainnet',
       TEST_ACCOUNT_PUBLIC_ADDRESS,
       undefined,
-      'mainnet',
     );
     expect(standardAndDetails.standard).toBe('ERC721');
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
@@ -283,9 +283,9 @@ describe('AssetsContractController with NetworkClientId', () => {
     const standardAndDetails = await messenger.call(
       `AssetsContractController:getTokenStandardAndDetails`,
       ERC1155_ADDRESS,
+      'mainnet',
       TEST_ACCOUNT_PUBLIC_ADDRESS,
       undefined,
-      'mainnet',
     );
     expect(standardAndDetails.standard).toBe('ERC1155');
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
@@ -382,9 +382,9 @@ describe('AssetsContractController with NetworkClientId', () => {
     const standardAndDetails = await messenger.call(
       `AssetsContractController:getTokenStandardAndDetails`,
       ERC20_UNI_ADDRESS,
+      'mainnet',
       TEST_ACCOUNT_PUBLIC_ADDRESS,
       undefined,
-      'mainnet',
     );
     expect(standardAndDetails.standard).toBe('ERC20');
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
@@ -904,9 +904,8 @@ describe('AssetsContractController with NetworkClientId', () => {
   });
 
   it('should get the staked ethereum balance for an address', async () => {
-    const { assetsContract, messenger, provider, networkClientConfiguration } =
+    const { assetsContract, messenger, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.setProvider(provider);
 
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
@@ -966,8 +965,7 @@ describe('AssetsContractController with NetworkClientId', () => {
   });
 
   it('should default staked ethereum balance to undefined if network is not supported', async () => {
-    const { assetsContract, provider } = await setupAssetContractControllers();
-    assetsContract.setProvider(provider);
+    const { assetsContract } = await setupAssetContractControllers();
 
     const balance = await assetsContract.getStakedBalanceForChain(
       TEST_ACCOUNT_PUBLIC_ADDRESS,

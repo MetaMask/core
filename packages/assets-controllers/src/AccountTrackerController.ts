@@ -458,12 +458,12 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
    * Sync accounts balances with some additional addresses.
    *
    * @param addresses - the additional addresses, may be hardware wallet addresses.
-   * @param networkClientId - Optional networkClientId to fetch a network client with.
+   * @param networkClientId - networkClientId to fetch a network client with.
    * @returns accounts - addresses with synced balance
    */
   async syncBalanceWithAddresses(
     addresses: string[],
-    networkClientId?: NetworkClientId,
+    networkClientId: NetworkClientId,
   ): Promise<
     Record<string, { balance: string; stakedBalance?: StakedBalance }>
   > {

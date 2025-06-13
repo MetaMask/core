@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING** Make `networkClientId` mandatory in `syncBalanceWithAddresses` fct in `AccountTrackerController` ([#5941](https://github.com/MetaMask/core/pull/5941))
+- Removed `chainId` in constructor in `AssetsContractController` ([#5941](https://github.com/MetaMask/core/pull/5941))
+- Make `networkClientId` mandatory field in all functions in `AssetsContractController` ([#5941](https://github.com/MetaMask/core/pull/5941))
 - Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
 - Add `getErc20Balances` function within `TokenBalancesController` to support fetching ERC-20 token balances for a given address and token list ([#5925](https://github.com/MetaMask/core/pull/5925))
   - This modular service simplifies balance retrieval logic and can be reused across different parts of the controller

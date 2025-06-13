@@ -21,7 +21,7 @@
     "jsdoc/check-tag-names": 5
   },
   "packages/assets-controllers/src/AssetsContractController.test.ts": {
-    "import-x/order": 3
+    "import-x/order": 2
   },
   "packages/assets-controllers/src/AssetsContractController.ts": {
     "jsdoc/check-tag-names": 2,
