@@ -6,11 +6,11 @@ import {
   FeeType,
   formatChainIdToCaip,
 } from '@metamask/bridge-controller';
+import { SolScope } from '@metamask/keyring-api';
 import {
   TransactionStatus,
   TransactionType,
 } from '@metamask/transaction-controller';
-import { SolScope } from '@metamask/keyring-api';
 
 import {
   getStatusRequestParams,
