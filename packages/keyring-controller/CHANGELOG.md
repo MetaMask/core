@@ -14,11 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** The `KeyringController` constructor now requires an encryptor supporting the `keyFromPassword`, `exportKey` and `generateSalt` methods ([#5963](https://github.com/MetaMask/core/pull/5963))
+
+### Removed
+
 - **BREAKING:** The `cacheEncryptionKey` parameter has been removed from the `KeyringController` constructor options ([#5963](https://github.com/MetaMask/core/pull/5963))
   - This parameter was previously used to enable encryption key in-memory caching, but it is no longer needed as the controller now always uses the latest encryption key.
 - **BREAKING:** The `submitEncryptionKey` method does not accept an `encryptionSalt` argument anymore ([#5963](https://github.com/MetaMask/core/pull/5963))
   - The encryption salt is now always taken from the vault.
-- **BREAKING:** The `KeyringController` constructor now requries an encryptor supporting the `keyFromPassword`, `exportKey` and `generateSalt` methods ([#5963](https://github.com/MetaMask/core/pull/5963))
 
 ## [22.0.2]
 
