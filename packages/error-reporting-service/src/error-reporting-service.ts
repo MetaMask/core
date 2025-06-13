@@ -49,7 +49,7 @@ export type ErrorReportingServiceMessenger = RestrictedMessenger<
  * The options that {@link ErrorReportingService} takes.
  */
 type ErrorReportingServiceOptions = {
-  captureException: (error: unknown) => string;
+  captureException: ErrorReportingService['captureException'];
   messenger: ErrorReportingServiceMessenger;
 };
 
