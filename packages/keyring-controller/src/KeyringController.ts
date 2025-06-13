@@ -2901,11 +2901,13 @@ export class KeyringController extends BaseController<
     return this.#withControllerLock(async ({ releaseLock }) => {
       const currentSerializedKeyrings = await this.#getSerializedKeyrings();
       const currentPassword = this.#password;
+      const currentEncryptionKey = this.#encryptionKey;
       try {
         return await callback({ releaseLock });
       } catch (e) {
-        // Keyrings and password are restored to their previous state
+        // Previous state is restored.
         this.#password = currentPassword;
+        this.#encryptionKey = currentEncryptionKey;
         await this.#restoreSerializedKeyrings(currentSerializedKeyrings);
 
         throw e;
