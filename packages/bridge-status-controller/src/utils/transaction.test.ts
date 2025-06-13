@@ -923,7 +923,8 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
   describe('getKeyringRequest', () => {
     it('should generate a valid keyring request', () => {
-      const mockQuoteResponse: Omit<QuoteResponse<string>, 'approval'> & QuoteMetadata = {
+      const mockQuoteResponse: Omit<QuoteResponse<string>, 'approval'> &
+        QuoteMetadata = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
@@ -1025,7 +1026,8 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
   describe('getClientRequest', () => {
     it('should generate a valid client request', () => {
-      const mockQuoteResponse: Omit<QuoteResponse<string>, 'approval'> & QuoteMetadata = {
+      const mockQuoteResponse: Omit<QuoteResponse<string>, 'approval'> &
+        QuoteMetadata = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
