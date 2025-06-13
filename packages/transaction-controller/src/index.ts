@@ -3,6 +3,7 @@ export type {
   Result,
   TransactionControllerActions,
   TransactionControllerEvents,
+  TransactionControllerEstimateGasAction,
   TransactionControllerGetStateAction,
   TransactionControllerIncomingTransactionsReceivedEvent,
   TransactionControllerPostTransactionBalanceUpdatedEvent,
@@ -32,9 +33,11 @@ export {
 } from './TransactionController';
 export type {
   AfterAddHook,
+  AfterSimulateHook,
   Authorization,
   AuthorizationList,
   BatchTransactionParams,
+  BeforeSignHook,
   DappSuggestedGasFees,
   DefaultGasEstimates,
   FeeMarketEIP1559Values,
@@ -82,6 +85,7 @@ export {
   GasFeeEstimateType,
   SimulationErrorCode,
   SimulationTokenStandard,
+  TransactionContainerType,
   TransactionEnvelopeType,
   TransactionStatus,
   TransactionType,
