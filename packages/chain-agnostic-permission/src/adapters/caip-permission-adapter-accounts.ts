@@ -321,12 +321,14 @@ function isAddressWithParsedScopesInPermittedAccountIds(
     return parsedAccountScopes.some(({ namespace, reference }) => {
       if (
         namespace !== parsedPermittedAccount.chain.namespace &&
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
         parsedPermittedAccount.chain.namespace !== KnownCaipNamespace.Wallet
       ) {
         return false;
       }
 
       if (
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
         parsedPermittedAccount.chain.namespace === KnownCaipNamespace.Wallet &&
         namespace !== parsedPermittedAccount.chain.reference
       ) {
@@ -334,7 +336,6 @@ function isAddressWithParsedScopesInPermittedAccountIds(
       }
 
       // handle eip155:0 case and insensitive evm address comparison
-
       if (namespace === KnownCaipNamespace.Eip155) {
         return (
           (reference === '0' ||
@@ -344,7 +345,9 @@ function isAddressWithParsedScopesInPermittedAccountIds(
       }
 
       // handle wallet:<namespace>:<address> case
+
       if (
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
         parsedPermittedAccount.chain.namespace === KnownCaipNamespace.Wallet
       ) {
         return address === parsedPermittedAccount.address;
