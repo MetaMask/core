@@ -3268,7 +3268,7 @@ describe('KeyringController', () => {
           await expect(
             controller.submitEncryptionKey(
               MOCK_ENCRYPTION_KEY,
-              initialState.encryptionSalt as string, // TODO Why need the salt here??
+              initialState.encryptionSalt as string,
             ),
           ).rejects.toThrow(KeyringControllerError.VaultDataError);
         },
