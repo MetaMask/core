@@ -100,7 +100,11 @@ export type KeyringControllerState = {
   /**
    * The salt used to derive the encryption key from the password.
    */
-  encryptionSalt?: string;
+  encryptionSalt?: string; // TODO why is this stored here?
+  /**
+   * The encrypted encryption key. If set, envelope encryption is used.
+   */
+  encryptedEncryptionKey?: string;
 };
 
 export type KeyringControllerMemState = Omit<
@@ -327,6 +331,7 @@ export type SerializedKeyring = {
 type SessionState = {
   keyrings: SerializedKeyring[];
   password?: string;
+  encryptionKey?: string;
 };
 
 /**
@@ -544,6 +549,20 @@ function assertIsValidPassword(password: unknown): asserts password is string {
 }
 
 /**
+ * Assert that the provided cacheEncryptionKey is true.
+ *
+ * @param cacheEncryptionKey - The cacheEncryptionKey to check.
+ * @throws If the cacheEncryptionKey is not true.
+ */
+function assertIsCacheEncryptionKeyTrue(
+  cacheEncryptionKey: boolean,
+): asserts cacheEncryptionKey is true {
+  if (!cacheEncryptionKey) {
+    throw new Error(KeyringControllerError.CacheEncryptionKeyDisabled);
+  }
+}
+
+/**
  * Checks if the provided value is a serialized keyrings array.
  *
  * @param array - The value to check.
@@ -649,6 +668,8 @@ export class KeyringController extends BaseController<
 
   #password?: string;
 
+  #encryptionKey?: string;
+
   #qrKeyringStateListener?: (
     state: ReturnType<IQRKeyringState['getState']>,
   ) => void;
@@ -679,6 +700,7 @@ export class KeyringController extends BaseController<
         keyrings: { persist: false, anonymous: false },
         encryptionKey: { persist: false, anonymous: false },
         encryptionSalt: { persist: false, anonymous: false },
+        encryptedEncryptionKey: { persist: true, anonymous: false },
       },
       messenger,
       state: {
@@ -794,41 +816,55 @@ export class KeyringController extends BaseController<
    * @param password - Password to unlock keychain.
    * @param seed - A BIP39-compliant seed phrase as Uint8Array,
    * either as a string or an array of UTF-8 bytes that represent the string.
+   * @param encryptionKey - Optional encryption key to encrypt the new vault. If
+   * set, envelope encryption will be used.
    * @returns Promise resolving when the operation ends successfully.
    */
   async createNewVaultAndRestore(
     password: string,
     seed: Uint8Array,
+    encryptionKey?: string,
   ): Promise<void> {
     return this.#persistOrRollback(async () => {
       assertIsValidPassword(password);
 
-      await this.#createNewVaultWithKeyring(password, {
-        type: KeyringTypes.hd,
-        opts: {
-          mnemonic: seed,
-          numberOfAccounts: 1,
+      await this.#createNewVaultWithKeyring(
+        password,
+        {
+          type: KeyringTypes.hd,
+          opts: {
+            mnemonic: seed,
+            numberOfAccounts: 1,
+          },
         },
-      });
+        encryptionKey,
+      );
     });
   }
 
   /**
    * Create a new vault and primary keyring.
    *
-   * This only works if keyrings are empty. If there is a pre-existing unlocked vault, calling this will have no effect.
-   * If there is a pre-existing locked vault, it will be replaced.
+   * This only works if keyrings are empty. If there is a pre-existing unlocked
+   * vault, calling this will have no effect. If there is a pre-existing locked
+   * vault, it will be replaced.
    *
    * @param password - Password to unlock the new vault.
+   * @param encryptionKey - Optional encryption key to encrypt the new vault. If
+   * set, envelope encryption will be used.
    * @returns Promise resolving when the operation ends successfully.
    */
-  async createNewVaultAndKeychain(password: string) {
+  async createNewVaultAndKeychain(password: string, encryptionKey?: string) {
     return this.#persistOrRollback(async () => {
       const accounts = await this.#getAccountsFromKeyrings();
       if (!accounts.length) {
-        await this.#createNewVaultWithKeyring(password, {
-          type: KeyringTypes.hd,
-        });
+        await this.#createNewVaultWithKeyring(
+          password,
+          {
+            type: KeyringTypes.hd,
+          },
+          encryptionKey,
+        );
       }
     });
   }
@@ -847,7 +883,7 @@ export class KeyringController extends BaseController<
   ): Promise<KeyringMetadata> {
     this.#assertIsUnlocked();
 
-    if (type === KeyringTypes.qr) {
+    if (type === (KeyringTypes.qr as string)) {
       return this.#getKeyringMetadata(await this.getOrAddQRKeyring());
     }
 
@@ -866,7 +902,25 @@ export class KeyringController extends BaseController<
     if (!this.state.vault) {
       throw new Error(KeyringControllerError.VaultError);
     }
-    await this.#encryptor.decrypt(password, this.state.vault);
+
+    if (this.state.encryptedEncryptionKey) {
+      // Envelope encryption mode.
+
+      assertIsExportableKeyEncryptor(this.#encryptor);
+
+      const decryptedEncryptionKey = (await this.#encryptor.decrypt(
+        password,
+        this.state.encryptedEncryptionKey,
+      )) as string;
+
+      const importedKey = await this.#encryptor.importKey(
+        decryptedEncryptionKey,
+      );
+
+      await this.#encryptor.decryptWithKey(importedKey, this.state.vault);
+    } else {
+      await this.#encryptor.decrypt(password, this.state.vault);
+    }
   }
 
   /**
@@ -1095,7 +1149,7 @@ export class KeyringController extends BaseController<
           const [input, password] = args;
           try {
             wallet = importers.fromEtherWallet(input, password);
-          } catch (e) {
+          } catch {
             wallet = wallet || (await Wallet.fromV3(input, password, true));
           }
           privateKey = bytesToHex(wallet.getPrivateKey());
@@ -1168,6 +1222,7 @@ export class KeyringController extends BaseController<
       this.#unsubscribeFromQRKeyringsEvents();
 
       this.#password = undefined;
+      this.#encryptionKey = undefined;
       await this.#clearKeyrings();
 
       this.update((state) => {
@@ -1415,12 +1470,32 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving when the operation completes.
    */
   changePassword(password: string): Promise<void> {
+    return this.changePasswordAndEncryptionKey(password);
+  }
+
+  /**
+   * Changes the password and encryption key used to encrypt the vault.
+   *
+   * @param password - The new password.
+   * @param encryptionKey - The new encryption key. If omitted, the encryption
+   * key will not be changed.
+   * @returns Promise resolving when the operation completes.
+   */
+  changePasswordAndEncryptionKey(
+    password: string,
+    encryptionKey?: string,
+  ): Promise<void> {
     this.#assertIsUnlocked();
 
     return this.#persistOrRollback(async () => {
       assertIsValidPassword(password);
 
+      // Update password.
       this.#password = password;
+
+      // Update encryption key.
+      this.#updateCachedEncryptionKey(encryptionKey);
+
       // We need to clear encryption key and salt from state
       // to force the controller to re-encrypt the vault using
       // the new password.
@@ -2071,6 +2146,7 @@ export class KeyringController extends BaseController<
    * @param keyring - A object containing the params to instantiate a new keyring.
    * @param keyring.type - The keyring type.
    * @param keyring.opts - Optional parameters required to instantiate the keyring.
+   * @param encryptionKey - Optional encryption key to encrypt the vault.
    * @returns A promise that resolves to the state.
    */
   async #createNewVaultWithKeyring(
@@ -2079,6 +2155,7 @@ export class KeyringController extends BaseController<
       type: string;
       opts?: unknown;
     },
+    encryptionKey?: string,
   ): Promise<void> {
     this.#assertControllerMutexIsLocked();
 
@@ -2093,9 +2170,28 @@ export class KeyringController extends BaseController<
 
     this.#password = password;
 
+    this.#updateCachedEncryptionKey(encryptionKey);
+
     await this.#clearKeyrings();
     await this.#createKeyringWithFirstAccount(keyring.type, keyring.opts);
     this.#setUnlocked();
+  }
+
+  /**
+   * Updates the cached vault encryption key. This key will be persisted in
+   * the state at the next update if envelope encryption is enabled.
+   *
+   * @param encryptionKey - Optional new vault encryption key.
+   */
+  #updateCachedEncryptionKey(encryptionKey?: string) {
+    if (!encryptionKey && this.state.encryptedEncryptionKey) {
+      // If no encryption key is provided and we are in envelope encryption
+      // mode, use the cached encryption key. This case occurs when we call
+      // change password without providing a new encryption key.
+      this.#encryptionKey = this.state.encryptionKey;
+    } else {
+      this.#encryptionKey = encryptionKey;
+    }
   }
 
   /**
@@ -2204,6 +2300,7 @@ export class KeyringController extends BaseController<
     return {
       keyrings: await this.#getSerializedKeyrings(),
       password: this.#password,
+      encryptionKey: this.#encryptionKey,
     };
   }
 
@@ -2255,7 +2352,7 @@ export class KeyringController extends BaseController<
     newMetadata: boolean;
   }> {
     return this.#withVaultLock(async () => {
-      const encryptedVault = this.state.vault;
+      const { vault: encryptedVault, encryptedEncryptionKey } = this.state;
       if (!encryptedVault) {
         throw new Error(KeyringControllerError.VaultError);
       }
@@ -2267,15 +2364,33 @@ export class KeyringController extends BaseController<
         assertIsExportableKeyEncryptor(this.#encryptor);
 
         if (password) {
-          const result = await this.#encryptor.decryptWithDetail(
-            password,
-            encryptedVault,
-          );
-          vault = result.vault;
-          this.#password = password;
+          if (encryptedEncryptionKey) {
+            const decryptedEncryptionKey = (await this.#encryptor.decrypt(
+              password,
+              encryptedEncryptionKey,
+            )) as string;
 
-          updatedState.encryptionKey = result.exportedKeyString;
-          updatedState.encryptionSalt = result.salt;
+            const importedKey = await this.#encryptor.importKey(
+              decryptedEncryptionKey,
+            );
+
+            vault = await this.#encryptor.decryptWithKey(
+              importedKey,
+              encryptedVault,
+            );
+            this.#password = password;
+            updatedState.encryptionKey = decryptedEncryptionKey;
+          } else {
+            const result = await this.#encryptor.decryptWithDetail(
+              password,
+              encryptedVault,
+            );
+            vault = result.vault;
+            this.#password = password;
+
+            updatedState.encryptionKey = result.exportedKeyString;
+            updatedState.encryptionSalt = result.salt;
+          }
         } else {
           const parsedEncryptedVault = JSON.parse(encryptedVault);
 
@@ -2287,9 +2402,9 @@ export class KeyringController extends BaseController<
             throw new TypeError(KeyringControllerError.WrongPasswordType);
           }
 
-          const key = await this.#encryptor.importKey(encryptionKey);
+          const importedKey = await this.#encryptor.importKey(encryptionKey);
           vault = await this.#encryptor.decryptWithKey(
-            key,
+            importedKey,
             parsedEncryptedVault,
           );
 
@@ -2342,6 +2457,7 @@ export class KeyringController extends BaseController<
       await this.#assertNoDuplicateAccounts();
 
       const { encryptionKey, encryptionSalt, vault } = this.state;
+
       // READ THIS CAREFULLY:
       // We do check if the vault is still considered up-to-date, if not, we would not re-use the
       // cached key and we will re-generate a new one (based on the password).
@@ -2358,7 +2474,9 @@ export class KeyringController extends BaseController<
       const serializedKeyrings = await this.#getSerializedKeyrings();
 
       if (
-        !serializedKeyrings.some((keyring) => keyring.type === KeyringTypes.hd)
+        !serializedKeyrings.some(
+          (keyring) => keyring.type === (KeyringTypes.hd as string),
+        )
       ) {
         throw new Error(KeyringControllerError.NoHdKeyring);
       }
@@ -2377,14 +2495,38 @@ export class KeyringController extends BaseController<
           vaultJSON.salt = encryptionSalt;
           updatedState.vault = JSON.stringify(vaultJSON);
         } else if (this.#password) {
-          const { vault: newVault, exportedKeyString } =
-            await this.#encryptor.encryptWithDetail(
+          if (this.#encryptionKey) {
+            // Update cached key.
+            updatedState.encryptionKey = this.#encryptionKey;
+
+            // Encrypt key and update encrypted key.
+            const encryptedEncryptionKey = await this.#encryptor.encrypt(
               this.#password,
+              this.#encryptionKey,
+            );
+            updatedState.encryptedEncryptionKey = encryptedEncryptionKey;
+
+            // Encrypt and update vault.
+            const importedKey = await this.#encryptor.importKey(
+              this.#encryptionKey,
+            );
+            const vaultJSON = await this.#encryptor.encryptWithKey(
+              importedKey,
               serializedKeyrings,
             );
-
-          updatedState.vault = newVault;
-          updatedState.encryptionKey = exportedKeyString;
+            // Note that we don't need to explicitly append the salt to the
+            // vault here as it's already stored as part of the encrypted
+            // encryption key.
+            updatedState.vault = JSON.stringify(vaultJSON);
+          } else {
+            const { vault: newVault, exportedKeyString } =
+              await this.#encryptor.encryptWithDetail(
+                this.#password,
+                serializedKeyrings,
+              );
+            updatedState.vault = newVault;
+            updatedState.encryptionKey = exportedKeyString;
+          }
         }
       } else {
         assertIsValidPassword(this.#password);
@@ -2392,6 +2534,10 @@ export class KeyringController extends BaseController<
           this.#password,
           serializedKeyrings,
         );
+      }
+
+      if (this.#isEnvelopeEncryptionEnabled()) {
+        assertIsCacheEncryptionKeyTrue(this.#cacheEncryptionKey);
       }
 
       if (!updatedState.vault) {
@@ -2406,6 +2552,9 @@ export class KeyringController extends BaseController<
         if (updatedState.encryptionKey) {
           state.encryptionKey = updatedState.encryptionKey;
           state.encryptionSalt = JSON.parse(updatedState.vault as string).salt;
+        }
+        if (updatedState.encryptedEncryptionKey) {
+          state.encryptedEncryptionKey = updatedState.encryptedEncryptionKey;
         }
       });
 
@@ -2426,6 +2575,15 @@ export class KeyringController extends BaseController<
     }
 
     return !this.#encryptor.isVaultUpdated(vault);
+  }
+
+  /**
+   * Checks if envelope encryption is enabled.
+   *
+   * @returns A boolean indicating whether envelope encryption is enabled.
+   */
+  #isEnvelopeEncryptionEnabled() {
+    return this.state.encryptedEncryptionKey || this.#encryptionKey;
   }
 
   /**
@@ -2533,7 +2691,10 @@ export class KeyringController extends BaseController<
       await keyring.init();
     }
 
-    if (type === KeyringTypes.hd && (!isObject(data) || !data.mnemonic)) {
+    if (
+      type === (KeyringTypes.hd as string) &&
+      (!isObject(data) || !data.mnemonic)
+    ) {
       if (!keyring.generateRandomMnemonic) {
         throw new Error(
           KeyringControllerError.UnsupportedGenerateRandomMnemonic,
@@ -2547,7 +2708,7 @@ export class KeyringController extends BaseController<
       await keyring.addAccounts(1);
     }
 
-    if (type === KeyringTypes.qr) {
+    if (type === (KeyringTypes.qr as string)) {
       // In case of a QR keyring type, we need to subscribe
       // to its events after creating it
       this.#subscribeToQRKeyringEvents(keyring as unknown as QRKeyring);
@@ -2694,11 +2855,16 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Execute the given function after acquiring the controller lock
-   * and save the vault to state after it (only if needed), or rollback to their
-   * previous state in case of error.
+   * Execute the given function after acquiring the controller lock and save the
+   * vault to state after it (only if needed), or rollback to their previous
+   * state in case of error.
    *
-   * @param callback - The function to execute.
+   * ATTENTION: The callback must **not** alter `controller.state`. Any state
+   * change performed by the callback will not be rolled back on error.
+   *
+   * @param callback - The function to execute. This callback must **not** alter
+   * `controller.state`. Any state change performed by the callback will not be
+   * rolled back on error.
    * @returns The result of the function.
    */
   async #persistOrRollback<Result>(
@@ -2731,12 +2897,13 @@ export class KeyringController extends BaseController<
     return this.#withControllerLock(async ({ releaseLock }) => {
       const currentSerializedKeyrings = await this.#getSerializedKeyrings();
       const currentPassword = this.#password;
-
+      const currentEncryptionKey = this.#encryptionKey;
       try {
         return await callback({ releaseLock });
       } catch (e) {
-        // Keyrings and password are restored to their previous state
+        // Previous state is restored.
         this.#password = currentPassword;
+        this.#encryptionKey = currentEncryptionKey;
         await this.#restoreSerializedKeyrings(currentSerializedKeyrings);
 
         throw e;

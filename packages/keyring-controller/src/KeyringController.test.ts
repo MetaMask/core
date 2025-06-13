@@ -69,6 +69,11 @@ const uint8ArraySeed = new Uint8Array(
 const privateKey =
   '1e4e6a4c0c077f4ae8ddfbf372918e61dd0fb4a4cfa592cb16e7546d505e68fc';
 const password = 'password123';
+const password2 = 'password456';
+const mockEncryptionKey2 = JSON.stringify({
+  password: 'password2',
+  salt: 'salt2',
+});
 const freshVault =
   '{"data":"{\\"tag\\":{\\"key\\":{\\"password\\":\\"password123\\",\\"salt\\":\\"salt\\"},\\"iv\\":\\"iv\\"},\\"value\\":[{\\"type\\":\\"HD Key Tree\\",\\"data\\":{\\"mnemonic\\":[119,97,114,114,105,111,114,32,108,97,110,103,117,97,103,101,32,106,111,107,101,32,98,111,110,117,115,32,117,110,102,97,105,114,32,97,114,116,105,115,116,32,107,97,110,103,97,114,111,111,32,99,105,114,99,108,101,32,101,120,112,97,110,100,32,104,111,112,101,32,109,105,100,100,108,101,32,103,97,117,103,101],\\"numberOfAccounts\\":1,\\"hdPath\\":\\"m/44\'/60\'/0\'/0\\"},\\"metadata\\":{\\"id\\":\\"01JXEFM7DAX2VJ0YFR4ESNY3GQ\\",\\"name\\":\\"\\"}}]}","iv":"iv","salt":"salt"}';
 
@@ -798,6 +803,147 @@ describe('KeyringController', () => {
         });
       }),
     );
+  });
+
+  describe('envelope encryption', () => {
+    it('should create new vault with encryption key', async () => {
+      await withController(
+        { cacheEncryptionKey: true, envelopeEncryption: true },
+        async ({ controller }) => {
+          expect(controller.state.encryptionKey).toBeDefined();
+          expect(controller.state.encryptedEncryptionKey).toBeDefined();
+        },
+      );
+    });
+
+    it('should create new vault with encryption key derived from key seed', async () => {
+      await withController(
+        { cacheEncryptionKey: true, skipVaultCreation: true },
+        async ({ controller, encryptor }) => {
+          const key = await encryptor.keyFromPassword(password, SALT);
+          const keyString = await encryptor.exportKey(key);
+          await controller.createNewVaultAndKeychain(password, keyString);
+          expect(controller.state.encryptionKey).toBeDefined();
+          expect(controller.state.encryptedEncryptionKey).toBeDefined();
+        },
+      );
+    });
+
+    it('should throw error if creating new vault with encryption key and cacheEncryptionKey is false', async () => {
+      await withController(
+        { cacheEncryptionKey: false, skipVaultCreation: true },
+        async ({ controller }) => {
+          await expect(
+            controller.createNewVaultAndKeychain(password, MOCK_ENCRYPTION_KEY),
+          ).rejects.toThrow(KeyringControllerError.CacheEncryptionKeyDisabled);
+        },
+      );
+    });
+
+    it('should unlock with password', async () => {
+      await withController(
+        { cacheEncryptionKey: true, envelopeEncryption: true },
+        async ({ controller }) => {
+          expect(controller.isUnlocked()).toBe(true);
+          expect(controller.state.isUnlocked).toBe(true);
+
+          await controller.setLocked();
+
+          expect(controller.isUnlocked()).toBe(false);
+          expect(controller.state.isUnlocked).toBe(false);
+
+          await controller.submitPassword(password);
+
+          expect(controller.isUnlocked()).toBe(true);
+          expect(controller.state.isUnlocked).toBe(true);
+        },
+      );
+    });
+
+    it('should lock and unlock after change password', async () => {
+      await withController(
+        { cacheEncryptionKey: true, envelopeEncryption: true },
+        async ({ controller }) => {
+          await controller.changePassword(password2);
+
+          expect(controller.isUnlocked()).toBe(true);
+          expect(controller.state.isUnlocked).toBe(true);
+
+          await controller.setLocked();
+
+          expect(controller.isUnlocked()).toBe(false);
+          expect(controller.state.isUnlocked).toBe(false);
+
+          await controller.submitPassword(password2);
+
+          expect(controller.isUnlocked()).toBe(true);
+          expect(controller.state.isUnlocked).toBe(true);
+        },
+      );
+    });
+
+    it('should lock and unlock after change password and key', async () => {
+      await withController(
+        { cacheEncryptionKey: true, envelopeEncryption: true },
+        async ({ controller }) => {
+          await controller.changePasswordAndEncryptionKey(
+            password2,
+            mockEncryptionKey2,
+          );
+
+          expect(controller.isUnlocked()).toBe(true);
+          expect(controller.state.isUnlocked).toBe(true);
+
+          await controller.setLocked();
+
+          expect(controller.isUnlocked()).toBe(false);
+          expect(controller.state.isUnlocked).toBe(false);
+
+          await controller.submitPassword(password2);
+
+          expect(controller.isUnlocked()).toBe(true);
+          expect(controller.state.isUnlocked).toBe(true);
+        },
+      );
+    });
+
+    it('should verify password', async () => {
+      await withController(
+        { cacheEncryptionKey: true, envelopeEncryption: true },
+        async ({ controller }) => {
+          expect(await controller.verifyPassword(password)).toBeUndefined();
+        },
+      );
+    });
+
+    it('should throw error on verify wrong password', async () => {
+      await withController(
+        { cacheEncryptionKey: true, envelopeEncryption: true },
+        async ({ controller }) => {
+          await expect(controller.verifyPassword(password2)).rejects.toThrow(
+            DECRYPTION_ERROR,
+          );
+        },
+      );
+    });
+
+    it('should unlock with old key after change password failed', async () => {
+      await withController(
+        { cacheEncryptionKey: true, envelopeEncryption: true },
+        async ({ controller, encryptor }) => {
+          // Make change password fail.
+          jest.spyOn(encryptor, 'encryptWithKey').mockImplementationOnce(() => {
+            throw new Error('Not implemented');
+          });
+          await expect(controller.changePassword(password2)).rejects.toThrow(
+            'Not implemented',
+          );
+
+          // Check that old password still works.
+          expect(await controller.submitPassword(password)).toBeUndefined();
+        },
+      );
+    });
   });
 
   describe('setLocked', () => {
@@ -4901,6 +5047,7 @@ type WithControllerCallback<ReturnValue> = ({
 
 type WithControllerOptions = Partial<KeyringControllerOptions> & {
   skipVaultCreation?: boolean;
+  envelopeEncryption?: boolean;
 };
 
 type WithControllerArgs<ReturnValue> =
@@ -4972,7 +5119,10 @@ async function withController<ReturnValue>(
     ...rest,
   });
   if (!rest.skipVaultCreation) {
-    await controller.createNewVaultAndKeychain(password);
+    const encryptionKey = rest.envelopeEncryption
+      ? MOCK_ENCRYPTION_KEY
+      : undefined;
+    await controller.createNewVaultAndKeychain(password, encryptionKey);
   }
   return await fn({
     controller,
