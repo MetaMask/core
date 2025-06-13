@@ -547,8 +547,9 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
       // Please see packages/assets-controllers/src/multicall.ts#L365.
       // Hence we should not update the balance in that case.
       const isTokenBalanceValueChanged =
-        (res.success && value !== undefined && value !== null) ? 
-          currentTokenBalanceValueForAccount !== toHex(value as BN) : false;
+        res.success && value !== undefined && value !== null
+          ? currentTokenBalanceValueForAccount !== toHex(value as BN)
+          : false;
       return {
         ...res,
         isTokenBalanceValueChanged,

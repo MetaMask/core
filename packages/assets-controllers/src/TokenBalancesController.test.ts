@@ -585,9 +585,9 @@ describe('TokenBalancesController', () => {
     );
 
     // Mock Promise allSettled to return a failure for the multi-account contract
-    jest.spyOn(multicall, 'multicallOrFallback').mockResolvedValue([
-      { success: false, value: undefined },
-    ]);
+    jest
+      .spyOn(multicall, 'multicallOrFallback')
+      .mockResolvedValue([{ success: false, value: undefined }]);
 
     await controller._executePoll({ chainId });
 
