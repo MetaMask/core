@@ -661,6 +661,18 @@ describe('CAIP-25 eth_accounts adapters', () => {
       );
       expect(result).toBe(true);
     });
+
+    it('returns false if a wallet:<non-evm-namespace> namespaced account is permitted and a matching (case sensitive) internal account with same address but different namespace', () => {
+      const result = isInternalAccountInPermittedAccountIds(
+        // @ts-expect-error partial internal account
+        {
+          scopes: ['solana:0'],
+          address: 'abC123',
+        },
+        ['wallet:notsolana:abC123'],
+      );
+      expect(result).toBe(false);
+    });
   });
 
   describe('isCaipAccountIdInPermittedAccountIds', () => {

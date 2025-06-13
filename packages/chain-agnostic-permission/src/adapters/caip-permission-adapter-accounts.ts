@@ -326,8 +326,15 @@ function isAddressWithParsedScopesInPermittedAccountIds(
         return false;
       }
 
+      if (
+        parsedPermittedAccount.chain.namespace === KnownCaipNamespace.Wallet &&
+        namespace !== parsedPermittedAccount.chain.reference
+      ) {
+        return false;
+      }
+
       // handle eip155:0 case and insensitive evm address comparison
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+
       if (namespace === KnownCaipNamespace.Eip155) {
         return (
           (reference === '0' ||
