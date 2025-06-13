@@ -7,11 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [68.2.0]
+
+### Added
+
+- Added `getErc20Balances` function within `TokenBalancesController` to support fetching ERC-20 token balances for a given address and token list ([#5925](https://github.com/MetaMask/core/pull/5925))
+  - This modular service simplifies balance retrieval logic and can be reused across different parts of the controller
+
 ### Changed
 
-- Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
-- Add `getErc20Balances` function within `TokenBalancesController` to support fetching ERC-20 token balances for a given address and token list ([#5925](https://github.com/MetaMask/core/pull/5925))
-  - This modular service simplifies balance retrieval logic and can be reused across different parts of the controller
 - Bump `@metamask/transaction-controller` to `^57.3.0` ([#5954](https://github.com/MetaMask/core/pull/5954))
 
 ### Fixed
@@ -32,8 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
-- Add `getErc20Balances` function within `TokenBalancesController` to support fetching ERC-20 token balances for a given address and token list ([#5925](https://github.com/MetaMask/core/pull/5925))
-  - This modular service simplifies balance retrieval logic and can be reused across different parts of the controller
 
 ## [68.0.0]
 
@@ -1724,7 +1726,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@68.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@68.2.0...HEAD
+[68.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@68.1.0...@metamask/assets-controllers@68.2.0
 [68.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@68.0.0...@metamask/assets-controllers@68.1.0
 [68.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@67.0.0...@metamask/assets-controllers@68.0.0
 [67.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@66.0.0...@metamask/assets-controllers@67.0.0
