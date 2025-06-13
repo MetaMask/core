@@ -17,9 +17,29 @@ import type {
   Web3AuthNetwork,
 } from './constants';
 
+/**
+ * The backup state of the secret data.
+ * Each secret data added/restored will be stored in the state locally.
+ *
+ * This is used to track the backup status of the secret data.
+ */
 export type SocialBackupsMetadata = {
-  id: string;
+  /**
+   * The hash of the secret data.
+   */
   hash: string;
+
+  /**
+   * The type of the secret data.
+   */
+  type: SecretType;
+
+  /**
+   * The optional keyringId to identify the keyring that the secret data belongs to.
+   *
+   * This is only required for `Mnemonic` secret data.
+   */
+  keyringId?: string;
 };
 
 export type AuthenticatedUserDetails = {

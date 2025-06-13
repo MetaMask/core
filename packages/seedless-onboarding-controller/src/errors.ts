@@ -14,7 +14,7 @@ import type { RecoveryErrorData } from './types';
  * @param defaultMessage - The default error message if the error code is not found.
  * @returns The error message.
  */
-function getErrorMessageFromTOPRFErrorCode(
+export function getErrorMessageFromTOPRFErrorCode(
   errorCode: TOPRFErrorCode,
   defaultMessage: string,
 ): string {
@@ -155,5 +155,3 @@ export class RecoveryError extends Error {
     return new RecoveryError(errorMessage, recoveryErrorData);
   }
 }
-
-export { getErrorMessageFromTOPRFErrorCode };

@@ -878,7 +878,7 @@ describe('SeedlessOnboardingController', () => {
 
           // should be able to get the hash of the seed phrase backup from the state
           expect(
-            controller.getSeedPhraseBackupHash(MOCK_SEED_PHRASE),
+            controller.getSecretDataBackupState(MOCK_SEED_PHRASE),
           ).toBeDefined();
         },
       );
@@ -977,7 +977,7 @@ describe('SeedlessOnboardingController', () => {
 
           // should be able to get the hash of the seed phrase backup from the state
           expect(
-            controller.getSeedPhraseBackupHash(MOCK_SEED_PHRASE),
+            controller.getSecretDataBackupState(MOCK_SEED_PHRASE),
           ).toBeDefined();
         },
       );
@@ -1125,7 +1125,7 @@ describe('SeedlessOnboardingController', () => {
               MOCK_KEYRING_ID,
             ),
           ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.FailedToEncryptAndStoreSeedPhraseBackup,
+            SeedlessOnboardingControllerErrorMessage.FailedToEncryptAndStoreSecretData,
           );
         },
       );
@@ -1260,7 +1260,8 @@ describe('SeedlessOnboardingController', () => {
           );
           expect(controller.state.socialBackupsMetadata).toStrictEqual([
             {
-              id: NEW_KEY_RING_1.id,
+              type: SecretType.Mnemonic,
+              keyringId: NEW_KEY_RING_1.id,
               hash: keccak256AndHexify(NEW_KEY_RING_1.seedPhrase),
             },
           ]);
@@ -1284,22 +1285,24 @@ describe('SeedlessOnboardingController', () => {
           const { socialBackupsMetadata } = controller.state;
           expect(socialBackupsMetadata).toStrictEqual([
             {
-              id: NEW_KEY_RING_1.id,
+              type: SecretType.Mnemonic,
+              keyringId: NEW_KEY_RING_1.id,
               hash: keccak256AndHexify(NEW_KEY_RING_1.seedPhrase),
             },
             {
-              id: NEW_KEY_RING_2.id,
+              type: SecretType.Mnemonic,
+              keyringId: NEW_KEY_RING_2.id,
               hash: keccak256AndHexify(NEW_KEY_RING_2.seedPhrase),
             },
           ]);
           // should be able to get the hash of the seed phrase backup from the state
           expect(
-            controller.getSeedPhraseBackupHash(NEW_KEY_RING_1.seedPhrase),
+            controller.getSecretDataBackupState(NEW_KEY_RING_1.seedPhrase),
           ).toBeDefined();
 
           // should return undefined if the seed phrase is not backed up
           expect(
-            controller.getSeedPhraseBackupHash(NEW_KEY_RING_3.seedPhrase),
+            controller.getSecretDataBackupState(NEW_KEY_RING_3.seedPhrase),
           ).toBeUndefined();
         },
       );
@@ -1332,6 +1335,12 @@ describe('SeedlessOnboardingController', () => {
           );
 
           expect(mockSecretDataAdd.isDone()).toBe(true);
+          expect(
+            controller.getSecretDataBackupState(
+              MOCK_PRIVATE_KEY,
+              SecretType.PrivateKey,
+            ),
+          ).toBeDefined();
         },
       );
     });
@@ -1959,7 +1968,7 @@ describe('SeedlessOnboardingController', () => {
           await expect(
             controller.fetchAllSecretData('INCORRECT_PASSWORD'),
           ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.FailedToFetchSeedPhraseMetadata,
+            SeedlessOnboardingControllerErrorMessage.FailedToFetchSecretMetadata,
           );
         },
       );
@@ -1983,7 +1992,7 @@ describe('SeedlessOnboardingController', () => {
           await expect(
             controller.fetchAllSecretData(MOCK_PASSWORD),
           ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.FailedToFetchSeedPhraseMetadata,
+            SeedlessOnboardingControllerErrorMessage.FailedToFetchSecretMetadata,
           );
         },
       );
@@ -2241,11 +2250,16 @@ describe('SeedlessOnboardingController', () => {
 
           controller.updateBackupMetadataState({
             keyringId: MOCK_KEYRING_ID,
-            seedPhrase: MOCK_SEED_PHRASE,
+            data: MOCK_SEED_PHRASE,
+            type: SecretType.Mnemonic,
           });
           const MOCK_SEED_PHRASE_HASH = keccak256AndHexify(MOCK_SEED_PHRASE);
           expect(controller.state.socialBackupsMetadata).toStrictEqual([
-            { id: MOCK_KEYRING_ID, hash: MOCK_SEED_PHRASE_HASH },
+            {
+              type: SecretType.Mnemonic,
+              keyringId: MOCK_KEYRING_ID,
+              hash: MOCK_SEED_PHRASE_HASH,
+            },
           ]);
         },
       );
@@ -2266,19 +2280,29 @@ describe('SeedlessOnboardingController', () => {
 
           controller.updateBackupMetadataState({
             keyringId: MOCK_KEYRING_ID,
-            seedPhrase: MOCK_SEED_PHRASE,
+            data: MOCK_SEED_PHRASE,
+            type: SecretType.Mnemonic,
           });
           const MOCK_SEED_PHRASE_HASH = keccak256AndHexify(MOCK_SEED_PHRASE);
           expect(controller.state.socialBackupsMetadata).toStrictEqual([
-            { id: MOCK_KEYRING_ID, hash: MOCK_SEED_PHRASE_HASH },
+            {
+              type: SecretType.Mnemonic,
+              keyringId: MOCK_KEYRING_ID,
+              hash: MOCK_SEED_PHRASE_HASH,
+            },
           ]);
 
           controller.updateBackupMetadataState({
             keyringId: MOCK_KEYRING_ID,
-            seedPhrase: MOCK_SEED_PHRASE,
+            data: MOCK_SEED_PHRASE,
+            type: SecretType.Mnemonic,
           });
           expect(controller.state.socialBackupsMetadata).toStrictEqual([
-            { id: MOCK_KEYRING_ID, hash: MOCK_SEED_PHRASE_HASH },
+            {
+              type: SecretType.Mnemonic,
+              keyringId: MOCK_KEYRING_ID,
+              hash: MOCK_SEED_PHRASE_HASH,
+            },
           ]);
         },
       );
@@ -2302,19 +2326,29 @@ describe('SeedlessOnboardingController', () => {
           controller.updateBackupMetadataState([
             {
               keyringId: MOCK_KEYRING_ID,
-              seedPhrase: MOCK_SEED_PHRASE,
+              data: MOCK_SEED_PHRASE,
+              type: SecretType.Mnemonic,
             },
             {
               keyringId: MOCK_KEYRING_ID_2,
-              seedPhrase: MOCK_SEED_PHRASE_2,
+              data: MOCK_SEED_PHRASE_2,
+              type: SecretType.Mnemonic,
             },
           ]);
           const MOCK_SEED_PHRASE_HASH = keccak256AndHexify(MOCK_SEED_PHRASE);
           const MOCK_SEED_PHRASE_2_HASH =
             keccak256AndHexify(MOCK_SEED_PHRASE_2);
           expect(controller.state.socialBackupsMetadata).toStrictEqual([
-            { id: MOCK_KEYRING_ID, hash: MOCK_SEED_PHRASE_HASH },
-            { id: MOCK_KEYRING_ID_2, hash: MOCK_SEED_PHRASE_2_HASH },
+            {
+              keyringId: MOCK_KEYRING_ID,
+              hash: MOCK_SEED_PHRASE_HASH,
+              type: SecretType.Mnemonic,
+            },
+            {
+              keyringId: MOCK_KEYRING_ID_2,
+              hash: MOCK_SEED_PHRASE_2_HASH,
+              type: SecretType.Mnemonic,
+            },
           ]);
         },
       );
@@ -2774,12 +2808,17 @@ describe('SeedlessOnboardingController', () => {
 
           controller.updateBackupMetadataState({
             keyringId: MOCK_KEYRING_ID,
-            seedPhrase: MOCK_SEED_PHRASE,
+            data: MOCK_SEED_PHRASE,
+            type: SecretType.Mnemonic,
           });
 
           const MOCK_SEED_PHRASE_HASH = keccak256AndHexify(MOCK_SEED_PHRASE);
           expect(controller.state.socialBackupsMetadata).toStrictEqual([
-            { id: MOCK_KEYRING_ID, hash: MOCK_SEED_PHRASE_HASH },
+            {
+              type: SecretType.Mnemonic,
+              keyringId: MOCK_KEYRING_ID,
+              hash: MOCK_SEED_PHRASE_HASH,
+            },
           ]);
         },
       );
@@ -2788,14 +2827,14 @@ describe('SeedlessOnboardingController', () => {
 
   describe('SeedPhraseMetadata', () => {
     it('should be able to create a seed phrase metadata with default options', () => {
-      // should be able to create a SeedPhraseMetadata instance via constructor
+      // should be able to create a SecretMetadata instance via constructor
       const seedPhraseMetadata = new SecretMetadata(MOCK_SEED_PHRASE);
       expect(seedPhraseMetadata.data).toBeDefined();
       expect(seedPhraseMetadata.timestamp).toBeDefined();
       expect(seedPhraseMetadata.type).toBe(SecretType.Mnemonic);
       expect(seedPhraseMetadata.version).toBe(SecretMetadataVersion.V1);
 
-      // should be able to create a SeedPhraseMetadata instance with a timestamp via constructor
+      // should be able to create a SecretMetadata instance with a timestamp via constructor
       const timestamp = 18_000;
       const seedPhraseMetadata2 = new SecretMetadata(MOCK_SEED_PHRASE, {
         timestamp,
@@ -3849,13 +3888,13 @@ describe('SeedlessOnboardingController', () => {
       });
     });
 
-    describe('addNewSeedPhraseBackup with token refresh', () => {
+    describe('addNewSecretData with token refresh', () => {
       const NEW_KEY_RING = {
         id: 'new-keyring-1',
         seedPhrase: stringToBytes('new mock seed phrase 1'),
       };
 
-      it('should retry addNewSeedPhraseBackup after refreshing expired tokens', async () => {
+      it('should retry addNewSecretData after refreshing expired tokens', async () => {
         const mockToprfEncryptor = createMockToprfEncryptor();
         const MOCK_ENCRYPTION_KEY =
           mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
@@ -3922,8 +3961,8 @@ describe('SeedlessOnboardingController', () => {
       });
     });
 
-    describe('fetchAllSeedPhrases with token refresh', () => {
-      it('should retry fetchAllSeedPhrases after refreshing expired tokens', async () => {
+    describe('fetchAllSecretData with token refresh', () => {
+      it('should retry fetchAllSecretData after refreshing expired tokens', async () => {
         await withController(
           {
             state: getMockInitialControllerState({
@@ -3984,14 +4023,6 @@ describe('SeedlessOnboardingController', () => {
             }),
           },
           async ({ controller, toprfClient, mockRefreshJWTToken }) => {
-            await mockCreateToprfKeyAndBackupSeedPhrase(
-              toprfClient,
-              controller,
-              MOCK_PASSWORD,
-              MOCK_SEED_PHRASE,
-              MOCK_KEYRING_ID,
-            );
-            await controller.submitPassword(MOCK_PASSWORD);
             // Mock createLocalKey
             mockcreateLocalKey(toprfClient, MOCK_PASSWORD);
 
@@ -4008,13 +4039,17 @@ describe('SeedlessOnboardingController', () => {
               .mockResolvedValueOnce();
 
             // persist the local enc key
-            jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
+            const persistLocalKeySpy = jest
+              .spyOn(toprfClient, 'persistLocalKey')
+              .mockResolvedValueOnce();
 
             // Mock authenticate for token refresh
-            jest.spyOn(toprfClient, 'authenticate').mockResolvedValueOnce({
-              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
-              isNewUser: false,
-            });
+            const authenticateSpy = jest
+              .spyOn(toprfClient, 'authenticate')
+              .mockResolvedValueOnce({
+                nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+                isNewUser: false,
+              });
 
             await controller.createToprfKeyAndBackupSeedPhrase(
               MOCK_PASSWORD,
@@ -4023,7 +4058,9 @@ describe('SeedlessOnboardingController', () => {
             );
 
             expect(mockRefreshJWTToken).toHaveBeenCalled();
-            expect(toprfClient.persistLocalKey).toHaveBeenCalledTimes(2);
+            expect(authenticateSpy).toHaveBeenCalled();
+            // should only call persistLocalKey once after the refresh token
+            expect(persistLocalKeySpy).toHaveBeenCalledTimes(1);
           },
         );
       });
@@ -4036,22 +4073,11 @@ describe('SeedlessOnboardingController', () => {
             }),
           },
           async ({ controller, toprfClient, mockRefreshJWTToken }) => {
-            await mockCreateToprfKeyAndBackupSeedPhrase(
-              toprfClient,
-              controller,
-              MOCK_PASSWORD,
-              MOCK_SEED_PHRASE,
-              MOCK_KEYRING_ID,
-            );
-            await controller.submitPassword(MOCK_PASSWORD);
             // Mock createLocalKey
             mockcreateLocalKey(toprfClient, MOCK_PASSWORD);
 
-            // Mock addSecretDataItem
-            jest.spyOn(toprfClient, 'addSecretDataItem').mockResolvedValue();
-
             // persist the local enc key
-            jest
+            const persistLocalKeySpy = jest
               .spyOn(toprfClient, 'persistLocalKey')
               .mockImplementationOnce(() => {
                 // First call fails with token expired error
@@ -4062,11 +4088,18 @@ describe('SeedlessOnboardingController', () => {
               })
               .mockResolvedValueOnce();
 
+            // Mock addSecretDataItem
+            const addSecretDataItemSpy = jest
+              .spyOn(toprfClient, 'addSecretDataItem')
+              .mockResolvedValue();
+
             // Mock authenticate for token refresh
-            jest.spyOn(toprfClient, 'authenticate').mockResolvedValueOnce({
-              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
-              isNewUser: false,
-            });
+            const authenticateSpy = jest
+              .spyOn(toprfClient, 'authenticate')
+              .mockResolvedValueOnce({
+                nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+                isNewUser: false,
+              });
 
             await controller.createToprfKeyAndBackupSeedPhrase(
               MOCK_PASSWORD,
@@ -4075,7 +4108,10 @@ describe('SeedlessOnboardingController', () => {
             );
 
             expect(mockRefreshJWTToken).toHaveBeenCalled();
-            expect(toprfClient.persistLocalKey).toHaveBeenCalledTimes(3);
+            expect(addSecretDataItemSpy).toHaveBeenCalledTimes(1);
+            expect(authenticateSpy).toHaveBeenCalled();
+            // should call persistLocalKey twice, once for the first call and another from the refresh token
+            expect(persistLocalKeySpy).toHaveBeenCalledTimes(2);
           },
         );
       });
