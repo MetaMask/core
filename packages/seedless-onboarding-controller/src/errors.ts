@@ -25,6 +25,8 @@ function getErrorMessageFromTOPRFErrorCode(
       return SeedlessOnboardingControllerErrorMessage.IncorrectPassword;
     case TOPRFErrorCode.CouldNotFetchPassword:
       return SeedlessOnboardingControllerErrorMessage.CouldNotRecoverPassword;
+    case TOPRFErrorCode.AuthTokenExpired:
+      return SeedlessOnboardingControllerErrorMessage.InsufficientAuthToken;
     default:
       return defaultMessage;
   }
@@ -153,3 +155,5 @@ export class RecoveryError extends Error {
     return new RecoveryError(errorMessage, recoveryErrorData);
   }
 }
+
+export { getErrorMessageFromTOPRFErrorCode };
