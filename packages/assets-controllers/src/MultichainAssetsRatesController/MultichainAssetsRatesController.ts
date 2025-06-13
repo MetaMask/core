@@ -16,16 +16,18 @@ import type {
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
-import type {
-  SnapId,
-  AssetConversion,
-  OnAssetsConversionArguments,
-  OnAssetsConversionResponse,
-  OnAssetHistoricalPriceArguments,
-  OnAssetHistoricalPriceResponse,
-  HistoricalPriceIntervals,
+import {
+  type SnapId,
+  type AssetConversion,
+  type OnAssetsConversionArguments,
+  type OnAssetsConversionResponse,
+  type OnAssetHistoricalPriceArguments,
+  type OnAssetHistoricalPriceResponse,
+  type HistoricalPriceIntervals,
 } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
+import { object, array, tuple, number } from '@metamask/superstruct';
+import { assertStruct } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import type { Draft } from 'immer';
 
@@ -41,10 +43,25 @@ import type {
   MultichainAssetsControllerState,
 } from '../MultichainAssetsController';
 
+const GetHistoricalPricesResponseStruct = object({
+  prices: array(tuple([number(), number()])),
+  marketCaps: array(tuple([number(), number()])),
+  totalVolumes: array(tuple([number(), number()])),
+});
+
 /**
  * The name of the MultichainAssetsRatesController.
  */
 const controllerName = 'MultichainAssetsRatesController';
+
+type HistoricalPricesApiResponse = {
+  /** Array of price data points, each containing [timestamp, price] */
+  prices: [number, number][];
+  /** Array of market cap data points, each containing [timestamp, marketCap] */
+  marketCaps: [number, number][];
+  /** Array of total volume data points, each containing [timestamp, volume] */
+  totalVolumes: [number, number][];
+};
 
 // This is temporary until its exported from snap
 type HistoricalPrice = {
@@ -383,14 +400,18 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
           'AccountsController:getSelectedMultichainAccount',
         );
       try {
-        const historicalPricesResponse = await this.#handleSnapRequest({
-          snapId: selectedAccount?.metadata.snap?.id as SnapId,
-          handler: HandlerType.OnAssetHistoricalPrice,
-          params: {
-            from: asset,
-            to: currentCaipCurrency,
-          },
-        });
+        const historicalPricesResponse = await this.getHistoricalPriceFromApi(
+          asset,
+          this.#currentCurrency,
+        );
+        // const historicalPricesResponse = await this.#handleSnapRequest({
+        //   snapId: selectedAccount?.metadata.snap?.id as SnapId,
+        // handler: HandlerType.OnAssetHistoricalPrice,
+        //   params: {
+        //     from: asset,
+        //     to: currentCaipCurrency,
+        //   },
+        // });
 
         // skip state update if no historical prices are returned
         if (!historicalPricesResponse) {
@@ -603,5 +624,90 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
         params,
       },
     }) as Promise<OnAssetsConversionResponse | OnAssetHistoricalPriceResponse>;
+  }
+
+  /**
+   * Fetches historical prices for a specific asset using the Price API.
+   *
+   * @param asset - The CAIP asset type to fetch historical prices for.
+   * @param currency - The currency to get prices in (defaults to current currency).
+   * @returns A promise that resolves with the historical price data in OnAssetHistoricalPriceResponse format.
+   */
+  async getHistoricalPriceFromApi(
+    asset: CaipAssetType,
+    currency?: string,
+  ): Promise<OnAssetHistoricalPriceResponse> {
+    const timePeriodsToFetch = ['1d', '7d', '1m', '3m', '1y', '1000y'];
+
+    try {
+      // For each time period, call the Price API to fetch the historical prices
+      const promises = timePeriodsToFetch.map(async (timePeriod) => {
+        try {
+          // https://price.api.cx.metamask.io/v3/historical-prices/solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501?timePeriod=1d&vsCurrency=usd
+          const url = `https://price.api.cx.metamask.io/v3/historical-prices/${asset}?timePeriod=${timePeriod}&vsCurrency=${currency}`;
+          console.log(
+            'MultichainAssetsRatesController.getHistoricalPriceFromApi (new internal logic gutted from snap) calling',
+            url,
+          );
+
+          const fetchResponse = await fetch(url);
+          if (!fetchResponse.ok) {
+            throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+          }
+
+          const response: HistoricalPricesApiResponse =
+            await fetchResponse.json();
+
+          // Add assertion similar to snap
+          assertStruct(response, GetHistoricalPricesResponseStruct);
+
+          return {
+            timePeriod,
+            response,
+          };
+        } catch (error) {
+          console.warn(
+            `Error fetching historical prices for ${asset} to ${currency} with time period ${timePeriod}`,
+            error,
+          );
+          return {
+            timePeriod,
+            response: { prices: [] }, // Return empty prices on error
+          };
+        }
+      });
+
+      const wrappedHistoricalPrices = await Promise.all(promises);
+
+      const intervals =
+        wrappedHistoricalPrices.reduce<HistoricalPriceIntervals>(
+          (acc, { timePeriod, response }) => {
+            const iso8601Interval = `P${timePeriod.toUpperCase()}`;
+            acc[iso8601Interval] = response.prices.map((price) => [
+              price[0],
+              price[1].toString(),
+            ]);
+            return acc;
+          },
+          {},
+        );
+
+      const now = Date.now();
+      const historicalPrice = {
+        intervals,
+        updateTime: now,
+        expirationTime: now + 1000 * 60, // 1 minute expiration
+      };
+
+      return {
+        historicalPrice,
+      };
+    } catch (error) {
+      console.error(
+        `Failed to fetch historical prices for asset: ${asset}`,
+        error,
+      );
+      return null;
+    }
   }
 }
