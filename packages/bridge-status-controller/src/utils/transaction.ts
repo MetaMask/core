@@ -163,8 +163,8 @@ export const getClientRequest = (
 
   return {
     origin: 'metamask',
-    snapId: selectedAccount.metadata.snap?.id as never,
-    handler: 'onClientRequest' as never,
+    snapId: selectedAccount.metadata.snap?.id,
+    handler: 'onClientRequest',
     request: {
       id: clientReqId,
       jsonrpc: '2.0',
