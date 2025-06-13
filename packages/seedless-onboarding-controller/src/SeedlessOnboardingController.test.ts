@@ -44,7 +44,6 @@ import {
 import type {
   AllowedActions,
   AllowedEvents,
-  RecoveryErrorData,
   SeedlessOnboardingControllerMessenger,
   SeedlessOnboardingControllerOptions,
   SeedlessOnboardingControllerState,
@@ -2025,40 +2024,6 @@ describe('SeedlessOnboardingController', () => {
         },
       );
     });
-
-    // it('should use cached value for TooManyLoginAttempts error', async () => {
-    //   await withController(
-    //     {
-    //       state: getMockInitialControllerState({
-    //         withMockAuthenticatedUser: true,
-    //       }),
-    //     },
-    //     async ({ controller, toprfClient }) => {
-    //       jest.spyOn(toprfClient, 'recoverEncKey').mockRejectedValueOnce(
-    //         new TOPRFError(1009, 'Rate limit exceeded', {
-    //           rateLimitDetails: {
-    //             remainingTime: 58, // decreased by 3 seconds due to the network delay and server processing time
-    //             message: 'Rate limit in effect',
-    //             lockTime: 60,
-    //             guessCount: 5,
-    //           },
-    //         }),
-    //       );
-
-    //       await expect(
-    //         controller.fetchAllSecretData(MOCK_PASSWORD),
-    //       ).rejects.toStrictEqual(
-    //         new RecoveryError(
-    //           SeedlessOnboardingControllerErrorMessage.TooManyLoginAttempts,
-    //           {
-    //             remainingTime: 60,
-    //             numberOfAttempts: 5,
-    //           },
-    //         ),
-    //       );
-    //     },
-    //   );
-    // });
 
     it('should handle IncorrectPassword error', async () => {
       await withController(

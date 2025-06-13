@@ -4,7 +4,6 @@ import { BaseController } from '@metamask/base-controller';
 import type {
   KeyPair,
   NodeAuthTokens,
-  RecoverEncryptionKeyResult,
   SEC1EncodedPublicKey,
 } from '@metamask/toprf-secure-backup';
 import {
