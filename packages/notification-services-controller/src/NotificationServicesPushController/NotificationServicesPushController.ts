@@ -11,7 +11,6 @@ import log from 'loglevel';
 import {
   activatePushNotifications,
   deactivatePushNotifications,
-  updateTriggerPushNotifications,
 } from './services/services';
 import type { PushNotificationEnv } from './types';
 import type { PushService } from './types/push-service-interface';
@@ -246,8 +245,9 @@ export default class NotificationServicesPushController extends BaseController<
 
     if (command.type === 'disable') {
       this.update((state) => {
+        // Note we do not want to clear the old FCM token
+        // We can send it as an old token to our backend to cleanup next time turned on
         state.isPushEnabled = false;
-        state.fcmToken = '';
         state.isUpdatingFCMToken = false;
       });
     }
@@ -289,9 +289,9 @@ export default class NotificationServicesPushController extends BaseController<
    * 2. Fetching the Firebase Cloud Messaging (FCM) token from Firebase.
    * 3. Sending the FCM token to the server responsible for sending notifications, to register the device.
    *
-   * @param UUIDs - An array of UUIDs to enable push notifications for.
+   * @param addresses - An array of addresses to enable push notifications for.
    */
-  public async enablePushNotifications(UUIDs: string[]) {
+  public async enablePushNotifications(addresses: string[]) {
     if (!this.#config.isPushFeatureEnabled) {
       return;
     }
@@ -311,12 +311,15 @@ export default class NotificationServicesPushController extends BaseController<
         // Activate Push Notifications
         const fcmToken = await activatePushNotifications({
           bearerToken,
-          triggers: UUIDs,
+          addresses,
           env: this.#env,
           createRegToken: this.#config.pushService.createRegToken,
-          platform: this.#config.platform,
-          locale: this.#config.getLocale?.() ?? 'en',
-        }).catch(() => null);
+          regToken: {
+            platform: this.#config.platform,
+            locale: this.#config.getLocale?.() ?? 'en',
+            oldToken: this.state.fcmToken,
+          },
+        });
 
         if (fcmToken) {
           this.#updatePushState({ type: 'enable', fcmToken });
@@ -379,12 +382,13 @@ export default class NotificationServicesPushController extends BaseController<
 
   /**
    * Updates the triggers for push notifications.
-   * This method is responsible for updating the server with the new set of UUIDs that should trigger push notifications.
+   * This method is responsible for updating the server with the new set of addresses that should trigger push notifications.
    * It uses the current FCM token and a BearerToken for authentication.
    *
-   * @param UUIDs - An array of UUIDs that should trigger push notifications.
+   * @param addresses - An array of addresses that should trigger push notifications.
+   * @deprecated - this is not used anymore and will most likely be removed
    */
-  public async updateTriggerPushNotifications(UUIDs: string[]) {
+  public async updateTriggerPushNotifications(addresses: string[]) {
     if (!this.#config.isPushFeatureEnabled) {
       return;
     }
@@ -395,14 +399,16 @@ export default class NotificationServicesPushController extends BaseController<
 
     try {
       const bearerToken = await this.#getAndAssertBearerToken();
-      const { fcmToken } = await updateTriggerPushNotifications({
+      const fcmToken = await activatePushNotifications({
         bearerToken,
-        triggers: UUIDs,
+        addresses,
         env: this.#env,
         createRegToken: this.#config.pushService.createRegToken,
-        deleteRegToken: this.#config.pushService.deleteRegToken,
-        platform: this.#config.platform,
-        locale: this.#config.getLocale?.() ?? 'en',
+        regToken: {
+          platform: this.#config.platform,
+          locale: this.#config.getLocale?.() ?? 'en',
+          oldToken: this.state.fcmToken,
+        },
       });
 
       // update the state with the new FCM token

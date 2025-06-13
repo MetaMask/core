@@ -1,8 +1,8 @@
 import nock from 'nock';
 
 import {
-  getMockBatchCreateTriggersResponse,
-  getMockBatchDeleteTriggersResponse,
+  getMockUpdateOnChainNotifications,
+  getMockOnChainNotificationsConfig,
   getMockFeatureAnnouncementResponse,
   getMockListNotificationsResponse,
   getMockMarkNotificationsAsReadResponse,
@@ -26,8 +26,8 @@ export const mockFetchFeatureAnnouncementNotifications = (
   return mockEndpoint;
 };
 
-export const mockBatchCreateTriggers = (mockReply?: MockReply) => {
-  const mockResponse = getMockBatchCreateTriggersResponse();
+export const mockUpdateOnChainNotifications = (mockReply?: MockReply) => {
+  const mockResponse = getMockUpdateOnChainNotifications();
   const reply = mockReply ?? { status: 204 };
 
   const mockEndpoint = nock(mockResponse.url)
@@ -37,18 +37,18 @@ export const mockBatchCreateTriggers = (mockReply?: MockReply) => {
   return mockEndpoint;
 };
 
-export const mockBatchDeleteTriggers = (mockReply?: MockReply) => {
-  const mockResponse = getMockBatchDeleteTriggersResponse();
-  const reply = mockReply ?? { status: 204 };
+export const mockGetOnChainNotificationsConfig = (mockReply?: MockReply) => {
+  const mockResponse = getMockOnChainNotificationsConfig();
+  const reply = mockReply ?? { status: 200, body: mockResponse.response };
 
   const mockEndpoint = nock(mockResponse.url)
-    .delete('')
+    .post('')
     .reply(reply.status, reply.body);
 
   return mockEndpoint;
 };
 
-export const mockListNotifications = (mockReply?: MockReply) => {
+export const mockGetOnChainNotifications = (mockReply?: MockReply) => {
   const mockResponse = getMockListNotificationsResponse();
   const reply = mockReply ?? { status: 200, body: mockResponse.response };
 

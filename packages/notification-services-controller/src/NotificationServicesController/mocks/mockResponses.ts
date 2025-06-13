@@ -4,7 +4,8 @@ import { FEATURE_ANNOUNCEMENT_API } from '../services/feature-announcements';
 import {
   NOTIFICATION_API_LIST_ENDPOINT,
   NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT,
-  TRIGGER_API_BATCH_ENDPOINT,
+  TRIGGER_API_NOTIFICATIONS_ENDPOINT,
+  TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT,
 } from '../services/onchain-notifications';
 
 type MockResponse = {
@@ -23,19 +24,19 @@ export const getMockFeatureAnnouncementResponse = () => {
   } satisfies MockResponse;
 };
 
-export const getMockBatchCreateTriggersResponse = () => {
+export const getMockUpdateOnChainNotifications = () => {
   return {
-    url: TRIGGER_API_BATCH_ENDPOINT,
+    url: TRIGGER_API_NOTIFICATIONS_ENDPOINT,
     requestMethod: 'POST',
     response: null,
   } satisfies MockResponse;
 };
 
-export const getMockBatchDeleteTriggersResponse = () => {
+export const getMockOnChainNotificationsConfig = () => {
   return {
-    url: TRIGGER_API_BATCH_ENDPOINT,
-    requestMethod: 'DELETE',
-    response: null,
+    url: TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT,
+    requestMethod: 'POST',
+    response: [{ address: '0xTestAddress', enabled: true }],
   } satisfies MockResponse;
 };
 

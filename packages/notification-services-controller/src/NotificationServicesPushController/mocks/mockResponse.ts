@@ -1,5 +1,4 @@
 import { REGISTRATION_TOKENS_ENDPOINT } from '../services/endpoints';
-import type { LinksResult } from '../services/services';
 
 type MockResponse = {
   url: string | RegExp;
@@ -8,21 +7,6 @@ type MockResponse = {
 };
 
 export const MOCK_REG_TOKEN = 'REG_TOKEN';
-export const MOCK_LINKS_RESPONSE: LinksResult = {
-  trigger_ids: ['1', '2', '3'],
-  registration_tokens: [
-    { token: 'reg_token_1', platform: 'portfolio', locale: 'en' },
-    { token: 'reg_token_2', platform: 'extension', locale: 'en' },
-  ],
-};
-
-export const getMockRetrievePushNotificationLinksResponse = () => {
-  return {
-    url: REGISTRATION_TOKENS_ENDPOINT,
-    requestMethod: 'GET',
-    response: MOCK_LINKS_RESPONSE,
-  } satisfies MockResponse;
-};
 
 export const getMockUpdatePushNotificationLinksResponse = () => {
   return {

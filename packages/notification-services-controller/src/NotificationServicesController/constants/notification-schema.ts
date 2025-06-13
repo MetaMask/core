@@ -58,6 +58,7 @@ export const NOTIFICATION_CHAINS_ID = {
   ARBITRUM: '42161',
   AVALANCHE: '43114',
   LINEA: '59144',
+  SEI: '1329',
 } as const;
 
 type ToPrimitiveKeys<TObj> = Compute<{

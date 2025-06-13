@@ -12,7 +12,7 @@ export const mockEndpointUpdatePushNotificationLinks = (
 ) => {
   const mockResponse = getMockUpdatePushNotificationLinksResponse();
   const reply = mockReply ?? {
-    status: 200,
+    status: 204,
     body: mockResponse.response,
   };
 
