@@ -561,6 +561,43 @@ describe('TokenBalancesController', () => {
     expect(updateSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('does not update balances when multi-account balances is enabled and multi-account contract failed', async () => {
+    const chainId = '0x1';
+    const account1 = '0x0000000000000000000000000000000000000001';
+    const tokenAddress = '0x0000000000000000000000000000000000000003';
+
+    const tokens = {
+      allDetectedTokens: {},
+      allTokens: {
+        [chainId]: {
+          [account1]: [{ address: tokenAddress, symbol: 's', decimals: 0 }],
+        },
+      },
+    };
+
+    const { controller, messenger, updateSpy } = setupController({ tokens });
+
+    // Enable multi account balances
+    messenger.publish(
+      'PreferencesController:stateChange',
+      { isMultiAccountBalancesEnabled: true } as PreferencesState,
+      [],
+    );
+
+    // Mock Promise allSettled to return a failure for the multi-account contract
+    jest.spyOn(multicall, 'multicallOrFallback').mockResolvedValue([
+      { success: false, value: undefined },
+    ]);
+
+    await controller._executePoll({ chainId });
+
+    expect(controller.state.tokenBalances).toStrictEqual({});
+
+    await controller._executePoll({ chainId });
+
+    expect(updateSpy).toHaveBeenCalledTimes(0);
+  });
+
   it('updates balances when multi-account balances is enabled and some returned values changed', async () => {
     const chainId = '0x1';
     const account1 = '0x0000000000000000000000000000000000000001';
