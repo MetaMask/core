@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Change `caip25CaveatBuilder` to list unsupported scopes in the unsupported scopes error ([#5806](https://github.com/MetaMask/core/pull/5806))
 
 ### Fixed
+
 - Fix `isInternalAccountInPermittedAccountIds` and `isCaipAccountIdInPermittedAccountIds` to correctly handle comparison against `permittedAccounts` values of the `wallet:<namespace>:<address>` format ([#5980](https://github.com/MetaMask/core/pull/5980))
 
 ## [0.7.0]
