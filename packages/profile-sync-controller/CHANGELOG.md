@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Backup & Sync of Contacts ([#5776](https://github.com/MetaMask/core/pull/5776))
+  - List to contacts update and deletion events from `AddressBookController`
+  - Big sync on setup & unlock including conflicts resolution
+- Add account syncing support for multiple SRPs ([#5753](https://github.com/MetaMask/core/pull/5753))
+
 - **BREAKING:** Add multi-SRP support for authentication and user storage ([#5753](https://github.com/MetaMask/core/pull/5753))
   - Add `entropySource` based authentication support for multiple SRPs
   - Add `entropySource` optional parameter for `UserStorageController` CRUD methods
