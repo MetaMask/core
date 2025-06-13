@@ -995,29 +995,14 @@ export interface RemoteTransactionSourceRequest {
   address: Hex;
 
   /**
-   * Cache to optimize fetching transactions.
-   */
-  cache: Record<string, unknown>;
-
-  /**
    * Whether to also include incoming token transfers.
    */
   includeTokenTransfers: boolean;
 
   /**
-   * Whether to initially query the entire transaction history.
-   */
-  queryEntireHistory: boolean;
-
-  /**
    * Additional tags to identify the source of the request.
    */
   tags?: string[];
-
-  /**
-   * Callback to update the cache.
-   */
-  updateCache(fn: (cache: Record<string, unknown>) => void): void;
 
   /**
    * Whether to also retrieve outgoing transactions.
