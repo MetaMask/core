@@ -330,6 +330,7 @@ function isAddressWithParsedScopesInPermittedAccountIds(
       // handle wallet:<namespace>:<address> case where namespaces are mismatched but addresses match
       // i.e. wallet:notSolana:12389812309123 and solana:0:12389812309123
       if (
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
         parsedPermittedAccount.chain.namespace === KnownCaipNamespace.Wallet &&
         namespace !== parsedPermittedAccount.chain.reference
       ) {
