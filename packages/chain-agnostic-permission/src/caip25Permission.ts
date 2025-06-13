@@ -220,23 +220,20 @@ export const caip25CaveatBuilder = ({
         }
       };
 
-      const allRequiredScopesSupported = Object.keys(requiredScopes).every(
+      const unsupportedScopes = Object.keys({
+        ...requiredScopes,
+        ...optionalScopes,
+      }).filter(
         (scopeString) =>
-          isSupportedScopeString(scopeString, {
+          !isSupportedScopeString(scopeString, {
             isEvmChainIdSupported,
             isNonEvmScopeSupported,
           }),
       );
-      const allOptionalScopesSupported = Object.keys(optionalScopes).every(
-        (scopeString) =>
-          isSupportedScopeString(scopeString, {
-            isEvmChainIdSupported,
-            isNonEvmScopeSupported,
-          }),
-      );
-      if (!allRequiredScopesSupported || !allOptionalScopesSupported) {
+
+      if (unsupportedScopes.length > 0) {
         throw new Error(
-          `${Caip25EndowmentPermissionName} error: Received scopeString value(s) for caveat of type "${Caip25CaveatType}" that are not supported by the wallet.`,
+          `${Caip25EndowmentPermissionName} error: Received scopeString value(s): ${unsupportedScopes.join(', ')} for caveat of type "${Caip25CaveatType}" that are not supported by the wallet.`,
         );
       }
 
