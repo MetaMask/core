@@ -10,12 +10,15 @@ import {
   TransactionStatus,
   TransactionType,
 } from '@metamask/transaction-controller';
+import { SolScope } from '@metamask/keyring-api';
 
 import {
   getStatusRequestParams,
   getTxMetaFields,
   handleSolanaTxResponse,
   handleLineaDelay,
+  getKeyringRequest,
+  getClientRequest,
 } from './transaction';
 import { LINEA_DELAY_MS } from '../constants';
 
@@ -915,6 +918,202 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       // Verify that no timer was set
       expect(jest.getTimerCount()).toBe(0);
+    });
+  });
+
+  describe('getKeyringRequest', () => {
+    it('should generate a valid keyring request', () => {
+      const mockQuoteResponse: Omit<QuoteResponse<string>, 'approval'> & QuoteMetadata = {
+        quote: {
+          bridgeId: 'bridge1',
+          bridges: ['bridge1'],
+          srcChainId: ChainId.SOLANA,
+          destChainId: ChainId.POLYGON,
+          srcTokenAmount: '1000000000',
+          destTokenAmount: '2000000000000000000',
+          srcAsset: {
+            address: 'solanaNativeAddress',
+            decimals: 9,
+            symbol: 'SOL',
+          },
+          destAsset: {
+            address: '0x0000000000000000000000000000000000000000',
+            decimals: 18,
+            symbol: 'MATIC',
+          },
+          steps: ['step1'],
+          feeData: {
+            [FeeType.METABRIDGE]: {
+              amount: '100000000',
+            },
+          },
+        },
+        estimatedProcessingTimeInSeconds: 300,
+        trade: 'ABCD',
+        // QuoteMetadata fields
+        sentAmount: {
+          amount: '1.0',
+          valueInCurrency: '100',
+          usd: '100',
+        },
+        toTokenAmount: {
+          amount: '2.0',
+          valueInCurrency: '3600',
+          usd: '3600',
+        },
+        swapRate: '2.0',
+        totalNetworkFee: {
+          amount: '0.1',
+          valueInCurrency: '10',
+          usd: '10',
+        },
+        totalMaxNetworkFee: {
+          amount: '0.15',
+          valueInCurrency: '15',
+          usd: '15',
+        },
+        gasFee: {
+          amount: '0.05',
+          valueInCurrency: '5',
+          usd: '5',
+        },
+        adjustedReturn: {
+          valueInCurrency: '3585',
+          usd: '3585',
+        },
+        cost: {
+          valueInCurrency: '0.1',
+          usd: '0.1',
+        },
+      } as never;
+
+      const mockAccount = {
+        id: 'test-account-id',
+        address: '0x123456',
+        metadata: {
+          snap: { id: 'test-snap-id' },
+        },
+      } as never;
+
+      const result = getKeyringRequest(mockQuoteResponse, mockAccount);
+
+      expect(result).toMatchObject({
+        origin: 'metamask',
+        snapId: 'test-snap-id',
+        handler: 'onKeyringRequest',
+        request: {
+          id: expect.any(String),
+          jsonrpc: '2.0',
+          method: 'keyring_submitRequest',
+          params: {
+            request: {
+              params: {
+                account: { address: '0x123456' },
+                transaction: 'ABCD',
+                scope: SolScope.Mainnet,
+              },
+              method: 'signAndSendTransaction',
+            },
+            id: expect.any(String),
+            account: 'test-account-id',
+            scope: SolScope.Mainnet,
+          },
+        },
+      });
+    });
+  });
+
+  describe('getClientRequest', () => {
+    it('should generate a valid client request', () => {
+      const mockQuoteResponse: Omit<QuoteResponse<string>, 'approval'> & QuoteMetadata = {
+        quote: {
+          bridgeId: 'bridge1',
+          bridges: ['bridge1'],
+          srcChainId: ChainId.SOLANA,
+          destChainId: ChainId.POLYGON,
+          srcTokenAmount: '1000000000',
+          destTokenAmount: '2000000000000000000',
+          srcAsset: {
+            address: 'solanaNativeAddress',
+            decimals: 9,
+            symbol: 'SOL',
+          },
+          destAsset: {
+            address: '0x0000000000000000000000000000000000000000',
+            decimals: 18,
+            symbol: 'MATIC',
+          },
+          steps: ['step1'],
+          feeData: {
+            [FeeType.METABRIDGE]: {
+              amount: '100000000',
+            },
+          },
+        },
+        estimatedProcessingTimeInSeconds: 300,
+        trade: 'ABCD',
+        // QuoteMetadata fields
+        sentAmount: {
+          amount: '1.0',
+          valueInCurrency: '100',
+          usd: '100',
+        },
+        toTokenAmount: {
+          amount: '2.0',
+          valueInCurrency: '3600',
+          usd: '3600',
+        },
+        swapRate: '2.0',
+        totalNetworkFee: {
+          amount: '0.1',
+          valueInCurrency: '10',
+          usd: '10',
+        },
+        totalMaxNetworkFee: {
+          amount: '0.15',
+          valueInCurrency: '15',
+          usd: '15',
+        },
+        gasFee: {
+          amount: '0.05',
+          valueInCurrency: '5',
+          usd: '5',
+        },
+        adjustedReturn: {
+          valueInCurrency: '3585',
+          usd: '3585',
+        },
+        cost: {
+          valueInCurrency: '0.1',
+          usd: '0.1',
+        },
+      } as never;
+
+      const mockAccount = {
+        id: 'test-account-id',
+        address: '0x123456',
+        metadata: {
+          snap: { id: 'test-snap-id' },
+        },
+      } as never;
+
+      const result = getClientRequest(mockQuoteResponse, mockAccount);
+
+      expect(result).toMatchObject({
+        origin: 'metamask',
+        snapId: 'test-snap-id',
+        handler: 'onClientRequest',
+        request: {
+          id: expect.any(String),
+          jsonrpc: '2.0',
+          method: 'signAndSendTransactionWithoutConfirmation',
+          params: {
+            account: { address: '0x123456' },
+            transaction: 'ABCD',
+            scope: SolScope.Mainnet,
+          },
+        },
+      });
     });
   });
 });
