@@ -134,51 +134,6 @@ describe('OnChainNotificationsCache', () => {
     });
   });
 
-  describe('replace', () => {
-    it('should completely replace cache data', () => {
-      // Set initial data
-      cache.set([
-        { address: '0x123', enabled: true },
-        { address: '0x456', enabled: false },
-      ]);
-
-      // Replace with new data
-      cache.replace([{ address: '0x789', enabled: true }]);
-
-      // Old data should be gone
-      const oldResult = cache.get(['0x123', '0x456']);
-      expect(oldResult).toBeNull();
-
-      // New data should be available
-      const newResult = cache.get(['0x789']);
-      expect(newResult).toStrictEqual([{ address: '0x789', enabled: true }]);
-    });
-
-    it('should handle empty replacement data', () => {
-      // Set initial data
-      cache.set([{ address: '0x123', enabled: true }]);
-
-      // Replace with empty data
-      cache.replace([]);
-
-      const result = cache.get(['0x123']);
-      expect(result).toBeNull();
-    });
-
-    it('should update timestamp on replace', () => {
-      cache.replace([{ address: '0x123', enabled: true }]);
-
-      // Should not be expired immediately
-      const result = cache.get(['0x123']);
-      expect(result).toStrictEqual([{ address: '0x123', enabled: true }]);
-
-      // Should expire after TTL
-      jest.advanceTimersByTime(NotificationConfigCacheTTL + 1);
-      const expiredResult = cache.get(['0x123']);
-      expect(expiredResult).toBeNull();
-    });
-  });
-
   describe('clear', () => {
     it('should clear all cache data', () => {
       cache.set([{ address: '0x123', enabled: true }]);
@@ -264,6 +219,26 @@ describe('OnChainNotificationsCache', () => {
 
       // Now should be expired
       expect(cache.get(['0x123', '0x456'])).toBeNull();
+    });
+  });
+
+  describe('User Flows', () => {
+    it('should correctly perform settings change user flow', () => {
+      // First we make a GET call to fetch notification settings, so cache is set
+      cache.set([
+        { address: '0x111', enabled: true },
+        { address: '0x222', enabled: true },
+      ]);
+
+      // Then we switch off an account, so cache is updated
+      cache.set([{ address: '0x222', enabled: false }]);
+
+      // Then we perform a GET to get the updated settings, and fetch notifications only for active accounts
+      const result = cache.get(['0x111', '0x222']);
+      expect(result).toStrictEqual([
+        { address: '0x111', enabled: true },
+        { address: '0x222', enabled: false },
+      ]);
     });
   });
 });

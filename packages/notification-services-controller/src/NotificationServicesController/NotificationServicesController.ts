@@ -969,7 +969,9 @@ export default class NotificationServicesController extends BaseController<
               bearerToken,
               accounts,
             )
-          ).map((a) => a.address);
+          )
+            .filter((a) => Boolean(a.enabled))
+            .map((a) => a.address);
           const notifications =
             await OnChainNotifications.getOnChainNotifications(
               bearerToken,

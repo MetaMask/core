@@ -103,7 +103,7 @@ export async function updateOnChainNotifications(
     'POST',
     body,
   )
-    .then(() => notificationsConfigCache.replace(addresses))
+    .then(() => notificationsConfigCache.set(addresses))
     .catch(() => null);
 }
 

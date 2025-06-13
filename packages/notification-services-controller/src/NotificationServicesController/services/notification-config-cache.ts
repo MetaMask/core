@@ -51,19 +51,6 @@ export class OnChainNotificationsCache {
     };
   }
 
-  // Full replace when updateOnChainNotifications is called
-  replace(data: { address: string; enabled: boolean }[]): void {
-    const map = new Map<string, boolean>();
-    data.forEach(({ address, enabled }) => {
-      map.set(address, enabled);
-    });
-
-    this.#cache = {
-      data: map,
-      timestamp: Date.now(),
-    };
-  }
-
   clear(): void {
     this.#cache = null;
   }
