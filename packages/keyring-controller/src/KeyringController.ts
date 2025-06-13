@@ -1506,7 +1506,7 @@ export class KeyringController extends BaseController<
             // If the vault is being upgraded, we want to ignore the metadata
             // that is already in the vault, so we can effectively
             // re-encrypt the vault with the new encryption config.
-            ignoreVautKeyMetadata: true,
+            ignoreVaultKeyMetadata: true,
           });
           await this.#updateVault();
         }
@@ -2127,12 +2127,12 @@ export class KeyringController extends BaseController<
    *
    * @param password - The password to use for decryption or derivation.
    * @param options - Options for the key derivation.
-   * @param options.ignoreVautKeyMetadata - Whether to ignore the vault key metadata
+   * @param options.ignoreVaultKeyMetadata - Whether to ignore the vault key metadata
    */
   async #deriveEncryptionKey(
     password: string,
-    options: { ignoreVautKeyMetadata: boolean } = {
-      ignoreVautKeyMetadata: false,
+    options: { ignoreVaultKeyMetadata: boolean } = {
+      ignoreVaultKeyMetadata: false,
     },
   ): Promise<void> {
     this.#assertControllerMutexIsLocked();
@@ -2143,7 +2143,7 @@ export class KeyringController extends BaseController<
     }
 
     let salt: string, keyMetadata: unknown;
-    if (vault && !options.ignoreVautKeyMetadata) {
+    if (vault && !options.ignoreVaultKeyMetadata) {
       const parsedVault = JSON.parse(vault);
       salt = parsedVault.salt;
       keyMetadata = parsedVault.keyMetadata;
