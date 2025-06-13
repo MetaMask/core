@@ -816,12 +816,13 @@ describe('KeyringController', () => {
       );
     });
 
-    it('should create new vault with encryption key from key seed', async () => {
+    it('should create new vault with encryption key derived from key seed', async () => {
       await withController(
         { cacheEncryptionKey: true, skipVaultCreation: true },
-        async ({ controller }) => {
-          const key = await controller.deriveKeyFromSeed(password);
-          await controller.createNewVaultAndKeychain(password, key);
+        async ({ controller, encryptor }) => {
+          const key = await encryptor.keyFromPassword(password, SALT);
+          const keyString = await encryptor.exportKey(key);
+          await controller.createNewVaultAndKeychain(password, keyString);
           expect(controller.state.encryptionKey).toBeDefined();
           expect(controller.state.encryptedEncryptionKey).toBeDefined();
         },

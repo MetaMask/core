@@ -810,21 +810,6 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Derives an encryption key from a key seed.
-   *
-   * @param keySeed - The key seed to derive the key from.
-   * @returns Promise resolving to the derived encryption key.
-   */
-  async deriveKeyFromSeed(keySeed: string): Promise<string> {
-    assertIsExportableKeyEncryptor(this.#encryptor);
-    const { exportedKeyString } = await this.#encryptor.encryptWithDetail(
-      keySeed,
-      null, // dummy value, we just want the key
-    );
-    return exportedKeyString;
-  }
-
-  /**
    * Effectively the same as creating a new keychain then populating it
    * using the given seed phrase.
    *
