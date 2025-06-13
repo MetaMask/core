@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+# Changed
+
+- `scanUrl` hits the v2 endpoint now. Returns `hostname` instead of `domainName` now. ([#5981](https://github.com/MetaMask/core/pull/5981))
+
 ## [12.6.0]
 
 ### Added
