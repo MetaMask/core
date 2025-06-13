@@ -70,6 +70,12 @@ export type TransactionMeta = {
   chainId: Hex;
 
   /**
+   * List of container types applied to the original transaction data.
+   * For example, through delegations.
+   */
+  containerTypes?: TransactionContainerType[];
+
+  /**
    * A string representing a name of transaction contract method.
    */
   contractMethodName?: string;
@@ -793,6 +799,11 @@ export enum TransactionType {
    * Increase the allowance by a given increment
    */
   tokenMethodIncreaseAllowance = 'increaseAllowance',
+}
+
+export enum TransactionContainerType {
+  /** Transaction has been converted to a delegation including caveats to validate the simulated balance changes. */
+  EnforcedSimulations = 'enforcedSimulations',
 }
 
 /**
@@ -1853,3 +1864,30 @@ export type AfterAddHook = (request: {
 }) => Promise<{
   updateTransaction?: (transaction: TransactionMeta) => void;
 }>;
+
+/**
+ * Custom logic to be executed after a transaction is simulated.
+ * Can optionally update the transaction by returning the `updateTransaction` callback.
+ */
+export type AfterSimulateHook = (request: {
+  transactionMeta: TransactionMeta;
+}) => Promise<
+  | {
+      skipSimulation?: boolean;
+      updateTransaction?: (transaction: TransactionMeta) => void;
+    }
+  | undefined
+>;
+
+/**
+ * Custom logic to be executed before a transaction is signed.
+ * Can optionally update the transaction by returning the `updateTransaction` callback.
+ */
+export type BeforeSignHook = (request: {
+  transactionMeta: TransactionMeta;
+}) => Promise<
+  | {
+      updateTransaction?: (transaction: TransactionMeta) => void;
+    }
+  | undefined
+>;

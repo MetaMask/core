@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add optional `afterSimulate` and `beforeSign` hooks to constructor ([#5503](https://github.com/MetaMask/core/pull/5503))
+  - Add `AfterSimulateHook` type.
+  - Add `BeforeSignHook` type.
+  - Add `TransactionContainerType` enum.
+  - Add `TransactionControllerEstimateGasAction` type.
+  - Add optional `containerTypes` property to `TransactionMeta`.
+  - Add optional `ignoreDelegationSignatures` boolean to `estimateGas` method.
 - Add `gasFeeEstimates` property to `TransactionBatchMeta`, populated using `DefaultGasFeeFlow` ([#5886](https://github.com/MetaMask/core/pull/5886))
 
 ### Changed
