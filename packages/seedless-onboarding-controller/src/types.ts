@@ -138,14 +138,6 @@ export type SeedlessOnboardingControllerState =
       passwordOutdatedCache?: { isExpiredPwd: boolean; timestamp: number };
 
       /**
-       * The cached data of the recovery error.
-       *
-       * This data is used to cache the recovery error data to retrieve the accurate ratelimit remainingTime and numberOfAttempts.
-       * And it also helps to synchronize the recovery error data across multiple devices.
-       */
-      recoveryRatelimitCache?: RecoveryErrorData;
-
-      /**
        * The refresh token used to refresh expired nodeAuthTokens.
        * This is persisted in state.
        */

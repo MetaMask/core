@@ -4,7 +4,6 @@ import { BaseController } from '@metamask/base-controller';
 import type {
   KeyPair,
   NodeAuthTokens,
-  RecoverEncryptionKeyResult,
   SEC1EncodedPublicKey,
 } from '@metamask/toprf-secure-backup';
 import {
@@ -109,10 +108,6 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       anonymous: true,
     },
     passwordOutdatedCache: {
-      persist: true,
-      anonymous: true,
-    },
-    recoveryRatelimitCache: {
       persist: true,
       anonymous: true,
     },
@@ -858,7 +853,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @throws RecoveryError - If failed to recover the encryption key.
    */
   async #recoverEncKey(password: string) {
-    return this.#withRecoveryErrorHandler(async () => {
+    try {
       this.#assertIsAuthenticatedUser(this.state);
 
       const { authConnectionId, groupedAuthConnectionId, userId } = this.state;
@@ -871,7 +866,16 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         userId,
       });
       return recoverEncKeyResult;
-    });
+    } catch (error) {
+      console.log('error', error);
+      console.log('isTokenExpiredError', this.#isTokenExpiredError(error));
+      // throw token expired error for token refresh handler
+      if (this.#isTokenExpiredError(error)) {
+        throw error;
+      }
+
+      throw RecoveryError.getInstance(error);
+    }
   }
 
   /**
@@ -1414,59 +1418,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       throw new Error(
         SeedlessOnboardingControllerErrorMessage.SRPNotBackedUpError,
       );
-    }
-  }
-
-  /**
-   * Handle the recovery error and update the recovery error data after executing the given callback.
-   *
-   * @param recoveryCallback - The callback recovery function to execute.
-   * @returns The result of the callback function.
-   */
-  async #withRecoveryErrorHandler(
-    recoveryCallback: () => Promise<RecoverEncryptionKeyResult>,
-  ): Promise<RecoverEncryptionKeyResult> {
-    const currentRecoveryAttempts =
-      this.state.recoveryRatelimitCache?.numberOfAttempts || 0;
-    let updatedRecoveryAttempts = currentRecoveryAttempts + 1;
-    let updatedRemainingTime =
-      this.state.recoveryRatelimitCache?.remainingTime || 0;
-
-    try {
-      const result = await recoveryCallback();
-
-      // reset the ratelimit error data
-      updatedRecoveryAttempts = 0;
-      updatedRemainingTime = 0;
-
-      return result;
-    } catch (error) {
-      // throw token expired error for token refresh handler
-      if (this.#isTokenExpiredError(error)) {
-        throw error;
-      }
-
-      const recoveryError = RecoveryError.getInstance(error, {
-        numberOfAttempts: updatedRecoveryAttempts,
-        remainingTime: updatedRemainingTime,
-      });
-
-      if (recoveryError.data?.numberOfAttempts) {
-        updatedRecoveryAttempts = recoveryError.data.numberOfAttempts;
-      }
-
-      if (recoveryError.data?.remainingTime) {
-        updatedRemainingTime = recoveryError.data.remainingTime;
-      }
-
-      throw recoveryError;
-    } finally {
-      this.update((state) => {
-        state.recoveryRatelimitCache = {
-          numberOfAttempts: updatedRecoveryAttempts,
-          remainingTime: updatedRemainingTime,
-        };
-      });
     }
   }
 
