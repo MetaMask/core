@@ -2176,12 +2176,16 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Updates the cached vault encryption key.
+   * Updates the cached vault encryption key. This key will be persisted in
+   * the state at the next update if envelope encryption is enabled.
    *
    * @param encryptionKey - Optional new vault encryption key.
    */
   #updateCachedEncryptionKey(encryptionKey?: string) {
     if (!encryptionKey && this.state.encryptedEncryptionKey) {
+      // If no encryption key is provided and we are in envelope encryption
+      // mode, use the cached encryption key. This case occurs when we call
+      // change password without providing a new encryption key.
       this.#encryptionKey = this.state.encryptionKey;
     } else {
       this.#encryptionKey = encryptionKey;
