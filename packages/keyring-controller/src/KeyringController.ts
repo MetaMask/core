@@ -908,12 +908,14 @@ export class KeyringController extends BaseController<
 
       assertIsExportableKeyEncryptor(this.#encryptor);
 
-      const key = (await this.#encryptor.decrypt(
+      const decryptedEncryptionKey = (await this.#encryptor.decrypt(
         password,
         this.state.encryptedEncryptionKey,
       )) as string;
 
-      const importedKey = await this.#encryptor.importKey(key);
+      const importedKey = await this.#encryptor.importKey(
+        decryptedEncryptionKey,
+      );
 
       await this.#encryptor.decryptWithKey(importedKey, this.state.vault);
     } else {
@@ -2363,19 +2365,21 @@ export class KeyringController extends BaseController<
 
         if (password) {
           if (encryptedEncryptionKey) {
-            const key = (await this.#encryptor.decrypt(
+            const decryptedEncryptionKey = (await this.#encryptor.decrypt(
               password,
               encryptedEncryptionKey,
             )) as string;
 
-            const importedKey = await this.#encryptor.importKey(key);
+            const importedKey = await this.#encryptor.importKey(
+              decryptedEncryptionKey,
+            );
 
             vault = await this.#encryptor.decryptWithKey(
               importedKey,
               encryptedVault,
             );
             this.#password = password;
-            updatedState.encryptionKey = key;
+            updatedState.encryptionKey = decryptedEncryptionKey;
           } else {
             const result = await this.#encryptor.decryptWithDetail(
               password,
@@ -2398,9 +2402,9 @@ export class KeyringController extends BaseController<
             throw new TypeError(KeyringControllerError.WrongPasswordType);
           }
 
-          const key = await this.#encryptor.importKey(encryptionKey);
+          const importedKey = await this.#encryptor.importKey(encryptionKey);
           vault = await this.#encryptor.decryptWithKey(
-            key,
+            importedKey,
             parsedEncryptedVault,
           );
 
@@ -2496,11 +2500,11 @@ export class KeyringController extends BaseController<
             updatedState.encryptionKey = this.#encryptionKey;
 
             // Encrypt key and update encrypted key.
-            const encryptedKey = await this.#encryptor.encrypt(
+            const encryptedEncryptionKey = await this.#encryptor.encrypt(
               this.#password,
               this.#encryptionKey,
             );
-            updatedState.encryptedEncryptionKey = encryptedKey;
+            updatedState.encryptedEncryptionKey = encryptedEncryptionKey;
 
             // Encrypt and update vault.
             const importedKey = await this.#encryptor.importKey(
