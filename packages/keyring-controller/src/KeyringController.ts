@@ -2514,6 +2514,9 @@ export class KeyringController extends BaseController<
               importedKey,
               serializedKeyrings,
             );
+            // Note that we don't need to explicitly append the salt to the
+            // vault here as it's already stored as part of the encrypted
+            // encryption key.
             updatedState.vault = JSON.stringify(vaultJSON);
           } else {
             const { vault: newVault, exportedKeyString } =
