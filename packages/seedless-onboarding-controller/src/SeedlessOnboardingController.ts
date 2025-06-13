@@ -279,7 +279,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * Create a new TOPRF encryption key using given password and backups the provided seed phrase.
    *
    * @param password - The password used to create new wallet and seedphrase
-   * @param seedPhrase - The seed phrase to backup
+   * @param seedPhrase - The initial seed phrase (Mnemonic) created together with the wallet.
    * @param keyringId - The keyring id of the backup seed phrase
    * @returns A promise that resolves to the encrypted seed phrase and the encryption key.
    */
@@ -299,7 +299,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           password,
         });
       const performKeyCreationAndBackup = async (): Promise<void> => {
-        // encrypt and store the seed phrase backup
+        // encrypt and store the secret data
         await this.#encryptAndStoreSecretData({
           data: seedPhrase,
           type: SecretType.Mnemonic,
@@ -311,7 +311,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         });
 
         // store/persist the encryption key shares
-        // We store the seed phrase metadata in the metadata store first. If this operation fails,
+        // We store the secret metadata in the metadata store first. If this operation fails,
         // we avoid persisting the encryption key shares to prevent a situation where a user appears
         // to have an account but with no associated data.
         await this.#persistOprfKey(oprfKey, authKeyPair.pk);
@@ -362,7 +362,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         const { toprfEncryptionKey, toprfAuthKeyPair } =
           await this.#unlockVaultAndGetBackupEncKey();
 
-        // encrypt and store the seed phrase backup
+        // encrypt and store the secret data
         await this.#encryptAndStoreSecretData({
           data,
           type,
@@ -372,10 +372,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         });
       };
 
-      await this.#executeWithTokenRefresh(
-        performBackup,
-        'addNewSeedPhraseBackup',
-      );
+      await this.#executeWithTokenRefresh(performBackup, 'addNewSecretData');
     });
   }
 
@@ -384,14 +381,14 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    *
    * Decrypts the secret data and returns the decrypted secret data using the recovered encryption key from the password.
    *
-   * @param password - The optional password used to create new wallet and seedphrase. If not provided, `cached Encryption Key` will be used.
+   * @param password - The optional password used to create new wallet. If not provided, `cached Encryption Key` will be used.
    * @returns A promise that resolves to the secret data.
    */
   async fetchAllSecretData(
     password?: string,
   ): Promise<Record<SecretType, Uint8Array[]>> {
     return await this.#withControllerLock(async () => {
-      // assert that the user is authenticated before fetching the seed phrases
+      // assert that the user is authenticated before fetching the secret data
       this.#assertIsAuthenticatedUser(this.state);
 
       let encKey: Uint8Array;
@@ -450,9 +447,9 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           'fetchAllSecretData',
         );
       } catch (error) {
-        log('Error fetching seed phrase metadata', error);
+        log('Error fetching secret data', error);
         throw new Error(
-          SeedlessOnboardingControllerErrorMessage.FailedToFetchSeedPhraseMetadata,
+          SeedlessOnboardingControllerErrorMessage.FailedToFetchSecretMetadata,
         );
       }
     });
@@ -512,11 +509,11 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   }
 
   /**
-   * Update the backup metadata state for the given seed phrase.
+   * Update the backup metadata state for the given secret data.
    *
    * @param secretData - The data to backup, can be a single backup or array of backups.
-   * @param secretData.keyringId - The keyring id associated with the backup seed phrase.
-   * @param secretData.seedPhrase - The seed phrase to update the backup metadata state.
+   * @param secretData.keyringId - The keyring id associated with the backup secret data.
+   * @param secretData.data - The secret data to update the backup metadata state.
    */
   updateBackupMetadataState(
     secretData:
@@ -908,10 +905,10 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   }
 
   /**
-   * Encrypt and store the seed phrase backup in the metadata store.
+   * Encrypt and store the secret data backup in the metadata store.
    *
-   * @param params - The parameters for encrypting and storing the seed phrase backup.
-   * @param params.data - The seed phrase to store.
+   * @param params - The parameters for encrypting and storing the secret data backup.
+   * @param params.data - The secret data to store.
    * @param params.type - The type of the secret data.
    * @param params.encKey - The encryption key to store.
    * @param params.authKeyPair - The authentication key pair to store.
@@ -950,7 +947,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     }
 
     try {
-      await this.#withPersistedSeedPhraseBackupsState(async () => {
+      await this.#withPersistedSecretMetadataBackupsState(async () => {
         await this.toprfClient.addSecretDataItem({
           encKey,
           secretData,
@@ -966,9 +963,9 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       if (this.#isTokenExpiredError(error)) {
         throw error;
       }
-      log('Error encrypting and storing seed phrase backup', error);
+      log('Error encrypting and storing secret data backup', error);
       throw new Error(
-        SeedlessOnboardingControllerErrorMessage.FailedToEncryptAndStoreSeedPhraseBackup,
+        SeedlessOnboardingControllerErrorMessage.FailedToEncryptAndStoreSecretData,
       );
     }
   }
@@ -1075,42 +1072,42 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   }
 
   /**
-   * Executes a callback function that creates or restores seed phrases and persists their hashes in the controller state.
+   * Executes a callback function that creates or restores secret data and persists their hashes in the controller state.
    *
    * This method:
-   * 1. Executes the provided callback to create/restore seed phrases
-   * 2. Generates keccak256 hashes of the seed phrases
+   * 1. Executes the provided callback to create/restore secret data
+   * 2. Generates keccak256 hashes of the secret data
    * 3. Merges new hashes with existing ones in the state, ensuring uniqueness
    * 4. Updates the controller state with the combined hashes
    *
    * This is a wrapper method that should be used around any operation that creates
-   * or restores seed phrases to ensure their hashes are properly tracked.
+   * or restores secret data to ensure their hashes are properly tracked.
    *
-   * @param createSeedPhraseBackupCallback - function that returns either a single seed phrase
-   * or an array of seed phrases as Uint8Array(s)
-   * @returns The original seed phrase(s) returned by the callback
+   * @param createSecretMetadataBackupCallback - function that returns either a single secret data
+   * or an array of secret data as Uint8Array(s)
+   * @returns The original secret data(s) returned by the callback
    * @throws Rethrows any errors from the callback with additional logging
    */
-  async #withPersistedSeedPhraseBackupsState(
-    createSeedPhraseBackupCallback: () => Promise<
+  async #withPersistedSecretMetadataBackupsState(
+    createSecretMetadataBackupCallback: () => Promise<
       Omit<SocialBackupsMetadata, 'hash'> & { data: Uint8Array }
     >,
   ): Promise<Omit<SocialBackupsMetadata, 'hash'> & { data: Uint8Array }> {
     try {
-      const newBackup = await createSeedPhraseBackupCallback();
+      const newBackup = await createSecretMetadataBackupCallback();
 
       this.#filterDupesAndUpdateSocialBackupsMetadata(newBackup);
 
       return newBackup;
     } catch (error) {
-      log('Error persisting seed phrase backups', error);
+      log('Error persisting secret data backups', error);
       throw error;
     }
   }
 
   /**
-   * Updates the social backups metadata state by adding new unique seed phrase backups.
-   * This method ensures no duplicate backups are stored by checking the hash of each seed phrase.
+   * Updates the social backups metadata state by adding new unique secret data backups.
+   * This method ensures no duplicate backups are stored by checking the hash of each secret data.
    *
    * @param secretData - The backup data to add to the state
    * @param secretData.data - The secret data to backup as a Uint8Array

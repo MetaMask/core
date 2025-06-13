@@ -1125,7 +1125,7 @@ describe('SeedlessOnboardingController', () => {
               MOCK_KEYRING_ID,
             ),
           ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.FailedToEncryptAndStoreSeedPhraseBackup,
+            SeedlessOnboardingControllerErrorMessage.FailedToEncryptAndStoreSecretData,
           );
         },
       );
@@ -1968,7 +1968,7 @@ describe('SeedlessOnboardingController', () => {
           await expect(
             controller.fetchAllSecretData('INCORRECT_PASSWORD'),
           ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.FailedToFetchSeedPhraseMetadata,
+            SeedlessOnboardingControllerErrorMessage.FailedToFetchSecretMetadata,
           );
         },
       );
@@ -1992,7 +1992,7 @@ describe('SeedlessOnboardingController', () => {
           await expect(
             controller.fetchAllSecretData(MOCK_PASSWORD),
           ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.FailedToFetchSeedPhraseMetadata,
+            SeedlessOnboardingControllerErrorMessage.FailedToFetchSecretMetadata,
           );
         },
       );
@@ -2827,14 +2827,14 @@ describe('SeedlessOnboardingController', () => {
 
   describe('SeedPhraseMetadata', () => {
     it('should be able to create a seed phrase metadata with default options', () => {
-      // should be able to create a SeedPhraseMetadata instance via constructor
+      // should be able to create a SecretMetadata instance via constructor
       const seedPhraseMetadata = new SecretMetadata(MOCK_SEED_PHRASE);
       expect(seedPhraseMetadata.data).toBeDefined();
       expect(seedPhraseMetadata.timestamp).toBeDefined();
       expect(seedPhraseMetadata.type).toBe(SecretType.Mnemonic);
       expect(seedPhraseMetadata.version).toBe(SecretMetadataVersion.V1);
 
-      // should be able to create a SeedPhraseMetadata instance with a timestamp via constructor
+      // should be able to create a SecretMetadata instance with a timestamp via constructor
       const timestamp = 18_000;
       const seedPhraseMetadata2 = new SecretMetadata(MOCK_SEED_PHRASE, {
         timestamp,
@@ -3888,13 +3888,13 @@ describe('SeedlessOnboardingController', () => {
       });
     });
 
-    describe('addNewSeedPhraseBackup with token refresh', () => {
+    describe('addNewSecretData with token refresh', () => {
       const NEW_KEY_RING = {
         id: 'new-keyring-1',
         seedPhrase: stringToBytes('new mock seed phrase 1'),
       };
 
-      it('should retry addNewSeedPhraseBackup after refreshing expired tokens', async () => {
+      it('should retry addNewSecretData after refreshing expired tokens', async () => {
         const mockToprfEncryptor = createMockToprfEncryptor();
         const MOCK_ENCRYPTION_KEY =
           mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
@@ -3961,8 +3961,8 @@ describe('SeedlessOnboardingController', () => {
       });
     });
 
-    describe('fetchAllSeedPhrases with token refresh', () => {
-      it('should retry fetchAllSeedPhrases after refreshing expired tokens', async () => {
+    describe('fetchAllSecretData with token refresh', () => {
+      it('should retry fetchAllSecretData after refreshing expired tokens', async () => {
         await withController(
           {
             state: getMockInitialControllerState({
