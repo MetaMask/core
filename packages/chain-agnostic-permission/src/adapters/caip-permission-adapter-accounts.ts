@@ -319,7 +319,10 @@ function isAddressWithParsedScopesInPermittedAccountIds(
     const parsedPermittedAccount = parseCaipAccountId(account);
 
     return parsedAccountScopes.some(({ namespace, reference }) => {
-      if (namespace !== parsedPermittedAccount.chain.namespace) {
+      if (
+        namespace !== parsedPermittedAccount.chain.namespace &&
+        parsedPermittedAccount.chain.namespace !== KnownCaipNamespace.Wallet
+      ) {
         return false;
       }
 
@@ -332,6 +335,14 @@ function isAddressWithParsedScopesInPermittedAccountIds(
           isEqualCaseInsensitive(address, parsedPermittedAccount.address)
         );
       }
+
+      // handle wallet:<namespace>:<address> case
+      if (
+        parsedPermittedAccount.chain.namespace === KnownCaipNamespace.Wallet
+      ) {
+        return address === parsedPermittedAccount.address;
+      }
+
       return (
         reference === parsedPermittedAccount.chain.reference &&
         address === parsedPermittedAccount.address
