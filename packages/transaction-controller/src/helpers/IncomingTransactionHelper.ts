@@ -76,7 +76,6 @@ export class IncomingTransactionHelper {
     includeTokenTransfers?: boolean;
     isEnabled?: () => boolean;
     messenger: TransactionControllerMessenger;
-    queryEntireHistory?: boolean;
     remoteTransactionSource: RemoteTransactionSource;
     trimTransactions: (transactions: TransactionMeta[]) => TransactionMeta[];
     updateTransactions?: boolean;
