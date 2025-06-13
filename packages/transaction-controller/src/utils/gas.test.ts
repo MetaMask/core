@@ -614,6 +614,54 @@ describe('gas', () => {
       ]);
     });
 
+    describe('with ignoreDelegationSignatures', () => {
+      it('returns gas limit from simulation', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              gasLimit: toHex(SIMULATE_GAS_MOCK) as Hex,
+            },
+          ],
+        } as SimulationResponse);
+
+        mockQuery({
+          getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+          estimateGasResponse: toHex(GAS_2_MOCK),
+        });
+
+        const result = await estimateGas({
+          chainId: CHAIN_ID_MOCK,
+          ethQuery: ETH_QUERY_MOCK,
+          ignoreDelegationSignatures: true,
+          isSimulationEnabled: true,
+          messenger: MESSENGER_MOCK,
+          txParams: TRANSACTION_META_MOCK.txParams,
+        });
+
+        expect(result).toStrictEqual({
+          estimatedGas: toHex(SIMULATE_GAS_MOCK),
+          blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+          simulationFails: undefined,
+          isUpgradeWithDataToSelf: false,
+        });
+      });
+
+      it('throws if simulation disabled', async () => {
+        await expect(
+          estimateGas({
+            chainId: CHAIN_ID_MOCK,
+            ethQuery: ETH_QUERY_MOCK,
+            ignoreDelegationSignatures: true,
+            isSimulationEnabled: false,
+            messenger: MESSENGER_MOCK,
+            txParams: TRANSACTION_META_MOCK.txParams,
+          }),
+        ).rejects.toThrow(
+          'Gas estimation with ignored delegation signatures is not supported as simulation disabled',
+        );
+      });
+    });
+
     describe('with type 4 transaction and data to self', () => {
       it('returns combination of provider estimate and simulation', async () => {
         mockQuery({
