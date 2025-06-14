@@ -65,6 +65,7 @@ export type ChainConfiguration = {
   refreshRate?: number;
   topAssets?: string[];
   isUnifiedUIEnabled?: boolean;
+  isSnapConfirmationEnabled?: boolean;
 };
 
 export type L1GasFees = {
