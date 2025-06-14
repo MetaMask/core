@@ -3,6 +3,7 @@ import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 import { v1 as random } from 'uuid';
 
+import { determineTransactionType } from '..';
 import type {
   GetAccountTransactionsResponse,
   TransactionResponse,
@@ -60,8 +61,8 @@ export class AccountsApiRemoteTransactionSource
       responseTransactions,
     );
 
-    const normalizedTransactions = responseTransactions.map((tx) =>
-      this.#normalizeTransaction(address, tx),
+    const normalizedTransactions = await Promise.all(
+      responseTransactions.map((tx) => this.#normalizeTransaction(address, tx)),
     );
 
     log('Normalized transactions', normalizedTransactions);
@@ -188,10 +189,10 @@ export class AccountsApiRemoteTransactionSource
     return filteredTransactions;
   }
 
-  #normalizeTransaction(
+  async #normalizeTransaction(
     address: Hex,
     responseTransaction: GetAccountTransactionsResponse['data'][0],
-  ): TransactionMeta {
+  ): Promise<TransactionMeta> {
     const blockNumber = String(responseTransaction.blockNumber);
     const chainId = `0x${responseTransaction.chainId.toString(16)}` as Hex;
     const { hash } = responseTransaction;
@@ -202,6 +203,7 @@ export class AccountsApiRemoteTransactionSource
     const gasPrice = BNToHex(new BN(responseTransaction.gasPrice));
     const gasUsed = BNToHex(new BN(responseTransaction.gasUsed));
     const nonce = BNToHex(new BN(responseTransaction.nonce));
+    const data = responseTransaction.methodId;
     const type = TransactionType.incoming;
     const verifiedOnBlockchain = false;
 
@@ -211,19 +213,30 @@ export class AccountsApiRemoteTransactionSource
 
     const valueTransfer = responseTransaction.valueTransfers.find(
       (vt) =>
-        vt.to.toLowerCase() === address.toLowerCase() && vt.contractAddress,
+        (vt.to.toLowerCase() === address.toLowerCase() ||
+          vt.from.toLowerCase() === address.toLowerCase()) &&
+        vt.contractAddress,
     );
 
+    const isIncomingTransfer =
+      valueTransfer?.to.toLowerCase() === address.toLowerCase();
+
+    const isOutgoing = from.toLowerCase() === address.toLowerCase();
     const isTransfer = Boolean(valueTransfer);
+    const amount = valueTransfer?.amount;
     const contractAddress = valueTransfer?.contractAddress as string;
     const decimals = valueTransfer?.decimal as number;
     const symbol = valueTransfer?.symbol as string;
 
     const value = BNToHex(
-      new BN(valueTransfer?.amount ?? responseTransaction.value),
+      new BN(
+        isIncomingTransfer
+          ? (valueTransfer?.amount ?? responseTransaction.value)
+          : responseTransaction.value,
+      ),
     );
 
-    const to = valueTransfer ? address : responseTransaction.to;
+    const to = isIncomingTransfer ? address : responseTransaction.to;
 
     const error =
       status === TransactionStatus.failed
@@ -232,13 +245,14 @@ export class AccountsApiRemoteTransactionSource
 
     const transferInformation = isTransfer
       ? {
+          amount,
           contractAddress,
           decimals,
           symbol,
         }
       : undefined;
 
-    return {
+    const meta: TransactionMeta = {
       blockNumber,
       chainId,
       error,
@@ -253,6 +267,7 @@ export class AccountsApiRemoteTransactionSource
       transferInformation,
       txParams: {
         chainId,
+        data,
         from,
         gas,
         gasPrice,
@@ -264,6 +279,12 @@ export class AccountsApiRemoteTransactionSource
       type,
       verifiedOnBlockchain,
     };
+
+    if (isOutgoing) {
+      meta.type = (await determineTransactionType(meta.txParams)).type;
+    }
+
+    return meta;
   }
 
   #updateCache({

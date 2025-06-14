@@ -59,7 +59,7 @@ export type TransactionResponse = {
   effectiveGasPrice: string;
   nonce: number;
   cumulativeGasUsed: number;
-  methodId: null;
+  methodId?: Hex;
   value: string;
   to: string;
   from: string;

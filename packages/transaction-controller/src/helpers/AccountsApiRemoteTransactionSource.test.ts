@@ -2,14 +2,16 @@ import {
   AccountsApiRemoteTransactionSource,
   SUPPORTED_CHAIN_IDS,
 } from './AccountsApiRemoteTransactionSource';
+import { determineTransactionType } from '..';
 import type {
   GetAccountTransactionsResponse,
   TransactionResponse,
 } from '../api/accounts-api';
 import { getAccountTransactions } from '../api/accounts-api';
-import type { RemoteTransactionSourceRequest } from '../types';
+import { TransactionType, type RemoteTransactionSourceRequest } from '../types';
 
 jest.mock('../api/accounts-api');
+jest.mock('../utils/transaction-type');
 
 jest.useFakeTimers();
 
@@ -41,7 +43,7 @@ const RESPONSE_STANDARD_MOCK: TransactionResponse = {
   effectiveGasPrice: '1',
   nonce: 1,
   cumulativeGasUsed: 1,
-  methodId: null,
+  methodId: '0x12345678',
   value: '1',
   to: ADDRESS_MOCK,
   from: '0x2',
@@ -78,6 +80,7 @@ const TRANSACTION_STANDARD_MOCK = {
   transferInformation: undefined,
   txParams: {
     chainId: '0x1',
+    data: '0x12345678',
     from: '0x2',
     gas: '0x1',
     gasPrice: '0x1',
@@ -86,7 +89,7 @@ const TRANSACTION_STANDARD_MOCK = {
     to: '0x123',
     value: '0x1',
   },
-  type: 'incoming',
+  type: TransactionType.incoming,
   verifiedOnBlockchain: false,
 };
 
@@ -94,6 +97,7 @@ const TRANSACTION_TOKEN_TRANSFER_MOCK = {
   ...TRANSACTION_STANDARD_MOCK,
   isTransfer: true,
   transferInformation: {
+    amount: '1',
     contractAddress: '0x123',
     decimals: 18,
     symbol: 'ABC',
@@ -102,6 +106,7 @@ const TRANSACTION_TOKEN_TRANSFER_MOCK = {
 
 describe('AccountsApiRemoteTransactionSource', () => {
   const getAccountTransactionsMock = jest.mocked(getAccountTransactions);
+  const determineTransactionTypeMock = jest.mocked(determineTransactionType);
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -110,6 +115,11 @@ describe('AccountsApiRemoteTransactionSource', () => {
     getAccountTransactionsMock.mockResolvedValue(
       {} as GetAccountTransactionsResponse,
     );
+
+    determineTransactionTypeMock.mockResolvedValue({
+      type: TransactionType.tokenMethodTransfer,
+      getCodeResponse: undefined,
+    });
   });
 
   describe('getSupportedChains', () => {
@@ -351,6 +361,20 @@ describe('AccountsApiRemoteTransactionSource', () => {
         });
 
       expect(transactions).toStrictEqual([]);
+    });
+
+    it('determines transaction type if outgoing', async () => {
+      getAccountTransactionsMock.mockResolvedValue({
+        data: [{ ...RESPONSE_TOKEN_TRANSFER_MOCK, from: ADDRESS_MOCK }],
+        pageInfo: { hasNextPage: false, count: 1 },
+      });
+
+      const transactions =
+        await new AccountsApiRemoteTransactionSource().fetchTransactions(
+          REQUEST_MOCK,
+        );
+
+      expect(transactions[0].type).toBe(TransactionType.tokenMethodTransfer);
     });
   });
 });

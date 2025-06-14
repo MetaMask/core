@@ -1,4 +1,3 @@
-import type { TransactionDescription } from '@ethersproject/abi';
 import { Interface } from '@ethersproject/abi';
 import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
@@ -31,7 +30,7 @@ const USDCInterface = new Interface(abiFiatTokenV2);
  */
 export async function determineTransactionType(
   txParams: TransactionParams,
-  ethQuery: EthQuery,
+  ethQuery?: EthQuery,
 ): Promise<InferTransactionTypeResult> {
   const { data, to } = txParams;
 
@@ -39,8 +38,15 @@ export async function determineTransactionType(
     return { type: TransactionType.deployContract, getCodeResponse: undefined };
   }
 
-  const { contractCode: getCodeResponse, isContractAddress } =
-    await readAddressAsContract(ethQuery, to);
+  let getCodeResponse;
+  let isContractAddress = Boolean(data?.length);
+
+  if (ethQuery) {
+    const response = await readAddressAsContract(ethQuery, to);
+
+    getCodeResponse = response.contractCode;
+    isContractAddress = response.isContractAddress;
+  }
 
   if (!isContractAddress) {
     return { type: TransactionType.simpleSend, getCodeResponse };
@@ -57,7 +63,7 @@ export async function determineTransactionType(
     return contractInteractionResult;
   }
 
-  const name = parseStandardTokenTransactionData(data)?.name;
+  const name = getMethodName(data);
 
   if (!name) {
     return contractInteractionResult;
@@ -89,35 +95,24 @@ export async function determineTransactionType(
  * @param data - Encoded transaction data.
  * @returns A representation of an ethereum contract call.
  */
-function parseStandardTokenTransactionData(
-  data?: string,
-): TransactionDescription | undefined {
-  if (!data) {
+function getMethodName(data?: string): string | undefined {
+  if (!data || data.length < 10) {
     return undefined;
   }
 
-  try {
-    return ERC20Interface.parseTransaction({ data });
-  } catch {
-    // ignore and next try to parse with erc721 ABI
-  }
+  const fourByte = data.substring(0, 10);
 
-  try {
-    return ERC721Interface.parseTransaction({ data });
-  } catch {
-    // ignore and next try to parse with erc1155 ABI
-  }
-
-  try {
-    return ERC1155Interface.parseTransaction({ data });
-  } catch {
-    // ignore and return undefined
-  }
-
-  try {
-    return USDCInterface.parseTransaction({ data });
-  } catch {
-    // ignore and return undefined
+  for (const interfaceInstance of [
+    ERC20Interface,
+    ERC721Interface,
+    ERC1155Interface,
+    USDCInterface,
+  ]) {
+    try {
+      return interfaceInstance.getFunction(fourByte).name;
+    } catch {
+      // Intentionally empty
+    }
   }
 
   return undefined;
