@@ -528,6 +528,20 @@ function assertIsExportableKeyEncryptor(
 }
 
 /**
+ * Assert that the encryption key is set.
+ *
+ * @param encryptionKey - The encryption key to check.
+ * @throws If the encryption key is not set.
+ */
+function assertIsEncryptionKeySet(
+  encryptionKey: string | undefined,
+): asserts encryptionKey is string {
+  if (!encryptionKey) {
+    throw new Error(KeyringControllerError.EncryptionKeyNotSet);
+  }
+}
+
+/**
  * Assert that the provided password is a valid non-empty string.
  *
  * @param password - The password to check.
@@ -1469,6 +1483,42 @@ export class KeyringController extends BaseController<
       // since the controller is already unlocked.
       console.error('Failed to update vault during login:', error);
     }
+  }
+
+  /**
+   * Exports the encrypted encryption key.
+   *
+   * @param password - The password to decrypt the encryption key.
+   * @returns The encrypted encryption key.
+   */
+  async exportEncryptedEncryptionKey(password: string): Promise<string> {
+    this.#assertIsUnlocked();
+    assertIsExportableKeyEncryptor(this.#encryptor);
+    assertIsEncryptionKeySet(this.state.encryptionKey);
+    return this.#encryptor.encrypt(password, this.state.encryptionKey);
+  }
+
+  /**
+   * Submits an encrypted encryption key and attempts to decrypt it using the
+   * given password. If the vault salt is provided, it is checked against the
+   * salt of the vault.
+   *
+   * @param encryptedEncryptionKey - The encrypted encryption key.
+   * @param password - The password to decrypt the encryption key.
+   * @param vaultSalt - The salt of the vault.
+   * @returns Promise resolving when the operation completes.
+   */
+  async submitEncryptedEncryptionKey(
+    encryptedEncryptionKey: string,
+    password: string,
+    vaultSalt?: string,
+  ): Promise<void> {
+    assertIsExportableKeyEncryptor(this.#encryptor);
+    const encryptionKey = (await this.#encryptor.decryptWithKey(
+      password,
+      encryptedEncryptionKey,
+    )) as string;
+    await this.submitEncryptionKey(encryptionKey, vaultSalt);
   }
 
   /**
