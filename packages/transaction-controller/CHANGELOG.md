@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add optional `ignoreDelegationSignatures` boolean to `estimateGas` method.
 - Add `gasFeeEstimates` property to `TransactionBatchMeta`, populated using `DefaultGasFeeFlow` ([#5886](https://github.com/MetaMask/core/pull/5886))
 
+### Changed
+
+- Query only latest page of transactions from accounts API ([#5983](https://github.com/MetaMask/core/pull/5983))
+
 ## [57.3.0]
 
 ### Added
