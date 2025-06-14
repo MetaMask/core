@@ -1434,16 +1434,17 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Attempts to decrypt the current vault and load its keyrings,
-   * using the given encryption key and salt.
+   * Attempts to decrypt the current vault and load its keyrings, using the
+   * given encryption key and salt. The optional salt can be used to check for
+   * consistency with the vault salt.
    *
    * @param encryptionKey - Key to unlock the keychain.
-   * @param encryptionSalt - Salt to unlock the keychain.
+   * @param encryptionSalt - Optional salt to unlock the keychain.
    * @returns Promise resolving when the operation completes.
    */
   async submitEncryptionKey(
     encryptionKey: string,
-    encryptionSalt: string,
+    encryptionSalt?: string,
   ): Promise<void> {
     const { newMetadata } = await this.#withRollback(async () => {
       const result = await this.#unlockKeyrings(
@@ -2279,8 +2280,10 @@ export class KeyringController extends BaseController<
         } else {
           const parsedEncryptedVault = JSON.parse(encryptedVault);
 
-          if (encryptionSalt !== parsedEncryptedVault.salt) {
+          if (encryptionSalt && encryptionSalt !== parsedEncryptedVault.salt) {
             throw new Error(KeyringControllerError.ExpiredCredentials);
+          } else {
+            encryptionSalt = parsedEncryptedVault.salt as string;
           }
 
           if (typeof encryptionKey !== 'string') {
@@ -2296,10 +2299,7 @@ export class KeyringController extends BaseController<
           // This call is required on the first call because encryptionKey
           // is not yet inside the memStore
           updatedState.encryptionKey = encryptionKey;
-          // we can safely assume that encryptionSalt is defined here
-          // because we compare it with the salt from the vault
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          updatedState.encryptionSalt = encryptionSalt!;
+          updatedState.encryptionSalt = encryptionSalt;
         }
       } else {
         if (typeof password !== 'string') {
