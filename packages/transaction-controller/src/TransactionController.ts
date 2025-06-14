@@ -1711,7 +1711,7 @@ export class TransactionController extends BaseController<
     }
 
     const newTransactions = this.state.transactions.filter(
-      ({ chainId: txChainId, txParams }) => {
+      ({ chainId: txChainId, txParams, type }) => {
         const isMatchingNetwork = !chainId || chainId === txChainId;
 
         if (!isMatchingNetwork) {
@@ -1719,7 +1719,10 @@ export class TransactionController extends BaseController<
         }
 
         const isMatchingAddress =
-          !address || txParams.from?.toLowerCase() === address.toLowerCase();
+          !address ||
+          txParams.from?.toLowerCase() === address.toLowerCase() ||
+          (type === TransactionType.incoming &&
+            txParams.to?.toLowerCase() === address.toLowerCase());
 
         return !isMatchingAddress;
       },
