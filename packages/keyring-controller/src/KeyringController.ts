@@ -528,6 +528,20 @@ function assertIsExportableKeyEncryptor(
 }
 
 /**
+ * Assert that the encryption key is set.
+ *
+ * @param encryptionKey - The encryption key to check.
+ * @throws If the encryption key is not set.
+ */
+function assertIsEncryptionKeySet(
+  encryptionKey: string | undefined,
+): asserts encryptionKey is string {
+  if (!encryptionKey) {
+    throw new Error(KeyringControllerError.EncryptionKeyNotSet);
+  }
+}
+
+/**
  * Assert that the provided password is a valid non-empty string.
  *
  * @param password - The password to check.
@@ -1469,6 +1483,16 @@ export class KeyringController extends BaseController<
       // since the controller is already unlocked.
       console.error('Failed to update vault during login:', error);
     }
+  }
+
+  /**
+   * Exports the vault encryption key.
+   *
+   * @returns The vault encryption key.
+   */
+  async exportEncryptionKey(): Promise<string> {
+    assertIsEncryptionKeySet(this.state.encryptionKey);
+    return this.state.encryptionKey;
   }
 
   /**
