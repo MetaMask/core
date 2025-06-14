@@ -528,6 +528,20 @@ function assertIsExportableKeyEncryptor(
 }
 
 /**
+ * Assert that the encryption key is set.
+ *
+ * @param encryptionKey - The encryption key to check.
+ * @throws If the encryption key is not set.
+ */
+function assertIsEncryptionKeySet(
+  encryptionKey: string | undefined,
+): asserts encryptionKey is string {
+  if (!encryptionKey) {
+    throw new Error(KeyringControllerError.EncryptionKeyNotSet);
+  }
+}
+
+/**
  * Assert that the provided password is a valid non-empty string.
  *
  * @param password - The password to check.
@@ -1434,16 +1448,17 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Attempts to decrypt the current vault and load its keyrings,
-   * using the given encryption key and salt.
+   * Attempts to decrypt the current vault and load its keyrings, using the
+   * given encryption key and salt. The optional salt can be used to check for
+   * consistency with the vault salt.
    *
    * @param encryptionKey - Key to unlock the keychain.
-   * @param encryptionSalt - Salt to unlock the keychain.
+   * @param encryptionSalt - Optional salt to unlock the keychain.
    * @returns Promise resolving when the operation completes.
    */
   async submitEncryptionKey(
     encryptionKey: string,
-    encryptionSalt: string,
+    encryptionSalt?: string,
   ): Promise<void> {
     const { newMetadata } = await this.#withRollback(async () => {
       const result = await this.#unlockKeyrings(
@@ -1468,6 +1483,42 @@ export class KeyringController extends BaseController<
       // since the controller is already unlocked.
       console.error('Failed to update vault during login:', error);
     }
+  }
+
+  /**
+   * Exports the encrypted encryption key.
+   *
+   * @param password - The password to decrypt the encryption key.
+   * @returns The encrypted encryption key.
+   */
+  async exportEncryptedEncryptionKey(password: string): Promise<string> {
+    this.#assertIsUnlocked();
+    assertIsExportableKeyEncryptor(this.#encryptor);
+    assertIsEncryptionKeySet(this.state.encryptionKey);
+    return this.#encryptor.encrypt(password, this.state.encryptionKey);
+  }
+
+  /**
+   * Submits an encrypted encryption key and attempts to decrypt it using the
+   * given password. If the vault salt is provided, it is checked against the
+   * salt of the vault.
+   *
+   * @param encryptedEncryptionKey - The encrypted encryption key.
+   * @param password - The password to decrypt the encryption key.
+   * @param vaultSalt - The salt of the vault.
+   * @returns Promise resolving when the operation completes.
+   */
+  async submitEncryptedEncryptionKey(
+    encryptedEncryptionKey: string,
+    password: string,
+    vaultSalt?: string,
+  ): Promise<void> {
+    assertIsExportableKeyEncryptor(this.#encryptor);
+    const encryptionKey = (await this.#encryptor.decryptWithKey(
+      password,
+      encryptedEncryptionKey,
+    )) as string;
+    await this.submitEncryptionKey(encryptionKey, vaultSalt);
   }
 
   /**
@@ -2279,8 +2330,10 @@ export class KeyringController extends BaseController<
         } else {
           const parsedEncryptedVault = JSON.parse(encryptedVault);
 
-          if (encryptionSalt !== parsedEncryptedVault.salt) {
+          if (encryptionSalt && encryptionSalt !== parsedEncryptedVault.salt) {
             throw new Error(KeyringControllerError.ExpiredCredentials);
+          } else {
+            encryptionSalt = parsedEncryptedVault.salt as string;
           }
 
           if (typeof encryptionKey !== 'string') {
@@ -2296,10 +2349,7 @@ export class KeyringController extends BaseController<
           // This call is required on the first call because encryptionKey
           // is not yet inside the memStore
           updatedState.encryptionKey = encryptionKey;
-          // we can safely assume that encryptionSalt is defined here
-          // because we compare it with the salt from the vault
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          updatedState.encryptionSalt = encryptionSalt!;
+          updatedState.encryptionSalt = encryptionSalt;
         }
       } else {
         if (typeof password !== 'string') {
