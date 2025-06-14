@@ -277,4 +277,17 @@ describe('determineTransactionType', () => {
       getCodeResponse: '0xa',
     });
   });
+
+  it('returns contractInteraction if data and no eth query provided', async () => {
+    const result = await determineTransactionType({
+      ...txParams,
+      value: '0x5af3107a4000',
+      data: '0x095ea7b30000000000000000000000002f318C334780961FB129D2a6c30D0763d9a5C9700000000000000000000000000000000000000000000000000000000000000005',
+    });
+
+    expect(result).toMatchObject({
+      type: TransactionType.contractInteraction,
+      getCodeResponse: undefined,
+    });
+  });
 });

@@ -442,6 +442,7 @@ export type TransactionMeta = {
    * Additional transfer information.
    */
   transferInformation?: {
+    amount?: string;
     contractAddress: string;
     decimals: number;
     symbol: string;
