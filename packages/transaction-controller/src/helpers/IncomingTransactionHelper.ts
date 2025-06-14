@@ -111,13 +111,13 @@ export class IncomingTransactionHelper {
 
     const interval = this.#getInterval();
 
-    log('Starting polling', { interval });
+    log('Started polling', { interval });
 
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    this.#timeoutId = setTimeout(() => this.#onInterval(), interval);
     this.#isRunning = true;
 
-    log('Started polling');
+    this.#onInterval().catch((error) => {
+      log('Initial polling failed', error);
+    });
   }
 
   stop() {

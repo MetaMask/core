@@ -351,6 +351,8 @@ describe('IncomingTransactionHelper', () => {
 
       helper.start();
 
+      await flushPromises();
+
       expect(jest.getTimerCount()).toBe(1);
     });
 
@@ -361,6 +363,9 @@ describe('IncomingTransactionHelper', () => {
       });
 
       helper.start();
+
+      await flushPromises();
+
       helper.start();
 
       expect(jest.getTimerCount()).toBe(1);
