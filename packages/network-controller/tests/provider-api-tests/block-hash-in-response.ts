@@ -1,4 +1,4 @@
-import { rpcErrors } from '@metamask/rpc-errors';
+import { errorCodes, rpcErrors } from '@metamask/rpc-errors';
 
 import type { ProviderType } from './helpers';
 import {
@@ -7,6 +7,7 @@ import {
   withNetworkClient,
 } from './helpers';
 import { testsForRpcFailoverBehavior } from './rpc-failover';
+import { CUSTOM_RPC_ERRORS } from '../../src/rpc-service/rpc-service';
 import { NetworkClientType } from '../../src/types';
 
 type TestsForRpcMethodThatCheckForBlockHashInResponseOptions = {
@@ -352,12 +353,19 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
   });
 
   describe.each([
-    [405, 'The method does not exist / is not available.'],
-    [429, 'Request is being rate limited.'],
+    [401, CUSTOM_RPC_ERRORS.unauthorized],
+    [402, errorCodes.rpc.resourceUnavailable],
+    [404, errorCodes.rpc.resourceUnavailable],
+    [422, CUSTOM_RPC_ERRORS.httpClientError],
+    [429, errorCodes.rpc.limitExceeded],
   ])(
     'if the RPC endpoint returns a %d response',
-    (httpStatus, errorMessage) => {
-      it('throws a custom error', async () => {
+    (httpStatus, rpcErrorCode) => {
+      const expectedError = expect.objectContaining({
+        code: rpcErrorCode,
+      });
+
+      it('throws a custom error without retrying the request', async () => {
         await withMockedCommunications({ providerType }, async (comms) => {
           const request = { method };
 
@@ -376,68 +384,74 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
             async ({ makeRpcCall }) => makeRpcCall(request),
           );
 
-          await expect(promiseForResult).rejects.toThrow(errorMessage);
+          await expect(promiseForResult).rejects.toThrow(expectedError);
         });
+      });
+
+      // NOTE: We do not test the RPC failover behavior here because only 5xx
+      // errors break the circuit and cause a failover.
+    },
+  );
+
+  describe.each([500, 501, 505, 506, 507, 508, 510, 511])(
+    'if the RPC endpoint returns a %d response',
+    (httpStatus) => {
+      const expectedError = expect.objectContaining({
+        code: errorCodes.rpc.resourceUnavailable,
+      });
+
+      it('throws a custom error without retrying the request', async () => {
+        await withMockedCommunications({ providerType }, async (comms) => {
+          const request = { method };
+
+          // The first time a block-cacheable request is made, the latest block
+          // number is retrieved through the block tracker first. It doesn't
+          // matter what this is — it's just used as a cache key.
+          comms.mockNextBlockTrackerRequest();
+          comms.mockRpcCall({
+            request,
+            response: {
+              httpStatus,
+            },
+          });
+          const promiseForResult = withNetworkClient(
+            { providerType },
+            async ({ makeRpcCall }) => makeRpcCall(request),
+          );
+
+          await expect(promiseForResult).rejects.toThrow(expectedError);
+        });
+      });
+
+      testsForRpcFailoverBehavior({
+        providerType,
+        requestToCall: {
+          method,
+          params: [],
+        },
+        getRequestToMock: () => ({
+          method,
+          params: [],
+        }),
+        failure: {
+          httpStatus,
+        },
+        isRetriableFailure: false,
+        getExpectedError: () => expectedError,
+        getExpectedBreakError: () =>
+          expect.objectContaining({
+            message: `Fetch failed with status '${httpStatus}'`,
+          }),
       });
     },
   );
 
-  describe('if the RPC endpoint returns a response that is not 405, 429, 503, or 504', () => {
-    const httpStatus = 500;
-    const errorMessage = `Non-200 status code: '${httpStatus}'`;
-
-    it('throws a generic, undescriptive error', async () => {
-      await withMockedCommunications({ providerType }, async (comms) => {
-        const request = { method };
-
-        // The first time a block-cacheable request is made, the latest block
-        // number is retrieved through the block tracker first. It doesn't
-        // matter what this is — it's just used as a cache key.
-        comms.mockNextBlockTrackerRequest();
-        comms.mockRpcCall({
-          request,
-          response: {
-            httpStatus,
-          },
-        });
-        const promiseForResult = withNetworkClient(
-          { providerType },
-          async ({ makeRpcCall }) => makeRpcCall(request),
-        );
-
-        await expect(promiseForResult).rejects.toThrow(errorMessage);
-      });
-    });
-
-    testsForRpcFailoverBehavior({
-      providerType,
-      requestToCall: {
-        method,
-        params: [],
-      },
-      getRequestToMock: () => ({
-        method,
-        params: [],
-      }),
-      failure: {
-        httpStatus,
-      },
-      isRetriableFailure: false,
-      getExpectedError: () =>
-        expect.objectContaining({
-          message: errorMessage,
-        }),
-      getExpectedBreakError: () =>
-        expect.objectContaining({
-          message: `Fetch failed with status '500'`,
-        }),
-    });
-  });
-
-  describe.each([503, 504])(
+  describe.each([502, 503, 504])(
     'if the RPC endpoint returns a %d response',
     (httpStatus) => {
-      const errorMessage = 'Gateway timeout';
+      const expectedError = expect.objectContaining({
+        code: errorCodes.rpc.resourceUnavailable,
+      });
 
       it('retries the request up to 5 times until there is a 200 response', async () => {
         await withMockedCommunications({ providerType }, async (comms) => {
@@ -504,7 +518,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
               );
             },
           );
-          await expect(promiseForResult).rejects.toThrow(errorMessage);
+          await expect(promiseForResult).rejects.toThrow(expectedError);
         });
       });
 
@@ -522,10 +536,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
           httpStatus,
         },
         isRetriableFailure: true,
-        getExpectedError: () =>
-          expect.objectContaining({
-            message: expect.stringContaining(errorMessage),
-          }),
+        getExpectedError: () => expectedError,
         getExpectedBreakError: () =>
           expect.objectContaining({
             message: expect.stringContaining(
@@ -629,7 +640,9 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
   );
 
   describe('if the RPC endpoint responds with invalid JSON', () => {
-    const errorMessage = 'not valid JSON';
+    const expectedError = expect.objectContaining({
+      code: errorCodes.rpc.parse,
+    });
 
     it('retries the request up to 5 times until it responds with valid JSON', async () => {
       await withMockedCommunications({ providerType }, async (comms) => {
@@ -695,7 +708,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
           },
         );
 
-        await expect(promiseForResult).rejects.toThrow(errorMessage);
+        await expect(promiseForResult).rejects.toThrow(expectedError);
       });
     });
 
@@ -713,9 +726,10 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
         body: 'invalid JSON',
       },
       isRetriableFailure: true,
-      getExpectedError: () =>
+      getExpectedError: () => expectedError,
+      getExpectedBreakError: () =>
         expect.objectContaining({
-          message: expect.stringContaining(errorMessage),
+          message: expect.stringContaining('invalid json'),
         }),
     });
   });
