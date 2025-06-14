@@ -77,9 +77,9 @@ export enum PhishingDetectorResultType {
  */
 export type PhishingDetectionScanResult = {
   /**
-   * The domain name that was scanned.
+   * The hostname that was scanned.
    */
-  domainName: string;
+  hostname: string;
   /**
    * Indicates the warning level based on risk factors.
    *

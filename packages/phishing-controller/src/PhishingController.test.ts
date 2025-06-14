@@ -2432,7 +2432,7 @@ describe('PhishingController', () => {
     let clock: sinon.SinonFakeTimers;
     const testUrl: string = 'https://example.com';
     const mockResponse: PhishingDetectionScanResult = {
-      domainName: 'example.com',
+      hostname: 'example.com',
       recommendedAction: RecommendedAction.None,
     };
 
@@ -2471,7 +2471,7 @@ describe('PhishingController', () => {
 
         const response = await controller.scanUrl(testUrl);
         expect(response).toMatchObject({
-          domainName: '',
+          hostname: '',
           recommendedAction: RecommendedAction.None,
           fetchError: `${statusCode} ${statusText}`,
         });
@@ -2490,7 +2490,7 @@ describe('PhishingController', () => {
       clock.tick(8000);
       const response = await promise;
       expect(response).toMatchObject({
-        domainName: '',
+        hostname: '',
         recommendedAction: RecommendedAction.None,
         fetchError: 'timeout of 8000ms exceeded',
       });
@@ -2533,7 +2533,7 @@ describe('PhishingController', () => {
 
       const subdomainResponse = {
         ...mockResponse,
-        domainName: 'sub.example.com',
+        hostname: 'sub.example.com',
       };
 
       const scope = nock(PHISHING_DETECTION_BASE_URL)
@@ -2569,7 +2569,7 @@ describe('PhishingController', () => {
       for (const invalidUrl of invalidUrls) {
         const response = await controller.scanUrl(invalidUrl);
         expect(response).toMatchObject({
-          domainName: '',
+          hostname: '',
           recommendedAction: RecommendedAction.None,
           fetchError: 'url is not a valid web URL',
         });
@@ -2602,15 +2602,15 @@ describe('PhishingController', () => {
     const mockResponse: BulkPhishingDetectionScanResponse = {
       results: {
         'https://example1.com': {
-          domainName: 'example1.com',
+          hostname: 'example1.com',
           recommendedAction: RecommendedAction.None,
         },
         'https://example2.com': {
-          domainName: 'example2.com',
+          hostname: 'example2.com',
           recommendedAction: RecommendedAction.Block,
         },
         'https://example3.com': {
-          domainName: 'example3.com',
+          hostname: 'example3.com',
           recommendedAction: RecommendedAction.None,
         },
       },
@@ -2734,7 +2734,7 @@ describe('PhishingController', () => {
         results: batch1.reduce<Record<string, PhishingDetectionScanResult>>(
           (acc, url) => {
             acc[url] = {
-              domainName: url.replace('https://', ''),
+              hostname: url.replace('https://', ''),
               recommendedAction: RecommendedAction.None,
             };
             return acc;
@@ -2748,7 +2748,7 @@ describe('PhishingController', () => {
         results: batch2.reduce<Record<string, PhishingDetectionScanResult>>(
           (acc, url) => {
             acc[url] = {
-              domainName: url.replace('https://', ''),
+              hostname: url.replace('https://', ''),
               recommendedAction: RecommendedAction.None,
             };
             return acc;
@@ -2762,7 +2762,7 @@ describe('PhishingController', () => {
         results: batch3.reduce<Record<string, PhishingDetectionScanResult>>(
           (acc, url) => {
             acc[url] = {
-              domainName: url.replace('https://', ''),
+              hostname: url.replace('https://', ''),
               recommendedAction: RecommendedAction.None,
             };
             return acc;
@@ -2813,7 +2813,7 @@ describe('PhishingController', () => {
       const mixedResponse: BulkPhishingDetectionScanResponse = {
         results: {
           'https://example1.com': {
-            domainName: 'example1.com',
+            hostname: 'example1.com',
             recommendedAction: RecommendedAction.None,
           },
         },
@@ -2878,7 +2878,7 @@ describe('PhishingController', () => {
 
       // Set up the cache with a pre-existing result
       const cachedResult: PhishingDetectionScanResult = {
-        domainName: 'cached-example.com',
+        hostname: 'cached-example.com',
         recommendedAction: RecommendedAction.None,
       };
 
@@ -2901,7 +2901,7 @@ describe('PhishingController', () => {
       const bulkApiResponse: BulkPhishingDetectionScanResponse = {
         results: {
           [uncachedUrl]: {
-            domainName: 'uncached-example.com',
+            hostname: 'uncached-example.com',
             recommendedAction: RecommendedAction.Warn,
           },
         },
@@ -2942,7 +2942,7 @@ describe('PhishingController', () => {
       const bulkApiResponse: BulkPhishingDetectionScanResponse = {
         results: {
           [validUrl]: {
-            domainName: 'valid-example.com',
+            hostname: 'valid-example.com',
             recommendedAction: RecommendedAction.None,
           },
         },
@@ -2983,11 +2983,11 @@ describe('PhishingController', () => {
       const cachedUrls = ['https://domain1.com', 'https://domain2.com'];
       const cachedResults = [
         {
-          domainName: 'domain1.com',
+          hostname: 'domain1.com',
           recommendedAction: RecommendedAction.None,
         },
         {
-          domainName: 'domain2.com',
+          hostname: 'domain2.com',
           recommendedAction: RecommendedAction.Block,
         },
       ];
@@ -3056,13 +3056,13 @@ describe('URL Scan Cache', () => {
 
     const result1 = await controller.scanUrl(`https://${testDomain}`);
     expect(result1).toStrictEqual({
-      domainName: testDomain,
+      hostname: testDomain,
       recommendedAction: RecommendedAction.None,
     });
 
     const result2 = await controller.scanUrl(`https://${testDomain}`);
     expect(result2).toStrictEqual({
-      domainName: testDomain,
+      hostname: testDomain,
       recommendedAction: RecommendedAction.None,
     });
 

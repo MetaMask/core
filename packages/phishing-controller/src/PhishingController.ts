@@ -42,7 +42,7 @@ export const C2_DOMAIN_BLOCKLIST_ENDPOINT = '/v1/request-blocklist';
 
 export const PHISHING_DETECTION_BASE_URL =
   'https://dapp-scanning.api.cx.metamask.io';
-export const PHISHING_DETECTION_SCAN_ENDPOINT = 'scan';
+export const PHISHING_DETECTION_SCAN_ENDPOINT = 'v2/scan';
 export const PHISHING_DETECTION_BULK_SCAN_ENDPOINT = 'bulk-scan';
 
 export const C2_DOMAIN_BLOCKLIST_REFRESH_INTERVAL = 5 * 60; // 5 mins in seconds
@@ -656,7 +656,7 @@ export class PhishingController extends BaseController<
     const [hostname, ok] = getHostnameFromWebUrl(url);
     if (!ok) {
       return {
-        domainName: '',
+        hostname: '',
         recommendedAction: RecommendedAction.None,
         fetchError: 'url is not a valid web URL',
       };
@@ -693,22 +693,22 @@ export class PhishingController extends BaseController<
     // Need to do it this way because safelyExecuteWithTimeout returns undefined for both timeouts and errors.
     if (!apiResponse) {
       return {
-        domainName: '',
+        hostname: '',
         recommendedAction: RecommendedAction.None,
         fetchError: 'timeout of 8000ms exceeded',
       };
     } else if ('error' in apiResponse) {
       return {
-        domainName: '',
+        hostname: '',
         recommendedAction: RecommendedAction.None,
         fetchError: apiResponse.error,
       };
     }
 
     const result = {
-      domainName: hostname,
+      hostname,
       recommendedAction: apiResponse.recommendedAction,
-    } as PhishingDetectionScanResult;
+    };
 
     this.#urlScanCache.add(hostname, result);
 
