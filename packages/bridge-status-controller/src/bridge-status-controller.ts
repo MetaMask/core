@@ -15,11 +15,12 @@ import {
   getActionType,
   formatChainIdToCaip,
   isCrossChain,
+  getBridgeFeatureFlags,
   isHardwareWallet,
 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { toHex } from '@metamask/controller-utils';
-import { EthAccountType } from '@metamask/keyring-api';
+import { EthAccountType, SolScope } from '@metamask/keyring-api';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type {
   TransactionController,
@@ -63,6 +64,7 @@ import {
   getTxStatusesFromHistory,
 } from './utils/metrics';
 import {
+  getClientRequest,
   getKeyringRequest,
   getStatusRequestParams,
   getTxMetaFields,
@@ -560,15 +562,20 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         'Failed to submit cross-chain swap transaction: undefined snap id',
       );
     }
-    const keyringRequest = getKeyringRequest(quoteResponse, selectedAccount);
-    const keyringResponse = (await this.messagingSystem.call(
+
+    const bridgeFeatureFlags = getBridgeFeatureFlags(this.messagingSystem);
+    const request = bridgeFeatureFlags?.chains?.[SolScope.Mainnet]
+      ?.isSnapConfirmationEnabled
+      ? getKeyringRequest(quoteResponse, selectedAccount)
+      : getClientRequest(quoteResponse, selectedAccount);
+    const requestResponse = (await this.messagingSystem.call(
       'SnapController:handleRequest',
-      keyringRequest,
+      request,
     )) as string | { result: Record<string, string> };
 
     // The extension client actually redirects before it can do anytyhing with this meta
     const txMeta = handleSolanaTxResponse(
-      keyringResponse,
+      requestResponse,
       quoteResponse,
       selectedAccount,
     );
