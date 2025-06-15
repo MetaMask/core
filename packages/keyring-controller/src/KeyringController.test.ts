@@ -3303,6 +3303,36 @@ describe('KeyringController', () => {
     });
   });
 
+  describe('exportEncryptionKey', () => {
+    it('should export encryption key and unlock', async () => {
+      await withController(
+        { cacheEncryptionKey: true },
+        async ({ controller }) => {
+          const encryptionKey = await controller.exportEncryptionKey();
+          expect(encryptionKey).toBeDefined();
+
+          await controller.setLocked();
+
+          await controller.submitEncryptionKey(encryptionKey);
+
+          expect(controller.isUnlocked()).toBe(true);
+        },
+      );
+    });
+
+    it('should throw error if controller is locked', async () => {
+      await withController(
+        { cacheEncryptionKey: true },
+        async ({ controller }) => {
+          await controller.setLocked();
+          await expect(controller.exportEncryptionKey()).rejects.toThrow(
+            KeyringControllerError.EncryptionKeyNotSet,
+          );
+        },
+      );
+    });
+  });
+
   describe('verifySeedPhrase', () => {
     it('should return current seedphrase', async () => {
       await withController(async ({ controller }) => {
