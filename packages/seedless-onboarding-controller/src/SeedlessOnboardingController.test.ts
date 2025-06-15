@@ -26,6 +26,9 @@ import {
   stringToBytes,
   bigIntToHex,
 } from '@metamask/utils';
+import { gcm } from '@noble/ciphers/aes';
+import { utf8ToBytes } from '@noble/ciphers/utils';
+import { managedNonce } from '@noble/ciphers/webcrypto';
 import type { webcrypto } from 'node:crypto';
 
 import {
@@ -396,10 +399,14 @@ async function createMockVault(
   const { vault: encryptedMockVault, exportedKeyString } =
     await encryptor.encryptWithDetail(MOCK_PASSWORD, serializedKeyData);
 
+  const aes = managedNonce(gcm)(encKey);
+  const encryptedPassword = aes.encrypt(utf8ToBytes(MOCK_PASSWORD));
+
   return {
     encryptedMockVault,
     vaultEncryptionKey: exportedKeyString,
     vaultEncryptionSalt: JSON.parse(encryptedMockVault).salt,
+    encryptedPassword,
     revokeToken: mockRevokeToken,
   };
 }
@@ -445,6 +452,7 @@ async function decryptVault(vault: string, password: string) {
  * @param options.vault - The mock vault data.
  * @param options.vaultEncryptionKey - The mock vault encryption key.
  * @param options.vaultEncryptionSalt - The mock vault encryption salt.
+ * @param options.encryptedPassword - The mock encrypted password.
  * @returns The initial controller state with the mock authenticated user.
  */
 function getMockInitialControllerState(options?: {
@@ -455,6 +463,7 @@ function getMockInitialControllerState(options?: {
   vault?: string;
   vaultEncryptionKey?: string;
   vaultEncryptionSalt?: string;
+  encryptedPassword?: string;
 }): Partial<SeedlessOnboardingControllerState> {
   const state = getDefaultSeedlessOnboardingControllerState();
 
@@ -484,6 +493,10 @@ function getMockInitialControllerState(options?: {
 
   if (options?.withMockAuthPubKey || options?.authPubKey) {
     state.authPubKey = options.authPubKey ?? MOCK_AUTH_PUB_KEY;
+  }
+
+  if (options?.encryptedPassword) {
+    state.encryptedPassword = options.encryptedPassword;
   }
 
   return state;
@@ -2955,6 +2968,14 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller, toprfClient }) => {
+          await mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            RECOVERED_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+
           // Mock recoverEncKey for the global password
           const mockToprfEncryptor = createMockToprfEncryptor();
           const encKey = mockToprfEncryptor.deriveEncKey(GLOBAL_PASSWORD);
@@ -2968,8 +2989,10 @@ describe('SeedlessOnboardingController', () => {
           });
 
           // Mock toprfClient.recoverPassword
+          const recoveredEncKey =
+            mockToprfEncryptor.deriveEncKey(RECOVERED_PASSWORD);
           jest.spyOn(toprfClient, 'recoverPassword').mockResolvedValueOnce({
-            password: RECOVERED_PASSWORD,
+            password: bytesToBase64(recoveredEncKey),
           });
 
           const result = await controller.recoverCurrentDevicePassword({
@@ -2979,6 +3002,45 @@ describe('SeedlessOnboardingController', () => {
           expect(result).toStrictEqual({ password: RECOVERED_PASSWORD });
           expect(toprfClient.recoverEncKey).toHaveBeenCalled();
           expect(toprfClient.recoverPassword).toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should throw if encryptedPassword not set', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          // Mock recoverEncKey for the global password
+          const mockToprfEncryptor = createMockToprfEncryptor();
+          const encKey = mockToprfEncryptor.deriveEncKey(GLOBAL_PASSWORD);
+          const authKeyPair =
+            mockToprfEncryptor.deriveAuthKeyPair(GLOBAL_PASSWORD);
+          jest.spyOn(toprfClient, 'recoverEncKey').mockResolvedValueOnce({
+            encKey,
+            authKeyPair,
+            rateLimitResetResult: Promise.resolve(),
+            keyShareIndex: 1,
+          });
+
+          // Mock toprfClient.recoverPassword
+          const recoveredEncKey =
+            mockToprfEncryptor.deriveEncKey(RECOVERED_PASSWORD);
+          jest.spyOn(toprfClient, 'recoverPassword').mockResolvedValueOnce({
+            password: bytesToBase64(recoveredEncKey),
+          });
+
+          await expect(
+            controller.recoverCurrentDevicePassword({
+              globalPassword: GLOBAL_PASSWORD,
+            }),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.CouldNotRecoverPassword,
+          );
         },
       );
     });
@@ -4071,6 +4133,7 @@ describe('SeedlessOnboardingController', () => {
       let INITIAL_AUTH_PUB_KEY: string;
       let initialAuthKeyPair: KeyPair; // Store initial keypair for vault creation
       let initialEncKey: Uint8Array; // Store initial encKey for vault creation
+      let initialEncryptedPassword: Uint8Array;
 
       // Generate initial keys and vault state before tests run
       beforeAll(async () => {
@@ -4090,6 +4153,7 @@ describe('SeedlessOnboardingController', () => {
         MOCK_VAULT = mockResult.encryptedMockVault;
         MOCK_VAULT_ENCRYPTION_KEY = mockResult.vaultEncryptionKey;
         MOCK_VAULT_ENCRYPTION_SALT = mockResult.vaultEncryptionSalt;
+        initialEncryptedPassword = mockResult.encryptedPassword;
       });
 
       it('should retry recoverCurrentDevicePassword after refreshing expired tokens', async () => {
@@ -4101,6 +4165,7 @@ describe('SeedlessOnboardingController', () => {
               vault: MOCK_VAULT,
               vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
               vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
+              encryptedPassword: bytesToBase64(initialEncryptedPassword),
             }),
           },
           async ({ controller, toprfClient, mockRefreshJWTToken }) => {
@@ -4122,7 +4187,7 @@ describe('SeedlessOnboardingController', () => {
                 );
               })
               .mockResolvedValueOnce({
-                password: MOCK_PASSWORD,
+                password: bytesToBase64(initialEncKey),
               });
 
             // Mock authenticate for token refresh
