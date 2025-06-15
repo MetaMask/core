@@ -12,19 +12,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **BREAKING:** Add `refreshToken` to controller state ([#5917](https://github.com/MetaMask/core/pull/5917))
-  - The clients will require a migration to populate this property
+  - The clients will require a migration to populate this property.
 - Add `revokeToken` to controller state ([#5917](https://github.com/MetaMask/core/pull/5917))
-  - This property is not persisted
+  - This property is not persisted.
 - **BREAKING:** Add required argument `refreshJWTToken` to controller constructor ([#5917](https://github.com/MetaMask/core/pull/5917))
   - This argument is the callback function which will do the JWT Token refresh operation.
 - **BREAKING:** Add required argument `revokeRefreshToken` to controller constructor ([#5917] (https://github.com/MetaMask/core/pull/5917))
   - This argument is the callback function which will revoke the current `refreshToken` in state and replaced with the new value.
-- **BREAKING:** Add param (`options`) to `addNewSecretData` (formerly `addNewSeedPhraseBackup`) to support passing a backup keyring ID ([#5948](https://github.com/MetaMask/core/pull/5948))
-  - The keyring ID is required when backing up a seed phrase (mnemonic), or else an error will be thrown
+- **BREAKING:** Add params (`type` and `options`) to `addNewSecretData` (formerly `addNewSeedPhraseBackup`) ([#5948](https://github.com/MetaMask/core/pull/5948))
+  - The param `type`, is to support the addition of different Secret Data Type (currently mnemonics and private keys) to the encrypted metadata store.
+  - The param, `options` includes the `keyringId` and keyring ID is required when backing up a seed phrase (mnemonic), or else an error will be thrown
 - Export `SecretType` enum ([#5948](https://github.com/MetaMask/core/pull/5948))
-- Add optional argument `refreshToken `authenticate` method ([#5917](https://github.com/MetaMask/core/pull/5917))
 - Add optional argument `refreshToken` to `authenticate` method ([#5917](https://github.com/MetaMask/core/pull/5917))
 - Add optional argument `skipLock` to `authenticate` method ([#5917](https://github.com/MetaMask/core/pull/5917))
+  - This is to bypass the controller lock durng the token refresh when the lock is already acquired by another operation.
 - Add new method `refreshNodeAuthTokens` ([#5917](https://github.com/MetaMask/core/pull/5917))
 - Add new method `revokeRefreshToken` ([#5917](https://github.com/MetaMask/core/pull/5917))
 - Add new method `checkNodeAuthTokenExpired` ([#5917](https://github.com/MetaMask/core/pull/5917))
@@ -36,7 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Replace `addNewSeedPhraseBackup` with `addNewSecretData` to allow for storing not just mnemonics but also private keys ([#5948](https://github.com/MetaMask/core/pull/5948))
 - **BREAKING:** Rename `fetchAllSeedPhrases` with `fetchAllSecretData`, change return type from `Promise<Uint8Array[]>` to `Promise<Record<SecretType, Uint8Array[]>>` to include not only mnemonics but also private keys ([#5948](https://github.com/MetaMask/core/pull/5948))
-- **BREAKING:** The `updateBackupMetadataState` method now takes an object or array of objects which contain `keyringId` and `data` properties rather than `keyringId` and `seedPhrase` properties ([#5955](https://github.com/MetaMask/core/pull/5955))
+- **BREAKING:** The `updateBackupMetadataState` method now takes an object or array of objects which contain `data`, `type` and optional `keyringId` properties rather than `keyringId` and `seedPhrase` properties ([#5955](https://github.com/MetaMask/core/pull/5955))
 - **BREAKING:** Rename `getSeedPhraseBackupHash` to `getSecretDataBackupState` ([#5955](https://github.com/MetaMask/core/pull/5955))
 - **BREAKING:** Change type of `socialBackupsMetadata` property in state: remove `id` property, add required property `type`, optional property `keyringId` ([#5955](https://github.com/MetaMask/core/pull/5955))
   - This also affects the `SocialBackupsMetadata` type itself
