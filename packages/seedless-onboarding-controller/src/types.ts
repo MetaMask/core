@@ -148,6 +148,11 @@ export type SeedlessOnboardingControllerState =
        * This is temporarily stored in state during authentication and then persisted in the vault.
        */
       revokeToken?: string;
+
+      /**
+       * The encrypted password used to encrypt the vault.
+       */
+      encryptedPassword?: string;
     };
 
 // Actions
