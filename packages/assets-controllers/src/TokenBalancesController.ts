@@ -412,6 +412,86 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
   }
 
   /**
+   * Get an Ethers.js Web3Provider for the requested chain.
+   *
+   * @param chainId - The chain id to get the provider for.
+   * @returns The provider for the given chain id.
+   */
+  #getProvider(chainId: Hex): Web3Provider {
+    return new Web3Provider(this.#getNetworkClient(chainId).provider);
+  }
+
+  /**
+   * Internal util: run `balanceOf` for an arbitrary set of account/token pairs.
+   *
+   * @param params - The parameters for the balance fetch.
+   * @param params.chainId - The chain id to fetch balances on.
+   * @param params.pairs - The account/token pairs to fetch balances for.
+   * @returns The balances for the given token addresses.
+   */
+  async #batchBalanceOf({
+    chainId,
+    pairs,
+  }: {
+    chainId: Hex;
+    pairs: { accountAddress: Hex; tokenAddress: Hex }[];
+  }): Promise<MulticallResult[]> {
+    if (!pairs.length) {
+      return [];
+    }
+
+    const provider = this.#getProvider(chainId);
+
+    const calls = pairs.map(({ accountAddress, tokenAddress }) => ({
+      contract: new Contract(tokenAddress, abiERC20, provider),
+      functionSignature: 'balanceOf(address)',
+      arguments: [accountAddress],
+    }));
+
+    return multicallOrFallback(calls, chainId, provider);
+  }
+
+  /**
+   * Returns ERC-20 balances for a single account on a single chain.
+   *
+   * @param params - The parameters for the balance fetch.
+   * @param params.chainId - The chain id to fetch balances on.
+   * @param params.accountAddress - The account address to fetch balances for.
+   * @param params.tokenAddresses - The token addresses to fetch balances for.
+   * @returns A mapping from token address to balance (hex) | null.
+   */
+  async getErc20Balances({
+    chainId,
+    accountAddress,
+    tokenAddresses,
+  }: {
+    chainId: Hex;
+    accountAddress: Hex;
+    tokenAddresses: Hex[];
+  }): Promise<Record<Hex, Hex | null>> {
+    // Return early if no token addresses provided
+    if (tokenAddresses.length === 0) {
+      return {};
+    }
+
+    const pairs = tokenAddresses.map((tokenAddress) => ({
+      accountAddress,
+      tokenAddress,
+    }));
+
+    const results = await this.#batchBalanceOf({ chainId, pairs });
+
+    const balances: Record<Hex, Hex | null> = {};
+    tokenAddresses.forEach((tokenAddress, i) => {
+      balances[tokenAddress] = results[i]?.success
+        ? toHex(results[i].value as BN)
+        : null;
+    });
+
+    return balances;
+  }
+
+  /**
    * Updates token balances for the given chain id.
    * @param input - The input for the update.
    * @param input.chainId - The chain id to update token balances on.
@@ -448,19 +528,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
     );
 
     if (accountTokenPairs.length > 0) {
-      const provider = new Web3Provider(
-        this.#getNetworkClient(chainId).provider,
-      );
-
-      const calls = accountTokenPairs.map(
-        ({ accountAddress, tokenAddress }) => ({
-          contract: new Contract(tokenAddress, abiERC20, provider),
-          functionSignature: 'balanceOf(address)',
-          arguments: [accountAddress],
-        }),
-      );
-
-      results = await multicallOrFallback(calls, chainId, provider);
+      results = await this.#batchBalanceOf({
+        chainId,
+        pairs: accountTokenPairs,
+      });
     }
 
     const updatedResults: (MulticallResult & {
@@ -472,8 +543,13 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
         currentTokenBalances.tokenBalances?.[accountAddress]?.[chainId]?.[
           tokenAddress
         ];
+      // `value` can be null or undefined if the multicall failed due to RPC issue.
+      // Please see packages/assets-controllers/src/multicall.ts#L365.
+      // Hence we should not update the balance in that case.
       const isTokenBalanceValueChanged =
-        currentTokenBalanceValueForAccount !== toHex(value as BN);
+        res.success && value !== undefined && value !== null
+          ? currentTokenBalanceValueForAccount !== toHex(value as BN)
+          : false;
       return {
         ...res,
         isTokenBalanceValueChanged,

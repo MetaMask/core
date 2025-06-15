@@ -1,5 +1,6 @@
 {
   "metamask/accounts-controller": "team-accounts",
+  "metamask/account-tree-controller": "team-accounts",
   "metamask/address-book-controller": "team-confirmations",
   "metamask/announcement-controller": "team-wallet-ux",
   "metamask/app-metadata-controller": "team-mobile-platform",
@@ -22,7 +23,6 @@
   "metamask/keyring-controller": "team-accounts",
   "metamask/logging-controller": "team-confirmations",
   "metamask/message-manager": "team-confirmations",
-  "metamask/multichain": "team-wallet-api-platform",
   "metamask/multichain-api-middleware": "team-wallet-api-platform",
   "metamask/multichain-network-controller": "team-wallet-api-platform",
   "metamask/name-controller": "team-confirmations",

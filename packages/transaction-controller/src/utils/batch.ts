@@ -2,9 +2,13 @@ import type {
   AcceptResultCallbacks,
   AddResult,
 } from '@metamask/approval-controller';
-import { ORIGIN_METAMASK } from '@metamask/controller-utils';
+import { ApprovalType, ORIGIN_METAMASK } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
-import { rpcErrors } from '@metamask/rpc-errors';
+import type {
+  FetchGasFeeEstimateOptions,
+  GasFeeState,
+} from '@metamask/gas-fee-controller';
+import { JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { bytesToHex, createModuleLogger } from '@metamask/utils';
 import type { WritableDraft } from 'immer/dist/internal.js';
@@ -26,11 +30,13 @@ import { validateBatchRequest } from './validation';
 import type { TransactionControllerState } from '..';
 import {
   determineTransactionType,
+  TransactionStatus,
   type BatchTransactionParams,
   type TransactionController,
   type TransactionControllerMessenger,
   type TransactionMeta,
 } from '..';
+import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow';
 import type { PendingTransactionTracker } from '../helpers/PendingTransactionTracker';
 import { CollectPublishHook } from '../hooks/CollectPublishHook';
 import { SequentialPublishBatchHook } from '../hooks/SequentialPublishBatchHook';
@@ -65,25 +71,28 @@ type AddTransactionBatchRequest = {
   addTransaction: TransactionController['addTransaction'];
   getChainId: (networkClientId: string) => Hex;
   getEthQuery: (networkClientId: string) => EthQuery;
+  getGasFeeEstimates: (
+    options: FetchGasFeeEstimateOptions,
+  ) => Promise<GasFeeState>;
   getInternalAccounts: () => Hex[];
+  getPendingTransactionTracker: (
+    networkClientId: string,
+  ) => PendingTransactionTracker;
   getTransaction: (id: string) => TransactionMeta;
   isSimulationEnabled: () => boolean;
   messenger: TransactionControllerMessenger;
   publishBatchHook?: PublishBatchHook;
-  publicKeyEIP7702?: Hex;
-  request: TransactionBatchRequest;
-  updateTransaction: (
-    options: { transactionId: string },
-    callback: (transactionMeta: TransactionMeta) => void,
-  ) => void;
   publishTransaction: (
     _ethQuery: EthQuery,
     transactionMeta: TransactionMeta,
   ) => Promise<Hex>;
-  getPendingTransactionTracker: (
-    networkClientId: string,
-  ) => PendingTransactionTracker;
+  publicKeyEIP7702?: Hex;
+  request: TransactionBatchRequest;
   update: UpdateStateCallback;
+  updateTransaction: (
+    options: { transactionId: string },
+    callback: (transactionMeta: TransactionMeta) => void,
+  ) => void;
 };
 
 type IsAtomicBatchSupportedRequestInternal = {
@@ -108,24 +117,36 @@ export const ERROR_MESSAGE_NO_UPGRADE_CONTRACT =
 export async function addTransactionBatch(
   request: AddTransactionBatchRequest,
 ): Promise<TransactionBatchResult> {
-  const { getInternalAccounts, messenger, request: userRequest } = request;
+  const {
+    getInternalAccounts,
+    messenger,
+    request: transactionBatchRequest,
+  } = request;
   const sizeLimit = getBatchSizeLimit(messenger);
 
   validateBatchRequest({
     internalAccounts: getInternalAccounts(),
-    request: userRequest,
+    request: transactionBatchRequest,
     sizeLimit,
   });
 
-  const { useHook } = userRequest;
+  log('Adding', transactionBatchRequest);
 
-  log('Adding', userRequest);
+  if (!transactionBatchRequest.disable7702) {
+    try {
+      return await addTransactionBatchWith7702(request);
+    } catch (error: unknown) {
+      const isEIP7702NotSupportedError =
+        error instanceof JsonRpcError &&
+        error.message === 'Chain does not support EIP-7702';
 
-  if (useHook) {
-    return await addTransactionBatchWithHook(request);
+      if (!isEIP7702NotSupportedError) {
+        throw error;
+      }
+    }
   }
 
-  return await addTransactionBatchWith7702(request);
+  return await addTransactionBatchWithHook(request);
 }
 
 /**
@@ -377,21 +398,17 @@ async function addTransactionBatchWithHook(
   request: AddTransactionBatchRequest,
 ): Promise<TransactionBatchResult> {
   const {
-    getChainId,
     messenger,
     publishBatchHook: requestPublishBatchHook,
     request: userRequest,
     update,
-    isSimulationEnabled,
   } = request;
 
   const {
     from,
     networkClientId,
-    origin,
     requireApproval,
     transactions: nestedTransactions,
-    useHook,
   } = userRequest;
 
   let resultCallbacks: AcceptResultCallbacks | undefined;
@@ -405,24 +422,39 @@ async function addTransactionBatchWithHook(
     getPendingTransactionTracker: request.getPendingTransactionTracker,
   });
 
-  const publishBatchHook =
-    requestPublishBatchHook ?? sequentialPublishBatchHook.getHook();
+  let { disable7702, disableSequential } = userRequest;
+  const { disableHook, useHook } = userRequest;
 
-  const chainId = getChainId(networkClientId);
+  // use hook is a temporary alias for disable7702 and disableSequential
+  if (useHook) {
+    disable7702 = true;
+    disableSequential = true;
+  }
+
+  let publishBatchHook = null;
+  if (!disableHook) {
+    publishBatchHook = requestPublishBatchHook;
+  } else if (!disableSequential) {
+    publishBatchHook = sequentialPublishBatchHook.getHook();
+  }
+
+  if (!publishBatchHook) {
+    log(`No supported batch methods found`, {
+      disable7702,
+      disableHook,
+      disableSequential,
+    });
+    throw rpcErrors.internal(`Can't process batch`);
+  }
+
   const batchId = generateBatchId();
   const transactionCount = nestedTransactions.length;
   const collectHook = new CollectPublishHook(transactionCount);
   try {
-    if (requireApproval && useHook) {
+    if (requireApproval) {
       const txBatchMeta = await prepareApprovalData({
         batchId,
-        chainId,
-        from,
-        isSimulationEnabled,
-        nestedTransactions,
-        networkClientId,
-        origin,
-        update,
+        request,
       });
 
       resultCallbacks = (await requestApproval(txBatchMeta, messenger))
@@ -593,9 +625,10 @@ async function requestApproval(
 ): Promise<AddResult> {
   const id = String(txBatchMeta.id);
   const { origin } = txBatchMeta;
-  const type = 'transaction_batch';
+  const type = ApprovalType.TransactionBatch;
   const requestData = { txBatchId: id };
 
+  log('Requesting approval for transaction batch', id);
   return (await messenger.call(
     'ApprovalController:addRequest',
     {
@@ -645,43 +678,61 @@ function wipeTransactionBatchById(
 }
 
 /**
+ * Create a new batch metadata object.
+ *
+ * @param transactionBatchMeta - The transaction batch metadata object to be created.
+ * @returns A new TransactionBatchMeta object.
+ */
+function newBatchMetadata(
+  transactionBatchMeta: Omit<TransactionBatchMeta, 'status'>,
+): TransactionBatchMeta {
+  return {
+    ...transactionBatchMeta,
+    status: TransactionStatus.unapproved,
+  };
+}
+
+/**
  * Prepares the approval data for a transaction batch.
  *
  * @param options - The options object containing necessary parameters.
  * @param options.batchId - The batch ID for the transaction batch.
- * @param options.chainId - The chain ID of the transactions.
- * @param options.from - The sender's address.
- * @param options.isSimulationEnabled - A function to check if simulation is enabled.
- * @param options.nestedTransactions - The array of nested transactions.
- * @param options.networkClientId - The network client ID.
- * @param options.origin - The origin of the transaction batch.
- * @param options.update - The update function to modify the transaction controller state.
+ * @param options.request - The request object including the user request and necessary callbacks.
  * @returns The prepared transaction batch metadata.
  */
 async function prepareApprovalData({
   batchId,
-  chainId,
-  from,
-  isSimulationEnabled,
-  nestedTransactions,
-  networkClientId,
-  origin,
-  update,
+  request,
 }: {
   batchId: Hex;
-  chainId: Hex;
-  from: Hex;
-  isSimulationEnabled: () => boolean;
-  nestedTransactions: TransactionBatchSingleRequest[];
-  networkClientId: string;
-  origin?: string;
-  update: UpdateStateCallback;
+  request: AddTransactionBatchRequest;
 }): Promise<TransactionBatchMeta> {
+  const {
+    messenger,
+    request: userRequest,
+    isSimulationEnabled,
+    getGasFeeEstimates,
+    update,
+    getEthQuery,
+    getChainId,
+  } = request;
+
+  const {
+    from,
+    origin,
+    networkClientId,
+    transactions: nestedTransactions,
+  } = userRequest;
+
+  const ethQuery = getEthQuery(networkClientId);
+
   if (!isSimulationEnabled()) {
     throw new Error(
       'Cannot create transaction batch as simulation not supported',
     );
   }
+  log('Preparing approval data for batch');
+  const chainId = getChainId(networkClientId);
 
   const { gasLimit } = await simulateGasBatch({
     chainId,
@@ -689,7 +740,7 @@ async function prepareApprovalData({
     transactions: nestedTransactions,
   });
 
-  const txBatchMeta: TransactionBatchMeta = {
+  const txBatchMeta: TransactionBatchMeta = newBatchMetadata({
     chainId,
     from,
     gas: gasLimit,
@@ -697,8 +748,30 @@ async function prepareApprovalData({
     networkClientId,
     origin,
     transactions: nestedTransactions,
-  };
+  });
 
+  const defaultGasFeeFlow = new DefaultGasFeeFlow();
+  const gasFeeControllerData = await getGasFeeEstimates({
+    networkClientId,
+  });
+
+  const gasFeeResponse = await defaultGasFeeFlow.getGasFees({
+    ethQuery,
+    gasFeeControllerData,
+    messenger,
+    transactionMeta: {
+      ...txBatchMeta,
+      txParams: {
+        from,
+        gas: gasLimit,
+      },
+      time: Date.now(),
+    },
+  });
+
+  txBatchMeta.gasFeeEstimates = gasFeeResponse.estimates;
+
+  log('Saving transaction batch metadata', txBatchMeta);
   addBatchMetadata(txBatchMeta, update);
 
   return txBatchMeta;

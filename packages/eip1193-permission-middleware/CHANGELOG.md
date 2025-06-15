@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/chain-agnostic-permission` to `^0.7.0` ([#5518](https://github.com/MetaMask/core/pull/5518), [#5674](https://github.com/MetaMask/core/pull/5674), [#5818](https://github.com/MetaMask/core/pull/5818)[#5583](https://github.com/MetaMask/core/pull/5583))
-- Bump `@metamask/controller-utils` to `^11.9.0` ([#5583](https://github.com/MetaMask/core/pull/5583), [#5765](https://github.com/MetaMask/core/pull/5765), [#5812](https://github.com/MetaMask/core/pull/5812))
+- Bump `@metamask/chain-agnostic-permission` to `^0.7.1` ([#5518](https://github.com/MetaMask/core/pull/5518), [#5674](https://github.com/MetaMask/core/pull/5674), [#5818](https://github.com/MetaMask/core/pull/5818)[#5583](https://github.com/MetaMask/core/pull/5583), [#5982](https://github.com/MetaMask/core/pull/5982))
+- Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935), [#5583](https://github.com/MetaMask/core/pull/5583), [#5765](https://github.com/MetaMask/core/pull/5765), [#5812](https://github.com/MetaMask/core/pull/5812))
 
 ## [0.1.0]
 

@@ -561,6 +561,43 @@ describe('TokenBalancesController', () => {
     expect(updateSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('does not update balances when multi-account balances is enabled and multi-account contract failed', async () => {
+    const chainId = '0x1';
+    const account1 = '0x0000000000000000000000000000000000000001';
+    const tokenAddress = '0x0000000000000000000000000000000000000003';
+
+    const tokens = {
+      allDetectedTokens: {},
+      allTokens: {
+        [chainId]: {
+          [account1]: [{ address: tokenAddress, symbol: 's', decimals: 0 }],
+        },
+      },
+    };
+
+    const { controller, messenger, updateSpy } = setupController({ tokens });
+
+    // Enable multi account balances
+    messenger.publish(
+      'PreferencesController:stateChange',
+      { isMultiAccountBalancesEnabled: true } as PreferencesState,
+      [],
+    );
+
+    // Mock Promise allSettled to return a failure for the multi-account contract
+    jest
+      .spyOn(multicall, 'multicallOrFallback')
+      .mockResolvedValue([{ success: false, value: undefined }]);
+
+    await controller._executePoll({ chainId });
+
+    expect(controller.state.tokenBalances).toStrictEqual({});
+
+    await controller._executePoll({ chainId });
+
+    expect(updateSpy).toHaveBeenCalledTimes(0);
+  });
+
   it('updates balances when multi-account balances is enabled and some returned values changed', async () => {
     const chainId = '0x1';
     const account1 = '0x0000000000000000000000000000000000000001';
@@ -829,6 +866,72 @@ describe('TokenBalancesController', () => {
             [tokenAddress2]: toHex(balance2),
           },
         },
+      });
+    });
+  });
+
+  describe('getErc20Balances', () => {
+    const chainId = '0x1';
+    const account = '0x0000000000000000000000000000000000000000';
+    const tokenA = '0x00000000000000000000000000000000000000a1';
+    const tokenB = '0x00000000000000000000000000000000000000b2';
+
+    afterEach(() => {
+      // make sure spies do not leak between tests
+      jest.restoreAllMocks();
+    });
+
+    it('returns an **empty object** if no token addresses are provided', async () => {
+      const { controller } = setupController();
+      const balances = await controller.getErc20Balances({
+        chainId,
+        accountAddress: account,
+        tokenAddresses: [],
+      });
+
+      expect(balances).toStrictEqual({});
+    });
+
+    it('maps **each address to a hex balance** on success', async () => {
+      const bal1 = 42;
+      const bal2 = 0;
+
+      jest.spyOn(multicall, 'multicallOrFallback').mockResolvedValueOnce([
+        { success: true, value: new BN(bal1) },
+        { success: true, value: new BN(bal2) },
+      ]);
+
+      const { controller } = setupController();
+
+      const balances = await controller.getErc20Balances({
+        chainId,
+        accountAddress: account,
+        tokenAddresses: [tokenA, tokenB],
+      });
+
+      expect(balances).toStrictEqual({
+        [tokenA]: toHex(bal1),
+        [tokenB]: toHex(bal2), // zero balance is still a success
+      });
+    });
+
+    it('returns **null** for tokens whose `balanceOf` call failed', async () => {
+      jest.spyOn(multicall, 'multicallOrFallback').mockResolvedValueOnce([
+        { success: false, value: null },
+        { success: true, value: new BN(7) },
+      ]);
+
+      const { controller } = setupController();
+
+      const balances = await controller.getErc20Balances({
+        chainId,
+        accountAddress: account,
+        tokenAddresses: [tokenA, tokenB],
+      });
+
+      expect(balances).toStrictEqual({
+        [tokenA]: null, // failed call
+        [tokenB]: toHex(7), // succeeded call
       });
     });
   });

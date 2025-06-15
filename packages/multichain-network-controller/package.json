@@ -48,7 +48,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^8.0.1",
-    "@metamask/controller-utils": "^11.9.0",
+    "@metamask/controller-utils": "^11.10.0",
     "@metamask/keyring-api": "^18.0.0",
     "@metamask/keyring-internal-api": "^6.2.0",
     "@metamask/superstruct": "^3.1.0",
@@ -59,8 +59,8 @@
   "devDependencies": {
     "@metamask/accounts-controller": "^30.0.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^22.0.1",
-    "@metamask/network-controller": "^23.5.1",
+    "@metamask/keyring-controller": "^22.0.2",
+    "@metamask/network-controller": "^23.6.0",
     "@types/jest": "^27.4.1",
     "@types/lodash": "^4.14.191",
     "@types/uuid": "^8.3.0",

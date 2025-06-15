@@ -1,5 +1,6 @@
 {
   "references": [
+    { "path": "./packages/account-tree-controller/tsconfig.build.json" },
     { "path": "./packages/accounts-controller/tsconfig.build.json" },
     { "path": "./packages/address-book-controller/tsconfig.build.json" },
     { "path": "./packages/announcement-controller/tsconfig.build.json" },
@@ -31,7 +32,6 @@
     {
       "path": "./packages/multichain-transactions-controller/tsconfig.build.json"
     },
-    { "path": "./packages/multichain/tsconfig.build.json" },
     { "path": "./packages/name-controller/tsconfig.build.json" },
     { "path": "./packages/network-controller/tsconfig.build.json" },
     {

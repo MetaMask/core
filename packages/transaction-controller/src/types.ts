@@ -70,6 +70,12 @@ export type TransactionMeta = {
   chainId: Hex;
 
   /**
+   * List of container types applied to the original transaction data.
+   * For example, through delegations.
+   */
+  containerTypes?: TransactionContainerType[];
+
+  /**
    * A string representing a name of transaction contract method.
    */
   contractMethodName?: string;
@@ -504,6 +510,9 @@ export type TransactionBatchMeta = {
    */
   from: string;
 
+  /** Alternate EIP-1559 gas fee estimates for multiple priority levels. */
+  gasFeeEstimates?: GasFeeEstimates;
+
   /**
    * Maximum number of units of gas to use for this transaction batch.
    */
@@ -523,6 +532,9 @@ export type TransactionBatchMeta = {
    * Origin this transaction was sent from.
    */
   origin?: string;
+
+  /** Current status of the transaction. */
+  status: TransactionStatus;
 
   /**
    * Data for any EIP-7702 transactions.
@@ -679,6 +691,11 @@ export enum TransactionType {
   lendingDeposit = 'lendingDeposit',
 
   /**
+   * A transaction that withdraws tokens from a lending contract.
+   */
+  lendingWithdraw = 'lendingWithdraw',
+
+  /**
    * A transaction for personal sign.
    */
   personalSign = 'personal_sign',
@@ -782,6 +799,11 @@ export enum TransactionType {
    * Increase the allowance by a given increment
    */
   tokenMethodIncreaseAllowance = 'increaseAllowance',
+}
+
+export enum TransactionContainerType {
+  /** Transaction has been converted to a delegation including caveats to validate the simulated balance changes. */
+  EnforcedSimulations = 'enforcedSimulations',
 }
 
 /**
@@ -1609,9 +1631,21 @@ export type TransactionBatchRequest = {
   /** Transactions to be submitted as part of the batch. */
   transactions: TransactionBatchSingleRequest[];
 
+  /** Whether to disable batch transaction processing via an EIP-7702 upgraded account. */
+  disable7702?: boolean;
+
+  /** Whether to disable batch transaction via the `publishBatch` hook. */
+  disableHook?: boolean;
+
+  /** Whether to disable batch transaction via sequential transactions. */
+  disableSequential?: boolean;
+
   /**
    * Whether to use the publish batch hook to submit the batch.
    * Defaults to false.
+   *
+   * @deprecated This is no longer used and will be removed in a future version.
+   * Use `disableHook`, `disable7702` and `disableSequential`.
    */
   useHook?: boolean;
 
@@ -1830,3 +1864,30 @@ export type AfterAddHook = (request: {
 }) => Promise<{
   updateTransaction?: (transaction: TransactionMeta) => void;
 }>;
+
+/**
+ * Custom logic to be executed after a transaction is simulated.
+ * Can optionally update the transaction by returning the `updateTransaction` callback.
+ */
+export type AfterSimulateHook = (request: {
+  transactionMeta: TransactionMeta;
+}) => Promise<
+  | {
+      skipSimulation?: boolean;
+      updateTransaction?: (transaction: TransactionMeta) => void;
+    }
+  | undefined
+>;
+
+/**
+ * Custom logic to be executed before a transaction is signed.
+ * Can optionally update the transaction by returning the `updateTransaction` callback.
+ */
+export type BeforeSignHook = (request: {
+  transactionMeta: TransactionMeta;
+}) => Promise<
+  | {
+      updateTransaction?: (transaction: TransactionMeta) => void;
+    }
+  | undefined
+>;

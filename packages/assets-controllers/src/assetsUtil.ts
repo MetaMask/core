@@ -200,7 +200,7 @@ export enum SupportedStakedBalanceNetworks {
   mainnet = '0x1', // decimal: 1
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
   // eslint-disable-next-line @typescript-eslint/naming-convention
-  holesky = '0x4268', // decimal: 17000
+  hoodi = '0x88bb0', // decimal: 560048
 }
 
 /**

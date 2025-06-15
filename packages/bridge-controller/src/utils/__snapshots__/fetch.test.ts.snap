@@ -1,0 +1,28 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`fetch fetchBridgeQuotes should filter out malformed bridge quotes 1`] = `
+Array [
+  Array [
+    "Quote validation failed",
+    Object {
+      "socket": Set {
+        "quote.requestId",
+        "quote.srcChainId",
+        "quote.srcAsset.decimals",
+        "quote.srcTokenAmount",
+        "quote.destChainId",
+        "quote.destAsset",
+        "quote.destTokenAmount",
+        "quote.feeData",
+        "quote.bridges",
+        "quote.steps",
+        "quote.srcAsset",
+        "quote.destAsset.address",
+      },
+      "undefined": Set {
+        "quote",
+      },
+    },
+  ],
+]
+`;
