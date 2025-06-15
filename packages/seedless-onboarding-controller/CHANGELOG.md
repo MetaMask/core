@@ -7,28 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.1.0]
+## [2.0.0]
 
 ### Added
 
-- Added a check for `duplicate data` before adding it to the metadata store. ([#5955](https://github.com/MetaMask/core/pull/5955))
-  - renamed `getSeedPhraseBackupHash` to `getSecretDataBackupState` and added optional param (`type`) to look for data with specific type in the controller backup state.
-  - updated `updateBackupMetadataState` method param with `{ keyringId?: string; data: Uint8Array; type: SecretType }`. Previously , `{ keyringId: string; seedPhrase: Uint8Array }`.
-- Added `PrivateKey sync` feature to the controller ([#5948](https://github.com/MetaMask/core/pull/5948)).
-  - **BREAKING** Updated controller methods signatures.
-  - removed `addNewSeedPhraseBackup` and replaced with `addNewSecretData` method.
-  - added `addNewSecretData` method implementation to support adding different secret data types.
-  - renamed `fetchAllSeedPhrases` method to `fetchAllSecretData` and updated the return value to `Record<SecretType, Uint8Array[]>`.
-  - added new error message, `MissingKeyringId` which will throw if no `keyringId` is provided during seed phrase (Mnemonic) backup.
-- Added Refresh and revoke token handling ([#5917](https://github.com/MetaMask/core/pull/5917))
-  - **BREAKING:** `authenticate` need extra `refreshToken` and `revokeToken` params, persist refresh token in state and store revoke token temporarily for user in next step
-  - `createToprfKeyAndBackupSeedPhrase`, `fetchAllSecretData` store revoke token in vault
-  - check for token expired in toprf call, refresh token and retry if expired
-  - `submitPassword` revoke refresh token and replace with new one after password submit to prevent malicious use if refresh token leak in persisted state
+- **BREAKING:** Add `refreshToken` to controller state ([#5917](https://github.com/MetaMask/core/pull/5917))
+  - The clients will require a migration to populate this property
+- Add `revokeToken` to controller state ([#5917](https://github.com/MetaMask/core/pull/5917))
+  - This property is not persisted
+- **BREAKING:** Add required argument `refreshJWTToken` to controller constructor ([#5917](https://github.com/MetaMask/core/pull/5917))
+  - This argument is the callback function which will do the JWT Token refresh operation.
+- **BREAKING:** Add required argument `revokeRefreshToken` to controller constructor ([#5917] (https://github.com/MetaMask/core/pull/5917))
+  - This argument is the callback function which will revoke the current `refreshToken` in state and replaced with the new value.
+- **BREAKING:** Add param (`options`) to `addNewSecretData` (formerly `addNewSeedPhraseBackup`) to support passing a backup keyring ID ([#5948](https://github.com/MetaMask/core/pull/5948))
+  - The keyring ID is required when backing up a seed phrase (mnemonic), or else an error will be thrown
+- Export `SecretType` enum ([#5948](https://github.com/MetaMask/core/pull/5948))
+- Add optional argument `refreshToken `authenticate` method ([#5917](https://github.com/MetaMask/core/pull/5917))
+- Add optional argument `refreshToken` to `authenticate` method ([#5917](https://github.com/MetaMask/core/pull/5917))
+- Add optional argument `skipLock` to `authenticate` method ([#5917](https://github.com/MetaMask/core/pull/5917))
+- Add new method `refreshNodeAuthTokens` ([#5917](https://github.com/MetaMask/core/pull/5917))
+- Add new method `revokeRefreshToken` ([#5917](https://github.com/MetaMask/core/pull/5917))
+- Add new method `checkNodeAuthTokenExpired` ([#5917](https://github.com/MetaMask/core/pull/5917))
+- Add new method `decodeNodeAuthToken` ([#5917](https://github.com/MetaMask/core/pull/5917))
+- Add `refreshToken` property to `AuthenticatedUserDetails` ([#5917](https://github.com/MetaMask/core/pull/5917))
+- Add optional param (`type`) to `getSecretDataBackupState` (previously `getSeedPhraseBackupHash`) to look for data with specific type in the controller backup state ([#5955](https://github.com/MetaMask/core/pull/5955))
 
 ### Changed
 
-- Removed `recoveryRatelimitCache` from the controller state. ([#5976](https://github.com/MetaMask/core/pull/5976)).
+- **BREAKING:** Replace `addNewSeedPhraseBackup` with `addNewSecretData` to allow for storing not just mnemonics but also private keys ([#5948](https://github.com/MetaMask/core/pull/5948))
+- **BREAKING:** Rename `fetchAllSeedPhrases` with `fetchAllSecretData`, change return type from `Promise<Uint8Array[]>` to `Promise<Record<SecretType, Uint8Array[]>>` to include not only mnemonics but also private keys ([#5948](https://github.com/MetaMask/core/pull/5948))
+- **BREAKING:** The `updateBackupMetadataState` method now takes an object or array of objects which contain `keyringId` and `data` properties rather than `keyringId` and `seedPhrase` properties ([#5955](https://github.com/MetaMask/core/pull/5955))
+- **BREAKING:** Rename `getSeedPhraseBackupHash` to `getSecretDataBackupState` ([#5955](https://github.com/MetaMask/core/pull/5955))
+- **BREAKING:** Change type of `socialBackupsMetadata` property in state: remove `id` property, add required property `type`, optional property `keyringId` ([#5955](https://github.com/MetaMask/core/pull/5955))
+  - This also affects the `SocialBackupsMetadata` type itself
+- Ensure mnemonics and private keys are not added to the metadata store if they already exist in the controller backup state ([#5955](https://github.com/MetaMask/core/pull/5955))
+
+### Removed
+
+- **BREAKING:** Remove `recoveryRatelimitCache` from the controller state ([#5796](https://github.com/MetaMask/core/pull/5976))
+  - Clients will need a migration to remove this from users' local state
 
 ## [1.0.0]
 
@@ -55,6 +72,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `checkIsPasswordOutdated`: Check if the password is current device is outdated, i.e. user changed password in another device.
     - `clearState`: Reset the state of the controller to the defaults.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@1.1.0...HEAD
-[1.1.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@1.0.0...@metamask/seedless-onboarding-controller@1.1.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@1.0.0...@metamask/seedless-onboarding-controller@2.0.0
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/seedless-onboarding-controller@1.0.0
