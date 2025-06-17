@@ -154,3 +154,26 @@ export const getKeyringRequest = (
     },
   };
 };
+
+export const getClientRequest = (
+  quoteResponse: Omit<QuoteResponse<string>, 'approval'> & QuoteMetadata,
+  selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
+) => {
+  const clientReqId = uuid();
+
+  return {
+    origin: 'metamask',
+    snapId: selectedAccount.metadata.snap?.id as never,
+    handler: 'onClientRequest' as never,
+    request: {
+      id: clientReqId,
+      jsonrpc: '2.0',
+      method: 'signAndSendTransactionWithoutConfirmation',
+      params: {
+        account: { address: selectedAccount.address },
+        transaction: quoteResponse.trade,
+        scope: SolScope.Mainnet,
+      },
+    },
+  };
+};

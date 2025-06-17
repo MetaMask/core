@@ -2595,7 +2595,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/assets-controllers@npm:^68.1.0, @metamask/assets-controllers@workspace:packages/assets-controllers":
+"@metamask/assets-controllers@npm:^68.2.0, @metamask/assets-controllers@workspace:packages/assets-controllers":
   version: 0.0.0-use.local
   resolution: "@metamask/assets-controllers@workspace:packages/assets-controllers"
   dependencies:
@@ -2748,7 +2748,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/bridge-controller@npm:^32.1.2, @metamask/bridge-controller@workspace:packages/bridge-controller":
+"@metamask/bridge-controller@npm:^32.2.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-controller@workspace:packages/bridge-controller"
   dependencies:
@@ -2758,7 +2758,7 @@ __metadata:
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
     "@metamask/accounts-controller": "npm:^30.0.0"
-    "@metamask/assets-controllers": "npm:^68.1.0"
+    "@metamask/assets-controllers": "npm:^68.2.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.1"
     "@metamask/controller-utils": "npm:^11.10.0"
@@ -2804,7 +2804,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^30.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.1"
-    "@metamask/bridge-controller": "npm:^32.1.2"
+    "@metamask/bridge-controller": "npm:^32.2.0"
     "@metamask/controller-utils": "npm:^11.10.0"
     "@metamask/gas-fee-controller": "npm:^23.0.0"
     "@metamask/keyring-api": "npm:^18.0.0"
@@ -2865,7 +2865,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/chain-agnostic-permission@npm:^0.7.0, @metamask/chain-agnostic-permission@workspace:packages/chain-agnostic-permission":
+"@metamask/chain-agnostic-permission@npm:^0.7.1, @metamask/chain-agnostic-permission@workspace:packages/chain-agnostic-permission":
   version: 0.0.0-use.local
   resolution: "@metamask/chain-agnostic-permission@workspace:packages/chain-agnostic-permission"
   dependencies:
@@ -3086,7 +3086,7 @@ __metadata:
   resolution: "@metamask/eip1193-permission-middleware@workspace:packages/eip1193-permission-middleware"
   dependencies:
     "@metamask/auto-changelog": "npm:^3.4.4"
-    "@metamask/chain-agnostic-permission": "npm:^0.7.0"
+    "@metamask/chain-agnostic-permission": "npm:^0.7.1"
     "@metamask/controller-utils": "npm:^11.10.0"
     "@metamask/json-rpc-engine": "npm:^10.0.3"
     "@metamask/permission-controller": "npm:^11.0.6"
@@ -3779,7 +3779,7 @@ __metadata:
   dependencies:
     "@metamask/api-specs": "npm:^0.14.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
-    "@metamask/chain-agnostic-permission": "npm:^0.7.0"
+    "@metamask/chain-agnostic-permission": "npm:^0.7.1"
     "@metamask/controller-utils": "npm:^11.10.0"
     "@metamask/eth-json-rpc-filters": "npm:^9.0.0"
     "@metamask/json-rpc-engine": "npm:^10.0.3"
