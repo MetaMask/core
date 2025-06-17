@@ -849,6 +849,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
     isStxEnabledOnClient: boolean,
   ): Promise<TransactionMeta & Partial<SolanaTransactionMeta>> => {
+    this.messagingSystem.call('BridgeController:stopPollingForQuotes');
+
     let txMeta: (TransactionMeta & Partial<SolanaTransactionMeta>) | undefined;
 
     const isBridgeTx = isCrossChain(
