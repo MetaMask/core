@@ -66,22 +66,6 @@ export function getDefaultMultichainTransactionsControllerState(): MultichainTra
 }
 
 /**
- * Event emitted when a transaction is finalized.
- */
-export type MultichainTransactionsControllerTransactionConfirmedEvent = {
-  type: `${typeof controllerName}:transactionConfirmed`;
-  payload: [Transaction];
-};
-
-/**
- * Event emitted when a transaction is submitted.
- */
-export type MultichainTransactionsControllerTransactionSubmittedEvent = {
-  type: `${typeof controllerName}:transactionSubmitted`;
-  payload: [Transaction];
-};
-
-/**
  * Returns the state of the {@link MultichainTransactionsController}.
  */
 export type MultichainTransactionsControllerGetStateAction =
@@ -109,9 +93,7 @@ export type MultichainTransactionsControllerActions =
  * Events emitted by {@link MultichainTransactionsController}.
  */
 export type MultichainTransactionsControllerEvents =
-  | MultichainTransactionsControllerStateChange
-  | MultichainTransactionsControllerTransactionConfirmedEvent
-  | MultichainTransactionsControllerTransactionSubmittedEvent;
+  MultichainTransactionsControllerStateChange;
 
 /**
  * Messenger type for the MultichainTransactionsController.
@@ -365,27 +347,6 @@ export class MultichainTransactionsController extends BaseController<
   }
 
   /**
-   * Publishes transaction update events.
-   *
-   * @param updatedTransaction - The updated transaction.
-   */
-  #publishTransactionUpdateEvent(updatedTransaction: Transaction) {
-    if (updatedTransaction.status === TransactionStatus.Confirmed) {
-      this.messagingSystem.publish(
-        'MultichainTransactionsController:transactionConfirmed',
-        updatedTransaction,
-      );
-    }
-
-    if (updatedTransaction.status === TransactionStatus.Submitted) {
-      this.messagingSystem.publish(
-        'MultichainTransactionsController:transactionSubmitted',
-        updatedTransaction,
-      );
-    }
-  }
-
-  /**
    * Handles transaction updates received from the AccountsController.
    *
    * @param transactionsUpdate - The transaction update event containing new transactions.
@@ -397,8 +358,6 @@ export class MultichainTransactionsController extends BaseController<
       string,
       Record<CaipChainId, Transaction[]>
     > = {};
-    const transactionsToPublish: Transaction[] = [];
-
     if (!transactionsUpdate?.transactions) {
       return;
     }
@@ -415,7 +374,6 @@ export class MultichainTransactionsController extends BaseController<
           }
 
           updatedTransactions[accountId][chain].push(tx);
-          transactionsToPublish.push(tx);
         });
 
         Object.entries(updatedTransactions[accountId]).forEach(
@@ -462,11 +420,6 @@ export class MultichainTransactionsController extends BaseController<
           };
         });
       });
-    });
-
-    // After we update the state, publish the events for new/updated transactions
-    transactionsToPublish.forEach((tx) => {
-      this.#publishTransactionUpdateEvent(tx);
     });
   }
 
