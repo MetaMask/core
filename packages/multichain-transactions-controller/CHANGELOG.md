@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Removes transaction tracking events since they will be sent at the snap level ([#5990](https://github.com/MetaMask/core/pull/5990))
+
 ## [2.0.0]
 
 ### Changed
