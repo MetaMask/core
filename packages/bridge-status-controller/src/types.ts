@@ -18,7 +18,6 @@ import type {
   TxData,
 } from '@metamask/bridge-controller';
 import type { GetGasFeeState } from '@metamask/gas-fee-controller';
-import type { MultichainTransactionsControllerTransactionConfirmedEvent } from '@metamask/multichain-transactions-controller';
 import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
@@ -343,7 +342,6 @@ type AllowedActions =
  * The external events available to the BridgeStatusController.
  */
 type AllowedEvents =
-  | MultichainTransactionsControllerTransactionConfirmedEvent
   | TransactionControllerTransactionFailedEvent
   | TransactionControllerTransactionConfirmedEvent;
 
