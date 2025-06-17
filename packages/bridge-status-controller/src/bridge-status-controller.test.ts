@@ -11,11 +11,10 @@ import {
   type QuoteMetadata,
   StatusTypes,
   BridgeController,
-  getNativeAssetForChainId,
 } from '@metamask/bridge-controller';
 import { ChainId } from '@metamask/bridge-controller';
 import { ActionTypes, FeeType } from '@metamask/bridge-controller';
-import { EthAccountType, SolScope } from '@metamask/keyring-api';
+import { EthAccountType } from '@metamask/keyring-api';
 import {
   TransactionType,
   TransactionStatus,
@@ -2244,7 +2243,6 @@ describe('BridgeStatusController', () => {
         | BridgeStatusControllerEvents
         | TransactionControllerEvents
         | BridgeControllerEvents
-
       >();
 
       jest.spyOn(mockMessenger, 'call').mockImplementation((...args) => {
