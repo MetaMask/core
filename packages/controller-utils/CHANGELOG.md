@@ -7,6 +7,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.10.0]
+
+### Added
+
+- Add `TransactionBatch` in approval types enum ([#5793](https://github.com/MetaMask/core/pull/5793))
+- Add Base network to default networks ([#5902](https://github.com/MetaMask/core/pull/5902))
+  - Add `base-mainnet` to `BUILT_IN_NETWORKS`
+  - Add `base-mainnet` to `InfuraNetworkType`
+  - Add `BaseMainnet` to `BuiltInNetworkName` enum
+  - Add `base-mainnet` to `ChainId` type
+  - Add `BaseMainnet` to `NetworksTicker` enum
+  - Add `BaseMainnet` to `BlockExplorerUrl` quasi-enum
+  - Add `BaseMainnet` to `NetworkNickname` quasi-enum
+
+## [11.9.0]
+
+### Added
+
+- Add `HttpError` class for errors representing non-200 HTTP responses ([#5809](https://github.com/MetaMask/core/pull/5809))
+
+### Changed
+
+- Improved circuit breaker behavior to no longer consider HTTP 4XX responses as service failures ([#5798](https://github.com/MetaMask/core/pull/5798), [#5809](https://github.com/MetaMask/core/pull/5809))
+  - Changed from using `handleAll` to `handleWhen(isServiceFailure)` in circuit breaker policy
+  - This ensures that expected error responses (like 405 Method Not Allowed and 429 Rate Limited) don't trigger the circuit breaker
+
+## [11.8.0]
+
+### Added
+
+- Add Monad Testnet to various constants, enums, and types ([#5724](https://github.com/MetaMask/core/pull/5724))
+  - Add `monad-testnet` to `BUILT_IN_NETWORKS`
+  - Add `monad-testnet` and `megaeth-testnet` to `BUILT_IN_CUSTOM_NETWORKS_RPC`
+  - Add `MonadTestnet` to `BuiltInNetworkName` enum
+  - Add `monad-testnet` to `ChainId` type
+  - Add `MonadTestnet` to `NetworksTicker` enum
+  - Add `MonadTestnet` to `BlockExplorerUrl` quasi-enum
+  - Add `MonadTestnet` to `NetworkNickname` quasi-enum
+
+## [11.7.0]
+
+### Added
+
+- Re-export `ConstantBackoff` and `ExponentialBackoff` from `cockatiel` ([#5492](https://github.com/MetaMask/core/pull/5492))
+  - These can be used to customize service policies
+- Add optional `backoff` option to `createServicePolicy` ([#5492](https://github.com/MetaMask/core/pull/5492))
+  - This is mainly useful in tests to force the backoff strategy to be constant rather than exponential
+- Add `BUILT_IN_CUSTOM_NETWORKS_RPC`, which includes MegaETH ([#5495](https://github.com/MetaMask/core/pull/5495))
+- Add `CustomNetworkType` quasi-enum and type, which includes MegaETH ([#5495](https://github.com/MetaMask/core/pull/5495))
+- Add `BuiltInNetworkType` type union, which encompasses all Infura and custom network types ([#5495](https://github.com/MetaMask/core/pull/5495))
+
+### Changed
+
+- Add MegaETH Testnet to various constants, enums, and types ([#5495](https://github.com/MetaMask/core/pull/5495))
+  - Add `MEGAETH_TESTNET` to `TESTNET_TICKER_SYMBOLS`
+  - Add `megaeth-testnet` to `BUILT_IN_NETWORKS`
+  - Add `MegaETHTestnet` to `BuiltInNetworkName` enum
+  - Add `megaeth-testnet` to `ChainId` type
+  - Add `MegaETHTestnet` to `NetworksTicker` enum
+  - Add `MegaETHTestnet` to `BlockExplorerUrl` quasi-enum
+  - Add `MegaETHTestnet` to `NetworkNickname` quasi-enum
+- `CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP` is now typed as `Record<string, BuiltInNetworkName>` rather than `Record<ChainId, BuiltInNetworkName>` ([#5495](https://github.com/MetaMask/core/pull/5495))
+- `NetworkType` quasi-enum now includes all keys/values from `CustomNetworkType` ([#5495](https://github.com/MetaMask/core/pull/5495))
+
+## [11.6.0]
+
+### Changed
+
+- Bump `@ethereumjs/util` from `^8.1.0` to `^9.1.0` ([#5347](https://github.com/MetaMask/core/pull/5347))
+- Bump `@metamask/utils` from `^11.1.0` to `^11.2.0` ([#5301](https://github.com/MetaMask/core/pull/5301))
+
 ## [11.5.0]
 
 ### Added
@@ -458,7 +529,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.5.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.10.0...HEAD
+[11.10.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.9.0...@metamask/controller-utils@11.10.0
+[11.9.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.8.0...@metamask/controller-utils@11.9.0
+[11.8.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.7.0...@metamask/controller-utils@11.8.0
+[11.7.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.6.0...@metamask/controller-utils@11.7.0
+[11.6.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.5.0...@metamask/controller-utils@11.6.0
 [11.5.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.5...@metamask/controller-utils@11.5.0
 [11.4.5]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.4...@metamask/controller-utils@11.4.5
 [11.4.4]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.3...@metamask/controller-utils@11.4.4

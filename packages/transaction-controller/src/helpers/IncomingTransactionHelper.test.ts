@@ -1,14 +1,19 @@
 import type { Hex } from '@metamask/utils';
 
+import { IncomingTransactionHelper } from './IncomingTransactionHelper';
+import type { TransactionControllerMessenger } from '..';
 import { flushPromises } from '../../../../tests/helpers';
 import {
   TransactionStatus,
+  TransactionType,
   type RemoteTransactionSource,
   type TransactionMeta,
 } from '../types';
-import { IncomingTransactionHelper } from './IncomingTransactionHelper';
+import { getIncomingTransactionsPollingInterval } from '../utils/feature-flags';
 
 jest.useFakeTimers();
+
+jest.mock('../utils/feature-flags');
 
 // eslint-disable-next-line jest/prefer-spy-on
 console.error = jest.fn();
@@ -17,6 +22,10 @@ const CHAIN_ID_MOCK = '0x1' as const;
 const ADDRESS_MOCK = '0x1';
 const SYSTEM_TIME_MOCK = 1000 * 60 * 60 * 24 * 2;
 const CACHE_MOCK = {};
+const MESSENGER_MOCK = {} as unknown as TransactionControllerMessenger;
+const TAG_MOCK = 'test1';
+const TAG_2_MOCK = 'test2';
+const CLIENT_MOCK = 'test-client';
 
 const CONTROLLER_ARGS_MOCK: ConstructorParameters<
   typeof IncomingTransactionHelper
@@ -38,8 +47,8 @@ const CONTROLLER_ARGS_MOCK: ConstructorParameters<
     };
   },
   getCache: () => CACHE_MOCK,
-  getChainIds: () => [CHAIN_ID_MOCK],
   getLocalTransactions: () => [],
+  messenger: MESSENGER_MOCK,
   remoteTransactionSource: {} as RemoteTransactionSource,
   trimTransactions: (transactions) => transactions,
   updateCache: jest.fn(),
@@ -82,6 +91,7 @@ const createRemoteTransactionSourceMock = (
 
 /**
  * Emulate running the interval.
+ *
  * @param helper - The instance of IncomingTransactionHelper to use.
  * @param options - The options.
  * @param options.start - Whether to start the helper.
@@ -121,6 +131,10 @@ describe('IncomingTransactionHelper', () => {
     jest.resetAllMocks();
     jest.clearAllTimers();
     jest.setSystemTime(SYSTEM_TIME_MOCK);
+
+    jest
+      .mocked(getIncomingTransactionsPollingInterval)
+      .mockReturnValue(1000 * 30);
   });
 
   describe('on interval', () => {
@@ -153,9 +167,9 @@ describe('IncomingTransactionHelper', () => {
       expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledWith({
         address: ADDRESS_MOCK,
         cache: CACHE_MOCK,
-        chainIds: [CHAIN_ID_MOCK],
         includeTokenTransfers: true,
         queryEntireHistory: true,
+        tags: ['automatic-polling'],
         updateCache: expect.any(Function),
         updateTransactions: false,
       });
@@ -247,20 +261,6 @@ describe('IncomingTransactionHelper', () => {
             .fn()
             .mockReturnValueOnce(true)
             .mockReturnValueOnce(false),
-        });
-
-        const { incomingTransactionsListener } = await runInterval(helper);
-
-        expect(incomingTransactionsListener).not.toHaveBeenCalled();
-      });
-
-      it('does not if current network is not supported by remote transaction source', async () => {
-        const helper = new IncomingTransactionHelper({
-          ...CONTROLLER_ARGS_MOCK,
-          remoteTransactionSource: createRemoteTransactionSourceMock(
-            [TRANSACTION_MOCK],
-            { chainIds: ['0x123'] },
-          ),
         });
 
         const { incomingTransactionsListener } = await runInterval(helper);
@@ -377,19 +377,6 @@ describe('IncomingTransactionHelper', () => {
 
       expect(jest.getTimerCount()).toBe(0);
     });
-
-    it('does nothing if network not supported by remote transaction source', async () => {
-      const helper = new IncomingTransactionHelper({
-        ...CONTROLLER_ARGS_MOCK,
-        remoteTransactionSource: createRemoteTransactionSourceMock([], {
-          chainIds: ['0x123'],
-        }),
-      });
-
-      helper.start();
-
-      expect(jest.getTimerCount()).toBe(0);
-    });
   });
 
   describe('stop', () => {
@@ -423,6 +410,78 @@ describe('IncomingTransactionHelper', () => {
 
       expect(listener).toHaveBeenCalledTimes(1);
       expect(listener).toHaveBeenCalledWith([TRANSACTION_MOCK_2]);
+    });
+
+    it('including transactions with same hash but different types', async () => {
+      const localTransaction = {
+        ...TRANSACTION_MOCK,
+        type: TransactionType.simpleSend,
+      };
+
+      const remoteTransaction = {
+        ...TRANSACTION_MOCK,
+        type: TransactionType.incoming,
+      };
+
+      const helper = new IncomingTransactionHelper({
+        ...CONTROLLER_ARGS_MOCK,
+        getLocalTransactions: () => [localTransaction],
+        remoteTransactionSource: createRemoteTransactionSourceMock([
+          remoteTransaction,
+        ]),
+      });
+
+      const listener = jest.fn();
+      helper.hub.on('transactions', listener);
+      await helper.update();
+
+      expect(listener).toHaveBeenCalledWith([
+        remoteTransaction,
+        localTransaction,
+      ]);
+    });
+
+    it('excluding transactions with same hash and type', async () => {
+      const localTransaction = {
+        ...TRANSACTION_MOCK,
+        type: TransactionType.simpleSend,
+      };
+
+      const remoteTransaction = {
+        ...TRANSACTION_MOCK,
+        type: TransactionType.simpleSend,
+      };
+      const helper = new IncomingTransactionHelper({
+        ...CONTROLLER_ARGS_MOCK,
+        getLocalTransactions: () => [localTransaction],
+        remoteTransactionSource: createRemoteTransactionSourceMock([
+          remoteTransaction,
+        ]),
+      });
+
+      const listener = jest.fn();
+      helper.hub.on('transactions', listener);
+      await helper.update();
+
+      expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('includes correct tags in remote transaction source request', async () => {
+      const remoteTransactionSource = createRemoteTransactionSourceMock([]);
+
+      const helper = new IncomingTransactionHelper({
+        ...CONTROLLER_ARGS_MOCK,
+        client: CLIENT_MOCK,
+        remoteTransactionSource,
+      });
+
+      await helper.update({ isInterval: false, tags: [TAG_MOCK, TAG_2_MOCK] });
+
+      expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tags: [CLIENT_MOCK, TAG_MOCK, TAG_2_MOCK],
+        }),
+      );
     });
   });
 });

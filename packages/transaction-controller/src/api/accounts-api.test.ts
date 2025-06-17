@@ -1,7 +1,6 @@
 import { successfulFetch } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
-import { FirstTimeInteractionError } from '../errors';
 import type {
   GetAccountAddressRelationshipRequest,
   GetAccountTransactionsResponse,
@@ -10,6 +9,7 @@ import {
   getAccountAddressRelationship,
   getAccountTransactions,
 } from './accounts-api';
+import { FirstTimeInteractionError } from '../errors';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
@@ -25,6 +25,8 @@ const CHAIN_ID_SUPPORTED = 1;
 const CHAIN_ID_UNSUPPORTED = 999;
 const FROM_ADDRESS = '0xSender';
 const TO_ADDRESS = '0xRecipient';
+const TAG_MOCK = 'test1';
+const TAG_2_MOCK = 'test2';
 
 const ACCOUNT_RESPONSE_MOCK = {
   data: [{}],
@@ -41,6 +43,7 @@ describe('Accounts API', () => {
 
   /**
    * Mock the fetch function to return the given response JSON.
+   *
    * @param responseJson - The response JSON.
    * @param status - The status code.
    * @returns The fetch mock.
@@ -140,6 +143,28 @@ describe('Accounts API', () => {
       expect(fetchMock).toHaveBeenCalledWith(
         `https://accounts.api.cx.metamask.io/v1/accounts/${ADDRESS_MOCK}/transactions?networks=${CHAIN_IDS_MOCK[0]},${CHAIN_IDS_MOCK[1]}&startTimestamp=${START_TIMESTAMP_MOCK}&endTimestamp=${END_TIMESTAMP_MOCK}&cursor=${CURSOR_MOCK}`,
         expect.any(Object),
+      );
+    });
+
+    it('includes the client header', async () => {
+      mockFetch(ACCOUNT_RESPONSE_MOCK);
+
+      await getAccountTransactions({
+        address: ADDRESS_MOCK,
+        chainIds: CHAIN_IDS_MOCK,
+        cursor: CURSOR_MOCK,
+        endTimestamp: END_TIMESTAMP_MOCK,
+        startTimestamp: START_TIMESTAMP_MOCK,
+        tags: [TAG_MOCK, TAG_2_MOCK],
+      });
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          headers: {
+            'x-metamask-clientproduct': `metamask-transaction-controller__${TAG_MOCK}__${TAG_2_MOCK}`,
+          },
+        }),
       );
     });
   });

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/multichain-network-controller",
-  "version": "0.1.0",
+  "version": "0.8.0",
   "description": "Multichain network controller",
   "keywords": [
     "MetaMask",
@@ -47,16 +47,22 @@
     "publish:preview": "yarn npm publish --tag preview"
   },
   "dependencies": {
-    "@metamask/base-controller": "^8.0.0",
-    "@metamask/keyring-api": "^17.0.0",
-    "@metamask/utils": "^11.1.0",
-    "@solana/addresses": "^2.0.0"
+    "@metamask/base-controller": "^8.0.1",
+    "@metamask/controller-utils": "^11.10.0",
+    "@metamask/keyring-api": "^18.0.0",
+    "@metamask/keyring-internal-api": "^6.2.0",
+    "@metamask/superstruct": "^3.1.0",
+    "@metamask/utils": "^11.2.0",
+    "@solana/addresses": "^2.0.0",
+    "lodash": "^4.17.21"
   },
   "devDependencies": {
+    "@metamask/accounts-controller": "^30.0.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^19.1.0",
-    "@metamask/network-controller": "^22.2.1",
+    "@metamask/keyring-controller": "^22.0.2",
+    "@metamask/network-controller": "^23.6.0",
     "@types/jest": "^27.4.1",
+    "@types/lodash": "^4.14.191",
     "@types/uuid": "^8.3.0",
     "deepmerge": "^4.2.2",
     "immer": "^9.0.6",
@@ -68,8 +74,8 @@
     "typescript": "~5.2.2"
   },
   "peerDependencies": {
-    "@metamask/accounts-controller": "^24.0.0",
-    "@metamask/network-controller": "^22.0.0"
+    "@metamask/accounts-controller": "^30.0.0",
+    "@metamask/network-controller": "^23.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

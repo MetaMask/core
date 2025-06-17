@@ -30,7 +30,6 @@ import type {
 import type { FungibleAssetMetadata, Snap, SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import {
-  hasProperty,
   isCaipAssetType,
   parseCaipAssetType,
   type CaipChainId,
@@ -57,6 +56,11 @@ export type AssetMetadataResponse = {
   };
 };
 
+export type MultichainAssetsControllerAccountAssetListUpdatedEvent = {
+  type: `${typeof controllerName}:accountAssetListUpdated`;
+  payload: AccountsControllerAccountAssetListUpdatedEvent['payload'];
+};
+
 /**
  * Constructs the default {@link MultichainAssetsController} state. This allows
  * consumers to provide a partial state object when initializing the controller
@@ -68,6 +72,11 @@ export type AssetMetadataResponse = {
 export function getDefaultMultichainAssetsControllerState(): MultichainAssetsControllerState {
   return { accountsAssets: {}, assetsMetadata: {} };
 }
+
+export type MultichainAssetsControllerGetAssetMetadataAction = {
+  type: `${typeof controllerName}:getAssetMetadata`;
+  handler: MultichainAssetsController['getAssetMetadata'];
+};
 
 /**
  * Returns the state of the {@link MultichainAssetsController}.
@@ -90,13 +99,15 @@ export type MultichainAssetsControllerStateChangeEvent =
  * Actions exposed by the {@link MultichainAssetsController}.
  */
 export type MultichainAssetsControllerActions =
-  MultichainAssetsControllerGetStateAction;
+  | MultichainAssetsControllerGetStateAction
+  | MultichainAssetsControllerGetAssetMetadataAction;
 
 /**
  * Events emitted by {@link MultichainAssetsController}.
  */
 export type MultichainAssetsControllerEvents =
-  MultichainAssetsControllerStateChangeEvent;
+  | MultichainAssetsControllerStateChangeEvent
+  | MultichainAssetsControllerAccountAssetListUpdatedEvent;
 
 /**
  * A function executed within a mutually exclusive lock, with
@@ -199,6 +210,8 @@ export class MultichainAssetsController extends BaseController<
       'AccountsController:accountAssetListUpdated',
       async (event) => await this.#handleAccountAssetListUpdatedEvent(event),
     );
+
+    this.#registerMessageHandlers();
   }
 
   async #handleAccountAssetListUpdatedEvent(
@@ -216,6 +229,27 @@ export class MultichainAssetsController extends BaseController<
   }
 
   /**
+   * Constructor helper for registering the controller's messaging system
+   * actions.
+   */
+  #registerMessageHandlers() {
+    this.messagingSystem.registerActionHandler(
+      'MultichainAssetsController:getAssetMetadata',
+      this.getAssetMetadata.bind(this),
+    );
+  }
+
+  /**
+   * Returns the metadata for the given asset
+   *
+   * @param asset - The asset to get metadata for
+   * @returns The metadata for the asset or undefined if not found.
+   */
+  getAssetMetadata(asset: CaipAssetType): FungibleAssetMetadata | undefined {
+    return this.state.assetsMetadata[asset];
+  }
+
+  /**
    * Function to update the assets list for an account
    *
    * @param event - The list of assets to update
@@ -225,32 +259,69 @@ export class MultichainAssetsController extends BaseController<
   ) {
     this.#assertControllerMutexIsLocked();
 
-    const assetsToUpdate = event.assets;
-    let assetsForMetadataRefresh = new Set<CaipAssetType>([]);
-    for (const accountId in assetsToUpdate) {
-      if (hasProperty(assetsToUpdate, accountId)) {
-        const { added, removed } = assetsToUpdate[accountId];
-        if (added.length > 0 || removed.length > 0) {
-          const existing = this.state.accountsAssets[accountId] || [];
-          const assets = new Set<CaipAssetType>([
-            ...existing,
-            ...added.filter((asset) => isCaipAssetType(asset)),
-          ]);
-          for (const removedAsset of removed) {
-            assets.delete(removedAsset);
-          }
-          assetsForMetadataRefresh = new Set([
-            ...assetsForMetadataRefresh,
-            ...assets,
-          ]);
-          this.update((state) => {
-            state.accountsAssets[accountId] = Array.from(assets);
-          });
+    const assetsForMetadataRefresh = new Set<CaipAssetType>([]);
+    const accountsAndAssetsToUpdate: AccountAssetListUpdatedEventPayload['assets'] =
+      {};
+    for (const [accountId, { added, removed }] of Object.entries(
+      event.assets,
+    )) {
+      if (added.length > 0 || removed.length > 0) {
+        const existing = this.state.accountsAssets[accountId] || [];
+
+        // In case accountsAndAssetsToUpdate event is fired with "added" assets that already exist, we don't want to add them again
+        const filteredToBeAddedAssets = added.filter(
+          (asset) => !existing.includes(asset) && isCaipAssetType(asset),
+        );
+
+        // In case accountsAndAssetsToUpdate event is fired with "removed" assets that don't exist, we don't want to remove them
+        const filteredToBeRemovedAssets = removed.filter(
+          (asset) => existing.includes(asset) && isCaipAssetType(asset),
+        );
+
+        if (
+          filteredToBeAddedAssets.length > 0 ||
+          filteredToBeRemovedAssets.length > 0
+        ) {
+          accountsAndAssetsToUpdate[accountId] = {
+            added: filteredToBeAddedAssets,
+            removed: filteredToBeRemovedAssets,
+          };
+        }
+
+        for (const asset of existing) {
+          assetsForMetadataRefresh.add(asset);
+        }
+        for (const asset of filteredToBeAddedAssets) {
+          assetsForMetadataRefresh.add(asset);
+        }
+        for (const asset of filteredToBeRemovedAssets) {
+          assetsForMetadataRefresh.delete(asset);
         }
       }
     }
+
+    this.update((state) => {
+      for (const [accountId, { added, removed }] of Object.entries(
+        accountsAndAssetsToUpdate,
+      )) {
+        const assets = new Set([
+          ...(state.accountsAssets[accountId] || []),
+          ...added,
+        ]);
+        for (const asset of removed) {
+          assets.delete(asset);
+        }
+
+        state.accountsAssets[accountId] = Array.from(assets);
+      }
+    });
+
     // Trigger fetching metadata for new assets
     await this.#refreshAssetsMetadata(Array.from(assetsForMetadataRefresh));
+
+    this.messagingSystem.publish(`${controllerName}:accountAssetListUpdated`, {
+      assets: accountsAndAssetsToUpdate,
+    });
   }
 
   /**
@@ -289,6 +360,17 @@ export class MultichainAssetsController extends BaseController<
       this.update((state) => {
         state.accountsAssets[account.id] = assets;
       });
+      this.messagingSystem.publish(
+        `${controllerName}:accountAssetListUpdated`,
+        {
+          assets: {
+            [account.id]: {
+              added: assets,
+              removed: [],
+            },
+          },
+        },
+      );
     }
   }
 

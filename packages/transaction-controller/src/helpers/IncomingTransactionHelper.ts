@@ -4,70 +4,79 @@ import type { Hex } from '@metamask/utils';
 // eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
 
+import type { TransactionControllerMessenger } from '..';
 import { incomingTransactionsLogger as log } from '../logger';
 import type { RemoteTransactionSource, TransactionMeta } from '../types';
+import { getIncomingTransactionsPollingInterval } from '../utils/feature-flags';
 
 export type IncomingTransactionOptions = {
+  client?: string;
   includeTokenTransfers?: boolean;
   isEnabled?: () => boolean;
   queryEntireHistory?: boolean;
   updateTransactions?: boolean;
 };
 
-const INTERVAL = 1000 * 30; // 30 Seconds
+const TAG_POLLING = 'automatic-polling';
 
 export class IncomingTransactionHelper {
   hub: EventEmitter;
 
-  #getCache: () => Record<string, unknown>;
+  readonly #client?: string;
 
-  #getCurrentAccount: () => ReturnType<
+  readonly #getCache: () => Record<string, unknown>;
+
+  readonly #getCurrentAccount: () => ReturnType<
     AccountsController['getSelectedAccount']
   >;
 
-  #getChainIds: () => Hex[];
+  readonly #getLocalTransactions: () => TransactionMeta[];
 
-  #getLocalTransactions: () => TransactionMeta[];
+  readonly #includeTokenTransfers?: boolean;
 
-  #includeTokenTransfers?: boolean;
-
-  #isEnabled: () => boolean;
+  readonly #isEnabled: () => boolean;
 
   #isRunning: boolean;
 
-  #queryEntireHistory?: boolean;
+  readonly #messenger: TransactionControllerMessenger;
 
-  #remoteTransactionSource: RemoteTransactionSource;
+  readonly #queryEntireHistory?: boolean;
+
+  readonly #remoteTransactionSource: RemoteTransactionSource;
 
   #timeoutId?: unknown;
 
-  #trimTransactions: (transactions: TransactionMeta[]) => TransactionMeta[];
+  readonly #trimTransactions: (
+    transactions: TransactionMeta[],
+  ) => TransactionMeta[];
 
-  #updateCache: (fn: (cache: Record<string, unknown>) => void) => void;
+  readonly #updateCache: (fn: (cache: Record<string, unknown>) => void) => void;
 
-  #updateTransactions?: boolean;
+  readonly #updateTransactions?: boolean;
 
   constructor({
+    client,
     getCache,
     getCurrentAccount,
-    getChainIds,
     getLocalTransactions,
     includeTokenTransfers,
     isEnabled,
+    messenger,
     queryEntireHistory,
     remoteTransactionSource,
     trimTransactions,
     updateCache,
     updateTransactions,
   }: {
+    client?: string;
     getCache: () => Record<string, unknown>;
     getCurrentAccount: () => ReturnType<
       AccountsController['getSelectedAccount']
     >;
-    getChainIds: () => Hex[];
     getLocalTransactions: () => TransactionMeta[];
     includeTokenTransfers?: boolean;
     isEnabled?: () => boolean;
+    messenger: TransactionControllerMessenger;
     queryEntireHistory?: boolean;
     remoteTransactionSource: RemoteTransactionSource;
     trimTransactions: (transactions: TransactionMeta[]) => TransactionMeta[];
@@ -76,13 +85,14 @@ export class IncomingTransactionHelper {
   }) {
     this.hub = new EventEmitter();
 
+    this.#client = client;
     this.#getCache = getCache;
     this.#getCurrentAccount = getCurrentAccount;
-    this.#getChainIds = getChainIds;
     this.#getLocalTransactions = getLocalTransactions;
     this.#includeTokenTransfers = includeTokenTransfers;
     this.#isEnabled = isEnabled ?? (() => true);
     this.#isRunning = false;
+    this.#messenger = messenger;
     this.#queryEntireHistory = queryEntireHistory;
     this.#remoteTransactionSource = remoteTransactionSource;
     this.#trimTransactions = trimTransactions;
@@ -99,10 +109,12 @@ export class IncomingTransactionHelper {
       return;
     }
 
-    log('Starting polling');
+    const interval = this.#getInterval();
+
+    log('Starting polling', { interval });
 
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    this.#timeoutId = setTimeout(() => this.#onInterval(), INTERVAL);
+    this.#timeoutId = setTimeout(() => this.#onInterval(), interval);
     this.#isRunning = true;
 
     log('Started polling');
@@ -130,14 +142,23 @@ export class IncomingTransactionHelper {
     }
 
     if (this.#isRunning) {
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      this.#timeoutId = setTimeout(() => this.#onInterval(), INTERVAL);
+      this.#timeoutId = setTimeout(
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+        () => this.#onInterval(),
+        this.#getInterval(),
+      );
     }
   }
 
-  async update({ isInterval }: { isInterval?: boolean } = {}): Promise<void> {
+  async update({
+    isInterval,
+    tags,
+  }: { isInterval?: boolean; tags?: string[] } = {}): Promise<void> {
+    const finalTags = this.#getTags(tags, isInterval);
+
     log('Checking for incoming transactions', {
       isInterval: Boolean(isInterval),
+      tags: finalTags,
     });
 
     if (!this.#canStart()) {
@@ -145,7 +166,6 @@ export class IncomingTransactionHelper {
     }
 
     const account = this.#getCurrentAccount();
-    const chainIds = this.#getChainIds();
     const cache = this.#getCache();
     const includeTokenTransfers = this.#includeTokenTransfers ?? true;
     const queryEntireHistory = this.#queryEntireHistory ?? true;
@@ -158,9 +178,9 @@ export class IncomingTransactionHelper {
         await this.#remoteTransactionSource.fetchTransactions({
           address: account.address as Hex,
           cache,
-          chainIds,
           includeTokenTransfers,
           queryEntireHistory,
+          tags: finalTags,
           updateCache: this.#updateCache,
           updateTransactions,
         });
@@ -189,7 +209,8 @@ export class IncomingTransactionHelper {
           (currentTx) =>
             currentTx.hash?.toLowerCase() === tx.hash?.toLowerCase() &&
             currentTx.txParams.from?.toLowerCase() ===
-              tx.txParams.from?.toLowerCase(),
+              tx.txParams.from?.toLowerCase() &&
+            currentTx.type === tx.type,
         ),
     );
 
@@ -230,16 +251,29 @@ export class IncomingTransactionHelper {
   }
 
   #canStart(): boolean {
-    const isEnabled = this.#isEnabled();
-    const chainIds = this.#getChainIds();
+    return this.#isEnabled();
+  }
 
-    const supportedChainIds =
-      this.#remoteTransactionSource.getSupportedChains();
+  #getInterval(): number {
+    return getIncomingTransactionsPollingInterval(this.#messenger);
+  }
 
-    const isAnyChainSupported = chainIds.some((chainId) =>
-      supportedChainIds.includes(chainId),
-    );
+  #getTags(
+    requestTags: string[] | undefined,
+    isInterval: boolean | undefined,
+  ): string[] | undefined {
+    const tags = [];
 
-    return isEnabled && isAnyChainSupported;
+    if (this.#client) {
+      tags.push(this.#client);
+    }
+
+    if (requestTags?.length) {
+      tags.push(...requestTags);
+    } else if (isInterval) {
+      tags.push(TAG_POLLING);
+    }
+
+    return tags?.length ? tags : undefined;
   }
 }

@@ -5,62 +5,31 @@ import type {
   JsonRpcResponse,
 } from '@metamask/utils';
 
-import type { AbstractRpcService } from './abstract-rpc-service';
 import { RpcService } from './rpc-service';
+import type { RpcServiceOptions } from './rpc-service';
+import type { RpcServiceRequestable } from './rpc-service-requestable';
 import type { FetchOptions } from './shared';
 
 /**
- * The subset of options accepted by the RpcServiceChain constructor which
- * represent a single endpoint.
- */
-type RpcServiceConfiguration = {
-  /**
-   * The URL of the endpoint.
-   */
-  endpointUrl: URL | string;
-  /**
-   * The options to pass to `fetch` when making the request to the endpoint.
-   */
-  fetchOptions?: FetchOptions;
-};
-
-/**
  * This class constructs a chain of RpcService objects which represent a
- * particular network. The first object in the chain is intended to be the primary
- * way of reaching the network and the remaining objects are used as failovers.
+ * particular network. The first object in the chain is intended to be the
+ * primary way of reaching the network and the remaining objects are used as
+ * failovers.
  */
-export class RpcServiceChain implements AbstractRpcService {
+export class RpcServiceChain implements RpcServiceRequestable {
   readonly #services: RpcService[];
 
   /**
    * Constructs a new RpcServiceChain object.
    *
-   * @param args - The arguments.
-   * @param args.fetch - A function that can be used to make an HTTP request.
-   * If your JavaScript environment supports `fetch` natively, you'll probably
-   * want to pass that; otherwise you can pass an equivalent (such as `fetch`
-   * via `node-fetch`).
-   * @param args.btoa - A function that can be used to convert a binary string
-   * into base-64. Used to encode authorization credentials.
-   * @param args.serviceConfigurations - The options for the RPC services that
-   * you want to construct. This class takes a set of configuration objects and
-   * not literal `RpcService`s to account for the possibility that we may want
-   * to send request headers to official Infura endpoints and not failovers.
+   * @param rpcServiceConfigurations - The options for the RPC services
+   * that you want to construct. Each object in this array is the same as
+   * {@link RpcServiceOptions}.
    */
-  constructor({
-    fetch: givenFetch,
-    btoa: givenBtoa,
-    serviceConfigurations,
-  }: {
-    fetch: typeof fetch;
-    btoa: typeof btoa;
-    serviceConfigurations: RpcServiceConfiguration[];
-  }) {
-    this.#services = this.#buildRpcServiceChain({
-      serviceConfigurations,
-      fetch: givenFetch,
-      btoa: givenBtoa,
-    });
+  constructor(
+    rpcServiceConfigurations: Omit<RpcServiceOptions, 'failoverService'>[],
+  ) {
+    this.#services = this.#buildRpcServiceChain(rpcServiceConfigurations);
   }
 
   /**
@@ -176,30 +145,19 @@ export class RpcServiceChain implements AbstractRpcService {
    * configured as the failover for the first, the third service is
    * configured as the failover for the second, etc.
    *
-   * @param args - The arguments.
-   * @param args.serviceConfigurations - The options for the RPC services that
-   * you want to construct.
-   * @param args.fetch - A function that can be used to make an HTTP request.
-   * @param args.btoa - A function that can be used to convert a binary string
-   * into base-64. Used to encode authorization credentials.
+   * @param rpcServiceConfigurations - The options for the RPC services that
+   * you want to construct. Each object in this array is the same as
+   * {@link RpcServiceOptions}.
    * @returns The constructed chain of RPC services.
    */
-  #buildRpcServiceChain({
-    serviceConfigurations,
-    fetch: givenFetch,
-    btoa: givenBtoa,
-  }: {
-    serviceConfigurations: RpcServiceConfiguration[];
-    fetch: typeof fetch;
-    btoa: typeof btoa;
-  }): RpcService[] {
-    return [...serviceConfigurations]
+  #buildRpcServiceChain(
+    rpcServiceConfigurations: Omit<RpcServiceOptions, 'failoverService'>[],
+  ): RpcService[] {
+    return [...rpcServiceConfigurations]
       .reverse()
       .reduce((workingServices: RpcService[], serviceConfiguration, index) => {
         const failoverService = index > 0 ? workingServices[0] : undefined;
         const service = new RpcService({
-          fetch: givenFetch,
-          btoa: givenBtoa,
           ...serviceConfiguration,
           failoverService,
         });

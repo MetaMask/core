@@ -7,6 +7,9 @@
   },
   "references": [
     {
+      "path": "../accounts-controller/tsconfig.build.json"
+    },
+    {
       "path": "../approval-controller/tsconfig.build.json"
     },
     {

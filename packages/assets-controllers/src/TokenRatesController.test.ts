@@ -157,7 +157,53 @@ describe('TokenRatesController', () => {
             const updateExchangeRatesSpy = jest
               .spyOn(controller, 'updateExchangeRatesByChainId')
               .mockResolvedValue();
-            await controller.start();
+            await controller.start(ChainId.mainnet, 'ETH');
+            triggerTokensStateChange({
+              ...getDefaultTokensState(),
+              allTokens: {
+                [ChainId.mainnet]: {
+                  [defaultSelectedAddress]: [
+                    {
+                      address: tokenAddresses[1],
+                      decimals: 0,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                  ],
+                },
+              },
+            });
+
+            // Once when starting, and another when tokens state changes
+            expect(updateExchangeRatesSpy).toHaveBeenCalledTimes(2);
+          },
+        );
+      });
+
+      it('should update exchange rates when any of the addresses in the "all tokens" collection change with invalid addresses', async () => {
+        const tokenAddresses = ['0xinvalidAddress'];
+        await withController(
+          {
+            mockTokensControllerState: {
+              allTokens: {
+                [ChainId.mainnet]: {
+                  [defaultSelectedAddress]: [
+                    {
+                      address: tokenAddresses[0],
+                      decimals: 0,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          async ({ controller, triggerTokensStateChange }) => {
+            const updateExchangeRatesSpy = jest
+              .spyOn(controller, 'updateExchangeRatesByChainId')
+              .mockResolvedValue();
+            await controller.start(ChainId.mainnet, 'ETH');
             triggerTokensStateChange({
               ...getDefaultTokensState(),
               allTokens: {
@@ -203,7 +249,7 @@ describe('TokenRatesController', () => {
             const updateExchangeRatesSpy = jest
               .spyOn(controller, 'updateExchangeRatesByChainId')
               .mockResolvedValue();
-            await controller.start();
+            await controller.start(ChainId.mainnet, 'ETH');
             triggerTokensStateChange({
               ...getDefaultTokensState(),
               allDetectedTokens: {
@@ -250,7 +296,7 @@ describe('TokenRatesController', () => {
             const updateExchangeRatesSpy = jest
               .spyOn(controller, 'updateExchangeRates')
               .mockResolvedValue();
-            await controller.start();
+            await controller.start(ChainId.mainnet, 'ETH');
             triggerTokensStateChange({
               ...getDefaultTokensState(),
               ...tokensState,
@@ -285,7 +331,7 @@ describe('TokenRatesController', () => {
             const updateExchangeRatesSpy = jest
               .spyOn(controller, 'updateExchangeRates')
               .mockResolvedValue();
-            await controller.start();
+            await controller.start(ChainId.mainnet, 'ETH');
             triggerTokensStateChange({
               ...getDefaultTokensState(),
               allDetectedTokens: tokens,
@@ -320,7 +366,7 @@ describe('TokenRatesController', () => {
             const updateExchangeRatesSpy = jest
               .spyOn(controller, 'updateExchangeRates')
               .mockResolvedValue();
-            await controller.start();
+            await controller.start(ChainId.mainnet, 'ETH');
             triggerTokensStateChange({
               ...getDefaultTokensState(),
               allTokens: tokens,
@@ -356,7 +402,7 @@ describe('TokenRatesController', () => {
             const updateExchangeRatesSpy = jest
               .spyOn(controller, 'updateExchangeRates')
               .mockResolvedValue();
-            await controller.start();
+            await controller.start(ChainId.mainnet, 'ETH');
             triggerTokensStateChange({
               ...getDefaultTokensState(),
               allTokens: tokens,
@@ -392,7 +438,7 @@ describe('TokenRatesController', () => {
             const updateExchangeRatesSpy = jest
               .spyOn(controller, 'updateExchangeRates')
               .mockResolvedValue();
-            await controller.start();
+            await controller.start(ChainId.mainnet, 'ETH');
             triggerTokensStateChange({
               ...getDefaultTokensState(),
               allDetectedTokens: {
@@ -437,7 +483,7 @@ describe('TokenRatesController', () => {
             const updateExchangeRatesSpy = jest
               .spyOn(controller, 'updateExchangeRates')
               .mockResolvedValue();
-            await controller.start();
+            await controller.start(ChainId.mainnet, 'ETH');
             triggerTokensStateChange({
               ...getDefaultTokensState(),
               allDetectedTokens: {
@@ -488,7 +534,7 @@ describe('TokenRatesController', () => {
             const updateExchangeRatesSpy = jest
               .spyOn(controller, 'updateExchangeRates')
               .mockResolvedValue();
-            await controller.start();
+            await controller.start(ChainId.mainnet, 'ETH');
             triggerTokensStateChange({
               ...getDefaultTokensState(),
               allDetectedTokens: {
@@ -635,7 +681,7 @@ describe('TokenRatesController', () => {
             },
           },
           async ({ controller, triggerNetworkStateChange }) => {
-            await controller.start();
+            await controller.start(ChainId.mainnet, 'ETH');
             const updateExchangeRatesSpy = jest
               .spyOn(controller, 'updateExchangeRates')
               .mockResolvedValue();
@@ -663,7 +709,7 @@ describe('TokenRatesController', () => {
             },
           },
           async ({ controller, triggerNetworkStateChange }) => {
-            await controller.start();
+            await controller.start(ChainId.mainnet, 'ETH');
             const updateExchangeRatesSpy = jest
               .spyOn(controller, 'updateExchangeRates')
               .mockResolvedValue();
@@ -719,7 +765,7 @@ describe('TokenRatesController', () => {
             },
           },
           async ({ controller, triggerNetworkStateChange }) => {
-            await controller.start();
+            await controller.start(ChainId.mainnet, 'ETH');
             jest.spyOn(controller, 'updateExchangeRates').mockResolvedValue();
             triggerNetworkStateChange({
               ...getDefaultNetworkControllerState(),
@@ -779,7 +825,7 @@ describe('TokenRatesController', () => {
             },
           },
           async ({ controller, triggerNetworkStateChange }) => {
-            await controller.start();
+            await controller.start(ChainId.mainnet, 'ETH');
             jest.spyOn(controller, 'updateExchangeRates').mockResolvedValue();
             triggerNetworkStateChange({
               ...getDefaultNetworkControllerState(),
@@ -797,7 +843,7 @@ describe('TokenRatesController', () => {
         );
       });
 
-      it('should not update exchange rates when network state changes without a ticker/chain id change', async () => {
+      it('should update exchange rates when network state changes without adding a new network', async () => {
         await withController(
           {
             options: {
@@ -811,16 +857,23 @@ describe('TokenRatesController', () => {
             },
           },
           async ({ controller, triggerNetworkStateChange }) => {
-            await controller.start();
+            await controller.start(ChainId.mainnet, 'ETH');
             const updateExchangeRatesSpy = jest
               .spyOn(controller, 'updateExchangeRates')
               .mockResolvedValue();
-            triggerNetworkStateChange({
-              ...getDefaultNetworkControllerState(),
-              selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
-            });
-
-            expect(updateExchangeRatesSpy).not.toHaveBeenCalled();
+            triggerNetworkStateChange(
+              {
+                ...getDefaultNetworkControllerState(),
+                selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
+              },
+              [
+                {
+                  op: 'add',
+                  path: ['networkConfigurationsByChainId', ChainId.mainnet],
+                },
+              ],
+            );
+            expect(updateExchangeRatesSpy).toHaveBeenCalled();
           },
         );
       });
@@ -1172,7 +1225,7 @@ describe('TokenRatesController', () => {
             },
           },
           async ({ controller, triggerSelectedAccountChange }) => {
-            await controller.start();
+            await controller.start(ChainId.mainnet, 'ETH');
             const updateExchangeRatesSpy = jest
               .spyOn(controller, 'updateExchangeRates')
               .mockResolvedValue();
@@ -1268,7 +1321,7 @@ describe('TokenRatesController', () => {
             },
           },
           async ({ controller }) => {
-            await controller.start();
+            await controller.start(ChainId.mainnet, 'ETH');
 
             expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(
               1,
@@ -1315,7 +1368,7 @@ describe('TokenRatesController', () => {
             },
           },
           async ({ controller }) => {
-            await controller.start();
+            await controller.start(ChainId.mainnet, 'ETH');
 
             expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(
               1,
@@ -1371,7 +1424,7 @@ describe('TokenRatesController', () => {
         },
         async ({ controller }) => {
           controller.startPolling({
-            chainId: ChainId.mainnet,
+            chainIds: [ChainId.mainnet],
           });
 
           await advanceTime({ clock, duration: 0 });
@@ -1425,7 +1478,7 @@ describe('TokenRatesController', () => {
             },
             async ({ controller }) => {
               controller.startPolling({
-                chainId: ChainId.mainnet,
+                chainIds: [ChainId.mainnet],
               });
               await advanceTime({ clock, duration: 0 });
 
@@ -1530,7 +1583,7 @@ describe('TokenRatesController', () => {
               },
               async ({ controller }) => {
                 controller.startPolling({
-                  chainId: ChainId.mainnet,
+                  chainIds: [ChainId.mainnet],
                 });
                 // flush promises and advance setTimeouts they enqueue 3 times
                 // needed because fetch() doesn't resolve immediately, so any
@@ -1632,7 +1685,7 @@ describe('TokenRatesController', () => {
               },
               async ({ controller }) => {
                 controller.startPolling({
-                  chainId: ChainId.mainnet,
+                  chainIds: [ChainId.mainnet],
                 });
                 // flush promises and advance setTimeouts they enqueue 3 times
                 // needed because fetch() doesn't resolve immediately, so any
@@ -1675,7 +1728,7 @@ describe('TokenRatesController', () => {
           },
           async ({ controller }) => {
             const pollingToken = controller.startPolling({
-              chainId: ChainId.mainnet,
+              chainIds: [ChainId.mainnet],
             });
             await advanceTime({ clock, duration: 0 });
             expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(
@@ -1803,30 +1856,29 @@ describe('TokenRatesController', () => {
           }) => {
             const tokenAddress = '0x0000000000000000000000000000000000000001';
 
-            await expect(
-              async () =>
-                await callUpdateExchangeRatesMethod({
-                  allTokens: {
-                    [ChainId.mainnet]: {
-                      [defaultSelectedAddress]: [
-                        {
-                          address: tokenAddress,
-                          decimals: 18,
-                          symbol: 'TST',
-                          aggregators: [],
-                        },
-                      ],
+            const updateExchangeRates = await callUpdateExchangeRatesMethod({
+              allTokens: {
+                [ChainId.mainnet]: {
+                  [defaultSelectedAddress]: [
+                    {
+                      address: tokenAddress,
+                      decimals: 18,
+                      symbol: 'TST',
+                      aggregators: [],
                     },
-                  },
-                  chainId: ChainId.mainnet,
-                  controller,
-                  triggerTokensStateChange,
-                  triggerNetworkStateChange,
-                  method,
-                  nativeCurrency: 'ETH',
-                  selectedNetworkClientId: InfuraNetworkType.mainnet,
-                }),
-            ).rejects.toThrow('Failed to fetch');
+                  ],
+                },
+              },
+              chainId: ChainId.mainnet,
+              controller,
+              triggerTokensStateChange,
+              triggerNetworkStateChange,
+              method,
+              nativeCurrency: 'ETH',
+              selectedNetworkClientId: InfuraNetworkType.mainnet,
+            });
+
+            expect(updateExchangeRates).toBeUndefined();
             expect(controller.state.marketData).toStrictEqual({});
           },
         );
@@ -2223,6 +2275,19 @@ describe('TokenRatesController', () => {
             mockNetworkClientConfigurationsByNetworkClientId: {
               [selectedNetworkClientId]: selectedNetworkClientConfiguration,
             },
+            mockNetworkState: {
+              networkConfigurationsByChainId: {
+                [selectedNetworkClientConfiguration.chainId]: {
+                  nativeCurrency: selectedNetworkClientConfiguration.ticker,
+                  chainId: selectedNetworkClientConfiguration.chainId,
+                  name: 'UNSUPPORTED',
+                  rpcEndpoints: [],
+                  blockExplorerUrls: [],
+                  defaultRpcEndpointIndex: 0,
+                },
+              },
+              selectedNetworkClientId,
+            },
           },
           async ({
             controller,
@@ -2472,6 +2537,95 @@ describe('TokenRatesController', () => {
             },
           }
         `);
+          },
+        );
+      });
+
+      it('will update rates twice if detected tokens increased during second call', async () => {
+        const tokenAddresses = [
+          '0x0000000000000000000000000000000000000001',
+          '0x0000000000000000000000000000000000000002',
+        ];
+        const fetchTokenPricesMock = jest.fn().mockResolvedValue({
+          [tokenAddresses[0]]: {
+            currency: 'ETH',
+            tokenAddress: tokenAddresses[0],
+            value: 0.001,
+          },
+          [tokenAddresses[1]]: {
+            currency: 'ETH',
+            tokenAddress: tokenAddresses[1],
+            value: 0.002,
+          },
+        });
+        const tokenPricesService = buildMockTokenPricesService({
+          fetchTokenPrices: fetchTokenPricesMock,
+        });
+        await withController(
+          { options: { tokenPricesService } },
+          async ({
+            controller,
+            triggerTokensStateChange,
+            triggerNetworkStateChange,
+          }) => {
+            const request1Payload = [
+              {
+                address: tokenAddresses[0],
+                decimals: 18,
+                symbol: 'TST1',
+                aggregators: [],
+              },
+            ];
+            const request2Payload = [
+              {
+                address: tokenAddresses[0],
+                decimals: 18,
+                symbol: 'TST1',
+                aggregators: [],
+              },
+              {
+                address: tokenAddresses[1],
+                decimals: 18,
+                symbol: 'TST2',
+                aggregators: [],
+              },
+            ];
+            const updateExchangeRates = async (
+              tokens: typeof request1Payload | typeof request2Payload,
+            ) =>
+              await callUpdateExchangeRatesMethod({
+                allTokens: {
+                  [toHex(1)]: {
+                    [defaultSelectedAddress]: tokens,
+                  },
+                },
+                chainId: ChainId.mainnet,
+                selectedNetworkClientId: InfuraNetworkType.mainnet,
+                controller,
+                triggerTokensStateChange,
+                triggerNetworkStateChange,
+                method,
+                nativeCurrency: 'ETH',
+              });
+
+            await Promise.all([
+              updateExchangeRates(request1Payload),
+              updateExchangeRates(request2Payload),
+            ]);
+
+            expect(fetchTokenPricesMock).toHaveBeenCalledTimes(2);
+            expect(fetchTokenPricesMock).toHaveBeenNthCalledWith(
+              1,
+              expect.objectContaining({
+                tokenAddresses: [tokenAddresses[0]],
+              }),
+            );
+            expect(fetchTokenPricesMock).toHaveBeenNthCalledWith(
+              2,
+              expect.objectContaining({
+                tokenAddresses: [tokenAddresses[0], tokenAddresses[1]],
+              }),
+            );
           },
         );
       });
@@ -2731,12 +2885,19 @@ async function callUpdateExchangeRatesMethod({
   }
 
   if (method === 'updateExchangeRates') {
-    await controller.updateExchangeRates();
+    await controller.updateExchangeRates([
+      {
+        chainId,
+        nativeCurrency,
+      },
+    ]);
   } else {
-    await controller.updateExchangeRatesByChainId({
-      chainId,
-      nativeCurrency,
-    });
+    await controller.updateExchangeRatesByChainId([
+      {
+        chainId,
+        nativeCurrency,
+      },
+    ]);
   }
 }
 

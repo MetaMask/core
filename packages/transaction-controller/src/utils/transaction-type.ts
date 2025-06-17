@@ -9,6 +9,7 @@ import {
   abiFiatTokenV2,
 } from '@metamask/metamask-eth-abis';
 
+import { DELEGATION_PREFIX } from './eip7702';
 import type { InferTransactionTypeResult, TransactionParams } from '../types';
 import { TransactionType } from '../types';
 
@@ -139,12 +140,16 @@ async function readAddressAsContract(
   let contractCode;
   try {
     contractCode = await query(ethQuery, 'getCode', [address]);
-  } catch (e) {
+    // Not used
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (error) {
     contractCode = null;
   }
 
   const isContractAddress = contractCode
-    ? contractCode !== '0x' && contractCode !== '0x0'
+    ? contractCode !== '0x' &&
+      contractCode !== '0x0' &&
+      !contractCode.startsWith(DELEGATION_PREFIX)
     : false;
   return { contractCode, isContractAddress };
 }

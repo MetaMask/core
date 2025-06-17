@@ -10,7 +10,11 @@
     { "path": "../controller-utils" },
     { "path": "../network-controller" },
     { "path": "../polling-controller" },
-    { "path": "../transaction-controller" }
+    { "path": "../transaction-controller" },
+    { "path": "../gas-fee-controller" },
+    { "path": "../assets-controllers" },
+    { "path": "../multichain-network-controller" },
+    { "path": "../remote-feature-flag-controller" }
   ],
   "include": ["../../types", "./src"]
 }

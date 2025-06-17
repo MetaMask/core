@@ -3,9 +3,9 @@ import type {
   Transaction as NonceTrackerTransaction,
 } from '@metamask/nonce-tracker';
 
+import { getAndFormatTransactionsForNonceTracker, getNextNonce } from './nonce';
 import type { TransactionMeta } from '../types';
 import { TransactionStatus } from '../types';
-import { getAndFormatTransactionsForNonceTracker, getNextNonce } from './nonce';
 
 const TRANSACTION_META_MOCK: TransactionMeta = {
   chainId: '0x1',
@@ -77,6 +77,21 @@ describe('nonce', () => {
       resultReleaseLock?.();
 
       expect(releaseLock).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns undefined if transaction is signed externally', async () => {
+      const transactionMeta = {
+        ...TRANSACTION_META_MOCK,
+        isExternalSign: true,
+      };
+
+      const [nonce, releaseLock] = await getNextNonce(
+        transactionMeta,
+        jest.fn(),
+      );
+
+      expect(nonce).toBeUndefined();
+      expect(releaseLock).toBeUndefined();
     });
   });
 
@@ -168,7 +183,7 @@ describe('nonce', () => {
       const result = getAndFormatTransactionsForNonceTracker(
         '0x2',
         fromAddress,
-        TransactionStatus.confirmed,
+        [TransactionStatus.confirmed],
         inputTransactions,
       );
 

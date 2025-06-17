@@ -11,7 +11,7 @@ import {
   listenToPushNotificationsClicked,
 } from './push-web';
 import { processNotification } from '../../../NotificationServicesController';
-import { createMockNotificationEthSent } from '../../../NotificationServicesController/__fixtures__';
+import { createMockNotificationEthSent } from '../../../NotificationServicesController/mocks';
 
 jest.mock('firebase/app');
 jest.mock('firebase/messaging');

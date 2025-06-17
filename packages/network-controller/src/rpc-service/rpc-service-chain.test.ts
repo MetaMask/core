@@ -17,15 +17,13 @@ describe('RpcServiceChain', () => {
 
   describe('onRetry', () => {
     it('returns a listener which can be disposed', () => {
-      const rpcServiceChain = new RpcServiceChain({
-        fetch,
-        btoa,
-        serviceConfigurations: [
-          {
-            endpointUrl: 'https://rpc.example.chain',
-          },
-        ],
-      });
+      const rpcServiceChain = new RpcServiceChain([
+        {
+          fetch,
+          btoa,
+          endpointUrl: 'https://rpc.example.chain',
+        },
+      ]);
 
       const onRetryListener = rpcServiceChain.onRetry(() => {
         // do whatever
@@ -36,15 +34,13 @@ describe('RpcServiceChain', () => {
 
   describe('onBreak', () => {
     it('returns a listener which can be disposed', () => {
-      const rpcServiceChain = new RpcServiceChain({
-        fetch,
-        btoa,
-        serviceConfigurations: [
-          {
-            endpointUrl: 'https://rpc.example.chain',
-          },
-        ],
-      });
+      const rpcServiceChain = new RpcServiceChain([
+        {
+          fetch,
+          btoa,
+          endpointUrl: 'https://rpc.example.chain',
+        },
+      ]);
 
       const onBreakListener = rpcServiceChain.onBreak(() => {
         // do whatever
@@ -55,15 +51,13 @@ describe('RpcServiceChain', () => {
 
   describe('onDegraded', () => {
     it('returns a listener which can be disposed', () => {
-      const rpcServiceChain = new RpcServiceChain({
-        fetch,
-        btoa,
-        serviceConfigurations: [
-          {
-            endpointUrl: 'https://rpc.example.chain',
-          },
-        ],
-      });
+      const rpcServiceChain = new RpcServiceChain([
+        {
+          fetch,
+          btoa,
+          endpointUrl: 'https://rpc.example.chain',
+        },
+      ]);
 
       const onDegradedListener = rpcServiceChain.onDegraded(() => {
         // do whatever
@@ -87,26 +81,28 @@ describe('RpcServiceChain', () => {
           result: 'ok',
         });
 
-      const rpcServiceChain = new RpcServiceChain({
-        fetch,
-        btoa,
-        serviceConfigurations: [
-          {
-            endpointUrl: 'https://first.chain',
-          },
-          {
-            endpointUrl: 'https://second.chain',
-            fetchOptions: {
-              headers: {
-                'X-Foo': 'Bar',
-              },
+      const rpcServiceChain = new RpcServiceChain([
+        {
+          fetch,
+          btoa,
+          endpointUrl: 'https://first.chain',
+        },
+        {
+          fetch,
+          btoa,
+          endpointUrl: 'https://second.chain',
+          fetchOptions: {
+            headers: {
+              'X-Foo': 'Bar',
             },
           },
-          {
-            endpointUrl: 'https://third.chain',
-          },
-        ],
-      });
+        },
+        {
+          fetch,
+          btoa,
+          endpointUrl: 'https://third.chain',
+        },
+      ]);
 
       const response = await rpcServiceChain.request({
         id: 1,
@@ -160,26 +156,28 @@ describe('RpcServiceChain', () => {
           result: 'ok',
         });
 
-      const rpcServiceChain = new RpcServiceChain({
-        fetch,
-        btoa,
-        serviceConfigurations: [
-          {
-            endpointUrl: 'https://first.chain',
-          },
-          {
-            endpointUrl: 'https://second.chain',
-            fetchOptions: {
-              headers: {
-                'X-Foo': 'Bar',
-              },
+      const rpcServiceChain = new RpcServiceChain([
+        {
+          fetch,
+          btoa,
+          endpointUrl: 'https://first.chain',
+        },
+        {
+          fetch,
+          btoa,
+          endpointUrl: 'https://second.chain',
+          fetchOptions: {
+            headers: {
+              'X-Foo': 'Bar',
             },
           },
-          {
-            endpointUrl: 'https://third.chain',
-          },
-        ],
-      });
+        },
+        {
+          fetch,
+          btoa,
+          endpointUrl: 'https://third.chain',
+        },
+      ]);
       rpcServiceChain.onRetry(() => {
         // We don't need to await this promise; adding it to the promise
         // queue is enough to continue.
@@ -271,29 +269,31 @@ describe('RpcServiceChain', () => {
           result: 'ok',
         });
 
-      const rpcServiceChain = new RpcServiceChain({
-        fetch,
-        btoa,
-        serviceConfigurations: [
-          {
-            endpointUrl: 'https://first.chain',
-          },
-          {
-            endpointUrl: 'https://second.chain',
-            fetchOptions: {
-              headers: {
-                'X-Foo': 'Bar',
-              },
+      const rpcServiceChain = new RpcServiceChain([
+        {
+          fetch,
+          btoa,
+          endpointUrl: 'https://first.chain',
+        },
+        {
+          fetch,
+          btoa,
+          endpointUrl: 'https://second.chain',
+          fetchOptions: {
+            headers: {
+              'X-Foo': 'Bar',
             },
           },
-          {
-            endpointUrl: 'https://third.chain',
-            fetchOptions: {
-              referrer: 'https://some.referrer',
-            },
+        },
+        {
+          fetch,
+          btoa,
+          endpointUrl: 'https://third.chain',
+          fetchOptions: {
+            referrer: 'https://some.referrer',
           },
-        ],
-      });
+        },
+      ]);
       rpcServiceChain.onRetry(() => {
         // We don't need to await this promise; adding it to the promise
         // queue is enough to continue.
@@ -374,26 +374,28 @@ describe('RpcServiceChain', () => {
           result: 'ok',
         });
 
-      const rpcServiceChain = new RpcServiceChain({
-        fetch,
-        btoa,
-        serviceConfigurations: [
-          {
-            endpointUrl: 'https://first.chain',
-          },
-          {
-            endpointUrl: 'https://second.chain',
-            fetchOptions: {
-              headers: {
-                'X-Foo': 'Bar',
-              },
+      const rpcServiceChain = new RpcServiceChain([
+        {
+          fetch,
+          btoa,
+          endpointUrl: 'https://first.chain',
+        },
+        {
+          fetch,
+          btoa,
+          endpointUrl: 'https://second.chain',
+          fetchOptions: {
+            headers: {
+              'X-Foo': 'Bar',
             },
           },
-          {
-            endpointUrl: 'https://third.chain',
-          },
-        ],
-      });
+        },
+        {
+          fetch,
+          btoa,
+          endpointUrl: 'https://third.chain',
+        },
+      ]);
       const onRetryListener = jest.fn<
         ReturnType<Parameters<RpcServiceChain['onRetry']>[0]>,
         Parameters<Parameters<RpcServiceChain['onRetry']>[0]>
@@ -486,26 +488,28 @@ describe('RpcServiceChain', () => {
           result: 'ok',
         });
 
-      const rpcServiceChain = new RpcServiceChain({
-        fetch,
-        btoa,
-        serviceConfigurations: [
-          {
-            endpointUrl: 'https://first.chain',
-          },
-          {
-            endpointUrl: 'https://second.chain',
-            fetchOptions: {
-              headers: {
-                'X-Foo': 'Bar',
-              },
+      const rpcServiceChain = new RpcServiceChain([
+        {
+          fetch,
+          btoa,
+          endpointUrl: 'https://first.chain',
+        },
+        {
+          fetch,
+          btoa,
+          endpointUrl: 'https://second.chain',
+          fetchOptions: {
+            headers: {
+              'X-Foo': 'Bar',
             },
           },
-          {
-            endpointUrl: 'https://third.chain',
-          },
-        ],
-      });
+        },
+        {
+          fetch,
+          btoa,
+          endpointUrl: 'https://third.chain',
+        },
+      ]);
       const onBreakListener = jest.fn<
         ReturnType<Parameters<RpcServiceChain['onBreak']>[0]>,
         Parameters<Parameters<RpcServiceChain['onBreak']>[0]>
@@ -599,26 +603,28 @@ describe('RpcServiceChain', () => {
           };
         });
 
-      const rpcServiceChain = new RpcServiceChain({
-        fetch,
-        btoa,
-        serviceConfigurations: [
-          {
-            endpointUrl: 'https://first.chain',
-          },
-          {
-            endpointUrl: 'https://second.chain',
-            fetchOptions: {
-              headers: {
-                'X-Foo': 'Bar',
-              },
+      const rpcServiceChain = new RpcServiceChain([
+        {
+          fetch,
+          btoa,
+          endpointUrl: 'https://first.chain',
+        },
+        {
+          fetch,
+          btoa,
+          endpointUrl: 'https://second.chain',
+          fetchOptions: {
+            headers: {
+              'X-Foo': 'Bar',
             },
           },
-          {
-            endpointUrl: 'https://third.chain',
-          },
-        ],
-      });
+        },
+        {
+          fetch,
+          btoa,
+          endpointUrl: 'https://third.chain',
+        },
+      ]);
       const onDegradedListener = jest.fn<
         ReturnType<Parameters<RpcServiceChain['onDegraded']>[0]>,
         Parameters<Parameters<RpcServiceChain['onDegraded']>[0]>

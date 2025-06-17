@@ -86,9 +86,6 @@ describe('TokensController', () => {
       expect(controller.state).toStrictEqual({
         allTokens: {},
         allIgnoredTokens: {},
-        ignoredTokens: [],
-        tokens: [],
-        detectedTokens: [],
         allDetectedTokens: {},
       });
     });
@@ -104,8 +101,13 @@ describe('TokensController', () => {
         address: '0x01',
         symbol: 'bar',
         decimals: 2,
+        networkClientId: 'mainnet',
       });
-      expect(controller.state.tokens[0]).toStrictEqual({
+      expect(
+        controller.state.allTokens[ChainId.mainnet][
+          defaultMockInternalAccount.address
+        ][0],
+      ).toStrictEqual({
         address: '0x01',
         decimals: 2,
         image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
@@ -116,14 +118,19 @@ describe('TokensController', () => {
       });
 
       await controller.addToken({
-        address: '0x01',
+        address: '0x02',
         symbol: 'baz',
         decimals: 2,
+        networkClientId: 'mainnet',
       });
-      expect(controller.state.tokens[0]).toStrictEqual({
-        address: '0x01',
+      expect(
+        controller.state.allTokens[ChainId.mainnet][
+          defaultMockInternalAccount.address
+        ][1],
+      ).toStrictEqual({
+        address: '0x02',
         decimals: 2,
-        image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
+        image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x02.png',
         symbol: 'baz',
         isERC721: false,
         aggregators: [],
@@ -134,23 +141,30 @@ describe('TokensController', () => {
 
   it('should add tokens', async () => {
     await withController(async ({ controller }) => {
-      await controller.addTokens([
-        {
-          address: '0x01',
-          symbol: 'barA',
-          decimals: 2,
-          aggregators: [],
-          name: 'Token1',
-        },
-        {
-          address: '0x02',
-          symbol: 'barB',
-          decimals: 2,
-          aggregators: [],
-          name: 'Token2',
-        },
-      ]);
-      expect(controller.state.tokens[0]).toStrictEqual({
+      await controller.addTokens(
+        [
+          {
+            address: '0x01',
+            symbol: 'barA',
+            decimals: 2,
+            aggregators: [],
+            name: 'Token1',
+          },
+          {
+            address: '0x02',
+            symbol: 'barB',
+            decimals: 2,
+            aggregators: [],
+            name: 'Token2',
+          },
+        ],
+        'mainnet',
+      );
+      expect(
+        controller.state.allTokens[ChainId.mainnet][
+          defaultMockInternalAccount.address
+        ][0],
+      ).toStrictEqual({
         address: '0x01',
         decimals: 2,
         image: undefined,
@@ -158,7 +172,11 @@ describe('TokensController', () => {
         aggregators: [],
         name: 'Token1',
       });
-      expect(controller.state.tokens[1]).toStrictEqual({
+      expect(
+        controller.state.allTokens[ChainId.mainnet][
+          defaultMockInternalAccount.address
+        ][1],
+      ).toStrictEqual({
         address: '0x02',
         decimals: 2,
         image: undefined,
@@ -167,21 +185,28 @@ describe('TokensController', () => {
         name: 'Token2',
       });
 
-      await controller.addTokens([
-        {
-          address: '0x01',
-          symbol: 'bazA',
-          decimals: 2,
-          aggregators: [],
-        },
-        {
-          address: '0x02',
-          symbol: 'bazB',
-          decimals: 2,
-          aggregators: [],
-        },
-      ]);
-      expect(controller.state.tokens[0]).toStrictEqual({
+      await controller.addTokens(
+        [
+          {
+            address: '0x01',
+            symbol: 'bazA',
+            decimals: 2,
+            aggregators: [],
+          },
+          {
+            address: '0x02',
+            symbol: 'bazB',
+            decimals: 2,
+            aggregators: [],
+          },
+        ],
+        'mainnet',
+      );
+      expect(
+        controller.state.allTokens[ChainId.mainnet][
+          defaultMockInternalAccount.address
+        ][0],
+      ).toStrictEqual({
         address: '0x01',
         decimals: 2,
         image: undefined,
@@ -189,7 +214,11 @@ describe('TokensController', () => {
         aggregators: [],
         name: undefined,
       });
-      expect(controller.state.tokens[1]).toStrictEqual({
+      expect(
+        controller.state.allTokens[ChainId.mainnet][
+          defaultMockInternalAccount.address
+        ][1],
+      ).toStrictEqual({
         address: '0x02',
         decimals: 2,
         image: undefined,
@@ -278,23 +307,57 @@ describe('TokensController', () => {
     );
   });
 
+  it('should not add detected tokens if token is already imported', async () => {
+    await withController(async ({ controller }) => {
+      await controller.addToken({
+        address: '0x01',
+        symbol: 'bar',
+        decimals: 2,
+        networkClientId: 'mainnet',
+      });
+
+      await controller.addDetectedTokens(
+        [{ address: '0x01', symbol: 'barA', decimals: 2 }],
+        {
+          selectedAddress: '0x0001',
+          chainId: '0x1',
+        },
+      );
+
+      expect(
+        controller.state.allDetectedTokens[ChainId.mainnet]?.[
+          defaultMockInternalAccount.address
+        ],
+      ).toBeUndefined();
+    });
+  });
+
   it('should add detected tokens', async () => {
     await withController(async ({ controller }) => {
-      await controller.addDetectedTokens([
+      await controller.addDetectedTokens(
+        [
+          {
+            address: '0x01',
+            symbol: 'barA',
+            decimals: 2,
+            aggregators: [],
+          },
+          {
+            address: '0x02',
+            symbol: 'barB',
+            decimals: 2,
+            aggregators: [],
+          },
+        ],
         {
-          address: '0x01',
-          symbol: 'barA',
-          decimals: 2,
-          aggregators: [],
+          chainId: ChainId.mainnet,
         },
-        {
-          address: '0x02',
-          symbol: 'barB',
-          decimals: 2,
-          aggregators: [],
-        },
-      ]);
-      expect(controller.state.detectedTokens[0]).toStrictEqual({
+      );
+      expect(
+        controller.state.allDetectedTokens[ChainId.mainnet][
+          defaultMockInternalAccount.address
+        ][0],
+      ).toStrictEqual({
         address: '0x01',
         decimals: 2,
         image: undefined,
@@ -303,7 +366,11 @@ describe('TokensController', () => {
         isERC721: undefined,
         name: undefined,
       });
-      expect(controller.state.detectedTokens[1]).toStrictEqual({
+      expect(
+        controller.state.allDetectedTokens[ChainId.mainnet][
+          defaultMockInternalAccount.address
+        ][1],
+      ).toStrictEqual({
         address: '0x02',
         decimals: 2,
         image: undefined,
@@ -313,25 +380,34 @@ describe('TokensController', () => {
         name: undefined,
       });
 
-      await controller.addDetectedTokens([
+      await controller.addDetectedTokens(
+        [
+          {
+            address: '0x01',
+            symbol: 'bazA',
+            decimals: 2,
+            aggregators: [],
+            isERC721: undefined,
+            name: undefined,
+          },
+          {
+            address: '0x02',
+            symbol: 'bazB',
+            decimals: 2,
+            aggregators: [],
+            isERC721: undefined,
+            name: undefined,
+          },
+        ],
         {
-          address: '0x01',
-          symbol: 'bazA',
-          decimals: 2,
-          aggregators: [],
-          isERC721: undefined,
-          name: undefined,
+          chainId: ChainId.mainnet,
         },
-        {
-          address: '0x02',
-          symbol: 'bazB',
-          decimals: 2,
-          aggregators: [],
-          isERC721: undefined,
-          name: undefined,
-        },
-      ]);
-      expect(controller.state.detectedTokens[0]).toStrictEqual({
+      );
+      expect(
+        controller.state.allDetectedTokens[ChainId.mainnet][
+          defaultMockInternalAccount.address
+        ][0],
+      ).toStrictEqual({
         address: '0x01',
         decimals: 2,
         image: undefined,
@@ -340,7 +416,11 @@ describe('TokensController', () => {
         isERC721: undefined,
         name: undefined,
       });
-      expect(controller.state.detectedTokens[1]).toStrictEqual({
+      expect(
+        controller.state.allDetectedTokens[ChainId.mainnet][
+          defaultMockInternalAccount.address
+        ][1],
+      ).toStrictEqual({
         address: '0x02',
         decimals: 2,
         image: undefined,
@@ -378,12 +458,13 @@ describe('TokensController', () => {
           address: '0x01',
           symbol: 'bar',
           decimals: 2,
+          networkClientId: 'mainnet',
         });
         triggerSelectedAccountChange(secondAccount);
-        expect(controller.state.tokens).toHaveLength(0);
 
-        triggerSelectedAccountChange(firstAccount);
-        expect(controller.state.tokens[0]).toStrictEqual({
+        expect(
+          controller.state.allTokens[ChainId.mainnet][firstAccount.address][0],
+        ).toStrictEqual({
           address: '0x01',
           decimals: 2,
           image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
@@ -392,6 +473,10 @@ describe('TokensController', () => {
           aggregators: [],
           name: undefined,
         });
+
+        expect(
+          controller.state.allTokens[ChainId.mainnet][secondAccount.address],
+        ).toBeUndefined();
       },
     );
   });
@@ -403,13 +488,18 @@ describe('TokensController', () => {
         address: '0x01',
         symbol: 'bar',
         decimals: 2,
+        networkClientId: 'sepolia',
       });
 
       changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
-      expect(controller.state.tokens).toHaveLength(0);
+      expect(controller.state.allTokens[ChainId.goerli]).toBeUndefined();
 
       changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
-      expect(controller.state.tokens[0]).toStrictEqual({
+      expect(
+        controller.state.allTokens[ChainId.sepolia][
+          defaultMockInternalAccount.address
+        ][0],
+      ).toStrictEqual({
         address: '0x01',
         decimals: 2,
         image:
@@ -443,7 +533,11 @@ describe('TokensController', () => {
           networkClientId: 'networkClientId1',
         });
 
-        expect(controller.state.tokens[0]).toStrictEqual({
+        expect(
+          controller.state.allTokens[ChainId.goerli][
+            defaultMockInternalAccount.address
+          ][0],
+        ).toStrictEqual({
           address: '0x01',
           decimals: 2,
           image: 'https://static.cx.metamask.io/api/v1/tokenIcons/5/0x01.png',
@@ -473,27 +567,41 @@ describe('TokensController', () => {
         address: '0x01',
         symbol: 'bar',
         decimals: 2,
+        networkClientId: 'mainnet',
       });
 
-      controller.ignoreTokens(['0x01']);
+      controller.ignoreTokens(['0x01'], 'mainnet');
 
-      expect(controller.state.tokens).toHaveLength(0);
+      expect(
+        controller.state.allTokens[ChainId.mainnet][
+          defaultMockInternalAccount.address
+        ],
+      ).toHaveLength(0);
     });
   });
 
   it('should remove detected token', async () => {
     await withController(async ({ controller }) => {
-      await controller.addDetectedTokens([
+      await controller.addDetectedTokens(
+        [
+          {
+            address: '0x01',
+            symbol: 'bar',
+            decimals: 2,
+          },
+        ],
         {
-          address: '0x01',
-          symbol: 'bar',
-          decimals: 2,
+          chainId: ChainId.mainnet,
         },
-      ]);
+      );
 
-      controller.ignoreTokens(['0x01']);
+      controller.ignoreTokens(['0x01'], 'mainnet');
 
-      expect(controller.state.detectedTokens).toHaveLength(0);
+      expect(
+        controller.state.allDetectedTokens[ChainId.mainnet][
+          defaultMockInternalAccount.address
+        ],
+      ).toHaveLength(0);
     });
   });
 
@@ -523,19 +631,25 @@ describe('TokensController', () => {
           address: '0x02',
           symbol: 'baz',
           decimals: 2,
+          networkClientId: 'mainnet',
         });
         triggerSelectedAccountChange(secondAccount);
         await controller.addToken({
           address: '0x01',
           symbol: 'bar',
           decimals: 2,
+          networkClientId: 'mainnet',
         });
 
-        controller.ignoreTokens(['0x01']);
-        expect(controller.state.tokens).toHaveLength(0);
+        controller.ignoreTokens(['0x01'], 'mainnet');
+        expect(
+          controller.state.allTokens[ChainId.mainnet][secondAccount.address],
+        ).toHaveLength(0);
 
         triggerSelectedAccountChange(firstAccount);
-        expect(controller.state.tokens[0]).toStrictEqual({
+        expect(
+          controller.state.allTokens[ChainId.mainnet][firstAccount.address][0],
+        ).toStrictEqual({
           address: '0x02',
           decimals: 2,
           image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x02.png',
@@ -558,19 +672,29 @@ describe('TokensController', () => {
         address: '0x02',
         symbol: 'baz',
         decimals: 2,
+        networkClientId: 'sepolia',
       });
       changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
       await controller.addToken({
         address: '0x01',
         symbol: 'bar',
         decimals: 2,
+        networkClientId: 'goerli',
       });
 
-      controller.ignoreTokens(['0x01']);
-      expect(controller.state.tokens).toHaveLength(0);
+      controller.ignoreTokens(['0x01'], 'goerli');
+      expect(
+        controller.state.allTokens[ChainId.goerli][
+          defaultMockInternalAccount.address
+        ],
+      ).toHaveLength(0);
 
       changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
-      expect(controller.state.tokens[0]).toStrictEqual({
+      expect(
+        controller.state.allTokens[ChainId.sepolia][
+          defaultMockInternalAccount.address
+        ][0],
+      ).toStrictEqual({
         address: '0x02',
         decimals: 2,
         image:
@@ -590,26 +714,52 @@ describe('TokensController', () => {
           address: '0x01',
           symbol: 'foo',
           decimals: 2,
+          networkClientId: 'mainnet',
         });
         await controller.addToken({
           address: '0xFAa',
           symbol: 'bar',
           decimals: 3,
+          networkClientId: 'mainnet',
         });
-        expect(controller.state.ignoredTokens).toHaveLength(0);
-        expect(controller.state.tokens).toHaveLength(2);
 
-        controller.ignoreTokens(['0x01']);
-        expect(controller.state.tokens).toHaveLength(1);
-        expect(controller.state.ignoredTokens).toHaveLength(1);
+        expect(
+          controller.state.allIgnoredTokens[ChainId.mainnet],
+        ).toBeUndefined();
+        expect(
+          controller.state.allTokens[ChainId.mainnet][
+            defaultMockInternalAccount.address
+          ],
+        ).toHaveLength(2);
+
+        controller.ignoreTokens(['0x01'], 'mainnet');
+        expect(
+          controller.state.allIgnoredTokens[ChainId.mainnet][
+            defaultMockInternalAccount.address
+          ],
+        ).toHaveLength(1);
+        expect(
+          controller.state.allTokens[ChainId.mainnet][
+            defaultMockInternalAccount.address
+          ],
+        ).toHaveLength(1);
 
         await controller.addToken({
           address: '0x01',
           symbol: 'baz',
           decimals: 2,
+          networkClientId: 'mainnet',
         });
-        expect(controller.state.tokens).toHaveLength(2);
-        expect(controller.state.ignoredTokens).toHaveLength(0);
+        expect(
+          controller.state.allTokens[ChainId.mainnet][
+            defaultMockInternalAccount.address
+          ],
+        ).toHaveLength(2);
+        expect(
+          controller.state.allIgnoredTokens[ChainId.mainnet][
+            defaultMockInternalAccount.address
+          ],
+        ).toHaveLength(0);
       });
     });
 
@@ -632,27 +782,56 @@ describe('TokensController', () => {
             address: '0x01',
             symbol: 'bar',
             decimals: 2,
+            networkClientId: 'sepolia',
           });
           await controller.addToken({
             address: '0xFAa',
             symbol: 'bar',
             decimals: 3,
+            networkClientId: 'sepolia',
           });
-          expect(controller.state.ignoredTokens).toHaveLength(0);
-          expect(controller.state.tokens).toHaveLength(2);
 
-          controller.ignoreTokens(['0x01']);
-          controller.ignoreTokens(['0xFAa']);
-          expect(controller.state.tokens).toHaveLength(0);
-          expect(controller.state.ignoredTokens).toHaveLength(2);
+          expect(
+            controller.state.allIgnoredTokens[ChainId.sepolia],
+          ).toBeUndefined();
+          expect(
+            controller.state.allTokens[ChainId.sepolia][
+              selectedAccount.address
+            ],
+          ).toHaveLength(2);
 
-          await controller.addTokens([
-            { address: '0x01', decimals: 3, symbol: 'bar', aggregators: [] },
-            { address: '0x02', decimals: 4, symbol: 'baz', aggregators: [] },
-            { address: '0x04', decimals: 4, symbol: 'foo', aggregators: [] },
-          ]);
-          expect(controller.state.tokens).toHaveLength(3);
-          expect(controller.state.ignoredTokens).toHaveLength(1);
+          controller.ignoreTokens(['0x01'], 'sepolia');
+          controller.ignoreTokens(['0xFAa'], 'sepolia');
+
+          expect(
+            controller.state.allIgnoredTokens[ChainId.sepolia][
+              selectedAccount.address
+            ],
+          ).toHaveLength(2);
+          expect(
+            controller.state.allTokens[ChainId.sepolia][
+              selectedAccount.address
+            ],
+          ).toHaveLength(0);
+
+          await controller.addTokens(
+            [
+              { address: '0x01', decimals: 3, symbol: 'bar', aggregators: [] },
+              { address: '0x02', decimals: 4, symbol: 'baz', aggregators: [] },
+              { address: '0x04', decimals: 4, symbol: 'foo', aggregators: [] },
+            ],
+            'sepolia',
+          );
+          expect(
+            controller.state.allTokens[ChainId.sepolia][
+              selectedAccount.address
+            ],
+          ).toHaveLength(3);
+          expect(
+            controller.state.allIgnoredTokens[ChainId.sepolia][
+              selectedAccount.address
+            ],
+          ).toHaveLength(1);
           expect(controller.state.allIgnoredTokens).toStrictEqual({
             [ChainId.sepolia]: {
               [selectedAddress]: ['0xFAa'],
@@ -681,11 +860,18 @@ describe('TokensController', () => {
             address: '0x01',
             symbol: 'bar',
             decimals: 2,
+            networkClientId: 'sepolia',
           });
-          expect(controller.state.ignoredTokens).toHaveLength(0);
+          expect(
+            controller.state.allIgnoredTokens[ChainId.sepolia],
+          ).toBeUndefined();
 
-          controller.ignoreTokens(['0x01']);
-          expect(controller.state.tokens).toHaveLength(0);
+          controller.ignoreTokens(['0x01'], 'sepolia');
+          expect(
+            controller.state.allIgnoredTokens[ChainId.sepolia][
+              selectedAccount.address
+            ],
+          ).toHaveLength(1);
           expect(controller.state.allIgnoredTokens).toStrictEqual({
             [ChainId.sepolia]: {
               [selectedAddress]: ['0x01'],
@@ -693,7 +879,9 @@ describe('TokensController', () => {
           });
 
           controller.clearIgnoredTokens();
-          expect(controller.state.ignoredTokens).toHaveLength(0);
+          expect(
+            controller.state.allIgnoredTokens[ChainId.sepolia],
+          ).toBeUndefined();
           expect(Object.keys(controller.state.allIgnoredTokens)).toHaveLength(
             0,
           );
@@ -724,34 +912,56 @@ describe('TokensController', () => {
             address: '0x01',
             symbol: 'bar',
             decimals: 2,
+            networkClientId: 'sepolia',
           });
-          expect(controller.state.ignoredTokens).toHaveLength(0);
+          expect(
+            controller.state.allIgnoredTokens[ChainId.sepolia],
+          ).toBeUndefined();
 
-          controller.ignoreTokens(['0x01']);
-          expect(controller.state.tokens).toHaveLength(0);
-          expect(controller.state.ignoredTokens).toStrictEqual(['0x01']);
+          controller.ignoreTokens(['0x01'], 'sepolia');
+          expect(
+            controller.state.allIgnoredTokens[ChainId.sepolia][
+              selectedAccount1.address
+            ],
+          ).toStrictEqual(['0x01']);
 
           changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
-          expect(controller.state.ignoredTokens).toHaveLength(0);
+          expect(
+            controller.state.allIgnoredTokens[ChainId.goerli],
+          ).toBeUndefined();
 
           await controller.addToken({
             address: '0x02',
             symbol: 'bazz',
             decimals: 3,
+            networkClientId: 'goerli',
           });
-          controller.ignoreTokens(['0x02']);
-          expect(controller.state.ignoredTokens).toStrictEqual(['0x02']);
+          controller.ignoreTokens(['0x02'], 'goerli');
+          expect(
+            controller.state.allIgnoredTokens[ChainId.goerli][
+              selectedAccount1.address
+            ],
+          ).toStrictEqual(['0x02']);
 
           triggerSelectedAccountChange(selectedAccount2);
-          expect(controller.state.ignoredTokens).toHaveLength(0);
+          expect(
+            controller.state.allIgnoredTokens[ChainId.goerli][
+              selectedAccount2.address
+            ],
+          ).toBeUndefined();
 
           await controller.addToken({
             address: '0x03',
             symbol: 'foo',
             decimals: 4,
+            networkClientId: 'goerli',
           });
-          controller.ignoreTokens(['0x03']);
-          expect(controller.state.ignoredTokens).toStrictEqual(['0x03']);
+          controller.ignoreTokens(['0x03'], 'goerli');
+          expect(
+            controller.state.allIgnoredTokens[ChainId.goerli][
+              selectedAccount2.address
+            ],
+          ).toStrictEqual(['0x03']);
           expect(controller.state.allIgnoredTokens).toStrictEqual({
             [ChainId.sepolia]: {
               [selectedAddress1]: ['0x01'],
@@ -792,44 +1002,76 @@ describe('TokensController', () => {
             address: '0x01',
             symbol: 'Token1',
             decimals: 18,
+            networkClientId: 'sepolia',
           });
-          expect(controller.state.tokens).toHaveLength(1);
-          expect(controller.state.ignoredTokens).toHaveLength(0);
+          expect(
+            controller.state.allTokens[ChainId.sepolia][
+              selectedAccount.address
+            ],
+          ).toHaveLength(1);
+          expect(
+            controller.state.allIgnoredTokens[ChainId.sepolia],
+          ).toBeUndefined();
 
           controller.ignoreTokens(['0x01'], InfuraNetworkType.sepolia);
-          expect(controller.state.tokens).toHaveLength(0);
-          expect(controller.state.ignoredTokens).toStrictEqual(['0x01']);
+          expect(
+            controller.state.allIgnoredTokens[ChainId.sepolia][
+              selectedAccount.address
+            ],
+          ).toStrictEqual(['0x01']);
 
           // Verify that Goerli network has no ignored tokens
           changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
-          expect(controller.state.ignoredTokens).toHaveLength(0);
+          expect(
+            controller.state.allIgnoredTokens[ChainId.goerli],
+          ).toBeUndefined();
 
           // Add and ignore a token on Goerli
           await controller.addToken({
             address: '0x02',
             symbol: 'Token2',
             decimals: 8,
+            networkClientId: 'goerli',
           });
           controller.ignoreTokens(['0x02'], InfuraNetworkType.goerli);
-          expect(controller.state.tokens).toHaveLength(0);
-          expect(controller.state.ignoredTokens).toStrictEqual(['0x02']);
+          expect(
+            controller.state.allTokens[ChainId.goerli][selectedAccount.address],
+          ).toHaveLength(0);
+          expect(
+            controller.state.allIgnoredTokens[ChainId.goerli][
+              selectedAccount.address
+            ],
+          ).toStrictEqual(['0x02']);
 
           // Verify that switching back to Sepolia retains its ignored tokens
           changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
-          expect(controller.state.ignoredTokens).toStrictEqual(['0x01']);
+          expect(
+            controller.state.allIgnoredTokens[ChainId.sepolia][
+              selectedAccount.address
+            ],
+          ).toStrictEqual(['0x01']);
 
           // Switch to a different account on Goerli
           triggerSelectedAccountChange(otherAccount);
-          expect(controller.state.ignoredTokens).toHaveLength(0);
+          expect(
+            controller.state.allIgnoredTokens[ChainId.goerli][
+              otherAccount.address
+            ],
+          ).toBeUndefined();
 
           // Add and ignore a token on the new account
           await controller.addToken({
             address: '0x03',
             symbol: 'Token3',
             decimals: 6,
+            networkClientId: 'goerli',
           });
           controller.ignoreTokens(['0x03'], InfuraNetworkType.goerli);
-          expect(controller.state.ignoredTokens).toStrictEqual([]);
+          expect(
+            controller.state.allIgnoredTokens[ChainId.goerli][
+              otherAccount.address
+            ],
+          ).toStrictEqual(['0x03']);
 
           // Validate the overall ignored tokens state
           expect(controller.state.allIgnoredTokens).toStrictEqual({
@@ -868,9 +1110,16 @@ describe('TokensController', () => {
             address: '0x01',
             symbol: 'Token1',
             decimals: 18,
+            networkClientId: 'sepolia',
           });
-          expect(controller.state.tokens).toHaveLength(1);
-          expect(controller.state.ignoredTokens).toHaveLength(0);
+          expect(
+            controller.state.allTokens[ChainId.sepolia][
+              selectedAccount.address
+            ],
+          ).toHaveLength(1);
+          expect(
+            controller.state.allIgnoredTokens[ChainId.sepolia],
+          ).toBeUndefined();
 
           // switch to goerli
           changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
@@ -880,18 +1129,31 @@ describe('TokensController', () => {
             address: '0x02',
             symbol: 'Token2',
             decimals: 8,
+            networkClientId: 'goerli',
           });
 
-          expect(controller.state.tokens).toHaveLength(1);
-          expect(controller.state.ignoredTokens).toHaveLength(0);
+          expect(
+            controller.state.allTokens[ChainId.goerli][selectedAccount.address],
+          ).toHaveLength(1);
+          expect(
+            controller.state.allIgnoredTokens[ChainId.goerli],
+          ).toBeUndefined();
 
           // ignore token on sepolia
-          controller.ignoreTokens(['0x01'], InfuraNetworkType.sepolia);
+          controller.ignoreTokens(['0x01'], InfuraNetworkType.goerli);
 
           // as we are not on sepolia, tokens, ignoredTokens, and detectedTokens should not be affected
-          expect(controller.state.tokens).toHaveLength(1);
-          expect(controller.state.ignoredTokens).toHaveLength(0);
-          expect(controller.state.detectedTokens).toHaveLength(0);
+          expect(
+            controller.state.allTokens[ChainId.sepolia][
+              selectedAccount.address
+            ],
+          ).toHaveLength(1);
+          expect(
+            controller.state.allIgnoredTokens[ChainId.sepolia],
+          ).toBeUndefined();
+          expect(Object.keys(controller.state.allDetectedTokens)).toHaveLength(
+            0,
+          );
         },
       );
     });
@@ -921,26 +1183,43 @@ describe('TokensController', () => {
             address: '0x01',
             symbol: 'Token1',
             decimals: 18,
+            networkClientId: 'sepolia',
           });
           // Add a detected token to sepolia
-          await controller.addDetectedTokens([
+          await controller.addDetectedTokens(
+            [{ address: '0x03', symbol: 'Token3', decimals: 18 }],
             {
-              address: '0x03',
-              symbol: 'Token3',
-              decimals: 18,
+              selectedAddress: '0x0001',
+              chainId: '0x1',
             },
-          ]);
+          );
 
-          expect(controller.state.tokens).toHaveLength(1);
-          expect(controller.state.ignoredTokens).toHaveLength(0);
+          expect(
+            controller.state.allTokens[ChainId.sepolia][
+              selectedAccount.address
+            ],
+          ).toHaveLength(1);
+          expect(
+            controller.state.allIgnoredTokens[ChainId.sepolia],
+          ).toBeUndefined();
 
           // Ignore the token on sepolia
           controller.ignoreTokens(['0x01'], InfuraNetworkType.sepolia);
 
           // Ensure the tokens and ignoredTokens are updated for sepolia (globally selected network)
-          expect(controller.state.tokens).toHaveLength(0);
-          expect(controller.state.ignoredTokens).toHaveLength(1);
-          expect(controller.state.detectedTokens).toHaveLength(1);
+          expect(
+            controller.state.allTokens[ChainId.sepolia][
+              selectedAccount.address
+            ],
+          ).toHaveLength(0);
+          expect(
+            controller.state.allIgnoredTokens[ChainId.sepolia][
+              selectedAccount.address
+            ],
+          ).toHaveLength(1);
+          expect(Object.keys(controller.state.allDetectedTokens)).toHaveLength(
+            1,
+          );
         },
       );
     });
@@ -968,32 +1247,64 @@ describe('TokensController', () => {
             address: '0x01',
             symbol: 'Token1',
             decimals: 18,
+            networkClientId: 'sepolia',
           });
-          expect(controller.state.tokens).toHaveLength(1);
-          expect(controller.state.ignoredTokens).toHaveLength(0);
+          expect(
+            controller.state.allTokens[ChainId.sepolia][
+              selectedAccount.address
+            ],
+          ).toHaveLength(1);
+          expect(
+            controller.state.allIgnoredTokens[ChainId.sepolia],
+          ).toBeUndefined();
 
           // Switch to Goerli network
           changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
-          expect(controller.state.ignoredTokens).toHaveLength(0);
+          expect(
+            controller.state.allIgnoredTokens[ChainId.goerli],
+          ).toBeUndefined();
 
           // Ignore the token on Sepolia
           controller.ignoreTokens(['0x01'], InfuraNetworkType.sepolia);
-          expect(controller.state.tokens).toHaveLength(0);
-          expect(controller.state.ignoredTokens).toStrictEqual([]);
+          expect(
+            controller.state.allTokens[ChainId.sepolia][
+              selectedAccount.address
+            ],
+          ).toHaveLength(0);
+          expect(
+            controller.state.allIgnoredTokens[ChainId.sepolia][
+              selectedAccount.address
+            ],
+          ).toStrictEqual(['0x01']);
 
           // Attempt to ignore a token that was added on Goerli
           await controller.addToken({
             address: '0x02',
             symbol: 'Token2',
             decimals: 8,
+            networkClientId: 'goerli',
           });
           controller.ignoreTokens(['0x02'], InfuraNetworkType.goerli);
-          expect(controller.state.tokens).toHaveLength(0);
-          expect(controller.state.ignoredTokens).toStrictEqual(['0x02']);
+          expect(
+            controller.state.allTokens[ChainId.goerli][selectedAccount.address],
+          ).toHaveLength(0);
+          expect(
+            controller.state.allIgnoredTokens[ChainId.goerli][
+              selectedAccount.address
+            ],
+          ).toStrictEqual(['0x02']);
 
           // Verify that the ignored tokens from Sepolia are not retained
-          expect(controller.state.ignoredTokens).toHaveLength(1);
-          expect(controller.state.ignoredTokens).toStrictEqual(['0x02']);
+          expect(
+            controller.state.allIgnoredTokens[ChainId.sepolia][
+              selectedAccount.address
+            ],
+          ).toHaveLength(1);
+          expect(
+            controller.state.allIgnoredTokens[ChainId.sepolia][
+              selectedAccount.address
+            ],
+          ).toStrictEqual(['0x01']);
           expect(controller.state.allIgnoredTokens).toStrictEqual({
             [ChainId.sepolia]: {
               [selectedAddress]: ['0x01'],
@@ -1005,7 +1316,11 @@ describe('TokensController', () => {
 
           // Switch back to Sepolia and check ignored tokens
           changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
-          expect(controller.state.ignoredTokens).toStrictEqual(['0x01']);
+          expect(
+            controller.state.allIgnoredTokens[ChainId.sepolia][
+              selectedAccount.address
+            ],
+          ).toStrictEqual(['0x01']);
         },
       );
     });
@@ -1021,13 +1336,19 @@ describe('TokensController', () => {
         address: '0x01',
         symbol: 'A',
         decimals: 4,
+        networkClientId: 'mainnet',
       });
       await controller.addToken({
         address: '0x02',
         symbol: 'B',
         decimals: 5,
+        networkClientId: 'mainnet',
       });
-      expect(controller.state.tokens).toStrictEqual([
+      expect(
+        controller.state.allTokens[ChainId.mainnet][
+          defaultMockInternalAccount.address
+        ],
+      ).toStrictEqual([
         {
           address: '0x01',
           decimals: 4,
@@ -1048,8 +1369,13 @@ describe('TokensController', () => {
         },
       ]);
 
-      controller.ignoreTokens(['0x01', '0x02']);
-      expect(controller.state.tokens).toStrictEqual([]);
+      controller.ignoreTokens(['0x01', '0x02'], 'mainnet');
+
+      expect(
+        controller.state.allTokens[ChainId.mainnet][
+          defaultMockInternalAccount.address
+        ],
+      ).toStrictEqual([]);
     });
   });
 
@@ -1064,9 +1390,14 @@ describe('TokensController', () => {
           const address = erc721ContractAddresses[0];
           const { symbol, decimals } = contractMaps[address];
 
-          await controller.addToken({ address, symbol, decimals });
+          await controller.addToken({
+            address,
+            symbol,
+            decimals,
+            networkClientId: 'mainnet',
+          });
 
-          const result = await controller.updateTokenType(address);
+          const result = await controller.updateTokenType(address, 'mainnet');
           expect(result.isERC721).toBe(true);
         });
       });
@@ -1080,9 +1411,14 @@ describe('TokensController', () => {
           const address = erc20ContractAddresses[0];
           const { symbol, decimals } = contractMaps[address];
 
-          await controller.addToken({ address, symbol, decimals });
+          await controller.addToken({
+            address,
+            symbol,
+            decimals,
+            networkClientId: 'mainnet',
+          });
 
-          const result = await controller.updateTokenType(address);
+          const result = await controller.updateTokenType(address, 'mainnet');
           expect(result.isERC721).toBe(false);
         });
       });
@@ -1098,9 +1434,13 @@ describe('TokensController', () => {
             address: tokenAddress,
             symbol: 'TESTNFT',
             decimals: 0,
+            networkClientId: 'mainnet',
           });
 
-          const result = await controller.updateTokenType(tokenAddress);
+          const result = await controller.updateTokenType(
+            tokenAddress,
+            'mainnet',
+          );
           expect(result.isERC721).toBe(true);
         });
       });
@@ -1116,9 +1456,13 @@ describe('TokensController', () => {
             address: tokenAddress,
             symbol: 'TESTNFT',
             decimals: 0,
+            networkClientId: 'mainnet',
           });
 
-          const result = await controller.updateTokenType(tokenAddress);
+          const result = await controller.updateTokenType(
+            tokenAddress,
+            'mainnet',
+          );
           expect(result.isERC721).toBe(false);
         });
       });
@@ -1134,9 +1478,18 @@ describe('TokensController', () => {
           const address = erc721ContractAddresses[0];
           const { symbol, decimals } = contractMaps[address];
 
-          await controller.addToken({ address, symbol, decimals });
+          await controller.addToken({
+            address,
+            symbol,
+            decimals,
+            networkClientId: 'mainnet',
+          });
 
-          expect(controller.state.tokens).toStrictEqual([
+          expect(
+            controller.state.allTokens[ChainId.mainnet][
+              defaultMockInternalAccount.address
+            ],
+          ).toStrictEqual([
             expect.objectContaining({
               address,
               symbol,
@@ -1158,9 +1511,14 @@ describe('TokensController', () => {
             address: tokenAddress,
             symbol: 'REST',
             decimals: 4,
+            networkClientId: 'mainnet',
           });
 
-          expect(controller.state.tokens).toStrictEqual([
+          expect(
+            controller.state.allTokens[ChainId.mainnet][
+              defaultMockInternalAccount.address
+            ],
+          ).toStrictEqual([
             {
               address: tokenAddress,
               symbol: 'REST',
@@ -1184,9 +1542,18 @@ describe('TokensController', () => {
           const address = erc20ContractAddresses[0];
           const { symbol, decimals } = contractMaps[address];
 
-          await controller.addToken({ address, symbol, decimals });
+          await controller.addToken({
+            address,
+            symbol,
+            decimals,
+            networkClientId: 'mainnet',
+          });
 
-          expect(controller.state.tokens).toStrictEqual([
+          expect(
+            controller.state.allTokens[ChainId.mainnet][
+              defaultMockInternalAccount.address
+            ],
+          ).toStrictEqual([
             expect.objectContaining({
               address,
               symbol,
@@ -1208,9 +1575,14 @@ describe('TokensController', () => {
             address: tokenAddress,
             symbol: 'LEST',
             decimals: 5,
+            networkClientId: 'mainnet',
           });
 
-          expect(controller.state.tokens).toStrictEqual([
+          expect(
+            controller.state.allTokens[ChainId.mainnet][
+              defaultMockInternalAccount.address
+            ],
+          ).toStrictEqual([
             {
               address: tokenAddress,
               symbol: 'LEST',
@@ -1222,26 +1594,6 @@ describe('TokensController', () => {
               name: undefined,
             },
           ]);
-        });
-      });
-
-      it('should throw error if switching networks while adding token', async () => {
-        await withController(async ({ controller, changeNetwork }) => {
-          const dummyTokenAddress =
-            '0x514910771AF9Ca656af840dff83E8264EcF986CA';
-
-          const addTokenPromise = controller.addToken({
-            address: dummyTokenAddress,
-            symbol: 'LINK',
-            decimals: 18,
-          });
-          changeNetwork({
-            selectedNetworkClientId: InfuraNetworkType.goerli,
-          });
-
-          await expect(addTokenPromise).rejects.toThrow(
-            'TokensController Error: Switched networks while adding token',
-          );
         });
       });
     });
@@ -1276,6 +1628,7 @@ describe('TokensController', () => {
               address: dummyTokenAddress,
               symbol: 'LINK',
               decimals: 18,
+              networkClientId: 'mainnet',
             }),
           ).rejects.toThrow(fullErrorMessage);
         },
@@ -1301,18 +1654,32 @@ describe('TokensController', () => {
           image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
         };
 
-        await controller.addDetectedTokens([dummyDetectedToken]);
-        expect(controller.state.detectedTokens).toStrictEqual([
-          dummyDetectedToken,
-        ]);
+        await controller.addDetectedTokens([dummyDetectedToken], {
+          selectedAddress: defaultMockInternalAccount.address,
+          chainId: ChainId.mainnet,
+        });
+        expect(
+          controller.state.allDetectedTokens[ChainId.mainnet][
+            defaultMockInternalAccount.address
+          ],
+        ).toStrictEqual([dummyDetectedToken]);
 
         await controller.addToken({
           address: dummyDetectedToken.address,
           symbol: dummyDetectedToken.symbol,
           decimals: dummyDetectedToken.decimals,
+          networkClientId: 'mainnet',
         });
-        expect(controller.state.detectedTokens).toStrictEqual([]);
-        expect(controller.state.tokens).toStrictEqual([dummyAddedToken]);
+        expect(
+          controller.state.allDetectedTokens[ChainId.mainnet][
+            defaultMockInternalAccount.address
+          ],
+        ).toStrictEqual([]);
+        expect(
+          controller.state.allTokens[ChainId.mainnet][
+            defaultMockInternalAccount.address
+          ],
+        ).toStrictEqual([dummyAddedToken]);
       });
     });
 
@@ -1366,10 +1733,17 @@ describe('TokensController', () => {
           // Run twice to ensure idempotency
           for (let i = 0; i < 2; i++) {
             // Add and detect some tokens on the configured chain + account
-            await controller.addToken(addedTokenConfiguredAccount);
-            await controller.addDetectedTokens([
-              detectedTokenConfiguredAccount,
-            ]);
+            await controller.addToken({
+              ...addedTokenConfiguredAccount,
+              networkClientId: CONFIGURED_NETWORK_CLIENT_ID,
+            });
+            await controller.addDetectedTokens(
+              [detectedTokenConfiguredAccount],
+              {
+                selectedAddress: CONFIGURED_ADDRESS,
+                chainId: CONFIGURED_CHAIN,
+              },
+            );
 
             // Detect a token on the other chain + account
             await controller.addDetectedTokens([detectedTokenOtherAccount], {
@@ -1378,12 +1752,14 @@ describe('TokensController', () => {
             });
 
             // Expect tokens on the configured account
-            expect(controller.state.tokens).toStrictEqual([
-              addedTokenConfiguredAccount,
-            ]);
-            expect(controller.state.detectedTokens).toStrictEqual([
-              detectedTokenConfiguredAccount,
-            ]);
+            expect(
+              controller.state.allTokens[CONFIGURED_CHAIN][CONFIGURED_ADDRESS],
+            ).toStrictEqual([addedTokenConfiguredAccount]);
+            expect(
+              controller.state.allDetectedTokens[CONFIGURED_CHAIN][
+                CONFIGURED_ADDRESS
+              ],
+            ).toStrictEqual([detectedTokenConfiguredAccount]);
 
             // Expect tokens under the correct chain + account
             expect(controller.state.allTokens).toStrictEqual({
@@ -1437,14 +1813,27 @@ describe('TokensController', () => {
           },
         ];
 
-        await controller.addDetectedTokens(dummyDetectedTokens);
-        expect(controller.state.detectedTokens).toStrictEqual(
-          dummyDetectedTokens,
-        );
+        await controller.addDetectedTokens(dummyDetectedTokens, {
+          selectedAddress: defaultMockInternalAccount.address,
+          chainId: ChainId.mainnet,
+        });
+        expect(
+          controller.state.allDetectedTokens[ChainId.mainnet][
+            defaultMockInternalAccount.address
+          ],
+        ).toStrictEqual(dummyDetectedTokens);
 
-        await controller.addTokens(dummyDetectedTokens);
-        expect(controller.state.detectedTokens).toStrictEqual([]);
-        expect(controller.state.tokens).toStrictEqual(dummyAddedTokens);
+        await controller.addTokens(dummyDetectedTokens, 'mainnet');
+        expect(
+          controller.state.allDetectedTokens[ChainId.mainnet][
+            defaultMockInternalAccount.address
+          ],
+        ).toStrictEqual([]);
+        expect(
+          controller.state.allTokens[ChainId.mainnet][
+            defaultMockInternalAccount.address
+          ],
+        ).toStrictEqual(dummyAddedTokens);
       });
     });
 
@@ -1479,12 +1868,13 @@ describe('TokensController', () => {
             },
           ];
 
-          await controller.addTokens(dummyTokens, 'networkClientId1');
+          await controller.addTokens(dummyTokens, 'goerli');
 
-          expect(controller.state.tokens).toStrictEqual(dummyTokens);
-          expect(controller.state.allTokens['0x5']['0x1']).toStrictEqual(
-            dummyTokens,
-          );
+          expect(
+            controller.state.allTokens[ChainId.goerli][
+              defaultMockInternalAccount.address
+            ],
+          ).toStrictEqual(dummyTokens);
         },
       );
     });
@@ -1510,6 +1900,7 @@ describe('TokensController', () => {
         const result = controller.watchAsset({
           asset: buildToken(),
           type: 'ERC721',
+          networkClientId: 'networkClientId1',
         });
 
         await expect(result).rejects.toThrow(
@@ -1529,6 +1920,7 @@ describe('TokensController', () => {
             address: '0x0000000000000000000000000000000000000001',
           }),
           type: 'ERC20',
+          networkClientId: 'mainnet',
         });
 
         await expect(result).rejects.toThrow(
@@ -1551,6 +1943,7 @@ describe('TokensController', () => {
             address: '0x0000000000000000000000000000000000000001',
           }),
           type: 'ERC20',
+          networkClientId: 'mainnet',
         });
 
         await expect(result).rejects.toThrow(
@@ -1564,6 +1957,7 @@ describe('TokensController', () => {
         const result = controller.watchAsset({
           asset: buildToken({ address: undefined }),
           type: 'ERC20',
+          networkClientId: 'mainnet',
         });
 
         await expect(result).rejects.toThrow('Address must be specified');
@@ -1579,6 +1973,7 @@ describe('TokensController', () => {
         const result = controller.watchAsset({
           asset: buildToken({ decimals: undefined }),
           type: 'ERC20',
+          networkClientId: 'mainnet',
         });
 
         await expect(result).rejects.toThrow(
@@ -1597,6 +1992,7 @@ describe('TokensController', () => {
           // @ts-expect-error Intentionally passing bad input
           asset: buildToken({ symbol: { foo: 'bar' } }),
           type: 'ERC20',
+          networkClientId: 'mainnet',
         });
 
         await expect(result).rejects.toThrow('Invalid symbol: not a string');
@@ -1612,6 +2008,7 @@ describe('TokensController', () => {
         const result = controller.watchAsset({
           asset: buildToken({ symbol: undefined }),
           type: 'ERC20',
+          networkClientId: 'mainnet',
         });
 
         await expect(result).rejects.toThrow(
@@ -1629,6 +2026,7 @@ describe('TokensController', () => {
         const result = controller.watchAsset({
           asset: buildToken({ symbol: '' }),
           type: 'ERC20',
+          networkClientId: 'mainnet',
         });
 
         await expect(result).rejects.toThrow(
@@ -1646,6 +2044,7 @@ describe('TokensController', () => {
         const result = controller.watchAsset({
           asset: buildToken({ symbol: 'ABCDEFGHIJKLM' }),
           type: 'ERC20',
+          networkClientId: 'mainnet',
         });
 
         await expect(result).rejects.toThrow(
@@ -1663,6 +2062,7 @@ describe('TokensController', () => {
         const result = controller.watchAsset({
           asset: buildToken({ decimals: -1 }),
           type: 'ERC20',
+          networkClientId: 'mainnet',
         });
         await expect(result).rejects.toThrow(
           'Invalid decimals "-1": must be an integer 0 <= 36',
@@ -1671,6 +2071,7 @@ describe('TokensController', () => {
         const result2 = controller.watchAsset({
           asset: buildToken({ decimals: 37 }),
           type: 'ERC20',
+          networkClientId: 'mainnet',
         });
         await expect(result2).rejects.toThrow(
           'Invalid decimals "37": must be an integer 0 <= 36',
@@ -1683,6 +2084,7 @@ describe('TokensController', () => {
         const result = controller.watchAsset({
           asset: buildToken({ address: '0x123' }),
           type: 'ERC20',
+          networkClientId: 'mainnet',
         });
 
         await expect(result).rejects.toThrow('Invalid address "0x123"');
@@ -1698,6 +2100,7 @@ describe('TokensController', () => {
             symbol: 'TKN',
           }),
           type: 'ERC721',
+          networkClientId: 'mainnet',
         });
 
         await expect(result).rejects.toThrow(
@@ -1726,6 +2129,7 @@ describe('TokensController', () => {
             decimals: 42,
           }),
           type: 'ERC20',
+          networkClientId: 'mainnet',
         });
 
         await expect(result).rejects.toThrow(
@@ -1754,6 +2158,7 @@ describe('TokensController', () => {
             decimals: 1,
           }),
           type: 'ERC20',
+          networkClientId: 'mainnet',
         });
 
         await expect(result).rejects.toThrow(
@@ -1779,9 +2184,14 @@ describe('TokensController', () => {
           // @ts-expect-error Intentionally passing bad input.
           asset: { ...asset, symbol: undefined, decimals: undefined },
           type: 'ERC20',
+          networkClientId: 'mainnet',
         });
 
-        expect(controller.state.tokens).toStrictEqual([
+        expect(
+          controller.state.allTokens[ChainId.mainnet][
+            defaultMockInternalAccount.address
+          ],
+        ).toStrictEqual([
           {
             isERC721: false,
             aggregators: [],
@@ -1801,9 +2211,17 @@ describe('TokensController', () => {
           .spyOn(approvalController, 'addAndShowApprovalRequest')
           .mockResolvedValue(undefined);
 
-        await controller.watchAsset({ asset: reqAsset, type: 'ERC20' });
+        await controller.watchAsset({
+          asset: reqAsset,
+          type: 'ERC20',
+          networkClientId: 'mainnet',
+        });
 
-        expect(controller.state.tokens).toStrictEqual([
+        expect(
+          controller.state.allTokens[ChainId.mainnet][
+            defaultMockInternalAccount.address
+          ],
+        ).toStrictEqual([
           {
             isERC721: false,
             aggregators: [],
@@ -1826,6 +2244,7 @@ describe('TokensController', () => {
         const result = controller.watchAsset({
           asset: { ...asset, symbol: 'DIFFERENT' },
           type: 'ERC20',
+          networkClientId: 'mainnet',
         });
 
         await expect(result).rejects.toThrow(
@@ -1847,6 +2266,7 @@ describe('TokensController', () => {
         const result = controller.watchAsset({
           asset: { ...asset, decimals: 2 },
           type: 'ERC20',
+          networkClientId: 'mainnet',
         });
 
         await expect(result).rejects.toThrow(
@@ -1871,9 +2291,14 @@ describe('TokensController', () => {
         await controller.watchAsset({
           asset: { ...asset, symbol: 'abc' },
           type: 'ERC20',
+          networkClientId: 'mainnet',
         });
 
-        expect(controller.state.tokens).toStrictEqual([
+        expect(
+          controller.state.allTokens[ChainId.mainnet][
+            defaultMockInternalAccount.address
+          ],
+        ).toStrictEqual([
           {
             isERC721: false,
             aggregators: [],
@@ -1900,9 +2325,14 @@ describe('TokensController', () => {
         await controller.watchAsset({
           asset,
           type: 'ERC20',
+          networkClientId: 'mainnet',
         });
 
-        expect(controller.state.tokens).toStrictEqual([
+        expect(
+          controller.state.allTokens[ChainId.mainnet][
+            defaultMockInternalAccount.address
+          ],
+        ).toStrictEqual([
           {
             isERC721: false,
             aggregators: [],
@@ -1924,10 +2354,22 @@ describe('TokensController', () => {
           buildMockEthersERC721Contract({ supportsInterface: false }),
         );
         uuidV1Mock.mockReturnValue(requestId);
-        await controller.watchAsset({ asset, type: 'ERC20' });
+        await controller.watchAsset({
+          asset,
+          type: 'ERC20',
+          networkClientId: 'mainnet',
+        });
 
-        expect(controller.state.tokens).toHaveLength(1);
-        expect(controller.state.tokens).toStrictEqual([
+        expect(
+          controller.state.allTokens[ChainId.mainnet][
+            defaultMockInternalAccount.address
+          ],
+        ).toHaveLength(1);
+        expect(
+          controller.state.allTokens[ChainId.mainnet][
+            defaultMockInternalAccount.address
+          ],
+        ).toStrictEqual([
           {
             isERC721: false,
             aggregators: [],
@@ -1973,10 +2415,15 @@ describe('TokensController', () => {
             asset,
             type: 'ERC20',
             interactingAddress,
+            networkClientId: 'sepolia',
           });
 
-          expect(controller.state.tokens).toHaveLength(0);
-          expect(controller.state.tokens).toStrictEqual([]);
+          expect(
+            controller.state.allTokens[ChainId.sepolia][
+              defaultMockInternalAccount.address
+            ],
+          ).toBeUndefined();
+          expect(controller.state.allTokens[ChainId.mainnet]).toBeUndefined();
           expect(
             controller.state.allTokens[chainId][interactingAddress],
           ).toHaveLength(1);
@@ -2044,8 +2491,9 @@ describe('TokensController', () => {
               asset,
             },
           });
-          expect(controller.state.tokens).toHaveLength(0);
-          expect(controller.state.tokens).toStrictEqual([]);
+
+          expect(controller.state.allTokens[ChainId.sepolia]).toBeUndefined();
+          expect(controller.state.allTokens[ChainId.mainnet]).toBeUndefined();
           expect(
             controller.state.allTokens['0x5'][interactingAddress],
           ).toHaveLength(1);
@@ -2075,11 +2523,15 @@ describe('TokensController', () => {
         );
         uuidV1Mock.mockReturnValue(requestId);
         await expect(
-          controller.watchAsset({ asset, type: 'ERC20' }),
+          controller.watchAsset({
+            asset,
+            type: 'ERC20',
+            networkClientId: 'mainnet',
+          }),
         ).rejects.toThrow(errorMessage);
 
-        expect(controller.state.tokens).toHaveLength(0);
-        expect(controller.state.tokens).toStrictEqual([]);
+        expect(controller.state.allTokens[ChainId.sepolia]).toBeUndefined();
+        expect(controller.state.allTokens[ChainId.mainnet]).toBeUndefined();
         expect(addAndShowApprovalRequestSpy).toHaveBeenCalledTimes(1);
         expect(addAndShowApprovalRequestSpy).toHaveBeenCalledWith({
           id: requestId,
@@ -2159,13 +2611,19 @@ describe('TokensController', () => {
           });
 
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          controller.watchAsset({ asset, type: 'ERC20', interactingAddress });
+          controller.watchAsset({
+            asset,
+            type: 'ERC20',
+            interactingAddress,
+            networkClientId: 'goerli',
+          });
 
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
           controller.watchAsset({
             asset: anotherAsset,
             type: 'ERC20',
             interactingAddress,
+            networkClientId: 'goerli',
           });
 
           await promiseForApprovals;
@@ -2216,22 +2674,29 @@ describe('TokensController', () => {
             address: '0x01',
             symbol: 'A',
             decimals: 4,
+            networkClientId: 'mainnet',
           });
           await controller.addToken({
             address: '0x02',
             symbol: 'B',
             decimals: 5,
+            networkClientId: 'mainnet',
           });
           triggerSelectedAccountChange(selectedAccount2);
-          expect(controller.state.tokens).toStrictEqual([]);
+          expect(controller.state.allTokens[ChainId.sepolia]).toBeUndefined();
 
           await controller.addToken({
             address: '0x03',
             symbol: 'C',
             decimals: 6,
+            networkClientId: 'mainnet',
           });
           triggerSelectedAccountChange(selectedAccount);
-          expect(controller.state.tokens).toStrictEqual([
+          expect(
+            controller.state.allTokens[ChainId.mainnet][
+              selectedAccount.address
+            ],
+          ).toStrictEqual([
             {
               address: '0x01',
               decimals: 4,
@@ -2255,7 +2720,11 @@ describe('TokensController', () => {
           ]);
 
           triggerSelectedAccountChange(selectedAccount2);
-          expect(controller.state.tokens).toStrictEqual([
+          expect(
+            controller.state.allTokens[ChainId.mainnet][
+              selectedAccount2.address
+            ],
+          ).toStrictEqual([
             {
               address: '0x03',
               decimals: 6,
@@ -2284,26 +2753,36 @@ describe('TokensController', () => {
           address: '0x01',
           symbol: 'A',
           decimals: 4,
+          networkClientId: 'sepolia',
         });
         await controller.addToken({
           address: '0x02',
           symbol: 'B',
           decimals: 5,
+          networkClientId: 'sepolia',
         });
-        const initialTokensFirst = controller.state.tokens;
+        const initialTokensFirst =
+          controller.state.allTokens[ChainId.sepolia][
+            defaultMockInternalAccount.address
+          ];
 
         changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
         await controller.addToken({
           address: '0x03',
           symbol: 'C',
           decimals: 4,
+          networkClientId: 'goerli',
         });
         await controller.addToken({
           address: '0x04',
           symbol: 'D',
           decimals: 5,
+          networkClientId: 'goerli',
         });
-        const initialTokensSecond = controller.state.tokens;
+        const initialTokensSecond =
+          controller.state.allTokens[ChainId.goerli][
+            defaultMockInternalAccount.address
+          ];
 
         expect(initialTokensFirst).not.toStrictEqual(initialTokensSecond);
         expect(initialTokensFirst).toStrictEqual([
@@ -2350,10 +2829,18 @@ describe('TokensController', () => {
         ]);
 
         changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
-        expect(initialTokensFirst).toStrictEqual(controller.state.tokens);
+        expect(initialTokensFirst).toStrictEqual(
+          controller.state.allTokens[ChainId.sepolia][
+            defaultMockInternalAccount.address
+          ],
+        );
 
         changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
-        expect(initialTokensSecond).toStrictEqual(controller.state.tokens);
+        expect(initialTokensSecond).toStrictEqual(
+          controller.state.allTokens[ChainId.goerli][
+            defaultMockInternalAccount.address
+          ],
+        );
       });
     });
   });
@@ -2385,8 +2872,8 @@ describe('TokensController', () => {
           },
         },
         async ({ controller }) => {
-          await controller.addTokens(dummyTokens);
-          controller.ignoreTokens([tokenAddress]);
+          await controller.addTokens(dummyTokens, 'mainnet');
+          controller.ignoreTokens([tokenAddress], 'mainnet');
 
           expect(
             controller.state.allTokens[ChainId.mainnet][selectedAddress],
@@ -2421,9 +2908,9 @@ describe('TokensController', () => {
           },
         },
         async ({ controller }) => {
-          await controller.addTokens(dummyTokens);
-          controller.ignoreTokens([tokenAddress]);
-          await controller.addTokens(dummyTokens);
+          await controller.addTokens(dummyTokens, 'mainnet');
+          controller.ignoreTokens([tokenAddress], 'mainnet');
+          await controller.addTokens(dummyTokens, 'mainnet');
 
           expect(
             controller.state.allIgnoredTokens[ChainId.mainnet][selectedAddress],
@@ -2458,8 +2945,11 @@ describe('TokensController', () => {
           },
         },
         async ({ controller }) => {
-          await controller.addDetectedTokens(dummyTokens);
-          await controller.addTokens(dummyTokens);
+          await controller.addDetectedTokens(dummyTokens, {
+            selectedAddress,
+            chainId: ChainId.mainnet,
+          });
+          await controller.addTokens(dummyTokens, 'mainnet');
 
           expect(
             controller.state.allDetectedTokens[ChainId.mainnet][
@@ -2510,7 +3000,10 @@ describe('TokensController', () => {
         },
         async ({ controller }) => {
           // First, add detected tokens
-          await controller.addDetectedTokens(dummyDetectedTokens);
+          await controller.addDetectedTokens(dummyDetectedTokens, {
+            selectedAddress,
+            chainId: ChainId.mainnet,
+          });
           expect(
             controller.state.allDetectedTokens[ChainId.mainnet][
               selectedAddress
@@ -2518,7 +3011,7 @@ describe('TokensController', () => {
           ).toStrictEqual(dummyDetectedTokens);
 
           // Now, add the same token to the tokens list
-          await controller.addTokens(dummyTokens);
+          await controller.addTokens(dummyTokens, 'mainnet');
 
           // Check that allDetectedTokens for the selected address is cleared
           expect(
@@ -2541,8 +3034,13 @@ describe('TokensController', () => {
           address: '0x01',
           symbol: 'bar',
           decimals: 2,
+          networkClientId: 'mainnet',
         });
-        expect(controller.state.tokens[0]).toStrictEqual({
+        expect(
+          controller.state.allTokens[ChainId.mainnet][
+            defaultMockInternalAccount.address
+          ][0],
+        ).toStrictEqual({
           address: '0x01',
           decimals: 2,
           image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
@@ -2556,23 +3054,32 @@ describe('TokensController', () => {
           'TokenListController:stateChange',
           // @ts-expect-error Passing a partial TokensState for brevity
           {
-            tokenList: {
-              '0x01': {
-                address: '0x01',
-                symbol: 'bar',
-                decimals: 2,
-                occurrences: 1,
-                name: 'BarName',
-                iconUrl:
-                  'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
-                aggregators: ['Aave'],
+            tokensChainsCache: {
+              [ChainId.mainnet]: {
+                timestamp: 1,
+                data: {
+                  '0x01': {
+                    address: '0x01',
+                    symbol: 'bar',
+                    decimals: 2,
+                    occurrences: 1,
+                    name: 'BarName',
+                    iconUrl:
+                      'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
+                    aggregators: ['Aave'],
+                  },
+                },
               },
             },
           },
           [],
         );
 
-        expect(controller.state.tokens[0]).toStrictEqual({
+        expect(
+          controller.state.allTokens[ChainId.mainnet][
+            defaultMockInternalAccount.address
+          ][0],
+        ).toStrictEqual({
           address: '0x01',
           decimals: 2,
           image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
@@ -2594,9 +3101,13 @@ describe('TokensController', () => {
           );
           changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
 
-          expect(controller.state.tokens).toStrictEqual([]);
-          expect(controller.state.ignoredTokens).toStrictEqual([]);
-          expect(controller.state.detectedTokens).toStrictEqual([]);
+          expect(controller.state.allTokens[ChainId.sepolia]).toBeUndefined();
+          expect(
+            controller.state.allIgnoredTokens[ChainId.sepolia],
+          ).toBeUndefined();
+          expect(
+            controller.state.allDetectedTokens[ChainId.sepolia],
+          ).toBeUndefined();
         });
       });
     });
@@ -2612,20 +3123,27 @@ describe('TokensController', () => {
           const address = erc721ContractAddresses[0];
           const { symbol, decimals } = contractMaps[address];
 
-          await controller.addToken({ address, symbol, decimals });
+          await controller.addToken({
+            address,
+            symbol,
+            decimals,
+            networkClientId: 'mainnet',
+          });
 
-          expect(controller.state.tokens).toStrictEqual([
-            {
-              address,
-              aggregators: [],
-              decimals,
-              image:
-                'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x9c8ff314c9bc7f6e59a9d9225fb22946427edc03.png',
-              isERC721: true,
-              name: undefined,
-              symbol,
-            },
-          ]);
+          expect(controller.state.allTokens[ChainId.mainnet]['']).toStrictEqual(
+            [
+              {
+                address,
+                aggregators: [],
+                decimals,
+                image:
+                  'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x9c8ff314c9bc7f6e59a9d9225fb22946427edc03.png',
+                isERC721: true,
+                name: undefined,
+                symbol,
+              },
+            ],
+          );
         });
       });
     });
@@ -2640,8 +3158,13 @@ describe('TokensController', () => {
             decimals: 2,
             aggregators: [],
           };
-          await controller.addDetectedTokens([mockToken]);
-          expect(controller.state.detectedTokens[0]).toStrictEqual({
+          await controller.addDetectedTokens([mockToken], {
+            selectedAddress: defaultMockInternalAccount.address,
+            chainId: ChainId.mainnet,
+          });
+          expect(
+            controller.state.allDetectedTokens[ChainId.mainnet]['0x1'][0],
+          ).toStrictEqual({
             ...mockToken,
             image: undefined,
             isERC721: undefined,
@@ -2665,10 +3188,15 @@ describe('TokensController', () => {
             );
             uuidV1Mock.mockReturnValue(requestId);
             getAccountHandler.mockReturnValue(undefined);
-            await controller.watchAsset({ asset, type: 'ERC20' });
+            await controller.watchAsset({
+              asset,
+              type: 'ERC20',
+              networkClientId: 'mainnet',
+            });
 
-            expect(controller.state.tokens).toHaveLength(1);
-            expect(controller.state.tokens).toStrictEqual([
+            expect(
+              controller.state.allTokens[ChainId.mainnet][''],
+            ).toStrictEqual([
               {
                 address: '0x000000000000000000000000000000000000dEaD',
                 aggregators: [],
@@ -2757,26 +3285,6 @@ describe('TokensController', () => {
   describe('resetState', () => {
     it('resets the state to default state', async () => {
       const initialState: TokensControllerState = {
-        detectedTokens: [
-          {
-            address: '0x01',
-            symbol: 'barA',
-            decimals: 2,
-            aggregators: [],
-            image: undefined,
-            name: undefined,
-          },
-        ],
-        tokens: [
-          {
-            address: '0x02',
-            symbol: 'barB',
-            decimals: 2,
-            aggregators: [],
-            image: undefined,
-            name: undefined,
-          },
-        ],
         allTokens: {
           [ChainId.mainnet]: {
             '0x0001': [
@@ -2791,7 +3299,6 @@ describe('TokensController', () => {
             ],
           },
         },
-        ignoredTokens: ['0x03'],
         allIgnoredTokens: {
           [ChainId.mainnet]: {
             '0x0001': ['0x03'],
@@ -2824,13 +3331,140 @@ describe('TokensController', () => {
           controller.resetState();
 
           expect(controller.state).toStrictEqual({
-            tokens: [],
-            ignoredTokens: [],
-            detectedTokens: [],
             allTokens: {},
             allIgnoredTokens: {},
             allDetectedTokens: {},
           });
+        },
+      );
+    });
+  });
+
+  describe('when accountRemoved is published', () => {
+    it('removes the list of tokens for the removed account', async () => {
+      const firstAddress = '0xA73d9021f67931563fDfe3E8f66261086319a1FC';
+      const secondAddress = '0xB73d9021f67931563fDfe3E8f66261086319a1FK';
+      const firstAccount = createMockInternalAccount({
+        address: firstAddress,
+      });
+      const secondAccount = createMockInternalAccount({
+        address: secondAddress,
+      });
+      const initialState: TokensControllerState = {
+        allTokens: {
+          [ChainId.mainnet]: {
+            [firstAddress]: [
+              {
+                address: '0x03',
+                symbol: 'barC',
+                decimals: 2,
+                aggregators: [],
+                image: undefined,
+                name: undefined,
+              },
+            ],
+            [secondAddress]: [
+              {
+                address: '0x04',
+                symbol: 'barD',
+                decimals: 2,
+                aggregators: [],
+                image: undefined,
+                name: undefined,
+              },
+            ],
+          },
+        },
+        allIgnoredTokens: {},
+        allDetectedTokens: {
+          [ChainId.mainnet]: {
+            [firstAddress]: [],
+            [secondAddress]: [],
+          },
+        },
+      };
+      await withController(
+        {
+          options: {
+            state: initialState,
+          },
+          listAccounts: [firstAccount, secondAccount],
+        },
+        ({ controller, triggerAccountRemoved }) => {
+          expect(controller.state).toStrictEqual(initialState);
+
+          triggerAccountRemoved(firstAccount.address);
+
+          expect(controller.state).toStrictEqual({
+            allTokens: {
+              [ChainId.mainnet]: {
+                [secondAddress]: [
+                  {
+                    address: '0x04',
+                    symbol: 'barD',
+                    decimals: 2,
+                    aggregators: [],
+                    image: undefined,
+                    name: undefined,
+                  },
+                ],
+              },
+            },
+            allIgnoredTokens: {},
+            allDetectedTokens: {
+              [ChainId.mainnet]: {
+                [secondAddress]: [],
+              },
+            },
+          });
+        },
+      );
+    });
+
+    it('removes an account with no tokens', async () => {
+      const firstAddress = '0xA73d9021f67931563fDfe3E8f66261086319a1FC';
+      const secondAddress = '0xB73d9021f67931563fDfe3E8f66261086319a1FK';
+      const firstAccount = createMockInternalAccount({
+        address: firstAddress,
+      });
+      const secondAccount = createMockInternalAccount({
+        address: secondAddress,
+      });
+      const initialState: TokensControllerState = {
+        allTokens: {
+          [ChainId.mainnet]: {
+            [firstAddress]: [
+              {
+                address: '0x03',
+                symbol: 'barC',
+                decimals: 2,
+                aggregators: [],
+                image: undefined,
+                name: undefined,
+              },
+            ],
+          },
+        },
+        allIgnoredTokens: {},
+        allDetectedTokens: {
+          [ChainId.mainnet]: {
+            [firstAddress]: [],
+          },
+        },
+      };
+      await withController(
+        {
+          options: {
+            state: initialState,
+          },
+          listAccounts: [firstAccount, secondAccount],
+        },
+        ({ controller, triggerAccountRemoved }) => {
+          expect(controller.state).toStrictEqual(initialState);
+
+          triggerAccountRemoved(secondAccount.address);
+
+          expect(controller.state).toStrictEqual(initialState);
         },
       );
     });
@@ -2843,6 +3477,7 @@ type WithControllerCallback<ReturnValue> = ({
   messenger,
   approvalController,
   triggerSelectedAccountChange,
+  triggerAccountRemoved,
 }: {
   controller: TokensController;
   changeNetwork: (networkControllerState: {
@@ -2851,6 +3486,7 @@ type WithControllerCallback<ReturnValue> = ({
   messenger: UnrestrictedMessenger;
   approvalController: ApprovalController;
   triggerSelectedAccountChange: (internalAccount: InternalAccount) => void;
+  triggerAccountRemoved: (accountAddress: string) => void;
   triggerNetworkStateChange: (
     networkState: NetworkState,
     patches: Patch[],
@@ -2874,6 +3510,7 @@ type WithControllerArgs<ReturnValue> =
           NetworkClientConfiguration
         >;
         mocks?: WithControllerMockArgs;
+        listAccounts?: InternalAccount[];
       },
       WithControllerCallback<ReturnValue>,
     ];
@@ -2899,6 +3536,7 @@ async function withController<ReturnValue>(
       options = {},
       mockNetworkClientConfigurationsByNetworkClientId = {},
       mocks = {} as WithControllerMockArgs,
+      listAccounts = [],
     },
     fn,
   ] = args.length === 2 ? args : [{}, args[0]];
@@ -2923,12 +3561,14 @@ async function withController<ReturnValue>(
       'NetworkController:getNetworkClientById',
       'AccountsController:getAccount',
       'AccountsController:getSelectedAccount',
+      'AccountsController:listAccounts',
     ],
     allowedEvents: [
       'NetworkController:networkDidChange',
       'NetworkController:stateChange',
       'AccountsController:selectedEvmAccountChange',
       'TokenListController:stateChange',
+      'KeyringController:accountRemoved',
     ],
   });
 
@@ -2948,6 +3588,12 @@ async function withController<ReturnValue>(
     ),
   );
 
+  const mockListAccounts = jest.fn().mockReturnValue(listAccounts);
+  messenger.registerActionHandler(
+    'AccountsController:listAccounts',
+    mockListAccounts,
+  );
+
   const controller = new TokensController({
     chainId: ChainId.mainnet,
     // The tests assume that this is set, but they shouldn't make that
@@ -2965,6 +3611,10 @@ async function withController<ReturnValue>(
       'AccountsController:selectedEvmAccountChange',
       internalAccount,
     );
+  };
+
+  const triggerAccountRemoved = (accountAddress: string) => {
+    messenger.publish('KeyringController:accountRemoved', accountAddress);
   };
 
   const changeNetwork = ({
@@ -3000,6 +3650,7 @@ async function withController<ReturnValue>(
     approvalController,
     triggerSelectedAccountChange,
     triggerNetworkStateChange,
+    triggerAccountRemoved,
     getAccountHandler,
     getSelectedAccountHandler,
   });

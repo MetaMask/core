@@ -8,4 +8,4 @@ export type * as Types from './types';
 export type * from './types';
 export * as Utils from './utils';
 export * from './utils';
-export * as Mocks from './__fixtures__';
+export * as Mocks from './mocks';

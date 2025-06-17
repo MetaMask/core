@@ -31,10 +31,13 @@ describe('PreferencesController', () => {
       useMultiRpcMigration: true,
       showIncomingTransactions: Object.values(
         ETHERSCAN_SUPPORTED_CHAIN_IDS,
-      ).reduce((acc, curr) => {
-        acc[curr] = true;
-        return acc;
-      }, {} as { [chainId in EtherscanSupportedHexChainId]: boolean }),
+      ).reduce(
+        (acc, curr) => {
+          acc[curr] = true;
+          return acc;
+        },
+        {} as { [chainId in EtherscanSupportedHexChainId]: boolean },
+      ),
       smartTransactionsOptInStatus: true,
       useSafeChainsListValidation: true,
       tokenSortConfig: {
@@ -43,6 +46,7 @@ describe('PreferencesController', () => {
         sortCallback: 'stringNumeric',
       },
       privacyMode: false,
+      dismissSmartAccountSuggestionEnabled: false,
     });
   });
 
@@ -66,7 +70,14 @@ describe('PreferencesController', () => {
         {
           ...getDefaultKeyringState(),
           keyrings: [
-            { accounts: ['0x00', '0x01', '0x02'], type: 'CustomKeyring' },
+            {
+              accounts: ['0x00', '0x01', '0x02'],
+              type: 'CustomKeyring',
+              metadata: {
+                id: 'mock-id',
+                name: '',
+              },
+            },
           ],
         },
         [],
@@ -108,7 +119,16 @@ describe('PreferencesController', () => {
         'KeyringController:stateChange',
         {
           ...getDefaultKeyringState(),
-          keyrings: [{ accounts: ['0x00'], type: 'CustomKeyring' }],
+          keyrings: [
+            {
+              accounts: ['0x00'],
+              type: 'CustomKeyring',
+              metadata: {
+                id: 'mock-id',
+                name: '',
+              },
+            },
+          ],
         },
         [],
       );
@@ -138,7 +158,16 @@ describe('PreferencesController', () => {
         'KeyringController:stateChange',
         {
           ...getDefaultKeyringState(),
-          keyrings: [{ accounts: ['0x00'], type: 'CustomKeyring' }],
+          keyrings: [
+            {
+              accounts: ['0x00'],
+              type: 'CustomKeyring',
+              metadata: {
+                id: 'mock-id',
+                name: '',
+              },
+            },
+          ],
         },
         [],
       );
@@ -167,7 +196,16 @@ describe('PreferencesController', () => {
         'KeyringController:stateChange',
         {
           ...getDefaultKeyringState(),
-          keyrings: [{ accounts: [], type: 'CustomKeyring' }],
+          keyrings: [
+            {
+              accounts: [],
+              type: 'CustomKeyring',
+              metadata: {
+                id: 'mock-id',
+                name: '',
+              },
+            },
+          ],
         },
         [],
       );
@@ -197,7 +235,14 @@ describe('PreferencesController', () => {
         {
           ...getDefaultKeyringState(),
           keyrings: [
-            { accounts: ['0x00', '0x01', '0x02'], type: 'CustomKeyring' },
+            {
+              accounts: ['0x00', '0x01', '0x02'],
+              type: 'CustomKeyring',
+              metadata: {
+                id: 'mock-id',
+                name: '',
+              },
+            },
           ],
         },
         [],
@@ -228,8 +273,22 @@ describe('PreferencesController', () => {
         {
           ...getDefaultKeyringState(),
           keyrings: [
-            { accounts: ['0x00', '0x01', '0x02'], type: 'CustomKeyring' },
-            { accounts: ['0x00', '0x01', '0x02'], type: 'CustomKeyring' },
+            {
+              accounts: ['0x00', '0x01', '0x02'],
+              type: 'CustomKeyring',
+              metadata: {
+                id: 'mock-id',
+                name: '',
+              },
+            },
+            {
+              accounts: ['0x00', '0x01', '0x02'],
+              type: 'CustomKeyring',
+              metadata: {
+                id: 'mock-id',
+                name: '',
+              },
+            },
           ],
         },
         [],
@@ -259,7 +318,16 @@ describe('PreferencesController', () => {
         'KeyringController:stateChange',
         {
           ...getDefaultKeyringState(),
-          keyrings: [{ accounts: ['0x00', '0x01'], type: 'CustomKeyring' }],
+          keyrings: [
+            {
+              accounts: ['0x00', '0x01'],
+              type: 'CustomKeyring',
+              metadata: {
+                id: 'mock-id',
+                name: '',
+              },
+            },
+          ],
         },
         [],
       );
@@ -474,6 +542,13 @@ describe('PreferencesController', () => {
     expect(controller.state.privacyMode).toBe(false);
     controller.setPrivacyMode(true);
     expect(controller.state.privacyMode).toBe(true);
+  });
+
+  it('should set dismissSmartAccountSuggestionEnabled', () => {
+    const controller = setupPreferencesController();
+    expect(controller.state.dismissSmartAccountSuggestionEnabled).toBe(false);
+    controller.setDismissSmartAccountSuggestionEnabled(true);
+    expect(controller.state.dismissSmartAccountSuggestionEnabled).toBe(true);
   });
 });
 

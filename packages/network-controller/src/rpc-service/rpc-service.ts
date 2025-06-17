@@ -1,6 +1,10 @@
-import type { ServicePolicy } from '@metamask/controller-utils';
+import type {
+  CreateServicePolicyOptions,
+  ServicePolicy,
+} from '@metamask/controller-utils';
 import {
   CircuitState,
+  HttpError,
   createServicePolicy,
   handleWhen,
 } from '@metamask/controller-utils';
@@ -16,6 +20,56 @@ import deepmerge from 'deepmerge';
 
 import type { AbstractRpcService } from './abstract-rpc-service';
 import type { AddToCockatielEventData, FetchOptions } from './shared';
+
+/**
+ * Options for the RpcService constructor.
+ */
+export type RpcServiceOptions = {
+  /**
+   * A function that can be used to convert a binary string into a
+   * base64-encoded ASCII string. Used to encode authorization credentials.
+   */
+  btoa: typeof btoa;
+  /**
+   * The URL of the RPC endpoint to hit.
+   */
+  endpointUrl: URL | string;
+  /**
+   * An RPC service that represents a failover endpoint which will be invoked
+   * while the circuit for _this_ service is open.
+   */
+  failoverService?: AbstractRpcService;
+  /**
+   * A function that can be used to make an HTTP request. If your JavaScript
+   * environment supports `fetch` natively, you'll probably want to pass that;
+   * otherwise you can pass an equivalent (such as `fetch` via `node-fetch`).
+   */
+  fetch: typeof fetch;
+  /**
+   * A common set of options that will be used to make every request. Can be
+   * overridden on the request level (e.g. to add headers).
+   */
+  fetchOptions?: FetchOptions;
+  /**
+   * Options to pass to `createServicePolicy`. Note that `retryFilterPolicy` is
+   * not accepted, as it is overwritten. See {@link createServicePolicy}.
+   */
+  policyOptions?: Omit<CreateServicePolicyOptions, 'retryFilterPolicy'>;
+};
+
+/**
+ * The maximum number of times that a failing service should be re-run before
+ * giving up.
+ */
+export const DEFAULT_MAX_RETRIES = 4;
+
+/**
+ * The maximum number of times that the service is allowed to fail before
+ * pausing further retries. This is set to a value such that if given a
+ * service that continually fails, the policy needs to be executed 3 times
+ * before further retries are paused.
+ */
+export const DEFAULT_MAX_CONSECUTIVE_FAILURES = (1 + DEFAULT_MAX_RETRIES) * 3;
 
 /**
  * The list of error messages that represent a failure to connect to the network.
@@ -83,7 +137,7 @@ export const CONNECTION_ERRORS = [
  * @returns True if the error indicates that the network cannot be connected to,
  * and false otherwise.
  */
-export default function isConnectionError(error: unknown) {
+export function isConnectionError(error: unknown) {
   if (!(typeof error === 'object' && error !== null && 'message' in error)) {
     return false;
   }
@@ -144,7 +198,7 @@ export class RpcService implements AbstractRpcService {
   /**
    * The URL of the RPC endpoint.
    */
-  readonly #endpointUrl: URL;
+  readonly endpointUrl: URL;
 
   /**
    * A common set of options that the request options will extend.
@@ -155,7 +209,7 @@ export class RpcService implements AbstractRpcService {
    * An RPC service that represents a failover endpoint which will be invoked
    * while the circuit for _this_ service is open.
    */
-  readonly #failoverService: AbstractRpcService | undefined;
+  readonly #failoverService: RpcServiceOptions['failoverService'];
 
   /**
    * The policy that wraps the request.
@@ -165,46 +219,31 @@ export class RpcService implements AbstractRpcService {
   /**
    * Constructs a new RpcService object.
    *
-   * @param args - The arguments.
-   * @param args.fetch - A function that can be used to make an HTTP request.
-   * If your JavaScript environment supports `fetch` natively, you'll probably
-   * want to pass that; otherwise you can pass an equivalent (such as `fetch`
-   * via `node-fetch`).
-   * @param args.btoa - A function that can be used to convert a binary string
-   * into base-64. Used to encode authorization credentials.
-   * @param args.endpointUrl - The URL of the RPC endpoint.
-   * @param args.fetchOptions - A common set of options that will be used to
-   * make every request. Can be overridden on the request level (e.g. to add
-   * headers).
-   * @param args.failoverService - An RPC service that represents a failover
-   * endpoint which will be invoked while the circuit for _this_ service is
-   * open.
+   * @param options - The options. See {@link RpcServiceOptions}.
    */
-  constructor({
-    fetch: givenFetch,
-    btoa: givenBtoa,
-    endpointUrl,
-    fetchOptions = {},
-    failoverService,
-  }: {
-    fetch: typeof fetch;
-    btoa: typeof btoa;
-    endpointUrl: URL | string;
-    fetchOptions?: FetchOptions;
-    failoverService?: AbstractRpcService;
-  }) {
+  constructor(options: RpcServiceOptions) {
+    const {
+      btoa: givenBtoa,
+      endpointUrl,
+      failoverService,
+      fetch: givenFetch,
+      fetchOptions = {},
+      policyOptions = {},
+    } = options;
+
     this.#fetch = givenFetch;
-    this.#endpointUrl = getNormalizedEndpointUrl(endpointUrl);
+    this.endpointUrl = getNormalizedEndpointUrl(endpointUrl);
     this.#fetchOptions = this.#getDefaultFetchOptions(
-      this.#endpointUrl,
+      this.endpointUrl,
       fetchOptions,
       givenBtoa,
     );
     this.#failoverService = failoverService;
 
     const policy = createServicePolicy({
-      maxRetries: 4,
-      maxConsecutiveFailures: 15,
+      maxRetries: DEFAULT_MAX_RETRIES,
+      maxConsecutiveFailures: DEFAULT_MAX_CONSECUTIVE_FAILURES,
+      ...policyOptions,
       retryFilterPolicy: handleWhen((error) => {
         return (
           // Ignore errors where the request failed to establish
@@ -212,7 +251,8 @@ export class RpcService implements AbstractRpcService {
           // Ignore server sent HTML error pages or truncated JSON responses
           error.message.includes('not valid JSON') ||
           // Ignore server overload errors
-          error.message.includes('Gateway timeout') ||
+          ('httpStatus' in error &&
+            (error.httpStatus === 503 || error.httpStatus === 504)) ||
           (hasProperty(error, 'code') &&
             (error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET'))
         );
@@ -235,7 +275,7 @@ export class RpcService implements AbstractRpcService {
     >,
   ) {
     return this.#policy.onRetry((data) => {
-      listener({ ...data, endpointUrl: this.#endpointUrl.toString() });
+      listener({ ...data, endpointUrl: this.endpointUrl.toString() });
     });
   }
 
@@ -250,11 +290,17 @@ export class RpcService implements AbstractRpcService {
   onBreak(
     listener: AddToCockatielEventData<
       Parameters<ServicePolicy['onBreak']>[0],
-      { endpointUrl: string }
+      { endpointUrl: string; failoverEndpointUrl?: string }
     >,
   ) {
     return this.#policy.onBreak((data) => {
-      listener({ ...data, endpointUrl: this.#endpointUrl.toString() });
+      listener({
+        ...data,
+        endpointUrl: this.endpointUrl.toString(),
+        failoverEndpointUrl: this.#failoverService
+          ? this.#failoverService.endpointUrl.toString()
+          : undefined,
+      });
     });
   }
 
@@ -273,7 +319,7 @@ export class RpcService implements AbstractRpcService {
     >,
   ) {
     return this.#policy.onDegraded(() => {
-      listener({ endpointUrl: this.#endpointUrl.toString() });
+      listener({ endpointUrl: this.endpointUrl.toString() });
     });
   }
 
@@ -335,10 +381,7 @@ export class RpcService implements AbstractRpcService {
     );
 
     try {
-      return await this.#executePolicy<Params, Result>(
-        jsonRpcRequest,
-        completeFetchOptions,
-      );
+      return await this.#processRequest<Result>(completeFetchOptions);
     } catch (error) {
       if (
         this.#policy.circuitBreakerPolicy.state === CircuitState.Open &&
@@ -418,7 +461,6 @@ export class RpcService implements AbstractRpcService {
   /**
    * Makes the request using the Cockatiel policy that this service creates.
    *
-   * @param jsonRpcRequest - The JSON-RPC request to send to the endpoint.
    * @param fetchOptions - The options for `fetch`; will be combined with the
    * fetch options passed to the constructor
    * @returns The decoded JSON-RPC response from the endpoint.
@@ -428,69 +470,45 @@ export class RpcService implements AbstractRpcService {
    * @throws A generic error if the response HTTP status is not 2xx but also not
    * 405, 429, 503, or 504.
    */
-  async #executePolicy<
-    Params extends JsonRpcParams,
-    Result extends Json,
-    Request extends JsonRpcRequest = JsonRpcRequest<Params>,
-  >(
-    jsonRpcRequest: Request,
+  async #processRequest<Result extends Json>(
     fetchOptions: FetchOptions,
   ): Promise<JsonRpcResponse<Result> | JsonRpcResponse<null>> {
-    return await this.#policy.execute(async () => {
-      const response = await this.#fetch(this.#endpointUrl, fetchOptions);
-
-      if (response.status === 405) {
-        throw rpcErrors.methodNotFound();
-      }
-
-      if (response.status === 429) {
-        throw rpcErrors.internal({ message: 'Request is being rate limited.' });
-      }
-
-      if (response.status === 503 || response.status === 504) {
-        throw rpcErrors.internal({
-          message:
-            'Gateway timeout. The request took too long to process. This can happen when querying logs over too wide a block range.',
-        });
-      }
-
-      const text = await response.text();
-
-      if (
-        jsonRpcRequest.method === 'eth_getBlockByNumber' &&
-        text === 'Not Found'
-      ) {
-        return {
-          id: jsonRpcRequest.id,
-          jsonrpc: jsonRpcRequest.jsonrpc,
-          result: null,
-        };
-      }
-
-      // Type annotation: We assume that if this response is valid JSON, it's a
-      // valid JSON-RPC response.
-      let json: JsonRpcResponse<Result>;
-      try {
-        json = JSON.parse(text);
-      } catch (error) {
-        if (error instanceof SyntaxError) {
-          throw rpcErrors.internal({
-            message: 'Could not parse response as it is not valid JSON',
-            data: text,
-          });
-        } else {
-          throw error;
+    let response: Response | undefined;
+    try {
+      return await this.#policy.execute(async () => {
+        response = await this.#fetch(this.endpointUrl, fetchOptions);
+        if (!response.ok) {
+          throw new HttpError(response.status);
         }
-      }
+        return await response.json();
+      });
+    } catch (error) {
+      if (error instanceof HttpError) {
+        const status = error.httpStatus;
+        if (status === 405) {
+          throw rpcErrors.methodNotFound();
+        }
+        if (status === 429) {
+          throw rpcErrors.limitExceeded({
+            message: 'Request is being rate limited.',
+          });
+        }
+        if (status === 503 || status === 504) {
+          throw rpcErrors.internal({
+            message:
+              'Gateway timeout. The request took too long to process. This can happen when querying logs over too wide a block range.',
+          });
+        }
 
-      if (!response.ok) {
         throw rpcErrors.internal({
-          message: `Non-200 status code: '${response.status}'`,
-          data: json,
+          message: `Non-200 status code: '${status}'`,
+        });
+      } else if (error instanceof SyntaxError) {
+        throw rpcErrors.internal({
+          message: 'Could not parse response as it is not valid JSON',
         });
       }
-
-      return json;
-    });
+      throw error;
+    }
   }
 }

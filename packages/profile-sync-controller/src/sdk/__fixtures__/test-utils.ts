@@ -67,7 +67,7 @@ export function arrangeAuth(
   if (type === 'SRP') {
     const auth = new JwtBearerAuth(
       {
-        env: Env.DEV,
+        env: Env.PRD,
         platform: Platform.EXTENSION,
         type: AuthType.SRP,
       },
@@ -92,7 +92,7 @@ export function arrangeAuth(
   if (type === 'SiWE') {
     const auth = new JwtBearerAuth(
       {
-        env: Env.DEV,
+        env: Env.PRD,
         platform: Platform.EXTENSION,
         type: AuthType.SiWE,
       },

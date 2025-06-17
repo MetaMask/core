@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
+- Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935), [#5583](https://github.com/MetaMask/core/pull/5583), [#5765](https://github.com/MetaMask/core/pull/5765), [#5812](https://github.com/MetaMask/core/pull/5812))
+
+## [23.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/network-controller` to `^23.0.0` ([#5507](https://github.com/MetaMask/core/pull/5507))
+- Bump `@metamask/controller-utils` to `^11.6.0` ([#5439](https://github.com/MetaMask/core/pull/5439))
+- Bump `@metamask/utils` to `^11.2.0` ([#5301](https://github.com/MetaMask/core/pull/5301))
+- Bump `@metamask/polling-controller` to `^13.0.0` ([#5507](https://github.com/MetaMask/core/pull/5507))
+
 ## [22.0.3]
 
 ### Changed
@@ -402,7 +416,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@22.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@23.0.0...HEAD
+[23.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@22.0.3...@metamask/gas-fee-controller@23.0.0
 [22.0.3]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@22.0.2...@metamask/gas-fee-controller@22.0.3
 [22.0.2]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@22.0.1...@metamask/gas-fee-controller@22.0.2
 [22.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@22.0.0...@metamask/gas-fee-controller@22.0.1

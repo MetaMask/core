@@ -113,7 +113,12 @@ main().catch((error) => {
  * The entrypoint to this script.
  */
 async function main() {
-  const { cache, fix, files: givenFiles, quiet } = parseCommandLineArguments();
+  const {
+    cache,
+    fix,
+    files: givenFiles,
+    quiet,
+  } = await parseCommandLineArguments();
 
   const eslint = new ESLint({
     cache,
@@ -152,7 +157,7 @@ async function main() {
  *
  * @returns The parsed arguments.
  */
-function parseCommandLineArguments(): CommandLineArguments {
+async function parseCommandLineArguments(): Promise<CommandLineArguments> {
   const { cache, fix, quiet, ...rest } = yargs(process.argv.slice(2))
     .option('cache', {
       type: 'boolean',

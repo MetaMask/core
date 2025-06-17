@@ -1,7 +1,7 @@
 import type { EthKeyring } from '@metamask/keyring-internal-api';
-import type { Json, Hex } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
-export class MockKeyring implements EthKeyring<Json> {
+export class MockKeyring implements EthKeyring {
   static type = 'Mock Keyring';
 
   public type = 'Mock Keyring';

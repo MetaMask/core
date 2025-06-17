@@ -14,21 +14,20 @@ import {
   isEvmAccountType,
   type Transaction,
   type AccountTransactionsUpdatedEventPayload,
+  TransactionStatus,
 } from '@metamask/keyring-api';
+import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import {
-  KnownCaipNamespace,
-  parseCaipChainId,
+  type CaipChainId,
   type Json,
   type JsonRpcRequest,
 } from '@metamask/utils';
 import type { Draft } from 'immer';
-
-import { MultichainNetwork } from './constants';
 
 const controllerName = 'MultichainTransactionsController';
 
@@ -49,7 +48,9 @@ export type PaginationOptions = {
  */
 export type MultichainTransactionsControllerState = {
   nonEvmTransactions: {
-    [accountId: string]: TransactionStateEntry;
+    [accountId: string]: {
+      [chain: CaipChainId]: TransactionStateEntry;
+    };
   };
 };
 
@@ -63,6 +64,22 @@ export function getDefaultMultichainTransactionsControllerState(): MultichainTra
     nonEvmTransactions: {},
   };
 }
+
+/**
+ * Event emitted when a transaction is finalized.
+ */
+export type MultichainTransactionsControllerTransactionConfirmedEvent = {
+  type: `${typeof controllerName}:transactionConfirmed`;
+  payload: [Transaction];
+};
+
+/**
+ * Event emitted when a transaction is submitted.
+ */
+export type MultichainTransactionsControllerTransactionSubmittedEvent = {
+  type: `${typeof controllerName}:transactionSubmitted`;
+  payload: [Transaction];
+};
 
 /**
  * Returns the state of the {@link MultichainTransactionsController}.
@@ -92,7 +109,9 @@ export type MultichainTransactionsControllerActions =
  * Events emitted by {@link MultichainTransactionsController}.
  */
 export type MultichainTransactionsControllerEvents =
-  MultichainTransactionsControllerStateChange;
+  | MultichainTransactionsControllerStateChange
+  | MultichainTransactionsControllerTransactionConfirmedEvent
+  | MultichainTransactionsControllerTransactionSubmittedEvent;
 
 /**
  * Messenger type for the MultichainTransactionsController.
@@ -110,6 +129,7 @@ export type MultichainTransactionsControllerMessenger = RestrictedMessenger<
  */
 export type AllowedActions =
   | HandleSnapRequest
+  | KeyringControllerGetStateAction
   | AccountsControllerListMultichainAccountsAction;
 
 /**
@@ -135,7 +155,7 @@ const multichainTransactionsControllerMetadata = {
 };
 
 /**
- * The state of transactions for a specific account.
+ * The state of transactions for a specific chain.
  */
 export type TransactionStateEntry = {
   transactions: Transaction[];
@@ -244,6 +264,14 @@ export class MultichainTransactionsController extends BaseController<
    * @param accountId - The ID of the account to get transactions for.
    */
   async updateTransactionsForAccount(accountId: string) {
+    const { isUnlocked } = this.messagingSystem.call(
+      'KeyringController:getState',
+    );
+
+    if (!isUnlocked) {
+      return;
+    }
+
     try {
       const account = this.#listAccounts().find(
         (accountItem) => accountItem.id === accountId,
@@ -256,29 +284,36 @@ export class MultichainTransactionsController extends BaseController<
           { limit: 10 },
         );
 
-        // Filter only Solana transactions to ensure they're on mainnet.
-        // All other chain transactions are included as-is.
-        // TODO: Maybe we should not do any filtering here? Or maybe have it
-        // being configurable somehow?
-        const transactions = response.data.filter((tx) => {
-          const chain = tx.chain as MultichainNetwork;
-          const { namespace } = parseCaipChainId(chain);
-          // Enum comparison is safe here as we control both enum values
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
-          if (namespace === KnownCaipNamespace.Solana) {
-            return chain === MultichainNetwork.Solana;
+        const transactionsByChain: Record<CaipChainId, Transaction[]> = {};
+
+        response.data.forEach((transaction) => {
+          const { chain } = transaction;
+
+          if (!transactionsByChain[chain]) {
+            transactionsByChain[chain] = [];
           }
-          return true;
+          transactionsByChain[chain].push(transaction);
         });
 
-        this.update((state: Draft<MultichainTransactionsControllerState>) => {
-          const entry: TransactionStateEntry = {
-            transactions,
-            next: response.next,
-            lastUpdated: Date.now(),
-          };
+        const chainUpdates = Object.entries(transactionsByChain).map(
+          ([chain, transactions]) => ({
+            chain,
+            entry: {
+              transactions,
+              next: response.next,
+              lastUpdated: Date.now(),
+            },
+          }),
+        );
 
-          Object.assign(state.nonEvmTransactions, { [account.id]: entry });
+        this.update((state: Draft<MultichainTransactionsControllerState>) => {
+          if (!state.nonEvmTransactions[account.id]) {
+            state.nonEvmTransactions[account.id] = {};
+          }
+
+          chainUpdates.forEach(({ chain, entry }) => {
+            state.nonEvmTransactions[account.id][chain as CaipChainId] = entry;
+          });
         });
       }
     } catch (error) {
@@ -330,6 +365,27 @@ export class MultichainTransactionsController extends BaseController<
   }
 
   /**
+   * Publishes transaction update events.
+   *
+   * @param updatedTransaction - The updated transaction.
+   */
+  #publishTransactionUpdateEvent(updatedTransaction: Transaction) {
+    if (updatedTransaction.status === TransactionStatus.Confirmed) {
+      this.messagingSystem.publish(
+        'MultichainTransactionsController:transactionConfirmed',
+        updatedTransaction,
+      );
+    }
+
+    if (updatedTransaction.status === TransactionStatus.Submitted) {
+      this.messagingSystem.publish(
+        'MultichainTransactionsController:transactionSubmitted',
+        updatedTransaction,
+      );
+    }
+  }
+
+  /**
    * Handles transaction updates received from the AccountsController.
    *
    * @param transactionsUpdate - The transaction update event containing new transactions.
@@ -337,15 +393,80 @@ export class MultichainTransactionsController extends BaseController<
   #handleOnAccountTransactionsUpdated(
     transactionsUpdate: AccountTransactionsUpdatedEventPayload,
   ): void {
-    this.update((state: Draft<MultichainTransactionsControllerState>) => {
-      Object.entries(transactionsUpdate.transactions).forEach(
-        ([accountId, transactions]) => {
-          if (accountId in state.nonEvmTransactions) {
-            state.nonEvmTransactions[accountId].transactions = transactions;
-            state.nonEvmTransactions[accountId].lastUpdated = Date.now();
+    const updatedTransactions: Record<
+      string,
+      Record<CaipChainId, Transaction[]>
+    > = {};
+    const transactionsToPublish: Transaction[] = [];
+
+    if (!transactionsUpdate?.transactions) {
+      return;
+    }
+
+    Object.entries(transactionsUpdate.transactions).forEach(
+      ([accountId, newTransactions]) => {
+        updatedTransactions[accountId] = {};
+
+        newTransactions.forEach((tx) => {
+          const { chain } = tx;
+
+          if (!updatedTransactions[accountId][chain]) {
+            updatedTransactions[accountId][chain] = [];
           }
-        },
-      );
+
+          updatedTransactions[accountId][chain].push(tx);
+          transactionsToPublish.push(tx);
+        });
+
+        Object.entries(updatedTransactions[accountId]).forEach(
+          ([chain, chainTransactions]) => {
+            // Account might not have any transactions yet, so use `[]` in that case.
+            const oldTransactions =
+              this.state.nonEvmTransactions[accountId]?.[chain as CaipChainId]
+                ?.transactions ?? [];
+
+            // Uses a `Map` to deduplicate transactions by ID, ensuring we keep the latest version
+            // of each transaction while preserving older transactions and transactions from other accounts.
+            // Transactions are sorted by timestamp (newest first).
+            const transactions = new Map();
+
+            oldTransactions.forEach((tx) => {
+              transactions.set(tx.id, tx);
+            });
+
+            chainTransactions.forEach((tx) => {
+              transactions.set(tx.id, tx);
+            });
+
+            // Sorted by timestamp (newest first). If the timestamp is not provided, those
+            // transactions will be put in the end of this list.
+            updatedTransactions[accountId][chain as CaipChainId] = Array.from(
+              transactions.values(),
+            ).sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
+          },
+        );
+      },
+    );
+
+    this.update((state) => {
+      Object.entries(updatedTransactions).forEach(([accountId, chainsData]) => {
+        if (!state.nonEvmTransactions[accountId]) {
+          state.nonEvmTransactions[accountId] = {};
+        }
+
+        Object.entries(chainsData).forEach(([chain, transactions]) => {
+          state.nonEvmTransactions[accountId][chain as CaipChainId] = {
+            transactions,
+            next: null,
+            lastUpdated: Date.now(),
+          };
+        });
+      });
+    });
+
+    // After we update the state, publish the events for new/updated transactions
+    transactionsToPublish.forEach((tx) => {
+      this.#publishTransactionUpdateEvent(tx);
     });
   }
 

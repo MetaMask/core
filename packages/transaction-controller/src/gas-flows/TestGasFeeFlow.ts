@@ -6,7 +6,6 @@ import {
   type GasFeeFlow,
   type GasFeeFlowRequest,
   type GasFeeFlowResponse,
-  type TransactionMeta,
 } from '../types';
 
 const INCREMENT = 1e15; // 0.001 ETH
@@ -20,7 +19,7 @@ const LEVEL_DIFFERENCE = 0.5;
 export class TestGasFeeFlow implements GasFeeFlow {
   #counter = 1;
 
-  matchesTransaction(_transactionMeta: TransactionMeta): boolean {
+  matchesTransaction(): boolean {
     return true;
   }
 

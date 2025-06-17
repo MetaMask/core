@@ -10,8 +10,13 @@ import type { AbstractTokenSearchApiService } from './token-search-api-service/a
 import type {
   TokenSearchParams,
   TokenSearchResponseItem,
-  TokenTrendingResponseItem,
+  MoralisTokenResponseItem,
   TrendingTokensParams,
+  TopGainersParams,
+  TopLosersParams,
+  BlueChipParams,
+  SwappableTokenSearchParams,
+  TokenSearchFormattedParams,
 } from './types';
 
 // === GENERAL ===
@@ -152,9 +157,50 @@ export class TokenSearchDiscoveryController extends BaseController<
     return results;
   }
 
+  async searchSwappableTokens(
+    swappableTokenSearchParams: SwappableTokenSearchParams,
+  ): Promise<TokenSearchResponseItem[]> {
+    const results = await this.#tokenSearchService.searchSwappableTokens(
+      swappableTokenSearchParams,
+    );
+
+    this.update((state) => {
+      state.recentSearches = results;
+      state.lastSearchTimestamp = Date.now();
+    });
+
+    return results;
+  }
+
+  async searchTokensFormatted(
+    tokenSearchFormattedParams: TokenSearchFormattedParams,
+  ): Promise<MoralisTokenResponseItem[]> {
+    return this.#tokenSearchService.searchTokensFormatted(
+      tokenSearchFormattedParams,
+    );
+  }
+
   async getTrendingTokens(
     params: TrendingTokensParams,
-  ): Promise<TokenTrendingResponseItem[]> {
+  ): Promise<MoralisTokenResponseItem[]> {
     return this.#tokenDiscoveryService.getTrendingTokensByChains(params);
+  }
+
+  async getTopGainers(
+    params: TopGainersParams,
+  ): Promise<MoralisTokenResponseItem[]> {
+    return this.#tokenDiscoveryService.getTopGainersByChains(params);
+  }
+
+  async getTopLosers(
+    params: TopLosersParams,
+  ): Promise<MoralisTokenResponseItem[]> {
+    return this.#tokenDiscoveryService.getTopLosersByChains(params);
+  }
+
+  async getBlueChipTokens(
+    params: BlueChipParams,
+  ): Promise<MoralisTokenResponseItem[]> {
+    return this.#tokenDiscoveryService.getBlueChipTokensByChains(params);
   }
 }

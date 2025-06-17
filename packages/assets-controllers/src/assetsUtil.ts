@@ -37,6 +37,7 @@ export function compareNftMetadata(newNftMetadata: NftMetadata, nft: Nft) {
     'animationOriginal',
     'externalLink',
     'tokenURI',
+    'chainId',
   ];
   const differentValues = keys.reduce((value, key) => {
     if (newNftMetadata[key] && newNftMetadata[key] !== nft[key]) {
@@ -185,6 +186,9 @@ export enum SupportedTokenDetectionNetworks {
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
   // eslint-disable-next-line @typescript-eslint/naming-convention
   moonriver = '0x505', // decimal: 1285
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  sei = '0x531', // decimal: 1329
 }
 
 /**
@@ -196,7 +200,7 @@ export enum SupportedStakedBalanceNetworks {
   mainnet = '0x1', // decimal: 1
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
   // eslint-disable-next-line @typescript-eslint/naming-convention
-  holesky = '0x4268', // decimal: 17000
+  hoodi = '0x88bb0', // decimal: 560048
 }
 
 /**

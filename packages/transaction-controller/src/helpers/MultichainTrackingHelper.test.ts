@@ -4,9 +4,9 @@ import type { NonceTracker } from '@metamask/nonce-tracker';
 import type { Hex } from '@metamask/utils';
 import { useFakeTimers } from 'sinon';
 
-import { advanceTime } from '../../../../tests/helpers';
 import { MultichainTrackingHelper } from './MultichainTrackingHelper';
 import type { PendingTransactionTracker } from './PendingTransactionTracker';
+import { advanceTime } from '../../../../tests/helpers';
 
 jest.mock(
   '@metamask/eth-query',
@@ -18,6 +18,7 @@ jest.mock(
 
 /**
  * Build a mock provider object.
+ *
  * @param networkClientId - The network client ID to use for the mock provider.
  * @returns The mock provider object.
  */
@@ -29,6 +30,7 @@ function buildMockProvider(networkClientId: NetworkClientId) {
 
 /**
  * Build a mock block tracker object.
+ *
  * @param networkClientId - The network client ID to use for the mock block tracker.
  * @returns The mock block tracker object.
  */
@@ -100,8 +102,6 @@ function newMultichainTrackingHelper(
             provider: MOCK_PROVIDERS['customNetworkClientId-1'],
           };
         default:
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           throw new Error(`Invalid network client id ${networkClientId}`);
       }
     });

@@ -2,7 +2,10 @@ import nock, { cleanAll } from 'nock';
 
 import { TokenSearchApiService } from './token-search-api-service';
 import { TEST_API_URLS } from '../test/constants';
-import type { TokenSearchResponseItem } from '../types';
+import type {
+  MoralisTokenResponseItem,
+  TokenSearchResponseItem,
+} from '../types';
 
 describe('TokenSearchApiService', () => {
   let service: TokenSearchApiService;
@@ -28,6 +31,59 @@ describe('TokenSearchApiService', () => {
         oneDay: -5,
       },
       // logoUrl intentionally omitted to match API behavior
+    },
+  ];
+
+  const mockFormattedResults: MoralisTokenResponseItem[] = [
+    {
+      token_address: '0x123',
+      token_name: 'Test Token',
+      token_symbol: 'TEST',
+      token_logo: 'https://example.com/logo.png',
+      price_usd: 100,
+      chain_id: '0x1',
+      token_age_in_days: 10,
+      on_chain_strength_index: 10,
+      security_score: 10,
+      market_cap: 1000000,
+      fully_diluted_valuation: 1000000,
+      twitter_followers: 1000,
+      holders_change: {
+        '1h': 10,
+        '1d': 10,
+        '1w': 10,
+        '1M': 10,
+      },
+      liquidity_change_usd: {
+        '1h': 10,
+        '1d': 10,
+        '1w': 10,
+        '1M': 10,
+      },
+      experienced_net_buyers_change: {
+        '1h': 10,
+        '1d': 10,
+        '1w': 10,
+        '1M': 10,
+      },
+      volume_change_usd: {
+        '1h': 10,
+        '1d': 10,
+        '1w': 10,
+        '1M': 10,
+      },
+      net_volume_change_usd: {
+        '1h': 10,
+        '1d': 10,
+        '1w': 10,
+        '1M': 10,
+      },
+      price_percent_change_usd: {
+        '1h': 10,
+        '1d': 10,
+        '1w': 10,
+        '1M': 10,
+      },
     },
   ];
 
@@ -111,6 +167,66 @@ describe('TokenSearchApiService', () => {
       const results = await service.searchTokens({ query: 'NOLOG' });
       expect(results).toStrictEqual([tokenWithoutLogo]);
       expect(results[0].logoUrl).toBeUndefined();
+    });
+  });
+
+  describe('searchSwappableTokens', () => {
+    it('should return search results with all parameters', async () => {
+      nock(TEST_API_URLS.BASE_URL)
+        .get('/tokens-search/swappable')
+        .query({ query: 'TEST', limit: '10' })
+        .reply(200, mockSearchResults);
+
+      const results = await service.searchSwappableTokens({
+        query: 'TEST',
+        limit: '10',
+      });
+      expect(results).toStrictEqual(mockSearchResults);
+    });
+
+    it('should handle API errors', async () => {
+      nock(TEST_API_URLS.BASE_URL)
+        .get('/tokens-search/swappable')
+        .query({ query: 'TEST', limit: '10' })
+        .reply(500, 'Server Error');
+
+      await expect(
+        service.searchSwappableTokens({
+          query: 'TEST',
+          limit: '10',
+        }),
+      ).rejects.toThrow('Portfolio API request failed with status: 500');
+    });
+  });
+
+  describe('searchTokensFormatted', () => {
+    it('should return formatted search results', async () => {
+      nock(TEST_API_URLS.BASE_URL)
+        .get('/tokens-search/formatted')
+        .query({ query: 'TEST', limit: '10', swappable: 'true', chains: '0x1' })
+        .reply(200, mockFormattedResults);
+
+      const results = await service.searchTokensFormatted({
+        query: 'TEST',
+        limit: '10',
+        swappable: true,
+        chains: ['0x1'],
+      });
+      expect(results).toStrictEqual(mockFormattedResults);
+    });
+
+    it('should handle API errors', async () => {
+      nock(TEST_API_URLS.BASE_URL)
+        .get('/tokens-search/formatted')
+        .query({ query: 'TEST', limit: '10' })
+        .reply(500, 'Server Error');
+
+      await expect(
+        service.searchTokensFormatted({
+          query: 'TEST',
+          limit: '10',
+        }),
+      ).rejects.toThrow('Portfolio API request failed with status: 500');
     });
   });
 });

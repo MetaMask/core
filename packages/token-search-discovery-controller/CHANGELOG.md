@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.3.0]
+
+### Added
+
+- Add formatted search function to token discovery controller ([#5932](https://github.com/MetaMask/core/pull/5932))
+
+## [3.2.0]
+
+### Changed
+
+- Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
+- Add `swappable` param to token discovery controller and API service ([#5819](https://github.com/MetaMask/core/pull/5819))
+
+## [3.1.0]
+
+### Added
+
+- Export `SwappableTokenSearchParams` type ([#5654](https://github.com/MetaMask/core/pull/5654))
+
+## [3.0.0]
+
+### Added
+
+- Add swappable token search to the `TokenDiscoveryApiService` ([#5640](https://github.com/MetaMask/core/pull/5640))
+- Add support for blue-chip endpoint ([#5588](https://github.com/MetaMask/core/pull/5588))
+- Add `getTopGainers` and `getTopLosers` to `TokenSearchDiscoveryController` ([#5309](https://github.com/MetaMask/core/pull/5309))
+
+### Changed
+
+- **BREAKING:** Renamed `TokenTrendingResponseItem` name to `MoralisTokenResponseItem`
+- Bump `@metamask/utils` from `^11.1.0` to `^11.2.0` ([#5301](https://github.com/MetaMask/core/pull/5301))
+
 ## [2.1.0]
 
 ### Added
@@ -46,7 +78,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This service is responsible for making search related requests to the Portfolio API
   - Specifically, it handles the `tokens-search` endpoint which returns a list of tokens based on the provided query parameters
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@2.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@3.3.0...HEAD
+[3.3.0]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@3.2.0...@metamask/token-search-discovery-controller@3.3.0
+[3.2.0]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@3.1.0...@metamask/token-search-discovery-controller@3.2.0
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@3.0.0...@metamask/token-search-discovery-controller@3.1.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@2.1.0...@metamask/token-search-discovery-controller@3.0.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@2.0.0...@metamask/token-search-discovery-controller@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@1.0.0...@metamask/token-search-discovery-controller@2.0.0
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/token-search-discovery-controller@1.0.0

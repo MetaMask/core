@@ -5,9 +5,13 @@ export type {
 } from './token-search-discovery-controller';
 export type {
   TokenSearchResponseItem,
-  TokenTrendingResponseItem,
+  MoralisTokenResponseItem,
   TokenSearchParams,
   TrendingTokensParams,
+  TopGainersParams,
+  TopLosersParams,
+  BlueChipParams,
+  SwappableTokenSearchParams,
 } from './types';
 
 export { AbstractTokenSearchApiService } from './token-search-api-service/abstract-token-search-api-service';

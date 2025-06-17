@@ -1,11 +1,6 @@
 import type { RemoteNetworkConfiguration } from './types';
 import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
-import type { UserStorageBaseOptions } from '../services';
-import {
-  batchUpsertUserStorage,
-  getUserStorageAllFeatureEntries,
-  upsertUserStorage,
-} from '../services';
+import type UserStorageController from '../UserStorageController';
 
 // TODO - parse type, and handle version changes
 /**
@@ -30,53 +25,64 @@ const isDefined = <Value>(value: Value | null | undefined): value is Value =>
 /**
  * gets all remote networks from user storage
  *
- * @param opts - user storage options/configuration
+ * @param serviceOptions - service options
+ * @param serviceOptions.getUserStorageControllerInstance - function to get the user storage controller instance
  * @returns array of all remote networks
  */
-export async function getAllRemoteNetworks(
-  opts: UserStorageBaseOptions,
-): Promise<RemoteNetworkConfiguration[]> {
-  const rawResults =
-    (await getUserStorageAllFeatureEntries({
-      ...opts,
-      path: USER_STORAGE_FEATURE_NAMES.networks,
-    })) ?? [];
+export async function getAllRemoteNetworks(serviceOptions: {
+  getUserStorageControllerInstance: () => UserStorageController;
+}): Promise<RemoteNetworkConfiguration[]> {
+  try {
+    const rawResults =
+      (await serviceOptions
+        .getUserStorageControllerInstance()
+        .performGetStorageAllFeatureEntries(
+          USER_STORAGE_FEATURE_NAMES.networks,
+        )) ?? [];
 
-  const results = rawResults
-    .map((rawData) => parseNetworkConfiguration(rawData))
-    .filter(isDefined);
+    const results = rawResults
+      .map((rawData) => parseNetworkConfiguration(rawData))
+      .filter(isDefined);
 
-  return results;
+    return results;
+  } catch {
+    return [];
+  }
 }
 
 /**
  * Upserts a remote network to user storage
  *
  * @param network - network we are updating or inserting
- * @param opts - user storage options/configuration
+ * @param serviceOptions - service options
+ * @param serviceOptions.getUserStorageControllerInstance - function to get the user storage controller instance
  * @returns void
  */
 export async function upsertRemoteNetwork(
   network: RemoteNetworkConfiguration,
-  opts: UserStorageBaseOptions,
+  serviceOptions: {
+    getUserStorageControllerInstance: () => UserStorageController;
+  },
 ) {
   const chainId: string = network.chainId.toString();
   const data = JSON.stringify(network);
-  return await upsertUserStorage(data, {
-    ...opts,
-    path: `networks.${chainId}`,
-  });
+  return await serviceOptions
+    .getUserStorageControllerInstance()
+    .performSetStorage(`networks.${chainId}`, data);
 }
 
 /**
  * Batch upsert a list of remote networks into user storage
  *
  * @param networks - a list of networks to update or insert
- * @param opts - user storage options/configuration
+ * @param serviceOptions - service options
+ * @param serviceOptions.getUserStorageControllerInstance - function to get the user storage controller instance
  */
 export async function batchUpsertRemoteNetworks(
   networks: RemoteNetworkConfiguration[],
-  opts: UserStorageBaseOptions,
+  serviceOptions: {
+    getUserStorageControllerInstance: () => UserStorageController;
+  },
 ): Promise<void> {
   const networkPathAndValues = networks.map((n) => {
     const path = n.chainId;
@@ -84,8 +90,7 @@ export async function batchUpsertRemoteNetworks(
     return [path, data] as [string, string];
   });
 
-  await batchUpsertUserStorage(networkPathAndValues, {
-    path: 'networks',
-    ...opts,
-  });
+  await serviceOptions
+    .getUserStorageControllerInstance()
+    .performBatchSetStorage('networks', networkPathAndValues);
 }

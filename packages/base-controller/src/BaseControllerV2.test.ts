@@ -331,6 +331,25 @@ describe('BaseController', () => {
     expect(controller.state).toStrictEqual({ count: 1 });
   });
 
+  it('should not call publish if the state has not been modified', () => {
+    const messenger = getCountMessenger();
+    const publishSpy = jest.spyOn(messenger, 'publish');
+
+    const controller = new CountController({
+      messenger,
+      name: 'CountController',
+      state: { count: 0 },
+      metadata: countControllerStateMetadata,
+    });
+
+    controller.update((_draft) => {
+      // no-op
+    });
+
+    expect(controller.state).toStrictEqual({ count: 0 });
+    expect(publishSpy).not.toHaveBeenCalled();
+  });
+
   it('should return next state, patches and inverse patches after an update', () => {
     const controller = new CountController({
       messenger: getCountMessenger(),

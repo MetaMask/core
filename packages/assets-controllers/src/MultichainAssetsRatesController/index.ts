@@ -8,6 +8,6 @@ export type {
 } from './MultichainAssetsRatesController';
 
 export {
-  MultiChainAssetsRatesController,
+  MultichainAssetsRatesController,
   getDefaultMultichainAssetsRatesControllerState,
 } from './MultichainAssetsRatesController';

@@ -1,8 +1,33 @@
-export type TokenSearchParams = {
+// Function params
+
+export type ParamsBase = {
   chains?: string[];
-  query?: string;
   limit?: string;
+  swappable?: boolean;
 };
+
+export type TokenSearchFormattedParams = ParamsBase & {
+  query: string;
+};
+
+export type TokenSearchParams = Omit<ParamsBase, 'swappable'> & {
+  query?: string;
+};
+
+export type SwappableTokenSearchParams = {
+  limit?: string;
+  query: string;
+};
+
+export type TrendingTokensParams = ParamsBase;
+
+export type TopLosersParams = ParamsBase;
+
+export type TopGainersParams = ParamsBase;
+
+export type BlueChipParams = ParamsBase;
+
+// API response types
 
 export type TokenSearchResponseItem = {
   tokenAddress: string;
@@ -16,7 +41,7 @@ export type TokenSearchResponseItem = {
   logoUrl?: string;
 };
 
-export type TokenTrendingResponseItem = {
+export type MoralisTokenResponseItem = {
   chain_id: string;
   token_address: string;
   token_logo: string;
@@ -65,9 +90,4 @@ export type TokenTrendingResponseItem = {
     '1w': number | null;
     '1M': number | null;
   };
-};
-
-export type TrendingTokensParams = {
-  chains?: string[];
-  limit?: string;
 };

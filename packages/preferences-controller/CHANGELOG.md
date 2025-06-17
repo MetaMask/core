@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
+
+## [18.1.0]
+
+### Added
+
+- Add `dismissSmartAccountSuggestionEnabled` preference ([#5866](https://github.com/MetaMask/core/pull/5866))
+
+### Changed
+
+- Bump `@metamask/controller-utils` to `^11.9.0` ([#5812](https://github.com/MetaMask/core/pull/5812))
+
+## [18.0.0]
+
+### Changed
+
+- **BREAKING:** bump `@metamask/keyring-controller` peer dependency to `^22.0.0` ([#5802](https://github.com/MetaMask/core/pull/5802))
+- Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
+- Bump `@metamask/controller-utils` to `^11.8.0` ([#5765](https://github.com/MetaMask/core/pull/5765))
+
+## [17.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency to `^21.0.0` ([#5439](https://github.com/MetaMask/core/pull/5439))
+
+## [16.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency to `^20.0.0` ([#5426](https://github.com/MetaMask/core/pull/5426))
+
 ## [15.0.2]
 
 ### Changed
@@ -340,7 +374,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@15.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.1.0...HEAD
+[18.1.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.0.0...@metamask/preferences-controller@18.1.0
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@17.0.0...@metamask/preferences-controller@18.0.0
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@16.0.0...@metamask/preferences-controller@17.0.0
+[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@15.0.2...@metamask/preferences-controller@16.0.0
 [15.0.2]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@15.0.1...@metamask/preferences-controller@15.0.2
 [15.0.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@15.0.0...@metamask/preferences-controller@15.0.1
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@14.0.0...@metamask/preferences-controller@15.0.0

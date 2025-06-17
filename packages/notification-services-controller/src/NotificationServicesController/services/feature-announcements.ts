@@ -22,7 +22,7 @@ const DEFAULT_CLIENT_ID = ':client_id';
 const DEFAULT_DOMAIN = 'cdn.contentful.com';
 const PREVIEW_DOMAIN = 'preview.contentful.com';
 export const FEATURE_ANNOUNCEMENT_API = `https://${DEFAULT_DOMAIN}/spaces/${DEFAULT_SPACE_ID}/environments/master/entries`;
-export const FEATURE_ANNOUNCEMENT_URL = `${FEATURE_ANNOUNCEMENT_API}?access_token=${DEFAULT_ACCESS_TOKEN}&content_type=productAnnouncement&include=10&fields.clients=${DEFAULT_CLIENT_ID}`;
+export const FEATURE_ANNOUNCEMENT_URL = `${FEATURE_ANNOUNCEMENT_API}?access_token=${DEFAULT_ACCESS_TOKEN}&content_type=productAnnouncement&include=10&fields.clients[in]=${DEFAULT_CLIENT_ID}`;
 
 type Env = {
   spaceId: string;
@@ -43,10 +43,14 @@ export type ContentfulResult = {
 
 export const getFeatureAnnouncementUrl = (env: Env, previewToken?: string) => {
   const domain = previewToken ? PREVIEW_DOMAIN : DEFAULT_DOMAIN;
-  return FEATURE_ANNOUNCEMENT_URL.replace(DEFAULT_SPACE_ID, env.spaceId)
+  const replacedUrl = FEATURE_ANNOUNCEMENT_URL.replace(
+    DEFAULT_SPACE_ID,
+    env.spaceId,
+  )
     .replace(DEFAULT_ACCESS_TOKEN, previewToken || env.accessToken)
     .replace(DEFAULT_CLIENT_ID, env.platform)
     .replace(DEFAULT_DOMAIN, domain);
+  return encodeURI(replacedUrl);
 };
 
 const fetchFeatureAnnouncementNotifications = async (
