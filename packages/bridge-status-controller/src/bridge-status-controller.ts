@@ -210,19 +210,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       },
     );
 
-    this.messagingSystem.subscribe(
-      'MultichainTransactionsController:transactionConfirmed',
-      (transactionMeta) => {
-        const { type, id } = transactionMeta;
-        if (type === TransactionType.swap) {
-          this.#trackUnifiedSwapBridgeEvent(
-            UnifiedSwapBridgeEventName.Completed,
-            id,
-          );
-        }
-      },
-    );
-
     // If you close the extension, but keep the browser open, the polling continues
     // If you close the browser, the polling stops
     // Check for historyItems that do not have a status of complete and restart polling
@@ -961,6 +948,19 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     }
 
     try {
+      if (
+        isSolanaChainId(quoteResponse.quote.srcChainId) &&
+        !isCrossChain(
+          quoteResponse.quote.srcChainId,
+          quoteResponse.quote.destChainId,
+        )
+      ) {
+        this.#trackUnifiedSwapBridgeEvent(
+          UnifiedSwapBridgeEventName.Completed,
+          txMeta.id,
+        );
+      }
+
       // Start polling for bridge tx status
       this.startPollingForBridgeTxStatus({
         bridgeTxMeta: txMeta, // Only the id field is used by the BridgeStatusController
