@@ -5,7 +5,5 @@ export type {
   TransactionStateEntry,
   MultichainTransactionsControllerStateChange,
   MultichainTransactionsControllerGetStateAction,
-  MultichainTransactionsControllerTransactionSubmittedEvent,
-  MultichainTransactionsControllerTransactionConfirmedEvent,
 } from './MultichainTransactionsController';
 export { MultichainNetwork, MultichainNativeAsset } from './constants';
