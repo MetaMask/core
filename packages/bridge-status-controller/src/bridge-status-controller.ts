@@ -874,14 +874,22 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             stxEnabled: false,
           },
         },
-        async () =>
-          await this.#handleSolanaTx(
-            quoteResponse as QuoteResponse<string> & QuoteMetadata,
-          ),
-      );
-      this.#trackUnifiedSwapBridgeEvent(
-        UnifiedSwapBridgeEventName.SnapConfirmationViewed,
-        txMeta.id,
+        async () => {
+          try {
+            return await this.#handleSolanaTx(
+              quoteResponse as QuoteResponse<string> & QuoteMetadata,
+            );
+          } catch (error) {
+            this.#trackUnifiedSwapBridgeEvent(
+              UnifiedSwapBridgeEventName.Failed,
+              txMeta?.id,
+              {
+                error_message: (error as Error)?.message ?? '',
+              },
+            );
+            throw error;
+          }
+        },
       );
     }
     // Submit EVM tx
