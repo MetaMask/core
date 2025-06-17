@@ -17,7 +17,6 @@ import type {
   GasFeeFlowResponse,
   GasPriceGasFeeEstimates,
   LegacyGasFeeEstimates,
-  TransactionMeta,
 } from '../types';
 import { GasFeeEstimateLevel, GasFeeEstimateType } from '../types';
 import { gweiDecimalToWeiHex } from '../utils/gas-fees';
@@ -28,7 +27,7 @@ const log = createModuleLogger(projectLogger, 'default-gas-fee-flow');
  * The standard implementation of a gas fee flow that obtains gas fee estimates using only the GasFeeController.
  */
 export class DefaultGasFeeFlow implements GasFeeFlow {
-  matchesTransaction(_transactionMeta: TransactionMeta): boolean {
+  matchesTransaction(): boolean {
     return true;
   }
 
@@ -56,8 +55,6 @@ export class DefaultGasFeeFlow implements GasFeeFlow {
         );
         break;
       default:
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         throw new Error(`Unsupported gas estimate type: ${gasEstimateType}`);
     }
 

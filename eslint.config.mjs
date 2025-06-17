@@ -218,6 +218,16 @@ const config = createConfig([
       sourceType: 'module',
     },
   },
+  {
+    files: ['packages/foundryup/**/*.{js,ts}'],
+    rules: {
+      'import-x/no-nodejs-modules': 'off',
+      'n/no-unsupported-features/node-builtins': 'off',
+      'n/no-missing-import': 'off',
+      'n/no-restricted-import': 'off',
+      'n/no-deprecated-api': 'off',
+    },
+  },
 ]);
 
 export default config;

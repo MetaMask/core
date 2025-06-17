@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import type { NetworkClient } from '@metamask/network-controller';
 import EventEmitter from 'events';
 import { useFakeTimers } from 'sinon';
@@ -53,7 +53,7 @@ describe('BlockTrackerPollingController', () => {
   beforeEach(() => {
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    mockMessenger = new ControllerMessenger<any, any>();
+    mockMessenger = new Messenger<any, any>();
     controller = new ChildBlockTrackerPollingController({
       messenger: mockMessenger,
       metadata: {},

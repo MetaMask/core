@@ -1,1 +1,1 @@
-export * from './snaps';
+export type * from './snaps';

@@ -1,12 +1,11 @@
 import type { BlockTracker } from '@metamask/network-controller';
-import { createModuleLogger } from '@metamask/utils';
+import { createModuleLogger, type Hex } from '@metamask/utils';
 import { isEqual } from 'lodash';
 
 import { projectLogger } from '../logger';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type { TransactionMeta } from '../types';
-
-export const ACCELERATED_COUNT_MAX = 10;
-export const ACCELERATED_INTERVAL = 1000 * 3; // 3 Seconds
+import { getAcceleratedPollingParams } from '../utils/feature-flags';
 
 const log = createModuleLogger(projectLogger, 'transaction-poller');
 
@@ -18,7 +17,11 @@ const log = createModuleLogger(projectLogger, 'transaction-poller');
 export class TransactionPoller {
   #acceleratedCount = 0;
 
-  #blockTracker: BlockTracker;
+  readonly #blockTracker: BlockTracker;
+
+  readonly #chainId: Hex;
+
+  readonly #messenger: TransactionControllerMessenger;
 
   #blockTrackerListener?: (latestBlockNumber: string) => void;
 
@@ -30,12 +33,23 @@ export class TransactionPoller {
 
   #timeout?: NodeJS.Timeout;
 
-  constructor(blockTracker: BlockTracker) {
+  constructor({
+    blockTracker,
+    chainId,
+    messenger,
+  }: {
+    blockTracker: BlockTracker;
+    chainId: Hex;
+    messenger: TransactionControllerMessenger;
+  }) {
     this.#blockTracker = blockTracker;
+    this.#chainId = chainId;
+    this.#messenger = messenger;
   }
 
   /**
    * Start the poller with a listener that will be called on every interval.
+   *
    * @param listener - The listener to call on every interval.
    */
   start(listener: (latestBlockNumber: string) => Promise<void>) {
@@ -75,6 +89,7 @@ export class TransactionPoller {
    * Notify the poller of the pending transactions being monitored.
    * This will reset to the accelerated polling and reset the count
    * when new transactions are added or removed.
+   *
    * @param pendingTransactions - The pending transactions to poll.
    */
   setPendingTransactions(pendingTransactions: TransactionMeta[]) {
@@ -110,7 +125,12 @@ export class TransactionPoller {
       return;
     }
 
-    if (this.#acceleratedCount >= ACCELERATED_COUNT_MAX) {
+    const { countMax, intervalMs } = getAcceleratedPollingParams(
+      this.#chainId,
+      this.#messenger,
+    );
+
+    if (this.#acceleratedCount >= countMax) {
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       this.#blockTrackerListener = (latestBlockNumber) =>
         this.#interval(false, latestBlockNumber);
@@ -128,7 +148,7 @@ export class TransactionPoller {
     this.#timeout = setTimeout(async () => {
       await this.#interval(true);
       this.#queue();
-    }, ACCELERATED_INTERVAL);
+    }, intervalMs);
   }
 
   async #interval(isAccelerated: boolean, latestBlockNumber?: string) {

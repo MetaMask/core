@@ -148,21 +148,61 @@ export type {
   RatesControllerPollingStartedEvent,
   RatesControllerPollingStoppedEvent,
 } from './RatesController';
-export {
-  BalancesTracker,
-  MultichainBalancesController,
-  // constants
-  BALANCE_UPDATE_INTERVALS,
-  NETWORK_ASSETS_MAP,
-  MultichainNetworks,
-  MultichainNativeAssets,
-} from './MultichainBalancesController';
+export { MultichainBalancesController } from './MultichainBalancesController';
 export type {
   MultichainBalancesControllerState,
   MultichainBalancesControllerGetStateAction,
-  MultichainBalancesControllerUpdateBalancesAction,
   MultichainBalancesControllerStateChange,
   MultichainBalancesControllerActions,
   MultichainBalancesControllerEvents,
   MultichainBalancesControllerMessenger,
 } from './MultichainBalancesController';
+
+export {
+  MultichainAssetsController,
+  getDefaultMultichainAssetsControllerState,
+} from './MultichainAssetsController';
+
+export type {
+  MultichainAssetsControllerState,
+  MultichainAssetsControllerGetStateAction,
+  MultichainAssetsControllerStateChangeEvent,
+  MultichainAssetsControllerActions,
+  MultichainAssetsControllerEvents,
+  MultichainAssetsControllerAccountAssetListUpdatedEvent,
+  MultichainAssetsControllerMessenger,
+} from './MultichainAssetsController';
+
+export {
+  MultichainAssetsRatesController,
+  getDefaultMultichainAssetsRatesControllerState,
+} from './MultichainAssetsRatesController';
+
+export type {
+  MultichainAssetsRatesControllerState,
+  MultichainAssetsRatesControllerActions,
+  MultichainAssetsRatesControllerEvents,
+  MultichainAssetsRatesControllerGetStateAction,
+  MultichainAssetsRatesControllerStateChange,
+  MultichainAssetsRatesControllerMessenger,
+} from './MultichainAssetsRatesController';
+export { TokenSearchDiscoveryDataController } from './TokenSearchDiscoveryDataController';
+export type {
+  TokenDisplayData,
+  TokenSearchDiscoveryDataControllerState,
+  TokenSearchDiscoveryDataControllerGetStateAction,
+  TokenSearchDiscoveryDataControllerEvents,
+  TokenSearchDiscoveryDataControllerStateChangeEvent,
+  TokenSearchDiscoveryDataControllerActions,
+  TokenSearchDiscoveryDataControllerMessenger,
+} from './TokenSearchDiscoveryDataController';
+export { DeFiPositionsController } from './DeFiPositionsController/DeFiPositionsController';
+export type {
+  DeFiPositionsControllerState,
+  DeFiPositionsControllerActions,
+  DeFiPositionsControllerEvents,
+  DeFiPositionsControllerGetStateAction,
+  DeFiPositionsControllerStateChangeEvent,
+  DeFiPositionsControllerMessenger,
+} from './DeFiPositionsController/DeFiPositionsController';
+export type { GroupedDeFiPositions } from './DeFiPositionsController/group-defi-positions';

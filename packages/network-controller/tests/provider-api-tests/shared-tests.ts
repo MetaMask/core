@@ -4,6 +4,7 @@ import type { ProviderType } from './helpers';
 import { withMockedCommunications, withNetworkClient } from './helpers';
 import { testsForRpcMethodAssumingNoBlockParam } from './no-block-param';
 import { testsForRpcMethodNotHandledByMiddleware } from './not-handled-by-middleware';
+import { TESTNET } from '../helpers';
 
 /**
  * Constructs an error message that the Infura client would produce in the event
@@ -15,35 +16,6 @@ import { testsForRpcMethodNotHandledByMiddleware } from './not-handled-by-middle
 export function buildInfuraClientRetriesExhaustedErrorMessage(reason: string) {
   return new RegExp(
     `^InfuraProvider - cannot complete request. All retries exhausted\\..+${reason}`,
-    'us',
-  );
-}
-
-/**
- * Constructs an error message that JsonRpcEngine would produce in the event
- * that the response object is empty as it leaves the middleware.
- *
- * @param method - The RPC method.
- * @returns The error message.
- */
-export function buildJsonRpcEngineEmptyResponseErrorMessage(method: string) {
-  return new RegExp(
-    `^JsonRpcEngine: Response has no error or result for request:.+"method": "${method}"`,
-    'us',
-  );
-}
-
-/**
- * Constructs an error message that `fetch` with throw if it cannot make a
- * request.
- *
- * @param url - The URL being fetched
- * @param reason - The reason.
- * @returns The error message.
- */
-export function buildFetchFailedErrorMessage(url: string, reason: string) {
-  return new RegExp(
-    `^request to ${url}(/[^/ ]*)+ failed, reason: ${reason}`,
     'us',
   );
 }
@@ -316,7 +288,8 @@ export function testsForProviderType(providerType: ProviderType) {
       describe('net_version', () => {
         const networkArgs = {
           providerType,
-          infuraNetwork: providerType === 'infura' ? 'goerli' : undefined,
+          infuraNetwork:
+            providerType === 'infura' ? TESTNET.networkType : undefined,
         } as const;
         it('hits the RPC endpoint', async () => {
           await withMockedCommunications(networkArgs, async (comms) => {

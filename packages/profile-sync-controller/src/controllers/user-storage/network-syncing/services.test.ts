@@ -1,14 +1,3 @@
-import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
-import {
-  MOCK_STORAGE_KEY,
-  createMockAllFeatureEntriesResponse,
-} from '../__fixtures__';
-import {
-  mockEndpointBatchUpsertUserStorage,
-  mockEndpointGetUserStorageAllFeatureEntries,
-  mockEndpointUpsertUserStorage,
-} from '../__fixtures__/mockServices';
-import type { UserStorageBaseOptions } from '../services';
 import { createMockRemoteNetworkConfiguration } from './__fixtures__/mockNetwork';
 import {
   batchUpsertRemoteNetworks,
@@ -16,6 +5,19 @@ import {
   upsertRemoteNetwork,
 } from './services';
 import type { RemoteNetworkConfiguration } from './types';
+import UserStorageController from '..';
+import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
+import { mockUserStorageMessenger } from '../__fixtures__/mockMessenger';
+import {
+  mockEndpointBatchUpsertUserStorage,
+  mockEndpointGetUserStorageAllFeatureEntries,
+  mockEndpointUpsertUserStorage,
+} from '../__fixtures__/mockServices';
+import {
+  MOCK_STORAGE_KEY,
+  createMockAllFeatureEntriesResponse,
+} from '../mocks';
+import type { UserStorageBaseOptions } from '../types';
 
 const storageOpts: UserStorageBaseOptions = {
   bearerToken: 'MOCK_TOKEN',
@@ -41,7 +43,7 @@ describe('network-syncing/services - getAllRemoteNetworks()', () => {
       body:
         status === 200
           ? await createMockAllFeatureEntriesResponse([JSON.stringify(network)])
-          : undefined,
+          : {},
     };
 
     return {
@@ -56,7 +58,14 @@ describe('network-syncing/services - getAllRemoteNetworks()', () => {
     const { mockNetwork } = arrangeMockNetwork();
     const { mockGetAllAPI } = await arrangeMockGetAllAPI(mockNetwork);
 
-    const result = await getAllRemoteNetworks(storageOpts);
+    const { messenger } = mockUserStorageMessenger();
+    const controller = new UserStorageController({
+      messenger,
+    });
+
+    const result = await getAllRemoteNetworks({
+      getUserStorageControllerInstance: () => controller,
+    });
     expect(mockGetAllAPI.isDone()).toBe(true);
 
     expect(result).toHaveLength(1);
@@ -64,10 +73,17 @@ describe('network-syncing/services - getAllRemoteNetworks()', () => {
   });
 
   it('should return an empty list if fails to get networks', async () => {
+    const { messenger } = mockUserStorageMessenger();
+    const controller = new UserStorageController({
+      messenger,
+    });
+
     const { mockNetwork } = arrangeMockNetwork();
     const { mockGetAllAPI } = await arrangeMockGetAllAPI(mockNetwork, 500);
 
-    const result = await getAllRemoteNetworks(storageOpts);
+    const result = await getAllRemoteNetworks({
+      getUserStorageControllerInstance: () => controller,
+    });
     expect(mockGetAllAPI.isDone()).toBe(true);
 
     expect(result).toHaveLength(0);
@@ -78,6 +94,7 @@ describe('network-syncing/services - getAllRemoteNetworks()', () => {
     const { mockGetAllAPI } = await arrangeMockGetAllAPI(mockNetwork);
     const realParse = JSON.parse;
     jest.spyOn(JSON, 'parse').mockImplementation((data) => {
+      // eslint-disable-next-line jest/no-conditional-in-test
       if (data === JSON.stringify(mockNetwork)) {
         throw new Error('MOCK FAIL TO PARSE STRING');
       }
@@ -85,7 +102,14 @@ describe('network-syncing/services - getAllRemoteNetworks()', () => {
       return realParse(data);
     });
 
-    const result = await getAllRemoteNetworks(storageOpts);
+    const { messenger } = mockUserStorageMessenger();
+    const controller = new UserStorageController({
+      messenger,
+    });
+
+    const result = await getAllRemoteNetworks({
+      getUserStorageControllerInstance: () => controller,
+    });
     expect(mockGetAllAPI.isDone()).toBe(true);
 
     expect(result).toHaveLength(0);
@@ -111,7 +135,15 @@ describe('network-syncing/services - upsertRemoteNetwork()', () => {
 
   it('should call upsert storage API with mock network', async () => {
     const { mockNetwork, mockUpsertAPI } = arrangeMocks();
-    await upsertRemoteNetwork(mockNetwork, storageOpts);
+
+    const { messenger } = mockUserStorageMessenger();
+    const controller = new UserStorageController({
+      messenger,
+    });
+
+    await upsertRemoteNetwork(mockNetwork, {
+      getUserStorageControllerInstance: () => controller,
+    });
     expect(mockUpsertAPI.isDone()).toBe(true);
   });
 });
@@ -132,7 +164,15 @@ describe('network-syncing/services - batchUpsertRemoteNetworks()', () => {
 
   it('should call upsert storage API with mock network', async () => {
     const { mockNetworks, mockBatchUpsertAPI } = arrangeMocks();
-    await batchUpsertRemoteNetworks(mockNetworks, storageOpts);
+
+    const { messenger } = mockUserStorageMessenger();
+    const controller = new UserStorageController({
+      messenger,
+    });
+
+    await batchUpsertRemoteNetworks(mockNetworks, {
+      getUserStorageControllerInstance: () => controller,
+    });
     expect(mockBatchUpsertAPI.isDone()).toBe(true);
   });
 });

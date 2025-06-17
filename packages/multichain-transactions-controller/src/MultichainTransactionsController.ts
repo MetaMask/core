@@ -2,24 +2,32 @@ import type {
   AccountsControllerAccountAddedEvent,
   AccountsControllerAccountRemovedEvent,
   AccountsControllerListMultichainAccountsAction,
+  AccountsControllerAccountTransactionsUpdatedEvent,
 } from '@metamask/accounts-controller';
 import {
   BaseController,
   type ControllerGetStateAction,
   type ControllerStateChangeEvent,
-  type RestrictedControllerMessenger,
+  type RestrictedMessenger,
 } from '@metamask/base-controller';
-import { isEvmAccountType, type Transaction } from '@metamask/keyring-api';
+import {
+  isEvmAccountType,
+  type Transaction,
+  type AccountTransactionsUpdatedEventPayload,
+  TransactionStatus,
+} from '@metamask/keyring-api';
+import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
-import type { Json, JsonRpcRequest } from '@metamask/utils';
+import {
+  type CaipChainId,
+  type Json,
+  type JsonRpcRequest,
+} from '@metamask/utils';
 import type { Draft } from 'immer';
-
-import { MultichainNetwork, TRANSACTIONS_CHECK_INTERVALS } from './constants';
-import { MultichainTransactionsTracker } from './MultichainTransactionsTracker';
 
 const controllerName = 'MultichainTransactionsController';
 
@@ -40,7 +48,9 @@ export type PaginationOptions = {
  */
 export type MultichainTransactionsControllerState = {
   nonEvmTransactions: {
-    [accountId: string]: TransactionStateEntry;
+    [accountId: string]: {
+      [chain: CaipChainId]: TransactionStateEntry;
+    };
   };
 };
 
@@ -56,6 +66,22 @@ export function getDefaultMultichainTransactionsControllerState(): MultichainTra
 }
 
 /**
+ * Event emitted when a transaction is finalized.
+ */
+export type MultichainTransactionsControllerTransactionConfirmedEvent = {
+  type: `${typeof controllerName}:transactionConfirmed`;
+  payload: [Transaction];
+};
+
+/**
+ * Event emitted when a transaction is submitted.
+ */
+export type MultichainTransactionsControllerTransactionSubmittedEvent = {
+  type: `${typeof controllerName}:transactionSubmitted`;
+  payload: [Transaction];
+};
+
+/**
  * Returns the state of the {@link MultichainTransactionsController}.
  */
 export type MultichainTransactionsControllerGetStateAction =
@@ -63,14 +89,6 @@ export type MultichainTransactionsControllerGetStateAction =
     typeof controllerName,
     MultichainTransactionsControllerState
   >;
-
-/**
- * Updates the transactions of all supported accounts.
- */
-export type MultichainTransactionsControllerListTransactionsAction = {
-  type: `${typeof controllerName}:updateTransactions`;
-  handler: MultichainTransactionsController['updateTransactions'];
-};
 
 /**
  * Event emitted when the state of the {@link MultichainTransactionsController} changes.
@@ -85,32 +103,33 @@ export type MultichainTransactionsControllerStateChange =
  * Actions exposed by the {@link MultichainTransactionsController}.
  */
 export type MultichainTransactionsControllerActions =
-  | MultichainTransactionsControllerGetStateAction
-  | MultichainTransactionsControllerListTransactionsAction;
+  MultichainTransactionsControllerGetStateAction;
 
 /**
  * Events emitted by {@link MultichainTransactionsController}.
  */
 export type MultichainTransactionsControllerEvents =
-  MultichainTransactionsControllerStateChange;
+  | MultichainTransactionsControllerStateChange
+  | MultichainTransactionsControllerTransactionConfirmedEvent
+  | MultichainTransactionsControllerTransactionSubmittedEvent;
 
 /**
  * Messenger type for the MultichainTransactionsController.
  */
-export type MultichainTransactionsControllerMessenger =
-  RestrictedControllerMessenger<
-    typeof controllerName,
-    MultichainTransactionsControllerActions | AllowedActions,
-    MultichainTransactionsControllerEvents | AllowedEvents,
-    AllowedActions['type'],
-    AllowedEvents['type']
-  >;
+export type MultichainTransactionsControllerMessenger = RestrictedMessenger<
+  typeof controllerName,
+  MultichainTransactionsControllerActions | AllowedActions,
+  MultichainTransactionsControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
+>;
 
 /**
  * Actions that this controller is allowed to call.
  */
 export type AllowedActions =
   | HandleSnapRequest
+  | KeyringControllerGetStateAction
   | AccountsControllerListMultichainAccountsAction;
 
 /**
@@ -118,7 +137,8 @@ export type AllowedActions =
  */
 export type AllowedEvents =
   | AccountsControllerAccountAddedEvent
-  | AccountsControllerAccountRemovedEvent;
+  | AccountsControllerAccountRemovedEvent
+  | AccountsControllerAccountTransactionsUpdatedEvent;
 
 /**
  * {@link MultichainTransactionsController}'s metadata.
@@ -135,7 +155,7 @@ const multichainTransactionsControllerMetadata = {
 };
 
 /**
- * The state of transactions for a specific account.
+ * The state of transactions for a specific chain.
  */
 export type TransactionStateEntry = {
   transactions: Transaction[];
@@ -152,8 +172,6 @@ export class MultichainTransactionsController extends BaseController<
   MultichainTransactionsControllerState,
   MultichainTransactionsControllerMessenger
 > {
-  readonly #tracker: MultichainTransactionsTracker;
-
   constructor({
     messenger,
     state,
@@ -171,25 +189,28 @@ export class MultichainTransactionsController extends BaseController<
       },
     });
 
-    this.#tracker = new MultichainTransactionsTracker(
-      async (accountId: string, pagination: PaginationOptions) =>
-        await this.#updateTransactions(accountId, pagination),
-    );
-
-    // Register all non-EVM accounts into the tracker
+    // Fetch initial transactions for all non-EVM accounts
     for (const account of this.#listAccounts()) {
-      if (this.#isNonEvmAccount(account)) {
-        this.#tracker.track(account.id, this.#getBlockTimeFor(account));
-      }
+      this.updateTransactionsForAccount(account.id).catch((error) => {
+        console.error(
+          `Failed to fetch initial transactions for account ${account.id}:`,
+          error,
+        );
+      });
     }
 
     this.messagingSystem.subscribe(
       'AccountsController:accountAdded',
-      (account) => this.#handleOnAccountAdded(account),
+      (account: InternalAccount) => this.#handleOnAccountAdded(account),
     );
     this.messagingSystem.subscribe(
       'AccountsController:accountRemoved',
       (accountId: string) => this.#handleOnAccountRemoved(accountId),
+    );
+    this.messagingSystem.subscribe(
+      'AccountsController:accountTransactionsUpdated',
+      (transactionsUpdate: AccountTransactionsUpdatedEventPayload) =>
+        this.#handleOnAccountTransactionsUpdated(transactionsUpdate),
     );
   }
 
@@ -215,48 +236,6 @@ export class MultichainTransactionsController extends BaseController<
   }
 
   /**
-   * Updates the transactions for one account.
-   *
-   * @param accountId - The ID of the account to update transactions for.
-   * @param pagination - Options for paginating transaction results.
-   */
-  async #updateTransactions(accountId: string, pagination: PaginationOptions) {
-    const account = this.#listAccounts().find(
-      (accountItem) => accountItem.id === accountId,
-    );
-
-    if (account?.metadata.snap) {
-      const response = await this.#getTransactions(
-        account.id,
-        account.metadata.snap.id,
-        pagination,
-      );
-
-      /**
-       * Filter only Solana transactions to ensure they're mainnet
-       * All other chain transactions are included as-is
-       */
-      const transactions = response.data.filter((tx) => {
-        const chain = tx.chain as MultichainNetwork;
-        if (chain.startsWith(MultichainNetwork.Solana)) {
-          return chain === MultichainNetwork.Solana;
-        }
-        return true;
-      });
-
-      this.update((state: Draft<MultichainTransactionsControllerState>) => {
-        const entry: TransactionStateEntry = {
-          transactions,
-          next: response.next,
-          lastUpdated: Date.now(),
-        };
-
-        Object.assign(state.nonEvmTransactions, { [account.id]: entry });
-      });
-    }
-  }
-
-  /**
    * Gets transactions for an account.
    *
    * @param accountId - The ID of the account to get transactions for.
@@ -279,51 +258,70 @@ export class MultichainTransactionsController extends BaseController<
   }
 
   /**
-   * Updates transactions for a specific account
+   * Updates transactions for a specific account. This is used for the initial fetch
+   * when an account is first added.
    *
    * @param accountId - The ID of the account to get transactions for.
    */
   async updateTransactionsForAccount(accountId: string) {
-    await this.#tracker.updateTransactionsForAccount(accountId);
-  }
-
-  /**
-   * Updates the transactions of all supported accounts. This method doesn't return
-   * anything, but it updates the state of the controller.
-   */
-  async updateTransactions() {
-    await this.#tracker.updateTransactions();
-  }
-
-  /**
-   * Starts the polling process.
-   */
-  start(): void {
-    this.#tracker.start();
-  }
-
-  /**
-   * Stops the polling process.
-   */
-  stop(): void {
-    this.#tracker.stop();
-  }
-
-  /**
-   * Gets the block time for a given account.
-   *
-   * @param account - The account to get the block time for.
-   * @returns The block time for the account.
-   */
-  #getBlockTimeFor(account: InternalAccount): number {
-    if (account.type in TRANSACTIONS_CHECK_INTERVALS) {
-      return TRANSACTIONS_CHECK_INTERVALS[
-        account.type as keyof typeof TRANSACTIONS_CHECK_INTERVALS
-      ];
-    }
-    throw new Error(
-      `Unsupported account type for transactions tracking: ${account.type}`,
+    const { isUnlocked } = this.messagingSystem.call(
+      'KeyringController:getState',
     );
+
+    if (!isUnlocked) {
+      return;
+    }
+
+    try {
+      const account = this.#listAccounts().find(
+        (accountItem) => accountItem.id === accountId,
+      );
+
+      if (account?.metadata.snap) {
+        const response = await this.#getTransactions(
+          account.id,
+          account.metadata.snap.id,
+          { limit: 10 },
+        );
+
+        const transactionsByChain: Record<CaipChainId, Transaction[]> = {};
+
+        response.data.forEach((transaction) => {
+          const { chain } = transaction;
+
+          if (!transactionsByChain[chain]) {
+            transactionsByChain[chain] = [];
+          }
+          transactionsByChain[chain].push(transaction);
+        });
+
+        const chainUpdates = Object.entries(transactionsByChain).map(
+          ([chain, transactions]) => ({
+            chain,
+            entry: {
+              transactions,
+              next: response.next,
+              lastUpdated: Date.now(),
+            },
+          }),
+        );
+
+        this.update((state: Draft<MultichainTransactionsControllerState>) => {
+          if (!state.nonEvmTransactions[account.id]) {
+            state.nonEvmTransactions[account.id] = {};
+          }
+
+          chainUpdates.forEach(({ chain, entry }) => {
+            state.nonEvmTransactions[account.id][chain as CaipChainId] = entry;
+          });
+        });
+      }
+    } catch (error) {
+      console.error(
+        `Failed to fetch transactions for account ${accountId}:`,
+        error,
+      );
+    }
   }
 
   /**
@@ -350,7 +348,7 @@ export class MultichainTransactionsController extends BaseController<
       return;
     }
 
-    this.#tracker.track(account.id, this.#getBlockTimeFor(account));
+    await this.updateTransactionsForAccount(account.id);
   }
 
   /**
@@ -359,15 +357,117 @@ export class MultichainTransactionsController extends BaseController<
    * @param accountId - The account ID being removed.
    */
   async #handleOnAccountRemoved(accountId: string) {
-    if (this.#tracker.isTracked(accountId)) {
-      this.#tracker.untrack(accountId);
-    }
-
     if (accountId in this.state.nonEvmTransactions) {
       this.update((state: Draft<MultichainTransactionsControllerState>) => {
         delete state.nonEvmTransactions[accountId];
       });
     }
+  }
+
+  /**
+   * Publishes transaction update events.
+   *
+   * @param updatedTransaction - The updated transaction.
+   */
+  #publishTransactionUpdateEvent(updatedTransaction: Transaction) {
+    if (updatedTransaction.status === TransactionStatus.Confirmed) {
+      this.messagingSystem.publish(
+        'MultichainTransactionsController:transactionConfirmed',
+        updatedTransaction,
+      );
+    }
+
+    if (updatedTransaction.status === TransactionStatus.Submitted) {
+      this.messagingSystem.publish(
+        'MultichainTransactionsController:transactionSubmitted',
+        updatedTransaction,
+      );
+    }
+  }
+
+  /**
+   * Handles transaction updates received from the AccountsController.
+   *
+   * @param transactionsUpdate - The transaction update event containing new transactions.
+   */
+  #handleOnAccountTransactionsUpdated(
+    transactionsUpdate: AccountTransactionsUpdatedEventPayload,
+  ): void {
+    const updatedTransactions: Record<
+      string,
+      Record<CaipChainId, Transaction[]>
+    > = {};
+    const transactionsToPublish: Transaction[] = [];
+
+    if (!transactionsUpdate?.transactions) {
+      return;
+    }
+
+    Object.entries(transactionsUpdate.transactions).forEach(
+      ([accountId, newTransactions]) => {
+        updatedTransactions[accountId] = {};
+
+        newTransactions.forEach((tx) => {
+          const { chain } = tx;
+
+          if (!updatedTransactions[accountId][chain]) {
+            updatedTransactions[accountId][chain] = [];
+          }
+
+          updatedTransactions[accountId][chain].push(tx);
+          transactionsToPublish.push(tx);
+        });
+
+        Object.entries(updatedTransactions[accountId]).forEach(
+          ([chain, chainTransactions]) => {
+            // Account might not have any transactions yet, so use `[]` in that case.
+            const oldTransactions =
+              this.state.nonEvmTransactions[accountId]?.[chain as CaipChainId]
+                ?.transactions ?? [];
+
+            // Uses a `Map` to deduplicate transactions by ID, ensuring we keep the latest version
+            // of each transaction while preserving older transactions and transactions from other accounts.
+            // Transactions are sorted by timestamp (newest first).
+            const transactions = new Map();
+
+            oldTransactions.forEach((tx) => {
+              transactions.set(tx.id, tx);
+            });
+
+            chainTransactions.forEach((tx) => {
+              transactions.set(tx.id, tx);
+            });
+
+            // Sorted by timestamp (newest first). If the timestamp is not provided, those
+            // transactions will be put in the end of this list.
+            updatedTransactions[accountId][chain as CaipChainId] = Array.from(
+              transactions.values(),
+            ).sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
+          },
+        );
+      },
+    );
+
+    this.update((state) => {
+      Object.entries(updatedTransactions).forEach(([accountId, chainsData]) => {
+        if (!state.nonEvmTransactions[accountId]) {
+          state.nonEvmTransactions[accountId] = {};
+        }
+
+        Object.entries(chainsData).forEach(([chain, transactions]) => {
+          state.nonEvmTransactions[accountId][chain as CaipChainId] = {
+            transactions,
+            next: null,
+            lastUpdated: Date.now(),
+          };
+        });
+      });
+    });
+
+    // After we update the state, publish the events for new/updated transactions
+    transactionsToPublish.forEach((tx) => {
+      this.#publishTransactionUpdateEvent(tx);
+    });
   }
 
   /**

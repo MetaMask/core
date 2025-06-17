@@ -1,7 +1,7 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Json } from '@metamask/utils';
@@ -84,7 +84,7 @@ export type SubjectMetadataControllerEvents = SubjectMetadataStateChange;
 
 type AllowedActions = HasPermissions;
 
-export type SubjectMetadataControllerMessenger = RestrictedControllerMessenger<
+export type SubjectMetadataControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   SubjectMetadataControllerActions | AllowedActions,
   SubjectMetadataControllerEvents,

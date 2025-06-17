@@ -4,7 +4,7 @@ import type {
   AccountsControllerSelectedEvmAccountChangeEvent,
 } from '@metamask/accounts-controller';
 import type {
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
@@ -33,6 +33,7 @@ import type {
   PreferencesControllerGetStateAction,
   PreferencesControllerStateChangeEvent,
 } from '@metamask/preferences-controller';
+import type { TransactionControllerTransactionConfirmedEvent } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { hexToNumber } from '@metamask/utils';
 import { isEqual, mapValues, isObject, get } from 'lodash';
@@ -142,9 +143,10 @@ export type AllowedEvents =
   | TokenListStateChange
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
-  | PreferencesControllerStateChangeEvent;
+  | PreferencesControllerStateChangeEvent
+  | TransactionControllerTransactionConfirmedEvent;
 
-export type TokenDetectionControllerMessenger = RestrictedControllerMessenger<
+export type TokenDetectionControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   TokenDetectionControllerActions | AllowedActions,
   TokenDetectionControllerEvents | AllowedEvents,
@@ -408,6 +410,15 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
             chainIds,
           });
         }
+      },
+    );
+
+    this.messagingSystem.subscribe(
+      'TransactionController:transactionConfirmed',
+      async (transactionMeta) => {
+        await this.detectTokens({
+          chainIds: [transactionMeta.chainId],
+        });
       },
     );
   }
@@ -836,7 +847,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         );
         this.#tokensChainsCache = isTokenDetectionInactiveInMainnet
           ? this.#getConvertedStaticMainnetTokenList()
-          : tokensChainsCache ?? {};
+          : (tokensChainsCache ?? {});
 
         // Generate token candidates based on chainId and selectedAddress
         const tokenCandidateSlices = this.#getSlicesOfTokensToDetect({

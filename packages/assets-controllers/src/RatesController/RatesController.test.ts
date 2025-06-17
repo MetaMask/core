@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import { useFakeTimers } from 'sinon';
 
 import { advanceTime } from '../../../../tests/helpers';
@@ -26,17 +26,14 @@ function getStubbedDate(): number {
 }
 
 /**
- * Builds a new ControllerMessenger instance for RatesController.
- * @returns A new ControllerMessenger instance.
+ * Builds a new Messenger instance for RatesController.
+ * @returns A new Messenger instance.
  */
-function buildMessenger(): ControllerMessenger<
+function buildMessenger(): Messenger<
   RatesControllerActions,
   RatesControllerEvents
 > {
-  return new ControllerMessenger<
-    RatesControllerActions,
-    RatesControllerEvents
-  >();
+  return new Messenger<RatesControllerActions, RatesControllerEvents>();
 }
 
 /**
@@ -45,7 +42,7 @@ function buildMessenger(): ControllerMessenger<
  * @returns A restricted messenger for the RatesController.
  */
 function buildRatesControllerMessenger(
-  messenger: ControllerMessenger<RatesControllerActions, RatesControllerEvents>,
+  messenger: Messenger<RatesControllerActions, RatesControllerEvents>,
 ): RatesControllerMessenger {
   return messenger.getRestricted({
     name: ratesControllerName,
@@ -59,7 +56,7 @@ function buildRatesControllerMessenger(
  * @param config - The configuration object for the RatesController.
  * @param config.interval - Polling interval.
  * @param config.initialState - Initial state of the controller.
- * @param config.messenger - ControllerMessenger instance.
+ * @param config.messenger - Messenger instance.
  * @param config.includeUsdRate - Indicates if the USD rate should be included.
  * @param config.fetchMultiExchangeRate - Callback to fetch rates data.
  * @returns A new instance of RatesController.
@@ -73,7 +70,7 @@ function setupRatesController({
 }: {
   interval?: number;
   initialState: Partial<RatesControllerState>;
-  messenger: ControllerMessenger<RatesControllerActions, RatesControllerEvents>;
+  messenger: Messenger<RatesControllerActions, RatesControllerEvents>;
   includeUsdRate: boolean;
   fetchMultiExchangeRate?: typeof defaultFetchExchangeRate;
 }) {
@@ -173,7 +170,7 @@ describe('RatesController', () => {
       const ratesPosUpdate = ratesController.state.rates;
 
       // checks for the RatesController:stateChange event
-      expect(publishActionSpy).toHaveBeenCalledTimes(2);
+      expect(publishActionSpy).toHaveBeenCalledTimes(3);
       expect(fetchExchangeRateStub).toHaveBeenCalled();
       expect(ratesPosUpdate).toStrictEqual({
         btc: {
@@ -286,27 +283,27 @@ describe('RatesController', () => {
 
       await advanceTime({ clock, duration: 200 });
 
-      expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
+      expect(fetchExchangeRateStub).toHaveBeenCalledTimes(2);
 
       await ratesController.stop();
 
       // check the 3rd call since the 2nd one is for the
       // event stateChange
       expect(publishActionSpy).toHaveBeenNthCalledWith(
-        3,
+        4,
         `${ratesControllerName}:pollingStopped`,
       );
 
       await advanceTime({ clock, duration: 200 });
 
-      expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
+      expect(fetchExchangeRateStub).toHaveBeenCalledTimes(2);
 
       await ratesController.stop();
 
       // check if the stop method is called again, it returns early
       // and no extra logic is executed
       expect(publishActionSpy).not.toHaveBeenNthCalledWith(
-        4,
+        3,
         `${ratesControllerName}:pollingStopped`,
       );
     });

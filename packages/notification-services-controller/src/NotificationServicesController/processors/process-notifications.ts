@@ -1,3 +1,9 @@
+import {
+  isFeatureAnnouncementRead,
+  processFeatureAnnouncement,
+} from './process-feature-announcement';
+import { processOnChainNotification } from './process-onchain-notifications';
+import { processSnapNotification } from './process-snap-notifications';
 import { TRIGGER_TYPES } from '../constants/notification-schema';
 import type { FeatureAnnouncementRawNotification } from '../types/feature-announcement/feature-announcement';
 import type {
@@ -6,12 +12,6 @@ import type {
 } from '../types/notification/notification';
 import type { OnChainRawNotification } from '../types/on-chain-notification/on-chain-notification';
 import type { RawSnapNotification } from '../types/snaps';
-import {
-  isFeatureAnnouncementRead,
-  processFeatureAnnouncement,
-} from './process-feature-announcement';
-import { processOnChainNotification } from './process-onchain-notifications';
-import { processSnapNotification } from './process-snap-notifications';
 
 const isOnChainNotification = (
   n: RawNotificationUnion,

@@ -1,41 +1,42 @@
-import { isEvmAccountType } from '@metamask/keyring-api';
+import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
 import {
   canPerformAccountSyncing,
   getInternalAccountsList,
   getUserStorageAccountsList,
 } from './sync-utils';
-import type { AccountSyncingConfig, AccountSyncingOptions } from './types';
+import type { AccountSyncingOptions } from './types';
 import {
-  doesInternalAccountHaveCorrectKeyringType,
   isNameDefaultAccountName,
   mapInternalAccountToUserStorageAccount,
 } from './utils';
+import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
 
 /**
  * Saves an individual internal account to the user storage.
+ *
  * @param internalAccount - The internal account to save
- * @param config - parameters used for saving the internal account
  * @param options - parameters used for saving the internal account
  */
 export async function saveInternalAccountToUserStorage(
   internalAccount: InternalAccount,
-  config: AccountSyncingConfig,
   options: AccountSyncingOptions,
 ): Promise<void> {
-  const { isAccountSyncingEnabled } = config;
   const { getUserStorageControllerInstance } = options;
 
   if (
-    !isAccountSyncingEnabled ||
-    !canPerformAccountSyncing(config, options) ||
-    !isEvmAccountType(internalAccount.type) ||
-    !doesInternalAccountHaveCorrectKeyringType(internalAccount)
+    !canPerformAccountSyncing(options) ||
+    internalAccount.metadata.keyring.type !== String(KeyringTypes.hd) // sync only EVM accounts until we support multichain accounts
   ) {
     return;
   }
+
+  // properties of `options` are (wrongly?) typed as `Json` and eslint crashes if we try to interpret it as such and call a `?.toString()` on it.
+  // but we know this is a string?, so we can safely cast it
+  const entropySourceId = internalAccount.options.entropySource as
+    | string
+    | undefined;
 
   try {
     // Map the internal account to the user storage account schema
@@ -43,10 +44,9 @@ export async function saveInternalAccountToUserStorage(
       mapInternalAccountToUserStorageAccount(internalAccount);
 
     await getUserStorageControllerInstance().performSetStorage(
-      // ESLint is confused here.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${USER_STORAGE_FEATURE_NAMES.accounts}.${internalAccount.address}`,
       JSON.stringify(mappedAccount),
+      entropySourceId,
     );
   } catch (e) {
     // istanbul ignore next
@@ -59,21 +59,21 @@ export async function saveInternalAccountToUserStorage(
 
 /**
  * Saves the list of internal accounts to the user storage.
- * @param config - parameters used for saving the list of internal accounts
+ *
  * @param options - parameters used for saving the list of internal accounts
+ * @param entropySourceId - The entropy source ID used to derive the key,
+ * when multiple sources are available (Multi-SRP).
  */
 export async function saveInternalAccountsListToUserStorage(
-  config: AccountSyncingConfig,
   options: AccountSyncingOptions,
+  entropySourceId: string,
 ): Promise<void> {
-  const { isAccountSyncingEnabled } = config;
   const { getUserStorageControllerInstance } = options;
 
-  if (!isAccountSyncingEnabled) {
-    return;
-  }
-
-  const internalAccountsList = await getInternalAccountsList(options);
+  const internalAccountsList = await getInternalAccountsList(
+    options,
+    entropySourceId,
+  );
 
   if (!internalAccountsList?.length) {
     return;
@@ -89,10 +89,11 @@ export async function saveInternalAccountsListToUserStorage(
       account.a,
       JSON.stringify(account),
     ]),
+    entropySourceId,
   );
 }
 
-type SyncInternalAccountsWithUserStorageConfig = AccountSyncingConfig & {
+type SyncInternalAccountsWithUserStorageConfig = {
   maxNumberOfAccountsToAdd?: number;
   onAccountAdded?: () => void;
   onAccountNameUpdated?: () => void;
@@ -106,21 +107,22 @@ type SyncInternalAccountsWithUserStorageConfig = AccountSyncingConfig & {
  * Syncs the internal accounts list with the user storage accounts list.
  * This method is used to make sure that the internal accounts list is up-to-date with the user storage accounts list and vice-versa.
  * It will add new accounts to the internal accounts list, update/merge conflicting names and re-upload the results in some cases to the user storage.
+ *
  * @param config - parameters used for syncing the internal accounts list with the user storage accounts list
  * @param options - parameters used for syncing the internal accounts list with the user storage accounts list
+ * @param entropySourceId - The entropy source ID used to derive the key,
  */
 export async function syncInternalAccountsWithUserStorage(
   config: SyncInternalAccountsWithUserStorageConfig,
   options: AccountSyncingOptions,
+  entropySourceId: string,
 ): Promise<void> {
-  const { isAccountSyncingEnabled } = config;
-
-  if (!canPerformAccountSyncing(config, options) || !isAccountSyncingEnabled) {
+  if (!canPerformAccountSyncing(options)) {
     return;
   }
 
   const {
-    maxNumberOfAccountsToAdd = 100,
+    maxNumberOfAccountsToAdd = Infinity,
     onAccountAdded,
     onAccountNameUpdated,
     onAccountSyncErroneousSituation,
@@ -132,16 +134,13 @@ export async function syncInternalAccountsWithUserStorage(
       true,
     );
 
-    const userStorageAccountsList = await getUserStorageAccountsList(options);
+    const userStorageAccountsList = await getUserStorageAccountsList(
+      options,
+      entropySourceId,
+    );
 
     if (!userStorageAccountsList || !userStorageAccountsList.length) {
-      await saveInternalAccountsListToUserStorage(
-        { isAccountSyncingEnabled },
-        options,
-      );
-      await getUserStorageControllerInstance().setHasAccountSyncingSyncedAtLeastOnce(
-        true,
-      );
+      await saveInternalAccountsListToUserStorage(options, entropySourceId);
       return;
     }
     // Keep a record if erroneous situations are found during the sync
@@ -153,7 +152,10 @@ export async function syncInternalAccountsWithUserStorage(
 
     // Compare internal accounts list with user storage accounts list
     // First step: compare lengths
-    const internalAccountsList = await getInternalAccountsList(options);
+    const internalAccountsList = await getInternalAccountsList(
+      options,
+      entropySourceId,
+    );
 
     if (!internalAccountsList || !internalAccountsList.length) {
       throw new Error(`Failed to get internal accounts list`);
@@ -170,8 +172,18 @@ export async function syncInternalAccountsWithUserStorage(
         internalAccountsList.length;
 
       // Create new accounts to match the user storage accounts list
+      await getMessenger().call(
+        'KeyringController:withKeyring',
+        {
+          id: entropySourceId,
+        },
+        async ({ keyring }) => {
+          await keyring.addAccounts(numberOfAccountsToAdd);
+        },
+      );
+
+      // TODO: below code is kept for analytics but should probably be re-thought
       for (let i = 0; i < numberOfAccountsToAdd; i++) {
-        await getMessenger().call('KeyringController:addNewAccount');
         onAccountAdded?.();
       }
     }
@@ -180,6 +192,7 @@ export async function syncInternalAccountsWithUserStorage(
     // Get the internal accounts list again since new accounts might have been added in the previous step
     const refreshedInternalAccountsList = await getInternalAccountsList(
       options,
+      entropySourceId,
     );
 
     const newlyAddedAccounts = refreshedInternalAccountsList.filter(
@@ -296,6 +309,7 @@ export async function syncInternalAccountsWithUserStorage(
           account.address,
           JSON.stringify(mapInternalAccountToUserStorageAccount(account)),
         ]),
+        entropySourceId,
       );
     }
 
@@ -310,6 +324,7 @@ export async function syncInternalAccountsWithUserStorage(
       await getUserStorageControllerInstance().performBatchDeleteStorage(
         USER_STORAGE_FEATURE_NAMES.accounts,
         userStorageAccountsToBeDeleted.map((account) => account.a),
+        entropySourceId,
       );
       erroneousSituationsFound = true;
       onAccountSyncErroneousSituation?.(
@@ -327,8 +342,8 @@ export async function syncInternalAccountsWithUserStorage(
     if (erroneousSituationsFound) {
       const [finalUserStorageAccountsList, finalInternalAccountsList] =
         await Promise.all([
-          getUserStorageAccountsList(options),
-          getInternalAccountsList(options),
+          getUserStorageAccountsList(options, entropySourceId),
+          getInternalAccountsList(options, entropySourceId),
         ]);
 
       const doesEveryAccountInInternalAccountsListExistInUserStorageAccountsList =
@@ -368,12 +383,6 @@ export async function syncInternalAccountsWithUserStorage(
         );
       }
     }
-
-    // We do this here and not in the finally statement because we want to make sure that
-    // the accounts are saved / updated / deleted at least once before we set this flag
-    await getUserStorageControllerInstance().setHasAccountSyncingSyncedAtLeastOnce(
-      true,
-    );
   } catch (e) {
     // istanbul ignore next
     const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);

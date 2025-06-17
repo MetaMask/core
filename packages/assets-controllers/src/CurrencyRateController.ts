@@ -1,5 +1,5 @@
 import type {
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
@@ -51,7 +51,7 @@ export type CurrencyRateControllerActions = GetCurrencyRateState;
 
 type AllowedActions = NetworkControllerGetNetworkClientByIdAction;
 
-type CurrencyRateMessenger = RestrictedControllerMessenger<
+type CurrencyRateMessenger = RestrictedMessenger<
   typeof name,
   CurrencyRateControllerActions | AllowedActions,
   CurrencyRateControllerEvents,
@@ -157,7 +157,9 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
    *
    * @param nativeCurrencies - The native currency symbols to fetch exchange rates for.
    */
-  async updateExchangeRate(nativeCurrencies: string[]): Promise<void> {
+  async updateExchangeRate(
+    nativeCurrencies: (string | undefined)[],
+  ): Promise<void> {
     const releaseLock = await this.mutex.acquire();
     try {
       const { currentCurrency } = this.state;
@@ -167,6 +169,10 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
       const testnetSymbols = Object.values(TESTNET_TICKER_SYMBOLS);
       const nativeCurrenciesToFetch = nativeCurrencies.reduce(
         (acc, nativeCurrency) => {
+          if (!nativeCurrency) {
+            return acc;
+          }
+
           acc[nativeCurrency] = testnetSymbols.includes(nativeCurrency)
             ? FALL_BACK_VS_CURRENCY
             : nativeCurrency;

@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import { query, toChecksumHexAddress } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import {
@@ -9,6 +9,12 @@ import {
 import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import * as sinon from 'sinon';
 
+import type {
+  AccountTrackerControllerMessenger,
+  AllowedActions,
+  AllowedEvents,
+} from './AccountTrackerController';
+import { AccountTrackerController } from './AccountTrackerController';
 import { advanceTime } from '../../../tests/helpers';
 import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
 import type {
@@ -19,12 +25,6 @@ import {
   buildCustomNetworkClientConfiguration,
   buildMockGetNetworkClientById,
 } from '../../network-controller/tests/helpers';
-import type {
-  AccountTrackerControllerMessenger,
-  AllowedActions,
-  AllowedEvents,
-} from './AccountTrackerController';
-import { AccountTrackerController } from './AccountTrackerController';
 
 jest.mock('@metamask/controller-utils', () => {
   return {
@@ -70,7 +70,6 @@ describe('AccountTrackerController', () => {
       },
       ({ controller }) => {
         expect(controller.state).toStrictEqual({
-          accounts: {},
           accountsByChainId: {
             [initialChainId]: {},
           },
@@ -95,12 +94,6 @@ describe('AccountTrackerController', () => {
   });
 
   describe('refresh', () => {
-    beforeEach(() => {
-      jest
-        .spyOn(AccountTrackerController.prototype, 'poll')
-        .mockImplementationOnce(async () => Promise.resolve());
-    });
-
     describe('without networkClientId', () => {
       it('should sync addresses', async () => {
         const mockAddress1 = '0xbabe9bbeab5f83a755ac92c7a09b9ab3ff527f8c';
@@ -117,10 +110,6 @@ describe('AccountTrackerController', () => {
           {
             options: {
               state: {
-                accounts: {
-                  [checksumAddress1]: { balance: '0x1' },
-                  foo: { balance: '0x2' },
-                },
                 accountsByChainId: {
                   '0x1': {
                     [checksumAddress1]: { balance: '0x1' },
@@ -138,12 +127,8 @@ describe('AccountTrackerController', () => {
             listAccounts: [mockAccount1, mockAccount2],
           },
           async ({ controller }) => {
-            await controller.refresh();
+            await controller.refresh(['mainnet']);
             expect(controller.state).toStrictEqual({
-              accounts: {
-                [checksumAddress1]: { balance: '0x0' },
-                [checksumAddress2]: { balance: '0x0' },
-              },
               accountsByChainId: {
                 '0x1': {
                   [checksumAddress1]: { balance: '0x0' },
@@ -169,14 +154,9 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1],
           },
           async ({ controller }) => {
-            await controller.refresh();
+            await controller.refresh(['mainnet']);
 
             expect(controller.state).toStrictEqual({
-              accounts: {
-                [CHECKSUM_ADDRESS_1]: {
-                  balance: '0x10',
-                },
-              },
               accountsByChainId: {
                 '0x1': {
                   [CHECKSUM_ADDRESS_1]: {
@@ -201,13 +181,9 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
           },
           async ({ controller }) => {
-            await controller.refresh();
+            await controller.refresh(['mainnet']);
 
             expect(controller.state).toStrictEqual({
-              accounts: {
-                [CHECKSUM_ADDRESS_1]: { balance: '0x10' },
-                [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
-              },
               accountsByChainId: {
                 '0x1': {
                   [CHECKSUM_ADDRESS_1]: { balance: '0x10' },
@@ -231,13 +207,9 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
           },
           async ({ controller }) => {
-            await controller.refresh();
+            await controller.refresh(['mainnet']);
 
             expect(controller.state).toStrictEqual({
-              accounts: {
-                [CHECKSUM_ADDRESS_1]: { balance: '0x11' },
-                [CHECKSUM_ADDRESS_2]: { balance: '0x12' },
-              },
               accountsByChainId: {
                 '0x1': {
                   [CHECKSUM_ADDRESS_1]: { balance: '0x11' },
@@ -265,13 +237,9 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
           },
           async ({ controller }) => {
-            await controller.refresh();
+            await controller.refresh(['mainnet']);
 
             expect(controller.state).toStrictEqual({
-              accounts: {
-                [CHECKSUM_ADDRESS_1]: { balance: '0x10', stakedBalance: '0x1' },
-                [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
-              },
               accountsByChainId: {
                 '0x1': {
                   [CHECKSUM_ADDRESS_1]: {
@@ -304,13 +272,9 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
           },
           async ({ controller }) => {
-            await controller.refresh();
+            await controller.refresh(['mainnet']);
 
             expect(controller.state).toStrictEqual({
-              accounts: {
-                [CHECKSUM_ADDRESS_1]: { balance: '0x13' },
-                [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
-              },
               accountsByChainId: {
                 '0x1': {
                   [CHECKSUM_ADDRESS_1]: {
@@ -342,13 +306,9 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
           },
           async ({ controller }) => {
-            await controller.refresh();
+            await controller.refresh(['mainnet']);
 
             expect(controller.state).toStrictEqual({
-              accounts: {
-                [CHECKSUM_ADDRESS_1]: { balance: '0x11', stakedBalance: '0x1' },
-                [CHECKSUM_ADDRESS_2]: { balance: '0x12', stakedBalance: '0x1' },
-              },
               accountsByChainId: {
                 '0x1': {
                   [CHECKSUM_ADDRESS_1]: {
@@ -384,10 +344,6 @@ describe('AccountTrackerController', () => {
           {
             options: {
               state: {
-                accounts: {
-                  [checksumAddress1]: { balance: '0x1' },
-                  foo: { balance: '0x2' },
-                },
                 accountsByChainId: {
                   '0x1': {
                     [checksumAddress1]: { balance: '0x1' },
@@ -410,12 +366,8 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller }) => {
-            await controller.refresh(networkClientId);
+            await controller.refresh(['networkClientId1']);
             expect(controller.state).toStrictEqual({
-              accounts: {
-                [checksumAddress1]: { balance: '0x1' },
-                [checksumAddress2]: { balance: '0x0' },
-              },
               accountsByChainId: {
                 '0x1': {
                   [checksumAddress1]: { balance: '0x1' },
@@ -451,14 +403,9 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller }) => {
-            await controller.refresh(networkClientId);
+            await controller.refresh(['networkClientId1']);
 
             expect(controller.state).toStrictEqual({
-              accounts: {
-                [CHECKSUM_ADDRESS_1]: {
-                  balance: '0x0',
-                },
-              },
               accountsByChainId: {
                 '0x1': {
                   [CHECKSUM_ADDRESS_1]: {
@@ -494,13 +441,9 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller }) => {
-            await controller.refresh(networkClientId);
+            await controller.refresh(['networkClientId1']);
 
             expect(controller.state).toStrictEqual({
-              accounts: {
-                [CHECKSUM_ADDRESS_1]: { balance: '0x0' },
-                [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
-              },
               accountsByChainId: {
                 '0x1': {
                   [CHECKSUM_ADDRESS_1]: { balance: '0x0' },
@@ -534,13 +477,9 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller }) => {
-            await controller.refresh(networkClientId);
+            await controller.refresh(['networkClientId1']);
 
             expect(controller.state).toStrictEqual({
-              accounts: {
-                [CHECKSUM_ADDRESS_1]: { balance: '0x0' },
-                [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
-              },
               accountsByChainId: {
                 '0x1': {
                   [CHECKSUM_ADDRESS_1]: { balance: '0x0' },
@@ -578,13 +517,9 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller }) => {
-            await controller.refresh();
+            await controller.refresh(['mainnet']);
 
             expect(controller.state).toStrictEqual({
-              accounts: {
-                [CHECKSUM_ADDRESS_1]: { balance: '0x10', stakedBalance: '0x1' },
-                [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
-              },
               accountsByChainId: {
                 '0x1': {
                   [CHECKSUM_ADDRESS_1]: {
@@ -623,13 +558,9 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller }) => {
-            await controller.refresh();
+            await controller.refresh(['mainnet']);
 
             expect(controller.state).toStrictEqual({
-              accounts: {
-                [CHECKSUM_ADDRESS_1]: { balance: '0x13' },
-                [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
-              },
               accountsByChainId: {
                 '0x1': {
                   [CHECKSUM_ADDRESS_1]: {
@@ -667,13 +598,9 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller }) => {
-            await controller.refresh();
+            await controller.refresh(['mainnet']);
 
             expect(controller.state).toStrictEqual({
-              accounts: {
-                [CHECKSUM_ADDRESS_1]: { balance: '0x11', stakedBalance: '0x1' },
-                [CHECKSUM_ADDRESS_2]: { balance: '0x12', stakedBalance: '0x1' },
-              },
               accountsByChainId: {
                 '0x1': {
                   [CHECKSUM_ADDRESS_1]: {
@@ -713,13 +640,9 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller }) => {
-            await controller.refresh();
+            await controller.refresh(['mainnet']);
 
             expect(controller.state).toStrictEqual({
-              accounts: {
-                [CHECKSUM_ADDRESS_1]: { balance: '0x11' },
-                [CHECKSUM_ADDRESS_2]: { balance: '0x12' },
-              },
               accountsByChainId: {
                 '0x1': {
                   [CHECKSUM_ADDRESS_1]: {
@@ -787,8 +710,11 @@ describe('AccountTrackerController', () => {
     });
   });
 
-  it('should call refresh every interval on legacy polling', async () => {
-    const pollSpy = jest.spyOn(AccountTrackerController.prototype, 'poll');
+  it('should call refresh every interval on polling', async () => {
+    const pollSpy = jest.spyOn(
+      AccountTrackerController.prototype,
+      '_executePoll',
+    );
     await withController(
       {
         options: { interval: 100 },
@@ -798,6 +724,11 @@ describe('AccountTrackerController', () => {
       },
       async ({ controller }) => {
         jest.spyOn(controller, 'refresh').mockResolvedValue();
+
+        await controller.startPolling({
+          networkClientIds: ['networkClientId1'],
+        });
+        await advanceTime({ clock, duration: 1 });
 
         expect(pollSpy).toHaveBeenCalledTimes(1);
 
@@ -813,7 +744,6 @@ describe('AccountTrackerController', () => {
   });
 
   it('should call refresh every interval for each networkClientId being polled', async () => {
-    jest.spyOn(AccountTrackerController.prototype, 'poll').mockResolvedValue();
     const networkClientId1 = 'networkClientId1';
     const networkClientId2 = 'networkClientId2';
     await withController(
@@ -829,34 +759,34 @@ describe('AccountTrackerController', () => {
           .mockResolvedValue();
 
         controller.startPolling({
-          networkClientId: networkClientId1,
+          networkClientIds: [networkClientId1],
         });
 
         await advanceTime({ clock, duration: 0 });
-        expect(refreshSpy).toHaveBeenNthCalledWith(1, networkClientId1);
+        expect(refreshSpy).toHaveBeenNthCalledWith(1, [networkClientId1]);
         expect(refreshSpy).toHaveBeenCalledTimes(1);
         await advanceTime({ clock, duration: 50 });
         expect(refreshSpy).toHaveBeenCalledTimes(1);
         await advanceTime({ clock, duration: 50 });
-        expect(refreshSpy).toHaveBeenNthCalledWith(2, networkClientId1);
+        expect(refreshSpy).toHaveBeenNthCalledWith(2, [networkClientId1]);
         expect(refreshSpy).toHaveBeenCalledTimes(2);
 
         const pollToken = controller.startPolling({
-          networkClientId: networkClientId2,
+          networkClientIds: [networkClientId2],
         });
 
         await advanceTime({ clock, duration: 0 });
-        expect(refreshSpy).toHaveBeenNthCalledWith(3, networkClientId2);
+        expect(refreshSpy).toHaveBeenNthCalledWith(3, [networkClientId2]);
         expect(refreshSpy).toHaveBeenCalledTimes(3);
         await advanceTime({ clock, duration: 100 });
-        expect(refreshSpy).toHaveBeenNthCalledWith(4, networkClientId1);
-        expect(refreshSpy).toHaveBeenNthCalledWith(5, networkClientId2);
+        expect(refreshSpy).toHaveBeenNthCalledWith(4, [networkClientId1]);
+        expect(refreshSpy).toHaveBeenNthCalledWith(5, [networkClientId2]);
         expect(refreshSpy).toHaveBeenCalledTimes(5);
 
         controller.stopPollingByPollingToken(pollToken);
 
         await advanceTime({ clock, duration: 100 });
-        expect(refreshSpy).toHaveBeenNthCalledWith(6, networkClientId1);
+        expect(refreshSpy).toHaveBeenNthCalledWith(6, [networkClientId1]);
         expect(refreshSpy).toHaveBeenCalledTimes(6);
 
         controller.stopAllPolling();
@@ -864,6 +794,27 @@ describe('AccountTrackerController', () => {
         await advanceTime({ clock, duration: 100 });
 
         expect(refreshSpy).toHaveBeenCalledTimes(6);
+      },
+    );
+  });
+
+  it('should not call polling twice', async () => {
+    await withController(
+      {
+        options: { interval: 100 },
+      },
+      async ({ controller }) => {
+        const refreshSpy = jest
+          .spyOn(controller, 'refresh')
+          .mockResolvedValue();
+
+        expect(refreshSpy).not.toHaveBeenCalled();
+        controller.startPolling({
+          networkClientIds: ['networkClientId1'],
+        });
+
+        await advanceTime({ clock, duration: 1 });
+        expect(refreshSpy).toHaveBeenCalledTimes(1);
       },
     );
   });
@@ -911,7 +862,7 @@ async function withController<ReturnValue>(
     testFunction,
   ] = args.length === 2 ? args : [{}, args[0]];
 
-  const messenger = new ControllerMessenger<
+  const messenger = new Messenger<
     ExtractAvailableAction<AccountTrackerControllerMessenger> | AllowedActions,
     ExtractAvailableEvent<AccountTrackerControllerMessenger> | AllowedEvents
   >();

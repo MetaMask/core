@@ -1,9 +1,9 @@
-import type { UserStorageControllerMessenger } from '../UserStorageController';
-import type UserStorageController from '../UserStorageController';
 import type {
   USER_STORAGE_VERSION_KEY,
   USER_STORAGE_VERSION,
 } from './constants';
+import type { UserStorageControllerMessenger } from '../UserStorageController';
+import type UserStorageController from '../UserStorageController';
 
 export type UserStorageAccount = {
   /**
@@ -19,10 +19,6 @@ export type UserStorageAccount = {
   n: string;
   /** the nameLastUpdatedAt timestamp 'nlu' of the account */
   nlu?: number;
-};
-
-export type AccountSyncingConfig = {
-  isAccountSyncingEnabled: boolean;
 };
 
 export type AccountSyncingOptions = {

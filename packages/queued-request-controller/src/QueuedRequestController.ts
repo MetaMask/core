@@ -1,7 +1,7 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type {
@@ -66,7 +66,7 @@ export type AllowedActions =
 
 export type AllowedEvents = SelectedNetworkControllerStateChangeEvent;
 
-export type QueuedRequestControllerMessenger = RestrictedControllerMessenger<
+export type QueuedRequestControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   QueuedRequestControllerActions | AllowedActions,
   QueuedRequestControllerEvents | AllowedEvents,
@@ -190,7 +190,7 @@ export class QueuedRequestController extends BaseController<
    * Construct a QueuedRequestController.
    *
    * @param options - Controller options.
-   * @param options.messenger - The restricted controller messenger that facilitates communication with other controllers.
+   * @param options.messenger - The restricted messenger that facilitates communication with other controllers.
    * @param options.shouldRequestSwitchNetwork - A function that returns if a request requires the globally selected network to match the dapp selected network.
    * @param options.canRequestSwitchNetworkWithoutApproval - A function that returns if a request will switch the globally selected network without prompting for user approval.
    * @param options.clearPendingConfirmations - A function that will clear all the pending confirmations.

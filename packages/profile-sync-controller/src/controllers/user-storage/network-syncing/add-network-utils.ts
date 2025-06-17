@@ -5,6 +5,7 @@ export const MAX_NETWORKS_SIZE = 50;
 /**
  * Calculates the available space to add new networks
  * exported for testability.
+ *
  * @param originalListSize - size of original list
  * @param maxSize - max size
  * @returns a positive number on the available space

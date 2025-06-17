@@ -1,5 +1,5 @@
 import { BigNumber } from '@ethersproject/bignumber';
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import {
   BUILT_IN_NETWORKS,
   ChainId,
@@ -13,6 +13,7 @@ import type {
   NetworkClientId,
   NetworkControllerActions,
   NetworkControllerEvents,
+  InfuraNetworkClientConfiguration,
 } from '@metamask/network-controller';
 import {
   NetworkController,
@@ -69,16 +70,17 @@ async function setupAssetContractControllers({
   useNetworkControllerProvider?: boolean;
   infuraProjectId?: string;
 } = {}) {
-  const networkClientConfiguration = {
+  const networkClientConfiguration: InfuraNetworkClientConfiguration = {
     type: NetworkClientType.Infura,
     network: NetworkType.mainnet,
+    failoverRpcUrls: [],
     infuraProjectId,
     chainId: BUILT_IN_NETWORKS.mainnet.chainId,
     ticker: BUILT_IN_NETWORKS.mainnet.ticker,
-  } as const;
+  };
   let provider: Provider;
 
-  const controllerMessenger = new ControllerMessenger<
+  const messenger = new Messenger<
     | ExtractAvailableAction<AssetsContractControllerMessenger>
     | NetworkControllerActions,
     | ExtractAvailableEvent<AssetsContractControllerMessenger>
@@ -86,10 +88,14 @@ async function setupAssetContractControllers({
   >();
   const networkController = new NetworkController({
     infuraProjectId,
-    messenger: controllerMessenger.getRestricted({
+    messenger: messenger.getRestricted({
       name: 'NetworkController',
       allowedActions: [],
       allowedEvents: [],
+    }),
+    getRpcServiceOptions: () => ({
+      fetch,
+      btoa,
     }),
   });
   if (useNetworkControllerProvider) {
@@ -103,10 +109,8 @@ async function setupAssetContractControllers({
     );
   }
 
-  controllerMessenger.unregisterActionHandler(
-    'NetworkController:getNetworkClientById',
-  );
-  controllerMessenger.registerActionHandler(
+  messenger.unregisterActionHandler('NetworkController:getNetworkClientById');
+  messenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
     // @ts-expect-error TODO: remove this annotation once the `Eip1193Provider` class is released
     useNetworkControllerProvider
@@ -117,7 +121,7 @@ async function setupAssetContractControllers({
         }),
   );
 
-  const assetsContractMessenger = controllerMessenger.getRestricted({
+  const assetsContractMessenger = messenger.getRestricted({
     name: 'AssetsContractController',
     allowedActions: [
       'NetworkController:getNetworkClientById',
@@ -137,18 +141,14 @@ async function setupAssetContractControllers({
   });
 
   return {
-    messenger: controllerMessenger,
+    messenger,
     network: networkController,
     assetsContract,
     provider,
     networkClientConfiguration,
     infuraProjectId,
     triggerPreferencesStateChange: (state: PreferencesState) => {
-      controllerMessenger.publish(
-        'PreferencesController:stateChange',
-        state,
-        [],
-      );
+      messenger.publish('PreferencesController:stateChange', state, []);
     },
   };
 }
@@ -1095,6 +1095,7 @@ describe('AssetsContractController', () => {
         ticker: BUILT_IN_NETWORKS.sepolia.ticker,
         type: NetworkClientType.Infura,
         network: 'sepolia',
+        failoverRpcUrls: [],
         infuraProjectId: networkClientConfiguration.infuraProjectId,
       },
       mocks: [

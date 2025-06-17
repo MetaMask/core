@@ -1,3 +1,4 @@
+import type { AccountsControllerGetStateAction } from '@metamask/accounts-controller';
 import type {
   AddApprovalRequest,
   AcceptResultCallbacks,
@@ -6,7 +7,7 @@ import type {
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
@@ -89,30 +90,35 @@ export type SignatureControllerState = {
 
   /**
    * Map of personal messages with the unapproved status, keyed by ID.
+   *
    * @deprecated - Use `signatureRequests` instead.
    */
   unapprovedPersonalMsgs: Record<string, LegacyStateMessage>;
 
   /**
    * Map of typed messages with the unapproved status, keyed by ID.
+   *
    * @deprecated - Use `signatureRequests` instead.
    */
   unapprovedTypedMessages: Record<string, LegacyStateMessage>;
 
   /**
    * Number of unapproved personal messages.
+   *
    * @deprecated - Use `signatureRequests` instead.
    */
   unapprovedPersonalMsgCount: number;
 
   /**
    * Number of unapproved typed messages.
+   *
    * @deprecated - Use `signatureRequests` instead.
    */
   unapprovedTypedMessagesCount: number;
 };
 
 type AllowedActions =
+  | AccountsControllerGetStateAction
   | AddApprovalRequest
   | KeyringControllerSignMessageAction
   | KeyringControllerSignPersonalMessageAction
@@ -134,7 +140,7 @@ export type SignatureControllerActions = GetSignatureState;
 
 export type SignatureControllerEvents = SignatureStateChange;
 
-export type SignatureControllerMessenger = RestrictedControllerMessenger<
+export type SignatureControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   SignatureControllerActions | AllowedActions,
   SignatureControllerEvents,
@@ -144,7 +150,7 @@ export type SignatureControllerMessenger = RestrictedControllerMessenger<
 
 export type SignatureControllerOptions = {
   /**
-   * Restricted controller messenger required by the signature controller.
+   * Restricted messenger required by the signature controller.
    */
   messenger: SignatureControllerMessenger;
 
@@ -189,11 +195,11 @@ export class SignatureController extends BaseController<
 > {
   hub: EventEmitter;
 
-  #decodingApiUrl?: string;
+  readonly #decodingApiUrl?: string;
 
-  #isDecodeSignatureRequestEnabled?: () => boolean;
+  readonly #isDecodeSignatureRequestEnabled?: () => boolean;
 
-  #trace: TraceCallback;
+  readonly #trace: TraceCallback;
 
   /**
    * Construct a Sign controller.
@@ -201,7 +207,7 @@ export class SignatureController extends BaseController<
    * @param options - The controller options.
    * @param options.decodingApiUrl - Api used to get decoded data for permits.
    * @param options.isDecodeSignatureRequestEnabled - Function to check is decoding signature request is enabled.
-   * @param options.messenger - The restricted controller messenger for the sign controller.
+   * @param options.messenger - The restricted messenger for the sign controller.
    * @param options.state - Initial state to set on this controller.
    * @param options.trace - Callback to generate trace information.
    */
@@ -230,6 +236,7 @@ export class SignatureController extends BaseController<
 
   /**
    * A getter for the number of 'unapproved' PersonalMessages in this.messages.
+   *
    * @deprecated Use `signatureRequests` state instead.
    * @returns The number of 'unapproved' PersonalMessages in this.messages
    */
@@ -239,6 +246,7 @@ export class SignatureController extends BaseController<
 
   /**
    * A getter for the number of 'unapproved' TypedMessages in this.messages.
+   *
    * @deprecated Use `signatureRequests` state instead.
    * @returns The number of 'unapproved' TypedMessages in this.messages
    */
@@ -248,6 +256,7 @@ export class SignatureController extends BaseController<
 
   /**
    * A getter for returning all messages.
+   *
    * @deprecated Use `signatureRequests` state instead.
    * @returns The object containing all messages.
    */
@@ -346,12 +355,15 @@ export class SignatureController extends BaseController<
     options: { traceContext?: TraceContext } = {},
   ): Promise<string> {
     const chainId = this.#getChainId(request);
+    const internalAccounts = this.#getInternalAccounts();
 
-    validateTypedSignatureRequest(
-      messageParams,
-      version as SignTypedDataVersion,
-      chainId,
-    );
+    validateTypedSignatureRequest({
+      currentChainId: chainId,
+      internalAccounts,
+      messageData: messageParams,
+      request,
+      version: version as SignTypedDataVersion,
+    });
 
     const normalizedMessageParams = normalizeTypedMessageParams(
       messageParams,
@@ -386,6 +398,7 @@ export class SignatureController extends BaseController<
 
   /**
    * Set custom metadata on a signature request.
+   *
    * @param signatureRequestId - The ID of the signature request.
    * @param metadata - The custom metadata to set.
    */
@@ -937,5 +950,14 @@ export class SignatureController extends BaseController<
           draftMetadata.decodingLoading = false;
         }),
       );
+  }
+
+  #getInternalAccounts(): Hex[] {
+    const state = this.messagingSystem.call('AccountsController:getState');
+
+    /* istanbul ignore next */
+    return Object.values(state.internalAccounts?.accounts ?? {})
+      .filter((account) => account.type === 'eip155:eoa')
+      .map((account) => account.address as Hex);
   }
 }

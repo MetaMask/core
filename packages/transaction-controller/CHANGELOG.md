@@ -7,6 +7,451 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `afterSimulate` and `beforeSign` hooks to constructor ([#5503](https://github.com/MetaMask/core/pull/5503))
+  - Add `AfterSimulateHook` type.
+  - Add `BeforeSignHook` type.
+  - Add `TransactionContainerType` enum.
+  - Add `TransactionControllerEstimateGasAction` type.
+  - Add optional `containerTypes` property to `TransactionMeta`.
+  - Add optional `ignoreDelegationSignatures` boolean to `estimateGas` method.
+- Add `gasFeeEstimates` property to `TransactionBatchMeta`, populated using `DefaultGasFeeFlow` ([#5886](https://github.com/MetaMask/core/pull/5886))
+
+### Fixed
+
+- Handle unknown chain IDs on incoming transactions ([#5985](https://github.com/MetaMask/core/pull/5985))
+
+## [57.3.0]
+
+### Added
+
+- Add `SEI` network support ([#5694](https://github.com/MetaMask/core/pull/5694))
+  - Add account address relationship API support
+  - Add incoming transactions API support
+
+## [57.2.0]
+
+### Added
+
+- Add `lendingWithdraw` to `TransactionType` ([#5936](https://github.com/MetaMask/core/pull/5936))
+
+### Changed
+
+- Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
+
+### Fixed
+
+- Avoid coercing `publishBatchHook` to a boolean ([#5934](https://github.com/MetaMask/core/pull/5934))
+
+## [57.1.0]
+
+### Added
+
+- Add `gas` property to `TransactionBatchMeta`, populated using simulation API ([#5852](https://github.com/MetaMask/core/pull/5852))
+
+### Changed
+
+- Include gas limit and gas fees in simulation requests ([#5754](https://github.com/MetaMask/core/pull/5754))
+  - Add optional `fee` property to `GasFeeToken`.
+- Default addTransactionBatch to EIP7702 if supported, otherwise use sequential batch ([#5853](https://github.com/MetaMask/core/pull/5853))
+
+## [57.0.0]
+
+### Changed
+
+- **BREAKING:** bump `@metamask/accounts-controller` peer dependency to `^30.0.0` ([#5888](https://github.com/MetaMask/core/pull/5888))
+
+## [56.3.0]
+
+### Added
+
+- Include `origin` for `wallet_sendCalls` requests to the security alerts API ([#5876](https://github.com/MetaMask/core/pull/5876))
+  - Extend `ValidateSecurityRequest` with `origin` property.
+  - Send `origin` via `validateSecurity` callback.
+- Add optional approval request when calling `addTransactionBatch` ([#5793](https://github.com/MetaMask/core/pull/5793))
+  - Add `transactionBatches` array to state.
+  - Add `TransactionBatchMeta` type.
+
+### Fixed
+
+- Support leading zeroes in `authorizationList` properties ([#5830](https://github.com/MetaMask/core/pull/5830))
+
+## [56.2.0]
+
+### Added
+
+- Add sequential batch support when `publishBatchHook` is not defined ([#5762](https://github.com/MetaMask/core/pull/5762))
+
+### Fixed
+
+- Fix `userFeeLevel` as `dappSuggested` initially when dApp suggested gas values for legacy transactions ([#5821](https://github.com/MetaMask/core/pull/5821))
+- Fix `addTransaction` function to correctly identify a transaction as a `simpleSend` type when the recipient is a smart account ([#5822](https://github.com/MetaMask/core/pull/5822))
+- Fix gas fee randomisation with many decimal places ([#5839](https://github.com/MetaMask/core/pull/5839))
+
+## [56.1.0]
+
+### Added
+
+- Automatically update gas fee properties in `txParams` when `updateTransactionGasFees` method is called with `userFeeLevel` ([#5800](https://github.com/MetaMask/core/pull/5800))
+- Support additional debug of incoming transaction requests ([#5803](https://github.com/MetaMask/core/pull/5803))
+  - Add optional `incomingTransactions.client` constructor property.
+  - Add optional `tags` property to `updateIncomingTransactions` method.
+
+### Changed
+
+- Bump `@metamask/controller-utils` to `^11.9.0` ([#5812](https://github.com/MetaMask/core/pull/5812))
+
+### Fixed
+
+- Throw correct error code if upgrade rejected ([#5814](https://github.com/MetaMask/core/pull/5814))
+
+## [56.0.0]
+
+### Changed
+
+- **BREAKING:** bump `@metamask/accounts-controller` peer dependency to `^29.0.0` ([#5802](https://github.com/MetaMask/core/pull/5802))
+- Configure incoming transaction polling interval using feature flag ([#5792](https://github.com/MetaMask/core/pull/5792))
+
+## [55.0.2]
+
+### Fixed
+
+- Fix type-4 gas estimation ([#5790](https://github.com/MetaMask/core/pull/5790))
+
+## [55.0.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` to `^11.8.0` ([#5765](https://github.com/MetaMask/core/pull/5765))
+
+### Fixed
+
+- Validate correct origin in EIP-7702 transaction ([#5771](https://github.com/MetaMask/core/pull/5771))
+- Set `userFeeLevel` to `medium` instead of `dappSuggested` when `gasPrice` is suggested ([#5773](https://github.com/MetaMask/core/5773))
+
+## [55.0.0]
+
+### Added
+
+- Add optional `isEIP7702GasFeeTokensEnabled` constructor callback ([#5706](https://github.com/MetaMask/core/pull/5706))
+- Add `lendingDeposit` `TransactionType` ([#5747](https://github.com/MetaMask/core/pull/5747))
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency to `^28.0.0` ([#5763](https://github.com/MetaMask/core/pull/5763))
+
+## [54.4.0]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^23.2.0` to `^23.3.0` ([#5729](https://github.com/MetaMask/core/pull/5729))
+- Remove validation of `from` if `origin` is internal ([#5707](https://github.com/MetaMask/core/pull/5707))
+
+## [54.3.0]
+
+### Added
+
+- Add optional `gasTransfer` property to `GasFeeToken` ([#5681](https://github.com/MetaMask/core/pull/5681))
+
+### Changed
+
+- Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
+
+## [54.2.0]
+
+### Added
+
+- Add optional `afterAdd` hook to constructor ([#5692](https://github.com/MetaMask/core/pull/5692))
+  - Add optional `txParamsOriginal` property to `TransactionMeta`.
+  - Add `AfterAddHook` type.
+
+### Fixed
+
+- Handle errors in `isAtomicBatchSupported` method ([#5704](https://github.com/MetaMask/core/pull/5704))
+
+## [54.1.0]
+
+### Changed
+
+- Configure gas estimation buffers using feature flags ([#5637](https://github.com/MetaMask/core/pull/5637))
+- Update error codes for duplicate batch ID and batch size limit errors ([#5635](https://github.com/MetaMask/core/pull/5635))
+
+### Fixed
+
+- Do not use fixed gas for type 4 transactions ([#5646](https://github.com/MetaMask/core/pull/5646))
+- Throw if `addTransactionBatch` is called with any nested transaction with `to` matching internal account and including `data` ([#5635](https://github.com/MetaMask/core/pull/5635))
+- Fix incoming transaction support with `queryEntireHistory` set to `false` ([#5582](https://github.com/MetaMask/core/pull/5582))
+
+## [54.0.0]
+
+### Added
+
+- Add `isExternalSign` property to `TransactionMeta` to disable nonce generation and signing ([#5604](https://github.com/MetaMask/core/pull/5604))
+- Add types for `isAtomicBatchSupported` method ([#5600](https://github.com/MetaMask/core/pull/5600))
+  - `IsAtomicBatchSupportedRequest`
+  - `IsAtomicBatchSupportedResult`
+  - `IsAtomicBatchSupportedResultEntry`
+
+### Changed
+
+- **BREAKING:** Update signature of `isAtomicBatchSupported` method ([#5600](https://github.com/MetaMask/core/pull/5600))
+  - Replace `address` argument with `request` object containing `address` and optional `chainIds`.
+  - Return array of `IsAtomicBatchSupportedResultEntry` objects.
+- Skip `origin` validation for `batch` transaction type ([#5586](https://github.com/MetaMask/core/pull/5586))
+
+### Fixed
+
+- **BREAKING:** `enableTxParamsGasFeeUpdates` is renamed to `isAutomaticGasFeeUpdateEnabled` now expects a callback function instead of a boolean. ([#5602](https://github.com/MetaMask/core/pull/5602))
+  - This callback is invoked before performing `txParams` gas fee updates. The update will proceed only if the callback returns a truthy value.
+  - If not set it will default to return `false`.
+
+## [53.0.0]
+
+### Added
+
+- Add `gasPayment` to `TransactionType` enum ([#5584](https://github.com/MetaMask/core/pull/5584))
+- Add `TransactionControllerUpdateCustodialTransactionAction` messenger action ([#5045](https://github.com/MetaMask/core/pull/5045))
+
+### Changed
+
+- **BREAKING:** Return `Promise` from `beforePublish` and `beforeCheckPendingTransaction` hooks ([#5045](https://github.com/MetaMask/core/pull/5045))
+- Support additional parameters in `updateCustodialTransaction` method ([#5045](https://github.com/MetaMask/core/pull/5045))
+  - `gasLimit`
+  - `gasPrice`
+  - `maxFeePerGas`
+  - `maxPriorityFeePerGas`
+  - `nonce`
+  - `type`
+- Configure gas estimation fallback using remote feature flags ([#5556](https://github.com/MetaMask/core/pull/5556))
+- Throw if `chainId` in `TransactionParams` does not match `networkClientId` when calling `addTransaction` ([#5511](https://github.com/MetaMask/core/pull/5569))
+  - Mark `chainId` in `TransactionParams` as deprecated.
+- Bump `@metamask/controller-utils` to `^11.7.0` ([#5583](https://github.com/MetaMask/core/pull/5583))
+
+### Removed
+
+- **BREAKING:** Remove `custodyId` and `custodyStatus` properties from `TransactionMeta` ([#5045](https://github.com/MetaMask/core/pull/5045))
+
+## [52.3.0]
+
+### Added
+
+- Adds `RandomisedEstimationsGasFeeFlow` to gas fee flows in `TransactionController` ([#5511](https://github.com/MetaMask/core/pull/5511))
+  - Added flow only will be activated if chainId is defined in feature flags.
+- Configure pending transaction polling intervals using remote feature flags ([#5549](https://github.com/MetaMask/core/pull/5549))
+
+### Fixed
+
+- Fix EIP-7702 contract signature validation on chains with odd-length hexadecimal ID ([#5563](https://github.com/MetaMask/core/pull/5563))
+- Fix simulation of type-4 transactions ([#5552](https://github.com/MetaMask/core/pull/5552))
+- Display incoming transactions in active tab ([#5487](https://github.com/MetaMask/core/pull/5487))
+- Fix bug in `updateTransactionGasFees` affecting `txParams` gas updates when `enableTxParamsGasFeeUpdates` is enabled. ([#5539](https://github.com/MetaMask/core/pull/5539))
+
+## [52.2.0]
+
+### Added
+
+- Add `gasFeeTokens` to `TransactionMeta` ([#5524](https://github.com/MetaMask/core/pull/5524))
+  - Add `GasFeeToken` type.
+  - Add `selectedGasFeeToken` to `TransactionMeta`.
+  - Add `updateSelectedGasFeeToken` method.
+- Support security validation of transaction batches ([#5526](https://github.com/MetaMask/core/pull/5526))
+  - Add `ValidateSecurityRequest` type.
+  - Add optional `securityAlertId` to `SecurityAlertResponse`.
+  - Add optional `securityAlertId` to `TransactionBatchRequest`.
+  - Add optional `validateSecurity` callback to `TransactionBatchRequest`.
+- Support publish batch hook ([#5401](https://github.com/MetaMask/core/pull/5401))
+  - Add `hooks.publishBatch` option to constructor.
+  - Add `updateBatchTransactions` method.
+  - Add `maxFeePerGas` and `maxPriorityFeePerGas` to `updateEditableParams` options.
+  - Add types.
+    - `PublishBatchHook`
+    - `PublishBatchHookRequest`
+    - `PublishBatchHookResult`
+    - `PublishBatchHookTransaction`
+    - `PublishHook`
+    - `PublishHookResult`
+  - Add optional properties to `TransactionMeta`.
+    - `batchTransactions`
+    - `disableGasBuffer`
+  - Add optional properties to `BatchTransactionParams`.
+    - `gas`
+    - `maxFeePerGas`
+    - `maxPriorityFeePerGas`
+  - Add optional `existingTransaction` property to `TransactionBatchSingleRequest`.
+  - Add optional `useHook` property to `TransactionBatchRequest`.
+
+## [52.1.0]
+
+### Added
+
+- Add `enableTxParamsGasFeeUpdates` constructor option ([5394](https://github.com/MetaMask/core/pull/5394))
+  - If not set it will default to `false`.
+  - Automatically update gas fee properties in `txParams` when the `gasFeeEstimates` are updated via polling.
+
+### Fixed
+
+- Fix gas estimation for type 4 transactions ([#5519](https://github.com/MetaMask/core/pull/5519))
+
+## [52.0.0]
+
+### Changed
+
+- **BREAKING:** Remove `chainIds` argument from incoming transaction methods ([#5436](https://github.com/MetaMask/core/pull/5436))
+  - `startIncomingTransactionPolling`
+  - `stopIncomingTransactionPolling`
+  - `updateIncomingTransactions`
+
+## [51.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` to `^27.0.0` ([#5507](https://github.com/MetaMask/core/pull/5507))
+- **BREAKING:** Bump peer dependency `@metamask/gas-fee-controller` to `^23.0.0` ([#5507](https://github.com/MetaMask/core/pull/5507))
+- **BREAKING:** Bump peer dependency `@metamask/network-controller` to `^23.0.0` ([#5507](https://github.com/MetaMask/core/pull/5507))
+
+## [50.0.0]
+
+### Added
+
+- Add additional metadata for batch metrics ([#5488](https://github.com/MetaMask/core/pull/5488))
+  - Add `delegationAddress` to `TransactionMeta`.
+  - Add `NestedTransactionMetadata` type containing `BatchTransactionParams` and `type`.
+  - Add optional `type` to `TransactionBatchSingleRequest`.
+- Verify EIP-7702 contract address using signatures ([#5472](https://github.com/MetaMask/core/pull/5472))
+  - Add optional `publicKeyEIP7702` property to constructor.
+  - Add dependency on `^5.7.0` of `@ethersproject/wallet`.
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency to `^26.1.0` ([#5481](https://github.com/MetaMask/core/pull/5481))
+- **BREAKING:** Add additional metadata for batch metrics ([#5488](https://github.com/MetaMask/core/pull/5488))
+  - Change `error` in `TransactionMeta` to optional for all statuses.
+  - Change `nestedTransactions` in `TransactionMeta` to array of `NestedTransactionMetadata`.
+- Throw if `addTransactionBatch` called with external origin and size limit exceeded ([#5489](https://github.com/MetaMask/core/pull/5489))
+- Verify EIP-7702 contract address using signatures ([#5472](https://github.com/MetaMask/core/pull/5472))
+  - Use new `contracts` property from feature flags instead of `contractAddresses`.
+
+## [49.0.0]
+
+### Added
+
+- Add `revertDelegation` to `TransactionType` ([#5468](https://github.com/MetaMask/core/pull/5468))
+- Add optional batch ID to metadata ([#5462](https://github.com/MetaMask/core/pull/5462))
+  - Add optional `batchId` property to `TransactionMeta`.
+  - Add optional `transactionHash` to `TransactionReceipt`.
+  - Add optional `data` to `Log`.
+  - Add optional `batchId` to `TransactionBatchRequest`.
+  - Add optional `batchId` to `addTransaction` options.
+  - Throw if `batchId` already exists on a transaction.
+
+### Changed
+
+- **BREAKING:** Add optional batch ID to metadata ([#5462](https://github.com/MetaMask/core/pull/5462))
+  - Change `batchId` in `TransactionBatchResult` to `Hex`.
+  - Return `batchId` from `addTransactionBatch` if provided.
+  - Generate random batch ID if no `batchId` provided.
+
+## [48.2.0]
+
+### Changed
+
+- Normalize gas limit using `gas` and `gasLimit` properties ([#5396](https://github.com/MetaMask/core/pull/5396))
+
+## [48.1.0]
+
+### Changed
+
+- Prevent external transactions to internal accounts if `data` included ([#5418](https://github.com/MetaMask/core/pull/5418))
+
+## [48.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency to `^26.0.0` ([#5439](https://github.com/MetaMask/core/pull/5439))
+- **BREAKING:** Bump `@ethereumjs/util` from `^8.1.0` to `^9.1.0` ([#5347](https://github.com/MetaMask/core/pull/5347))
+
+## [47.0.0]
+
+### Added
+
+- Persist user rejection optional data in rejected error ([#5355](https://github.com/MetaMask/core/pull/5355))
+- Add `updateAtomicBatchData` method ([#5380](https://github.com/MetaMask/core/pull/5380))
+- Support atomic batch transactions ([#5306](https://github.com/MetaMask/core/pull/5306))
+  - Add methods:
+    - `addTransactionBatch`
+    - `isAtomicBatchSupported`
+  - Add `batch` to `TransactionType`.
+  - Add `nestedTransactions` to `TransactionMeta`.
+  - Add new types:
+    - `BatchTransactionParams`
+    - `TransactionBatchSingleRequest`
+    - `TransactionBatchRequest`
+    - `TransactionBatchResult`
+  - Add dependency on `@metamask/remote-feature-flag-controller:^1.4.0`.
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency to `^25.0.0` ([#5426](https://github.com/MetaMask/core/pull/5426))
+- **BREAKING**: Require messenger permissions for `KeyringController:signEip7702Authorization` action ([#5410](https://github.com/MetaMask/core/pull/5410))
+- **BREAKING:** Support atomic batch transactions ([#5306](https://github.com/MetaMask/core/pull/5306))
+  - Require `AccountsController:getState` action permission in messenger.
+  - Require `RemoteFeatureFlagController:getState` action permission in messenger.
+- Bump `@metamask/utils` from `^11.1.0` to `^11.2.0` ([#5301](https://github.com/MetaMask/core/pull/5301))
+- Throw if `addTransactionBatch` is called with any nested transaction with `to` matching internal account ([#5369](https://github.com/MetaMask/core/pull/5369))
+
+## [46.0.0]
+
+### Added
+
+- Adds ability of re-simulating transaction depending on the `isActive` property on `transactionMeta` ([#5189](https://github.com/MetaMask/core/pull/5189))
+  - `isActive` property is expected to set by client.
+  - Re-simulation of transactions will occur every 3 seconds if `isActive` is `true`.
+- Adds `setTransactionActive` function to update the `isActive` property on `transactionMeta`. ([#5189](https://github.com/MetaMask/core/pull/5189))
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^23.0.0` to `^24.0.0` ([#5318](https://github.com/MetaMask/core/pull/5318))
+
+## [45.1.0]
+
+### Added
+
+- Add support for EIP-7702 / type 4 transactions ([#5285](https://github.com/MetaMask/core/pull/5285))
+  - Add `setCode` to `TransactionEnvelopeType`.
+  - Add `authorizationList` to `TransactionParams`.
+  - Export `Authorization` and `AuthorizationList` types.
+
+### Changed
+
+- The TransactionController messenger must now allow the `KeyringController:signAuthorization` action ([#5285](https://github.com/MetaMask/core/pull/5285))
+- Bump `@metamask/base-controller` from `^7.1.1` to `^8.0.0` ([#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `ethereumjs/tx` from `^4.2.0` to `^5.4.0` ([#5285](https://github.com/MetaMask/core/pull/5285))
+- Bump `ethereumjs/common` from `^3.2.0` to `^4.5.0` ([#5285](https://github.com/MetaMask/core/pull/5285))
+
+## [45.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^22.0.0` to `^23.0.0` ([#5292](https://github.com/MetaMask/core/pull/5292))
+
+## [44.1.0]
+
+### Changed
+
+- Rename `ControllerMessenger` to `Messenger` ([#5234](https://github.com/MetaMask/core/pull/5234))
+- Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
+
+### Fixed
+
+- Prevent transaction resubmit on multiple endpoints ([#5262](https://github.com/MetaMask/core/pull/5262))
+
+## [44.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^21.0.0` to `^22.0.0` ([#5218](https://github.com/MetaMask/core/pull/5218))
+
 ## [43.0.0]
 
 ### Added
@@ -1238,7 +1683,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@43.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.3.0...HEAD
+[57.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.2.0...@metamask/transaction-controller@57.3.0
+[57.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.1.0...@metamask/transaction-controller@57.2.0
+[57.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.0.0...@metamask/transaction-controller@57.1.0
+[57.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@56.3.0...@metamask/transaction-controller@57.0.0
+[56.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@56.2.0...@metamask/transaction-controller@56.3.0
+[56.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@56.1.0...@metamask/transaction-controller@56.2.0
+[56.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@56.0.0...@metamask/transaction-controller@56.1.0
+[56.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@55.0.2...@metamask/transaction-controller@56.0.0
+[55.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@55.0.1...@metamask/transaction-controller@55.0.2
+[55.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@55.0.0...@metamask/transaction-controller@55.0.1
+[55.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@54.4.0...@metamask/transaction-controller@55.0.0
+[54.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@54.3.0...@metamask/transaction-controller@54.4.0
+[54.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@54.2.0...@metamask/transaction-controller@54.3.0
+[54.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@54.1.0...@metamask/transaction-controller@54.2.0
+[54.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@54.0.0...@metamask/transaction-controller@54.1.0
+[54.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@53.0.0...@metamask/transaction-controller@54.0.0
+[53.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@52.3.0...@metamask/transaction-controller@53.0.0
+[52.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@52.2.0...@metamask/transaction-controller@52.3.0
+[52.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@52.1.0...@metamask/transaction-controller@52.2.0
+[52.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@52.0.0...@metamask/transaction-controller@52.1.0
+[52.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@51.0.0...@metamask/transaction-controller@52.0.0
+[51.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@50.0.0...@metamask/transaction-controller@51.0.0
+[50.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@49.0.0...@metamask/transaction-controller@50.0.0
+[49.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@48.2.0...@metamask/transaction-controller@49.0.0
+[48.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@48.1.0...@metamask/transaction-controller@48.2.0
+[48.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@48.0.0...@metamask/transaction-controller@48.1.0
+[48.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@47.0.0...@metamask/transaction-controller@48.0.0
+[47.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@46.0.0...@metamask/transaction-controller@47.0.0
+[46.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@45.1.0...@metamask/transaction-controller@46.0.0
+[45.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@45.0.0...@metamask/transaction-controller@45.1.0
+[45.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@44.1.0...@metamask/transaction-controller@45.0.0
+[44.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@44.0.0...@metamask/transaction-controller@44.1.0
+[44.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@43.0.0...@metamask/transaction-controller@44.0.0
 [43.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@42.1.0...@metamask/transaction-controller@43.0.0
 [42.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@42.0.0...@metamask/transaction-controller@42.1.0
 [42.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@41.1.0...@metamask/transaction-controller@42.0.0

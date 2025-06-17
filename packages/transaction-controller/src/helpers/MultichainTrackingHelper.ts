@@ -10,8 +10,8 @@ import type { NonceLock, NonceTracker } from '@metamask/nonce-tracker';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
-import { createModuleLogger, projectLogger } from '../logger';
 import type { PendingTransactionTracker } from './PendingTransactionTracker';
+import { createModuleLogger, projectLogger } from '../logger';
 
 /**
  * Registry of network clients provided by the NetworkController
@@ -39,6 +39,7 @@ export type MultichainTrackingHelperOptions = {
     provider: Provider;
     blockTracker: BlockTracker;
     chainId: Hex;
+    networkClientId: NetworkClientId;
   }) => PendingTransactionTracker;
   onNetworkStateChange: (
     listener: (
@@ -68,6 +69,7 @@ export class MultichainTrackingHelper {
     provider: Provider;
     blockTracker: BlockTracker;
     chainId: Hex;
+    networkClientId: NetworkClientId;
   }) => PendingTransactionTracker;
 
   readonly #nonceMutexesByChainId = new Map<Hex, Map<string, Mutex>>();
@@ -255,7 +257,7 @@ export class MultichainTrackingHelper {
     };
   }
 
-  #refreshTrackingMap = (networkClients: NetworkClientRegistry) => {
+  readonly #refreshTrackingMap = (networkClients: NetworkClientRegistry) => {
     const networkClientIds = Object.keys(networkClients);
     const existingNetworkClientIds = Array.from(this.#trackingMap.keys());
 
@@ -319,39 +321,12 @@ export class MultichainTrackingHelper {
       provider,
       blockTracker,
       chainId,
+      networkClientId,
     });
 
     this.#trackingMap.set(networkClientId, {
       nonceTracker,
       pendingTransactionTracker,
     });
-  }
-
-  #getNetworkClient({
-    networkClientId,
-    chainId,
-  }: {
-    networkClientId?: NetworkClientId;
-    chainId?: Hex;
-  } = {}): NetworkClient | undefined {
-    let networkClient: NetworkClient | undefined;
-
-    if (networkClientId) {
-      try {
-        networkClient = this.#getNetworkClientById(networkClientId);
-      } catch (err) {
-        log('failed to get network client by networkClientId');
-      }
-    }
-    if (!networkClient && chainId) {
-      try {
-        const networkClientIdForChainId =
-          this.#findNetworkClientIdByChainId(chainId);
-        networkClient = this.#getNetworkClientById(networkClientIdForChainId);
-      } catch (err) {
-        log('failed to get network client by chainId');
-      }
-    }
-    return networkClient;
   }
 }

@@ -221,10 +221,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
           req,
           // This assertion is safe because of the runtime checks validating that `req` is an array and `callback` is defined.
           // There is only one overload signature that satisfies both conditions, and its `callback` type is the one that's being asserted.
-          callback as (
-            error: unknown,
-            responses?: JsonRpcResponse<Json>[],
-          ) => void,
+          callback as (error: unknown, responses?: JsonRpcResponse[]) => void,
         );
       }
       return this.#handleBatch(req);
@@ -233,7 +230,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
     if (callback) {
       return this.#handle(
         req,
-        callback as (error: unknown, response?: JsonRpcResponse<Json>) => void,
+        callback as (error: unknown, response?: JsonRpcResponse) => void,
       );
     }
     return this._promiseHandle(req);
@@ -279,14 +276,14 @@ export class JsonRpcEngine extends SafeEventEmitter {
    */
   #handleBatch(
     reqs: (JsonRpcRequest | JsonRpcNotification)[],
-  ): Promise<JsonRpcResponse<Json>[]>;
+  ): Promise<JsonRpcResponse[]>;
 
   /**
    * Like _handle, but for batch requests.
    */
   #handleBatch(
     reqs: (JsonRpcRequest | JsonRpcNotification)[],
-    callback: (error: unknown, responses?: JsonRpcResponse<Json>[]) => void,
+    callback: (error: unknown, responses?: JsonRpcResponse[]) => void,
   ): Promise<void>;
 
   /**
@@ -299,13 +296,13 @@ export class JsonRpcEngine extends SafeEventEmitter {
    */
   async #handleBatch(
     requests: (JsonRpcRequest | JsonRpcNotification)[],
-    callback?: (error: unknown, responses?: JsonRpcResponse<Json>[]) => void,
-  ): Promise<JsonRpcResponse<Json>[] | void> {
+    callback?: (error: unknown, responses?: JsonRpcResponse[]) => void,
+  ): Promise<JsonRpcResponse[] | void> {
     // The order here is important
     try {
       // If the batch is an empty array, the response array must contain a single object
       if (requests.length === 0) {
-        const response: JsonRpcResponse<Json>[] = [
+        const response: JsonRpcResponse[] = [
           {
             id: null,
             jsonrpc: '2.0',
@@ -330,7 +327,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
         )
       ).filter(
         // Filter out any notification responses.
-        (response): response is JsonRpcResponse<Json> => response !== undefined,
+        (response): response is JsonRpcResponse => response !== undefined,
       );
 
       // 3. Return batch response
@@ -358,7 +355,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
   // eslint-disable-next-line no-restricted-syntax
   private async _promiseHandle(
     request: JsonRpcRequest | JsonRpcNotification,
-  ): Promise<JsonRpcResponse<Json> | void> {
+  ): Promise<JsonRpcResponse | void> {
     return new Promise((resolve, reject) => {
       this.#handle(request, (error, res) => {
         // For notifications, the response will be `undefined`, and any caught
@@ -386,7 +383,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
    */
   async #handle(
     callerReq: JsonRpcRequest | JsonRpcNotification,
-    callback: (error: unknown, response?: JsonRpcResponse<Json>) => void,
+    callback: (error: unknown, response?: JsonRpcResponse) => void,
   ): Promise<void> {
     if (
       !callerReq ||
@@ -437,7 +434,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
     // Handle requests.
     // Typecast: Permit missing id's for backwards compatibility.
     const req = { ...(callerReq as JsonRpcRequest) };
-    const res: PendingJsonRpcResponse<Json> = {
+    const res: PendingJsonRpcResponse = {
       id: req.id,
       jsonrpc: req.jsonrpc,
     };
@@ -458,7 +455,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
       }
     }
 
-    return callback(error, res as JsonRpcResponse<Json>);
+    return callback(error, res as JsonRpcResponse);
   }
 
   /**
@@ -472,7 +469,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
    */
   static async #processRequest(
     req: JsonRpcRequest,
-    res: PendingJsonRpcResponse<Json>,
+    res: PendingJsonRpcResponse,
     middlewares: JsonRpcMiddleware<JsonRpcParams, Json>[],
   ): Promise<void> {
     const [error, isComplete, returnHandlers] =
@@ -506,7 +503,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
    */
   static async #runAllMiddleware(
     req: JsonRpcRequest,
-    res: PendingJsonRpcResponse<Json>,
+    res: PendingJsonRpcResponse,
     middlewares: JsonRpcMiddleware<JsonRpcParams, Json>[],
   ): Promise<
     [
@@ -542,12 +539,12 @@ export class JsonRpcEngine extends SafeEventEmitter {
    * @param response - The response object.
    * @param middleware - The middleware function to execute.
    * @param returnHandlers - The return handlers array for the current request.
-   * @returns An array of any error encountered during middleware exection,
+   * @returns An array of any error encountered during middleware execution,
    * and a boolean indicating whether the request should end.
    */
   static async #runMiddleware(
     request: JsonRpcRequest,
-    response: PendingJsonRpcResponse<Json>,
+    response: PendingJsonRpcResponse,
     middleware: JsonRpcMiddleware<JsonRpcParams, Json>,
     returnHandlers: JsonRpcEngineReturnHandler[],
   ): Promise<[unknown, boolean]> {
@@ -623,7 +620,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
    */
   static #checkForCompletion(
     request: JsonRpcRequest,
-    response: PendingJsonRpcResponse<Json>,
+    response: PendingJsonRpcResponse,
     isComplete: boolean,
   ): void {
     if (!hasProperty(response, 'result') && !hasProperty(response, 'error')) {

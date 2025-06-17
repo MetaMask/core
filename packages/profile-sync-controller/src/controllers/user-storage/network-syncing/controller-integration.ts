@@ -1,23 +1,23 @@
 import type { NetworkConfiguration } from '@metamask/network-controller';
 import log from 'loglevel';
 
-import type { UserStorageBaseOptions } from '../services';
-import type { UserStorageControllerMessenger } from '../UserStorageController';
 import { getBoundedNetworksToAdd } from './add-network-utils';
 import { getAllRemoteNetworks } from './services';
 import { findNetworksToUpdate } from './sync-all';
 import { batchUpdateNetworks, deleteNetwork } from './sync-mutations';
 import { createUpdateNetworkProps } from './update-network-utils';
+import type UserStorageController from '../UserStorageController';
+import type { UserStorageControllerMessenger } from '../UserStorageController';
 
 type StartNetworkSyncingProps = {
   messenger: UserStorageControllerMessenger;
-  getStorageConfig: () => Promise<UserStorageBaseOptions | null>;
+  getUserStorageControllerInstance: () => UserStorageController;
   isMutationSyncBlocked: () => boolean;
 };
 
 type PerformMainNetworkSyncProps = {
   messenger: UserStorageControllerMessenger;
-  getStorageConfig: () => Promise<UserStorageBaseOptions | null>;
+  getUserStorageControllerInstance: () => UserStorageController;
   maxNetworksToAdd?: number;
   onNetworkAdded?: (chainId: string) => void;
   onNetworkUpdated?: (chainId: string) => void;
@@ -43,10 +43,12 @@ export let isMainNetworkSyncInProgress = false;
  * @param props - parameters used for initializing and enabling network syncing
  */
 export function startNetworkSyncing(props: StartNetworkSyncingProps) {
-  const { messenger, getStorageConfig, isMutationSyncBlocked } = props;
+  const { messenger, isMutationSyncBlocked, getUserStorageControllerInstance } =
+    props;
   try {
     messenger.subscribe(
       'NetworkController:networkRemoved',
+
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (networkConfiguration) => {
         try {
@@ -61,11 +63,9 @@ export function startNetworkSyncing(props: StartNetworkSyncingProps) {
             return;
           }
 
-          const opts = await getStorageConfig();
-          if (!opts) {
-            return;
-          }
-          await deleteNetwork(networkConfiguration, opts);
+          await deleteNetwork(networkConfiguration, {
+            getUserStorageControllerInstance,
+          });
         } catch {
           // Silently fail sync
         }
@@ -79,6 +79,7 @@ export function startNetworkSyncing(props: StartNetworkSyncingProps) {
 /**
  * method that will dispatch the `NetworkController:updateNetwork` action.
  * transforms and corrects the network configuration (and RPCs) we pass through.
+ *
  * @param props - properties
  * @param props.messenger - messenger to call the action
  * @param props.originalNetworkConfiguration - original network config (from network controller state)
@@ -116,6 +117,7 @@ export const dispatchUpdateNetwork = async (props: {
 /**
  * Action to perform the main network sync.
  * It will fetch local networks and remote networks, then determines which networks (local and remote) to add/update
+ *
  * @param props - parameters used for this main sync
  */
 export async function performMainNetworkSync(
@@ -123,11 +125,11 @@ export async function performMainNetworkSync(
 ) {
   const {
     messenger,
-    getStorageConfig,
     maxNetworksToAdd,
     onNetworkAdded,
     onNetworkRemoved,
     onNetworkUpdated,
+    getUserStorageControllerInstance,
   } = props;
 
   // Edge-Case, we do not want to re-run the main-sync if it already is in progress
@@ -138,17 +140,14 @@ export async function performMainNetworkSync(
 
   isMainNetworkSyncInProgress = true;
   try {
-    const opts = await getStorageConfig();
-    if (!opts) {
-      return;
-    }
-
     const networkControllerState = messenger.call('NetworkController:getState');
     const localNetworks = Object.values(
       networkControllerState.networkConfigurationsByChainId ?? {},
     );
 
-    const remoteNetworks = await getAllRemoteNetworks(opts);
+    const remoteNetworks = await getAllRemoteNetworks({
+      getUserStorageControllerInstance,
+    });
     const networkChanges = findNetworksToUpdate({
       localNetworks,
       remoteNetworks,
@@ -165,7 +164,9 @@ export async function performMainNetworkSync(
       networkChanges?.remoteNetworksToUpdate &&
       networkChanges.remoteNetworksToUpdate.length > 0
     ) {
-      await batchUpdateNetworks(networkChanges?.remoteNetworksToUpdate, opts);
+      await batchUpdateNetworks(networkChanges?.remoteNetworksToUpdate, {
+        getUserStorageControllerInstance,
+      });
     }
 
     // Add missing local networks

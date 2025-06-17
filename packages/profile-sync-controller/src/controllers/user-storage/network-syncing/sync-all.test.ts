@@ -97,9 +97,11 @@ describe('checkWhichNetworkIsLatest()', () => {
     'should test when [$test] and the result would be: [$actual]',
     ({ dates, actual }) => {
       const localNetwork = createMockNetworkConfiguration({
+        // eslint-disable-next-line jest/no-conditional-in-test
         lastUpdatedAt: dates[0] ?? undefined,
       });
       const remoteNetwork = createMockRemoteNetworkConfiguration({
+        // eslint-disable-next-line jest/no-conditional-in-test
         lastUpdatedAt: dates[1] ?? undefined,
       });
       const result = checkWhichNetworkIsLatest(localNetwork, remoteNetwork);
@@ -122,12 +124,14 @@ describe('getUpdatedNetworkLists()', () => {
       localNetworks.push(
         createMockNetworkConfiguration({
           chainId: `0x${idx}`,
+          // eslint-disable-next-line jest/no-conditional-in-test
           lastUpdatedAt: dates[0] ?? undefined,
         }),
       );
       remoteNetworks.push(
         createMockRemoteNetworkConfiguration({
           chainId: `0x${idx}`,
+          // eslint-disable-next-line jest/no-conditional-in-test
           lastUpdatedAt: dates[1] ?? undefined,
         }),
       );
@@ -169,6 +173,7 @@ describe('getUpdatedNetworkLists()', () => {
     let testCount = 0;
     testMatrix.forEach(({ actual }, idx) => {
       const chainId = `0x${idx}` as const;
+      // eslint-disable-next-line jest/no-conditional-in-test
       if (actual === 'Do Nothing') {
         testCount += 1;
         // eslint-disable-next-line jest/no-conditional-expect
@@ -177,10 +182,12 @@ describe('getUpdatedNetworkLists()', () => {
           localIdsRemoved.includes(chainId),
           remoteIdsUpdated.includes(chainId),
         ]).toStrictEqual([false, false, false]);
+        // eslint-disable-next-line jest/no-conditional-in-test
       } else if (actual === 'Local Wins') {
         testCount += 1;
         // eslint-disable-next-line jest/no-conditional-expect
         expect(remoteIdsUpdated).toContain(chainId);
+        // eslint-disable-next-line jest/no-conditional-in-test
       } else if (actual === 'Remote Wins') {
         testCount += 1;
         // eslint-disable-next-line jest/no-conditional-expect
@@ -238,12 +245,14 @@ describe('findNetworksToUpdate()', () => {
       localNetworks.push(
         createMockNetworkConfiguration({
           chainId: `0x${idx}`,
+          // eslint-disable-next-line jest/no-conditional-in-test
           lastUpdatedAt: dates[0] ?? undefined,
         }),
       );
       remoteNetworks.push(
         createMockRemoteNetworkConfiguration({
           chainId: `0x${idx}`,
+          // eslint-disable-next-line jest/no-conditional-in-test
           lastUpdatedAt: dates[1] ?? undefined,
         }),
       );
@@ -257,14 +266,17 @@ describe('findNetworksToUpdate()', () => {
 
     // Assert - Local and Remote networks to update
     const updateLocalIds =
+      // eslint-disable-next-line jest/no-conditional-in-test
       result?.localNetworksToUpdate?.map((n) => n.chainId) ?? [];
     const updateRemoteIds =
+      // eslint-disable-next-line jest/no-conditional-in-test
       result?.remoteNetworksToUpdate?.map((n) => n.chainId) ?? [];
 
     // Check Test Matrix combinations were all tested
     let testCount = 0;
     testMatrix.forEach(({ actual }, idx) => {
       const chainId = `0x${idx}` as const;
+      // eslint-disable-next-line jest/no-conditional-in-test
       if (actual === 'Do Nothing') {
         testCount += 1;
         // No lists are updated if nothing changes
@@ -273,6 +285,7 @@ describe('findNetworksToUpdate()', () => {
           updateLocalIds.includes(chainId),
           updateRemoteIds.includes(chainId),
         ]).toStrictEqual([false, false]);
+        // eslint-disable-next-line jest/no-conditional-in-test
       } else if (actual === 'Local Wins') {
         testCount += 1;
         // Only remote is updated if local wins
@@ -281,6 +294,7 @@ describe('findNetworksToUpdate()', () => {
           updateLocalIds.includes(chainId),
           updateRemoteIds.includes(chainId),
         ]).toStrictEqual([false, true]);
+        // eslint-disable-next-line jest/no-conditional-in-test
       } else if (actual === 'Remote Wins') {
         testCount += 1;
         // Only local is updated if remote wins
@@ -321,6 +335,7 @@ describe('findNetworksToUpdate()', () => {
 
 /**
  * Test Utility - Create a list of mock local network configurations
+ *
  * @param ids - list of chains to support
  * @returns list of local networks
  */
@@ -332,6 +347,7 @@ function arrangeLocalNetworks(ids: string[]) {
 
 /**
  * Test Utility - Create a list of mock remote network configurations
+ *
  * @param ids - list of chains to support
  * @returns list of local networks
  */

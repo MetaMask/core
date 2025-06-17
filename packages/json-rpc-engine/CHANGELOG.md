@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.3]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
+
 ## [10.0.2]
 
 ### Changed
@@ -223,7 +229,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     This change may affect consumers that depend on the eager execution of middleware _during_ request processing, _outside of_ middleware functions and request handlers.
     - In general, it is a bad practice to work with state that depends on middleware execution, while the middleware are executing.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.0.3...HEAD
+[10.0.3]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.0.2...@metamask/json-rpc-engine@10.0.3
 [10.0.2]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.0.1...@metamask/json-rpc-engine@10.0.2
 [10.0.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.0.0...@metamask/json-rpc-engine@10.0.1
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@9.0.3...@metamask/json-rpc-engine@10.0.0

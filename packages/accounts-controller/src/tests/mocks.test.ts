@@ -1,4 +1,9 @@
-import { BtcAccountType, EthAccountType } from '@metamask/keyring-api';
+import {
+  BtcAccountType,
+  BtcScope,
+  EthAccountType,
+  EthScope,
+} from '@metamask/keyring-api';
 
 import { createMockInternalAccount } from './mocks';
 
@@ -11,12 +16,12 @@ describe('createMockInternalAccount', () => {
       type: expect.any(String),
       options: expect.any(Object),
       methods: expect.any(Array),
+      scopes: [EthScope.Eoa],
       metadata: {
         name: expect.any(String),
         keyring: { type: expect.any(String) },
         importTime: expect.any(Number),
         lastSelected: expect.any(Number),
-        snap: undefined,
       },
     });
   });
@@ -40,6 +45,7 @@ describe('createMockInternalAccount', () => {
       type: EthAccountType.Erc4337,
       options: expect.any(Object),
       methods: expect.any(Array),
+      scopes: [EthScope.Mainnet], // Assuming we are using mainnet for those Smart Accounts.
       metadata: {
         name: 'Custom Account',
         keyring: { type: expect.any(String) },
@@ -58,12 +64,12 @@ describe('createMockInternalAccount', () => {
       type: BtcAccountType.P2wpkh,
       options: expect.any(Object),
       methods: expect.any(Array),
+      scopes: [BtcScope.Mainnet],
       metadata: {
         name: expect.any(String),
         keyring: { type: expect.any(String) },
         importTime: expect.any(Number),
         lastSelected: expect.any(Number),
-        snap: undefined,
       },
     });
   });

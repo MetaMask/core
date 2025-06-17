@@ -1,4 +1,3 @@
-import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import {
@@ -24,6 +23,7 @@ export const isNameDefaultAccountName = (name: string) => {
 
 /**
  * Map an internal account to a user storage account
+ *
  * @param internalAccount - An internal account
  * @returns A user storage account
  */
@@ -41,14 +41,3 @@ export const mapInternalAccountToUserStorageAccount = (
     ...(isNameDefaultAccountName(name) ? {} : { nlu: nameLastUpdatedAt }),
   };
 };
-
-/**
- * Checks if the given internal account has the correct keyring type.
- * @param account - The internal account to check
- * @returns Returns true if the internal account has the correct keyring type, false otherwise.
- */
-export function doesInternalAccountHaveCorrectKeyringType(
-  account: InternalAccount,
-) {
-  return account.metadata.keyring.type === KeyringTypes.hd;
-}

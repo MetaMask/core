@@ -10,6 +10,8 @@ class CustomTestEnvironment extends JSDOMEnvironment {
   async setup() {
     await super.setup();
 
+    // jest runs in a node environment, so need to polyfil webAPIs
+    // eslint-disable-next-line no-shadow, n/prefer-global/text-encoder, n/prefer-global/text-decoder
     const { TextEncoder, TextDecoder } = require('util');
     this.global.TextEncoder = TextEncoder;
     this.global.TextDecoder = TextDecoder;
@@ -17,6 +19,8 @@ class CustomTestEnvironment extends JSDOMEnvironment {
     this.global.Uint8Array = Uint8Array;
 
     if (typeof this.global.crypto === 'undefined') {
+      // jest runs in a node environment, so need to polyfil webAPIs
+      // eslint-disable-next-line n/no-unsupported-features/node-builtins
       this.global.crypto = require('crypto').webcrypto;
     }
   }

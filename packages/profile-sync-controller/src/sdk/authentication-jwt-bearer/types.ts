@@ -1,7 +1,7 @@
 import type { Env, Platform } from '../../shared/env';
 
 export enum AuthType {
-  /* sign in using a private key derived from your secret recovery phrase (SRP). 
+  /* sign in using a private key derived from your secret recovery phrase (SRP).
        Uses message signing snap to perform this operation */
   SRP = 'SRP',
 
@@ -51,20 +51,26 @@ export type LoginResponse = {
 };
 
 export type IBaseAuth = {
-  getAccessToken: () => Promise<string>;
-  getUserProfile: () => Promise<UserProfile>;
-  getIdentifier: () => Promise<string>;
-  signMessage: (message: string) => Promise<string>;
+  // TODO: figure out if these need the entropy source id param or if that can be abstracted on another layer
+  getAccessToken: (entropySourceId?: string) => Promise<string>;
+  getUserProfile: (entropySourceId?: string) => Promise<UserProfile>;
+  getIdentifier: (entropySourceId?: string) => Promise<string>;
+  signMessage: (message: string, entropySourceId?: string) => Promise<string>;
 };
 
 export type AuthStorageOptions = {
-  getLoginResponse: () => Promise<LoginResponse | null>;
-  setLoginResponse: (val: LoginResponse) => Promise<void>;
+  // TODO: figure out if these need the entropy source id param or if that can be abstracted on another layer
+  getLoginResponse: (entropySourceId?: string) => Promise<LoginResponse | null>;
+  setLoginResponse: (
+    val: LoginResponse,
+    entropySourceId?: string,
+  ) => Promise<void>;
 };
 
 export type AuthSigningOptions = {
-  signMessage: (message: string) => Promise<string>;
-  getIdentifier: () => Promise<string>;
+  // TODO: figure out if these need the entropy source id param or if that can be abstracted on another layer
+  signMessage: (message: string, entropySourceId?: string) => Promise<string>;
+  getIdentifier: (entropySourceId?: string) => Promise<string>;
 };
 
 export type ErrorMessage = {

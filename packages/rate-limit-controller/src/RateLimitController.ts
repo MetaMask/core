@@ -1,6 +1,6 @@
 import type {
   ActionConstraint,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
@@ -69,7 +69,7 @@ export type RateLimitControllerEvents<
 > = RateLimitControllerStateChangeEvent<RateLimitedApis>;
 
 export type RateLimitMessenger<RateLimitedApis extends RateLimitedApiMap> =
-  RestrictedControllerMessenger<
+  RestrictedMessenger<
     typeof name,
     RateLimitControllerActions<RateLimitedApis>,
     RateLimitControllerEvents<RateLimitedApis>,

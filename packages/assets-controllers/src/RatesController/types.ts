@@ -1,5 +1,5 @@
 import type {
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
@@ -97,7 +97,7 @@ export type RatesControllerActions = RatesControllerGetStateAction;
 /**
  * Defines the actions that the RatesController can perform.
  */
-export type RatesControllerMessenger = RestrictedControllerMessenger<
+export type RatesControllerMessenger = RestrictedMessenger<
   typeof ratesControllerName,
   RatesControllerActions,
   RatesControllerEvents,

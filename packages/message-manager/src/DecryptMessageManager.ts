@@ -1,7 +1,7 @@
 import type {
   ActionConstraint,
   EventConstraint,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 
@@ -30,7 +30,7 @@ export type DecryptMessageManagerUpdateBadgeEvent = {
   payload: [];
 };
 
-export type DecryptMessageManagerMessenger = RestrictedControllerMessenger<
+export type DecryptMessageManagerMessenger = RestrictedMessenger<
   string,
   ActionConstraint,
   | EventConstraint

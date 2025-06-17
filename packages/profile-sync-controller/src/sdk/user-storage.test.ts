@@ -1,32 +1,34 @@
-import encryption, { createSHA256Hash } from '../shared/encryption';
-import { SHARED_SALT } from '../shared/encryption/constants';
-import { Env } from '../shared/env';
-import type { UserStorageFeatureKeys } from '../shared/storage-schema';
-import { USER_STORAGE_FEATURE_NAMES } from '../shared/storage-schema';
-import { arrangeAuthAPIs } from './__fixtures__/mock-auth';
+import { arrangeAuthAPIs } from './__fixtures__/auth';
+import { arrangeAuth, typedMockFn } from './__fixtures__/test-utils';
 import {
-  MOCK_NOTIFICATIONS_DATA,
-  MOCK_STORAGE_KEY,
   handleMockUserStorageGet,
   handleMockUserStoragePut,
   handleMockUserStorageGetAllFeatureEntries,
   handleMockUserStorageDeleteAllFeatureEntries,
   handleMockUserStorageDelete,
   handleMockUserStorageBatchDelete,
-  MOCK_STORAGE_RESPONSE,
-} from './__fixtures__/mock-userstorage';
-import { arrangeAuth, typedMockFn } from './__fixtures__/test-utils';
-import type { IBaseAuth } from './authentication-jwt-bearer/types';
+} from './__fixtures__/userstorage';
+import { type IBaseAuth } from './authentication-jwt-bearer/types';
 import { NotFoundError, UserStorageError } from './errors';
+import {
+  MOCK_NOTIFICATIONS_DATA,
+  MOCK_STORAGE_KEY,
+  MOCK_STORAGE_RESPONSE,
+} from './mocks/userstorage';
 import type { StorageOptions } from './user-storage';
 import { STORAGE_URL, UserStorage } from './user-storage';
+import encryption, { createSHA256Hash } from '../shared/encryption';
+import { SHARED_SALT } from '../shared/encryption/constants';
+import { Env } from '../shared/env';
+import { USER_STORAGE_FEATURE_NAMES } from '../shared/storage-schema';
+import type { UserStorageFeatureKeys } from '../shared/storage-schema';
 
 const MOCK_SRP = '0x6265617665726275696c642e6f7267';
 const MOCK_ADDRESS = '0x68757d15a4d8d1421c17003512AFce15D3f3FaDa';
 
 describe('User Storage - STORAGE_URL()', () => {
   it('generates an example url path for User Storage', () => {
-    const result = STORAGE_URL(Env.DEV, 'my-feature/my-hashed-entry');
+    const result = STORAGE_URL(Env.PRD, 'my-feature/my-hashed-entry');
     expect(result).toBeDefined();
     expect(result).toContain('my-feature');
     expect(result).toContain('my-hashed-entry');
@@ -107,6 +109,7 @@ describe('User Storage', () => {
     const mockPut = handleMockUserStoragePut(
       undefined,
       async (_, requestBody) => {
+        // eslint-disable-next-line jest/no-conditional-in-test
         if (typeof requestBody === 'string') {
           return;
         }
@@ -130,7 +133,15 @@ describe('User Storage', () => {
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
     const { userStorage } = arrangeUserStorage(auth);
 
-    const mockGetAll = await handleMockUserStorageGetAllFeatureEntries();
+    const mockGetAll = await handleMockUserStorageGetAllFeatureEntries({
+      status: 200,
+      body: [
+        await MOCK_STORAGE_RESPONSE(),
+        {
+          HashedKey: 'entry2',
+        },
+      ],
+    });
 
     const data = MOCK_NOTIFICATIONS_DATA;
     const responseAllFeatureEntries = await userStorage.getAllFeatureItems(
@@ -167,6 +178,7 @@ describe('User Storage', () => {
     const mockPut = handleMockUserStoragePut(
       undefined,
       async (_, requestBody) => {
+        // eslint-disable-next-line jest/no-conditional-in-test
         if (typeof requestBody === 'string') {
           return;
         }
@@ -215,6 +227,7 @@ describe('User Storage', () => {
     const mockPut = handleMockUserStoragePut(
       undefined,
       async (_, requestBody) => {
+        // eslint-disable-next-line jest/no-conditional-in-test
         if (typeof requestBody === 'string') {
           return;
         }
@@ -246,6 +259,15 @@ describe('User Storage', () => {
     expect(mockPut.isDone()).toBe(true);
   });
 
+  it('returns void when trying to batch set items with invalid data', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    expect(
+      await userStorage.batchSetItems(USER_STORAGE_FEATURE_NAMES.accounts, []),
+    ).toBeUndefined();
+  });
+
   it('user storage: delete one feature entry', async () => {
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
     const { userStorage } = arrangeUserStorage(auth);
@@ -270,11 +292,27 @@ describe('User Storage', () => {
       },
     });
 
-    await expect(
+    await expect(() =>
       userStorage.deleteItem(
         `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
       ),
     ).rejects.toThrow(UserStorageError);
+  });
+
+  it('user storage: feature entry to delete not found', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    await handleMockUserStorageDelete({
+      status: 404,
+      body: {},
+    });
+
+    await expect(
+      userStorage.deleteItem(
+        `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+      ),
+    ).rejects.toThrow(NotFoundError);
   });
 
   it('user storage: delete all feature entries', async () => {
@@ -308,6 +346,25 @@ describe('User Storage', () => {
     ).rejects.toThrow(UserStorageError);
   });
 
+  it('user storage: failed to find feature to delete when deleting all feature entries', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    await handleMockUserStorageDeleteAllFeatureEntries({
+      status: 404,
+      body: {
+        message: 'failed to delete all feature entries',
+        error: 'generic-error',
+      },
+    });
+
+    await expect(
+      userStorage.deleteAllFeatureItems(
+        USER_STORAGE_FEATURE_NAMES.notifications,
+      ),
+    ).rejects.toThrow(NotFoundError);
+  });
+
   it('user storage: batch delete items', async () => {
     const keysToDelete: UserStorageFeatureKeys<
       typeof USER_STORAGE_FEATURE_NAMES.accounts
@@ -318,6 +375,7 @@ describe('User Storage', () => {
     const mockPut = handleMockUserStorageBatchDelete(
       undefined,
       async (_, requestBody) => {
+        // eslint-disable-next-line jest/no-conditional-in-test
         if (typeof requestBody === 'string') {
           return;
         }
@@ -332,6 +390,17 @@ describe('User Storage', () => {
 
     await userStorage.batchDeleteItems('accounts_v2', keysToDelete);
     expect(mockPut.isDone()).toBe(true);
+  });
+
+  it('returns void when trying to batch delete items with invalid data', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+    expect(
+      await userStorage.batchDeleteItems(
+        USER_STORAGE_FEATURE_NAMES.accounts,
+        [],
+      ),
+    ).toBeUndefined();
   });
 
   it('user storage: failed to set key', async () => {
@@ -442,11 +511,11 @@ describe('User Storage', () => {
       },
     });
 
-    await expect(
-      userStorage.getItem(
-        `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
-      ),
-    ).rejects.toThrow(NotFoundError);
+    const result = await userStorage.getItem(
+      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+    );
+
+    expect(result).toBeNull();
   });
 
   it('get/sets using a newly generated storage key (not in storage)', async () => {
@@ -464,6 +533,24 @@ describe('User Storage', () => {
       'some fake data',
     );
     expect(mockAuthSignMessage).toHaveBeenCalled(); // SignMessage called since generating new key
+  });
+
+  it('uses existing storage key (in storage)', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage, mockGetStorageKey } = arrangeUserStorage(auth);
+    mockGetStorageKey.mockResolvedValue(MOCK_STORAGE_KEY);
+
+    const mockAuthSignMessage = jest
+      .spyOn(auth, 'signMessage')
+      .mockResolvedValue(MOCK_STORAGE_KEY);
+
+    handleMockUserStoragePut();
+
+    await userStorage.setItem(
+      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+      'some fake data',
+    );
+    expect(mockAuthSignMessage).not.toHaveBeenCalled(); // SignMessage not called since key already exists
   });
 });
 
@@ -485,7 +572,7 @@ function arrangeUserStorage(auth: IBaseAuth) {
   const userStorage = new UserStorage(
     {
       auth,
-      env: Env.DEV,
+      env: Env.PRD,
     },
     {
       storage: {

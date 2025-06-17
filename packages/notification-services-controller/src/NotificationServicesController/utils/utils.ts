@@ -1,3 +1,4 @@
+import { isValidHexAddress } from '@metamask/controller-utils';
 import { v4 as uuidv4 } from 'uuid';
 
 import {
@@ -58,11 +59,13 @@ const triggerIdentity = (trigger: NotificationTrigger): NotificationTrigger =>
  *
  * @param accounts - An array of account objects, each optionally containing an address.
  * @param state - A boolean indicating the initial enabled state for all triggers in the user storage.
+ * @param shouldClean - prop to clean the initialized UserStorage (removing any invalid addresses). Only false for testing purposes.
  * @returns A `UserStorage` object populated with triggers for each account and chain.
  */
 export function initializeUserStorage(
   accounts: { address?: string }[],
   state: boolean,
+  shouldClean = true,
 ): UserStorage {
   const userStorage: UserStorage = {
     [USER_STORAGE_VERSION_KEY]: USER_STORAGE_VERSION,
@@ -91,6 +94,32 @@ export function initializeUserStorage(
         });
       },
     );
+  });
+
+  if (shouldClean) {
+    cleanUserStorage(userStorage);
+  }
+  return userStorage;
+}
+
+/**
+ * This is a fallback to ensure that we are not adding non-hex addresses, and the shape is valid.
+ * Any invalid shapes will be removed.
+ * NOTE - this method mutates and returns the cleaned User Storage.
+ *
+ * @param userStorage - notification user storage field we are to clean.
+ * @returns a cleaned version of user storage.
+ */
+export function cleanUserStorage(userStorage: UserStorage) {
+  const addresses = new Set<string>();
+  traverseUserStorageTriggers(userStorage, {
+    mapTrigger: (t) => addresses.add(t.address),
+  });
+
+  addresses.forEach((addr) => {
+    if (!isValidHexAddress(addr)) {
+      delete userStorage[addr];
+    }
   });
 
   return userStorage;
@@ -199,7 +228,7 @@ function isAccountEnabled(
       }
 
       const triggerExists = Object.values(accountObject[chain]).some(
-        (obj) => obj.k === triggerKind,
+        (obj) => obj.k === (triggerKind as TRIGGER_TYPES),
       );
       if (!triggerExists) {
         return false;
@@ -343,7 +372,7 @@ export function upsertAddressTriggers(
 
       // Check if the trigger exists for the chain
       const existingTrigger = Object.values(userStorage[account][chain]).find(
-        (obj) => obj.k === trigger,
+        (obj) => obj.k === (trigger as TRIGGER_TYPES),
       );
 
       if (!existingTrigger) {

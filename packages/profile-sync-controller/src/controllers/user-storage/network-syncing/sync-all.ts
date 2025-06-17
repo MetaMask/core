@@ -1,11 +1,11 @@
 import type { NetworkConfiguration } from '@metamask/network-controller';
 
-import { setDifference, setIntersection } from '../utils';
 import {
   toRemoteNetworkConfiguration,
   type RemoteNetworkConfiguration,
   toNetworkConfiguration,
 } from './types';
+import { setDifference, setIntersection } from '../utils';
 
 type FindNetworksToUpdateProps = {
   localNetworks: NetworkConfiguration[];

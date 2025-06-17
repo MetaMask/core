@@ -8,6 +8,7 @@ import type {
 } from '../types/on-chain-notification/on-chain-notification';
 import type { UserStorage } from '../types/user-storage/user-storage';
 import {
+  cleanUserStorage,
   makeApiCall,
   toggleUserStorageTriggerStatus,
   traverseUserStorageTriggers,
@@ -52,7 +53,6 @@ export async function createOnChainTriggers(
     token: string;
     config: {
       kind: string;
-      // eslint-disable-next-line @typescript-eslint/naming-convention
       chain_id: number;
       address: string;
     };
@@ -62,7 +62,6 @@ export async function createOnChainTriggers(
     token: UserStorageController.createSHA256Hash(t.id + storageKey),
     config: {
       kind: t.kind,
-      // eslint-disable-next-line @typescript-eslint/naming-convention
       chain_id: Number(t.chainId),
       address: t.address,
     },
@@ -96,6 +95,8 @@ export async function createOnChainTriggers(
       true,
     );
   }
+
+  cleanUserStorage(userStorage);
 }
 
 /**
@@ -211,7 +212,6 @@ export async function getOnChainNotifications(
         bearerToken,
         NOTIFICATION_API_LIST_ENDPOINT_PAGE_QUERY(page),
         'POST',
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         { trigger_ids: triggerIds },
       );
 

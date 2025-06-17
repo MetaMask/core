@@ -4,7 +4,7 @@ import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import type {
   ActionConstraint,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
 import type {
@@ -77,8 +77,8 @@ export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID = {
 export const STAKING_CONTRACT_ADDRESS_BY_CHAINID = {
   [SupportedStakedBalanceNetworks.mainnet]:
     '0x4fef9d741011476750a243ac70b9789a63dd47df',
-  [SupportedStakedBalanceNetworks.holesky]:
-    '0x37bf0883c27365cffcd0c4202918df930989891f',
+  [SupportedStakedBalanceNetworks.hoodi]:
+    '0xe96ac18cfe5a7af8fe1fe7bc37ff110d88bc67ff',
 } as const satisfies Record<Hex, string>;
 
 export const MISSING_PROVIDER_ERROR =
@@ -201,7 +201,7 @@ export type AllowedEvents =
 /**
  * The messenger of the {@link AssetsContractController}.
  */
-export type AssetsContractControllerMessenger = RestrictedControllerMessenger<
+export type AssetsContractControllerMessenger = RestrictedMessenger<
   typeof name,
   AssetsContractControllerActions | AllowedActions,
   AssetsContractControllerEvents | AllowedEvents,
@@ -229,7 +229,7 @@ export class AssetsContractController {
    * Creates a AssetsContractController instance.
    *
    * @param options - The controller options.
-   * @param options.messenger - The controller messenger.
+   * @param options.messenger - The messenger.
    * @param options.chainId - The chain ID of the current network.
    */
   constructor({
@@ -328,8 +328,8 @@ export class AssetsContractController {
           `NetworkController:getNetworkClientById`,
           networkClientId,
         ).provider
-      : this.messagingSystem.call('NetworkController:getSelectedNetworkClient')
-          ?.provider ?? this.#provider;
+      : (this.messagingSystem.call('NetworkController:getSelectedNetworkClient')
+          ?.provider ?? this.#provider);
 
     if (provider === undefined) {
       throw new Error(MISSING_PROVIDER_ERROR);
@@ -724,7 +724,7 @@ export class AssetsContractController {
     if (
       ![
         SupportedStakedBalanceNetworks.mainnet,
-        SupportedStakedBalanceNetworks.holesky,
+        SupportedStakedBalanceNetworks.hoodi,
       ].includes(chainId as SupportedStakedBalanceNetworks)
     ) {
       return undefined as StakedBalance;

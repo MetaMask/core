@@ -6,7 +6,7 @@ import {
   getMockFeatureAnnouncementResponse,
   getMockListNotificationsResponse,
   getMockMarkNotificationsAsReadResponse,
-} from './mockResponses';
+} from '../mocks/mockResponses';
 
 type MockReply = {
   status: nock.StatusCode;

@@ -24,7 +24,7 @@ export const waitFor = async (
         assertionFn();
         clearInterval(intervalId);
         resolve();
-      } catch (error) {
+      } catch {
         if (Date.now() - startTime >= timeoutMs) {
           clearInterval(intervalId);
           reject(new Error(`waitFor: timeout reached after ${timeoutMs}ms`));

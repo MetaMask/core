@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type { JsonRpcResponse } from '@metamask/utils';
 
@@ -13,7 +13,7 @@ import type { SelectedNetworkMiddlewareJsonRpcRequest } from '../src/SelectedNet
 import { createSelectedNetworkMiddleware } from '../src/SelectedNetworkMiddleware';
 
 const buildMessenger = () => {
-  return new ControllerMessenger<
+  return new Messenger<
     SelectedNetworkControllerActions | AllowedActions,
     SelectedNetworkControllerEvents | AllowedEvents
   >();

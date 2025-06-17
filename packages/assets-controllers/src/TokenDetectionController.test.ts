@@ -1,5 +1,5 @@
 import type { AddApprovalRequest } from '@metamask/approval-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import {
   ChainId,
   NetworkType,
@@ -28,13 +28,8 @@ import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 import nock from 'nock';
 import * as sinon from 'sinon';
+import { useFakeTimers } from 'sinon';
 
-import { advanceTime } from '../../../tests/helpers';
-import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
-import {
-  buildCustomRpcEndpoint,
-  buildInfuraNetworkConfiguration,
-} from '../../network-controller/tests/helpers';
 import { formatAggregatorNames } from './assetsUtil';
 import * as MutliChainAccountsServiceModule from './multi-chain-accounts-service';
 import {
@@ -66,6 +61,14 @@ import type {
   TokensControllerState,
 } from './TokensController';
 import { getDefaultTokensState } from './TokensController';
+import { advanceTime } from '../../../tests/helpers';
+import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
+import {
+  buildCustomRpcEndpoint,
+  buildInfuraNetworkConfiguration,
+} from '../../network-controller/tests/helpers';
+import type { TransactionMeta } from '../../transaction-controller/src/types';
+import { TransactionStatus } from '../../transaction-controller/src/types';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -129,8 +132,8 @@ const mockNetworkConfigurations: Record<string, NetworkConfiguration> = {
   [InfuraNetworkType.mainnet]: buildInfuraNetworkConfiguration(
     InfuraNetworkType.mainnet,
   ),
-  [InfuraNetworkType.goerli]: buildInfuraNetworkConfiguration(
-    InfuraNetworkType.goerli,
+  [InfuraNetworkType.sepolia]: buildInfuraNetworkConfiguration(
+    InfuraNetworkType.sepolia,
   ),
   polygon: {
     blockExplorerUrls: ['https://polygonscan.com/'],
@@ -147,20 +150,21 @@ const mockNetworkConfigurations: Record<string, NetworkConfiguration> = {
   },
 };
 
-type MainControllerMessenger = ControllerMessenger<
+type MainMessenger = Messenger<
   AllowedActions | AddApprovalRequest,
   AllowedEvents
 >;
 
 /**
  * Builds a messenger that `TokenDetectionController` can use to communicate with other controllers.
- * @param controllerMessenger - The main controller messenger.
+ *
+ * @param messenger - The main messenger.
  * @returns The restricted messenger.
  */
 function buildTokenDetectionControllerMessenger(
-  controllerMessenger: MainControllerMessenger = new ControllerMessenger(),
+  messenger: MainMessenger = new Messenger(),
 ): TokenDetectionControllerMessenger {
-  return controllerMessenger.getRestricted({
+  return messenger.getRestricted({
     name: controllerName,
     allowedActions: [
       'AccountsController:getAccount',
@@ -181,6 +185,7 @@ function buildTokenDetectionControllerMessenger(
       'NetworkController:networkDidChange',
       'TokenListController:stateChange',
       'PreferencesController:stateChange',
+      'TransactionController:transactionConfirmed',
     ],
   });
 }
@@ -209,16 +214,12 @@ describe('TokenDetectionController', () => {
       .get(getTokensPath(ChainId.mainnet))
       .reply(200, sampleTokenList)
       .get(
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `/token/${convertHexToDecimal(ChainId.mainnet)}?address=${
           tokenAFromList.address
         }`,
       )
       .reply(200, tokenAFromList)
       .get(
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `/token/${convertHexToDecimal(ChainId.mainnet)}?address=${
           tokenBFromList.address
         }`,
@@ -285,6 +286,24 @@ describe('TokenDetectionController', () => {
       );
     });
 
+    it('should not poll if the controller is not active', async () => {
+      await withController(
+        {
+          isKeyringUnlocked: true,
+        },
+        async ({ controller }) => {
+          controller.setIntervalLength(10);
+
+          await controller._executePoll({
+            chainIds: [ChainId.mainnet],
+            address: defaultSelectedAccount.address,
+          });
+
+          expect(controller.isActive).toBe(false);
+        },
+      );
+    });
+
     it('should stop polling and detect tokens on interval if unlocked keyring is locked', async () => {
       await withController(
         {
@@ -342,13 +361,13 @@ describe('TokenDetectionController', () => {
         async ({ controller, mockNetworkState, mockGetNetworkClientById }) => {
           mockNetworkState({
             ...getDefaultNetworkControllerState(),
-            selectedNetworkClientId: NetworkType.goerli,
+            selectedNetworkClientId: NetworkType.sepolia,
           });
           mockGetNetworkClientById(
             () =>
               ({
-                configuration: { chainId: '0x5' },
-              } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>),
+                configuration: { chainId: ChainId.sepolia },
+              }) as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>,
           );
           await controller.start();
 
@@ -520,7 +539,7 @@ describe('TokenDetectionController', () => {
             () =>
               ({
                 configuration: { chainId: '0x89' },
-              } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>),
+              }) as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>,
           );
 
           mockTokenListGetState({
@@ -652,7 +671,6 @@ describe('TokenDetectionController', () => {
           mockMultiChainAccountsService();
           mockTokensGetState({
             ...getDefaultTokensState(),
-            ignoredTokens: [sampleTokenA.address],
           });
           mockTokenListGetState({
             ...getDefaultTokenListState(),
@@ -732,7 +750,7 @@ describe('TokenDetectionController', () => {
   describe('AccountsController:selectedAccountChange', () => {
     let clock: sinon.SinonFakeTimers;
     beforeEach(() => {
-      clock = sinon.useFakeTimers();
+      clock = useFakeTimers();
     });
 
     afterEach(() => {
@@ -1052,6 +1070,7 @@ describe('TokenDetectionController', () => {
                       networkClientId: 'mainnet',
                       type: RpcEndpointType.Infura,
                       url: 'https://mainnet.infura.io/v3/{infuraProjectId}',
+                      failoverUrls: [],
                     },
                   ],
                   blockExplorerUrls: [],
@@ -1148,14 +1167,7 @@ describe('TokenDetectionController', () => {
             await advanceTime({ clock, duration: 1 });
 
             expect(mockTokens).toHaveBeenNthCalledWith(1, {
-              chainIds: [
-                '0x1',
-                '0x5',
-                '0xaa36a7',
-                '0xe704',
-                '0xe705',
-                '0xe708',
-              ],
+              chainIds: ['0x1', '0xaa36a7', '0xe705', '0xe708', '0x2105'],
               selectedAddress: secondSelectedAccount.address,
             });
           },
@@ -1648,7 +1660,7 @@ describe('TokenDetectionController', () => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokensChainsCache: {
-                '0x5': {
+                [ChainId.sepolia]: {
                   timestamp: 0,
                   data: {
                     [sampleTokenA.address]: {
@@ -1667,7 +1679,7 @@ describe('TokenDetectionController', () => {
 
             triggerNetworkDidChange({
               ...getDefaultNetworkControllerState(),
-              selectedNetworkClientId: 'goerli',
+              selectedNetworkClientId: NetworkType.sepolia,
             });
             await advanceTime({ clock, duration: 1 });
 
@@ -2417,14 +2429,14 @@ describe('TokenDetectionController', () => {
           mockMultiChainAccountsService();
           mockNetworkState({
             ...getDefaultNetworkControllerState(),
-            selectedNetworkClientId: NetworkType.goerli,
+            selectedNetworkClientId: NetworkType.sepolia,
           });
           triggerPreferencesStateChange({
             ...getDefaultPreferencesState(),
             useTokenDetection: false,
           });
           await controller.detectTokens({
-            chainIds: ['0x5'],
+            chainIds: [ChainId.sepolia],
             selectedAddress: selectedAccount.address,
           });
           expect(callActionSpy).not.toHaveBeenCalledWith(
@@ -2734,7 +2746,7 @@ describe('TokenDetectionController', () => {
             useTokenDetection: false,
           });
           await controller.detectTokens({
-            chainIds: ['0x5'],
+            chainIds: [ChainId.sepolia],
             selectedAddress: selectedAccount.address,
           });
           expect(callActionSpy).not.toHaveBeenCalledWith(
@@ -3007,6 +3019,83 @@ describe('TokenDetectionController', () => {
       expect(result).toStrictEqual({ chain1: { nested: 'nestedData' } });
     });
   });
+
+  describe('TransactionController:transactionConfirmed', () => {
+    let clock: sinon.SinonFakeTimers;
+    beforeEach(() => {
+      clock = sinon.useFakeTimers();
+    });
+
+    afterEach(() => {
+      clock.restore();
+    });
+    it('calls detectTokens when a transaction is confirmed', async () => {
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+        [sampleTokenA.address]: new BN(1),
+      });
+      const firstSelectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
+      const secondSelectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000002',
+      });
+      await withController(
+        {
+          options: {
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            useAccountsAPI: true, // USING ACCOUNTS API
+          },
+          mocks: {
+            getSelectedAccount: firstSelectedAccount,
+          },
+        },
+        async ({
+          mockGetAccount,
+          mockTokenListGetState,
+          triggerTransactionConfirmed,
+          callActionSpy,
+        }) => {
+          mockMultiChainAccountsService();
+          mockTokenListGetState({
+            ...getDefaultTokenListState(),
+            tokensChainsCache: {
+              '0x1': {
+                timestamp: 0,
+                data: {
+                  [sampleTokenA.address]: {
+                    name: sampleTokenA.name,
+                    symbol: sampleTokenA.symbol,
+                    decimals: sampleTokenA.decimals,
+                    address: sampleTokenA.address,
+                    occurrences: 1,
+                    aggregators: sampleTokenA.aggregators,
+                    iconUrl: sampleTokenA.image,
+                  },
+                },
+              },
+            },
+          });
+
+          mockGetAccount(secondSelectedAccount);
+          triggerTransactionConfirmed({
+            chainId: '0x1',
+            status: TransactionStatus.confirmed,
+          } as unknown as TransactionMeta);
+          await advanceTime({ clock, duration: 1 });
+
+          expect(callActionSpy).toHaveBeenCalledWith(
+            'TokensController:addDetectedTokens',
+            [sampleTokenA],
+            {
+              chainId: ChainId.mainnet,
+              selectedAddress: secondSelectedAccount.address,
+            },
+          );
+        },
+      );
+    });
+  });
 });
 
 /**
@@ -3016,8 +3105,6 @@ describe('TokenDetectionController', () => {
  * @returns The constructed path.
  */
 function getTokensPath(chainId: Hex) {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
   return `/tokens/${convertHexToDecimal(
     chainId,
   )}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false`;
@@ -3041,6 +3128,7 @@ type WithControllerCallback<ReturnValue> = ({
   triggerPreferencesStateChange,
   triggerSelectedAccountChange,
   triggerNetworkDidChange,
+  triggerTransactionConfirmed,
 }: {
   controller: TokenDetectionController;
   mockGetAccount: (internalAccount: InternalAccount) => void;
@@ -3065,12 +3153,12 @@ type WithControllerCallback<ReturnValue> = ({
   triggerPreferencesStateChange: (state: PreferencesState) => void;
   triggerSelectedAccountChange: (account: InternalAccount) => void;
   triggerNetworkDidChange: (state: NetworkState) => void;
+  triggerTransactionConfirmed: (transactionMeta: TransactionMeta) => void;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = {
   options?: Partial<ConstructorParameters<typeof TokenDetectionController>[0]>;
   isKeyringUnlocked?: boolean;
-  messenger?: ControllerMessenger<AllowedActions, AllowedEvents>;
   mocks?: {
     getAccount?: InternalAccount;
     getSelectedAccount?: InternalAccount;
@@ -3094,12 +3182,11 @@ async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ): Promise<ReturnValue> {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
-  const { options, isKeyringUnlocked, messenger, mocks } = rest;
-  const controllerMessenger =
-    messenger ?? new ControllerMessenger<AllowedActions, AllowedEvents>();
+  const { options, isKeyringUnlocked, mocks } = rest;
+  const messenger = new Messenger<AllowedActions, AllowedEvents>();
 
   const mockGetAccount = jest.fn<InternalAccount, []>();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'AccountsController:getAccount',
     mockGetAccount.mockReturnValue(
       mocks?.getAccount ?? createMockInternalAccount({ address: '0x1' }),
@@ -3107,7 +3194,7 @@ async function withController<ReturnValue>(
   );
 
   const mockGetSelectedAccount = jest.fn<InternalAccount, []>();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'AccountsController:getSelectedAccount',
     mockGetSelectedAccount.mockReturnValue(
       mocks?.getSelectedAccount ??
@@ -3115,7 +3202,7 @@ async function withController<ReturnValue>(
     ),
   );
   const mockKeyringState = jest.fn<KeyringControllerState, []>();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'KeyringController:getState',
     mockKeyringState.mockReturnValue({
       isUnlocked: isKeyringUnlocked ?? true,
@@ -3125,7 +3212,7 @@ async function withController<ReturnValue>(
     ReturnType<NetworkController['getNetworkClientById']>,
     Parameters<NetworkController['getNetworkClientById']>
   >();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
     mockGetNetworkClientById.mockImplementation(() => {
       return {
@@ -3140,7 +3227,7 @@ async function withController<ReturnValue>(
     ReturnType<NetworkController['getNetworkConfigurationByNetworkClientId']>,
     Parameters<NetworkController['getNetworkConfigurationByNetworkClientId']>
   >();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'NetworkController:getNetworkConfigurationByNetworkClientId',
     mockGetNetworkConfigurationByNetworkClientId.mockImplementation(
       (networkClientId: NetworkClientId) => {
@@ -3149,28 +3236,28 @@ async function withController<ReturnValue>(
     ),
   );
   const mockNetworkState = jest.fn<NetworkState, []>();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'NetworkController:getState',
     mockNetworkState.mockReturnValue({ ...getDefaultNetworkControllerState() }),
   );
   const mockTokensState = jest.fn<TokensControllerState, []>();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'TokensController:getState',
     mockTokensState.mockReturnValue({ ...getDefaultTokensState() }),
   );
   const mockTokenListState = jest.fn<TokenListState, []>();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'TokenListController:getState',
     mockTokenListState.mockReturnValue({ ...getDefaultTokenListState() }),
   );
   const mockPreferencesState = jest.fn<PreferencesState, []>();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'PreferencesController:getState',
     mockPreferencesState.mockReturnValue({
       ...getDefaultPreferencesState(),
     }),
   );
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'TokensController:addDetectedTokens',
     jest
       .fn<
@@ -3179,12 +3266,12 @@ async function withController<ReturnValue>(
       >()
       .mockResolvedValue(undefined),
   );
-  const callActionSpy = jest.spyOn(controllerMessenger, 'call');
+  const callActionSpy = jest.spyOn(messenger, 'call');
 
   const controller = new TokenDetectionController({
     getBalancesInSingleCall: jest.fn(),
     trackMetaMetricsEvent: jest.fn(),
-    messenger: buildTokenDetectionControllerMessenger(controllerMessenger),
+    messenger: buildTokenDetectionControllerMessenger(messenger),
     useAccountsAPI: false,
     platform: 'extension',
     ...options,
@@ -3229,35 +3316,30 @@ async function withController<ReturnValue>(
       },
       callActionSpy,
       triggerKeyringUnlock: () => {
-        controllerMessenger.publish('KeyringController:unlock');
+        messenger.publish('KeyringController:unlock');
       },
       triggerKeyringLock: () => {
-        controllerMessenger.publish('KeyringController:lock');
+        messenger.publish('KeyringController:lock');
       },
       triggerTokenListStateChange: (state: TokenListState) => {
-        controllerMessenger.publish(
-          'TokenListController:stateChange',
-          state,
-          [],
-        );
+        messenger.publish('TokenListController:stateChange', state, []);
       },
       triggerPreferencesStateChange: (state: PreferencesState) => {
-        controllerMessenger.publish(
-          'PreferencesController:stateChange',
-          state,
-          [],
-        );
+        messenger.publish('PreferencesController:stateChange', state, []);
       },
       triggerSelectedAccountChange: (account: InternalAccount) => {
-        controllerMessenger.publish(
+        messenger.publish(
           'AccountsController:selectedEvmAccountChange',
           account,
         );
       },
       triggerNetworkDidChange: (state: NetworkState) => {
-        controllerMessenger.publish(
-          'NetworkController:networkDidChange',
-          state,
+        messenger.publish('NetworkController:networkDidChange', state);
+      },
+      triggerTransactionConfirmed: (transactionMeta: TransactionMeta) => {
+        messenger.publish(
+          'TransactionController:transactionConfirmed',
+          transactionMeta,
         );
       },
     });

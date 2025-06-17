@@ -46,5 +46,6 @@ export const createMockInfuraRpcEndpoint = (): RPCEndpoint => {
     type: RpcEndpointType.Infura,
     networkClientId: 'mainnet',
     url: `https://mainnet.infura.io/v3/{infuraProjectId}`,
+    failoverUrls: [],
   };
 };

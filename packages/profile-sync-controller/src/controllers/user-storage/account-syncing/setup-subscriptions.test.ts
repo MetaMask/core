@@ -2,7 +2,6 @@ import { setupAccountSyncingSubscriptions } from './setup-subscriptions';
 
 describe('user-storage/account-syncing/setup-subscriptions - setupAccountSyncingSubscriptions', () => {
   it('should subscribe to accountAdded and accountRenamed events', () => {
-    const config = { isAccountSyncingEnabled: true };
     const options = {
       getMessenger: jest.fn().mockReturnValue({
         subscribe: jest.fn(),
@@ -14,7 +13,7 @@ describe('user-storage/account-syncing/setup-subscriptions - setupAccountSyncing
       }),
     };
 
-    setupAccountSyncingSubscriptions(config, options);
+    setupAccountSyncingSubscriptions(options);
 
     expect(options.getMessenger().subscribe).toHaveBeenCalledWith(
       'AccountsController:accountAdded',

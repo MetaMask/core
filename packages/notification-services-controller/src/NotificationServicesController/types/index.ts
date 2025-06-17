@@ -1,5 +1,5 @@
-export * from './feature-announcement';
-export * from './notification';
-export * from './on-chain-notification';
-export * from './user-storage';
-export * from './snaps/snaps';
+export type * from './feature-announcement';
+export type * from './notification';
+export type * from './on-chain-notification';
+export type * from './user-storage';
+export type * from './snaps/snaps';

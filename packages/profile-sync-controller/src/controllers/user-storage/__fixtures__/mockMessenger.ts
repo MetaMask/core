@@ -1,12 +1,17 @@
 import type { NotNamespacedBy } from '@metamask/base-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
+import type { KeyringObject } from '@metamask/keyring-controller';
+import { KeyringTypes } from '@metamask/keyring-controller';
+import type { EthKeyring } from '@metamask/keyring-internal-api';
 
-import { MOCK_STORAGE_KEY_SIGNATURE } from '.';
 import type {
   AllowedActions,
   AllowedEvents,
   UserStorageControllerMessenger,
 } from '..';
+import { MOCK_LOGIN_RESPONSE } from '../../authentication/mocks';
+import { MOCK_ENTROPY_SOURCE_IDS } from '../account-syncing/__fixtures__/mockAccounts';
+import { MOCK_STORAGE_KEY_SIGNATURE } from '../mocks';
 
 type GetHandler<ActionType extends AllowedActions['type']> = Extract<
   AllowedActions,
@@ -38,6 +43,7 @@ type ExternalEvents = NotNamespacedBy<
 
 /**
  * creates a custom user storage messenger, in case tests need different permissions
+ *
  * @param props - overrides
  * @param props.overrideEvents - override events
  * @returns base messenger, and messenger. You can pass this into the mocks below to mock messenger calls
@@ -45,23 +51,17 @@ type ExternalEvents = NotNamespacedBy<
 export function createCustomUserStorageMessenger(props?: {
   overrideEvents?: ExternalEvents[];
 }) {
-  const baseMessenger = new ControllerMessenger<
-    AllowedActions,
-    AllowedEvents
-  >();
+  const baseMessenger = new Messenger<AllowedActions, AllowedEvents>();
   const messenger = baseMessenger.getRestricted({
     name: 'UserStorageController',
     allowedActions: [
       'KeyringController:getState',
-      'KeyringController:addNewAccount',
+      'KeyringController:withKeyring',
       'SnapController:handleRequest',
       'AuthenticationController:getBearerToken',
       'AuthenticationController:getSessionProfile',
       'AuthenticationController:isSignedIn',
-      'AuthenticationController:performSignOut',
       'AuthenticationController:performSignIn',
-      'NotificationServicesController:disableNotificationServices',
-      'NotificationServicesController:selectIsNotificationServicesEnabled',
       'AccountsController:listAccounts',
       'AccountsController:updateAccountMetadata',
       'NetworkController:getState',
@@ -72,8 +72,8 @@ export function createCustomUserStorageMessenger(props?: {
     allowedEvents: props?.overrideEvents ?? [
       'KeyringController:lock',
       'KeyringController:unlock',
-      'AccountsController:accountAdded',
       'AccountsController:accountRenamed',
+      'AccountsController:accountAdded',
       'NetworkController:networkRemoved',
     ],
   });
@@ -85,12 +85,13 @@ export function createCustomUserStorageMessenger(props?: {
 }
 
 type OverrideMessengers = {
-  baseMessenger: ControllerMessenger<AllowedActions, AllowedEvents>;
+  baseMessenger: Messenger<AllowedActions, AllowedEvents>;
   messenger: UserStorageControllerMessenger;
 };
 
 /**
  * Jest Mock Utility to generate a mock User Storage Messenger
+ *
  * @param overrideMessengers - override messengers if need to modify the underlying permissions
  * @returns series of mocks to actions that can be called
  */
@@ -101,6 +102,14 @@ export function mockUserStorageMessenger(
     overrideMessengers ?? createCustomUserStorageMessenger();
 
   const mockSnapGetPublicKey = jest.fn().mockResolvedValue('MOCK_PUBLIC_KEY');
+  const mockSnapGetAllPublicKeys = jest
+    .fn()
+    .mockResolvedValue(
+      MOCK_ENTROPY_SOURCE_IDS.map((entropySourceId) => [
+        entropySourceId,
+        'MOCK_PUBLIC_KEY',
+      ]),
+    );
   const mockSnapSignMessage = jest
     .fn()
     .mockResolvedValue(MOCK_STORAGE_KEY_SIGNATURE);
@@ -112,40 +121,54 @@ export function mockUserStorageMessenger(
   const mockAuthGetSessionProfile = typedMockFn(
     'AuthenticationController:getSessionProfile',
   ).mockResolvedValue({
-    identifierId: '',
-    profileId: 'MOCK_PROFILE_ID',
+    identifierId: MOCK_LOGIN_RESPONSE.profile.identifier_id,
+    profileId: MOCK_LOGIN_RESPONSE.profile.profile_id,
+    metaMetricsId: MOCK_LOGIN_RESPONSE.profile.metametrics_id,
   });
 
   const mockAuthPerformSignIn = typedMockFn(
     'AuthenticationController:performSignIn',
-  ).mockResolvedValue('New Access Token');
+  ).mockResolvedValue(['New Access Token']);
 
   const mockAuthIsSignedIn = typedMockFn(
     'AuthenticationController:isSignedIn',
   ).mockReturnValue(true);
 
-  const mockAuthPerformSignOut = typedMockFn(
-    'AuthenticationController:performSignOut',
-  );
+  const mockKeyringWithKeyring = typedMockFn('KeyringController:withKeyring');
+  const mockKeyringGetAccounts = jest.fn();
+  const mockKeyringAddAccounts = jest.fn();
+  const mockWithKeyringSelector = jest.fn();
 
-  const mockNotificationServicesIsEnabled = typedMockFn(
-    'NotificationServicesController:selectIsNotificationServicesEnabled',
-  ).mockReturnValue(true);
+  const mockKeyringGetState = typedMockFn(
+    'KeyringController:getState',
+  ).mockReturnValue({
+    isUnlocked: true,
+    keyrings: [
+      {
+        type: KeyringTypes.hd,
+        metadata: {
+          name: '1',
+          id: MOCK_ENTROPY_SOURCE_IDS[0],
+        },
+      },
+      {
+        type: KeyringTypes.hd,
+        metadata: {
+          name: '2',
+          id: MOCK_ENTROPY_SOURCE_IDS[1],
+        },
+      },
+    ] as unknown as KeyringObject[],
+  });
 
-  const mockNotificationServicesDisableNotifications = typedMockFn(
-    'NotificationServicesController:disableNotificationServices',
-  ).mockResolvedValue();
-
-  const mockKeyringAddNewAccount = typedMockFn(
-    'KeyringController:addNewAccount',
-  );
-
-  // Untyped mock as there is a TS(2742) issue.
-  // This will return `InternalAccount[]`
   const mockAccountsListAccounts = jest.fn();
 
   const mockAccountsUpdateAccountMetadata = typedMockFn(
     'AccountsController:updateAccountMetadata',
+  ).mockResolvedValue(true as never);
+
+  const mockAccountsUpdateAccounts = typedMockFn(
+    'AccountsController:updateAccounts',
   ).mockResolvedValue(true as never);
 
   const mockNetworkControllerGetState = typedMockFn(
@@ -178,6 +201,10 @@ export function mockUserStorageMessenger(
         return mockSnapGetPublicKey();
       }
 
+      if (params.request.method === 'getAllPublicKeys') {
+        return mockSnapGetAllPublicKeys();
+      }
+
       if (params.request.method === 'signMessage') {
         return mockSnapSignMessage();
       }
@@ -205,34 +232,32 @@ export function mockUserStorageMessenger(
       return mockAuthIsSignedIn();
     }
 
-    if (
-      actionType ===
-      'NotificationServicesController:selectIsNotificationServicesEnabled'
-    ) {
-      return mockNotificationServicesIsEnabled();
-    }
-
-    if (
-      actionType ===
-      'NotificationServicesController:disableNotificationServices'
-    ) {
-      return mockNotificationServicesDisableNotifications();
-    }
-
-    if (actionType === 'AuthenticationController:performSignOut') {
-      return mockAuthPerformSignOut();
-    }
-
     if (actionType === 'KeyringController:getState') {
-      return { isUnlocked: true };
+      return mockKeyringGetState();
     }
 
-    if (actionType === 'KeyringController:addNewAccount') {
-      return mockKeyringAddNewAccount();
+    if (actionType === 'KeyringController:withKeyring') {
+      const [, ...params] = typedArgs;
+      const [selector, operation] = params;
+
+      mockWithKeyringSelector(selector);
+
+      const keyring = {
+        getAccounts: mockKeyringGetAccounts,
+        addAccounts: mockKeyringAddAccounts,
+      } as unknown as EthKeyring;
+
+      const metadata = { id: 'mock-id', name: '' };
+
+      return operation({ keyring, metadata });
     }
 
     if (actionType === 'AccountsController:listAccounts') {
       return mockAccountsListAccounts();
+    }
+
+    if (actionType === 'AccountsController:updateAccounts') {
+      return mockAccountsUpdateAccounts();
     }
 
     if (typedArgs[0] === 'AccountsController:updateAccountMetadata') {
@@ -269,14 +294,16 @@ export function mockUserStorageMessenger(
     messenger,
     mockSnapGetPublicKey,
     mockSnapSignMessage,
+    mockSnapGetAllPublicKeys,
     mockAuthGetBearerToken,
     mockAuthGetSessionProfile,
     mockAuthPerformSignIn,
     mockAuthIsSignedIn,
-    mockNotificationServicesIsEnabled,
-    mockNotificationServicesDisableNotifications,
-    mockAuthPerformSignOut,
-    mockKeyringAddNewAccount,
+    mockKeyringGetAccounts,
+    mockKeyringAddAccounts,
+    mockKeyringWithKeyring,
+    mockKeyringGetState,
+    mockWithKeyringSelector,
     mockAccountsUpdateAccountMetadata,
     mockAccountsListAccounts,
     mockNetworkControllerGetState,

@@ -17,5 +17,11 @@
       "path": "../keyring-controller/tsconfig.build.json"
     }
   ],
-  "include": ["../../types", "./src"]
+  "include": ["../../types", "./src"],
+  "exclude": [
+    "./jest.config.packages.ts",
+    "**/*.test.ts",
+    "**/jest.config.ts",
+    "**/__fixtures__/"
+  ]
 }

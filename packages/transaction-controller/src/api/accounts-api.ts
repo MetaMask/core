@@ -81,6 +81,7 @@ export type GetAccountTransactionsRequest = {
   endTimestamp?: number;
   sortDirection?: 'ASC' | 'DESC';
   startTimestamp?: number;
+  tags?: string[];
 };
 
 export type GetAccountTransactionsResponse = {
@@ -106,12 +107,14 @@ const SUPPORTED_CHAIN_IDS_FOR_RELATIONSHIP_API = [
   42161, // Arbitrum
   59144, // Linea
   534352, // Scroll
+  1329, // Sei
 ];
 
 const log = createModuleLogger(projectLogger, 'accounts-api');
 
 /**
  * Fetch account address relationship from the accounts API.
+ *
  * @param request - The request object.
  * @returns The raw response object from the API.
  */
@@ -155,6 +158,7 @@ export async function getAccountAddressRelationship(
 
 /**
  * Fetch account transactions from the accounts API.
+ *
  * @param request - The request object.
  * @returns The response object.
  */
@@ -168,6 +172,7 @@ export async function getAccountTransactions(
     endTimestamp,
     sortDirection,
     startTimestamp,
+    tags,
   } = request;
 
   let url = `${BASE_URL_ACCOUNTS}${address}/transactions`;
@@ -200,8 +205,10 @@ export async function getAccountTransactions(
 
   log('Getting account transactions', { request, url });
 
+  const clientId = [CLIENT_ID, ...(tags || [])].join('__');
+
   const headers = {
-    [CLIENT_HEADER]: CLIENT_ID,
+    [CLIENT_HEADER]: clientId,
   };
 
   const response = await successfulFetch(url, { headers });

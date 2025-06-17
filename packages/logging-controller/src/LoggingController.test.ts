@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import * as uuid from 'uuid';
 
 import type { LoggingControllerActions } from './LoggingController';
@@ -18,24 +18,22 @@ jest.mock('uuid', () => {
 const name = 'LoggingController';
 
 /**
- * Constructs a unrestricted controller messenger.
+ * Constructs a unrestricted messenger.
  *
- * @returns A unrestricted controller messenger.
+ * @returns A unrestricted messenger.
  */
 function getUnrestrictedMessenger() {
-  return new ControllerMessenger<LoggingControllerActions, never>();
+  return new Messenger<LoggingControllerActions, never>();
 }
 
 /**
- * Constructs a restricted controller messenger.
+ * Constructs a restricted messenger.
  *
- * @param controllerMessenger - An optional unrestricted messenger
- * @returns A restricted controller messenger.
+ * @param messenger - An optional unrestricted messenger
+ * @returns A restricted messenger.
  */
-function getRestrictedMessenger(
-  controllerMessenger = getUnrestrictedMessenger(),
-) {
-  return controllerMessenger.getRestricted({
+function getRestrictedMessenger(messenger = getUnrestrictedMessenger()) {
+  return messenger.getRestricted({
     name,
     allowedActions: [],
     allowedEvents: [],

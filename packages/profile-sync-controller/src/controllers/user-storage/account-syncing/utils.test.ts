@@ -4,7 +4,6 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { getMockRandomDefaultAccountName } from './__fixtures__/mockAccounts';
 import { USER_STORAGE_VERSION, USER_STORAGE_VERSION_KEY } from './constants';
 import {
-  doesInternalAccountHaveCorrectKeyringType,
   isNameDefaultAccountName,
   mapInternalAccountToUserStorageAccount,
 } from './utils';
@@ -28,6 +27,7 @@ describe('user-storage/account-syncing/utils', () => {
       expect(isNameDefaultAccountName('Mon compte 34')).toBe(false);
     });
   });
+
   describe('mapInternalAccountToUserStorageAccount', () => {
     const internalAccount = {
       address: '0x123',
@@ -73,36 +73,6 @@ describe('user-storage/account-syncing/utils', () => {
         n: internalAccountWithCustomName.metadata.name,
         nlu: internalAccountWithCustomName.metadata.nameLastUpdatedAt,
       });
-    });
-  });
-
-  describe('doesInternalAccountHaveCorrectKeyringType', () => {
-    it('should return true if the internal account has the correct keyring type', () => {
-      const internalAccount = {
-        metadata: {
-          keyring: {
-            type: KeyringTypes.hd,
-          },
-        },
-      } as InternalAccount;
-
-      expect(doesInternalAccountHaveCorrectKeyringType(internalAccount)).toBe(
-        true,
-      );
-    });
-
-    it('should return false if the internal account does not have the correct keyring type', () => {
-      const internalAccount = {
-        metadata: {
-          keyring: {
-            type: KeyringTypes.snap,
-          },
-        },
-      } as InternalAccount;
-
-      expect(doesInternalAccountHaveCorrectKeyringType(internalAccount)).toBe(
-        false,
-      );
     });
   });
 });

@@ -1,4 +1,4 @@
-import { BaseController, BaseControllerV1 } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import type { Json } from '@metamask/utils';
 
 import {
@@ -88,11 +88,4 @@ export const StaticIntervalPollingControllerOnly = <
 export const StaticIntervalPollingController = <PollingInput extends Json>() =>
   StaticIntervalPollingControllerMixin<typeof BaseController, PollingInput>(
     BaseController,
-  );
-
-export const StaticIntervalPollingControllerV1 = <
-  PollingInput extends Json,
->() =>
-  StaticIntervalPollingControllerMixin<typeof BaseControllerV1, PollingInput>(
-    BaseControllerV1,
   );

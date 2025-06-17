@@ -1,4 +1,4 @@
-import { BaseController, BaseControllerV1 } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import type {
   NetworkClientId,
   NetworkClient,
@@ -97,11 +97,4 @@ export const BlockTrackerPollingController = <
 >() =>
   BlockTrackerPollingControllerMixin<typeof BaseController, PollingInput>(
     BaseController,
-  );
-
-export const BlockTrackerPollingControllerV1 = <
-  PollingInput extends BlockTrackerPollingInput,
->() =>
-  BlockTrackerPollingControllerMixin<typeof BaseControllerV1, PollingInput>(
-    BaseControllerV1,
   );

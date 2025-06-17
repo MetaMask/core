@@ -1,4 +1,4 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import type { RestrictedMessenger } from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 
 import type {
@@ -67,7 +67,7 @@ const MOCK_MESSENGER = {
   publish: jest.fn(),
   registerActionHandler: jest.fn(),
   registerInitialEventPayload: jest.fn(),
-} as unknown as RestrictedControllerMessenger<
+} as unknown as RestrictedMessenger<
   'AbstractMessageManager',
   never,
   never,

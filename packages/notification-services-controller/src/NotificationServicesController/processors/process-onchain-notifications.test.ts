@@ -1,3 +1,4 @@
+import { processOnChainNotification } from './process-onchain-notifications';
 import {
   createMockNotificationEthSent,
   createMockNotificationEthReceived,
@@ -14,9 +15,8 @@ import {
   createMockNotificationLidoWithdrawalRequested,
   createMockNotificationLidoWithdrawalCompleted,
   createMockNotificationLidoReadyToBeWithdrawn,
-} from '../__fixtures__/mock-raw-notifications';
+} from '../mocks/mock-raw-notifications';
 import type { OnChainRawNotification } from '../types/on-chain-notification/on-chain-notification';
-import { processOnChainNotification } from './process-onchain-notifications';
 
 const rawNotifications = [
   createMockNotificationEthSent(),
