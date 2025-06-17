@@ -86,6 +86,8 @@ export type PhishingDetectionScanResult = {
    * - "NONE" means it is most likely safe.
    * - "WARN" means there is some risk.
    * - "BLOCK" means it is highly likely to be malicious.
+   * - "VERIFIED" means it has been associated as an official domain of a
+   * company or organization and/or a top Web3 domain.
    */
   recommendedAction: RecommendedAction;
   /**
