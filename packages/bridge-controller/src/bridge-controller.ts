@@ -231,6 +231,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       `${BRIDGE_CONTROLLER_NAME}:trackUnifiedSwapBridgeEvent`,
       this.trackUnifiedSwapBridgeEvent.bind(this),
     );
+    this.messagingSystem.registerActionHandler(
+      `${BRIDGE_CONTROLLER_NAME}:stopPollingForQuotes`,
+      this.stopPollingForQuotes.bind(this),
+    );
   }
 
   _executePoll = async (pollingInput: BridgePollingInput) => {
@@ -413,9 +417,13 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     );
   };
 
-  resetState = () => {
+  stopPollingForQuotes = (reason?: string) => {
     this.stopAllPolling();
-    this.#abortController?.abort(RESET_STATE_ABORT_MESSAGE);
+    this.#abortController?.abort(reason);
+  };
+
+  resetState = () => {
+    this.stopPollingForQuotes(RESET_STATE_ABORT_MESSAGE);
 
     this.update((state) => {
       // Cannot do direct assignment to state, i.e. state = {... }, need to manually assign each field
