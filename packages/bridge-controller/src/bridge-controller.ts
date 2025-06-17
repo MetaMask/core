@@ -817,10 +817,19 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...this.#getRequestParams(),
           ...this.#getRequestMetadata(),
         };
-      // These are populated by BridgeStatusController
       case UnifiedSwapBridgeEventName.Submitted:
+      case UnifiedSwapBridgeEventName.Failed: {
+        // Populate the properties that the error occurred before the tx was submitted
+        return {
+          ...baseProperties,
+          ...this.#getRequestParams(),
+          ...this.#getRequestMetadata(),
+          ...this.#getQuoteFetchData(),
+          ...propertiesFromClient,
+        };
+      }
+      // These are populated by BridgeStatusController
       case UnifiedSwapBridgeEventName.Completed:
-      case UnifiedSwapBridgeEventName.Failed:
         return propertiesFromClient;
       case UnifiedSwapBridgeEventName.InputChanged:
       default:

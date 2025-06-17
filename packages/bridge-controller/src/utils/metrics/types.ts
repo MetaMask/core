@@ -140,15 +140,17 @@ export type RequiredEventContextFromClient = {
       quoted_vs_used_gas_ratio: number;
       action_type: MetricsActionType;
     };
-  [UnifiedSwapBridgeEventName.Failed]: RequestParams &
-    RequestMetadata &
-    Pick<QuoteFetchData, 'price_impact'> &
-    TxStatusData &
-    TradeData & {
-      actual_time_minutes: number;
-      error_message: string;
-      action_type: MetricsActionType;
-    };
+  [UnifiedSwapBridgeEventName.Failed]:
+    | { error_message: string }
+    | (RequestParams &
+        RequestMetadata &
+        Pick<QuoteFetchData, 'price_impact'> &
+        TxStatusData &
+        TradeData & {
+          actual_time_minutes: number;
+          error_message: string;
+          action_type: MetricsActionType;
+        });
   // Emitted by clients
   [UnifiedSwapBridgeEventName.AllQuotesOpened]: Pick<
     TradeData,
@@ -209,7 +211,16 @@ export type EventPropertiesFromControllerState = {
     TradeData;
   [UnifiedSwapBridgeEventName.Submitted]: null;
   [UnifiedSwapBridgeEventName.Completed]: null;
-  [UnifiedSwapBridgeEventName.Failed]: null;
+  [UnifiedSwapBridgeEventName.Failed]:
+    | null
+    | (RequestParams &
+        RequestMetadata &
+        Pick<QuoteFetchData, 'price_impact'> &
+        TxStatusData &
+        TradeData & {
+          actual_time_minutes: number;
+          action_type: MetricsActionType;
+        });
   [UnifiedSwapBridgeEventName.AllQuotesOpened]: RequestParams &
     RequestMetadata &
     TradeData &
