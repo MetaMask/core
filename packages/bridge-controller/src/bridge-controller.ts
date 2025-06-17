@@ -752,7 +752,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     'best_quote_provider' | 'price_impact'
   > => {
     return {
-      can_submit: Boolean(this.state.quoteRequest.insufficientBal), // TODO check if balance is sufficient for network fees
+      can_submit: !this.state.quoteRequest.insufficientBal, // TODO check if balance is sufficient for network fees
       quotes_count: this.state.quotes.length,
       quotes_list: this.state.quotes.map(({ quote }) =>
         formatProviderLabel(quote),
