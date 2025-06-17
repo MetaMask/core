@@ -933,7 +933,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           },
           async () =>
             await this.#handleEvmTransaction({
-              transactionType: TransactionType.bridge,
+              transactionType: isBridgeTx
+                ? TransactionType.bridge
+                : TransactionType.swap,
               trade: quoteResponse.trade as TxData,
               quoteResponse,
               approvalTxId,
