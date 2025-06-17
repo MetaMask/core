@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [32.2.0]
 
-### Uncategorized
-
-- Release/438.0.0 ([#5978](https://github.com/MetaMask/core/pull/5978))
-
 ### Changed
 
 - Export feature flag util for bridge status controller ([#5961](https://github.com/MetaMask/core/pull/5961))
