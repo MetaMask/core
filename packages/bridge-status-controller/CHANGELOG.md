@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Implement onClientRequest for Solana snap transactions, now requires action permission for RemoteFeatureFlagController:getState ([#5961](https://github.com/MetaMask/core/pull/5961))
+- Removes listener for transaction confirmed event coming from MultichainTransactionsController, it doesn't exist anymore ([#5990](https://github.com/MetaMask/core/pull/5990))
 
 ## [29.1.1]
 
