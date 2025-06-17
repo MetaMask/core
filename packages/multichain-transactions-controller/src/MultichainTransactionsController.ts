@@ -14,7 +14,6 @@ import {
   isEvmAccountType,
   type Transaction,
   type AccountTransactionsUpdatedEventPayload,
-  TransactionStatus,
 } from '@metamask/keyring-api';
 import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
