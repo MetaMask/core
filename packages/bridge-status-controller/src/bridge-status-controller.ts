@@ -849,6 +849,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
     isStxEnabledOnClient: boolean,
   ): Promise<TransactionMeta & Partial<SolanaTransactionMeta>> => {
+    // Emit Submitted event after submit button is clicked
+    this.#trackUnifiedSwapBridgeEvent(UnifiedSwapBridgeEventName.Submitted);
+
     let txMeta: (TransactionMeta & Partial<SolanaTransactionMeta>) | undefined;
 
     const isBridgeTx = isCrossChain(
@@ -963,11 +966,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         startTime: approvalTime ?? Date.now(),
         approvalTxId,
       });
-
-      this.#trackUnifiedSwapBridgeEvent(
-        UnifiedSwapBridgeEventName.Submitted,
-        txMeta.id,
-      );
     } catch {
       // Ignore errors here, we don't want to crash the app if this fails and tx submission succeeds
     }
@@ -979,6 +977,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    *
    * @param eventName - The name of the event to track
    * @param txMetaId - The txMetaId of the history item to track the event for
+   * @param eventProperties - The properties for the event
    */
   readonly #trackUnifiedSwapBridgeEvent = <
     T extends
@@ -988,8 +987,18 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       | typeof UnifiedSwapBridgeEventName.Completed,
   >(
     eventName: T,
-    txMetaId: string,
+    txMetaId?: string,
+    eventProperties?: Pick<RequiredEventContextFromClient, T>[T],
   ) => {
+    if (!txMetaId) {
+      this.messagingSystem.call(
+        'BridgeController:trackUnifiedSwapBridgeEvent',
+        eventName,
+        eventProperties ?? {},
+      );
+      return;
+    }
+
     const historyItem: BridgeHistoryItem | undefined =
       this.state.txHistory[txMetaId];
     if (!historyItem) {
@@ -1008,7 +1017,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     );
 
     switch (eventName) {
-      case UnifiedSwapBridgeEventName.Submitted:
       case UnifiedSwapBridgeEventName.Completed:
       case UnifiedSwapBridgeEventName.Failed:
       default:
