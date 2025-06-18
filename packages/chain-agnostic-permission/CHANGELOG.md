@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+
 - `isInternalAccountInPermittedAccountIds` now returns `false` when passed an `InternalAccount` in which `scopes` is `undefined` ([#6000](https://github.com/MetaMask/core/pull/6000))
 
 ## [0.7.1]
