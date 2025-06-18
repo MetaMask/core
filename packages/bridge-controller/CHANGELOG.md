@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Set correct `can_submit` property on Unified SwapBridge events ([#5993](https://github.com/MetaMask/core/pull/5993))
+- Use activeQuote to populate default properties for Submitted and Failed events, if tx fails before being confirmed on chain ([#5993](https://github.com/MetaMask/core/pull/5993))
+
 ## [32.2.0]
 
 ### Changed
