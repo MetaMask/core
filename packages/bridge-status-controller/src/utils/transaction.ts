@@ -62,7 +62,10 @@ export const getTxMetaFields = (
 };
 
 export const handleSolanaTxResponse = (
-  snapResponse: string | { result: Record<string, string> },
+  snapResponse:
+    | string
+    | { result: Record<string, string> }
+    | { signature: string },
   quoteResponse: Omit<QuoteResponse<string>, 'approval'> & QuoteMetadata,
   selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
 ): TransactionMeta & SolanaTransactionMeta => {
@@ -74,13 +77,26 @@ export const handleSolanaTxResponse = (
     hash = snapResponse;
   } else if (snapResponse && typeof snapResponse === 'object') {
     // If it's an object with result property, try to get the signature
-    if (snapResponse.result && typeof snapResponse.result === 'object') {
+    if (
+      typeof snapResponse === 'object' &&
+      'result' in snapResponse &&
+      snapResponse.result &&
+      typeof snapResponse.result === 'object'
+    ) {
       // Try to extract signature from common locations in response object
       hash =
         snapResponse.result.signature ||
         snapResponse.result.txid ||
         snapResponse.result.hash ||
         snapResponse.result.txHash;
+    }
+    if (
+      typeof snapResponse === 'object' &&
+      'signature' in snapResponse &&
+      snapResponse.signature &&
+      typeof snapResponse.signature === 'string'
+    ) {
+      hash = snapResponse.signature;
     }
   }
 
