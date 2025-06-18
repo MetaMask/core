@@ -3281,10 +3281,6 @@ describe('SeedlessOnboardingController', () => {
           // We'll use the key/salt implicitly by not providing password to unlockVaultAndGetBackupEncKey
           await controller.submitPassword(OLD_PASSWORD); // Unlock using the standard method
 
-          const verifyPasswordSpy = jest.spyOn(
-            controller,
-            'verifyVaultPassword',
-          );
           const recoverEncKeySpy = jest.spyOn(toprfClient, 'recoverEncKey');
           const encryptorSpy = jest.spyOn(encryptor, 'encryptWithDetail');
 
@@ -3305,14 +3301,10 @@ describe('SeedlessOnboardingController', () => {
           // verifyPasswordSpy.mockResolvedValueOnce(); // Don't mock, let the real one run inside syncLatestGlobalPassword
 
           await controller.syncLatestGlobalPassword({
-            oldPassword: OLD_PASSWORD,
             globalPassword: GLOBAL_PASSWORD,
           });
 
           // Assertions
-          expect(verifyPasswordSpy).toHaveBeenCalledWith(OLD_PASSWORD, {
-            skipLock: true, // skip lock since we already have the lock
-          });
           expect(recoverEncKeySpy).toHaveBeenCalledWith(
             expect.objectContaining({ password: GLOBAL_PASSWORD }),
           );
@@ -3342,39 +3334,6 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
-    it('should throw an error if the old password verification fails', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            authPubKey: INITIAL_AUTH_PUB_KEY,
-            vault: MOCK_VAULT,
-            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
-          }),
-        },
-        async ({ controller }) => {
-          // Unlock controller first
-          await controller.submitPassword(OLD_PASSWORD);
-
-          const verifyPasswordSpy = jest
-            .spyOn(controller, 'verifyVaultPassword')
-            .mockRejectedValueOnce(new Error('Incorrect old password'));
-
-          await expect(
-            controller.syncLatestGlobalPassword({
-              oldPassword: 'WRONG_OLD_PASSWORD',
-              globalPassword: GLOBAL_PASSWORD,
-            }),
-          ).rejects.toThrow('Incorrect old password');
-
-          expect(verifyPasswordSpy).toHaveBeenCalledWith('WRONG_OLD_PASSWORD', {
-            skipLock: true, // skip lock since we already have the lock
-          });
-        },
-      );
-    });
-
     it('should throw an error if recovering the encryption key for the global password fails', async () => {
       await withController(
         {
@@ -3390,9 +3349,6 @@ describe('SeedlessOnboardingController', () => {
           // Unlock controller first
           await controller.submitPassword(OLD_PASSWORD);
 
-          const verifyPasswordSpy = jest
-            .spyOn(controller, 'verifyVaultPassword')
-            .mockResolvedValueOnce();
           const recoverEncKeySpy = jest
             .spyOn(toprfClient, 'recoverEncKey')
             .mockRejectedValueOnce(
@@ -3403,16 +3359,12 @@ describe('SeedlessOnboardingController', () => {
 
           await expect(
             controller.syncLatestGlobalPassword({
-              oldPassword: OLD_PASSWORD,
               globalPassword: GLOBAL_PASSWORD,
             }),
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.LoginFailedError,
           );
 
-          expect(verifyPasswordSpy).toHaveBeenCalledWith(OLD_PASSWORD, {
-            skipLock: true, // skip lock since we already have the lock
-          });
           expect(recoverEncKeySpy).toHaveBeenCalledWith(
             expect.objectContaining({ password: GLOBAL_PASSWORD }),
           );
@@ -3435,9 +3387,6 @@ describe('SeedlessOnboardingController', () => {
           // Unlock controller first
           await controller.submitPassword(OLD_PASSWORD);
 
-          const verifyPasswordSpy = jest
-            .spyOn(controller, 'verifyVaultPassword')
-            .mockResolvedValueOnce();
           const recoverEncKeySpy = jest.spyOn(toprfClient, 'recoverEncKey');
           const encryptorSpy = jest
             .spyOn(encryptor, 'encryptWithDetail')
@@ -3458,14 +3407,10 @@ describe('SeedlessOnboardingController', () => {
 
           await expect(
             controller.syncLatestGlobalPassword({
-              oldPassword: OLD_PASSWORD,
               globalPassword: GLOBAL_PASSWORD,
             }),
           ).rejects.toThrow('Vault creation failed');
 
-          expect(verifyPasswordSpy).toHaveBeenCalledWith(OLD_PASSWORD, {
-            skipLock: true, // skip lock since we already have the lock
-          });
           expect(recoverEncKeySpy).toHaveBeenCalledWith(
             expect.objectContaining({ password: GLOBAL_PASSWORD }),
           );
@@ -3805,10 +3750,6 @@ describe('SeedlessOnboardingController', () => {
             // Unlock controller first
             await controller.submitPassword(OLD_PASSWORD);
 
-            const verifyPasswordSpy = jest.spyOn(
-              controller,
-              'verifyVaultPassword',
-            );
             const recoverEncKeySpy = jest.spyOn(toprfClient, 'recoverEncKey');
             const encryptorSpy = jest.spyOn(encryptor, 'encryptWithDetail');
 
@@ -3840,7 +3781,6 @@ describe('SeedlessOnboardingController', () => {
             });
 
             await controller.syncLatestGlobalPassword({
-              oldPassword: OLD_PASSWORD,
               globalPassword: GLOBAL_PASSWORD,
             });
 
@@ -3855,11 +3795,6 @@ describe('SeedlessOnboardingController', () => {
 
             // Verify that authenticate was called during token refresh
             expect(toprfClient.authenticate).toHaveBeenCalled();
-
-            // Verify that verifyPassword was called
-            expect(verifyPasswordSpy).toHaveBeenCalledWith(OLD_PASSWORD, {
-              skipLock: true,
-            });
 
             // Check if vault was re-encrypted with the new password and keys
             const expectedSerializedVaultData = JSON.stringify({
@@ -3916,7 +3851,6 @@ describe('SeedlessOnboardingController', () => {
 
             await expect(
               controller.syncLatestGlobalPassword({
-                oldPassword: OLD_PASSWORD,
                 globalPassword: GLOBAL_PASSWORD,
               }),
             ).rejects.toThrow(
@@ -3951,7 +3885,6 @@ describe('SeedlessOnboardingController', () => {
 
             await expect(
               controller.syncLatestGlobalPassword({
-                oldPassword: OLD_PASSWORD,
                 globalPassword: GLOBAL_PASSWORD,
               }),
             ).rejects.toThrow(
