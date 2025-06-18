@@ -7,9 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [57.4.0]
+
 ### Added
 
+- Add optional `afterSimulate` and `beforeSign` hooks to constructor ([#5503](https://github.com/MetaMask/core/pull/5503))
+  - Add `AfterSimulateHook` type.
+  - Add `BeforeSignHook` type.
+  - Add `TransactionContainerType` enum.
+  - Add `TransactionControllerEstimateGasAction` type.
+  - Add optional `containerTypes` property to `TransactionMeta`.
+  - Add optional `ignoreDelegationSignatures` boolean to `estimateGas` method.
 - Add `gasFeeEstimates` property to `TransactionBatchMeta`, populated using `DefaultGasFeeFlow` ([#5886](https://github.com/MetaMask/core/pull/5886))
+
+### Fixed
+
+- Handle unknown chain IDs on incoming transactions ([#5985](https://github.com/MetaMask/core/pull/5985))
 
 ## [57.3.0]
 
@@ -1672,7 +1685,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.4.0...HEAD
+[57.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.3.0...@metamask/transaction-controller@57.4.0
 [57.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.2.0...@metamask/transaction-controller@57.3.0
 [57.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.1.0...@metamask/transaction-controller@57.2.0
 [57.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.0.0...@metamask/transaction-controller@57.1.0
