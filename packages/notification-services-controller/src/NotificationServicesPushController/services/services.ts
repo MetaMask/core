@@ -9,58 +9,65 @@ export type RegToken = {
   token: string;
   platform: 'extension' | 'mobile' | 'portfolio';
   locale: string;
+  oldToken?: string;
 };
 
 /**
  * Links API Response Shape
  */
-export type LinksResult = {
-  trigger_ids: string[];
-  registration_tokens: RegToken[];
+export type PushTokenRequest = {
+  addresses: string[];
+  registration_token: {
+    token: string;
+    platform: 'extension' | 'mobile' | 'portfolio';
+    locale: string;
+    oldToken?: string;
+  };
+};
+
+type UpdatePushTokenParams = {
+  bearerToken: string;
+  addresses: string[];
+  regToken: RegToken;
 };
 
 /**
  * Updates the push notification links on a remote API.
  *
- * @param bearerToken - The JSON Web Token used for authorization.
- * @param triggers - An array of trigger identifiers.
- * @param regTokens - An array of registration tokens.
+ * @param params - params for invoking update reg token
  * @returns A promise that resolves with true if the update was successful, false otherwise.
  */
 export async function updateLinksAPI(
-  bearerToken: string,
-  triggers: string[],
-  regTokens: RegToken[],
+  params: UpdatePushTokenParams,
 ): Promise<boolean> {
   try {
-    const body: LinksResult = {
-      trigger_ids: triggers,
-      registration_tokens: regTokens,
+    const body: PushTokenRequest = {
+      addresses: params.addresses,
+      registration_token: params.regToken,
     };
     const response = await fetch(endpoints.REGISTRATION_TOKENS_ENDPOINT, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${bearerToken}`,
+        Authorization: `Bearer ${params.bearerToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
     });
-    return response.status === 200;
+    return response.ok;
   } catch {
     return false;
   }
 }
 
 type ActivatePushNotificationsParams = {
-  // Push Links
-  bearerToken: string;
-  triggers: string[];
-
-  // Push Registration
+  // Create Push Token
   env: PushNotificationEnv;
   createRegToken: CreateRegToken;
-  platform: 'extension' | 'mobile' | 'portfolio';
-  locale: string;
+
+  // Other Request Parameters
+  bearerToken: string;
+  addresses: string[];
+  regToken: Pick<RegToken, 'locale' | 'platform' | 'oldToken'>;
 };
 
 /**
@@ -72,17 +79,24 @@ type ActivatePushNotificationsParams = {
 export async function activatePushNotifications(
   params: ActivatePushNotificationsParams,
 ): Promise<string | null> {
-  const { bearerToken, triggers, env, createRegToken, platform, locale } =
-    params;
+  const { env, createRegToken } = params;
 
   const regToken = await createRegToken(env).catch(() => null);
   if (!regToken) {
     return null;
   }
 
-  await updateLinksAPI(bearerToken, triggers, [
-    { token: regToken, platform, locale },
-  ]);
+  await updateLinksAPI({
+    bearerToken: params.bearerToken,
+    addresses: params.addresses,
+    regToken: {
+      token: regToken,
+      platform: params.regToken.platform,
+      locale: params.regToken.locale,
+      oldToken: params.regToken.oldToken,
+    },
+  });
+
   return regToken;
 }
 
@@ -118,62 +132,4 @@ export async function deactivatePushNotifications(
   }
 
   return true;
-}
-
-type UpdateTriggerPushNotificationsParams = {
-  // Push Links
-  bearerToken: string;
-  triggers: string[];
-
-  // Push Registration
-  env: PushNotificationEnv;
-  createRegToken: CreateRegToken;
-  platform: 'extension' | 'mobile' | 'portfolio';
-  locale: string;
-
-  // Push Un-registration
-  deleteRegToken: DeleteRegToken;
-};
-
-/**
- * Updates the triggers linked to push notifications for a given registration token.
- * If the provided registration token does not exist or is not in the current set of registration tokens,
- * a new registration token is created and used for the update.
- *
- * @param params - Update Push Params
- * @returns A promise that resolves with an object containing:
- * - isTriggersLinkedToPushNotifications: boolean indicating if the triggers were successfully updated.
- * - fcmToken: the new or existing Firebase Cloud Messaging token used for the update, if applicable.
- */
-export async function updateTriggerPushNotifications(
-  params: UpdateTriggerPushNotificationsParams,
-): Promise<{
-  fcmToken: string;
-}> {
-  const {
-    bearerToken,
-    triggers,
-    createRegToken,
-    platform,
-    locale,
-    deleteRegToken,
-    env,
-  } = params;
-
-  await deleteRegToken(env);
-  const newRegToken = await createRegToken(env);
-  if (!newRegToken) {
-    throw new Error('Failed to create a new registration token');
-  }
-
-  const linksNotUpdated = await updateLinksAPI(bearerToken, triggers, [
-    { token: newRegToken, platform, locale },
-  ]);
-  if (!linksNotUpdated) {
-    throw new Error('Failed to create links to new reg token');
-  }
-
-  return {
-    fcmToken: newRegToken,
-  };
 }
