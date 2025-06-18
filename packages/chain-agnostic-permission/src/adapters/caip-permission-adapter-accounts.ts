@@ -375,7 +375,7 @@ export function isInternalAccountInPermittedAccountIds(
   permittedAccounts: CaipAccountId[],
 ): boolean {
   // temporary fix for the issue where the internal account has no scopes and or scopes is undefined
-  // TODO: remove this once the bug is fixed (link to issue: TODO)
+  // TODO: remove this once the bug is fixed (tracked here: https://github.com/MetaMask/accounts-planning/issues/941)
   // there is currently a bug where an account associated with a snap can fail to add scopes to the internal account in time
   // before we attempt to access this state
   if (!internalAccount?.scopes?.length) {
