@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [58.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` to `^31.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+- **BREAKING:** Bump peer dependency `@metamask/gas-fee-controller` to `^24.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+- **BREAKING:** Bump peer dependency `@metamask/network-controller` to `^24.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+
 ## [57.4.0]
 
 ### Added
@@ -1685,7 +1693,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@58.0.0...HEAD
+[58.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.4.0...@metamask/transaction-controller@58.0.0
 [57.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.3.0...@metamask/transaction-controller@57.4.0
 [57.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.2.0...@metamask/transaction-controller@57.3.0
 [57.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.1.0...@metamask/transaction-controller@57.2.0
