@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `stopPollingForQuotes` handler that stops quote polling without resetting the bridge controller's state ([#5994](https://github.com/MetaMask/core/pull/5994))
+
 ## [32.2.0]
 
 ### Changed
