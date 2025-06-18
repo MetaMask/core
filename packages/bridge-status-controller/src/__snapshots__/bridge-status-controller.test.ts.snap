@@ -741,7 +741,7 @@ Array [
   ],
   Array [
     "AccountsController:getAccountByAddress",
-    "",
+    "0xaccount1",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -2085,6 +2085,9 @@ Array [
 
 exports[`BridgeStatusController submitTx: EVM swap should handle smart accounts (4337) 4`] = `
 Array [
+  Array [
+    "BridgeController:stopPollingForQuotes",
+  ],
   Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",

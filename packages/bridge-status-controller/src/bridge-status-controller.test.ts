@@ -1678,7 +1678,6 @@ describe('BridgeStatusController', () => {
       });
 
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
-      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
     };
 
     it('should successfully submit an EVM bridge transaction with approval', async () => {
@@ -1798,7 +1797,10 @@ describe('BridgeStatusController', () => {
       mockMessengerCall.mockReturnValueOnce({
         transactions: [mockEvmTxMeta],
       });
-      estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
+      mockMessengerCall.mockReturnValueOnce({
+        ...mockSelectedAccount,
+        type: EthAccountType.Erc4337,
+      });
 
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
@@ -2091,7 +2093,6 @@ describe('BridgeStatusController', () => {
       });
 
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
-      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
     };
 
     it('should successfully submit an EVM swap transaction with approval', async () => {
@@ -2193,6 +2194,7 @@ describe('BridgeStatusController', () => {
     });
 
     it('should handle smart accounts (4337)', async () => {
+      mockMessengerCall.mockImplementationOnce(jest.fn()); // BridgeController:stopPollingForQuotes
       mockMessengerCall.mockReturnValueOnce({
         ...mockSelectedAccount,
         type: EthAccountType.Erc4337,
