@@ -543,8 +543,13 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
         currentTokenBalances.tokenBalances?.[accountAddress]?.[chainId]?.[
           tokenAddress
         ];
+      // `value` can be null or undefined if the multicall failed due to RPC issue.
+      // Please see packages/assets-controllers/src/multicall.ts#L365.
+      // Hence we should not update the balance in that case.
       const isTokenBalanceValueChanged =
-        currentTokenBalanceValueForAccount !== toHex(value as BN);
+        res.success && value !== undefined && value !== null
+          ? currentTokenBalanceValueForAccount !== toHex(value as BN)
+          : false;
       return {
         ...res,
         isTokenBalanceValueChanged,

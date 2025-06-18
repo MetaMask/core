@@ -40,7 +40,7 @@ describe('UrlScanCache', () => {
       const initialCache = {
         'example.com': {
           result: {
-            domainName: 'example.com',
+            hostname: 'example.com',
             recommendedAction: RecommendedAction.None,
           },
           timestamp: now,
@@ -54,7 +54,7 @@ describe('UrlScanCache', () => {
       });
 
       expect(cacheWithInitialData.get('example.com')).toStrictEqual({
-        domainName: 'example.com',
+        hostname: 'example.com',
         recommendedAction: RecommendedAction.None,
       });
     });
@@ -67,7 +67,7 @@ describe('UrlScanCache', () => {
 
     it('returns valid entries', () => {
       const result = {
-        domainName: 'example.com',
+        hostname: 'example.com',
         recommendedAction: RecommendedAction.None,
       };
 
@@ -78,7 +78,7 @@ describe('UrlScanCache', () => {
 
     it('removes and returns undefined for expired entries', () => {
       const result = {
-        domainName: 'example.com',
+        hostname: 'example.com',
         recommendedAction: RecommendedAction.None,
       };
 
@@ -95,7 +95,7 @@ describe('UrlScanCache', () => {
   describe('add', () => {
     it('adds entries to the cache', () => {
       const result = {
-        domainName: 'example.com',
+        hostname: 'example.com',
         recommendedAction: RecommendedAction.None,
       };
 
@@ -107,17 +107,17 @@ describe('UrlScanCache', () => {
 
     it('evicts oldest entries when exceeding max size', () => {
       cache.add('domain1.com', {
-        domainName: 'domain1.com',
+        hostname: 'domain1.com',
         recommendedAction: RecommendedAction.None,
       });
       clock.tick(1000);
       cache.add('domain2.com', {
-        domainName: 'domain2.com',
+        hostname: 'domain2.com',
         recommendedAction: RecommendedAction.None,
       });
       clock.tick(1000);
       cache.add('domain3.com', {
-        domainName: 'domain3.com',
+        hostname: 'domain3.com',
         recommendedAction: RecommendedAction.None,
       });
 
@@ -126,7 +126,7 @@ describe('UrlScanCache', () => {
       expect(cache.get('domain3.com')).toBeDefined();
 
       cache.add('domain4.com', {
-        domainName: 'domain4.com',
+        hostname: 'domain4.com',
         recommendedAction: RecommendedAction.None,
       });
 
@@ -140,15 +140,15 @@ describe('UrlScanCache', () => {
       cache.setMaxSize(2);
 
       cache.add('domain1.com', {
-        domainName: 'domain1.com',
+        hostname: 'domain1.com',
         recommendedAction: RecommendedAction.None,
       });
       cache.add('domain2.com', {
-        domainName: 'domain2.com',
+        hostname: 'domain2.com',
         recommendedAction: RecommendedAction.None,
       });
       cache.add('domain3.com', {
-        domainName: 'domain3.com',
+        hostname: 'domain3.com',
         recommendedAction: RecommendedAction.None,
       });
 
@@ -161,11 +161,11 @@ describe('UrlScanCache', () => {
   describe('clear', () => {
     it('removes all entries from the cache', () => {
       cache.add('domain1.com', {
-        domainName: 'domain1.com',
+        hostname: 'domain1.com',
         recommendedAction: RecommendedAction.None,
       });
       cache.add('domain2.com', {
-        domainName: 'domain2.com',
+        hostname: 'domain2.com',
         recommendedAction: RecommendedAction.None,
       });
 
@@ -181,7 +181,7 @@ describe('UrlScanCache', () => {
   describe('setTTL', () => {
     it('updates the cache TTL', () => {
       const result = {
-        domainName: 'example.com',
+        hostname: 'example.com',
         recommendedAction: RecommendedAction.None,
       };
 
@@ -198,17 +198,17 @@ describe('UrlScanCache', () => {
   describe('setMaxSize', () => {
     it('updates the max cache size and evicts entries if needed', () => {
       cache.add('domain1.com', {
-        domainName: 'domain1.com',
+        hostname: 'domain1.com',
         recommendedAction: RecommendedAction.None,
       });
       clock.tick(1000);
       cache.add('domain2.com', {
-        domainName: 'domain2.com',
+        hostname: 'domain2.com',
         recommendedAction: RecommendedAction.None,
       });
       clock.tick(1000);
       cache.add('domain3.com', {
-        domainName: 'domain3.com',
+        hostname: 'domain3.com',
         recommendedAction: RecommendedAction.None,
       });
 

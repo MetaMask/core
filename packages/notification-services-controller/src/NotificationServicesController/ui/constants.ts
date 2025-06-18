@@ -8,6 +8,7 @@ export const NOTIFICATION_NETWORK_CURRENCY_NAME = {
   [NOTIFICATION_CHAINS_ID.LINEA]: 'Linea',
   [NOTIFICATION_CHAINS_ID.OPTIMISM]: 'Optimism',
   [NOTIFICATION_CHAINS_ID.POLYGON]: 'Polygon',
+  [NOTIFICATION_CHAINS_ID.SEI]: 'Sei Network',
 } as const;
 
 export const NOTIFICATION_NETWORK_CURRENCY_SYMBOL = {
@@ -18,6 +19,7 @@ export const NOTIFICATION_NETWORK_CURRENCY_SYMBOL = {
   [NOTIFICATION_CHAINS_ID.LINEA]: 'ETH',
   [NOTIFICATION_CHAINS_ID.OPTIMISM]: 'ETH',
   [NOTIFICATION_CHAINS_ID.POLYGON]: 'POL',
+  [NOTIFICATION_CHAINS_ID.SEI]: 'SEI',
 };
 
 export type BlockExplorerConfig = {
@@ -60,6 +62,10 @@ export const SUPPORTED_NOTIFICATION_BLOCK_EXPLORERS = {
   [NOTIFICATION_CHAINS_ID.LINEA]: {
     url: 'https://lineascan.build',
     name: 'LineaScan',
+  },
+  [NOTIFICATION_CHAINS_ID.SEI]: {
+    url: 'https://seitrace.com/',
+    name: 'SeiTrace',
   },
 } satisfies Record<string, BlockExplorerConfig>;
 

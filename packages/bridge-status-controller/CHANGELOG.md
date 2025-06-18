@@ -7,10 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [30.0.0]
+
 ### Changed
 
+- **BREAKING:** Implement onClientRequest for Solana snap transactions, now requires action permission for RemoteFeatureFlagController:getState ([#5961](https://github.com/MetaMask/core/pull/5961))
+
+## [29.1.1]
+
+### Changed
+
+- Bump `@metamask/bridge-controller` to `^32.1.2` ([#5969](https://github.com/MetaMask/core/pull/5969))
 - Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
 - Bump `@metamask/transaction-controller` to `^57.3.0` ([#5954](https://github.com/MetaMask/core/pull/5954))
+
+### Fixed
+
+- Properly prompt for confirmation on Ledger on Mobile for bridge transactions ([#5931](https://github.com/MetaMask/core/pull/5931))
 
 ## [29.1.0]
 
@@ -308,7 +321,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@29.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@30.0.0...HEAD
+[30.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@29.1.1...@metamask/bridge-status-controller@30.0.0
+[29.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@29.1.0...@metamask/bridge-status-controller@29.1.1
 [29.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@29.0.0...@metamask/bridge-status-controller@29.1.0
 [29.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@28.0.0...@metamask/bridge-status-controller@29.0.0
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@27.0.0...@metamask/bridge-status-controller@28.0.0

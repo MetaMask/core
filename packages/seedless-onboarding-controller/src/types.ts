@@ -17,9 +17,29 @@ import type {
   Web3AuthNetwork,
 } from './constants';
 
+/**
+ * The backup state of the secret data.
+ * Each secret data added/restored will be stored in the state locally.
+ *
+ * This is used to track the backup status of the secret data.
+ */
 export type SocialBackupsMetadata = {
-  id: string;
+  /**
+   * The hash of the secret data.
+   */
   hash: string;
+
+  /**
+   * The type of the secret data.
+   */
+  type: SecretType;
+
+  /**
+   * The optional keyringId to identify the keyring that the secret data belongs to.
+   *
+   * This is only required for `Mnemonic` secret data.
+   */
+  keyringId?: string;
 };
 
 export type AuthenticatedUserDetails = {
@@ -54,6 +74,11 @@ export type AuthenticatedUserDetails = {
    * The user email from Social login.
    */
   socialLoginEmail: string;
+
+  /**
+   * The refresh token used to refresh expired nodeAuthTokens.
+   */
+  refreshToken: string;
 };
 
 export type SRPBackedUpUserDetails = {
@@ -113,12 +138,16 @@ export type SeedlessOnboardingControllerState =
       passwordOutdatedCache?: { isExpiredPwd: boolean; timestamp: number };
 
       /**
-       * The cached data of the recovery error.
-       *
-       * This data is used to cache the recovery error data to retrieve the accurate ratelimit remainingTime and numberOfAttempts.
-       * And it also helps to synchronize the recovery error data across multiple devices.
+       * The refresh token used to refresh expired nodeAuthTokens.
+       * This is persisted in state.
        */
-      recoveryRatelimitCache?: RecoveryErrorData;
+      refreshToken?: string;
+
+      /**
+       * The revoke token used to revoke refresh token and get new refresh token and new revoke token.
+       * This is temporarily stored in state during authentication and then persisted in the vault.
+       */
+      revokeToken?: string;
     };
 
 // Actions
@@ -182,6 +211,16 @@ export type ToprfKeyDeriver = {
   deriveKey: (seed: Uint8Array, salt: Uint8Array) => Promise<Uint8Array>;
 };
 
+export type RefreshJWTToken = (params: {
+  connection: AuthConnection;
+  refreshToken: string;
+}) => Promise<{ idTokens: string[] }>;
+
+export type RevokeRefreshToken = (params: {
+  connection: AuthConnection;
+  revokeToken: string;
+}) => Promise<{ newRevokeToken: string; newRefreshToken: string }>;
+
 /**
  * Seedless Onboarding Controller Options.
  *
@@ -206,6 +245,17 @@ export type SeedlessOnboardingControllerOptions<
    * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
    */
   encryptor: VaultEncryptor<EncryptionKey, SupportedKeyDerivationOptions>;
+
+  /**
+   * A function to get a new jwt token using refresh token.
+   */
+  refreshJWTToken: RefreshJWTToken;
+
+  /**
+   * A function to revoke the refresh token.
+   * And get new refresh token and revoke token.
+   */
+  revokeRefreshToken: RevokeRefreshToken;
 
   /**
    * Optional key derivation interface for the TOPRF client.
@@ -255,6 +305,10 @@ export type VaultData = {
    * The authentication key pair to authenticate the TOPRF.
    */
   toprfAuthKeyPair: string;
+  /**
+   * The revoke token to revoke refresh token and get new refresh token and new revoke token.
+   */
+  revokeToken: string;
 };
 
 export type SecretDataType = Uint8Array | string | number;
@@ -275,4 +329,18 @@ export type SecretMetadataOptions = {
    * The version of the seed phrase metadata.
    */
   version: SecretMetadataVersion;
+};
+
+export type DecodedNodeAuthToken = {
+  /**
+   * The expiration time of the token in seconds.
+   */
+  exp: number;
+  temp_key_x: string;
+  temp_key_y: string;
+  aud: string;
+  verifier_name: string;
+  verifier_id: string;
+  scope: string;
+  signature: string;
 };

@@ -4,7 +4,6 @@ import {
   activatePushNotifications,
   deactivatePushNotifications,
   updateLinksAPI,
-  updateTriggerPushNotifications,
 } from './services';
 import { mockEndpointUpdatePushNotificationLinks } from '../__fixtures__/mockServices';
 import type { PushNotificationEnv } from '../types/firebase';
@@ -15,15 +14,21 @@ const mockErrorLog = () =>
 
 const MOCK_REG_TOKEN = 'REG_TOKEN';
 const MOCK_NEW_REG_TOKEN = 'NEW_REG_TOKEN';
-const MOCK_TRIGGERS = ['1', '2', '3'];
+const MOCK_ADDRESSES = ['0x123', '0x456', '0x789'];
 const MOCK_JWT = 'MOCK_JWT';
 
 describe('NotificationServicesPushController Services', () => {
   describe('updateLinksAPI', () => {
     const act = async () =>
-      await updateLinksAPI(MOCK_JWT, MOCK_TRIGGERS, [
-        { token: MOCK_NEW_REG_TOKEN, platform: 'extension', locale: 'en' },
-      ]);
+      await updateLinksAPI({
+        bearerToken: MOCK_JWT,
+        addresses: MOCK_ADDRESSES,
+        regToken: {
+          token: MOCK_NEW_REG_TOKEN,
+          platform: 'extension',
+          locale: 'en',
+        },
+      });
 
     it('should return true if links are successfully updated', async () => {
       const mockAPI = mockEndpointUpdatePushNotificationLinks();
@@ -52,16 +57,21 @@ describe('NotificationServicesPushController Services', () => {
     const arrangeMocks = (override?: { mockPut?: { status: number } }) => {
       const params = {
         bearerToken: MOCK_JWT,
-        triggers: MOCK_TRIGGERS,
+        addresses: MOCK_ADDRESSES,
         createRegToken: jest.fn().mockResolvedValue(MOCK_NEW_REG_TOKEN),
-        platform: 'extension' as const,
-        locale: 'en',
+        regToken: {
+          platform: 'extension' as const,
+          locale: 'en',
+        },
         env: {} as PushNotificationEnv,
       };
 
       const mobileParams = {
         ...params,
-        platform: 'mobile' as const,
+        regToken: {
+          ...params.regToken,
+          platform: 'mobile' as const,
+        },
       };
 
       return {
@@ -94,14 +104,29 @@ describe('NotificationServicesPushController Services', () => {
 
       expect(result).toBeNull();
     });
+
+    it('should handle oldToken parameter when provided', async () => {
+      const { params, apis } = arrangeMocks();
+      const paramsWithOldToken = {
+        ...params,
+        regToken: {
+          ...params.regToken,
+          oldToken: 'OLD_TOKEN',
+        },
+      };
+
+      const result = await activatePushNotifications(paramsWithOldToken);
+
+      expect(params.createRegToken).toHaveBeenCalled();
+      expect(apis.mockPut.isDone()).toBe(true);
+      expect(result).toBe(MOCK_NEW_REG_TOKEN);
+    });
   });
 
   describe('deactivatePushNotifications', () => {
     const arrangeMocks = () => {
       const params = {
         regToken: MOCK_REG_TOKEN,
-        bearerToken: MOCK_JWT,
-        triggers: MOCK_TRIGGERS,
         deleteRegToken: jest.fn().mockResolvedValue(true),
         env: {} as PushNotificationEnv,
       };
@@ -138,56 +163,6 @@ describe('NotificationServicesPushController Services', () => {
 
       expect(params.deleteRegToken).toHaveBeenCalled();
       expect(result).toBe(false);
-    });
-  });
-
-  describe('updateTriggerPushNotifications', () => {
-    const arrangeMocks = (override?: { mockPut?: { status: number } }) => {
-      const params = {
-        regToken: MOCK_REG_TOKEN,
-        bearerToken: MOCK_JWT,
-        triggers: MOCK_TRIGGERS,
-        deleteRegToken: jest.fn().mockResolvedValue(true),
-        createRegToken: jest.fn().mockResolvedValue(MOCK_NEW_REG_TOKEN),
-        platform: 'extension' as const,
-        locale: 'en',
-        env: {} as PushNotificationEnv,
-      };
-
-      return {
-        params,
-        apis: {
-          mockPut: mockEndpointUpdatePushNotificationLinks(override?.mockPut),
-        },
-      };
-    };
-
-    it('should update trigger links and replace existing reg token', async () => {
-      const { params, apis } = arrangeMocks();
-      mockErrorLog();
-      const result = await updateTriggerPushNotifications(params);
-
-      expect(params.deleteRegToken).toHaveBeenCalled();
-      expect(params.createRegToken).toHaveBeenCalled();
-      expect(apis.mockPut.isDone()).toBe(true);
-
-      expect(result.fcmToken).toBeDefined();
-    });
-
-    it('should throw error if fails to create reg token', async () => {
-      const { params } = arrangeMocks();
-      params.createRegToken.mockResolvedValue(null);
-
-      await expect(
-        async () => await updateTriggerPushNotifications(params),
-      ).rejects.toThrow(expect.any(Error));
-    });
-
-    it('should throw error if fails to update links', async () => {
-      const { params } = arrangeMocks({ mockPut: { status: 500 } });
-      await expect(
-        async () => await updateTriggerPushNotifications(params),
-      ).rejects.toThrow(expect.any(Error));
     });
   });
 });

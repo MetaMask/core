@@ -1,11 +1,9 @@
+import type { RemoteFeatureFlagControllerState } from '@metamask/remote-feature-flag-controller';
+
 import { formatChainIdToCaip } from './caip-formatters';
 import { validateFeatureFlagsResponse } from './validators';
 import { DEFAULT_FEATURE_FLAG_CONFIG } from '../constants/bridge';
-import type {
-  FeatureFlagsPlatformConfig,
-  ChainConfiguration,
-  BridgeControllerMessenger,
-} from '../types';
+import type { FeatureFlagsPlatformConfig, ChainConfiguration } from '../types';
 
 export const formatFeatureFlags = (
   bridgeFeatureFlags: FeatureFlagsPlatformConfig,
@@ -37,12 +35,16 @@ export const processFeatureFlags = (
 /**
  * Gets the bridge feature flags from the remote feature flag controller
  *
- * @param messenger - The messenger instance
+ * @param messenger - Any messenger with access to RemoteFeatureFlagController:getState
  * @returns The bridge feature flags
  */
-export function getBridgeFeatureFlags(
-  messenger: BridgeControllerMessenger,
-): FeatureFlagsPlatformConfig {
+export function getBridgeFeatureFlags<
+  T extends {
+    call(
+      action: 'RemoteFeatureFlagController:getState',
+    ): RemoteFeatureFlagControllerState;
+  },
+>(messenger: T): FeatureFlagsPlatformConfig {
   // This will return the bridgeConfig for the current platform even without specifying the platform
   const remoteFeatureFlagControllerState = messenger.call(
     'RemoteFeatureFlagController:getState',

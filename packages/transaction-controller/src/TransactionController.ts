@@ -117,6 +117,8 @@ import type {
   AfterAddHook,
   GasFeeEstimateLevel as GasFeeEstimateLevelType,
   TransactionBatchMeta,
+  AfterSimulateHook,
+  BeforeSignHook,
 } from './types';
 import {
   GasFeeEstimateLevel,
@@ -287,10 +289,16 @@ export type TransactionControllerUpdateCustodialTransactionAction = {
   handler: TransactionController['updateCustodialTransaction'];
 };
 
+export type TransactionControllerEstimateGasAction = {
+  type: `${typeof controllerName}:estimateGas`;
+  handler: TransactionController['estimateGas'];
+};
+
 /**
  * The internal actions available to the TransactionController.
  */
 export type TransactionControllerActions =
+  | TransactionControllerEstimateGasAction
   | TransactionControllerGetStateAction
   | TransactionControllerUpdateCustodialTransactionAction;
 
@@ -406,6 +414,9 @@ export type TransactionControllerOptions = {
       signedTx: TypedTransaction,
     ) => boolean;
 
+    /** Additional logic to execute after simulating a transaction. */
+    afterSimulate?: AfterSimulateHook;
+
     /**
      * Additional logic to execute before checking pending transactions.
      * Return false to prevent the broadcast of the transaction.
@@ -419,6 +430,11 @@ export type TransactionControllerOptions = {
      * Return false to prevent the broadcast of the transaction.
      */
     beforePublish?: (transactionMeta: TransactionMeta) => Promise<boolean>;
+
+    /**
+     * Additional logic to execute before signing a transaction.
+     */
+    beforeSign?: BeforeSignHook;
 
     /** Returns additional arguments required to sign a transaction. */
     getAdditionalSignArguments?: (
@@ -693,6 +709,8 @@ export class TransactionController extends BaseController<
     signedTx: TypedTransaction,
   ) => boolean;
 
+  readonly #afterSimulate: AfterSimulateHook;
+
   readonly #approvingTransactionIds: Set<string> = new Set();
 
   readonly #beforeCheckPendingTransaction: (
@@ -702,6 +720,8 @@ export class TransactionController extends BaseController<
   readonly #beforePublish: (
     transactionMeta: TransactionMeta,
   ) => Promise<boolean>;
+
+  readonly #beforeSign: BeforeSignHook;
 
   readonly #gasFeeFlows: GasFeeFlow[];
 
@@ -783,6 +803,8 @@ export class TransactionController extends BaseController<
 
   readonly #signAbortCallbacks: Map<string, () => void> = new Map();
 
+  readonly #skipSimulationTransactionIds: Set<string> = new Set();
+
   readonly #testGasFeeFlows: boolean;
 
   readonly #trace: TraceCallback;
@@ -838,10 +860,12 @@ export class TransactionController extends BaseController<
 
     this.#afterAdd = hooks?.afterAdd ?? (() => Promise.resolve({}));
     this.#afterSign = hooks?.afterSign ?? (() => true);
+    this.#afterSimulate = hooks?.afterSimulate ?? (() => Promise.resolve({}));
     this.#beforeCheckPendingTransaction =
       /* istanbul ignore next */
       hooks?.beforeCheckPendingTransaction ?? (() => Promise.resolve(true));
     this.#beforePublish = hooks?.beforePublish ?? (() => Promise.resolve(true));
+    this.#beforeSign = hooks?.beforeSign ?? (() => Promise.resolve({}));
     this.#getAdditionalSignArguments =
       hooks?.getAdditionalSignArguments ?? (() => []);
     this.#getCurrentAccountEIP1559Compatibility =
@@ -1557,11 +1581,18 @@ export class TransactionController extends BaseController<
    *
    * @param transaction - The transaction to estimate gas for.
    * @param networkClientId - The network client id to use for the estimate.
+   * @param options - Additional options for the estimate.
+   * @param options.ignoreDelegationSignatures - Ignore signature errors if submitting delegations to the DelegationManager.
    * @returns The gas and gas price.
    */
   async estimateGas(
     transaction: TransactionParams,
     networkClientId: NetworkClientId,
+    {
+      ignoreDelegationSignatures,
+    }: {
+      ignoreDelegationSignatures?: boolean;
+    } = {},
   ) {
     const ethQuery = this.#getEthQuery({
       networkClientId,
@@ -1570,6 +1601,7 @@ export class TransactionController extends BaseController<
     const { estimatedGas, simulationFails } = await estimateGas({
       chainId: this.#getChainId(networkClientId),
       ethQuery,
+      ignoreDelegationSignatures,
       isSimulationEnabled: this.#isSimulationEnabled(),
       messenger: this.messagingSystem,
       txParams: transaction,
@@ -2832,6 +2864,8 @@ export class TransactionController extends BaseController<
             this.#failTransaction(meta, error, actionId);
           }
         }
+      } finally {
+        this.#skipSimulationTransactionIds.delete(transactionId);
       }
     }
 
@@ -3303,15 +3337,25 @@ export class TransactionController extends BaseController<
       return;
     }
 
-    const finalTransactions = transactions.map((tx) => {
-      const { chainId } = tx;
-      const networkClientId = this.#getNetworkClientId({ chainId });
+    const finalTransactions: TransactionMeta[] = [];
 
-      return {
-        ...tx,
-        networkClientId,
-      };
-    });
+    for (const tx of transactions) {
+      const { chainId } = tx;
+
+      try {
+        const networkClientId = this.#getNetworkClientId({ chainId });
+
+        finalTransactions.push({
+          ...tx,
+          networkClientId,
+        });
+      } catch (error) {
+        log('Failed to get network client ID for incoming transaction', {
+          chainId,
+          error,
+        });
+      }
+    }
 
     this.update((state) => {
       const { transactions: currentTransactions } = state;
@@ -3551,51 +3595,75 @@ export class TransactionController extends BaseController<
   async #signTransaction(
     transactionMeta: TransactionMeta,
   ): Promise<string | undefined> {
-    const { isExternalSign, txParams } = transactionMeta;
+    const {
+      chainId,
+      id: transactionId,
+      isExternalSign,
+      txParams,
+    } = transactionMeta;
 
     if (isExternalSign) {
       log('Skipping sign as signed externally');
       return undefined;
     }
 
-    log('Signing transaction', txParams);
-
     const { authorizationList, from } = txParams;
-    const finalTxParams = { ...txParams };
 
-    finalTxParams.authorizationList = await signAuthorizationList({
+    const signedAuthorizationList = await signAuthorizationList({
       authorizationList,
       messenger: this.messagingSystem,
       transactionMeta,
     });
 
-    const unsignedEthTx = prepareTransaction(
-      transactionMeta.chainId,
-      finalTxParams,
-    );
+    if (signedAuthorizationList) {
+      this.#updateTransactionInternal({ transactionId }, (txMeta) => {
+        txMeta.txParams.authorizationList = signedAuthorizationList;
+      });
+    }
 
-    this.#approvingTransactionIds.add(transactionMeta.id);
+    log('Calling before sign hook', transactionMeta);
+
+    const { updateTransaction } =
+      (await this.#beforeSign({ transactionMeta })) ?? {};
+
+    if (updateTransaction) {
+      this.#updateTransactionInternal(
+        { transactionId, skipResimulateCheck: true, note: 'beforeSign Hook' },
+        updateTransaction,
+      );
+
+      log('Updated transaction after before sign hook');
+    }
+
+    const finalTransactionMeta = this.#getTransactionOrThrow(transactionId);
+    const { txParams: finalTxParams } = finalTransactionMeta;
+    const unsignedEthTx = prepareTransaction(chainId, finalTxParams);
+
+    this.#approvingTransactionIds.add(transactionId);
+
+    log('Signing transaction', finalTxParams);
 
     const signedTx = await new Promise<TypedTransaction>((resolve, reject) => {
       this.#sign?.(
         unsignedEthTx,
         from,
-        ...this.#getAdditionalSignArguments(transactionMeta),
+        ...this.#getAdditionalSignArguments(finalTransactionMeta),
       ).then(resolve, reject);
 
-      this.#signAbortCallbacks.set(transactionMeta.id, () =>
+      this.#signAbortCallbacks.set(transactionId, () =>
         reject(new Error('Signing aborted by user')),
       );
     });
 
-    this.#signAbortCallbacks.delete(transactionMeta.id);
+    this.#signAbortCallbacks.delete(transactionId);
 
     if (!signedTx) {
       log('Skipping signed status as no signed transaction');
       return undefined;
     }
 
-    const transactionMetaFromHook = cloneDeep(transactionMeta);
+    const transactionMetaFromHook = cloneDeep(finalTransactionMeta);
+
     if (!this.#afterSign(transactionMetaFromHook, signedTx)) {
       this.updateTransaction(
         transactionMetaFromHook,
@@ -4070,7 +4138,10 @@ export class TransactionController extends BaseController<
 
     let gasFeeTokens: GasFeeToken[] = [];
 
-    if (this.#isSimulationEnabled()) {
+    const isBalanceChangesSkipped =
+      this.#skipSimulationTransactionIds.has(transactionId);
+
+    if (this.#isSimulationEnabled() && !isBalanceChangesSkipped) {
       simulationData = await this.#trace(
         { name: 'Simulate', parentContext: traceContext },
         () =>
@@ -4103,10 +4174,10 @@ export class TransactionController extends BaseController<
       });
     }
 
-    const finalTransactionMeta = this.#getTransaction(transactionId);
+    const latestTransactionMeta = this.#getTransaction(transactionId);
 
     /* istanbul ignore if */
-    if (!finalTransactionMeta) {
+    if (!latestTransactionMeta) {
       log(
         'Cannot update simulation data as transaction not found',
         transactionId,
@@ -4116,7 +4187,7 @@ export class TransactionController extends BaseController<
       return;
     }
 
-    this.#updateTransactionInternal(
+    const updatedTransactionMeta = this.#updateTransactionInternal(
       {
         transactionId,
         note: 'TransactionController#updateSimulationData - Update simulation data',
@@ -4124,11 +4195,16 @@ export class TransactionController extends BaseController<
       },
       (txMeta) => {
         txMeta.gasFeeTokens = gasFeeTokens;
-        txMeta.simulationData = simulationData;
+
+        if (!isBalanceChangesSkipped) {
+          txMeta.simulationData = simulationData;
+        }
       },
     );
 
-    log('Updated simulation data', transactionId, simulationData);
+    log('Updated simulation data', transactionId, updatedTransactionMeta);
+
+    await this.#runAfterSimulateHook(updatedTransactionMeta);
   }
 
   #onGasFeePollerTransactionUpdate({
@@ -4227,6 +4303,11 @@ export class TransactionController extends BaseController<
 
   #registerActionHandlers(): void {
     this.messagingSystem.registerActionHandler(
+      `${controllerName}:estimateGas`,
+      this.estimateGas.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
       `${controllerName}:updateCustodialTransaction`,
       this.updateCustodialTransaction.bind(this),
     );
@@ -4317,5 +4398,41 @@ export class TransactionController extends BaseController<
       `${transactionMeta.id}:finished`,
       newTransactionMeta,
     );
+  }
+
+  async #runAfterSimulateHook(transactionMeta: TransactionMeta) {
+    log('Calling afterSimulate hook', transactionMeta);
+
+    const { id: transactionId } = transactionMeta;
+
+    const result = await this.#afterSimulate({
+      transactionMeta,
+    });
+
+    const { skipSimulation, updateTransaction } = result || {};
+
+    if (skipSimulation) {
+      this.#skipSimulationTransactionIds.add(transactionId);
+    } else if (skipSimulation === false) {
+      this.#skipSimulationTransactionIds.delete(transactionId);
+    }
+
+    if (!updateTransaction) {
+      return;
+    }
+
+    const updatedTransactionMeta = this.#updateTransactionInternal(
+      {
+        transactionId,
+        skipResimulateCheck: true,
+        note: 'afterSimulate Hook',
+      },
+      (txMeta) => {
+        txMeta.txParamsOriginal = cloneDeep(txMeta.txParams);
+        updateTransaction(txMeta);
+      },
+    );
+
+    log('Updated transaction with afterSimulate data', updatedTransactionMeta);
   }
 }

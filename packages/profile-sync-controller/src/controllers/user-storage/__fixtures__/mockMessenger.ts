@@ -75,6 +75,8 @@ export function createCustomUserStorageMessenger(props?: {
       'AccountsController:accountRenamed',
       'AccountsController:accountAdded',
       'NetworkController:networkRemoved',
+      'AddressBookController:contactUpdated',
+      'AddressBookController:contactDeleted',
     ],
   });
 
