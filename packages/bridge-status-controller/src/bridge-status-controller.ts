@@ -836,6 +836,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
     isStxEnabledOnClient: boolean,
   ): Promise<TransactionMeta & Partial<SolanaTransactionMeta>> => {
+    this.messagingSystem.call('BridgeController:stopPollingForQuotes');
     // Emit Submitted event after submit button is clicked
     this.#trackUnifiedSwapBridgeEvent(UnifiedSwapBridgeEventName.Submitted);
 
