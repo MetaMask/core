@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Parse tx signature from `onClientRequest` response in order to identify bridge transactions
+
 ## [30.0.0]
 
 ### Changed

@@ -82,6 +82,14 @@ export const handleSolanaTxResponse = (
         snapResponse.result.hash ||
         snapResponse.result.txHash;
     }
+    if (
+      typeof snapResponse === 'object' &&
+      'signature' in snapResponse &&
+      snapResponse.signature &&
+      typeof snapResponse.signature === 'string'
+    ) {
+      hash = snapResponse.signature;
+    }
   }
 
   const hexChainId = formatChainIdToHex(quoteResponse.quote.srcChainId);
