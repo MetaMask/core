@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.0.0]
+
 ### Added
 
 - SEI network to supported networks for notifications ([#5945](https://github.com/MetaMask/core/pull/5945))
@@ -17,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** bump `@metamask/profile-sync-controller` peer dependency to `^18.0.0` ([#5996](https://github.com/MetaMask/core/pull/5996))
 - **BREAKING:** Migrated to notification v2 endpoints ([#5945](https://github.com/MetaMask/core/pull/5945))
 
   - `https://trigger.api.cx.metamask.io/api/v1` to `https://trigger.api.cx.metamask.io/api/v2` for managing out notification subscriptions
@@ -464,7 +467,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@10.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@11.0.0...HEAD
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@10.0.0...@metamask/notification-services-controller@11.0.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@9.0.0...@metamask/notification-services-controller@10.0.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@8.0.0...@metamask/notification-services-controller@9.0.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@7.0.0...@metamask/notification-services-controller@8.0.0
