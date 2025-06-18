@@ -24,6 +24,7 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
+import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type {
   TransactionControllerGetStateAction,
@@ -334,8 +335,10 @@ type AllowedActions =
   | TransactionControllerGetStateAction
   | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>
   | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>
+  | BridgeControllerAction<BridgeBackgroundAction.STOP_POLLING_FOR_QUOTES>
   | GetGasFeeState
-  | AccountsControllerGetAccountByAddressAction;
+  | AccountsControllerGetAccountByAddressAction
+  | RemoteFeatureFlagControllerGetStateAction;
 
 /**
  * The external events available to the BridgeStatusController.

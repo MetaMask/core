@@ -65,6 +65,7 @@ export type ChainConfiguration = {
   refreshRate?: number;
   topAssets?: string[];
   isUnifiedUIEnabled?: boolean;
+  isSnapConfirmationEnabled?: boolean;
 };
 
 export type L1GasFees = {
@@ -347,6 +348,7 @@ export enum BridgeBackgroundAction {
   RESET_STATE = 'resetState',
   GET_BRIDGE_ERC20_ALLOWANCE = 'getBridgeERC20Allowance',
   TRACK_METAMETRICS_EVENT = 'trackUnifiedSwapBridgeEvent',
+  STOP_POLLING_FOR_QUOTES = 'stopPollingForQuotes',
 }
 
 export type BridgeControllerState = {
@@ -381,6 +383,7 @@ export type BridgeControllerActions =
   | BridgeControllerAction<BridgeBackgroundAction.RESET_STATE>
   | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>
   | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>
+  | BridgeControllerAction<BridgeBackgroundAction.STOP_POLLING_FOR_QUOTES>
   | BridgeControllerAction<BridgeUserAction.UPDATE_QUOTE_PARAMS>;
 
 export type BridgeControllerEvents = ControllerStateChangeEvent<
