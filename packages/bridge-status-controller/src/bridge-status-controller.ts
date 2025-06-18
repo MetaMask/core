@@ -61,6 +61,7 @@ import {
   getRequestMetadataFromHistory,
   getRequestParamFromHistory,
   getTradeDataFromHistory,
+  getTradeDataFromQuote,
   getTxStatusesFromHistory,
 } from './utils/metrics';
 import {
@@ -558,7 +559,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     const requestResponse = (await this.messagingSystem.call(
       'SnapController:handleRequest',
       request,
-    )) as string | { result: Record<string, string> };
+    )) as string | { result: Record<string, string> } | { signature: string };
 
     // The extension client actually redirects before it can do anytyhing with this meta
     const txMeta = handleSolanaTxResponse(
@@ -837,8 +838,23 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     isStxEnabledOnClient: boolean,
   ): Promise<TransactionMeta & Partial<SolanaTransactionMeta>> => {
     this.messagingSystem.call('BridgeController:stopPollingForQuotes');
+
+    // Before the tx iks confirmed, its data is not available in txHistory
+    // The quote is used to populate event properties before confirmation
+    const preConfirmationProperties = {
+      ...getPriceImpactFromQuote(quoteResponse.quote),
+      ...getTradeDataFromQuote(quoteResponse),
+      token_symbol_source: quoteResponse.quote.srcAsset.symbol,
+      token_symbol_destination: quoteResponse.quote.destAsset.symbol,
+      usd_amount_source: Number(quoteResponse.sentAmount?.usd ?? 0),
+      stx_enabled: isStxEnabledOnClient,
+    };
     // Emit Submitted event after submit button is clicked
-    this.#trackUnifiedSwapBridgeEvent(UnifiedSwapBridgeEventName.Submitted);
+    this.#trackUnifiedSwapBridgeEvent(
+      UnifiedSwapBridgeEventName.Submitted,
+      undefined,
+      preConfirmationProperties,
+    );
 
     let txMeta: (TransactionMeta & Partial<SolanaTransactionMeta>) | undefined;
 
@@ -873,6 +889,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               txMeta?.id,
               {
                 error_message: (error as Error)?.message ?? '',
+                ...preConfirmationProperties,
               },
             );
             throw error;
@@ -1042,7 +1059,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           ...getTxStatusesFromHistory(historyItem),
           ...getFinalizedTxProperties(historyItem),
           error_message: 'error_message',
-          price_impact: Number(historyItem.quote.priceData?.priceImpact ?? '0'),
+          ...getPriceImpactFromQuote(historyItem.quote),
         };
     }
 

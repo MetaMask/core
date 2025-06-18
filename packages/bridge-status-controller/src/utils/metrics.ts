@@ -1,4 +1,9 @@
 import type { AccountsControllerState } from '@metamask/accounts-controller';
+import type {
+  QuoteResponse,
+  TxData,
+  QuoteMetadata,
+} from '@metamask/bridge-controller';
 import {
   type TxStatusData,
   StatusTypes,
@@ -14,6 +19,8 @@ import {
   isHardwareWallet,
 } from '@metamask/bridge-controller';
 import type { BridgeHistoryItem } from 'src/types';
+
+import type { QuoteFetchData } from '../../../bridge-controller/src/utils/metrics/types';
 
 export const getTxStatusesFromHistory = ({
   status,
@@ -73,6 +80,26 @@ export const getRequestParamFromHistory = (
     token_symbol_destination: historyItem.quote.destAsset.symbol,
     token_address_destination: historyItem.quote.destAsset.assetId,
   };
+};
+
+export const getTradeDataFromQuote = (
+  quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
+): TradeData => {
+  return {
+    usd_quoted_gas: Number(quoteResponse.gasFee?.usd ?? 0),
+    gas_included: false,
+    provider: formatProviderLabel(quoteResponse.quote),
+    quoted_time_minutes: Number(
+      quoteResponse.estimatedProcessingTimeInSeconds / 60,
+    ),
+    usd_quoted_return: Number(quoteResponse.adjustedReturn?.usd ?? 0),
+  };
+};
+
+export const getPriceImpactFromQuote = (
+  quote: QuoteResponse['quote'],
+): Pick<QuoteFetchData, 'price_impact'> => {
+  return { price_impact: Number(quote.priceData?.priceImpact ?? '0') };
 };
 
 export const getTradeDataFromHistory = (
