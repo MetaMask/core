@@ -476,6 +476,9 @@ Object {
 exports[`BridgeStatusController submitTx: EVM bridge should delay after submitting linea approval 3`] = `
 Array [
   Array [
+    "BridgeController:stopPollingForQuotes",
+  ],
+  Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
@@ -716,6 +719,9 @@ Array [
 
 exports[`BridgeStatusController submitTx: EVM bridge should handle smart accounts (4337) 4`] = `
 Array [
+  Array [
+    "BridgeController:stopPollingForQuotes",
+  ],
   Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
@@ -979,6 +985,9 @@ Array [
 
 exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions 5`] = `
 Array [
+  Array [
+    "BridgeController:stopPollingForQuotes",
+  ],
   Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
@@ -1274,6 +1283,9 @@ Array [
 exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance 5`] = `
 Array [
   Array [
+    "BridgeController:stopPollingForQuotes",
+  ],
+  Array [
     "BridgeController:getBridgeERC20Allowance",
     "0x0000000000000000000000000000000000000000",
     "0xa4b1",
@@ -1534,6 +1546,9 @@ Array [
 exports[`BridgeStatusController submitTx: EVM bridge should successfully submit an EVM bridge transaction with approval 4`] = `
 Array [
   Array [
+    "BridgeController:stopPollingForQuotes",
+  ],
+  Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
@@ -1775,6 +1790,9 @@ Array [
 exports[`BridgeStatusController submitTx: EVM bridge should successfully submit an EVM bridge transaction with no approval 5`] = `
 Array [
   Array [
+    "BridgeController:stopPollingForQuotes",
+  ],
+  Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
@@ -1862,6 +1880,9 @@ Array [
 exports[`BridgeStatusController submitTx: EVM bridge should throw an error if approval tx fails 2`] = `
 Array [
   Array [
+    "BridgeController:stopPollingForQuotes",
+  ],
+  Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
@@ -1902,6 +1923,9 @@ Array [
 
 exports[`BridgeStatusController submitTx: EVM bridge should throw an error if approval tx meta is undefined 2`] = `
 Array [
+  Array [
+    "BridgeController:stopPollingForQuotes",
+  ],
   Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
@@ -2325,6 +2349,9 @@ Array [
 exports[`BridgeStatusController submitTx: EVM swap should handle smart transactions 5`] = `
 Array [
   Array [
+    "BridgeController:stopPollingForQuotes",
+  ],
+  Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
@@ -2548,6 +2575,9 @@ Array [
 
 exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with approval 4`] = `
 Array [
+  Array [
+    "BridgeController:stopPollingForQuotes",
+  ],
   Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
@@ -2790,6 +2820,9 @@ Array [
 exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with no approval 5`] = `
 Array [
   Array [
+    "BridgeController:stopPollingForQuotes",
+  ],
+  Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
@@ -2851,6 +2884,9 @@ Array [
 
 exports[`BridgeStatusController submitTx: Solana should successfully submit a Solana transaction 1`] = `
 Array [
+  Array [
+    "BridgeController:stopPollingForQuotes",
+  ],
   Array [
     "AccountsController:getSelectedMultichainAccount",
   ],
