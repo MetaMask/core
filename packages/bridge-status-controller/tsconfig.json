@@ -14,7 +14,6 @@
     { "path": "../transaction-controller" },
     { "path": "../gas-fee-controller" },
     { "path": "../user-operation-controller" },
-    { "path": "../multichain-transactions-controller" }
   ],
   "include": ["../../types", "./src"]
 }
