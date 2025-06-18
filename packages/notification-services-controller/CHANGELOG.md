@@ -7,9 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- SEI network to supported networks for notifications ([#5945](https://github.com/MetaMask/core/pull/5945))
+  - Added `SEI` to `NOTIFICATION_CHAINS_ID` constant
+  - Added `Sei Network` to default `NOTIFICATION_NETWORK_CURRENCY_NAME` constant
+  - Added `SEI` to default `NOTIFICATION_NETWORK_CURRENCY_SYMBOL` constant
+  - Added SEI block explorer to default `SUPPORTED_NOTIFICATION_BLOCK_EXPLORERS` constant
+
 ### Changed
 
+- **BREAKING:** Migrated to notification v2 endpoints ([#5945](https://github.com/MetaMask/core/pull/5945))
+
+  - `https://trigger.api.cx.metamask.io/api/v1` to `https://trigger.api.cx.metamask.io/api/v2` for managing out notification subscriptions
+  - `https://notification.api.cx.metamask.io/api/v1` to `https://notification.api.cx.metamask.io/api/v2` for fetching notifications (in-app notifications)
+  - `https://push.api.cx.metamask.io/v1` to `https://push.api.cx.metamask.io/v2` for subscribing push notifications
+  - Renamed method `updateOnChainTriggersByAccount` to `enableAccounts` in `NotificationServicesController`
+  - Renamed method `deleteOnChainTriggersByAccount` to `disableAccounts` in `NotificationServicesController`
+  - Deprecated `updateTriggerPushNotifications` from `NotificationServicesPushController` and will be removed in a subsequent release.
+
 - Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
+
+### Removed
+
+- **BREAKING:** Migrated to notification v2 endpoints ([#5945](https://github.com/MetaMask/core/pull/5945))
+
+  - removed `NotificationServicesPushController:updateTriggerPushNotifications` action from `NotificationServicesController`
+  - removed `UserStorageController:getStorageKey` action from `NotificationServicesController`
+  - removed `UserStorageController:performGetStorage` action from `NotificationServicesController`
+  - removed `UserStorageController:performSetStorage` action from `NotificationServicesController`
+  - removed UserStorage notification utilities: `initializeUserStorage`, `cleanUserStorage`, `traverseUserStorageTriggers`, `checkAccountsPresence`, `inferEnabledKinds`, `getUUIDsForAccount`, `getAllUUIDs`, `getUUIDsForKinds`, `getUUIDsForAccountByKinds`, `upsertAddressTriggers`, `upsertTriggerTypeTriggers`, `toggleUserStorageTriggerStatus`.
 
 ## [10.0.0]
 
