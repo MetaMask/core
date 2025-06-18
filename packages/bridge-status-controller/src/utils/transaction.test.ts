@@ -516,6 +516,86 @@ describe('Bridge Status Controller Transaction Utils', () => {
       expect(result.hash).toBe('solanaSignature123');
     });
 
+    it('should handle onClientRequest response format with signature', () => {
+      const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
+        quote: {
+          bridgeId: 'bridge1',
+          bridges: ['bridge1'],
+          srcChainId: ChainId.SOLANA,
+          destChainId: ChainId.SOLANA,
+          srcTokenAmount: '1000000000',
+          destTokenAmount: '2000000000000000000',
+          srcAsset: {
+            address: 'solanaNativeAddress',
+            decimals: 9,
+            symbol: 'SOL',
+          },
+          destAsset: {
+            address: '0x0000000000000000000000000000000000000000',
+            decimals: 18,
+            symbol: 'MATIC',
+          },
+          steps: ['step1'],
+          feeData: {
+            [FeeType.METABRIDGE]: {
+              amount: '100000000',
+            },
+          },
+        },
+        estimatedProcessingTimeInSeconds: 300,
+        trade: 'ABCD',
+        solanaFeesInLamports: '5000',
+        // QuoteMetadata fields
+        sentAmount: {
+          amount: '1.0',
+          valueInCurrency: '100',
+          usd: '100',
+        },
+        toTokenAmount: {
+          amount: '2.0',
+          valueInCurrency: '3600',
+          usd: '3600',
+        },
+        swapRate: '2.0',
+        totalNetworkFee: {
+          amount: '0.1',
+          valueInCurrency: '10',
+          usd: '10',
+        },
+        totalMaxNetworkFee: {
+          amount: '0.15',
+          valueInCurrency: '15',
+          usd: '15',
+        },
+        gasFee: {
+          amount: '0.05',
+          valueInCurrency: '5',
+          usd: '5',
+        },
+        adjustedReturn: {
+          valueInCurrency: '3585',
+          usd: '3585',
+        },
+        cost: {
+          valueInCurrency: '0.1',
+          usd: '0.1',
+        },
+      } as never;
+
+      const snapResponse = {
+        signature: 'solanaSignature123',
+      };
+
+      const result = handleSolanaTxResponse(
+        snapResponse,
+        mockQuoteResponse,
+        mockSolanaAccount,
+      );
+
+      expect(result.hash).toBe('solanaSignature123');
+      expect(result.type).toBe(TransactionType.swap);
+    });
+
     it('should handle object response format with txid', () => {
       const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
         quote: {
