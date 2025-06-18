@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Remove `@metamask/multichain-transactions-controller` peer dependency ([#5993](https://github.com/MetaMask/core/pull/5993))
+
 ### Fixed
 
 - Update the following events to match the Unified SwapBridge spec ([#5993](https://github.com/MetaMask/core/pull/5993))
@@ -15,10 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `Submitted`
     - set swap type for evm txs when applicable. this is currently hardcoded to bridge so swaps don't get displayed correctly on the activity list
     - emit this event when submitTx is called, regardless of confirmation status
-
-### Changed
-
-- Remove `@metamask/multichain-transactions-controller` peer dependency ([#5993](https://github.com/MetaMask/core/pull/5993))
 
 ## [30.0.0]
 
