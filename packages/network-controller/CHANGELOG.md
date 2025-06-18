@@ -9,10 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** NetworkController messenger now requires the `ErrorReportingService:captureException` action to be allowed ([#5970](https://github.com/MetaMask/core/pull/5970))
-  - This change was actually made in 23.5.1, but is being logged as a breaking change here for completeness.
 - **BREAKING:** Move `@metamask/error-reporting-service` to peer dependencies ([#5970](https://github.com/MetaMask/core/pull/5970))
-  - This change should have been made in 23.5.1 along with the above change.
 
 ## [23.6.0]
 
@@ -29,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** NetworkController messenger now requires the `ErrorReportingService:captureException` action to be allowed ([#5970](https://github.com/MetaMask/core/pull/5970))
+  - This change was originally missed when this release was created. It was added to the changelog afterward.
 - Block tracker errors will no longer be wrapped under "PollingBlockTracker - encountered an error while attempting to update latest block" ([#5860](https://github.com/MetaMask/core/pull/5860))
 - Bump dependencies ([#5867](https://github.com/MetaMask/core/pull/5867), [#5860](https://github.com/MetaMask/core/pull/5860))
   - Bump `@metamask/eth-block-tracker` to `^12.0.1`
