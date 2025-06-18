@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [24.0.0]
+
 ### Changed
 
-- **BREAKING:** Move `@metamask/error-reporting-service` to peer dependencies ([#5970](https://github.com/MetaMask/core/pull/5970))
+- **BREAKING:** Remove `@metamask/error-reporting-service@^1.0.0` as a direct dependency, add `^2.0.0` as a peer dependency ([#5970](https://github.com/MetaMask/core/pull/5970), [#5999](https://github.com/MetaMask/core/pull/5999))
 
 ## [23.6.0]
 
@@ -883,7 +885,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.6.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.0.0...HEAD
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.6.0...@metamask/network-controller@24.0.0
 [23.6.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.5.1...@metamask/network-controller@23.6.0
 [23.5.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.5.0...@metamask/network-controller@23.5.1
 [23.5.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.4.0...@metamask/network-controller@23.5.0

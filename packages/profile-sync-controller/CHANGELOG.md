@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` to `^31.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+- **BREAKING:** Bump peer dependency `@metamask/network-controller` to `^24.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+
 ## [18.0.0]
 
 ### Added
@@ -631,7 +638,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@18.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@19.0.0...HEAD
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@18.0.0...@metamask/profile-sync-controller@19.0.0
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@17.1.0...@metamask/profile-sync-controller@18.0.0
 [17.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@17.0.0...@metamask/profile-sync-controller@17.1.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@16.0.0...@metamask/profile-sync-controller@17.0.0
