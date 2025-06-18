@@ -631,23 +631,16 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * persist the latest global password authPubKey
    *
    * @param params - The parameters for syncing the latest global password.
-   * @param params.oldPassword - The old password to verify.
    * @param params.globalPassword - The latest global password.
    * @returns A promise that resolves to the success of the operation.
    */
   async syncLatestGlobalPassword({
-    oldPassword,
     globalPassword,
   }: {
-    oldPassword: string;
     globalPassword: string;
   }) {
     return await this.#withControllerLock(async () => {
       const doSyncPassword = async () => {
-        // verify correct old password
-        await this.verifyVaultPassword(oldPassword, {
-          skipLock: true, // skip lock since we already have the lock
-        });
         // update vault with latest globalPassword
         const { encKey, authKeyPair } =
           await this.#recoverEncKey(globalPassword);
