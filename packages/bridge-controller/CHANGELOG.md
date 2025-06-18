@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump peer dependency `@metamask/assets-controller` to `^69.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
 - **BREAKING:** Bump peer dependency `@metamask/network-controller` to `^24.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
 - **BREAKING:** Bump peer dependency `@metamask/transaction-controller` to `^58.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+- Bump dependency `@metamask/gas-fee-controller` to `^24.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+- Bump dependency `@metamask/multichain-network-controller` to `^0.9.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
 - Bump dependency `@metamask/polling-controller` to `^14.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
 
 ## [32.2.0]
