@@ -4933,6 +4933,34 @@ describe('TransactionController', () => {
 
       expect(listener).toHaveBeenCalledTimes(0);
     });
+
+    it('ignores transactions with unrecognised chain ID', async () => {
+      const { controller } = setupController();
+
+      multichainTrackingHelperMock.getNetworkClient.mockImplementationOnce(
+        () => {
+          throw new Error('Unknown chain ID');
+        },
+      );
+
+      multichainTrackingHelperMock.getNetworkClient.mockImplementationOnce(
+        () =>
+          ({
+            id: NETWORK_CLIENT_ID_MOCK,
+          }) as never,
+      );
+
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]([
+        TRANSACTION_META_MOCK,
+        TRANSACTION_META_2_MOCK,
+      ]);
+
+      expect(controller.state.transactions).toStrictEqual([
+        { ...TRANSACTION_META_2_MOCK, networkClientId: NETWORK_CLIENT_ID_MOCK },
+      ]);
+    });
   });
 
   describe('on incoming transaction helper updateCache call', () => {

@@ -2,7 +2,7 @@ import type {
   AcceptResultCallbacks,
   AddResult,
 } from '@metamask/approval-controller';
-import { ORIGIN_METAMASK } from '@metamask/controller-utils';
+import { ApprovalType, ORIGIN_METAMASK } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import type {
   FetchGasFeeEstimateOptions,
@@ -635,7 +635,7 @@ async function requestApproval(
 ): Promise<AddResult> {
   const id = String(txBatchMeta.id);
   const { origin } = txBatchMeta;
-  const type = 'transaction_batch';
+  const type = ApprovalType.TransactionBatch;
   const requestData = { txBatchId: id };
 
   log('Requesting approval for transaction batch', id);

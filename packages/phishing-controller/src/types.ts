@@ -77,15 +77,17 @@ export enum PhishingDetectorResultType {
  */
 export type PhishingDetectionScanResult = {
   /**
-   * The domain name that was scanned.
+   * The hostname that was scanned.
    */
-  domainName: string;
+  hostname: string;
   /**
    * Indicates the warning level based on risk factors.
    *
    * - "NONE" means it is most likely safe.
    * - "WARN" means there is some risk.
    * - "BLOCK" means it is highly likely to be malicious.
+   * - "VERIFIED" means it has been associated as an official domain of a
+   * company or organization and/or a top Web3 domain.
    */
   recommendedAction: RecommendedAction;
   /**

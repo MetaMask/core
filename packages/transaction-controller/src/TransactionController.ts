@@ -3343,15 +3343,25 @@ export class TransactionController extends BaseController<
       return;
     }
 
-    const finalTransactions = transactions.map((tx) => {
-      const { chainId } = tx;
-      const networkClientId = this.#getNetworkClientId({ chainId });
+    const finalTransactions: TransactionMeta[] = [];
 
-      return {
-        ...tx,
-        networkClientId,
-      };
-    });
+    for (const tx of transactions) {
+      const { chainId } = tx;
+
+      try {
+        const networkClientId = this.#getNetworkClientId({ chainId });
+
+        finalTransactions.push({
+          ...tx,
+          networkClientId,
+        });
+      } catch (error) {
+        log('Failed to get network client ID for incoming transaction', {
+          chainId,
+          error,
+        });
+      }
+    }
 
     this.update((state) => {
       const { transactions: currentTransactions } = state;

@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Extend `GasFeePoller` to support gas updates for unapproved `transactionBatches`, emitting `transaction-batch-updated` with `gasFeeEstimates`. ([#5950](https://github.com/MetaMask/core/pull/5950))
 
+### Fixed
+
+- Handle unknown chain IDs on incoming transactions ([#5985](https://github.com/MetaMask/core/pull/5985))
+
 ## [57.3.0]
 
 ### Added

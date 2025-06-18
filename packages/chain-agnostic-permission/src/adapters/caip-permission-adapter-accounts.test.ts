@@ -637,6 +637,42 @@ describe('CAIP-25 eth_accounts adapters', () => {
       );
       expect(result).toBe(false);
     });
+
+    it('returns true if a wallet:eip155 namespaced address is permitted and a matching (case insensitive) internal account with eip155:0 scope exists', () => {
+      const result = isInternalAccountInPermittedAccountIds(
+        // @ts-expect-error partial internal account
+        {
+          scopes: ['eip155:0'],
+          address: '0xDeAdBeEf',
+        },
+        ['wallet:eip155:0xdeadbeef'],
+      );
+      expect(result).toBe(true);
+    });
+
+    it('returns true if a wallet:<non-evm-namespace> namespaced account is permitted and a matching (case sensitive) internal account with solana namespaced scope exists', () => {
+      const result = isInternalAccountInPermittedAccountIds(
+        // @ts-expect-error partial internal account
+        {
+          scopes: ['solana:0'],
+          address: 'abC123',
+        },
+        ['wallet:solana:abC123'],
+      );
+      expect(result).toBe(true);
+    });
+
+    it('returns false if a wallet:<non-evm-namespace> namespaced account is permitted and a matching (case sensitive) internal account with same address but different namespace', () => {
+      const result = isInternalAccountInPermittedAccountIds(
+        // @ts-expect-error partial internal account
+        {
+          scopes: ['solana:0'],
+          address: 'abC123',
+        },
+        ['wallet:notsolana:abC123'],
+      );
+      expect(result).toBe(false);
+    });
   });
 
   describe('isCaipAccountIdInPermittedAccountIds', () => {
