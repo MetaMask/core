@@ -6,7 +6,7 @@ export {
   getCaipAccountIdsFromCaip25CaveatValue,
   isInternalAccountInPermittedAccountIds,
   isCaipAccountIdInPermittedAccountIds,
-} from './adapters/caip-permission-adapter-accounts';
+} from './operators/caip-permission-operator-accounts';
 export {
   getPermittedEthChainIds,
   addPermittedEthChainId,
@@ -17,12 +17,12 @@ export {
   getAllScopesFromPermission,
   getAllScopesFromCaip25CaveatValue,
   getAllScopesFromScopesObjects,
-} from './adapters/caip-permission-adapter-permittedChains';
+} from './operators/caip-permission-operator-permittedChains';
 export {
   getInternalScopesObject,
   getSessionScopes,
   getPermittedAccountsForScopes,
-} from './adapters/caip-permission-adapter-session-scopes';
+} from './operators/caip-permission-operator-session-scopes';
 export type { Caip25Authorization } from './scope/authorization';
 export {
   validateAndNormalizeScopes,

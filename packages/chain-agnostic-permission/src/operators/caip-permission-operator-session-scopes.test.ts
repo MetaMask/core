@@ -2,7 +2,7 @@ import {
   getInternalScopesObject,
   getPermittedAccountsForScopes,
   getSessionScopes,
-} from './caip-permission-adapter-session-scopes';
+} from './caip-permission-operator-session-scopes';
 import {
   KnownNotifications,
   KnownRpcMethods,
