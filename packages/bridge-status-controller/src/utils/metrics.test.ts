@@ -1,4 +1,14 @@
 import { StatusTypes, FeeType, ActionTypes } from '@metamask/bridge-controller';
+import {
+  MetricsSwapType,
+  MetricsActionType,
+} from '@metamask/bridge-controller';
+import type {
+  TransactionMeta,
+  TransactionError,
+} from '@metamask/transaction-controller';
+import { TransactionType } from '@metamask/transaction-controller';
+import { TransactionStatus } from '@metamask/transaction-controller';
 
 import {
   getTxStatusesFromHistory,
@@ -6,6 +16,7 @@ import {
   getRequestParamFromHistory,
   getTradeDataFromHistory,
   getRequestMetadataFromHistory,
+  getEVMSwapTxPropertiesFromTransactionMeta,
 } from './metrics';
 import type { BridgeHistoryItem } from '../types';
 
@@ -511,6 +522,113 @@ describe('metrics utils', () => {
       expect(mockHistoryItem.quote.srcChainId).not.toBe(
         mockHistoryItem.quote.destChainId,
       );
+    });
+  });
+
+  describe('getEVMSwapTxPropertiesFromTransactionMeta', () => {
+    const mockTransactionMeta: TransactionMeta = {
+      id: 'test-tx-id',
+      networkClientId: 'test-network',
+      status: 'submitted' as TransactionStatus,
+      time: 1234567890,
+      txParams: {
+        from: '0x123',
+        to: '0x456',
+        value: '0x0',
+      },
+      chainId: '0x1',
+      sourceTokenSymbol: 'ETH',
+      destinationTokenSymbol: 'USDC',
+      sourceTokenAddress: '0x0000000000000000000000000000000000000000',
+      destinationTokenAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+      type: TransactionType.swap,
+    };
+
+    it('should return correct properties for a successful swap transaction', () => {
+      const result =
+        getEVMSwapTxPropertiesFromTransactionMeta(mockTransactionMeta);
+      expect(result).toStrictEqual({
+        error_message: undefined,
+        chain_id_source: 'eip155:1',
+        chain_id_destination: 'eip155:1',
+        token_symbol_source: 'ETH',
+        token_symbol_destination: 'USDC',
+        usd_amount_source: 100,
+        source_transaction: 'COMPLETE',
+        stx_enabled: false,
+        token_address_source: 'eip155:1/slip44:60',
+        token_address_destination:
+          'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+        custom_slippage: false,
+        is_hardware_wallet: false,
+        swap_type: MetricsSwapType.SINGLE,
+        security_warnings: [],
+        price_impact: 0,
+        usd_quoted_gas: 0,
+        gas_included: false,
+        quoted_time_minutes: 0,
+        usd_quoted_return: 0,
+        provider: '',
+        actual_time_minutes: 0,
+        quote_vs_execution_ratio: 0,
+        quoted_vs_used_gas_ratio: 0,
+        usd_actual_return: 0,
+        usd_actual_gas: 0,
+        action_type: MetricsActionType.SWAPBRIDGE_V1,
+      });
+    });
+
+    it('should handle failed transaction with error message', () => {
+      const failedTransactionMeta: TransactionMeta = {
+        ...mockTransactionMeta,
+        status: TransactionStatus.failed,
+        error: {
+          message: 'Transaction failed',
+          name: 'Error',
+        } as TransactionError,
+      };
+      const result = getEVMSwapTxPropertiesFromTransactionMeta(
+        failedTransactionMeta,
+      );
+      expect(result.error_message).toBe('Failed to finalize swap tx');
+      expect(result.source_transaction).toBe('FAILED');
+    });
+
+    it('should handle missing token symbols', () => {
+      const noSymbolsTransactionMeta: TransactionMeta = {
+        ...mockTransactionMeta,
+        sourceTokenSymbol: undefined,
+        destinationTokenSymbol: undefined,
+      };
+      const result = getEVMSwapTxPropertiesFromTransactionMeta(
+        noSymbolsTransactionMeta,
+      );
+      expect(result.token_symbol_source).toBe('');
+      expect(result.token_symbol_destination).toBe('');
+    });
+
+    it('should handle missing token addresses', () => {
+      const noAddressesTransactionMeta: TransactionMeta = {
+        ...mockTransactionMeta,
+        sourceTokenAddress: undefined,
+        destinationTokenAddress: undefined,
+      };
+      const result = getEVMSwapTxPropertiesFromTransactionMeta(
+        noAddressesTransactionMeta,
+      );
+      expect(result.token_address_source).toBe('eip155:1/slip44:60');
+      expect(result.token_address_destination).toBe('eip155:1/slip44:60');
+    });
+
+    it('should handle crosschain swap type', () => {
+      const crosschainTransactionMeta: TransactionMeta = {
+        ...mockTransactionMeta,
+        type: TransactionType.swap,
+      };
+      const result = getEVMSwapTxPropertiesFromTransactionMeta(
+        crosschainTransactionMeta,
+      );
+      expect(result.swap_type).toBe(MetricsSwapType.SINGLE);
     });
   });
 });

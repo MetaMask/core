@@ -17,7 +17,16 @@ import {
   isCustomSlippage,
   getSwapType,
   isHardwareWallet,
+  formatAddressToAssetId,
+  MetricsActionType,
+  MetricsSwapType,
 } from '@metamask/bridge-controller';
+import {
+  TransactionStatus,
+  TransactionType,
+  type TransactionMeta,
+} from '@metamask/transaction-controller';
+import type { CaipAssetType } from '@metamask/utils';
 import type { BridgeHistoryItem } from 'src/types';
 
 import type { QuoteFetchData } from '../../../bridge-controller/src/utils/metrics/types';
@@ -130,5 +139,60 @@ export const getRequestMetadataFromHistory = (
     is_hardware_wallet: isHardwareWallet(account),
     stx_enabled: isStxEnabled ?? false,
     security_warnings: [],
+  };
+};
+
+/**
+ * Get the properties for a swap transaction that is not in the txHistory
+ *
+ * @param transactionMeta - The transaction meta
+ * @returns The properties for the swap transaction
+ */
+export const getEVMSwapTxPropertiesFromTransactionMeta = (
+  transactionMeta: TransactionMeta,
+) => {
+  return {
+    source_transaction:
+      transactionMeta.status === TransactionStatus.failed
+        ? StatusTypes.FAILED
+        : StatusTypes.COMPLETE,
+    error_message: transactionMeta.error?.message
+      ? 'Failed to finalize swap tx'
+      : undefined,
+    chain_id_source: formatChainIdToCaip(transactionMeta.chainId),
+    chain_id_destination: formatChainIdToCaip(transactionMeta.chainId),
+    token_symbol_source: transactionMeta.sourceTokenSymbol ?? '',
+    token_symbol_destination: transactionMeta.destinationTokenSymbol ?? '',
+    usd_amount_source: 100,
+    stx_enabled: false,
+    token_address_source:
+      formatAddressToAssetId(
+        transactionMeta.sourceTokenAddress ?? '',
+        transactionMeta.chainId,
+      ) ?? ('' as CaipAssetType),
+    token_address_destination:
+      formatAddressToAssetId(
+        transactionMeta.destinationTokenAddress ?? '',
+        transactionMeta.chainId,
+      ) ?? ('' as CaipAssetType),
+    custom_slippage: false,
+    is_hardware_wallet: false,
+    swap_type:
+      transactionMeta.type === TransactionType.swap
+        ? MetricsSwapType.SINGLE
+        : MetricsSwapType.CROSSCHAIN,
+    security_warnings: [],
+    price_impact: 0,
+    usd_quoted_gas: 0,
+    gas_included: false,
+    quoted_time_minutes: 0,
+    usd_quoted_return: 0,
+    provider: '' as `${string}_${string}`,
+    actual_time_minutes: 0,
+    quote_vs_execution_ratio: 0,
+    quoted_vs_used_gas_ratio: 0,
+    usd_actual_return: 0,
+    usd_actual_gas: 0,
+    action_type: MetricsActionType.SWAPBRIDGE_V1,
   };
 };
