@@ -1,6 +1,6 @@
 {
   "name": "@metamask/error-reporting-service",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Logs errors to an error reporting service such as Sentry",
   "keywords": [
     "MetaMask",

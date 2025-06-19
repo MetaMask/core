@@ -22,6 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - If an RPC endpoint returns a 4xx response besides 401, 402, 404, 405, or 429, it is now represented as a JSON-RPC error with code -32080 (client error) instead of -32603 (internal error) ([#5923](https://github.com/MetaMask/core/pull/5923))
 - Improve detection of partial JSON responses from RPC endpoints ([#5923](https://github.com/MetaMask/core/pull/5923))
 
+## [24.0.0]
+
+### Changed
+
+- **BREAKING:** Remove `@metamask/error-reporting-service@^1.0.0` as a direct dependency, add `^2.0.0` as a peer dependency ([#5970](https://github.com/MetaMask/core/pull/5970), [#5999](https://github.com/MetaMask/core/pull/5999))
+
 ## [23.6.0]
 
 ### Added
@@ -37,6 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** NetworkController messenger now requires the `ErrorReportingService:captureException` action to be allowed ([#5970](https://github.com/MetaMask/core/pull/5970))
+  - This change was originally missed when this release was created. It was added to the changelog afterward.
 - Block tracker errors will no longer be wrapped under "PollingBlockTracker - encountered an error while attempting to update latest block" ([#5860](https://github.com/MetaMask/core/pull/5860))
 - Bump dependencies ([#5867](https://github.com/MetaMask/core/pull/5867), [#5860](https://github.com/MetaMask/core/pull/5860))
   - Bump `@metamask/eth-block-tracker` to `^12.0.1`
@@ -892,7 +900,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.6.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.0.0...HEAD
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.6.0...@metamask/network-controller@24.0.0
 [23.6.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.5.1...@metamask/network-controller@23.6.0
 [23.5.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.5.0...@metamask/network-controller@23.5.1
 [23.5.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.4.0...@metamask/network-controller@23.5.0

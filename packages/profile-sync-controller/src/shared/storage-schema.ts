@@ -13,6 +13,7 @@ export const USER_STORAGE_FEATURE_NAMES = {
   notifications: 'notifications',
   accounts: 'accounts_v2',
   networks: 'networks',
+  addressBook: 'addressBook',
 } as const;
 
 export type UserStorageFeatureNames =
@@ -22,6 +23,7 @@ export const USER_STORAGE_SCHEMA = {
   [USER_STORAGE_FEATURE_NAMES.notifications]: ['notification_settings'],
   [USER_STORAGE_FEATURE_NAMES.accounts]: [ALLOW_ARBITRARY_KEYS], // keyed by account addresses
   [USER_STORAGE_FEATURE_NAMES.networks]: [ALLOW_ARBITRARY_KEYS], // keyed by chains/networks
+  [USER_STORAGE_FEATURE_NAMES.addressBook]: [ALLOW_ARBITRARY_KEYS], // keyed by address_chainId
 } as const;
 
 type UserStorageSchema = typeof USER_STORAGE_SCHEMA;

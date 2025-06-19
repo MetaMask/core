@@ -554,6 +554,29 @@ describe('CAIP-25 eth_accounts adapters', () => {
   });
 
   describe('isInternalAccountInPermittedAccountIds', () => {
+    it('returns false if the internal account has no scopes', () => {
+      const result = isInternalAccountInPermittedAccountIds(
+        // @ts-expect-error partial internal account
+        {
+          scopes: [],
+          address: '0xdeadbeef',
+        },
+        [],
+      );
+      expect(result).toBe(false);
+    });
+
+    it('returns false if internal account does not have a scopes property', () => {
+      const result = isInternalAccountInPermittedAccountIds(
+        // @ts-expect-error partial internal account
+        {
+          address: '0xdeadbeef',
+        },
+        [],
+      );
+      expect(result).toBe(false);
+    });
+
     it('returns false if there are no permitted account ids', () => {
       const result = isInternalAccountInPermittedAccountIds(
         // @ts-expect-error partial internal account
@@ -634,6 +657,42 @@ describe('CAIP-25 eth_accounts adapters', () => {
           address: '0xdeadbeef',
         },
         ['solana:1:0xdeadbeef'],
+      );
+      expect(result).toBe(false);
+    });
+
+    it('returns true if a wallet:eip155 namespaced address is permitted and a matching (case insensitive) internal account with eip155:0 scope exists', () => {
+      const result = isInternalAccountInPermittedAccountIds(
+        // @ts-expect-error partial internal account
+        {
+          scopes: ['eip155:0'],
+          address: '0xDeAdBeEf',
+        },
+        ['wallet:eip155:0xdeadbeef'],
+      );
+      expect(result).toBe(true);
+    });
+
+    it('returns true if a wallet:<non-evm-namespace> namespaced account is permitted and a matching (case sensitive) internal account with solana namespaced scope exists', () => {
+      const result = isInternalAccountInPermittedAccountIds(
+        // @ts-expect-error partial internal account
+        {
+          scopes: ['solana:0'],
+          address: 'abC123',
+        },
+        ['wallet:solana:abC123'],
+      );
+      expect(result).toBe(true);
+    });
+
+    it('returns false if a wallet:<non-evm-namespace> namespaced account is permitted and a matching (case sensitive) internal account with same address but different namespace', () => {
+      const result = isInternalAccountInPermittedAccountIds(
+        // @ts-expect-error partial internal account
+        {
+          scopes: ['solana:0'],
+          address: 'abC123',
+        },
+        ['wallet:notsolana:abC123'],
       );
       expect(result).toBe(false);
     });
