@@ -283,14 +283,12 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @param password - The password used to create new wallet and seedphrase
    * @param seedPhrase - The initial seed phrase (Mnemonic) created together with the wallet.
    * @param keyringId - The keyring id of the backup seed phrase
-   * @param keyringEncryptionKey - The encryption key to be used for encrypting the keyring vault.
    * @returns A promise that resolves to the encrypted seed phrase and the encryption key.
    */
   async createToprfKeyAndBackupSeedPhrase(
     password: string,
     seedPhrase: Uint8Array,
     keyringId: string,
-    keyringEncryptionKey: string,
   ): Promise<void> {
     return await this.#withControllerLock(async () => {
       // to make sure that fail fast,
@@ -328,8 +326,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         this.#persistAuthPubKey({
           authPubKey: authKeyPair.pk,
         });
-        // encrypt and store the keyring encryption key
-        await this.#storeKeyringEncryptionKey(encKey, keyringEncryptionKey);
       };
 
       await this.#executeWithTokenRefresh(
@@ -466,21 +462,11 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    *
    * Changing password will also update the encryption key, metadata store and the vault with new encrypted values.
    *
-   * @param params - The function parameters.
-   * @param params.oldPassword - The old password to verify.
-   * @param params.newPassword - The new password to update.
-   * @param params.newKeyringEncryptionKey - The new keyring encryption key to store.
+   * @param newPassword - The new password to update.
+   * @param oldPassword - The old password to verify.
    * @returns A promise that resolves to the success of the operation.
    */
-  async changePassword({
-    oldPassword,
-    newPassword,
-    newKeyringEncryptionKey,
-  }: {
-    oldPassword: string;
-    newPassword: string;
-    newKeyringEncryptionKey: string;
-  }) {
+  async changePassword(newPassword: string, oldPassword: string) {
     return await this.#withControllerLock(async () => {
       this.#assertIsUnlocked();
       // verify the old password of the encrypted vault
@@ -493,12 +479,17 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       });
 
       const attemptChangePassword = async (): Promise<void> => {
+        // load keyring encryption key if it exists
+        let keyringEncryptionKey: string | undefined;
+        if (this.state.encryptedKeyringEncryptionKey) {
+          keyringEncryptionKey = await this.loadKeyringEncryptionKey();
+        }
+
         // update the encryption key with new password and update the Metadata Store
         const { encKey: newEncKey, authKeyPair: newAuthKeyPair } =
           await this.#changeEncryptionKey({
             oldPassword,
             newPassword,
-            newKeyringEncryptionKey,
           });
 
         // update and encrypt the vault with new password
@@ -512,6 +503,14 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           authPubKey: newAuthKeyPair.pk,
         });
         this.#resetPasswordOutdatedCache();
+
+        // store the keyring encryption key if it exists
+        if (keyringEncryptionKey) {
+          await this.#storeKeyringEncryptionKey(
+            newEncKey,
+            keyringEncryptionKey,
+          );
+        }
       };
 
       try {
@@ -857,6 +856,30 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   }
 
   /**
+   * Store the keyring encryption key in state, encrypted under the current
+   * encryption key.
+   *
+   * @param keyringEncryptionKey - The keyring encryption key.
+   */
+  async storeKeyringEncryptionKey(keyringEncryptionKey: string) {
+    const { toprfEncryptionKey: encKey } =
+      await this.#unlockVaultAndGetBackupEncKey();
+    await this.#storeKeyringEncryptionKey(encKey, keyringEncryptionKey);
+  }
+
+  /**
+   * Load the keyring encryption key from state, decrypted under the current
+   * encryption key.
+   *
+   * @returns The keyring encryption key.
+   */
+  async loadKeyringEncryptionKey() {
+    const { toprfEncryptionKey: encKey } =
+      await this.#unlockVaultAndGetBackupEncKey();
+    return await this.#loadKeyringEncryptionKey(encKey);
+  }
+
+  /**
    * Encrypt the keyring encryption key and store it in state.
    *
    * @param encKey - The encryption key.
@@ -944,17 +967,14 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @param params - The function parameters.
    * @param params.oldPassword - The old password to verify.
    * @param params.newPassword - The new password to update.
-   * @param params.newKeyringEncryptionKey - The new keyring encryption key to store.
    * @returns A promise that resolves to new encryption key and authentication key pair.
    */
   async #changeEncryptionKey({
     oldPassword,
     newPassword,
-    newKeyringEncryptionKey,
   }: {
     newPassword: string;
     oldPassword: string;
-    newKeyringEncryptionKey: string;
   }) {
     this.#assertIsAuthenticatedUser(this.state);
     const { authConnectionId, groupedAuthConnectionId, userId } = this.state;
@@ -976,10 +996,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       oldPassword: bytesToBase64(encKey),
       newPassword,
     });
-    await this.#storeKeyringEncryptionKey(
-      result.encKey,
-      newKeyringEncryptionKey,
-    );
     return result;
   }
 
