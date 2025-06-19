@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `isInternalAccountInPermittedAccountIds` now returns `false` when passed an `InternalAccount` in which `scopes` is `undefined` ([#6000](https://github.com/MetaMask/core/pull/6000))
+- Bump `@metamask/network-controller` to `^24.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
 
 ## [0.7.1]
 
