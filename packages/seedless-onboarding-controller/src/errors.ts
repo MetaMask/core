@@ -24,7 +24,7 @@ export function getErrorMessageFromTOPRFErrorCode(
     case TOPRFErrorCode.CouldNotDeriveEncryptionKey:
       return SeedlessOnboardingControllerErrorMessage.IncorrectPassword;
     case TOPRFErrorCode.CouldNotFetchPassword:
-      return SeedlessOnboardingControllerErrorMessage.CouldNotRecoverPassword;
+      return SeedlessOnboardingControllerErrorMessage.CouldNotRecoverEncryptionKey;
     case TOPRFErrorCode.AuthTokenExpired:
       return SeedlessOnboardingControllerErrorMessage.InsufficientAuthToken;
     default:
@@ -45,7 +45,7 @@ function getRateLimitErrorData(
 ): RateLimitErrorData | undefined {
   if (
     error.meta && // error metadata must be present
-    error.code === TOPRFErrorCode.RateLimitExceeded &&
+    error.code === (TOPRFErrorCode.RateLimitExceeded as number) &&
     typeof error.meta.rateLimitDetails === 'object' &&
     error.meta.rateLimitDetails !== null &&
     'remainingTime' in error.meta.rateLimitDetails &&
@@ -86,12 +86,12 @@ export class PasswordSyncError extends Error {
     if (error instanceof TOPRFError) {
       const errorMessage = getErrorMessageFromTOPRFErrorCode(
         error.code,
-        SeedlessOnboardingControllerErrorMessage.CouldNotRecoverPassword,
+        SeedlessOnboardingControllerErrorMessage.CouldNotRecoverEncryptionKey,
       );
       return new PasswordSyncError(errorMessage);
     }
     return new PasswordSyncError(
-      SeedlessOnboardingControllerErrorMessage.CouldNotRecoverPassword,
+      SeedlessOnboardingControllerErrorMessage.CouldNotRecoverEncryptionKey,
     );
   }
 }
