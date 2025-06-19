@@ -50,7 +50,6 @@ import * as bridgeStatusUtils from './utils/bridge-status';
 import * as transactionUtils from './utils/transaction';
 import { flushPromises } from '../../../tests/helpers';
 import { CHAIN_IDS } from '../../bridge-controller/src/constants/chains';
-import type { MultichainTransactionsControllerEvents } from '../../multichain-transactions-controller/src/MultichainTransactionsController';
 
 jest.mock('uuid', () => ({
   v4: () => 'test-uuid-1234',
