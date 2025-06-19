@@ -2211,7 +2211,11 @@ describe('BridgeStatusController', () => {
       sentAmount: { amount: '1.234', valueInCurrency: null, usd: null },
       toTokenAmount: { amount: '1.234', valueInCurrency: null, usd: null },
       totalNetworkFee: { amount: '1.234', valueInCurrency: null, usd: null },
-      totalMaxNetworkFee: { amount: '1.234', valueInCurrency: null, usd: null },
+      totalMaxNetworkFee: {
+        amount: '1.234',
+        valueInCurrency: null,
+        usd: null,
+      },
       gasFee: { amount: '1.234', valueInCurrency: null, usd: null },
       adjustedReturn: { valueInCurrency: null, usd: null },
       swapRate: '1.234',
@@ -2390,8 +2394,17 @@ describe('BridgeStatusController', () => {
     });
 
     it('should handle smart transactions', async () => {
-      mockMessengerCall.mockImplementationOnce(jest.fn()); // BridgeController:stopPollingForQuotes
-      setupBridgeMocks();
+      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+      mockMessengerCall.mockReturnValueOnce('arbitrum');
+      mockMessengerCall.mockReturnValueOnce({
+        gasFeeEstimates: { estimatedBaseFee: '0x1234' },
+      });
+      estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
+      addTransactionFn.mockResolvedValueOnce({
+        transactionMeta: mockEvmTxMeta,
+        result: Promise.resolve('0xevmTxHash'),
+      });
+      // mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
 
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
