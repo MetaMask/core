@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
 - Bump `@metamask/network-controller` to `^23.6.0` ([#5935](https://github.com/MetaMask/core/pull/5935), [#5882](https://github.com/MetaMask/core/pull/5882))
-- Bump `@metamask/chain-agnostic-permission` to `^0.7.1` ([#5982](https://github.com/MetaMask/core/pull/5982))
+- Bump `@metamask/chain-agnostic-permission` to `^0.8.0` ([#5982](https://github.com/MetaMask/core/pull/5982), [#6004](https://github.com/MetaMask/core/pull/6004))
 - Bump `@metamask/network-controller` to `^24.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
 
 ## [0.4.0]

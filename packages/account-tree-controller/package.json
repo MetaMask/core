@@ -1,6 +1,6 @@
 {
   "name": "@metamask/account-tree-controller",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Controller to group account together based on some pre-defined rules",
   "keywords": [
     "MetaMask",

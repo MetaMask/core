@@ -22,8 +22,8 @@ import {
 } from '@metamask/utils';
 import { cloneDeep, isEqual } from 'lodash';
 
-import { setNonSCACaipAccountIdsInCaip25CaveatValue } from './adapters/caip-permission-adapter-accounts';
-import { setChainIdsInCaip25CaveatValue } from './adapters/caip-permission-adapter-permittedChains';
+import { setNonSCACaipAccountIdsInCaip25CaveatValue } from './operators/caip-permission-operator-accounts';
+import { setChainIdsInCaip25CaveatValue } from './operators/caip-permission-operator-permittedChains';
 import { assertIsInternalScopesObject } from './scope/assert';
 import {
   isSupportedAccount,
