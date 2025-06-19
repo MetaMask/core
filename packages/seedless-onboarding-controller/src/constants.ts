@@ -50,4 +50,5 @@ export enum SeedlessOnboardingControllerErrorMessage {
   OutdatedPassword = `${controllerName} - Outdated password`,
   CouldNotRecoverPassword = `${controllerName} - Could not recover password`,
   SRPNotBackedUpError = `${controllerName} - SRP not backed up`,
+  EncryptedKeyringEncryptionKeyNotSet = `${controllerName} - Encrypted keyring encryption key is not set`,
 }
