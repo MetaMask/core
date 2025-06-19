@@ -3295,6 +3295,389 @@ Array [
 ]
 `;
 
+exports[`BridgeStatusController submitTx: Solana swap should handle snap controller errors 1`] = `
+Array [
+  Array [
+    "BridgeController:stopPollingForQuotes",
+  ],
+  Array [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Submitted",
+    Object {
+      "gas_included": false,
+      "price_impact": 0,
+      "provider": "test-bridge_undefined",
+      "quoted_time_minutes": 5,
+      "stx_enabled": false,
+      "token_symbol_destination": "USDC",
+      "token_symbol_source": "SOL",
+      "usd_amount_source": 100,
+      "usd_quoted_gas": 5,
+      "usd_quoted_return": 985,
+    },
+  ],
+  Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
+    "RemoteFeatureFlagController:getState",
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onClientRequest",
+      "origin": "metamask",
+      "request": Object {
+        "id": "test-uuid-1234",
+        "jsonrpc": "2.0",
+        "method": "signAndSendTransactionWithoutConfirmation",
+        "params": Object {
+          "account": Object {
+            "address": "0x123...",
+          },
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+          "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
+        },
+      },
+      "snapId": "test-snap",
+    },
+  ],
+  Array [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Failed",
+    Object {
+      "error_message": "Snap error",
+      "gas_included": false,
+      "price_impact": 0,
+      "provider": "test-bridge_undefined",
+      "quoted_time_minutes": 5,
+      "stx_enabled": false,
+      "token_symbol_destination": "USDC",
+      "token_symbol_source": "SOL",
+      "usd_amount_source": 100,
+      "usd_quoted_gas": 5,
+      "usd_quoted_return": 985,
+    },
+  ],
+]
+`;
+
+exports[`BridgeStatusController submitTx: Solana swap should successfully submit a transaction 1`] = `
+Array [
+  Array [
+    "BridgeController:stopPollingForQuotes",
+  ],
+  Array [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Submitted",
+    Object {
+      "gas_included": false,
+      "price_impact": 0,
+      "provider": "test-bridge_undefined",
+      "quoted_time_minutes": 5,
+      "stx_enabled": false,
+      "token_symbol_destination": "USDC",
+      "token_symbol_source": "SOL",
+      "usd_amount_source": 100,
+      "usd_quoted_gas": 5,
+      "usd_quoted_return": 985,
+    },
+  ],
+  Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
+    "RemoteFeatureFlagController:getState",
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onClientRequest",
+      "origin": "metamask",
+      "request": Object {
+        "id": "test-uuid-1234",
+        "jsonrpc": "2.0",
+        "method": "signAndSendTransactionWithoutConfirmation",
+        "params": Object {
+          "account": Object {
+            "address": "0x123...",
+          },
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+          "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
+        },
+      },
+      "snapId": "test-snap",
+    },
+  ],
+  Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
+    "AccountsController:getAccountByAddress",
+    "0x123...",
+  ],
+  Array [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Completed",
+    Object {
+      "action_type": "swapbridge-v1",
+      "actual_time_minutes": 0,
+      "allowance_reset_transaction": undefined,
+      "approval_transaction": undefined,
+      "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "custom_slippage": true,
+      "destination_transaction": "PENDING",
+      "gas_included": false,
+      "is_hardware_wallet": false,
+      "price_impact": 0,
+      "provider": "test-bridge_undefined",
+      "quote_vs_execution_ratio": 1,
+      "quoted_time_minutes": 5,
+      "quoted_vs_used_gas_ratio": 1,
+      "security_warnings": Array [],
+      "slippage_limit": 0,
+      "source_transaction": "COMPLETE",
+      "stx_enabled": false,
+      "swap_type": "single_chain",
+      "token_address_destination": "eip155:1399811149/slip44:501",
+      "token_address_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501",
+      "token_symbol_destination": "USDC",
+      "token_symbol_source": "SOL",
+      "usd_actual_gas": 5,
+      "usd_actual_return": 1000,
+      "usd_amount_source": 100,
+      "usd_quoted_gas": 5,
+      "usd_quoted_return": 1000,
+    },
+  ],
+]
+`;
+
+exports[`BridgeStatusController submitTx: Solana swap should successfully submit a transaction 2`] = `
+Object {
+  "approvalTxId": undefined,
+  "chainId": "0x416edef1601be",
+  "destinationChainId": "0x416edef1601be",
+  "destinationTokenAddress": "0x...",
+  "destinationTokenAmount": "0.5",
+  "destinationTokenDecimals": 18,
+  "destinationTokenSymbol": "USDC",
+  "hash": "signature",
+  "id": "test-uuid-1234",
+  "isBridgeTx": false,
+  "isSolana": true,
+  "networkClientId": "test-snap",
+  "origin": "test-snap",
+  "sourceTokenAddress": "native",
+  "sourceTokenAmount": "1000000000",
+  "sourceTokenDecimals": 9,
+  "sourceTokenSymbol": "SOL",
+  "status": "submitted",
+  "swapTokenValue": "1",
+  "time": 1234567890,
+  "txParams": Object {
+    "data": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
+    "from": "0x123...",
+  },
+  "type": "swap",
+}
+`;
+
+exports[`BridgeStatusController submitTx: Solana swap should throw error when account is missing 1`] = `
+Array [
+  Array [
+    "BridgeController:stopPollingForQuotes",
+  ],
+  Array [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Submitted",
+    Object {
+      "gas_included": false,
+      "price_impact": 0,
+      "provider": "test-bridge_undefined",
+      "quoted_time_minutes": 5,
+      "stx_enabled": false,
+      "token_symbol_destination": "USDC",
+      "token_symbol_source": "SOL",
+      "usd_amount_source": 100,
+      "usd_quoted_gas": 5,
+      "usd_quoted_return": 985,
+    },
+  ],
+  Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Failed",
+    Object {
+      "error_message": "Failed to submit cross-chain swap transaction: undefined multichain account",
+      "gas_included": false,
+      "price_impact": 0,
+      "provider": "test-bridge_undefined",
+      "quoted_time_minutes": 5,
+      "stx_enabled": false,
+      "token_symbol_destination": "USDC",
+      "token_symbol_source": "SOL",
+      "usd_amount_source": 100,
+      "usd_quoted_gas": 5,
+      "usd_quoted_return": 985,
+    },
+  ],
+]
+`;
+
+exports[`BridgeStatusController submitTx: Solana swap should throw error when snap ID is missing 1`] = `
+Array [
+  Array [
+    "BridgeController:stopPollingForQuotes",
+  ],
+  Array [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Submitted",
+    Object {
+      "gas_included": false,
+      "price_impact": 0,
+      "provider": "test-bridge_undefined",
+      "quoted_time_minutes": 5,
+      "stx_enabled": false,
+      "token_symbol_destination": "USDC",
+      "token_symbol_source": "SOL",
+      "usd_amount_source": 100,
+      "usd_quoted_gas": 5,
+      "usd_quoted_return": 985,
+    },
+  ],
+  Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Failed",
+    Object {
+      "error_message": "Failed to submit cross-chain swap transaction: undefined snap id",
+      "gas_included": false,
+      "price_impact": 0,
+      "provider": "test-bridge_undefined",
+      "quoted_time_minutes": 5,
+      "stx_enabled": false,
+      "token_symbol_destination": "USDC",
+      "token_symbol_source": "SOL",
+      "usd_amount_source": 100,
+      "usd_quoted_gas": 5,
+      "usd_quoted_return": 985,
+    },
+  ],
+]
+`;
+
+exports[`BridgeStatusController subscription handlers should not track completed event for other transaction types 1`] = `Array []`;
+
+exports[`BridgeStatusController subscription handlers should not track failed event for approved status 1`] = `Array []`;
+
+exports[`BridgeStatusController subscription handlers should not track failed event for other transaction types 1`] = `Array []`;
+
+exports[`BridgeStatusController subscription handlers should not track failed event for signed status 1`] = `Array []`;
+
+exports[`BridgeStatusController subscription handlers should throw error when txMeta is undefined 1`] = `
+Array [
+  Array [
+    "BridgeController:stopPollingForQuotes",
+  ],
+  Array [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Submitted",
+    Object {
+      "gas_included": false,
+      "price_impact": 0,
+      "provider": "lifi_across",
+      "quoted_time_minutes": 0,
+      "stx_enabled": false,
+      "token_symbol_destination": "ETH",
+      "token_symbol_source": "ETH",
+      "usd_amount_source": 0,
+      "usd_quoted_gas": 0,
+      "usd_quoted_return": 0,
+    },
+  ],
+  Array [
+    "NetworkController:getState",
+  ],
+  Array [
+    "NetworkController:getNetworkClientById",
+    "mainnet",
+  ],
+  Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+]
+`;
+
+exports[`BridgeStatusController subscription handlers should track completed event for swap transaction 1`] = `
+Array [
+  Array [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+]
+`;
+
+exports[`BridgeStatusController subscription handlers should track completed event for swap transaction if it is not in txHistory 1`] = `
+Array [
+  Array [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Completed",
+    Object {
+      "action_type": "swapbridge-v1",
+      "actual_time_minutes": 0,
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:10",
+      "custom_slippage": false,
+      "error_message": undefined,
+      "gas_included": false,
+      "is_hardware_wallet": false,
+      "price_impact": 0,
+      "provider": "",
+      "quote_vs_execution_ratio": 0,
+      "quoted_time_minutes": 0,
+      "quoted_vs_used_gas_ratio": 0,
+      "security_warnings": Array [],
+      "source_transaction": "COMPLETE",
+      "stx_enabled": false,
+      "swap_type": "single_chain",
+      "token_address_destination": "eip155:10/slip44:60",
+      "token_address_source": "eip155:10/slip44:60",
+      "token_symbol_destination": "",
+      "token_symbol_source": "",
+      "usd_actual_gas": 0,
+      "usd_actual_return": 0,
+      "usd_amount_source": 100,
+      "usd_quoted_gas": 0,
+      "usd_quoted_return": 0,
+    },
+  ],
+]
+`;
+
+exports[`BridgeStatusController subscription handlers should track failed event for bridge transaction 1`] = `
+Array [
+  Array [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+]
+`;
+
+exports[`BridgeStatusController subscription handlers should track failed event for swap transaction 1`] = `
+Array [
+  Array [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+]
+`;
+
 exports[`BridgeStatusController wipeBridgeStatus wipes the bridge status for the given address 1`] = `
 Array [
   Array [
