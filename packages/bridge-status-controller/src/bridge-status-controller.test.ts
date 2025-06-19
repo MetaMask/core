@@ -578,23 +578,6 @@ const executePollingWithPendingStatus = async () => {
 
 // Define mocks at the top level
 const mockFetchFn = jest.fn();
-const mockMessengerCall = jest.fn().mockImplementation((method: string) => {
-  if (method === 'RemoteFeatureFlagController:getState') {
-    return {
-      remoteFeatureFlags: {
-        bridgeConfig: {
-          support: true,
-          chains: {
-            [ChainId.SOLANA]: {
-              isSnapConfirmationEnabled: false,
-            },
-          },
-        },
-      },
-    };
-  }
-  return null;
-});
 const mockSelectedAccount = {
   id: 'test-account-id',
   address: '0xaccount1',
@@ -2293,11 +2276,14 @@ describe('BridgeStatusController', () => {
         },
       },
     };
+    const mockMessengerCall = jest.fn();
 
     beforeEach(() => {
       jest.clearAllMocks();
       jest.spyOn(Date, 'now').mockReturnValue(1234567890);
       jest.spyOn(Math, 'random').mockReturnValue(0.456);
+      mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
+      mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
     });
 
     const setupApprovalMocks = () => {
@@ -2335,7 +2321,6 @@ describe('BridgeStatusController', () => {
     };
 
     it('should successfully submit an EVM swap transaction with approval', async () => {
-      mockMessengerCall.mockImplementationOnce(jest.fn()); // BridgeController:stopPollingForQuotes
       setupApprovalMocks();
       setupBridgeMocks();
 
@@ -2361,7 +2346,6 @@ describe('BridgeStatusController', () => {
     });
 
     it('should successfully submit an EVM swap transaction with no approval', async () => {
-      mockMessengerCall.mockImplementationOnce(jest.fn()); // BridgeController:stopPollingForQuotes
       setupBridgeMocks();
 
       const { controller, startPollingForBridgeTxStatusSpy } =
@@ -2433,7 +2417,6 @@ describe('BridgeStatusController', () => {
     });
 
     it('should handle smart accounts (4337)', async () => {
-      mockMessengerCall.mockImplementationOnce(jest.fn()); // BridgeController:stopPollingForQuotes
       mockMessengerCall.mockReturnValueOnce({
         ...mockSelectedAccount,
         type: EthAccountType.Erc4337,
