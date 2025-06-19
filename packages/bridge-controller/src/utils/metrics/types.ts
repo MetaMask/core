@@ -139,20 +139,21 @@ export type RequiredEventContextFromClient = {
       action_type: MetricsActionType;
     };
   [UnifiedSwapBridgeEventName.Failed]:
-    | (TradeData &
+    | // Tx failed before confirmation
+    (TradeData &
         Pick<QuoteFetchData, 'price_impact'> &
         Pick<RequestMetadata, 'stx_enabled' | 'usd_amount_source'> &
         Pick<
           RequestParams,
           'token_symbol_source' | 'token_symbol_destination'
-        > & { error_message: string })
+        > & { error_message: string }) // Tx failed after confirmation
     | (RequestParams &
         RequestMetadata &
         Pick<QuoteFetchData, 'price_impact'> &
         TxStatusData &
         TradeData & {
           actual_time_minutes: number;
-          error_message: string;
+          error_message?: string;
           action_type: MetricsActionType;
         });
   // Emitted by clients

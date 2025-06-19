@@ -127,6 +127,43 @@ Array [
 ]
 `;
 
+exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller calls should track the Failed event before tx is submitted 1`] = `
+Array [
+  Array [
+    "Unified SwapBridge Failed",
+    Object {
+      "action_type": "crosschain-v1",
+      "can_submit": true,
+      "chain_id_destination": "eip155:1",
+      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "custom_slippage": true,
+      "error_message": "Failed to submit tx",
+      "gas_included": false,
+      "initial_load_time_all_quotes": 0,
+      "is_hardware_wallet": false,
+      "price_impact": 12,
+      "provider": "provider_bridge",
+      "quoted_time_minutes": 2,
+      "quotes_count": 2,
+      "quotes_list": Array [
+        "lifi_mayan",
+        "lifi_mayanMCTP",
+      ],
+      "slippage_limit": 0.5,
+      "stx_enabled": false,
+      "swap_type": "crosschain",
+      "token_address_destination": "eip155:1/erc20:0x1234",
+      "token_address_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:NATIVE",
+      "token_symbol_destination": "USDC",
+      "token_symbol_source": "ETH",
+      "usd_amount_source": 100,
+      "usd_quoted_gas": 1,
+      "usd_quoted_return": 113,
+    },
+  ],
+]
+`;
+
 exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller calls should track the SnapConfirmationViewed event 1`] = `
 Array [
   Array [
@@ -160,27 +197,29 @@ Array [
       "action_type": "crosschain-v1",
       "can_submit": true,
       "chain_id_destination": "eip155:10",
-      "chain_id_source": "eip155:1",
+      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "custom_slippage": true,
       "gas_included": false,
       "initial_load_time_all_quotes": 0,
       "is_hardware_wallet": false,
-      "price_impact": 0,
+      "price_impact": 12,
       "provider": "provider_bridge",
-      "quoted_time_minutes": 0,
-      "quotes_count": 0,
-      "quotes_list": Array [],
-      "security_warnings": Array [],
-      "slippage_limit": undefined,
+      "quoted_time_minutes": 2,
+      "quotes_count": 2,
+      "quotes_list": Array [
+        "lifi_mayan",
+        "lifi_mayanMCTP",
+      ],
+      "slippage_limit": 0.5,
       "stx_enabled": false,
       "swap_type": "crosschain",
-      "token_address_destination": "eip155:10/slip44:60",
-      "token_address_source": "eip155:1/slip44:60",
+      "token_address_destination": "eip155:10/erc20:0x1234",
+      "token_address_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:NATIVE",
       "token_symbol_destination": "USDC",
       "token_symbol_source": "ETH",
       "usd_amount_source": 100,
-      "usd_quoted_gas": 0,
-      "usd_quoted_return": 0,
+      "usd_quoted_gas": 1,
+      "usd_quoted_return": 113,
     },
   ],
 ]
