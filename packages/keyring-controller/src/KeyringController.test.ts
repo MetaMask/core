@@ -3331,6 +3331,28 @@ describe('KeyringController', () => {
         },
       );
     });
+
+    it('should export key after password change', async () => {
+      await withController(
+        { cacheEncryptionKey: true },
+        async ({ controller }) => {
+          await controller.changePassword('new password');
+          const encryptionKey = await controller.exportEncryptionKey();
+          expect(encryptionKey).toBeDefined();
+        },
+      );
+    });
+
+    it('should export key after password change to the same password', async () => {
+      await withController(
+        { cacheEncryptionKey: true },
+        async ({ controller }) => {
+          await controller.changePassword(password);
+          const encryptionKey = await controller.exportEncryptionKey();
+          expect(encryptionKey).toBeDefined();
+        },
+      );
+    });
   });
 
   describe('verifySeedPhrase', () => {
