@@ -228,7 +228,7 @@ export type TransactionMeta = {
   isExternalSign?: boolean;
 
   /**
-   * Whether the transaction is a transfer.
+   * Whether the transaction is an incoming token transfer.
    */
   isTransfer?: boolean;
 
@@ -442,6 +442,7 @@ export type TransactionMeta = {
    * Additional transfer information.
    */
   transferInformation?: {
+    amount?: string;
     contractAddress: string;
     decimals: number;
     symbol: string;

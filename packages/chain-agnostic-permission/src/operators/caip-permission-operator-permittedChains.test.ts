@@ -8,7 +8,7 @@ import {
   getAllScopesFromCaip25CaveatValue,
   getAllNamespacesFromCaip25CaveatValue,
   getAllScopesFromPermission,
-} from './caip-permission-adapter-permittedChains';
+} from './caip-permission-operator-permittedChains';
 import type { Caip25CaveatValue } from '../caip25Permission';
 import { Caip25CaveatType } from '../caip25Permission';
 

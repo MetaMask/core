@@ -8,7 +8,7 @@ import {
   getCaipAccountIdsFromCaip25CaveatValue,
   isCaipAccountIdInPermittedAccountIds,
   isInternalAccountInPermittedAccountIds,
-} from './caip-permission-adapter-accounts';
+} from './caip-permission-operator-accounts';
 import type { Caip25CaveatValue } from '../caip25Permission';
 import type { InternalScopesObject } from '../scope/types';
 
