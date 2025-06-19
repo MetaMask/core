@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "outDir": "./dist"
+  },
+  "include": ["src/**/*", "tests/**/*"],
+  "references": [
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../controller-utils"
+    }
+  ]
+} 
