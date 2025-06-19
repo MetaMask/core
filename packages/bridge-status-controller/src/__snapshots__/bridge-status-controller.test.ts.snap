@@ -1762,7 +1762,7 @@ Array [
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should throw an error if approval tx meta is undefined 1`] = `
+exports[`BridgeStatusController submitTx: EVM bridge should throw an error if approval tx meta does not exist 1`] = `
 Array [
   Array [
     Object {
@@ -1787,7 +1787,7 @@ Array [
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should throw an error if approval tx meta is undefined 2`] = `
+exports[`BridgeStatusController submitTx: EVM bridge should throw an error if approval tx meta does not exist 2`] = `
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
@@ -3221,7 +3221,7 @@ Array [
       "custom_slippage": true,
       "destination_transaction": "PENDING",
       "gas_included": false,
-      "is_hardware_wallet": false,
+      "is_hardware_wallet": true,
       "price_impact": 0,
       "provider": "test-bridge_undefined",
       "quote_vs_execution_ratio": 1,

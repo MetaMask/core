@@ -1706,6 +1706,7 @@ describe('BridgeStatusController', () => {
       });
 
       mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
+      mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
 
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
@@ -2122,7 +2123,7 @@ describe('BridgeStatusController', () => {
       expect(addUserOperationFromTransactionFn).not.toHaveBeenCalled();
     });
 
-    it('should throw an error if approval tx meta is undefined', async () => {
+    it('should throw an error if approval tx meta does not exist', async () => {
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum-client-id');
       mockMessengerCall.mockReturnValueOnce({
@@ -2144,7 +2145,7 @@ describe('BridgeStatusController', () => {
       await expect(
         controller.submitTx(mockEvmQuoteResponse, false),
       ).rejects.toThrow(
-        'Failed to submit bridge tx: approval txMeta is undefined',
+        'Failed to submit cross-chain swap tx: txMeta for txHash was not found',
       );
 
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
