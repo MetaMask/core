@@ -2118,7 +2118,7 @@ export class KeyringController extends BaseController<
 
   /**
    * Derive the vault encryption key from the provided password, and
-   * assign it to the class variable for later use with cryptographic
+   * assign it to the instance variable for later use with cryptographic
    * functions.
    *
    * When the controller has a vault in its state, the key is derived
@@ -2163,7 +2163,7 @@ export class KeyringController extends BaseController<
 
   /**
    * Use the provided encryption key and salt to set the
-   * encryptionKey class variable. This method is used
+   * encryptionKey instance variable. This method is used
    * when the user provides an encryption key and salt
    * to unlock the keychain, instead of using a password.
    *
@@ -2283,7 +2283,7 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Get a snapshot of session data held by class variables.
+   * Get a snapshot of session data held by instance variables.
    *
    * @returns An object with serialized keyrings, keyrings metadata,
    * and the user password.
