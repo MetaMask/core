@@ -1333,7 +1333,7 @@ describe('BridgeStatusController', () => {
     });
   });
 
-  describe('submitTx: Solana', () => {
+  describe('submitTx: Solana bridge', () => {
     const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
       quote: {
         requestId: '123',
@@ -1448,25 +1448,41 @@ describe('BridgeStatusController', () => {
         snap: {
           id: 'test-snap',
         },
+        keyring: {
+          type: 'any',
+        },
       },
       options: { scope: 'solana-chain-id' },
     };
 
+    let mockMessengerCall: jest.Mock;
     beforeEach(() => {
       jest.clearAllMocks();
+      jest.clearAllTimers();
       jest.spyOn(Date, 'now').mockReturnValue(1234567890);
+      mockMessengerCall = jest.fn();
+      mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
+      mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
     });
 
-    it('should successfully submit a Solana transaction', async () => {
-      mockMessengerCall.mockImplementationOnce(jest.fn()); // BridgeController:stopPollingForQuotes
+    it('should successfully submit a transaction', async () => {
       mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
+      // Mock the RemoteFeatureFlagController:getState call that happens in getBridgeFeatureFlags
+      mockMessengerCall.mockReturnValueOnce({
+        remoteFeatureFlags: {
+          cacheTimestamp: 1234567890,
+          bridgeConfig: {
+            support: true,
+            chains: {
+              [ChainId.SOLANA]: {
+                isSnapConfirmationEnabled: true,
+              },
+            },
+          },
+        },
+      });
       mockMessengerCall.mockResolvedValueOnce('signature');
-
       mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
-      mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
-
-      mockMessengerCall.mockResolvedValueOnce('tokens');
-      mockMessengerCall.mockResolvedValueOnce('tokens');
 
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
@@ -1482,11 +1498,24 @@ describe('BridgeStatusController', () => {
     });
 
     it('should throw error when snap ID is missing', async () => {
-      mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
       const accountWithoutSnap = {
-        ...mockSelectedAccount,
+        ...mockSolanaAccount,
         metadata: { snap: undefined },
       };
+      mockMessengerCall.mockReturnValueOnce(accountWithoutSnap);
+      // Mock the RemoteFeatureFlagController:getState call that happens in getBridgeFeatureFlags
+      mockMessengerCall.mockReturnValueOnce({
+        remoteFeatureFlags: {
+          bridgeConfig: {
+            support: true,
+            chains: {
+              [ChainId.SOLANA]: {
+                isSnapConfirmationEnabled: false,
+              },
+            },
+          },
+        },
+      });
       mockMessengerCall.mockReturnValueOnce(accountWithoutSnap);
 
       const { controller, startPollingForBridgeTxStatusSpy } =
@@ -1498,6 +1527,7 @@ describe('BridgeStatusController', () => {
         'Failed to submit cross-chain swap transaction: undefined snap id',
       );
       expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
+      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
     });
 
     it('should throw error when account is missing', async () => {
@@ -1515,7 +1545,6 @@ describe('BridgeStatusController', () => {
     });
 
     it('should handle snap controller errors', async () => {
-      mockMessengerCall.mockImplementationOnce(jest.fn()); // BridgeController:stopPollingForQuotes
       mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
       // Mock the RemoteFeatureFlagController:getState call that happens in getBridgeFeatureFlags
       mockMessengerCall.mockReturnValueOnce({
@@ -1538,25 +1567,234 @@ describe('BridgeStatusController', () => {
       await expect(
         controller.submitTx(mockQuoteResponse, false),
       ).rejects.toThrow('Snap error');
+      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
       expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
     });
+  });
 
-    it('should throw error when txMeta is undefined', async () => {
-      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
-      mockMessengerCall.mockResolvedValueOnce('0xabc...');
+  describe('submitTx: Solana swap', () => {
+    const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
+      quote: {
+        requestId: '123',
+        srcChainId: ChainId.SOLANA,
+        destChainId: ChainId.SOLANA,
+        srcTokenAmount: '1000000000',
+        srcAsset: {
+          chainId: ChainId.SOLANA,
+          address: 'native',
+          symbol: 'SOL',
+          name: 'Solana',
+          decimals: 9,
+          assetId: getNativeAssetForChainId(ChainId.SOLANA).assetId,
+        },
+        destTokenAmount: '0.5',
+        destAsset: {
+          chainId: ChainId.SOLANA,
+          address: '0x...',
+          symbol: 'USDC',
+          name: 'USDC',
+          decimals: 18,
+          assetId: 'eip155:1399811149/slip44:501',
+        },
+        bridgeId: 'test-bridge',
+        bridges: [],
+        steps: [
+          {
+            action: ActionTypes.BRIDGE,
+            srcChainId: ChainId.SOLANA,
+            destChainId: ChainId.ETH,
+            srcAsset: {
+              chainId: ChainId.SOLANA,
+              address: 'native',
+              symbol: 'SOL',
+              name: 'Solana',
+              decimals: 9,
+              assetId: 'eip155:1399811149/slip44:501',
+            },
+            destAsset: {
+              chainId: ChainId.ETH,
+              address: '0x...',
+              symbol: 'ETH',
+              name: 'Ethereum',
+              decimals: 18,
+              assetId: 'eip155:1/slip44:60',
+            },
+            srcAmount: '1000000000',
+            destAmount: '0.5',
+            protocol: {
+              name: 'test-protocol',
+              displayName: 'Test Protocol',
+              icon: 'test-icon',
+            },
+          },
+        ],
+        feeData: {
+          [FeeType.METABRIDGE]: {
+            amount: '1000000',
+            asset: {
+              chainId: ChainId.SOLANA,
+              address: 'native',
+              symbol: 'SOL',
+              name: 'Solana',
+              decimals: 9,
+              assetId: 'eip155:1399811149/slip44:501',
+            },
+          },
+        },
+      },
+      estimatedProcessingTimeInSeconds: 300,
+      trade:
+        'AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=',
+      sentAmount: {
+        amount: '1',
+        valueInCurrency: '100',
+        usd: '100',
+      },
+      toTokenAmount: {
+        amount: '0.5',
+        valueInCurrency: '1000',
+        usd: '1000',
+      },
+      totalNetworkFee: {
+        amount: '0.1',
+        valueInCurrency: '10',
+        usd: '10',
+      },
+      totalMaxNetworkFee: {
+        amount: '0.15',
+        valueInCurrency: '15',
+        usd: '15',
+      },
+      gasFee: {
+        amount: '0.05',
+        valueInCurrency: '5',
+        usd: '5',
+      },
+      adjustedReturn: {
+        valueInCurrency: '985',
+        usd: '985',
+      },
+      cost: {
+        valueInCurrency: '15',
+        usd: '15',
+      },
+      swapRate: '0.5',
+    };
+
+    const mockSolanaAccount = {
+      address: '0x123...',
+      metadata: {
+        snap: {
+          id: 'test-snap',
+        },
+        keyring: {
+          type: 'Hardware',
+        },
+      },
+      options: { scope: 'solana-chain-id' },
+    };
+    const mockMessengerCall = jest.fn();
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+      jest.clearAllTimers();
+      jest.spyOn(Date, 'now').mockReturnValue(1234567890);
+      mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
+      mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
+    });
+
+    it('should successfully submit a transaction', async () => {
+      mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
+      // Mock the RemoteFeatureFlagController:getState call that happens in getBridgeFeatureFlags
+      mockMessengerCall.mockReturnValueOnce({
+        remoteFeatureFlags: {
+          bridgeConfig: {
+            support: true,
+            chains: {
+              [ChainId.SOLANA]: {
+                isSnapConfirmationEnabled: false,
+              },
+            },
+          },
+        },
+      });
+      mockMessengerCall.mockResolvedValueOnce({
+        signature: 'signature',
+      });
+
+      mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
+
+      const { controller, startPollingForBridgeTxStatusSpy } =
+        getController(mockMessengerCall);
+      const result = await controller.submitTx(mockQuoteResponse, false);
+      controller.stopAllPolling();
+
+      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+      expect(result).toMatchSnapshot();
+      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
+      expect(
+        startPollingForBridgeTxStatusSpy.mock.lastCall[0],
+      ).toMatchSnapshot();
+    });
+
+    it('should throw error when snap ID is missing', async () => {
+      const accountWithoutSnap = {
+        ...mockSolanaAccount,
+        metadata: { snap: undefined },
+      };
+      mockMessengerCall.mockReturnValueOnce(accountWithoutSnap);
 
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
 
       await expect(
-        controller.submitTx(
-          {
-            ...mockQuoteResponse,
-            trade: {} as never,
+        controller.submitTx(mockQuoteResponse, false),
+      ).rejects.toThrow(
+        'Failed to submit cross-chain swap transaction: undefined snap id',
+      );
+      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+      expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
+    });
+
+    it('should throw error when account is missing', async () => {
+      mockMessengerCall.mockReturnValueOnce(undefined);
+
+      const { controller, startPollingForBridgeTxStatusSpy } =
+        getController(mockMessengerCall);
+
+      await expect(
+        controller.submitTx(mockQuoteResponse, false),
+      ).rejects.toThrow(
+        'Failed to submit cross-chain swap transaction: undefined multichain account',
+      );
+      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+      expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
+    });
+
+    it('should handle snap controller errors', async () => {
+      mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
+      // Mock the RemoteFeatureFlagController:getState call that happens in getBridgeFeatureFlags
+      mockMessengerCall.mockReturnValueOnce({
+        remoteFeatureFlags: {
+          bridgeConfig: {
+            support: true,
+            chains: {
+              [ChainId.SOLANA]: {
+                isSnapConfirmationEnabled: false,
+              },
+            },
           },
-          false,
-        ),
-      ).rejects.toThrow('Failed to submit bridge tx: txMeta is undefined');
+        },
+      });
+      mockMessengerCall.mockRejectedValueOnce(new Error('Snap error'));
+
+      const { controller, startPollingForBridgeTxStatusSpy } =
+        getController(mockMessengerCall);
+
+      await expect(
+        controller.submitTx(mockQuoteResponse, false),
+      ).rejects.toThrow('Snap error');
+      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
       expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
     });
   });

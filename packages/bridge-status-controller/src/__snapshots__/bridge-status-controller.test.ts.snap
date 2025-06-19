@@ -130,10 +130,6 @@ Array [
     "TransactionController:transactionConfirmed",
     [Function],
   ],
-  Array [
-    "MultichainTransactionsController:transactionConfirmed",
-    [Function],
-  ],
 ]
 `;
 
@@ -158,7 +154,6 @@ Array [
       "chain_id_source": "eip155:42161",
       "custom_slippage": true,
       "destination_transaction": "FAILED",
-      "error_message": "error_message",
       "gas_included": false,
       "is_hardware_wallet": false,
       "price_impact": 0,
@@ -326,7 +321,6 @@ Array [
       "chain_id_source": "eip155:42161",
       "custom_slippage": true,
       "destination_transaction": "COMPLETE",
-      "error_message": "error_message",
       "gas_included": false,
       "is_hardware_wallet": false,
       "price_impact": 0,
