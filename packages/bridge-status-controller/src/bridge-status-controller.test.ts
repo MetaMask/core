@@ -1808,7 +1808,11 @@ describe('BridgeStatusController', () => {
       sentAmount: { amount: '1.234', valueInCurrency: null, usd: null },
       toTokenAmount: { amount: '1.234', valueInCurrency: null, usd: null },
       totalNetworkFee: { amount: '1.234', valueInCurrency: null, usd: null },
-      totalMaxNetworkFee: { amount: '1.234', valueInCurrency: null, usd: null },
+      totalMaxNetworkFee: {
+        amount: '1.234',
+        valueInCurrency: null,
+        usd: null,
+      },
       gasFee: { amount: '1.234', valueInCurrency: null, usd: null },
       adjustedReturn: { valueInCurrency: null, usd: null },
       swapRate: '1.234',
@@ -1874,10 +1878,15 @@ describe('BridgeStatusController', () => {
       },
     };
 
+    const mockMessengerCall = jest.fn();
+
     beforeEach(() => {
       jest.clearAllMocks();
+      jest.clearAllTimers();
       jest.spyOn(Date, 'now').mockReturnValue(1234567890);
       jest.spyOn(Math, 'random').mockReturnValue(0.456);
+      mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
+      mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
     });
 
     const setupApprovalMocks = () => {
@@ -1915,7 +1924,6 @@ describe('BridgeStatusController', () => {
     };
 
     it('should successfully submit an EVM bridge transaction with approval', async () => {
-      mockMessengerCall.mockImplementationOnce(jest.fn()); // BridgeController:stopPollingForQuotes
       setupApprovalMocks();
       setupBridgeMocks();
 
@@ -1941,7 +1949,6 @@ describe('BridgeStatusController', () => {
     });
 
     it('should successfully submit an EVM bridge transaction with no approval', async () => {
-      mockMessengerCall.mockImplementationOnce(jest.fn()); // BridgeController:stopPollingForQuotes
       setupBridgeMocks();
 
       const { controller, startPollingForBridgeTxStatusSpy } =
@@ -1986,7 +1993,6 @@ describe('BridgeStatusController', () => {
     });
 
     it('should handle smart transactions', async () => {
-      mockMessengerCall.mockImplementationOnce(jest.fn()); // BridgeController:stopPollingForQuotes
       setupBridgeMocks();
 
       const { controller, startPollingForBridgeTxStatusSpy } =
@@ -2013,7 +2019,6 @@ describe('BridgeStatusController', () => {
     });
 
     it('should handle smart accounts (4337)', async () => {
-      mockMessengerCall.mockImplementationOnce(jest.fn()); // BridgeController:stopPollingForQuotes
       mockMessengerCall.mockReturnValueOnce({
         ...mockSelectedAccount,
         type: EthAccountType.Erc4337,
@@ -2079,7 +2084,6 @@ describe('BridgeStatusController', () => {
     });
 
     it('should reset USDT allowance', async () => {
-      mockMessengerCall.mockImplementationOnce(jest.fn()); // BridgeController:stopPollingForQuotes
       mockIsEthUsdt.mockReturnValueOnce(true);
 
       // USDT approval reset
@@ -2114,7 +2118,6 @@ describe('BridgeStatusController', () => {
     });
 
     it('should throw an error if approval tx fails', async () => {
-      mockMessengerCall.mockImplementationOnce(jest.fn()); // BridgeController:stopPollingForQuotes
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum-client-id');
       mockMessengerCall.mockReturnValueOnce({
@@ -2137,7 +2140,6 @@ describe('BridgeStatusController', () => {
     });
 
     it('should throw an error if approval tx meta is undefined', async () => {
-      mockMessengerCall.mockImplementationOnce(jest.fn()); // BridgeController:stopPollingForQuotes
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum-client-id');
       mockMessengerCall.mockReturnValueOnce({
@@ -2146,12 +2148,13 @@ describe('BridgeStatusController', () => {
       estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
       addTransactionFn.mockResolvedValueOnce({
         transactionMeta: undefined,
-        result: undefined,
+        result: new Promise((resolve) => resolve('0xevmTxHash')),
       });
       mockMessengerCall.mockReturnValueOnce({
         transactions: [],
       });
 
+      setupBridgeMocks();
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
 
@@ -2168,7 +2171,6 @@ describe('BridgeStatusController', () => {
     });
 
     it('should delay after submitting linea approval', async () => {
-      mockMessengerCall.mockImplementationOnce(jest.fn()); // BridgeController:stopPollingForQuotes
       const handleLineaDelaySpy = jest
         .spyOn(transactionUtils, 'handleLineaDelay')
         .mockResolvedValueOnce();
@@ -2187,7 +2189,10 @@ describe('BridgeStatusController', () => {
       const lineaQuoteResponse = {
         ...mockEvmQuoteResponse,
         quote: { ...mockEvmQuoteResponse.quote, srcChainId: 59144 },
-        trade: { ...mockEvmQuoteResponse.trade, gasLimit: undefined } as never,
+        trade: {
+          ...mockEvmQuoteResponse.trade,
+          gasLimit: undefined,
+        } as never,
       };
 
       const result = await controller.submitTx(lineaQuoteResponse, false);
