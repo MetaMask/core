@@ -583,7 +583,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       | Awaited<
           ReturnType<UserOperationController['addUserOperationFromTransaction']>
         >['hash'],
-  ): Promise<TransactionMeta | undefined> => {
+  ): Promise<TransactionMeta> => {
     const transactionHash = await hashPromise;
     const finalTransactionMeta: TransactionMeta | undefined =
       this.messagingSystem
@@ -591,6 +591,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         .transactions.find(
           (tx: TransactionMeta) => tx.hash === transactionHash,
         );
+    if (!finalTransactionMeta) {
+      throw new Error(
+        'Failed to submit cross-chain swap tx: txMeta for txHash was not found',
+      );
+    }
     return finalTransactionMeta;
   };
 
@@ -613,11 +618,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           quoteResponse,
           requireApproval,
         });
-        if (!approvalTxMeta) {
-          throw new Error(
-            'Failed to submit bridge tx: approval txMeta is undefined',
-          );
-        }
 
         await handleLineaDelay(quoteResponse);
         return approvalTxMeta;
@@ -691,7 +691,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     approvalTxId?: string;
     shouldWaitForHash?: boolean;
     requireApproval?: boolean;
-  }): Promise<TransactionMeta | undefined> => {
+  }): Promise<TransactionMeta> => {
     const actionId = generateActionId().toString();
 
     const selectedAccount = this.messagingSystem.call(
@@ -860,7 +860,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       preConfirmationProperties,
     );
 
-    let txMeta: (TransactionMeta & Partial<SolanaTransactionMeta>) | undefined;
+    let txMeta: TransactionMeta & Partial<SolanaTransactionMeta>;
+    let approvalTime: number | undefined, approvalTxId: string | undefined;
 
     const isBridgeTx = isCrossChain(
       quoteResponse.quote.srcChainId,
