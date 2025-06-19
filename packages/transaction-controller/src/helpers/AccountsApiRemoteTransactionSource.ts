@@ -218,11 +218,11 @@ export class AccountsApiRemoteTransactionSource
         vt.contractAddress,
     );
 
-    const isIncomingTransfer =
-      valueTransfer?.to.toLowerCase() === address.toLowerCase();
+    const isIncomingTokenTransfer =
+      valueTransfer?.to.toLowerCase() === address.toLowerCase() &&
+      from.toLowerCase() !== address.toLowerCase();
 
     const isOutgoing = from.toLowerCase() === address.toLowerCase();
-    const isTransfer = Boolean(valueTransfer);
     const amount = valueTransfer?.amount;
     const contractAddress = valueTransfer?.contractAddress as string;
     const decimals = valueTransfer?.decimal as number;
@@ -230,20 +230,20 @@ export class AccountsApiRemoteTransactionSource
 
     const value = BNToHex(
       new BN(
-        isIncomingTransfer
+        isIncomingTokenTransfer
           ? (valueTransfer?.amount ?? responseTransaction.value)
           : responseTransaction.value,
       ),
     );
 
-    const to = isIncomingTransfer ? address : responseTransaction.to;
+    const to = isIncomingTokenTransfer ? address : responseTransaction.to;
 
     const error =
       status === TransactionStatus.failed
         ? new Error('Transaction failed')
         : (undefined as unknown as TransactionError);
 
-    const transferInformation = isTransfer
+    const transferInformation = valueTransfer
       ? {
           amount,
           contractAddress,
@@ -258,7 +258,7 @@ export class AccountsApiRemoteTransactionSource
       error,
       hash,
       id,
-      isTransfer,
+      isTransfer: isIncomingTokenTransfer,
       // Populated by TransactionController when added to state
       networkClientId: '',
       status,
