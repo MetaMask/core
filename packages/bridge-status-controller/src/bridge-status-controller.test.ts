@@ -2485,7 +2485,6 @@ describe('BridgeStatusController', () => {
       | BridgeStatusControllerEvents
       | TransactionControllerEvents
       | BridgeControllerEvents
-      | MultichainTransactionsControllerEvents
     >;
 
     beforeEach(() => {
@@ -2497,7 +2496,6 @@ describe('BridgeStatusController', () => {
         | BridgeStatusControllerEvents
         | TransactionControllerEvents
         | BridgeControllerEvents
-        | MultichainTransactionsControllerEvents
       >();
 
       jest.spyOn(mockMessenger, 'call').mockImplementation((...args) => {
@@ -2515,7 +2513,6 @@ describe('BridgeStatusController', () => {
         allowedEvents: [
           'TransactionController:transactionFailed',
           'TransactionController:transactionConfirmed',
-          'MultichainTransactionsController:transactionConfirmed',
         ],
       }) as never;
 
