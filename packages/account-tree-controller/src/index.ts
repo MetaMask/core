@@ -12,6 +12,11 @@ export type {
   AccountGroup,
   AccountGroupId,
   AccountGroupMetadata,
+  toAccountGroupId,
+  toAccountWalletId,
+  toDefaultAccountGroupId,
+  DEFAULT_ACCOUNT_GROUP_NAME,
+  DEFAULT_ACCOUNT_GROUP_UNIQUE_ID,
 } from './AccountTreeController';
 export {
   AccountTreeController,
