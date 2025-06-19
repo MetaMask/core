@@ -148,7 +148,7 @@ export const getRequestMetadataFromHistory = (
  * @param transactionMeta - The transaction meta
  * @returns The properties for the swap transaction
  */
-export const getEVMSwapTxPropertiesFromTransactionMeta = (
+export const getEVMTxPropertiesFromTransactionMeta = (
   transactionMeta: TransactionMeta,
 ) => {
   return {

@@ -16,7 +16,7 @@ import {
   getRequestParamFromHistory,
   getTradeDataFromHistory,
   getRequestMetadataFromHistory,
-  getEVMSwapTxPropertiesFromTransactionMeta,
+  getEVMTxPropertiesFromTransactionMeta,
 } from './metrics';
 import type { BridgeHistoryItem } from '../types';
 
@@ -545,8 +545,7 @@ describe('metrics utils', () => {
     };
 
     it('should return correct properties for a successful swap transaction', () => {
-      const result =
-        getEVMSwapTxPropertiesFromTransactionMeta(mockTransactionMeta);
+      const result = getEVMTxPropertiesFromTransactionMeta(mockTransactionMeta);
       expect(result).toStrictEqual({
         error_message: undefined,
         chain_id_source: 'eip155:1',
@@ -587,7 +586,7 @@ describe('metrics utils', () => {
           name: 'Error',
         } as TransactionError,
       };
-      const result = getEVMSwapTxPropertiesFromTransactionMeta(
+      const result = getEVMTxPropertiesFromTransactionMeta(
         failedTransactionMeta,
       );
       expect(result.error_message).toBe('Failed to finalize swap tx');
@@ -600,7 +599,7 @@ describe('metrics utils', () => {
         sourceTokenSymbol: undefined,
         destinationTokenSymbol: undefined,
       };
-      const result = getEVMSwapTxPropertiesFromTransactionMeta(
+      const result = getEVMTxPropertiesFromTransactionMeta(
         noSymbolsTransactionMeta,
       );
       expect(result.token_symbol_source).toBe('');
@@ -613,7 +612,7 @@ describe('metrics utils', () => {
         sourceTokenAddress: undefined,
         destinationTokenAddress: undefined,
       };
-      const result = getEVMSwapTxPropertiesFromTransactionMeta(
+      const result = getEVMTxPropertiesFromTransactionMeta(
         noAddressesTransactionMeta,
       );
       expect(result.token_address_source).toBe('eip155:1/slip44:60');
@@ -625,7 +624,7 @@ describe('metrics utils', () => {
         ...mockTransactionMeta,
         type: TransactionType.swap,
       };
-      const result = getEVMSwapTxPropertiesFromTransactionMeta(
+      const result = getEVMTxPropertiesFromTransactionMeta(
         crosschainTransactionMeta,
       );
       expect(result.swap_type).toBe(MetricsSwapType.SINGLE);

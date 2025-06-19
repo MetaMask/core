@@ -58,10 +58,12 @@ import {
 import { getTxGasEstimates } from './utils/gas';
 import {
   getFinalizedTxProperties,
+  getPriceImpactFromQuote,
   getRequestMetadataFromHistory,
   getRequestParamFromHistory,
   getTradeDataFromHistory,
   getTradeDataFromQuote,
+  getEVMTxPropertiesFromTransactionMeta,
   getTxStatusesFromHistory,
 } from './utils/metrics';
 import {
@@ -193,6 +195,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Failed,
             id,
+            getEVMTxPropertiesFromTransactionMeta(transactionMeta),
           );
         }
       },
@@ -206,6 +209,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Completed,
             id,
+            getEVMTxPropertiesFromTransactionMeta(transactionMeta),
           );
         }
       },
@@ -888,7 +892,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               UnifiedSwapBridgeEventName.Failed,
               txMeta?.id,
               {
-                error_message: (error as Error)?.message ?? '',
+                error_message: (error as Error)?.message,
                 ...preConfirmationProperties,
               },
             );
@@ -964,23 +968,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     }
 
     if (!txMeta) {
-      throw new Error('Failed to submit bridge tx: txMeta is undefined');
+      throw new Error(
+        'Failed to submit cross-chain swap tx: txMeta is undefined',
+      );
     }
 
     try {
-      if (
-        isSolanaChainId(quoteResponse.quote.srcChainId) &&
-        !isCrossChain(
-          quoteResponse.quote.srcChainId,
-          quoteResponse.quote.destChainId,
-        )
-      ) {
-        this.#trackUnifiedSwapBridgeEvent(
-          UnifiedSwapBridgeEventName.Completed,
-          txMeta.id,
-        );
-      }
-
       // Start polling for bridge tx status
       this.startPollingForBridgeTxStatus({
         bridgeTxMeta: txMeta, // Only the id field is used by the BridgeStatusController
@@ -994,6 +987,19 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         startTime: approvalTime ?? Date.now(),
         approvalTxId,
       });
+      // Track Solana Swap completed event
+      if (
+        isSolanaChainId(quoteResponse.quote.srcChainId) &&
+        !isCrossChain(
+          quoteResponse.quote.srcChainId,
+          quoteResponse.quote.destChainId,
+        )
+      ) {
+        this.#trackUnifiedSwapBridgeEvent(
+          UnifiedSwapBridgeEventName.Completed,
+          txMeta.id,
+        );
+      }
     } catch {
       // Ignore errors here, we don't want to crash the app if this fails and tx submission succeeds
     }
@@ -1033,35 +1039,29 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       this.messagingSystem.call(
         'BridgeController:trackUnifiedSwapBridgeEvent',
         eventName,
-        {},
+        eventProperties ?? {},
       );
       return;
     }
 
-    let requiredEventProperties: Pick<RequiredEventContextFromClient, T>[T];
     const selectedAccount = this.messagingSystem.call(
       'AccountsController:getAccountByAddress',
       historyItem.account,
     );
 
-    switch (eventName) {
-      case UnifiedSwapBridgeEventName.Completed:
-      case UnifiedSwapBridgeEventName.Failed:
-      default:
-        requiredEventProperties = {
-          action_type: getActionType(
-            historyItem.quote.srcChainId,
-            historyItem.quote.destChainId,
-          ),
-          ...getRequestParamFromHistory(historyItem),
-          ...getRequestMetadataFromHistory(historyItem, selectedAccount),
-          ...getTradeDataFromHistory(historyItem),
-          ...getTxStatusesFromHistory(historyItem),
-          ...getFinalizedTxProperties(historyItem),
-          error_message: 'error_message',
-          ...getPriceImpactFromQuote(historyItem.quote),
-        };
-    }
+    const requiredEventProperties = {
+      action_type: getActionType(
+        historyItem.quote.srcChainId,
+        historyItem.quote.destChainId,
+      ),
+      ...(eventProperties ?? {}),
+      ...getRequestParamFromHistory(historyItem),
+      ...getRequestMetadataFromHistory(historyItem, selectedAccount),
+      ...getTradeDataFromHistory(historyItem),
+      ...getTxStatusesFromHistory(historyItem),
+      ...getFinalizedTxProperties(historyItem),
+      ...getPriceImpactFromQuote(historyItem.quote),
+    };
 
     this.messagingSystem.call(
       'BridgeController:trackUnifiedSwapBridgeEvent',
