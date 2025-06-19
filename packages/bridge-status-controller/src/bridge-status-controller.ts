@@ -901,13 +901,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           }
         },
       );
-    }
-    // Submit EVM tx
-    let approvalTime: number | undefined, approvalTxId: string | undefined;
-    if (
-      !isSolanaChainId(quoteResponse.quote.srcChainId) &&
-      typeof quoteResponse.trade !== 'string'
-    ) {
+    } else {
+      // Submit EVM tx
       // For hardware wallets on Mobile, this is fixes an issue where the Ledger does not get prompted for the 2nd approval
       // Extension does not have this issue
       const requireApproval =
@@ -923,54 +918,34 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       approvalTime = approvalTxMeta?.time;
       approvalTxId = approvalTxMeta?.id;
       // Handle smart transactions if enabled
-      if (isStxEnabledOnClient) {
-        txMeta = await this.#trace(
-          {
-            name: isBridgeTx
-              ? TraceName.BridgeTransactionCompleted
-              : TraceName.SwapTransactionCompleted,
-            data: {
-              srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
-              stxEnabled: true,
-            },
+      txMeta = await this.#trace(
+        {
+          name: isBridgeTx
+            ? TraceName.BridgeTransactionCompleted
+            : TraceName.SwapTransactionCompleted,
+          data: {
+            srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
+            stxEnabled: isStxEnabledOnClient,
           },
-          async () =>
-            await this.#handleEvmSmartTransaction({
-              isBridgeTx,
-              trade: quoteResponse.trade as TxData,
-              quoteResponse,
-              approvalTxId,
-              requireApproval,
-            }),
-        );
-      } else {
-        txMeta = await this.#trace(
-          {
-            name: isBridgeTx
-              ? TraceName.BridgeTransactionCompleted
-              : TraceName.SwapTransactionCompleted,
-            data: {
-              srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
-              stxEnabled: false,
-            },
-          },
-          async () =>
-            await this.#handleEvmTransaction({
-              transactionType: isBridgeTx
-                ? TransactionType.bridge
-                : TransactionType.swap,
-              trade: quoteResponse.trade as TxData,
-              quoteResponse,
-              approvalTxId,
-              requireApproval,
-            }),
-        );
-      }
-    }
-
-    if (!txMeta) {
-      throw new Error(
-        'Failed to submit cross-chain swap tx: txMeta is undefined',
+        },
+        async () =>
+          isStxEnabledOnClient
+            ? await this.#handleEvmSmartTransaction({
+                isBridgeTx,
+                trade: quoteResponse.trade as TxData,
+                quoteResponse,
+                approvalTxId,
+                requireApproval,
+              })
+            : await this.#handleEvmTransaction({
+                transactionType: isBridgeTx
+                  ? TransactionType.bridge
+                  : TransactionType.swap,
+                trade: quoteResponse.trade as TxData,
+                quoteResponse,
+                approvalTxId,
+                requireApproval,
+              }),
       );
     }
 
@@ -989,13 +964,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         approvalTxId,
       });
       // Track Solana Swap completed event
-      if (
-        isSolanaChainId(quoteResponse.quote.srcChainId) &&
-        !isCrossChain(
-          quoteResponse.quote.srcChainId,
-          quoteResponse.quote.destChainId,
-        )
-      ) {
+      if (isSolanaChainId(quoteResponse.quote.srcChainId) && !isBridgeTx) {
         this.#trackUnifiedSwapBridgeEvent(
           UnifiedSwapBridgeEventName.Completed,
           txMeta.id,
