@@ -3462,6 +3462,43 @@ Array [
 ]
 `;
 
+exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should track failed event for bridge transaction if not in txHistory 1`] = `
+Array [
+  Array [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Failed",
+    Object {
+      "action_type": "swapbridge-v1",
+      "actual_time_minutes": 0,
+      "chain_id_destination": "eip155:42161",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
+      "error_message": undefined,
+      "gas_included": false,
+      "is_hardware_wallet": false,
+      "price_impact": 0,
+      "provider": "",
+      "quote_vs_execution_ratio": 0,
+      "quoted_time_minutes": 0,
+      "quoted_vs_used_gas_ratio": 0,
+      "security_warnings": Array [],
+      "source_transaction": "FAILED",
+      "stx_enabled": false,
+      "swap_type": "crosschain",
+      "token_address_destination": "eip155:42161/slip44:60",
+      "token_address_source": "eip155:42161/slip44:60",
+      "token_symbol_destination": "",
+      "token_symbol_source": "",
+      "usd_actual_gas": 0,
+      "usd_actual_return": 0,
+      "usd_amount_source": 100,
+      "usd_quoted_gas": 0,
+      "usd_quoted_return": 0,
+    },
+  ],
+]
+`;
+
 exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should track failed event for swap transaction 1`] = `
 Array [
   Array [

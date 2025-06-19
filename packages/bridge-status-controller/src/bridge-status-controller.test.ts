@@ -2565,6 +2565,24 @@ describe('BridgeStatusController', () => {
         expect(messengerCallSpy.mock.calls).toMatchSnapshot();
       });
 
+      it('should track failed event for bridge transaction if not in txHistory', () => {
+        const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
+        mockMessenger.publish('TransactionController:transactionFailed', {
+          error: 'tx-error',
+          transactionMeta: {
+            chainId: CHAIN_IDS.ARBITRUM,
+            networkClientId: 'eth-id',
+            time: Date.now(),
+            txParams: {} as unknown as TransactionParams,
+            type: TransactionType.bridge,
+            status: TransactionStatus.failed,
+            id: 'bridgeTxMetaIda',
+          },
+        });
+
+        expect(messengerCallSpy.mock.calls).toMatchSnapshot();
+      });
+
       it('should track failed event for swap transaction', () => {
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
         mockMessenger.publish('TransactionController:transactionFailed', {

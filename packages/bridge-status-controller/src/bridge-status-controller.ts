@@ -843,7 +843,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   ): Promise<TransactionMeta & Partial<SolanaTransactionMeta>> => {
     this.messagingSystem.call('BridgeController:stopPollingForQuotes');
 
-    // Before the tx iks confirmed, its data is not available in txHistory
+    // Before the tx is confirmed, its data is not available in txHistory
     // The quote is used to populate event properties before confirmation
     const preConfirmationProperties = {
       ...getPriceImpactFromQuote(quoteResponse.quote),
