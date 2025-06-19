@@ -26,9 +26,6 @@ import {
   stringToBytes,
   bigIntToHex,
 } from '@metamask/utils';
-import { gcm } from '@noble/ciphers/aes';
-import { utf8ToBytes } from '@noble/ciphers/utils';
-import { managedNonce } from '@noble/ciphers/webcrypto';
 import type { webcrypto } from 'node:crypto';
 
 import {
@@ -94,8 +91,6 @@ const MOCK_NODE_AUTH_TOKENS = [
 ];
 
 const MOCK_KEYRING_ID = 'mock-keyring-id';
-const MOCK_KEYRING_ENCRYPTION_KEY = 'mock-keyring-encryption-key';
-const MOCK_NEW_KEYRING_ENCRYPTION_KEY = 'mock-new-keyring-encryption-key';
 const MOCK_SEED_PHRASE = stringToBytes(
   'horror pink muffin canal young photo magnet runway start elder patch until',
 );
@@ -347,7 +342,6 @@ function mockChangeEncKey(
  * @param password - The mock password.
  * @param seedPhrase - The mock seed phrase.
  * @param keyringId - The mock keyring id.
- * @param keyringEncryptionKey - The mock keyring encryption key.
  */
 async function mockCreateToprfKeyAndBackupSeedPhrase<EKey>(
   toprfClient: ToprfSecureBackup,
@@ -355,7 +349,6 @@ async function mockCreateToprfKeyAndBackupSeedPhrase<EKey>(
   password: string,
   seedPhrase: Uint8Array,
   keyringId: string,
-  keyringEncryptionKey: string,
 ) {
   mockcreateLocalKey(toprfClient, password);
 
@@ -367,7 +360,6 @@ async function mockCreateToprfKeyAndBackupSeedPhrase<EKey>(
     password,
     seedPhrase,
     keyringId,
-    keyringEncryptionKey,
   );
 }
 
@@ -404,17 +396,11 @@ async function createMockVault(
   const { vault: encryptedMockVault, exportedKeyString } =
     await encryptor.encryptWithDetail(MOCK_PASSWORD, serializedKeyData);
 
-  const aes = managedNonce(gcm)(encKey);
-  const encryptedKeyringEncryptionKey = aes.encrypt(
-    utf8ToBytes(MOCK_KEYRING_ENCRYPTION_KEY),
-  );
-
   return {
     encryptedMockVault,
     vaultEncryptionKey: exportedKeyString,
     vaultEncryptionSalt: JSON.parse(encryptedMockVault).salt,
     revokeToken: mockRevokeToken,
-    encryptedKeyringEncryptionKey,
   };
 }
 
@@ -459,7 +445,6 @@ async function decryptVault(vault: string, password: string) {
  * @param options.vault - The mock vault data.
  * @param options.vaultEncryptionKey - The mock vault encryption key.
  * @param options.vaultEncryptionSalt - The mock vault encryption salt.
- * @param options.encryptedKeyringEncryptionKey - The mock encrypted keyring encryption key.
  * @returns The initial controller state with the mock authenticated user.
  */
 function getMockInitialControllerState(options?: {
@@ -470,7 +455,6 @@ function getMockInitialControllerState(options?: {
   vault?: string;
   vaultEncryptionKey?: string;
   vaultEncryptionSalt?: string;
-  encryptedKeyringEncryptionKey?: string;
 }): Partial<SeedlessOnboardingControllerState> {
   const state = getDefaultSeedlessOnboardingControllerState();
 
@@ -500,10 +484,6 @@ function getMockInitialControllerState(options?: {
 
   if (options?.withMockAuthPubKey || options?.authPubKey) {
     state.authPubKey = options.authPubKey ?? MOCK_AUTH_PUB_KEY;
-  }
-
-  if (options?.encryptedKeyringEncryptionKey) {
-    state.encryptedKeyringEncryptionKey = options.encryptedKeyringEncryptionKey;
   }
 
   return state;
@@ -582,7 +562,6 @@ describe('SeedlessOnboardingController', () => {
             MOCK_PASSWORD,
             MOCK_SEED_PHRASE,
             MOCK_KEYRING_ID,
-            MOCK_KEYRING_ENCRYPTION_KEY,
           );
 
           expect(mockSecretDataAdd.isDone()).toBe(true);
@@ -863,7 +842,6 @@ describe('SeedlessOnboardingController', () => {
             MOCK_PASSWORD,
             MOCK_SEED_PHRASE,
             MOCK_KEYRING_ID,
-            MOCK_KEYRING_ENCRYPTION_KEY,
           );
 
           expect(mockSecretDataAdd.isDone()).toBe(true);
@@ -921,7 +899,6 @@ describe('SeedlessOnboardingController', () => {
               MOCK_PASSWORD,
               MOCK_SEED_PHRASE,
               MOCK_KEYRING_ID,
-              MOCK_KEYRING_ENCRYPTION_KEY,
             ),
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.InvalidRevokeToken,
@@ -964,7 +941,6 @@ describe('SeedlessOnboardingController', () => {
             MOCK_PASSWORD,
             MOCK_SEED_PHRASE,
             MOCK_KEYRING_ID,
-            MOCK_KEYRING_ENCRYPTION_KEY,
           );
 
           expect(mockSecretDataAdd.isDone()).toBe(true);
@@ -1017,7 +993,6 @@ describe('SeedlessOnboardingController', () => {
               MOCK_PASSWORD,
               MOCK_SEED_PHRASE,
               MOCK_KEYRING_ID,
-              MOCK_KEYRING_ENCRYPTION_KEY,
             ),
           ).rejects.toThrow('Failed to create local encryption key');
 
@@ -1034,7 +1009,6 @@ describe('SeedlessOnboardingController', () => {
             MOCK_PASSWORD,
             MOCK_SEED_PHRASE,
             MOCK_KEYRING_ID,
-            MOCK_KEYRING_ENCRYPTION_KEY,
           ),
         ).rejects.toThrow(
           SeedlessOnboardingControllerErrorMessage.MissingAuthUserInfo,
@@ -1061,7 +1035,6 @@ describe('SeedlessOnboardingController', () => {
               MOCK_PASSWORD,
               MOCK_SEED_PHRASE,
               MOCK_KEYRING_ID,
-              MOCK_KEYRING_ENCRYPTION_KEY,
             ),
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.InvalidRefreshToken,
@@ -1079,7 +1052,6 @@ describe('SeedlessOnboardingController', () => {
               MOCK_PASSWORD,
               MOCK_SEED_PHRASE,
               MOCK_KEYRING_ID,
-              MOCK_KEYRING_ENCRYPTION_KEY,
             ),
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.InsufficientAuthToken,
@@ -1113,7 +1085,6 @@ describe('SeedlessOnboardingController', () => {
               MOCK_PASSWORD,
               MOCK_SEED_PHRASE,
               MOCK_KEYRING_ID,
-              MOCK_KEYRING_ENCRYPTION_KEY,
             ),
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.FailedToPersistOprfKey,
@@ -1145,7 +1116,6 @@ describe('SeedlessOnboardingController', () => {
               MOCK_PASSWORD,
               MOCK_SEED_PHRASE,
               MOCK_KEYRING_ID,
-              MOCK_KEYRING_ENCRYPTION_KEY,
             ),
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.FailedToEncryptAndStoreSecretData,
@@ -1431,7 +1401,6 @@ describe('SeedlessOnboardingController', () => {
             MOCK_PASSWORD,
             NEW_KEY_RING_1.seedPhrase,
             NEW_KEY_RING_1.id,
-            MOCK_KEYRING_ENCRYPTION_KEY,
           );
 
           mockFetchAuthPubKey(
@@ -1468,7 +1437,6 @@ describe('SeedlessOnboardingController', () => {
             MOCK_PASSWORD,
             MOCK_SEED_PHRASE,
             MOCK_KEYRING_ID,
-            MOCK_KEYRING_ENCRYPTION_KEY,
           );
 
           mockFetchAuthPubKey(
@@ -1522,7 +1490,6 @@ describe('SeedlessOnboardingController', () => {
             MOCK_PASSWORD,
             NEW_KEY_RING_1.seedPhrase,
             NEW_KEY_RING_1.id,
-            MOCK_KEYRING_ENCRYPTION_KEY,
           );
 
           mockFetchAuthPubKey(
@@ -1570,7 +1537,6 @@ describe('SeedlessOnboardingController', () => {
             MOCK_PASSWORD,
             NEW_KEY_RING_1.seedPhrase,
             NEW_KEY_RING_1.id,
-            MOCK_KEYRING_ENCRYPTION_KEY,
           );
 
           mockFetchAuthPubKey(
@@ -1634,7 +1600,6 @@ describe('SeedlessOnboardingController', () => {
             MOCK_PASSWORD,
             NEW_KEY_RING_1.seedPhrase,
             NEW_KEY_RING_1.id,
-            MOCK_KEYRING_ENCRYPTION_KEY,
           );
 
           mockFetchAuthPubKey(
@@ -2355,7 +2320,6 @@ describe('SeedlessOnboardingController', () => {
             MOCK_PASSWORD,
             MOCK_SEED_PHRASE,
             MOCK_KEYRING_ID,
-            MOCK_KEYRING_ENCRYPTION_KEY,
           );
 
           // verify the vault data before update password
@@ -2382,11 +2346,7 @@ describe('SeedlessOnboardingController', () => {
           const { encKey: newEncKey, authKeyPair: newAuthKeyPair } =
             mockChangeEncKey(toprfClient, NEW_MOCK_PASSWORD);
 
-          await controller.changePassword({
-            oldPassword: MOCK_PASSWORD,
-            newPassword: NEW_MOCK_PASSWORD,
-            newKeyringEncryptionKey: MOCK_NEW_KEYRING_ENCRYPTION_KEY,
-          });
+          await controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD);
 
           // verify the vault after update password
           const vaultAfterUpdatePassword = controller.state.vault;
@@ -2434,7 +2394,6 @@ describe('SeedlessOnboardingController', () => {
             MOCK_PASSWORD,
             MOCK_SEED_PHRASE,
             MOCK_KEYRING_ID,
-            MOCK_KEYRING_ENCRYPTION_KEY,
           );
 
           // verify the vault data before update password
@@ -2462,11 +2421,7 @@ describe('SeedlessOnboardingController', () => {
           const { encKey: newEncKey, authKeyPair: newAuthKeyPair } =
             mockChangeEncKey(toprfClient, NEW_MOCK_PASSWORD);
 
-          await controller.changePassword({
-            oldPassword: MOCK_PASSWORD,
-            newPassword: NEW_MOCK_PASSWORD,
-            newKeyringEncryptionKey: MOCK_NEW_KEYRING_ENCRYPTION_KEY,
-          });
+          await controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD);
 
           // verify the vault after update password
           const vaultAfterUpdatePassword = controller.state.vault;
@@ -2498,11 +2453,7 @@ describe('SeedlessOnboardingController', () => {
     it('should throw an error if the controller is locked', async () => {
       await withController(async ({ controller }) => {
         await expect(
-          controller.changePassword({
-            oldPassword: MOCK_PASSWORD,
-            newPassword: NEW_MOCK_PASSWORD,
-            newKeyringEncryptionKey: MOCK_NEW_KEYRING_ENCRYPTION_KEY,
-          }),
+          controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
         ).rejects.toThrow(
           SeedlessOnboardingControllerErrorMessage.ControllerLocked,
         );
@@ -2525,7 +2476,6 @@ describe('SeedlessOnboardingController', () => {
             MOCK_PASSWORD,
             MOCK_SEED_PHRASE,
             MOCK_KEYRING_ID,
-            MOCK_KEYRING_ENCRYPTION_KEY,
           );
           mockFetchAuthPubKey(toprfClient);
 
@@ -2533,11 +2483,7 @@ describe('SeedlessOnboardingController', () => {
           mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
 
           await expect(
-            controller.changePassword({
-              oldPassword: MOCK_PASSWORD,
-              newPassword: NEW_MOCK_PASSWORD,
-              newKeyringEncryptionKey: MOCK_NEW_KEYRING_ENCRYPTION_KEY,
-            }),
+            controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.OutdatedPassword,
           );
@@ -2562,11 +2508,7 @@ describe('SeedlessOnboardingController', () => {
             .spyOn(encryptor, 'decrypt')
             .mockRejectedValueOnce(new Error('Incorrect password'));
           await expect(
-            controller.changePassword({
-              oldPassword: 'INCORRECT_PASSWORD',
-              newPassword: NEW_MOCK_PASSWORD,
-              newKeyringEncryptionKey: MOCK_NEW_KEYRING_ENCRYPTION_KEY,
-            }),
+            controller.changePassword(NEW_MOCK_PASSWORD, 'INCORRECT_PASSWORD'),
           ).rejects.toThrow('Incorrect password');
         },
       );
@@ -2587,7 +2529,6 @@ describe('SeedlessOnboardingController', () => {
             MOCK_PASSWORD,
             MOCK_SEED_PHRASE,
             MOCK_KEYRING_ID,
-            MOCK_KEYRING_ENCRYPTION_KEY,
           );
 
           mockFetchAuthPubKey(
@@ -2605,11 +2546,7 @@ describe('SeedlessOnboardingController', () => {
             );
 
           await expect(
-            controller.changePassword({
-              oldPassword: MOCK_PASSWORD,
-              newPassword: NEW_MOCK_PASSWORD,
-              newKeyringEncryptionKey: MOCK_NEW_KEYRING_ENCRYPTION_KEY,
-            }),
+            controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.FailedToChangePassword,
           );
@@ -2692,7 +2629,6 @@ describe('SeedlessOnboardingController', () => {
               '',
               MOCK_SEED_PHRASE,
               MOCK_KEYRING_ID,
-              MOCK_KEYRING_ENCRYPTION_KEY,
             ),
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.InvalidEmptyPassword,
@@ -2722,8 +2658,7 @@ describe('SeedlessOnboardingController', () => {
               // @ts-expect-error Intentionally passing wrong password type
               123,
               MOCK_SEED_PHRASE,
-              MOCK_KEYRING_ID,
-              MOCK_KEYRING_ENCRYPTION_KEY,
+              'MOCK_KEYRING_ID',
             ),
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.WrongPasswordType,
@@ -2752,7 +2687,6 @@ describe('SeedlessOnboardingController', () => {
             MOCK_PASSWORD,
             MOCK_SEED_PHRASE,
             MOCK_KEYRING_ID,
-            MOCK_KEYRING_ENCRYPTION_KEY,
           );
 
           controller.setLocked();
@@ -2782,7 +2716,6 @@ describe('SeedlessOnboardingController', () => {
             MOCK_PASSWORD,
             MOCK_SEED_PHRASE,
             MOCK_KEYRING_ID,
-            MOCK_KEYRING_ENCRYPTION_KEY,
           );
 
           baseMessenger.publish('KeyringController:lock');
@@ -3009,11 +2942,11 @@ describe('SeedlessOnboardingController', () => {
     });
   });
 
-  describe('recoverKeyringEncryptionKey', () => {
+  describe('recoverCurrentDevicePassword', () => {
     const GLOBAL_PASSWORD = 'global-password';
     const RECOVERED_PASSWORD = 'recovered-password';
 
-    it('should recover the keyring encryption key for the current device', async () => {
+    it('should recover the password for the current device', async () => {
       await withController(
         {
           state: getMockInitialControllerState({
@@ -3022,16 +2955,6 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller, toprfClient }) => {
-          // Setup and store keyring encryption key.
-          await mockCreateToprfKeyAndBackupSeedPhrase(
-            toprfClient,
-            controller,
-            RECOVERED_PASSWORD,
-            MOCK_SEED_PHRASE,
-            MOCK_KEYRING_ID,
-            MOCK_KEYRING_ENCRYPTION_KEY,
-          );
-
           // Mock recoverEncKey for the global password
           const mockToprfEncryptor = createMockToprfEncryptor();
           const encKey = mockToprfEncryptor.deriveEncKey(GLOBAL_PASSWORD);
@@ -3045,60 +2968,17 @@ describe('SeedlessOnboardingController', () => {
           });
 
           // Mock toprfClient.recoverPassword
-          const recoveredEncKey =
-            mockToprfEncryptor.deriveEncKey(RECOVERED_PASSWORD);
           jest.spyOn(toprfClient, 'recoverPassword').mockResolvedValueOnce({
-            password: bytesToBase64(recoveredEncKey),
+            password: RECOVERED_PASSWORD,
           });
 
-          const result = await controller.recoverKeyringEncryptionKey({
+          const result = await controller.recoverCurrentDevicePassword({
             globalPassword: GLOBAL_PASSWORD,
           });
 
-          expect(result).toStrictEqual({
-            keyringEncryptionKey: MOCK_KEYRING_ENCRYPTION_KEY,
-          });
+          expect(result).toStrictEqual({ password: RECOVERED_PASSWORD });
           expect(toprfClient.recoverEncKey).toHaveBeenCalled();
           expect(toprfClient.recoverPassword).toHaveBeenCalled();
-        },
-      );
-    });
-
-    it('should throw if encryptedKeyringEncryptionKey not set', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            withMockAuthPubKey: true,
-          }),
-        },
-        async ({ controller, toprfClient }) => {
-          // Mock recoverEncKey for the global password
-          const mockToprfEncryptor = createMockToprfEncryptor();
-          const encKey = mockToprfEncryptor.deriveEncKey(GLOBAL_PASSWORD);
-          const authKeyPair =
-            mockToprfEncryptor.deriveAuthKeyPair(GLOBAL_PASSWORD);
-          jest.spyOn(toprfClient, 'recoverEncKey').mockResolvedValueOnce({
-            encKey,
-            authKeyPair,
-            rateLimitResetResult: Promise.resolve(),
-            keyShareIndex: 1,
-          });
-
-          // Mock toprfClient.recoverPassword
-          const recoveredEncKey =
-            mockToprfEncryptor.deriveEncKey(RECOVERED_PASSWORD);
-          jest.spyOn(toprfClient, 'recoverPassword').mockResolvedValueOnce({
-            password: bytesToBase64(recoveredEncKey),
-          });
-
-          await expect(
-            controller.recoverKeyringEncryptionKey({
-              globalPassword: GLOBAL_PASSWORD,
-            }),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.CouldNotRecoverEncryptionKey,
-          );
         },
       );
     });
@@ -3110,7 +2990,7 @@ describe('SeedlessOnboardingController', () => {
         },
         async ({ controller }) => {
           await expect(
-            controller.recoverKeyringEncryptionKey({
+            controller.recoverCurrentDevicePassword({
               globalPassword: GLOBAL_PASSWORD,
             }),
           ).rejects.toThrow(
@@ -3139,7 +3019,7 @@ describe('SeedlessOnboardingController', () => {
             );
 
           await expect(
-            controller.recoverKeyringEncryptionKey({
+            controller.recoverCurrentDevicePassword({
               globalPassword: GLOBAL_PASSWORD,
             }),
           ).rejects.toStrictEqual(
@@ -3181,12 +3061,12 @@ describe('SeedlessOnboardingController', () => {
             );
 
           await expect(
-            controller.recoverKeyringEncryptionKey({
+            controller.recoverCurrentDevicePassword({
               globalPassword: GLOBAL_PASSWORD,
             }),
           ).rejects.toStrictEqual(
             new PasswordSyncError(
-              SeedlessOnboardingControllerErrorMessage.CouldNotRecoverEncryptionKey,
+              SeedlessOnboardingControllerErrorMessage.CouldNotRecoverPassword,
             ),
           );
         },
@@ -3218,12 +3098,12 @@ describe('SeedlessOnboardingController', () => {
             .mockRejectedValueOnce(new Error('Unknown error'));
 
           await expect(
-            controller.recoverKeyringEncryptionKey({
+            controller.recoverCurrentDevicePassword({
               globalPassword: GLOBAL_PASSWORD,
             }),
           ).rejects.toStrictEqual(
             new PasswordSyncError(
-              SeedlessOnboardingControllerErrorMessage.CouldNotRecoverEncryptionKey,
+              SeedlessOnboardingControllerErrorMessage.CouldNotRecoverPassword,
             ),
           );
         },
@@ -3531,7 +3411,6 @@ describe('SeedlessOnboardingController', () => {
               MOCK_PASSWORD,
               MOCK_SEED_PHRASE,
               MOCK_KEYRING_ID,
-              MOCK_KEYRING_ENCRYPTION_KEY,
             );
 
             mockFetchAuthPubKey(
@@ -3572,11 +3451,7 @@ describe('SeedlessOnboardingController', () => {
               isNewUser: false,
             });
 
-            await controller.changePassword({
-              oldPassword: MOCK_PASSWORD,
-              newPassword: NEW_MOCK_PASSWORD,
-              newKeyringEncryptionKey: MOCK_NEW_KEYRING_ENCRYPTION_KEY,
-            });
+            await controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD);
 
             // Verify that getNewRefreshToken was called
             expect(mockRefreshJWTToken).toHaveBeenCalledWith({
@@ -3608,7 +3483,6 @@ describe('SeedlessOnboardingController', () => {
               MOCK_PASSWORD,
               MOCK_SEED_PHRASE,
               MOCK_KEYRING_ID,
-              MOCK_KEYRING_ENCRYPTION_KEY,
             );
 
             mockFetchAuthPubKey(
@@ -3635,11 +3509,7 @@ describe('SeedlessOnboardingController', () => {
             );
 
             await expect(
-              controller.changePassword({
-                oldPassword: MOCK_PASSWORD,
-                newPassword: NEW_MOCK_PASSWORD,
-                newKeyringEncryptionKey: MOCK_NEW_KEYRING_ENCRYPTION_KEY,
-              }),
+              controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
             ).rejects.toThrow(
               SeedlessOnboardingControllerErrorMessage.FailedToChangePassword,
             );
@@ -3665,7 +3535,6 @@ describe('SeedlessOnboardingController', () => {
               MOCK_PASSWORD,
               MOCK_SEED_PHRASE,
               MOCK_KEYRING_ID,
-              MOCK_KEYRING_ENCRYPTION_KEY,
             );
 
             mockFetchAuthPubKey(
@@ -3682,11 +3551,7 @@ describe('SeedlessOnboardingController', () => {
               .mockRejectedValue(new Error('Some other error'));
 
             await expect(
-              controller.changePassword({
-                oldPassword: MOCK_PASSWORD,
-                newPassword: NEW_MOCK_PASSWORD,
-                newKeyringEncryptionKey: MOCK_NEW_KEYRING_ENCRYPTION_KEY,
-              }),
+              controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
             ).rejects.toThrow(
               SeedlessOnboardingControllerErrorMessage.FailedToChangePassword,
             );
@@ -3989,7 +3854,6 @@ describe('SeedlessOnboardingController', () => {
               MOCK_PASSWORD,
               MOCK_SEED_PHRASE,
               MOCK_KEYRING_ID,
-              MOCK_KEYRING_ENCRYPTION_KEY,
             );
 
             // Mock recoverEncKey
@@ -4069,7 +3933,6 @@ describe('SeedlessOnboardingController', () => {
               MOCK_PASSWORD,
               MOCK_SEED_PHRASE,
               MOCK_KEYRING_ID,
-              MOCK_KEYRING_ENCRYPTION_KEY,
             );
 
             expect(mockRefreshJWTToken).toHaveBeenCalled();
@@ -4120,7 +3983,6 @@ describe('SeedlessOnboardingController', () => {
               MOCK_PASSWORD,
               MOCK_SEED_PHRASE,
               MOCK_KEYRING_ID,
-              MOCK_KEYRING_ENCRYPTION_KEY,
             );
 
             expect(mockRefreshJWTToken).toHaveBeenCalled();
@@ -4133,7 +3995,7 @@ describe('SeedlessOnboardingController', () => {
       });
     });
 
-    describe('recoverKeyringEncryptionKey with token refresh', () => {
+    describe('recoverCurrentDevicePassword with token refresh', () => {
       // const OLD_PASSWORD = 'old-mock-password';
       // const GLOBAL_PASSWORD = 'new-global-password';
       let MOCK_VAULT: string;
@@ -4142,7 +4004,6 @@ describe('SeedlessOnboardingController', () => {
       let INITIAL_AUTH_PUB_KEY: string;
       let initialAuthKeyPair: KeyPair; // Store initial keypair for vault creation
       let initialEncKey: Uint8Array; // Store initial encKey for vault creation
-      let initialEncryptedKeyringEncryptionKey: Uint8Array;
 
       // Generate initial keys and vault state before tests run
       beforeAll(async () => {
@@ -4162,11 +4023,9 @@ describe('SeedlessOnboardingController', () => {
         MOCK_VAULT = mockResult.encryptedMockVault;
         MOCK_VAULT_ENCRYPTION_KEY = mockResult.vaultEncryptionKey;
         MOCK_VAULT_ENCRYPTION_SALT = mockResult.vaultEncryptionSalt;
-        initialEncryptedKeyringEncryptionKey =
-          mockResult.encryptedKeyringEncryptionKey;
       });
 
-      it('should retry after refreshing expired tokens', async () => {
+      it('should retry recoverCurrentDevicePassword after refreshing expired tokens', async () => {
         await withController(
           {
             state: getMockInitialControllerState({
@@ -4175,9 +4034,6 @@ describe('SeedlessOnboardingController', () => {
               vault: MOCK_VAULT,
               vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
               vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
-              encryptedKeyringEncryptionKey: bytesToBase64(
-                initialEncryptedKeyringEncryptionKey,
-              ),
             }),
           },
           async ({ controller, toprfClient, mockRefreshJWTToken }) => {
@@ -4199,7 +4055,7 @@ describe('SeedlessOnboardingController', () => {
                 );
               })
               .mockResolvedValueOnce({
-                password: bytesToBase64(initialEncKey),
+                password: MOCK_PASSWORD,
               });
 
             // Mock authenticate for token refresh
@@ -4208,7 +4064,7 @@ describe('SeedlessOnboardingController', () => {
               isNewUser: false,
             });
 
-            await controller.recoverKeyringEncryptionKey({
+            await controller.recoverCurrentDevicePassword({
               globalPassword: MOCK_PASSWORD,
             });
 
