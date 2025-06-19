@@ -7,12 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [31.0.0]
-
 ### Changed
 
 - Remove `@metamask/multichain-transactions-controller` peer dependency ([#5993](https://github.com/MetaMask/core/pull/5993))
 - **BREAKING:** Adds a call to bridge-controller's `stopPollingForQuotes` handler to prevent quotes from refreshing during tx submission. This enables "pausing" the quote polling loop without resetting the entire state. Without this, it's possible for the activeQuote to change while the UI's tx submission is in-progress ([#5994](https://github.com/MetaMask/core/pull/5994))
+
+## [31.0.0]
+
+### Changed
+
 - **BREAKING:** BridgeStatusController now requires the `BridgeController:stopPollingForQuotes` action permission ([#5994](https://github.com/MetaMask/core/pull/5994))
 - **BREAKING:** Bump peer dependency `@metamask/accounts-controller` to `^31.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
 - **BREAKING:** Bump peer dependency `@metamask/bridge-controller` to `^33.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
