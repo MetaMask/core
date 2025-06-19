@@ -3326,7 +3326,7 @@ describe('KeyringController', () => {
         async ({ controller }) => {
           await controller.setLocked();
           await expect(controller.exportEncryptionKey()).rejects.toThrow(
-            KeyringControllerError.EncryptionKeyNotSet,
+            KeyringControllerError.ControllerLocked,
           );
         },
       );

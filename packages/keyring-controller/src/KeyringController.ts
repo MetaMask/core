@@ -528,20 +528,6 @@ function assertIsExportableKeyEncryptor(
 }
 
 /**
- * Assert that the encryption key is set.
- *
- * @param encryptionKey - The encryption key to check.
- * @throws If the encryption key is not set.
- */
-function assertIsEncryptionKeySet(
-  encryptionKey: string | undefined,
-): asserts encryptionKey is string {
-  if (!encryptionKey) {
-    throw new Error(KeyringControllerError.EncryptionKeyNotSet);
-  }
-}
-
-/**
  * Assert that the provided password is a valid non-empty string.
  *
  * @param password - The password to check.
@@ -1491,7 +1477,30 @@ export class KeyringController extends BaseController<
    * @returns The vault encryption key.
    */
   async exportEncryptionKey(): Promise<string> {
-    assertIsEncryptionKeySet(this.state.encryptionKey);
+    this.#assertIsUnlocked();
+    // There is a case where the controller is unlocked but the encryption key
+    // is not set, even when #cacheEncryptionKey is true. This happens when
+    // calling changePassword with the existing password. In this case, the
+    // encryption key is deleted, but the state is not recreated, because the
+    // session state does not change in this case, and #updateVault is not
+    // called in #persistOrRollback.
+    if (!this.state.encryptionKey) {
+      assertIsExportableKeyEncryptor(this.#encryptor);
+      assertIsValidPassword(this.#password);
+      const result = await this.#encryptor.decryptWithDetail(
+        this.#password,
+        // Ignoring undefined. Assuming vault is set when unlocked.
+        this.state.vault as string,
+      );
+      if (this.#cacheEncryptionKey) {
+        this.update((state) => {
+          state.encryptionKey = result.exportedKeyString;
+          state.encryptionSalt = result.salt;
+        });
+      }
+      return result.exportedKeyString;
+    }
+
     return this.state.encryptionKey;
   }
 
