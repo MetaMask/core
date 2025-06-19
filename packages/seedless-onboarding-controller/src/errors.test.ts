@@ -28,7 +28,9 @@ describe('getErrorMessageFromTOPRFErrorCode', () => {
         TOPRFErrorCode.CouldNotFetchPassword,
         'default',
       ),
-    ).toBe(SeedlessOnboardingControllerErrorMessage.CouldNotRecoverPassword);
+    ).toBe(
+      SeedlessOnboardingControllerErrorMessage.CouldNotRecoverEncryptionKey,
+    );
   });
 
   it('returns InsufficientAuthToken for AuthTokenExpired', () => {
