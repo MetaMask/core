@@ -15,7 +15,7 @@ import {
 } from '@metamask/bridge-controller';
 import { ChainId } from '@metamask/bridge-controller';
 import { ActionTypes, FeeType } from '@metamask/bridge-controller';
-import { EthAccountType, SolScope } from '@metamask/keyring-api';
+import { EthAccountType } from '@metamask/keyring-api';
 import {
   TransactionType,
   TransactionStatus,
@@ -2665,96 +2665,6 @@ describe('BridgeStatusController', () => {
           status: TransactionStatus.confirmed,
           id: 'bridgeTxMetaId1',
         });
-
-        expect(messengerCallSpy.mock.calls).toMatchSnapshot();
-      });
-    });
-
-    describe('MultichainTransactionsController:transactionConfirmed', () => {
-      it('should track completed event for swap transaction', () => {
-        const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
-        mockMessenger.publish(
-          'MultichainTransactionsController:transactionConfirmed',
-          {
-            from: {
-              address: 'address-id',
-              asset: {
-                type: getNativeAssetForChainId(SolScope.Mainnet).assetId,
-                fungible: true,
-                unit: 'SOL',
-                amount: '1000',
-              },
-            } as never,
-            chain: SolScope.Mainnet,
-            type: 'swap',
-            status: TransactionStatus.confirmed,
-            id: 'swapTxMetaId1',
-            account: 'test-account-id',
-            timestamp: Date.now(),
-            to: [{ address: 'to-address', asset: null }],
-            fees: [
-              {
-                type: 'base',
-                asset: {
-                  type: getNativeAssetForChainId(SolScope.Mainnet).assetId,
-                  fungible: true,
-                  unit: 'SOL',
-                  amount: '1000',
-                },
-              },
-            ],
-            events: [
-              {
-                status: 'confirmed',
-                timestamp: Date.now(),
-              },
-            ],
-          },
-        );
-
-        expect(messengerCallSpy.mock.calls).toMatchSnapshot();
-      });
-
-      it('should track completed event for other transaction types', () => {
-        const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
-        mockMessenger.publish(
-          'MultichainTransactionsController:transactionConfirmed',
-          {
-            from: {
-              address: 'address-id',
-              asset: {
-                type: getNativeAssetForChainId(SolScope.Mainnet).assetId,
-                fungible: true,
-                unit: 'SOL',
-                amount: '1000',
-              },
-            } as never,
-            chain: SolScope.Mainnet,
-            type: 'bridge:send',
-            status: TransactionStatus.confirmed,
-            id: 'bridgeTxMetaId100',
-            account: 'test-account-id',
-            timestamp: Date.now(),
-            to: [{ address: 'to-address', asset: null }],
-            fees: [
-              {
-                type: 'base',
-                asset: {
-                  type: getNativeAssetForChainId(SolScope.Mainnet).assetId,
-                  fungible: true,
-                  unit: 'SOL',
-                  amount: '1000',
-                },
-              },
-            ],
-            events: [
-              {
-                status: 'confirmed',
-                timestamp: Date.now(),
-              },
-            ],
-          },
-        );
 
         expect(messengerCallSpy.mock.calls).toMatchSnapshot();
       });

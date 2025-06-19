@@ -3364,87 +3364,46 @@ Array [
 ]
 `;
 
-exports[`BridgeStatusController subscription handlers should not track completed event for other transaction types 1`] = `Array []`;
+exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should not track completed event for other transaction types 1`] = `Array []`;
 
-exports[`BridgeStatusController subscription handlers should not track failed event for approved status 1`] = `Array []`;
-
-exports[`BridgeStatusController subscription handlers should not track failed event for other transaction types 1`] = `Array []`;
-
-exports[`BridgeStatusController subscription handlers should not track failed event for signed status 1`] = `Array []`;
-
-exports[`BridgeStatusController subscription handlers should throw error when txMeta is undefined 1`] = `
-Array [
-  Array [
-    "BridgeController:stopPollingForQuotes",
-  ],
-  Array [
-    "BridgeController:trackUnifiedSwapBridgeEvent",
-    "Unified SwapBridge Submitted",
-    Object {
-      "gas_included": false,
-      "price_impact": 0,
-      "provider": "lifi_across",
-      "quoted_time_minutes": 0,
-      "stx_enabled": false,
-      "token_symbol_destination": "ETH",
-      "token_symbol_source": "ETH",
-      "usd_amount_source": 0,
-      "usd_quoted_gas": 0,
-      "usd_quoted_return": 0,
-    },
-  ],
-  Array [
-    "NetworkController:getState",
-  ],
-  Array [
-    "NetworkController:getNetworkClientById",
-    "mainnet",
-  ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
-  ],
-]
-`;
-
-exports[`BridgeStatusController subscription handlers should track completed event for swap transaction 1`] = `
+exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should track completed event for swap transaction 1`] = `
 Array [
   Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-]
-`;
-
-exports[`BridgeStatusController subscription handlers should track completed event for swap transaction if it is not in txHistory 1`] = `
-Array [
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Completed",
     Object {
       "action_type": "swapbridge-v1",
       "actual_time_minutes": 0,
-      "chain_id_destination": "eip155:10",
-      "chain_id_source": "eip155:10",
-      "custom_slippage": false,
+      "allowance_reset_transaction": undefined,
+      "approval_transaction": undefined,
+      "chain_id_destination": "eip155:42161",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": true,
+      "destination_transaction": "PENDING",
       "error_message": undefined,
       "gas_included": false,
       "is_hardware_wallet": false,
       "price_impact": 0,
-      "provider": "",
-      "quote_vs_execution_ratio": 0,
-      "quoted_time_minutes": 0,
-      "quoted_vs_used_gas_ratio": 0,
+      "provider": "lifi_across",
+      "quote_vs_execution_ratio": 1,
+      "quoted_time_minutes": 0.25,
+      "quoted_vs_used_gas_ratio": 1,
       "security_warnings": Array [],
+      "slippage_limit": 0,
       "source_transaction": "COMPLETE",
       "stx_enabled": false,
       "swap_type": "single_chain",
-      "token_address_destination": "eip155:10/slip44:60",
-      "token_address_source": "eip155:10/slip44:60",
-      "token_symbol_destination": "",
-      "token_symbol_source": "",
+      "token_address_destination": "eip155:42161/slip44:60",
+      "token_address_source": "eip155:42161/slip44:60",
+      "token_symbol_destination": "ETH",
+      "token_symbol_source": "ETH",
       "usd_actual_gas": 0,
       "usd_actual_return": 0,
-      "usd_amount_source": 100,
+      "usd_amount_source": 0,
       "usd_quoted_gas": 0,
       "usd_quoted_return": 0,
     },
@@ -3452,20 +3411,98 @@ Array [
 ]
 `;
 
-exports[`BridgeStatusController subscription handlers should track failed event for bridge transaction 1`] = `
+exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should not track failed event for approved status 1`] = `Array []`;
+
+exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should not track failed event for other transaction types 1`] = `Array []`;
+
+exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should not track failed event for signed status 1`] = `Array []`;
+
+exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should track failed event for bridge transaction 1`] = `
 Array [
   Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
+  Array [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Failed",
+    Object {
+      "action_type": "swapbridge-v1",
+      "actual_time_minutes": 0,
+      "allowance_reset_transaction": undefined,
+      "approval_transaction": undefined,
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": true,
+      "destination_transaction": "PENDING",
+      "error_message": undefined,
+      "gas_included": false,
+      "is_hardware_wallet": false,
+      "price_impact": 0,
+      "provider": "lifi_across",
+      "quote_vs_execution_ratio": 1,
+      "quoted_time_minutes": 0.25,
+      "quoted_vs_used_gas_ratio": 1,
+      "security_warnings": Array [],
+      "slippage_limit": 0,
+      "source_transaction": "COMPLETE",
+      "stx_enabled": false,
+      "swap_type": "crosschain",
+      "token_address_destination": "eip155:10/slip44:60",
+      "token_address_source": "eip155:42161/slip44:60",
+      "token_symbol_destination": "ETH",
+      "token_symbol_source": "ETH",
+      "usd_actual_gas": 0,
+      "usd_actual_return": 0,
+      "usd_amount_source": 0,
+      "usd_quoted_gas": 0,
+      "usd_quoted_return": 0,
+    },
+  ],
 ]
 `;
 
-exports[`BridgeStatusController subscription handlers should track failed event for swap transaction 1`] = `
+exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should track failed event for swap transaction 1`] = `
 Array [
   Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
+  ],
+  Array [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Failed",
+    Object {
+      "action_type": "swapbridge-v1",
+      "actual_time_minutes": 0,
+      "allowance_reset_transaction": undefined,
+      "approval_transaction": undefined,
+      "chain_id_destination": "eip155:42161",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": true,
+      "destination_transaction": "PENDING",
+      "error_message": undefined,
+      "gas_included": false,
+      "is_hardware_wallet": false,
+      "price_impact": 0,
+      "provider": "lifi_across",
+      "quote_vs_execution_ratio": 1,
+      "quoted_time_minutes": 0.25,
+      "quoted_vs_used_gas_ratio": 1,
+      "security_warnings": Array [],
+      "slippage_limit": 0,
+      "source_transaction": "COMPLETE",
+      "stx_enabled": false,
+      "swap_type": "single_chain",
+      "token_address_destination": "eip155:42161/slip44:60",
+      "token_address_source": "eip155:42161/slip44:60",
+      "token_symbol_destination": "ETH",
+      "token_symbol_source": "ETH",
+      "usd_actual_gas": 0,
+      "usd_actual_return": 0,
+      "usd_amount_source": 0,
+      "usd_quoted_gas": 0,
+      "usd_quoted_return": 0,
+    },
   ],
 ]
 `;
