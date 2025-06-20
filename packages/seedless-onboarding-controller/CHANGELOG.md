@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `SeedlessOnboardingController` now requires an additional `SupportedKeyDerivationOptions` type parameter ([#5963](https://github.com/MetaMask/core/pull/5963))
 - Refresh and revoke token handling ([#5917](https://github.com/MetaMask/core/pull/5917))
   - **BREAKING:** `authenticate` need extra `refreshToken` and `revokeToken` params, persist refresh token in state and store revoke token temporarily for user in next step
   - `createToprfKeyAndBackupSeedPhrase`, `fetchAllSecretData` store revoke token in vault

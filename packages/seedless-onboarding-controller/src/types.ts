@@ -186,8 +186,8 @@ export type SeedlessOnboardingControllerMessenger = RestrictedMessenger<
 /**
  * Encryptor interface for encrypting and decrypting seedless onboarding vault.
  */
-export type VaultEncryptor<EncryptionKey> = Omit<
-  ExportableKeyEncryptor<EncryptionKey>,
+export type VaultEncryptor<EncryptionKey, KeyDerivationParams> = Omit<
+  ExportableKeyEncryptor<EncryptionKey, KeyDerivationParams>,
   'encryptWithKey'
 >;
 
@@ -228,7 +228,10 @@ export type RevokeRefreshToken = (params: {
  * @param state - The initial state to set on this controller.
  * @param encryptor - The encryptor to use for encrypting and decrypting seedless onboarding vault.
  */
-export type SeedlessOnboardingControllerOptions<EncryptionKey> = {
+export type SeedlessOnboardingControllerOptions<
+  EncryptionKey,
+  SupportedKeyDerivationOptions,
+> = {
   messenger: SeedlessOnboardingControllerMessenger;
 
   /**
@@ -241,7 +244,7 @@ export type SeedlessOnboardingControllerOptions<EncryptionKey> = {
    *
    * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
    */
-  encryptor: VaultEncryptor<EncryptionKey>;
+  encryptor: VaultEncryptor<EncryptionKey, SupportedKeyDerivationOptions>;
 
   /**
    * A function to get a new jwt token using refresh token.
