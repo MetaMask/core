@@ -9,13 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.0]
 
-### Uncategorized
-
-- Release/417.0.0 ([#5888](https://github.com/MetaMask/core/pull/5888))
-- chore: update accounts/snaps deps ([#5871](https://github.com/MetaMask/core/pull/5871))
-
 ### Changed
 
+- Bump `@metamask/multichain-transactions-controller` to `^2.0.0` ([#5888](https://github.com/MetaMask/core/pull/5888))
 - Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
 - Bump `@metamask/network-controller` to `^23.6.0` ([#5935](https://github.com/MetaMask/core/pull/5935), [#5882](https://github.com/MetaMask/core/pull/5882))
 - Bump `@metamask/chain-agnostic-permission` to `^0.8.0` ([#5982](https://github.com/MetaMask/core/pull/5982), [#6004](https://github.com/MetaMask/core/pull/6004))
