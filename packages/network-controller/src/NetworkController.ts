@@ -3,7 +3,10 @@ import type {
   ControllerStateChangeEvent,
   RestrictedMessenger,
 } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import {
+  BaseController,
+  registerMethodActionHandlers,
+} from '@metamask/base-controller';
 import type { Partialize } from '@metamask/controller-utils';
 import {
   InfuraNetworkType,
@@ -1228,94 +1231,23 @@ export class NetworkController extends BaseController<
         this.state.networkConfigurationsByChainId,
       );
 
-    this.messagingSystem.registerActionHandler(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      `${this.name}:getEthQuery`,
-      () => {
-        return this.#ethQuery;
-      },
-    );
-
-    this.messagingSystem.registerActionHandler(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      `${this.name}:getNetworkClientById`,
-      this.getNetworkClientById.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      `${this.name}:getEIP1559Compatibility`,
-      this.getEIP1559Compatibility.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      `${this.name}:setActiveNetwork`,
-      this.setActiveNetwork.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      `${this.name}:setProviderType`,
-      this.setProviderType.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      `${this.name}:findNetworkClientIdByChainId`,
-      this.findNetworkClientIdByChainId.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      `${this.name}:getNetworkConfigurationByChainId`,
-      this.getNetworkConfigurationByChainId.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      // ESLint is mistaken here; `name` is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      `${this.name}:getNetworkConfigurationByNetworkClientId`,
-      this.getNetworkConfigurationByNetworkClientId.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${this.name}:getSelectedNetworkClient`,
-      this.getSelectedNetworkClient.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${this.name}:getSelectedChainId`,
-      this.getSelectedChainId.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      // ESLint is mistaken here; `name` is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      `${this.name}:addNetwork`,
-      this.addNetwork.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      // ESLint is mistaken here; `name` is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      `${this.name}:removeNetwork`,
-      this.removeNetwork.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      // ESLint is mistaken here; `name` is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      `${this.name}:updateNetwork`,
-      this.updateNetwork.bind(this),
-    );
+    registerMethodActionHandlers(this, this.messagingSystem, [
+      'getEthQuery',
+      'getNetworkClientById',
+      'getEIP1559Compatibility',
+      'getSelectedNetworkClient',
+      'setActiveNetwork',
+      'setProviderType',
+      'notExisting',
+      'findNetworkClientIdByChainId',
+      'getNetworkConfigurationByChainId',
+      'getNetworkConfigurationByNetworkClientId',
+      'getSelectedNetworkClient',
+      'getSelectedChainId',
+      'addNetwork',
+      'removeNetwork',
+      'updateNetwork',
+    ]);
   }
 
   /**
