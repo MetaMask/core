@@ -7,20 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Improved `TokenDetectionController` token handling flow ([#6012](https://github.com/MetaMask/core/pull/6012))
+  - Detected tokens are now implicitly added directly to `allTokens` instead of being added to `allDetectedTokens` first
+  - This simplifies the token import flow and improves performance by eliminating the manual UI import step
+  - Enhanced `TokenDetectionController` to use direct RPC calls when basic functionality is disabled ([#6012](https://github.com/MetaMask/core/pull/6012))
+  - Token detection now falls back to direct RPC calls instead of API-based detection when basic functionality is turned off
+
 ### Fixed
 
-- Fixed `TokenDetectionController` to respect the detection toggle setting ([#6012](https://github.com/MetaMask/core/pull/6012))
+- Fix `TokenDetectionController` to respect the detection toggle setting ([#6012](https://github.com/MetaMask/core/pull/6012))
   - Token detection will no longer run when the detection toggle is disabled, even during user refresh operations
 - Improved `CurrencyRateController` behavior when basic functionality is disabled ([#6012](https://github.com/MetaMask/core/pull/6012))
   - Disabled requests to CryptoCompare when basic functionality is turned off to avoid unnecessary API calls
-
-### Changed
-
-- Improved `TokenDetectionController` token handling flow ([#6012](https://github.com/MetaMask/core/pull/6012))
-  - Detected tokens are now implicitly added directly to `allTokens` instead of being added to `allDetectedTokens` first
-  - This simplifies the token import flow and improves performance by eliminating the manual UI import step
-- Enhanced `TokenDetectionController` to use direct RPC calls when basic functionality is disabled ([#6012](https://github.com/MetaMask/core/pull/6012))
-  - Token detection now falls back to direct RPC calls instead of API-based detection when basic functionality is turned off
 
 ## [69.0.0]
 
