@@ -1161,6 +1161,19 @@ describe('TransactionController', () => {
 
       expect(transactions).toHaveLength(0);
     });
+
+    it('updates state when helper emits update event', async () => {
+      const { controller } = setupController();
+
+      jest.mocked(methodDataHelperMock.hub.on).mock.calls[0][1]({
+        fourBytePrefix: '0x12345678',
+        methodData: METHOD_DATA_MOCK,
+      });
+
+      expect(controller.state.methodData).toStrictEqual({
+        '0x12345678': METHOD_DATA_MOCK,
+      });
+    });
   });
 
   describe('estimateGas', () => {
@@ -3391,17 +3404,23 @@ describe('TransactionController', () => {
       expect(controller.state.transactions[0].id).toBe('4');
     });
 
-    it('updates state when helper emits update event', async () => {
-      const { controller } = setupController();
-
-      jest.mocked(methodDataHelperMock.hub.on).mock.calls[0][1]({
-        fourBytePrefix: '0x12345678',
-        methodData: METHOD_DATA_MOCK,
+    it('removes incoming transactions to specified account', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              { ...TRANSACTION_META_MOCK, type: TransactionType.incoming },
+            ],
+          },
+        },
+        updateToInitialState: true,
       });
 
-      expect(controller.state.methodData).toStrictEqual({
-        '0x12345678': METHOD_DATA_MOCK,
-      });
+      expect(controller.state.transactions).toHaveLength(1);
+
+      controller.wipeTransactions({ address: ACCOUNT_2_MOCK });
+
+      expect(controller.state.transactions).toHaveLength(0);
     });
   });
 

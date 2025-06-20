@@ -8,7 +8,7 @@ import {
   getCaipAccountIdsFromCaip25CaveatValue,
   isCaipAccountIdInPermittedAccountIds,
   isInternalAccountInPermittedAccountIds,
-} from './caip-permission-adapter-accounts';
+} from './caip-permission-operator-accounts';
 import type { Caip25CaveatValue } from '../caip25Permission';
 import type { InternalScopesObject } from '../scope/types';
 
@@ -554,6 +554,29 @@ describe('CAIP-25 eth_accounts adapters', () => {
   });
 
   describe('isInternalAccountInPermittedAccountIds', () => {
+    it('returns false if the internal account has no scopes', () => {
+      const result = isInternalAccountInPermittedAccountIds(
+        // @ts-expect-error partial internal account
+        {
+          scopes: [],
+          address: '0xdeadbeef',
+        },
+        [],
+      );
+      expect(result).toBe(false);
+    });
+
+    it('returns false if internal account does not have a scopes property', () => {
+      const result = isInternalAccountInPermittedAccountIds(
+        // @ts-expect-error partial internal account
+        {
+          address: '0xdeadbeef',
+        },
+        [],
+      );
+      expect(result).toBe(false);
+    });
+
     it('returns false if there are no permitted account ids', () => {
       const result = isInternalAccountInPermittedAccountIds(
         // @ts-expect-error partial internal account
