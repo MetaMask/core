@@ -202,7 +202,7 @@ export class GasFeePoller {
     }
 
     log(
-      'Found unapproved batch transactions',
+      'Found unapproved transaction batches',
       unapprovedTransactionBatches.length,
     );
 

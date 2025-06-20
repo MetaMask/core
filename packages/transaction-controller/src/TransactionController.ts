@@ -4245,26 +4245,27 @@ export class TransactionController extends BaseController<
     transactionBatchId: Hex;
     gasFeeEstimates?: GasFeeEstimates;
   }) {
-    const batch = this.state.transactionBatches.find(
-      (txBatch) => txBatch.id === transactionBatchId,
-    );
-    if (!batch) {
-      return;
-    }
-
-    batch.gasFeeEstimates = gasFeeEstimates;
-
-    this.#updateTransactionBatch(batch);
+    this.#updateTransactionBatch(transactionBatchId, (batch) => {
+      batch.gasFeeEstimates = gasFeeEstimates;
+      return batch;
+    });
   }
 
-  #updateTransactionBatch(batch: TransactionBatchMeta) {
+  #updateTransactionBatch(
+    batchId: string,
+    callback: (batch: TransactionBatchMeta) => TransactionBatchMeta | void,
+  ): void {
     this.update((state) => {
-      const index = state.transactionBatches.findIndex(
-        (b) => b.id === batch.id,
-      );
-      if (index >= 0) {
-        state.transactionBatches[index] = batch;
+      const index = state.transactionBatches.findIndex((b) => b.id === batchId);
+
+      if (index === -1) {
+        throw new Error(`Cannot update batch, ID not found - ${batchId}`);
       }
+
+      const batch = state.transactionBatches[index];
+      const updated = callback(batch);
+
+      state.transactionBatches[index] = updated ?? batch;
     });
   }
 

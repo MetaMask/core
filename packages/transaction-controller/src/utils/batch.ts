@@ -580,22 +580,28 @@ async function processTransactionWithHook(
     };
   }
 
-  const txMeta = { ...txBatchMeta, txParams: { ...params, from } };
+  const transactionMetaForGasEstimates = {
+    ...txBatchMeta,
+    txParams: { ...params, from },
+  };
 
   if (txBatchMeta) {
     updateTransactionGasEstimates({
-      txMeta: txMeta as TransactionMeta,
+      txMeta: transactionMetaForGasEstimates as TransactionMeta,
       userFeeLevel: GasFeeEstimateLevel.Medium,
     });
   }
 
-  const { transactionMeta } = await addTransaction(txMeta.txParams, {
-    batchId,
-    disableGasBuffer: true,
-    networkClientId,
-    publishHook,
-    requireApproval: false,
-  });
+  const { transactionMeta } = await addTransaction(
+    transactionMetaForGasEstimates.txParams,
+    {
+      batchId,
+      disableGasBuffer: true,
+      networkClientId,
+      publishHook,
+      requireApproval: false,
+    },
+  );
 
   const { id, txParams } = transactionMeta;
   const data = txParams.data as Hex | undefined;
