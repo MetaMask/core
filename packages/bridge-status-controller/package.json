@@ -62,7 +62,6 @@
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/bridge-controller": "^33.0.0",
     "@metamask/gas-fee-controller": "^24.0.0",
-    "@metamask/multichain-transactions-controller": "^3.0.0",
     "@metamask/network-controller": "^24.0.0",
     "@metamask/snaps-controllers": "^12.3.1",
     "@metamask/transaction-controller": "^58.0.0",
@@ -81,7 +80,6 @@
     "@metamask/accounts-controller": "^31.0.0",
     "@metamask/bridge-controller": "^33.0.0",
     "@metamask/gas-fee-controller": "^24.0.0",
-    "@metamask/multichain-transactions-controller": "^3.0.0",
     "@metamask/network-controller": "^24.0.0",
     "@metamask/snaps-controllers": "^12.0.0",
     "@metamask/transaction-controller": "^58.0.0"
