@@ -79,6 +79,7 @@ import {
   GasFeeEstimateType,
   SimulationErrorCode,
   SimulationTokenStandard,
+  TransactionContainerType,
   TransactionEnvelopeType,
   TransactionStatus,
   TransactionType,
@@ -7155,6 +7156,29 @@ describe('TransactionController', () => {
           },
         }),
       );
+    });
+
+    it('updates container types', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [transactionMeta],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      const updatedTransaction = await controller.updateEditableParams(
+        transactionId,
+        {
+          ...params,
+          containerTypes: [TransactionContainerType.EnforcedSimulations],
+        },
+      );
+
+      expect(updatedTransaction?.containerTypes).toStrictEqual([
+        TransactionContainerType.EnforcedSimulations,
+      ]);
     });
 
     it('throws an error if no transaction metadata is found', async () => {
