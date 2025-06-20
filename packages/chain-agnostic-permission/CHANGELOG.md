@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- refactor: rename adapters to operators ([#6008](https://github.com/MetaMask/core/pull/6008))
-
 ## [0.8.0]
 
 ### Changed
