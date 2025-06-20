@@ -38,12 +38,7 @@ jobs:
           is-high-risk-environment: false
       - run: yarn lint
       - name: Require clean working directory
-        shell: bash
-        run: |
-          if ! git diff --exit-code; then
-            echo "Working tree dirty at end of job"
-            exit 1
-          fi
+        run: yarn git:fail-on-changes
 
   validate-changelog:
     name: Validate changelog
@@ -60,12 +55,7 @@ jobs:
           is-high-risk-environment: false
       - run: yarn workspace ${{ matrix.package-name }} changelog:validate
       - name: Require clean working directory
-        shell: bash
-        run: |
-          if ! git diff --exit-code; then
-            echo "Working tree dirty at end of job"
-            exit 1
-          fi
+        run: yarn git:fail-on-changes
 
   build:
     name: Build
@@ -81,12 +71,7 @@ jobs:
           is-high-risk-environment: false
       - run: yarn build
       - name: Require clean working directory
-        shell: bash
-        run: |
-          if ! git diff --exit-code; then
-            echo "Working tree dirty at end of job"
-            exit 1
-          fi
+        run: yarn git:fail-on-changes
 
   test:
     name: Test
@@ -105,8 +90,4 @@ jobs:
       - run: yarn workspace ${{ matrix.package-name }} run test
       - name: Require clean working directory
         shell: bash
-        run: |
-          if ! git diff --exit-code; then
-            echo "Working tree dirty at end of job"
-            exit 1
-          fi
+        run: yarn git:fail-on-changes
