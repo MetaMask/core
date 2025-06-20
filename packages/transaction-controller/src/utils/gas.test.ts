@@ -115,12 +115,16 @@ describe('gas', () => {
    * @param options.getBlockByNumberResponse - The response for getBlockByNumber.
    * @param options.estimateGasResponse - The response for estimateGas.
    * @param options.estimateGasError - The error for estimateGas.
+   * @param options.estimateGasOverridesResponse - The response for estimateGas with overrides.
+   * @param options.estimateGasOverridesError - The error for estimateGas with overrides.
    */
   function mockQuery({
     getCodeResponse,
     getBlockByNumberResponse,
     estimateGasResponse,
     estimateGasError,
+    estimateGasOverridesResponse,
+    estimateGasOverridesError,
   }: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getCodeResponse?: any;
@@ -130,6 +134,10 @@ describe('gas', () => {
     estimateGasResponse?: any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     estimateGasError?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    estimateGasOverridesResponse?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    estimateGasOverridesError?: any;
   }) {
     if (getCodeResponse !== undefined) {
       queryMock.mockResolvedValueOnce(getCodeResponse);
@@ -143,6 +151,12 @@ describe('gas', () => {
       queryMock.mockRejectedValueOnce(estimateGasError);
     } else {
       queryMock.mockResolvedValueOnce(estimateGasResponse);
+    }
+
+    if (estimateGasOverridesError) {
+      queryMock.mockRejectedValueOnce(estimateGasOverridesError);
+    } else {
+      queryMock.mockResolvedValueOnce(estimateGasOverridesResponse);
     }
   }
 
@@ -825,10 +839,47 @@ describe('gas', () => {
         });
       });
 
-      it('uses fallback if simulation fails', async () => {
+      it('uses node with overrides if simulation fails', async () => {
         mockQuery({
           getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
           estimateGasResponse: toHex(GAS_2_MOCK),
+          estimateGasOverridesResponse: toHex(SIMULATE_GAS_MOCK),
+        });
+
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              gasUsed: undefined,
+            },
+          ],
+        } as SimulationResponse);
+
+        const result = await estimateGas({
+          chainId: CHAIN_ID_MOCK,
+          ethQuery: ETH_QUERY_MOCK,
+          isSimulationEnabled: true,
+          messenger: MESSENGER_MOCK,
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            authorizationList: AUTHORIZATION_LIST_MOCK,
+            to: TRANSACTION_META_MOCK.txParams.from,
+            type: TransactionEnvelopeType.setCode,
+          },
+        });
+
+        expect(result).toStrictEqual({
+          estimatedGas: toHex(GAS_2_MOCK + SIMULATE_GAS_MOCK - INTRINSIC_GAS),
+          blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+          isUpgradeWithDataToSelf: true,
+          simulationFails: undefined,
+        });
+      });
+
+      it('uses gas limit fallback if simulation and node overrides fail', async () => {
+        mockQuery({
+          getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+          estimateGasResponse: toHex(GAS_2_MOCK),
+          estimateGasOverridesError: new Error('Estimate failed'),
         });
 
         simulateTransactionsMock.mockResolvedValueOnce({
@@ -862,7 +913,7 @@ describe('gas', () => {
               blockNumber: undefined,
             },
             errorKey: undefined,
-            reason: 'No simulated gas returned',
+            reason: 'Estimate failed',
           },
         });
       });
