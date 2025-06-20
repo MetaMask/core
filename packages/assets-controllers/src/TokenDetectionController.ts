@@ -23,6 +23,7 @@ import type {
 } from '@metamask/keyring-controller';
 import type {
   NetworkClientId,
+  NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetNetworkConfigurationByNetworkClientId,
   NetworkControllerGetStateAction,
@@ -53,6 +54,7 @@ import type {
 import type { Token } from './TokenRatesController';
 import type {
   TokensControllerAddDetectedTokensAction,
+  TokensControllerAddTokensAction,
   TokensControllerGetStateAction,
 } from './TokensController';
 
@@ -129,7 +131,9 @@ export type AllowedActions =
   | KeyringControllerGetStateAction
   | PreferencesControllerGetStateAction
   | TokensControllerGetStateAction
-  | TokensControllerAddDetectedTokensAction;
+  | TokensControllerAddDetectedTokensAction
+  | TokensControllerAddTokensAction
+  | NetworkControllerFindNetworkClientIdByChainIdAction;
 
 export type TokenDetectionControllerStateChangeEvent =
   ControllerStateChangeEvent<typeof controllerName, TokenDetectionState>;
@@ -276,6 +280,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     trackMetaMetricsEvent,
     messenger,
     useAccountsAPI = true,
+    useTokenDetection = true,
     platform,
   }: {
     interval?: number;
@@ -887,13 +892,15 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
             },
           });
 
+          const networkClientId = await this.messagingSystem.call(
+            'NetworkController:findNetworkClientIdByChainId',
+            chainId,
+          );
+
           await this.messagingSystem.call(
-            'TokensController:addDetectedTokens',
+            'TokensController:addTokens',
             tokensWithBalance,
-            {
-              selectedAddress,
-              chainId,
-            },
+            networkClientId,
           );
         }
       }
@@ -1018,12 +1025,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         });
 
         await this.messagingSystem.call(
-          'TokensController:addDetectedTokens',
+          'TokensController:addTokens',
           tokensWithBalance,
-          {
-            selectedAddress,
-            chainId,
-          },
+          networkClientId,
         );
       }
     });

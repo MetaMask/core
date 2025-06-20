@@ -177,6 +177,8 @@ function buildTokenDetectionControllerMessenger(
       'TokensController:addDetectedTokens',
       'TokenListController:getState',
       'PreferencesController:getState',
+      'TokensController:addTokens',
+      'NetworkController:findNetworkClientIdByChainId',
     ],
     allowedEvents: [
       'AccountsController:selectedEvmAccountChange',
@@ -420,12 +422,9 @@ describe('TokenDetectionController', () => {
           await controller.start();
 
           expect(callActionSpy).toHaveBeenCalledWith(
-            'TokensController:addDetectedTokens',
+            'TokensController:addTokens',
             [sampleTokenA],
-            {
-              chainId: ChainId.mainnet,
-              selectedAddress: selectedAccount.address,
-            },
+            'mainnet',
           );
         },
       );
@@ -528,6 +527,7 @@ describe('TokenDetectionController', () => {
           mockTokenListGetState,
           mockNetworkState,
           mockGetNetworkClientById,
+          mockFindNetworkClientIdByChainId,
           callActionSpy,
         }) => {
           mockMultiChainAccountsService();
@@ -541,7 +541,7 @@ describe('TokenDetectionController', () => {
                 configuration: { chainId: '0x89' },
               }) as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>,
           );
-
+          mockFindNetworkClientIdByChainId(() => 'polygon');
           mockTokenListGetState({
             ...getDefaultTokenListState(),
             tokensChainsCache: {
@@ -565,12 +565,9 @@ describe('TokenDetectionController', () => {
           await controller.start();
 
           expect(callActionSpy).toHaveBeenCalledWith(
-            'TokensController:addDetectedTokens',
+            'TokensController:addTokens',
             [sampleTokenA],
-            {
-              chainId: '0x89',
-              selectedAddress: selectedAccount.address,
-            },
+            'polygon',
           );
         },
       );
@@ -633,12 +630,9 @@ describe('TokenDetectionController', () => {
           await advanceTime({ clock, duration: interval });
 
           expect(callActionSpy).toHaveBeenCalledWith(
-            'TokensController:addDetectedTokens',
+            'TokensController:addTokens',
             [sampleTokenA, sampleTokenB],
-            {
-              chainId: ChainId.mainnet,
-              selectedAddress: selectedAccount.address,
-            },
+            'mainnet',
           );
         },
       );
@@ -811,12 +805,9 @@ describe('TokenDetectionController', () => {
             await advanceTime({ clock, duration: 1 });
 
             expect(callActionSpy).toHaveBeenCalledWith(
-              'TokensController:addDetectedTokens',
+              'TokensController:addTokens',
               [sampleTokenA],
-              {
-                chainId: ChainId.mainnet,
-                selectedAddress: secondSelectedAccount.address,
-              },
+              'mainnet',
             );
           },
         );
@@ -1091,12 +1082,9 @@ describe('TokenDetectionController', () => {
             await advanceTime({ clock, duration: 1 });
 
             expect(callActionSpy).toHaveBeenLastCalledWith(
-              'TokensController:addDetectedTokens',
+              'TokensController:addTokens',
               [sampleTokenA],
-              {
-                chainId: ChainId.mainnet,
-                selectedAddress: secondSelectedAccount.address,
-              },
+              'mainnet',
             );
           },
         );
@@ -1233,12 +1221,9 @@ describe('TokenDetectionController', () => {
             await advanceTime({ clock, duration: 1 });
 
             expect(callActionSpy).toHaveBeenCalledWith(
-              'TokensController:addDetectedTokens',
+              'TokensController:addTokens',
               [sampleTokenA],
-              {
-                chainId: ChainId.mainnet,
-                selectedAddress: selectedAccount.address,
-              },
+              'mainnet',
             );
           },
         );
@@ -1927,12 +1912,9 @@ describe('TokenDetectionController', () => {
             await advanceTime({ clock, duration: 1 });
 
             expect(callActionSpy).toHaveBeenCalledWith(
-              'TokensController:addDetectedTokens',
+              'TokensController:addTokens',
               [sampleTokenA],
-              {
-                chainId: ChainId.mainnet,
-                selectedAddress: selectedAccount.address,
-              },
+              'mainnet',
             );
           },
         );
@@ -2485,7 +2467,7 @@ describe('TokenDetectionController', () => {
             selectedAddress: selectedAccount.address,
           });
           expect(callActionSpy).toHaveBeenLastCalledWith(
-            'TokensController:addDetectedTokens',
+            'TokensController:addTokens',
             Object.values(STATIC_MAINNET_TOKEN_LIST).map((token) => {
               const { iconUrl, ...tokenMetadata } = token;
               return {
@@ -2494,10 +2476,7 @@ describe('TokenDetectionController', () => {
                 isERC721: false,
               };
             }),
-            {
-              selectedAddress: selectedAccount.address,
-              chainId: ChainId.mainnet,
-            },
+            'mainnet',
           );
         },
       );
@@ -2550,12 +2529,9 @@ describe('TokenDetectionController', () => {
           });
 
           expect(callActionSpy).toHaveBeenCalledWith(
-            'TokensController:addDetectedTokens',
+            'TokensController:addTokens',
             [sampleTokenA],
-            {
-              chainId: ChainId.mainnet,
-              selectedAddress: selectedAccount.address,
-            },
+            'mainnet',
           );
         },
       );
@@ -2677,7 +2653,7 @@ describe('TokenDetectionController', () => {
           });
 
           expect(callActionSpy).toHaveBeenLastCalledWith(
-            'TokensController:addDetectedTokens',
+            'TokensController:addTokens',
             [
               {
                 address: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
@@ -2702,7 +2678,7 @@ describe('TokenDetectionController', () => {
                 symbol: 'LINK',
               },
             ],
-            { chainId: '0x1', selectedAddress: '' },
+            'mainnet',
           );
         },
       );
@@ -2862,17 +2838,14 @@ describe('TokenDetectionController', () => {
 
       const assertAddedTokens = (token: Token) =>
         expect(callAction).toHaveBeenCalledWith(
-          'TokensController:addDetectedTokens',
+          'TokensController:addTokens',
           [token],
-          {
-            chainId: ChainId.mainnet,
-            selectedAddress: selectedAccount.address,
-          },
+          'mainnet',
         );
 
       const assertTokensNeverAdded = () =>
         expect(callAction).not.toHaveBeenCalledWith(
-          'TokensController:addDetectedTokens',
+          'TokensController:addTokens',
         );
 
       return {
@@ -3085,12 +3058,9 @@ describe('TokenDetectionController', () => {
           await advanceTime({ clock, duration: 1 });
 
           expect(callActionSpy).toHaveBeenCalledWith(
-            'TokensController:addDetectedTokens',
+            'TokensController:addTokens',
             [sampleTokenA],
-            {
-              chainId: ChainId.mainnet,
-              selectedAddress: secondSelectedAccount.address,
-            },
+            'mainnet',
           );
         },
       );
@@ -3146,6 +3116,9 @@ type WithControllerCallback<ReturnValue> = ({
     handler: (networkClientId: NetworkClientId) => NetworkConfiguration,
   ) => void;
   mockNetworkState: (state: NetworkState) => void;
+  mockFindNetworkClientIdByChainId: (
+    handler: (chainId: Hex) => NetworkClientId,
+  ) => void;
   callActionSpy: jest.SpyInstance;
   triggerKeyringUnlock: () => void;
   triggerKeyringLock: () => void;
@@ -3257,6 +3230,13 @@ async function withController<ReturnValue>(
       ...getDefaultPreferencesState(),
     }),
   );
+
+  const mockFindNetworkClientIdByChainId = jest.fn<NetworkClientId, [Hex]>();
+  messenger.registerActionHandler(
+    'NetworkController:findNetworkClientIdByChainId',
+    mockFindNetworkClientIdByChainId.mockReturnValue('mainnet'),
+  );
+
   messenger.registerActionHandler(
     'TokensController:addDetectedTokens',
     jest
@@ -3266,6 +3246,17 @@ async function withController<ReturnValue>(
       >()
       .mockResolvedValue(undefined),
   );
+
+  messenger.registerActionHandler(
+    'TokensController:addTokens',
+    jest
+      .fn<
+        ReturnType<TokensController['addTokens']>,
+        Parameters<TokensController['addTokens']>
+      >()
+      .mockResolvedValue(undefined),
+  );
+
   const callActionSpy = jest.spyOn(messenger, 'call');
 
   const controller = new TokenDetectionController({
@@ -3303,6 +3294,11 @@ async function withController<ReturnValue>(
         ) => AutoManagedNetworkClient<CustomNetworkClientConfiguration>,
       ) => {
         mockGetNetworkClientById.mockImplementation(handler);
+      },
+      mockFindNetworkClientIdByChainId: (
+        handler: (chainId: Hex) => NetworkClientId,
+      ) => {
+        mockFindNetworkClientIdByChainId.mockImplementation(handler);
       },
       mockGetNetworkConfigurationByNetworkClientId: (
         handler: (networkClientId: NetworkClientId) => NetworkConfiguration,
