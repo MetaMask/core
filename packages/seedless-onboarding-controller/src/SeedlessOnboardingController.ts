@@ -12,6 +12,9 @@ import {
   TOPRFError,
 } from '@metamask/toprf-secure-backup';
 import { base64ToBytes, bytesToBase64, bigIntToHex } from '@metamask/utils';
+import { gcm } from '@noble/ciphers/aes';
+import { bytesToUtf8, utf8ToBytes } from '@noble/ciphers/utils';
+import { managedNonce } from '@noble/ciphers/webcrypto';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { Mutex } from 'async-mutex';
 
@@ -117,6 +120,10 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
     },
     revokeToken: {
       persist: false,
+      anonymous: true,
+    },
+    encryptedPassword: {
+      persist: true,
       anonymous: true,
     },
   };
@@ -319,6 +326,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         this.#persistAuthPubKey({
           authPubKey: authKeyPair.pk,
         });
+        await this.#storeEncryptedPassword(encKey, password);
       };
 
       await this.#executeWithTokenRefresh(
@@ -698,7 +706,15 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         curEncKey: latestPwEncKey,
         curAuthKeyPair: latestPwAuthKeyPair,
       });
-      return res;
+
+      const { password: recoveredEncryptionKeyBase64 } = res;
+      const recoveredEncryptionKey = base64ToBytes(
+        recoveredEncryptionKeyBase64,
+      );
+      const password = await this.#loadEncryptedPassword(
+        recoveredEncryptionKey,
+      );
+      return { password };
     } catch (error) {
       if (this.#isTokenExpiredError(error)) {
         throw error;
@@ -895,7 +911,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       keyShareIndex: newKeyShareIndex,
     } = await this.#recoverEncKey(oldPassword);
 
-    return await this.toprfClient.changeEncKey({
+    const changeEncKeyResult = await this.toprfClient.changeEncKey({
       nodeAuthTokens: this.state.nodeAuthTokens,
       authConnectionId,
       groupedAuthConnectionId,
@@ -903,9 +919,29 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       oldEncKey: encKey,
       oldAuthKeyPair: authKeyPair,
       newKeyShareIndex,
-      oldPassword,
+      oldPassword: bytesToBase64(encKey), // Store the old encryption key.
       newPassword,
     });
+
+    await this.#storeEncryptedPassword(encKey, newPassword);
+    return changeEncKeyResult;
+  }
+
+  async #storeEncryptedPassword(encKey: Uint8Array, password: string) {
+    const aes = managedNonce(gcm)(encKey);
+    const encryptedPassword = aes.encrypt(utf8ToBytes(password));
+    this.update((state) => {
+      state.encryptedPassword = bytesToBase64(encryptedPassword);
+    });
+  }
+
+  async #loadEncryptedPassword(encKey: Uint8Array) {
+    const { encryptedPassword } = this.state;
+    assertIsEncryptedPasswordSet(encryptedPassword);
+    const encryptedPasswordBytes = base64ToBytes(encryptedPassword);
+    const aes = managedNonce(gcm)(encKey);
+    const password = aes.decrypt(encryptedPasswordBytes);
+    return bytesToUtf8(password);
   }
 
   /**
@@ -1671,5 +1707,21 @@ async function withLock<Result>(
     return await callback({ releaseLock });
   } finally {
     releaseLock();
+  }
+}
+
+/**
+ * Assert that the provided encrypted password is a valid non-empty string.
+ *
+ * @param encryptedPassword - The encrypted password to check.
+ * @throws If the encrypted password is not a valid string.
+ */
+function assertIsEncryptedPasswordSet(
+  encryptedPassword: string | undefined,
+): asserts encryptedPassword is string {
+  if (!encryptedPassword) {
+    throw new Error(
+      SeedlessOnboardingControllerErrorMessage.EncryptedPasswordNotSet,
+    );
   }
 }
