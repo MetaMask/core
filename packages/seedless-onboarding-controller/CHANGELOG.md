@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added a check for `duplicate data` before adding it to the metadata store. ([#5955](https://github.com/MetaMask/core/pull/5955))
   - renamed `getSeedPhraseBackupHash` to `getSecretDataBackupState` and added optional param (`type`) to look for data with specific type in the controller backup state.
   - updated `updateBackupMetadataState` method param with `{ keyringId?: string; data: Uint8Array; type: SecretType }`. Previously , `{ keyringId: string; seedPhrase: Uint8Array }`.
+- Added `submitGlobalPassword`. ([#5995](https://github.com/MetaMask/core/pull/5995))
+- Added `storeKeyringEncryptionKey` and `loadKeyringEncryptionKey`. ([#5995](https://github.com/MetaMask/core/pull/5995))
 
 ### Changed
 
@@ -27,6 +29,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - check for token expired in toprf call, refresh token and retry if expired
   - `submitPassword` revoke refresh token and replace with new one after password submit to prevent malicious use if refresh token leak in persisted state
 - Removed `recoveryRatelimitCache` from the controller state. ([#5976](https://github.com/MetaMask/core/pull/5976)).
+- **BREAKING:** Changed `syncLatestGlobalPassword`. ([#5995](https://github.com/MetaMask/core/pull/5995))
+  - removed parameter `oldPassword`
+  - no longer verifying old password
+  - explicitly requring unlocked controller
+
+### Removed
+
+- Removed `recoverCurrentDevicePassword`. ([#5995](https://github.com/MetaMask/core/pull/5995))
 
 ## [1.0.0]
 
