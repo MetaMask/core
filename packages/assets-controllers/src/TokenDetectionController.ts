@@ -193,9 +193,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
   #isDetectionEnabledFromPreferences: boolean;
 
-  #useTokenDetection: boolean;
+  readonly #useTokenDetection: boolean;
 
-  #useExternalServices: boolean;
+  readonly #useExternalServices: boolean;
 
   #isDetectionEnabledForNetwork: boolean;
 
