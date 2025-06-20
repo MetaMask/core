@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- This package is now considered stable
+- This package is now considered stable ([#6013](https://github.com/MetaMask/core/pull/6013))
 
 ## [0.8.0]
 
