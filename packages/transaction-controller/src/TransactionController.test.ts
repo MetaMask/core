@@ -4982,24 +4982,6 @@ describe('TransactionController', () => {
     });
   });
 
-  describe('on incoming transaction helper updateCache call', () => {
-    it('updates state', async () => {
-      const { controller } = setupController();
-      const key = 'testKey';
-      const value = 123;
-
-      incomingTransactionHelperClassMock.mock.calls[0][0].updateCache(
-        (cache) => {
-          cache[key] = value;
-        },
-      );
-
-      expect(controller.state.lastFetchedBlockNumbers).toStrictEqual({
-        [key]: value,
-      });
-    });
-  });
-
   describe('updateTransactionGasFees', () => {
     it('throws if transaction does not exist', async () => {
       const { controller } = setupController();
