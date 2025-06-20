@@ -690,12 +690,15 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   }
 
   /**
-   * @description Fetch the keyring encryption key corresponding to the targetAuthPubKey.
+   * @description Submit the global password to the controller, verify the
+   * password validity and unlock the controller.
    *
-   * @param params - The parameters for fetching the keyring encryption key.
-   * @param params.targetAuthPubKey - The target public key of the keyring encryption key to recover.
+   * @param params - The parameters for submitting the global password.
+   * @param params.targetAuthPubKey - The target public key of the keyring
+   * encryption key to recover.
    * @param params.globalPassword - The latest global password.
-   * @returns A promise that resolves to the keyring encryption key corresponding to the current authPubKey in state.
+   * @returns A promise that resolves to the keyring encryption key
+   * corresponding to the current authPubKey in state.
    */
   async #submitGlobalPassword({
     targetAuthPubKey,
