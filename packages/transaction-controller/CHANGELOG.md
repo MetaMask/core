@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Support `containerTypes` property in `updateEditableParams` method ([#6014](https://github.com/MetaMask/core/pull/6014))
 - Add specific transaction types to outgoing transactions retrieved from accounts API ([#5987](https://github.com/MetaMask/core/pull/5987))
   - Add optional `amount` property to `transferInformation` object in `TransactionMeta` type.
 
