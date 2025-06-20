@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0]
+
+### Changed
+
+- This package is now considered stable ([#6013](https://github.com/MetaMask/core/pull/6013))
+
 ## [0.8.0]
 
 ### Changed
@@ -104,7 +110,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@0.8.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@0.8.0...@metamask/chain-agnostic-permission@1.0.0
 [0.8.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@0.7.1...@metamask/chain-agnostic-permission@0.8.0
 [0.7.1]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@0.7.0...@metamask/chain-agnostic-permission@0.7.1
 [0.7.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@0.6.0...@metamask/chain-agnostic-permission@0.7.0
