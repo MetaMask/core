@@ -128,6 +128,7 @@ export {
   selectExchangeRateByChainIdAndAddress,
   selectIsQuoteExpired,
   selectBridgeFeatureFlags,
+  selectMaxBalanceButtonVisibilityForSrcToken,
   selectMinimumBalanceForRentExemptionInSOL,
 } from './selectors';
 

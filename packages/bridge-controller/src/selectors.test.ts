@@ -7,6 +7,7 @@ import {
   selectBridgeQuotes,
   selectIsQuoteExpired,
   selectBridgeFeatureFlags,
+  selectMaxBalanceButtonVisibilityForSrcToken,
 } from './selectors';
 import { SortOrder, RequestStatus, ChainId } from './types';
 
@@ -623,6 +624,196 @@ describe('Bridge Selectors', () => {
         chains: {},
         support: false,
       });
+    });
+  });
+
+  describe('selectMaxBalanceButtonVisibilityForSrcToken', () => {
+    const mockState = {
+      quoteRequest: {
+        srcTokenAddress: '0x0000000000000000000000000000000000000000',
+        srcChainId: '1',
+        destChainId: '1',
+      },
+    } as unknown as BridgeAppState;
+
+    it('should return true for non-native token with positive balance on same chain', () => {
+      const result = selectMaxBalanceButtonVisibilityForSrcToken(
+        {
+          ...mockState,
+          quoteRequest: {
+            srcTokenAddress: '0x123',
+            srcChainId: '1',
+            destChainId: '1',
+          },
+        },
+        {
+          isStxEnabled: false,
+          balanceValue: '1.0',
+        },
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should return false for non-native token with positive balance on different chains', () => {
+      const result = selectMaxBalanceButtonVisibilityForSrcToken(
+        {
+          ...mockState,
+          quoteRequest: {
+            srcTokenAddress: '0x123',
+            srcChainId: '1',
+            destChainId: '137',
+          },
+        },
+        {
+          isStxEnabled: false,
+          balanceValue: '1.0',
+        },
+      );
+      expect(result).toBe(false);
+    });
+
+    it('should return false for non-native token with zero balance on same chain', () => {
+      const result = selectMaxBalanceButtonVisibilityForSrcToken(
+        {
+          ...mockState,
+          quoteRequest: {
+            srcTokenAddress: '0x123',
+            srcChainId: '1',
+            destChainId: '1',
+          },
+        },
+        {
+          isStxEnabled: false,
+          balanceValue: '0',
+        },
+      );
+      expect(result).toBe(false);
+    });
+
+    it('should return true for native token with positive balance when STX is enabled on same chain', () => {
+      const result = selectMaxBalanceButtonVisibilityForSrcToken(
+        {
+          ...mockState,
+          quoteRequest: {
+            srcTokenAddress: '0x0000000000000000000000000000000000000000',
+            srcChainId: '1',
+            destChainId: '1',
+          },
+        },
+        {
+          isStxEnabled: true,
+          balanceValue: '1.0',
+        },
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should return false for native token with positive balance when STX is enabled on different chains', () => {
+      const result = selectMaxBalanceButtonVisibilityForSrcToken(
+        {
+          ...mockState,
+          quoteRequest: {
+            srcTokenAddress: '0x0000000000000000000000000000000000000000',
+            srcChainId: '1',
+            destChainId: '137',
+          },
+        },
+        {
+          isStxEnabled: true,
+          balanceValue: '1.0',
+        },
+      );
+      expect(result).toBe(false);
+    });
+
+    it('should return false for native token with positive balance when STX is disabled on same chain', () => {
+      const result = selectMaxBalanceButtonVisibilityForSrcToken(
+        {
+          ...mockState,
+          quoteRequest: {
+            srcTokenAddress: '0x0000000000000000000000000000000000000000',
+            srcChainId: '1',
+            destChainId: '1',
+          },
+        },
+        {
+          isStxEnabled: false,
+          balanceValue: '1.0',
+        },
+      );
+      expect(result).toBe(false);
+    });
+
+    it('should return false for native token with zero balance regardless of STX status on same chain', () => {
+      const result = selectMaxBalanceButtonVisibilityForSrcToken(
+        {
+          ...mockState,
+          quoteRequest: {
+            srcTokenAddress: '0x0000000000000000000000000000000000000000',
+            srcChainId: '1',
+            destChainId: '1',
+          },
+        },
+        {
+          isStxEnabled: true,
+          balanceValue: '0',
+        },
+      );
+      expect(result).toBe(false);
+    });
+
+    it('should return false when srcChainId is undefined', () => {
+      const result = selectMaxBalanceButtonVisibilityForSrcToken(
+        {
+          ...mockState,
+          quoteRequest: {
+            srcTokenAddress: '0x123',
+            srcChainId: undefined,
+            destChainId: '1',
+          },
+        },
+        {
+          isStxEnabled: true,
+          balanceValue: '1.0',
+        },
+      );
+      expect(result).toBe(false);
+    });
+
+    it('should return true when destChainId is undefined', () => {
+      const result = selectMaxBalanceButtonVisibilityForSrcToken(
+        {
+          ...mockState,
+          quoteRequest: {
+            srcTokenAddress: '0x123',
+            srcChainId: '1',
+            destChainId: undefined,
+          },
+        },
+        {
+          isStxEnabled: true,
+          balanceValue: '1.0',
+        },
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should handle undefined balance value', () => {
+      const result = selectMaxBalanceButtonVisibilityForSrcToken(
+        {
+          ...mockState,
+          quoteRequest: {
+            srcTokenAddress: '0x123',
+            srcChainId: '1',
+            destChainId: '1',
+          },
+        },
+        {
+          isStxEnabled: true,
+          balanceValue: '0',
+        },
+      );
+      expect(result).toBe(false);
     });
   });
 });
