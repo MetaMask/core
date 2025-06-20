@@ -667,12 +667,11 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   }
 
   /**
-   * @description Fetch the password corresponding to the current authPubKey in state (current device password which is already out of sync with the current global password).
-   * then we use this recovered old password to unlock the vault and set the password to the new global password.
+   * @description Unlock the controller with the latest global password.
    *
-   * @param params - The parameters for fetching the password.
+   * @param params - The parameters for unlocking the controller.
    * @param params.globalPassword - The latest global password.
-   * @returns A promise that resolves to the password corresponding to the current authPubKey in state.
+   * @returns A promise that resolves to the success of the operation.
    */
   async submitGlobalPassword({
     globalPassword,
