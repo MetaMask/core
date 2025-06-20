@@ -1478,30 +1478,35 @@ export class KeyringController extends BaseController<
    */
   async exportEncryptionKey(): Promise<string> {
     this.#assertIsUnlocked();
-    // There is a case where the controller is unlocked but the encryption key
-    // is not set, even when #cacheEncryptionKey is true. This happens when
-    // calling changePassword with the existing password. In this case, the
-    // encryption key is deleted, but the state is not recreated, because the
-    // session state does not change in this case, and #updateVault is not
-    // called in #persistOrRollback.
-    if (!this.state.encryptionKey) {
-      assertIsExportableKeyEncryptor(this.#encryptor);
-      assertIsValidPassword(this.#password);
-      const result = await this.#encryptor.decryptWithDetail(
-        this.#password,
-        // Ignoring undefined. Assuming vault is set when unlocked.
-        this.state.vault as string,
-      );
-      if (this.#cacheEncryptionKey) {
-        this.update((state) => {
-          state.encryptionKey = result.exportedKeyString;
-          state.encryptionSalt = result.salt;
+
+    return await this.#withControllerLock(async () => {
+      // There is a case where the controller is unlocked but the encryption key
+      // is not set, even when #cacheEncryptionKey is true. This happens when
+      // calling changePassword with the existing password. In this case, the
+      // encryption key is deleted, but the state is not recreated, because the
+      // session state does not change in this case, and #updateVault is not
+      // called in #persistOrRollback.
+      if (!this.state.encryptionKey) {
+        return await this.#withVaultLock(async () => {
+          assertIsExportableKeyEncryptor(this.#encryptor);
+          assertIsValidPassword(this.#password);
+          const result = await this.#encryptor.decryptWithDetail(
+            this.#password,
+            // Ignoring undefined. Assuming vault is set when unlocked.
+            this.state.vault as string,
+          );
+          if (this.#cacheEncryptionKey) {
+            this.update((state) => {
+              state.encryptionKey = result.exportedKeyString;
+              state.encryptionSalt = result.salt;
+            });
+          }
+          return result.exportedKeyString;
         });
       }
-      return result.exportedKeyString;
-    }
 
-    return this.state.encryptionKey;
+      return this.state.encryptionKey;
+    });
   }
 
   /**
