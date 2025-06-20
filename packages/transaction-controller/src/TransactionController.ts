@@ -2036,7 +2036,7 @@ export class TransactionController extends BaseController<
    * @param params.maxFeePerGas - Maximum amount per gas to pay for the transaction, including the priority fee.
    * @param params.maxPriorityFeePerGas - Maximum amount per gas to give to validator as incentive.
    * @param params.to - Address to send the transaction to.
-   * @param params.value - Value associa ted with the transaction.
+   * @param params.value - Value associated with the transaction.
    * @returns The updated transaction metadata.
    */
   async updateEditableParams(
