@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Query only latest page of transactions from accounts API ([#5983](https://github.com/MetaMask/core/pull/5983))
 - Remove incoming transactions when calling `wipeTransactions` ([#5986](https://github.com/MetaMask/core/pull/5986))
 - Poll immediately when calling `startIncomingTransactionPolling` ([#5986](https://github.com/MetaMask/core/pull/5986))
 
