@@ -6,7 +6,7 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
-import type { Hex } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
 import { add0x, createModuleLogger, remove0x } from '@metamask/utils';
 import { BN } from 'bn.js';
 
@@ -151,7 +151,7 @@ export async function estimateGas({
         transaction: request,
       });
     } else {
-      estimatedGas = await query(ethQuery, 'estimateGas', [request]);
+      estimatedGas = await estimateGasNode(ethQuery, request);
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
@@ -424,16 +424,39 @@ async function estimateGasUpgradeWithDataToSelf(
 
   const delegationAddress = txParams.authorizationList?.[0].address as Hex;
 
-  const executeGas = await simulateGas({
-    chainId: chainId as Hex,
-    delegationAddress,
-    transaction: txParams,
-  });
+  let executeGas: Hex | undefined;
+
+  try {
+    executeGas = await simulateGas({
+      chainId: chainId as Hex,
+      delegationAddress,
+      transaction: txParams,
+    });
+  } catch (error: unknown) {
+    log('Error while simulating data portion of upgrade', error);
+  }
+
+  if (executeGas === undefined) {
+    try {
+      executeGas = await estimateGasNode(
+        ethQuery,
+        { ...txParams, authorizationList: undefined, type: undefined },
+        delegationAddress,
+      );
+    } catch (error: unknown) {
+      log('Error while estimating data portion of upgrade', error);
+      throw error;
+    }
+
+    log('Success estimating data portion of upgrade', executeGas);
+  }
 
   log('Execute gas', executeGas);
 
   const total = BNToHex(
-    hexToBN(upgradeGas).add(hexToBN(executeGas)).subn(INTRINSIC_GAS),
+    hexToBN(upgradeGas)
+      .add(hexToBN(executeGas as Hex))
+      .subn(INTRINSIC_GAS),
   );
 
   log('Total type 4 gas', total);
@@ -505,4 +528,33 @@ function normalizeAuthorizationList(
     s: authorization.s ?? DUMMY_AUTHORIZATION_SIGNATURE,
     yParity: authorization.yParity ?? '0x1',
   }));
+}
+
+/**
+ * Estimate the gas for a transaction using the `eth_estimateGas` method.
+ *
+ * @param ethQuery - The EthQuery instance to interact with the network.
+ * @param txParams - The transaction parameters.
+ * @param delegationAddress - The delegation address of the sender to mock.
+ * @returns The estimated gas as a hex string.
+ */
+function estimateGasNode(
+  ethQuery: EthQuery,
+  txParams: TransactionParams,
+  delegationAddress?: Hex,
+) {
+  const { from } = txParams;
+  const params = [txParams] as Json[];
+
+  if (delegationAddress) {
+    params.push('latest');
+
+    params.push({
+      [from as string]: {
+        code: DELEGATION_PREFIX + remove0x(delegationAddress),
+      },
+    });
+  }
+
+  return query(ethQuery, 'estimateGas', params);
 }
