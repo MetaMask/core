@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- This release is now considered stable
 - Bump `@metamask/chain-agnostic-permission` to `^1.0.0` ([#6013](https://github.com/MetaMask/core/pull/6013), [#5550](https://github.com/MetaMask/core/pull/5550), [#5518](https://github.com/MetaMask/core/pull/5518), [#5674](https://github.com/MetaMask/core/pull/5674), [#5715](https://github.com/MetaMask/core/pull/5715), [#5760](https://github.com/MetaMask/core/pull/5760), [#5818](https://github.com/MetaMask/core/pull/5818)[#5583](https://github.com/MetaMask/core/pull/5583), [#5982](https://github.com/MetaMask/core/pull/5982),[#6004](https://github.com/MetaMask/core/pull/6004))
 - Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935), [#5583](https://github.com/MetaMask/core/pull/5583), [#5765](https://github.com/MetaMask/core/pull/5765), [#5812](https://github.com/MetaMask/core/pull/5812))
 
