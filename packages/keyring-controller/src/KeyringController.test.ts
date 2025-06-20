@@ -3332,6 +3332,14 @@ describe('KeyringController', () => {
       );
     });
 
+    it('should throw error if encryptionKey is not set', async () => {
+      await withController(async ({ controller }) => {
+        await expect(controller.exportEncryptionKey()).rejects.toThrow(
+          KeyringControllerError.EncryptionKeyNotSet,
+        );
+      });
+    });
+
     it('should export key after password change', async () => {
       await withController(
         { cacheEncryptionKey: true },
