@@ -36,7 +36,7 @@ OPTIONS:
 
 -p SED_PATTERN
 --sed-pattern SED_PATTERN
-  sed pattern for extracting verson numbers from the original repo's tag names. Adjust if the original tag names follow a different naming scheme than 'v0.0.0'.
+  sed pattern for extracting version numbers from the original repo's tag names. Adjust if the original tag names follow a different naming scheme than 'v0.0.0'.
 
 --no-dry-run
   If specified, the tags will be created and pushed to the remote repo. Otherwise, the tags and associated release commit hashes will only be printed to stdout.
