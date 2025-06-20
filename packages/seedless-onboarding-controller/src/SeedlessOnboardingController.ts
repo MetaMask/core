@@ -643,6 +643,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     globalPassword: string;
   }) {
     return await this.#withControllerLock(async () => {
+      this.#assertIsUnlocked();
       const doSyncPassword = async () => {
         // update vault with latest globalPassword
         const { encKey, authKeyPair } =
