@@ -150,6 +150,11 @@ export type SeedlessOnboardingControllerState =
       revokeToken?: string;
 
       /**
+       * The encrypted seedless encryption key used to encrypt the seedless vault.
+       */
+      encryptedSeedlessEncryptionKey?: string;
+
+      /**
        * The encrypted keyring encryption key used to encrypt the keyring vault.
        */
       encryptedKeyringEncryptionKey?: string;
