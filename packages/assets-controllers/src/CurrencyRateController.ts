@@ -108,6 +108,7 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
   constructor({
     includeUsdRate = false,
     interval = 180000,
+    useExternalServices = true,
     messenger,
     state,
     fetchMultiExchangeRate = defaultFetchMultiExchangeRate,

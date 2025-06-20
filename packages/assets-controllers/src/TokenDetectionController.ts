@@ -193,6 +193,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
   #isDetectionEnabledFromPreferences: boolean;
 
+  #useTokenDetection: boolean;
+
+  #useExternalServices: boolean;
+
   #isDetectionEnabledForNetwork: boolean;
 
   readonly #getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
@@ -271,6 +275,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address.
    * @param options.trackMetaMetricsEvent - Sets options for MetaMetrics event tracking.
    * @param options.useAccountsAPI - Feature Switch for using the accounts API when detecting tokens (default: true)
+   * @param options.useTokenDetection - Feature Switch for using token detection (default: true)
+   * @param options.useExternalServices - Feature Switch for using external services (default: false)
    * @param options.platform - Indicates whether the platform is extension or mobile
    */
   constructor({
@@ -281,6 +287,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     messenger,
     useAccountsAPI = true,
     useTokenDetection = true,
+    useExternalServices = true,
     platform,
   }: {
     interval?: number;
@@ -301,6 +308,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     }) => void;
     messenger: TokenDetectionControllerMessenger;
     useAccountsAPI?: boolean;
+    useTokenDetection?: boolean;
+    useExternalServices?: boolean;
     platform: 'extension' | 'mobile';
   }) {
     super({
@@ -341,6 +350,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     this.#isUnlocked = isUnlocked;
 
     this.#accountsAPI.isAccountsAPIEnabled = useAccountsAPI;
+    this.#useTokenDetection = useTokenDetection;
+    this.#useExternalServices = useExternalServices;
     this.#accountsAPI.platform = platform;
 
     this.#registerEventListeners();
@@ -447,6 +458,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    * @type {boolean}
    */
   get isActive(): boolean {
+    console.log('isActive .........', !this.#disabled, this.#isUnlocked);
     return !this.#disabled && this.#isUnlocked;
   }
 
@@ -711,11 +723,15 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       return;
     }
 
+    if (!this.#useTokenDetection) {
+      return;
+    }
+
     const addressToDetect = selectedAddress ?? this.#getSelectedAddress();
     const clientNetworks = this.#getCorrectNetworkClientIdByChainId(chainIds);
 
     let supportedNetworks;
-    if (this.#accountsAPI.isAccountsAPIEnabled) {
+    if (this.#accountsAPI.isAccountsAPIEnabled && this.#useExternalServices) {
       supportedNetworks = await this.#accountsAPI.getSupportedNetworks();
     }
     const { chainsToDetectUsingRpc, chainsToDetectUsingAccountAPI } =
