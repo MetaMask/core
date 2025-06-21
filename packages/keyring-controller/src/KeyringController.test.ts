@@ -3303,6 +3303,66 @@ describe('KeyringController', () => {
     });
   });
 
+  describe('exportEncryptionKey', () => {
+    it('should export encryption key and unlock', async () => {
+      await withController(
+        { cacheEncryptionKey: true },
+        async ({ controller }) => {
+          const encryptionKey = await controller.exportEncryptionKey();
+          expect(encryptionKey).toBeDefined();
+
+          await controller.setLocked();
+
+          await controller.submitEncryptionKey(encryptionKey);
+
+          expect(controller.isUnlocked()).toBe(true);
+        },
+      );
+    });
+
+    it('should throw error if controller is locked', async () => {
+      await withController(
+        { cacheEncryptionKey: true },
+        async ({ controller }) => {
+          await controller.setLocked();
+          await expect(controller.exportEncryptionKey()).rejects.toThrow(
+            KeyringControllerError.ControllerLocked,
+          );
+        },
+      );
+    });
+
+    it('should throw error if encryptionKey is not set', async () => {
+      await withController(async ({ controller }) => {
+        await expect(controller.exportEncryptionKey()).rejects.toThrow(
+          KeyringControllerError.EncryptionKeyNotSet,
+        );
+      });
+    });
+
+    it('should export key after password change', async () => {
+      await withController(
+        { cacheEncryptionKey: true },
+        async ({ controller }) => {
+          await controller.changePassword('new password');
+          const encryptionKey = await controller.exportEncryptionKey();
+          expect(encryptionKey).toBeDefined();
+        },
+      );
+    });
+
+    it('should export key after password change to the same password', async () => {
+      await withController(
+        { cacheEncryptionKey: true },
+        async ({ controller }) => {
+          await controller.changePassword(password);
+          const encryptionKey = await controller.exportEncryptionKey();
+          expect(encryptionKey).toBeDefined();
+        },
+      );
+    });
+  });
+
   describe('verifySeedPhrase', () => {
     it('should return current seedphrase', async () => {
       await withController(async ({ controller }) => {
