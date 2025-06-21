@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add convenience variables for calculating the number of milliseconds in a higher unit of time
   - `SECOND` / `SECONDS`
-  - `MINUTE` / `MINUTE`
+  - `MINUTE` / `MINUTES`
   - `HOUR` / `HOURS`
   - `DAY` / `DAYS`
 
