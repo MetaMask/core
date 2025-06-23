@@ -647,14 +647,6 @@ describe('MultichainNetworkController', () => {
   describe('handle TransactionController:transactionConfirmed event', () => {
     const MOCK_EVM_ADDRESS = '0x1234567890123456789012345678901234567890';
 
-    beforeEach(() => {
-      jest.useFakeTimers();
-    });
-
-    afterEach(() => {
-      jest.useRealTimers();
-    });
-
     it('calls getNetworksWithTransactionActivityByAccounts when transaction is confirmed', async () => {
       // Mock setTimeout to execute immediately
       jest
@@ -698,6 +690,65 @@ describe('MultichainNetworkController', () => {
 
       expect(getNetworksWithTransactionActivitySpy).toHaveBeenCalled();
       expect(mockNetworkService.fetchNetworkActivity).toHaveBeenCalled();
+    });
+
+    it('handles errors gracefully when getNetworksWithTransactionActivityByAccounts fails', async () => {
+      const mockNetworkService = createMockNetworkService();
+      const { controller, messenger } = setupController({
+        mockNetworkService,
+      });
+
+      // Setup accounts controller mock
+      messenger.registerActionHandler(
+        'AccountsController:listMultichainAccounts',
+        () => [
+          createMockInternalAccount({
+            type: EthAccountType.Eoa,
+            address: MOCK_EVM_ADDRESS,
+            scopes: [EthScope.Eoa],
+          }),
+        ],
+      );
+
+      // Spy on the method and make it throw an error
+      const getNetworksWithTransactionActivitySpy = jest
+        .spyOn(controller, 'getNetworksWithTransactionActivityByAccounts')
+        .mockRejectedValue(new Error('Network error'));
+
+      // Spy on console.error to verify error handling
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+
+      // Mock setTimeout to execute immediately but still allow the error to propagate
+      const setTimeoutSpy = jest
+        .spyOn(global, 'setTimeout')
+        .mockImplementation((callback: () => void) => {
+          // Execute callback immediately but return to event loop
+          setImmediate(callback);
+          return 0 as unknown as NodeJS.Timeout;
+        });
+
+      // Publish the transaction confirmed event
+      messenger.publish('TransactionController:transactionConfirmed', {
+        id: 'test-transaction-id',
+        status: 'confirmed',
+      } as Record<string, unknown>);
+
+      // Wait for the setImmediate callback to execute
+      await new Promise(setImmediate);
+      await new Promise(setImmediate);
+
+      expect(getNetworksWithTransactionActivitySpy).toHaveBeenCalled();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Failed to refresh network activity after transaction confirmed:',
+        expect.any(Error),
+      );
+
+      // Restore mocks
+      setTimeoutSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
+      getNetworksWithTransactionActivitySpy.mockRestore();
     });
   });
 });
