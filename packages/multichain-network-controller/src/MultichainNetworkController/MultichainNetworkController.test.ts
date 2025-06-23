@@ -174,7 +174,10 @@ function setupController({
       'NetworkController:findNetworkClientIdByChainId',
       'AccountsController:listMultichainAccounts',
     ],
-    allowedEvents: ['AccountsController:selectedAccountChange'],
+    allowedEvents: [
+      'AccountsController:selectedAccountChange',
+      'TransactionController:transactionConfirmed',
+    ],
   });
 
   const defaultNetworkService = createMockNetworkService();
@@ -638,6 +641,63 @@ describe('MultichainNetworkController', () => {
           activeChains: [MOCK_EVM_CHAIN_1, MOCK_EVM_CHAIN_137],
         },
       });
+    });
+  });
+
+  describe('handle TransactionController:transactionConfirmed event', () => {
+    const MOCK_EVM_ADDRESS = '0x1234567890123456789012345678901234567890';
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('calls getNetworksWithTransactionActivityByAccounts when transaction is confirmed', async () => {
+      // Mock setTimeout to execute immediately
+      jest
+        .spyOn(global, 'setTimeout')
+        .mockImplementation((callback: () => void) => {
+          callback();
+          return 0 as unknown as NodeJS.Timeout;
+        });
+
+      const mockNetworkService = createMockNetworkService();
+      const { controller, messenger } = setupController({
+        mockNetworkService,
+      });
+
+      // Setup accounts controller mock
+      messenger.registerActionHandler(
+        'AccountsController:listMultichainAccounts',
+        () => [
+          createMockInternalAccount({
+            type: EthAccountType.Eoa,
+            address: MOCK_EVM_ADDRESS,
+            scopes: [EthScope.Eoa],
+          }),
+        ],
+      );
+
+      // Spy on the method
+      const getNetworksWithTransactionActivitySpy = jest.spyOn(
+        controller,
+        'getNetworksWithTransactionActivityByAccounts',
+      );
+
+      // Publish the transaction confirmed event
+      messenger.publish('TransactionController:transactionConfirmed', {
+        id: 'test-transaction-id',
+        status: 'confirmed',
+      } as Record<string, unknown>);
+
+      // Wait for promises to resolve
+      await Promise.resolve();
+
+      expect(getNetworksWithTransactionActivitySpy).toHaveBeenCalled();
+      expect(mockNetworkService.fetchNetworkActivity).toHaveBeenCalled();
     });
   });
 });
