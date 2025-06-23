@@ -1761,28 +1761,38 @@ describe('BridgeController', function () {
     });
 
     it('should track the Submitted event', () => {
-      bridgeController.trackUnifiedSwapBridgeEvent(
+      const controller = new BridgeController({
+        messenger: messengerMock,
+        getLayer1GasFee: getLayer1GasFeeMock,
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: mockFetchFn,
+        trackMetaMetricsFn,
+        state: {
+          quoteRequest: {
+            srcChainId: SolScope.Mainnet,
+            destChainId: '0xa',
+            srcTokenAddress: 'NATIVE',
+            destTokenAddress: '0x1234',
+            srcTokenAmount: '1000000',
+            walletAddress: '0x123',
+            slippage: 0.5,
+          },
+          quotes: mockBridgeQuotesSolErc20 as never,
+        },
+      });
+      controller.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.Submitted,
         {
-          provider: 'provider_bridge',
-          usd_quoted_gas: 0,
+          usd_quoted_gas: 1,
           gas_included: false,
-          quoted_time_minutes: 0,
-          usd_quoted_return: 0,
-          price_impact: 0,
-          chain_id_source: formatChainIdToCaip(1),
+          quoted_time_minutes: 2,
+          usd_quoted_return: 113,
+          provider: 'provider_bridge',
+          price_impact: 12,
           token_symbol_source: 'ETH',
-          token_address_source: getNativeAssetForChainId(1).assetId,
-          custom_slippage: true,
-          usd_amount_source: 100,
-          stx_enabled: false,
-          is_hardware_wallet: false,
-          swap_type: MetricsSwapType.CROSSCHAIN,
-          action_type: MetricsActionType.CROSSCHAIN_V1,
-          chain_id_destination: formatChainIdToCaip(10),
           token_symbol_destination: 'USDC',
-          token_address_destination: getNativeAssetForChainId(10).assetId,
-          security_warnings: [],
+          stx_enabled: false,
+          usd_amount_source: 100,
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -1858,6 +1868,47 @@ describe('BridgeController', function () {
           token_address_destination: getNativeAssetForChainId(ChainId.SOLANA)
             .assetId,
           security_warnings: [],
+        },
+      );
+      expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
+
+      expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
+    });
+
+    it('should track the Failed event before tx is submitted', () => {
+      const controller = new BridgeController({
+        messenger: messengerMock,
+        getLayer1GasFee: getLayer1GasFeeMock,
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: mockFetchFn,
+        trackMetaMetricsFn,
+        state: {
+          quoteRequest: {
+            srcChainId: SolScope.Mainnet,
+            destChainId: '1',
+            srcTokenAddress: 'NATIVE',
+            destTokenAddress: '0x1234',
+            srcTokenAmount: '1000000',
+            walletAddress: '0x123',
+            slippage: 0.5,
+          },
+          quotes: mockBridgeQuotesSolErc20 as never,
+        },
+      });
+      controller.trackUnifiedSwapBridgeEvent(
+        UnifiedSwapBridgeEventName.Failed,
+        {
+          error_message: 'Failed to submit tx',
+          usd_quoted_gas: 1,
+          gas_included: false,
+          quoted_time_minutes: 2,
+          usd_quoted_return: 113,
+          provider: 'provider_bridge',
+          price_impact: 12,
+          token_symbol_source: 'ETH',
+          token_symbol_destination: 'USDC',
+          stx_enabled: false,
+          usd_amount_source: 100,
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add method `exportEncryptionKey` ([#5984](https://github.com/MetaMask/core/pull/5984))
+
+### Changed
+
+- Make salt optional with method `submitEncryptionKey` ([#5984](https://github.com/MetaMask/core/pull/5984))
+
 ## [22.0.2]
 
 ### Fixed

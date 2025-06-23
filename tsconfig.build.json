@@ -43,7 +43,6 @@
     { "path": "./packages/polling-controller/tsconfig.build.json" },
     { "path": "./packages/preferences-controller/tsconfig.build.json" },
     { "path": "./packages/profile-sync-controller/tsconfig.build.json" },
-    { "path": "./packages/queued-request-controller/tsconfig.build.json" },
     { "path": "./packages/rate-limit-controller/tsconfig.build.json" },
     { "path": "./packages/remote-feature-flag-controller/tsconfig.build.json" },
     { "path": "./packages/sample-controllers/tsconfig.build.json" },

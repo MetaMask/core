@@ -352,7 +352,7 @@ export type TransactionControllerOptions = {
 
   /** Configuration options for incoming transaction support. */
   incomingTransactions?: IncomingTransactionOptions & {
-    /** API keys to be used for Etherscan requests to prevent rate limiting. */
+    /** @deprecated Ignored as Etherscan no longer used. */
     etherscanApiKeysByChainId?: Record<Hex, string>;
   };
 
@@ -969,25 +969,16 @@ export class TransactionController extends BaseController<
       },
     );
 
-    const updateCache = (fn: (cache: Record<string, unknown>) => void) => {
-      this.update((_state) => {
-        fn(_state.lastFetchedBlockNumbers);
-      });
-    };
-
     this.#incomingTransactionHelper = new IncomingTransactionHelper({
       client: this.#incomingTransactionOptions.client,
-      getCache: () => this.state.lastFetchedBlockNumbers,
       getCurrentAccount: () => this.#getSelectedAccount(),
       getLocalTransactions: () => this.state.transactions,
       includeTokenTransfers:
         this.#incomingTransactionOptions.includeTokenTransfers,
       isEnabled: this.#incomingTransactionOptions.isEnabled,
       messenger: this.messagingSystem,
-      queryEntireHistory: this.#incomingTransactionOptions.queryEntireHistory,
       remoteTransactionSource: new AccountsApiRemoteTransactionSource(),
       trimTransactions: this.#trimTransactionsForState.bind(this),
-      updateCache,
       updateTransactions: this.#incomingTransactionOptions.updateTransactions,
     });
 
@@ -1711,7 +1702,7 @@ export class TransactionController extends BaseController<
     }
 
     const newTransactions = this.state.transactions.filter(
-      ({ chainId: txChainId, txParams }) => {
+      ({ chainId: txChainId, txParams, type }) => {
         const isMatchingNetwork = !chainId || chainId === txChainId;
 
         if (!isMatchingNetwork) {
@@ -1719,7 +1710,10 @@ export class TransactionController extends BaseController<
         }
 
         const isMatchingAddress =
-          !address || txParams.from?.toLowerCase() === address.toLowerCase();
+          !address ||
+          txParams.from?.toLowerCase() === address.toLowerCase() ||
+          (type === TransactionType.incoming &&
+            txParams.to?.toLowerCase() === address.toLowerCase());
 
         return !isMatchingAddress;
       },

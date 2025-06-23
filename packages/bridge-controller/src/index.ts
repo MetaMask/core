@@ -93,6 +93,8 @@ export {
 
 export { SWAPS_API_V2_BASE_URL } from './constants/swaps';
 
+export { MetricsActionType, MetricsSwapType } from './utils/metrics/constants';
+
 export {
   getEthUsdtResetData,
   isEthUsdt,
@@ -117,6 +119,7 @@ export {
   formatChainIdToCaip,
   formatChainIdToHex,
   formatAddressToCaipReference,
+  formatAddressToAssetId,
 } from './utils/caip-formatters';
 
 export {
