@@ -309,6 +309,10 @@ export type VaultData = {
    */
   toprfEncryptionKey: string;
   /**
+   * The encryption key to encrypt the password.
+   */
+  toprfPwEncryptionKey: string;
+  /**
    * The authentication key pair to authenticate the TOPRF.
    */
   toprfAuthKeyPair: string;
