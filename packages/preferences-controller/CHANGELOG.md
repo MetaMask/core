@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add support for SEI (chain ID `0x531`) ([#6021](https://github.com/MetaMask/core/pull/6021))
+  - Add `SEI` into constant `ETHERSCAN_SUPPORTED_CHAIN_IDS`
+  - Update default controller state so SEI (Chain ID `0xe705`) is automatically enabled in `showIncomingTransactions`
+
 ### Changed
 
 - Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
