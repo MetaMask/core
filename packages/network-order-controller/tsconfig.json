@@ -1,0 +1,24 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "paths": {
+      "@metamask/*": ["../../*/src"]
+    }
+  },
+  "references": [
+    {
+      "path": "../../packages/base-controller"
+    },
+    {
+      "path": "../../packages/network-controller"
+    },
+    {
+      "path": "../../packages/multichain-network-controller"
+    },
+    {
+      "path": "../../packages/controller-utils"
+    }
+  ],
+  "include": ["../../types", "./src"]
+}
