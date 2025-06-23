@@ -20,8 +20,6 @@ export default async function cli(
     // Disable --version. This is an internal tool and it doesn't have a version.
     .version(false)
     .usage('$0 [args]')
-    // @ts-expect-error: The CommandModule<T, U>[] signature does in fact exist,
-    // but it is missing from our yargs types.
     .command(commands)
     .strict()
     .check((args) => {
@@ -43,6 +41,5 @@ export default async function cli(
     .showHelpOnFail(false)
     .help()
     .alias('help', 'h')
-    // @ts-expect-error: This does in fact exist, but it is missing from our yargs types.
     .parseAsync();
 }
