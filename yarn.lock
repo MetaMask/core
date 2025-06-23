@@ -4197,36 +4197,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/queued-request-controller@workspace:packages/queued-request-controller":
-  version: 0.0.0-use.local
-  resolution: "@metamask/queued-request-controller@workspace:packages/queued-request-controller"
-  dependencies:
-    "@metamask/auto-changelog": "npm:^3.4.4"
-    "@metamask/base-controller": "npm:^8.0.1"
-    "@metamask/controller-utils": "npm:^11.10.0"
-    "@metamask/json-rpc-engine": "npm:^10.0.3"
-    "@metamask/network-controller": "npm:^24.0.0"
-    "@metamask/rpc-errors": "npm:^7.0.2"
-    "@metamask/selected-network-controller": "npm:^23.0.0"
-    "@metamask/swappable-obj-proxy": "npm:^2.3.0"
-    "@metamask/utils": "npm:^11.2.0"
-    "@types/jest": "npm:^27.4.1"
-    deepmerge: "npm:^4.2.2"
-    immer: "npm:^9.0.6"
-    jest: "npm:^27.5.1"
-    lodash: "npm:^4.17.21"
-    nock: "npm:^13.3.1"
-    sinon: "npm:^9.2.4"
-    ts-jest: "npm:^27.1.4"
-    typedoc: "npm:^0.24.8"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
-  peerDependencies:
-    "@metamask/network-controller": ^24.0.0
-    "@metamask/selected-network-controller": ^23.0.0
-  languageName: unknown
-  linkType: soft
-
 "@metamask/rate-limit-controller@workspace:packages/rate-limit-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/rate-limit-controller@workspace:packages/rate-limit-controller"
@@ -4347,7 +4317,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/selected-network-controller@npm:^23.0.0, @metamask/selected-network-controller@workspace:packages/selected-network-controller":
+"@metamask/selected-network-controller@workspace:packages/selected-network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/selected-network-controller@workspace:packages/selected-network-controller"
   dependencies:

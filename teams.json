@@ -35,7 +35,6 @@
   "metamask/polling-controller": "team-wallet-framework",
   "metamask/preferences-controller": "team-wallet-framework",
   "metamask/profile-sync-controller": "team-notifications",
-  "metamask/queued-request-controller": "team-wallet-api-platform",
   "metamask/rate-limit-controller": "team-snaps-platform",
   "metamask/remote-feature-flag-controller": "team-extension-platform,team-mobile-platform",
   "metamask/sample-controllers": "team-wallet-framework",
