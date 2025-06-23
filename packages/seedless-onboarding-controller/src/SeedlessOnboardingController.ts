@@ -715,15 +715,15 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     targetAuthPubKey: SEC1EncodedPublicKey;
     globalPassword: string;
   }): Promise<void> {
-    const { encKey: latestPwEncKey, authKeyPair: latestPwAuthKeyPair } =
+    const { encKey: latestEncKey, authKeyPair: latestAuthKeyPair } =
       await this.#recoverEncKey(globalPassword);
 
     try {
       // Recover vault encryption key.
       const res = await this.toprfClient.recoverPwEncKey({
         targetAuthPubKey,
-        curPwEncKey: latestPwEncKey,
-        curAuthKeyPair: latestPwAuthKeyPair,
+        curPwEncKey: latestEncKey,
+        curAuthKeyPair: latestAuthKeyPair,
       });
       const { pwEncKey } = res;
       const vaultKey = await this.#loadSeedlessEncryptionKey(pwEncKey);
