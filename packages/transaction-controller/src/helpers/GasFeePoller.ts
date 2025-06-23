@@ -273,6 +273,7 @@ export class GasFeePoller {
         txParams: {
           ...txBatchMeta.transactions?.[0],
           from: txBatchMeta.from,
+          gas: txBatchMeta.gas,
         },
         time: Date.now(),
       },

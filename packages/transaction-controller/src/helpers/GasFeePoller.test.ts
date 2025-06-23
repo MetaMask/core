@@ -63,6 +63,7 @@ const TRANSACTION_BATCH_META_MOCK: TransactionBatchMeta = {
       gas: '0x5208',
     },
   ],
+  gas: '0x10000',
   from: '0x123',
 };
 

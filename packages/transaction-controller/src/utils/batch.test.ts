@@ -701,6 +701,7 @@ describe('Batch Utils', () => {
           {
             ...TRANSACTION_BATCH_PARAMS_MOCK,
             from: FROM_MOCK,
+            gas: GAS_TOTAL_MOCK,
             maxFeePerGas: MAX_FEE_PER_GAS_MOCK,
             maxPriorityFeePerGas: MAX_PRIORITY_FEE_PER_GAS_MOCK,
           },
