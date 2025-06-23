@@ -86,7 +86,9 @@
   "lavamoat": {
     "allowScripts": {
       "@lavamoat/preinstall-always-fail": false,
-      "@metamask/toprf-secure-backup": true
+      "@metamask/toprf-secure-backup": true,
+      "@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>keccak": false,
+      "@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>secp256k1": false
     }
   }
 }
