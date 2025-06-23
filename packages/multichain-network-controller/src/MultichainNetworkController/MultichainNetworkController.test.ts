@@ -648,7 +648,6 @@ describe('MultichainNetworkController', () => {
     const MOCK_EVM_ADDRESS = '0x1234567890123456789012345678901234567890';
 
     it('calls getNetworksWithTransactionActivityByAccounts when transaction is confirmed', async () => {
-      // Mock setTimeout to execute immediately
       jest
         .spyOn(global, 'setTimeout')
         .mockImplementation((callback: () => void) => {
@@ -661,7 +660,6 @@ describe('MultichainNetworkController', () => {
         mockNetworkService,
       });
 
-      // Setup accounts controller mock
       messenger.registerActionHandler(
         'AccountsController:listMultichainAccounts',
         () => [
@@ -673,19 +671,16 @@ describe('MultichainNetworkController', () => {
         ],
       );
 
-      // Spy on the method
       const getNetworksWithTransactionActivitySpy = jest.spyOn(
         controller,
         'getNetworksWithTransactionActivityByAccounts',
       );
 
-      // Publish the transaction confirmed event
       messenger.publish('TransactionController:transactionConfirmed', {
         id: 'test-transaction-id',
         status: 'confirmed',
       } as Record<string, unknown>);
 
-      // Wait for promises to resolve
       await Promise.resolve();
 
       expect(getNetworksWithTransactionActivitySpy).toHaveBeenCalled();
@@ -698,7 +693,6 @@ describe('MultichainNetworkController', () => {
         mockNetworkService,
       });
 
-      // Setup accounts controller mock
       messenger.registerActionHandler(
         'AccountsController:listMultichainAccounts',
         () => [
@@ -710,17 +704,16 @@ describe('MultichainNetworkController', () => {
         ],
       );
 
-      // Spy on the method and make it throw an error
       const getNetworksWithTransactionActivitySpy = jest
         .spyOn(controller, 'getNetworksWithTransactionActivityByAccounts')
         .mockRejectedValue(new Error('Network error'));
 
-      // Spy on console.error to verify error handling
       const consoleErrorSpy = jest
         .spyOn(console, 'error')
-        .mockImplementation(() => {});
+        .mockImplementation(() => {
+          // no op
+        });
 
-      // Mock setTimeout to execute immediately but still allow the error to propagate
       const setTimeoutSpy = jest
         .spyOn(global, 'setTimeout')
         .mockImplementation((callback: () => void) => {
@@ -729,13 +722,11 @@ describe('MultichainNetworkController', () => {
           return 0 as unknown as NodeJS.Timeout;
         });
 
-      // Publish the transaction confirmed event
       messenger.publish('TransactionController:transactionConfirmed', {
         id: 'test-transaction-id',
         status: 'confirmed',
       } as Record<string, unknown>);
 
-      // Wait for the setImmediate callback to execute
       await new Promise(setImmediate);
       await new Promise(setImmediate);
 
@@ -745,7 +736,6 @@ describe('MultichainNetworkController', () => {
         expect.any(Error),
       );
 
-      // Restore mocks
       setTimeoutSpy.mockRestore();
       consoleErrorSpy.mockRestore();
       getNetworksWithTransactionActivitySpy.mockRestore();
