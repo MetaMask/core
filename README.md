@@ -168,7 +168,6 @@ linkStyle default opacity:0.5
   bridge_status_controller --> accounts_controller;
   bridge_status_controller --> bridge_controller;
   bridge_status_controller --> gas_fee_controller;
-  bridge_status_controller --> multichain_transactions_controller;
   bridge_status_controller --> network_controller;
   bridge_status_controller --> transaction_controller;
   chain_agnostic_permission --> controller_utils;
@@ -222,9 +221,9 @@ linkStyle default opacity:0.5
   name_controller --> controller_utils;
   network_controller --> base_controller;
   network_controller --> controller_utils;
-  network_controller --> error_reporting_service;
   network_controller --> eth_json_rpc_provider;
   network_controller --> json_rpc_engine;
+  network_controller --> error_reporting_service;
   notification_services_controller --> base_controller;
   notification_services_controller --> controller_utils;
   notification_services_controller --> keyring_controller;
