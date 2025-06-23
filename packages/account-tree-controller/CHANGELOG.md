@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Update wallet names ([#6024](https://github.com/MetaMask/core/pull/6024))
+
 ## [0.3.0]
 
 ### Added
