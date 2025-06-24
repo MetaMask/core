@@ -9,6 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release ([#5939](https://github.com/MetaMask/core/pull/5939))
+- Initial release ([#6028](https://github.com/MetaMask/core/pull/6028))
 
 [Unreleased]: https://github.com/MetaMask/core/
