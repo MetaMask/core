@@ -15,7 +15,7 @@
     },
     {
       "path": "../../packages/multichain-network-controller"
-    },
+    }
   ],
   "include": ["../../types", "./src", "tests/NetworkOrderController.test.ts"]
 }

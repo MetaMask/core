@@ -14,7 +14,7 @@
     },
     {
       "path": "../../packages/multichain-network-controller/tsconfig.build.json"
-    },
+    }
   ],
   "include": ["../../types", "./src"]
 }
