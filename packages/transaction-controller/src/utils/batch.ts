@@ -582,7 +582,7 @@ async function processTransactionWithHook(
 
   const transactionMetaForGasEstimates = {
     ...txBatchMeta,
-    txParams: { ...params, from, gas: txBatchMeta?.gas },
+    txParams: { ...params, from, gas: txBatchMeta?.gas ?? params.gas },
   };
 
   if (txBatchMeta) {

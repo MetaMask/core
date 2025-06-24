@@ -4240,8 +4240,7 @@ export class TransactionController extends BaseController<
     gasFeeEstimates?: GasFeeEstimates;
   }) {
     this.#updateTransactionBatch(transactionBatchId, (batch) => {
-      batch.gasFeeEstimates = gasFeeEstimates;
-      return batch;
+      return { ...batch, gasFeeEstimates };
     });
   }
 
