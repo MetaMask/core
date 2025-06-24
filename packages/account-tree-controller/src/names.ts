@@ -9,10 +9,7 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 export function getAccountWalletNameFromKeyringType(type: KeyringTypes) {
   switch (type) {
     case KeyringTypes.simple: {
-      return 'Private Keys';
-    }
-    case KeyringTypes.hd: {
-      return 'HD Wallet';
+      return 'Imported accounts';
     }
     case KeyringTypes.trezor: {
       return 'Trezor';
@@ -29,9 +26,15 @@ export function getAccountWalletNameFromKeyringType(type: KeyringTypes) {
     case KeyringTypes.qr: {
       return 'QR';
     }
+    // Those keyrings should never really be used in such context since they
+    // should be used by other grouping rules.
+    case KeyringTypes.hd: {
+      return 'HD Wallet';
+    }
     case KeyringTypes.snap: {
       return 'Snap Wallet';
     }
+    // ------------------------------------------------------------------------
     default: {
       return 'Unknown';
     }
