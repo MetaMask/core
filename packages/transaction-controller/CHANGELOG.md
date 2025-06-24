@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Query only latest page of transactions from accounts API ([#5983](https://github.com/MetaMask/core/pull/5983))
 - Remove incoming transactions when calling `wipeTransactions` ([#5986](https://github.com/MetaMask/core/pull/5986))
 - Poll immediately when calling `startIncomingTransactionPolling` ([#5986](https://github.com/MetaMask/core/pull/5986))
+- Extend `GasFeePoller` to support gas updates for unapproved `transactionBatches`, emitting `transaction-batch-updated` with `gasFeeEstimates`. ([#5950](https://github.com/MetaMask/core/pull/5950))
 
 ## [58.0.0]
 
