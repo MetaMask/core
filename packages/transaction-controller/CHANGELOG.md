@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Estimate gas for type-4 transactions with `data` using `eth_estimateGas` and state overrides if simulation fails [#6016](https://github.com/MetaMask/core/pull/6016))
 - Query only latest page of transactions from accounts API ([#5983](https://github.com/MetaMask/core/pull/5983))
 - Remove incoming transactions when calling `wipeTransactions` ([#5986](https://github.com/MetaMask/core/pull/5986))
 - Poll immediately when calling `startIncomingTransactionPolling` ([#5986](https://github.com/MetaMask/core/pull/5986))
@@ -43,9 +44,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add optional `ignoreDelegationSignatures` boolean to `estimateGas` method.
 - Add `gasFeeEstimates` property to `TransactionBatchMeta`, populated using `DefaultGasFeeFlow` ([#5886](https://github.com/MetaMask/core/pull/5886))
 
-### Changed
-
-- Estimate gas for type-4 transactions with `data` using `eth_estimateGas` and state overrides if simulation fails [#6016](https://github.com/MetaMask/core/pull/6016))
 
 ### Fixed
 
