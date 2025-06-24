@@ -75,6 +75,8 @@ export class NetworkOrderController extends BaseController<
   NetworkOrderControllerState,
   NetworkOrderControllerMessenger
 > {
+  protected messagingSystem: NetworkOrderControllerMessenger;
+
   /**
    * Creates a NetworkOrderController instance.
    *
@@ -100,7 +102,7 @@ export class NetworkOrderController extends BaseController<
     // Subscribe to network state changes
     this.messagingSystem.subscribe(
       'NetworkController:stateChange',
-      (networkControllerState) => {
+      (networkControllerState: NetworkState) => {
         this.onNetworkControllerStateChange(networkControllerState);
       },
     );
@@ -131,7 +133,8 @@ export class NetworkOrderController extends BaseController<
         .filter(
           (chainId) =>
             !state.orderedNetworkList.some(
-              ({ networkId }) => networkId === chainId,
+              ({ networkId }: { networkId: CaipChainId }) =>
+                networkId === chainId,
             ),
         )
         .map((chainId) => ({ networkId: chainId }));
@@ -139,7 +142,7 @@ export class NetworkOrderController extends BaseController<
       state.orderedNetworkList = state.orderedNetworkList
         // Filter out deleted networks
         .filter(
-          ({ networkId }) =>
+          ({ networkId }: { networkId: CaipChainId }) =>
             chainIds.includes(networkId) ||
             // Since Bitcoin and Solana are not part of the @metamask/network-controller, we have
             // to add a second check to make sure it is not filtered out.
