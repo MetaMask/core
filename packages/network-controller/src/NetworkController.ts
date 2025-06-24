@@ -1,7 +1,7 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  MessengerMethodAction,
+  MessengerMethodActions,
   RestrictedMessenger,
 } from '@metamask/base-controller';
 import {
@@ -519,6 +519,7 @@ export type NetworkControllerGetEthQueryAction = {
   handler: () => EthQuery | undefined;
 };
 
+// Define the methods we want to expose via the messenger
 const MESSENGER_EXPOSED_METHODS = [
   'getNetworkClientById',
   'getSelectedNetworkClient',
@@ -534,7 +535,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'updateNetwork',
 ] as const;
 
-export type NetworkControllerMethodAction = MessengerMethodAction<
+type NetworkControllerMethodActions = MessengerMethodActions<
   NetworkController,
   (typeof MESSENGER_EXPOSED_METHODS)[number]
 >;
@@ -542,7 +543,7 @@ export type NetworkControllerMethodAction = MessengerMethodAction<
 export type NetworkControllerActions =
   | NetworkControllerGetStateAction
   | NetworkControllerGetEthQueryAction
-  | NetworkControllerMethodAction;
+  | NetworkControllerMethodActions;
 
 /**
  * All actions that {@link NetworkController} calls internally.

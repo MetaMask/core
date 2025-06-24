@@ -465,15 +465,15 @@ export class Messenger<
  * @template Controller - The controller class type
  * @template MethodName - The name of the method to create an action for
  */
-export type MessengerMethodAction<
+type MessengerMethodAction<
   Controller extends { name: string },
   MethodName extends keyof Controller & string,
-> = {
-  type: `${Controller['name']}:${MethodName}`;
-  handler: Controller[MethodName] extends (...args: unknown[]) => unknown
-    ? Controller[MethodName]
-    : never;
-};
+> = Controller[MethodName] extends (...args: never[]) => unknown
+  ? {
+      type: `${Controller['name']}:${MethodName}`;
+      handler: Controller[MethodName];
+    }
+  : never;
 
 /**
  * Creates a union type of action types for multiple methods on a controller class
@@ -487,6 +487,17 @@ export type MessengerMethodActions<
 > = {
   [K in MethodNames]: MessengerMethodAction<Controller, K>;
 }[MethodNames];
+
+/**
+ * Extracts specific action types from a union of actions by their type strings
+ *
+ * @template Actions - The union of action types to extract from
+ * @template ActionTypes - A union of action type strings to extract
+ */
+export type ExtractActions<
+  Actions extends ActionConstraint,
+  ActionTypes extends Actions['type'],
+> = Extract<Actions, { type: ActionTypes }>;
 
 /**
  * Registers action handlers for a list of methods on a controller
