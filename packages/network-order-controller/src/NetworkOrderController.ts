@@ -75,8 +75,6 @@ export class NetworkOrderController extends BaseController<
   NetworkOrderControllerState,
   NetworkOrderControllerMessenger
 > {
-  protected messagingSystem: NetworkOrderControllerMessenger;
-
   /**
    * Creates a NetworkOrderController instance.
    *
