@@ -2,9 +2,7 @@
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
     "baseUrl": "./",
-    "paths": {
-      "@metamask/*": ["../../*/src"]
-    }
+    "rootDir": "../.."
   },
   "references": [
     {
