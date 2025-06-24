@@ -458,3 +458,78 @@ export class Messenger<
     });
   }
 }
+
+/**
+ * Creates an action type for a method on a controller class
+ *
+ * @template Controller - The controller class type
+ * @template MethodName - The name of the method to create an action for
+ */
+export type MessengerMethodAction<
+  Controller extends { name: string },
+  MethodName extends keyof Controller & string,
+> = {
+  type: `${Controller['name']}:${MethodName}`;
+  handler: Controller[MethodName] extends (...args: unknown[]) => unknown
+    ? Controller[MethodName]
+    : never;
+};
+
+/**
+ * Creates a union type of action types for multiple methods on a controller class
+ *
+ * @template Controller - The controller class type
+ * @template MethodNames - A union of method names to create actions for
+ */
+export type MessengerMethodActions<
+  Controller extends { name: string },
+  MethodNames extends keyof Controller & string,
+> = {
+  [K in MethodNames]: MessengerMethodAction<Controller, K>;
+}[MethodNames];
+
+/**
+ * Registers action handlers for a list of methods on a controller
+ *
+ * @param controller - The controller instance
+ * @param messenger - The messenger to register the handlers with
+ * @param methodNames - The names of the methods to register as action handlers
+ * @param excludedMethods - Optional list of method names to exclude from registration
+ * @param exceptions - Optional map of method names to custom handlers
+ */
+export function registerMethodActionHandlers<
+  Controller extends { name: string },
+  MethodNames extends keyof Controller & string,
+  Action extends ActionConstraint,
+  Event extends EventConstraint,
+  AllowedAction extends string,
+  AllowedEvent extends string,
+  Messenger extends RestrictedMessenger<
+    Controller['name'],
+    Action,
+    Event,
+    AllowedAction,
+    AllowedEvent
+  >,
+>(
+  controller: Controller,
+  messenger: Messenger,
+  methodNames: readonly MethodNames[],
+  excludedMethods: readonly string[] = ['constructor', 'messagingSystem'],
+  exceptions: Partial<
+    Record<MethodNames, (...args: unknown[]) => unknown>
+  > = {},
+): void {
+  for (const methodName of methodNames) {
+    if (excludedMethods.includes(methodName)) {
+      continue;
+    }
+
+    const handler = exceptions[methodName] ?? controller[methodName];
+    if (typeof handler === 'function') {
+      const actionType =
+        `${controller.name}:${methodName}` as `${Controller['name']}:${MethodNames}`;
+      messenger.registerActionHandler(actionType, handler.bind(controller));
+    }
+  }
+}
