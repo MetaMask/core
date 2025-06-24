@@ -212,15 +212,8 @@ export class NetworkEnablementController extends BaseController<
     const caipChainId = toEvmCaipChainId(chainId);
     const { namespace } = parseCaipChainId(caipChainId);
 
-    if (!namespace) {
-      return;
-    }
-
     if (namespace === KnownCaipNamespace.Eip155) {
       this.update((state: NetworkEnablementControllerState) => {
-        if (!state.enabledNetworkMap.eip155) {
-          state.enabledNetworkMap.eip155 = {};
-        }
         state.enabledNetworkMap.eip155[chainId] = true;
       });
     }
@@ -233,15 +226,9 @@ export class NetworkEnablementController extends BaseController<
    */
   setSolanaEnabledNetwork(caipChainId: CaipChainId) {
     const { namespace } = parseCaipChainId(caipChainId);
-    if (!namespace) {
-      return;
-    }
 
     if (namespace === KnownCaipNamespace.Solana) {
       this.update((state: NetworkEnablementControllerState) => {
-        if (!state.enabledNetworkMap.solana) {
-          state.enabledNetworkMap.solana = {};
-        }
         state.enabledNetworkMap.solana[caipChainId] = true;
       });
     }
