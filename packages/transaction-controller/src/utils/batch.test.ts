@@ -61,6 +61,8 @@ const TO_MOCK = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcdef';
 const DATA_MOCK = '0xabcdef';
 const GAS_TOTAL_MOCK = '0x100000';
 const VALUE_MOCK = '0x1234';
+const MAX_FEE_PER_GAS_MOCK = '0x2';
+const MAX_PRIORITY_FEE_PER_GAS_MOCK = '0x1';
 const MESSENGER_MOCK = {
   call: jest.fn().mockResolvedValue({}),
 } as unknown as TransactionControllerMessenger;
@@ -696,7 +698,13 @@ describe('Batch Utils', () => {
 
         expect(addTransactionMock).toHaveBeenCalledTimes(2);
         expect(addTransactionMock).toHaveBeenCalledWith(
-          { ...TRANSACTION_BATCH_PARAMS_MOCK, from: FROM_MOCK },
+          {
+            ...TRANSACTION_BATCH_PARAMS_MOCK,
+            from: FROM_MOCK,
+            gas: GAS_TOTAL_MOCK,
+            maxFeePerGas: MAX_FEE_PER_GAS_MOCK,
+            maxPriorityFeePerGas: MAX_PRIORITY_FEE_PER_GAS_MOCK,
+          },
           {
             batchId: expect.any(String),
             disableGasBuffer: true,
@@ -1331,6 +1339,7 @@ describe('Batch Utils', () => {
 
       it('throws if simulation is not supported', async () => {
         const isSimulationSupportedMock = jest.fn().mockReturnValue(false);
+        setupSequentialPublishBatchHookMock(() => sequentialPublishBatchHook);
 
         await expect(
           addTransactionBatch({
@@ -1339,9 +1348,27 @@ describe('Batch Utils', () => {
             isSimulationEnabled: () => isSimulationSupportedMock(),
             request: {
               ...request.request,
-              disable7702: true,
               disableHook: true,
               disableSequential: false,
+            },
+          }),
+        ).rejects.toThrow(
+          `Cannot create transaction batch as simulation not supported`,
+        );
+      });
+
+      it('throws if no supported methods found', async () => {
+        const isSimulationSupportedMock = jest.fn().mockReturnValue(false);
+        setupSequentialPublishBatchHookMock(() => sequentialPublishBatchHook);
+
+        await expect(
+          addTransactionBatch({
+            ...request,
+            publishBatchHook: undefined,
+            isSimulationEnabled: () => isSimulationSupportedMock(),
+            request: {
+              ...request.request,
+              useHook: true,
             },
           }),
         ).rejects.toThrow(`Can't process batch`);

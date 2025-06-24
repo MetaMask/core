@@ -44,7 +44,6 @@
     { "path": "./packages/polling-controller" },
     { "path": "./packages/preferences-controller" },
     { "path": "./packages/profile-sync-controller" },
-    { "path": "./packages/queued-request-controller" },
     { "path": "./packages/rate-limit-controller" },
     { "path": "./packages/remote-feature-flag-controller" },
     { "path": "./packages/sample-controllers" },
