@@ -305,6 +305,10 @@
     "import-x/no-named-as-default-member": 1,
     "promise/catch-or-return": 1
   },
+  "packages/network-enablement-controller/src/NetworkEnablementController.ts": {
+    "@typescript-eslint/no-unsafe-enum-comparison": 4,
+    "jsdoc/tag-lines": 1
+  },
   "packages/permission-controller/src/Permission.ts": {
     "prettier/prettier": 11
   },
