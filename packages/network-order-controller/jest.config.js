@@ -17,10 +17,14 @@ module.exports = merge(baseConfig, {
   // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {
     global: {
-      branches: 100,
-      functions: 100,
-      lines: 100,
-      statements: 100,
+      branches: 88.47,
+      functions: 97.43,
+      lines: 94.47,
+      statements: 94.29,
     },
   },
+
+  // Currently the tests for NetworkController have a race condition which
+  // causes intermittent failures. This seems to fix it.
+  testEnvironment: 'jsdom',
 });

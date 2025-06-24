@@ -115,7 +115,7 @@ export class NetworkOrderController extends BaseController<
   onNetworkControllerStateChange({
     networkConfigurationsByChainId,
   }: NetworkState) {
-    this.update((state) => {
+    this.update((state: NetworkOrderControllerState) => {
       // Filter out testnets, which are in the state but not orderable
       const hexChainIds = Object.keys(networkConfigurationsByChainId).filter(
         (chainId) =>
@@ -159,7 +159,7 @@ export class NetworkOrderController extends BaseController<
    */
 
   updateNetworksList(chainIds: CaipChainId[]) {
-    this.update((state) => {
+    this.update((state: NetworkOrderControllerState) => {
       state.orderedNetworkList = chainIds.map((chainId) => ({
         networkId: chainId,
       }));

@@ -12,8 +12,8 @@ import type {
 } from '@metamask/network-controller';
 import type { CaipChainId } from '@metamask/utils';
 
-import { NetworkOrderController } from './NetworkOrderController';
-import type { NetworkOrderControllerMessengerActions } from './NetworkOrderController';
+import { NetworkOrderController } from '../src/NetworkOrderController';
+import type { NetworkOrderControllerMessengerActions } from '../src/NetworkOrderController';
 
 const controllerName = 'NetworkOrderController';
 

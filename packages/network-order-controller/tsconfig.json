@@ -20,5 +20,5 @@
       "path": "../../packages/controller-utils"
     }
   ],
-  "include": ["../../types", "./src"]
+  "include": ["../../types", "./src", "tests/NetworkOrderController.test.ts"]
 }
