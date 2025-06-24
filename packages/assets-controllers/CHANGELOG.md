@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- Bump `@metamask/preferences-controller` to `^18.2.0` ([#6026](https://github.com/MetaMask/core/pull/6026))
-
 ## [69.0.0]
 
 ### Changed
