@@ -17,11 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Automatically update `gasFeeEstimates` in unapproved `transactionBatches` ([#5950](https://github.com/MetaMask/core/pull/5950))
 - Estimate gas for type-4 transactions with `data` using `eth_estimateGas` and state overrides if simulation fails [#6016](https://github.com/MetaMask/core/pull/6016))
 - Query only latest page of transactions from accounts API ([#5983](https://github.com/MetaMask/core/pull/5983))
 - Remove incoming transactions when calling `wipeTransactions` ([#5986](https://github.com/MetaMask/core/pull/5986))
 - Poll immediately when calling `startIncomingTransactionPolling` ([#5986](https://github.com/MetaMask/core/pull/5986))
-- Extend `GasFeePoller` to support gas updates for unapproved `transactionBatches`, emitting `transaction-batch-updated` with `gasFeeEstimates`. ([#5950](https://github.com/MetaMask/core/pull/5950))
 
 ## [58.0.0]
 
@@ -43,7 +43,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add optional `containerTypes` property to `TransactionMeta`.
   - Add optional `ignoreDelegationSignatures` boolean to `estimateGas` method.
 - Add `gasFeeEstimates` property to `TransactionBatchMeta`, populated using `DefaultGasFeeFlow` ([#5886](https://github.com/MetaMask/core/pull/5886))
-
 
 ### Fixed
 
