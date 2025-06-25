@@ -519,6 +519,72 @@ export type NetworkControllerGetEthQueryAction = {
   handler: () => EthQuery | undefined;
 };
 
+export type NetworkControllerGetNetworkClientByIdAction = {
+  type: `NetworkController:getNetworkClientById`;
+  handler: NetworkController['getNetworkClientById'];
+};
+
+export type NetworkControllerGetSelectedNetworkClientAction = {
+  type: `NetworkController:getSelectedNetworkClient`;
+  handler: NetworkController['getSelectedNetworkClient'];
+};
+
+export type NetworkControllerGetSelectedChainIdAction = {
+  type: 'NetworkController:getSelectedChainId';
+  handler: NetworkController['getSelectedChainId'];
+};
+
+export type NetworkControllerGetEIP1559CompatibilityAction = {
+  type: `NetworkController:getEIP1559Compatibility`;
+  handler: NetworkController['getEIP1559Compatibility'];
+};
+
+export type NetworkControllerFindNetworkClientIdByChainIdAction = {
+  type: `NetworkController:findNetworkClientIdByChainId`;
+  handler: NetworkController['findNetworkClientIdByChainId'];
+};
+
+/**
+ * Change the currently selected network to the given built-in network type.
+ *
+ * @deprecated This action has been replaced by `setActiveNetwork`, and will be
+ * removed in a future release.
+ */
+export type NetworkControllerSetProviderTypeAction = {
+  type: `NetworkController:setProviderType`;
+  handler: NetworkController['setProviderType'];
+};
+
+export type NetworkControllerSetActiveNetworkAction = {
+  type: `NetworkController:setActiveNetwork`;
+  handler: NetworkController['setActiveNetwork'];
+};
+
+export type NetworkControllerGetNetworkConfigurationByChainId = {
+  type: `NetworkController:getNetworkConfigurationByChainId`;
+  handler: NetworkController['getNetworkConfigurationByChainId'];
+};
+
+export type NetworkControllerGetNetworkConfigurationByNetworkClientId = {
+  type: `NetworkController:getNetworkConfigurationByNetworkClientId`;
+  handler: NetworkController['getNetworkConfigurationByNetworkClientId'];
+};
+
+export type NetworkControllerAddNetworkAction = {
+  type: 'NetworkController:addNetwork';
+  handler: NetworkController['addNetwork'];
+};
+
+export type NetworkControllerRemoveNetworkAction = {
+  type: 'NetworkController:removeNetwork';
+  handler: NetworkController['removeNetwork'];
+};
+
+export type NetworkControllerUpdateNetworkAction = {
+  type: 'NetworkController:updateNetwork';
+  handler: NetworkController['updateNetwork'];
+};
+
 // Define the methods we want to expose via the messenger
 const MESSENGER_EXPOSED_METHODS = [
   'getNetworkClientById',
