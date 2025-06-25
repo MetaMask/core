@@ -334,7 +334,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
     const accountRates: OnAssetsConversionResponse =
       (await this.#handleSnapRequest({
         snapId: account?.metadata.snap?.id as SnapId,
-        handler: HandlerType.OnAssetsConversion,
+        handler: 'onAssetsMarketData' as HandlerType,
         params: {
           ...conversions,
           includeMarketData: true,
