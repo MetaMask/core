@@ -8,23 +8,26 @@
 
 
 import type { RestrictedMessenger } from '@metamask/base-controller';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { hexToBytes } from '@metamask/utils';
+import { sha256 } from 'ethereum-cryptography/sha256';
+import { v4 as uuid } from 'uuid';
 import type { 
-  WebSocketService, 
+  WebSocketService,
 } from './websocket-service';
-import { WebSocketEventType } from './websocket-service';
 import type { 
-  TransactionWithKeyringBalanceUpdate,
   Transaction,
   AccountBalancesUpdatedEventPayload,
 } from './types';
 
 const SERVICE_NAME = 'AccountActivityService';
+const SUBSCRIPTION_NAMESPACE = 'account-activity.v1';
 
 /**
  * Account subscription options
  */
 export type AccountSubscription = {
-  addresses: string[];
+  address: string; // Should be in CAIP-10 format, e.g., "eip155:0:0x1234..." or "solana:0:ABC123..."
 };
 
 /**
@@ -32,67 +35,95 @@ export type AccountSubscription = {
  */
 export type AccountActivityServiceOptions = {
   // Account monitoring options
-  maxAddressesPerSubscription?: number;
   maxActiveSubscriptions?: number;
   
   // Transaction processing options
   processAllTransactions?: boolean;
 };
 
+/**
+ * Incoming balance update format that doesn't match keyring-api format
+ */
+type IncomingBalanceUpdate = {
+  address: string;
+  asset: {
+    fungible: boolean;
+    type: string; // CAIP format like "eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+    unit: string;
+    amount: string;
+  };
+};
+
+/**
+ * Transaction with balance update in the incoming format
+ */
+type IncomingTransactionWithBalanceUpdate = {
+  tx: Transaction;
+  postBalances: IncomingBalanceUpdate[];
+};
+
+/**
+ * Generates a deterministic UUID from an Ethereum address.
+ * This matches the AccountsController's getUUIDFromAddressOfNormalAccount function.
+ * 
+ * @param address - The Ethereum address to generate the UUID from.
+ * @returns The generated UUID.
+ */
+function getAccountIdFromAddress(address: string): string {
+  const v4Options = {
+    random: sha256(hexToBytes(address)).slice(0, 16),
+  };
+  return uuid(v4Options);
+}
+
 // Action types for the messaging system
 export type AccountActivityServiceSubscribeAccountsAction = {
-  type: `${typeof SERVICE_NAME}:subscribeAccounts`;
+  type: `AccountActivityService:subscribeAccounts`;
   handler: AccountActivityService['subscribeAccounts'];
 };
 
 export type AccountActivityServiceUnsubscribeAccountsAction = {
-  type: `${typeof SERVICE_NAME}:unsubscribeAccounts`;
+  type: `AccountActivityService:unsubscribeAccounts`;
   handler: AccountActivityService['unsubscribeAccounts'];
 };
 
 
 
-export type AccountActivityServiceGetActiveSubscriptionsAction = {
-  type: `${typeof SERVICE_NAME}:getActiveSubscriptions`;
-  handler: AccountActivityService['getActiveSubscriptions'];
-};
 
-export type AccountActivityServiceGetSubscriptionIdsAction = {
-  type: `${typeof SERVICE_NAME}:getSubscriptionIds`;
-  handler: AccountActivityService['getSubscriptionIds'];
-};
+
+
 
 export type AccountActivityServiceActions = 
   | AccountActivityServiceSubscribeAccountsAction
   | AccountActivityServiceUnsubscribeAccountsAction
-  | AccountActivityServiceGetActiveSubscriptionsAction
-  | AccountActivityServiceGetSubscriptionIdsAction;
 
-type AllowedActions = never;
+type AllowedActions = 
+  | { type: 'AccountsController:listMultichainAccounts'; handler: (chainId?: string) => InternalAccount[] }
+  | { type: 'AccountsController:getAccountByAddress'; handler: (address: string) => InternalAccount | undefined };
 
 // Event types for the messaging system
 export type AccountActivityServiceAccountSubscribedEvent = {
-  type: `${typeof SERVICE_NAME}:accountSubscribed`;
+  type: `AccountActivityService:accountSubscribed`;
   payload: [{ addresses: string[] }];
 };
 
 export type AccountActivityServiceAccountUnsubscribedEvent = {
-  type: `${typeof SERVICE_NAME}:accountUnsubscribed`;
+  type: `AccountActivityService:accountUnsubscribed`;
   payload: [{ addresses: string[] }];
 };
 
 export type AccountActivityServiceTransactionUpdatedEvent = {
-  type: `${typeof SERVICE_NAME}:transactionUpdated`;
+  type: `AccountActivityService:transactionUpdated`;
   payload: [Transaction];
 };
 
 export type AccountActivityServiceBalanceUpdatedEvent = {
-  type: `${typeof SERVICE_NAME}:balanceUpdated`;
+  type: `AccountActivityService:balanceUpdated`;
   payload: [AccountBalancesUpdatedEventPayload];
 };
 
 export type AccountActivityServiceSubscriptionErrorEvent = {
-  type: `${typeof SERVICE_NAME}:subscriptionError`;
+  type: `AccountActivityService:subscriptionError`;
   payload: [{ addresses: string[]; error: string; operation: string }];
 };
 
@@ -103,7 +134,15 @@ export type AccountActivityServiceEvents =
   | AccountActivityServiceBalanceUpdatedEvent
   | AccountActivityServiceSubscriptionErrorEvent;
 
-type AllowedEvents = never;
+type AllowedEvents = 
+  | { type: 'AccountsController:accountAdded'; payload: [InternalAccount] }
+  | { type: 'AccountsController:accountRemoved'; payload: [string] }
+  | { type: 'AccountsController:listMultichainAccounts'; payload: [string] }
+  | AccountActivityServiceAccountSubscribedEvent
+  | AccountActivityServiceAccountUnsubscribedEvent
+  | AccountActivityServiceTransactionUpdatedEvent
+  | AccountActivityServiceBalanceUpdatedEvent
+  | AccountActivityServiceSubscriptionErrorEvent;
 
 export type AccountActivityServiceMessenger = RestrictedMessenger<
   typeof SERVICE_NAME,
@@ -116,29 +155,43 @@ export type AccountActivityServiceMessenger = RestrictedMessenger<
 /**
  * Account Activity Service
  * 
- * Subscribes to account activity and receives all transactions and balance updates
- * for those accounts using the unified TransactionWithKeyringBalanceUpdate message
- * format from keyring-api.
+ * High-performance service for real-time account activity monitoring using optimized
+ * WebSocket subscriptions with direct callback routing. Receives transactions and 
+ * balance updates using the unified TransactionWithKeyringBalanceUpdate format.
+ * 
+ * Performance Features:
+ * - Direct callback routing (no EventEmitter overhead)
+ * - Minimal subscription tracking (no duplication with WebSocketService)
+ * - Optimized cleanup for mobile environments  
+ * - Automatic balance format transformation
+ * 
+ * Architecture:
+ * - WebSocketService manages the actual WebSocket subscriptions and callbacks
+ * - AccountActivityService only tracks channel-to-subscriptionId mappings
+ * - No duplication of subscription state between services
  * 
  * @example
  * ```typescript
  * const service = new AccountActivityService({
  *   messenger: activityMessenger,
  *   webSocketService: wsService,
- *   maxAddressesPerSubscription: 50,
+ *   maxActiveSubscriptions: 20,
  *   processAllTransactions: true,
  * });
  * 
- * // Subscribe to account activity
+ * // Subscribe to account activity with CAIP-10 formatted address
  * await service.subscribeAccounts({
- *   addresses: ['0x1234...', '0x5678...'],
- *   chainId: '1',
- *   includeTokens: true,
- *   includeTransactions: true,
+ *   address: 'eip155:0:0x1234567890123456789012345678901234567890'
  * });
  * 
- * // All transactions and balance updates for these accounts
- * // will now be received via WebSocket and processed automatically
+ * // Subscribe to another account
+ * await service.subscribeAccounts({
+ *   address: 'solana:0:ABC123DEF456GHI789JKL012MNO345PQR678STU901VWX'
+ * });
+ * 
+ * // All transactions and balance updates are received via optimized
+ * // WebSocket callbacks and processed with zero-allocation routing
+ * // Balance updates are automatically transformed to keyring-api format
  * ```
  */
 export class AccountActivityService {
@@ -146,11 +199,7 @@ export class AccountActivityService {
   readonly #webSocketService: WebSocketService;
   readonly #options: Required<AccountActivityServiceOptions>;
 
-  // Account subscription state
-  #subscriptionIds = new Map<string, any>(); // Key: address, Value: WebSocket subscription object
-  
-  // WebSocket method watchers cleanup functions
-  #watcherCleanups: (() => void)[] = [];
+  // Note: Subscription tracking is now centralized in WebSocketService
 
   /**
    * Creates a new Account Activity service instance
@@ -163,13 +212,17 @@ export class AccountActivityService {
     this.#webSocketService = options.webSocketService;
     
     this.#options = {
-      maxAddressesPerSubscription: options.maxAddressesPerSubscription ?? 50,
       maxActiveSubscriptions: options.maxActiveSubscriptions ?? 20,
       processAllTransactions: options.processAllTransactions ?? true,
     };
 
-    this.#setupWebSocketHandlers();
     this.#registerActionHandlers();
+    this.#setupAccountEventHandlers();
+    
+    // Subscribe all existing accounts on initialization
+    this.#subscribeAllExistingAccounts().catch((error: unknown) => {
+      console.error('Failed to subscribe existing accounts during initialization:', error);
+    });
   }
 
   // =============================================================================
@@ -178,53 +231,43 @@ export class AccountActivityService {
 
   /**
    * Subscribe to account activity (transactions and balance updates)
+   * Address should be in CAIP-10 format (e.g., "eip155:0:0x1234..." or "solana:0:ABC123...")
    */
   async subscribeAccounts(subscription: AccountSubscription): Promise<void> {
-    if (subscription.addresses.length > this.#options.maxAddressesPerSubscription) {
-      throw new Error(`Cannot subscribe to more than ${this.#options.maxAddressesPerSubscription} addresses`);
-    }
-
-    if (this.#subscriptionIds.size >= this.#options.maxActiveSubscriptions) {
-      throw new Error(`Cannot have more than ${this.#options.maxActiveSubscriptions} active subscriptions`);
-    }
-
     try {
       await this.#webSocketService.connect();
 
-      // Subscribe to each address individually using the high-level subscribe method
-      for (const address of subscription.addresses) {
-        const addressKey = address.toLowerCase(); // Use address as key since we're subscribing to all chains
-        
-        // Skip if already subscribed to this address
-        if (this.#subscriptionIds.has(addressKey)) {
-          continue;
-        }
-        
-        const wsSubscription = await this.#webSocketService.subscribe({
-          method: 'account_activity',
-          params: {
-            address,
-          },
-          onNotification: (notification) => {
-            this.#handleAccountActivityUpdate(notification.params as TransactionWithKeyringBalanceUpdate);
-          },
-        });
-        
-        // Store the subscription object
-        this.#subscriptionIds.set(addressKey, wsSubscription);
+      // Create channel name from address
+      const channel = `${SUBSCRIPTION_NAMESPACE}.${subscription.address}`;
 
-        this.#messenger.publish(`${SERVICE_NAME}:accountSubscribed`, {
-          addresses: [address],
-        });
+      // Check if already subscribed
+      if (this.#webSocketService.isChannelSubscribed(channel)) {
+        return;
       }
 
-      
+      // Create subscription with optimized callback routing
+      await this.#webSocketService.subscribe({
+        namespace: SUBSCRIPTION_NAMESPACE,
+        channels: [channel],
+        callback: (notification) => {
+          // Fast path: Direct processing of account activity updates
+          this.#handleAccountActivityUpdate(
+            notification.data as IncomingTransactionWithBalanceUpdate
+          );
+        },
+      });
+
+
+      // Publish success event
+      this.#messenger.publish(`AccountActivityService:accountSubscribed`, {
+        addresses: [subscription.address],
+      });
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown subscription error';
       
-      this.#messenger.publish(`${SERVICE_NAME}:subscriptionError`, {
-        addresses: subscription.addresses,
+      this.#messenger.publish(`AccountActivityService:subscriptionError`, {
+        addresses: [subscription.address],
         error: errorMessage,
         operation: 'subscribe',
       });
@@ -234,34 +277,34 @@ export class AccountActivityService {
   }
 
   /**
-   * Unsubscribe from account activity for specified addresses
+   * Unsubscribe from account activity for specified address
+   * Address should be in CAIP-10 format (e.g., "eip155:0:0x1234..." or "solana:0:ABC123...")
    */
-  async unsubscribeAccounts(addresses: string[]): Promise<void> {
+  async unsubscribeAccounts(address: string): Promise<void> {
     try {
-      // Unsubscribe each address individually
-      for (const address of addresses) {
-        const addressKey = address.toLowerCase();
-        const wsSubscription = this.#subscriptionIds.get(addressKey);
-        
-        if (wsSubscription) {
-          // Call unsubscribe on the WebSocket subscription object
-          await wsSubscription.unsubscribe();
-          
-          // Clean up our tracking
-          this.#subscriptionIds.delete(addressKey);
-        }
-        
+      // Find channel for the specified address
+      const channel = `${SUBSCRIPTION_NAMESPACE}.${address}`;
+      const subscriptionInfo = this.#webSocketService.getSubscriptionByChannel(SUBSCRIPTION_NAMESPACE, channel);
+      
+      if (!subscriptionInfo) {
+        console.log(`No subscription found for address: ${address}`);
+        return;
       }
 
-      this.#messenger.publish(`${SERVICE_NAME}:accountUnsubscribed`, {
-        addresses,
+      // Fast path: Direct unsubscribe using stored unsubscribe function
+      await subscriptionInfo.unsubscribe();
+
+      // Subscription cleanup is handled centrally in WebSocketService
+
+      this.#messenger.publish(`AccountActivityService:accountUnsubscribed`, {
+        addresses: [address],
       });
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown unsubscription error';
       
-      this.#messenger.publish(`${SERVICE_NAME}:subscriptionError`, {
-        addresses,
+      this.#messenger.publish(`AccountActivityService:subscriptionError`, {
+        addresses: [address],
         error: errorMessage,
         operation: 'unsubscribe',
       });
@@ -271,150 +314,234 @@ export class AccountActivityService {
   }
 
   // =============================================================================
-  // Data Access Methods
-  // =============================================================================
-
-  /**
-   * Get all active subscriptions
-   */
-  getActiveSubscriptions(): Record<string, string> {
-    const result: Record<string, string> = {};
-    
-    this.#subscriptionIds.forEach((subscription, address) => {
-      result[address] = subscription.subscriptionId;
-    });
-
-    return result;
-  }
-
-  /**
-   * Get subscription IDs for all subscribed addresses
-   */
-  getSubscriptionIds(): Record<string, string> {
-    const result: Record<string, string> = {};
-    
-    this.#subscriptionIds.forEach((subscription, address) => {
-      result[address] = subscription.subscriptionId;
-    });
-
-    return result;
-  }
-
-  // =============================================================================
   // Private Methods
   // =============================================================================
+
+  /**
+   * Convert an InternalAccount address to CAIP-10 format or raw address
+   */
+  #convertToCaip10Address(account: InternalAccount): string {
+    // Check if account has EVM scopes
+    if (account.scopes.some(scope => scope.startsWith('eip155:'))) {
+      // CAIP-10 format: eip155:0:address (subscribe to all EVM chains)
+      return `eip155:0:${account.address}`;
+    }
+    
+    // Check if account has Solana scopes
+    if (account.scopes.some(scope => scope.startsWith('solana:'))) {
+      // CAIP-10 format: solana:0:address (subscribe to all Solana chains)
+      return `solana:0:${account.address}`;
+    }
+    
+    // For other chains or unknown scopes, return raw address
+    return account.address;
+  }
 
   /**
    * Register all action handlers
    */
   #registerActionHandlers(): void {
     this.#messenger.registerActionHandler(
-      `${SERVICE_NAME}:subscribeAccounts`,
+      `AccountActivityService:subscribeAccounts`,
       this.subscribeAccounts.bind(this),
     );
 
     this.#messenger.registerActionHandler(
-      `${SERVICE_NAME}:unsubscribeAccounts`,
+      `AccountActivityService:unsubscribeAccounts`,
       this.unsubscribeAccounts.bind(this),
     );
-
-
-
-    this.#messenger.registerActionHandler(
-      `${SERVICE_NAME}:getActiveSubscriptions`,
-      this.getActiveSubscriptions.bind(this),
-    );
-
-    this.#messenger.registerActionHandler(
-      `${SERVICE_NAME}:getSubscriptionIds`,
-      this.getSubscriptionIds.bind(this),
-    );
   }
 
   /**
-   * Set up WebSocket message handlers
+   * Transform incoming balance updates to AccountBalancesUpdatedEventPayload format
+   * 
+   * Converts from array format:
+   * [{ address: "0x123...", asset: { type: "eip155:8453/erc20:0x...", unit: "USDC", amount: "1000" } }]
+   * 
+   * To keyring-api format:
+   * { balances: { "account-uuid": { "eip155:8453/erc20:0x...": { unit: "USDC", amount: "1000" } } } }
    */
-  #setupWebSocketHandlers(): void {
-    // Handle connection events for resubscription
-    const disconnectedHandlerCleanup = () => {
-      this.#webSocketService.off(WebSocketEventType.DISCONNECTED, this.#handleDisconnected);
-    };
-    this.#webSocketService.on(WebSocketEventType.DISCONNECTED, this.#handleDisconnected);
-    this.#watcherCleanups.push(disconnectedHandlerCleanup);
-
-    const reconnectedHandlerCleanup = () => {
-      this.#webSocketService.off(WebSocketEventType.RECONNECTED, this.#handleReconnected);
-    };
-    this.#webSocketService.on(WebSocketEventType.RECONNECTED, this.#handleReconnected);
-    this.#watcherCleanups.push(reconnectedHandlerCleanup);
+  #transformBalancesToKeyringFormat(incomingBalances: IncomingBalanceUpdate[]): AccountBalancesUpdatedEventPayload {
+    const balances: Record<string, Record<string, { unit: string; amount: string }>> = {};
+    
+    // Group balance updates by account ID (not address)
+    for (const balance of incomingBalances) {
+      // Validate required fields
+      if (!balance.address || !balance.asset?.type || !balance.asset?.unit || balance.asset?.amount === undefined) {
+        console.warn('Skipping invalid balance update:', balance);
+        continue;
+      }
+      
+      // Get the proper account ID from the AccountsController
+      let accountId: string;
+      try {
+        const account = this.#messenger.call('AccountsController:getAccountByAddress', balance.address);
+        if (account) {
+          // Use the actual account ID from the AccountsController
+          accountId = account.id;
+        } else {
+          // Fall back to generating UUID from address (for accounts not yet in controller)
+          accountId = getAccountIdFromAddress(balance.address);
+          console.warn(`Account not found in AccountsController for address ${balance.address}, using generated UUID: ${accountId}`);
+        }
+      } catch (error) {
+        // Fall back to generating UUID from address if AccountsController is not available
+        accountId = getAccountIdFromAddress(balance.address);
+        console.warn(`Failed to get account from AccountsController for address ${balance.address}, using generated UUID: ${accountId}`, error);
+      }
+      
+      const assetType = balance.asset.type as `${string}:${string}/${string}:${string}`;
+      
+      // Initialize account balances if not exists
+      if (!balances[accountId]) {
+        balances[accountId] = {};
+      }
+      
+      // Add the balance for this asset
+      balances[accountId][assetType] = {
+        unit: balance.asset.unit,
+        amount: balance.asset.amount,
+      };
+    }
+    
+    return { balances };
   }
-
-
-
-  /**
-   * Handle WebSocket disconnection
-   */
-  #handleDisconnected = (): void => {
-    // Connection lost - subscriptions will be restored on reconnection
-  };
-
-  /**
-   * Handle WebSocket reconnection
-   */
-  #handleReconnected = (): void => {
-    this.#resubscribeAllAccounts();
-  };
-
-
 
   /**
    * Handle account activity updates (transactions + balance changes)
+   * Supports both keyring-api format and incoming array format
+   * 
+   * @example Incoming array format transformation:
+   * Input: { tx: {...}, postBalances: [{ address: "0x123", asset: { type: "eip155:8453/erc20:0x...", unit: "USDC", amount: "1000" } }] }
+   * Output: { balances: { "account-uuid": { "eip155:8453/erc20:0x...": { unit: "USDC", amount: "1000" } } } }
+   * 
+   * Note: Addresses are converted to proper account UUIDs using AccountsController or deterministic generation.
    */
-  #handleAccountActivityUpdate(payload: TransactionWithKeyringBalanceUpdate): void {
-    const { tx, balances } = payload;
-    
-    // Process transaction update
-    this.#messenger.publish(`${SERVICE_NAME}:transactionUpdated`, tx);
-    
-    // Process balance updates
-    this.#messenger.publish(`${SERVICE_NAME}:balanceUpdated`, balances)
-  }
-
-
-
-  /**
-   * Resubscribe to all accounts after reconnection
-   */
-  async #resubscribeAllAccounts(): Promise<void> {
-    const addresses = Array.from(this.#subscriptionIds.keys());
-    
-    // Clear existing subscription tracking since we're reconnecting
-    this.#subscriptionIds.clear();
-    
-    // Resubscribe to all addresses
-    if (addresses.length > 0) {
-      try {
-        await this.subscribeAccounts({addresses});
-      } catch (error) {
-        console.error('Failed to resubscribe to account activity:', error);
-      }
+  #handleAccountActivityUpdate(payload: IncomingTransactionWithBalanceUpdate): void {
+    try {
+      const { tx, postBalances } = payload;
+      
+      // Process transaction update
+      this.#messenger.publish(`AccountActivityService:transactionUpdated`, tx);
+      
+      // Transform balance updates     
+      const keyringBalances = this.#transformBalancesToKeyringFormat(postBalances);
+      
+      // Process balance updates
+      this.#messenger.publish(`AccountActivityService:balanceUpdated`, keyringBalances);
+    } catch (error) {
+      console.error('Error handling account activity update:', error);
+      console.error('Payload that caused error:', payload);
     }
   }
 
+  /**
+   * Set up account event handlers
+   */
+  #setupAccountEventHandlers(): void {
+    try {
+      // Subscribe to account added events
+      this.#messenger.subscribe(
+        'AccountsController:accountAdded',
+        (account: InternalAccount) => this.#handleAccountAdded(account),
+      );
 
-
-
+      // Subscribe to account removed events  
+      this.#messenger.subscribe(
+        'AccountsController:accountRemoved',
+        (accountId: string) => this.#handleAccountRemoved(accountId),
+      );
+    } catch (error) {
+      // AccountsController events might not be available in all environments
+      console.log('AccountsController events not available for account management:', error);
+    }
+  }
 
   /**
-   * Clean up all WebSocket watchers and event handlers
-   * Call this when the service is being destroyed
+   * Subscribe all existing accounts on initialization
+   */
+  async #subscribeAllExistingAccounts(): Promise<void> {
+    try {
+      // Get all existing accounts (both EVM and non-EVM)
+      const accounts = this.#messenger.call('AccountsController:listMultichainAccounts');
+
+      if (accounts.length === 0) {
+        console.log('No accounts found to subscribe to activity service');
+        return;
+      }
+
+      // Convert addresses to CAIP-10 format and subscribe all in parallel
+      const subscriptionPromises = accounts.map(async (account: InternalAccount) => {
+        const address = this.#convertToCaip10Address(account);
+        return this.subscribeAccounts({ address });
+      });
+
+      // Wait for all subscriptions to complete
+      await Promise.all(subscriptionPromises);
+
+      console.log(`Successfully subscribed ${accounts.length} existing accounts to activity service during initialization`);
+    } catch (error) {
+      console.error('Failed to subscribe existing accounts to activity service:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Handle account added event
+   */
+  async #handleAccountAdded(account: InternalAccount): Promise<void> {
+    try {
+      // Only handle accounts with valid addresses
+      if (!account.address || typeof account.address !== 'string') {
+        return;
+      }
+
+      // Convert to CAIP-10 format and subscribe
+      const address = this.#convertToCaip10Address(account);
+      await this.subscribeAccounts({ address });
+      console.log(`Automatically subscribed new account ${account.address} with CAIP-10 address: ${address}`);
+    } catch (error) {
+      console.error(`Failed to subscribe new account ${account.address} to activity service:`, error);
+    }
+  }
+
+  /**
+   * Handle account removed event
+   */
+  async #handleAccountRemoved(accountId: string): Promise<void> {
+    try {
+      // Find the account by ID to get its address
+      const accounts = this.#messenger.call('AccountsController:listMultichainAccounts');
+      const removedAccount = accounts.find((account: InternalAccount) => account.id === accountId);
+      
+      if (removedAccount && removedAccount.address) {
+        // Convert to CAIP-10 format and unsubscribe
+        const address = this.#convertToCaip10Address(removedAccount);
+        await this.unsubscribeAccounts(address);
+        console.log(`Automatically unsubscribed removed account ${removedAccount.address} with CAIP-10 address: ${address}`);
+      }
+    } catch (error) {
+      console.error(`Failed to unsubscribe removed account ${accountId} from activity service:`, error);
+    }
+  }
+
+  /**
+   * Clean up all subscriptions and resources
+   * Optimized for fast cleanup during service destruction or mobile app termination
    */
   cleanup(): void {
-    // Clean up all watchers
-    this.#watcherCleanups.forEach(cleanup => cleanup());
-    this.#watcherCleanups = [];
+    // Fast path: Only unsubscribe from account activity subscriptions using namespace isolation
+    // Perfect isolation - other services' subscriptions are completely untouched
+    const namespaceSubscriptions = this.#webSocketService.getSubscriptionsByNamespace(SUBSCRIPTION_NAMESPACE);
     
-    // Clear all cached data
-    this.#subscriptionIds.clear();
+    namespaceSubscriptions.forEach(subscription => {
+      subscription.unsubscribe().catch((error: Error) => 
+        console.error('Error during cleanup unsubscribe:', error)
+      );
+    });
+    
+    // Subscription cleanup is handled centrally in WebSocketService
+    
+    console.log(`Cleaned up ${namespaceSubscriptions.size} account activity subscriptions`);
   }
 } 
