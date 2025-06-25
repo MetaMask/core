@@ -30,6 +30,7 @@ import {
   AccountImportStrategy,
   KeyringController,
   KeyringTypes,
+  isCustodyKeyring,
   keyringBuilderFactory,
 } from './KeyringController';
 import MockEncryptor, {
@@ -3785,6 +3786,369 @@ describe('KeyringController', () => {
             },
           );
         });
+      });
+    });
+  });
+
+  describe('isCustodyKeyring', () => {
+    it('should return true if keyring is custody keyring', () => {
+      expect(isCustodyKeyring('Custody JSON-RPC')).toBe(true);
+    });
+
+    it('should not return true if keyring is not custody keyring', () => {
+      expect(isCustodyKeyring(KeyringTypes.hd)).toBe(false);
+    });
+
+    it("should not return true if the keyring doesn't start with custody", () => {
+      expect(isCustodyKeyring('NotCustody')).toBe(false);
+    });
+  });
+
+  describe('actions', () => {
+    beforeEach(() => {
+      jest
+        .spyOn(KeyringController.prototype, 'signMessage')
+        .mockResolvedValue('0x1234');
+      jest
+        .spyOn(KeyringController.prototype, 'signPersonalMessage')
+        .mockResolvedValue('0x1234');
+      jest
+        .spyOn(KeyringController.prototype, 'signTypedMessage')
+        .mockResolvedValue('0x1234');
+      jest
+        .spyOn(KeyringController.prototype, 'decryptMessage')
+        .mockResolvedValue('I am Satoshi Buterin');
+      jest
+        .spyOn(KeyringController.prototype, 'getEncryptionPublicKey')
+        .mockResolvedValue('ZfKqt4HSy4tt9/WvqP3QrnzbIS04cnV//BhksKbLgVA=');
+      jest
+        .spyOn(KeyringController.prototype, 'prepareUserOperation')
+        .mockResolvedValue({
+          callData: '0x706',
+          initCode: '0x22ff',
+          nonce: '0x1',
+          gasLimits: {
+            callGasLimit: '0x58a83',
+            verificationGasLimit: '0xe8c4',
+            preVerificationGas: '0xc57c',
+          },
+          dummySignature: '0x',
+          dummyPaymasterAndData: '0x',
+          bundlerUrl: 'https://bundler.example.com/rpc',
+        });
+      jest
+        .spyOn(KeyringController.prototype, 'patchUserOperation')
+        .mockResolvedValue({
+          paymasterAndData: '0x1234',
+        });
+      jest
+        .spyOn(KeyringController.prototype, 'signUserOperation')
+        .mockResolvedValue('0x1234');
+    });
+
+    describe('signMessage', () => {
+      it('should sign message', async () => {
+        await withController(
+          async ({ controller, messenger, initialState }) => {
+            const messageParams = {
+              from: initialState.keyrings[0].accounts[0],
+              data: '0x1234',
+            };
+
+            await messenger.call(
+              'KeyringController:signMessage',
+              messageParams,
+            );
+
+            expect(controller.signMessage).toHaveBeenCalledWith(messageParams);
+          },
+        );
+      });
+    });
+
+    describe('signPersonalMessage', () => {
+      it('should sign personal message', async () => {
+        await withController(
+          async ({ controller, messenger, initialState }) => {
+            const messageParams = {
+              from: initialState.keyrings[0].accounts[0],
+              data: '0x1234',
+            };
+
+            await messenger.call(
+              'KeyringController:signPersonalMessage',
+              messageParams,
+            );
+
+            expect(controller.signPersonalMessage).toHaveBeenCalledWith(
+              messageParams,
+            );
+          },
+        );
+      });
+    });
+
+    describe('signTypedMessage', () => {
+      it('should call signTypedMessage', async () => {
+        await withController(
+          async ({ controller, messenger, initialState }) => {
+            const messageParams = {
+              data: JSON.stringify({ foo: 'bar' }),
+              from: initialState.keyrings[0].accounts[0],
+            };
+
+            await messenger.call(
+              'KeyringController:signTypedMessage',
+              messageParams,
+              SignTypedDataVersion.V4,
+            );
+
+            expect(controller.signTypedMessage).toHaveBeenCalledWith(
+              messageParams,
+              SignTypedDataVersion.V4,
+            );
+          },
+        );
+      });
+    });
+
+    describe('getEncryptionPublicKey', () => {
+      it('should call getEncryptionPublicKey', async () => {
+        await withController(
+          async ({ controller, messenger, initialState }) => {
+            await messenger.call(
+              'KeyringController:getEncryptionPublicKey',
+              initialState.keyrings[0].accounts[0],
+            );
+
+            expect(controller.getEncryptionPublicKey).toHaveBeenCalledWith(
+              initialState.keyrings[0].accounts[0],
+            );
+          },
+        );
+      });
+    });
+
+    describe('decryptMessage', () => {
+      it('should return correct decrypted message', async () => {
+        await withController(
+          async ({ controller, messenger, initialState }) => {
+            const messageParams = {
+              from: initialState.keyrings[0].accounts[0],
+              data: {
+                version: '1.0',
+                nonce: '123456',
+                ephemPublicKey: '0xabcdef1234567890',
+                ciphertext: '0xabcdef1234567890',
+              },
+            };
+
+            await messenger.call(
+              'KeyringController:decryptMessage',
+              messageParams,
+            );
+
+            expect(controller.decryptMessage).toHaveBeenCalledWith(
+              messageParams,
+            );
+          },
+        );
+      });
+    });
+
+    describe('prepareUserOperation', () => {
+      const chainId = '0x1';
+      const executionContext = {
+        chainId,
+      };
+
+      it('should return a base UserOp', async () => {
+        await withController(
+          async ({ controller, messenger, initialState }) => {
+            const baseTxs = [
+              {
+                to: '0x0c54fccd2e384b4bb6f2e405bf5cbc15a017aafb',
+                value: '0x0',
+                data: '0x0',
+              },
+            ];
+
+            await messenger.call(
+              'KeyringController:prepareUserOperation',
+              initialState.keyrings[0].accounts[0],
+              baseTxs,
+              executionContext,
+            );
+
+            expect(controller.prepareUserOperation).toHaveBeenCalledWith(
+              initialState.keyrings[0].accounts[0],
+              baseTxs,
+              executionContext,
+            );
+          },
+        );
+      });
+    });
+
+    describe('patchUserOperation', () => {
+      const chainId = '0x1';
+      const executionContext = {
+        chainId,
+      };
+      it('should return an UserOp patch', async () => {
+        await withController(
+          async ({ controller, messenger, initialState }) => {
+            const userOp = {
+              sender: '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4',
+              nonce: '0x1',
+              initCode: '0x',
+              callData: '0x7064',
+              callGasLimit: '0x58a83',
+              verificationGasLimit: '0xe8c4',
+              preVerificationGas: '0xc57c',
+              maxFeePerGas: '0x87f0878c0',
+              maxPriorityFeePerGas: '0x1dcd6500',
+              paymasterAndData: '0x',
+              signature: '0x',
+            };
+
+            await messenger.call(
+              'KeyringController:patchUserOperation',
+              initialState.keyrings[0].accounts[0],
+              userOp,
+              executionContext,
+            );
+
+            expect(controller.patchUserOperation).toHaveBeenCalledWith(
+              initialState.keyrings[0].accounts[0],
+              userOp,
+              executionContext,
+            );
+          },
+        );
+      });
+    });
+
+    describe('signUserOperation', () => {
+      const chainId = '0x1';
+      const executionContext = {
+        chainId,
+      };
+      it('should return an UserOp signature', async () => {
+        await withController(
+          async ({ controller, messenger, initialState }) => {
+            const userOp = {
+              sender: '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4',
+              nonce: '0x1',
+              initCode: '0x',
+              callData: '0x7064',
+              callGasLimit: '0x58a83',
+              verificationGasLimit: '0xe8c4',
+              preVerificationGas: '0xc57c',
+              maxFeePerGas: '0x87f0878c0',
+              maxPriorityFeePerGas: '0x1dcd6500',
+              paymasterAndData: '0x',
+              signature: '0x',
+            };
+
+            await messenger.call(
+              'KeyringController:signUserOperation',
+              initialState.keyrings[0].accounts[0],
+              userOp,
+              executionContext,
+            );
+
+            expect(controller.signUserOperation).toHaveBeenCalledWith(
+              initialState.keyrings[0].accounts[0],
+              userOp,
+              executionContext,
+            );
+          },
+        );
+      });
+    });
+
+    describe('getKeyringsByType', () => {
+      it('should return correct keyring by type', async () => {
+        jest
+          .spyOn(KeyringController.prototype, 'getKeyringsByType')
+          .mockReturnValue([
+            {
+              type: 'HD Key Tree',
+              accounts: ['0x1234'],
+            },
+          ]);
+        await withController(async ({ controller, messenger }) => {
+          messenger.call('KeyringController:getKeyringsByType', 'HD Key Tree');
+
+          expect(controller.getKeyringsByType).toHaveBeenCalledWith(
+            'HD Key Tree',
+          );
+        });
+      });
+    });
+
+    describe('getKeyringForAccount', () => {
+      it('should return the keyring for the account', async () => {
+        jest
+          .spyOn(KeyringController.prototype, 'getKeyringForAccount')
+          .mockResolvedValue({
+            type: 'HD Key Tree',
+            accounts: ['0x1234'],
+          });
+        await withController(async ({ controller, messenger }) => {
+          await messenger.call('KeyringController:getKeyringForAccount', '0x0');
+
+          expect(controller.getKeyringForAccount).toHaveBeenCalledWith('0x0');
+        });
+      });
+    });
+
+    describe('getAccounts', () => {
+      it('should return all accounts', async () => {
+        jest
+          .spyOn(KeyringController.prototype, 'getAccounts')
+          .mockResolvedValue(['0x1234']);
+        await withController(async ({ controller, messenger }) => {
+          await messenger.call('KeyringController:getAccounts');
+
+          expect(controller.getAccounts).toHaveBeenCalledWith();
+        });
+      });
+    });
+
+    describe('persistAllKeyrings', () => {
+      it('should call persistAllKeyrings', async () => {
+        jest
+          .spyOn(KeyringController.prototype, 'persistAllKeyrings')
+          .mockResolvedValue(true);
+        await withController(async ({ controller, messenger }) => {
+          await messenger.call('KeyringController:persistAllKeyrings');
+
+          expect(controller.persistAllKeyrings).toHaveBeenCalledWith();
+        });
+      });
+    });
+
+    describe('withKeyring', () => {
+      it('should call withKeyring', async () => {
+        await withController(
+          { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
+          async ({ controller, messenger }) => {
+            await controller.addNewKeyring(MockKeyring.type);
+
+            const actionReturnValue = await messenger.call(
+              'KeyringController:withKeyring',
+              { type: MockKeyring.type },
+              async ({ keyring }) => {
+                expect(keyring.type).toBe(MockKeyring.type);
+                return keyring.type;
+              },
+            );
+
+            expect(actionReturnValue).toBe(MockKeyring.type);
+          },
+        );
       });
     });
   });
