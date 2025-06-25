@@ -3,7 +3,8 @@
   "compilerOptions": {
     "baseUrl": "./",
     "outDir": "./dist",
-    "rootDir": "./src"
+    "rootDir": "./src",
+    "skipLibCheck": true
   },
   "references": [
     { "path": "../accounts-controller/tsconfig.build.json" },
@@ -19,5 +20,8 @@
     { "path": "../phishing-controller/tsconfig.build.json" }
   ],
   "include": ["../../types", "./src"],
-  "exclude": ["**/*.test.ts", "**/__fixtures__/"]
+  "exclude": [
+    "**/*.test.ts",
+    "**/__fixtures__/"
+  ]
 }
