@@ -17,7 +17,6 @@ import type { KeyringClass } from '@metamask/keyring-utils';
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
 import { bytesToHex, isValidHexAddress, type Hex } from '@metamask/utils';
 import * as sinon from 'sinon';
-import * as uuid from 'uuid';
 
 import { KeyringControllerError } from './constants';
 import type {
@@ -31,7 +30,6 @@ import {
   AccountImportStrategy,
   KeyringController,
   KeyringTypes,
-  isCustodyKeyring,
   keyringBuilderFactory,
 } from './KeyringController';
 import MockEncryptor, {
