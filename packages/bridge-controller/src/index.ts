@@ -59,7 +59,7 @@ export {
   BridgeBackgroundAction,
 } from './types';
 
-export { FeeType, ActionTypes } from './utils/validators';
+export { FeeType, ActionTypes, BridgeAssetSchema } from './utils/validators';
 
 export {
   ALLOWED_BRIDGE_CHAIN_IDS,
