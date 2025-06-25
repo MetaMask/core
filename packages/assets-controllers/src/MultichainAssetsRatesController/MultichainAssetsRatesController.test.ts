@@ -232,11 +232,11 @@ describe('MultichainAssetsRatesController', () => {
 
     // Check that the Snap request was made with the expected parameters.
     expect(snapHandler).toHaveBeenCalledWith({
-      handler: 'onAssetsConversion',
+      handler: 'onAssetsMarketData',
       origin: 'metamask',
       request: {
         jsonrpc: '2.0',
-        method: 'onAssetsConversion',
+        method: 'onAssetsMarketData',
         params: {
           conversions: [
             {
