@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Update `MultichainAssetsRatesController` to use the new `onAssetsMarketData` handler instead of `onAssetsConversion` ([#6035](https://github.com/MetaMask/core/pull/6035))
+  - This change improves the handler interface for fetching asset market data from Snaps
+- Bump `@metamask/snaps-utils` from `^9.4.0` to `^10.1.0` ([#6035](https://github.com/MetaMask/core/pull/6035))
+- Bump `@metamask/snaps-controllers` from `^12.3.1` to `^13.1.1` ([#6035](https://github.com/MetaMask/core/pull/6035))
+- Bump `@metamask/snaps-sdk` from `^7.1.0` to `^8.1.0` ([#6035](https://github.com/MetaMask/core/pull/6035))
+- Remove `@metamask/snaps-controllers` from peer dependencies ([#6035](https://github.com/MetaMask/core/pull/6035))
+
 ## [69.0.0]
 
 ### Changed
