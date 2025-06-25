@@ -13,8 +13,8 @@ import type {
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 
 import {
-  createSnapPublicKeyRequest,
   createSnapAllPublicKeysRequest,
+  createSnapPublicKeyRequest,
   createSnapSignMessageRequest,
 } from './auth-snap-requests';
 import type {
@@ -37,6 +37,8 @@ const controllerName = 'AuthenticationController';
 export type AuthenticationControllerState = {
   isSignedIn: boolean;
   srpSessionData?: Record<string, LoginResponse>;
+  socialPairingToken?: string;
+  socialPairingDone?: boolean;
 };
 export const defaultState: AuthenticationControllerState = {
   isSignedIn: false,
@@ -49,6 +51,14 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
   srpSessionData: {
     persist: true,
     anonymous: false,
+  },
+  socialPairingToken: {
+    persist: true,
+    anonymous: true,
+  },
+  socialPairingDone: {
+    persist: true,
+    anonymous: true,
   },
 };
 
@@ -70,6 +80,7 @@ type ActionsObj = CreateActionsObj<
   | 'getSessionProfile'
   | 'getUserProfileMetaMetrics'
   | 'isSignedIn'
+  | 'ingestSocialLoginToken'
 >;
 export type Actions =
   | ActionsObj[keyof ActionsObj]
@@ -298,12 +309,17 @@ export default class AuthenticationController extends BaseController<
     const allPublicKeys = await this.#snapGetAllPublicKeys();
     const accessTokens = [];
 
-    // We iterate sequentially in order to be sure that the first entry
+    // We iterate sequentially to be sure that the first entry
     // is the primary SRP LoginResponse.
     for (const [entropySourceId] of allPublicKeys) {
       const accessToken = await this.#auth.getAccessToken(entropySourceId);
       accessTokens.push(accessToken);
     }
+
+    // don't await for the pairing to finish
+    this.#tryPairingWithSocialToken().catch((_) => {
+      // don't care
+    });
 
     return accessTokens;
   }
@@ -312,6 +328,8 @@ export default class AuthenticationController extends BaseController<
     this.update((state) => {
       state.isSignedIn = false;
       state.srpSessionData = undefined;
+      state.socialPairingToken = undefined;
+      state.socialPairingDone = false;
     });
   }
 
@@ -349,6 +367,47 @@ export default class AuthenticationController extends BaseController<
 
   public isSignedIn(): boolean {
     return this.state.isSignedIn;
+  }
+
+  /**
+   * Stores a social login JWT token in controller state temporarily
+   * until it can be used for pairing.
+   * This token will automatically be removed from state after
+   * successful pairing or during a sign-out request.
+   *
+   * @param token - The JWT token from seedless onboarding OAuth flow
+   */
+  public ingestSocialLoginToken(token: string) {
+    this.update((state) => {
+      state.socialPairingToken = token;
+      state.socialPairingDone = false;
+    });
+  }
+
+  async #tryPairingWithSocialToken(): Promise<void> {
+    console.log(`GIGEL: trying to pair with seedless token`);
+    const { socialPairingToken, socialPairingDone } = this.state;
+    if (socialPairingDone || !socialPairingToken) {
+      console.log(`GIGEL: pairing conditions not met`);
+      return;
+    }
+
+    try {
+      console.log(`GIGEL: pairing with seedless token ${socialPairingToken}`);
+      if (await this.#auth.pairSocialIdentifier(socialPairingToken)) {
+        console.log(`GIGEL: successfully paired with seedless onboarding token`);
+        this.update((state) => {
+          state.socialPairingDone = true;
+          state.socialPairingToken = undefined;
+        });
+      } else {
+        console.log(`GIGEL: pairing with seedless token failed`);
+        // ignore the error
+      }
+    } catch (error) {
+      console.error('GIGEL: Failed to pair identifiers:', error);
+      // ignore the error
+    }
   }
 
   /**
