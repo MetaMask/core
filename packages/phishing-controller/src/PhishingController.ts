@@ -655,7 +655,8 @@ export class PhishingController extends BaseController<
    * web URLs.
    *
    * @param url - The URL to scan.
-   * @param noFetch - Whether to only return the cached result or in-flight requests.
+   * @param noFetch - An optional flag to prevent making an outbound request. If true, the
+   * function will return the cached result or in-flight requests.
    * @returns The phishing detection scan result.
    */
   scanUrl = async (
