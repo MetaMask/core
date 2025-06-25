@@ -149,7 +149,21 @@ export const QuoteSchema = type({
   destTokenAmount: string(),
   feeData: type({
     [FeeType.METABRIDGE]: FeeDataSchema,
+    /**
+     * This is the fee for the swap transaction taken from either the
+     * src or dest token if the quote has gas fees included or "gasless"
+     */
+    [FeeType.TX_FEE]: optional(
+      intersection([
+        FeeDataSchema,
+        type({
+          maxFeePerGas: string(),
+          maxPriorityFeePerGas: string(),
+        }),
+      ]),
+    ),
   }),
+  gasEnabledSwap: optional(boolean()),
   bridgeId: string(),
   bridges: array(string()),
   steps: array(StepSchema),
