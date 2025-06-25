@@ -1,5 +1,5 @@
 /**
- * Price Update Service for handling real-time price feeds
+ * Price Service for handling real-time price feeds
  * 
  * This service manages price subscriptions, updates, and notifications
  * using the WebSocketService as the underlying transport layer.
@@ -10,9 +10,7 @@ import type { RestrictedMessenger } from '@metamask/base-controller';
 import type { WebSocketService, ServerNotificationMessage } from './websocket-service';
 import { WebSocketEventType } from './websocket-service';
 
-const SERVICE_NAME = 'PriceUpdateService';
-
-
+const SERVICE_NAME = 'PriceService';
 
 /**
  * Price data structure
@@ -38,9 +36,9 @@ export type PriceSubscription = {
 };
 
 /**
- * Configuration options for the Price Update service
+ * Configuration options for the Price service
  */
-export type PriceUpdateServiceOptions = {
+export type PriceServiceOptions = {
   /** Default update interval in milliseconds */
   defaultInterval?: number;
   
@@ -52,68 +50,68 @@ export type PriceUpdateServiceOptions = {
 };
 
 // Action types for the messaging system
-export type PriceUpdateServiceSubscribeAction = {
-  type: `${typeof SERVICE_NAME}:subscribe`;
-  handler: PriceUpdateService['subscribe'];
+export type PriceServiceSubscribeAction = {
+  type: `PriceService:subscribe`;
+  handler: PriceService['subscribe'];
 };
 
-export type PriceUpdateServiceUnsubscribeAction = {
-  type: `${typeof SERVICE_NAME}:unsubscribe`;
-  handler: PriceUpdateService['unsubscribe'];
+export type PriceServiceUnsubscribeAction = {
+  type: `PriceService:unsubscribe`;
+  handler: PriceService['unsubscribe'];
 };
 
-export type PriceUpdateServiceGetPricesAction = {
-  type: `${typeof SERVICE_NAME}:getPrices`;
-  handler: PriceUpdateService['getPrices'];
+export type PriceServiceGetPricesAction = {
+  type: `PriceService:getPrices`;
+  handler: PriceService['getPrices'];
 };
 
-export type PriceUpdateServiceActions = 
-  | PriceUpdateServiceSubscribeAction
-  | PriceUpdateServiceUnsubscribeAction
-  | PriceUpdateServiceGetPricesAction;
+export type PriceServiceActions = 
+  | PriceServiceSubscribeAction
+  | PriceServiceUnsubscribeAction
+  | PriceServiceGetPricesAction;
 
 type AllowedActions = never;
 
 // Event types for the messaging system
-export type PriceUpdateServicePriceUpdatedEvent = {
-  type: `${typeof SERVICE_NAME}:priceUpdated`;
+export type PriceServicePriceUpdatedEvent = {
+  type: `PriceService:priceUpdated`;
   payload: [PriceData];
 };
 
-export type PriceUpdateServiceSubscriptionConfirmedEvent = {
-  type: `${typeof SERVICE_NAME}:subscriptionConfirmed`;
+export type PriceServiceSubscriptionConfirmedEvent = {
+  type: `PriceService:subscriptionConfirmed`;
   payload: [{ subscriptionId: string; symbols: string[] }];
 };
 
-export type PriceUpdateServiceSubscriptionErrorEvent = {
-  type: `${typeof SERVICE_NAME}:subscriptionError`;
+export type PriceServiceSubscriptionErrorEvent = {
+  type: `PriceService:subscriptionError`;
   payload: [{ symbols: string[]; error: string }];
 };
 
-export type PriceUpdateServiceEvents = 
-  | PriceUpdateServicePriceUpdatedEvent
-  | PriceUpdateServiceSubscriptionConfirmedEvent
-  | PriceUpdateServiceSubscriptionErrorEvent;
+export type PriceServiceEvents = 
+  | PriceServicePriceUpdatedEvent
+  | PriceServiceSubscriptionConfirmedEvent
+  | PriceServiceSubscriptionErrorEvent;
 
 type AllowedEvents = never;
 
-export type PriceUpdateServiceMessenger = RestrictedMessenger<
+export type PriceServiceMessenger = RestrictedMessenger<
   typeof SERVICE_NAME,
-  PriceUpdateServiceActions | AllowedActions,
-  PriceUpdateServiceEvents | AllowedEvents,
+  PriceServiceActions | AllowedActions,
+  PriceServiceEvents | AllowedEvents,
   AllowedActions['type'],
   AllowedEvents['type']
 >;
 
 /**
- * Price Update Service
+ * Price Service
  * 
  * Handles real-time price feed subscriptions and updates using WebSocketService
  * as the underlying transport mechanism.
  * 
  * @example
  * ```typescript
- * const service = new PriceUpdateService({
+ * const service = new PriceService({
  *   messenger: priceMessenger,
  *   webSocketService: wsService,
  *   defaultInterval: 5000,
@@ -128,10 +126,10 @@ export type PriceUpdateServiceMessenger = RestrictedMessenger<
  * });
  * ```
  */
-export class PriceUpdateService {
-  readonly #messenger: PriceUpdateServiceMessenger;
+export class PriceService {
+  readonly #messenger: PriceServiceMessenger;
   readonly #webSocketService: WebSocketService;
-  readonly #options: Required<PriceUpdateServiceOptions>;
+  readonly #options: Required<PriceServiceOptions>;
 
   #subscriptionIds = new Map<string, any>(); // Key: symbol list, Value: WebSocket subscription object
   #priceCache = new Map<string, PriceData>();
@@ -140,7 +138,7 @@ export class PriceUpdateService {
   #watcherCleanups: (() => void)[] = [];
 
   /**
-   * Creates a new Price Update service instance
+   * Creates a new Price service instance
    * 
    * @param options - Configuration options
    * @param options.messenger - The restricted messenger for this service
@@ -149,8 +147,8 @@ export class PriceUpdateService {
    * @param options.maxSymbolsPerSubscription - Maximum symbols per subscription
    * @param options.changeThreshold - Price change threshold for notifications
    */
-  constructor(options: PriceUpdateServiceOptions & { 
-    messenger: PriceUpdateServiceMessenger;
+  constructor(options: PriceServiceOptions & { 
+    messenger: PriceServiceMessenger;
     webSocketService: WebSocketService;
   }) {
     this.#messenger = options.messenger;
@@ -166,17 +164,17 @@ export class PriceUpdateService {
 
     // Register action handlers
     this.#messenger.registerActionHandler(
-      `${SERVICE_NAME}:subscribe`,
+      `PriceService:subscribe`,
       this.subscribe.bind(this),
     );
 
     this.#messenger.registerActionHandler(
-      `${SERVICE_NAME}:unsubscribe`,
+      `PriceService:unsubscribe`,
       this.unsubscribe.bind(this),
     );
 
     this.#messenger.registerActionHandler(
-      `${SERVICE_NAME}:getPrices`,
+      `PriceService:getPrices`,
       this.getPrices.bind(this),
     );
   }
@@ -221,7 +219,7 @@ export class PriceUpdateService {
       // Store the subscription object
       this.#subscriptionIds.set(symbolKey, wsSubscription);
 
-      this.#messenger.publish(`${SERVICE_NAME}:subscriptionConfirmed`, {
+      this.#messenger.publish(`PriceService:subscriptionConfirmed`, {
         subscriptionId: wsSubscription.subscriptionId,
         symbols: subscription.symbols,
       });
@@ -229,7 +227,7 @@ export class PriceUpdateService {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown subscription error';
       
-      this.#messenger.publish(`${SERVICE_NAME}:subscriptionError`, {
+      this.#messenger.publish(`PriceService:subscriptionError`, {
         symbols: subscription.symbols,
         error: errorMessage,
       });
@@ -299,13 +297,13 @@ export class PriceUpdateService {
    * 
    * @private
    */
-  #handlePriceNotification(notification: ServerNotificationMessage): void {
-    if (notification.method === 'price_update') {
-      this.#handlePriceUpdate(notification.params as PriceData);
-    } else if (notification.method === 'price_subscription_confirmed') {
-      this.#handleSubscriptionConfirmed(notification.params);
-    } else if (notification.method === 'price_subscription_error') {
-      this.#handleSubscriptionError(notification.params);
+  #handlePriceNotification(payload: ServerNotificationMessage): void {
+    if (payload.event === 'price_update') {
+      this.#handlePriceUpdate(payload.data as PriceData);
+    } else if (payload.event === 'price_subscription_confirmed') {
+      this.#handleSubscriptionConfirmed(payload.data);
+    } else if (payload.event === 'price_subscription_error') {
+      this.#handleSubscriptionError(payload.data);
     }
   }
 
@@ -356,7 +354,7 @@ export class PriceUpdateService {
     this.#priceCache.set(priceData.symbol, priceData);
 
     // Always emit the price update
-    this.#messenger.publish(`${SERVICE_NAME}:priceUpdated`, priceData);
+    this.#messenger.publish(`PriceService:priceUpdated`, priceData);
   }
 
   /**
@@ -366,7 +364,7 @@ export class PriceUpdateService {
    * @private
    */
   #handleSubscriptionConfirmed(payload: any): void {
-    this.#messenger.publish(`${SERVICE_NAME}:subscriptionConfirmed`, payload);
+    this.#messenger.publish(`PriceService:subscriptionConfirmed`, payload);
   }
 
   /**
@@ -376,7 +374,7 @@ export class PriceUpdateService {
    * @private
    */
   #handleSubscriptionError(payload: any): void {
-    this.#messenger.publish(`${SERVICE_NAME}:subscriptionError`, payload);
+    this.#messenger.publish(`PriceService:subscriptionError`, payload);
   }
 
   /**
@@ -405,19 +403,6 @@ export class PriceUpdateService {
         console.error('Failed to resubscribe to price updates:', error);
       }
     }
-  }
-
-  /**
-   * Check if price change is significant enough to trigger notification
-   * 
-   * @param previous - Previous price data
-   * @param current - Current price data
-   * @returns True if change is significant
-   * @private
-   */
-  #isSignificantChange(previous: PriceData, current: PriceData): boolean {
-    const changePercent = Math.abs((current.price - previous.price) / previous.price) * 100;
-    return changePercent >= this.#options.changeThreshold;
   }
 
   /**

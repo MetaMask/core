@@ -6,8 +6,6 @@
 
 // Export common types and utilities
 export type {
-  BackendConfig,
-  BackendResponse,
   // Keyring-api types
   Transaction,
   TransactionType,
@@ -16,18 +14,12 @@ export type {
   AccountBalancesUpdatedEventPayload,
   // Custom types
   TransactionWithKeyringBalanceUpdate,
-  TransactionConfirmationMessage,
+  BackendConfig,
 } from './types';
 
 // Export TransactionStatus from keyring-api with alias to avoid conflicts
 export { TransactionStatus as KeyringTransactionStatus } from './types';
 
-export {
-  isTransactionWithKeyringBalanceUpdate,
-  TransactionUtils,
-} from './types';
-
-export * from './utils';
 // WebSocket Service - following MetaMask Data Services pattern
 export type {
   WebSocketServiceOptions,
@@ -48,30 +40,35 @@ export {
   WebSocketEventType,
 } from './websocket-service';
 
-// Price Update Service
+// Price Service - internal use
 export type {
   PriceData,
   PriceSubscription,
-  PriceUpdateServiceOptions,
-  PriceUpdateServiceActions,
-  PriceUpdateServiceSubscribeAction,
-  PriceUpdateServiceUnsubscribeAction,
-  PriceUpdateServiceGetPricesAction,
-  PriceUpdateServiceEvents,
-  PriceUpdateServicePriceUpdatedEvent,
-  PriceUpdateServiceSubscriptionConfirmedEvent,
-  PriceUpdateServiceSubscriptionErrorEvent,
-  PriceUpdateServiceMessenger,
-} from './price-update-service';
+  PriceServiceOptions,
+  PriceServiceActions,
+  PriceServiceSubscribeAction,
+  PriceServiceUnsubscribeAction,
+  PriceServiceGetPricesAction,
+  PriceServiceEvents,
+  PriceServicePriceUpdatedEvent,
+  PriceServiceSubscriptionConfirmedEvent,
+  PriceServiceSubscriptionErrorEvent,
+  PriceServiceMessenger,
+} from './price-service';
 
 export {
-  PriceUpdateService,
-} from './price-update-service';
+  PriceService,
+} from './price-service';
 
 // Account Activity Service
 export type {
   AccountSubscription,
   AccountActivityServiceOptions,
+  AccountActivityServiceActions,
+  AccountActivityServiceSubscribeAccountsAction,
+  AccountActivityServiceUnsubscribeAccountsAction,
+  AccountActivityServiceGetActiveSubscriptionsAction,
+  AccountActivityServiceGetSubscriptionIdsAction,
   AccountActivityServiceEvents,
   AccountActivityServiceAccountSubscribedEvent,
   AccountActivityServiceAccountUnsubscribedEvent,

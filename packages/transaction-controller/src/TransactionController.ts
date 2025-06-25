@@ -44,6 +44,7 @@ import type {
 } from '@metamask/nonce-tracker';
 import { NonceTracker } from '@metamask/nonce-tracker';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
+import type { AccountActivityServiceTransactionUpdatedEvent } from '@metamask/backend-platform';
 import {
   errorCodes,
   rpcErrors,
@@ -469,7 +470,9 @@ export type AllowedActions =
 /**
  * The external events available to the {@link TransactionController}.
  */
-export type AllowedEvents = NetworkControllerStateChangeEvent;
+export type AllowedEvents = 
+  | NetworkControllerStateChangeEvent
+  | AccountActivityServiceTransactionUpdatedEvent;
 
 /**
  * Represents the `TransactionController:stateChange` event.

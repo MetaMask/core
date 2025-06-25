@@ -16,6 +16,11 @@ import type { TransactionControllerMessenger } from '../TransactionController';
 import type { TransactionMeta, TransactionReceipt } from '../types';
 import { TransactionStatus, TransactionType } from '../types';
 
+// Import AccountActivityService types for event consumption
+import type { 
+  Transaction,
+} from '@metamask/backend-platform';
+
 /**
  * We wait this many blocks before emitting a 'transaction-dropped' event
  * This is because we could be talking to a node that is out of sync
@@ -99,6 +104,8 @@ export class PendingTransactionTracker {
     transactionMeta: TransactionMeta,
   ) => Promise<boolean>;
 
+  readonly #messenger: TransactionControllerMessenger;
+
   constructor({
     blockTracker,
     getChainId,
@@ -142,6 +149,7 @@ export class PendingTransactionTracker {
     this.#publishTransaction = publishTransaction;
     this.#running = false;
     this.#transactionToForcePoll = undefined;
+    this.#messenger = messenger;
 
     this.#transactionPoller = new TransactionPoller({
       blockTracker,
@@ -158,6 +166,9 @@ export class PendingTransactionTracker {
       log,
       `${getChainId()}:${getNetworkClientId()}`,
     );
+
+    // Subscribe to AccountActivityService transaction updates
+    this.#setupAccountActivitySubscription();
   }
 
   startIfPendingTransactions = () => {
@@ -605,5 +616,127 @@ export class PendingTransactionTracker {
     return this.#getTransactions().filter(
       (tx) => tx.networkClientId === networkClientId,
     );
+  }
+
+  /**
+   * Set up subscription to AccountActivityService transaction updates
+   * 
+   * @private
+   */
+  #setupAccountActivitySubscription(): void {
+    try {
+      this.#messenger.subscribe(
+        'AccountActivityService:transactionUpdated',
+        (tx: Transaction) => this.#handleAccountActivityTransactionUpdate(tx),
+      );
+      this.#log('Subscribed to AccountActivityService transaction updates');
+    } catch (error) {
+      // AccountActivityService might not be available in all environments
+      this.#log('Failed to subscribe to AccountActivityService events:', error);
+    }
+  }
+
+  /**
+   * Handle transaction updates from AccountActivityService
+   * 
+   * @param transaction - Transaction from AccountActivityService
+   * @private
+   */
+  #handleAccountActivityTransactionUpdate(transaction: Transaction): void {
+    const chainId = transaction.chain; // Extract chainId from transaction.chain
+    const address = transaction.account;
+    
+    this.#log('Received transaction update from AccountActivityService', {
+      transactionId: transaction.id,
+      address,
+      chainId,
+      status: transaction.status
+    });
+
+    // Find matching transaction in our state
+    const matchingTransaction = this.#getTransactions().find(tx => 
+      tx.hash === transaction.id && 
+      tx.txParams.from?.toLowerCase() === address.toLowerCase() &&
+      tx.chainId === chainId
+    );
+
+    if (!matchingTransaction) {
+      this.#log('No matching local transaction found for AccountActivityService update', {
+        hash: transaction.id,
+        address,
+        chainId
+      });
+      return;
+    }
+
+    // Only process if it's a status change that affects pending transactions
+    if (this.#shouldProcessTransactionUpdate(matchingTransaction, transaction)) {
+      this.#processTransactionStatusUpdate(matchingTransaction, transaction);
+    }
+  }
+
+  /**
+   * Determine if the transaction update should be processed
+   * 
+   * @param localTransaction - Local transaction metadata
+   * @param remoteTransaction - Remote transaction from AccountActivityService
+   * @returns True if the update should be processed
+   * @private
+   */
+  #shouldProcessTransactionUpdate(
+    localTransaction: TransactionMeta, 
+    remoteTransaction: Transaction
+  ): boolean {
+    // Only process if local transaction is pending and remote shows a final state
+    if (localTransaction.status !== TransactionStatus.submitted) {
+      return false;
+    }
+
+    // Process confirmed or failed transactions
+    return [
+      'confirmed',
+      'failed'
+    ].includes(remoteTransaction.status);
+  }
+
+  /**
+   * Process transaction status update based on AccountActivityService data
+   * 
+   * @param localTransaction - Local transaction metadata
+   * @param remoteTransaction - Remote transaction from AccountActivityService
+   * @private
+   */
+  #processTransactionStatusUpdate(
+    localTransaction: TransactionMeta,
+    remoteTransaction: Transaction
+  ): void {
+    this.#log('Processing transaction status update', {
+      localStatus: localTransaction.status,
+      remoteStatus: remoteTransaction.status,
+      transactionId: localTransaction.id
+    });
+
+    // Create updated transaction metadata
+    const updatedTxMeta = cloneDeep(localTransaction);
+    
+    switch (remoteTransaction.status) {
+      case 'confirmed':
+        // Mark as confirmed and add receipt data if available
+        updatedTxMeta.status = TransactionStatus.confirmed;
+        updatedTxMeta.verifiedOnBlockchain = true;
+        // Convert timestamp from seconds to milliseconds and then to string
+        updatedTxMeta.blockTimestamp = remoteTransaction.timestamp ? (remoteTransaction.timestamp * 1000).toString() : undefined;
+        
+        this.hub.emit('transaction-confirmed', updatedTxMeta);
+        break;
+        
+      case 'failed':
+        updatedTxMeta.status = TransactionStatus.failed;
+        this.hub.emit('transaction-failed', updatedTxMeta, new Error('Transaction failed according to AccountActivityService'));
+        break;
+    }
+
+    // Also emit general transaction update
+    this.hub.emit('transaction-updated', updatedTxMeta, 'PendingTransactionTracker:AccountActivityService - Status updated from external source');
   }
 }
