@@ -220,7 +220,8 @@ export type QuoteRequest<
   refuel?: boolean;
   /**
    * Whether the response should include gasless swap quotes
-   * This should be true if the user has opted into STX in the client
+   * This should be true if the user has opted in to STX on the client
+   * and the current network has STX support
    */
   gasEnabledSwap: boolean;
 };
