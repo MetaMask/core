@@ -218,6 +218,11 @@ export type QuoteRequest<
   insufficientBal?: boolean;
   resetApproval?: boolean;
   refuel?: boolean;
+  /**
+   * Whether the response should include gasless swap quotes
+   * This should be true if the user has opted into STX in the client
+   */
+  gasEnabledSwap: boolean;
 };
 
 export enum StatusTypes {
