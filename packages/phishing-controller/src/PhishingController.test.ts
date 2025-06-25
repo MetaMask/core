@@ -2589,6 +2589,29 @@ describe('PhishingController', () => {
       expect(response).toMatchObject(mockResponse);
       expect(scope.isDone()).toBe(true);
     });
+
+    it('deduplicates concurrent requests for the same hostname', async () => {
+      const duplicateTestUrl = 'https://example.com';
+      const expectedHostname = 'example.com';
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: expectedHostname })
+        .reply(200, mockResponse);
+
+      const [result1, result2, result3] = await Promise.all([
+        controller.scanUrl(duplicateTestUrl),
+        controller.scanUrl(duplicateTestUrl),
+        controller.scanUrl(duplicateTestUrl),
+      ]);
+
+      expect(result1).toMatchObject(mockResponse);
+      expect(result2).toMatchObject(mockResponse);
+      expect(result3).toMatchObject(mockResponse);
+      expect(scope.isDone()).toBe(true);
+      // eslint-disable-next-line import-x/no-named-as-default-member
+      expect(nock.pendingMocks()).toHaveLength(0);
+    });
+
   });
 
   describe('bulkScanUrls', () => {
