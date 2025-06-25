@@ -2612,6 +2612,19 @@ describe('PhishingController', () => {
       expect(nock.pendingMocks()).toHaveLength(0);
     });
 
+    it('does not make a request if noFetch is true', async () => {
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: 'example.com' })
+        .reply(200, mockResponse);
+
+      const response = await controller.scanUrl(testUrl, true);
+      expect(response).toMatchObject({
+        hostname: '',
+        recommendedAction: RecommendedAction.None,
+      });
+      expect(scope.isDone()).toBe(false);
+    });
   });
 
   describe('bulkScanUrls', () => {
