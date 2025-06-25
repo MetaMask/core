@@ -494,7 +494,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         const bridgeHistoryItem = this.state.txHistory[txMetaId];
 
         const hexSourceChainId = numberToHex(
-          bridgeHistoryItem.quote.srcChainId,
+          Number(bridgeHistoryItem.quote.srcChainId),
         );
 
         return (
