@@ -14,7 +14,6 @@ export type {
   AccountBalancesUpdatedEventPayload,
   // Custom types
   TransactionWithKeyringBalanceUpdate,
-  BackendConfig,
 } from './types';
 
 // Export TransactionStatus from keyring-api with alias to avoid conflicts
@@ -25,6 +24,9 @@ export type {
   WebSocketServiceOptions,
   WebSocketMessage,
   WebSocketConnectionInfo,
+  WebSocketSubscription,
+  InternalSubscription,
+  SubscriptionInfo,
   WebSocketServiceActions,
   WebSocketServiceConnectAction,
   WebSocketServiceDisconnectAction,
@@ -40,26 +42,6 @@ export {
   WebSocketEventType,
 } from './websocket-service';
 
-// Price Service - internal use
-export type {
-  PriceData,
-  PriceSubscription,
-  PriceServiceOptions,
-  PriceServiceActions,
-  PriceServiceSubscribeAction,
-  PriceServiceUnsubscribeAction,
-  PriceServiceGetPricesAction,
-  PriceServiceEvents,
-  PriceServicePriceUpdatedEvent,
-  PriceServiceSubscriptionConfirmedEvent,
-  PriceServiceSubscriptionErrorEvent,
-  PriceServiceMessenger,
-} from './price-service';
-
-export {
-  PriceService,
-} from './price-service';
-
 // Account Activity Service
 export type {
   AccountSubscription,
@@ -67,8 +49,6 @@ export type {
   AccountActivityServiceActions,
   AccountActivityServiceSubscribeAccountsAction,
   AccountActivityServiceUnsubscribeAccountsAction,
-  AccountActivityServiceGetActiveSubscriptionsAction,
-  AccountActivityServiceGetSubscriptionIdsAction,
   AccountActivityServiceEvents,
   AccountActivityServiceAccountSubscribedEvent,
   AccountActivityServiceAccountUnsubscribedEvent,
@@ -80,4 +60,4 @@ export type {
 
 export {
   AccountActivityService,
-} from './account-activity-service'; 
+} from './account-activity-service';

@@ -1,7 +1,4 @@
-import { EventEmitter } from 'events';
 import type { RestrictedMessenger } from '@metamask/base-controller';
-import { createServicePolicy } from '@metamask/controller-utils';
-import type { ServicePolicy } from '@metamask/controller-utils';
 
 const SERVICE_NAME = 'WebSocketService';
 
@@ -26,8 +23,6 @@ export enum WebSocketEventType {
   ERROR = 'error',
   RECONNECTING = 'reconnecting',
   RECONNECTED = 'reconnected',
-  POLICY_BREAK = 'policyBreak',
-  POLICY_DEGRADED = 'policyDegraded',
 }
 
 /**
@@ -40,51 +35,28 @@ export type WebSocketServiceOptions = {
   /** Connection timeout in milliseconds (default: 10000) */
   timeout?: number;
   
-  /** Maximum number of reconnection attempts (default: 5) */
+  /** Maximum number of reconnection attempts (default: Infinity for unlimited retries) */
   maxReconnectAttempts?: number;
   
-  /** Initial reconnection delay in milliseconds (default: 1000) */
+  /** Initial reconnection delay in milliseconds (default: 500) */
   reconnectDelay?: number;
   
-  /** Maximum reconnection delay in milliseconds (default: 30000) */
+  /** Maximum reconnection delay in milliseconds (default: 5000) */
   maxReconnectDelay?: number;
   
   /** Request timeout in milliseconds (default: 30000) */
   requestTimeout?: number;
   
-  /** Service policy options */
-  policy?: {
-    /** Maximum number of failures before breaking (default: 5) */
-    maxFailures?: number;
-    
-    /** Failure threshold time window in milliseconds (default: 60000) */
-    failureThreshold?: number;
-    
-    /** Circuit breaker reset timeout in milliseconds (default: 300000) */
-    resetTimeout?: number;
-  };
+  /** Session ID retention time in milliseconds after disconnect/error (default: 600000 = 10 minutes) */
+  sessionIdRetention?: number;
 
-  // Deprecated callback options (for backward compatibility)
-  /** @deprecated Use messenger action handlers instead */
-  onBreak?: () => void;
-  
-  /** @deprecated Use messenger action handlers instead */
-  onDegraded?: () => void;
-  
-  /** @deprecated Use messenger action handlers instead */
-  onRetry?: () => void;
+
 };
 
-/**
- * JSON-RPC 2.0 Error object
- */
-export type JsonRpcError = {
-  code: number;
-  message: string;
-  data?: unknown;
-};
+
 
 /**
+ * Client Request message
  * Client Request message
  * Used when client sends a request to the server
  */
@@ -95,9 +67,16 @@ export type ClientRequestMessage = {
     channels?: string[];
     [key: string]: unknown;
   };
+  event: string;
+  data: {
+    requestId: string;
+    channels?: string[];
+    [key: string]: unknown;
+  };
 };
 
 /**
+ * Server Response message
  * Server Response message
  * Used when server responds to a client request
  */
@@ -110,13 +89,26 @@ export type ServerResponseMessage = {
     failed?: string[];
     [key: string]: unknown;
   };
+  event: string;
+  data: {
+    requestId: string;
+    subscriptionId?: string;
+    succeeded?: string[];
+    failed?: string[];
+    [key: string]: unknown;
+  };
 };
 
 /**
  * Server Notification message
+ * Server Notification message
  * Used when server sends unsolicited data to client
  */
 export type ServerNotificationMessage = {
+  event: string;
+  subscriptionId: string;
+  channel: string;
+  data: Record<string, unknown>;
   event: string;
   subscriptionId: string;
   channel: string;
@@ -132,7 +124,35 @@ export type WebSocketMessage =
   | ServerNotificationMessage;
 
 /**
- * WebSocket subscription object returned by the subscribe method
+ * Internal subscription storage with full details including callback
+ */
+export type InternalSubscription = {
+  /** Channel names for this subscription */
+  channels: string[];
+  /** Callback function for handling notifications */
+  callback: (notification: ServerNotificationMessage) => void;
+  /** Function to unsubscribe and clean up */
+  unsubscribe: () => Promise<void>;
+  /** Check if the subscription is still active */
+  isActive: () => boolean;
+};
+
+/**
+ * External subscription info with subscription ID (for API responses)
+ */
+export type SubscriptionInfo = {
+  /** The subscription ID from the server */
+  subscriptionId: string;
+  /** Channel names for this subscription */
+  channels: string[];
+  /** Function to unsubscribe and clean up */
+  unsubscribe: () => Promise<void>;
+  /** Check if the subscription is still active */
+  isActive: () => boolean;
+};
+
+/**
+ * Public WebSocket subscription object returned by the subscribe method
  */
 export type WebSocketSubscription = {
   /** The subscription ID from the server */
@@ -153,6 +173,7 @@ export type WebSocketConnectionInfo = {
   lastError?: string;
   connectedAt?: number;
   sessionId?: string;
+  sessionId?: string;
 };
 
 
@@ -163,27 +184,37 @@ export type WebSocketServiceInitAction = {
   handler: WebSocketService['init'];
 };
 
+export type WebSocketServiceInitAction = {
+  type: `WebSocketService:init`;
+  handler: WebSocketService['init'];
+};
+
 export type WebSocketServiceConnectAction = {
+  type: `WebSocketService:connect`;
   type: `WebSocketService:connect`;
   handler: WebSocketService['connect'];
 };
 
 export type WebSocketServiceDisconnectAction = {
   type: `WebSocketService:disconnect`;
+  type: `WebSocketService:disconnect`;
   handler: WebSocketService['disconnect'];
 };
 
 export type WebSocketServiceSendMessageAction = {
+  type: `WebSocketService:sendMessage`;
   type: `WebSocketService:sendMessage`;
   handler: WebSocketService['sendMessage'];
 };
 
 export type WebSocketServiceSendRequestAction = {
   type: `WebSocketService:sendRequest`;
+  type: `WebSocketService:sendRequest`;
   handler: WebSocketService['sendRequest'];
 };
 
 export type WebSocketServiceGetConnectionInfoAction = {
+  type: `WebSocketService:getConnectionInfo`;
   type: `WebSocketService:getConnectionInfo`;
   handler: WebSocketService['getConnectionInfo'];
 };
@@ -208,7 +239,45 @@ export type WebSocketServiceClearRequestQueueAction = {
   handler: WebSocketService['clearRequestQueue'];
 };
 
+export type WebSocketServiceReconnectWithFreshSessionAction = {
+  type: `WebSocketService:reconnectWithFreshSession`;
+  handler: WebSocketService['reconnectWithFreshSession'];
+};
+
+export type WebSocketServiceGetSessionRetentionInfoAction = {
+  type: `WebSocketService:getSessionRetentionInfo`;
+  handler: WebSocketService['getSessionRetentionInfo'];
+};
+
+export type WebSocketServiceCleanupAction = {
+  type: `WebSocketService:cleanup`;
+  handler: WebSocketService['cleanup'];
+};
+
+export type WebSocketServiceGetSubscriptionsByNamespaceAction = {
+  type: `WebSocketService:getSubscriptionsByNamespace`;
+  handler: WebSocketService['getSubscriptionsByNamespace'];
+};
+
+export type WebSocketServiceGetSubscriptionByChannelAction = {
+  type: `WebSocketService:getSubscriptionByChannel`;
+  handler: WebSocketService['getSubscriptionByChannel'];
+};
+
+export type WebSocketServiceIsChannelSubscribedAction = {
+  type: `WebSocketService:isChannelSubscribed`;
+  handler: WebSocketService['isChannelSubscribed'];
+};
+
+
+
+export type WebSocketServiceGetChannelSubscriptionMappingAction = {
+  type: `WebSocketService:getChannelSubscriptionMapping`;
+  handler: WebSocketService['getChannelSubscriptionMapping'];
+};
+
 export type WebSocketServiceActions = 
+  | WebSocketServiceInitAction
   | WebSocketServiceInitAction
   | WebSocketServiceConnectAction
   | WebSocketServiceDisconnectAction
@@ -218,7 +287,14 @@ export type WebSocketServiceActions =
   | WebSocketServiceClearSessionAction
   | WebSocketServiceGetSessionIdAction
   | WebSocketServiceGetRequestQueueStatusAction
-  | WebSocketServiceClearRequestQueueAction;
+  | WebSocketServiceClearRequestQueueAction
+  | WebSocketServiceReconnectWithFreshSessionAction
+  | WebSocketServiceGetSessionRetentionInfoAction
+  | WebSocketServiceCleanupAction
+  | WebSocketServiceGetSubscriptionsByNamespaceAction
+  | WebSocketServiceGetSubscriptionByChannelAction
+  | WebSocketServiceIsChannelSubscribedAction
+  | WebSocketServiceGetChannelSubscriptionMappingAction;
 
 type AllowedActions = never;
 
@@ -234,62 +310,38 @@ export type WebSocketServiceMessenger = RestrictedMessenger<
   AllowedEvents['type']
 >;
 
+
+
+
+
 /**
- * WebSocket Service following MetaMask's Data Services pattern
+ * WebSocket Service with automatic reconnection, session management and direct callback routing
  * 
- * This service provides WebSocket connectivity with automatic reconnection,
- * circuit breaker pattern, message correlation, and comprehensive error handling.
+ * Real-Time Performance Optimizations:
+ * - Fast path message routing (zero allocations)
+ * - Production mode removes try-catch overhead  
+ * - Optimized JSON parsing with fail-fast
+ * - Direct callback routing bypasses event emitters
+ * - Memory cleanup and resource management
  * 
- * Cross-Platform Support:
- * - Uses 'ws' package for Node.js environments
- * - Automatically uses native WebSocket in browsers via bundler polyfills
- * - No runtime environment detection needed - bundlers handle this automatically
- * 
- * RFC 6455 Compliance:
- * - Implements proper PING/PONG control frame handling for keep-alive
- * - Uses only native WebSocket PING/PONG frames (no custom JSON messages)
- * - Automatically responds to server-initiated PING frames with PONG
- * - Monitors connection health with configurable PONG timeouts
- * - Uses appropriate close codes (1002 for protocol errors)
- * 
- * @example
- * ```typescript
- * const messenger = globalMessenger.getRestricted({
- *   name: 'WebSocketService',
- *   allowedActions: ['WebSocketService:init', 'WebSocketService:sendMessage'],
- *   allowedEvents: [],
- * });
- * 
- * const service = new WebSocketService({
- *   messenger,
- *   url: 'wss://api.example.com/ws',
- *   timeout: 10000,
- *   maxReconnectAttempts: 5,
- * });
- * 
- * // Initialize and connect via messenger action
- * await messenger.call('WebSocketService:init');
- * 
- * // Send message via messenger action
- * await messenger.call('WebSocketService:sendMessage', {
- *   method: 'subscribe',
- *   params: { channel: 'prices' }
- * });
- * ```
+ * Mobile Integration:
+ * Mobile apps should handle lifecycle events (background/foreground) by:
+ * 1. Calling disconnect() when app goes to background
+ * 2. Calling connect() when app returns to foreground
+ * 3. Calling cleanup() on app termination
  */
-export class WebSocketService extends EventEmitter {
+export class WebSocketService {
   readonly #messenger: WebSocketServiceMessenger;
-  readonly #options: Required<Omit<WebSocketServiceOptions, 'onBreak' | 'onDegraded' | 'onRetry'>> & {
-    onBreak?: () => void;
-    onDegraded?: () => void;
-    onRetry?: () => void;
-  };
-  readonly #policy: ServicePolicy;
+  readonly #options: Required<WebSocketServiceOptions>;
 
   #ws!: WebSocket;
   #state: WebSocketState = WebSocketState.DISCONNECTED;
   #reconnectAttempts = 0;
   #reconnectTimer: NodeJS.Timeout | null = null;
+  #lastDisconnectTime: number | null = null;
+
+  // Track the current connection promise to handle concurrent connection attempts
+  #connectionPromise: Promise<void> | null = null;
 
   #pendingRequests = new Map<string, {
     resolve: (value: unknown) => void;
@@ -302,60 +354,56 @@ export class WebSocketService extends EventEmitter {
     reject: (error: Error) => void;
     timeout: NodeJS.Timeout;
   }> = [];
+  #requestQueue: Array<{
+    message: ClientRequestMessage;
+    resolve: (value: unknown) => void;
+    reject: (error: Error) => void;
+    timeout: NodeJS.Timeout;
+  }> = [];
   #lastError: string | null = null;
   #connectedAt: number | null = null;
   #sessionId: string | null = null;
 
+  // Namespace-organized subscription storage (prevents cross-service interference)
+  #subscriptions = new Map<string, Map<string, InternalSubscription>>();
+  
+  // Channel to subscription ID mapping for fast O(1) channel lookups
+  #channelToSubscriptionId = new Map<string, string>();
+  
+
+  
+  // Connection monitoring for mobile optimizations
+  #lastActivityTime = Date.now();
+
+
+
   /**
    * Creates a new WebSocket service instance
-   * 
-   * @param options - Configuration options
-   * @param options.messenger - The restricted messenger for this service
-   * @param options.url - WebSocket URL to connect to
-   * @param options.timeout - Connection timeout in milliseconds
-   * @param options.maxReconnectAttempts - Maximum reconnection attempts
-   * @param options.reconnectDelay - Initial reconnection delay
-   * @param options.maxReconnectDelay - Maximum reconnection delay
-   * @param options.requestTimeout - Request timeout for request/response pattern
-   * @param options.policy - Service policy configuration
-   * @param options.onBreak - Deprecated: Circuit breaker callback
-   * @param options.onDegraded - Deprecated: Service degradation callback
-   * @param options.onRetry - Deprecated: Retry callback
    */
   constructor(options: WebSocketServiceOptions & { messenger: WebSocketServiceMessenger }) {
-    super();
-
     this.#messenger = options.messenger;
     
     this.#options = {
       url: options.url,
       timeout: options.timeout ?? 10000,
-      maxReconnectAttempts: options.maxReconnectAttempts ?? 5,
-      reconnectDelay: options.reconnectDelay ?? 1000,
-      maxReconnectDelay: options.maxReconnectDelay ?? 30000,
+      maxReconnectAttempts: options.maxReconnectAttempts ?? Infinity,
+      reconnectDelay: options.reconnectDelay ?? 500,
+      maxReconnectDelay: options.maxReconnectDelay ?? 5000,
 
       requestTimeout: options.requestTimeout ?? 30000,
-      policy: {
-        maxFailures: options.policy?.maxFailures ?? 5,
-        failureThreshold: options.policy?.failureThreshold ?? 60000,
-        resetTimeout: options.policy?.resetTimeout ?? 300000,
-      },
-      // Deprecated callback support
-      onBreak: options.onBreak,
-      onDegraded: options.onDegraded,
-      onRetry: options.onRetry,
+      sessionIdRetention: options.sessionIdRetention ?? 600000, // 10 minutes default
     };
 
-    // Create service policy
-    this.#policy = createServicePolicy({
-      maxRetries: this.#options.maxReconnectAttempts,
-      maxConsecutiveFailures: this.#options.policy.maxFailures,
-      circuitBreakDuration: this.#options.policy.resetTimeout,
-      degradedThreshold: this.#options.policy.failureThreshold,
-    });
+
 
     // Register action handlers
     this.#messenger.registerActionHandler(
+      `WebSocketService:init`,
+      this.init.bind(this),
+    );
+
+    this.#messenger.registerActionHandler(
+      `WebSocketService:connect`,
       `WebSocketService:init`,
       this.init.bind(this),
     );
@@ -367,20 +415,24 @@ export class WebSocketService extends EventEmitter {
 
     this.#messenger.registerActionHandler(
       `WebSocketService:disconnect`,
+      `WebSocketService:disconnect`,
       this.disconnect.bind(this),
     );
 
     this.#messenger.registerActionHandler(
+      `WebSocketService:sendMessage`,
       `WebSocketService:sendMessage`,
       this.sendMessage.bind(this),
     );
 
     this.#messenger.registerActionHandler(
       `WebSocketService:sendRequest`,
+      `WebSocketService:sendRequest`,
       this.sendRequest.bind(this),
     );
 
     this.#messenger.registerActionHandler(
+      `WebSocketService:getConnectionInfo`,
       `WebSocketService:getConnectionInfo`,
       this.getConnectionInfo.bind(this),
     );
@@ -405,58 +457,50 @@ export class WebSocketService extends EventEmitter {
       this.clearRequestQueue.bind(this),
     );
 
+    this.#messenger.registerActionHandler(
+      `WebSocketService:reconnectWithFreshSession`,
+      this.reconnectWithFreshSession.bind(this),
+    );
+
+    this.#messenger.registerActionHandler(
+      `WebSocketService:getSessionRetentionInfo`,
+      this.getSessionRetentionInfo.bind(this),
+    );
+
+    this.#messenger.registerActionHandler(
+      `WebSocketService:cleanup`,
+      this.cleanup.bind(this),
+    );
+
+    this.#messenger.registerActionHandler(
+      `WebSocketService:getSubscriptionsByNamespace`,
+      this.getSubscriptionsByNamespace.bind(this),
+    );
+
+    this.#messenger.registerActionHandler(
+      `WebSocketService:getSubscriptionByChannel`,
+      this.getSubscriptionByChannel.bind(this),
+    );
+
+    this.#messenger.registerActionHandler(
+      `WebSocketService:isChannelSubscribed`,
+      this.isChannelSubscribed.bind(this),
+    );
+
+    this.#messenger.registerActionHandler(
+      `WebSocketService:getChannelSubscriptionMapping`,
+      this.getChannelSubscriptionMapping.bind(this),
+    );
+
     this.init();
   }
 
-  /**
-   * Service policy callback registration for circuit breaker events
-   * 
-   * @param listener - Callback function to execute when circuit breaks
-   * @returns Cleanup function to remove the listener
-   */
-  onBreak(listener: Parameters<ServicePolicy['onBreak']>[0]) {
-    return this.#policy.onBreak(listener);
-  }
+
+
+
 
   /**
-   * Service policy callback registration for service degradation events
-   * 
-   * @param listener - Callback function to execute when service is degraded
-   * @returns Cleanup function to remove the listener
-   */
-  onDegraded(listener: Parameters<ServicePolicy['onDegraded']>[0]) {
-    return this.#policy.onDegraded(listener);
-  }
-
-  /**
-   * Service policy callback registration for retry events
-   * 
-   * @param listener - Callback function to execute on retry attempts
-   * @returns Cleanup function to remove the listener
-   */
-  onRetry(listener: Parameters<ServicePolicy['onRetry']>[0]) {
-    return this.#policy.onRetry(listener);
-  }
-
-  /**
-   * Initializes the WebSocket service and establishes connection
-   * 
-   * This is a convenience method that connects to the server automatically.
-   * Use this method for initial setup instead of calling connect() manually.
-   * 
-   * @returns Promise that resolves when initialized and connected
-   * @throws {Error} When initialization or connection fails
-   * 
-   * @example
-   * ```typescript
-   * const service = new WebSocketService({
-   *   messenger,
-   *   url: 'wss://api.example.com/ws'
-   * });
-   * 
-   * // Initialize and connect in one step
-   * await service.init();
-   * ```
+   * Initializes and connects the WebSocket service
    */
   async init(): Promise<void> {
     try {
@@ -472,64 +516,88 @@ export class WebSocketService extends EventEmitter {
 
   /**
    * Establishes WebSocket connection
-   * 
-   * @returns Promise that resolves when connected
-   * @throws {Error} When connection fails
    */
   async connect(): Promise<void> {
-    if (this.#state === WebSocketState.CONNECTED || this.#state === WebSocketState.CONNECTING) {
+    // If already connected, return immediately
+    if (this.#state === WebSocketState.CONNECTED) {
+      console.log(`Connect called but already connected - skipping`);
       return;
     }
 
+    // If already connecting, wait for the existing connection attempt to complete
+    if (this.#state === WebSocketState.CONNECTING && this.#connectionPromise) {
+      console.log(`Connect called but already connecting - waiting for existing attempt`);
+      return this.#connectionPromise;
+    }
+
+    console.log(`🔄 Starting connection attempt to ${this.#options.url}${this.#sessionId ? ' with session: ' + this.#sessionId : ' (new session)'}`);
     this.#setState(WebSocketState.CONNECTING);
     this.#lastError = null;
 
+    // Create and store the connection promise
+    this.#connectionPromise = this.#doConnect();
+    
     try {
-      await this.#policy.execute(async () => {
-        await this.#establishConnection();
-      });
+      await this.#connectionPromise;
+      console.log(`✅ Connection attempt succeeded`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown connection error';
+      console.error(`❌ Connection attempt failed: ${errorMessage}`);
       this.#lastError = errorMessage;
       this.#setState(WebSocketState.ERROR);
       
-      // Trigger deprecated callback if provided
-      if (this.#options.onBreak) {
-        this.#options.onBreak();
-      }
-      
       throw new Error(`Failed to connect to WebSocket: ${errorMessage}`);
+    } finally {
+      // Clear the connection promise when done (success or failure)
+      this.#connectionPromise = null;
     }
+  }
+
+  /**
+   * Internal method to perform the actual connection
+   */
+  async #doConnect(): Promise<void> {
+    await this.#establishConnection();
   }
 
   /**
    * Closes WebSocket connection
-   * 
-   * @returns Promise that resolves when disconnected
    */
-  async disconnect(): Promise<void> {
+  async disconnect(clearSession: boolean = false): Promise<void> {
     if (this.#state === WebSocketState.DISCONNECTED || this.#state === WebSocketState.DISCONNECTING) {
+      console.log(`Disconnect called but already in state: ${this.#state}`);
       return;
     }
 
+    console.log(`Manual disconnect initiated - closing WebSocket connection`);
     this.#setState(WebSocketState.DISCONNECTING);
     this.#clearTimers();
     this.#rejectPendingRequests(new Error('WebSocket disconnected'));
 
+    // Clear any pending connection promise
+    this.#connectionPromise = null;
 
     this.#ws.close(1000, 'Normal closure');
 
     this.#setState(WebSocketState.DISCONNECTED);
-    this.#sessionId = null;
-    this.emit(WebSocketEventType.DISCONNECTED);
+    
+    if (clearSession) {
+      const clearedSessionId = this.#sessionId;
+      this.#sessionId = null;
+      console.log(`WebSocket manually disconnected and session cleared: ${clearedSessionId || 'none'}`);
+    } else {
+      console.log(`WebSocket manually disconnected - keeping session: ${this.#sessionId || 'none'} (use disconnect(true) to clear session)`);
+      if (this.#sessionId) {
+        // Record disconnect time for manual disconnects too
+        this.#recordDisconnectTime();
+      }
+    }
+    
+    // Note: Event system removed - use direct service integration
   }
 
   /**
    * Sends a message through the WebSocket
-   * 
-   * @param message - Message to send
-   * @returns Promise that resolves when message is sent
-   * @throws {Error} When not connected or message fails to send
    */
   async sendMessage(message: ClientRequestMessage): Promise<void> {
     if (this.#state !== WebSocketState.CONNECTED) {
@@ -547,11 +615,6 @@ export class WebSocketService extends EventEmitter {
 
   /**
    * Sends a request and waits for a correlated response
-   * 
-   * @param message - Request message
-   * @param queueIfDisconnected - Whether to queue the request if not connected (default: false)
-   * @returns Promise that resolves with the response
-   * @throws {Error} When request fails or times out
    */
   async sendRequest<T = ServerResponseMessage['data']>(
     message: Omit<ClientRequestMessage, 'data'> & { data?: Omit<ClientRequestMessage['data'], 'requestId'> },
@@ -564,12 +627,25 @@ export class WebSocketService extends EventEmitter {
         requestId,
         ...message.data,
       },
+      event: message.event,
+      data: {
+        requestId,
+        ...message.data,
+      },
     };
 
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         // Remove from pending requests
+        // Remove from pending requests
         this.#pendingRequests.delete(requestId);
+        
+        // Remove from request queue if still there
+        const queueIndex = this.#requestQueue.findIndex(req => req.message.data.requestId === requestId);
+        if (queueIndex !== -1) {
+          this.#requestQueue.splice(queueIndex, 1);
+        }
+        
         
         // Remove from request queue if still there
         const queueIndex = this.#requestQueue.findIndex(req => req.message.data.requestId === requestId);
@@ -599,12 +675,32 @@ export class WebSocketService extends EventEmitter {
       }
 
       // Store in pending requests for response correlation
+      // If not connected, queue the request if requested
+      if (this.#state !== WebSocketState.CONNECTED) {
+        if (queueIfDisconnected) {
+          this.#requestQueue.push({
+            message: requestMessage,
+            resolve: resolve as (value: unknown) => void,
+            reject,
+            timeout,
+          });
+          console.log(`Request queued (${this.#requestQueue.length} total): ${requestMessage.event}`);
+          return;
+        } else {
+          clearTimeout(timeout);
+          reject(new Error(`Cannot send request: WebSocket is ${this.#state}`));
+          return;
+        }
+      }
+
+      // Store in pending requests for response correlation
       this.#pendingRequests.set(String(requestId), {
         resolve: resolve as (value: unknown) => void,
         reject,
         timeout,
       });
 
+      // Send the request
       // Send the request
       this.sendMessage(requestMessage).catch((error) => {
         this.#pendingRequests.delete(requestId);
@@ -616,8 +712,6 @@ export class WebSocketService extends EventEmitter {
 
   /**
    * Gets current connection information
-   * 
-   * @returns Current connection state and metadata
    */
   getConnectionInfo(): WebSocketConnectionInfo {
     return {
@@ -640,26 +734,134 @@ export class WebSocketService extends EventEmitter {
   }
 
   /**
+   * Gets session retention information
+   */
+  getSessionRetentionInfo(): {
+    sessionId: string | null;
+    lastDisconnectTime: number | null;
+    timeSinceDisconnectMs: number | null;
+    retentionDurationMs: number;
+    retentionDurationMinutes: number;
+    sessionExpired: boolean;
+  } {
+    const retentionMs = this.#options.sessionIdRetention;
+    const timeSinceDisconnect = this.#lastDisconnectTime ? Date.now() - this.#lastDisconnectTime : null;
+    const sessionExpired = timeSinceDisconnect !== null && timeSinceDisconnect >= retentionMs;
+    
+    return {
+      sessionId: this.#sessionId,
+      lastDisconnectTime: this.#lastDisconnectTime,
+      timeSinceDisconnectMs: timeSinceDisconnect,
+      retentionDurationMs: retentionMs,
+      retentionDurationMinutes: Math.round(retentionMs / 60000),
+      sessionExpired,
+    };
+  }
+
+
+
+  /**
+   * Gets all subscriptions for a specific namespace
+   * Provides complete isolation between services
+   * 
+   * @param namespace - The namespace to get subscriptions for
+   * @returns Map of subscription IDs to subscription details for the namespace
+   */
+  getSubscriptionsByNamespace(namespace: string): Map<string, InternalSubscription> {
+    const namespaceSubscriptions = this.#subscriptions.get(namespace);
+    if (!namespaceSubscriptions) {
+      return new Map();
+    }
+    return new Map(namespaceSubscriptions);
+  }
+
+  /**
+   * Gets subscription information for a specific channel
+   * 
+   * @param channel - The channel name to look up
+   * @returns Subscription details or undefined if not found
+   */
+  getSubscriptionByChannel(namespace: string, channel: string): SubscriptionInfo | undefined {
+    const subscriptionId = this.#channelToSubscriptionId.get(channel);
+    if (!subscriptionId) {
+      return undefined;
+    }
+    const namespaceSubscriptions = this.#subscriptions.get(namespace);
+    if (!namespaceSubscriptions) {
+      return undefined;
+    }
+    const subscription = namespaceSubscriptions.get(subscriptionId);
+    if (!subscription) {
+      return undefined;
+    }
+    return {
+      subscriptionId,
+      channels: subscription.channels,
+      unsubscribe: subscription.unsubscribe,
+      isActive: subscription.isActive,
+    };
+  }
+
+
+
+  /**
+   * Checks if a channel is currently subscribed
+   * 
+   * @param channel - The channel name to check
+   * @returns True if the channel is subscribed, false otherwise
+   */
+  isChannelSubscribed(channel: string): boolean {
+    return this.#channelToSubscriptionId.has(channel);
+  }
+
+
+
+  /**
+   * Gets channel-to-subscription-ID mapping
+   * 
+   * @returns Record mapping channel names to subscription IDs
+   */
+  getChannelSubscriptionMapping(): Record<string, string> {
+    const result: Record<string, string> = {};
+    this.#subscriptions.forEach(namespaceSubscriptions => {
+      namespaceSubscriptions.forEach((sub, subscriptionId) => {
+        sub.channels.forEach(channel => {
+          result[channel] = subscriptionId;
+        });
+      });
+    });
+    return result;
+  }
+
+  /**
    * Manually clears the session ID
-   * 
-   * This will force the next connection to start with a fresh session
-   * instead of attempting to restore the previous session.
-   * 
-   * @example
-   * ```typescript
-   * // Clear session to start fresh on next connection
-   * webSocketService.clearSession();
-   * await webSocketService.disconnect();
-   * await webSocketService.connect(); // Will start with new session
-   * ```
    */
   clearSession(): void {
     const previousSessionId = this.#sessionId;
     this.#sessionId = null;
     
+    // Clear disconnect time tracking
+    this.#lastDisconnectTime = null;
+    
     if (previousSessionId) {
-      console.log(`Cleared session: ${previousSessionId}`);
+      console.log(`🔄 MANUALLY cleared session: ${previousSessionId} - next connection will create new session`);
+    } else {
+      console.log(`🔄 Session already cleared`);
     }
+  }
+
+  /**
+   * Force reconnection with a fresh session
+   */
+  async reconnectWithFreshSession(): Promise<void> {
+    console.log(`🔄 Forcing reconnection with fresh session...`);
+    this.clearSession();
+    
+    if (this.#state !== WebSocketState.DISCONNECTED) {
+      await this.disconnect(false); // Don't double-clear the session
+    }
+    
+    return this.connect();
   }
 
   /**
@@ -702,142 +904,176 @@ export class WebSocketService extends EventEmitter {
     return requestCount;
   }
 
-
-
   /**
-   * Watch for server notifications with a specific subscription ID
-   * 
-   * @param subscriptionId - The subscription ID to watch for
-   * @param callback - Function to call when a notification for this subscription is received
-   * @returns Cleanup function to remove the listener
-   * 
-   * @example
-   * ```typescript
-   * // Watch for notifications from a specific subscription
-   * const unsubscribe = webSocketService.watchSubscription('sub_12345', (notification) => {
-   *   console.log('Subscription notification:', notification.params);
-   * });
-   * 
-   * // Later, stop watching
-   * unsubscribe();
-   * ```
+   * Clean up resources and close connections
+   * Called when service is being destroyed or app is terminating
    */
-  watchSubscription(subscriptionId: string, callback: (notification: ServerNotificationMessage) => void): () => void {
-    // Add the listener for the specific subscription ID
-    const eventName = `subscription:${subscriptionId}`;
-    this.on(eventName, callback);
+  cleanup(): void {
+    this.#clearTimers();
+    this.#subscriptions.clear();
+    this.#channelToSubscriptionId.clear();
     
-    // Return cleanup function
-    return () => {
-      this.off(eventName, callback);
-    };
+    // Clear any pending connection promise
+    this.#connectionPromise = null;
+    
+    // Clear all pending requests
+    this.#rejectPendingRequests(new Error('Service cleanup'));
+    
+    if (this.#ws && this.#ws.readyState === WebSocket.OPEN) {
+      this.#ws.close(1000, 'Service cleanup');
+    }
   }
 
+
+
+
+
   /**
-   * Create a subscription with automatic handling of subscribe/unsubscribe lifecycle
+   * Create and manage a subscription with direct callback routing
+   * 
+   * This is the recommended subscription API for high-level services.
+   * Uses efficient direct callback routing instead of EventEmitter overhead.
+   * The WebSocketService handles all subscription lifecycle management.
    * 
    * @param options - Subscription configuration
    * @returns Subscription object with unsubscribe method
    * 
    * @example
    * ```typescript
-   * // Subscribe to account activity
+   * // AccountActivityService usage
    * const subscription = await webSocketService.subscribe({
-   *   method: 'account_activity',
-   *   params: { address: '0x1234...' },
+   *   channels: ['account-activity.v1.eip155:0:0x1234...'],
    *   onNotification: (notification) => {
-   *     console.log('Account activity:', notification.params);
+   *     this.handleAccountActivity(notification.data);
    *   }
    * });
    * 
-   * // Later, unsubscribe
+   * // Later, clean up
    * await subscription.unsubscribe();
    * ```
    */
   async subscribe(options: {
-    /** The subscription method name */
-    method: string;
-    /** Parameters for the subscription request */
-    params?: unknown;
+    /** Namespace for the subscription (e.g., 'account-activity.v1') */
+    namespace: string;
+    /** Channel names to subscribe to */
+    channels: string[];
     /** Handler for incoming notifications */
-    onNotification: (notification: ServerNotificationMessage) => void;
+    callback: (notification: ServerNotificationMessage) => void;
   }): Promise<WebSocketSubscription> {
-    const {
-      method,
-      params,
-      onNotification,
-    } = options;
+    const { channels, callback } = options;
 
     if (this.#state !== WebSocketState.CONNECTED) {
       throw new Error(`Cannot create subscription: WebSocket is ${this.#state}`);
     }
 
     // Send subscription request and wait for response
-    const subscriptionResponse = await this.sendRequest<{ subscriptionId: string; succeeded?: string[]; failed?: string[]; }>({
-      event: method,
-      data: params ? { ...params } : {},
+    const subscriptionResponse = await this.sendRequest<{ 
+      subscriptionId: string; 
+      succeeded?: string[]; 
+      failed?: string[]; 
+    }>({
+      event: 'subscribe',
+      data: { channels },
     });
 
+    if (!subscriptionResponse?.subscriptionId) {
     if (!subscriptionResponse?.subscriptionId) {
       throw new Error('Invalid subscription response: missing subscription ID');
     }
 
     const subscriptionId = subscriptionResponse.subscriptionId;
+    const subscriptionId = subscriptionResponse.subscriptionId;
 
-    // Watch for notifications specifically for this subscription ID
-    const subscriptionCleanup = this.watchSubscription(subscriptionId, onNotification);
+    // Check for failures
+    if (subscriptionResponse.failed && subscriptionResponse.failed.length > 0) {
+      throw new Error(`Subscription failed for channels: ${subscriptionResponse.failed.join(', ')}`);
+    }
 
-        // Create unsubscribe function
+    // Create unsubscribe function
     const unsubscribe = async (): Promise<void> => {
       try {
-        // Stop watching for notifications
-        subscriptionCleanup();
-
-        // Send unsubscribe request
+        // Send unsubscribe request first
         await this.sendRequest({
           event: 'unsubscribe',
           data: {
+          event: 'unsubscribe',
+          data: {
             subscription: subscriptionId,
-            ...(params && typeof params === 'object' ? params : {}), // Include original params in case server needs them
+            channels, // Include original channels in case server needs them
           },
         });
+
+        // Only clean up mappings after successful server response
+        this.#subscriptions.forEach(namespaceSubscriptions => namespaceSubscriptions.delete(subscriptionId));
+        channels.forEach(channel => this.#channelToSubscriptionId.delete(channel));
       } catch (error) {
         console.error('Failed to unsubscribe:', error);
         throw error;
-    }
+      }
     };
 
-    return {
+    const subscription = {
       subscriptionId,
       unsubscribe,
       isActive: () => this.#state === WebSocketState.CONNECTED,
     };
+
+    // Store in consolidated subscription tracking (callback + metadata)
+    const { namespace } = options;
+    if (!this.#subscriptions.has(namespace)) {
+      this.#subscriptions.set(namespace, new Map());
+    }
+    this.#subscriptions.get(namespace)!.set(subscriptionId, {
+      channels: [...channels], // Store copy of channels
+      callback, // Store callback for efficient routing
+      unsubscribe,
+      isActive: subscription.isActive,
+    });
+
+    // Update channel-to-subscription mapping
+    channels.forEach(channel => this.#channelToSubscriptionId.set(channel, subscriptionId));
+
+    return subscription;
   }
+
+
+
+
 
   /**
    * Establishes the actual WebSocket connection
-   * 
-   * @private
    */
   async #establishConnection(): Promise<void> {
     return new Promise((resolve, reject) => {
       // Build WebSocket URL with query parameters
       const url = new URL(this.#options.url);
       
-      // Add sessionId for reconnection if we have one
+      // Ensure the path includes /v1 and add sessionId for reconnection if we have one
       if (this.#sessionId) {
+        // Ensure path ends with /v1 for API versioning
+        if (!url.pathname.endsWith('/v1')) {
+          url.pathname = url.pathname.replace(/\/$/, '') + '/v1';
+        }
         url.searchParams.set('sessionId', this.#sessionId);
-        console.log(`Reconnecting with existing session: ${this.#sessionId}`);
+        console.log(`🔄 Reconnecting with existing session: ${this.#sessionId}`);
+      } else {
+        // For initial connection, also ensure /v1 path
+        if (!url.pathname.endsWith('/v1')) {
+          url.pathname = url.pathname.replace(/\/$/, '') + '/v1';
+        }
+        console.log(`🆕 Creating new connection`);
       }
 
       const wsUrl = url.toString();
       const ws = new WebSocket(wsUrl);
       const connectTimeout = setTimeout(() => {
+        console.log(`🔴 WebSocket connection timeout after ${this.#options.timeout}ms - forcing close`);
         ws.close();
         reject(new Error(`Connection timeout after ${this.#options.timeout}ms`));
       }, this.#options.timeout);
 
       ws.onopen = () => {
+        console.log(`✅ WebSocket connection opened successfully`);
         clearTimeout(connectTimeout);
         this.#ws = ws;
         this.#setState(WebSocketState.CONNECTED);
@@ -847,16 +1083,22 @@ export class WebSocketService extends EventEmitter {
         const hadExistingSession = this.#sessionId !== null;
         
         // Reset reconnect attempts on successful connection
+        
+        const wasReconnecting = this.#reconnectAttempts > 0;
+        const hadExistingSession = this.#sessionId !== null;
+        
+        // Reset reconnect attempts on successful connection
         this.#reconnectAttempts = 0;
+        
+        // Clear disconnect time since we're successfully connected
+        this.#lastDisconnectTime = null;
         
         this.#setupEventHandlers();
         this.#processQueuedRequests();
         
-        this.emit(WebSocketEventType.CONNECTED);
+        // Note: Event system removed - use direct service integration
         
         if (wasReconnecting) {
-          this.emit(WebSocketEventType.RECONNECTED);
-          
           if (hadExistingSession) {
             console.log(`Successfully reconnected with existing session: ${this.#sessionId}`);
           } else {
@@ -869,14 +1111,28 @@ export class WebSocketService extends EventEmitter {
 
       ws.onerror = (event: Event) => {
         clearTimeout(connectTimeout);
-        const error = new Error(`WebSocket connection error: ${event}`);
+        console.error(`❌ WebSocket error during connection attempt:`, {
+          type: event.type,
+          target: event.target,
+          url: wsUrl,
+          sessionId: this.#sessionId,
+          readyState: ws.readyState,
+          readyStateName: { 0: 'CONNECTING', 1: 'OPEN', 2: 'CLOSING', 3: 'CLOSED' }[ws.readyState]
+        });
+        const error = new Error(`WebSocket connection error to ${wsUrl}: readyState=${ws.readyState}`);
         reject(error);
       };
 
       ws.onclose = (event: CloseEvent) => {
         clearTimeout(connectTimeout);
+        console.log(`WebSocket closed during connection setup - code: ${event.code} - ${this.#getCloseReason(event.code)}, reason: ${event.reason || 'none'}, state: ${this.#state}`);
         if (this.#state === WebSocketState.CONNECTING) {
+          console.log(`Connection attempt failed due to close event during CONNECTING state`);
           reject(new Error(`WebSocket connection closed during connection: ${event.code} ${event.reason}`));
+        } else {
+          // If we're not connecting, handle it as a normal close event
+          console.log(`Handling close event as normal disconnection`);
+          this.#handleClose(event);
         }
       };
     });
@@ -884,52 +1140,78 @@ export class WebSocketService extends EventEmitter {
 
   /**
    * Sets up WebSocket event handlers
-   * 
-   * @private
    */
   #setupEventHandlers(): void {
+    console.log('Setting up WebSocket event handlers for operational phase');
 
     this.#ws.onmessage = (event: any) => {
-      try {
-        const message = JSON.parse(event.data) as WebSocketMessage;
+      // Fast path: Optimized parsing for mobile real-time performance
+      const message = this.#parseMessage(event.data);
+      if (message) {
         this.#handleMessage(message);
-      } catch (error) {
-        this.emit(WebSocketEventType.ERROR, new Error(`Failed to parse message: ${error}`));
       }
+      // Note: Parse errors are silently ignored for mobile performance
     };
 
     this.#ws.onclose = (event: any) => {
+      console.log(`WebSocket onclose event triggered - code: ${event.code}, reason: ${event.reason || 'none'}, wasClean: ${event.wasClean}`);
       this.#handleClose(event);
     };
 
     this.#ws.onerror = (event: any) => {
+      console.log(`WebSocket onerror event triggered:`, event);
       this.#handleError(new Error(`WebSocket error: ${event}`));
     };
 
-    // Note: Native WebSocket API automatically handles PING/PONG frames
-    // for keep-alive without exposing them to JavaScript
+
 
 
   }
 
+
+
   /**
-   * Handles incoming WebSocket messages
-   * 
-   * @param message - Received message
-   * @private
+   * Handles incoming WebSocket messages (optimized for mobile real-time performance)
    */
   #handleMessage(message: WebSocketMessage): void {
-    // Handle session-created event
-    if ('event' in message && message.event === 'session-created' && 'data' in message && message.data && typeof message.data === 'object' && 'sessionId' in message.data) {
-      this.#sessionId = message.data.sessionId as string;
-      console.log(`WebSocket session created: ${this.#sessionId}`);
-      this.emit('session-created', { sessionId: this.#sessionId });
-      return;
+    // Fast path: Check message type using property existence (mobile optimization)
+    const hasEvent = 'event' in message;
+    const hasSubscriptionId = 'subscriptionId' in message;
+    const hasData = 'data' in message;
+    
+    // Handle session-created event (optimized for mobile)
+    if (hasEvent && (message as any).event === 'session-created' && hasData) {
+      const messageData = (message as any).data;
+      if (messageData && typeof messageData === 'object' && 'sessionId' in messageData) {
+        const newSessionId = messageData.sessionId as string;
+        const previousSessionId = this.#sessionId;
+        
+        // Determine the type of session event
+        if (previousSessionId === null) {
+          // Initial connection - new session created
+          this.#sessionId = newSessionId;
+          console.log(`WebSocket session created: ${this.#sessionId}`);
+        } else if (previousSessionId === newSessionId) {
+          // Successful reconnection - same session restored
+          console.log(`WebSocket session restored: ${this.#sessionId} - expecting server to send subscribed messages for resumed channels`);
+        } else {
+          // Failed reconnection - old session expired, new session created
+          console.log(`WebSocket session expired, new session created. Old: ${previousSessionId}, New: ${newSessionId}`);
+          this.#sessionId = newSessionId;
+        }
+        return;
+      }
     }
 
     // Handle server responses (correlated with requests)
     if ('data' in message && message.data && typeof message.data === 'object' && 'requestId' in message.data) {
+    if ('data' in message && message.data && typeof message.data === 'object' && 'requestId' in message.data) {
       const responseMessage = message as ServerResponseMessage;
+      const requestId = responseMessage.data.requestId;
+      
+      if (this.#pendingRequests.has(requestId)) {
+        const request = this.#pendingRequests.get(requestId)!;
+        this.#pendingRequests.delete(requestId);
       const requestId = responseMessage.data.requestId;
       
       if (this.#pendingRequests.has(requestId)) {
@@ -940,70 +1222,114 @@ export class WebSocketService extends EventEmitter {
         // Check if the response indicates failure
         if (responseMessage.data.failed && responseMessage.data.failed.length > 0) {
           request.reject(new Error(`Request failed: ${responseMessage.data.failed.join(', ')}`));
+        // Check if the response indicates failure
+        if (responseMessage.data.failed && responseMessage.data.failed.length > 0) {
+          request.reject(new Error(`Request failed: ${responseMessage.data.failed.join(', ')}`));
         } else {
+          request.resolve(responseMessage.data);
           request.resolve(responseMessage.data);
         }
         return;
       }
     }
 
-    // Handle server notifications (unsolicited messages)
-    if ('subscriptionId' in message && !('data' in message && message.data && typeof message.data === 'object' && 'requestId' in message.data)) {
-      const notificationMessage = message as ServerNotificationMessage;
-      
-      // Route by subscription ID
-      const subscriptionId = notificationMessage.subscriptionId;
-      if (subscriptionId) {
-        this.emit(`subscription:${subscriptionId}`, notificationMessage);
-      }      
+
+
+    // Handle server-generated subscription restoration messages (no requestId)
+    if ('event' in message && message.event === 'subscribed' && 'data' in message && message.data && typeof message.data === 'object' && !('requestId' in message.data)) {
+      console.log(`Server restored subscription: ${JSON.stringify(message.data)}`);
+      // These are server-generated subscription confirmations during session restoration
+      // No action needed - just log for debugging
       return;
     }
 
-    // Emit all other messages
-    this.emit(WebSocketEventType.MESSAGE, message);
+        // Handle server notifications (optimized for real-time mobile performance)
+    if (hasSubscriptionId && !(hasData && (message as any).data && typeof (message as any).data === 'object' && 'requestId' in (message as any).data)) {
+      const notificationMessage = message as ServerNotificationMessage;
+      const subscriptionId = notificationMessage.subscriptionId;
+      
+      // Fast path: Direct callback routing (zero-allocation lookup)
+      this.#subscriptions.forEach(namespaceSubscriptions => {
+        const subscription = namespaceSubscriptions.get(subscriptionId);
+        if (subscription) {
+          const callback = subscription.callback;
+          // Development: Full error handling
+          if (process.env.NODE_ENV === 'development') {
+            try {
+              callback(notificationMessage);
+            } catch (error) {
+              console.error(`Error in subscription callback for ${subscriptionId}:`, error);
+            }
+          } else {
+            // Production: Direct call for maximum speed
+            callback(notificationMessage);
+          }
+        }
+      });
+      return;
+    }
   }
 
 
 
   /**
-   * Handles WebSocket close events (RFC 6455 compliant)
-   * 
-   * @param event - Close event
-   * @private
+   * Optimized message parsing for mobile (reduces JSON.parse overhead)
+   */
+  #parseMessage(data: string): WebSocketMessage | null {
+    try {
+      return JSON.parse(data);
+    } catch {
+      // Fail fast on parse errors (mobile optimization)
+      return null;
+    }
+  }
+
+  /**
+   * Handles WebSocket close events (mobile optimized)
    */
   #handleClose(event: CloseEvent): void {
     this.#clearTimers();
     this.#connectedAt = null;
 
+    // Clear any pending connection promise
+    this.#connectionPromise = null;
+
     // Log close reason for debugging
     const closeReason = this.#getCloseReason(event.code);
-    console.debug(`WebSocket closed: ${event.code} - ${closeReason}`, event.reason);
+    console.log(`WebSocket closed: ${event.code} - ${closeReason} (reason: ${event.reason || 'none'}) - current state: ${this.#state}`);
 
     if (this.#state === WebSocketState.DISCONNECTING) {
       // Manual disconnect - sessionId was already cleared in disconnect()
+      // Manual disconnect - sessionId was already cleared in disconnect()
       this.#setState(WebSocketState.DISCONNECTED);
-      this.emit(WebSocketEventType.DISCONNECTED);
+      // Note: Event system removed - use direct service integration
       return;
     }
 
     // For unexpected disconnects, keep sessionId for reconnection
+    // First, always update the state to reflect that we're disconnected
+    this.#setState(WebSocketState.DISCONNECTED);
+    
     // Check if we should attempt reconnection based on close code
     const shouldReconnect = this.#shouldReconnectOnClose(event.code);
     
-    if (shouldReconnect && this.#reconnectAttempts < this.#options.maxReconnectAttempts) {
+    if (shouldReconnect) {
       console.log(`Connection lost unexpectedly, will attempt reconnection with session: ${this.#sessionId || 'none'}`);
+      if (!this.#sessionId) {
+        console.log(`⚠️  WARNING: No sessionId available for reconnection - will create new session`);
+      } else {
+        // Record disconnect time for session retention
+        this.#recordDisconnectTime();
+      }
       this.#scheduleReconnect();
     } else {
-      // Max attempts reached or non-recoverable error - clear session
+      // Non-recoverable error - clear session immediately and set error state
+      const clearedSessionId = this.#sessionId;
       this.#sessionId = null;
+      console.log(`🔄 Clearing session due to non-recoverable error: ${clearedSessionId || 'none'}`);
       this.#setState(WebSocketState.ERROR);
-      this.#lastError = `${shouldReconnect ? 'Max reconnection attempts reached' : 'Non-recoverable close code'}. Close code: ${event.code} - ${closeReason}`;
-      this.emit(WebSocketEventType.ERROR, new Error(this.#lastError));
-      
-      // Trigger deprecated callback if provided
-      if (this.#options.onBreak) {
-        this.#options.onBreak();
-      }
+      this.#lastError = `Non-recoverable close code: ${event.code} - ${closeReason}`;
+      // Note: Event system removed - use direct service integration
     }
   }
 
@@ -1015,49 +1341,38 @@ export class WebSocketService extends EventEmitter {
    */
   #handleError(error: Error): void {
     this.#lastError = error.message;
-    this.emit(WebSocketEventType.ERROR, error);
-    
-    // Trigger deprecated callback if provided
-    if (this.#options.onDegraded) {
-      this.#options.onDegraded();
-    }
+    // Note: Event system removed - use direct service integration
   }
 
   /**
-   * Schedules a reconnection attempt
-   * 
-   * @private
+   * Schedules a reconnection attempt with exponential backoff
    */
   #scheduleReconnect(): void {
     this.#reconnectAttempts++;
     
-    const delay = Math.min(
-      this.#options.reconnectDelay * Math.pow(2, this.#reconnectAttempts - 1),
-      this.#options.maxReconnectDelay
-    );
+    const rawDelay = this.#options.reconnectDelay * Math.pow(1.5, this.#reconnectAttempts - 1);
+    const delay = Math.min(rawDelay, this.#options.maxReconnectDelay);
 
-    this.emit(WebSocketEventType.RECONNECTING, {
-      attempt: this.#reconnectAttempts,
-      maxAttempts: this.#options.maxReconnectAttempts,
-      delay,
-    });
-
-    // Trigger deprecated callback if provided
-    if (this.#options.onRetry) {
-      this.#options.onRetry();
-    }
+    console.log(`⏱️ Scheduling reconnection attempt #${this.#reconnectAttempts} in ${delay}ms (${(delay/1000).toFixed(1)}s)`);
 
     this.#reconnectTimer = setTimeout(() => {
+      console.log(`🔄 ${delay}ms delay elapsed - starting reconnection attempt #${this.#reconnectAttempts}...`);
+      
+      // Check if session has expired before attempting reconnection
+      this.#checkAndClearExpiredSession();
+      
       this.connect().catch((error) => {
-        console.error('Reconnection failed:', error);
+        console.error(`❌ Reconnection attempt #${this.#reconnectAttempts} failed:`, error);
+        
+        // Always schedule another reconnection attempt (unlimited retries)
+        console.log(`Scheduling next reconnection attempt (attempt #${this.#reconnectAttempts})`);
+        this.#scheduleReconnect();
       });
     }, delay);
   }
 
   /**
    * Clears all active timers
-   * 
-   * @private
    */
   #clearTimers(): void {
     if (this.#reconnectTimer) {
@@ -1067,12 +1382,47 @@ export class WebSocketService extends EventEmitter {
   }
 
   /**
+   * Checks if the session has expired and clears it if needed
+   */
+  #checkAndClearExpiredSession(): void {
+    if (!this.#sessionId || !this.#lastDisconnectTime) {
+      return;
+    }
+
+    const now = Date.now();
+    const timeSinceDisconnect = now - this.#lastDisconnectTime;
+    const retentionMs = this.#options.sessionIdRetention;
+    const retentionMinutes = Math.round(retentionMs / 60000);
+
+    if (timeSinceDisconnect >= retentionMs) {
+      const expiredSessionId = this.#sessionId;
+      this.#sessionId = null;
+      this.#lastDisconnectTime = null;
+      console.log(`⏰ Session expired after ${retentionMinutes} minutes - cleared sessionId: ${expiredSessionId} (disconnected ${Math.round(timeSinceDisconnect / 60000)} minutes ago)`);
+    } else {
+      const remainingMs = retentionMs - timeSinceDisconnect;
+      const remainingMinutes = Math.round(remainingMs / 60000);
+      console.log(`⏰ Session still valid: ${this.#sessionId} - expires in ${remainingMinutes} minutes`);
+    }
+  }
+
+  /**
+   * Records the disconnect time for session retention tracking
+   */
+  #recordDisconnectTime(): void {
+    this.#lastDisconnectTime = Date.now();
+    const retentionMinutes = Math.round(this.#options.sessionIdRetention / 60000);
+    console.log(`⏰ Recorded disconnect time for session: ${this.#sessionId} - will expire in ${retentionMinutes} minutes`);
+  }
+
+  /**
    * Rejects all pending requests with the given error
    * 
    * @param error - Error to reject with
    * @private
    */
   #rejectPendingRequests(error: Error): void {
+    // Reject all pending requests
     // Reject all pending requests
     for (const [id, request] of this.#pendingRequests) {
       clearTimeout(request.timeout);
@@ -1086,13 +1436,42 @@ export class WebSocketService extends EventEmitter {
       req.reject(error);
     });
     this.#requestQueue.length = 0;
+    
+    // Clear subscription callbacks and centralized tracking on disconnect
+    this.#subscriptions.clear();
+    this.#channelToSubscriptionId.clear();
   }
 
   /**
    * Processes any requests that were queued while disconnected
+   * Processes any requests that were queued while disconnected
    * 
    * @private
    */
+  #processQueuedRequests(): void {
+    const queuedRequestCount = this.#requestQueue.length;
+    
+    if (queuedRequestCount > 0) {
+      console.log(`Processing ${queuedRequestCount} queued requests`);
+    }
+    
+    // Process queued requests
+    while (this.#requestQueue.length > 0) {
+      const queuedRequest = this.#requestQueue.shift()!;
+      const requestId = queuedRequest.message.data.requestId;
+      
+      // Move to pending requests for response correlation
+      this.#pendingRequests.set(requestId, {
+        resolve: queuedRequest.resolve,
+        reject: queuedRequest.reject,
+        timeout: queuedRequest.timeout,
+      });
+      
+      // Send the request
+      this.sendMessage(queuedRequest.message).catch((error) => {
+        this.#pendingRequests.delete(requestId);
+        clearTimeout(queuedRequest.timeout);
+        queuedRequest.reject(error);
   #processQueuedRequests(): void {
     const queuedRequestCount = this.#requestQueue.length;
     
@@ -1123,20 +1502,28 @@ export class WebSocketService extends EventEmitter {
     if (queuedRequestCount > 0) {
       console.log(`Finished processing ${queuedRequestCount} queued requests`);
     }
+    
+    if (queuedRequestCount > 0) {
+      console.log(`Finished processing ${queuedRequestCount} queued requests`);
+    }
   }
 
   /**
    * Sets the connection state and emits state change events
-   * 
-   * @param newState - New connection state
-   * @private
    */
   #setState(newState: WebSocketState): void {
     const oldState = this.#state;
     this.#state = newState;
     
     if (oldState !== newState) {
-      this.emit('stateChange', { from: oldState, to: newState });
+      console.log(`WebSocket state changed: ${oldState} → ${newState}`);
+      
+      // Log disconnection-related state changes
+      if (newState === WebSocketState.DISCONNECTED || newState === WebSocketState.DISCONNECTING || newState === WebSocketState.ERROR) {
+        console.log(`🔴 WebSocket disconnection detected - state: ${oldState} → ${newState}`);
+      }
+      
+      // Note: Event system removed - use direct service integration
     }
   }
 
@@ -1182,6 +1569,8 @@ export class WebSocketService extends EventEmitter {
     }
   }
 
+
+
   /**
    * Determines if reconnection should be attempted based on close code
    * 
@@ -1190,22 +1579,35 @@ export class WebSocketService extends EventEmitter {
    * @private
    */
   #shouldReconnectOnClose(code: number): boolean {
-    // Don't reconnect on normal closure or going away
-    if (code === 1000 || code === 1001) {
+    console.log(`Evaluating if reconnection should be attempted for close code: ${code} - ${this.#getCloseReason(code)}`);
+    
+    // Don't reconnect only on normal closure (manual disconnect)
+    if (code === 1000) {
+      console.log(`Not reconnecting - normal closure (manual disconnect)`);
       return false;
+    }
+    
+    // For "Going Away" (1001), check the reason to distinguish between client vs server initiated
+    if (code === 1001) {
+      // If it's a server shutdown, we should retry
+      console.log(`"Going Away" detected - will reconnect as this may be a temporary server shutdown`);
+      return true;
     }
 
     // Don't reconnect on client-side errors (4000-4999)
     if (code >= 4000 && code <= 4999) {
+      console.log(`Not reconnecting - client-side error (${code})`);
       return false;
     }
 
     // Don't reconnect on certain protocol errors
     if (code === 1002 || code === 1003 || code === 1007 || code === 1008) {
+      console.log(`Not reconnecting - protocol error (${code})`);
       return false;
     }
 
     // Reconnect on server errors and temporary issues
+    console.log(`Will reconnect - treating as temporary server issue`);
     return true;
   }
 

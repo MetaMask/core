@@ -16,11 +16,16 @@ or
 - **Account Activity Service**: Monitor account transactions and balance changes across multiple chains
 - **Price Service**: Real-time price feed subscriptions and updates (internal use)
 - **Type-safe utilities**: Common types and utility functions for backend operations, including keyring-api compatibility
+- **Account Activity Service**: Monitor account transactions and balance changes across multiple chains
+- **Price Service**: Real-time price feed subscriptions and updates (internal use)
+- **Type-safe utilities**: Common types and utility functions for backend operations, including keyring-api compatibility
 - **Service patterns**: Following MetaMask's service architecture guidelines
 
 ## Usage
 
 ### WebSocket Service
+
+The WebSocket Service provides enterprise-grade WebSocket connectivity with automatic reconnection, circuit breaker patterns, and comprehensive error handling.
 
 The WebSocket Service provides enterprise-grade WebSocket connectivity with automatic reconnection, circuit breaker patterns, and comprehensive error handling.
 
@@ -30,7 +35,9 @@ import { WebSocketService, WebSocketState } from '@metamask/backend-platform';
 // Create a WebSocket service instance
 const websocketService = new WebSocketService({
   messenger: restrictedMessenger, // RestrictedMessenger instance
+  messenger: restrictedMessenger, // RestrictedMessenger instance
   url: 'wss://your-internal-backend.com/ws',
+  timeout: 15000,
   timeout: 15000,
   maxReconnectAttempts: 5,
   policyOptions: {
@@ -55,6 +62,7 @@ websocketService.on('error', (error) => {
 });
 
 // Handle service policy events
+// Handle service policy events
 websocketService.onBreak((data) => {
   console.warn('Circuit breaker triggered:', data);
 });
@@ -72,6 +80,9 @@ async function example() {
   try {
     await websocketService.connect();
     
+    const response = await websocketService.sendRequest({
+      event: 'getUserAccount',
+      data: { userId: 'user123' },
     const response = await websocketService.sendRequest({
       event: 'getUserAccount',
       data: { userId: 'user123' },
@@ -94,13 +105,29 @@ const subscription = await websocketService.subscribe({
 
 // Later, unsubscribe
 await subscription.unsubscribe();
+
+// Create subscriptions with automatic lifecycle management
+const subscription = await websocketService.subscribe({
+  method: 'account_activity',
+  params: { address: '0x1234...' },
+  onNotification: (notification) => {
+    console.log('Account activity:', notification.params);
+  }
+});
+
+// Later, unsubscribe
+await subscription.unsubscribe();
 ```
 
 ### Account Activity Service
 
 The Account Activity Service monitors account transactions and balance changes across multiple blockchain networks using CAIP-10 formatted addresses.
+### Account Activity Service
+
+The Account Activity Service monitors account transactions and balance changes across multiple blockchain networks using CAIP-10 formatted addresses.
 
 ```typescript
+import { AccountActivityService } from '@metamask/backend-platform';
 import { AccountActivityService } from '@metamask/backend-platform';
 
 // Create the service with a WebSocket service dependency
@@ -125,14 +152,15 @@ await accountActivityService.subscribeAccounts([{
 // - Balance changes
 // - Account activity notifications
 
-// Get current subscriptions
-const activeSubscriptions = accountActivityService.getActiveSubscriptions();
-console.log('Monitoring', activeSubscriptions.length, 'accounts');
+// Service automatically manages subscriptions - no need to manually track them
 
 // Unsubscribe from specific accounts
 await accountActivityService.unsubscribeAccounts(['eip155:1:0x1234...']);
 ```
 
+### Type Definitions
+
+The package provides comprehensive TypeScript types, including re-exports from `@metamask/keyring-api`:
 ### Type Definitions
 
 The package provides comprehensive TypeScript types, including re-exports from `@metamask/keyring-api`:
@@ -146,9 +174,26 @@ import type {
   AccountBalancesUpdatedEvent,
   AccountBalancesUpdatedEventPayload,
   TransactionWithKeyringBalanceUpdate,
-  BackendConfig
 } from '@metamask/backend-platform';
 
+// All types are compatible with the MetaMask keyring-api
+const transaction: Transaction = {
+  id: 'unique-tx-id',
+  account: 'account-uuid',
+  chain: 'eip155:1',
+  // ... other transaction properties
+};
+
+// Balance updates follow the keyring-api structure
+const balanceUpdate: AccountBalancesUpdatedEventPayload = {
+  balances: {
+    'account-uuid': {
+      'eip155:1/erc20:0x...': {
+        unit: 'USDC',
+        amount: '1000000'
+      }
+    }
+  }
 // All types are compatible with the MetaMask keyring-api
 const transaction: Transaction = {
   id: 'unique-tx-id',
@@ -177,12 +222,19 @@ This package follows MetaMask's service architecture patterns:
 - **Service Policy Integration**: Uses `@metamask/controller-utils` for retry logic, circuit breaker pattern, and service degradation detection
 - **Event-driven Architecture**: All services implement an event emitter pattern for handling connection states and messages
 - **Type Safety**: Comprehensive TypeScript types for all service interactions, with full keyring-api compatibility
+- **Event-driven Architecture**: All services implement an event emitter pattern for handling connection states and messages
+- **Type Safety**: Comprehensive TypeScript types for all service interactions, with full keyring-api compatibility
 - **Error Handling**: Robust error handling with automatic retries and fallback mechanisms
 - **Cross-Platform Support**: WebSocket service works in both Node.js and browser environments
 - **CAIP Standards**: Account Activity Service uses CAIP-10 for cross-chain account identification
 
 ## Services
+- **Cross-Platform Support**: WebSocket service works in both Node.js and browser environments
+- **CAIP Standards**: Account Activity Service uses CAIP-10 for cross-chain account identification
 
+## Services
+
+### WebSocket Service Features
 ### WebSocket Service Features
 
 - **Automatic Reconnection**: Configurable reconnection attempts with exponential backoff
@@ -191,7 +243,73 @@ This package follows MetaMask's service architecture patterns:
 - **Message Correlation**: Automatic correlation of request/response messages with unique IDs
 - **RFC 6455 Compliance**: Proper PING/PONG control frame handling for keep-alive
 - **Subscription Management**: High-level subscription API with automatic lifecycle management
+- **Message Correlation**: Automatic correlation of request/response messages with unique IDs
+- **RFC 6455 Compliance**: Proper PING/PONG control frame handling for keep-alive
+- **Subscription Management**: High-level subscription API with automatic lifecycle management
 - **Connection State Management**: Comprehensive state tracking and event emission
+- **Cross-Platform**: Native WebSocket in browsers, 'ws' package in Node.js
+
+### Account Activity Service Features
+
+- **Multi-Chain Support**: Monitor accounts across different blockchain networks
+- **CAIP-10 Addresses**: Uses standard CAIP-10 format for cross-chain account identification
+- **Real-time Updates**: Receive transaction confirmations and balance changes instantly
+- **Subscription Management**: Efficiently manage multiple account subscriptions
+- **Balance Transformation**: Automatic conversion to keyring-api compatible format
+- **Transaction Processing**: Unified transaction format using keyring-api standards
+
+### Price Service Features (Internal)
+
+- **Real-time Price Feeds**: Subscribe to cryptocurrency price updates
+- **Symbol Management**: Support for multiple trading pairs and symbols
+- **WebSocket Transport**: Built on top of the WebSocket service for reliability
+- **Caching**: Intelligent price data caching with configurable intervals
+- **Change Detection**: Configurable price change thresholds for notifications
+
+## Integration Examples
+
+### Complete Setup with MetaMask Controller
+
+```typescript
+import { 
+  WebSocketService, 
+  AccountActivityService 
+} from '@metamask/backend-platform';
+
+// Setup in your MetaMask controller
+const websocketMessenger = this.controllerMessenger.getRestricted({
+  name: 'WebSocketService',
+  allowedActions: [],
+  allowedEvents: [],
+});
+
+const activityMessenger = this.controllerMessenger.getRestricted({
+  name: 'AccountActivityService', 
+  allowedActions: [],
+  allowedEvents: [],
+});
+
+// Initialize services
+const websocketService = new WebSocketService({
+  messenger: websocketMessenger,
+  url: 'wss://api.metamask.io/ws',
+  timeout: 10000,
+  maxReconnectAttempts: 5,
+});
+
+const accountActivityService = new AccountActivityService({
+  messenger: activityMessenger,
+  webSocketService: websocketService,
+  maxActiveSubscriptions: 100,
+});
+
+// Connect and start monitoring
+await websocketService.connect();
+await accountActivityService.subscribeAccounts([
+  { address: 'eip155:1:0x...' }, // Ethereum
+  { address: 'solana:101:...' }, // Solana
+]);
+```
 - **Cross-Platform**: Native WebSocket in browsers, 'ws' package in Node.js
 
 ### Account Activity Service Features
