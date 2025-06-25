@@ -35,6 +35,7 @@ describe('Quote Utils', () => {
       walletAddress: '0x789',
       srcTokenAmount: '1000',
       slippage: 0.5,
+      gasEnabledSwap: false,
     };
 
     it('should return true for valid request with all required fields', () => {
