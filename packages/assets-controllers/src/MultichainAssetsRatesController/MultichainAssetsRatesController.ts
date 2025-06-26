@@ -320,8 +320,12 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
       }
       const accounts = this.#listAccounts();
 
+      console.log('accounts ****************', accounts);
+
       for (const account of accounts) {
         const assets = this.#getAssetsForAccount(account.id);
+
+        console.log('assets ****************', assets);
 
         if (assets?.length === 0) {
           continue;
@@ -661,11 +665,6 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
     // Iterate through each asset in market data
     for (const [assetId, currencyData] of Object.entries(marketData)) {
       const typedAssetId = assetId as CaipAssetType;
-
-      // Check if this asset exists in conversion rates
-      if (!conversionRates[typedAssetId]) {
-        continue;
-      }
 
       // Iterate through each currency for this asset
       for (const [currency, marketDataForCurrency] of Object.entries(
