@@ -225,6 +225,21 @@ const BridgeTxStatusResponses = {
       token: {},
     },
   },
+  STATUS_SQUID_VALID: {
+    status: 'COMPLETE',
+    isExpectedToken: true,
+    bridge: 'axelar',
+    srcChain: {
+      chainId: 10,
+      txHash:
+        '0x9fdc426692aba1f81e145834602ed59ed331054e5b91a09a673cb12d4b4f6a33',
+    },
+    destChain: {
+      chainId: 42161,
+      txHash:
+        '0x3a494e672717f9b1f2b64a48a19985842d82d0747400fccebebc7a4e99c8eaab',
+    },
+  },
 };
 
 describe('validators', () => {
@@ -257,6 +272,10 @@ describe('validators', () => {
       {
         input: BridgeTxStatusResponses.STATUS_FAILED_VALID,
         description: 'valid failed bridge status',
+      },
+      {
+        input: BridgeTxStatusResponses.STATUS_SQUID_VALID,
+        description: 'valid squid bridge status',
       },
       {
         input: {
