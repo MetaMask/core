@@ -1651,8 +1651,7 @@ describe('EarnController', () => {
           to: '0x123',
           data: '0x456',
           value: '0',
-
-          gasLimit: '100000',
+          gasLimit: 100000,
         };
         const mockLendingContract = {
           encodeDepositTransactionData: jest
@@ -1669,8 +1668,9 @@ describe('EarnController', () => {
           },
         }));
 
+        const addTransactionFn = jest.fn().mockResolvedValue('successfulhash');
         const { controller } = await setupController({
-          addTransactionFn: jest.fn().mockResolvedValue('successfulhash'),
+          addTransactionFn,
         });
 
         const result = await controller.executeLendingDeposit({
@@ -1687,6 +1687,73 @@ describe('EarnController', () => {
           mockLendingContract.encodeDepositTransactionData,
         ).toHaveBeenCalledWith('100', mockAccount1Address, {});
         expect(result).toBe('successfulhash');
+
+        expect(addTransactionFn).toHaveBeenCalledWith(
+          {
+            ...mockTransactionData,
+            value: '0',
+            chainId: '0x1',
+            gasLimit: toHex(mockTransactionData.gasLimit),
+          },
+          {
+            networkClientId: '1',
+          },
+        );
+      });
+
+      it('executes lending deposit transaction with 0 gasLimit', async () => {
+        const mockTransactionData = {
+          to: '0x123',
+          data: '0x456',
+          value: '0',
+          gasLimit: 0,
+        };
+        const mockLendingContract = {
+          encodeDepositTransactionData: jest
+            .fn()
+            .mockResolvedValue(mockTransactionData),
+        };
+        (EarnSdk.create as jest.Mock).mockImplementation(() => ({
+          contracts: {
+            lending: {
+              aave: {
+                '0x123': mockLendingContract,
+              },
+            },
+          },
+        }));
+        const addTransactionFn = jest.fn().mockResolvedValue('successfulhash');
+
+        const { controller } = await setupController({
+          addTransactionFn,
+        });
+
+        const result = await controller.executeLendingDeposit({
+          amount: '100',
+          protocol: 'aave' as LendingMarket['protocol'],
+          underlyingTokenAddress: '0x123',
+          gasOptions: {},
+          txOptions: {
+            networkClientId: '1',
+          },
+        });
+
+        expect(
+          mockLendingContract.encodeDepositTransactionData,
+        ).toHaveBeenCalledWith('100', mockAccount1Address, {});
+        expect(result).toBe('successfulhash');
+
+        expect(addTransactionFn).toHaveBeenCalledWith(
+          {
+            ...mockTransactionData,
+            value: '0',
+            chainId: '0x1',
+            gasLimit: undefined,
+          },
+          {
+            networkClientId: '1',
+          },
+        );
       });
 
       it('handles error when encodeDepositTransactionData throws', async () => {
@@ -1742,7 +1809,7 @@ describe('EarnController', () => {
           to: '0x123',
           data: '0x456',
           value: '0',
-          gasLimit: '100000',
+          gasLimit: 100000,
         };
         const mockLendingContract = {
           encodeDepositTransactionData: jest
@@ -1787,7 +1854,7 @@ describe('EarnController', () => {
           to: '0x123',
           data: '0x456',
           value: '0',
-          gasLimit: '100000',
+          gasLimit: 100000,
         };
 
         const mockLendingContract = {
@@ -1806,8 +1873,9 @@ describe('EarnController', () => {
           },
         }));
 
+        const addTransactionFn = jest.fn().mockResolvedValue('successfulhash');
         const { controller } = await setupController({
-          addTransactionFn: jest.fn().mockResolvedValue('successfulhash'),
+          addTransactionFn,
         });
 
         const result = await controller.executeLendingWithdraw({
@@ -1824,6 +1892,73 @@ describe('EarnController', () => {
           mockLendingContract.encodeWithdrawTransactionData,
         ).toHaveBeenCalledWith('100', mockAccount1Address, {});
         expect(result).toBe('successfulhash');
+        expect(addTransactionFn).toHaveBeenCalledWith(
+          {
+            ...mockTransactionData,
+            value: '0',
+            chainId: '0x1',
+            gasLimit: toHex(mockTransactionData.gasLimit),
+          },
+          {
+            networkClientId: '1',
+          },
+        );
+      });
+
+      it('executes lending withdraw transaction with 0 gasLimit', async () => {
+        const mockTransactionData = {
+          to: '0x123',
+          data: '0x456',
+          value: '0',
+          gasLimit: 0,
+        };
+
+        const mockLendingContract = {
+          encodeWithdrawTransactionData: jest
+            .fn()
+            .mockResolvedValue(mockTransactionData),
+        };
+
+        (EarnSdk.create as jest.Mock).mockImplementation(() => ({
+          contracts: {
+            lending: {
+              aave: {
+                '0x123': mockLendingContract,
+              },
+            },
+          },
+        }));
+
+        const addTransactionFn = jest.fn().mockResolvedValue('successfulhash');
+        const { controller } = await setupController({
+          addTransactionFn,
+        });
+
+        const result = await controller.executeLendingWithdraw({
+          amount: '100',
+          protocol: 'aave' as LendingMarket['protocol'],
+          underlyingTokenAddress: '0x123',
+          gasOptions: {},
+          txOptions: {
+            networkClientId: '1',
+          },
+        });
+
+        expect(
+          mockLendingContract.encodeWithdrawTransactionData,
+        ).toHaveBeenCalledWith('100', mockAccount1Address, {});
+        expect(result).toBe('successfulhash');
+        expect(addTransactionFn).toHaveBeenCalledWith(
+          {
+            ...mockTransactionData,
+            value: '0',
+            chainId: '0x1',
+            gasLimit: undefined,
+          },
+          {
+            networkClientId: '1',
+          },
+        );
       });
 
       it('handles transaction data not found', async () => {
@@ -1846,7 +1981,7 @@ describe('EarnController', () => {
           to: '0x123',
           data: '0x456',
           value: '0',
-          gasLimit: '100000',
+          gasLimit: 100000,
         };
         const mockLendingContract = {
           encodeWithdrawTransactionData: jest
@@ -1891,7 +2026,7 @@ describe('EarnController', () => {
           to: '0x123',
           data: '0x456',
           value: '0',
-          gasLimit: '100000',
+          gasLimit: 100000,
         };
 
         const mockLendingContract = {
@@ -1910,8 +2045,9 @@ describe('EarnController', () => {
           },
         }));
 
+        const addTransactionFn = jest.fn().mockResolvedValue('successfulhash');
         const { controller } = await setupController({
-          addTransactionFn: jest.fn().mockResolvedValue('successfulhash'),
+          addTransactionFn,
         });
 
         const result = await controller.executeLendingTokenApprove({
@@ -1928,6 +2064,73 @@ describe('EarnController', () => {
           mockLendingContract.encodeUnderlyingTokenApproveTransactionData,
         ).toHaveBeenCalledWith('100', mockAccount1Address, {});
         expect(result).toBe('successfulhash');
+        expect(addTransactionFn).toHaveBeenCalledWith(
+          {
+            ...mockTransactionData,
+            value: '0',
+            chainId: '0x1',
+            gasLimit: toHex(mockTransactionData.gasLimit),
+          },
+          {
+            networkClientId: '1',
+          },
+        );
+      });
+
+      it('executes lending token approve transaction with 0 gasLimit', async () => {
+        const mockTransactionData = {
+          to: '0x123',
+          data: '0x456',
+          value: '0',
+          gasLimit: 0,
+        };
+
+        const mockLendingContract = {
+          encodeUnderlyingTokenApproveTransactionData: jest
+            .fn()
+            .mockResolvedValue(mockTransactionData),
+        };
+
+        (EarnSdk.create as jest.Mock).mockImplementation(() => ({
+          contracts: {
+            lending: {
+              aave: {
+                '0x123': mockLendingContract,
+              },
+            },
+          },
+        }));
+
+        const addTransactionFn = jest.fn().mockResolvedValue('successfulhash');
+        const { controller } = await setupController({
+          addTransactionFn,
+        });
+
+        const result = await controller.executeLendingTokenApprove({
+          amount: '100',
+          protocol: 'aave' as LendingMarket['protocol'],
+          underlyingTokenAddress: '0x123',
+          gasOptions: {},
+          txOptions: {
+            networkClientId: '1',
+          },
+        });
+
+        expect(
+          mockLendingContract.encodeUnderlyingTokenApproveTransactionData,
+        ).toHaveBeenCalledWith('100', mockAccount1Address, {});
+        expect(result).toBe('successfulhash');
+        expect(addTransactionFn).toHaveBeenCalledWith(
+          {
+            ...mockTransactionData,
+            value: '0',
+            chainId: '0x1',
+            gasLimit: undefined,
+          },
+          {
+            networkClientId: '1',
+          },
+        );
       });
 
       it('handles transaction data not found', async () => {
@@ -1950,7 +2153,7 @@ describe('EarnController', () => {
           to: '0x123',
           data: '0x456',
           value: '0',
-          gasLimit: '100000',
+          gasLimit: 100000,
         };
         const mockLendingContract = {
           encodeUnderlyingTokenApproveTransactionData: jest
