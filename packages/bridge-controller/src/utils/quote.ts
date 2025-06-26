@@ -272,6 +272,36 @@ export const calcTotalMaxNetworkFee = (
   };
 };
 
+// Gas is included for some swap quotes and this is the value displayed in the client
+export const calcIncludedTxFees = (
+  { gasIncluded, srcAsset, feeData: { txFee } }: Quote,
+  srcTokenExchangeRate: ExchangeRate,
+  destTokenExchangeRate: ExchangeRate,
+) => {
+  if (!txFee || !gasIncluded) {
+    return null;
+  }
+  // Use exchange rate of the token that is being used to pay for the transaction
+  const { exchangeRate, usdExchangeRate } =
+    txFee.asset.assetId === srcAsset.assetId
+      ? srcTokenExchangeRate
+      : destTokenExchangeRate;
+  const normalizedTxFeeAmount = calcTokenAmount(
+    txFee.amount,
+    txFee.asset.decimals,
+  );
+
+  return {
+    amount: normalizedTxFeeAmount.toString(),
+    valueInCurrency: exchangeRate
+      ? normalizedTxFeeAmount.times(exchangeRate).toString()
+      : null,
+    usd: usdExchangeRate
+      ? normalizedTxFeeAmount.times(usdExchangeRate).toString()
+      : null,
+  };
+};
+
 export const calcAdjustedReturn = (
   toTokenAmount: ReturnType<typeof calcToAmount>,
   totalEstimatedNetworkFee: ReturnType<typeof calcTotalEstimatedNetworkFee>,

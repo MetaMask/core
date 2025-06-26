@@ -38,6 +38,7 @@ import {
   calcAdjustedReturn,
   calcCost,
   calcEstimatedAndMaxTotalGasFee,
+  calcIncludedTxFees,
   calcRelayerFee,
   calcSentAmount,
   calcSolanaTotalNetworkFee,
@@ -265,6 +266,12 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
       const sentAmount = calcSentAmount(quote.quote, srcTokenExchangeRate);
       const toTokenAmount = calcToAmount(quote.quote, destTokenExchangeRate);
 
+      const includedTxFees = calcIncludedTxFees(
+        quote.quote,
+        srcTokenExchangeRate,
+        destTokenExchangeRate,
+      );
+
       let totalEstimatedNetworkFee, gasFee, totalMaxNetworkFee, relayerFee;
 
       if (isSolanaChainId(quote.quote.srcChainId)) {
@@ -305,6 +312,7 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
         gasFee,
         adjustedReturn,
         cost,
+        includedTxFees,
       };
     });
 
