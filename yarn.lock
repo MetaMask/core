@@ -3564,6 +3564,26 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metamask/gator-permissions-controller@workspace:packages/gator-permissions-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/gator-permissions-controller@workspace:packages/gator-permissions-controller"
+  dependencies:
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/base-controller": "npm:^8.0.1"
+    "@metamask/profile-sync-controller": "npm:^19.0.0"
+    "@ts-bridge/cli": "npm:^0.6.1"
+    "@types/jest": "npm:^27.4.1"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^27.5.1"
+    ts-jest: "npm:^27.1.4"
+    typedoc: "npm:^0.24.8"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.2.2"
+  peerDependencies:
+    "@metamask/profile-sync-controller": ^19.0.0
+  languageName: unknown
+  linkType: soft
+
 "@metamask/json-rpc-engine@npm:^10.0.0, @metamask/json-rpc-engine@npm:^10.0.2, @metamask/json-rpc-engine@npm:^10.0.3, @metamask/json-rpc-engine@workspace:packages/json-rpc-engine":
   version: 0.0.0-use.local
   resolution: "@metamask/json-rpc-engine@workspace:packages/json-rpc-engine"

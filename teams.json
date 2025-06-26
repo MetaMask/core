@@ -36,6 +36,7 @@
   "metamask/preferences-controller": "team-wallet-framework",
   "metamask/profile-sync-controller": "team-notifications",
   "metamask/rate-limit-controller": "team-snaps-platform",
+  "metamask/gator-permissions-controller": "team-readable-permissions",
   "metamask/remote-feature-flag-controller": "team-extension-platform,team-mobile-platform",
   "metamask/sample-controllers": "team-wallet-framework",
   "metamask/selected-network-controller": "team-wallet-api-platform,team-wallet-framework,team-assets",
