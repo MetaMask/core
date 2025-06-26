@@ -95,6 +95,7 @@ export type NetworkEnablementControllerMessenger = RestrictedMessenger<
 
 /**
  * Gets the default state for the NetworkEnablementController.
+ *
  * @returns The default state with pre-enabled networks.
  */
 const getDefaultNetworkEnablementControllerState =
