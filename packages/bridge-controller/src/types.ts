@@ -114,13 +114,27 @@ export type ExchangeRate = { exchangeRate?: string; usdExchangeRate?: string };
  * Values derived from the quote response
  */
 export type QuoteMetadata = {
-  includedTxFees?: TokenAmountValues | null; // if gas is included, this is the value of the src or dest token that was used to pay for the gas
+  /**
+   * If gas is included, this is the value of the src or dest token that was used to pay for the gas
+   */
+  includedTxFees?: TokenAmountValues | null;
   gasFee: TokenAmountValues;
   totalNetworkFee: TokenAmountValues; // estimatedGasFees + relayerFees
   totalMaxNetworkFee: TokenAmountValues; // maxGasFees + relayerFees
+  /**
+   * The amount that the user will receive (destTokenAmount)
+   */
   toTokenAmount: TokenAmountValues;
-  adjustedReturn: Omit<TokenAmountValues, 'amount'>; // destTokenAmount - totalNetworkFee
-  sentAmount: TokenAmountValues; // srcTokenAmount + metabridgeFee
+  /**
+   * If gas is included: toTokenAmount
+   * Otherwise: toTokenAmount - totalNetworkFee
+   */
+  adjustedReturn: Omit<TokenAmountValues, 'amount'>;
+  /**
+   * The amount that the user will send, including fees
+   * srcTokenAmount + metabridgeFee + txFee
+   */
+  sentAmount: TokenAmountValues;
   swapRate: string; // destTokenAmount / sentAmount
   cost: Omit<TokenAmountValues, 'amount'>; // sentAmount - adjustedReturn
 };
