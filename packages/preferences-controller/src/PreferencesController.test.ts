@@ -550,6 +550,20 @@ describe('PreferencesController', () => {
     controller.setDismissSmartAccountSuggestionEnabled(true);
     expect(controller.state.dismissSmartAccountSuggestionEnabled).toBe(true);
   });
+
+  it('should set smartAccountOptIn', () => {
+    const controller = setupPreferencesController();
+    expect(controller.state.smartAccountOptIn).toBe(false);
+    controller.setSmartAccountOptIn(true);
+    expect(controller.state.smartAccountOptIn).toBe(true);
+  });
+
+  it('should set smartAccountOptInForAccounts', () => {
+    const controller = setupPreferencesController();
+    expect(controller.state.smartAccountOptInForAccounts).toBe([]);
+    controller.setSmartAccountOptInForAccounts(['0x1', '0x2']);
+    expect(controller.state.smartAccountOptInForAccounts).toBe(['0x1', '0x2']);
+  });
 });
 
 /**

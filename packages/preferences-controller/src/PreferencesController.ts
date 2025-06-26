@@ -4,6 +4,7 @@ import {
   type ControllerGetStateAction,
   type RestrictedMessenger,
 } from '@metamask/base-controller';
+import { Hex } from '@metamask/utils';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
 import type {
   KeyringControllerState,
@@ -136,6 +137,14 @@ export type PreferencesState = {
    * Allow user to stop being prompted for smart account upgrade
    */
   dismissSmartAccountSuggestionEnabled: boolean;
+  /**
+   * User to opt in for smart account upgrade for all user accounts.
+   */
+  smartAccountOptIn: boolean;
+  /**
+   * User to opt in for smart account upgrade for specific accounts.
+   */
+  smartAccountOptInForAccounts: Hex[];
 };
 
 const metadata = {
@@ -159,6 +168,8 @@ const metadata = {
   tokenSortConfig: { persist: true, anonymous: true },
   privacyMode: { persist: true, anonymous: true },
   dismissSmartAccountSuggestionEnabled: { persist: true, anonymous: true },
+  smartAccountOptIn: { persist: true, anonymous: true },
+  smartAccountOptInForAccounts: { persist: true, anonymous: true },
 };
 
 const name = 'PreferencesController';
@@ -240,6 +251,8 @@ export function getDefaultPreferencesState(): PreferencesState {
     },
     privacyMode: false,
     dismissSmartAccountSuggestionEnabled: false,
+    smartAccountOptIn: false,
+    smartAccountOptInForAccounts: [],
   };
 }
 
@@ -604,6 +617,29 @@ export class PreferencesController extends BaseController<
     this.update((state) => {
       state.dismissSmartAccountSuggestionEnabled =
         dismissSmartAccountSuggestionEnabled;
+    });
+  }
+
+  /**
+   * A setter for the user preferences smart account OptIn.
+   *
+   * @param smartAccountOptIn - true if user opts in for smart account update, false otherwise.
+   */
+  setSmartAccountOptIn(smartAccountOptIn: boolean) {
+    this.update((state) => {
+      state.smartAccountOptIn = smartAccountOptIn;
+    });
+  }
+
+  /**
+   * Add account to list of accounts for which user has optedin
+   * smart account upgrade.
+   *
+   * @param accounts - accounts for which user wants to optin for smart account upgrade
+   */
+  setSmartAccountOptInForAccounts(accounts: Hex[] = []): void {
+    this.update((state) => {
+      state.smartAccountOptInForAccounts = accounts;
     });
   }
 }
