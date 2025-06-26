@@ -5,10 +5,8 @@ export type {
   NetworkEnablementControllerState,
   NetworkEnablementControllerGetStateAction,
   NetworkEnablementControllerSetEnabledNetworksAction,
-  AllowedActions,
   NetworkEnablementControllerActions,
   NetworkEnablementControllerStateChangeEvent,
   NetworkEnablementControllerEvents,
-  AllowedEvents,
   NetworkEnablementControllerMessenger,
 } from './NetworkEnablementController';

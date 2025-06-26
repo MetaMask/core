@@ -1,6 +1,6 @@
 # `@metamask/network-enablement-controller`
 
-Provides an interface to the currently network enablement via a MetaMask-compatible provider object
+Provides an interface to the currently enabled network using a MetaMask-compatible provider object
 
 ## Installation
 

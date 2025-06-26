@@ -1,10 +1,10 @@
 import { SolScope } from '@metamask/keyring-api';
 
-import { NetworkEnablementController } from '../src/NetworkEnablementController';
+import { NetworkEnablementController } from './NetworkEnablementController';
 import type {
   NetworkEnablementControllerMessenger,
   NetworkEnablementControllerState,
-} from '../src/NetworkEnablementController';
+} from './NetworkEnablementController';
 
 // Helper function to access controller state
 const getControllerState = (

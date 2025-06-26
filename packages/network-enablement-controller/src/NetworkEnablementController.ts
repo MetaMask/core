@@ -57,11 +57,10 @@ export type NetworkEnablementControllerIsNetworkEnabledAction = {
   handler: NetworkEnablementController['isNetworkEnabled'];
 };
 
-export type AllowedActions =
-  | NetworkEnablementControllerGetStateAction
-  | NetworkEnablementControllerSetEnabledNetworksAction
-  | NetworkEnablementControllerDisableNetworkAction
-  | NetworkEnablementControllerIsNetworkEnabledAction;
+/**
+ * All actions that {@link NetworkEnablementController} calls internally.
+ */
+type AllowedActions = never;
 
 export type NetworkEnablementControllerActions =
   | NetworkEnablementControllerGetStateAction
@@ -78,10 +77,13 @@ export type NetworkEnablementControllerStateChangeEvent =
 export type NetworkEnablementControllerEvents =
   NetworkEnablementControllerStateChangeEvent;
 
+/**
+ * All events that {@link NetworkEnablementController} subscribes to internally.
+ */
 export type AllowedEvents =
-  | NetworkControllerStateChangeEvent
   | NetworkControllerNetworkAddedEvent
-  | NetworkControllerNetworkRemovedEvent;
+  | NetworkControllerNetworkRemovedEvent
+  | NetworkControllerStateChangeEvent;
 
 export type NetworkEnablementControllerMessenger = RestrictedMessenger<
   typeof controllerName,
@@ -124,8 +126,6 @@ export class NetworkEnablementController extends BaseController<
   NetworkEnablementControllerState,
   NetworkEnablementControllerMessenger
 > {
-  protected messagingSystem: NetworkEnablementControllerMessenger;
-
   /**
    * Creates a NetworkEnablementController instance.
    *
@@ -168,7 +168,7 @@ export class NetworkEnablementController extends BaseController<
     this.messagingSystem.subscribe(
       'NetworkController:networkAdded',
       (networkAdded: NetworkConfiguration) => {
-        this.onNetworkAdded(networkAdded);
+        this.#onNetworkAdded(networkAdded);
       },
     );
 
@@ -176,7 +176,7 @@ export class NetworkEnablementController extends BaseController<
     this.messagingSystem.subscribe(
       'NetworkController:networkRemoved',
       (networkRemoved: NetworkConfiguration) => {
-        this.onNetworkRemoved(networkRemoved);
+        this.#onNetworkRemoved(networkRemoved);
       },
     );
   }
@@ -188,7 +188,7 @@ export class NetworkEnablementController extends BaseController<
    *
    * @param networkAdded - The network added event.
    */
-  private onNetworkAdded(networkAdded: NetworkConfiguration) {
+  #onNetworkAdded(networkAdded: NetworkConfiguration) {
     this.setEvmEnabledNetwork(networkAdded.chainId);
   }
 
@@ -199,7 +199,7 @@ export class NetworkEnablementController extends BaseController<
    *
    * @param networkRemoved - The network removed event.
    */
-  private onNetworkRemoved(networkRemoved: NetworkConfiguration) {
+  #onNetworkRemoved(networkRemoved: NetworkConfiguration) {
     this.disableNetwork(networkRemoved.chainId);
   }
 
@@ -212,7 +212,7 @@ export class NetworkEnablementController extends BaseController<
     const caipChainId = toEvmCaipChainId(chainId);
     const { namespace } = parseCaipChainId(caipChainId);
 
-    if (namespace === KnownCaipNamespace.Eip155) {
+    if (namespace === (KnownCaipNamespace.Eip155 as string)) {
       this.update((state: NetworkEnablementControllerState) => {
         state.enabledNetworkMap.eip155[chainId] = true;
       });
@@ -227,7 +227,7 @@ export class NetworkEnablementController extends BaseController<
   setSolanaEnabledNetwork(caipChainId: CaipChainId) {
     const { namespace } = parseCaipChainId(caipChainId);
 
-    if (namespace === KnownCaipNamespace.Solana) {
+    if (namespace === (KnownCaipNamespace.Solana as string)) {
       this.update((state: NetworkEnablementControllerState) => {
         state.enabledNetworkMap.solana[caipChainId] = true;
       });
@@ -324,11 +324,11 @@ export class NetworkEnablementController extends BaseController<
     // Enable the specified networks
     ids.forEach((chainId) => {
       const { namespace, reference } = parseCaipChainId(chainId);
-      if (namespace === KnownCaipNamespace.Eip155) {
+      if (namespace === (KnownCaipNamespace.Eip155 as string)) {
         // For EVM chains, convert the chain ID to hex format
         const hexChainId = toHex(parseInt(reference, 10));
         this.setEvmEnabledNetwork(hexChainId);
-      } else if (namespace === KnownCaipNamespace.Solana) {
+      } else if (namespace === (KnownCaipNamespace.Solana as string)) {
         this.setSolanaEnabledNetwork(chainId);
       }
     });
@@ -346,7 +346,7 @@ export class NetworkEnablementController extends BaseController<
       return [];
     }
     return Object.keys(enabledNetworks).filter(
-      (networkId) => enabledNetworks[networkId] === true,
+      (networkId) => enabledNetworks[networkId],
     );
   }
 

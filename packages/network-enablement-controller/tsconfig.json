@@ -5,18 +5,10 @@
     "rootDir": "../.."
   },
   "references": [
-    {
-      "path": "../../packages/base-controller"
-    },
-    {
-      "path": "../../packages/network-controller"
-    },
-    {
-      "path": "../../packages/multichain-network-controller"
-    },
-    {
-      "path": "../../packages/controller-utils"
-    }
+    { "path": "../base-controller" },
+    { "path": "../network-controller" },
+    { "path": "../multichain-network-controller" },
+    { "path": "../controller-utils" }
   ],
-  "include": ["../../types", "./src", "tests/NetworkOrderController.test.ts"]
+  "include": ["../../types", "./src"]
 }
