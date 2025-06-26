@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [16.4.0]
+
+### Added
+
+- Add performance tracing to the STX controller ([#515](https://github.com/MetaMask/smart-transactions-controller/pull/515))
+
 ## [16.3.1]
 
 ### Fixed
@@ -549,7 +555,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial SmartTransactionsController ([#1](https://github.com/MetaMask/smart-transactions-controller/pull/1))
 - Initial commit
 
-[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v16.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v16.4.0...HEAD
+[16.4.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v16.3.1...v16.4.0
 [16.3.1]: https://github.com/MetaMask/smart-transactions-controller/compare/v16.3.0...v16.3.1
 [16.3.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v16.2.0...v16.3.0
 [16.2.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v16.1.0...v16.2.0
