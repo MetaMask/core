@@ -5,8 +5,10 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import type { AuthenticationController, UserStorageController } from '@metamask/profile-sync-controller';
-import log from 'loglevel';
+import type {
+  AuthenticationController,
+  UserStorageController,
+} from '@metamask/profile-sync-controller';
 
 // Unique name for the controller
 const controllerName = 'GatorPermissionsController';
@@ -37,10 +39,11 @@ export type GatorPermissionsControllerState = {
   isUpdatingGatorPermissions: boolean;
 };
 
+// TODO: Add type for gator permission
 /**
  * Represents a gator permission entry
  */
-export type GatorPermission = any;
+export type GatorPermission = unknown;
 
 const metadata: StateMetadata<GatorPermissionsControllerState> = {
   isGatorPermissionsEnabled: {
@@ -68,11 +71,10 @@ export const defaultState: GatorPermissionsControllerState = {
   isFetchingGatorPermissions: false,
 };
 
-export type GatorPermissionsControllerGetStateAction =
-  ControllerGetStateAction<
-    typeof controllerName,
-    GatorPermissionsControllerState
-  >;
+export type GatorPermissionsControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  GatorPermissionsControllerState
+>;
 
 export type GatorPermissionsControllerFetchPermissions = {
   type: `${typeof controllerName}:fetchPermissions`;
@@ -237,6 +239,7 @@ export default class GatorPermissionsController extends BaseController<
 
   /**
    * Enables authentication if not already enabled.
+   *
    * @throws {Error} If there is an error during the process.
    */
   async #enableAuth() {
@@ -250,11 +253,10 @@ export default class GatorPermissionsController extends BaseController<
    * Enables gator permissions for the user.
    * This method ensures that the user is authenticated and enables the feature.
    *
+   * @param isFetchingPermissions - Whether to fetch permissions after enabling.
    * @throws {Error} If there is an error during the process of enabling permissions.
    */
-  public async enableGatorPermissions(
-    isFetchingPermissions: boolean = true,
-  ) {
+  public async enableGatorPermissions(isFetchingPermissions: boolean = true) {
     try {
       this.#setIsUpdatingGatorPermissions(true);
       await this.#enableAuth();
@@ -265,7 +267,7 @@ export default class GatorPermissionsController extends BaseController<
         await this.fetchAndUpdateGatorPermissions();
       }
     } catch (e) {
-      log.error('Unable to enable gator permissions', e);
+      console.error('Unable to enable gator permissions', e);
       throw new Error('Unable to enable gator permissions');
     } finally {
       this.#setIsUpdatingGatorPermissions(false);
@@ -323,7 +325,7 @@ export default class GatorPermissionsController extends BaseController<
           const permission = JSON.parse(permissionString) as GatorPermission;
           permissions.push(permission);
         } catch (e) {
-          log.error('Failed to parse permission data:', e);
+          console.error('Failed to parse permission data:', e);
         }
       }
 
@@ -339,10 +341,10 @@ export default class GatorPermissionsController extends BaseController<
 
       return permissions;
     } catch (err) {
-      log.error('Failed to fetch gator permissions', err);
+      console.error('Failed to fetch gator permissions', err);
       throw new Error('Failed to fetch gator permissions');
     } finally {
       this.#setIsFetchingGatorPermissions(false);
     }
   }
-} 
+}

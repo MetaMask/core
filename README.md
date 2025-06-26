@@ -42,6 +42,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/eth-json-rpc-provider`](packages/eth-json-rpc-provider)
 - [`@metamask/foundryup`](packages/foundryup)
 - [`@metamask/gas-fee-controller`](packages/gas-fee-controller)
+- [`@metamask/gator-permissions-controller`](packages/gator-permissions-controller)
 - [`@metamask/json-rpc-engine`](packages/json-rpc-engine)
 - [`@metamask/json-rpc-middleware-stream`](packages/json-rpc-middleware-stream)
 - [`@metamask/keyring-controller`](packages/keyring-controller)
@@ -99,6 +100,7 @@ linkStyle default opacity:0.5
   eth_json_rpc_provider(["@metamask/eth-json-rpc-provider"]);
   foundryup(["@metamask/foundryup"]);
   gas_fee_controller(["@metamask/gas-fee-controller"]);
+  gator-permissions-controller(["@metamask/gator-permissions-controller"]);
   json_rpc_engine(["@metamask/json-rpc-engine"]);
   json_rpc_middleware_stream(["@metamask/json-rpc-middleware-stream"]);
   keyring_controller(["@metamask/keyring-controller"]);
@@ -194,6 +196,8 @@ linkStyle default opacity:0.5
   gas_fee_controller --> controller_utils;
   gas_fee_controller --> polling_controller;
   gas_fee_controller --> network_controller;
+  gator-permissions-controller --> base_controller;
+  gator-permissions-controller --> profile_sync_controller;
   json_rpc_middleware_stream --> json_rpc_engine;
   keyring_controller --> base_controller;
   logging_controller --> base_controller;
