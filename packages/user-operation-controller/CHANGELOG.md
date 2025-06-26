@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 450.0.0 ([#6027](https://github.com/MetaMask/core/pull/6027))
-
 ## [37.0.0]
 
 ### Changed
