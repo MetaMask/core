@@ -452,6 +452,12 @@ describe('PreferencesController', () => {
     expect(controller.state.useMultiRpcMigration).toBe(true);
   });
 
+  it('should set useMultiRpcMigration is false value is passed', () => {
+    const controller = setupPreferencesController();
+    controller.setUseMultiRpcMigration(false);
+    expect(controller.state.useMultiRpcMigration).toBe(false);
+  });
+
   it('should set featureFlags', () => {
     const controller = setupPreferencesController();
     controller.setFeatureFlag('Feature A', true);
