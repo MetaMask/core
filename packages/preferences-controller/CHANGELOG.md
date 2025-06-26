@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `smartAccountOptIn`, `smartAccountOptInForAccounts` preferences ([#6036](https://github.com/MetaMask/core/pull/6036))
+
 ## [18.2.0]
 
 ### Added

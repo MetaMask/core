@@ -4120,6 +4120,7 @@ __metadata:
     "@metamask/base-controller": "npm:^8.0.1"
     "@metamask/controller-utils": "npm:^11.10.0"
     "@metamask/keyring-controller": "npm:^22.0.2"
+    "@metamask/utils": "npm:^11.2.0"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
