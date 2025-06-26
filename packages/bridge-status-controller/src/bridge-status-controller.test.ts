@@ -5,6 +5,7 @@ import { Messenger } from '@metamask/base-controller';
 import type {
   BridgeControllerActions,
   BridgeControllerEvents,
+  TxData,
 } from '@metamask/bridge-controller';
 import {
   type QuoteResponse,
@@ -2174,7 +2175,7 @@ describe('BridgeStatusController', () => {
         ...mockEvmQuoteResponse,
         quote: { ...mockEvmQuoteResponse.quote, srcChainId: 59144 },
         trade: {
-          ...mockEvmQuoteResponse.trade,
+          ...(mockEvmQuoteResponse.trade as TxData),
           gasLimit: undefined,
         } as never,
       };
