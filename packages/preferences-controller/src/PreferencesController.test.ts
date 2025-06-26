@@ -26,6 +26,8 @@ describe('PreferencesController', () => {
       securityAlertsEnabled: false,
       isMultiAccountBalancesEnabled: true,
       showTestNetworks: false,
+      smartAccountOptIn: false,
+      smartAccountOptInForAccounts: [],
       isIpfsGatewayEnabled: true,
       useTransactionSimulations: true,
       useMultiRpcMigration: true,
