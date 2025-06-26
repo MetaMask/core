@@ -11,6 +11,8 @@ const BridgeTxStatusResponses = {
       amount: '991250000000000',
       token: {
         address: '0x0000000000000000000000000000000000000000',
+        assetId:
+          'eip155:42161/erc20:0x82af49447d8a07e3bd95bd0d56f35241523fbab1',
         chainId: 42161,
         symbol: 'ETH',
         decimals: 18,
@@ -45,6 +47,8 @@ const BridgeTxStatusResponses = {
       amount: '991250000000000',
       token: {
         chainId: 42161,
+        assetId:
+          'eip155:42161/erc20:0x82af49447d8a07e3bd95bd0d56f35241523fbab1',
         address: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
         symbol: 'ETH',
         name: 'Ethereum',
@@ -65,6 +69,8 @@ const BridgeTxStatusResponses = {
       amount: '991250000000000',
       token: {
         address: '0x0000000000000000000000000000000000000000',
+        assetId:
+          'eip155:42161/erc20:0x82af49447d8a07e3bd95bd0d56f35241523fbab1',
         chainId: 42161,
         symbol: 'ETH',
         decimals: 18,
@@ -91,6 +97,7 @@ const BridgeTxStatusResponses = {
       amount: '4956250000000000',
       token: {
         address: '0x0000000000000000000000000000000000000000',
+        assetId: 'eip155:10/erc20:0x4200000000000000000000000000000000000006',
         chainId: 10,
         symbol: 'ETH',
         decimals: 18,
@@ -109,6 +116,7 @@ const BridgeTxStatusResponses = {
       amount: '4926701727965948',
       token: {
         address: '0x0000000000000000000000000000000000000000',
+        assetId: 'eip155:8453/erc20:0x4200000000000000000000000000000000000006',
         chainId: 42161,
         symbol: 'ETH',
         decimals: 18,
@@ -131,6 +139,7 @@ const BridgeTxStatusResponses = {
       amount: '4956250000000000',
       token: {
         address: '0x0000000000000000000000000000000000000000',
+        assetId: 'eip155:10/erc20:0x4200000000000000000000000000000000000006',
         chainId: 10,
         symbol: 'ETH',
         decimals: 18,
@@ -148,6 +157,7 @@ const BridgeTxStatusResponses = {
         '0x3a494e672717f9b1f2b64a48a19985842d82d0747400fccebebc7a4e99c8eaab',
       amount: '4926701727965948',
       token: {
+        assetId: 'eip155:8453/erc20:0x4200000000000000000000000000000000000006',
         address: '0x0000000000000000000000000000000000000000',
         chainId: 42161,
         symbol: 'ETH',
@@ -172,6 +182,7 @@ const BridgeTxStatusResponses = {
       amount: '991250000000000',
       token: {
         chainId: 10,
+        assetId: 'eip155:10/erc20:0x4200000000000000000000000000000000000006',
         address: '0x4200000000000000000000000000000000000006',
         symbol: 'WETH',
         name: 'Wrapped Ether',
@@ -188,6 +199,7 @@ const BridgeTxStatusResponses = {
       amount: '988339336750062',
       token: {
         chainId: 8453,
+        assetId: 'eip155:8453/erc20:0x4200000000000000000000000000000000000006',
         address: '0x4200000000000000000000000000000000000006',
         symbol: 'WETH',
         name: 'Wrapped Ether',
