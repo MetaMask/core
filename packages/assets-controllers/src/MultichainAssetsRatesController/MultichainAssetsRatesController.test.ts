@@ -244,7 +244,6 @@ describe('MultichainAssetsRatesController', () => {
               to: 'swift:0/iso4217:USD',
             },
           ],
-          includeMarketData: true,
         },
       },
       snapId: 'test-snap',
@@ -407,12 +406,26 @@ describe('MultichainAssetsRatesController', () => {
         },
       })
       .mockResolvedValueOnce({
+        marketData: {
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+            'swift:0/iso4217:USD': fakeMarketData,
+          },
+        },
+      })
+      .mockResolvedValueOnce({
         conversionRates: {
           'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token1:501': {
             'swift:0/iso4217:USD': {
               rate: '200',
               conversionTime: 1738539923277,
             },
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        marketData: {
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token1:501': {
+            'swift:0/iso4217:USD': fakeMarketData,
           },
         },
       });
