@@ -148,6 +148,16 @@ export type SeedlessOnboardingControllerState =
        * This is temporarily stored in state during authentication and then persisted in the vault.
        */
       revokeToken?: string;
+
+      /**
+       * The encrypted seedless encryption key used to encrypt the seedless vault.
+       */
+      encryptedSeedlessEncryptionKey?: string;
+
+      /**
+       * The encrypted keyring encryption key used to encrypt the keyring vault.
+       */
+      encryptedKeyringEncryptionKey?: string;
     };
 
 // Actions
@@ -298,6 +308,10 @@ export type VaultData = {
    * The encryption key to encrypt the seed phrase.
    */
   toprfEncryptionKey: string;
+  /**
+   * The encryption key to encrypt the password.
+   */
+  toprfPwEncryptionKey: string;
   /**
    * The authentication key pair to authenticate the TOPRF.
    */
