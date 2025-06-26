@@ -626,6 +626,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
     | OnAssetsConversionResponse
     | OnAssetHistoricalPriceResponse
     | OnAssetsMarketDataResponse
+    | null
   > {
     return this.messagingSystem.call('SnapController:handleRequest', {
       snapId,
@@ -636,7 +637,12 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
         method: handler,
         params,
       },
-    }) as Promise<OnAssetsConversionResponse | OnAssetHistoricalPriceResponse>;
+    }) as Promise<
+      | OnAssetsConversionResponse
+      | OnAssetHistoricalPriceResponse
+      | OnAssetsMarketDataResponse
+      | null
+    >;
   }
 
   #mergeMarketDataIntoConversionRates(
