@@ -22,7 +22,11 @@ import * as sinon from 'sinon';
 
 import packageJson from '../package.json';
 import { advanceTime, flushPromises, getFakeProvider } from '../tests/helpers';
-import { API_BASE_URL, SENTINEL_API_BASE_URL_MAP } from './constants';
+import {
+  API_BASE_URL,
+  SENTINEL_API_BASE_URL_MAP,
+  SmartTransactionsTraceName,
+} from './constants';
 import SmartTransactionsController, {
   DEFAULT_INTERVAL,
   getDefaultSmartTransactionsControllerState,
@@ -2383,6 +2387,151 @@ describe('SmartTransactionsController', () => {
 
           // Clean up the spy
           consoleErrorSpy.mockRestore();
+        },
+      );
+    });
+  });
+
+  describe('Tracing', () => {
+    const createTraceCallback = () =>
+      jest.fn().mockImplementation(async (_request, fn) => {
+        return fn?.();
+      });
+
+    it('traces getFees API call with expected name', async () => {
+      const traceCallback = createTraceCallback();
+
+      await withController(
+        {
+          options: {
+            trace: traceCallback,
+          },
+        },
+        async ({ controller }) => {
+          const apiUrl = API_BASE_URL;
+          nock(apiUrl)
+            .post(`/networks/${ethereumChainIdDec}/getFees`)
+            .reply(200, createGetFeesApiResponse());
+
+          const tradeTx = createUnsignedTransaction(ethereumChainIdDec);
+          await controller.getFees(tradeTx);
+
+          expect(traceCallback).toHaveBeenCalledWith(
+            { name: SmartTransactionsTraceName.GetFees },
+            expect.any(Function),
+          );
+        },
+      );
+    });
+
+    it('traces submitSignedTransactions API call with expected name', async () => {
+      const traceCallback = createTraceCallback();
+
+      await withController(
+        {
+          options: {
+            trace: traceCallback,
+          },
+        },
+        async ({ controller }) => {
+          const apiUrl = API_BASE_URL;
+          nock(apiUrl)
+            .post(
+              `/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
+            )
+            .reply(200, createSubmitTransactionsApiResponse());
+
+          const signedTx = createSignedTransaction();
+          const signedCanceledTx = createSignedCanceledTransaction();
+          const txParams = createTxParams();
+
+          await controller.submitSignedTransactions({
+            signedTransactions: [signedTx],
+            signedCanceledTransactions: [signedCanceledTx],
+            txParams,
+          });
+
+          expect(traceCallback).toHaveBeenCalledWith(
+            { name: SmartTransactionsTraceName.SubmitTransactions },
+            expect.any(Function),
+          );
+        },
+      );
+    });
+
+    it('traces cancelSmartTransaction API call with expected name', async () => {
+      const traceCallback = createTraceCallback();
+
+      await withController(
+        {
+          options: {
+            trace: traceCallback,
+          },
+        },
+        async ({ controller }) => {
+          const apiUrl = API_BASE_URL;
+          nock(apiUrl)
+            .post(`/networks/${ethereumChainIdDec}/cancel`)
+            .reply(200, {});
+
+          await controller.cancelSmartTransaction('uuid1');
+
+          expect(traceCallback).toHaveBeenCalledWith(
+            { name: SmartTransactionsTraceName.CancelTransaction },
+            expect.any(Function),
+          );
+        },
+      );
+    });
+
+    it('traces fetchLiveness API call with expected name', async () => {
+      const traceCallback = createTraceCallback();
+
+      await withController(
+        {
+          options: {
+            trace: traceCallback,
+          },
+        },
+        async ({ controller }) => {
+          nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
+            .get(`/network`)
+            .reply(200, createSuccessLivenessApiResponse());
+
+          await controller.fetchLiveness();
+
+          expect(traceCallback).toHaveBeenCalledWith(
+            { name: SmartTransactionsTraceName.FetchLiveness },
+            expect.any(Function),
+          );
+        },
+      );
+    });
+
+    it('returns correct result when tracing is enabled', async () => {
+      const traceCallback = createTraceCallback();
+
+      await withController(
+        {
+          options: {
+            trace: traceCallback,
+          },
+        },
+        async ({ controller }) => {
+          const apiUrl = API_BASE_URL;
+          const expectedResponse = createGetFeesApiResponse();
+          nock(apiUrl)
+            .post(`/networks/${ethereumChainIdDec}/getFees`)
+            .reply(200, expectedResponse);
+
+          const tradeTx = createUnsignedTransaction(ethereumChainIdDec);
+          const result = await controller.getFees(tradeTx);
+
+          expect(traceCallback).toHaveBeenCalled();
+          expect(result).toMatchObject({
+            tradeTxFees: expectedResponse.txs[0],
+            approvalTxFees: null,
+          });
         },
       );
     });

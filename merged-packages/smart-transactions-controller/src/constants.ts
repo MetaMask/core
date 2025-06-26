@@ -23,3 +23,10 @@ export enum MetaMetricsEventCategory {
   Transactions = 'Transactions',
   Navigation = 'Navigation',
 }
+
+export enum SmartTransactionsTraceName {
+  GetFees = 'Smart Transactions: Get Fees',
+  SubmitTransactions = 'Smart Transactions: Submit Transactions',
+  CancelTransaction = 'Smart Transactions: Cancel Transaction',
+  FetchLiveness = 'Smart Transactions: Fetch Liveness',
+}

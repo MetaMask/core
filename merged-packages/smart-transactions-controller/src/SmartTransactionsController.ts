@@ -9,6 +9,7 @@ import {
   safelyExecute,
   ChainId,
   isSafeDynamicKey,
+  type TraceCallback,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type {
@@ -27,7 +28,11 @@ import { TransactionStatus } from '@metamask/transaction-controller';
 import { BigNumber } from 'bignumber.js';
 import cloneDeep from 'lodash/cloneDeep';
 
-import { MetaMetricsEventCategory, MetaMetricsEventName } from './constants';
+import {
+  MetaMetricsEventCategory,
+  MetaMetricsEventName,
+  SmartTransactionsTraceName,
+} from './constants';
 import type {
   Fees,
   Hex,
@@ -206,6 +211,7 @@ type SmartTransactionsControllerOptions = {
   getMetaMetricsProps: () => Promise<MetaMetricsProps>;
   getFeatureFlags: () => FeatureFlags;
   updateTransaction: (transaction: TransactionMeta, note: string) => void;
+  trace?: TraceCallback;
 };
 
 export type SmartTransactionsControllerPollingInput = {
@@ -245,6 +251,8 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
 
   #updateTransaction: SmartTransactionsControllerOptions['updateTransaction'];
 
+  #trace: TraceCallback;
+
   /* istanbul ignore next */
   async #fetch(request: string, options?: RequestInit) {
     const fetchOptions = {
@@ -272,6 +280,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     getMetaMetricsProps,
     getFeatureFlags,
     updateTransaction,
+    trace,
   }: SmartTransactionsControllerOptions) {
     super({
       name: controllerName,
@@ -295,6 +304,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     this.#getMetaMetricsProps = getMetaMetricsProps;
     this.#getFeatureFlags = getFeatureFlags;
     this.#updateTransaction = updateTransaction;
+    this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
 
     this.initializeSmartTransactionsForChainId();
 
@@ -860,7 +870,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     const chainId = this.#getChainId({
       networkClientId: selectedNetworkClientId,
     });
-    const transactions = [];
+    const transactions: UnsignedTransaction[] = [];
     let unsignedTradeTransactionWithNonce;
     if (approvalTx) {
       const unsignedApprovalTransactionWithNonce =
@@ -880,14 +890,15 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
       );
     }
     transactions.push(unsignedTradeTransactionWithNonce);
-    const data = await this.#fetch(
-      getAPIRequestURL(APIType.GET_FEES, chainId),
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          txs: transactions,
+    const data = await this.#trace(
+      { name: SmartTransactionsTraceName.GetFees },
+      async () =>
+        await this.#fetch(getAPIRequestURL(APIType.GET_FEES, chainId), {
+          method: 'POST',
+          body: JSON.stringify({
+            txs: transactions,
+          }),
         }),
-      },
     );
     let approvalTxFees: IndividualTxFees | null;
     let tradeTxFees: IndividualTxFees | null;
@@ -943,15 +954,19 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     const ethQuery = this.#getEthQuery({
       networkClientId: selectedNetworkClientId,
     });
-    const data = await this.#fetch(
-      getAPIRequestURL(APIType.SUBMIT_TRANSACTIONS, chainId),
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          rawTxs: signedTransactions,
-          rawCancelTxs: signedCanceledTransactions,
-        }),
-      },
+    const data = await this.#trace(
+      { name: SmartTransactionsTraceName.SubmitTransactions },
+      async () =>
+        await this.#fetch(
+          getAPIRequestURL(APIType.SUBMIT_TRANSACTIONS, chainId),
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              rawTxs: signedTransactions,
+              rawCancelTxs: signedCanceledTransactions,
+            }),
+          },
+        ),
     );
     const time = Date.now();
     let preTxBalance;
@@ -1089,10 +1104,14 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     } = {},
   ): Promise<void> {
     const chainId = this.#getChainId({ networkClientId });
-    await this.#fetch(getAPIRequestURL(APIType.CANCEL, chainId), {
-      method: 'POST',
-      body: JSON.stringify({ uuid }),
-    });
+    await this.#trace(
+      { name: SmartTransactionsTraceName.CancelTransaction },
+      async () =>
+        await this.#fetch(getAPIRequestURL(APIType.CANCEL, chainId), {
+          method: 'POST',
+          body: JSON.stringify({ uuid }),
+        }),
+    );
   }
 
   async fetchLiveness({
@@ -1103,8 +1122,10 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     const chainId = this.#getChainId({ networkClientId });
     let liveness = false;
     try {
-      const response = await this.#fetch(
-        getAPIRequestURL(APIType.LIVENESS, chainId),
+      const response = await this.#trace(
+        { name: SmartTransactionsTraceName.FetchLiveness },
+        async () =>
+          await this.#fetch(getAPIRequestURL(APIType.LIVENESS, chainId)),
       );
       liveness = Boolean(response.smartTransactions);
     } catch (error) {
