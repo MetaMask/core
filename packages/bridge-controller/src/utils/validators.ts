@@ -163,7 +163,7 @@ export const QuoteSchema = type({
       ]),
     ),
   }),
-  gasEnabledSwap: optional(boolean()),
+  gasIncluded: optional(boolean()),
   bridgeId: string(),
   bridges: array(string()),
   steps: array(StepSchema),

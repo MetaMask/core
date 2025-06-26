@@ -114,6 +114,7 @@ export type ExchangeRate = { exchangeRate?: string; usdExchangeRate?: string };
  * Values derived from the quote response
  */
 export type QuoteMetadata = {
+  includedTxFees?: TokenAmountValues | null; // if gas is included, this is the value of the src or dest token that was used to pay for the gas
   gasFee: TokenAmountValues;
   totalNetworkFee: TokenAmountValues; // estimatedGasFees + relayerFees
   totalMaxNetworkFee: TokenAmountValues; // maxGasFees + relayerFees
@@ -191,7 +192,7 @@ export type QuoteRequest<
    * This should be true if the user has opted in to STX on the client
    * and the current network has STX support
    */
-  gasEnabledSwap: boolean;
+  gasIncluded: boolean;
 };
 
 export enum StatusTypes {
