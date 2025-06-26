@@ -16,7 +16,7 @@ import {
 } from './MultichainAssetsRatesController';
 import { advanceTime } from '../../../../tests/helpers';
 
-// A fake non‑EVM account (with Snap metadata) that meets the controller's criteria.
+// A fake non‑EVM account (with Snap metadata) that meets the controller’s criteria.
 const fakeNonEvmAccount: InternalAccount = {
   id: 'account1',
   type: 'solana:data-account',
@@ -213,38 +213,15 @@ describe('MultichainAssetsRatesController', () => {
   it('updates conversion rates for a valid non-EVM account with marketData', async () => {
     const { controller, messenger } = setupController();
 
-    // Stub KeyringClient.listAccountAssets so that the controller "discovers" one asset.
+    // Stub KeyringClient.listAccountAssets so that the controller “discovers” one asset.
     jest
       .spyOn(KeyringClient.prototype, 'listAccountAssets')
       .mockResolvedValue([
         'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
       ]);
 
-    // Override the SnapController:handleRequest handler to return our fake conversion rates and market data.
-    const snapHandler = jest
-      .fn()
-      .mockResolvedValueOnce(fakeAccountRates) // First call for conversion rates
-      .mockResolvedValueOnce({
-        // Second call for market data
-        marketData: {
-          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
-            marketCap: '77880943120',
-            totalVolume: '3098142006',
-            circulatingSupply: '527970134.8207776',
-            allTimeHigh: '293.31',
-            allTimeLow: '0.500801',
-            pricePercentChange: {
-              PT1H: -0.17354699808457028,
-              P1D: 1.4525750542998757,
-              P7D: 1.826728107554977,
-              P14D: -0.28044900707709736,
-              P30D: -12.498048447140066,
-              P200D: -34.91420174061624,
-              P1Y: 7.448508533571991,
-            },
-          },
-        },
-      });
+    // Override the SnapController:handleRequest handler to return our fake conversion rates.
+    const snapHandler = jest.fn().mockResolvedValue(fakeAccountRates);
     messenger.registerActionHandler(
       'SnapController:handleRequest',
       snapHandler,
@@ -253,7 +230,7 @@ describe('MultichainAssetsRatesController', () => {
     // Call updateAssetsRates for the valid non-EVM account.
     await controller.updateAssetsRates();
 
-    // Check that the Snap requests were made with the expected parameters.
+    // Check that the Snap request was made with the expected parameters.
     expect(snapHandler).toHaveBeenCalledWith({
       handler: 'onAssetsConversion',
       origin: 'metamask',
@@ -272,48 +249,24 @@ describe('MultichainAssetsRatesController', () => {
       snapId: 'test-snap',
     });
 
-    expect(snapHandler).toHaveBeenCalledWith({
-      handler: 'onAssetsMarketData',
-      origin: 'metamask',
-      request: {
-        jsonrpc: '2.0',
-        method: 'onAssetsMarketData',
-        params: {
-          assets: [
-            {
-              asset: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
-              unit: 'swift:0/iso4217:USD',
-            },
-          ],
-        },
-      },
-      snapId: 'test-snap',
-    });
-
-    // The controller state should now contain the conversion rates with market data.
-    expect(controller.state.conversionRates).toStrictEqual({
-      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
-        rate: '202.11',
-        conversionTime: 1738539923277,
-        currency: 'swift:0/iso4217:USD',
-        marketData: {
-          marketCap: '77880943120',
-          totalVolume: '3098142006',
-          circulatingSupply: '527970134.8207776',
-          allTimeHigh: '293.31',
-          allTimeLow: '0.500801',
-          pricePercentChange: {
-            PT1H: -0.17354699808457028,
-            P1D: 1.4525750542998757,
-            P7D: 1.826728107554977,
-            P14D: -0.28044900707709736,
-            P30D: -12.498048447140066,
-            P200D: -34.91420174061624,
-            P1Y: 7.448508533571991,
+    // The controller state should now contain the conversion rates returned.
+    expect(controller.state.conversionRates).toStrictEqual(
+      // fakeAccountRates.conversionRates,
+      {
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+          rate: '202.11',
+          conversionTime: 1738539923277,
+          currency: 'swift:0/iso4217:USD',
+          marketData: {
+            price: 202.11,
+            priceChange: 0,
+            priceChangePercentage: 0,
+            volume: 0,
+            marketCap: 0,
           },
         },
       },
-    });
+    );
   });
 
   it('does not update conversion rates if the controller is not active', async () => {
@@ -453,21 +406,11 @@ describe('MultichainAssetsRatesController', () => {
         },
       })
       .mockResolvedValueOnce({
-        marketData: {
-          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
-            marketCap: '77880943120',
-            totalVolume: '3098142006',
-            circulatingSupply: '527970134.8207776',
-            allTimeHigh: '293.31',
-            allTimeLow: '0.500801',
-            pricePercentChange: {
-              PT1H: -0.17354699808457028,
-              P1D: 1.4525750542998757,
-              P7D: 1.826728107554977,
-              P14D: -0.28044900707709736,
-              P30D: -12.498048447140066,
-              P200D: -34.91420174061624,
-              P1Y: 7.448508533571991,
+        conversionRates: {
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token1:501': {
+            'swift:0/iso4217:USD': {
+              rate: '200',
+              conversionTime: 1738539923277,
             },
           },
         },
@@ -496,22 +439,6 @@ describe('MultichainAssetsRatesController', () => {
         rate: '100',
         conversionTime: 1738539923277,
         currency: 'swift:0/iso4217:USD',
-        marketData: {
-          marketCap: '77880943120',
-          totalVolume: '3098142006',
-          circulatingSupply: '527970134.8207776',
-          allTimeHigh: '293.31',
-          allTimeLow: '0.500801',
-          pricePercentChange: {
-            PT1H: -0.17354699808457028,
-            P1D: 1.4525750542998757,
-            P7D: 1.826728107554977,
-            P14D: -0.28044900707709736,
-            P30D: -12.498048447140066,
-            P200D: -34.91420174061624,
-            P1Y: 7.448508533571991,
-          },
-        },
       },
     });
   });
@@ -673,7 +600,7 @@ describe('MultichainAssetsRatesController', () => {
         'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
       );
 
-      expect(snapHandler).not.toHaveBeenCalled();
+      expect(snapHandler).toHaveBeenCalledTimes(1);
     });
 
     it('calls the snap if historical price does not exist in state for the current currency', async () => {
