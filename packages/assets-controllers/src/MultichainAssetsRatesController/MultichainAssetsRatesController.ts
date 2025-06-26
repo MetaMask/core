@@ -18,9 +18,7 @@ import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type {
   SnapId,
-  AssetConversion,
   OnAssetsConversionArguments,
-  OnAssetsConversionResponse,
   OnAssetHistoricalPriceArguments,
   OnAssetHistoricalPriceResponse,
   HistoricalPriceIntervals,
@@ -56,11 +54,112 @@ type HistoricalPrice = {
 };
 
 /**
+ * Represents the conversion rate from one asset to another.
+ */
+type AssetConversionRate = {
+  // The rate of conversion from the source asset to the target asset represented as a decimal number in a string.
+  // It means that 1 unit of the `from` asset should be converted to this amount
+  // of the `to` asset.
+  rate: string | undefined;
+
+  // The UNIX timestamp of when the conversion rate was last updated.
+  conversionTime: number | null;
+
+  // The UNIX timestamp of when the conversion rate will expire.
+  expirationTime?: number;
+};
+
+/**
+ * Represents market data for a fungible asset.
+ */
+type FungibleAssetMarketData = {
+  // Represents a fungible asset market data.
+  fungible: true;
+
+  // The market cap of the asset represented as a decimal number in a string.
+  marketCap?: string;
+
+  // The total volume of the asset represented as a decimal number in a string.
+  totalVolume?: string;
+
+  // The circulating supply of the asset represented as a decimal number in a string.
+  circulatingSupply?: string;
+
+  // The all time high of the asset represented as a decimal number in a string.
+  allTimeHigh?: string;
+
+  // The all time low of the asset represented as a decimal number in a string.
+  allTimeLow?: string;
+
+  pricePercentChange?: {
+    // The `all` value is a special interval that represents all available data.
+    all?: number;
+
+    // The interval key MUST follow the ISO 8601 duration format.
+    [interval: string]: number | undefined;
+  };
+};
+
+/**
+ * Combined asset conversion data with market data.
+ */
+type AssetConversionWithMarketData = {
+  rate: string | undefined;
+  conversionTime: number | null;
+  expirationTime?: number;
+  marketData?: {
+    fungible: true;
+    marketCap?: string;
+    totalVolume?: string;
+    circulatingSupply?: string;
+    allTimeHigh?: string;
+    allTimeLow?: string;
+    pricePercentChange?: Record<string, number | undefined>;
+  };
+  currency: string;
+};
+
+/**
+ * Response type for OnAssetsConversion handler.
+ */
+type OnAssetsConversionResponse = {
+  conversionRates: Record<
+    CaipAssetType,
+    Record<CaipAssetType, AssetConversionRate>
+  >;
+};
+
+/**
+ * Response type for OnAssetsMarketData handler.
+ */
+type OnAssetsMarketDataResponse = {
+  marketData: Record<CaipAssetType, FungibleAssetMarketData>;
+};
+
+/**
  * State used by the MultichainAssetsRatesController to cache token conversion rates.
  */
 export type MultichainAssetsRatesControllerState = {
-  conversionRates: Record<CaipAssetType, AssetConversion>;
-  historicalPrices: Record<CaipAssetType, Record<string, HistoricalPrice>>; // string being the current currency we fetched historical prices for
+  conversionRates: Record<
+    string,
+    {
+      rate: string | undefined;
+      conversionTime: number | null;
+      currency: string;
+      marketData?: FungibleAssetMarketData;
+    }
+  >;
+  historicalPrices: Record<
+    string,
+    Record<
+      string,
+      {
+        intervals: HistoricalPriceIntervals;
+        updateTime: number;
+        expirationTime?: number;
+      }
+    >
+  >;
 };
 
 /**
@@ -153,6 +252,7 @@ export type MultichainAssetsRatesPollingInput = {
 
 const metadata = {
   conversionRates: { persist: true, anonymous: true },
+  marketData: { persist: true, anonymous: true },
   historicalPrices: { persist: false, anonymous: true },
 };
 
@@ -183,7 +283,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
    * @param options.messenger - A reference to the messaging system.
    */
   constructor({
-    interval = 18000,
+    interval = 1000,
     state = {},
     messenger,
   }: {
@@ -326,26 +426,42 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
   async #getUpdatedRatesFor(
     account: InternalAccount,
     assets: CaipAssetType[],
-  ): Promise<Record<string, AssetConversion & { currency: CaipAssetType }>> {
+  ): Promise<Record<string, AssetConversionWithMarketData>> {
     // Build the conversions array
     const conversions = this.#buildConversions(assets);
 
     // Retrieve rates from Snap
-    const accountRates: OnAssetsConversionResponse =
-      (await this.#handleSnapRequest({
-        snapId: account?.metadata.snap?.id as SnapId,
-        handler: 'onAssetsMarketData' as HandlerType,
-        params: {
-          ...conversions,
-          includeMarketData: true,
-        },
-      })) as OnAssetsConversionResponse;
+    const accountRatesResponse = await this.#handleSnapRequest({
+      snapId: account?.metadata.snap?.id as SnapId,
+      handler: HandlerType.OnAssetsConversion,
+      params: conversions,
+    });
+
+    // Prepare assets param for onAssetsMarketData
+    const currentCurrencyCaip =
+      MAP_CAIP_CURRENCIES[this.#currentCurrency] ?? MAP_CAIP_CURRENCIES.usd;
+    const assetsParam = {
+      assets: assets.map((asset) => ({ asset, unit: currentCurrencyCaip })),
+    };
+
+    // Retrieve Market Data from Snap
+    const marketDataResponse = await this.#handleSnapRequest({
+      snapId: account?.metadata.snap?.id as SnapId,
+      handler: 'onAssetsMarketData',
+      params: assetsParam,
+    });
 
     // Flatten nested rates if needed
-    const flattenedRates = this.#flattenRates(accountRates);
+    const flattenedRates = this.#flattenRates(
+      accountRatesResponse as OnAssetsConversionResponse,
+    );
 
     // Build the updatedRates object for these assets
-    const updatedRates = this.#buildUpdatedRates(assets, flattenedRates);
+    const updatedRates = this.#buildUpdatedRates(
+      assets,
+      flattenedRates,
+      marketDataResponse,
+    );
     return updatedRates;
   }
 
@@ -365,15 +481,16 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
       const currentCaipCurrency =
         MAP_CAIP_CURRENCIES[this.#currentCurrency] ?? MAP_CAIP_CURRENCIES.usd;
       // Check if we already have historical prices for this asset and currency
-      const historicalPriceExpirationTime =
-        this.state.historicalPrices[asset]?.[this.#currentCurrency]
-          ?.expirationTime;
+      const historicalPriceData = this.state.historicalPrices[asset]?.[
+        this.#currentCurrency
+      ] as HistoricalPrice | undefined;
+      const historicalPriceExpirationTime = historicalPriceData?.expirationTime;
 
       const historicalPriceHasExpired =
         historicalPriceExpirationTime &&
         historicalPriceExpirationTime < Date.now();
 
-      if (historicalPriceHasExpired === false) {
+      if (historicalPriceData && !historicalPriceHasExpired) {
         return;
       }
 
@@ -398,15 +515,16 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
         }
 
         this.update((state) => {
-          state.historicalPrices = {
-            ...state.historicalPrices,
-            [asset]: {
-              ...state.historicalPrices[asset],
-              [this.#currentCurrency]: (
-                historicalPricesResponse as OnAssetHistoricalPriceResponse
-              )?.historicalPrice,
-            },
-          };
+          if (!state.historicalPrices[asset]) {
+            state.historicalPrices[asset] = {};
+          }
+          const historicalPrice = (
+            historicalPricesResponse as OnAssetHistoricalPriceResponse
+          )?.historicalPrice;
+          if (historicalPrice) {
+            state.historicalPrices[asset][this.#currentCurrency] =
+              historicalPrice;
+          }
         });
       } catch {
         throw new Error(
@@ -436,10 +554,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
       if (!this.isActive) {
         return;
       }
-      const allNewRates: Record<
-        string,
-        { rate: string | null; conversionTime: number | null }
-      > = {};
+      const allNewRates: Record<string, AssetConversionWithMarketData> = {};
 
       for (const { accountId, assets } of accounts) {
         const account = this.#getAccount(accountId);
@@ -510,8 +625,12 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
    * @returns A flattened rates object.
    */
   #flattenRates(
-    assetsConversionResponse: OnAssetsConversionResponse,
-  ): Record<CaipAssetType, AssetConversion | null> {
+    assetsConversionResponse: OnAssetsConversionResponse | undefined,
+  ): Record<CaipAssetType, AssetConversionRate | null> {
+    if (!assetsConversionResponse?.conversionRates) {
+      return {};
+    }
+
     const { conversionRates } = assetsConversionResponse;
 
     return Object.fromEntries(
@@ -529,21 +648,28 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
    *
    * @param assets - The assets to build the rates for.
    * @param flattenedRates - The rates to merge.
+   * @param marketDataResponse - The market data response to merge.
    * @returns A rates object that covers all given assets.
    */
   #buildUpdatedRates(
     assets: CaipAssetType[],
-    flattenedRates: Record<CaipAssetType, AssetConversion | null>,
-  ): Record<string, AssetConversion & { currency: CaipAssetType }> {
-    const updatedRates: Record<
-      CaipAssetType,
-      AssetConversion & { currency: CaipAssetType }
-    > = {};
+    flattenedRates: Record<CaipAssetType, AssetConversionRate | null>,
+    marketDataResponse: unknown,
+  ): Record<string, AssetConversionWithMarketData> {
+    const updatedRates: Record<CaipAssetType, AssetConversionWithMarketData> =
+      {};
+
+    // Extract market data if available
+    const marketData =
+      (marketDataResponse as OnAssetsMarketDataResponse)?.marketData || {};
 
     for (const asset of assets) {
       if (flattenedRates[asset]) {
         updatedRates[asset] = {
-          ...(flattenedRates[asset] as AssetConversion),
+          rate: (flattenedRates[asset] as AssetConversionRate)?.rate,
+          conversionTime: (flattenedRates[asset] as AssetConversionRate)
+            .conversionTime,
+          marketData: marketData[asset],
           currency:
             MAP_CAIP_CURRENCIES[this.#currentCurrency] ??
             MAP_CAIP_CURRENCIES.usd,
@@ -554,24 +680,42 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
   }
 
   /**
-   * Merges the new rates into the controller’s state.
+   * Merges the new rates into the controller's state.
    *
    * @param updatedRates - The new rates to merge.
    */
   #applyUpdatedRates(
-    updatedRates: Record<
-      string,
-      { rate: string | null; conversionTime: number | null }
-    >,
+    updatedRates: Record<string, AssetConversionWithMarketData>,
   ): void {
     if (Object.keys(updatedRates).length === 0) {
       return;
     }
     this.update((state: Draft<MultichainAssetsRatesControllerState>) => {
-      state.conversionRates = {
-        ...state.conversionRates,
-        ...updatedRates,
-      };
+      // Update conversion rates and market data
+      for (const [asset, rateData] of Object.entries(updatedRates)) {
+        state.conversionRates[asset] = {
+          rate: rateData?.rate,
+          conversionTime: rateData.conversionTime,
+          currency: rateData.currency,
+          marketData: rateData.marketData
+            ? {
+                marketCap: rateData.marketData.marketCap || null,
+                totalVolume: rateData.marketData.totalVolume || null,
+                circulatingSupply:
+                  rateData.marketData.circulatingSupply || null,
+                allTimeHigh: rateData.marketData.allTimeHigh || null,
+                allTimeLow: rateData.marketData.allTimeLow || null,
+                pricePercentChange: rateData.marketData.pricePercentChange
+                  ? Object.fromEntries(
+                      Object.entries(
+                        rateData.marketData.pricePercentChange,
+                      ).map(([key, value]) => [key, value ?? null]),
+                    )
+                  : {},
+              }
+            : undefined,
+        };
+      }
     });
   }
 
@@ -590,18 +734,29 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
     params,
   }: {
     snapId: SnapId;
-    handler: HandlerType;
-    params: OnAssetsConversionArguments | OnAssetHistoricalPriceArguments;
-  }): Promise<OnAssetsConversionResponse | OnAssetHistoricalPriceResponse> {
+    handler: HandlerType | string;
+    params:
+      | OnAssetsConversionArguments
+      | OnAssetHistoricalPriceArguments
+      | { assets: { asset: CaipAssetType; unit: CaipAssetType }[] };
+  }): Promise<
+    | OnAssetsConversionResponse
+    | OnAssetHistoricalPriceResponse
+    | OnAssetsMarketDataResponse
+  > {
     return this.messagingSystem.call('SnapController:handleRequest', {
       snapId,
       origin: 'metamask',
-      handler,
+      handler: handler as never,
       request: {
         jsonrpc: '2.0',
-        method: handler,
+        method: handler as string,
         params,
       },
-    }) as Promise<OnAssetsConversionResponse | OnAssetHistoricalPriceResponse>;
+    }) as Promise<
+      | OnAssetsConversionResponse
+      | OnAssetHistoricalPriceResponse
+      | OnAssetsMarketDataResponse
+    >;
   }
 }
