@@ -1,4 +1,8 @@
-import { toHex, weiHexToGweiDec } from '@metamask/controller-utils';
+import {
+  convertHexToDecimal,
+  toHex,
+  weiHexToGweiDec,
+} from '@metamask/controller-utils';
 import { BigNumber } from 'bignumber.js';
 
 import { isNativeAddress } from './bridge';
@@ -131,21 +135,23 @@ export const calcSentAmount = (
 };
 
 export const calcRelayerFee = (
-  bridgeQuote: QuoteResponse,
+  { quote, trade }: QuoteResponse,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
-  const {
-    quote: { srcAsset, srcTokenAmount, feeData },
-    trade,
-  } = bridgeQuote;
-  const relayerFeeInNative = calcTokenAmount(
-    new BigNumber(trade.value || '0x0', 16).minus(
-      isNativeAddress(srcAsset.address)
-        ? new BigNumber(srcTokenAmount).plus(feeData.metabridge.amount)
-        : 0,
-    ),
-    18,
+  const relayerFeeAmount = new BigNumber(
+    convertHexToDecimal(trade.value || '0x0'),
   );
+  let relayerFeeInNative = calcTokenAmount(relayerFeeAmount, 18);
+
+  // Subtract srcAmount and other fees from trade value if srcAsset is native
+  if (isNativeAddress(quote.srcAsset.address)) {
+    const sentAmountInNative = calcSentAmount(quote, {
+      exchangeRate,
+      usdExchangeRate,
+    }).amount;
+    relayerFeeInNative = relayerFeeInNative.minus(sentAmountInNative);
+  }
+
   return {
     amount: relayerFeeInNative,
     valueInCurrency: exchangeRate
