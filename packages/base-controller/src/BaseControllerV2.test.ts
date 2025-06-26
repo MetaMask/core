@@ -13,7 +13,6 @@ import {
   isBaseController,
 } from './BaseControllerV2';
 import { Messenger } from './Messenger';
-import type { RestrictedMessenger } from './RestrictedMessenger';
 import { JsonRpcEngine } from '../../json-rpc-engine/src';
 
 export const countControllerName = 'CountController';
@@ -39,31 +38,19 @@ export const countControllerStateMetadata = {
   },
 };
 
-type CountMessenger = RestrictedMessenger<
-  typeof countControllerName,
+type CountMessenger = Messenger<
   CountControllerAction,
   CountControllerEvent,
-  never,
-  never
+  typeof countControllerName
 >;
 
 /**
- * Constructs a restricted messenger for the Count controller.
+ * Construct the Count controller messenger.
  *
- * @param messenger - The messenger.
- * @returns A restricted messenger for the Count controller.
+ * @returns The Count controller messenger.
  */
-export function getCountMessenger(
-  messenger?: Messenger<CountControllerAction, CountControllerEvent>,
-): CountMessenger {
-  if (!messenger) {
-    messenger = new Messenger<CountControllerAction, CountControllerEvent>();
-  }
-  return messenger.getRestricted({
-    name: countControllerName,
-    allowedActions: [],
-    allowedEvents: [],
-  });
+export function getCountMessenger(): CountMessenger {
+  return new Messenger({ namespace: countControllerName });
 }
 
 export class CountController extends BaseController<
@@ -118,34 +105,19 @@ const messagesControllerStateMetadata = {
   },
 };
 
-type MessagesMessenger = RestrictedMessenger<
-  typeof messagesControllerName,
+type MessagesMessenger = Messenger<
   MessagesControllerAction,
   MessagesControllerEvent,
-  never,
-  never
+  typeof messagesControllerName
 >;
 
 /**
- * Constructs a restricted messenger for the Messages controller.
+ * Construct the Messages controller messenger.
  *
- * @param messenger - The messenger.
- * @returns A restricted messenger for the Messages controller.
+ * @returns The Messages controller messenger.
  */
-function getMessagesMessenger(
-  messenger?: Messenger<MessagesControllerAction, MessagesControllerEvent>,
-): MessagesMessenger {
-  if (!messenger) {
-    messenger = new Messenger<
-      MessagesControllerAction,
-      MessagesControllerEvent
-    >();
-  }
-  return messenger.getRestricted({
-    name: messagesControllerName,
-    allowedActions: [],
-    allowedEvents: [],
-  });
+function getMessagesMessenger(): MessagesMessenger {
+  return new Messenger({ namespace: messagesControllerName });
 }
 
 class MessagesController extends BaseController<
@@ -173,12 +145,8 @@ class MessagesController extends BaseController<
 
 describe('isBaseController', () => {
   it('should return true if passed a V2 controller', () => {
-    const messenger = new Messenger<
-      CountControllerAction,
-      CountControllerEvent
-    >();
     const controller = new CountController({
-      messenger: getCountMessenger(messenger),
+      messenger: getCountMessenger(),
       name: countControllerName,
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -209,12 +177,9 @@ describe('BaseController', () => {
   });
 
   it('should allow getting state via the getState action', () => {
-    const messenger = new Messenger<
-      CountControllerAction,
-      CountControllerEvent
-    >();
+    const messenger = getCountMessenger();
     new CountController({
-      messenger: getCountMessenger(messenger),
+      messenger,
       name: countControllerName,
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -409,9 +374,9 @@ describe('BaseController', () => {
   });
 
   it('should inform subscribers of state changes as a result of applying patches', () => {
-    const messenger = new Messenger<never, CountControllerEvent>();
+    const messenger = getCountMessenger();
     const controller = new CountController({
-      messenger: getCountMessenger(messenger),
+      messenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -438,9 +403,9 @@ describe('BaseController', () => {
   });
 
   it('should inform subscribers of state changes', () => {
-    const messenger = new Messenger<never, CountControllerEvent>();
+    const messenger = getCountMessenger();
     const controller = new CountController({
-      messenger: getCountMessenger(messenger),
+      messenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -467,9 +432,9 @@ describe('BaseController', () => {
   });
 
   it('should notify a subscriber with a selector of state changes', () => {
-    const messenger = new Messenger<never, CountControllerEvent>();
+    const messenger = getCountMessenger();
     const controller = new CountController({
-      messenger: getCountMessenger(messenger),
+      messenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -493,9 +458,9 @@ describe('BaseController', () => {
   });
 
   it('should not inform a subscriber of state changes if the selected value is unchanged', () => {
-    const messenger = new Messenger<never, CountControllerEvent>();
+    const messenger = getCountMessenger();
     const controller = new CountController({
-      messenger: getCountMessenger(messenger),
+      messenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -519,9 +484,9 @@ describe('BaseController', () => {
   });
 
   it('should inform a subscriber of each state change once even after multiple subscriptions', () => {
-    const messenger = new Messenger<never, CountControllerEvent>();
+    const messenger = getCountMessenger();
     const controller = new CountController({
-      messenger: getCountMessenger(messenger),
+      messenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -543,9 +508,9 @@ describe('BaseController', () => {
   });
 
   it('should no longer inform a subscriber about state changes after unsubscribing', () => {
-    const messenger = new Messenger<never, CountControllerEvent>();
+    const messenger = getCountMessenger();
     const controller = new CountController({
-      messenger: getCountMessenger(messenger),
+      messenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -562,9 +527,9 @@ describe('BaseController', () => {
   });
 
   it('should no longer inform a subscriber about state changes after unsubscribing once, even if they subscribed many times', () => {
-    const messenger = new Messenger<never, CountControllerEvent>();
+    const messenger = getCountMessenger();
     const controller = new CountController({
-      messenger: getCountMessenger(messenger),
+      messenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -582,9 +547,9 @@ describe('BaseController', () => {
   });
 
   it('should throw when unsubscribing listener who was never subscribed', () => {
-    const messenger = new Messenger<never, CountControllerEvent>();
+    const messenger = getCountMessenger();
     new CountController({
-      messenger: getCountMessenger(messenger),
+      messenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -597,9 +562,9 @@ describe('BaseController', () => {
   });
 
   it('should no longer update subscribers after being destroyed', () => {
-    const messenger = new Messenger<never, CountControllerEvent>();
+    const messenger = getCountMessenger();
     const controller = new CountController({
-      messenger: getCountMessenger(messenger),
+      messenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -985,14 +950,16 @@ describe('getPersistentState', () => {
     type VisitorControllerState = {
       visitors: string[];
     };
-    type VisitorControllerAction = {
+    type VisitorControllerClear = {
       type: `${typeof visitorName}:clear`;
       handler: () => void;
     };
-    type VisitorControllerEvent = {
+    type VisitorControllerStateChange = {
       type: `${typeof visitorName}:stateChange`;
       payload: [VisitorControllerState, Patch[]];
     };
+    type VisitorControllerActions = VisitorControllerClear;
+    type VisitorControllerEvents = VisitorControllerStateChange;
 
     const visitorControllerStateMetadata = {
       visitors: {
@@ -1001,12 +968,10 @@ describe('getPersistentState', () => {
       },
     };
 
-    type VisitorMessenger = RestrictedMessenger<
-      typeof visitorName,
-      VisitorControllerAction | VisitorOverflowControllerAction,
-      VisitorControllerEvent | VisitorOverflowControllerEvent,
-      never,
-      never
+    type VisitorMessenger = Messenger<
+      VisitorControllerActions,
+      VisitorControllerEvents,
+      typeof visitorName
     >;
     class VisitorController extends BaseController<
       typeof visitorName,
@@ -1049,14 +1014,20 @@ describe('getPersistentState', () => {
     type VisitorOverflowControllerState = {
       maxVisitors: number;
     };
-    type VisitorOverflowControllerAction = {
+    type VisitorOverflowControllerUpdateMax = {
       type: `${typeof visitorOverflowName}:updateMax`;
       handler: (max: number) => void;
     };
-    type VisitorOverflowControllerEvent = {
+    type VisitorOverflowControllerStateChange = {
       type: `${typeof visitorOverflowName}:stateChange`;
       payload: [VisitorOverflowControllerState, Patch[]];
     };
+    type VisitorOverflowControllerActions = VisitorOverflowControllerUpdateMax;
+    type VisitorOverflowControllerEvents = VisitorOverflowControllerStateChange;
+
+    type VisitorOverflowControllerDelegatedActions = VisitorControllerClear;
+    type VisitorOverflowControllerDelegatedEvents =
+      VisitorControllerStateChange;
 
     const visitorOverflowControllerMetadata = {
       maxVisitors: {
@@ -1065,12 +1036,12 @@ describe('getPersistentState', () => {
       },
     };
 
-    type VisitorOverflowMessenger = RestrictedMessenger<
-      typeof visitorOverflowName,
-      VisitorControllerAction | VisitorOverflowControllerAction,
-      VisitorControllerEvent | VisitorOverflowControllerEvent,
-      `${typeof visitorName}:clear`,
-      `${typeof visitorName}:stateChange`
+    type VisitorOverflowMessenger = Messenger<
+      | VisitorOverflowControllerActions
+      | VisitorOverflowControllerDelegatedActions,
+      | VisitorOverflowControllerEvents
+      | VisitorOverflowControllerDelegatedEvents,
+      typeof visitorOverflowName
     >;
 
     class VisitorOverflowController extends BaseController<
@@ -1116,21 +1087,43 @@ describe('getPersistentState', () => {
 
     it('should allow messaging between controllers', () => {
       const messenger = new Messenger<
-        VisitorControllerAction | VisitorOverflowControllerAction,
-        VisitorControllerEvent | VisitorOverflowControllerEvent
-      >();
-      const visitorControllerMessenger = messenger.getRestricted({
-        name: visitorName,
-        allowedActions: [],
-        allowedEvents: [],
+        VisitorControllerActions | VisitorOverflowControllerActions,
+        VisitorControllerEvents | VisitorOverflowControllerEvents,
+        'Global'
+      >({ namespace: 'Global' });
+      const visitorControllerMessenger = new Messenger<
+        VisitorControllerActions,
+        VisitorControllerEvents,
+        typeof visitorName
+      >({
+        namespace: visitorName,
+      });
+      visitorControllerMessenger.delegate({
+        actions: ['VisitorController:clear'],
+        events: ['VisitorController:stateChange'],
+        messenger,
       });
       const visitorController = new VisitorController(
         visitorControllerMessenger,
       );
-      const visitorOverflowControllerMessenger = messenger.getRestricted({
-        name: visitorOverflowName,
-        allowedActions: ['VisitorController:clear'],
-        allowedEvents: ['VisitorController:stateChange'],
+      const visitorOverflowControllerMessenger = new Messenger<
+        | VisitorOverflowControllerActions
+        | VisitorOverflowControllerDelegatedActions,
+        | VisitorOverflowControllerEvents
+        | VisitorOverflowControllerDelegatedEvents,
+        typeof visitorOverflowName
+      >({
+        namespace: visitorOverflowName,
+      });
+      visitorOverflowControllerMessenger.delegate({
+        actions: ['VisitorOverflowController:updateMax'],
+        events: ['VisitorOverflowController:stateChange'],
+        messenger,
+      });
+      messenger.delegate({
+        actions: ['VisitorController:clear'],
+        events: ['VisitorController:stateChange'],
+        messenger: visitorOverflowControllerMessenger,
       });
       const visitorOverflowController = new VisitorOverflowController(
         visitorOverflowControllerMessenger,
