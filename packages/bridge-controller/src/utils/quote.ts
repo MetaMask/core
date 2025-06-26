@@ -110,10 +110,15 @@ export const calcSentAmount = (
   { srcTokenAmount, srcAsset, feeData }: Quote,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
-  const normalizedSentAmount = calcTokenAmount(
-    new BigNumber(srcTokenAmount).plus(feeData.metabridge.amount),
-    srcAsset.decimals,
+  // Find all fees that will be taken from the src token
+  const srcTokenFees = Object.values(feeData).filter(
+    (fee) => fee && fee.amount && fee.asset?.assetId === srcAsset.assetId,
   );
+  const sentAmount = srcTokenFees.reduce(
+    (acc, { amount }) => acc.plus(amount),
+    new BigNumber(srcTokenAmount),
+  );
+  const normalizedSentAmount = calcTokenAmount(sentAmount, srcAsset.decimals);
   return {
     amount: normalizedSentAmount.toString(),
     valueInCurrency: exchangeRate
