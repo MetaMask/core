@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Changes `EarnController.addTransaction` gasLimit logic in several methods such that the param can be set undefined through contract method param `gasOptions.gasLimit` being set to `none` ([#6038](https://github.com/MetaMask/core/pull/6038))
+  - `executeLendingDeposit`
+  - `executeLendingWithdraw`
+  - `executeLendingTokenApprove`
+
 ## [2.0.0]
 
 ### Changed
