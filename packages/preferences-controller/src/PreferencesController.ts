@@ -5,11 +5,11 @@ import {
   type RestrictedMessenger,
 } from '@metamask/base-controller';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
-import type { Hex } from '@metamask/utils';
 import type {
   KeyringControllerState,
   KeyringControllerStateChangeEvent,
 } from '@metamask/keyring-controller';
+import type { Hex } from '@metamask/utils';
 
 import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants';
 
