@@ -305,20 +305,30 @@ export const calcIncludedTxFees = (
 export const calcAdjustedReturn = (
   toTokenAmount: ReturnType<typeof calcToAmount>,
   totalEstimatedNetworkFee: ReturnType<typeof calcTotalEstimatedNetworkFee>,
-) => ({
-  valueInCurrency:
-    toTokenAmount.valueInCurrency && totalEstimatedNetworkFee.valueInCurrency
-      ? new BigNumber(toTokenAmount.valueInCurrency)
-          .minus(totalEstimatedNetworkFee.valueInCurrency)
-          .toString()
-      : null,
-  usd:
-    toTokenAmount.usd && totalEstimatedNetworkFee.usd
-      ? new BigNumber(toTokenAmount.usd)
-          .minus(totalEstimatedNetworkFee.usd)
-          .toString()
-      : null,
-});
+  { feeData: { txFee }, destAsset: { assetId: destAssetId } }: Quote,
+) => {
+  // If gas is included and is taken from the dest token, don't subtract network fee from return
+  if (txFee?.asset?.assetId === destAssetId) {
+    return {
+      valueInCurrency: toTokenAmount.valueInCurrency,
+      usd: toTokenAmount.usd,
+    };
+  }
+  return {
+    valueInCurrency:
+      toTokenAmount.valueInCurrency && totalEstimatedNetworkFee.valueInCurrency
+        ? new BigNumber(toTokenAmount.valueInCurrency)
+            .minus(totalEstimatedNetworkFee.valueInCurrency)
+            .toString()
+        : null,
+    usd:
+      toTokenAmount.usd && totalEstimatedNetworkFee.usd
+        ? new BigNumber(toTokenAmount.usd)
+            .minus(totalEstimatedNetworkFee.usd)
+            .toString()
+        : null,
+  };
+};
 
 export const calcSwapRate = (sentAmount: string, destTokenAmount: string) =>
   new BigNumber(destTokenAmount).div(sentAmount).toString();

@@ -298,6 +298,7 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
       const adjustedReturn = calcAdjustedReturn(
         toTokenAmount,
         totalEstimatedNetworkFee,
+        quote.quote,
       );
       const cost = calcCost(adjustedReturn, sentAmount);
 
