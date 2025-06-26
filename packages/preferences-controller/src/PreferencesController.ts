@@ -4,8 +4,8 @@ import {
   type ControllerGetStateAction,
   type RestrictedMessenger,
 } from '@metamask/base-controller';
-import type { Hex } from '@metamask/utils';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
+import type { Hex } from '@metamask/utils';
 import type {
   KeyringControllerState,
   KeyringControllerStateChangeEvent,
