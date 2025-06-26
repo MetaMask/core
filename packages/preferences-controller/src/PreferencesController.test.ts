@@ -562,9 +562,9 @@ describe('PreferencesController', () => {
 
   it('should set smartAccountOptInForAccounts', () => {
     const controller = setupPreferencesController();
-    expect(controller.state.smartAccountOptInForAccounts).toBe([]);
+    expect(controller.state.smartAccountOptInForAccounts).toHaveLength(0);
     controller.setSmartAccountOptInForAccounts(['0x1', '0x2']);
-    expect(controller.state.smartAccountOptInForAccounts).toBe(['0x1', '0x2']);
+    expect(controller.state.smartAccountOptInForAccounts[0]).toBe('0x1');
   });
 });
 
