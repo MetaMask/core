@@ -166,10 +166,17 @@ const getExchangeRateByChainIdAndAddress = (
   const evmTokenExchangeRateForAddress = isStrictHexString(address)
     ? evmTokenExchangeRates?.[address]
     : null;
-  if (evmTokenExchangeRateForAddress) {
+  const nativeCurrencyRate = evmTokenExchangeRateForAddress
+    ? currencyRates[evmTokenExchangeRateForAddress?.currency]
+    : undefined;
+  if (evmTokenExchangeRateForAddress && nativeCurrencyRate) {
     return {
-      exchangeRate: evmTokenExchangeRateForAddress?.price.toString(),
-      usdExchangeRate: undefined,
+      exchangeRate: new BigNumber(evmTokenExchangeRateForAddress.price)
+        .multipliedBy(nativeCurrencyRate.conversionRate ?? 0)
+        .toString(),
+      usdExchangeRate: new BigNumber(evmTokenExchangeRateForAddress.price)
+        .multipliedBy(nativeCurrencyRate.usdConversionRate ?? 0)
+        .toString(),
     };
   }
 
