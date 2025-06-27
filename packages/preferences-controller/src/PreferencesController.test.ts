@@ -26,7 +26,7 @@ describe('PreferencesController', () => {
       securityAlertsEnabled: false,
       isMultiAccountBalancesEnabled: true,
       showTestNetworks: false,
-      smartAccountOptIn: false,
+      smartAccountOptIn: true,
       smartAccountOptInForAccounts: [],
       isIpfsGatewayEnabled: true,
       useTransactionSimulations: true,
@@ -561,9 +561,9 @@ describe('PreferencesController', () => {
 
   it('should set smartAccountOptIn', () => {
     const controller = setupPreferencesController();
-    expect(controller.state.smartAccountOptIn).toBe(false);
-    controller.setSmartAccountOptIn(true);
     expect(controller.state.smartAccountOptIn).toBe(true);
+    controller.setSmartAccountOptIn(false);
+    expect(controller.state.smartAccountOptIn).toBe(false);
   });
 
   it('should set smartAccountOptInForAccounts', () => {
