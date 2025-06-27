@@ -25,14 +25,15 @@ describe('Bridge Selectors', () => {
       },
       currencyRates: {
         ETH: {
-          conversionRate: 1800,
+          conversionRate: 2468.12,
           usdConversionRate: 1800,
         },
       },
       marketData: {
         '0x1': {
           '0xabc': {
-            price: 50,
+            price: 50 / 2468.12,
+            currency: 'ETH',
           },
         },
       },
@@ -94,7 +95,7 @@ describe('Bridge Selectors', () => {
         '0x0000000000000000000000000000000000000000',
       );
       expect(result).toStrictEqual({
-        exchangeRate: '1800',
+        exchangeRate: '2468.12',
         usdExchangeRate: '1800',
       });
     });
@@ -106,8 +107,8 @@ describe('Bridge Selectors', () => {
         '0xabc',
       );
       expect(result).toStrictEqual({
-        exchangeRate: '50',
-        usdExchangeRate: undefined,
+        exchangeRate: '50.00000000000000162804',
+        usdExchangeRate: '36.4650017017000806',
       });
     });
   });

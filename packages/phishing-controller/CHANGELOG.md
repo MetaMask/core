@@ -9,8 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING**`scanUrl` hits the v2 endpoint now. Returns `hostname` instead of `domainName` now. ([#5981](https://github.com/MetaMask/core/pull/5981))
+
+## [12.6.0]
+
+### Added
+
+- Added `Verified` to `RecommendedAction` for `scanUrl` ([#5964](https://github.com/MetaMask/core/pull/5964))
+
+### Changed
+
 - Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
-- Bump `@metamask/controller-utils` to `^11.9.0` ([#5765](https://github.com/MetaMask/core/pull/5765), [#5812](https://github.com/MetaMask/core/pull/5812))
+- Bump `@metamask/controller-utils` to `^11.9.0` ([#5935](https://github.com/MetaMask/core/pull/5935), [#5765](https://github.com/MetaMask/core/pull/5765), [#5812](https://github.com/MetaMask/core/pull/5812))
 
 ## [12.5.0]
 
@@ -370,7 +380,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.5.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.6.0...HEAD
+[12.6.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.5.0...@metamask/phishing-controller@12.6.0
 [12.5.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.4.1...@metamask/phishing-controller@12.5.0
 [12.4.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.4.0...@metamask/phishing-controller@12.4.1
 [12.4.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.3.2...@metamask/phishing-controller@12.4.0

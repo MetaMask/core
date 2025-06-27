@@ -37,7 +37,9 @@ import {
   keyringBuilderFactory,
 } from './KeyringController';
 import MockEncryptor, {
+  DECRYPTION_ERROR,
   MOCK_ENCRYPTION_KEY,
+  SALT,
 } from '../tests/mocks/mockEncryptor';
 import { MockErc4337Keyring } from '../tests/mocks/mockErc4337Keyring';
 import { MockKeyring } from '../tests/mocks/mockKeyring';
@@ -67,6 +69,8 @@ const uint8ArraySeed = new Uint8Array(
 const privateKey =
   '1e4e6a4c0c077f4ae8ddfbf372918e61dd0fb4a4cfa592cb16e7546d505e68fc';
 const password = 'password123';
+const freshVault =
+  '{"data":"{\\"tag\\":{\\"key\\":{\\"password\\":\\"password123\\",\\"salt\\":\\"salt\\"},\\"iv\\":\\"iv\\"},\\"value\\":[{\\"type\\":\\"HD Key Tree\\",\\"data\\":{\\"mnemonic\\":[119,97,114,114,105,111,114,32,108,97,110,103,117,97,103,101,32,106,111,107,101,32,98,111,110,117,115,32,117,110,102,97,105,114,32,97,114,116,105,115,116,32,107,97,110,103,97,114,111,111,32,99,105,114,99,108,101,32,101,120,112,97,110,100,32,104,111,112,101,32,109,105,100,100,108,101,32,103,97,117,103,101],\\"numberOfAccounts\\":1,\\"hdPath\\":\\"m/44\'/60\'/0\'/0\\"},\\"metadata\\":{\\"id\\":\\"01JXEFM7DAX2VJ0YFR4ESNY3GQ\\",\\"name\\":\\"\\"}}]}","iv":"iv","salt":"salt"}';
 
 const commonConfig = { chain: Chain.Goerli, hardfork: Hardfork.Berlin };
 
@@ -553,7 +557,6 @@ describe('KeyringController', () => {
           await withController(
             { cacheEncryptionKey },
             async ({ controller, initialState }) => {
-              const initialVault = controller.state.vault;
               const initialKeyrings = controller.state.keyrings;
               await controller.createNewVaultAndRestore(
                 password,
@@ -561,7 +564,6 @@ describe('KeyringController', () => {
               );
               expect(controller.state).not.toBe(initialState);
               expect(controller.state.vault).toBeDefined();
-              expect(controller.state.vault).toStrictEqual(initialVault);
               expect(controller.state.keyrings).toHaveLength(
                 initialKeyrings.length,
               );
@@ -577,7 +579,7 @@ describe('KeyringController', () => {
           await withController(
             { cacheEncryptionKey },
             async ({ controller, encryptor }) => {
-              const encryptSpy = jest.spyOn(encryptor, 'encrypt');
+              const encryptSpy = jest.spyOn(encryptor, 'encryptWithKey');
               const serializedKeyring = await controller.withKeyring(
                 { type: 'HD Key Tree' },
                 async ({ keyring }) => keyring.serialize(),
@@ -590,7 +592,8 @@ describe('KeyringController', () => {
                 currentSeedWord,
               );
 
-              expect(encryptSpy).toHaveBeenCalledWith(password, [
+              const key = JSON.parse(MOCK_ENCRYPTION_KEY);
+              expect(encryptSpy).toHaveBeenCalledWith(key, [
                 {
                   data: serializedKeyring,
                   type: 'HD Key Tree',
@@ -1302,7 +1305,15 @@ describe('KeyringController', () => {
                 },
               ],
             };
-            expect(controller.state).toStrictEqual(modifiedState);
+            const modifiedStateWithoutVault = {
+              ...modifiedState,
+              vault: undefined,
+            };
+            const stateWithoutVault = {
+              ...controller.state,
+              vault: undefined,
+            };
+            expect(stateWithoutVault).toStrictEqual(modifiedStateWithoutVault);
             expect(importedAccountAddress).toBe(address);
           });
         });
@@ -1381,7 +1392,15 @@ describe('KeyringController', () => {
                 },
               ],
             };
-            expect(controller.state).toStrictEqual(modifiedState);
+            const modifiedStateWithoutVault = {
+              ...modifiedState,
+              vault: undefined,
+            };
+            const stateWithoutVault = {
+              ...controller.state,
+              vault: undefined,
+            };
+            expect(stateWithoutVault).toStrictEqual(modifiedStateWithoutVault);
             expect(importedAccountAddress).toBe(address);
           });
         });
@@ -2678,10 +2697,10 @@ describe('KeyringController', () => {
             {
               cacheEncryptionKey,
               skipVaultCreation: true,
-              state: { vault: 'my vault' },
+              state: { vault: freshVault },
             },
             async ({ controller, encryptor }) => {
-              jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+              jest.spyOn(encryptor, 'decryptWithKey').mockResolvedValueOnce([
                 {
                   type: 'UnsupportedKeyring',
                   data: '0x1234',
@@ -2700,10 +2719,10 @@ describe('KeyringController', () => {
             {
               cacheEncryptionKey,
               skipVaultCreation: true,
-              state: { vault: 'my vault' },
+              state: { vault: freshVault },
             },
             async ({ controller, encryptor }) => {
-              jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+              jest.spyOn(encryptor, 'decryptWithKey').mockResolvedValueOnce([
                 {
                   foo: 'bar',
                 },
@@ -2733,11 +2752,11 @@ describe('KeyringController', () => {
           await withController(
             {
               cacheEncryptionKey,
-              state: { vault: 'my vault' },
+              state: { vault: freshVault },
               skipVaultCreation: true,
             },
             async ({ controller, encryptor }) => {
-              jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+              jest.spyOn(encryptor, 'decryptWithKey').mockResolvedValueOnce([
                 {
                   type: KeyringTypes.hd,
                   data: {
@@ -2776,7 +2795,7 @@ describe('KeyringController', () => {
               {
                 cacheEncryptionKey: true,
                 state: {
-                  vault: 'my vault',
+                  vault: freshVault,
                 },
                 skipVaultCreation: true,
               },
@@ -2787,9 +2806,8 @@ describe('KeyringController', () => {
                 );
                 jest
                   .spyOn(encryptor, 'importKey')
-                  // @ts-expect-error we are assigning a mock value
                   .mockResolvedValue('imported key');
-                jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+                jest.spyOn(encryptor, 'decryptWithKey').mockResolvedValueOnce([
                   {
                     type: KeyringTypes.hd,
                     data: {
@@ -2840,7 +2858,7 @@ describe('KeyringController', () => {
               {
                 cacheEncryptionKey: false,
                 state: {
-                  vault: 'my vault',
+                  vault: freshVault,
                 },
                 skipVaultCreation: true,
               },
@@ -2895,14 +2913,14 @@ describe('KeyringController', () => {
             {
               skipVaultCreation: true,
               cacheEncryptionKey,
-              state: { vault: 'my vault' },
+              state: { vault: freshVault },
               keyringBuilders: [keyringBuilderFactory(MockKeyring)],
             },
             async ({ controller, encryptor, messenger }) => {
               const unlockListener = jest.fn();
               messenger.subscribe('KeyringController:unlock', unlockListener);
               jest.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(false);
-              jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+              jest.spyOn(encryptor, 'decryptWithKey').mockResolvedValueOnce([
                 {
                   type: KeyringTypes.hd,
                   data: {},
@@ -2926,12 +2944,12 @@ describe('KeyringController', () => {
             {
               skipVaultCreation: true,
               cacheEncryptionKey,
-              state: { vault: 'my vault' },
+              state: { vault: freshVault },
             },
             async ({ controller, encryptor }) => {
               jest.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(false);
               jest.spyOn(encryptor, 'encrypt').mockRejectedValue(new Error());
-              jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+              jest.spyOn(encryptor, 'decryptWithKey').mockResolvedValueOnce([
                 {
                   type: KeyringTypes.hd,
                   data: {
@@ -2955,13 +2973,13 @@ describe('KeyringController', () => {
             {
               skipVaultCreation: true,
               cacheEncryptionKey,
-              state: { vault: 'my vault' },
+              state: { vault: freshVault },
               keyringBuilders: [keyringBuilderFactory(MockKeyring)],
             },
             async ({ controller, encryptor, messenger }) => {
               const unlockListener = jest.fn();
               messenger.subscribe('KeyringController:unlock', unlockListener);
-              jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+              jest.spyOn(encryptor, 'decryptWithKey').mockResolvedValueOnce([
                 {
                   type: KeyringTypes.hd,
                   data: {},
@@ -2986,12 +3004,12 @@ describe('KeyringController', () => {
               {
                 skipVaultCreation: true,
                 cacheEncryptionKey,
-                state: { vault: 'my vault' },
+                state: { vault: freshVault },
               },
               async ({ controller, encryptor }) => {
                 jest.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(false);
-                const encryptSpy = jest.spyOn(encryptor, 'encrypt');
-                jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+                const encryptSpy = jest.spyOn(encryptor, 'encryptWithKey');
+                jest.spyOn(encryptor, 'decryptWithKey').mockResolvedValueOnce([
                   {
                     type: KeyringTypes.hd,
                     data: {
@@ -3013,12 +3031,12 @@ describe('KeyringController', () => {
               {
                 skipVaultCreation: true,
                 cacheEncryptionKey,
-                state: { vault: 'my vault' },
+                state: { vault: freshVault },
               },
               async ({ controller, encryptor }) => {
                 jest.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(true);
                 const encryptSpy = jest.spyOn(encryptor, 'encrypt');
-                jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+                jest.spyOn(encryptor, 'decryptWithKey').mockResolvedValueOnce([
                   {
                     type: KeyringTypes.hd,
                     data: {
@@ -3027,6 +3045,10 @@ describe('KeyringController', () => {
                   },
                 ]);
 
+                // TODO actually this does trigger re-encryption. The catch is
+                // that this test is run with cacheEncryptionKey enabled, so
+                // `encryptWithKey` is being used instead of `encrypt`. Hence,
+                // the spy on `encrypt` doesn't trigger.
                 await controller.submitPassword(password);
 
                 expect(encryptSpy).not.toHaveBeenCalled();
@@ -3040,7 +3062,7 @@ describe('KeyringController', () => {
               {
                 skipVaultCreation: true,
                 cacheEncryptionKey,
-                state: { vault: 'my vault' },
+                state: { vault: freshVault },
               },
               async ({ controller, encryptor }) => {
                 jest.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(false);
@@ -3066,7 +3088,7 @@ describe('KeyringController', () => {
             {
               skipVaultCreation: true,
               cacheEncryptionKey,
-              state: { vault: 'my vault' },
+              state: { vault: freshVault },
             },
             async ({ controller, encryptor }) => {
               jest.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(true);
@@ -3119,14 +3141,19 @@ describe('KeyringController', () => {
         it('should throw error when using the wrong password', async () => {
           await withController(
             {
-              skipVaultCreation: true,
               cacheEncryptionKey,
-              state: { vault: 'my vault' },
+              skipVaultCreation: true,
+              state: {
+                vault: freshVault,
+                // @ts-expect-error we want to force the controller to have an
+                // encryption salt equal to the one in the vault
+                encryptionSalt: SALT,
+              },
             },
             async ({ controller }) => {
               await expect(
                 controller.submitPassword('wrong password'),
-              ).rejects.toThrow('Incorrect password.');
+              ).rejects.toThrow(DECRYPTION_ERROR);
             },
           );
         });
@@ -3154,14 +3181,14 @@ describe('KeyringController', () => {
           cacheEncryptionKey: true,
           skipVaultCreation: true,
           state: {
-            vault: JSON.stringify({ data: '0x123', salt: 'my salt' }),
+            vault: freshVault,
             // @ts-expect-error we want to force the controller to have an
             // encryption salt equal to the one in the vault
-            encryptionSalt: 'my salt',
+            encryptionSalt: SALT,
           },
         },
         async ({ controller, initialState, encryptor }) => {
-          jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+          jest.spyOn(encryptor, 'decryptWithKey').mockResolvedValueOnce([
             {
               type: 'UnsupportedKeyring',
               data: '0x1234',
@@ -3188,19 +3215,15 @@ describe('KeyringController', () => {
           cacheEncryptionKey: true,
           skipVaultCreation: true,
           state: {
-            vault: JSON.stringify({ data: '0x123', salt: 'my salt' }),
+            vault: freshVault,
             // @ts-expect-error we want to force the controller to have an
             // encryption salt equal to the one in the vault
-            encryptionSalt: 'my salt',
+            encryptionSalt: SALT,
           },
         },
         async ({ controller, initialState, encryptor }) => {
           const encryptWithKeySpy = jest.spyOn(encryptor, 'encryptWithKey');
-          jest
-            .spyOn(encryptor, 'importKey')
-            // @ts-expect-error we are assigning a mock value
-            .mockResolvedValue('imported key');
-          jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+          jest.spyOn(encryptor, 'decryptWithKey').mockResolvedValueOnce([
             {
               type: KeyringTypes.hd,
               data: '0x123',
@@ -3213,18 +3236,21 @@ describe('KeyringController', () => {
           );
 
           expect(controller.state.isUnlocked).toBe(true);
-          expect(encryptWithKeySpy).toHaveBeenCalledWith('imported key', [
-            {
-              type: KeyringTypes.hd,
-              data: {
-                accounts: ['0x123'],
+          expect(encryptWithKeySpy).toHaveBeenCalledWith(
+            JSON.parse(MOCK_ENCRYPTION_KEY),
+            [
+              {
+                type: KeyringTypes.hd,
+                data: {
+                  accounts: ['0x123'],
+                },
+                metadata: {
+                  id: expect.any(String),
+                  name: '',
+                },
               },
-              metadata: {
-                id: expect.any(String),
-                name: '',
-              },
-            },
-          ]);
+            ],
+          );
         },
       );
     });
@@ -3233,7 +3259,7 @@ describe('KeyringController', () => {
       await withController(
         { cacheEncryptionKey: true },
         async ({ controller, initialState, encryptor }) => {
-          jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+          jest.spyOn(encryptor, 'decryptWithKey').mockResolvedValueOnce([
             {
               foo: 'bar',
             },
@@ -3272,6 +3298,66 @@ describe('KeyringController', () => {
               initialState.encryptionSalt as string,
             ),
           ).rejects.toThrow(KeyringControllerError.WrongPasswordType);
+        },
+      );
+    });
+  });
+
+  describe('exportEncryptionKey', () => {
+    it('should export encryption key and unlock', async () => {
+      await withController(
+        { cacheEncryptionKey: true },
+        async ({ controller }) => {
+          const encryptionKey = await controller.exportEncryptionKey();
+          expect(encryptionKey).toBeDefined();
+
+          await controller.setLocked();
+
+          await controller.submitEncryptionKey(encryptionKey);
+
+          expect(controller.isUnlocked()).toBe(true);
+        },
+      );
+    });
+
+    it('should throw error if controller is locked', async () => {
+      await withController(
+        { cacheEncryptionKey: true },
+        async ({ controller }) => {
+          await controller.setLocked();
+          await expect(controller.exportEncryptionKey()).rejects.toThrow(
+            KeyringControllerError.ControllerLocked,
+          );
+        },
+      );
+    });
+
+    it('should throw error if encryptionKey is not set', async () => {
+      await withController(async ({ controller }) => {
+        await expect(controller.exportEncryptionKey()).rejects.toThrow(
+          KeyringControllerError.EncryptionKeyNotSet,
+        );
+      });
+    });
+
+    it('should export key after password change', async () => {
+      await withController(
+        { cacheEncryptionKey: true },
+        async ({ controller }) => {
+          await controller.changePassword('new password');
+          const encryptionKey = await controller.exportEncryptionKey();
+          expect(encryptionKey).toBeDefined();
+        },
+      );
+    });
+
+    it('should export key after password change to the same password', async () => {
+      await withController(
+        { cacheEncryptionKey: true },
+        async ({ controller }) => {
+          await controller.changePassword(password);
+          const encryptionKey = await controller.exportEncryptionKey();
+          expect(encryptionKey).toBeDefined();
         },
       );
     });

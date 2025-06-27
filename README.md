@@ -47,7 +47,6 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/keyring-controller`](packages/keyring-controller)
 - [`@metamask/logging-controller`](packages/logging-controller)
 - [`@metamask/message-manager`](packages/message-manager)
-- [`@metamask/multichain`](packages/multichain)
 - [`@metamask/multichain-api-middleware`](packages/multichain-api-middleware)
 - [`@metamask/multichain-network-controller`](packages/multichain-network-controller)
 - [`@metamask/multichain-transactions-controller`](packages/multichain-transactions-controller)
@@ -60,7 +59,6 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/polling-controller`](packages/polling-controller)
 - [`@metamask/preferences-controller`](packages/preferences-controller)
 - [`@metamask/profile-sync-controller`](packages/profile-sync-controller)
-- [`@metamask/queued-request-controller`](packages/queued-request-controller)
 - [`@metamask/rate-limit-controller`](packages/rate-limit-controller)
 - [`@metamask/remote-feature-flag-controller`](packages/remote-feature-flag-controller)
 - [`@metamask/sample-controllers`](packages/sample-controllers)
@@ -79,7 +77,7 @@ Each package in this repository has its own README where you can find installati
 %%{ init: { 'flowchart': { 'curve': 'bumpX' } } }%%
 graph LR;
 linkStyle default opacity:0.5
-  account_wallet_controller(["@metamask/account-tree-controller"]);
+  account_tree_controller(["@metamask/account-tree-controller"]);
   accounts_controller(["@metamask/accounts-controller"]);
   address_book_controller(["@metamask/address-book-controller"]);
   announcement_controller(["@metamask/announcement-controller"]);
@@ -106,7 +104,6 @@ linkStyle default opacity:0.5
   keyring_controller(["@metamask/keyring-controller"]);
   logging_controller(["@metamask/logging-controller"]);
   message_manager(["@metamask/message-manager"]);
-  multichain(["@metamask/multichain"]);
   multichain_api_middleware(["@metamask/multichain-api-middleware"]);
   multichain_network_controller(["@metamask/multichain-network-controller"]);
   multichain_transactions_controller(["@metamask/multichain-transactions-controller"]);
@@ -119,7 +116,6 @@ linkStyle default opacity:0.5
   polling_controller(["@metamask/polling-controller"]);
   preferences_controller(["@metamask/preferences-controller"]);
   profile_sync_controller(["@metamask/profile-sync-controller"]);
-  queued_request_controller(["@metamask/queued-request-controller"]);
   rate_limit_controller(["@metamask/rate-limit-controller"]);
   remote_feature_flag_controller(["@metamask/remote-feature-flag-controller"]);
   sample_controllers(["@metamask/sample-controllers"]);
@@ -129,9 +125,9 @@ linkStyle default opacity:0.5
   token_search_discovery_controller(["@metamask/token-search-discovery-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
   user_operation_controller(["@metamask/user-operation-controller"]);
-  account_wallet_controller --> base_controller;
-  account_wallet_controller --> accounts_controller;
-  account_wallet_controller --> keyring_controller;
+  account_tree_controller --> base_controller;
+  account_tree_controller --> accounts_controller;
+  account_tree_controller --> keyring_controller;
   accounts_controller --> base_controller;
   accounts_controller --> keyring_controller;
   accounts_controller --> network_controller;
@@ -148,6 +144,7 @@ linkStyle default opacity:0.5
   assets_controllers --> keyring_controller;
   assets_controllers --> network_controller;
   assets_controllers --> permission_controller;
+  assets_controllers --> phishing_controller;
   assets_controllers --> preferences_controller;
   assets_controllers --> transaction_controller;
   base_controller --> json_rpc_engine;
@@ -169,7 +166,6 @@ linkStyle default opacity:0.5
   bridge_status_controller --> accounts_controller;
   bridge_status_controller --> bridge_controller;
   bridge_status_controller --> gas_fee_controller;
-  bridge_status_controller --> multichain_transactions_controller;
   bridge_status_controller --> network_controller;
   bridge_status_controller --> transaction_controller;
   chain_agnostic_permission --> controller_utils;
@@ -192,6 +188,7 @@ linkStyle default opacity:0.5
   ens_controller --> base_controller;
   ens_controller --> controller_utils;
   ens_controller --> network_controller;
+  error_reporting_service --> base_controller;
   eth_json_rpc_provider --> json_rpc_engine;
   gas_fee_controller --> base_controller;
   gas_fee_controller --> controller_utils;
@@ -203,10 +200,6 @@ linkStyle default opacity:0.5
   logging_controller --> controller_utils;
   message_manager --> base_controller;
   message_manager --> controller_utils;
-  multichain --> controller_utils;
-  multichain --> json_rpc_engine;
-  multichain --> network_controller;
-  multichain --> permission_controller;
   multichain_api_middleware --> chain_agnostic_permission;
   multichain_api_middleware --> controller_utils;
   multichain_api_middleware --> json_rpc_engine;
@@ -228,6 +221,7 @@ linkStyle default opacity:0.5
   network_controller --> controller_utils;
   network_controller --> eth_json_rpc_provider;
   network_controller --> json_rpc_engine;
+  network_controller --> error_reporting_service;
   notification_services_controller --> base_controller;
   notification_services_controller --> controller_utils;
   notification_services_controller --> keyring_controller;
@@ -250,17 +244,14 @@ linkStyle default opacity:0.5
   profile_sync_controller --> accounts_controller;
   profile_sync_controller --> keyring_controller;
   profile_sync_controller --> network_controller;
-  queued_request_controller --> base_controller;
-  queued_request_controller --> controller_utils;
-  queued_request_controller --> json_rpc_engine;
-  queued_request_controller --> network_controller;
-  queued_request_controller --> selected_network_controller;
   rate_limit_controller --> base_controller;
   remote_feature_flag_controller --> base_controller;
   remote_feature_flag_controller --> controller_utils;
   sample_controllers --> base_controller;
   sample_controllers --> controller_utils;
   sample_controllers --> network_controller;
+  seedless_onboarding_controller --> base_controller;
+  seedless_onboarding_controller --> keyring_controller;
   selected_network_controller --> base_controller;
   selected_network_controller --> json_rpc_engine;
   selected_network_controller --> network_controller;

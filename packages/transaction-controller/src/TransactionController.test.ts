@@ -79,6 +79,7 @@ import {
   GasFeeEstimateType,
   SimulationErrorCode,
   SimulationTokenStandard,
+  TransactionContainerType,
   TransactionEnvelopeType,
   TransactionStatus,
   TransactionType,
@@ -1161,6 +1162,19 @@ describe('TransactionController', () => {
 
       expect(transactions).toHaveLength(0);
     });
+
+    it('updates state when helper emits update event', async () => {
+      const { controller } = setupController();
+
+      jest.mocked(methodDataHelperMock.hub.on).mock.calls[0][1]({
+        fourBytePrefix: '0x12345678',
+        methodData: METHOD_DATA_MOCK,
+      });
+
+      expect(controller.state.methodData).toStrictEqual({
+        '0x12345678': METHOD_DATA_MOCK,
+      });
+    });
   });
 
   describe('estimateGas', () => {
@@ -2182,6 +2196,239 @@ describe('TransactionController', () => {
       });
     });
 
+    describe('with afterSimulate hook', () => {
+      it('calls afterSimulate hook', async () => {
+        const afterSimulateHook = jest.fn().mockResolvedValueOnce({});
+
+        const { controller } = setupController({
+          options: {
+            hooks: {
+              afterSimulate: afterSimulateHook,
+            },
+          },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(afterSimulateHook).toHaveBeenCalledTimes(1);
+      });
+
+      it('updates transaction if update callback returned', async () => {
+        const updateTransactionMock = jest.fn();
+
+        const afterSimulateHook = jest
+          .fn()
+          .mockResolvedValueOnce({ updateTransaction: updateTransactionMock });
+
+        const { controller } = setupController({
+          options: {
+            hooks: {
+              afterSimulate: afterSimulateHook,
+            },
+          },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(updateTransactionMock).toHaveBeenCalledTimes(1);
+      });
+
+      it('saves original transaction params if update callback returned', async () => {
+        const updateTransactionMock = jest.fn();
+
+        const afterSimulateHook = jest
+          .fn()
+          .mockResolvedValueOnce({ updateTransaction: updateTransactionMock });
+
+        const { controller } = setupController({
+          options: {
+            hooks: {
+              afterSimulate: afterSimulateHook,
+            },
+          },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(controller.state.transactions[0].txParamsOriginal).toStrictEqual(
+          expect.objectContaining({
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          }),
+        );
+      });
+
+      it('will re-simulate balance changes if hook returns skipSimulation as false', async () => {
+        const afterSimulateHook = jest
+          .fn()
+          .mockResolvedValue({ skipSimulation: false });
+
+        const { controller } = setupController({
+          options: {
+            hooks: {
+              afterSimulate: afterSimulateHook,
+            },
+          },
+        });
+
+        const { transactionMeta } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        shouldResimulateMock.mockReturnValue({
+          blockTime: 123,
+          resimulate: true,
+        });
+
+        await controller.updateEditableParams(transactionMeta.id, {});
+
+        expect(getBalanceChangesMock).toHaveBeenCalledTimes(2);
+      });
+
+      it('will not re-simulate balance changes if hook returns skipSimulation as true', async () => {
+        const afterSimulateHook = jest
+          .fn()
+          .mockResolvedValue({ skipSimulation: true });
+
+        const { controller } = setupController({
+          options: {
+            hooks: {
+              afterSimulate: afterSimulateHook,
+            },
+          },
+        });
+
+        const { transactionMeta } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        shouldResimulateMock.mockReturnValue({
+          blockTime: 123,
+          resimulate: true,
+        });
+
+        await controller.updateEditableParams(transactionMeta.id, {});
+
+        await flushPromises();
+
+        expect(getBalanceChangesMock).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    describe('with beforeSign hook', () => {
+      it('calls beforeSign hook', async () => {
+        const beforeSignHook = jest.fn().mockResolvedValueOnce({});
+
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+          options: {
+            hooks: {
+              beforeSign: beforeSignHook,
+            },
+          },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(beforeSignHook).toHaveBeenCalledTimes(1);
+      });
+
+      it('updates transaction if update callback returned', async () => {
+        const updateTransactionMock = jest.fn();
+
+        const beforeSignHook = jest
+          .fn()
+          .mockResolvedValueOnce({ updateTransaction: updateTransactionMock });
+
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+          options: {
+            hooks: {
+              beforeSign: beforeSignHook,
+            },
+          },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(updateTransactionMock).toHaveBeenCalledTimes(1);
+      });
+    });
+
     describe('updates simulation data', () => {
       it('by default', async () => {
         getBalanceChangesMock.mockResolvedValueOnce(
@@ -3158,17 +3405,23 @@ describe('TransactionController', () => {
       expect(controller.state.transactions[0].id).toBe('4');
     });
 
-    it('updates state when helper emits update event', async () => {
-      const { controller } = setupController();
-
-      jest.mocked(methodDataHelperMock.hub.on).mock.calls[0][1]({
-        fourBytePrefix: '0x12345678',
-        methodData: METHOD_DATA_MOCK,
+    it('removes incoming transactions to specified account', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              { ...TRANSACTION_META_MOCK, type: TransactionType.incoming },
+            ],
+          },
+        },
+        updateToInitialState: true,
       });
 
-      expect(controller.state.methodData).toStrictEqual({
-        '0x12345678': METHOD_DATA_MOCK,
-      });
+      expect(controller.state.transactions).toHaveLength(1);
+
+      controller.wipeTransactions({ address: ACCOUNT_2_MOCK });
+
+      expect(controller.state.transactions).toHaveLength(0);
     });
   });
 
@@ -4700,23 +4953,33 @@ describe('TransactionController', () => {
 
       expect(listener).toHaveBeenCalledTimes(0);
     });
-  });
 
-  describe('on incoming transaction helper updateCache call', () => {
-    it('updates state', async () => {
+    it('ignores transactions with unrecognised chain ID', async () => {
       const { controller } = setupController();
-      const key = 'testKey';
-      const value = 123;
 
-      incomingTransactionHelperClassMock.mock.calls[0][0].updateCache(
-        (cache) => {
-          cache[key] = value;
+      multichainTrackingHelperMock.getNetworkClient.mockImplementationOnce(
+        () => {
+          throw new Error('Unknown chain ID');
         },
       );
 
-      expect(controller.state.lastFetchedBlockNumbers).toStrictEqual({
-        [key]: value,
-      });
+      multichainTrackingHelperMock.getNetworkClient.mockImplementationOnce(
+        () =>
+          ({
+            id: NETWORK_CLIENT_ID_MOCK,
+          }) as never,
+      );
+
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]([
+        TRANSACTION_META_MOCK,
+        TRANSACTION_META_2_MOCK,
+      ]);
+
+      expect(controller.state.transactions).toStrictEqual([
+        { ...TRANSACTION_META_2_MOCK, networkClientId: NETWORK_CLIENT_ID_MOCK },
+      ]);
     });
   });
 
@@ -6893,6 +7156,29 @@ describe('TransactionController', () => {
           },
         }),
       );
+    });
+
+    it('updates container types', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [transactionMeta],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      const updatedTransaction = await controller.updateEditableParams(
+        transactionId,
+        {
+          ...params,
+          containerTypes: [TransactionContainerType.EnforcedSimulations],
+        },
+      );
+
+      expect(updatedTransaction?.containerTypes).toStrictEqual([
+        TransactionContainerType.EnforcedSimulations,
+      ]);
     });
 
     it('throws an error if no transaction metadata is found', async () => {

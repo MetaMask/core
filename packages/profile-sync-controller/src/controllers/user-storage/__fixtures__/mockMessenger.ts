@@ -73,7 +73,10 @@ export function createCustomUserStorageMessenger(props?: {
       'KeyringController:lock',
       'KeyringController:unlock',
       'AccountsController:accountRenamed',
+      'AccountsController:accountAdded',
       'NetworkController:networkRemoved',
+      'AddressBookController:contactUpdated',
+      'AddressBookController:contactDeleted',
     ],
   });
 

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/accounts-controller",
-  "version": "30.0.0",
+  "version": "31.0.0",
   "description": "Manages internal accounts",
   "keywords": [
     "MetaMask",
@@ -64,7 +64,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-controller": "^22.0.2",
-    "@metamask/network-controller": "^23.5.1",
+    "@metamask/network-controller": "^24.0.0",
     "@metamask/providers": "^22.1.0",
     "@metamask/snaps-controllers": "^12.3.1",
     "@types/jest": "^27.4.1",
@@ -78,7 +78,7 @@
   },
   "peerDependencies": {
     "@metamask/keyring-controller": "^22.0.0",
-    "@metamask/network-controller": "^23.0.0",
+    "@metamask/network-controller": "^24.0.0",
     "@metamask/providers": "^22.0.0",
     "@metamask/snaps-controllers": "^12.0.0",
     "webextension-polyfill": "^0.10.0 || ^0.11.0 || ^0.12.0"

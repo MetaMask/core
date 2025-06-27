@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` to `^31.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+- **BREAKING:** Bump peer dependency `@metamask/network-controller` to `^24.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+
+## [18.0.0]
+
+### Added
+
+- **BREAKING:** Add Contacts Syncing, a Backup and Sync feature ([#5776](https://github.com/MetaMask/core/pull/5776))
+  - React to contacts update and deletion events from `AddressBookController` and update the corresponding entries in user storage
+  - Dispatch downward "Big sync" after onboarding & wallet unlock
+    - Big sync will download contacts from user storage and resolve potential conflicts
+
+## [17.1.0]
+
+### Added
+
+- Add `EventQueue` class util to guarantee the order of some user-storage updates ([#5937](https://github.com/MetaMask/core/pull/5937))
+  - Add an instance of `EventQueue` to `UserStorageController`
+  - Event subscriptions for `AccountsController:accountAdded` and `AccountsController:accountRenamed` are now pushing their callbacks to the `UserStorageController` instance of `EventQueue`, so that we stay in control of the order these callbacks are fulfilled.
+
 ## [17.0.0]
 
 ### Added
@@ -614,7 +638,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@17.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@19.0.0...HEAD
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@18.0.0...@metamask/profile-sync-controller@19.0.0
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@17.1.0...@metamask/profile-sync-controller@18.0.0
+[17.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@17.0.0...@metamask/profile-sync-controller@17.1.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@16.0.0...@metamask/profile-sync-controller@17.0.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@15.0.0...@metamask/profile-sync-controller@16.0.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@14.0.0...@metamask/profile-sync-controller@15.0.0

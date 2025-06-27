@@ -15,6 +15,7 @@ import type {
 } from '@metamask/network-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+import type { Infer } from '@metamask/superstruct';
 import type {
   CaipAccountId,
   CaipAssetId,
@@ -25,6 +26,17 @@ import type {
 
 import type { BridgeController } from './bridge-controller';
 import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge';
+import type {
+  BridgeAssetSchema,
+  ChainConfigurationSchema,
+  FeeDataSchema,
+  PlatformConfigSchema,
+  ProtocolSchema,
+  QuoteResponseSchema,
+  QuoteSchema,
+  StepSchema,
+  TxDataSchema,
+} from './utils/validators';
 
 /**
  * Additional options accepted by the extension's fetchWithCache function
@@ -59,13 +71,7 @@ export enum AssetType {
   unknown = 'UNKNOWN',
 }
 
-export type ChainConfiguration = {
-  isActiveSrc: boolean;
-  isActiveDest: boolean;
-  refreshRate?: number;
-  topAssets?: string[];
-  isUnifiedUIEnabled?: boolean;
-};
+export type ChainConfiguration = Infer<typeof ChainConfigurationSchema>;
 
 export type L1GasFees = {
   l1GasFeesInHexWei?: string; // l1 fees for approval and trade in hex wei, appended by BridgeController.#appendL1GasFees
@@ -108,6 +114,7 @@ export type ExchangeRate = { exchangeRate?: string; usdExchangeRate?: string };
  * Values derived from the quote response
  */
 export type QuoteMetadata = {
+  includedTxFees?: TokenAmountValues | null; // if gas is included, this is the value of the src or dest token that was used to pay for the gas
   gasFee: TokenAmountValues;
   totalNetworkFee: TokenAmountValues; // estimatedGasFees + relayerFees
   totalMaxNetworkFee: TokenAmountValues; // maxGasFees + relayerFees
@@ -130,37 +137,7 @@ export enum SortOrder {
  * This is the interface for the asset object returned by the bridge-api
  * This type is used in the QuoteResponse and in the fetchBridgeTokens response
  */
-export type BridgeAsset = {
-  /**
-   * The chainId of the token
-   */
-  chainId: ChainId;
-  /**
-   * An address that the metaswap-api recognizes as the default token
-   */
-  address: string;
-  /**
-   * The symbol of token object
-   */
-  symbol: string;
-  /**
-   * The name for the network
-   */
-  name: string;
-  /**
-   * Number of digits after decimal point
-   */
-  decimals: number;
-  icon?: string;
-  /**
-   * URL for token icon
-   */
-  iconUrl?: string;
-  /**
-   * The assetId of the token
-   */
-  assetId: CaipAssetType;
-};
+export type BridgeAsset = Infer<typeof BridgeAssetSchema>;
 
 /**
  * This is the interface for the token object used in the extension client
@@ -182,14 +159,7 @@ export type BridgeToken = {
 type DecimalChainId = string;
 export type GasMultiplierByChainId = Record<DecimalChainId, number>;
 
-type FeatureFlagResponsePlatformConfig = {
-  refreshRate: number;
-  maxRefreshCount: number;
-  support: boolean;
-  chains: Record<string, ChainConfiguration>;
-};
-
-export type FeatureFlagResponse = FeatureFlagResponsePlatformConfig;
+export type FeatureFlagResponse = Infer<typeof PlatformConfigSchema>;
 
 /**
  * This is the interface for the quote request sent to the bridge-api
@@ -217,6 +187,12 @@ export type QuoteRequest<
   insufficientBal?: boolean;
   resetApproval?: boolean;
   refuel?: boolean;
+  /**
+   * Whether the response should include gasless swap quotes
+   * This should be true if the user has opted in to STX on the client
+   * and the current network has STX support
+   */
+  gasIncluded: boolean;
 };
 
 export enum StatusTypes {
@@ -237,62 +213,26 @@ export type GenericQuoteRequest = QuoteRequest<
   Hex | CaipAccountId | string // accountIds/addresses
 >;
 
-export type Protocol = {
-  name: string;
-  displayName?: string;
-  icon?: string;
-};
+export type Protocol = Infer<typeof ProtocolSchema>;
 
-export enum ActionTypes {
-  BRIDGE = 'bridge',
-  SWAP = 'swap',
-  REFUEL = 'refuel',
-}
-
-export type Step = {
-  action: ActionTypes;
-  srcChainId: ChainId;
-  destChainId?: ChainId;
-  srcAsset?: BridgeAsset;
-  destAsset?: BridgeAsset;
-  srcAmount: string;
-  destAmount: string;
-  protocol: Protocol;
-};
+export type Step = Infer<typeof StepSchema>;
 
 export type RefuelData = Step;
 
-export type Quote = {
-  requestId: string;
-  srcChainId: ChainId;
-  srcAsset: BridgeAsset;
-  // Some tokens have a fee of 0, so sometimes it's equal to amount sent
-  srcTokenAmount: string; // Atomic amount, the amount sent - fees
-  destChainId: ChainId;
-  destAsset: BridgeAsset;
-  destTokenAmount: string; // Atomic amount, the amount received
-  feeData: Record<FeeType.METABRIDGE, FeeData> &
-    Partial<Record<FeeType, FeeData>>;
-  bridgeId: string;
-  bridges: string[];
-  steps: Step[];
-  refuel?: RefuelData;
-  priceData?: {
-    totalFromAmountUsd?: string;
-    totalToAmountUsd?: string;
-    priceImpact?: string;
-  };
-};
+export type FeeData = Infer<typeof FeeDataSchema>;
 
+export type Quote = Infer<typeof QuoteSchema>;
+
+export type TxData = Infer<typeof TxDataSchema>;
 /**
  * This is the type for the quote response from the bridge-api
  * TxDataType can be overriden to be a string when the quote is non-evm
  */
-export type QuoteResponse<TradeType = TxData, ApprovalType = TxData | null> = {
-  quote: Quote;
-  approval?: ApprovalType;
-  trade: TradeType;
-  estimatedProcessingTimeInSeconds: number;
+export type QuoteResponse<TxDataType = TxData> = Infer<
+  typeof QuoteResponseSchema
+> & {
+  trade: TxDataType;
+  approval?: TxData;
 };
 
 export enum ChainId {
@@ -308,30 +248,7 @@ export enum ChainId {
   SOLANA = 1151111081099710,
 }
 
-export enum FeeType {
-  METABRIDGE = 'metabridge',
-  REFUEL = 'refuel',
-}
-export type FeeData = {
-  amount: string;
-  asset: BridgeAsset;
-};
-export type TxData = {
-  chainId: ChainId;
-  to: string;
-  from: string;
-  value: string;
-  data: string;
-  gasLimit: number | null;
-};
-
-export type FeatureFlagsPlatformConfig = {
-  minimumVersion: string;
-  refreshRate: number;
-  maxRefreshCount: number;
-  support: boolean;
-  chains: Record<CaipChainId, ChainConfiguration>;
-};
+export type FeatureFlagsPlatformConfig = Infer<typeof PlatformConfigSchema>;
 
 export enum RequestStatus {
   LOADING,
@@ -347,6 +264,7 @@ export enum BridgeBackgroundAction {
   RESET_STATE = 'resetState',
   GET_BRIDGE_ERC20_ALLOWANCE = 'getBridgeERC20Allowance',
   TRACK_METAMETRICS_EVENT = 'trackUnifiedSwapBridgeEvent',
+  STOP_POLLING_FOR_QUOTES = 'stopPollingForQuotes',
 }
 
 export type BridgeControllerState = {
@@ -381,6 +299,7 @@ export type BridgeControllerActions =
   | BridgeControllerAction<BridgeBackgroundAction.RESET_STATE>
   | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>
   | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>
+  | BridgeControllerAction<BridgeBackgroundAction.STOP_POLLING_FOR_QUOTES>
   | BridgeControllerAction<BridgeUserAction.UPDATE_QUOTE_PARAMS>;
 
 export type BridgeControllerEvents = ControllerStateChangeEvent<

@@ -7,6 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [58.1.0]
+
+### Added
+
+- Support `containerTypes` property in `updateEditableParams` method ([#6014](https://github.com/MetaMask/core/pull/6014))
+- Add specific transaction types to outgoing transactions retrieved from accounts API ([#5987](https://github.com/MetaMask/core/pull/5987))
+  - Add optional `amount` property to `transferInformation` object in `TransactionMeta` type.
+
+### Changed
+
+- Automatically update `gasFeeEstimates` in unapproved `transactionBatches` ([#5950](https://github.com/MetaMask/core/pull/5950))
+- Estimate gas for type-4 transactions with `data` using `eth_estimateGas` and state overrides if simulation fails [#6016](https://github.com/MetaMask/core/pull/6016))
+- Query only latest page of transactions from accounts API ([#5983](https://github.com/MetaMask/core/pull/5983))
+- Remove incoming transactions when calling `wipeTransactions` ([#5986](https://github.com/MetaMask/core/pull/5986))
+- Poll immediately when calling `startIncomingTransactionPolling` ([#5986](https://github.com/MetaMask/core/pull/5986))
+
+## [58.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` to `^31.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+- **BREAKING:** Bump peer dependency `@metamask/gas-fee-controller` to `^24.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+- **BREAKING:** Bump peer dependency `@metamask/network-controller` to `^24.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+
+## [57.4.0]
+
+### Added
+
+- Add optional `afterSimulate` and `beforeSign` hooks to constructor ([#5503](https://github.com/MetaMask/core/pull/5503))
+  - Add `AfterSimulateHook` type.
+  - Add `BeforeSignHook` type.
+  - Add `TransactionContainerType` enum.
+  - Add `TransactionControllerEstimateGasAction` type.
+  - Add optional `containerTypes` property to `TransactionMeta`.
+  - Add optional `ignoreDelegationSignatures` boolean to `estimateGas` method.
+- Add `gasFeeEstimates` property to `TransactionBatchMeta`, populated using `DefaultGasFeeFlow` ([#5886](https://github.com/MetaMask/core/pull/5886))
+
+### Fixed
+
+- Handle unknown chain IDs on incoming transactions ([#5985](https://github.com/MetaMask/core/pull/5985))
+
+## [57.3.0]
+
+### Added
+
+- Add `SEI` network support ([#5694](https://github.com/MetaMask/core/pull/5694))
+  - Add account address relationship API support
+  - Add incoming transactions API support
+
+## [57.2.0]
+
+### Added
+
+- Add `lendingWithdraw` to `TransactionType` ([#5936](https://github.com/MetaMask/core/pull/5936))
+
+### Changed
+
+- Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
+
+### Fixed
+
+- Avoid coercing `publishBatchHook` to a boolean ([#5934](https://github.com/MetaMask/core/pull/5934))
+
 ## [57.1.0]
 
 ### Added
@@ -1646,7 +1709,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@58.1.0...HEAD
+[58.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@58.0.0...@metamask/transaction-controller@58.1.0
+[58.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.4.0...@metamask/transaction-controller@58.0.0
+[57.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.3.0...@metamask/transaction-controller@57.4.0
+[57.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.2.0...@metamask/transaction-controller@57.3.0
+[57.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.1.0...@metamask/transaction-controller@57.2.0
 [57.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.0.0...@metamask/transaction-controller@57.1.0
 [57.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@56.3.0...@metamask/transaction-controller@57.0.0
 [56.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@56.2.0...@metamask/transaction-controller@56.3.0

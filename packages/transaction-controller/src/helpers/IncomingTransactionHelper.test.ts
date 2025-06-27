@@ -21,7 +21,6 @@ console.error = jest.fn();
 const CHAIN_ID_MOCK = '0x1' as const;
 const ADDRESS_MOCK = '0x1';
 const SYSTEM_TIME_MOCK = 1000 * 60 * 60 * 24 * 2;
-const CACHE_MOCK = {};
 const MESSENGER_MOCK = {} as unknown as TransactionControllerMessenger;
 const TAG_MOCK = 'test1';
 const TAG_2_MOCK = 'test2';
@@ -46,12 +45,10 @@ const CONTROLLER_ARGS_MOCK: ConstructorParameters<
       },
     };
   },
-  getCache: () => CACHE_MOCK,
   getLocalTransactions: () => [],
   messenger: MESSENGER_MOCK,
   remoteTransactionSource: {} as RemoteTransactionSource,
   trimTransactions: (transactions) => transactions,
-  updateCache: jest.fn(),
 };
 
 const TRANSACTION_MOCK: TransactionMeta = {
@@ -166,11 +163,8 @@ describe('IncomingTransactionHelper', () => {
 
       expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledWith({
         address: ADDRESS_MOCK,
-        cache: CACHE_MOCK,
         includeTokenTransfers: true,
-        queryEntireHistory: true,
         tags: ['automatic-polling'],
-        updateCache: expect.any(Function),
         updateTransactions: false,
       });
     });
@@ -351,6 +345,8 @@ describe('IncomingTransactionHelper', () => {
 
       helper.start();
 
+      await flushPromises();
+
       expect(jest.getTimerCount()).toBe(1);
     });
 
@@ -361,6 +357,9 @@ describe('IncomingTransactionHelper', () => {
       });
 
       helper.start();
+
+      await flushPromises();
+
       helper.start();
 
       expect(jest.getTimerCount()).toBe(1);

@@ -68,7 +68,7 @@ export type AccountWallet = {
   groups: {
     [groupId: AccountGroupId]: AccountGroup;
   };
-  metadata: AccountGroupMetadata; // Assuming Metadata is a defined type
+  metadata: AccountWalletMetadata;
 };
 
 export type AccountTreeControllerState = {
@@ -101,7 +101,7 @@ export type AllowedEvents =
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent;
 
-export type AccountTreeControllerEvents = never;
+export type AccountTreeControllerEvents = AccountTreeControllerStateChangeEvent;
 
 export type AccountTreeControllerMessenger = RestrictedMessenger<
   typeof controllerName,
@@ -363,11 +363,11 @@ export class AccountTreeController extends BaseController<
     const snap = this.messagingSystem.call('SnapController:get', snapId);
     const snapName = snap
       ? // TODO: Handle localization here, but that's a "client thing", so we don't have a `core` controller
-        // to refer too.
+        // to refer to.
         snap.manifest.proposedName
       : stripSnapPrefix(snapId);
 
-    return `Snap: ${snapName}`;
+    return snapName;
   }
 
   #getEntropySourceName(entropySource: string): string | undefined {

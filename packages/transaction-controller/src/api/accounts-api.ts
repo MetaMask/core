@@ -59,7 +59,7 @@ export type TransactionResponse = {
   effectiveGasPrice: string;
   nonce: number;
   cumulativeGasUsed: number;
-  methodId: null;
+  methodId?: Hex;
   value: string;
   to: string;
   from: string;
@@ -107,6 +107,7 @@ const SUPPORTED_CHAIN_IDS_FOR_RELATIONSHIP_API = [
   42161, // Arbitrum
   59144, // Linea
   534352, // Scroll
+  1329, // Sei
 ];
 
 const log = createModuleLogger(projectLogger, 'accounts-api');

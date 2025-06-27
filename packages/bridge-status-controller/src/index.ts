@@ -10,12 +10,8 @@ export type {
   StatusRequest,
   StatusRequestDto,
   StatusRequestWithSrcTxHash,
-  Asset,
-  SrcChainStatus,
-  DestChainStatus,
   StatusResponse,
   RefuelStatusResponse,
-  RefuelData,
   BridgeHistoryItem,
   BridgeStatusControllerState,
   BridgeStatusControllerMessenger,
@@ -32,7 +28,7 @@ export type {
   QuoteMetadataSerialized,
 } from './types';
 
-export { BridgeId, FeeType, ActionTypes, BridgeStatusAction } from './types';
+export { BridgeId, BridgeStatusAction } from './types';
 
 export { BridgeStatusController } from './bridge-status-controller';
 

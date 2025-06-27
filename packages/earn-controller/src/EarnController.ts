@@ -98,11 +98,11 @@ const stakingTransactionTypes = new Set<StakingTransactionTypes>([
 
 type LendingTransactionTypes =
   | TransactionType.lendingDeposit
-  | 'lendingWithdraw';
+  | TransactionType.lendingWithdraw;
 
 const lendingTransactionTypes = new Set<LendingTransactionTypes>([
   TransactionType.lendingDeposit,
-  'lendingWithdraw',
+  TransactionType.lendingWithdraw,
 ]);
 
 /**
@@ -942,12 +942,16 @@ export class EarnController extends BaseController<
       throw new Error('Selected network client id not found');
     }
 
+    const gasLimit = !transactionData.gasLimit
+      ? undefined
+      : toHex(transactionData.gasLimit);
+
     const txHash = await this.#addTransactionFn(
       {
         ...transactionData,
         value: transactionData.value.toString(),
         chainId: toHex(this.#getCurrentChainId()),
-        gasLimit: String(transactionData.gasLimit),
+        gasLimit,
       },
       {
         ...txOptions,
@@ -1007,12 +1011,16 @@ export class EarnController extends BaseController<
       throw new Error('Selected network client id not found');
     }
 
+    const gasLimit = !transactionData.gasLimit
+      ? undefined
+      : toHex(transactionData.gasLimit);
+
     const txHash = await this.#addTransactionFn(
       {
         ...transactionData,
         value: transactionData.value.toString(),
         chainId: toHex(this.#getCurrentChainId()),
-        gasLimit: String(transactionData.gasLimit),
+        gasLimit,
       },
       {
         ...txOptions,
@@ -1072,12 +1080,16 @@ export class EarnController extends BaseController<
       throw new Error('Selected network client id not found');
     }
 
+    const gasLimit = !transactionData.gasLimit
+      ? undefined
+      : toHex(transactionData.gasLimit);
+
     const txHash = await this.#addTransactionFn(
       {
         ...transactionData,
         value: transactionData.value.toString(),
         chainId: toHex(this.#getCurrentChainId()),
-        gasLimit: String(transactionData.gasLimit),
+        gasLimit,
       },
       {
         ...txOptions,
