@@ -1145,4 +1145,184 @@ describe('getPersistentState', () => {
       expect(visitorController.state.visitors).toHaveLength(0);
     });
   });
+
+  describe('registerActionHandlers', () => {
+    type TestControllerActions =
+      | {
+          type: 'TestController:testMethod';
+          handler: () => string;
+        }
+      | { type: 'TestController:method1'; handler: () => string }
+      | { type: 'TestController:method2'; handler: () => string }
+      | { type: 'TestController:getInstanceValue'; handler: () => string };
+
+    type TestControllerMessenger = RestrictedMessenger<
+      'TestController',
+      TestControllerActions,
+      never,
+      never,
+      never
+    >;
+
+    /**
+     * Factory function to create a test controller with configurable action handler registration
+     *
+     * @param options - Configuration options for the test controller
+     * @param options.methodsToRegister - Array of method names to register as action handlers
+     * @param options.excludedMethods - Optional array of method names to exclude from registration
+     * @param options.exceptions - Optional map of method names to custom handlers
+     * @param options.instanceValue - Optional custom value for the controller instance
+     * @returns Object containing the messenger and controller instances
+     */
+    function createTestController(options: {
+      methodsToRegister: readonly string[];
+      excludedMethods?: readonly string[];
+      exceptions?: Record<string, (...args: unknown[]) => unknown>;
+      instanceValue?: string;
+    }) {
+      const {
+        methodsToRegister,
+        excludedMethods = [],
+        exceptions = {},
+        instanceValue = 'controller instance',
+      } = options;
+
+      class TestController extends BaseController<
+        'TestController',
+        CountControllerState,
+        TestControllerMessenger
+      > {
+        private readonly instanceValue = instanceValue;
+
+        constructor(messenger: TestControllerMessenger) {
+          super({
+            messenger,
+            name: 'TestController',
+            state: { count: 0 },
+            metadata: countControllerStateMetadata,
+          });
+          this.registerActionHandlers(
+            methodsToRegister as readonly (keyof this & string)[],
+            excludedMethods,
+            exceptions as Partial<
+              Record<keyof this & string, (...args: unknown[]) => unknown>
+            >,
+          );
+        }
+
+        testMethod() {
+          return 'test result';
+        }
+
+        method1() {
+          return 'method1 result';
+        }
+
+        method2() {
+          return 'method2 result';
+        }
+
+        getInstanceValue() {
+          return this.instanceValue;
+        }
+      }
+
+      const messenger = new Messenger<TestControllerActions, never>();
+      const controller = new TestController(
+        messenger.getRestricted({
+          name: 'TestController',
+          allowedActions: [],
+          allowedEvents: [],
+        }),
+      );
+
+      return { messenger, controller };
+    }
+
+    it('should register action handlers for specified methods using the simplified API', () => {
+      const { messenger } = createTestController({
+        methodsToRegister: ['testMethod', 'method1'],
+      });
+
+      const testResult = messenger.call('TestController:testMethod');
+      expect(testResult).toBe('test result');
+
+      const method1Result = messenger.call('TestController:method1');
+      expect(method1Result).toBe('method1 result');
+    });
+
+    it('should register action handlers with exclusions and exceptions', () => {
+      const customMethod1 = () => 'custom method1 result';
+
+      const { messenger } = createTestController({
+        methodsToRegister: ['method1', 'method2'],
+        excludedMethods: ['method2'],
+        exceptions: { method1: customMethod1 },
+      });
+
+      // method1 should use the custom handler
+      const result1 = messenger.call('TestController:method1');
+      expect(result1).toBe('custom method1 result');
+
+      // method2 should not be registered due to exclusion
+      expect(() => {
+        messenger.call('TestController:method2');
+      }).toThrow(
+        'A handler for TestController:method2 has not been registered',
+      );
+    });
+
+    it('should properly bind methods to the controller instance', () => {
+      const { messenger } = createTestController({
+        methodsToRegister: ['getInstanceValue'],
+        instanceValue: 'custom instance value',
+      });
+
+      // Verify the method is properly bound to the controller instance
+      const result = messenger.call('TestController:getInstanceValue');
+      expect(result).toBe('custom instance value');
+    });
+
+    it('should handle empty method registration', () => {
+      const { messenger } = createTestController({
+        methodsToRegister: [],
+      });
+
+      // None of the methods should be registered
+      expect(() => {
+        messenger.call('TestController:testMethod');
+      }).toThrow(
+        'A handler for TestController:testMethod has not been registered',
+      );
+
+      expect(() => {
+        messenger.call('TestController:method1');
+      }).toThrow(
+        'A handler for TestController:method1 has not been registered',
+      );
+    });
+
+    it('should handle multiple exclusions', () => {
+      const { messenger } = createTestController({
+        methodsToRegister: ['testMethod', 'method1', 'method2'],
+        excludedMethods: ['method1', 'method2'],
+      });
+
+      // Only testMethod should be registered
+      const testResult = messenger.call('TestController:testMethod');
+      expect(testResult).toBe('test result');
+
+      expect(() => {
+        messenger.call('TestController:method1');
+      }).toThrow(
+        'A handler for TestController:method1 has not been registered',
+      );
+
+      expect(() => {
+        messenger.call('TestController:method2');
+      }).toThrow(
+        'A handler for TestController:method2 has not been registered',
+      );
+    });
+  });
 });
