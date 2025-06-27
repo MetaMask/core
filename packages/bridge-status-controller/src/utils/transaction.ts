@@ -8,12 +8,14 @@ import {
   type QuoteResponse,
 } from '@metamask/bridge-controller';
 import { SolScope } from '@metamask/keyring-api';
+import type { TransactionParams } from '@metamask/transaction-controller';
 import {
   TransactionStatus,
   TransactionType,
   type TransactionMeta,
 } from '@metamask/transaction-controller';
-import { createProjectLogger } from '@metamask/utils';
+import type { SignedTransaction } from '@metamask/utils';
+import { createProjectLogger, numberToHex } from '@metamask/utils';
 import { v4 as uuid } from 'uuid';
 
 import { LINEA_DELAY_MS } from '../constants';
@@ -193,3 +195,45 @@ export const getClientRequest = (
     },
   };
 };
+
+type TemporarySmartTransactionGasFees = {
+  maxFeePerGas: string;
+  maxPriorityFeePerGas: string;
+  gas: string;
+  value: string;
+};
+
+export const createUnsignedTransactionsWithFees = (
+  unsignedTransactions: (Partial<TransactionParams> & {
+    chainId: string;
+    from: string;
+  })[],
+  fees: TemporarySmartTransactionGasFees,
+) => {
+  const unsignedTransactionsWithFees = unsignedTransactions.map(
+    (unsignedTransaction) => {
+      const unsignedTransactionWithFees = {
+        ...unsignedTransaction,
+        maxFeePerGas: numberToHex(Number(fees.maxFeePerGas)),
+        maxPriorityFeePerGas: numberToHex(Number(fees.maxPriorityFeePerGas)),
+        gas: unsignedTransaction.gas,
+        value: unsignedTransaction.value,
+      };
+
+      return unsignedTransactionWithFees;
+    },
+  );
+  return unsignedTransactionsWithFees;
+};
+
+export type SubmitSignedTransactionsFn = ({
+  transactionMeta,
+  txParams,
+  signedTransactions,
+  networkClientId,
+}: {
+  signedTransactions: SignedTransaction[];
+  transactionMeta?: TransactionMeta;
+  txParams?: TransactionParams;
+  networkClientId?: string;
+}) => Promise<{ uuid: string; txHash: string; txHashes: string[] }>;
