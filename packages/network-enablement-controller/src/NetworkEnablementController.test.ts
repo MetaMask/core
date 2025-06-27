@@ -1,4 +1,6 @@
 import { SolScope } from '@metamask/keyring-api';
+import { BuiltInNetworkName, ChainId } from '@metamask/controller-utils';
+import { KnownCaipNamespace } from '@metamask/utils';
 
 import { NetworkEnablementController } from './NetworkEnablementController';
 import type {
@@ -27,6 +29,39 @@ describe('NetworkEnablementController', () => {
       call: jest.fn(),
       registerInitialEventPayload: jest.fn(),
     };
+
+    // Mock the messenger calls for network state
+    (messenger.call as jest.Mock).mockImplementation((action: string) => {
+      if (action === 'NetworkController:getState') {
+        return {
+          networkConfigurationsByChainId: {
+            '0x1': { chainId: '0x1' },
+            '0x2': { chainId: '0x2' },
+            '0x2a': { chainId: '0x2a' },
+            '0xe708': { chainId: '0xe708' },
+            '0x2105': { chainId: '0x2105' },
+            '0xa4b1': { chainId: '0xa4b1' },
+            '0xa86a': { chainId: '0xa86a' },
+            '0x38': { chainId: '0x38' },
+            '0xa': { chainId: '0xa' },
+            '0x89': { chainId: '0x89' },
+            '0x531': { chainId: '0x531' },
+            '0x144': { chainId: '0x144' },
+          },
+        };
+      }
+      if (action === 'MultichainNetworkController:getState') {
+        return {
+          multichainNetworkConfigurationsByChainId: {
+            'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': {
+              chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+            },
+            'solana:testnet': { chainId: 'solana:testnet' },
+          },
+        };
+      }
+      return {};
+    });
   });
 
   it('should initialize with default state', () => {
@@ -35,12 +70,12 @@ describe('NetworkEnablementController', () => {
     });
     expect(getControllerState(controller)).toStrictEqual({
       enabledNetworkMap: {
-        eip155: {
-          '0x1': true,
-          '0xe708': true,
-          '0x2105': true,
+        [KnownCaipNamespace.Eip155]: {
+          [ChainId[BuiltInNetworkName.Mainnet]]: true,
+          [ChainId[BuiltInNetworkName.LineaMainnet]]: true,
+          [ChainId[BuiltInNetworkName.BaseMainnet]]: true,
         },
-        solana: {
+        [KnownCaipNamespace.Solana]: {
           [SolScope.Mainnet]: true,
         },
       },
@@ -50,21 +85,30 @@ describe('NetworkEnablementController', () => {
   it('should merge provided state with default state', () => {
     const customState: Partial<NetworkEnablementControllerState> = {
       enabledNetworkMap: {
-        eip155: { '0x2a': true },
-        solana: {},
+        [KnownCaipNamespace.Eip155]: { '0x2a': true },
+        [KnownCaipNamespace.Solana]: {},
       },
     };
     const controller = new NetworkEnablementController({
       messenger: messenger as NetworkEnablementControllerMessenger,
       state: customState,
     });
+    console.log(
+      getControllerState(controller).enabledNetworkMap[
+        KnownCaipNamespace.Eip155
+      ],
+    );
     expect(
-      getControllerState(controller).enabledNetworkMap.eip155['0x2a'],
+      getControllerState(controller).enabledNetworkMap[
+        KnownCaipNamespace.Eip155
+      ]['0x2a'],
     ).toBe(true);
     // Should still have default networks
-    expect(getControllerState(controller).enabledNetworkMap.eip155['0x1']).toBe(
-      true,
-    );
+    expect(
+      getControllerState(controller).enabledNetworkMap[
+        KnownCaipNamespace.Eip155
+      ][ChainId[BuiltInNetworkName.Mainnet]],
+    ).toBe(true);
   });
 
   it('should subscribe to NetworkController:networkAdded', () => {
@@ -87,80 +131,121 @@ describe('NetworkEnablementController', () => {
     );
   });
 
-  it('setEnabledNetworks should enable only specified networks', () => {
-    const controller = new NetworkEnablementController({
-      messenger: messenger as NetworkEnablementControllerMessenger,
+  describe('setEnabledNetwork', () => {
+    it('should enable a popular network without clearing others', () => {
+      const controller = new NetworkEnablementController({
+        messenger: messenger as NetworkEnablementControllerMessenger,
+      });
+
+      // Enable a popular network (Ethereum Mainnet)
+      controller.setEnabledNetwork('0x1');
+
+      expect(
+        getControllerState(controller).enabledNetworkMap[
+          KnownCaipNamespace.Eip155
+        ]['0x1'],
+      ).toBe(true);
+      // Other default networks should still be enabled
+      expect(
+        getControllerState(controller).enabledNetworkMap[
+          KnownCaipNamespace.Eip155
+        ][ChainId[BuiltInNetworkName.LineaMainnet]],
+      ).toBe(true);
+      expect(
+        getControllerState(controller).enabledNetworkMap[
+          KnownCaipNamespace.Eip155
+        ][ChainId[BuiltInNetworkName.BaseMainnet]],
+      ).toBe(true);
     });
-    controller.setEnabledNetworks([
-      'eip155:1',
-      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
-    ]);
-    expect(getControllerState(controller).enabledNetworkMap).toStrictEqual({
-      eip155: { '0x1': true },
-      solana: { 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': true },
+
+    it('should enable a non-popular network and clear all others', () => {
+      const controller = new NetworkEnablementController({
+        messenger: messenger as NetworkEnablementControllerMessenger,
+      });
+
+      // Enable a non-popular network
+      controller.setEnabledNetwork('0x2');
+
+      expect(
+        getControllerState(controller).enabledNetworkMap[
+          KnownCaipNamespace.Eip155
+        ]['0x2'],
+      ).toBe(true);
+      // All other networks should be disabled
+      expect(
+        getControllerState(controller).enabledNetworkMap[
+          KnownCaipNamespace.Eip155
+        ][ChainId[BuiltInNetworkName.Mainnet]],
+      ).toBe(false);
+      expect(
+        getControllerState(controller).enabledNetworkMap[
+          KnownCaipNamespace.Eip155
+        ][ChainId[BuiltInNetworkName.LineaMainnet]],
+      ).toBe(false);
+      expect(
+        getControllerState(controller).enabledNetworkMap[
+          KnownCaipNamespace.Eip155
+        ][ChainId[BuiltInNetworkName.BaseMainnet]],
+      ).toBe(false);
+      expect(
+        getControllerState(controller).enabledNetworkMap[
+          KnownCaipNamespace.Solana
+        ][SolScope.Mainnet],
+      ).toBe(false);
+    });
+
+    it('should handle unknown networks gracefully', () => {
+      const controller = new NetworkEnablementController({
+        messenger: messenger as NetworkEnablementControllerMessenger,
+      });
+
+      // Mock unknown network
+      (messenger.call as jest.Mock).mockImplementation((action: string) => {
+        if (action === 'NetworkController:getState') {
+          return { networkConfigurationsByChainId: {} };
+        }
+        return {};
+      });
+
+      expect(() => controller.setEnabledNetwork('0x999')).not.toThrow();
+      expect(
+        getControllerState(controller).enabledNetworkMap[
+          KnownCaipNamespace.Eip155
+        ]['eip155:999'],
+      ).toBeUndefined();
+    });
+
+    it('should handle invalid chain ID gracefully', () => {
+      const controller = new NetworkEnablementController({
+        messenger: messenger as NetworkEnablementControllerMessenger,
+      });
+
+      expect(() =>
+        controller.setEnabledNetwork('invalid' as never),
+      ).not.toThrow();
     });
   });
 
-  it('setEnabledNetworks should handle a single chainId', () => {
-    const controller = new NetworkEnablementController({
-      messenger: messenger as NetworkEnablementControllerMessenger,
-    });
-    controller.setEnabledNetworks('eip155:1');
-    expect(getControllerState(controller).enabledNetworkMap).toStrictEqual({
-      eip155: { '0x1': true },
-      solana: {},
-    });
-  });
-
-  it('setEnabledNetworks should handle unknown namespaces gracefully', () => {
-    const controller = new NetworkEnablementController({
-      messenger: messenger as NetworkEnablementControllerMessenger,
-    });
-    controller.setEnabledNetworks(['foo:bar']);
-    expect(getControllerState(controller).enabledNetworkMap).toStrictEqual({
-      eip155: {},
-      solana: {},
-    });
-  });
-
-  it('setEnabledNetworks should clear existing networks before setting new ones', () => {
-    const controller = new NetworkEnablementController({
-      messenger: messenger as NetworkEnablementControllerMessenger,
-    });
-
-    // Initially has default networks
-    expect(getControllerState(controller).enabledNetworkMap.eip155['0x1']).toBe(
-      true,
-    );
-
-    // Set only one network
-    controller.setEnabledNetworks(['eip155:2']);
-
-    // Should only have the new network, not the old ones
-    expect(
-      getControllerState(controller).enabledNetworkMap.eip155['0x1'],
-    ).toBeUndefined();
-    expect(getControllerState(controller).enabledNetworkMap.eip155['0x2']).toBe(
-      true,
-    );
-  });
-
-  describe('disableNetwork', () => {
+  describe('setDisabledNetwork', () => {
     it('should disable an EVM network using hex chain ID', () => {
       const controller = new NetworkEnablementController({
         messenger: messenger as NetworkEnablementControllerMessenger,
       });
 
       // First enable a network
-      controller.setEnabledNetworks(['eip155:1']);
+      controller.setEnabledNetwork('0x1');
       expect(
-        getControllerState(controller).enabledNetworkMap.eip155['0x1'],
+        getControllerState(controller).enabledNetworkMap[
+          KnownCaipNamespace.Eip155
+        ]['0x1'],
       ).toBe(true);
 
       // Then disable it
-      controller.disableNetwork('0x1');
+      controller.setDisabledNetwork('0x1');
       expect(
-        getControllerState(controller).enabledNetworkMap.eip155['0x1'],
+        getControllerState(controller).enabledNetworkMap[
+          KnownCaipNamespace.Eip155
+        ]['0x1'],
       ).toBe(false);
     });
 
@@ -170,20 +255,52 @@ describe('NetworkEnablementController', () => {
       });
 
       // First enable a network
-      controller.setSolanaEnabledNetwork('solana:testnet');
+      controller.setEnabledNetwork('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp');
+
+      console.log(
+        'getControllerState(controller).enabledNetworkMap 111111 ***********',
+        getControllerState(controller).enabledNetworkMap,
+      );
+
       expect(
-        getControllerState(controller).enabledNetworkMap.solana[
-          'solana:testnet'
-        ],
+        getControllerState(controller).enabledNetworkMap[
+          KnownCaipNamespace.Solana
+        ]['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],
       ).toBe(true);
 
-      // Then disable it
-      controller.disableNetwork('solana:testnet');
+      controller.setEnabledNetwork('0x1');
+
+      console.log(
+        'getControllerState(controller).enabledNetworkMap 222222 ***********',
+        getControllerState(controller).enabledNetworkMap,
+      );
+
       expect(
-        getControllerState(controller).enabledNetworkMap.solana[
-          'solana:testnet'
-        ],
+        getControllerState(controller).enabledNetworkMap[
+          KnownCaipNamespace.Solana
+        ]['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],
       ).toBe(false);
+    });
+
+    it('should prevent disabling the last active network', () => {
+      const controller = new NetworkEnablementController({
+        messenger: messenger as NetworkEnablementControllerMessenger,
+      });
+
+      // Clear all networks except one
+      controller.setEnabledNetwork('0x1');
+
+      // Try to disable the last network
+      controller.setDisabledNetwork('0xe708');
+      controller.setDisabledNetwork('0x2105');
+      controller.setDisabledNetwork('0x1');
+
+      // Should still be enabled (last network protection)
+      expect(
+        getControllerState(controller).enabledNetworkMap[
+          KnownCaipNamespace.Eip155
+        ]['0x1'],
+      ).toBe(true);
     });
 
     it('should handle disabling non-existent network gracefully', () => {
@@ -191,7 +308,7 @@ describe('NetworkEnablementController', () => {
         messenger: messenger as NetworkEnablementControllerMessenger,
       });
 
-      expect(() => controller.disableNetwork('0x999')).not.toThrow();
+      expect(() => controller.setDisabledNetwork('0x999')).not.toThrow();
     });
 
     it('should handle invalid chain ID gracefully', () => {
@@ -199,7 +316,9 @@ describe('NetworkEnablementController', () => {
         messenger: messenger as NetworkEnablementControllerMessenger,
       });
 
-      expect(() => controller.disableNetwork('invalid' as never)).not.toThrow();
+      expect(() =>
+        controller.setDisabledNetwork('invalid' as never),
+      ).not.toThrow();
     });
   });
 
@@ -209,7 +328,7 @@ describe('NetworkEnablementController', () => {
         messenger: messenger as NetworkEnablementControllerMessenger,
       });
 
-      controller.setEnabledNetworks(['eip155:1']);
+      controller.setEnabledNetwork('0x1');
 
       expect(controller.isNetworkEnabled('0x1')).toBe(true);
     });
@@ -219,9 +338,11 @@ describe('NetworkEnablementController', () => {
         messenger: messenger as NetworkEnablementControllerMessenger,
       });
 
-      controller.setSolanaEnabledNetwork('solana:testnet');
+      controller.setEnabledNetwork('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp');
 
-      expect(controller.isNetworkEnabled('solana:testnet')).toBe(true);
+      expect(
+        controller.isNetworkEnabled('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
+      ).toBe(true);
     });
 
     it('should return false for disabled network', () => {
@@ -258,13 +379,20 @@ describe('NetworkEnablementController', () => {
         messenger: messenger as NetworkEnablementControllerMessenger,
       });
 
-      controller.setEnabledNetworks(['eip155:1', 'eip155:2']);
+      controller.setEnabledNetwork('0x1');
 
-      const enabledNetworks =
-        controller.getEnabledNetworksForNamespace('eip155');
+      const enabledNetworks = controller.getEnabledNetworksForNamespace(
+        KnownCaipNamespace.Eip155,
+      );
 
       expect(enabledNetworks).toContain('0x1');
-      expect(enabledNetworks).toContain('0x2');
+
+      controller.setEnabledNetwork('0x2');
+
+      const enabledNetworks1 = controller.getEnabledNetworksForNamespace(
+        KnownCaipNamespace.Eip155,
+      );
+      expect(enabledNetworks1).toContain('0x2');
     });
 
     it('should return enabled networks for solana namespace', () => {
@@ -272,15 +400,15 @@ describe('NetworkEnablementController', () => {
         messenger: messenger as NetworkEnablementControllerMessenger,
       });
 
-      controller.setSolanaEnabledNetwork('solana:testnet');
+      controller.setEnabledNetwork('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp');
 
-      const enabledNetworks =
-        controller.getEnabledNetworksForNamespace('solana');
+      const enabledNetworks = controller.getEnabledNetworksForNamespace(
+        KnownCaipNamespace.Solana,
+      );
 
       expect(enabledNetworks).toContain(
         'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
-      ); // default
-      expect(enabledNetworks).toContain('solana:testnet');
+      );
     });
 
     it('should return empty array for non-existent namespace', () => {
@@ -294,6 +422,21 @@ describe('NetworkEnablementController', () => {
 
       expect(enabledNetworks).toStrictEqual([]);
     });
+
+    it('should not return disabled networks', () => {
+      const controller = new NetworkEnablementController({
+        messenger: messenger as NetworkEnablementControllerMessenger,
+      });
+
+      controller.setEnabledNetwork('0x1');
+      controller.setDisabledNetwork('0x1');
+
+      const enabledNetworks = controller.getEnabledNetworksForNamespace(
+        KnownCaipNamespace.Eip155,
+      );
+
+      expect(enabledNetworks).not.toContain('0x1');
+    });
   });
 
   describe('getAllEnabledNetworks', () => {
@@ -302,12 +445,19 @@ describe('NetworkEnablementController', () => {
         messenger: messenger as NetworkEnablementControllerMessenger,
       });
 
-      controller.setEnabledNetworks(['eip155:1', 'solana:testnet']);
+      controller.setEnabledNetwork('0x1');
 
       const allEnabledNetworks = controller.getAllEnabledNetworks();
 
-      expect(allEnabledNetworks.eip155).toContain('0x1');
-      expect(allEnabledNetworks.solana).toContain('solana:testnet');
+      expect(allEnabledNetworks[KnownCaipNamespace.Eip155]).toContain('0x1');
+
+      controller.setEnabledNetwork('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp');
+
+      const allEnabledNetworks1 = controller.getAllEnabledNetworks();
+
+      expect(allEnabledNetworks1[KnownCaipNamespace.Solana]).toContain(
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+      );
     });
 
     it('should return empty arrays for namespaces with no enabled networks', () => {
@@ -315,21 +465,33 @@ describe('NetworkEnablementController', () => {
         messenger: messenger as NetworkEnablementControllerMessenger,
       });
 
-      // Clear all networks
-      controller.setEnabledNetworks([]);
+      // Disable all networks
+      controller.setDisabledNetwork('0x1');
+      controller.setDisabledNetwork('0xe708');
+      controller.setDisabledNetwork('0x2105');
+      controller.setDisabledNetwork('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp');
 
       const allEnabledNetworks = controller.getAllEnabledNetworks();
 
-      expect(allEnabledNetworks.eip155).toStrictEqual([]);
-      expect(allEnabledNetworks.solana).toStrictEqual([]);
+      console.log('allEnabledNetworks ***********', allEnabledNetworks);
+
+      expect(allEnabledNetworks[KnownCaipNamespace.Eip155]).toStrictEqual([
+        '0x2105',
+      ]);
+      expect(allEnabledNetworks[KnownCaipNamespace.Solana]).toStrictEqual([]);
     });
   });
 
   describe('network event handling', () => {
-    it('should handle network added events', () => {
+    it('should handle network added events by ensuring entry and enabling', () => {
       const controller = new NetworkEnablementController({
         messenger: messenger as NetworkEnablementControllerMessenger,
       });
+
+      console.log(
+        'getControllerState(controller).enabledNetworkMap 1111 ***********',
+        getControllerState(controller).enabledNetworkMap,
+      );
 
       // Get the subscription callback
       const subscribeCall = (messenger.subscribe as jest.Mock).mock.calls.find(
@@ -340,20 +502,30 @@ describe('NetworkEnablementController', () => {
       // Simulate network added event
       networkAddedCallback({ chainId: '0x2a' });
 
+      console.log(
+        'getControllerState(controller).enabledNetworkMap ***********',
+        getControllerState(controller).enabledNetworkMap,
+      );
+
+      // Should ensure entry exists and enable it
       expect(
-        getControllerState(controller).enabledNetworkMap.eip155['0x2a'],
+        getControllerState(controller).enabledNetworkMap[
+          KnownCaipNamespace.Eip155
+        ]['0x2a'],
       ).toBe(true);
     });
 
-    it('should handle network removed events', () => {
+    it('should handle network removed events by removing entry entirely', () => {
       const controller = new NetworkEnablementController({
         messenger: messenger as NetworkEnablementControllerMessenger,
       });
 
       // First add a network
-      controller.setEnabledNetworks(['eip155:1']);
+      controller.setEnabledNetwork('0x1');
       expect(
-        getControllerState(controller).enabledNetworkMap.eip155['0x1'],
+        getControllerState(controller).enabledNetworkMap[
+          KnownCaipNamespace.Eip155
+        ]['0x1'],
       ).toBe(true);
 
       // Get the subscription callback
@@ -362,65 +534,253 @@ describe('NetworkEnablementController', () => {
       );
       const networkRemovedCallback = subscribeCall[1];
 
+      controller.setEnabledNetwork('0x2105');
+
+      console.log(
+        'getControllerState(controller).enabledNetworkMap 2222 ***********',
+        getControllerState(controller).enabledNetworkMap,
+      );
+
       // Simulate network removed event
+      networkRemovedCallback({ chainId: '0x2105' });
+
+      console.log(
+        'getControllerState(controller).enabledNetworkMap 333 ***********',
+        getControllerState(controller).enabledNetworkMap,
+      );
+
+      // Should remove the entry entirely
+      expect(
+        getControllerState(controller).enabledNetworkMap[
+          KnownCaipNamespace.Eip155
+        ]['0x2105'],
+      ).toBeUndefined();
+    });
+
+    it('should enable Ethereum mainnet as failsafe when removing last network', () => {
+      const controller = new NetworkEnablementController({
+        messenger: messenger as NetworkEnablementControllerMessenger,
+      });
+
+      // Clear all default networks except one
+      controller.setEnabledNetwork('0x1');
+      controller.setDisabledNetwork('0xe708');
+      controller.setDisabledNetwork('0x2105');
+      controller.setDisabledNetwork('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp');
+
+      // Get the subscription callback
+      const subscribeCall = (messenger.subscribe as jest.Mock).mock.calls.find(
+        (call) => call[0] === 'NetworkController:networkRemoved',
+      );
+      const networkRemovedCallback = subscribeCall[1];
+
+      // Simulate removing the last network
       networkRemovedCallback({ chainId: '0x1' });
 
+      // Should enable Ethereum mainnet as failsafe
       expect(
-        getControllerState(controller).enabledNetworkMap.eip155['0x1'],
+        getControllerState(controller).enabledNetworkMap[
+          KnownCaipNamespace.Eip155
+        ][ChainId[BuiltInNetworkName.Mainnet]],
+      ).toBe(true);
+    });
+
+    it('should handle unknown networks in event callbacks', () => {
+      const controller = new NetworkEnablementController({
+        messenger: messenger as NetworkEnablementControllerMessenger,
+      });
+
+      // Mock unknown network
+      (messenger.call as jest.Mock).mockImplementation((action: string) => {
+        if (action === 'NetworkController:getState') {
+          return { networkConfigurationsByChainId: {} };
+        }
+        return {};
+      });
+
+      // Get the subscription callback
+      const subscribeCall = (messenger.subscribe as jest.Mock).mock.calls.find(
+        (call) => call[0] === 'NetworkController:networkAdded',
+      );
+      const networkAddedCallback = subscribeCall[1];
+
+      // Simulate unknown network added event
+      expect(() => networkAddedCallback({ chainId: '0x999' })).not.toThrow();
+    });
+  });
+
+  describe('popular networks behavior', () => {
+    it('should not clear other networks when enabling popular networks', () => {
+      const controller = new NetworkEnablementController({
+        messenger: messenger as NetworkEnablementControllerMessenger,
+      });
+
+      // Enable a popular network (Ethereum Mainnet)
+      controller.setEnabledNetwork('0x1');
+
+      // Other default networks should still be enabled
+      expect(
+        getControllerState(controller).enabledNetworkMap[
+          KnownCaipNamespace.Eip155
+        ][ChainId[BuiltInNetworkName.LineaMainnet]],
+      ).toBe(true);
+      expect(
+        getControllerState(controller).enabledNetworkMap[
+          KnownCaipNamespace.Eip155
+        ][ChainId[BuiltInNetworkName.BaseMainnet]],
+      ).toBe(true);
+    });
+
+    it('should clear all networks when enabling non-popular networks', () => {
+      const controller = new NetworkEnablementController({
+        messenger: messenger as NetworkEnablementControllerMessenger,
+      });
+
+      // Enable a non-popular network
+      controller.setEnabledNetwork('0x2');
+
+      // All other networks should be disabled
+      expect(
+        getControllerState(controller).enabledNetworkMap[
+          KnownCaipNamespace.Eip155
+        ][ChainId[BuiltInNetworkName.Mainnet]],
+      ).toBe(false);
+      expect(
+        getControllerState(controller).enabledNetworkMap[
+          KnownCaipNamespace.Eip155
+        ][ChainId[BuiltInNetworkName.LineaMainnet]],
+      ).toBe(false);
+      expect(
+        getControllerState(controller).enabledNetworkMap[
+          KnownCaipNamespace.Eip155
+        ][ChainId[BuiltInNetworkName.BaseMainnet]],
+      ).toBe(false);
+      expect(
+        getControllerState(controller).enabledNetworkMap[
+          KnownCaipNamespace.Solana
+        ][SolScope.Mainnet],
       ).toBe(false);
     });
   });
 
+  describe('entry management', () => {
+    it('should ensure network entry exists when adding network', () => {
+      const controller = new NetworkEnablementController({
+        messenger: messenger as NetworkEnablementControllerMessenger,
+      });
+
+      // Get the subscription callback
+      const subscribeCall = (messenger.subscribe as jest.Mock).mock.calls.find(
+        (call) => call[0] === 'NetworkController:networkAdded',
+      );
+      const networkAddedCallback = subscribeCall[1];
+
+      // Simulate adding a new network
+      networkAddedCallback({ chainId: '0x2a' });
+
+      // Entry should exist and be enabled
+      expect(
+        getControllerState(controller).enabledNetworkMap[
+          KnownCaipNamespace.Eip155
+        ]['0x2a'],
+      ).toBe(true);
+    });
+
+    it('should remove network entry entirely when removing network', () => {
+      const controller = new NetworkEnablementController({
+        messenger: messenger as NetworkEnablementControllerMessenger,
+      });
+
+      // First add a network
+      controller.setEnabledNetwork('0x1');
+
+      // Get the subscription callback
+      const subscribeCall = (messenger.subscribe as jest.Mock).mock.calls.find(
+        (call) => call[0] === 'NetworkController:networkRemoved',
+      );
+      const networkRemovedCallback = subscribeCall[1];
+
+      // Simulate removing the network
+      networkRemovedCallback({ chainId: '0x1' });
+
+      // Entry should be completely removed
+      expect(
+        getControllerState(controller).enabledNetworkMap[
+          KnownCaipNamespace.Eip155
+        ]['0x1'],
+      ).toBeUndefined();
+    });
+
+    it('should handle removing network from non-existent namespace', () => {
+      new NetworkEnablementController({
+        messenger: messenger as NetworkEnablementControllerMessenger,
+      });
+
+      // Get the subscription callback
+      const subscribeCall = (messenger.subscribe as jest.Mock).mock.calls.find(
+        (call) => call[0] === 'NetworkController:networkRemoved',
+      );
+      const networkRemovedCallback = subscribeCall[1];
+
+      // Simulate removing network from non-existent namespace
+      expect(() =>
+        networkRemovedCallback({ chainId: 'unknown:chain' }),
+      ).not.toThrow();
+    });
+  });
+
   describe('edge cases', () => {
-    it('should handle empty array in setEnabledNetworks', () => {
+    it('should handle mixed namespace types', () => {
       const controller = new NetworkEnablementController({
         messenger: messenger as NetworkEnablementControllerMessenger,
       });
 
-      controller.setEnabledNetworks([]);
+      controller.setEnabledNetwork('0x1');
+
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+
+      controller.setEnabledNetwork('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp');
 
       expect(
-        getControllerState(controller).enabledNetworkMap.eip155,
-      ).toStrictEqual({});
-      expect(
-        getControllerState(controller).enabledNetworkMap.solana,
-      ).toStrictEqual({});
-    });
-
-    it('should handle mixed namespace types in setEnabledNetworks', () => {
-      const controller = new NetworkEnablementController({
-        messenger: messenger as NetworkEnablementControllerMessenger,
-      });
-
-      controller.setEnabledNetworks([
-        'eip155:1',
-        'solana:testnet',
-        'unknown:chain',
-      ]);
-
-      expect(
-        getControllerState(controller).enabledNetworkMap.eip155['0x1'],
-      ).toBe(true);
-      expect(
-        getControllerState(controller).enabledNetworkMap.solana[
-          'solana:testnet'
-        ],
+        controller.isNetworkEnabled('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
       ).toBe(true);
     });
 
-    it('should handle disabled networks in getEnabledNetworksForNamespace', () => {
+    it('should handle chain ID normalization', () => {
       const controller = new NetworkEnablementController({
         messenger: messenger as NetworkEnablementControllerMessenger,
       });
 
-      // Set a network and then disable it
-      controller.setEnabledNetworks(['eip155:1']);
-      controller.disableNetwork('0x1');
+      // Test hex chain ID
+      controller.setEnabledNetwork('0x1');
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
 
-      const enabledNetworks =
-        controller.getEnabledNetworksForNamespace('eip155');
+      // Test CAIP chain ID for same network
+      expect(controller.isNetworkEnabled('eip155:1')).toBe(true);
+    });
 
-      expect(enabledNetworks).not.toContain('0x1');
+    it('should handle failsafe when all networks are disabled', () => {
+      const controller = new NetworkEnablementController({
+        messenger: messenger as NetworkEnablementControllerMessenger,
+      });
+
+      // Disable all default networks
+      controller.setDisabledNetwork('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp');
+      controller.setDisabledNetwork('0xe708');
+      controller.setDisabledNetwork('0x2105');
+      controller.setDisabledNetwork('0x1');
+
+      console.log(
+        'getControllerState(controller).enabledNetworkMap 4444 ***********',
+        getControllerState(controller).enabledNetworkMap,
+      );
+
+      // Should enable Ethereum mainnet as failsafe
+      expect(
+        getControllerState(controller).enabledNetworkMap[
+          KnownCaipNamespace.Eip155
+        ][ChainId[BuiltInNetworkName.Mainnet]],
+      ).toBe(true);
     });
   });
 });

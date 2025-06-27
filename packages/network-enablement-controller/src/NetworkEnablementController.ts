@@ -1,139 +1,123 @@
 import { BaseController } from '@metamask/base-controller';
 import type {
-  RestrictedMessenger,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BuiltInNetworkName, ChainId, toHex } from '@metamask/controller-utils';
 import { SolScope } from '@metamask/keyring-api';
+import type { MultichainNetworkControllerGetStateAction } from '@metamask/multichain-network-controller';
 import { toEvmCaipChainId } from '@metamask/multichain-network-controller';
 import type {
-  NetworkConfiguration,
+  NetworkControllerGetStateAction,
   NetworkControllerNetworkAddedEvent,
   NetworkControllerNetworkRemovedEvent,
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
 import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
 import {
-  isCaipChainId,
   isHexString,
   KnownCaipNamespace,
   parseCaipChainId,
 } from '@metamask/utils';
 
-// Unique name for the controller
-const controllerName = 'NetworkEnablementController';
+import { POPULATE_NETWORKS } from './constant';
 
-/**
- * Information about an ordered network.
- */
-export type NetworksInfo = {
-  networkId: CaipChainId; // The network's chain id
-};
+const NAME = 'NetworkEnablementController' as const;
 
-// State shape for NetworkEnablementController
+type EnabledMap = Record<CaipNamespace, Record<string, boolean>>;
+
+// ---------------------------------------------------------------------------
+// State & Actions
+// ---------------------------------------------------------------------------
+
 export type NetworkEnablementControllerState = {
-  enabledNetworkMap: Record<CaipNamespace, Record<string, boolean>>;
+  enabledNetworkMap: EnabledMap;
 };
 
 export type NetworkEnablementControllerGetStateAction =
-  ControllerGetStateAction<
-    typeof controllerName,
-    NetworkEnablementControllerState
-  >;
-
-export type NetworkEnablementControllerSetEnabledNetworksAction = {
-  type: `${typeof controllerName}:setEnabledNetworks`;
-  handler: NetworkEnablementController['setEnabledNetworks'];
-};
-
-export type NetworkEnablementControllerDisableNetworkAction = {
-  type: `${typeof controllerName}:disableNetwork`;
-  handler: NetworkEnablementController['disableNetwork'];
-};
-
-export type NetworkEnablementControllerIsNetworkEnabledAction = {
-  type: `${typeof controllerName}:isNetworkEnabled`;
-  handler: NetworkEnablementController['isNetworkEnabled'];
-};
-
-/**
- * All actions that {@link NetworkEnablementController} calls internally.
- */
-type AllowedActions = never;
+  ControllerGetStateAction<typeof NAME, NetworkEnablementControllerState>;
 
 export type NetworkEnablementControllerActions =
   | NetworkEnablementControllerGetStateAction
-  | NetworkEnablementControllerSetEnabledNetworksAction
-  | NetworkEnablementControllerDisableNetworkAction
-  | NetworkEnablementControllerIsNetworkEnabledAction;
+  | {
+      type: `${typeof NAME}:setEnabledNetworks`;
+      handler: NetworkEnablementController['setEnabledNetwork'];
+    }
+  | {
+      type: `${typeof NAME}:disableNetwork`;
+      handler: NetworkEnablementController['setDisabledNetwork'];
+    }
+  | {
+      type: `${typeof NAME}:isNetworkEnabled`;
+      handler: NetworkEnablementController['isNetworkEnabled'];
+    };
 
-export type NetworkEnablementControllerStateChangeEvent =
-  ControllerStateChangeEvent<
-    typeof controllerName,
-    NetworkEnablementControllerState
-  >;
+export type NetworkEnablementControllerEvents = ControllerStateChangeEvent<
+  typeof NAME,
+  NetworkEnablementControllerState
+>;
 
-export type NetworkEnablementControllerEvents =
-  NetworkEnablementControllerStateChangeEvent;
+type InternalActions =
+  | NetworkControllerGetStateAction
+  | MultichainNetworkControllerGetStateAction;
 
-/**
- * All events that {@link NetworkEnablementController} subscribes to internally.
- */
-export type AllowedEvents =
+type InternalEvents =
   | NetworkControllerNetworkAddedEvent
   | NetworkControllerNetworkRemovedEvent
   | NetworkControllerStateChangeEvent;
 
 export type NetworkEnablementControllerMessenger = RestrictedMessenger<
-  typeof controllerName,
-  NetworkEnablementControllerActions | AllowedActions,
-  NetworkEnablementControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  typeof NAME,
+  NetworkEnablementControllerActions | InternalActions,
+  NetworkEnablementControllerEvents | InternalEvents,
+  InternalActions['type'],
+  InternalEvents['type']
 >;
 
-/**
- * Gets the default state for the NetworkEnablementController.
- *
- * @returns The default state with pre-enabled networks.
- */
-const getDefaultNetworkEnablementControllerState =
-  (): NetworkEnablementControllerState => {
-    return {
-      enabledNetworkMap: {
-        eip155: {
-          [ChainId[BuiltInNetworkName.Mainnet]]: true,
-          [ChainId[BuiltInNetworkName.LineaMainnet]]: true,
-          [ChainId[BuiltInNetworkName.BaseMainnet]]: true,
-        },
-        solana: {
-          [SolScope.Mainnet]: true,
-        },
-      },
-    };
-  };
+// ---------------------------------------------------------------------------
+// Defaults & helpers
+// ---------------------------------------------------------------------------
 
-// Metadata for the controller state
-const metadata = {
+const defaultState = (): NetworkEnablementControllerState => ({
   enabledNetworkMap: {
-    persist: true,
-    anonymous: true,
-  },
+    [KnownCaipNamespace.Eip155]: {
+      [ChainId[BuiltInNetworkName.Mainnet]]: true,
+      [ChainId[BuiltInNetworkName.LineaMainnet]]: true,
+      [ChainId[BuiltInNetworkName.BaseMainnet]]: true,
+    },
+    [KnownCaipNamespace.Solana]: {
+      [SolScope.Mainnet]: true,
+    },
+  } as EnabledMap,
+});
+
+const metadata = {
+  enabledNetworkMap: { persist: true, anonymous: true },
 };
 
+const mergeEnabledMaps = (
+  base: EnabledMap,
+  override?: Partial<EnabledMap>,
+): EnabledMap => {
+  if (!override) {
+    return base;
+  }
+  return (Object.keys(base) as CaipNamespace[]).reduce((acc, ns) => {
+    acc[ns] = { ...base[ns], ...(override[ns] ?? {}) };
+    return acc;
+  }, {} as EnabledMap);
+};
+
+// ---------------------------------------------------------------------------
+// Controller
+// ---------------------------------------------------------------------------
+
 export class NetworkEnablementController extends BaseController<
-  typeof controllerName,
+  typeof NAME,
   NetworkEnablementControllerState,
   NetworkEnablementControllerMessenger
 > {
-  /**
-   * Creates a NetworkEnablementController instance.
-   *
-   * @param args - The arguments to this function.
-   * @param args.messenger - Messenger used to communicate with BaseV2 controller.
-   * @param args.state - Initial state to set on this controller.
-   */
   constructor({
     messenger,
     state,
@@ -141,219 +125,196 @@ export class NetworkEnablementController extends BaseController<
     messenger: NetworkEnablementControllerMessenger;
     state?: Partial<NetworkEnablementControllerState>;
   }) {
-    const defaultState = getDefaultNetworkEnablementControllerState();
-
-    // Deep merge enabledNetworkMap
-    const mergedEnabledNetworkMap = {
-      eip155: {
-        ...defaultState.enabledNetworkMap.eip155,
-        ...state?.enabledNetworkMap?.eip155,
-      },
-      solana: {
-        ...defaultState.enabledNetworkMap.solana,
-        ...state?.enabledNetworkMap?.solana,
-      },
-    };
-
-    // Call the constructor of BaseControllerV2
     super({
       messenger,
       metadata,
-      name: controllerName,
-      state: { enabledNetworkMap: mergedEnabledNetworkMap },
+      name: NAME,
+      state: {
+        enabledNetworkMap: mergeEnabledMaps(
+          defaultState().enabledNetworkMap,
+          state?.enabledNetworkMap,
+        ),
+      },
     });
 
-    this.messagingSystem = messenger;
+    messenger.subscribe('NetworkController:networkAdded', ({ chainId }) => {
+      this.#ensureNetworkEntry(chainId, false);
+      this.#toggleNetwork(chainId, true);
+    });
 
-    // Subscribe to network state changes
-    this.messagingSystem.subscribe(
-      'NetworkController:networkAdded',
-      (networkAdded: NetworkConfiguration) => {
-        this.#onNetworkAdded(networkAdded);
-      },
-    );
-
-    // Subscribe to network removal events
-    this.messagingSystem.subscribe(
-      'NetworkController:networkRemoved',
-      (networkRemoved: NetworkConfiguration) => {
-        this.#onNetworkRemoved(networkRemoved);
-      },
-    );
+    messenger.subscribe('NetworkController:networkRemoved', ({ chainId }) => {
+      this.#removeNetworkEntry(chainId);
+    });
   }
 
-  /**
-   * Handles network added events.
-   * This method is called when a network is added to the network controller.
-   * The network is automatically enabled when added.
-   *
-   * @param networkAdded - The network added event.
-   */
-  #onNetworkAdded(networkAdded: NetworkConfiguration) {
-    this.#setEnabledNetwork(networkAdded.chainId);
+  // ---------------------------- Public API --------------------------------
+
+  setEnabledNetwork(chainId: Hex | CaipChainId): void {
+    this.#toggleNetwork(chainId, true);
   }
 
-  /**
-   * Handles network removed events.
-   * This method is called when a network is removed from the network controller.
-   * The network is automatically disabled when removed.
-   *
-   * @param networkRemoved - The network removed event.
-   */
-  #onNetworkRemoved(networkRemoved: NetworkConfiguration) {
-    this.#disableNetwork(networkRemoved.chainId);
+  setDisabledNetwork(chainId: Hex | CaipChainId): void {
+    this.#toggleNetwork(chainId, false);
   }
 
-  /**
-   * Sets the enabled network for a chain.
-   *
-   * @param chainId - The chain ID of the network to enable.
-   */
-  #setEnabledNetwork(chainId: Hex | CaipChainId) {
-    if (isHexString(chainId)) {
-      const caipChainId = toEvmCaipChainId(chainId as Hex);
-      const { namespace } = parseCaipChainId(caipChainId);
-
-      this.update((state: NetworkEnablementControllerState) => {
-        state.enabledNetworkMap[namespace][chainId] = true;
-      });
-    } else {
-      const { namespace } = parseCaipChainId(chainId as CaipChainId);
-
-      this.update((state: NetworkEnablementControllerState) => {
-        state.enabledNetworkMap[namespace][chainId] = true;
-      });
+  isNetworkEnabled(chainId: Hex | CaipChainId): boolean {
+    try {
+      const { namespace, storageKey } = this.#deriveKeys(chainId);
+      return Boolean(this.state.enabledNetworkMap[namespace]?.[storageKey]);
+    } catch {
+      return false;
     }
   }
 
-  /**
-   * Disables a network by removing it from the enabled network map.
-   *
-   * @param chainId - The chain ID of the network to disable.
-   */
-  #disableNetwork(chainId: Hex | CaipChainId) {
-    const caipChainId = isHexString(chainId)
+  getEnabledNetworksForNamespace(namespace: CaipNamespace): string[] {
+    return Object.entries(this.state.enabledNetworkMap[namespace] ?? {})
+      .filter(([, enabled]) => enabled)
+      .map(([id]) => id);
+  }
+
+  getAllEnabledNetworks(): Record<CaipNamespace, string[]> {
+    return (
+      Object.keys(this.state.enabledNetworkMap) as CaipNamespace[]
+    ).reduce(
+      (acc, ns) => {
+        acc[ns] = this.getEnabledNetworksForNamespace(ns);
+        return acc;
+      },
+      {} as Record<CaipNamespace, string[]>,
+    );
+  }
+
+  // ---------------------------- Internals ----------------------------------
+
+  #deriveKeys(chainId: Hex | CaipChainId) {
+    const caipId: CaipChainId = isHexString(chainId)
       ? toEvmCaipChainId(chainId as Hex)
       : (chainId as CaipChainId);
-
-    const parsed = parseCaipChainId(caipChainId);
-    const { namespace } = parsed;
-
-    if (!namespace) {
-      return;
+    const { namespace, reference } = parseCaipChainId(caipId);
+    let storageKey: string;
+    if (namespace === (KnownCaipNamespace.Eip155 as string)) {
+      storageKey = isHexString(chainId)
+        ? (chainId as string)
+        : toHex(reference);
+    } else {
+      storageKey = caipId;
     }
+    return { namespace, storageKey, caipId } as const;
+  }
 
-    this.update((state: NetworkEnablementControllerState) => {
-      const networkMap = state.enabledNetworkMap[namespace];
-      if (networkMap) {
-        delete networkMap[caipChainId];
+  #ensureNamespaceBucket(
+    state: NetworkEnablementControllerState,
+    ns: CaipNamespace,
+  ) {
+    if (!state.enabledNetworkMap[ns]) {
+      state.enabledNetworkMap[ns] = {} as Record<string, boolean>;
+    }
+  }
+
+  #ensureNetworkEntry(chainId: Hex | CaipChainId, enable = false): void {
+    const { namespace, storageKey } = this.#deriveKeys(chainId);
+    this.update((s) => {
+      this.#ensureNamespaceBucket(s, namespace);
+      if (!(storageKey in s.enabledNetworkMap[namespace])) {
+        s.enabledNetworkMap[namespace][storageKey] = enable;
       }
     });
   }
 
-  /**
-   * Checks if a network is enabled.
-   *
-   * @param chainId - The chain ID of the network to check.
-   * @returns True if the network is enabled, false otherwise.
-   */
-  isNetworkEnabled(chainId: Hex | CaipChainId): boolean {
-    const caipChainId = isHexString(chainId)
-      ? toEvmCaipChainId(chainId as Hex)
-      : (chainId as CaipChainId);
-
-    const { namespace } = parseCaipChainId(caipChainId);
-
-    if (!namespace) {
-      return false;
-    }
-
-    return this.state.enabledNetworkMap[namespace]?.[caipChainId] === true;
-  }
-
-  /**
-   * Disables a network by removing it from the enabled network map.
-   *
-   * @param chainId - The chain ID of the network to disable.
-   */
-  disableNetwork(chainId: Hex | CaipChainId) {
-    this.#disableNetwork(chainId);
-  }
-
-  /**
-   * Sets the enabled networks in the controller state.
-   * This method updates the enabledNetworkMap to mark specified networks as enabled.
-   * It can handle both a single chain ID or an array of chain IDs.
-   *
-   * @param chainIds - A single CAIP-2 chain ID (e.g. 'eip155:1') or an array of chain IDs
-   * to be enabled. All other networks will be implicitly disabled.
-   */
-  setEnabledNetworks(chainIds: CaipChainId | CaipChainId[]) {
-    const ids = Array.isArray(chainIds) ? chainIds : [chainIds];
-
-    // Create a set of target chain IDs for efficient lookup
-    const targetChainIds = new Set(ids);
-
-    this.update((state: NetworkEnablementControllerState) => {
-      // Iterate through all namespaces and their networks
-      Object.keys(state.enabledNetworkMap).forEach((namespace) => {
-        const networkMap = state.enabledNetworkMap[namespace as CaipNamespace];
-
-        // Check each network in this namespace
-        Object.keys(networkMap).forEach((chainId) => {
-          if (targetChainIds.has(chainId as CaipChainId)) {
-            // Enable if it's in our target list
-            networkMap[chainId] = true;
-          } else {
-            // Disable if it's not in our target list
-            delete networkMap[chainId];
-          }
-        });
-      });
-
-      // Enable any new networks that weren't previously in the map
-      ids.forEach((chainId) => {
-        const { namespace } = parseCaipChainId(chainId);
-        if (namespace) {
-          state.enabledNetworkMap[namespace][chainId] = true;
-        }
-      });
+  #removeNetworkEntry(chainId: Hex | CaipChainId): void {
+    const { namespace, storageKey } = this.#deriveKeys(chainId);
+    this.update((s) => {
+      delete s.enabledNetworkMap[namespace]?.[storageKey];
+      if (Object.keys(s.enabledNetworkMap[namespace] ?? {}).length === 0) {
+        delete s.enabledNetworkMap[namespace];
+      }
+      this.#ensureAtLeastOneEnabled(s);
     });
   }
 
-  /**
-   * Gets all enabled networks for a specific namespace.
-   *
-   * @param namespace - The namespace to get enabled networks for.
-   * @returns Array of enabled network IDs for the namespace.
-   */
-  getEnabledNetworksForNamespace(namespace: CaipNamespace): string[] {
-    const enabledNetworks = this.state.enabledNetworkMap[namespace];
-    if (!enabledNetworks) {
-      return [];
-    }
-    return Object.keys(enabledNetworks).filter(
-      (networkId) => enabledNetworks[networkId],
+  #ensureAtLeastOneEnabled(state: NetworkEnablementControllerState) {
+    const anyEnabled = Object.values(state.enabledNetworkMap).some((map) =>
+      Object.values(map).some(Boolean),
     );
+    if (!anyEnabled) {
+      this.#ensureNamespaceBucket(state, KnownCaipNamespace.Eip155);
+      state.enabledNetworkMap[KnownCaipNamespace.Eip155][
+        ChainId[BuiltInNetworkName.Mainnet]
+      ] = true;
+    }
   }
 
-  /**
-   * Gets all enabled networks across all namespaces.
-   *
-   * @returns Object mapping namespaces to arrays of enabled network IDs.
-   */
-  getAllEnabledNetworks(): Record<CaipNamespace, string[]> {
-    const result: Record<CaipNamespace, string[]> = {} as Record<
-      CaipNamespace,
-      string[]
-    >;
-
-    Object.keys(this.state.enabledNetworkMap).forEach((namespace) => {
-      result[namespace as CaipNamespace] = this.getEnabledNetworksForNamespace(
-        namespace as CaipNamespace,
+  #isKnownNetwork(caipId: CaipChainId): boolean {
+    const { namespace, reference } = parseCaipChainId(caipId);
+    if (namespace === KnownCaipNamespace.Eip155) {
+      const { networkConfigurationsByChainId } = this.messagingSystem.call(
+        'NetworkController:getState',
       );
-    });
+      return Boolean(networkConfigurationsByChainId[toHex(reference)]);
+    }
+    if (namespace === KnownCaipNamespace.Solana) {
+      const { multichainNetworkConfigurationsByChainId } =
+        this.messagingSystem.call('MultichainNetworkController:getState');
+      return Boolean(multichainNetworkConfigurationsByChainId[caipId]);
+    }
+    return false;
+  }
 
-    return result;
+  #isPopularNetwork(caipId: CaipChainId | string): boolean {
+    if (isHexString(caipId)) {
+      return POPULATE_NETWORKS.includes(caipId as Hex);
+    }
+    const { namespace, reference } = parseCaipChainId(caipId);
+    if (namespace === (KnownCaipNamespace.Eip155 as string)) {
+      return POPULATE_NETWORKS.includes(toHex(reference));
+    }
+    return false;
+  }
+
+  #toggleNetwork(chainId: Hex | CaipChainId, enable: boolean): void {
+    try {
+      const { namespace, storageKey, caipId } = this.#deriveKeys(chainId);
+
+      // Ignore unknown networks
+      if (!this.#isKnownNetwork(caipId)) {
+        return;
+      }
+
+      // Don’t disable the last remaining enabled network
+      if (
+        !enable &&
+        Object.values(this.getAllEnabledNetworks()).flat().length <= 1
+      ) {
+        return;
+      }
+
+      this.update((s) => {
+        // Ensure entry exists first
+        this.#ensureNetworkEntry(chainId);
+
+        // If enabling a non-popular network, disable all others
+        if (enable && !this.#isPopularNetwork(caipId)) {
+          Object.values(s.enabledNetworkMap).forEach((map) => {
+            Object.keys(map).forEach((key) => {
+              map[key] = false;
+            });
+          });
+        }
+
+        // disable all non popular networks when enabling a non popular network
+        Object.values(s.enabledNetworkMap).forEach((map) => {
+          Object.keys(map).forEach((key) => {
+            if (!this.#isPopularNetwork(key)) {
+              map[key] = false;
+            }
+          });
+        });
+
+        s.enabledNetworkMap[namespace][storageKey] = enable;
+        this.#ensureAtLeastOneEnabled(s);
+      });
+    } catch (err) {
+      console.debug('[NetworkEnablement] toggle failed:', err);
+    }
   }
 }
