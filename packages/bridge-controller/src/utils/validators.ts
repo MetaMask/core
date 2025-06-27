@@ -42,7 +42,7 @@ const HexStringSchema = define<string>('HexString', (v: unknown) =>
 export const truthyString = (s: string) => Boolean(s?.length);
 const TruthyDigitStringSchema = pattern(string(), /^\d+$/u);
 
-const ChainIdSchema = union([number(), TruthyDigitStringSchema]);
+const ChainIdSchema = number();
 
 export const BridgeAssetSchema = type({
   /**
