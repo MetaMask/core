@@ -3,6 +3,7 @@ import { enablePatches, produceWithPatches, applyPatches, freeze } from 'immer';
 import type { Draft, Patch } from 'immer';
 
 import type { ActionConstraint, EventConstraint } from './Messenger';
+import { registerMethodActionHandlers } from './Messenger';
 import type {
   RestrictedMessenger,
   RestrictedMessengerConstraint,
@@ -312,6 +313,32 @@ export class BaseController<
    */
   protected destroy() {
     this.messagingSystem.clearEventSubscriptions(`${this.name}:stateChange`);
+  }
+
+  /**
+   * Registers action handlers for a list of methods on this controller.
+   *
+   * This is a convenience method that automatically provides the controller instance
+   * and messaging system to the registerMethodActionHandlers function.
+   *
+   * @param methodNames - The names of the methods to register as action handlers
+   * @param excludedMethods - Optional list of method names to exclude from registration
+   * @param exceptions - Optional map of method names to custom handlers
+   */
+  protected registerActionHandlers<MethodNames extends keyof this & string>(
+    methodNames: readonly MethodNames[],
+    excludedMethods: readonly string[] = ['constructor', 'messagingSystem'],
+    exceptions: Partial<
+      Record<MethodNames, (...args: unknown[]) => unknown>
+    > = {},
+  ): void {
+    registerMethodActionHandlers(
+      this,
+      this.messagingSystem,
+      methodNames,
+      excludedMethods,
+      exceptions,
+    );
   }
 }
 
