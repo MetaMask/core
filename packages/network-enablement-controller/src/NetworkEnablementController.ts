@@ -23,62 +23,87 @@ import {
 
 import { POPULATE_NETWORKS } from './constant';
 
-const NAME = 'NetworkEnablementController' as const;
+// Unique name for the controller
+const controllerName = 'NetworkEnablementController';
+
+/**
+ * Information about an ordered network.
+ */
+export type NetworksInfo = {
+  networkId: CaipChainId; // The network's chain id
+};
 
 type EnabledMap = Record<CaipNamespace, Record<string, boolean>>;
 
-// ---------------------------------------------------------------------------
-// State & Actions
-// ---------------------------------------------------------------------------
-
+// State shape for NetworkEnablementController
 export type NetworkEnablementControllerState = {
   enabledNetworkMap: EnabledMap;
 };
 
 export type NetworkEnablementControllerGetStateAction =
-  ControllerGetStateAction<typeof NAME, NetworkEnablementControllerState>;
+  ControllerGetStateAction<
+    typeof controllerName,
+    NetworkEnablementControllerState
+  >;
 
-export type NetworkEnablementControllerActions =
-  | NetworkEnablementControllerGetStateAction
-  | {
-      type: `${typeof NAME}:setEnabledNetworks`;
-      handler: NetworkEnablementController['setEnabledNetwork'];
-    }
-  | {
-      type: `${typeof NAME}:disableNetwork`;
-      handler: NetworkEnablementController['setDisabledNetwork'];
-    }
-  | {
-      type: `${typeof NAME}:isNetworkEnabled`;
-      handler: NetworkEnablementController['isNetworkEnabled'];
-    };
+export type NetworkEnablementControllerSetEnabledNetworksAction = {
+  type: `${typeof controllerName}:setEnabledNetworks`;
+  handler: NetworkEnablementController['setEnabledNetwork'];
+};
 
-export type NetworkEnablementControllerEvents = ControllerStateChangeEvent<
-  typeof NAME,
-  NetworkEnablementControllerState
->;
+export type NetworkEnablementControllerDisableNetworkAction = {
+  type: `${typeof controllerName}:disableNetwork`;
+  handler: NetworkEnablementController['setDisabledNetwork'];
+};
 
-type InternalActions =
+export type NetworkEnablementControllerIsNetworkEnabledAction = {
+  type: `${typeof controllerName}:isNetworkEnabled`;
+  handler: NetworkEnablementController['isNetworkEnabled'];
+};
+
+/**
+ * All actions that {@link NetworkEnablementController} calls internally.
+ */
+type AllowedActions =
   | NetworkControllerGetStateAction
   | MultichainNetworkControllerGetStateAction;
 
-type InternalEvents =
+export type NetworkEnablementControllerActions =
+  | NetworkEnablementControllerGetStateAction
+  | NetworkEnablementControllerSetEnabledNetworksAction
+  | NetworkEnablementControllerDisableNetworkAction
+  | NetworkEnablementControllerIsNetworkEnabledAction;
+
+export type NetworkEnablementControllerStateChangeEvent =
+  ControllerStateChangeEvent<
+    typeof controllerName,
+    NetworkEnablementControllerState
+  >;
+
+export type NetworkEnablementControllerEvents =
+  NetworkEnablementControllerStateChangeEvent;
+
+/**
+ * All events that {@link NetworkEnablementController} subscribes to internally.
+ */
+export type AllowedEvents =
   | NetworkControllerNetworkAddedEvent
   | NetworkControllerNetworkRemovedEvent
   | NetworkControllerStateChangeEvent;
 
 export type NetworkEnablementControllerMessenger = RestrictedMessenger<
-  typeof NAME,
-  NetworkEnablementControllerActions | InternalActions,
-  NetworkEnablementControllerEvents | InternalEvents,
-  InternalActions['type'],
-  InternalEvents['type']
+  typeof controllerName,
+  NetworkEnablementControllerActions | AllowedActions,
+  NetworkEnablementControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
 >;
 
-// ---------------------------------------------------------------------------
-// Defaults & helpers
-// ---------------------------------------------------------------------------
-
+/**
+ * Gets the default state for the NetworkEnablementController.
+ *
+ * @returns The default state with pre-enabled networks.
+ */
 const defaultState = (): NetworkEnablementControllerState => ({
   enabledNetworkMap: {
     [KnownCaipNamespace.Eip155]: {
@@ -92,8 +117,12 @@ const defaultState = (): NetworkEnablementControllerState => ({
   } as EnabledMap,
 });
 
+// Metadata for the controller state
 const metadata = {
-  enabledNetworkMap: { persist: true, anonymous: true },
+  enabledNetworkMap: {
+    persist: true,
+    anonymous: true,
+  },
 };
 
 const mergeEnabledMaps = (
@@ -109,15 +138,18 @@ const mergeEnabledMaps = (
   }, {} as EnabledMap);
 };
 
-// ---------------------------------------------------------------------------
-// Controller
-// ---------------------------------------------------------------------------
-
 export class NetworkEnablementController extends BaseController<
-  typeof NAME,
+  typeof controllerName,
   NetworkEnablementControllerState,
   NetworkEnablementControllerMessenger
 > {
+  /**
+   * Creates a NetworkEnablementController instance.
+   *
+   * @param args - The arguments to this function.
+   * @param args.messenger - Messenger used to communicate with BaseV2 controller.
+   * @param args.state - Initial state to set on this controller.
+   */
   constructor({
     messenger,
     state,
@@ -125,10 +157,11 @@ export class NetworkEnablementController extends BaseController<
     messenger: NetworkEnablementControllerMessenger;
     state?: Partial<NetworkEnablementControllerState>;
   }) {
+    // Call the constructor of BaseControllerV2
     super({
       messenger,
       metadata,
-      name: NAME,
+      name: controllerName,
       state: {
         enabledNetworkMap: mergeEnabledMaps(
           defaultState().enabledNetworkMap,
@@ -136,6 +169,8 @@ export class NetworkEnablementController extends BaseController<
         ),
       },
     });
+
+    this.messagingSystem = messenger;
 
     messenger.subscribe('NetworkController:networkAdded', ({ chainId }) => {
       this.#ensureNetworkEntry(chainId, false);
@@ -146,8 +181,6 @@ export class NetworkEnablementController extends BaseController<
       this.#removeNetworkEntry(chainId);
     });
   }
-
-  // ---------------------------- Public API --------------------------------
 
   setEnabledNetwork(chainId: Hex | CaipChainId): void {
     this.#toggleNetwork(chainId, true);
