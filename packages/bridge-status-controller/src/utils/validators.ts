@@ -12,7 +12,7 @@ import {
   StructError,
 } from '@metamask/superstruct';
 
-const ChainIdSchema = union([number(), string()]);
+const ChainIdSchema = number();
 
 const EmptyObjectSchema = object({});
 

@@ -2,7 +2,7 @@ import type { BigNumber } from '@ethersproject/bignumber';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import type { StateMetadata } from '@metamask/base-controller';
-import type { ChainId, TraceCallback } from '@metamask/controller-utils';
+import type { TraceCallback } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
@@ -584,7 +584,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     const l1GasFeePromises = Promise.allSettled(
       quotes.map(async (quoteResponse) => {
         const { quote, trade, approval } = quoteResponse;
-        const chainId = numberToHex(Number(quote.srcChainId)) as ChainId;
+        const chainId = numberToHex(quote.srcChainId);
 
         const getTxParams = (txData: TxData) => ({
           from: txData.from,
