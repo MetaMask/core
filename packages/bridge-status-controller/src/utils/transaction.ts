@@ -27,8 +27,8 @@ export const getStatusRequestParams = (
   return {
     bridgeId: quoteResponse.quote.bridgeId,
     bridge: quoteResponse.quote.bridges[0],
-    srcChainId: Number(quoteResponse.quote.srcChainId),
-    destChainId: Number(quoteResponse.quote.destChainId),
+    srcChainId: quoteResponse.quote.srcChainId,
+    destChainId: quoteResponse.quote.destChainId,
     quote: quoteResponse.quote,
     refuel: Boolean(quoteResponse.quote.refuel),
   };
