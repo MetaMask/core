@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Consolidate validator and type definitions for `StatusResponse` so new response fields only need to be defined once ([#6030](https://github.com/MetaMask/core/pull/6030))
+
+### Removed
+
+- Clean up unused exports that duplicate @metamask/bridge-controller's ([#6030](https://github.com/MetaMask/core/pull/6030))
+  - Asset
+  - SrcChainStatus
+  - DestChainStatus
+  - RefuelData
+  - FeeType
+  - ActionTypes
+
+### Fixed
+
+- Set event property `gas_included` to quote's `gasIncluded` value ([#6030](https://github.com/MetaMask/core/pull/6030))
+
 ## [32.0.0]
 
 ### Changed

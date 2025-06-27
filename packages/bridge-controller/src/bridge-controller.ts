@@ -584,7 +584,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     const l1GasFeePromises = Promise.allSettled(
       quotes.map(async (quoteResponse) => {
         const { quote, trade, approval } = quoteResponse;
-        const chainId = numberToHex(quote.srcChainId) as ChainId;
+        const chainId = numberToHex(Number(quote.srcChainId)) as ChainId;
 
         const getTxParams = (txData: TxData) => ({
           from: txData.from,
