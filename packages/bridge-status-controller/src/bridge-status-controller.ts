@@ -32,7 +32,6 @@ import {
   type TransactionMeta,
 } from '@metamask/transaction-controller';
 import type { UserOperationController } from '@metamask/user-operation-controller';
-import type { SignedTransaction } from '@metamask/utils';
 import { numberToHex, type Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
@@ -67,9 +66,7 @@ import {
   getEVMTxPropertiesFromTransactionMeta,
   getTxStatusesFromHistory,
 } from './utils/metrics';
-import type { SubmitSignedTransactionsFn } from './utils/transaction';
 import {
-  createUnsignedTransactionsWithFees,
   getClientRequest,
   getKeyringRequest,
   getStatusRequestParams,
@@ -118,10 +115,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
   readonly #trace: TraceCallback;
 
-  readonly #submitSignedTransactionsFn: SubmitSignedTransactionsFn;
-
-  readonly #approveTransactionsWithSameNonceFn: typeof TransactionController.prototype.approveTransactionsWithSameNonce;
-
   constructor({
     messenger,
     state,
@@ -132,8 +125,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     estimateGasFeeFn,
     config,
     traceFn,
-    submitSignedTransactions,
-    approveTransactionsWithSameNonce,
   }: {
     messenger: BridgeStatusControllerMessenger;
     state?: Partial<BridgeStatusControllerState>;
@@ -142,8 +133,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     addTransactionFn: typeof TransactionController.prototype.addTransaction;
     estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee;
     addUserOperationFromTransactionFn?: typeof UserOperationController.prototype.addUserOperationFromTransaction;
-    submitSignedTransactions: SubmitSignedTransactionsFn;
-    approveTransactionsWithSameNonce: typeof TransactionController.prototype.approveTransactionsWithSameNonce;
     config?: {
       customBridgeApiBaseUrl?: string;
     };
@@ -165,8 +154,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     this.#addTransactionFn = addTransactionFn;
     this.#addUserOperationFromTransactionFn = addUserOperationFromTransactionFn;
     this.#estimateGasFeeFn = estimateGasFeeFn;
-    this.#submitSignedTransactionsFn = submitSignedTransactions;
-    this.#approveTransactionsWithSameNonceFn = approveTransactionsWithSameNonce;
     this.#config = {
       customBridgeApiBaseUrl:
         config?.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
@@ -654,77 +641,28 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   readonly #handleEvmSmartTransaction = async ({
-    approval,
     isBridgeTx,
     trade,
     quoteResponse,
     approvalTxId,
     requireApproval = false,
   }: {
-    approval: TxData;
     isBridgeTx: boolean;
     trade: TxData;
-    quoteResponse: QuoteResponse & QuoteMetadata;
+    quoteResponse: Omit<QuoteResponse, 'approval' | 'trade'> & QuoteMetadata;
     approvalTxId?: string;
     requireApproval?: boolean;
   }) => {
-    // TODO requireApproval param needs to be set
-    const { chainId, gasLimit, ...tradeWithoutChainId } = trade;
-    const approvalTx = {
-      ...approval,
-      chainId: numberToHex(chainId),
-      gas: gasLimit ? toHex(gasLimit) : '0x0',
-      from: trade.from ?? '',
-      gasLimit: gasLimit ? toHex(gasLimit) : '0x0',
+    return await this.#handleEvmTransaction({
+      transactionType: isBridgeTx
+        ? TransactionType.bridge
+        : TransactionType.swap,
+      trade,
+      quoteResponse,
+      approvalTxId,
+      shouldWaitForHash: false, // Set to false to indicate we don't want to wait for hash
       requireApproval,
-    };
-    const unsignedTransactions = createUnsignedTransactionsWithFees(
-      [
-        approvalTx,
-        {
-          ...tradeWithoutChainId,
-          chainId: numberToHex(chainId),
-          gas: gasLimit ? toHex(gasLimit) : '0x0',
-          from: trade.from ?? '',
-        },
-      ],
-      {
-        maxFeePerGas: quoteResponse.quote.feeData.txFee?.maxFeePerGas ?? '0x0',
-        maxPriorityFeePerGas:
-          quoteResponse.quote.feeData.txFee?.maxPriorityFeePerGas ?? '0x0',
-        gas: gasLimit?.toString() ?? '0x0',
-        value: quoteResponse.trade?.value ?? '0x0',
-      },
-    );
-    console.error('====unsignedTransactions', unsignedTransactions);
-    const signedTransactions = (await this.#approveTransactionsWithSameNonceFn(
-      unsignedTransactions,
-    )) as never;
-    console.error('====signedTransactions', signedTransactions);
-    const networkClientId = this.messagingSystem.call(
-      'NetworkController:findNetworkClientIdByChainId',
-      numberToHex(chainId),
-    );
-    return await this.#submitSignedTransactionsFn({
-      signedTransactions: signedTransactions as never,
-      txParams: {
-        ...trade,
-        chainId: numberToHex(chainId),
-        gasLimit: trade.gasLimit?.toString(),
-        gas: trade.gasLimit?.toString(),
-      },
-      networkClientId,
     });
-    // return await this.#handleEvmTransaction({
-    //   transactionType: isBridgeTx
-    //     ? TransactionType.bridge
-    //     : TransactionType.swap,
-    //   trade,
-    //   quoteResponse,
-    //   approvalTxId,
-    //   shouldWaitForHash: false, // Set to false to indicate we don't want to wait for hash
-    //   requireApproval,
-    // });
   };
 
   /**
@@ -971,81 +909,44 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         this.#clientId === BridgeClientId.MOBILE &&
         isHardwareWallet(this.#getMultichainSelectedAccount());
 
-      if (isStxEnabledOnClient && typeof quoteResponse.trade !== 'string') {
-        // Handle smart transactions if enabled
-        const stxMeta = await this.#trace(
-          {
-            name: isBridgeTx
-              ? TraceName.BridgeTransactionCompleted
-              : TraceName.SwapTransactionCompleted,
-            data: {
-              srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
-              stxEnabled: true,
-            },
+      // Set approval time and id if an approval tx is needed
+      const approvalTxMeta = await this.#handleApprovalTx(
+        isBridgeTx,
+        quoteResponse,
+        requireApproval,
+      );
+      approvalTime = approvalTxMeta?.time;
+      approvalTxId = approvalTxMeta?.id;
+      // Handle smart transactions if enabled
+      txMeta = await this.#trace(
+        {
+          name: isBridgeTx
+            ? TraceName.BridgeTransactionCompleted
+            : TraceName.SwapTransactionCompleted,
+          data: {
+            srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
+            stxEnabled: isStxEnabledOnClient,
           },
-          async () => {
-            // Set approval time and id if an approval tx is needed
-            // const approvalTxMeta = await this.#handleApprovalTx(
-            //   isBridgeTx,
-            //   quoteResponse,
-            //   requireApproval,
-            // );
-            // const approvalTxMeta = await this.#handleEvmSmartTransaction({
-            //   isBridgeTx,
-            //   trade: quoteResponse.approval as TxData,
-            //   quoteResponse: quoteResponse as never,
-            //   requireApproval,
-            //   approvalTxId: undefined,
-            // });
-            // console.error('====approvalTxMeta', approvalTxMeta);
-            const tradeMeta = await this.#handleEvmSmartTransaction({
-              approval: quoteResponse.approval as TxData,
-              isBridgeTx,
-              trade: quoteResponse.trade as TxData,
-              quoteResponse: quoteResponse as never,
-              // approvalTxId: approvalTxMeta?.txHash ?? '',
-              requireApproval,
-            });
-            console.error('====tradeMeta', tradeMeta);
-            return { tradeMeta };
-          },
-        );
-        const { tradeMeta } = stxMeta;
-        // approvalTime = approvalTxMeta?.time;
-        // approvalTxId = approvalTxMeta?.id;
-        txMeta = { ...tradeMeta } as never;
-      } else {
-        // Set approval time and id if an approval tx is needed
-        const approvalTxMeta = await this.#handleApprovalTx(
-          isBridgeTx,
-          quoteResponse,
-          requireApproval,
-        );
-        approvalTime = approvalTxMeta?.time;
-        approvalTxId = approvalTxMeta?.id;
-        // Handle smart transactions if enabled
-        txMeta = await this.#trace(
-          {
-            name: isBridgeTx
-              ? TraceName.BridgeTransactionCompleted
-              : TraceName.SwapTransactionCompleted,
-            data: {
-              srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
-              stxEnabled: false,
-            },
-          },
-          async () =>
-            await this.#handleEvmTransaction({
-              transactionType: isBridgeTx
-                ? TransactionType.bridge
-                : TransactionType.swap,
-              trade: quoteResponse.trade as TxData,
-              quoteResponse,
-              approvalTxId,
-              requireApproval,
-            }),
-        );
-      }
+        },
+        async () =>
+          isStxEnabledOnClient
+            ? await this.#handleEvmSmartTransaction({
+                isBridgeTx,
+                trade: quoteResponse.trade as TxData,
+                quoteResponse,
+                approvalTxId,
+                requireApproval,
+              })
+            : await this.#handleEvmTransaction({
+                transactionType: isBridgeTx
+                  ? TransactionType.bridge
+                  : TransactionType.swap,
+                trade: quoteResponse.trade as TxData,
+                quoteResponse,
+                approvalTxId,
+                requireApproval,
+              }),
+      );
     }
 
     try {
