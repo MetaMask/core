@@ -8,7 +8,6 @@ import type {
   ControllerStateChangeEvent,
   ControllerGetStateAction,
   RestrictedMessenger,
-  ExtractActions,
 } from '@metamask/base-controller';
 import {
   query,
@@ -18,7 +17,8 @@ import {
 import EthQuery from '@metamask/eth-query';
 import type {
   NetworkClientId,
-  NetworkControllerActions,
+  NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { PreferencesControllerGetStateAction } from '@metamask/preferences-controller';
@@ -87,10 +87,8 @@ export type AllowedActions =
   | AccountsControllerListAccountsAction
   | PreferencesControllerGetStateAction
   | AccountsControllerGetSelectedAccountAction
-  | ExtractActions<
-      NetworkControllerActions,
-      'NetworkController:getNetworkClientById' | 'NetworkController:getState'
-    >;
+  | NetworkControllerGetStateAction
+  | NetworkControllerGetNetworkClientByIdAction;
 
 /**
  * The event that {@link AccountTrackerController} can emit.
