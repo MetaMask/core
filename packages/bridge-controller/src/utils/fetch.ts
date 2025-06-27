@@ -87,6 +87,7 @@ export async function fetchBridgeQuotes(
     srcTokenAmount: request.srcTokenAmount,
     insufficientBal: Boolean(request.insufficientBal),
     resetApproval: Boolean(request.resetApproval),
+    gasIncluded: Boolean(request.gasIncluded),
   };
   if (request.slippage !== undefined) {
     normalizedRequest.slippage = request.slippage;
