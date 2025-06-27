@@ -22,6 +22,14 @@ export type {
   NetworkControllerEvents,
   NetworkControllerGetStateAction,
   NetworkControllerGetEthQueryAction,
+  NetworkControllerActions,
+  NetworkControllerMessenger,
+  NetworkControllerOptions,
+  NetworkControllerRpcEndpointUnavailableEvent,
+  NetworkControllerRpcEndpointDegradedEvent,
+  NetworkControllerRpcEndpointRequestRetriedEvent,
+} from './NetworkController';
+export type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetSelectedNetworkClientAction,
   NetworkControllerGetSelectedChainIdAction,
@@ -33,13 +41,7 @@ export type {
   NetworkControllerRemoveNetworkAction,
   NetworkControllerUpdateNetworkAction,
   NetworkControllerGetNetworkConfigurationByNetworkClientId,
-  NetworkControllerActions,
-  NetworkControllerMessenger,
-  NetworkControllerOptions,
-  NetworkControllerRpcEndpointUnavailableEvent,
-  NetworkControllerRpcEndpointDegradedEvent,
-  NetworkControllerRpcEndpointRequestRetriedEvent,
-} from './NetworkController';
+} from './network-controller-method-action-types';
 export {
   getDefaultNetworkControllerState,
   selectAvailableNetworkClientIds,
