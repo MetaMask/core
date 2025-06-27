@@ -251,7 +251,7 @@ export function getDefaultPreferencesState(): PreferencesState {
     },
     privacyMode: false,
     dismissSmartAccountSuggestionEnabled: false,
-    smartAccountOptIn: false,
+    smartAccountOptIn: true,
     smartAccountOptInForAccounts: [],
   };
 }
