@@ -86,7 +86,7 @@ export type NetworkEnablementControllerEvents =
 /**
  * All events that {@link NetworkEnablementController} subscribes to internally.
  */
-export type AllowedEvents =
+type AllowedEvents =
   | NetworkControllerNetworkAddedEvent
   | NetworkControllerNetworkRemovedEvent
   | NetworkControllerStateChangeEvent;
