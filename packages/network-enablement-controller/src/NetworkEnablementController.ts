@@ -87,7 +87,7 @@ const defaultState = (): NetworkEnablementControllerState => ({
       [ChainId[BuiltInNetworkName.BaseMainnet]]: true,
     },
     [KnownCaipNamespace.Solana]: {
-      [SolScope.Mainnet]: true,
+      [SolScope.Mainnet]: false,
     },
   } as EnabledMap,
 });
@@ -238,7 +238,7 @@ export class NetworkEnablementController extends BaseController<
     );
     if (!anyEnabled) {
       this.#ensureNamespaceBucket(state, KnownCaipNamespace.Eip155);
-      state.enabledNetworkMap[KnownCaipNamespace.Eip155][
+      state.enabledNetworkMap[KnownCaipNamespace.Eip155 as string][
         ChainId[BuiltInNetworkName.Mainnet]
       ] = true;
     }
@@ -246,13 +246,13 @@ export class NetworkEnablementController extends BaseController<
 
   #isKnownNetwork(caipId: CaipChainId): boolean {
     const { namespace, reference } = parseCaipChainId(caipId);
-    if (namespace === KnownCaipNamespace.Eip155) {
+    if (namespace === (KnownCaipNamespace.Eip155 as string)) {
       const { networkConfigurationsByChainId } = this.messagingSystem.call(
         'NetworkController:getState',
       );
       return Boolean(networkConfigurationsByChainId[toHex(reference)]);
     }
-    if (namespace === KnownCaipNamespace.Solana) {
+    if (namespace === (KnownCaipNamespace.Solana as string)) {
       const { multichainNetworkConfigurationsByChainId } =
         this.messagingSystem.call('MultichainNetworkController:getState');
       return Boolean(multichainNetworkConfigurationsByChainId[caipId]);
@@ -314,7 +314,7 @@ export class NetworkEnablementController extends BaseController<
         this.#ensureAtLeastOneEnabled(s);
       });
     } catch (err) {
-      console.debug('[NetworkEnablement] toggle failed:', err);
+      console.error('[NetworkEnablement] toggle failed:', err);
     }
   }
 }

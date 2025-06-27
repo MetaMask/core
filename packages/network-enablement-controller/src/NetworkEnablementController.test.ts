@@ -1,5 +1,5 @@
-import { SolScope } from '@metamask/keyring-api';
 import { BuiltInNetworkName, ChainId } from '@metamask/controller-utils';
+import { SolScope } from '@metamask/keyring-api';
 import { KnownCaipNamespace } from '@metamask/utils';
 
 import { NetworkEnablementController } from './NetworkEnablementController';
@@ -76,7 +76,7 @@ describe('NetworkEnablementController', () => {
           [ChainId[BuiltInNetworkName.BaseMainnet]]: true,
         },
         [KnownCaipNamespace.Solana]: {
-          [SolScope.Mainnet]: true,
+          [SolScope.Mainnet]: false,
         },
       },
     });
@@ -93,11 +93,7 @@ describe('NetworkEnablementController', () => {
       messenger: messenger as NetworkEnablementControllerMessenger,
       state: customState,
     });
-    console.log(
-      getControllerState(controller).enabledNetworkMap[
-        KnownCaipNamespace.Eip155
-      ],
-    );
+
     expect(
       getControllerState(controller).enabledNetworkMap[
         KnownCaipNamespace.Eip155
@@ -200,12 +196,9 @@ describe('NetworkEnablementController', () => {
       });
 
       // Mock unknown network
-      (messenger.call as jest.Mock).mockImplementation((action: string) => {
-        if (action === 'NetworkController:getState') {
-          return { networkConfigurationsByChainId: {} };
-        }
-        return {};
-      });
+      (messenger.call as jest.Mock).mockImplementation(() => ({
+        networkConfigurationsByChainId: {},
+      }));
 
       expect(() => controller.setEnabledNetwork('0x999')).not.toThrow();
       expect(
@@ -257,11 +250,6 @@ describe('NetworkEnablementController', () => {
       // First enable a network
       controller.setEnabledNetwork('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp');
 
-      console.log(
-        'getControllerState(controller).enabledNetworkMap 111111 ***********',
-        getControllerState(controller).enabledNetworkMap,
-      );
-
       expect(
         getControllerState(controller).enabledNetworkMap[
           KnownCaipNamespace.Solana
@@ -269,11 +257,6 @@ describe('NetworkEnablementController', () => {
       ).toBe(true);
 
       controller.setEnabledNetwork('0x1');
-
-      console.log(
-        'getControllerState(controller).enabledNetworkMap 222222 ***********',
-        getControllerState(controller).enabledNetworkMap,
-      );
 
       expect(
         getControllerState(controller).enabledNetworkMap[
@@ -369,7 +352,7 @@ describe('NetworkEnablementController', () => {
       expect(controller.isNetworkEnabled('0x1')).toBe(true);
       expect(
         controller.isNetworkEnabled('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
-      ).toBe(true);
+      ).toBe(false);
     });
   });
 
@@ -473,8 +456,6 @@ describe('NetworkEnablementController', () => {
 
       const allEnabledNetworks = controller.getAllEnabledNetworks();
 
-      console.log('allEnabledNetworks ***********', allEnabledNetworks);
-
       expect(allEnabledNetworks[KnownCaipNamespace.Eip155]).toStrictEqual([
         '0x2105',
       ]);
@@ -488,11 +469,6 @@ describe('NetworkEnablementController', () => {
         messenger: messenger as NetworkEnablementControllerMessenger,
       });
 
-      console.log(
-        'getControllerState(controller).enabledNetworkMap 1111 ***********',
-        getControllerState(controller).enabledNetworkMap,
-      );
-
       // Get the subscription callback
       const subscribeCall = (messenger.subscribe as jest.Mock).mock.calls.find(
         (call) => call[0] === 'NetworkController:networkAdded',
@@ -501,11 +477,6 @@ describe('NetworkEnablementController', () => {
 
       // Simulate network added event
       networkAddedCallback({ chainId: '0x2a' });
-
-      console.log(
-        'getControllerState(controller).enabledNetworkMap ***********',
-        getControllerState(controller).enabledNetworkMap,
-      );
 
       // Should ensure entry exists and enable it
       expect(
@@ -536,18 +507,8 @@ describe('NetworkEnablementController', () => {
 
       controller.setEnabledNetwork('0x2105');
 
-      console.log(
-        'getControllerState(controller).enabledNetworkMap 2222 ***********',
-        getControllerState(controller).enabledNetworkMap,
-      );
-
       // Simulate network removed event
       networkRemovedCallback({ chainId: '0x2105' });
-
-      console.log(
-        'getControllerState(controller).enabledNetworkMap 333 ***********',
-        getControllerState(controller).enabledNetworkMap,
-      );
 
       // Should remove the entry entirely
       expect(
@@ -586,17 +547,14 @@ describe('NetworkEnablementController', () => {
     });
 
     it('should handle unknown networks in event callbacks', () => {
-      const controller = new NetworkEnablementController({
+      new NetworkEnablementController({
         messenger: messenger as NetworkEnablementControllerMessenger,
       });
 
       // Mock unknown network
-      (messenger.call as jest.Mock).mockImplementation((action: string) => {
-        if (action === 'NetworkController:getState') {
-          return { networkConfigurationsByChainId: {} };
-        }
-        return {};
-      });
+      (messenger.call as jest.Mock).mockImplementation(() => ({
+        networkConfigurationsByChainId: {},
+      }));
 
       // Get the subscription callback
       const subscribeCall = (messenger.subscribe as jest.Mock).mock.calls.find(
@@ -769,11 +727,6 @@ describe('NetworkEnablementController', () => {
       controller.setDisabledNetwork('0xe708');
       controller.setDisabledNetwork('0x2105');
       controller.setDisabledNetwork('0x1');
-
-      console.log(
-        'getControllerState(controller).enabledNetworkMap 4444 ***********',
-        getControllerState(controller).enabledNetworkMap,
-      );
 
       // Should enable Ethereum mainnet as failsafe
       expect(
