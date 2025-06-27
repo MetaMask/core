@@ -42,7 +42,7 @@
   "metamask/signature-controller": "team-confirmations",
   "metamask/transaction-controller": "team-confirmations",
   "metamask/user-operation-controller": "team-confirmations",
-  "metamask/multichain-transactions-controller": "team-solana,team-accounts",
+  "metamask/multichain-transactions-controller": "team-new-networks,team-accounts",
   "metamask/token-search-discovery-controller": "team-portfolio",
   "metamask/earn-controller": "team-earn",
   "metamask/error-reporting-service": "team-wallet-framework",
