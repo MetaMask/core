@@ -7,10 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0]
+
 ### Changed
 
+- This package is now considered stable ([#6013](https://github.com/MetaMask/core/pull/6013))
+- Bump `@metamask/multichain-transactions-controller` to `^2.0.0` ([#5888](https://github.com/MetaMask/core/pull/5888))
 - Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
 - Bump `@metamask/network-controller` to `^23.6.0` ([#5935](https://github.com/MetaMask/core/pull/5935), [#5882](https://github.com/MetaMask/core/pull/5882))
+- Bump `@metamask/chain-agnostic-permission` to `^1.0.0` ([#6013](https://github.com/MetaMask/core/pull/6013), [#5982](https://github.com/MetaMask/core/pull/5982), [#6004](https://github.com/MetaMask/core/pull/6004))
+- Bump `@metamask/network-controller` to `^24.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
 
 ## [0.4.0]
 
@@ -60,7 +66,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@0.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@0.4.0...@metamask/multichain-api-middleware@1.0.0
 [0.4.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@0.3.0...@metamask/multichain-api-middleware@0.4.0
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@0.2.0...@metamask/multichain-api-middleware@0.3.0
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@0.1.1...@metamask/multichain-api-middleware@0.2.0

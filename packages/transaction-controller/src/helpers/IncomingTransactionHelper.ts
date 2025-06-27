@@ -10,10 +10,19 @@ import type { RemoteTransactionSource, TransactionMeta } from '../types';
 import { getIncomingTransactionsPollingInterval } from '../utils/feature-flags';
 
 export type IncomingTransactionOptions = {
+  /** Name of the client to include in requests. */
   client?: string;
+
+  /** Whether to retrieve incoming token transfers. Defaults to false. */
   includeTokenTransfers?: boolean;
+
+  /** Callback to determine if incoming transaction polling is enabled. */
   isEnabled?: () => boolean;
+
+  /** @deprecated No longer used. */
   queryEntireHistory?: boolean;
+
+  /** Whether to retrieve outgoing transactions. Defaults to false. */
   updateTransactions?: boolean;
 };
 
@@ -23,8 +32,6 @@ export class IncomingTransactionHelper {
   hub: EventEmitter;
 
   readonly #client?: string;
-
-  readonly #getCache: () => Record<string, unknown>;
 
   readonly #getCurrentAccount: () => ReturnType<
     AccountsController['getSelectedAccount']
@@ -40,8 +47,6 @@ export class IncomingTransactionHelper {
 
   readonly #messenger: TransactionControllerMessenger;
 
-  readonly #queryEntireHistory?: boolean;
-
   readonly #remoteTransactionSource: RemoteTransactionSource;
 
   #timeoutId?: unknown;
@@ -50,26 +55,20 @@ export class IncomingTransactionHelper {
     transactions: TransactionMeta[],
   ) => TransactionMeta[];
 
-  readonly #updateCache: (fn: (cache: Record<string, unknown>) => void) => void;
-
   readonly #updateTransactions?: boolean;
 
   constructor({
     client,
-    getCache,
     getCurrentAccount,
     getLocalTransactions,
     includeTokenTransfers,
     isEnabled,
     messenger,
-    queryEntireHistory,
     remoteTransactionSource,
     trimTransactions,
-    updateCache,
     updateTransactions,
   }: {
     client?: string;
-    getCache: () => Record<string, unknown>;
     getCurrentAccount: () => ReturnType<
       AccountsController['getSelectedAccount']
     >;
@@ -77,26 +76,21 @@ export class IncomingTransactionHelper {
     includeTokenTransfers?: boolean;
     isEnabled?: () => boolean;
     messenger: TransactionControllerMessenger;
-    queryEntireHistory?: boolean;
     remoteTransactionSource: RemoteTransactionSource;
     trimTransactions: (transactions: TransactionMeta[]) => TransactionMeta[];
-    updateCache: (fn: (cache: Record<string, unknown>) => void) => void;
     updateTransactions?: boolean;
   }) {
     this.hub = new EventEmitter();
 
     this.#client = client;
-    this.#getCache = getCache;
     this.#getCurrentAccount = getCurrentAccount;
     this.#getLocalTransactions = getLocalTransactions;
     this.#includeTokenTransfers = includeTokenTransfers;
     this.#isEnabled = isEnabled ?? (() => true);
     this.#isRunning = false;
     this.#messenger = messenger;
-    this.#queryEntireHistory = queryEntireHistory;
     this.#remoteTransactionSource = remoteTransactionSource;
     this.#trimTransactions = trimTransactions;
-    this.#updateCache = updateCache;
     this.#updateTransactions = updateTransactions;
   }
 
@@ -111,13 +105,13 @@ export class IncomingTransactionHelper {
 
     const interval = this.#getInterval();
 
-    log('Starting polling', { interval });
+    log('Started polling', { interval });
 
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    this.#timeoutId = setTimeout(() => this.#onInterval(), interval);
     this.#isRunning = true;
 
-    log('Started polling');
+    this.#onInterval().catch((error) => {
+      log('Initial polling failed', error);
+    });
   }
 
   stop() {
@@ -166,9 +160,7 @@ export class IncomingTransactionHelper {
     }
 
     const account = this.#getCurrentAccount();
-    const cache = this.#getCache();
     const includeTokenTransfers = this.#includeTokenTransfers ?? true;
-    const queryEntireHistory = this.#queryEntireHistory ?? true;
     const updateTransactions = this.#updateTransactions ?? false;
 
     let remoteTransactions: TransactionMeta[] = [];
@@ -177,11 +169,8 @@ export class IncomingTransactionHelper {
       remoteTransactions =
         await this.#remoteTransactionSource.fetchTransactions({
           address: account.address as Hex,
-          cache,
           includeTokenTransfers,
-          queryEntireHistory,
           tags: finalTags,
-          updateCache: this.#updateCache,
           updateTransactions,
         });
     } catch (error: unknown) {

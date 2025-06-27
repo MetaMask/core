@@ -347,9 +347,6 @@
   "packages/polling-controller/src/AbstractPollingController.ts": {
     "@typescript-eslint/prefer-readonly": 1
   },
-  "packages/queued-request-controller/src/QueuedRequestController.ts": {
-    "@typescript-eslint/prefer-readonly": 2
-  },
   "packages/rate-limit-controller/src/RateLimitController.ts": {
     "jsdoc/check-tag-names": 4,
     "jsdoc/require-returns": 1,

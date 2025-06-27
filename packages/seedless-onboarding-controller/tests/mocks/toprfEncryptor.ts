@@ -9,6 +9,8 @@ import { sha256 } from '@noble/hashes/sha256';
 export class MockToprfEncryptorDecryptor {
   readonly #HKDF_ENCRYPTION_KEY_INFO = 'encryption-key';
 
+  readonly #HKDF_PASSWORD_ENCRYPTION_KEY_INFO = 'password-encryption-key';
+
   readonly #HKDF_AUTH_KEY_INFO = 'authentication-key';
 
   encrypt(key: Uint8Array, data: Uint8Array): string {
@@ -32,6 +34,18 @@ export class MockToprfEncryptorDecryptor {
       seed,
       undefined,
       this.#HKDF_ENCRYPTION_KEY_INFO,
+      32,
+    );
+    return key;
+  }
+
+  derivePwEncKey(password: string): Uint8Array {
+    const seed = sha256(password);
+    const key = hkdf(
+      sha256,
+      seed,
+      undefined,
+      this.#HKDF_PASSWORD_ENCRYPTION_KEY_INFO,
       32,
     );
     return key;

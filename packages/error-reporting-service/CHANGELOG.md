@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0]
+
 ### Changed
 
 - **BREAKING:** Adjust function signature of `captureException` option so it expects an `Error` instead of `unknown` ([#5968](https://github.com/MetaMask/core/pull/5968))
@@ -19,5 +21,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5882](https://github.com/MetaMask/core/pull/5882))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/error-reporting-service@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/error-reporting-service@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/error-reporting-service@1.0.0...@metamask/error-reporting-service@2.0.0
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/error-reporting-service@1.0.0

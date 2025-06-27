@@ -298,7 +298,7 @@ describe('AccountTreeController', () => {
                   metadata: mockDefaultGroupMetadata,
                 },
               },
-              metadata: { name: `Snap: ${MOCK_SNAP_1.manifest.proposedName}` },
+              metadata: { name: MOCK_SNAP_1.manifest.proposedName },
             },
             [expectedKeyringWalletId]: {
               id: expectedKeyringWalletId,
@@ -414,7 +414,7 @@ describe('AccountTreeController', () => {
       // FIXME: Do we really want this behavior?
       expect(
         controller.state.accountTree.wallets[wallet1Id]?.metadata.name,
-      ).toBe('Snap: mock-snap-id-1');
+      ).toBe('mock-snap-id-1');
     });
 
     it('fallback to HD keyring category if entropy sources cannot be found', () => {

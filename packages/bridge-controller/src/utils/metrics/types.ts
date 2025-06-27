@@ -122,12 +122,10 @@ export type RequiredEventContextFromClient = {
     TradeData & {
       action_type: MetricsActionType;
     };
-  [UnifiedSwapBridgeEventName.Submitted]: RequestParams &
-    RequestMetadata &
+  [UnifiedSwapBridgeEventName.Submitted]: TradeData &
     Pick<QuoteFetchData, 'price_impact'> &
-    TradeData & {
-      action_type: MetricsActionType;
-    };
+    Pick<RequestMetadata, 'stx_enabled' | 'usd_amount_source'> &
+    Pick<RequestParams, 'token_symbol_source' | 'token_symbol_destination'>;
   [UnifiedSwapBridgeEventName.Completed]: RequestParams &
     RequestMetadata &
     TxStatusData &
@@ -140,33 +138,40 @@ export type RequiredEventContextFromClient = {
       quoted_vs_used_gas_ratio: number;
       action_type: MetricsActionType;
     };
-  [UnifiedSwapBridgeEventName.Failed]: RequestParams &
-    RequestMetadata &
-    Pick<QuoteFetchData, 'price_impact'> &
-    TxStatusData &
-    TradeData & {
-      actual_time_minutes: number;
-      error_message: string;
-      action_type: MetricsActionType;
-    };
+  [UnifiedSwapBridgeEventName.Failed]:
+    | // Tx failed before confirmation
+    (TradeData &
+        Pick<QuoteFetchData, 'price_impact'> &
+        Pick<RequestMetadata, 'stx_enabled' | 'usd_amount_source'> &
+        Pick<
+          RequestParams,
+          'token_symbol_source' | 'token_symbol_destination'
+        > & { error_message: string }) // Tx failed after confirmation
+    | (RequestParams &
+        RequestMetadata &
+        Pick<QuoteFetchData, 'price_impact'> &
+        TxStatusData &
+        TradeData & {
+          actual_time_minutes: number;
+          error_message?: string;
+          action_type: MetricsActionType;
+        });
   // Emitted by clients
   [UnifiedSwapBridgeEventName.AllQuotesOpened]: Pick<
     TradeData,
     'gas_included'
   > &
-    Pick<QuoteFetchData, 'price_impact'> & {
+    Pick<QuoteFetchData, 'price_impact'> &
+    Pick<RequestParams, 'token_symbol_source' | 'token_symbol_destination'> & {
       stx_enabled: RequestMetadata['stx_enabled'];
-      token_symbol_source: RequestParams['token_symbol_source'];
-      token_symbol_destination: RequestParams['token_symbol_destination'];
     };
   [UnifiedSwapBridgeEventName.AllQuotesSorted]: Pick<
     TradeData,
     'gas_included'
   > &
-    Pick<QuoteFetchData, 'price_impact'> & {
+    Pick<QuoteFetchData, 'price_impact'> &
+    Pick<RequestParams, 'token_symbol_source' | 'token_symbol_destination'> & {
       stx_enabled: RequestMetadata['stx_enabled'];
-      token_symbol_source: RequestParams['token_symbol_source'];
-      token_symbol_destination: RequestParams['token_symbol_destination'];
       sort_order: SortOrder;
       best_quote_provider: QuoteFetchData['best_quote_provider'];
     };
@@ -207,9 +212,21 @@ export type EventPropertiesFromControllerState = {
     RequestParams &
     QuoteFetchData &
     TradeData;
-  [UnifiedSwapBridgeEventName.Submitted]: null;
+  [UnifiedSwapBridgeEventName.Submitted]: RequestParams &
+    RequestMetadata &
+    TradeData &
+    Pick<QuoteFetchData, 'price_impact'> & {
+      action_type: MetricsActionType;
+    };
   [UnifiedSwapBridgeEventName.Completed]: null;
-  [UnifiedSwapBridgeEventName.Failed]: null;
+  [UnifiedSwapBridgeEventName.Failed]: RequestParams &
+    RequestMetadata &
+    TxStatusData &
+    TradeData &
+    Pick<QuoteFetchData, 'price_impact'> & {
+      actual_time_minutes: number;
+      action_type: MetricsActionType;
+    };
   [UnifiedSwapBridgeEventName.AllQuotesOpened]: RequestParams &
     RequestMetadata &
     TradeData &

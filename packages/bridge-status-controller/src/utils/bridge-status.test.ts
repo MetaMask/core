@@ -67,6 +67,7 @@ describe('utils', () => {
       amount: '991250000000000',
       token: {
         address: '0x0000000000000000000000000000000000000000',
+        assetId: 'eip155:1/erc20:0x0000000000000000000000000000000000000000',
         chainId: 1,
         symbol: 'ETH',
         decimals: 18,

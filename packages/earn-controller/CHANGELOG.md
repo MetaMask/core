@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1]
+
+### Changed
+
+- Changes `EarnController.addTransaction` gasLimit logic in several methods such that the param can be set undefined through contract method param `gasOptions.gasLimit` being set to `none` ([#6038](https://github.com/MetaMask/core/pull/6038))
+  - `executeLendingDeposit`
+  - `executeLendingWithdraw`
+  - `executeLendingTokenApprove`
+
+## [2.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` to `^31.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+- **BREAKING:** Bump peer dependency `@metamask/network-controller` to `^24.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+
+## [1.1.1]
+
 ### Changed
 
 - Bump `@metamask/stake-sdk` to `^3.2.1` ([#5972](https://github.com/MetaMask/core/pull/5972))
@@ -201,7 +219,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@1.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@2.0.1...HEAD
+[2.0.1]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@2.0.0...@metamask/earn-controller@2.0.1
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@1.1.1...@metamask/earn-controller@2.0.0
+[1.1.1]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@1.1.0...@metamask/earn-controller@1.1.1
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@1.0.0...@metamask/earn-controller@1.1.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.15.0...@metamask/earn-controller@1.0.0
 [0.15.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.14.0...@metamask/earn-controller@0.15.0

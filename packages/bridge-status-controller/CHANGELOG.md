@@ -7,6 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Consolidate validator and type definitions for `StatusResponse` so new response fields only need to be defined once ([#6030](https://github.com/MetaMask/core/pull/6030))
+
+### Removed
+
+- Clean up unused exports that duplicate @metamask/bridge-controller's ([#6030](https://github.com/MetaMask/core/pull/6030))
+  - Asset
+  - SrcChainStatus
+  - DestChainStatus
+  - RefuelData
+  - FeeType
+  - ActionTypes
+
+### Fixed
+
+- Set event property `gas_included` to quote's `gasIncluded` value ([#6030](https://github.com/MetaMask/core/pull/6030))
+
+## [32.0.0]
+
+### Changed
+
+- Remove `@metamask/multichain-transactions-controller` peer dependency ([#5993](https://github.com/MetaMask/core/pull/5993))
+
+### Fixed
+
+- Update the following events to match the Unified SwapBridge spec ([#5993](https://github.com/MetaMask/core/pull/5993))
+  - `Completed`: remove multichain tx controller subscription and emit the event based on the tx submission status instead
+  - `Failed`: emit event when an error is thrown during solana tx submission
+  - `Submitted`
+    - set swap type for evm txs when applicable. this is currently hardcoded to bridge so swaps don't get displayed correctly on the activity list
+    - emit this event when submitTx is called, regardless of confirmation status
+
+## [31.0.0]
+
+### Changed
+
+- **BREAKING:** Adds a call to bridge-controller's `stopPollingForQuotes` handler to prevent quotes from refreshing during tx submission. This enables "pausing" the quote polling loop without resetting the entire state. Without this, it's possible for the activeQuote to change while the UI's tx submission is in-progress ([#5994](https://github.com/MetaMask/core/pull/5994))
+- **BREAKING:** BridgeStatusController now requires the `BridgeController:stopPollingForQuotes` action permission ([#5994](https://github.com/MetaMask/core/pull/5994))
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` to `^31.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+- **BREAKING:** Bump peer dependency `@metamask/bridge-controller` to `^33.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+- **BREAKING:** Bump peer dependency `@metamask/gas-fee-controller` to `^24.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+- **BREAKING:** Bump peer dependency `@metamask/multichain-transactions-controller` to `^3.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+- **BREAKING:** Bump peer dependency `@metamask/network-controller` to `^24.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+- **BREAKING:** Bump peer dependency `@metamask/transaction-controller` to `^58.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+- Bump `@metamask/polling-controller` to `^14.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+- Bump `@metamask/user-operation-controller` to `^37.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+
+### Fixed
+
+- Parse tx signature from `onClientRequest` response in order to identify bridge transactions ([#6001](https://github.com/MetaMask/core/pull/6001))
+- Prevent active quote from changing while transaction submission is in progress ([#5994](https://github.com/MetaMask/core/pull/5994))
+
+## [30.0.0]
+
+### Changed
+
+- **BREAKING:** Implement onClientRequest for Solana snap transactions, now requires action permission for RemoteFeatureFlagController:getState ([#5961](https://github.com/MetaMask/core/pull/5961))
+
 ## [29.1.1]
 
 ### Changed
@@ -315,7 +374,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@29.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@32.0.0...HEAD
+[32.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@31.0.0...@metamask/bridge-status-controller@32.0.0
+[31.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@30.0.0...@metamask/bridge-status-controller@31.0.0
+[30.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@29.1.1...@metamask/bridge-status-controller@30.0.0
 [29.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@29.1.0...@metamask/bridge-status-controller@29.1.1
 [29.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@29.0.0...@metamask/bridge-status-controller@29.1.0
 [29.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@28.0.0...@metamask/bridge-status-controller@29.0.0

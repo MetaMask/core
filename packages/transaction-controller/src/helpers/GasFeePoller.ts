@@ -10,6 +10,7 @@ import { createModuleLogger } from '@metamask/utils';
 // eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
 
+import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
@@ -22,6 +23,7 @@ import type {
   LegacyGasFeeEstimates,
   TransactionMeta,
   TransactionParams,
+  TransactionBatchMeta,
 } from '../types';
 import {
   GasFeeEstimateLevel,
@@ -56,6 +58,8 @@ export class GasFeePoller {
 
   readonly #getTransactions: () => TransactionMeta[];
 
+  readonly #getTransactionBatches: () => TransactionBatchMeta[];
+
   readonly #layer1GasFeeFlows: Layer1GasFeeFlow[];
 
   readonly #messenger: TransactionControllerMessenger;
@@ -73,6 +77,7 @@ export class GasFeePoller {
    * @param options.getGasFeeControllerEstimates - Callback to obtain the default fee estimates.
    * @param options.getProvider - Callback to obtain a provider instance.
    * @param options.getTransactions - Callback to obtain the transaction data.
+   * @param options.getTransactionBatches - Callback to obtain the transaction batch data.
    * @param options.layer1GasFeeFlows - The layer 1 gas fee flows to use to obtain suitable layer 1 gas fees.
    * @param options.messenger - The TransactionControllerMessenger instance.
    * @param options.onStateChange - Callback to register a listener for controller state changes.
@@ -83,6 +88,7 @@ export class GasFeePoller {
     getGasFeeControllerEstimates,
     getProvider,
     getTransactions,
+    getTransactionBatches,
     layer1GasFeeFlows,
     messenger,
     onStateChange,
@@ -94,6 +100,7 @@ export class GasFeePoller {
     ) => Promise<GasFeeState>;
     getProvider: (networkClientId: NetworkClientId) => Provider;
     getTransactions: () => TransactionMeta[];
+    getTransactionBatches: () => TransactionBatchMeta[];
     layer1GasFeeFlows: Layer1GasFeeFlow[];
     messenger: TransactionControllerMessenger;
     onStateChange: (listener: () => void) => void;
@@ -104,12 +111,18 @@ export class GasFeePoller {
     this.#getGasFeeControllerEstimates = getGasFeeControllerEstimates;
     this.#getProvider = getProvider;
     this.#getTransactions = getTransactions;
+    this.#getTransactionBatches = getTransactionBatches;
     this.#messenger = messenger;
 
     onStateChange(() => {
       const unapprovedTransactions = this.#getUnapprovedTransactions();
+      const unapprovedTransactionBatches =
+        this.#getUnapprovedTransactionBatches();
 
-      if (unapprovedTransactions.length) {
+      if (
+        unapprovedTransactions.length ||
+        unapprovedTransactionBatches.length
+      ) {
         this.#start();
       } else {
         this.#stop();
@@ -146,6 +159,7 @@ export class GasFeePoller {
 
   async #onTimeout() {
     await this.#updateUnapprovedTransactions();
+    await this.#updateUnapprovedTransactionBatches();
 
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.#timeout = setTimeout(() => this.#onTimeout(), INTERVAL_MILLISECONDS);
@@ -179,6 +193,41 @@ export class GasFeePoller {
     );
   }
 
+  async #updateUnapprovedTransactionBatches() {
+    const unapprovedTransactionBatches =
+      this.#getUnapprovedTransactionBatches();
+
+    if (!unapprovedTransactionBatches.length) {
+      return;
+    }
+
+    log(
+      'Found unapproved transaction batches',
+      unapprovedTransactionBatches.length,
+    );
+
+    const gasFeeControllerDataByChainId = await this.#getGasFeeControllerData(
+      unapprovedTransactionBatches,
+    );
+
+    log('Retrieved gas fee controller data', gasFeeControllerDataByChainId);
+
+    await Promise.all(
+      unapprovedTransactionBatches.flatMap((txBatch) => {
+        const { chainId } = txBatch;
+
+        const gasFeeControllerData = gasFeeControllerDataByChainId.get(
+          chainId,
+        ) as GasFeeState;
+
+        return this.#updateUnapprovedTransactionBatch(
+          txBatch,
+          gasFeeControllerData,
+        );
+      }),
+    );
+  }
+
   async #updateUnapprovedTransaction(
     transactionMeta: TransactionMeta,
     gasFeeControllerData: GasFeeState,
@@ -202,6 +251,52 @@ export class GasFeePoller {
       gasFeeEstimates: gasFeeEstimatesResponse?.gasFeeEstimates,
       gasFeeEstimatesLoaded: gasFeeEstimatesResponse?.gasFeeEstimatesLoaded,
       layer1GasFee,
+    });
+  }
+
+  async #updateUnapprovedTransactionBatch(
+    txBatchMeta: TransactionBatchMeta,
+    gasFeeControllerData: GasFeeState,
+  ) {
+    const { id } = txBatchMeta;
+
+    const ethQuery = new EthQuery(
+      this.#getProvider(txBatchMeta.networkClientId),
+    );
+    const defaultGasFeeFlow = new DefaultGasFeeFlow();
+    const request: GasFeeFlowRequest = {
+      ethQuery,
+      gasFeeControllerData,
+      messenger: this.#messenger,
+      transactionMeta: {
+        ...txBatchMeta,
+        txParams: {
+          ...txBatchMeta.transactions?.[0],
+          from: txBatchMeta.from,
+          gas: txBatchMeta.gas,
+        },
+        time: Date.now(),
+      },
+    };
+
+    let gasFeeEstimates: GasFeeEstimates | undefined;
+
+    try {
+      const response = await defaultGasFeeFlow.getGasFees(request);
+
+      gasFeeEstimates = response.estimates;
+    } catch (error) {
+      log('Failed to get gas fees for batch', txBatchMeta.id, error);
+    }
+
+    if (!gasFeeEstimates) {
+      return;
+    }
+
+    this.hub.emit('transaction-batch-updated', {
+      transactionBatchId: id,
+      gasFeeEstimates,
+      gasFeeEstimatesLoaded: true,
     });
   }
 
@@ -285,8 +380,14 @@ export class GasFeePoller {
     );
   }
 
+  #getUnapprovedTransactionBatches() {
+    return this.#getTransactionBatches().filter(
+      (batch) => batch.status === TransactionStatus.unapproved,
+    );
+  }
+
   async #getGasFeeControllerData(
-    transactions: TransactionMeta[],
+    transactions: TransactionMeta[] | TransactionBatchMeta[],
   ): Promise<Map<string, GasFeeState>> {
     const networkClientIdsByChainId = new Map<Hex, NetworkClientId>();
 

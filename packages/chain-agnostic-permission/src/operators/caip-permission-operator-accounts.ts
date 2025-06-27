@@ -319,12 +319,25 @@ function isAddressWithParsedScopesInPermittedAccountIds(
     const parsedPermittedAccount = parseCaipAccountId(account);
 
     return parsedAccountScopes.some(({ namespace, reference }) => {
-      if (namespace !== parsedPermittedAccount.chain.namespace) {
+      if (
+        namespace !== parsedPermittedAccount.chain.namespace &&
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+        parsedPermittedAccount.chain.namespace !== KnownCaipNamespace.Wallet
+      ) {
+        return false;
+      }
+
+      // handle wallet:<namespace>:<address> case where namespaces are mismatched but addresses match
+      // i.e. wallet:notSolana:12389812309123 and solana:0:12389812309123
+      if (
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+        parsedPermittedAccount.chain.namespace === KnownCaipNamespace.Wallet &&
+        namespace !== parsedPermittedAccount.chain.reference
+      ) {
         return false;
       }
 
       // handle eip155:0 case and insensitive evm address comparison
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
       if (namespace === KnownCaipNamespace.Eip155) {
         return (
           (reference === '0' ||
@@ -332,6 +345,15 @@ function isAddressWithParsedScopesInPermittedAccountIds(
           isEqualCaseInsensitive(address, parsedPermittedAccount.address)
         );
       }
+
+      // handle wallet:<namespace>:<address> case
+      if (
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+        parsedPermittedAccount.chain.namespace === KnownCaipNamespace.Wallet
+      ) {
+        return address === parsedPermittedAccount.address;
+      }
+
       return (
         reference === parsedPermittedAccount.chain.reference &&
         address === parsedPermittedAccount.address
@@ -352,6 +374,14 @@ export function isInternalAccountInPermittedAccountIds(
   internalAccount: InternalAccount,
   permittedAccounts: CaipAccountId[],
 ): boolean {
+  // temporary fix for the issue where the internal account has no scopes and or scopes is undefined
+  // TODO: remove this once the bug is fixed (tracked here: https://github.com/MetaMask/accounts-planning/issues/941)
+  // there is currently a bug where an account associated with a snap can fail to add scopes to the internal account in time
+  // before we attempt to access this state
+  if (!internalAccount?.scopes?.length) {
+    return false;
+  }
+
   const parsedInteralAccountScopes = internalAccount.scopes.map((scope) => {
     return parseScopeString(scope);
   });
