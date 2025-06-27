@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [33.0.0]
 
-### Uncategorized
-
-- Release 450.0.0 ([#6027](https://github.com/MetaMask/core/pull/6027))
-
 ### Changed
 
 - Consolidate validator and type definitions for `StatusResponse` so new response fields only need to be defined once ([#6030](https://github.com/MetaMask/core/pull/6030))
