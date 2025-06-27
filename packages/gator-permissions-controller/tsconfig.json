@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./"
+  },
+  "references": [
+    { "path": "../base-controller" },
+    { "path": "../profile-sync-controller" },
+  ],
+  "include": ["../../types", "./src"]
+}

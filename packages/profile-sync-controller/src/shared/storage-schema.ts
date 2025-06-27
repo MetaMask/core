@@ -14,6 +14,7 @@ export const USER_STORAGE_FEATURE_NAMES = {
   accounts: 'accounts_v2',
   networks: 'networks',
   addressBook: 'addressBook',
+  gatorPermissions: 'gator_7715_permissions',
 } as const;
 
 export type UserStorageFeatureNames =
@@ -24,6 +25,7 @@ export const USER_STORAGE_SCHEMA = {
   [USER_STORAGE_FEATURE_NAMES.accounts]: [ALLOW_ARBITRARY_KEYS], // keyed by account addresses
   [USER_STORAGE_FEATURE_NAMES.networks]: [ALLOW_ARBITRARY_KEYS], // keyed by chains/networks
   [USER_STORAGE_FEATURE_NAMES.addressBook]: [ALLOW_ARBITRARY_KEYS], // keyed by address_chainId
+  [USER_STORAGE_FEATURE_NAMES.gatorPermissions]: ['gator_7715_permissions'],
 } as const;
 
 type UserStorageSchema = typeof USER_STORAGE_SCHEMA;
