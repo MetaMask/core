@@ -33,6 +33,7 @@ import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
+import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
 import type { BulkPhishingDetectionScanResponse } from '@metamask/phishing-controller';
 import { RecommendedAction } from '@metamask/phishing-controller';
 import type {
@@ -69,7 +70,6 @@ import type {
   GetCollectionsResponse,
   TopBid,
 } from './NftDetectionController';
-import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '../../network-controller/src/NetworkController';
 
 export type NFTStandardType = 'ERC721' | 'ERC1155';
 
