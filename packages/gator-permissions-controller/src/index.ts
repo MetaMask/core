@@ -1,16 +1,19 @@
-export { default as GatorPermissionsController } from './GatorPermissionsController/GatorPermissionsController';
+export { default as GatorPermissionsController } from './GatorPermissionsController';
+export {
+  serializeGatorPermissionsList,
+  deserializeGatorPermissionsList,
+} from './utils';
 export type {
   GatorPermissionsControllerState,
-  GatorPermission,
   GatorPermissionsControllerMessenger,
   GatorPermissionsControllerGetStateAction,
-  GatorPermissionsControllerFetchPermissions,
-  GatorPermissionsControllerEnablePermissions,
-  GatorPermissionsControllerDisablePermissions,
+  GatorPermissionsControllerFetchAndUpdateGatorPermissions,
+  GatorPermissionsControllerEnableGatorPermissions,
+  GatorPermissionsControllerDisableGatorPermissions,
   Actions,
   AllowedActions,
   Events,
   AllowedEvents,
   GatorPermissionsControllerStateChangeEvent,
-  PermissionsListUpdatedEvent,
-} from './GatorPermissionsController/GatorPermissionsController'; 
+} from './GatorPermissionsController';
+export type { StoredGatorPermission, PermissionResponse } from './types';
