@@ -174,7 +174,10 @@ function setupController({
       'NetworkController:findNetworkClientIdByChainId',
       'AccountsController:listMultichainAccounts',
     ],
-    allowedEvents: ['AccountsController:selectedAccountChange'],
+    allowedEvents: [
+      'AccountsController:selectedAccountChange',
+      'TransactionController:transactionConfirmed',
+    ],
   });
 
   const defaultNetworkService = createMockNetworkService();
@@ -638,6 +641,104 @@ describe('MultichainNetworkController', () => {
           activeChains: [MOCK_EVM_CHAIN_1, MOCK_EVM_CHAIN_137],
         },
       });
+    });
+  });
+
+  describe('handle TransactionController:transactionConfirmed event', () => {
+    const MOCK_EVM_ADDRESS = '0x1234567890123456789012345678901234567890';
+
+    it('calls getNetworksWithTransactionActivityByAccounts when transaction is confirmed', async () => {
+      jest
+        .spyOn(global, 'setTimeout')
+        .mockImplementation((callback: () => void) => {
+          callback();
+          return 0 as unknown as NodeJS.Timeout;
+        });
+
+      const mockNetworkService = createMockNetworkService();
+      const { controller, messenger } = setupController({
+        mockNetworkService,
+      });
+
+      messenger.registerActionHandler(
+        'AccountsController:listMultichainAccounts',
+        () => [
+          createMockInternalAccount({
+            type: EthAccountType.Eoa,
+            address: MOCK_EVM_ADDRESS,
+            scopes: [EthScope.Eoa],
+          }),
+        ],
+      );
+
+      const getNetworksWithTransactionActivitySpy = jest.spyOn(
+        controller,
+        'getNetworksWithTransactionActivityByAccounts',
+      );
+
+      messenger.publish('TransactionController:transactionConfirmed', {
+        id: 'test-transaction-id',
+        status: 'confirmed',
+      } as Record<string, unknown>);
+
+      await Promise.resolve();
+
+      expect(getNetworksWithTransactionActivitySpy).toHaveBeenCalled();
+      expect(mockNetworkService.fetchNetworkActivity).toHaveBeenCalled();
+    });
+
+    it('handles errors gracefully when getNetworksWithTransactionActivityByAccounts fails', async () => {
+      const mockNetworkService = createMockNetworkService();
+      const { controller, messenger } = setupController({
+        mockNetworkService,
+      });
+
+      messenger.registerActionHandler(
+        'AccountsController:listMultichainAccounts',
+        () => [
+          createMockInternalAccount({
+            type: EthAccountType.Eoa,
+            address: MOCK_EVM_ADDRESS,
+            scopes: [EthScope.Eoa],
+          }),
+        ],
+      );
+
+      const getNetworksWithTransactionActivitySpy = jest
+        .spyOn(controller, 'getNetworksWithTransactionActivityByAccounts')
+        .mockRejectedValue(new Error('Network error'));
+
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {
+          // no op
+        });
+
+      const setTimeoutSpy = jest
+        .spyOn(global, 'setTimeout')
+        .mockImplementation((callback: () => void) => {
+          // Execute callback immediately but return to event loop
+          setImmediate(callback);
+          return 0 as unknown as NodeJS.Timeout;
+        });
+
+      messenger.publish('TransactionController:transactionConfirmed', {
+        id: 'test-transaction-id',
+        status: 'confirmed',
+      } as Record<string, unknown>);
+
+      await new Promise(setImmediate);
+      await new Promise(setImmediate);
+
+      expect(getNetworksWithTransactionActivitySpy).toHaveBeenCalled();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Failed to refresh network activity after transaction confirmed:',
+        expect.any(Error),
+      );
+
+      setTimeoutSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
+      getNetworksWithTransactionActivitySpy.mockRestore();
     });
   });
 });

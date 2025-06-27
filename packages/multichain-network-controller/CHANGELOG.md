@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add automatic network activity refresh when transactions are confirmed ([#6017](https://github.com/MetaMask/core/pull/6017))
+  - Listen to `TransactionController:transactionConfirmed` events
+  - Automatically call `getNetworksWithTransactionActivityByAccounts()` with a 30-second delay to allow blockchain indexing services to process new transactions
+  - Add error handling for failed network activity refresh attempts
+
 ## [0.9.0]
 
 ### Changed
