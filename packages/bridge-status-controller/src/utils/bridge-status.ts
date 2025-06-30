@@ -68,8 +68,8 @@ export const getStatusRequestWithSrcTxHash = (
     bridgeId,
     srcTxHash,
     bridge: bridges[0],
-    srcChainId: Number(srcChainId),
-    destChainId: Number(destChainId),
+    srcChainId,
+    destChainId,
     quote,
     refuel: Boolean(refuel),
   };
