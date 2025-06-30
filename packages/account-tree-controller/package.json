@@ -72,7 +72,7 @@
     "@metamask/accounts-controller": "^31.0.0",
     "@metamask/keyring-controller": "^22.0.0",
     "@metamask/providers": "^22.0.0",
-    "@metamask/snaps-controllers": "^14.0.1",
+    "@metamask/snaps-controllers": "^14.0.0",
     "webextension-polyfill": "^0.10.0 || ^0.11.0 || ^0.12.0"
   },
   "engines": {

@@ -74,7 +74,7 @@
   },
   "peerDependencies": {
     "@metamask/accounts-controller": "^31.0.0",
-    "@metamask/snaps-controllers": "^14.0.1"
+    "@metamask/snaps-controllers": "^14.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"
