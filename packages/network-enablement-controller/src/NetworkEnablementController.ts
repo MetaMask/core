@@ -239,7 +239,7 @@ export class NetworkEnablementController extends BaseController<
       const { namespace, storageKey } = this.#deriveKeys(chainId);
       return (
         namespace in this.state.enabledNetworkMap &&
-        this.state.enabledNetworkMap[namespace][storageKey]
+        Boolean(this.state.enabledNetworkMap[namespace][storageKey])
       );
     } catch {
       return false;

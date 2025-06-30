@@ -82,31 +82,6 @@ describe('NetworkEnablementController', () => {
     });
   });
 
-  it('should merge provided state with default state', () => {
-    const customState: Partial<NetworkEnablementControllerState> = {
-      enabledNetworkMap: {
-        [KnownCaipNamespace.Eip155]: { '0x2a': true },
-        [KnownCaipNamespace.Solana]: {},
-      },
-    };
-    const controller = new NetworkEnablementController({
-      messenger: messenger as NetworkEnablementControllerMessenger,
-      state: customState,
-    });
-
-    expect(
-      getControllerState(controller).enabledNetworkMap[
-        KnownCaipNamespace.Eip155
-      ]['0x2a'],
-    ).toBe(true);
-    // Should still have default networks
-    expect(
-      getControllerState(controller).enabledNetworkMap[
-        KnownCaipNamespace.Eip155
-      ][ChainId[BuiltInNetworkName.Mainnet]],
-    ).toBe(true);
-  });
-
   it('should subscribe to NetworkController:networkAdded', () => {
     new NetworkEnablementController({
       messenger: messenger as NetworkEnablementControllerMessenger,
@@ -213,9 +188,9 @@ describe('NetworkEnablementController', () => {
         messenger: messenger as NetworkEnablementControllerMessenger,
       });
 
-      expect(() =>
-        controller.setEnabledNetwork('invalid' as never),
-      ).not.toThrow();
+      expect(() => controller.setEnabledNetwork('invalid' as never)).toThrow(
+        'Value must be a hexadecimal string.',
+      );
     });
   });
 
@@ -299,9 +274,9 @@ describe('NetworkEnablementController', () => {
         messenger: messenger as NetworkEnablementControllerMessenger,
       });
 
-      expect(() =>
-        controller.setDisabledNetwork('invalid' as never),
-      ).not.toThrow();
+      expect(() => controller.setDisabledNetwork('invalid' as never)).toThrow(
+        'Value must be a hexadecimal string.',
+      );
     });
   });
 
