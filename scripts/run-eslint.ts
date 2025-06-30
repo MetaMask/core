@@ -147,9 +147,7 @@ async function main() {
   }
   const hasErrors = filteredResults.some((result) => result.errorCount > 0);
 
-  const qualityGateStatus = applyWarningThresholdsQualityGate({
-    results: filteredResults,
-  });
+  const qualityGateStatus = applyWarningThresholdsQualityGate(filteredResults);
 
   if (hasErrors || qualityGateStatus === QualityGateStatus.Increase) {
     process.exitCode = 1;
@@ -217,25 +215,22 @@ async function printResults(
  * had increases and decreases. If are were more warnings overall then we fail,
  * otherwise we pass.
  *
- * @param args - The arguments.
- * @param args.results - The results from running `eslint`.
+ * @param results - The results from running `eslint`.
  * @returns True if the number of warnings has increased compared to the
  * existing number of warnings, false if they have decreased or stayed the same.
  */
-function applyWarningThresholdsQualityGate({
-  results,
-}: {
-  results: ESLint.LintResult[];
-}): QualityGateStatus {
+function applyWarningThresholdsQualityGate(
+  results: ESLint.LintResult[],
+): QualityGateStatus {
   const warningThresholds = loadWarningThresholds();
-  const warningCounts = getWarningCounts({
-    results,
-  });
+  const warningCounts = getWarningCounts(results);
 
   const completeWarningCounts = removeFilesWithoutWarnings({
     ...warningThresholds,
     ...warningCounts,
   });
+
+  let status;
 
   if (Object.keys(warningThresholds).length === 0) {
     console.log(
@@ -255,75 +250,87 @@ function applyWarningThresholdsQualityGate({
 
     saveWarningThresholds(completeWarningCounts);
 
-    return QualityGateStatus.Initialized;
-  }
-
-  const comparisonsByFile = compareWarnings(
-    warningThresholds,
-    completeWarningCounts,
-  );
-
-  const changes = Object.values(comparisonsByFile)
-    .flat()
-    .filter((comparison) => comparison.difference !== 0);
-  const regressions = Object.values(comparisonsByFile)
-    .flat()
-    .filter((comparison) => comparison.difference > 0);
-
-  let status;
-
-  if (changes.length > 0) {
-    if (regressions.length > 0) {
-      console.log(
-        chalk.red(
-          '🛑 New lint violations have been introduced and need to be resolved for linting to pass:\n',
-        ),
-      );
-
-      for (const [filePath, fileChanges] of Object.entries(comparisonsByFile)) {
-        if (fileChanges.some((fileChange) => fileChange.difference > 0)) {
-          console.log(chalk.underline(filePath));
-          for (const { ruleId, threshold, count, difference } of fileChanges) {
-            if (difference > 0) {
-              console.log(
-                `  ${chalk.cyan(ruleId)}: ${threshold} -> ${count} (${difference > 0 ? chalk.red(`+${difference}`) : chalk.green(difference)})`,
-              );
-            }
-          }
-        }
-      }
-
-      status = QualityGateStatus.Increase;
-    } else {
-      console.log(
-        chalk.green(
-          'The overall number of lint warnings has decreased, good work! ❤️ \n',
-        ),
-      );
-
-      for (const [filePath, fileChanges] of Object.entries(comparisonsByFile)) {
-        if (fileChanges.some((fileChange) => fileChange.difference !== 0)) {
-          console.log(chalk.underline(filePath));
-          for (const { ruleId, threshold, count, difference } of fileChanges) {
-            if (difference !== 0) {
-              console.log(
-                `  ${chalk.cyan(ruleId)}: ${threshold} -> ${count} (${difference > 0 ? chalk.red(`+${difference}`) : chalk.green(difference)})`,
-              );
-            }
-          }
-        }
-      }
-
-      status = QualityGateStatus.Decrease;
-    }
-
-    console.log(
-      `\n${chalk.yellow.bold(path.basename(WARNING_THRESHOLDS_FILE))}${chalk.yellow(' has been updated with the new counts. Please make sure to commit the changes.')}`,
+    status = QualityGateStatus.Initialized;
+  } else {
+    const comparisonsByFile = compareWarnings(
+      warningThresholds,
+      completeWarningCounts,
     );
 
-    saveWarningThresholds(completeWarningCounts);
-  } else {
-    status = QualityGateStatus.NoChange;
+    const changes = Object.values(comparisonsByFile)
+      .flat()
+      .filter((comparison) => comparison.difference !== 0);
+    const regressions = Object.values(comparisonsByFile)
+      .flat()
+      .filter((comparison) => comparison.difference > 0);
+
+    if (changes.length > 0) {
+      if (regressions.length > 0) {
+        console.log(
+          chalk.red(
+            '🛑 New lint violations have been introduced and need to be resolved for linting to pass:\n',
+          ),
+        );
+
+        for (const [filePath, fileChanges] of Object.entries(
+          comparisonsByFile,
+        )) {
+          if (fileChanges.some((fileChange) => fileChange.difference > 0)) {
+            console.log(chalk.underline(filePath));
+            for (const {
+              ruleId,
+              threshold,
+              count,
+              difference,
+            } of fileChanges) {
+              if (difference > 0) {
+                console.log(
+                  `  ${chalk.cyan(ruleId)}: ${threshold} -> ${count} (${difference > 0 ? chalk.red(`+${difference}`) : chalk.green(difference)})`,
+                );
+              }
+            }
+          }
+        }
+
+        status = QualityGateStatus.Increase;
+      } else {
+        console.log(
+          chalk.green(
+            'The overall number of lint warnings has decreased, good work! ❤️ \n',
+          ),
+        );
+
+        for (const [filePath, fileChanges] of Object.entries(
+          comparisonsByFile,
+        )) {
+          if (fileChanges.some((fileChange) => fileChange.difference !== 0)) {
+            console.log(chalk.underline(filePath));
+            for (const {
+              ruleId,
+              threshold,
+              count,
+              difference,
+            } of fileChanges) {
+              if (difference !== 0) {
+                console.log(
+                  `  ${chalk.cyan(ruleId)}: ${threshold} -> ${count} (${difference > 0 ? chalk.red(`+${difference}`) : chalk.green(difference)})`,
+                );
+              }
+            }
+          }
+        }
+
+        console.log(
+          `\n${chalk.yellow.bold(path.basename(WARNING_THRESHOLDS_FILE))}${chalk.yellow(' has been updated with the new counts. Please make sure to commit the changes.')}`,
+        );
+
+        saveWarningThresholds(completeWarningCounts);
+
+        status = QualityGateStatus.Decrease;
+      }
+    } else {
+      status = QualityGateStatus.NoChange;
+    }
   }
 
   return status;
@@ -378,17 +385,12 @@ function saveWarningThresholds(newWarningCounts: WarningCounts): void {
  * Given a list of results from an the ESLint run, counts the number of warnings
  * produced per file and rule.
  *
- * @param args - The arguments.
- * @param args.results - The results from running `eslint`.
+ * @param results - The results from running `eslint`.
  * @returns A two-level object mapping path to files in which warnings appear to
  * the IDs of rules for those warnings, then from rule IDs to the number of
  * warnings for the rule.
  */
-function getWarningCounts({
-  results,
-}: {
-  results: ESLint.LintResult[];
-}): WarningCounts {
+function getWarningCounts(results: ESLint.LintResult[]): WarningCounts {
   const unsortedWarningCounts = results.reduce(
     (workingWarningCounts, result) => {
       const { filePath } = result;
