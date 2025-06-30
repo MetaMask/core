@@ -391,9 +391,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @param password - The optional password used to create new wallet. If not provided, `cached Encryption Key` will be used.
    * @returns A promise that resolves to the secret data.
    */
-  async fetchAllSecretData(
-    password?: string,
-  ): Promise<Record<SecretType, Uint8Array[]>> {
+  async fetchAllSecretData(password?: string): Promise<SecretMetadata[]> {
     return await this.#withControllerLock(async () => {
       // assert that the user is authenticated before fetching the secret data
       this.#assertIsAuthenticatedUser(this.state);
@@ -416,53 +414,60 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         authKeyPair = keysFromVault.toprfAuthKeyPair;
       }
 
-      try {
-        const performFetch = async (): Promise<
-          Record<SecretType, Uint8Array[]>
-        > => {
-          const secretData = await this.toprfClient.fetchAllSecretDataItems({
+      const performFetch = async (): Promise<SecretMetadata[]> => {
+        let secretData: Uint8Array[] = [];
+
+        try {
+          secretData = await this.toprfClient.fetchAllSecretDataItems({
             decKey: encKey,
             authKeyPair,
           });
-
-          if (secretData?.length > 0 && password) {
-            // if password is provided, we need to create a new vault with the auth data. (supposedly the user is trying to rehydrate the wallet)
-            await this.#createNewVaultWithAuthData({
-              password,
-              rawToprfEncryptionKey: encKey,
-              rawToprfPwEncryptionKey: pwEncKey,
-              rawToprfAuthKeyPair: authKeyPair,
-            });
-
-            this.#persistAuthPubKey({
-              authPubKey: authKeyPair.pk,
-            });
+        } catch (error) {
+          log('Error fetching secret data', error);
+          if (this.#isTokenExpiredError(error)) {
+            throw error;
           }
+          throw new Error(
+            SeedlessOnboardingControllerErrorMessage.FailedToFetchSecretMetadata,
+          );
+        }
 
-          const result: Record<SecretType, Uint8Array[]> = {
-            mnemonic: [],
-            privateKey: [],
-          };
-          const secrets =
-            SecretMetadata.parseSecretsFromMetadataStore(secretData);
+        if (secretData.length === 0) {
+          throw new Error(
+            SeedlessOnboardingControllerErrorMessage.NoSecretDataFound,
+          );
+        }
 
-          secrets.forEach((secret) => {
-            result[secret.type].push(secret.data);
+        if (password) {
+          // if password is provided, we need to create a new vault with the auth data. (supposedly the user is trying to rehydrate the wallet)
+          await this.#createNewVaultWithAuthData({
+            password,
+            rawToprfEncryptionKey: encKey,
+            rawToprfPwEncryptionKey: pwEncKey,
+            rawToprfAuthKeyPair: authKeyPair,
           });
+        }
 
-          return result;
-        };
+        this.#persistAuthPubKey({
+          authPubKey: authKeyPair.pk,
+        });
+        const secrets =
+          SecretMetadata.parseSecretsFromMetadataStore(secretData);
 
-        return await this.#executeWithTokenRefresh(
-          performFetch,
-          'fetchAllSecretData',
-        );
-      } catch (error) {
-        log('Error fetching secret data', error);
-        throw new Error(
-          SeedlessOnboardingControllerErrorMessage.FailedToFetchSecretMetadata,
-        );
-      }
+        const primarySecret = secrets[0];
+        if (primarySecret.type !== SecretType.Mnemonic) {
+          throw new Error(
+            SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
+          );
+        }
+
+        return secrets;
+      };
+
+      return await this.#executeWithTokenRefresh(
+        performFetch,
+        'fetchAllSecretData',
+      );
     });
   }
 
