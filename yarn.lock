@@ -2624,7 +2624,7 @@ __metadata:
     "@metamask/permission-controller": "npm:^11.0.6"
     "@metamask/phishing-controller": "npm:^12.6.0"
     "@metamask/polling-controller": "npm:^14.0.0"
-    "@metamask/preferences-controller": "npm:^18.2.0"
+    "@metamask/preferences-controller": "npm:^18.4.0"
     "@metamask/providers": "npm:^22.1.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/snaps-controllers": "npm:^12.3.1"
@@ -2748,7 +2748,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/bridge-controller@npm:^33.0.1, @metamask/bridge-controller@workspace:packages/bridge-controller":
+"@metamask/bridge-controller@npm:^34.0.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-controller@workspace:packages/bridge-controller"
   dependencies:
@@ -2804,7 +2804,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^31.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.1"
-    "@metamask/bridge-controller": "npm:^33.0.1"
+    "@metamask/bridge-controller": "npm:^34.0.0"
     "@metamask/controller-utils": "npm:^11.10.0"
     "@metamask/gas-fee-controller": "npm:^24.0.0"
     "@metamask/keyring-api": "npm:^18.0.0"
@@ -2829,7 +2829,7 @@ __metadata:
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/accounts-controller": ^31.0.0
-    "@metamask/bridge-controller": ^33.0.0
+    "@metamask/bridge-controller": ^34.0.0
     "@metamask/gas-fee-controller": ^24.0.0
     "@metamask/network-controller": ^24.0.0
     "@metamask/snaps-controllers": ^12.0.0
@@ -4135,7 +4135,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/preferences-controller@npm:^18.2.0, @metamask/preferences-controller@workspace:packages/preferences-controller":
+"@metamask/preferences-controller@npm:^18.4.0, @metamask/preferences-controller@workspace:packages/preferences-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/preferences-controller@workspace:packages/preferences-controller"
   dependencies:
@@ -4143,6 +4143,7 @@ __metadata:
     "@metamask/base-controller": "npm:^8.0.1"
     "@metamask/controller-utils": "npm:^11.10.0"
     "@metamask/keyring-controller": "npm:^22.0.2"
+    "@metamask/utils": "npm:^11.2.0"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
@@ -4319,7 +4320,7 @@ __metadata:
     "@metamask/base-controller": "npm:^8.0.1"
     "@metamask/browser-passworder": "npm:^4.3.0"
     "@metamask/keyring-controller": "npm:^22.0.2"
-    "@metamask/toprf-secure-backup": "npm:^0.3.1"
+    "@metamask/toprf-secure-backup": "npm:^0.4.0"
     "@metamask/utils": "npm:^11.2.0"
     "@noble/ciphers": "npm:^0.5.2"
     "@noble/curves": "npm:^1.2.0"
@@ -4562,9 +4563,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/toprf-secure-backup@npm:^0.3.1":
-  version: 0.3.1
-  resolution: "@metamask/toprf-secure-backup@npm:0.3.1"
+"@metamask/toprf-secure-backup@npm:^0.4.0":
+  version: 0.4.0
+  resolution: "@metamask/toprf-secure-backup@npm:0.4.0"
   dependencies:
     "@metamask/auth-network-utils": "npm:^0.3.0"
     "@noble/ciphers": "npm:^1.2.1"
@@ -4576,7 +4577,7 @@ __metadata:
     "@toruslabs/fetch-node-details": "npm:^15.0.0"
     "@toruslabs/http-helpers": "npm:^8.1.1"
     bn.js: "npm:^5.2.1"
-  checksum: 10/fec535a02236faf9b0dd4123a079e6f8f211d9fc9758944f823cc018ad5000957ed9402c38bbdf0fdfd660b365a10af52903438c477125db8a6880c325f09cdf
+  checksum: 10/8aebf34e1051a2715bbbd5af576084b8c6eb4ecd1b8383e326aabf390c486d520746777d4fb0fd19078ca8f714e92b0a693795afe7acc38439d820ed22ec7a52
   languageName: node
   linkType: hard
 
