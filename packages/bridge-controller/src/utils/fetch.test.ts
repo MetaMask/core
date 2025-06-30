@@ -163,6 +163,7 @@ describe('fetch', () => {
           destTokenAddress: AddressZero,
           srcTokenAmount: '20000',
           slippage: 0.5,
+          gasIncluded: false,
         },
         signal,
         BridgeClientId.EXTENSION,
@@ -171,7 +172,7 @@ describe('fetch', () => {
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
-        'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&destWalletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&insufficientBal=false&resetApproval=false&slippage=0.5',
+        'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&destWalletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&insufficientBal=false&resetApproval=false&gasIncluded=false&slippage=0.5',
         {
           cacheOptions: {
             cacheRefreshTime: 0,
@@ -202,6 +203,7 @@ describe('fetch', () => {
           destTokenAddress: AddressZero,
           srcTokenAmount: '20000',
           slippage: 0.5,
+          gasIncluded: false,
         },
         signal,
         BridgeClientId.EXTENSION,
@@ -210,7 +212,7 @@ describe('fetch', () => {
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
-        'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&destWalletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&insufficientBal=false&resetApproval=false&slippage=0.5',
+        'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&destWalletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&insufficientBal=false&resetApproval=false&gasIncluded=false&slippage=0.5',
         {
           cacheOptions: {
             cacheRefreshTime: 0,
@@ -265,6 +267,7 @@ describe('fetch', () => {
           destTokenAddress: AddressZero,
           srcTokenAmount: '20000',
           slippage: 0.5,
+          gasIncluded: false,
         },
         signal,
         BridgeClientId.EXTENSION,
@@ -273,7 +276,7 @@ describe('fetch', () => {
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
-        'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&destWalletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&insufficientBal=false&resetApproval=false&slippage=0.5',
+        'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&destWalletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&insufficientBal=false&resetApproval=false&gasIncluded=false&slippage=0.5',
         {
           cacheOptions: {
             cacheRefreshTime: 0,

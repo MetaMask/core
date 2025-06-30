@@ -40,6 +40,7 @@ describe('feature-flags', () => {
           '1151111081099710': {
             isActiveSrc: true,
             isActiveDest: true,
+            isSnapConfirmationEnabled: false,
           },
         },
       };
@@ -79,6 +80,7 @@ describe('feature-flags', () => {
           'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': {
             isActiveSrc: true,
             isActiveDest: true,
+            isSnapConfirmationEnabled: false,
           },
         },
       });

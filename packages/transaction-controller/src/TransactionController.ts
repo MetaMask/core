@@ -119,6 +119,7 @@ import type {
   TransactionBatchMeta,
   AfterSimulateHook,
   BeforeSignHook,
+  TransactionContainerType,
 } from './types';
 import {
   GasFeeEstimateLevel,
@@ -352,7 +353,7 @@ export type TransactionControllerOptions = {
 
   /** Configuration options for incoming transaction support. */
   incomingTransactions?: IncomingTransactionOptions & {
-    /** API keys to be used for Etherscan requests to prevent rate limiting. */
+    /** @deprecated Ignored as Etherscan no longer used. */
     etherscanApiKeysByChainId?: Record<Hex, string>;
   };
 
@@ -940,6 +941,7 @@ export class TransactionController extends BaseController<
       getGasFeeControllerEstimates: this.#getGasFeeEstimates,
       getProvider: (networkClientId) => this.#getProvider({ networkClientId }),
       getTransactions: () => this.state.transactions,
+      getTransactionBatches: () => this.state.transactionBatches,
       layer1GasFeeFlows: this.#layer1GasFeeFlows,
       messenger: this.messagingSystem,
       onStateChange: (listener) => {
@@ -953,6 +955,11 @@ export class TransactionController extends BaseController<
     gasFeePoller.hub.on(
       'transaction-updated',
       this.#onGasFeePollerTransactionUpdate.bind(this),
+    );
+
+    gasFeePoller.hub.on(
+      'transaction-batch-updated',
+      this.#onGasFeePollerTransactionBatchUpdate.bind(this),
     );
 
     this.#methodDataHelper = new MethodDataHelper({
@@ -969,25 +976,16 @@ export class TransactionController extends BaseController<
       },
     );
 
-    const updateCache = (fn: (cache: Record<string, unknown>) => void) => {
-      this.update((_state) => {
-        fn(_state.lastFetchedBlockNumbers);
-      });
-    };
-
     this.#incomingTransactionHelper = new IncomingTransactionHelper({
       client: this.#incomingTransactionOptions.client,
-      getCache: () => this.state.lastFetchedBlockNumbers,
       getCurrentAccount: () => this.#getSelectedAccount(),
       getLocalTransactions: () => this.state.transactions,
       includeTokenTransfers:
         this.#incomingTransactionOptions.includeTokenTransfers,
       isEnabled: this.#incomingTransactionOptions.isEnabled,
       messenger: this.messagingSystem,
-      queryEntireHistory: this.#incomingTransactionOptions.queryEntireHistory,
       remoteTransactionSource: new AccountsApiRemoteTransactionSource(),
       trimTransactions: this.#trimTransactionsForState.bind(this),
-      updateCache,
       updateTransactions: this.#incomingTransactionOptions.updateTransactions,
     });
 
@@ -1711,7 +1709,7 @@ export class TransactionController extends BaseController<
     }
 
     const newTransactions = this.state.transactions.filter(
-      ({ chainId: txChainId, txParams }) => {
+      ({ chainId: txChainId, txParams, type }) => {
         const isMatchingNetwork = !chainId || chainId === txChainId;
 
         if (!isMatchingNetwork) {
@@ -1719,7 +1717,10 @@ export class TransactionController extends BaseController<
         }
 
         const isMatchingAddress =
-          !address || txParams.from?.toLowerCase() === address.toLowerCase();
+          !address ||
+          txParams.from?.toLowerCase() === address.toLowerCase() ||
+          (type === TransactionType.incoming &&
+            txParams.to?.toLowerCase() === address.toLowerCase());
 
         return !isMatchingAddress;
       },
@@ -2033,6 +2034,7 @@ export class TransactionController extends BaseController<
    *
    * @param txId - The ID of the transaction to update.
    * @param params - The editable parameters to update.
+   * @param params.containerTypes - Container types applied to the parameters.
    * @param params.data - Data to pass with the transaction.
    * @param params.from - Address to send the transaction from.
    * @param params.gas - Maximum number of units of gas to use for the transaction.
@@ -2046,6 +2048,7 @@ export class TransactionController extends BaseController<
   async updateEditableParams(
     txId: string,
     {
+      containerTypes,
       data,
       from,
       gas,
@@ -2055,6 +2058,7 @@ export class TransactionController extends BaseController<
       to,
       value,
     }: {
+      containerTypes?: TransactionContainerType[];
       data?: string;
       from?: string;
       gas?: string;
@@ -2104,6 +2108,10 @@ export class TransactionController extends BaseController<
     );
 
     updatedTransaction.type = type;
+
+    if (containerTypes) {
+      updatedTransaction.containerTypes = containerTypes;
+    }
 
     await updateTransactionLayer1GasFee({
       layer1GasFeeFlows: this.#layer1GasFeeFlows,
@@ -4230,6 +4238,36 @@ export class TransactionController extends BaseController<
         });
       },
     );
+  }
+
+  #onGasFeePollerTransactionBatchUpdate({
+    transactionBatchId,
+    gasFeeEstimates,
+  }: {
+    transactionBatchId: Hex;
+    gasFeeEstimates?: GasFeeEstimates;
+  }) {
+    this.#updateTransactionBatch(transactionBatchId, (batch) => {
+      return { ...batch, gasFeeEstimates };
+    });
+  }
+
+  #updateTransactionBatch(
+    batchId: string,
+    callback: (batch: TransactionBatchMeta) => TransactionBatchMeta | void,
+  ): void {
+    this.update((state) => {
+      const index = state.transactionBatches.findIndex((b) => b.id === batchId);
+
+      if (index === -1) {
+        throw new Error(`Cannot update batch, ID not found - ${batchId}`);
+      }
+
+      const batch = state.transactionBatches[index];
+      const updated = callback(batch);
+
+      state.transactionBatches[index] = updated ?? batch;
+    });
   }
 
   #getSelectedAccount() {

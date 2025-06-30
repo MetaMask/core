@@ -39,7 +39,7 @@ Array [
   Array [
     "Bridge status validation failed",
     Object {
-      "destChain.chainId": "[across] Expected a string, but received: undefined",
+      "destChain.chainId": "[across] Expected a number, but received: undefined",
     },
   ],
 ]
