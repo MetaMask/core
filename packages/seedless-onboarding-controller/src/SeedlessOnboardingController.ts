@@ -429,11 +429,12 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
             rawToprfPwEncryptionKey: pwEncKey,
             rawToprfAuthKeyPair: authKeyPair,
           });
+
+          this.#persistAuthPubKey({
+            authPubKey: authKeyPair.pk,
+          });
         }
 
-        this.#persistAuthPubKey({
-          authPubKey: authKeyPair.pk,
-        });
         return secrets;
       };
 
