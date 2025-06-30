@@ -23,6 +23,7 @@ import {
 } from '@metamask/utils';
 
 import { POPULAR_NETWORKS } from './constants';
+import { selectAllEnabledNetworks } from './selectors';
 
 // Unique name for the controller
 const controllerName = 'NetworkEnablementController';
@@ -246,40 +247,6 @@ export class NetworkEnablementController extends BaseController<
   }
 
   /**
-   * Gets all enabled networks for a specific namespace.
-   *
-   * This method returns an array of chain IDs (as strings) for all enabled networks
-   * within the specified namespace (e.g., 'eip155' for EVM networks, 'solana' for Solana).
-   *
-   * @param namespace - The CAIP namespace to get enabled networks for (e.g., 'eip155', 'solana')
-   * @returns An array of chain ID strings for enabled networks in the namespace
-   */
-  getEnabledNetworksForNamespace(namespace: CaipNamespace): string[] {
-    return Object.entries(this.state.enabledNetworkMap[namespace] ?? {})
-      .filter(([, enabled]) => enabled)
-      .map(([id]) => id);
-  }
-
-  /**
-   * Gets all enabled networks across all namespaces.
-   *
-   * This method returns a record where keys are CAIP namespaces and values are arrays
-   * of enabled chain IDs within each namespace.
-   *
-   * @returns A record mapping namespace to array of enabled chain IDs
-   */
-  getAllEnabledNetworks(): Record<CaipNamespace, string[]> {
-    return Object.keys(this.state.enabledNetworkMap).reduce<
-      Record<CaipNamespace, string[]>
-    >((acc, ns) => {
-      acc[ns] = this.getEnabledNetworksForNamespace(ns);
-      return acc;
-    }, {});
-  }
-
-  // ---------------------------- Internals ----------------------------------
-
-  /**
    * Derives the namespace, storage key, and CAIP chain ID from a given chain ID.
    *
    * This internal method handles the conversion between different chain ID formats.
@@ -459,7 +426,7 @@ export class NetworkEnablementController extends BaseController<
     // Don't disable the last remaining enabled network
     if (
       !enable &&
-      Object.values(this.getAllEnabledNetworks()).flat().length <= 1
+      Object.values(selectAllEnabledNetworks(this.state)).flat().length <= 1
     ) {
       return;
     }

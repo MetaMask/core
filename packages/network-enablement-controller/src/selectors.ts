@@ -1,12 +1,12 @@
-import { createSelector } from 'reselect';
+import { toHex } from '@metamask/controller-utils';
+import { toEvmCaipChainId } from '@metamask/multichain-network-controller';
 import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
 import {
   isHexString,
   parseCaipChainId,
   KnownCaipNamespace,
 } from '@metamask/utils';
-import { toEvmCaipChainId } from '@metamask/multichain-network-controller';
-import { toHex } from '@metamask/controller-utils';
+import { createSelector } from 'reselect';
 
 import type { NetworkEnablementControllerState } from './NetworkEnablementController';
 

@@ -1,5 +1,6 @@
 import { KnownCaipNamespace } from '@metamask/utils';
 
+import type { NetworkEnablementControllerState } from './NetworkEnablementController';
 import {
   selectEnabledNetworkMap,
   selectIsNetworkEnabled,
@@ -10,7 +11,6 @@ import {
   selectEnabledEvmNetworks,
   selectEnabledSolanaNetworks,
 } from './selectors';
-import type { NetworkEnablementControllerState } from './NetworkEnablementController';
 
 describe('NetworkEnablementController Selectors', () => {
   const mockState: NetworkEnablementControllerState = {
@@ -78,7 +78,7 @@ describe('NetworkEnablementController Selectors', () => {
         KnownCaipNamespace.Eip155,
       );
       const result = selector(mockState);
-      expect(result).toEqual(['0x1', '0xa4b1']);
+      expect(result).toStrictEqual(['0x1', '0xa4b1']);
     });
 
     it('should return enabled Solana networks', () => {
@@ -86,20 +86,20 @@ describe('NetworkEnablementController Selectors', () => {
         KnownCaipNamespace.Solana,
       );
       const result = selector(mockState);
-      expect(result).toEqual(['solana:mainnet']);
+      expect(result).toStrictEqual(['solana:mainnet']);
     });
 
     it('should return empty array for unknown namespace', () => {
       const selector = selectEnabledNetworksForNamespace('unknown');
       const result = selector(mockState);
-      expect(result).toEqual([]);
+      expect(result).toStrictEqual([]);
     });
   });
 
   describe('selectAllEnabledNetworks', () => {
     it('should return all enabled networks across namespaces', () => {
       const result = selectAllEnabledNetworks(mockState);
-      expect(result).toEqual({
+      expect(result).toStrictEqual({
         [KnownCaipNamespace.Eip155]: ['0x1', '0xa4b1'],
         [KnownCaipNamespace.Solana]: ['solana:mainnet'],
       });
@@ -141,14 +141,14 @@ describe('NetworkEnablementController Selectors', () => {
   describe('selectEnabledEvmNetworks', () => {
     it('should return enabled EVM networks', () => {
       const result = selectEnabledEvmNetworks(mockState);
-      expect(result).toEqual(['0x1', '0xa4b1']);
+      expect(result).toStrictEqual(['0x1', '0xa4b1']);
     });
   });
 
   describe('selectEnabledSolanaNetworks', () => {
     it('should return enabled Solana networks', () => {
       const result = selectEnabledSolanaNetworks(mockState);
-      expect(result).toEqual(['solana:mainnet']);
+      expect(result).toStrictEqual(['solana:mainnet']);
     });
   });
 });
