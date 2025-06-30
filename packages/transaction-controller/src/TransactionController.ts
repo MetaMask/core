@@ -119,6 +119,7 @@ import type {
   TransactionBatchMeta,
   AfterSimulateHook,
   BeforeSignHook,
+  TransactionContainerType,
 } from './types';
 import {
   GasFeeEstimateLevel,
@@ -940,6 +941,7 @@ export class TransactionController extends BaseController<
       getGasFeeControllerEstimates: this.#getGasFeeEstimates,
       getProvider: (networkClientId) => this.#getProvider({ networkClientId }),
       getTransactions: () => this.state.transactions,
+      getTransactionBatches: () => this.state.transactionBatches,
       layer1GasFeeFlows: this.#layer1GasFeeFlows,
       messenger: this.messagingSystem,
       onStateChange: (listener) => {
@@ -953,6 +955,11 @@ export class TransactionController extends BaseController<
     gasFeePoller.hub.on(
       'transaction-updated',
       this.#onGasFeePollerTransactionUpdate.bind(this),
+    );
+
+    gasFeePoller.hub.on(
+      'transaction-batch-updated',
+      this.#onGasFeePollerTransactionBatchUpdate.bind(this),
     );
 
     this.#methodDataHelper = new MethodDataHelper({
@@ -2027,6 +2034,7 @@ export class TransactionController extends BaseController<
    *
    * @param txId - The ID of the transaction to update.
    * @param params - The editable parameters to update.
+   * @param params.containerTypes - Container types applied to the parameters.
    * @param params.data - Data to pass with the transaction.
    * @param params.from - Address to send the transaction from.
    * @param params.gas - Maximum number of units of gas to use for the transaction.
@@ -2040,6 +2048,7 @@ export class TransactionController extends BaseController<
   async updateEditableParams(
     txId: string,
     {
+      containerTypes,
       data,
       from,
       gas,
@@ -2049,6 +2058,7 @@ export class TransactionController extends BaseController<
       to,
       value,
     }: {
+      containerTypes?: TransactionContainerType[];
       data?: string;
       from?: string;
       gas?: string;
@@ -2098,6 +2108,10 @@ export class TransactionController extends BaseController<
     );
 
     updatedTransaction.type = type;
+
+    if (containerTypes) {
+      updatedTransaction.containerTypes = containerTypes;
+    }
 
     await updateTransactionLayer1GasFee({
       layer1GasFeeFlows: this.#layer1GasFeeFlows,
@@ -4224,6 +4238,36 @@ export class TransactionController extends BaseController<
         });
       },
     );
+  }
+
+  #onGasFeePollerTransactionBatchUpdate({
+    transactionBatchId,
+    gasFeeEstimates,
+  }: {
+    transactionBatchId: Hex;
+    gasFeeEstimates?: GasFeeEstimates;
+  }) {
+    this.#updateTransactionBatch(transactionBatchId, (batch) => {
+      return { ...batch, gasFeeEstimates };
+    });
+  }
+
+  #updateTransactionBatch(
+    batchId: string,
+    callback: (batch: TransactionBatchMeta) => TransactionBatchMeta | void,
+  ): void {
+    this.update((state) => {
+      const index = state.transactionBatches.findIndex((b) => b.id === batchId);
+
+      if (index === -1) {
+        throw new Error(`Cannot update batch, ID not found - ${batchId}`);
+      }
+
+      const batch = state.transactionBatches[index];
+      const updated = callback(batch);
+
+      state.transactionBatches[index] = updated ?? batch;
+    });
   }
 
   #getSelectedAccount() {

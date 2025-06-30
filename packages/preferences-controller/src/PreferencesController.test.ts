@@ -26,6 +26,8 @@ describe('PreferencesController', () => {
       securityAlertsEnabled: false,
       isMultiAccountBalancesEnabled: true,
       showTestNetworks: false,
+      smartAccountOptIn: true,
+      smartAccountOptInForAccounts: [],
       isIpfsGatewayEnabled: true,
       useTransactionSimulations: true,
       useMultiRpcMigration: true,
@@ -450,6 +452,12 @@ describe('PreferencesController', () => {
     expect(controller.state.useMultiRpcMigration).toBe(true);
   });
 
+  it('should set useMultiRpcMigration is false value is passed', () => {
+    const controller = setupPreferencesController();
+    controller.setUseMultiRpcMigration(false);
+    expect(controller.state.useMultiRpcMigration).toBe(false);
+  });
+
   it('should set featureFlags', () => {
     const controller = setupPreferencesController();
     controller.setFeatureFlag('Feature A', true);
@@ -549,6 +557,20 @@ describe('PreferencesController', () => {
     expect(controller.state.dismissSmartAccountSuggestionEnabled).toBe(false);
     controller.setDismissSmartAccountSuggestionEnabled(true);
     expect(controller.state.dismissSmartAccountSuggestionEnabled).toBe(true);
+  });
+
+  it('should set smartAccountOptIn', () => {
+    const controller = setupPreferencesController();
+    expect(controller.state.smartAccountOptIn).toBe(true);
+    controller.setSmartAccountOptIn(false);
+    expect(controller.state.smartAccountOptIn).toBe(false);
+  });
+
+  it('should set smartAccountOptInForAccounts', () => {
+    const controller = setupPreferencesController();
+    expect(controller.state.smartAccountOptInForAccounts).toHaveLength(0);
+    controller.setSmartAccountOptInForAccounts(['0x1', '0x2']);
+    expect(controller.state.smartAccountOptInForAccounts[0]).toBe('0x1');
   });
 });
 
