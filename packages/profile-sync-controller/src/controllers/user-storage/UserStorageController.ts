@@ -20,6 +20,7 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type { TraceCallback } from '@metamask/controller-utils';
 import {
   KeyringTypes,
   type KeyringControllerGetStateAction,
@@ -370,6 +371,8 @@ export default class UserStorageController extends BaseController<
 
   readonly #config?: ControllerConfig;
 
+  readonly #trace: TraceCallback;
+
   #isUnlocked = false;
 
   #storageKeyCache: Record<`metamask:${string}`, string> = {};
@@ -401,6 +404,7 @@ export default class UserStorageController extends BaseController<
     env,
     config,
     nativeScryptCrypto,
+    trace,
   }: {
     messenger: UserStorageControllerMessenger;
     state?: UserStorageControllerState;
@@ -409,6 +413,7 @@ export default class UserStorageController extends BaseController<
       isNetworkSyncingEnabled?: boolean;
     };
     nativeScryptCrypto?: NativeScrypt;
+    trace?: TraceCallback;
   }) {
     super({
       messenger,
@@ -419,6 +424,7 @@ export default class UserStorageController extends BaseController<
 
     this.#env.isNetworkSyncingEnabled = Boolean(env?.isNetworkSyncingEnabled);
     this.#config = config;
+    this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
 
     this.#userStorage = new UserStorage(
       {
@@ -461,12 +467,14 @@ export default class UserStorageController extends BaseController<
     setupAccountSyncingSubscriptions({
       getUserStorageControllerInstance: () => this,
       getMessenger: () => this.messagingSystem,
+      trace: this.#trace,
     });
 
     // Contact Syncing
     setupContactSyncingSubscriptions({
       getUserStorageControllerInstance: () => this,
       getMessenger: () => this.messagingSystem,
+      trace: this.#trace,
     });
 
     // Network Syncing
@@ -855,6 +863,7 @@ export default class UserStorageController extends BaseController<
           {
             getMessenger: () => this.messagingSystem,
             getUserStorageControllerInstance: () => this,
+            trace: this.#trace,
           },
           entropySourceId,
         );
@@ -881,6 +890,7 @@ export default class UserStorageController extends BaseController<
     await saveInternalAccountToUserStorage(internalAccount, {
       getMessenger: () => this.messagingSystem,
       getUserStorageControllerInstance: () => this,
+      trace: this.#trace,
     });
   }
 
@@ -938,6 +948,7 @@ export default class UserStorageController extends BaseController<
     await syncContactsWithUserStorage(config, {
       getMessenger: () => this.messagingSystem,
       getUserStorageControllerInstance: () => this,
+      trace: this.#trace,
     });
   }
 }
