@@ -4,6 +4,7 @@ import { BaseController } from '@metamask/base-controller';
 import type {
   KeyPair,
   NodeAuthTokens,
+  RecoverEncryptionKeyResult,
   SEC1EncodedPublicKey,
 } from '@metamask/toprf-secure-backup';
 import {
@@ -396,47 +397,14 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       // assert that the user is authenticated before fetching the secret data
       this.#assertIsAuthenticatedUser(this.state);
 
-      let encKey: Uint8Array;
-      let pwEncKey: Uint8Array;
-      let authKeyPair: KeyPair;
-
-      if (password) {
-        const recoverEncKeyResult = await this.#recoverEncKey(password);
-        encKey = recoverEncKeyResult.encKey;
-        pwEncKey = recoverEncKeyResult.pwEncKey;
-        authKeyPair = recoverEncKeyResult.authKeyPair;
-      } else {
-        this.#assertIsUnlocked();
-        // verify the password and unlock the vault
-        const keysFromVault = await this.#unlockVaultAndGetBackupEncKey();
-        encKey = keysFromVault.toprfEncryptionKey;
-        pwEncKey = keysFromVault.toprfPwEncryptionKey;
-        authKeyPair = keysFromVault.toprfAuthKeyPair;
-      }
+      const { encKey, pwEncKey, authKeyPair } =
+        await this.#recoverEncKey(password);
 
       const performFetch = async (): Promise<SecretMetadata[]> => {
-        let secretData: Uint8Array[] = [];
-
-        try {
-          secretData = await this.toprfClient.fetchAllSecretDataItems({
-            decKey: encKey,
-            authKeyPair,
-          });
-        } catch (error) {
-          log('Error fetching secret data', error);
-          if (this.#isTokenExpiredError(error)) {
-            throw error;
-          }
-          throw new Error(
-            SeedlessOnboardingControllerErrorMessage.FailedToFetchSecretMetadata,
-          );
-        }
-
-        if (secretData.length === 0) {
-          throw new Error(
-            SeedlessOnboardingControllerErrorMessage.NoSecretDataFound,
-          );
-        }
+        const secrets = await this.#fetchAllSecretDataFromMetadataStore(
+          encKey,
+          authKeyPair,
+        );
 
         if (password) {
           // if password is provided, we need to create a new vault with the auth data. (supposedly the user is trying to rehydrate the wallet)
@@ -451,16 +419,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         this.#persistAuthPubKey({
           authPubKey: authKeyPair.pk,
         });
-        const secrets =
-          SecretMetadata.parseSecretsFromMetadataStore(secretData);
-
-        const primarySecret = secrets[0];
-        if (primarySecret.type !== SecretType.Mnemonic) {
-          throw new Error(
-            SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
-          );
-        }
-
         return secrets;
       };
 
@@ -966,20 +924,45 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @returns A promise that resolves to the encryption key and authentication key pair.
    * @throws RecoveryError - If failed to recover the encryption key.
    */
-  async #recoverEncKey(password: string) {
+  async #recoverEncKey(
+    password?: string,
+  ): Promise<Omit<RecoverEncryptionKeyResult, 'rateLimitResetResult'>> {
     try {
+      let encKey: Uint8Array;
+      let pwEncKey: Uint8Array;
+      let authKeyPair: KeyPair;
+      let keyShareIndex: number = 0;
       this.#assertIsAuthenticatedUser(this.state);
 
-      const { authConnectionId, groupedAuthConnectionId, userId } = this.state;
+      if (password) {
+        const { authConnectionId, groupedAuthConnectionId, userId } =
+          this.state;
 
-      const recoverEncKeyResult = await this.toprfClient.recoverEncKey({
-        nodeAuthTokens: this.state.nodeAuthTokens,
-        password,
-        authConnectionId,
-        groupedAuthConnectionId,
-        userId,
-      });
-      return recoverEncKeyResult;
+        const recoverEncKeyResult = await this.toprfClient.recoverEncKey({
+          nodeAuthTokens: this.state.nodeAuthTokens,
+          password,
+          authConnectionId,
+          groupedAuthConnectionId,
+          userId,
+        });
+        encKey = recoverEncKeyResult.encKey;
+        pwEncKey = recoverEncKeyResult.pwEncKey;
+        authKeyPair = recoverEncKeyResult.authKeyPair;
+        keyShareIndex = recoverEncKeyResult.keyShareIndex;
+      } else {
+        this.#assertIsUnlocked();
+        // verify the cached encryption key and unlock the vault
+        const keysFromVault = await this.#unlockVaultAndGetBackupEncKey();
+        encKey = keysFromVault.toprfEncryptionKey;
+        pwEncKey = keysFromVault.toprfPwEncryptionKey;
+        authKeyPair = keysFromVault.toprfAuthKeyPair;
+      }
+      return {
+        encKey,
+        pwEncKey,
+        authKeyPair,
+        keyShareIndex,
+      };
     } catch (error) {
       console.log('error', error);
       console.log('isTokenExpiredError', this.#isTokenExpiredError(error));
@@ -990,6 +973,45 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
 
       throw RecoveryError.getInstance(error);
     }
+  }
+
+  async #fetchAllSecretDataFromMetadataStore(
+    encKey: Uint8Array,
+    authKeyPair: KeyPair,
+  ) {
+    let secretData: Uint8Array[] = [];
+    try {
+      // fetch and decrypt the secret data from the metadata store
+      secretData = await this.toprfClient.fetchAllSecretDataItems({
+        decKey: encKey,
+        authKeyPair,
+      });
+    } catch (error) {
+      log('Error fetching secret data', error);
+      if (this.#isTokenExpiredError(error)) {
+        throw error;
+      }
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.FailedToFetchSecretMetadata,
+      );
+    }
+
+    // user must have at least one secret data
+    if (secretData.length === 0) {
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.NoSecretDataFound,
+      );
+    }
+
+    const secrets = SecretMetadata.parseSecretsFromMetadataStore(secretData);
+    // validate the primary secret data is a mnemonic (SRP)
+    const primarySecret = secrets[0];
+    if (primarySecret.type !== SecretType.Mnemonic) {
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
+      );
+    }
+    return secrets;
   }
 
   /**
