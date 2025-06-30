@@ -7,7 +7,22 @@ export * from './coercers';
 export * from './collections';
 export * from './encryption-types';
 export * from './errors';
-export * from './hex';
+export type { Hex } from './hex';
+export {
+  HexStruct,
+  StrictHexStruct,
+  HexAddressStruct,
+  HexChecksumAddressStruct,
+  isHexString,
+  isStrictHexString,
+  assertIsHexString,
+  assertIsStrictHexString,
+  isValidHexAddress,
+  getChecksumAddress,
+  isValidChecksumAddress,
+  add0x,
+  remove0x,
+} from './hex';
 export * from './json';
 export * from './keyring';
 export * from './logging';

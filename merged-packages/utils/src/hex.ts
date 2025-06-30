@@ -1,9 +1,9 @@
 import type { Struct } from '@metamask/superstruct';
 import { is, pattern, string } from '@metamask/superstruct';
 import { keccak_256 as keccak256 } from '@noble/hashes/sha3';
+import memoize from 'lodash.memoize';
 
 import { assert } from './assert';
-import { bytesToHex } from './bytes';
 
 export type Hex = `0x${string}`;
 
@@ -82,26 +82,43 @@ export function isValidHexAddress(possibleAddress: Hex) {
 
 /**
  * Encode a passed hex string as an ERC-55 mixed-case checksum address.
+ * This is the unmemoized version, primarily used for testing.
  *
- * @param address - The hex address to encode.
+ * @param hexAddress - The hex address to encode.
  * @returns The address encoded according to ERC-55.
  * @see https://eips.ethereum.org/EIPS/eip-55
  */
-export function getChecksumAddress(address: Hex): Hex {
-  assert(is(address, HexChecksumAddressStruct), 'Invalid hex address.');
-  const unPrefixed = remove0x(address.toLowerCase());
-  const unPrefixedHash = remove0x(bytesToHex(keccak256(unPrefixed)));
-  return `0x${unPrefixed
-    .split('')
-    .map((character, nibbleIndex) => {
-      const hashCharacter = unPrefixedHash[nibbleIndex];
-      assert(is(hashCharacter, string()), 'Hash shorter than address.');
-      return parseInt(hashCharacter, 16) > 7
-        ? character.toUpperCase()
-        : character;
-    })
-    .join('')}`;
+export function getChecksumAddressUnmemoized(hexAddress: Hex): Hex {
+  assert(is(hexAddress, HexChecksumAddressStruct), 'Invalid hex address.');
+  const address = remove0x(hexAddress).toLowerCase();
+
+  const hashBytes = keccak256(address);
+  const { length } = address;
+  const result = new Array(length); // Pre-allocate array
+
+  for (let i = 0; i < length; i++) {
+    /* eslint-disable no-bitwise */
+    const byteIndex = i >> 1; // Faster than Math.floor(i / 2)
+    const nibbleIndex = i & 1; // Faster than i % 2
+    const byte = hashBytes[byteIndex] as number;
+    const nibble = nibbleIndex === 0 ? byte >> 4 : byte & 0x0f;
+    /* eslint-enable no-bitwise */
+
+    result[i] = nibble >= 8 ? (address[i] as string).toUpperCase() : address[i];
+  }
+
+  return `0x${result.join('')}`;
 }
+
+/**
+ * Encode a passed hex string as an ERC-55 mixed-case checksum address.
+ * This function is memoized for performance.
+ *
+ * @param hexAddress - The hex address to encode.
+ * @returns The address encoded according to ERC-55.
+ * @see https://eips.ethereum.org/EIPS/eip-55
+ */
+export const getChecksumAddress = memoize(getChecksumAddressUnmemoized);
 
 /**
  * Validate that the passed hex string is a valid ERC-55 mixed-case

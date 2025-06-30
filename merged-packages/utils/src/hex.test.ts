@@ -8,7 +8,8 @@ import {
   isStrictHexString,
   isValidHexAddress,
   remove0x,
-  getChecksumAddress,
+  getChecksumAddressUnmemoized as getChecksumAddress,
+  getChecksumAddress as getChecksumAddressMemoized,
 } from './hex';
 
 describe('isHexString', () => {
@@ -212,12 +213,58 @@ describe('getChecksumAddress', () => {
     ).toBe('0xde709f2102306220921060314715629080e2fb77');
 
     expect(
+      getChecksumAddress('0x8617e340b3d01fa5f11f306f4090fd50e238070d'),
+    ).toBe('0x8617E340B3D01FA5F11F306F4090FD50E238070D');
+
+    expect(
+      getChecksumAddress('0x27b1fdb04752bbc536007a920d24acb045561c26'),
+    ).toBe('0x27b1fdb04752bbc536007a920d24acb045561c26');
+
+    expect(
+      getChecksumAddress('0xdbf03b407c01e7cd3cbea99509d93f8dddc8c6fb'),
+    ).toBe('0xdbF03B407c01E7cD3CBea99509d93f8DDDC8C6FB');
+
+    expect(
+      getChecksumAddress('0xd1220a0cf47c7b9be7a2e6ba89f429762e7b9adb'),
+    ).toBe('0xD1220A0cf47c7B9Be7A2E6BA89F429762e7b9aDb');
+
+    expect(
       getChecksumAddress('0x0000000000000000000000000000000000000000'),
     ).toBe('0x0000000000000000000000000000000000000000');
   });
 
   it('throws for an invalid hex address', () => {
     expect(() => getChecksumAddress('0x')).toThrow('Invalid hex address.');
+  });
+});
+
+describe('getChecksumAddress (memoized)', () => {
+  it('memoizes results for repeated calls with the same input', () => {
+    const address = '0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed' as Hex;
+    const expected = '0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed';
+
+    // First call should compute the result
+    const result1 = getChecksumAddressMemoized(address);
+    expect(result1).toBe(expected);
+
+    // Second call with the same input should return the cached result
+    const result2 = getChecksumAddressMemoized(address);
+    expect(result2).toBe(expected);
+
+    // Results should be the same object reference (memoized)
+    expect(result1).toBe(result2);
+  });
+
+  it('handles different inputs correctly', () => {
+    const address1 = '0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed' as Hex;
+    const address2 = '0xfb6916095ca1df60bb79ce92ce3ea74c37c5d359' as Hex;
+
+    const result1 = getChecksumAddressMemoized(address1);
+    const result2 = getChecksumAddressMemoized(address2);
+
+    expect(result1).toBe('0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed');
+    expect(result2).toBe('0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359');
+    expect(result1).not.toBe(result2);
   });
 });
 
@@ -228,6 +275,13 @@ describe('isValidChecksumAddress', () => {
     '0xCf5609B003B2776699eEA1233F7C82D5695cC9AA' as Hex,
     '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' as Hex,
     '0x8617E340B3D01FA5F11F306F4090FD50E238070D' as Hex,
+    '0x52908400098527886E0F7030069857D2E4169EE7' as Hex,
+    '0xde709f2102306220921060314715629080e2fb77' as Hex,
+    '0x27b1fdb04752bbc536007a920d24acb045561c26' as Hex,
+    '0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed' as Hex,
+    '0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359' as Hex,
+    '0xdbF03B407c01E7cD3CBea99509d93f8DDDC8C6FB' as Hex,
+    '0xD1220A0cf47c7B9Be7A2E6BA89F429762e7b9aDb' as Hex,
   ])('returns true for a valid checksum address', (hexString) => {
     expect(isValidChecksumAddress(hexString)).toBe(true);
   });
