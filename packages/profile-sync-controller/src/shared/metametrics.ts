@@ -8,7 +8,7 @@
 /**
  * Feature names used in profile-sync-controller MetaMetrics events
  */
-export const ProfileSyncFeatureNames = {
+export const BackupAndSyncFeatureNames = {
   /**
    * The main backup and sync feature
    */
@@ -34,7 +34,7 @@ export const ProfileSyncFeatureNames = {
 /**
  * Actions used in profile-sync-controller MetaMetrics events
  */
-export const ProfileSyncActions = {
+export const BackupAndSyncActions = {
   // Account syncing actions
   ACCOUNTS_SYNC_ADDED: 'Accounts Sync Added',
   ACCOUNTS_SYNC_NAME_UPDATED: 'Accounts Sync Name Updated',
@@ -59,10 +59,10 @@ export const ProfileSyncActions = {
 /**
  * Type definitions for the constants to ensure type safety
  */
-export type ProfileSyncFeatureName =
-  (typeof ProfileSyncFeatureNames)[keyof typeof ProfileSyncFeatureNames];
-export type ProfileSyncAction =
-  (typeof ProfileSyncActions)[keyof typeof ProfileSyncActions];
+export type BackupAndSyncFeatureName =
+  (typeof BackupAndSyncFeatureNames)[keyof typeof BackupAndSyncFeatureNames];
+export type BackupAndSyncAction =
+  (typeof BackupAndSyncActions)[keyof typeof BackupAndSyncActions];
 
 /**
  * Helper function to create standardized MetaMetrics event properties
@@ -73,9 +73,9 @@ export type ProfileSyncAction =
  * @param additionalProperties - Optional additional properties to include
  * @returns An object containing the standardized event properties
  */
-export const createProfileSyncEventProperties = (
-  featureName: ProfileSyncFeatureName,
-  action: ProfileSyncAction,
+export const createBackupAndSyncEventProperties = (
+  featureName: BackupAndSyncFeatureName,
+  action: BackupAndSyncAction,
   additionalProperties?: Record<string, unknown>,
 ) => ({
   feature_name: featureName,
@@ -86,7 +86,7 @@ export const createProfileSyncEventProperties = (
 /**
  * Pre-defined event property sets for common profile-sync-controller events
  */
-export const ProfileSyncEventProperties = {
+export const BackupAndSyncEventProperties = {
   // Account syncing events
   ACCOUNT_ADDED: (profileId: string) => ({
     profile_id: profileId,
@@ -101,21 +101,21 @@ export const ProfileSyncEventProperties = {
 
   // Contact syncing events
   CONTACT_UPDATED: (profileId: string) =>
-    createProfileSyncEventProperties(
-      ProfileSyncFeatureNames.BACKUP_AND_SYNC,
-      ProfileSyncActions.CONTACTS_SYNC_CONTACT_UPDATED,
+    createBackupAndSyncEventProperties(
+      BackupAndSyncFeatureNames.BACKUP_AND_SYNC,
+      BackupAndSyncActions.CONTACTS_SYNC_CONTACT_UPDATED,
       { profile_id: profileId },
     ),
   CONTACT_DELETED: (profileId: string) =>
-    createProfileSyncEventProperties(
-      ProfileSyncFeatureNames.BACKUP_AND_SYNC,
-      ProfileSyncActions.CONTACTS_SYNC_CONTACT_DELETED,
+    createBackupAndSyncEventProperties(
+      BackupAndSyncFeatureNames.BACKUP_AND_SYNC,
+      BackupAndSyncActions.CONTACTS_SYNC_CONTACT_DELETED,
       { profile_id: profileId },
     ),
   CONTACT_SYNC_ERROR: (profileId: string, situationMessage: string) =>
-    createProfileSyncEventProperties(
-      ProfileSyncFeatureNames.BACKUP_AND_SYNC,
-      ProfileSyncActions.CONTACTS_SYNC_ERRONEOUS_SITUATION,
+    createBackupAndSyncEventProperties(
+      BackupAndSyncFeatureNames.BACKUP_AND_SYNC,
+      BackupAndSyncActions.CONTACTS_SYNC_ERRONEOUS_SITUATION,
       {
         profile_id: profileId,
         additional_description: situationMessage,

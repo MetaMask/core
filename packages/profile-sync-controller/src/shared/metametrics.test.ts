@@ -1,51 +1,51 @@
 import {
-  ProfileSyncFeatureNames,
-  ProfileSyncActions,
-  ProfileSyncEventProperties,
-  createProfileSyncEventProperties,
-  type ProfileSyncFeatureName,
-  type ProfileSyncAction,
+  BackupAndSyncFeatureNames,
+  BackupAndSyncActions,
+  BackupAndSyncEventProperties,
+  createBackupAndSyncEventProperties,
+  type BackupAndSyncFeatureName,
+  type BackupAndSyncAction,
 } from './metametrics';
 
-describe('ProfileSync MetaMetrics Library', () => {
-  describe('ProfileSyncFeatureNames', () => {
+describe('BackupAndSync MetaMetrics Library', () => {
+  describe('BackupAndSyncFeatureNames', () => {
     it('should have the correct feature names', () => {
-      expect(ProfileSyncFeatureNames.BACKUP_AND_SYNC).toBe('Backup And Sync');
-      expect(ProfileSyncFeatureNames.ACCOUNT_SYNCING).toBe('Account Syncing');
-      expect(ProfileSyncFeatureNames.CONTACT_SYNCING).toBe('Contact Syncing');
-      expect(ProfileSyncFeatureNames.NETWORK_SYNCING).toBe('Network Syncing');
-      expect(ProfileSyncFeatureNames.AUTHENTICATION).toBe('Authentication');
+      expect(BackupAndSyncFeatureNames.BACKUP_AND_SYNC).toBe('Backup And Sync');
+      expect(BackupAndSyncFeatureNames.ACCOUNT_SYNCING).toBe('Account Syncing');
+      expect(BackupAndSyncFeatureNames.CONTACT_SYNCING).toBe('Contact Syncing');
+      expect(BackupAndSyncFeatureNames.NETWORK_SYNCING).toBe('Network Syncing');
+      expect(BackupAndSyncFeatureNames.AUTHENTICATION).toBe('Authentication');
     });
   });
 
-  describe('ProfileSyncActions', () => {
+  describe('BackupAndSyncActions', () => {
     it('should have the correct action names', () => {
-      expect(ProfileSyncActions.ACCOUNTS_SYNC_ADDED).toBe(
+      expect(BackupAndSyncActions.ACCOUNTS_SYNC_ADDED).toBe(
         'Accounts Sync Added',
       );
-      expect(ProfileSyncActions.ACCOUNTS_SYNC_NAME_UPDATED).toBe(
+      expect(BackupAndSyncActions.ACCOUNTS_SYNC_NAME_UPDATED).toBe(
         'Accounts Sync Name Updated',
       );
-      expect(ProfileSyncActions.ACCOUNTS_SYNC_ERRONEOUS_SITUATION).toBe(
+      expect(BackupAndSyncActions.ACCOUNTS_SYNC_ERRONEOUS_SITUATION).toBe(
         'Accounts Sync Erroneous Situation',
       );
-      expect(ProfileSyncActions.CONTACTS_SYNC_CONTACT_UPDATED).toBe(
+      expect(BackupAndSyncActions.CONTACTS_SYNC_CONTACT_UPDATED).toBe(
         'Contacts Sync Contact Updated',
       );
-      expect(ProfileSyncActions.CONTACTS_SYNC_CONTACT_DELETED).toBe(
+      expect(BackupAndSyncActions.CONTACTS_SYNC_CONTACT_DELETED).toBe(
         'Contacts Sync Contact Deleted',
       );
-      expect(ProfileSyncActions.CONTACTS_SYNC_ERRONEOUS_SITUATION).toBe(
+      expect(BackupAndSyncActions.CONTACTS_SYNC_ERRONEOUS_SITUATION).toBe(
         'Contacts Sync Erroneous Situation',
       );
     });
   });
 
-  describe('createProfileSyncEventProperties', () => {
+  describe('createBackupAndSyncEventProperties', () => {
     it('should create event properties with feature name and action', () => {
-      const properties = createProfileSyncEventProperties(
-        ProfileSyncFeatureNames.BACKUP_AND_SYNC,
-        ProfileSyncActions.CONTACTS_SYNC_CONTACT_UPDATED,
+      const properties = createBackupAndSyncEventProperties(
+        BackupAndSyncFeatureNames.BACKUP_AND_SYNC,
+        BackupAndSyncActions.CONTACTS_SYNC_CONTACT_UPDATED,
         { profile_id: 'test-profile-id' },
       );
 
@@ -57,9 +57,9 @@ describe('ProfileSync MetaMetrics Library', () => {
     });
 
     it('should work without additional properties', () => {
-      const properties = createProfileSyncEventProperties(
-        ProfileSyncFeatureNames.BACKUP_AND_SYNC,
-        ProfileSyncActions.CONTACTS_SYNC_CONTACT_UPDATED,
+      const properties = createBackupAndSyncEventProperties(
+        BackupAndSyncFeatureNames.BACKUP_AND_SYNC,
+        BackupAndSyncActions.CONTACTS_SYNC_CONTACT_UPDATED,
       );
 
       expect(properties).toStrictEqual({
@@ -69,11 +69,11 @@ describe('ProfileSync MetaMetrics Library', () => {
     });
   });
 
-  describe('ProfileSyncEventProperties', () => {
+  describe('BackupAndSyncEventProperties', () => {
     describe('ACCOUNT_ADDED', () => {
       it('should create account added properties', () => {
         const properties =
-          ProfileSyncEventProperties.ACCOUNT_ADDED('test-profile-id');
+          BackupAndSyncEventProperties.ACCOUNT_ADDED('test-profile-id');
         expect(properties).toStrictEqual({
           profile_id: 'test-profile-id',
         });
@@ -83,7 +83,7 @@ describe('ProfileSync MetaMetrics Library', () => {
     describe('ACCOUNT_NAME_UPDATED', () => {
       it('should create account name updated properties', () => {
         const properties =
-          ProfileSyncEventProperties.ACCOUNT_NAME_UPDATED('test-profile-id');
+          BackupAndSyncEventProperties.ACCOUNT_NAME_UPDATED('test-profile-id');
         expect(properties).toStrictEqual({
           profile_id: 'test-profile-id',
         });
@@ -92,7 +92,7 @@ describe('ProfileSync MetaMetrics Library', () => {
 
     describe('ACCOUNT_SYNC_ERROR', () => {
       it('should create account sync error properties', () => {
-        const properties = ProfileSyncEventProperties.ACCOUNT_SYNC_ERROR(
+        const properties = BackupAndSyncEventProperties.ACCOUNT_SYNC_ERROR(
           'test-profile-id',
           'test error message',
         );
@@ -106,7 +106,7 @@ describe('ProfileSync MetaMetrics Library', () => {
     describe('CONTACT_UPDATED', () => {
       it('should create contact updated properties', () => {
         const properties =
-          ProfileSyncEventProperties.CONTACT_UPDATED('test-profile-id');
+          BackupAndSyncEventProperties.CONTACT_UPDATED('test-profile-id');
         expect(properties).toStrictEqual({
           feature_name: 'Backup And Sync',
           action: 'Contacts Sync Contact Updated',
@@ -118,7 +118,7 @@ describe('ProfileSync MetaMetrics Library', () => {
     describe('CONTACT_DELETED', () => {
       it('should create contact deleted properties', () => {
         const properties =
-          ProfileSyncEventProperties.CONTACT_DELETED('test-profile-id');
+          BackupAndSyncEventProperties.CONTACT_DELETED('test-profile-id');
         expect(properties).toStrictEqual({
           feature_name: 'Backup And Sync',
           action: 'Contacts Sync Contact Deleted',
@@ -129,7 +129,7 @@ describe('ProfileSync MetaMetrics Library', () => {
 
     describe('CONTACT_SYNC_ERROR', () => {
       it('should create contact sync error properties', () => {
-        const properties = ProfileSyncEventProperties.CONTACT_SYNC_ERROR(
+        const properties = BackupAndSyncEventProperties.CONTACT_SYNC_ERROR(
           'test-profile-id',
           'test error message',
         );
@@ -144,7 +144,7 @@ describe('ProfileSync MetaMetrics Library', () => {
 
     describe('NETWORK_ADDED', () => {
       it('should create network added properties', () => {
-        const properties = ProfileSyncEventProperties.NETWORK_ADDED(
+        const properties = BackupAndSyncEventProperties.NETWORK_ADDED(
           'test-profile-id',
           '0x1',
         );
@@ -157,7 +157,7 @@ describe('ProfileSync MetaMetrics Library', () => {
 
     describe('NETWORK_UPDATED', () => {
       it('should create network updated properties', () => {
-        const properties = ProfileSyncEventProperties.NETWORK_UPDATED(
+        const properties = BackupAndSyncEventProperties.NETWORK_UPDATED(
           'test-profile-id',
           '0x1',
         );
@@ -170,7 +170,7 @@ describe('ProfileSync MetaMetrics Library', () => {
 
     describe('NETWORK_REMOVED', () => {
       it('should create network removed properties', () => {
-        const properties = ProfileSyncEventProperties.NETWORK_REMOVED(
+        const properties = BackupAndSyncEventProperties.NETWORK_REMOVED(
           'test-profile-id',
           '0x1',
         );
@@ -185,15 +185,15 @@ describe('ProfileSync MetaMetrics Library', () => {
   describe('Type safety', () => {
     it('should enforce correct feature name types', () => {
       // This should compile without errors
-      const validFeatureName: ProfileSyncFeatureName =
-        ProfileSyncFeatureNames.BACKUP_AND_SYNC;
+      const validFeatureName: BackupAndSyncFeatureName =
+        BackupAndSyncFeatureNames.BACKUP_AND_SYNC;
       expect(validFeatureName).toBe('Backup And Sync');
     });
 
     it('should enforce correct action types', () => {
       // This should compile without errors
-      const validAction: ProfileSyncAction =
-        ProfileSyncActions.CONTACTS_SYNC_CONTACT_UPDATED;
+      const validAction: BackupAndSyncAction =
+        BackupAndSyncActions.CONTACTS_SYNC_CONTACT_UPDATED;
       expect(validAction).toBe('Contacts Sync Contact Updated');
     });
   });
