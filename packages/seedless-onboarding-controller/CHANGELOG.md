@@ -33,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - removed parameter `oldPassword`
   - no longer verifying old password
   - explicitly requring unlocked controller
-- **BREAKING** Changed data structure of return values from `fetchAllSecretData`.
+- **BREAKING** Changed data structure of return values from `fetchAllSecretData`. ([#6047](https://github.com/MetaMask/core/pull/6047))
   - returned `SecretMetadata` object, previously return Uint8Array of secret data value.
 
 ### Removed
