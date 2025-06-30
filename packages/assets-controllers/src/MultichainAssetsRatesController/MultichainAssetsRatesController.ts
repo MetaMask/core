@@ -164,7 +164,7 @@ const metadata = {
   historicalPrices: { persist: false, anonymous: true },
 };
 
-export type OnAssetsConversionResponseType = {
+export type ConversionRatesWithMarketData = {
   conversionRates: Record<
     CaipAssetType,
     Record<CaipAssetType, UnifiedAssetConversion | null>
@@ -544,7 +544,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
    * @returns A flattened rates object.
    */
   #flattenRates(
-    assetsConversionResponse: OnAssetsConversionResponseType,
+    assetsConversionResponse: ConversionRatesWithMarketData,
   ): Record<CaipAssetType, UnifiedAssetConversion | null> {
     const { conversionRates } = assetsConversionResponse;
 
@@ -655,13 +655,13 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
   #mergeMarketDataIntoConversionRates(
     accountRatesResponse: OnAssetsConversionResponse,
     marketDataResponse: OnAssetsMarketDataResponse,
-  ): OnAssetsConversionResponseType {
+  ): ConversionRatesWithMarketData {
     // Early return if no market data to merge
     if (!marketDataResponse?.marketData) {
       return accountRatesResponse;
     }
 
-    const result: OnAssetsConversionResponseType =
+    const result: ConversionRatesWithMarketData =
       cloneDeep(accountRatesResponse);
     const { conversionRates } = result;
     const { marketData } = marketDataResponse;
