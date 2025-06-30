@@ -29,7 +29,8 @@ gatorPermissionsController.enableGatorPermissions();
 ### Fetch from Profile Sync
 
 ```typescript
-const permissions = await gatorPermissionsController.fetchAndUpdateGatorPermissions();
+const permissions =
+  await gatorPermissionsController.fetchAndUpdateGatorPermissions();
 ```
 
 ## Contributing
