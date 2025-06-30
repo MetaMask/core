@@ -21,7 +21,7 @@ import {
   parseCaipChainId,
 } from '@metamask/utils';
 
-import { POPULATE_NETWORKS } from './constant';
+import { POPULAR_NETWORKS } from './constants';
 
 // Unique name for the controller
 const controllerName = 'NetworkEnablementController';
@@ -104,18 +104,19 @@ export type NetworkEnablementControllerMessenger = RestrictedMessenger<
  *
  * @returns The default state with pre-enabled networks.
  */
-const defaultState = (): NetworkEnablementControllerState => ({
-  enabledNetworkMap: {
-    [KnownCaipNamespace.Eip155]: {
-      [ChainId[BuiltInNetworkName.Mainnet]]: true,
-      [ChainId[BuiltInNetworkName.LineaMainnet]]: true,
-      [ChainId[BuiltInNetworkName.BaseMainnet]]: true,
+const getDefaultNetworkEnablementControllerState =
+  (): NetworkEnablementControllerState => ({
+    enabledNetworkMap: {
+      [KnownCaipNamespace.Eip155]: {
+        [ChainId[BuiltInNetworkName.Mainnet]]: true,
+        [ChainId[BuiltInNetworkName.LineaMainnet]]: true,
+        [ChainId[BuiltInNetworkName.BaseMainnet]]: true,
+      },
+      [KnownCaipNamespace.Solana]: {
+        [SolScope.Mainnet]: false,
+      },
     },
-    [KnownCaipNamespace.Solana]: {
-      [SolScope.Mainnet]: false,
-    },
-  } as EnabledMap,
-});
+  });
 
 // Metadata for the controller state
 const metadata = {
@@ -125,19 +126,15 @@ const metadata = {
   },
 };
 
-const mergeEnabledMaps = (
-  base: EnabledMap,
-  override?: Partial<EnabledMap>,
-): EnabledMap => {
-  if (!override) {
-    return base;
-  }
-  return (Object.keys(base) as CaipNamespace[]).reduce((acc, ns) => {
-    acc[ns] = { ...base[ns], ...(override[ns] ?? {}) };
-    return acc;
-  }, {} as EnabledMap);
-};
-
+/**
+ * Controller responsible for managing network enablement state across different blockchain networks.
+ *
+ * This controller tracks which networks are enabled/disabled for the user and provides methods
+ * to toggle network states. It supports both EVM (EIP-155) and non-EVM networks like Solana.
+ *
+ * The controller maintains a map of enabled networks organized by namespace (e.g., 'eip155', 'solana')
+ * and provides methods to query and modify network enablement states.
+ */
 export class NetworkEnablementController extends BaseController<
   typeof controllerName,
   NetworkEnablementControllerState,
@@ -157,16 +154,13 @@ export class NetworkEnablementController extends BaseController<
     messenger: NetworkEnablementControllerMessenger;
     state?: Partial<NetworkEnablementControllerState>;
   }) {
-    // Call the constructor of BaseControllerV2
     super({
       messenger,
       metadata,
       name: controllerName,
       state: {
-        enabledNetworkMap: mergeEnabledMaps(
-          defaultState().enabledNetworkMap,
-          state?.enabledNetworkMap,
-        ),
+        ...getDefaultNetworkEnablementControllerState(),
+        ...state,
       },
     });
 
@@ -295,11 +289,11 @@ export class NetworkEnablementController extends BaseController<
 
   #isPopularNetwork(caipId: CaipChainId | string): boolean {
     if (isHexString(caipId)) {
-      return POPULATE_NETWORKS.includes(caipId as Hex);
+      return POPULAR_NETWORKS.includes(caipId as Hex);
     }
     const { namespace, reference } = parseCaipChainId(caipId);
     if (namespace === (KnownCaipNamespace.Eip155 as string)) {
-      return POPULATE_NETWORKS.includes(toHex(reference));
+      return POPULAR_NETWORKS.includes(toHex(reference));
     }
     return false;
   }
@@ -313,7 +307,7 @@ export class NetworkEnablementController extends BaseController<
         return;
       }
 
-      // Don’t disable the last remaining enabled network
+      // Don't disable the last remaining enabled network
       if (
         !enable &&
         Object.values(this.getAllEnabledNetworks()).flat().length <= 1

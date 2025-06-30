@@ -224,6 +224,10 @@ linkStyle default opacity:0.5
   network_controller --> eth_json_rpc_provider;
   network_controller --> json_rpc_engine;
   network_controller --> error_reporting_service;
+  network_enablement_controller --> base_controller;
+  network_enablement_controller --> controller_utils;
+  network_enablement_controller --> multichain_network_controller;
+  network_enablement_controller --> network_controller;
   notification_services_controller --> base_controller;
   notification_services_controller --> controller_utils;
   notification_services_controller --> keyring_controller;

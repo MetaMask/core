@@ -1,4 +1,4 @@
-export const POPULATE_NETWORKS = [
+export const POPULAR_NETWORKS = [
   '0x1', // Ethereum Mainnet
   '0xe708', // Linea (59144)
   '0x2105', // Base (8453)
