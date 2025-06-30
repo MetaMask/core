@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.4.1]
+
+### Fixed
+
+- Improve performance of `getChecksumAddress` function ([#246](https://github.com/MetaMask/utils/pull/246))
+
 ## [11.4.0]
 
 ### Changed
@@ -415,7 +421,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/utils/compare/v11.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/utils/compare/v11.4.1...HEAD
+[11.4.1]: https://github.com/MetaMask/utils/compare/v11.4.0...v11.4.1
 [11.4.0]: https://github.com/MetaMask/utils/compare/v11.3.0...v11.4.0
 [11.3.0]: https://github.com/MetaMask/utils/compare/v11.2.0...v11.3.0
 [11.2.0]: https://github.com/MetaMask/utils/compare/v11.1.0...v11.2.0
