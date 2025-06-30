@@ -3,8 +3,7 @@
   "compilerOptions": {
     "baseUrl": "./",
     "outDir": "./dist",
-    "rootDir": "./src",
-    "skipLibCheck": true
+    "rootDir": "./src"
   },
   "references": [
     { "path": "../accounts-controller/tsconfig.build.json" },

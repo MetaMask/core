@@ -20,11 +20,11 @@ import type {
   SnapId,
   AssetConversion,
   OnAssetsConversionArguments,
-  OnAssetsConversionResponse,
   OnAssetHistoricalPriceArguments,
   OnAssetHistoricalPriceResponse,
   HistoricalPriceIntervals,
-  MarketData,
+  OnAssetsMarketDataArguments,
+  OnAssetsMarketDataResponse,
 } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import { Mutex } from 'async-mutex';
@@ -158,15 +158,17 @@ const metadata = {
   historicalPrices: { persist: false, anonymous: true },
 };
 
-export type OnAssetsMarketDataResponse = {
-  marketData: Record<CaipAssetType, Record<string, MarketData | null>>;
-};
-
-export type OnAssetsMarketDataArguments = {
-  assets: {
-    asset: CaipAssetType;
-    unit: CaipAssetType;
-  }[];
+export type OnAssetsConversionResponse = {
+  conversionRates: Record<
+    CaipAssetType,
+    Record<
+      CaipAssetType,
+      | (AssetConversion & {
+          marketData: OnAssetsMarketDataResponse['marketData'] | null;
+        })
+      | null
+    >
+  >;
 };
 
 /**
@@ -360,7 +362,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
     // Retrieve Market Data from Snap
     const marketDataResponse = (await this.#handleSnapRequest({
       snapId: account?.metadata.snap?.id as SnapId,
-      handler: 'onAssetsMarketData' as HandlerType,
+      handler: HandlerType.OnAssetsMarketData,
       params: assetsParam as OnAssetsMarketDataArguments,
     })) as OnAssetsMarketDataResponse;
 
@@ -677,7 +679,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
         // Merge market data into the existing conversion rate
         conversionRates[typedAssetId][typedCurrency] = {
           ...existingRate,
-          marketData: marketDataForCurrency ?? undefined,
+          marketData: marketDataForCurrency ?? null,
         };
       }
     }
