@@ -125,7 +125,6 @@ export type GatorPermissionsControllerDisableGatorPermissions =
 // Allowed Actions
 export type AllowedActions =
   // Auth Controller Requests
-  | AuthenticationController.AuthenticationControllerGetBearerToken
   | AuthenticationController.AuthenticationControllerIsSignedIn
   | AuthenticationController.AuthenticationControllerPerformSignIn
   // User Storage Controller Requests
@@ -161,11 +160,6 @@ export default class GatorPermissionsController extends BaseController<
   GatorPermissionsControllerMessenger
 > {
   readonly #auth = {
-    getBearerToken: async () => {
-      return await this.messagingSystem.call(
-        'AuthenticationController:getBearerToken',
-      );
-    },
     isSignedIn: () => {
       return this.messagingSystem.call('AuthenticationController:isSignedIn');
     },
@@ -345,19 +339,13 @@ export default class GatorPermissionsController extends BaseController<
    * Enables gator permissions for the user.
    * This method ensures that the user is authenticated and enables the feature.
    *
-   * @param isFetchingPermissions - Whether to fetch permissions after enabling.
    * @throws {Error} If there is an error during the process of enabling permissions.
    */
-  public async enableGatorPermissions(isFetchingPermissions: boolean = true) {
+  public async enableGatorPermissions() {
     try {
       this.#setIsUpdatingGatorPermissions(true);
       await this.#enableAuth();
       this.#setIsGatorPermissionsEnabled(true);
-
-      // Fetch initial permissions after enabling
-      if (isFetchingPermissions) {
-        await this.fetchAndUpdateGatorPermissions();
-      }
     } catch (e) {
       console.error('Unable to enable gator permissions', e);
       throw new Error('Unable to enable gator permissions');
