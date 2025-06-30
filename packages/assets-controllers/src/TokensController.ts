@@ -119,6 +119,11 @@ export type TokensControllerAddDetectedTokensAction = {
   handler: TokensController['addDetectedTokens'];
 };
 
+export type TokensControllerAddTokensAction = {
+  type: `${typeof controllerName}:addTokens`;
+  handler: TokensController['addTokens'];
+};
+
 /**
  * The external actions available to the {@link TokensController}.
  */
