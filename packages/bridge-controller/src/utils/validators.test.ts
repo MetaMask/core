@@ -1,5 +1,4 @@
 import { validateFeatureFlagsResponse } from './validators';
-import type { FeatureFlagsPlatformConfig } from '../types';
 
 describe('validators', () => {
   describe('validateFeatureFlagsResponse', () => {
@@ -129,13 +128,7 @@ describe('validators', () => {
       },
     ])(
       'should return $expected if the response is valid: $type',
-      ({
-        response,
-        expected,
-      }: {
-        response: FeatureFlagsPlatformConfig | undefined;
-        expected: boolean;
-      }) => {
+      ({ response, expected }) => {
         expect(validateFeatureFlagsResponse(response)).toBe(expected);
       },
     );

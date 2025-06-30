@@ -96,7 +96,7 @@ export const getTradeDataFromQuote = (
 ): TradeData => {
   return {
     usd_quoted_gas: Number(quoteResponse.gasFee?.usd ?? 0),
-    gas_included: false,
+    gas_included: quoteResponse.quote.gasIncluded ?? false,
     provider: formatProviderLabel(quoteResponse.quote),
     quoted_time_minutes: Number(
       quoteResponse.estimatedProcessingTimeInSeconds / 60,
@@ -116,7 +116,7 @@ export const getTradeDataFromHistory = (
 ): TradeData => {
   return {
     usd_quoted_gas: Number(historyItem.pricingData?.quotedGasInUsd ?? 0),
-    gas_included: false,
+    gas_included: historyItem.quote.gasIncluded ?? false,
     provider: formatProviderLabel(historyItem.quote),
     quoted_time_minutes: Number(
       historyItem.estimatedProcessingTimeInSeconds / 60,
