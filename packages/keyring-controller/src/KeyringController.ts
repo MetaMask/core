@@ -56,6 +56,7 @@ export enum KeyringTypes {
   oneKey = 'OneKey Hardware',
   ledger = 'Ledger Hardware',
   lattice = 'Lattice Hardware',
+  keystone = 'Keystone Hardware',
   snap = 'Snap Keyring',
 }
 
