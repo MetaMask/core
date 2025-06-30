@@ -121,7 +121,7 @@ const getDefaultNetworkEnablementControllerState =
         [ChainId[BuiltInNetworkName.BaseMainnet]]: true,
       },
       [KnownCaipNamespace.Solana]: {
-        [SolScope.Mainnet]: false,
+        [SolScope.Mainnet]: true,
       },
     },
   });
@@ -321,6 +321,10 @@ export class NetworkEnablementController extends BaseController<
    */
   #removeNetworkEntry(chainId: Hex | CaipChainId): void {
     const { namespace, storageKey } = this.#deriveKeys(chainId);
+    if (this.#hasOneEnabled(this.state, namespace, chainId)) {
+      return;
+    }
+
     this.update((s) => {
       if (namespace in s.enabledNetworkMap) {
         delete s.enabledNetworkMap[namespace][storageKey];
@@ -328,28 +332,58 @@ export class NetworkEnablementController extends BaseController<
           delete s.enabledNetworkMap[namespace];
         }
       }
-      this.#ensureAtLeastOneEnabled(s);
     });
   }
 
   /**
-   * Ensures that at least one network is enabled.
+   * Checks if the specified network is the only enabled network in its namespace.
    *
-   * This method is a safety mechanism that prevents all networks from being disabled.
-   * If no networks are enabled, it automatically enables Ethereum mainnet as a fallback.
+   * This method is used to prevent unnecessary state updates when trying to enable
+   * a network that is already the only enabled network in its namespace.
    *
    * @param state - The current controller state
+   * @param namespace - The namespace to check
+   * @param chainIdToCheck - The chain ID to check if it's the only enabled network
+   * @returns True if the network is the only enabled network in the namespace, false otherwise
    */
-  #ensureAtLeastOneEnabled(state: NetworkEnablementControllerState) {
-    const anyEnabled = Object.values(state.enabledNetworkMap).some((map) =>
-      Object.values(map).some((enabled) => enabled),
-    );
-    if (!anyEnabled) {
-      this.#ensureNamespaceBucket(state, KnownCaipNamespace.Eip155);
-      state.enabledNetworkMap[KnownCaipNamespace.Eip155][
-        ChainId[BuiltInNetworkName.Mainnet]
-      ] = true;
+  #hasOneEnabled(
+    state: NetworkEnablementControllerState,
+    namespace: CaipNamespace,
+    chainIdToCheck: Hex | CaipChainId,
+  ): boolean {
+    // Early return if namespace doesn't exist
+    if (!state.enabledNetworkMap[namespace]) {
+      return false;
     }
+
+    // Parse the chain ID to get the storage key
+    const caipId = isCaipChainId(chainIdToCheck)
+      ? chainIdToCheck
+      : toEvmCaipChainId(chainIdToCheck);
+
+    const { namespace: parsedNamespace, storageKey: targetStorageKey } =
+      this.#deriveKeys(caipId);
+
+    // Early return if namespaces don't match
+    if (parsedNamespace !== namespace) {
+      return false;
+    }
+
+    const networks = state.enabledNetworkMap[namespace];
+
+    // Get all enabled networks in this namespace
+    const enabledNetworks = Object.entries(networks).filter(
+      ([_, enabled]) => enabled,
+    );
+
+    // Check if there's exactly one enabled network and it matches our target
+    if (enabledNetworks.length === 1) {
+      const [onlyEnabledKey] = enabledNetworks[0];
+      return onlyEnabledKey === targetStorageKey;
+    }
+
+    // Return false if there are zero or multiple enabled networks
+    return false;
   }
 
   /**
@@ -435,26 +469,18 @@ export class NetworkEnablementController extends BaseController<
       // Ensure entry exists first
       this.#ensureNetworkEntry(chainId);
 
-      // If enabling a non-popular network, disable all others
+      if (this.#hasOneEnabled(s, namespace, chainId)) {
+        return;
+      }
+
+      // If enabling a non-popular network, disable all networks in the same namespace
       if (enable && !this.#isPopularNetwork(caipId)) {
-        Object.values(s.enabledNetworkMap).forEach((map) => {
-          Object.keys(map).forEach((key) => {
-            map[key] = false;
-          });
+        Object.keys(s.enabledNetworkMap[namespace]).forEach((key) => {
+          s.enabledNetworkMap[namespace][key] = false;
         });
       }
 
-      // disable all non popular networks when enabling a non popular network
-      Object.values(s.enabledNetworkMap).forEach((map) => {
-        Object.keys(map).forEach((key) => {
-          if (!this.#isPopularNetwork(key)) {
-            map[key] = false;
-          }
-        });
-      });
-
       s.enabledNetworkMap[namespace][storageKey] = enable;
-      this.#ensureAtLeastOneEnabled(s);
     });
   }
 }

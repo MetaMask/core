@@ -76,7 +76,7 @@ describe('NetworkEnablementController', () => {
           [ChainId[BuiltInNetworkName.BaseMainnet]]: true,
         },
         [KnownCaipNamespace.Solana]: {
-          [SolScope.Mainnet]: false,
+          [SolScope.Mainnet]: true,
         },
       },
     });
@@ -162,7 +162,7 @@ describe('NetworkEnablementController', () => {
         getControllerState(controller).enabledNetworkMap[
           KnownCaipNamespace.Solana
         ][SolScope.Mainnet],
-      ).toBe(false);
+      ).toBe(true);
     });
 
     it('should handle unknown networks gracefully', () => {
@@ -217,7 +217,7 @@ describe('NetworkEnablementController', () => {
       ).toBe(false);
     });
 
-    it('should disable a Solana network using CAIP chain ID', () => {
+    it('should not disable a Solana network using CAIP chain ID', () => {
       const controller = new NetworkEnablementController({
         messenger: messenger as NetworkEnablementControllerMessenger,
       });
@@ -237,7 +237,7 @@ describe('NetworkEnablementController', () => {
         getControllerState(controller).enabledNetworkMap[
           KnownCaipNamespace.Solana
         ]['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],
-      ).toBe(false);
+      ).toBe(true);
     });
 
     it('should prevent disabling the last active network', () => {
@@ -327,7 +327,7 @@ describe('NetworkEnablementController', () => {
       expect(controller.isNetworkEnabled('0x1')).toBe(true);
       expect(
         controller.isNetworkEnabled('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
-      ).toBe(false);
+      ).toBe(true);
     });
   });
 
@@ -395,7 +395,7 @@ describe('NetworkEnablementController', () => {
       controller.setEnabledNetwork('0x1');
       controller.setDisabledNetwork('0xe708');
       controller.setDisabledNetwork('0x2105');
-      controller.setDisabledNetwork('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp');
+      // controller.setDisabledNetwork('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp');
 
       // Get the subscription callback
       const subscribeCall = (messenger.subscribe as jest.Mock).mock.calls.find(
@@ -485,7 +485,7 @@ describe('NetworkEnablementController', () => {
         getControllerState(controller).enabledNetworkMap[
           KnownCaipNamespace.Solana
         ][SolScope.Mainnet],
-      ).toBe(false);
+      ).toBe(true);
     });
   });
 
