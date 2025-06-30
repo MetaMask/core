@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `gatorPermissions` feature to user storage schema for gator permissions management ([#6033](https://github.com/MetaMask/core/pull/6033))
+
 ## [19.0.0]
 
 ### Changed
