@@ -397,8 +397,23 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       // assert that the user is authenticated before fetching the secret data
       this.#assertIsAuthenticatedUser(this.state);
 
-      const { encKey, pwEncKey, authKeyPair } =
-        await this.#recoverEncKey(password);
+      let encKey: Uint8Array;
+      let pwEncKey: Uint8Array;
+      let authKeyPair: KeyPair;
+
+      if (password) {
+        const recoverEncKeyResult = await this.#recoverEncKey(password);
+        encKey = recoverEncKeyResult.encKey;
+        pwEncKey = recoverEncKeyResult.pwEncKey;
+        authKeyPair = recoverEncKeyResult.authKeyPair;
+      } else {
+        this.#assertIsUnlocked();
+        // verify the password and unlock the vault
+        const keysFromVault = await this.#unlockVaultAndGetBackupEncKey();
+        encKey = keysFromVault.toprfEncryptionKey;
+        pwEncKey = keysFromVault.toprfPwEncryptionKey;
+        authKeyPair = keysFromVault.toprfAuthKeyPair;
+      }
 
       const performFetch = async (): Promise<SecretMetadata[]> => {
         const secrets = await this.#fetchAllSecretDataFromMetadataStore(
@@ -925,47 +940,22 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @throws RecoveryError - If failed to recover the encryption key.
    */
   async #recoverEncKey(
-    password?: string,
+    password: string,
   ): Promise<Omit<RecoverEncryptionKeyResult, 'rateLimitResetResult'>> {
+    this.#assertIsAuthenticatedUser(this.state);
+
+    const { authConnectionId, groupedAuthConnectionId, userId } = this.state;
+
     try {
-      let encKey: Uint8Array;
-      let pwEncKey: Uint8Array;
-      let authKeyPair: KeyPair;
-      let keyShareIndex: number = 0;
-      this.#assertIsAuthenticatedUser(this.state);
-
-      if (password) {
-        const { authConnectionId, groupedAuthConnectionId, userId } =
-          this.state;
-
-        const recoverEncKeyResult = await this.toprfClient.recoverEncKey({
-          nodeAuthTokens: this.state.nodeAuthTokens,
-          password,
-          authConnectionId,
-          groupedAuthConnectionId,
-          userId,
-        });
-        encKey = recoverEncKeyResult.encKey;
-        pwEncKey = recoverEncKeyResult.pwEncKey;
-        authKeyPair = recoverEncKeyResult.authKeyPair;
-        keyShareIndex = recoverEncKeyResult.keyShareIndex;
-      } else {
-        this.#assertIsUnlocked();
-        // verify the cached encryption key and unlock the vault
-        const keysFromVault = await this.#unlockVaultAndGetBackupEncKey();
-        encKey = keysFromVault.toprfEncryptionKey;
-        pwEncKey = keysFromVault.toprfPwEncryptionKey;
-        authKeyPair = keysFromVault.toprfAuthKeyPair;
-      }
-      return {
-        encKey,
-        pwEncKey,
-        authKeyPair,
-        keyShareIndex,
-      };
+      const recoverEncKeyResult = await this.toprfClient.recoverEncKey({
+        nodeAuthTokens: this.state.nodeAuthTokens,
+        password,
+        authConnectionId,
+        groupedAuthConnectionId,
+        userId,
+      });
+      return recoverEncKeyResult;
     } catch (error) {
-      console.log('error', error);
-      console.log('isTokenExpiredError', this.#isTokenExpiredError(error));
       // throw token expired error for token refresh handler
       if (this.#isTokenExpiredError(error)) {
         throw error;
