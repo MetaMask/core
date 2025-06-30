@@ -39,6 +39,7 @@ export type AuthenticationControllerState = {
   srpSessionData?: Record<string, LoginResponse>;
   socialPairingToken?: string;
   socialPairingDone?: boolean;
+  pairingInProgress?: boolean;
 };
 export const defaultState: AuthenticationControllerState = {
   isSignedIn: false,
@@ -60,6 +61,10 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
     persist: true,
     anonymous: true,
   },
+  pairingInProgress: {
+    persist: false,
+    anonymous: true,
+  }
 };
 
 type ControllerConfig = {
@@ -386,13 +391,16 @@ export default class AuthenticationController extends BaseController<
 
   async #tryPairingWithSocialToken(): Promise<void> {
     console.log(`GIGEL: trying to pair with seedless token`);
-    const { socialPairingToken, socialPairingDone } = this.state;
-    if (socialPairingDone || !socialPairingToken) {
+    const { socialPairingToken, socialPairingDone, pairingInProgress } = this.state;
+    if (socialPairingDone || !socialPairingToken || pairingInProgress) {
       console.log(`GIGEL: pairing conditions not met`);
       return;
     }
 
     try {
+      this.update((state) => {
+        state.pairingInProgress = true;
+      });
       console.log(`GIGEL: pairing with seedless token ${socialPairingToken}`);
       if (await this.#auth.pairSocialIdentifier(socialPairingToken)) {
         console.log(`GIGEL: successfully paired with seedless onboarding token`);
@@ -407,6 +415,10 @@ export default class AuthenticationController extends BaseController<
     } catch (error) {
       console.error('GIGEL: Failed to pair identifiers:', error);
       // ignore the error
+    } finally {
+      this.update((state) => {
+        state.pairingInProgress = false;
+      });
     }
   }
 

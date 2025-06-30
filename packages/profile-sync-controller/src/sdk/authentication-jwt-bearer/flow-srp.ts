@@ -28,6 +28,7 @@ import {
   isSnapConnected,
 } from '../utils/messaging-signing-snap-requests';
 import { validateLoginResponse } from '../utils/validate-login-response';
+import { Env } from '../../shared/env';
 
 type JwtBearerAuth_SRP_Options = {
   storage: AuthStorageOptions;
@@ -220,7 +221,10 @@ export class SRPJwtBearerAuth implements IBaseAuth {
       `GIGEL: pairing primary SRP with social token ${jwt}`,
     );
 
-    const { env, platform } = this.#config;
+    // TODO: need to hardcode the env as web3auth prod is not available.
+    // const { env, platform } = this.#config;
+    const { platform } = this.#config;
+    const env = Env.DEV;
 
     // Exchange the social token with an access token
     console.log(`GIGEL: exchanging social token for access token`);
@@ -246,6 +250,7 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     const pairUrl = new URL(PAIR_SOCIAL_IDENTIFIER(env));
 
     try {
+      // TODO: this will FAIL as long as the ENV don't match.
       const response = await fetch(pairUrl, {
         method: 'POST',
         headers: {
