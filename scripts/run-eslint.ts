@@ -270,6 +270,8 @@ function applyWarningThresholdsQualityGate({
     .flat()
     .filter((comparison) => comparison.difference > 0);
 
+  let status;
+
   if (changes.length > 0) {
     if (regressions.length > 0) {
       console.log(
@@ -291,26 +293,28 @@ function applyWarningThresholdsQualityGate({
         }
       }
 
-      return QualityGateStatus.Increase;
-    }
+      status = QualityGateStatus.Increase;
+    } else {
+      console.log(
+        chalk.green(
+          'The overall number of lint warnings has decreased, good work! ❤️ \n',
+        ),
+      );
 
-    console.log(
-      chalk.green(
-        'The overall number of lint warnings has decreased, good work! ❤️ \n',
-      ),
-    );
-
-    for (const [filePath, fileChanges] of Object.entries(comparisonsByFile)) {
-      if (fileChanges.some((fileChange) => fileChange.difference !== 0)) {
-        console.log(chalk.underline(filePath));
-        for (const { ruleId, threshold, count, difference } of fileChanges) {
-          if (difference !== 0) {
-            console.log(
-              `  ${chalk.cyan(ruleId)}: ${threshold} -> ${count} (${difference > 0 ? chalk.red(`+${difference}`) : chalk.green(difference)})`,
-            );
+      for (const [filePath, fileChanges] of Object.entries(comparisonsByFile)) {
+        if (fileChanges.some((fileChange) => fileChange.difference !== 0)) {
+          console.log(chalk.underline(filePath));
+          for (const { ruleId, threshold, count, difference } of fileChanges) {
+            if (difference !== 0) {
+              console.log(
+                `  ${chalk.cyan(ruleId)}: ${threshold} -> ${count} (${difference > 0 ? chalk.red(`+${difference}`) : chalk.green(difference)})`,
+              );
+            }
           }
         }
       }
+
+      status = QualityGateStatus.Decrease;
     }
 
     console.log(
@@ -318,11 +322,11 @@ function applyWarningThresholdsQualityGate({
     );
 
     saveWarningThresholds(completeWarningCounts);
-
-    return QualityGateStatus.Decrease;
+  } else {
+    status = QualityGateStatus.NoChange;
   }
 
-  return QualityGateStatus.NoChange;
+  return status;
 }
 
 /**
