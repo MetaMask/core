@@ -74,34 +74,38 @@ type WarningComparison = {
 /**
  * The severity level for an ESLint message.
  */
-enum ESLintMessageSeverity {
-  Warning = 1,
-  // This isn't a variable.
-  // eslint-disable-next-line @typescript-eslint/no-shadow
-  Error = 2,
-}
+const ESLintMessageSeverity = {
+  Warning: 1,
+  Error: 2,
+} as const;
 
 /**
  * The result of applying the quality gate.
  */
-enum QualityGateStatus {
+const QualityGateStatus = {
   /**
    * The number of lint warnings increased.
    */
-  Increase = 'increase',
+  Increase: 'increase',
   /**
    * The number of lint warnings decreased.
    */
-  Decrease = 'decrease',
+  Decrease: 'decrease',
   /**
    * There was no change to the number of lint warnings.
    */
-  NoChange = 'no-change',
+  NoChange: 'no-change',
   /**
    * The warning thresholds file did not previously exist.
    */
-  Initialized = 'initialized',
-}
+  Initialized: 'initialized',
+} as const;
+
+/**
+ * The result of applying the quality gate.
+ */
+type QualityGateStatus =
+  (typeof QualityGateStatus)[keyof typeof QualityGateStatus];
 
 // Run the script.
 main().catch((error) => {
@@ -139,7 +143,7 @@ async function main() {
   await printResults(eslint, filteredResults);
 
   if (fix) {
-    await ESLint.outputFixes(fileFilteredResults);
+    await ESLint.outputFixes(filteredResults);
   }
   const hasErrors = filteredResults.some((result) => result.errorCount > 0);
 
@@ -215,9 +219,6 @@ async function printResults(
  *
  * @param args - The arguments.
  * @param args.results - The results from running `eslint`.
- * param args.countFileEvenIfNoWarnings - Includes a file in the returned
- * object even if there are no recorded warnings for it.
- * param args.fileUpdateStrategy - How to update the warning thresholds file.
  * @returns True if the number of warnings has increased compared to the
  * existing number of warnings, false if they have decreased or stayed the same.
  */
@@ -375,8 +376,6 @@ function saveWarningThresholds(newWarningCounts: WarningCounts): void {
  *
  * @param args - The arguments.
  * @param args.results - The results from running `eslint`.
- * param args.countFileEvenIfNoWarnings - Includes a file in the returned
- * object even if there are no recorded warnings for it.
  * @returns A two-level object mapping path to files in which warnings appear to
  * the IDs of rules for those warnings, then from rule IDs to the number of
  * warnings for the rule.
