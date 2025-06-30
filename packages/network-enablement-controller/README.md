@@ -24,11 +24,11 @@ const controller = new NetworkEnablementController({
   messenger,
   state: {
     enabledNetworkMap: {
-      'eip155': {
+      eip155: {
         '0x1': true,  // Ethereum mainnet enabled
         '0xa': false, // Optimism disabled
       },
-      'solana': {
+      solana: {
         'solana:mainnet': true,
       },
     },
@@ -75,7 +75,7 @@ const isSolanaEnabled = selectIsNetworkEnabled('solana:mainnet')(state);
 
 // Get all enabled networks across all namespaces
 const allEnabledNetworks = selectAllEnabledNetworks(state);
-// Returns: { 'eip155': ['0x1'], 'solana': ['solana:mainnet'] }
+// Returns: { eip155: ['0x1'], solana: ['solana:mainnet'] }
 
 // Get enabled networks for a specific namespace
 const evmNetworks = selectEnabledNetworksForNamespace('eip155')(state);
@@ -97,41 +97,53 @@ const hasEvmNetworks = selectHasEnabledNetworksForNamespace('eip155')(state);
 ### Controller Methods
 
 #### `setEnabledNetwork(chainId: Hex | CaipChainId): void`
+
 Enables a network for the user. Accepts either Hex chain IDs (for EVM networks) or CAIP-2 chain IDs (for any blockchain network).
 
 #### `setDisabledNetwork(chainId: Hex | CaipChainId): void`
+
 Disables a network for the user. Prevents disabling the last remaining enabled network.
 
 #### `isNetworkEnabled(chainId: Hex | CaipChainId): boolean`
+
 Checks if a network is currently enabled. Returns false for unknown networks.
 
 #### `getEnabledNetworksForNamespace(namespace: CaipNamespace): string[]`
+
 Gets all enabled networks for a specific namespace.
 
 #### `getAllEnabledNetworks(): Record<CaipNamespace, string[]>`
+
 Gets all enabled networks across all namespaces.
 
 ### Selectors
 
 #### `selectIsNetworkEnabled(chainId: Hex | CaipChainId)`
+
 Returns a selector function that checks if a specific network is enabled.
 
 #### `selectAllEnabledNetworks`
+
 Returns a selector function that gets all enabled networks across all namespaces.
 
 #### `selectEnabledNetworksForNamespace(namespace: CaipNamespace)`
+
 Returns a selector function that gets enabled networks for a specific namespace.
 
 #### `selectEnabledNetworksCount`
+
 Returns a selector function that gets the total count of enabled networks.
 
 #### `selectHasEnabledNetworksForNamespace(namespace: CaipNamespace)`
+
 Returns a selector function that checks if any networks are enabled for a namespace.
 
 #### `selectEnabledEvmNetworks`
+
 Returns a selector function that gets all enabled EVM networks.
 
 #### `selectEnabledSolanaNetworks`
+
 Returns a selector function that gets all enabled Solana networks.
 
 ## Chain ID Formats
@@ -144,11 +156,13 @@ The controller supports two chain ID formats:
 ## Network Types
 
 ### EVM Networks (eip155 namespace)
+
 - Ethereum Mainnet: `'0x1'` or `'eip155:1'`
 - Optimism: `'0xa'` or `'eip155:10'`
 - Arbitrum One: `'0xa4b1'` or `'eip155:42161'`
 
 ### Solana Networks (solana namespace)
+
 - Solana Mainnet: `'solana:mainnet'`
 - Solana Testnet: `'solana:testnet'`
 
