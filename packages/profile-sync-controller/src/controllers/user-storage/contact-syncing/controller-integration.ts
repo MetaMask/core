@@ -51,6 +51,7 @@ function createContactKey(contact: AddressBookEntry): string {
  *
  * @param config - Parameters used for syncing callbacks
  * @param options - Parameters used for syncing operations
+ * @returns Promise that resolves when contact synchronization is complete
  */
 export async function syncContactsWithUserStorage(
   config: SyncContactsWithUserStorageConfig,
@@ -278,6 +279,7 @@ async function getRemoteContacts(
  *
  * @param contacts - The contacts to save to user storage
  * @param options - Parameters used for saving contacts
+ * @returns Promise that resolves when contacts are saved
  */
 async function saveContactsToUserStorage(
   contacts: AddressBookEntry[],
@@ -308,6 +310,7 @@ async function saveContactsToUserStorage(
  *
  * @param contact - The contact that was updated locally
  * @param options - Parameters used for syncing operations
+ * @returns Promise that resolves when the contact is updated
  */
 export async function updateContactInRemoteStorage(
   contact: AddressBookEntry,
@@ -363,6 +366,7 @@ export async function updateContactInRemoteStorage(
  *
  * @param contact - The contact that was deleted locally (contains at least address and chainId)
  * @param options - Parameters used for syncing operations
+ * @returns Promise that resolves when the contact is marked as deleted
  */
 export async function deleteContactInRemoteStorage(
   contact: AddressBookEntry,

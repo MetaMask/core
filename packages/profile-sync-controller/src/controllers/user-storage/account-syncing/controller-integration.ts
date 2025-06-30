@@ -18,6 +18,7 @@ import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
  *
  * @param internalAccount - The internal account to save
  * @param options - parameters used for saving the internal account
+ * @returns Promise that resolves when the account is saved
  */
 export async function saveInternalAccountToUserStorage(
   internalAccount: InternalAccount,
@@ -80,6 +81,7 @@ export async function saveInternalAccountToUserStorage(
  * @param options - parameters used for saving the list of internal accounts
  * @param entropySourceId - The entropy source ID used to derive the key,
  * when multiple sources are available (Multi-SRP).
+ * @returns Promise that resolves when all accounts are saved
  */
 export async function saveInternalAccountsListToUserStorage(
   options: AccountSyncingOptions,
@@ -128,6 +130,7 @@ type SyncInternalAccountsWithUserStorageConfig = {
  * @param config - parameters used for syncing the internal accounts list with the user storage accounts list
  * @param options - parameters used for syncing the internal accounts list with the user storage accounts list
  * @param entropySourceId - The entropy source ID used to derive the key,
+ * @returns Promise that resolves when synchronization is complete
  */
 export async function syncInternalAccountsWithUserStorage(
   config: SyncInternalAccountsWithUserStorageConfig,
