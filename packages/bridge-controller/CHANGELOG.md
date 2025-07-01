@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export `selectMaxBalanceButtonVisibilityForSrcToken` which returns whether a native asset is eligible for gas-included swaps ([#6051](https://github.com/MetaMask/core/pull/6051))
+
 ## [34.0.0]
 
 ### Added

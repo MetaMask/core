@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `batchId` to BridgeHistoryItem to enable querying history by batchId when txId is not defined ([#6051](https://github.com/MetaMask/core/pull/6051))
+- Add optional `type` to BridgeHistoryItem to indicate the TransactionType (bridge or swap). This mitigates an edge case in which batched STX lose their TransactionType after confirmation ([#6051](https://github.com/MetaMask/core/pull/6051))
+
+### Changed
+
+- **BREAKING** Add tx batching functionality, which requires an `addTransactionBatchFn` handler to be passed to the BridgeStatusController's constructor ([#6051](https://github.com/MetaMask/core/pull/6051))
+- **BREAKING** Make BridgeHistoryItem.txMetaId optional. Batched transactions don't immediately have a transaction ID so a transaction may be keyed using batchId until it is confirmed ([#6051](https://github.com/MetaMask/core/pull/6051))
+
+### Fixed
+
+- Wait until a bridge transaction is confirmed before polling for its status. This reduces (or fully removes) premature `getTxStatus` calls, and enables adding batched bridge txs to history before its transaction Id is available ([#6051](https://github.com/MetaMask/core/pull/6051))
+
 ## [33.0.0]
 
 ### Changed
