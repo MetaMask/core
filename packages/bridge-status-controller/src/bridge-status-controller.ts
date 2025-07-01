@@ -356,6 +356,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   readonly #startPollingForTxId = (txId: string) => {
+    // If we are already polling for this tx, stop polling for it before restarting
+    const existingPollingToken = this.#pollingTokensByTxMetaId[txId];
+    if (existingPollingToken) {
+      this.stopPollingByPollingToken(existingPollingToken);
+    }
+
     const txHistoryItem = this.state.txHistory[txId];
     if (!txHistoryItem) {
       return;
