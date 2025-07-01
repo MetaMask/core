@@ -236,20 +236,27 @@ export const getClientRequest = (
 };
 
 export const toTransactionBatchParams = (
+  disable7702: boolean,
   { chainId, gasLimit, ...trade }: TxData,
   { txFee }: Quote['feeData'],
 ): BatchTransactionParams => {
-  return {
+  const params = {
     ...trade,
-    gas: toHex(gasLimit ?? 0),
     data: trade.data as `0x${string}`,
     to: trade.to as `0x${string}`,
     value: trade.value as `0x${string}`,
-    maxFeePerGas: txFee ? toHex(txFee.maxFeePerGas ?? 0) : undefined,
-    maxPriorityFeePerGas: txFee
-      ? toHex(txFee.maxPriorityFeePerGas ?? 0)
-      : undefined,
   };
+  if (disable7702) {
+    return {
+      ...params,
+      gas: toHex(gasLimit ?? 0),
+      maxFeePerGas: txFee ? toHex(txFee.maxFeePerGas ?? 0) : undefined,
+      maxPriorityFeePerGas: txFee
+        ? toHex(txFee.maxPriorityFeePerGas ?? 0)
+        : undefined,
+    };
+  }
+  return params;
 };
 
 export const getAddTransactionBatchParams = async ({
@@ -284,6 +291,8 @@ export const getAddTransactionBatchParams = async ({
     hexChainId,
   );
 
+  // 7702 enables gasless txs for smart accounts, so we disable it for now
+  const disable7702 = true;
   const transactions: TransactionBatchSingleRequest[] = [];
   if (resetApproval) {
     transactions.push({
@@ -291,7 +300,9 @@ export const getAddTransactionBatchParams = async ({
         ? TransactionType.bridgeApproval
         : TransactionType.swapApproval,
       params: toTransactionBatchParams(
+        disable7702,
         resetApproval,
+
         quoteResponse.quote.feeData,
       ),
     });
@@ -301,17 +312,25 @@ export const getAddTransactionBatchParams = async ({
       type: isBridgeTx
         ? TransactionType.bridgeApproval
         : TransactionType.swapApproval,
-      params: toTransactionBatchParams(approval, quoteResponse.quote.feeData),
+      params: toTransactionBatchParams(
+        disable7702,
+        approval,
+        quoteResponse.quote.feeData,
+      ),
     });
   }
   transactions.push({
     type: isBridgeTx ? TransactionType.bridge : TransactionType.swap,
-    params: toTransactionBatchParams(trade, quoteResponse.quote.feeData),
+    params: toTransactionBatchParams(
+      disable7702,
+      trade,
+      quoteResponse.quote.feeData,
+    ),
   });
   const transactionParams: Parameters<
     TransactionController['addTransactionBatch']
   >[0] = {
-    // disable7702: true, // TODO enable if chain supports 7702
+    disable7702,
     networkClientId,
     requireApproval,
     origin: 'metamask',
@@ -379,11 +398,17 @@ export const getAddTransactionParams = async ({
     gasLimit: trade.gasLimit?.toString(),
     gas: trade.gasLimit?.toString(),
   };
+  const disable7702 = true;
   const transactionParamsWithMaxGas: TransactionParams = {
     ...transactionParams,
     ...(quoteResponse.quote.feeData[FeeType.TX_FEE]
-      ? toTransactionBatchParams(trade, quoteResponse.quote.feeData)
+      ? toTransactionBatchParams(
+          disable7702,
+          trade,
+          quoteResponse.quote.feeData,
+        )
       : await calculateGasFees(
+          disable7702,
           messagingSystem,
           estimateGasFeeFn,
           transactionParams,
