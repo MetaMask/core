@@ -1,23 +1,39 @@
 import type { AccountsControllerState } from '@metamask/accounts-controller';
-import type { TxData } from '@metamask/bridge-controller';
+import type { Quote, TxData } from '@metamask/bridge-controller';
 import {
   ChainId,
+  FeeType,
   formatChainIdToHex,
+  getEthUsdtResetData,
   isCrossChain,
+  isEthUsdt,
   type QuoteMetadata,
   type QuoteResponse,
 } from '@metamask/bridge-controller';
+import { toHex } from '@metamask/controller-utils';
 import { SolScope } from '@metamask/keyring-api';
+import type { TransactionController } from '@metamask/transaction-controller';
 import {
   TransactionStatus,
   TransactionType,
+  type BatchTransactionParams,
   type TransactionMeta,
 } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
 import { createProjectLogger } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 import { v4 as uuid } from 'uuid';
 
+import { calculateGasFees } from './gas';
+import type {
+  TransactionBatchSingleRequest,
+  TransactionParams,
+} from '../../../transaction-controller/src/types';
 import { LINEA_DELAY_MS } from '../constants';
-import type { SolanaTransactionMeta } from '../types';
+import type {
+  BridgeStatusControllerMessenger,
+  SolanaTransactionMeta,
+} from '../types';
 
 export const generateActionId = () => (Date.now() + Math.random()).toString();
 
@@ -217,4 +233,164 @@ export const getClientRequest = (
       },
     },
   };
+};
+
+export const toTransactionBatchParams = (
+  { chainId, gasLimit, ...trade }: TxData,
+  { txFee }: Quote['feeData'],
+): BatchTransactionParams => {
+  return {
+    ...trade,
+    gas: toHex(gasLimit ?? 0),
+    data: trade.data as `0x${string}`,
+    to: trade.to as `0x${string}`,
+    value: trade.value as `0x${string}`,
+    maxFeePerGas: txFee ? toHex(txFee.maxFeePerGas ?? 0) : undefined,
+    maxPriorityFeePerGas: txFee
+      ? toHex(txFee.maxPriorityFeePerGas ?? 0)
+      : undefined,
+  };
+};
+
+export const getAddTransactionBatchParams = async ({
+  messagingSystem,
+  isBridgeTx,
+  approval,
+  resetApproval,
+  trade,
+  quoteResponse,
+  requireApproval = false,
+}: {
+  messagingSystem: BridgeStatusControllerMessenger;
+  isBridgeTx: boolean;
+  approval?: TxData;
+  resetApproval?: TxData;
+  trade: TxData;
+  quoteResponse: Omit<QuoteResponse, 'approval' | 'trade'> & QuoteMetadata;
+  requireApproval?: boolean;
+}) => {
+  const selectedAccount = messagingSystem.call(
+    'AccountsController:getAccountByAddress',
+    trade.from,
+  );
+  if (!selectedAccount) {
+    throw new Error(
+      'Failed to submit cross-chain swap batch transaction: unknown account in trade data',
+    );
+  }
+  const hexChainId = formatChainIdToHex(trade.chainId);
+  const networkClientId = messagingSystem.call(
+    'NetworkController:findNetworkClientIdByChainId',
+    hexChainId,
+  );
+
+  const transactions: TransactionBatchSingleRequest[] = [];
+  if (resetApproval) {
+    transactions.push({
+      type: isBridgeTx
+        ? TransactionType.bridgeApproval
+        : TransactionType.swapApproval,
+      params: toTransactionBatchParams(
+        resetApproval,
+        quoteResponse.quote.feeData,
+      ),
+    });
+  }
+  if (approval) {
+    transactions.push({
+      type: isBridgeTx
+        ? TransactionType.bridgeApproval
+        : TransactionType.swapApproval,
+      params: toTransactionBatchParams(approval, quoteResponse.quote.feeData),
+    });
+  }
+  transactions.push({
+    type: isBridgeTx ? TransactionType.bridge : TransactionType.swap,
+    params: toTransactionBatchParams(trade, quoteResponse.quote.feeData),
+  });
+  const transactionParams: Parameters<
+    TransactionController['addTransactionBatch']
+  >[0] = {
+    // disable7702: true, // TODO enable if chain supports 7702
+    networkClientId,
+    requireApproval,
+    origin: 'metamask',
+    from: trade.from as `0x${string}`,
+    transactions,
+  };
+
+  // const isSmartContractAccount =
+  //   selectedAccount.type === EthAccountType.Erc4337;
+  // if (isSmartContractAccount && this.#addUserOperationFromTransactionFn) {
+  //   const smartAccountTxResult =
+  //     await this.#addUserOperationFromTransactionFn(
+  //       transactionParamsWithMaxGas,
+  //       requestOptions,
+  //     );
+  //   result = smartAccountTxResult.transactionHash;
+  //   transactionMeta = {
+  //     ...requestOptions,
+  //     chainId: hexChainId,
+  //     txParams: transactionParamsWithMaxGas,
+  //     time: Date.now(),
+  //     id: smartAccountTxResult.id,
+  //     status: TransactionStatus.confirmed,
+  //   };
+  // }
+
+  return transactionParams;
+};
+
+export const getAddTransactionParams = async ({
+  messagingSystem,
+  estimateGasFeeFn,
+  transactionType,
+  trade,
+  quoteResponse,
+  hexChainId,
+  requireApproval = false,
+}: {
+  messagingSystem: BridgeStatusControllerMessenger;
+  estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee;
+  transactionType: TransactionType;
+  trade: TxData;
+  quoteResponse: Omit<QuoteResponse, 'approval' | 'trade'> & QuoteMetadata;
+  hexChainId: Hex;
+  requireApproval?: boolean;
+}) => {
+  const actionId = generateActionId().toString();
+  const networkClientId = messagingSystem.call(
+    'NetworkController:findNetworkClientIdByChainId',
+    hexChainId,
+  );
+
+  const requestOptions = {
+    actionId,
+    networkClientId,
+    requireApproval,
+    transactionType,
+    origin: 'metamask',
+  };
+  const transactionParams: Parameters<
+    TransactionController['addTransaction']
+  >[0] = {
+    ...trade,
+    chainId: hexChainId,
+    gasLimit: trade.gasLimit?.toString(),
+    gas: trade.gasLimit?.toString(),
+  };
+  const transactionParamsWithMaxGas: TransactionParams = {
+    ...transactionParams,
+    ...(quoteResponse.quote.feeData[FeeType.TX_FEE]
+      ? toTransactionBatchParams(trade, quoteResponse.quote.feeData)
+      : await calculateGasFees(
+          messagingSystem,
+          estimateGasFeeFn,
+          transactionParams,
+          networkClientId,
+          hexChainId,
+        )),
+  };
+
+  return { transactionParamsWithMaxGas, requestOptions };
 };

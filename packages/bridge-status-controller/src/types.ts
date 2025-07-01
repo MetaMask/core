@@ -29,7 +29,9 @@ import type {
   TransactionControllerGetStateAction,
   TransactionControllerTransactionConfirmedEvent,
   TransactionControllerTransactionFailedEvent,
+  TransactionControllerTransactionFinishedEvent,
   TransactionMeta,
+  TransactionType,
 } from '@metamask/transaction-controller';
 
 import type { BridgeStatusController } from './bridge-status-controller';
@@ -104,7 +106,9 @@ export type StatusResponse = Infer<typeof StatusResponseSchema>;
 export type RefuelStatusResponse = object & StatusResponse;
 
 export type BridgeHistoryItem = {
-  txMetaId: string; // Need this to handle STX that might not have a txHash immediately
+  txMetaId?: string; // Need this to handle STX that might not have a txHash immediately
+  batchId?: string; // Need this to handle STX that might not have a txHash or txMetaId immediately
+  type?: TransactionType; // Batched txs don't always have an accurate type after confirmation so this type is saved at the time of submission
   quote: Quote;
   status: StatusResponse;
   startTime?: number; // timestamp in ms
@@ -176,7 +180,8 @@ export type QuoteMetadataSerialized = {
 };
 
 export type StartPollingForBridgeTxStatusArgs = {
-  bridgeTxMeta: TransactionMeta;
+  type?: TransactionType;
+  bridgeTxMeta: Partial<TransactionMeta>;
   statusRequest: StatusRequest;
   quoteResponse: QuoteResponse & QuoteMetadata;
   startTime?: BridgeHistoryItem['startTime'];
@@ -269,7 +274,8 @@ type AllowedActions =
  */
 type AllowedEvents =
   | TransactionControllerTransactionFailedEvent
-  | TransactionControllerTransactionConfirmedEvent;
+  | TransactionControllerTransactionConfirmedEvent
+  | TransactionControllerTransactionFinishedEvent;
 
 /**
  * The messenger for the BridgeStatusController.
