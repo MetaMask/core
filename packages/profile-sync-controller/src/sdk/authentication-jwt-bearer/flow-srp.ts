@@ -1,17 +1,23 @@
 import type { Eip1193Provider } from 'ethers';
 
-import { authenticate, authorizeOIDC, getNonce } from './services';
+import {
+  authenticate,
+  authorizeOIDC,
+  getNonce,
+  PAIR_SOCIAL_IDENTIFIER,
+} from './services';
 import type {
   AuthConfig,
   AuthSigningOptions,
   AuthStorageOptions,
-  AuthType,
+  ErrorMessage,
   IBaseAuth,
   LoginResponse,
   UserProfile,
 } from './types';
+import { AuthType } from './types';
 import type { MetaMetricsAuth } from '../../shared/types/services';
-import { ValidationError } from '../errors';
+import { PairError, ValidationError } from '../errors';
 import { getMetaMaskProviderEIP6963 } from '../utils/eip-6963-metamask-provider';
 import {
   MESSAGE_SIGNING_SNAP,
@@ -20,6 +26,7 @@ import {
   isSnapConnected,
 } from '../utils/messaging-signing-snap-requests';
 import { validateLoginResponse } from '../utils/validate-login-response';
+import { Env } from '../../shared/env';
 
 type JwtBearerAuth_SRP_Options = {
   storage: AuthStorageOptions;
@@ -200,5 +207,68 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     publicKey: string,
   ): `metamask:${string}:${string}` {
     return `metamask:${nonce}:${publicKey}` as const;
+  }
+
+  async pairSocialIdentifier(jwt: string): Promise<boolean> {
+    console.log(
+      `GIGEL: pairing primary SRP with social token ${jwt}`,
+    );
+
+    // TODO: need to hardcode the env as web3auth prod is not available.
+    // const { env, platform } = this.#config;
+    const { platform } = this.#config;
+    const env = Env.DEV;
+
+    // Exchange the social token with an access token
+    console.log(`GIGEL: exchanging social token for access token`);
+    const tokenResponse = await authorizeOIDC(jwt, env, platform);
+    console.log(`GIGEL: obtained access token ${tokenResponse.accessToken}`);
+
+    // Prepare the SRP signature
+    const identifier = await this.getIdentifier();
+    const profile = await this.getUserProfile();
+    const n = await getNonce(profile.profileId, env);
+    console.log(
+      `GIGEL: pairing social token with profile ${profile.profileId} with nonce ${n.nonce}`,
+    );
+    const raw = `metamask:${n.nonce}:${identifier}`;
+    const sig = await this.signMessage(raw);
+    const primaryIdentifierSignature = {
+      signature: sig,
+      raw_message: raw,
+      identifier_type: AuthType.SRP,
+      encrypted_storage_key: '', // Not yet part of this flow, so we leave it empty
+    };
+
+    const pairUrl = new URL(PAIR_SOCIAL_IDENTIFIER(env));
+
+    try {
+      // TODO: this will FAIL as long as the ENV don't match.
+      const response = await fetch(pairUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${tokenResponse.accessToken}`,
+        },
+        body: JSON.stringify({
+          nonce: n.nonce,
+          login: primaryIdentifierSignature,
+        }),
+      });
+
+      if (!response.ok) {
+        const responseBody = (await response.json()) as ErrorMessage;
+        throw new Error(
+          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+        );
+      }
+    } catch (e) {
+      /* istanbul ignore next */
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+      throw new PairError(`unable to pair identifiers: ${errorMessage}`);
+    }
+
+    return false;
   }
 }

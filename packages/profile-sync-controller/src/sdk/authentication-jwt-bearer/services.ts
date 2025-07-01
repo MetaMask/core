@@ -16,6 +16,9 @@ export const NONCE_URL = (env: Env) =>
 export const PAIR_IDENTIFIERS = (env: Env) =>
   `${getEnvUrls(env).authApiUrl}/api/v2/identifiers/pair`;
 
+export const PAIR_SOCIAL_IDENTIFIER = (env: Env) =>
+  `${getEnvUrls(env).authApiUrl}/api/v2/identifiers/pair/social`;
+
 export const OIDC_TOKEN_URL = (env: Env) =>
   `${getEnvUrls(env).oidcApiUrl}/oauth2/token`;
 
@@ -153,30 +156,35 @@ export async function authorizeOIDC(
   urlEncodedBody.append('client_id', getOidcClientId(env, platform));
   urlEncodedBody.append('assertion', jwtToken);
 
+  console.log(`GIGEL [identity auth] requesting OIDC token with grant_type: ${grantType}, client_id: ${getOidcClientId(env, platform)} from ${OIDC_TOKEN_URL(env)} using jwtToken: ${jwtToken}`);
   try {
     const response = await fetch(OIDC_TOKEN_URL(env), {
       method: 'POST',
       headers,
       body: urlEncodedBody.toString(),
     });
+    console.log(`GIGEL [identity auth] OIDC token response status: ${response.status}`);
 
     if (!response.ok) {
       const responseBody = (await response.json()) as {
         error_description: string;
         error: string;
       };
+      console.error(`GIGEL [identity auth] OIDC token error response: ${JSON.stringify(responseBody)}`);
       throw new Error(
         `HTTP error: ${responseBody.error_description}, error code: ${responseBody.error}`,
       );
     }
 
     const accessTokenResponse = await response.json();
+    console.log(`GIGEL [identity auth] OIDC token response: ${JSON.stringify(accessTokenResponse)}`);
     return {
       accessToken: accessTokenResponse.access_token,
       expiresIn: accessTokenResponse.expires_in,
       obtainedAt: Date.now(),
     };
   } catch (e) {
+    console.error(`GIGEL [identity auth] OIDC token request failed: ${e as Error}`);
     /* istanbul ignore next */
     const errorMessage =
       e instanceof Error ? e.message : JSON.stringify(e ?? '');
