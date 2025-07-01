@@ -38,7 +38,7 @@ export async function saveInternalAccountToUserStorage(
 
     // properties of `options` are (wrongly?) typed as `Json` and eslint crashes if we try to interpret it as such and call a `?.toString()` on it.
     // but we know this is a string?, so we can safely cast it
-    const entropySourceId = internalAccount.options.entropySource as
+    const entropySourceId = internalAccount.options?.entropySource as
       | string
       | undefined;
 
@@ -73,7 +73,7 @@ export async function saveInternalAccountToUserStorage(
             hasNameTimestamp: Boolean(
               internalAccount.metadata.nameLastUpdatedAt,
             ),
-            hasEntropySource: Boolean(internalAccount.options.entropySource),
+            hasEntropySource: Boolean(internalAccount.options?.entropySource),
             isHDAccount:
               internalAccount.metadata.keyring.type === String(KeyringTypes.hd),
           },
