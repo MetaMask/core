@@ -5,6 +5,7 @@ Object {
   "bridgeTxMetaId1": Object {
     "account": "0xaccount1",
     "approvalTxId": undefined,
+    "batchId": undefined,
     "estimatedProcessingTimeInSeconds": 15,
     "hasApprovalTx": false,
     "initialDestAssetBalance": undefined,
@@ -116,6 +117,7 @@ Object {
     },
     "targetContractAddress": "0x23981fC34e69eeDFE2BD9a0a9fCb0719Fe09DbFC",
     "txMetaId": "bridgeTxMetaId1",
+    "type": "bridge",
   },
 }
 `;
@@ -185,6 +187,7 @@ Object {
   "bridgeTxMetaId1": Object {
     "account": "0xaccount1",
     "approvalTxId": undefined,
+    "batchId": undefined,
     "estimatedProcessingTimeInSeconds": 15,
     "hasApprovalTx": false,
     "initialDestAssetBalance": undefined,
@@ -296,6 +299,7 @@ Object {
     },
     "targetContractAddress": "0x23981fC34e69eeDFE2BD9a0a9fCb0719Fe09DbFC",
     "txMetaId": "bridgeTxMetaId1",
+    "type": "bridge",
   },
 }
 `;
@@ -370,6 +374,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
 Object {
   "account": "0xaccount1",
   "approvalTxId": "test-approval-tx-id",
+  "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
@@ -481,6 +486,7 @@ Object {
   },
   "targetContractAddress": undefined,
   "txMetaId": "test-tx-id",
+  "type": "bridge",
 }
 `;
 
@@ -587,6 +593,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart account
 Object {
   "account": "0xaccount1",
   "approvalTxId": undefined,
+  "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
@@ -698,6 +705,7 @@ Object {
   },
   "targetContractAddress": undefined,
   "txMetaId": "test-tx-id",
+  "type": "bridge",
 }
 `;
 
@@ -821,6 +829,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
 Object {
   "account": "",
   "approvalTxId": undefined,
+  "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
@@ -932,6 +941,7 @@ Object {
   },
   "targetContractAddress": undefined,
   "txMetaId": "test-tx-id",
+  "type": "bridge",
 }
 `;
 
@@ -1041,6 +1051,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
 Object {
   "account": "0xaccount1",
   "approvalTxId": "test-approval-tx-id",
+  "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
@@ -1152,6 +1163,7 @@ Object {
   },
   "targetContractAddress": undefined,
   "txMetaId": "test-tx-id",
+  "type": "bridge",
 }
 `;
 
@@ -1367,6 +1379,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
 Object {
   "account": "0xaccount1",
   "approvalTxId": "test-approval-tx-id",
+  "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
@@ -1478,6 +1491,7 @@ Object {
   },
   "targetContractAddress": undefined,
   "txMetaId": "test-tx-id",
+  "type": "bridge",
 }
 `;
 
@@ -1604,6 +1618,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
 Object {
   "account": "0xaccount1",
   "approvalTxId": undefined,
+  "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
@@ -1715,6 +1730,7 @@ Object {
   },
   "targetContractAddress": undefined,
   "txMetaId": "test-tx-id",
+  "type": "bridge",
 }
 `;
 
@@ -1950,6 +1966,7 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart accounts 
 Object {
   "account": "",
   "approvalTxId": undefined,
+  "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 0,
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
@@ -2061,6 +2078,7 @@ Object {
   },
   "targetContractAddress": undefined,
   "txMetaId": "test-tx-id",
+  "type": "swap",
 }
 `;
 
@@ -2184,6 +2202,7 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
 Object {
   "account": "",
   "approvalTxId": undefined,
+  "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 0,
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
@@ -2295,6 +2314,7 @@ Object {
   },
   "targetContractAddress": undefined,
   "txMetaId": "test-tx-id",
+  "type": "swap",
 }
 `;
 
@@ -2404,6 +2424,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
 Object {
   "account": "0xaccount1",
   "approvalTxId": "test-approval-tx-id",
+  "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 0,
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
@@ -2515,6 +2536,7 @@ Object {
   },
   "targetContractAddress": undefined,
   "txMetaId": "test-tx-id",
+  "type": "swap",
 }
 `;
 
@@ -2641,6 +2663,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
 Object {
   "account": "0xaccount1",
   "approvalTxId": undefined,
+  "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 0,
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
@@ -2752,6 +2775,7 @@ Object {
   },
   "targetContractAddress": undefined,
   "txMetaId": "test-tx-id",
+  "type": "swap",
 }
 `;
 
@@ -3001,6 +3025,7 @@ exports[`BridgeStatusController submitTx: Solana bridge should successfully subm
 Object {
   "account": "0x123...",
   "approvalTxId": undefined,
+  "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 300,
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
@@ -3092,6 +3117,7 @@ Object {
   },
   "targetContractAddress": undefined,
   "txMetaId": "test-uuid-1234",
+  "type": "bridge",
 }
 `;
 
@@ -3332,6 +3358,7 @@ exports[`BridgeStatusController submitTx: Solana swap should successfully submit
 Object {
   "account": "0x123...",
   "approvalTxId": undefined,
+  "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 300,
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
@@ -3421,6 +3448,7 @@ Object {
   },
   "targetContractAddress": undefined,
   "txMetaId": "test-uuid-1234",
+  "type": "swap",
 }
 `;
 

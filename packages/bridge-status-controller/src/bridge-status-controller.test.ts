@@ -284,6 +284,8 @@ const getMockStartPollingForBridgeTxStatusArgs = ({
     quote: getMockQuote({ srcChainId, destChainId }),
     refuel: false,
   },
+  type:
+    srcChainId === destChainId ? TransactionType.swap : TransactionType.bridge,
   quoteResponse: {
     quote: getMockQuote({ srcChainId, destChainId }),
     trade: {

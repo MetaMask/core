@@ -284,6 +284,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       .filter((historyItem) => {
         // Check if we are already polling this tx, if so, skip restarting polling for that
         const srcTxMetaId = historyItem.txMetaId;
+        if (!srcTxMetaId) {
+          // If txMetaId is not set, it means it's a batched tx, so we don't want to restart polling for it
+          return false;
+        }
         const pollingToken = this.#pollingTokensByTxMetaId[srcTxMetaId];
         return !pollingToken;
       })
@@ -301,7 +305,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
       // We manually call startPolling() here rather than go through startPollingForBridgeTxStatus()
       // because we don't want to overwrite the existing historyItem in state
-      this.#startPollingForTxId(bridgeTxMetaId);
+      if (bridgeTxMetaId) {
+        this.#startPollingForTxId(bridgeTxMetaId);
+      }
     });
   };
 
@@ -310,6 +316,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   ) => {
     const {
       bridgeTxMeta,
+      type,
       statusRequest,
       quoteResponse,
       startTime,
@@ -319,11 +326,22 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       approvalTxId,
       isStxEnabled,
     } = startPollingForBridgeTxStatusArgs;
+    // THis identifies the history item in state
+    // If it's a batched tx, we use the batchId until the tx is confirmed and
+    // the tx id is available
+    const txHistoryKey = bridgeTxMeta.id ?? bridgeTxMeta.batchId;
+    if (!txHistoryKey) {
+      throw new Error(
+        'Failed to add tx to history: No batch or tx id to use as key',
+      );
+    }
     const accountAddress = this.#getMultichainSelectedAccountAddress();
     // Write all non-status fields to state so we can reference the quote in Activity list without the Bridge API
     // We know it's in progress but not the exact status yet
     const txHistoryItem = {
       txMetaId: bridgeTxMeta.id,
+      batchId: bridgeTxMeta.batchId,
+      type,
       quote: quoteResponse.quote,
       startTime,
       estimatedProcessingTimeInSeconds:
@@ -352,8 +370,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       isStxEnabled: isStxEnabled ?? false,
     };
     this.update((state) => {
-      // Use the txMeta.id as the key so we can reference the txMeta in TransactionController
-      state.txHistory[bridgeTxMeta.id] = txHistoryItem;
+      // Use the txMeta.id or batchId as the key so we can reference the txMeta in TransactionController
+      state.txHistory[txHistoryKey] = txHistoryItem;
     });
   };
 
@@ -946,6 +964,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       // Add swap or bridge tx to history
       this.#addTxToHistory({
         bridgeTxMeta: txMeta, // Only the id field is used by the BridgeStatusController
+        type: isBridgeTx ? TransactionType.bridge : TransactionType.swap,
         statusRequest: {
           ...getStatusRequestParams(quoteResponse),
           srcTxHash: txMeta.hash,
