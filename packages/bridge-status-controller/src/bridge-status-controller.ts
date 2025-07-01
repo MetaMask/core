@@ -217,7 +217,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     this.messagingSystem.subscribe(
       'TransactionController:transactionConfirmed',
       (transactionMeta) => {
-        const { type, id } = transactionMeta;
+        const { type, id, chainId } = transactionMeta;
         if (type === TransactionType.swap) {
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Completed,
@@ -225,7 +225,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             getEVMTxPropertiesFromTransactionMeta(transactionMeta),
           );
         }
-        if (type === TransactionType.bridge) {
+        if (type === TransactionType.bridge && !isSolanaChainId(chainId)) {
           this.#startPollingForTxId(id);
         }
       },
