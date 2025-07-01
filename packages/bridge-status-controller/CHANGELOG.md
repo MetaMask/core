@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Bump peer dependency `@metamask/snaps-controllers` from `^12.0.0` to `^14.0.0` ([#6035](https://github.com/MetaMask/core/pull/6035))
 - Extract `getUSDTAllowanceResetTx` and `calculateGasFees` into util files ([#6053](https://github.com/MetaMask/core/pull/6053))
 
 ### Fixed
