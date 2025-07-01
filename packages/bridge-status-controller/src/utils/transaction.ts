@@ -1,8 +1,7 @@
 import type { AccountsControllerState } from '@metamask/accounts-controller';
-import type { Quote, TxData } from '@metamask/bridge-controller';
 import {
   ChainId,
-  FeeType,
+  type TxData,
   formatChainIdToHex,
   getEthUsdtResetData,
   isCrossChain,
@@ -19,16 +18,12 @@ import {
   type BatchTransactionParams,
   type TransactionMeta,
 } from '@metamask/transaction-controller';
-import type { Hex } from '@metamask/utils';
 import { createProjectLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import { v4 as uuid } from 'uuid';
 
 import { calculateGasFees } from './gas';
-import type {
-  TransactionBatchSingleRequest,
-  TransactionParams,
-} from '../../../transaction-controller/src/types';
+import type { TransactionBatchSingleRequest } from '../../../transaction-controller/src/types';
 import { LINEA_DELAY_MS } from '../constants';
 import type {
   BridgeStatusControllerMessenger,
@@ -235,28 +230,31 @@ export const getClientRequest = (
   };
 };
 
-export const toTransactionBatchParams = (
+export const toTransactionBatchParams = async (
   disable7702: boolean,
   { chainId, gasLimit, ...trade }: TxData,
-  { txFee }: Quote['feeData'],
-): BatchTransactionParams => {
+  {
+    maxFeePerGas,
+    maxPriorityFeePerGas,
+    gas,
+  }: { maxFeePerGas?: string; maxPriorityFeePerGas?: string; gas?: string },
+): Promise<BatchTransactionParams> => {
   const params = {
     ...trade,
     data: trade.data as `0x${string}`,
     to: trade.to as `0x${string}`,
     value: trade.value as `0x${string}`,
   };
-  if (disable7702) {
-    return {
-      ...params,
-      gas: toHex(gasLimit ?? 0),
-      maxFeePerGas: txFee ? toHex(txFee.maxFeePerGas ?? 0) : undefined,
-      maxPriorityFeePerGas: txFee
-        ? toHex(txFee.maxPriorityFeePerGas ?? 0)
-        : undefined,
-    };
+  if (!disable7702) {
+    return params;
   }
-  return params;
+
+  return {
+    ...params,
+    gas: toHex(gas ?? 0),
+    maxFeePerGas: toHex(maxFeePerGas ?? 0),
+    maxPriorityFeePerGas: toHex(maxPriorityFeePerGas ?? 0),
+  };
 };
 
 export const getAddTransactionBatchParams = async ({
@@ -265,8 +263,14 @@ export const getAddTransactionBatchParams = async ({
   approval,
   resetApproval,
   trade,
-  quoteResponse,
+  quoteResponse: {
+    quote: {
+      feeData: { txFee },
+      gasIncluded,
+    },
+  },
   requireApproval = false,
+  estimateGasFeeFn,
 }: {
   messagingSystem: BridgeStatusControllerMessenger;
   isBridgeTx: boolean;
@@ -275,6 +279,7 @@ export const getAddTransactionBatchParams = async ({
   trade: TxData;
   quoteResponse: Omit<QuoteResponse, 'approval' | 'trade'> & QuoteMetadata;
   requireApproval?: boolean;
+  estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee;
 }) => {
   const selectedAccount = messagingSystem.call(
     'AccountsController:getAccountByAddress',
@@ -295,37 +300,55 @@ export const getAddTransactionBatchParams = async ({
   const disable7702 = true;
   const transactions: TransactionBatchSingleRequest[] = [];
   if (resetApproval) {
+    const gasFees = await calculateGasFees(
+      disable7702,
+      messagingSystem,
+      estimateGasFeeFn,
+      resetApproval,
+      networkClientId,
+      hexChainId,
+      gasIncluded ? txFee : undefined,
+    );
     transactions.push({
       type: isBridgeTx
         ? TransactionType.bridgeApproval
         : TransactionType.swapApproval,
-      params: toTransactionBatchParams(
+      params: await toTransactionBatchParams(
         disable7702,
         resetApproval,
-
-        quoteResponse.quote.feeData,
+        gasFees,
       ),
     });
   }
   if (approval) {
+    const gasFees = await calculateGasFees(
+      disable7702,
+      messagingSystem,
+      estimateGasFeeFn,
+      approval,
+      networkClientId,
+      hexChainId,
+      gasIncluded ? txFee : undefined,
+    );
     transactions.push({
       type: isBridgeTx
         ? TransactionType.bridgeApproval
         : TransactionType.swapApproval,
-      params: toTransactionBatchParams(
-        disable7702,
-        approval,
-        quoteResponse.quote.feeData,
-      ),
+      params: await toTransactionBatchParams(disable7702, approval, gasFees),
     });
   }
+  const gasFees = await calculateGasFees(
+    disable7702,
+    messagingSystem,
+    estimateGasFeeFn,
+    trade,
+    networkClientId,
+    hexChainId,
+    gasIncluded ? txFee : undefined,
+  );
   transactions.push({
     type: isBridgeTx ? TransactionType.bridge : TransactionType.swap,
-    params: toTransactionBatchParams(
-      disable7702,
-      trade,
-      quoteResponse.quote.feeData,
-    ),
+    params: await toTransactionBatchParams(disable7702, trade, gasFees),
   });
   const transactionParams: Parameters<
     TransactionController['addTransactionBatch']
@@ -338,84 +361,5 @@ export const getAddTransactionBatchParams = async ({
     transactions,
   };
 
-  // const isSmartContractAccount =
-  //   selectedAccount.type === EthAccountType.Erc4337;
-  // if (isSmartContractAccount && this.#addUserOperationFromTransactionFn) {
-  //   const smartAccountTxResult =
-  //     await this.#addUserOperationFromTransactionFn(
-  //       transactionParamsWithMaxGas,
-  //       requestOptions,
-  //     );
-  //   result = smartAccountTxResult.transactionHash;
-  //   transactionMeta = {
-  //     ...requestOptions,
-  //     chainId: hexChainId,
-  //     txParams: transactionParamsWithMaxGas,
-  //     time: Date.now(),
-  //     id: smartAccountTxResult.id,
-  //     status: TransactionStatus.confirmed,
-  //   };
-  // }
-
   return transactionParams;
-};
-
-export const getAddTransactionParams = async ({
-  messagingSystem,
-  estimateGasFeeFn,
-  transactionType,
-  trade,
-  quoteResponse,
-  hexChainId,
-  requireApproval = false,
-}: {
-  messagingSystem: BridgeStatusControllerMessenger;
-  estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee;
-  transactionType: TransactionType;
-  trade: TxData;
-  quoteResponse: Omit<QuoteResponse, 'approval' | 'trade'> & QuoteMetadata;
-  hexChainId: Hex;
-  requireApproval?: boolean;
-}) => {
-  const actionId = generateActionId().toString();
-  const networkClientId = messagingSystem.call(
-    'NetworkController:findNetworkClientIdByChainId',
-    hexChainId,
-  );
-
-  const requestOptions = {
-    actionId,
-    networkClientId,
-    requireApproval,
-    transactionType,
-    origin: 'metamask',
-  };
-  const transactionParams: Parameters<
-    TransactionController['addTransaction']
-  >[0] = {
-    ...trade,
-    chainId: hexChainId,
-    gasLimit: trade.gasLimit?.toString(),
-    gas: trade.gasLimit?.toString(),
-  };
-  const disable7702 = true;
-  const transactionParamsWithMaxGas: TransactionParams = {
-    ...transactionParams,
-    ...(quoteResponse.quote.feeData[FeeType.TX_FEE]
-      ? toTransactionBatchParams(
-          disable7702,
-          trade,
-          quoteResponse.quote.feeData,
-        )
-      : await calculateGasFees(
-          disable7702,
-          messagingSystem,
-          estimateGasFeeFn,
-          transactionParams,
-          networkClientId,
-          hexChainId,
-        )),
-  };
-
-  return { transactionParamsWithMaxGas, requestOptions };
 };

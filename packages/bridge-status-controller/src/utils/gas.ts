@@ -1,3 +1,4 @@
+import type { TxData } from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
 import type {
   GasFeeEstimates,
@@ -6,7 +7,6 @@ import type {
 import type {
   FeeMarketGasFeeEstimates,
   TransactionController,
-  TransactionParams,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
@@ -59,13 +59,24 @@ export const calculateGasFees = async (
   disable7702: boolean,
   messagingSystem: BridgeStatusControllerMessenger,
   estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee,
-  transactionParams: TransactionParams,
+  { chainId: _, gasLimit, ...trade }: TxData,
   networkClientId: string,
   chainId: Hex,
+  txFee?: { maxFeePerGas: string; maxPriorityFeePerGas: string },
 ) => {
-  if (disable7702) {
+  if (!disable7702) {
     return {};
   }
+  if (txFee) {
+    return { ...txFee, gas: gasLimit?.toString() };
+  }
+  const transactionParams = {
+    ...trade,
+    gas: gasLimit?.toString(),
+    data: trade.data as `0x${string}`,
+    to: trade.to as `0x${string}`,
+    value: trade.value as `0x${string}`,
+  };
   const { gasFeeEstimates } = messagingSystem.call('GasFeeController:getState');
   const { estimates: txGasFeeEstimates } = await estimateGasFeeFn({
     transactionParams,
