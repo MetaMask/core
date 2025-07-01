@@ -343,7 +343,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   readonly #startPollingForTxId = (txId: string) => {
-    const { quote } = this.state.txHistory[txId];
+    const txHistoryItem = this.state.txHistory[txId];
+    if (!txHistoryItem) {
+      return;
+    }
+    const { quote } = txHistoryItem;
 
     const isBridgeTx = isCrossChain(quote.srcChainId, quote.destChainId);
     if (isBridgeTx) {
