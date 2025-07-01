@@ -1475,9 +1475,7 @@ describe('BridgeStatusController', () => {
       expect(
         startPollingForBridgeTxStatusSpy.mock.lastCall[0],
       ).toMatchSnapshot();
-      expect(
-        controller.state.txHistory[result.batchId as never],
-      ).toMatchSnapshot();
+      expect(controller.state.txHistory[result.id as never]).toMatchSnapshot();
     });
 
     it('should throw error when snap ID is missing', async () => {
@@ -1715,9 +1713,7 @@ describe('BridgeStatusController', () => {
 
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
       expect(result).toMatchSnapshot();
-      expect(
-        controller.state.txHistory[result.batchId as never],
-      ).toMatchSnapshot();
+      expect(controller.state.txHistory[result.id as never]).toMatchSnapshot();
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
     });
 

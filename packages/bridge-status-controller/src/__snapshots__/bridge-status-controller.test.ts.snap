@@ -2555,6 +2555,7 @@ exports[`BridgeStatusController submitTx: Solana bridge should successfully subm
 Object {
   "account": "0x123...",
   "approvalTxId": undefined,
+  "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 300,
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
@@ -2886,6 +2887,7 @@ exports[`BridgeStatusController submitTx: Solana swap should successfully submit
 Object {
   "account": "0x123...",
   "approvalTxId": undefined,
+  "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 300,
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
