@@ -192,6 +192,19 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             status,
           )
         ) {
+          // Mark tx as failed in txHistory
+          this.update((bridgeStatusState) => {
+            if (bridgeStatusState.txHistory[id]) {
+              bridgeStatusState.txHistory[id] = {
+                ...bridgeStatusState.txHistory[id],
+                status: {
+                  ...bridgeStatusState.txHistory[id].status,
+                  status: StatusTypes.FAILED,
+                },
+              };
+            }
+          });
+          // Track failed event
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Failed,
             id,
@@ -204,13 +217,16 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     this.messagingSystem.subscribe(
       'TransactionController:transactionConfirmed',
       (transactionMeta) => {
-        const { type, id } = transactionMeta;
+        const { type, id, chainId } = transactionMeta;
         if (type === TransactionType.swap) {
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Completed,
             id,
             getEVMTxPropertiesFromTransactionMeta(transactionMeta),
           );
+        }
+        if (type === TransactionType.bridge && !isSolanaChainId(chainId)) {
+          this.#startPollingForTxId(id);
         }
       },
     );
@@ -283,9 +299,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
       // We manually call startPolling() here rather than go through startPollingForBridgeTxStatus()
       // because we don't want to overwrite the existing historyItem in state
-      this.#pollingTokensByTxMetaId[bridgeTxMetaId] = this.startPolling({
-        bridgeTxMetaId,
-      });
+      this.#startPollingForTxId(bridgeTxMetaId);
     });
   };
 
@@ -341,27 +355,39 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     });
   };
 
+  readonly #startPollingForTxId = (txId: string) => {
+    // If we are already polling for this tx, stop polling for it before restarting
+    const existingPollingToken = this.#pollingTokensByTxMetaId[txId];
+    if (existingPollingToken) {
+      this.stopPollingByPollingToken(existingPollingToken);
+    }
+
+    const txHistoryItem = this.state.txHistory[txId];
+    if (!txHistoryItem) {
+      return;
+    }
+    const { quote } = txHistoryItem;
+
+    const isBridgeTx = isCrossChain(quote.srcChainId, quote.destChainId);
+    if (isBridgeTx) {
+      this.#pollingTokensByTxMetaId[txId] = this.startPolling({
+        bridgeTxMetaId: txId,
+      });
+    }
+  };
+
   /**
-   * Starts polling for the bridge tx status
+   * Adds tx to history and starts polling for the bridge tx status
    *
    * @param txHistoryMeta - The parameters for creating the history item
    */
   startPollingForBridgeTxStatus = (
     txHistoryMeta: StartPollingForBridgeTxStatusArgsSerialized,
   ) => {
-    const { quoteResponse, bridgeTxMeta } = txHistoryMeta;
+    const { bridgeTxMeta } = txHistoryMeta;
 
     this.#addTxToHistory(txHistoryMeta);
-
-    const isBridgeTx = isCrossChain(
-      quoteResponse.quote.srcChainId,
-      quoteResponse.quote.destChainId,
-    );
-    if (isBridgeTx) {
-      this.#pollingTokensByTxMetaId[bridgeTxMeta.id] = this.startPolling({
-        bridgeTxMetaId: bridgeTxMeta.id,
-      });
-    }
+    this.#startPollingForTxId(bridgeTxMeta.id);
   };
 
   // This will be called after you call this.startPolling()
@@ -950,8 +976,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     }
 
     try {
-      // Start polling for bridge tx status
-      this.startPollingForBridgeTxStatus({
+      // Add swap or bridge tx to history
+      this.#addTxToHistory({
         bridgeTxMeta: txMeta, // Only the id field is used by the BridgeStatusController
         statusRequest: {
           ...getStatusRequestParams(quoteResponse),
@@ -963,12 +989,17 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         startTime: approvalTime ?? Date.now(),
         approvalTxId,
       });
-      // Track Solana Swap completed event
-      if (isSolanaChainId(quoteResponse.quote.srcChainId) && !isBridgeTx) {
-        this.#trackUnifiedSwapBridgeEvent(
-          UnifiedSwapBridgeEventName.Completed,
-          txMeta.id,
-        );
+
+      if (isSolanaChainId(quoteResponse.quote.srcChainId)) {
+        // Start polling for bridge tx status
+        this.#startPollingForTxId(txMeta.id);
+        // Track Solana Swap completed event
+        if (!isBridgeTx) {
+          this.#trackUnifiedSwapBridgeEvent(
+            UnifiedSwapBridgeEventName.Completed,
+            txMeta.id,
+          );
+        }
       }
     } catch {
       // Ignore errors here, we don't want to crash the app if this fails and tx submission succeeds
