@@ -866,6 +866,120 @@ describe('Messenger', () => {
     });
   });
 
+  describe('delegateAll', () => {
+    it('allows delegating all events', () => {
+      type ExampleEvent = {
+        type: 'Source:event';
+        payload: ['test'];
+      };
+      const sourceMessenger = new Messenger<never, ExampleEvent, 'Source'>({
+        namespace: 'Source',
+      });
+      const delegatedMessenger = new Messenger<
+        never,
+        ExampleEvent,
+        'Destination'
+      >({ namespace: 'Destination' });
+      const subscriber = jest.fn();
+
+      sourceMessenger.delegateAll({
+        messenger: delegatedMessenger,
+        actions: [],
+        events: ['Source:event'],
+      });
+
+      delegatedMessenger.subscribe('Source:event', subscriber);
+      sourceMessenger.publish('Source:event', 'test');
+      expect(subscriber).toHaveBeenCalledWith('test');
+    });
+
+    it('allows delegating all actions', () => {
+      type ExampleAction = {
+        type: 'Source:getLength';
+        handler: (input: string) => string;
+      };
+      const sourceMessenger = new Messenger<ExampleAction, never, 'Source'>({
+        namespace: 'Source',
+      });
+      const delegatedMessenger = new Messenger<
+        ExampleAction,
+        never,
+        'Destination'
+      >({ namespace: 'Destination' });
+      const handler = jest.fn((input) => input.length);
+      sourceMessenger.registerActionHandler('Source:getLength', handler);
+
+      sourceMessenger.delegateAll({
+        messenger: delegatedMessenger,
+        actions: ['Source:getLength'],
+        events: [],
+      });
+
+      const result = delegatedMessenger.call('Source:getLength', 'test');
+      expect(result).toBe(4);
+      expect(handler).toHaveBeenCalledWith('test');
+    });
+
+    it('has type error when delegating a subset of events', () => {
+      type ExampleEvent1 = {
+        type: 'Source:event1';
+        payload: ['test'];
+      };
+      type ExampleEvent2 = {
+        type: 'Source:event2';
+        payload: ['test'];
+      };
+      const sourceMessenger = new Messenger<
+        never,
+        ExampleEvent1 | ExampleEvent2,
+        'Source'
+      >({
+        namespace: 'Source',
+      });
+      const delegatedMessenger = new Messenger<
+        never,
+        ExampleEvent1,
+        'Destination'
+      >({ namespace: 'Destination' });
+      const subscriber = jest.fn();
+
+      sourceMessenger.delegateAll({
+        messenger: delegatedMessenger,
+        actions: [],
+        // @ts-expect-error This error is the expected because an event is missing
+        events: ['Source:event1'],
+      });
+    });
+
+    it('has type error when delegating a subset of actions', () => {
+      type ExampleAction1 = {
+        type: 'Source:getLength1';
+        handler: (input: string) => string;
+      };
+      type ExampleAction2 = {
+        type: 'Source:getLength2';
+        handler: (input: string) => string;
+      };
+      const sourceMessenger = new Messenger<ExampleAction1 | ExampleAction2, never, 'Source'>({
+        namespace: 'Source',
+      });
+      const delegatedMessenger = new Messenger<
+        ExampleAction1,
+        never,
+        'Destination'
+      >({ namespace: 'Destination' });
+      const handler = jest.fn((input) => input.length);
+      sourceMessenger.registerActionHandler('Source:getLength1', handler);
+
+      sourceMessenger.delegateAll({
+        messenger: delegatedMessenger,
+        // @ts-expect-error This error is the expected because an action is missing
+        actions: ['Source:getLength1'],
+        events: [],
+      });
+    });
+  });
+
   describe('revoke', () => {
     it('allows revoking a delegated event', () => {
       type ExampleEvent = {

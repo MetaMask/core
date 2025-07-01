@@ -1086,7 +1086,7 @@ describe('getPersistentState', () => {
     }
 
     it('should allow messaging between controllers', () => {
-      const messenger = new Messenger<
+      const globalMessenger = new Messenger<
         VisitorControllerActions | VisitorOverflowControllerActions,
         VisitorControllerEvents | VisitorOverflowControllerEvents,
         'Global'
@@ -1098,10 +1098,10 @@ describe('getPersistentState', () => {
       >({
         namespace: visitorName,
       });
-      visitorControllerMessenger.delegate({
+      visitorControllerMessenger.delegateAll({
         actions: ['VisitorController:clear'],
         events: ['VisitorController:stateChange'],
-        messenger,
+        messenger: globalMessenger,
       });
       const visitorController = new VisitorController(
         visitorControllerMessenger,
@@ -1115,12 +1115,12 @@ describe('getPersistentState', () => {
       >({
         namespace: visitorOverflowName,
       });
-      visitorOverflowControllerMessenger.delegate({
+      visitorOverflowControllerMessenger.delegateAll({
         actions: ['VisitorOverflowController:updateMax'],
         events: ['VisitorOverflowController:stateChange'],
-        messenger,
+        messenger: globalMessenger,
       });
-      messenger.delegate({
+      globalMessenger.delegate({
         actions: ['VisitorController:clear'],
         events: ['VisitorController:stateChange'],
         messenger: visitorOverflowControllerMessenger,
@@ -1129,7 +1129,7 @@ describe('getPersistentState', () => {
         visitorOverflowControllerMessenger,
       );
 
-      messenger.call('VisitorOverflowController:updateMax', 2);
+      globalMessenger.call('VisitorOverflowController:updateMax', 2);
       visitorController.addVisitor('A');
       visitorController.addVisitor('B');
       visitorController.addVisitor('C'); // this should trigger an overflow

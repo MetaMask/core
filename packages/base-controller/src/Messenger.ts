@@ -70,6 +70,15 @@ export type EventConstraint = {
   payload: unknown[];
 };
 
+type NamespacedAction<
+  Action extends ActionConstraint,
+  Namespace extends string,
+> = Action & { type: NamespacedName<Namespace> };
+type NamespacedEvent<
+  Event extends EventConstraint,
+  Namespace extends string,
+> = Event & { type: NamespacedName<Namespace> };
+
 type EventSubscriptionMap<
   Event extends EventConstraint,
   ReturnValue = unknown,
@@ -670,6 +679,55 @@ export class Messenger<
       }
       this.subscribe(eventType, subscriber);
     }
+  }
+
+  /**
+   * Delegate all actions and/or events to another messenger.
+   *
+   * @param args - Arguments.
+   * @param args.messenger - The messenger to delegate to.
+   */
+  delegateAll<
+    InternalAction extends NamespacedAction<
+      Action,
+      Namespace
+    > = NamespacedAction<Action, Namespace>,
+    InternalEvent extends NamespacedEvent<Event, Namespace> = NamespacedEvent<
+      Event,
+      Namespace
+    >,
+    InternalNamespacedActions extends readonly (InternalAction['type'] &
+      NamespacedName<Namespace>)[] = (InternalAction['type'] &
+      NamespacedName<Namespace>)[],
+    InternalNamespacedEvents extends readonly (InternalEvent['type'] &
+      NamespacedName<Namespace>)[] = (InternalEvent['type'] &
+      NamespacedName<Namespace>)[],
+  >({
+    actions,
+    events,
+    messenger,
+  }: {
+    actions: InternalNamespacedActions &
+      ([InternalAction['type']] extends InternalNamespacedActions
+        ? unknown
+        : never);
+    events: InternalNamespacedEvents &
+      ([InternalEvent['type']] extends InternalNamespacedEvents
+        ? unknown
+        : never);
+    messenger: DelegatedMessenger<
+      NamespacedAction<Action, Namespace>,
+      NamespacedEvent<Event, Namespace>
+    >;
+  }) {
+    this.delegate<
+      NamespacedAction<Action, Namespace>,
+      NamespacedEvent<Event, Namespace>
+    >({
+      actions,
+      events,
+      messenger,
+    });
   }
 
   /**
