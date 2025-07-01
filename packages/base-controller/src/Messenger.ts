@@ -682,9 +682,11 @@ export class Messenger<
   }
 
   /**
-   * Delegate all actions and/or events to another messenger.
+   * Delegate all internal actions and/or events to another messenger.
    *
    * @param args - Arguments.
+   * @param args.actions - All actions being delegated (must include all actions in namespace).
+   * @param args.events - All events to delegate (must include all events in namespace).
    * @param args.messenger - The messenger to delegate to.
    */
   delegateAll<
