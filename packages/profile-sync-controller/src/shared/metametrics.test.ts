@@ -1,7 +1,6 @@
 import {
   IDENTITY_EVENTS,
   buildIdentityEvent,
-  type IdentityEvent,
   type IdentityEventBuilder,
   type IdentityEventDefinitions,
 } from './metametrics';
