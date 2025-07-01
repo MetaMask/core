@@ -3,9 +3,9 @@ import BigNumber from 'bignumber.js';
 import BN from 'bn.js';
 import nock from 'nock';
 
-import { FakeProvider } from '../../../tests/fake-provider';
 import { MAX_SAFE_CHAIN_ID } from './constants';
 import * as util from './util';
+import { FakeProvider } from '../../../tests/fake-provider';
 
 const VALID = '4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
 const SOME_API = 'https://someapi.com';
@@ -320,6 +320,52 @@ describe('util', () => {
     it('should return the input untouched if it is null', () => {
       expect(util.toChecksumHexAddress(null)).toBeNull();
     });
+
+    it('should memoize results for same input', () => {
+      const testAddress = '4e1ff7229bddaf0a73df183a88d9c3a04cc975e0';
+
+      // Call the function multiple times with the same input
+      const result1 = util.toChecksumHexAddress(testAddress);
+      const result2 = util.toChecksumHexAddress(testAddress);
+      const result3 = util.toChecksumHexAddress(testAddress);
+
+      // All results should be identical
+      expect(result1).toBe('0x4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0');
+      expect(result2).toBe(result1);
+      expect(result3).toBe(result1);
+    });
+
+    it('should return different results for different inputs but still memoize each', () => {
+      const testAddress1 = '4e1ff7229bddaf0a73df183a88d9c3a04cc975e0';
+      const testAddress2 = '742d35cc6ba4c0a2b7e8b4c0b1b0c2b2b2b2b2b2';
+
+      // Call with first address multiple times
+      const result1a = util.toChecksumHexAddress(testAddress1);
+      const result1b = util.toChecksumHexAddress(testAddress1);
+
+      // Call with second address multiple times
+      const result2a = util.toChecksumHexAddress(testAddress2);
+      const result2b = util.toChecksumHexAddress(testAddress2);
+
+      // Results for same address should be identical
+      expect(result1b).toBe(result1a);
+      expect(result2b).toBe(result2a);
+
+      // Results for different addresses should be different
+      expect(result1a).not.toBe(result2a);
+    });
+
+    it('should memoize based on complete argument signature', () => {
+      const testAddress = '4e1ff7229bddaf0a73df183a88d9c3a04cc975e0';
+
+      // Call with string argument
+      const result1 = util.toChecksumHexAddress(testAddress);
+      const result2 = util.toChecksumHexAddress(testAddress);
+
+      // Both should be memoized and return the same result
+      expect(result2).toBe(result1);
+      expect(result1).toBe('0x4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0');
+    });
   });
 
   describe('isValidHexAddress', () => {
@@ -335,6 +381,83 @@ describe('util', () => {
       expect(util.isValidHexAddress('0x00', { allowNonPrefixed: false })).toBe(
         false,
       );
+    });
+
+    it('should memoize results for same input', () => {
+      const validAddress = '4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
+
+      // Call the function multiple times with the same input
+      const result1 = util.isValidHexAddress(validAddress);
+      const result2 = util.isValidHexAddress(validAddress);
+      const result3 = util.isValidHexAddress(validAddress);
+
+      // All results should be identical
+      expect(result1).toBe(true);
+      expect(result2).toBe(result1);
+      expect(result3).toBe(result1);
+    });
+
+    it('should memoize results for same input with options', () => {
+      const validAddress = '4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
+      const options = { allowNonPrefixed: true };
+
+      // Call the function multiple times with the same input and options
+      const result1 = util.isValidHexAddress(validAddress, options);
+      const result2 = util.isValidHexAddress(validAddress, options);
+      const result3 = util.isValidHexAddress(validAddress, options);
+
+      // All results should be identical
+      expect(result1).toBe(true);
+      expect(result2).toBe(result1);
+      expect(result3).toBe(result1);
+    });
+
+    it('should return different results for different option combinations', () => {
+      const addressWithoutPrefix = '4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
+
+      // Call with different options
+      const result1 = util.isValidHexAddress(addressWithoutPrefix, {
+        allowNonPrefixed: true,
+      });
+      const result2 = util.isValidHexAddress(addressWithoutPrefix, {
+        allowNonPrefixed: false,
+      });
+
+      // Should return different results for different options
+      expect(result1).toBe(true);
+      expect(result2).toBe(false);
+
+      // But calling again with same options should return memoized results
+      const result1Again = util.isValidHexAddress(addressWithoutPrefix, {
+        allowNonPrefixed: true,
+      });
+      const result2Again = util.isValidHexAddress(addressWithoutPrefix, {
+        allowNonPrefixed: false,
+      });
+
+      expect(result1Again).toBe(result1);
+      expect(result2Again).toBe(result2);
+    });
+
+    it('should handle memoization with different address inputs', () => {
+      const validAddress = '4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
+      const invalidAddress = '0x00';
+
+      // Call with valid address multiple times
+      const validResult1 = util.isValidHexAddress(validAddress);
+      const validResult2 = util.isValidHexAddress(validAddress);
+
+      // Call with invalid address multiple times
+      const invalidResult1 = util.isValidHexAddress(invalidAddress);
+      const invalidResult2 = util.isValidHexAddress(invalidAddress);
+
+      // Results for same address should be identical
+      expect(validResult2).toBe(validResult1);
+      expect(invalidResult2).toBe(invalidResult1);
+
+      // Results should be correct
+      expect(validResult1).toBe(true);
+      expect(invalidResult1).toBe(false);
     });
   });
 

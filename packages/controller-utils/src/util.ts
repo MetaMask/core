@@ -1,4 +1,3 @@
-import { isValidAddress, toChecksumAddress } from '@ethereumjs/util';
 import type EthQuery from '@metamask/eth-query';
 import { fromWei, toWei } from '@metamask/ethjs-unit';
 import type { Hex, Json } from '@metamask/utils';
@@ -7,11 +6,15 @@ import {
   add0x,
   isHexString,
   remove0x,
+  getChecksumAddress,
+  // TODO: we need to bump package version to get this
+  isHexChecksumAddress,
 } from '@metamask/utils';
 import type { BigNumber } from 'bignumber.js';
 import BN from 'bn.js';
 import ensNamehash from 'eth-ens-namehash';
 import deepEqual from 'fast-deep-equal';
+import { memoize } from 'lodash';
 
 import { MAX_SAFE_CHAIN_ID } from './constants';
 
@@ -284,7 +287,7 @@ export async function safelyExecuteWithTimeout<Result>(
  * @param address - The address to convert.
  * @returns The address in 0x-prefixed hexadecimal checksummed form if it is valid.
  */
-export function toChecksumHexAddress(address: string): string;
+function toChecksumHexAddressUnmemoized(address: string): string;
 
 /**
  * Convert an address to a checksummed hexadecimal address.
@@ -299,11 +302,11 @@ export function toChecksumHexAddress(address: string): string;
  */
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
 // eslint-disable-next-line @typescript-eslint/naming-convention
-export function toChecksumHexAddress<T>(address: T): T;
+function toChecksumHexAddressUnmemoized<T>(address: T): T;
 
 // Tools only see JSDocs for overloads and ignore them for the implementation.
 // eslint-disable-next-line jsdoc/require-jsdoc
-export function toChecksumHexAddress(address: unknown) {
+function toChecksumHexAddressUnmemoized(address: unknown) {
   if (typeof address !== 'string') {
     // Mimic behavior of `addHexPrefix` from `ethereumjs-util` (which this
     // function was previously using) for backward compatibility.
@@ -320,8 +323,19 @@ export function toChecksumHexAddress(address: unknown) {
     return hexPrefixed;
   }
 
-  return toChecksumAddress(hexPrefixed);
+  return getChecksumAddress(hexPrefixed);
 }
+
+/**
+ * Convert an address to a checksummed hexadecimal address.
+ *
+ * @param address - The address to convert.
+ * @returns The address in 0x-prefixed hexadecimal checksummed form if it is valid.
+ */
+export const toChecksumHexAddress: {
+  (address: string): string;
+  <T>(address: T): T;
+} = memoize(toChecksumHexAddressUnmemoized);
 
 /**
  * Validates that the input is a hex address. This utility method is a thin
@@ -334,7 +348,7 @@ export function toChecksumHexAddress(address: unknown) {
  * @param options.allowNonPrefixed - If true will allow addresses without `0x` prefix.`
  * @returns Whether or not the input is a valid hex address.
  */
-export function isValidHexAddress(
+function isValidHexAddressUnmemoized(
   possibleAddress: string,
   { allowNonPrefixed = true } = {},
 ): boolean {
@@ -345,8 +359,17 @@ export function isValidHexAddress(
     return false;
   }
 
-  return isValidAddress(addressToCheck);
+  return isHexChecksumAddress(addressToCheck);
 }
+
+export const isValidHexAddress: (
+  address: string,
+  options?: { allowNonPrefixed?: boolean },
+) => boolean = memoize(
+  isValidHexAddressUnmemoized,
+  (possibleAddress, { allowNonPrefixed = true } = {}) =>
+    `${possibleAddress}-${allowNonPrefixed}`,
+);
 
 /**
  * Returns whether the given code corresponds to a smart contract.
