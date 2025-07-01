@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Extract `getUSDTAllowanceResetTx` and `calculateGasFees` into util files
+- Extract `getUSDTAllowanceResetTx` and `calculateGasFees` into util files ([#6053](https://github.com/MetaMask/core/pull/6053))
 
 ### Fixed
 
