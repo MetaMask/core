@@ -941,7 +941,6 @@ describe('Messenger', () => {
         ExampleEvent1,
         'Destination'
       >({ namespace: 'Destination' });
-      const subscriber = jest.fn();
 
       sourceMessenger.delegateAll({
         messenger: delegatedMessenger,
@@ -949,6 +948,9 @@ describe('Messenger', () => {
         // @ts-expect-error This error is the expected because an event is missing
         events: ['Source:event1'],
       });
+      // Suppress warning about missing expect
+      // TODO: Test the type using `tsd` instead of Jest
+      expect(true);
     });
 
     it('has type error when delegating a subset of actions', () => {
@@ -960,7 +962,11 @@ describe('Messenger', () => {
         type: 'Source:getLength2';
         handler: (input: string) => string;
       };
-      const sourceMessenger = new Messenger<ExampleAction1 | ExampleAction2, never, 'Source'>({
+      const sourceMessenger = new Messenger<
+        ExampleAction1 | ExampleAction2,
+        never,
+        'Source'
+      >({
         namespace: 'Source',
       });
       const delegatedMessenger = new Messenger<
@@ -977,6 +983,9 @@ describe('Messenger', () => {
         actions: ['Source:getLength1'],
         events: [],
       });
+      // Suppress warning about missing expect
+      // TODO: Test the type using `tsd` instead of Jest
+      expect(true);
     });
   });
 
