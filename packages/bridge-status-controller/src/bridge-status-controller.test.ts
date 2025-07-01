@@ -1010,7 +1010,6 @@ describe('BridgeStatusController', () => {
     });
   });
 
-  /*
   describe('wipeBridgeStatus', () => {
     it('wipes the bridge status for the given address', async () => {
       // Setup
@@ -1313,7 +1312,6 @@ describe('BridgeStatusController', () => {
       expect(txHistoryItems[0].quote.destChainId).toBe(123);
     });
   });
-  */
 
   describe('submitTx: Solana bridge', () => {
     const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
