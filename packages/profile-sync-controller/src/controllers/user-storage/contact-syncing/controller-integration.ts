@@ -64,7 +64,10 @@ export async function syncContactsWithUserStorage(
     onContactDeleted,
   } = config;
 
-  const performSync = async (traceContext?: unknown) => {
+  let localVisibleContacts: AddressBookEntry[] = [];
+  let validRemoteContacts: SyncAddressBookEntry[] = [];
+
+  const performSync = async () => {
     try {
       // Cannot perform sync, conditions not met
       if (!canPerformContactSyncing(options)) {
@@ -77,7 +80,7 @@ export async function syncContactsWithUserStorage(
       );
 
       // Get all local contacts from AddressBookController (exclude chain "*" contacts)
-      const localVisibleContacts =
+      localVisibleContacts =
         getMessenger()
           .call('AddressBookController:list')
           .filter((contact) => !isContactBridgedFromAccounts(contact))
@@ -90,7 +93,7 @@ export async function syncContactsWithUserStorage(
       const remoteContacts = await getRemoteContacts(options);
 
       // Filter remote contacts to exclude invalid ones (or empty array if no remote contacts)
-      const validRemoteContacts =
+      validRemoteContacts =
         remoteContacts?.filter(
           (contact) =>
             contact.address && contact.chainId && contact.name?.trim(),
@@ -236,9 +239,38 @@ export async function syncContactsWithUserStorage(
     }
   };
 
-  return trace
-    ? await trace({ name: 'Contact Sync Full' }, performSync)
-    : await performSync();
+  if (trace) {
+    // Gather pre-sync metrics for performance analysis
+    const initialLocalContacts = localVisibleContacts;
+    const initialValidRemoteContacts = validRemoteContacts;
+
+    return await trace(
+      {
+        name: 'Contact Sync Full',
+        data: {
+          localContactCount: initialLocalContacts.length,
+          remoteContactCount: initialValidRemoteContacts.length,
+          isFirstSync:
+            initialValidRemoteContacts.length === 0 &&
+            initialLocalContacts.length > 0,
+          isNewDeviceSync:
+            initialLocalContacts.length === 0 &&
+            initialValidRemoteContacts.length > 0,
+          isRegularSync:
+            initialLocalContacts.length > 0 &&
+            initialValidRemoteContacts.length > 0,
+          hasDataToSync:
+            initialLocalContacts.length > 0 ||
+            initialValidRemoteContacts.length > 0,
+          expectedWorkload:
+            initialLocalContacts.length + initialValidRemoteContacts.length,
+        },
+      },
+      performSync,
+    );
+  }
+
+  return await performSync();
 }
 
 /**
@@ -285,23 +317,41 @@ async function saveContactsToUserStorage(
   contacts: AddressBookEntry[],
   options: ContactSyncingOptions,
 ): Promise<void> {
-  const { getUserStorageControllerInstance } = options;
+  const { getUserStorageControllerInstance, trace } = options;
 
-  if (!contacts || contacts.length === 0) {
-    return;
-  }
+  const saveContacts = async () => {
+    if (!contacts || contacts.length === 0) {
+      return;
+    }
 
-  // Convert each AddressBookEntry to UserStorageContactEntry format and create key-value pairs
-  const storageEntries: [string, string][] = contacts.map((contact) => {
-    const key = createContactKey(contact);
-    const storageEntry = mapAddressBookEntryToUserStorageEntry(contact);
-    return [key, JSON.stringify(storageEntry)];
-  });
+    // Convert each AddressBookEntry to UserStorageContactEntry format and create key-value pairs
+    const storageEntries: [string, string][] = contacts.map((contact) => {
+      const key = createContactKey(contact);
+      const storageEntry = mapAddressBookEntryToUserStorageEntry(contact);
+      return [key, JSON.stringify(storageEntry)];
+    });
 
-  await getUserStorageControllerInstance().performBatchSetStorage(
-    USER_STORAGE_FEATURE_NAMES.addressBook,
-    storageEntries,
-  );
+    await getUserStorageControllerInstance().performBatchSetStorage(
+      USER_STORAGE_FEATURE_NAMES.addressBook,
+      storageEntries,
+    );
+  };
+
+  return trace
+    ? await trace(
+        {
+          name: 'Contact Sync Save Batch',
+          data: {
+            contactCount: contacts.length,
+            // Performance scaling indicators
+            hasBatchOperations: contacts.length > 1,
+            chainCount: new Set(contacts.map((c) => c.chainId)).size,
+            hasMemosCount: contacts.filter((c) => c.memo?.length).length,
+          },
+        },
+        saveContacts,
+      )
+    : await saveContacts();
 }
 
 /**
@@ -351,8 +401,11 @@ export async function updateContactInRemoteStorage(
         {
           name: 'Contact Sync Update Remote',
           data: {
-            contactAddress: contact.address,
             chainId: contact.chainId,
+            // Performance indicators
+            hasTimestamp: Boolean(contact.lastUpdatedAt),
+            hasMemo: Boolean(contact.memo?.length),
+            isUpdate: Boolean(contact.lastUpdatedAt), // vs new contact
           },
         },
         updateContact,
@@ -429,7 +482,6 @@ export async function deleteContactInRemoteStorage(
         {
           name: 'Contact Sync Delete Remote',
           data: {
-            contactAddress: contact.address,
             chainId: contact.chainId,
           },
         },

@@ -66,8 +66,16 @@ export async function saveInternalAccountToUserStorage(
         {
           name: 'Account Sync Save Individual',
           data: {
-            accountAddress: internalAccount.address,
-            accountName: internalAccount.metadata.name,
+            accountType: internalAccount.metadata.keyring.type,
+            hasCustomName: !isNameDefaultAccountName(
+              internalAccount.metadata.name,
+            ),
+            hasNameTimestamp: Boolean(
+              internalAccount.metadata.nameLastUpdatedAt,
+            ),
+            hasEntropySource: Boolean(internalAccount.options.entropySource),
+            isHDAccount:
+              internalAccount.metadata.keyring.type === String(KeyringTypes.hd),
           },
         },
         saveAccount,
@@ -425,7 +433,8 @@ export async function syncInternalAccountsWithUserStorage(
         {
           name: 'Account Sync Full',
           data: {
-            entropySourceId,
+            hasEntropySource: Boolean(entropySourceId),
+            maxAccountsToAdd: config.maxNumberOfAccountsToAdd ?? 0,
           },
         },
         performAccountSync,
