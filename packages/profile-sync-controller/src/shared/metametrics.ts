@@ -1,138 +1,209 @@
 /**
- * MetaMetrics event constants for profile-sync-controller
+ * MetaMetrics events library for profile-sync-controller
  *
- * This library provides standardized constants for MetaMetrics events
- * to avoid magic strings and ensure consistency across clients.
+ * This library provides type-safe event definitions that mirror the segment schema,
+ * ensuring consistency and providing compile-time validation for event properties.
  */
 
 /**
- * Feature names used in profile-sync-controller MetaMetrics events
+ * Interface defining the structure of an identity event
  */
-export const BackupAndSyncFeatureNames = {
-  /**
-   * The main backup and sync feature
-   */
-  BACKUP_AND_SYNC: 'Backup And Sync',
-  /**
-   * Account syncing functionality
-   */
-  ACCOUNT_SYNCING: 'Account Syncing',
-  /**
-   * Contact syncing functionality
-   */
-  CONTACT_SYNCING: 'Contact Syncing',
-  /**
-   * Network syncing functionality
-   */
-  NETWORK_SYNCING: 'Network Syncing',
-  /**
-   * Authentication functionality
-   */
-  AUTHENTICATION: 'Authentication',
-} as const;
+export type IdentityEvent = {
+  name: string;
+  properties: {
+    [key: string]: {
+      required: boolean;
+      type: 'string' | 'number' | 'boolean';
+      fromObject?: Record<string, string>;
+    };
+  };
+};
 
 /**
- * Actions used in profile-sync-controller MetaMetrics events
+ * Type utility to extract property types from event definitions
  */
-export const BackupAndSyncActions = {
-  // Account syncing actions
-  ACCOUNTS_SYNC_ADDED: 'Accounts Sync Added',
-  ACCOUNTS_SYNC_NAME_UPDATED: 'Accounts Sync Name Updated',
-  ACCOUNTS_SYNC_ERRONEOUS_SITUATION: 'Accounts Sync Erroneous Situation',
-
-  // Contact syncing actions
-  CONTACTS_SYNC_CONTACT_UPDATED: 'Contacts Sync Contact Updated',
-  CONTACTS_SYNC_CONTACT_DELETED: 'Contacts Sync Contact Deleted',
-  CONTACTS_SYNC_ERRONEOUS_SITUATION: 'Contacts Sync Erroneous Situation',
-
-  // Network syncing actions
-  NETWORK_SYNC_ADDED: 'Network Sync Added',
-  NETWORK_SYNC_UPDATED: 'Network Sync Updated',
-  NETWORK_SYNC_REMOVED: 'Network Sync Removed',
-
-  // Authentication actions
-  SIGN_IN: 'Sign In',
-  SIGN_OUT: 'Sign Out',
-  AUTHENTICATION_FAILED: 'Authentication Failed',
-} as const;
+type PropertyType<T, FromObject> =
+  FromObject extends Record<string, string>
+    ? FromObject[keyof FromObject]
+    : T extends 'string'
+      ? string
+      : T extends 'number'
+        ? number
+        : T extends 'boolean'
+          ? boolean
+          : never;
 
 /**
- * Type definitions for the constants to ensure type safety
+ * Type utility to generate event properties with proper required/optional handling
  */
-export type BackupAndSyncFeatureName =
-  (typeof BackupAndSyncFeatureNames)[keyof typeof BackupAndSyncFeatureNames];
-export type BackupAndSyncAction =
-  (typeof BackupAndSyncActions)[keyof typeof BackupAndSyncActions];
+type EventProperties<T extends IdentityEvent> = {
+  [K in keyof T['properties'] as T['properties'][K]['required'] extends true
+    ? K
+    : never]: PropertyType<
+    T['properties'][K]['type'],
+    T['properties'][K]['fromObject']
+  >;
+} & {
+  [K in keyof T['properties'] as T['properties'][K]['required'] extends false
+    ? K
+    : never]?: PropertyType<
+    T['properties'][K]['type'],
+    T['properties'][K]['fromObject']
+  >;
+};
 
 /**
- * Helper function to create standardized MetaMetrics event properties
- * for profile-sync-controller events
+ * Identity events definitions matching the segment schema
+ */
+export const IDENTITY_EVENTS = {
+  ACCOUNT_SYNCING: {
+    ACCOUNTS_SYNC_ADDED: {
+      name: 'Accounts Sync Added',
+      properties: {
+        profile_id: {
+          required: true,
+          type: 'string',
+        },
+      },
+    },
+    ACCOUNTS_SYNC_NAME_UPDATED: {
+      name: 'Accounts Sync Name Updated',
+      properties: {
+        profile_id: {
+          required: true,
+          type: 'string',
+        },
+      },
+    },
+    ACCOUNTS_SYNC_ERRONEOUS_SITUATION: {
+      name: 'Accounts Sync Erroneous Situation',
+      properties: {
+        profile_id: {
+          required: true,
+          type: 'string',
+        },
+        situation_message: {
+          required: true,
+          type: 'string',
+        },
+      },
+    },
+  },
+  NETWORK_SYNCING: {
+    NETWORK_SYNC_ADDED: {
+      name: 'Network Sync Added',
+      properties: {
+        profile_id: {
+          required: true,
+          type: 'string',
+        },
+        chain_id: {
+          required: true,
+          type: 'string',
+        },
+      },
+    },
+    NETWORK_SYNC_UPDATED: {
+      name: 'Network Sync Updated',
+      properties: {
+        profile_id: {
+          required: true,
+          type: 'string',
+        },
+        chain_id: {
+          required: true,
+          type: 'string',
+        },
+      },
+    },
+    NETWORK_SYNC_REMOVED: {
+      name: 'Network Sync Removed',
+      properties: {
+        profile_id: {
+          required: true,
+          type: 'string',
+        },
+        chain_id: {
+          required: true,
+          type: 'string',
+        },
+      },
+    },
+  },
+  PROFILE: {
+    ACTIVITY_UPDATED: {
+      name: 'Profile Activity Updated',
+      properties: {
+        profile_id: {
+          required: false,
+          type: 'string',
+        },
+        feature_name: {
+          required: true,
+          type: 'string',
+          fromObject: {
+            BACKUP_AND_SYNC: 'Backup And Sync',
+            AUTHENTICATION: 'Authentication',
+          },
+        },
+        action: {
+          required: true,
+          type: 'string',
+          fromObject: {
+            CONTACTS_SYNC_CONTACT_UPDATED: 'Contacts Sync Contact Updated',
+            CONTACTS_SYNC_CONTACT_DELETED: 'Contacts Sync Contact Deleted',
+            CONTACTS_SYNC_ERRONEOUS_SITUATION:
+              'Contacts Sync Erroneous Situation',
+            SETTINGS_TOGGLE_ENABLED: 'settings_toggle_enabled',
+            SETTINGS_TOGGLE_DISABLED: 'settings_toggle_disabled',
+            SIGN_IN: 'Sign In',
+            SIGN_OUT: 'Sign Out',
+            AUTHENTICATION_FAILED: 'Authentication Failed',
+          },
+        },
+        additional_description: {
+          required: false,
+          type: 'string',
+        },
+      },
+    },
+    BACKUP_AND_SYNC_INTRODUCTION_MODAL_INTERACTION: {
+      name: 'Backup And Sync Introduction Modal Interaction',
+      properties: {
+        profile_id: {
+          required: false,
+          type: 'string',
+        },
+        action: {
+          required: true,
+          type: 'string',
+          fromObject: {
+            MODAL_OPENED: 'modal_opened',
+            MODAL_CLOSED: 'modal_closed',
+            ENABLE_CLICKED: 'enable_clicked',
+            DISMISS_CLICKED: 'dismiss_clicked',
+          },
+        },
+      },
+    },
+  },
+} as const satisfies Record<string, Record<string, IdentityEvent>>;
+
+/**
+ * Type-safe event builder function
  *
- * @param featureName - The feature name to use in the event properties
- * @param action - The action to use in the event properties
- * @param additionalProperties - Optional additional properties to include
- * @returns An object containing the standardized event properties
+ * @param event - The event definition
+ * @param properties - The event properties (type-checked)
+ * @returns An object with the event name and properties
  */
-export const createBackupAndSyncEventProperties = (
-  featureName: BackupAndSyncFeatureName,
-  action: BackupAndSyncAction,
-  additionalProperties?: Record<string, unknown>,
-) => ({
-  feature_name: featureName,
-  action,
-  ...additionalProperties,
+export const buildIdentityEvent = <T extends IdentityEvent>(
+  event: T,
+  properties: EventProperties<T>,
+): { name: (typeof event)['name']; properties: typeof properties } => ({
+  name: event.name,
+  properties,
 });
 
-/**
- * Pre-defined event property sets for common profile-sync-controller events
- */
-export const BackupAndSyncEventProperties = {
-  // Account syncing events
-  ACCOUNT_ADDED: (profileId: string) => ({
-    profile_id: profileId,
-  }),
-  ACCOUNT_NAME_UPDATED: (profileId: string) => ({
-    profile_id: profileId,
-  }),
-  ACCOUNT_SYNC_ERROR: (profileId: string, situationMessage: string) => ({
-    profile_id: profileId,
-    situation_message: situationMessage,
-  }),
-
-  // Contact syncing events
-  CONTACT_UPDATED: (profileId: string) =>
-    createBackupAndSyncEventProperties(
-      BackupAndSyncFeatureNames.BACKUP_AND_SYNC,
-      BackupAndSyncActions.CONTACTS_SYNC_CONTACT_UPDATED,
-      { profile_id: profileId },
-    ),
-  CONTACT_DELETED: (profileId: string) =>
-    createBackupAndSyncEventProperties(
-      BackupAndSyncFeatureNames.BACKUP_AND_SYNC,
-      BackupAndSyncActions.CONTACTS_SYNC_CONTACT_DELETED,
-      { profile_id: profileId },
-    ),
-  CONTACT_SYNC_ERROR: (profileId: string, situationMessage: string) =>
-    createBackupAndSyncEventProperties(
-      BackupAndSyncFeatureNames.BACKUP_AND_SYNC,
-      BackupAndSyncActions.CONTACTS_SYNC_ERRONEOUS_SITUATION,
-      {
-        profile_id: profileId,
-        additional_description: situationMessage,
-      },
-    ),
-
-  // Network syncing events
-  NETWORK_ADDED: (profileId: string, chainId: string) => ({
-    profile_id: profileId,
-    chain_id: chainId,
-  }),
-  NETWORK_UPDATED: (profileId: string, chainId: string) => ({
-    profile_id: profileId,
-    chain_id: chainId,
-  }),
-  NETWORK_REMOVED: (profileId: string, chainId: string) => ({
-    profile_id: profileId,
-    chain_id: chainId,
-  }),
-} as const;
+// Export types for external use
+export type IdentityEventBuilder = typeof buildIdentityEvent;
+export type IdentityEventDefinitions = typeof IDENTITY_EVENTS;
