@@ -110,6 +110,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
   readonly #addUserOperationFromTransactionFn?: typeof UserOperationController.prototype.addUserOperationFromTransaction;
 
+  readonly #addTransactionBatchFn?: typeof TransactionController.prototype.addTransactionBatch;
+
   readonly #trace: TraceCallback;
 
   constructor({
@@ -120,6 +122,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     addTransactionFn,
     addUserOperationFromTransactionFn,
     estimateGasFeeFn,
+    addTransactionBatchFn,
     config,
     traceFn,
   }: {
@@ -130,6 +133,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     addTransactionFn: typeof TransactionController.prototype.addTransaction;
     estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee;
     addUserOperationFromTransactionFn?: typeof UserOperationController.prototype.addUserOperationFromTransaction;
+    addTransactionBatchFn?: typeof TransactionController.prototype.addTransactionBatch;
     config?: {
       customBridgeApiBaseUrl?: string;
     };
@@ -151,6 +155,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     this.#addTransactionFn = addTransactionFn;
     this.#addUserOperationFromTransactionFn = addUserOperationFromTransactionFn;
     this.#estimateGasFeeFn = estimateGasFeeFn;
+    this.#addTransactionBatchFn = addTransactionBatchFn;
     this.#config = {
       customBridgeApiBaseUrl:
         config?.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
