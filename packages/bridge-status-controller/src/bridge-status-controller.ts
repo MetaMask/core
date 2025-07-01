@@ -25,7 +25,6 @@ import {
   TransactionType,
   type TransactionMeta,
 } from '@metamask/transaction-controller';
-import type { UserOperationController } from '@metamask/user-operation-controller';
 import { numberToHex, type Hex } from '@metamask/utils';
 
 import {
@@ -107,8 +106,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
   readonly #estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee;
 
-  readonly #addUserOperationFromTransactionFn?: typeof UserOperationController.prototype.addUserOperationFromTransaction;
-
   readonly #trace: TraceCallback;
 
   constructor({
@@ -118,7 +115,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     fetchFn,
     addTransactionFn,
     addTransactionBatchFn,
-    addUserOperationFromTransactionFn,
     estimateGasFeeFn,
     config,
     traceFn,
@@ -130,7 +126,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     addTransactionFn: typeof TransactionController.prototype.addTransaction;
     estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee;
     addTransactionBatchFn: typeof TransactionController.prototype.addTransactionBatch;
-    addUserOperationFromTransactionFn?: typeof UserOperationController.prototype.addUserOperationFromTransaction;
     config?: {
       customBridgeApiBaseUrl?: string;
     };
@@ -151,7 +146,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     this.#fetchFn = fetchFn;
     this.#addTransactionFn = addTransactionFn;
     this.#addTransactionBatchFn = addTransactionBatchFn;
-    this.#addUserOperationFromTransactionFn = addUserOperationFromTransactionFn;
     this.#estimateGasFeeFn = estimateGasFeeFn;
     this.#config = {
       customBridgeApiBaseUrl:
@@ -665,11 +659,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   readonly #waitForHashAndReturnFinalTxMeta = async (
-    hashPromise?:
-      | Awaited<ReturnType<TransactionController['addTransaction']>>['result']
-      | Awaited<
-          ReturnType<UserOperationController['addUserOperationFromTransaction']>
-        >['hash'],
+    hashPromise?: Awaited<
+      ReturnType<TransactionController['addTransaction']>
+    >['result'],
   ): Promise<TransactionMeta> => {
     const transactionHash = await hashPromise;
     const finalTransactionMeta: TransactionMeta | undefined =
@@ -713,14 +705,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     shouldWaitForHash?: boolean;
     requireApproval?: boolean;
   }): Promise<TransactionMeta> => {
-    let result:
-      | Awaited<ReturnType<TransactionController['addTransaction']>>['result']
-      | Awaited<
-          ReturnType<UserOperationController['addUserOperationFromTransaction']>
-        >['hash']
-      | undefined;
-    let transactionMeta: TransactionMeta | undefined;
-
     const selectedAccount = this.messagingSystem.call(
       'AccountsController:getAccountByAddress',
       trade.from,
@@ -743,31 +727,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         requireApproval,
       });
 
-    const isSmartContractAccount =
-      selectedAccount.type === EthAccountType.Erc4337;
-    if (isSmartContractAccount && this.#addUserOperationFromTransactionFn) {
-      const smartAccountTxResult =
-        await this.#addUserOperationFromTransactionFn(
-          transactionParamsWithMaxGas,
-          requestOptions,
-        );
-      result = smartAccountTxResult.transactionHash;
-      transactionMeta = {
-        ...requestOptions,
-        chainId: hexChainId,
-        txParams: transactionParamsWithMaxGas,
-        time: Date.now(),
-        id: smartAccountTxResult.id,
-        status: TransactionStatus.confirmed,
-      };
-    } else {
-      const addTransactionResult = await this.#addTransactionFn(
-        transactionParamsWithMaxGas,
-        requestOptions,
-      );
-      result = addTransactionResult.result;
-      transactionMeta = addTransactionResult.transactionMeta;
-    }
+    const { result, transactionMeta } = await this.#addTransactionFn(
+      transactionParamsWithMaxGas,
+      requestOptions,
+    );
 
     if (shouldWaitForHash) {
       return await this.#waitForHashAndReturnFinalTxMeta(result);
