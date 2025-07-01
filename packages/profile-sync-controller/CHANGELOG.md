@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add MetaMetrics event library to standardize event properties across clients ([#6044](https://github.com/MetaMask/core/pull/6044))
+
 ## [19.0.0]
 
 ### Changed
