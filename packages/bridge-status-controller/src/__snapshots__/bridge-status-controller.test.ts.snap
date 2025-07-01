@@ -368,9 +368,18 @@ Object {
 
 exports[`BridgeStatusController submitTx: EVM bridge should delay after submitting linea approval 2`] = `
 Object {
-  "bridge": "across",
-  "bridgeId": "lifi",
-  "destChainId": 10,
+  "account": "0xaccount1",
+  "approvalTxId": "test-approval-tx-id",
+  "estimatedProcessingTimeInSeconds": 15,
+  "hasApprovalTx": true,
+  "initialDestAssetBalance": undefined,
+  "isStxEnabled": false,
+  "pricingData": Object {
+    "amountSent": "1.234",
+    "amountSentInUsd": undefined,
+    "quotedGasInUsd": undefined,
+    "quotedReturnInUsd": undefined,
+  },
   "quote": Object {
     "bridgeId": "lifi",
     "bridges": Array [
@@ -461,9 +470,17 @@ Object {
       },
     ],
   },
-  "refuel": false,
-  "srcChainId": 59144,
-  "srcTxHash": "0xevmTxHash",
+  "slippagePercentage": 0,
+  "startTime": 1234567890,
+  "status": Object {
+    "srcChain": Object {
+      "chainId": 59144,
+      "txHash": "0xevmTxHash",
+    },
+    "status": "PENDING",
+  },
+  "targetContractAddress": undefined,
+  "txMetaId": "test-tx-id",
 }
 `;
 
@@ -568,9 +585,18 @@ Object {
 
 exports[`BridgeStatusController submitTx: EVM bridge should handle smart accounts (4337) 2`] = `
 Object {
-  "bridge": "across",
-  "bridgeId": "lifi",
-  "destChainId": 10,
+  "account": "0xaccount1",
+  "approvalTxId": undefined,
+  "estimatedProcessingTimeInSeconds": 15,
+  "hasApprovalTx": false,
+  "initialDestAssetBalance": undefined,
+  "isStxEnabled": false,
+  "pricingData": Object {
+    "amountSent": "1.234",
+    "amountSentInUsd": undefined,
+    "quotedGasInUsd": undefined,
+    "quotedReturnInUsd": undefined,
+  },
   "quote": Object {
     "bridgeId": "lifi",
     "bridges": Array [
@@ -661,9 +687,17 @@ Object {
       },
     ],
   },
-  "refuel": false,
-  "srcChainId": 42161,
-  "srcTxHash": "0xevmTxHash",
+  "slippagePercentage": 0,
+  "startTime": 1234567890,
+  "status": Object {
+    "srcChain": Object {
+      "chainId": 42161,
+      "txHash": "0xevmTxHash",
+    },
+    "status": "PENDING",
+  },
+  "targetContractAddress": undefined,
+  "txMetaId": "test-tx-id",
 }
 `;
 
@@ -785,9 +819,18 @@ Object {
 
 exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions 2`] = `
 Object {
-  "bridge": "across",
-  "bridgeId": "lifi",
-  "destChainId": 10,
+  "account": "",
+  "approvalTxId": undefined,
+  "estimatedProcessingTimeInSeconds": 15,
+  "hasApprovalTx": false,
+  "initialDestAssetBalance": undefined,
+  "isStxEnabled": true,
+  "pricingData": Object {
+    "amountSent": "1.234",
+    "amountSentInUsd": undefined,
+    "quotedGasInUsd": undefined,
+    "quotedReturnInUsd": undefined,
+  },
   "quote": Object {
     "bridgeId": "lifi",
     "bridges": Array [
@@ -878,9 +921,17 @@ Object {
       },
     ],
   },
-  "refuel": false,
-  "srcChainId": 42161,
-  "srcTxHash": "0xevmTxHash",
+  "slippagePercentage": 0,
+  "startTime": 1234567890,
+  "status": Object {
+    "srcChain": Object {
+      "chainId": 42161,
+      "txHash": "0xevmTxHash",
+    },
+    "status": "PENDING",
+  },
+  "targetContractAddress": undefined,
+  "txMetaId": "test-tx-id",
 }
 `;
 
@@ -988,9 +1039,18 @@ Object {
 
 exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance 2`] = `
 Object {
-  "bridge": "across",
-  "bridgeId": "lifi",
-  "destChainId": 10,
+  "account": "0xaccount1",
+  "approvalTxId": "test-approval-tx-id",
+  "estimatedProcessingTimeInSeconds": 15,
+  "hasApprovalTx": true,
+  "initialDestAssetBalance": undefined,
+  "isStxEnabled": false,
+  "pricingData": Object {
+    "amountSent": "1.234",
+    "amountSentInUsd": undefined,
+    "quotedGasInUsd": undefined,
+    "quotedReturnInUsd": undefined,
+  },
   "quote": Object {
     "bridgeId": "lifi",
     "bridges": Array [
@@ -1081,9 +1141,17 @@ Object {
       },
     ],
   },
-  "refuel": false,
-  "srcChainId": 42161,
-  "srcTxHash": "0xevmTxHash",
+  "slippagePercentage": 0,
+  "startTime": 1234567890,
+  "status": Object {
+    "srcChain": Object {
+      "chainId": 42161,
+      "txHash": "0xevmTxHash",
+    },
+    "status": "PENDING",
+  },
+  "targetContractAddress": undefined,
+  "txMetaId": "test-tx-id",
 }
 `;
 
@@ -1297,9 +1365,18 @@ Object {
 
 exports[`BridgeStatusController submitTx: EVM bridge should successfully submit an EVM bridge transaction with approval 2`] = `
 Object {
-  "bridge": "across",
-  "bridgeId": "lifi",
-  "destChainId": 10,
+  "account": "0xaccount1",
+  "approvalTxId": "test-approval-tx-id",
+  "estimatedProcessingTimeInSeconds": 15,
+  "hasApprovalTx": true,
+  "initialDestAssetBalance": undefined,
+  "isStxEnabled": false,
+  "pricingData": Object {
+    "amountSent": "1.234",
+    "amountSentInUsd": undefined,
+    "quotedGasInUsd": undefined,
+    "quotedReturnInUsd": undefined,
+  },
   "quote": Object {
     "bridgeId": "lifi",
     "bridges": Array [
@@ -1390,9 +1467,17 @@ Object {
       },
     ],
   },
-  "refuel": false,
-  "srcChainId": 42161,
-  "srcTxHash": "0xevmTxHash",
+  "slippagePercentage": 0,
+  "startTime": 1234567890,
+  "status": Object {
+    "srcChain": Object {
+      "chainId": 42161,
+      "txHash": "0xevmTxHash",
+    },
+    "status": "PENDING",
+  },
+  "targetContractAddress": undefined,
+  "txMetaId": "test-tx-id",
 }
 `;
 
@@ -1517,9 +1602,18 @@ Object {
 
 exports[`BridgeStatusController submitTx: EVM bridge should successfully submit an EVM bridge transaction with no approval 2`] = `
 Object {
-  "bridge": "across",
-  "bridgeId": "lifi",
-  "destChainId": 10,
+  "account": "0xaccount1",
+  "approvalTxId": undefined,
+  "estimatedProcessingTimeInSeconds": 15,
+  "hasApprovalTx": false,
+  "initialDestAssetBalance": undefined,
+  "isStxEnabled": false,
+  "pricingData": Object {
+    "amountSent": "1.234",
+    "amountSentInUsd": undefined,
+    "quotedGasInUsd": undefined,
+    "quotedReturnInUsd": undefined,
+  },
   "quote": Object {
     "bridgeId": "lifi",
     "bridges": Array [
@@ -1610,9 +1704,17 @@ Object {
       },
     ],
   },
-  "refuel": false,
-  "srcChainId": 42161,
-  "srcTxHash": "0xevmTxHash",
+  "slippagePercentage": 0,
+  "startTime": 1234567890,
+  "status": Object {
+    "srcChain": Object {
+      "chainId": 42161,
+      "txHash": "0xevmTxHash",
+    },
+    "status": "PENDING",
+  },
+  "targetContractAddress": undefined,
+  "txMetaId": "test-tx-id",
 }
 `;
 
@@ -1846,9 +1948,18 @@ Object {
 
 exports[`BridgeStatusController submitTx: EVM swap should handle smart accounts (4337) 2`] = `
 Object {
-  "bridge": "across",
-  "bridgeId": "lifi",
-  "destChainId": 42161,
+  "account": "",
+  "approvalTxId": undefined,
+  "estimatedProcessingTimeInSeconds": 0,
+  "hasApprovalTx": false,
+  "initialDestAssetBalance": undefined,
+  "isStxEnabled": false,
+  "pricingData": Object {
+    "amountSent": "1.234",
+    "amountSentInUsd": undefined,
+    "quotedGasInUsd": undefined,
+    "quotedReturnInUsd": undefined,
+  },
   "quote": Object {
     "bridgeId": "lifi",
     "bridges": Array [
@@ -1939,9 +2050,17 @@ Object {
       },
     ],
   },
-  "refuel": false,
-  "srcChainId": 42161,
-  "srcTxHash": "0xevmTxHash",
+  "slippagePercentage": 0,
+  "startTime": 1234567890,
+  "status": Object {
+    "srcChain": Object {
+      "chainId": 42161,
+      "txHash": "0xevmTxHash",
+    },
+    "status": "PENDING",
+  },
+  "targetContractAddress": undefined,
+  "txMetaId": "test-tx-id",
 }
 `;
 
@@ -2063,9 +2182,18 @@ Object {
 
 exports[`BridgeStatusController submitTx: EVM swap should handle smart transactions 2`] = `
 Object {
-  "bridge": "across",
-  "bridgeId": "lifi",
-  "destChainId": 42161,
+  "account": "",
+  "approvalTxId": undefined,
+  "estimatedProcessingTimeInSeconds": 0,
+  "hasApprovalTx": false,
+  "initialDestAssetBalance": undefined,
+  "isStxEnabled": true,
+  "pricingData": Object {
+    "amountSent": "1.234",
+    "amountSentInUsd": undefined,
+    "quotedGasInUsd": undefined,
+    "quotedReturnInUsd": undefined,
+  },
   "quote": Object {
     "bridgeId": "lifi",
     "bridges": Array [
@@ -2156,9 +2284,17 @@ Object {
       },
     ],
   },
-  "refuel": false,
-  "srcChainId": 42161,
-  "srcTxHash": "0xevmTxHash",
+  "slippagePercentage": 0,
+  "startTime": 1234567890,
+  "status": Object {
+    "srcChain": Object {
+      "chainId": 42161,
+      "txHash": "0xevmTxHash",
+    },
+    "status": "PENDING",
+  },
+  "targetContractAddress": undefined,
+  "txMetaId": "test-tx-id",
 }
 `;
 
@@ -2266,9 +2402,18 @@ Object {
 
 exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with approval 2`] = `
 Object {
-  "bridge": "across",
-  "bridgeId": "lifi",
-  "destChainId": 42161,
+  "account": "0xaccount1",
+  "approvalTxId": "test-approval-tx-id",
+  "estimatedProcessingTimeInSeconds": 0,
+  "hasApprovalTx": true,
+  "initialDestAssetBalance": undefined,
+  "isStxEnabled": false,
+  "pricingData": Object {
+    "amountSent": "1.234",
+    "amountSentInUsd": undefined,
+    "quotedGasInUsd": undefined,
+    "quotedReturnInUsd": undefined,
+  },
   "quote": Object {
     "bridgeId": "lifi",
     "bridges": Array [
@@ -2359,9 +2504,17 @@ Object {
       },
     ],
   },
-  "refuel": false,
-  "srcChainId": 42161,
-  "srcTxHash": "0xevmTxHash",
+  "slippagePercentage": 0,
+  "startTime": 1234567890,
+  "status": Object {
+    "srcChain": Object {
+      "chainId": 42161,
+      "txHash": "0xevmTxHash",
+    },
+    "status": "PENDING",
+  },
+  "targetContractAddress": undefined,
+  "txMetaId": "test-tx-id",
 }
 `;
 
@@ -2486,9 +2639,18 @@ Object {
 
 exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with no approval 2`] = `
 Object {
-  "bridge": "across",
-  "bridgeId": "lifi",
-  "destChainId": 42161,
+  "account": "0xaccount1",
+  "approvalTxId": undefined,
+  "estimatedProcessingTimeInSeconds": 0,
+  "hasApprovalTx": false,
+  "initialDestAssetBalance": undefined,
+  "isStxEnabled": false,
+  "pricingData": Object {
+    "amountSent": "1.234",
+    "amountSentInUsd": undefined,
+    "quotedGasInUsd": undefined,
+    "quotedReturnInUsd": undefined,
+  },
   "quote": Object {
     "bridgeId": "lifi",
     "bridges": Array [
@@ -2579,9 +2741,17 @@ Object {
       },
     ],
   },
-  "refuel": false,
-  "srcChainId": 42161,
-  "srcTxHash": "0xevmTxHash",
+  "slippagePercentage": 0,
+  "startTime": 1234567890,
+  "status": Object {
+    "srcChain": Object {
+      "chainId": 42161,
+      "txHash": "0xevmTxHash",
+    },
+    "status": "PENDING",
+  },
+  "targetContractAddress": undefined,
+  "txMetaId": "test-tx-id",
 }
 `;
 
@@ -2823,223 +2993,105 @@ Object {
 
 exports[`BridgeStatusController submitTx: Solana bridge should successfully submit a transaction 3`] = `
 Object {
+  "bridgeTxMetaId": "test-uuid-1234",
+}
+`;
+
+exports[`BridgeStatusController submitTx: Solana bridge should successfully submit a transaction 4`] = `
+Object {
+  "account": "0x123...",
   "approvalTxId": undefined,
-  "bridgeTxMeta": Object {
-    "approvalTxId": undefined,
-    "chainId": "0x416edef1601be",
-    "destinationChainId": "0x1",
-    "destinationTokenAddress": "0x...",
-    "destinationTokenAmount": "0.5",
-    "destinationTokenDecimals": 18,
-    "destinationTokenSymbol": "ETH",
-    "hash": "signature",
-    "id": "test-uuid-1234",
-    "isBridgeTx": true,
-    "isSolana": true,
-    "networkClientId": "test-snap",
-    "origin": "test-snap",
-    "sourceTokenAddress": "native",
-    "sourceTokenAmount": "1000000000",
-    "sourceTokenDecimals": 9,
-    "sourceTokenSymbol": "SOL",
-    "status": "submitted",
-    "swapTokenValue": "1",
-    "time": 1234567890,
-    "txParams": Object {
-      "data": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
-      "from": "0x123...",
-    },
-    "type": "bridge",
-  },
+  "estimatedProcessingTimeInSeconds": 300,
+  "hasApprovalTx": false,
+  "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
-  "quoteResponse": Object {
-    "adjustedReturn": Object {
-      "usd": "985",
-      "valueInCurrency": "985",
+  "pricingData": Object {
+    "amountSent": "1",
+    "amountSentInUsd": "100",
+    "quotedGasInUsd": "5",
+    "quotedReturnInUsd": "1000",
+  },
+  "quote": Object {
+    "bridgeId": "test-bridge",
+    "bridges": Array [
+      "test-bridge",
+    ],
+    "destAsset": Object {
+      "address": "0x...",
+      "assetId": "eip155:1/slip44:60",
+      "chainId": 1,
+      "decimals": 18,
+      "name": "Ethereum",
+      "symbol": "ETH",
     },
-    "cost": Object {
-      "usd": "15",
-      "valueInCurrency": "15",
-    },
-    "estimatedProcessingTimeInSeconds": 300,
-    "gasFee": Object {
-      "amount": "0.05",
-      "usd": "5",
-      "valueInCurrency": "5",
-    },
-    "quote": Object {
-      "bridgeId": "test-bridge",
-      "bridges": Array [
-        "test-bridge",
-      ],
-      "destAsset": Object {
-        "address": "0x...",
-        "assetId": "eip155:1/slip44:60",
-        "chainId": 1,
-        "decimals": 18,
-        "name": "Ethereum",
-        "symbol": "ETH",
-      },
-      "destChainId": 1,
-      "destTokenAmount": "0.5",
-      "feeData": Object {
-        "metabridge": Object {
-          "amount": "1000000",
-          "asset": Object {
-            "address": "native",
-            "assetId": "eip155:1399811149/slip44:501",
-            "chainId": 1151111081099710,
-            "decimals": 9,
-            "name": "Solana",
-            "symbol": "SOL",
-          },
+    "destChainId": 1,
+    "destTokenAmount": "0.5",
+    "feeData": Object {
+      "metabridge": Object {
+        "amount": "1000000",
+        "asset": Object {
+          "address": "native",
+          "assetId": "eip155:1399811149/slip44:501",
+          "chainId": 1151111081099710,
+          "decimals": 9,
+          "name": "Solana",
+          "symbol": "SOL",
         },
       },
-      "requestId": "123",
-      "srcAsset": Object {
-        "address": "native",
-        "assetId": "eip155:1399811149/slip44:501",
-        "chainId": 1151111081099710,
-        "decimals": 9,
-        "name": "Solana",
-        "symbol": "SOL",
-      },
-      "srcChainId": 1151111081099710,
-      "srcTokenAmount": "1000000000",
-      "steps": Array [
-        Object {
-          "action": "bridge",
-          "destAmount": "0.5",
-          "destAsset": Object {
-            "address": "0x...",
-            "assetId": "eip155:1/slip44:60",
-            "chainId": 1,
-            "decimals": 18,
-            "name": "Ethereum",
-            "symbol": "ETH",
-          },
-          "destChainId": 1,
-          "protocol": Object {
-            "displayName": "Test Protocol",
-            "icon": "test-icon",
-            "name": "test-protocol",
-          },
-          "srcAmount": "1000000000",
-          "srcAsset": Object {
-            "address": "native",
-            "assetId": "eip155:1399811149/slip44:501",
-            "chainId": 1151111081099710,
-            "decimals": 9,
-            "name": "Solana",
-            "symbol": "SOL",
-          },
-          "srcChainId": 1151111081099710,
+    },
+    "requestId": "123",
+    "srcAsset": Object {
+      "address": "native",
+      "assetId": "eip155:1399811149/slip44:501",
+      "chainId": 1151111081099710,
+      "decimals": 9,
+      "name": "Solana",
+      "symbol": "SOL",
+    },
+    "srcChainId": 1151111081099710,
+    "srcTokenAmount": "1000000000",
+    "steps": Array [
+      Object {
+        "action": "bridge",
+        "destAmount": "0.5",
+        "destAsset": Object {
+          "address": "0x...",
+          "assetId": "eip155:1/slip44:60",
+          "chainId": 1,
+          "decimals": 18,
+          "name": "Ethereum",
+          "symbol": "ETH",
         },
-      ],
-    },
-    "sentAmount": Object {
-      "amount": "1",
-      "usd": "100",
-      "valueInCurrency": "100",
-    },
-    "swapRate": "0.5",
-    "toTokenAmount": Object {
-      "amount": "0.5",
-      "usd": "1000",
-      "valueInCurrency": "1000",
-    },
-    "totalMaxNetworkFee": Object {
-      "amount": "0.15",
-      "usd": "15",
-      "valueInCurrency": "15",
-    },
-    "totalNetworkFee": Object {
-      "amount": "0.1",
-      "usd": "10",
-      "valueInCurrency": "10",
-    },
-    "trade": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
+        "destChainId": 1,
+        "protocol": Object {
+          "displayName": "Test Protocol",
+          "icon": "test-icon",
+          "name": "test-protocol",
+        },
+        "srcAmount": "1000000000",
+        "srcAsset": Object {
+          "address": "native",
+          "assetId": "eip155:1399811149/slip44:501",
+          "chainId": 1151111081099710,
+          "decimals": 9,
+          "name": "Solana",
+          "symbol": "SOL",
+        },
+        "srcChainId": 1151111081099710,
+      },
+    ],
   },
   "slippagePercentage": 0,
   "startTime": 1234567890,
-  "statusRequest": Object {
-    "bridge": "test-bridge",
-    "bridgeId": "test-bridge",
-    "destChainId": 1,
-    "quote": Object {
-      "bridgeId": "test-bridge",
-      "bridges": Array [
-        "test-bridge",
-      ],
-      "destAsset": Object {
-        "address": "0x...",
-        "assetId": "eip155:1/slip44:60",
-        "chainId": 1,
-        "decimals": 18,
-        "name": "Ethereum",
-        "symbol": "ETH",
-      },
-      "destChainId": 1,
-      "destTokenAmount": "0.5",
-      "feeData": Object {
-        "metabridge": Object {
-          "amount": "1000000",
-          "asset": Object {
-            "address": "native",
-            "assetId": "eip155:1399811149/slip44:501",
-            "chainId": 1151111081099710,
-            "decimals": 9,
-            "name": "Solana",
-            "symbol": "SOL",
-          },
-        },
-      },
-      "requestId": "123",
-      "srcAsset": Object {
-        "address": "native",
-        "assetId": "eip155:1399811149/slip44:501",
-        "chainId": 1151111081099710,
-        "decimals": 9,
-        "name": "Solana",
-        "symbol": "SOL",
-      },
-      "srcChainId": 1151111081099710,
-      "srcTokenAmount": "1000000000",
-      "steps": Array [
-        Object {
-          "action": "bridge",
-          "destAmount": "0.5",
-          "destAsset": Object {
-            "address": "0x...",
-            "assetId": "eip155:1/slip44:60",
-            "chainId": 1,
-            "decimals": 18,
-            "name": "Ethereum",
-            "symbol": "ETH",
-          },
-          "destChainId": 1,
-          "protocol": Object {
-            "displayName": "Test Protocol",
-            "icon": "test-icon",
-            "name": "test-protocol",
-          },
-          "srcAmount": "1000000000",
-          "srcAsset": Object {
-            "address": "native",
-            "assetId": "eip155:1399811149/slip44:501",
-            "chainId": 1151111081099710,
-            "decimals": 9,
-            "name": "Solana",
-            "symbol": "SOL",
-          },
-          "srcChainId": 1151111081099710,
-        },
-      ],
+  "status": Object {
+    "srcChain": Object {
+      "chainId": 1151111081099710,
+      "txHash": "signature",
     },
-    "refuel": false,
-    "srcChainId": 1151111081099710,
-    "srcTxHash": "signature",
+    "status": "PENDING",
   },
+  "targetContractAddress": undefined,
+  "txMetaId": "test-uuid-1234",
 }
 `;
 
@@ -3276,6 +3328,102 @@ Object {
 }
 `;
 
+exports[`BridgeStatusController submitTx: Solana swap should successfully submit a transaction 3`] = `
+Object {
+  "account": "0x123...",
+  "approvalTxId": undefined,
+  "estimatedProcessingTimeInSeconds": 300,
+  "hasApprovalTx": false,
+  "initialDestAssetBalance": undefined,
+  "isStxEnabled": false,
+  "pricingData": Object {
+    "amountSent": "1",
+    "amountSentInUsd": "100",
+    "quotedGasInUsd": "5",
+    "quotedReturnInUsd": "1000",
+  },
+  "quote": Object {
+    "bridgeId": "test-bridge",
+    "bridges": Array [],
+    "destAsset": Object {
+      "address": "0x...",
+      "assetId": "eip155:1399811149/slip44:501",
+      "chainId": 1151111081099710,
+      "decimals": 18,
+      "name": "USDC",
+      "symbol": "USDC",
+    },
+    "destChainId": 1151111081099710,
+    "destTokenAmount": "0.5",
+    "feeData": Object {
+      "metabridge": Object {
+        "amount": "1000000",
+        "asset": Object {
+          "address": "native",
+          "assetId": "eip155:1399811149/slip44:501",
+          "chainId": 1151111081099710,
+          "decimals": 9,
+          "name": "Solana",
+          "symbol": "SOL",
+        },
+      },
+    },
+    "requestId": "123",
+    "srcAsset": Object {
+      "address": "native",
+      "assetId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501",
+      "chainId": 1151111081099710,
+      "decimals": 9,
+      "name": "Solana",
+      "symbol": "SOL",
+    },
+    "srcChainId": 1151111081099710,
+    "srcTokenAmount": "1000000000",
+    "steps": Array [
+      Object {
+        "action": "bridge",
+        "destAmount": "0.5",
+        "destAsset": Object {
+          "address": "0x...",
+          "assetId": "eip155:1/slip44:60",
+          "chainId": 1,
+          "decimals": 18,
+          "name": "Ethereum",
+          "symbol": "ETH",
+        },
+        "destChainId": 1,
+        "protocol": Object {
+          "displayName": "Test Protocol",
+          "icon": "test-icon",
+          "name": "test-protocol",
+        },
+        "srcAmount": "1000000000",
+        "srcAsset": Object {
+          "address": "native",
+          "assetId": "eip155:1399811149/slip44:501",
+          "chainId": 1151111081099710,
+          "decimals": 9,
+          "name": "Solana",
+          "symbol": "SOL",
+        },
+        "srcChainId": 1151111081099710,
+      },
+    ],
+  },
+  "slippagePercentage": 0,
+  "startTime": 1234567890,
+  "status": Object {
+    "srcChain": Object {
+      "chainId": 1151111081099710,
+      "txHash": "signature",
+    },
+    "status": "PENDING",
+  },
+  "targetContractAddress": undefined,
+  "txMetaId": "test-uuid-1234",
+}
+`;
+
 exports[`BridgeStatusController submitTx: Solana swap should throw error when account is missing 1`] = `
 Array [
   Array [
@@ -3364,6 +3512,8 @@ Array [
 ]
 `;
 
+exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should not start polling for bridge tx if tx is not in txHistory 1`] = `Array []`;
+
 exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should not track completed event for other transaction types 1`] = `Array []`;
 
 exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should track completed event for swap transaction 1`] = `
@@ -3434,7 +3584,7 @@ Array [
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:42161",
       "custom_slippage": true,
-      "destination_transaction": "PENDING",
+      "destination_transaction": "FAILED",
       "error_message": undefined,
       "gas_included": false,
       "is_hardware_wallet": false,
@@ -3516,7 +3666,7 @@ Array [
       "chain_id_destination": "eip155:42161",
       "chain_id_source": "eip155:42161",
       "custom_slippage": true,
-      "destination_transaction": "PENDING",
+      "destination_transaction": "FAILED",
       "error_message": undefined,
       "gas_included": false,
       "is_hardware_wallet": false,
