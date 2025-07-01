@@ -189,6 +189,19 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             status,
           )
         ) {
+          // Mark tx as failed in txHistory
+          this.update((bridgeStatusState) => {
+            if (bridgeStatusState.txHistory[id]) {
+              bridgeStatusState.txHistory[id] = {
+                ...bridgeStatusState.txHistory[id],
+                status: {
+                  ...bridgeStatusState.txHistory[id].status,
+                  status: StatusTypes.FAILED,
+                },
+              };
+            }
+          });
+          // Track failed event
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Failed,
             id,
