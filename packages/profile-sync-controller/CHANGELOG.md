@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add performance tracing to user storage syncing operations (contacts and accounts) ([#6050](https://github.com/MetaMask/core/pull/6050))
+
 ## [19.0.0]
 
 ### Changed
