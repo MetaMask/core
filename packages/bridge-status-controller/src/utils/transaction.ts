@@ -21,6 +21,31 @@ import type { SolanaTransactionMeta } from '../types';
 
 export const generateActionId = () => (Date.now() + Math.random()).toString();
 
+export const getUSDTAllowanceResetTx = async (
+  messagingSystem: BridgeStatusControllerMessenger,
+  quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
+) => {
+  const hexChainId = formatChainIdToHex(quoteResponse.quote.srcChainId);
+  if (
+    quoteResponse.approval &&
+    isEthUsdt(hexChainId, quoteResponse.quote.srcAsset.address)
+  ) {
+    const allowance = new BigNumber(
+      await messagingSystem.call(
+        'BridgeController:getBridgeERC20Allowance',
+        quoteResponse.quote.srcAsset.address,
+        hexChainId,
+      ),
+    );
+    const shouldResetApproval =
+      allowance.lt(quoteResponse.sentAmount.amount) && allowance.gt(0);
+    if (shouldResetApproval) {
+      return { ...quoteResponse.approval, data: getEthUsdtResetData() };
+    }
+  }
+  return undefined;
+};
+
 export const getStatusRequestParams = (
   quoteResponse: QuoteResponse<string | TxData>,
 ) => {

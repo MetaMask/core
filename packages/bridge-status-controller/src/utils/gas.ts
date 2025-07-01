@@ -1,3 +1,4 @@
+import { toHex } from '@metamask/controller-utils';
 import type {
   GasFeeEstimates,
   GasFeeState,
@@ -5,8 +6,11 @@ import type {
 import type {
   FeeMarketGasFeeEstimates,
   TransactionController,
+  TransactionParams,
 } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
+import type { BridgeStatusControllerMessenger } from 'src/types';
 
 const getTransaction1559GasFeeEstimates = (
   txGasFeeEstimates: FeeMarketGasFeeEstimates,
@@ -49,4 +53,30 @@ export const getTxGasEstimates = ({
     txGasFeeEstimates as unknown as FeeMarketGasFeeEstimates,
     estimatedBaseFee,
   );
+};
+
+export const calculateGasFees = async (
+  messagingSystem: BridgeStatusControllerMessenger,
+  estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee,
+  transactionParams: TransactionParams,
+  networkClientId: string,
+  chainId: Hex,
+) => {
+  const { gasFeeEstimates } = messagingSystem.call('GasFeeController:getState');
+  const { estimates: txGasFeeEstimates } = await estimateGasFeeFn({
+    transactionParams,
+    chainId,
+    networkClientId,
+  });
+  const { maxFeePerGas, maxPriorityFeePerGas } = getTxGasEstimates({
+    networkGasFeeEstimates: gasFeeEstimates,
+    txGasFeeEstimates,
+  });
+  const maxGasLimit = toHex(transactionParams.gas ?? 0);
+
+  return {
+    maxFeePerGas,
+    maxPriorityFeePerGas,
+    gas: maxGasLimit,
+  };
 };
