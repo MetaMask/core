@@ -16,7 +16,6 @@ import {
 } from '@metamask/bridge-controller';
 import { ChainId } from '@metamask/bridge-controller';
 import { ActionTypes, FeeType } from '@metamask/bridge-controller';
-import { EthAccountType } from '@metamask/keyring-api';
 import {
   TransactionType,
   TransactionStatus,
