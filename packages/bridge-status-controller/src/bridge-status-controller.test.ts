@@ -2607,6 +2607,21 @@ describe('BridgeStatusController', () => {
 
         expect(messengerCallSpy.mock.calls).toMatchSnapshot();
       });
+
+      it('should not start polling for bridge tx if tx is not in txHistory', () => {
+        const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
+        mockMessenger.publish('TransactionController:transactionConfirmed', {
+          chainId: CHAIN_IDS.ARBITRUM,
+          networkClientId: 'eth-id',
+          time: Date.now(),
+          txParams: {} as unknown as TransactionParams,
+          type: TransactionType.bridge,
+          status: TransactionStatus.confirmed,
+          id: 'bridgeTxMetaId1Unknown',
+        });
+
+        expect(messengerCallSpy.mock.calls).toMatchSnapshot();
+      });
     });
   });
 });
