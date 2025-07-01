@@ -212,6 +212,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             getEVMTxPropertiesFromTransactionMeta(transactionMeta),
           );
         }
+        // Start polling for tx stastus when bridge src tx is confirmed
+        if (
+          type === TransactionType.bridge ||
+          this.state.txHistory[id].type === TransactionType.bridge
+        ) {
+          this.startPollingForBridgeTxStatus(id);
+        }
       },
     );
 
@@ -266,6 +273,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       .filter((historyItem) => {
         // Check if we are already polling this tx, if so, skip restarting polling for that
         const srcTxMetaId = historyItem.txMetaId;
+        if (!srcTxMetaId) {
+          return false;
+        }
         const pollingToken = this.#pollingTokensByTxMetaId[srcTxMetaId];
         return !pollingToken;
       })
@@ -281,11 +291,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     incompleteHistoryItems.forEach((historyItem) => {
       const bridgeTxMetaId = historyItem.txMetaId;
 
-      // We manually call startPolling() here rather than go through startPollingForBridgeTxStatus()
-      // because we don't want to overwrite the existing historyItem in state
-      this.#pollingTokensByTxMetaId[bridgeTxMetaId] = this.startPolling({
-        bridgeTxMetaId,
-      });
+      this.startPollingForBridgeTxStatus(bridgeTxMetaId);
     });
   };
 
@@ -302,12 +308,21 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       targetContractAddress,
       approvalTxId,
       isStxEnabled,
+      type,
     } = startPollingForBridgeTxStatusArgs;
     const accountAddress = this.#getMultichainSelectedAccountAddress();
+    const txIdToUse = bridgeTxMeta.id ?? bridgeTxMeta.batchId;
+    if (!txIdToUse) {
+      throw new Error(
+        'Failed to add tx to history: No batch or tx id to use as key',
+      );
+    }
     // Write all non-status fields to state so we can reference the quote in Activity list without the Bridge API
     // We know it's in progress but not the exact status yet
     const txHistoryItem = {
       txMetaId: bridgeTxMeta.id,
+      batchId: bridgeTxMeta.batchId,
+      type,
       quote: quoteResponse.quote,
       startTime,
       estimatedProcessingTimeInSeconds:
@@ -336,30 +351,32 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       isStxEnabled: isStxEnabled ?? false,
     };
     this.update((state) => {
-      // Use the txMeta.id as the key so we can reference the txMeta in TransactionController
-      state.txHistory[bridgeTxMeta.id] = txHistoryItem;
+      // Use the txMeta.id or batchId as the key so we can reference the txMeta in TransactionController
+      state.txHistory[txIdToUse] = txHistoryItem;
     });
   };
 
   /**
    * Starts polling for the bridge tx status
    *
-   * @param txHistoryMeta - The parameters for creating the history item
+   * @param txId - The id of the tx to start polling for
    */
-  startPollingForBridgeTxStatus = (
-    txHistoryMeta: StartPollingForBridgeTxStatusArgsSerialized,
-  ) => {
-    const { quoteResponse, bridgeTxMeta } = txHistoryMeta;
+  startPollingForBridgeTxStatus = (txId?: string) => {
+    if (!txId) {
+      return;
+    }
+    const txHistoryMeta = this.state.txHistory[txId];
+    if (!txHistoryMeta) {
+      return;
+    }
+    const { quote, txMetaId, type } = txHistoryMeta;
 
-    this.#addTxToHistory(txHistoryMeta);
-
-    const isBridgeTx = isCrossChain(
-      quoteResponse.quote.srcChainId,
-      quoteResponse.quote.destChainId,
-    );
-    if (isBridgeTx) {
-      this.#pollingTokensByTxMetaId[bridgeTxMeta.id] = this.startPolling({
-        bridgeTxMetaId: bridgeTxMeta.id,
+    const isBridgeTx =
+      type === TransactionType.bridge ||
+      isCrossChain(quote.srcChainId, quote.destChainId);
+    if (isBridgeTx && txMetaId) {
+      this.#pollingTokensByTxMetaId[txMetaId] = this.startPolling({
+        bridgeTxMetaId: txMetaId,
       });
     }
   };
@@ -899,9 +916,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     }
 
     try {
-      // Start polling for bridge tx status
-      this.startPollingForBridgeTxStatus({
-        bridgeTxMeta: txMeta, // Only the id field is used by the BridgeStatusController
+      const pollingArgs = {
+        bridgeTxMeta: txMeta, // Only the id and batchId fields are used
+        type: isBridgeTx ? TransactionType.bridge : TransactionType.swap,
         statusRequest: {
           ...getStatusRequestParams(quoteResponse),
           srcTxHash: txMeta.hash,
@@ -911,7 +928,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         isStxEnabled: isStxEnabledOnClient,
         startTime: approvalTime ?? Date.now(),
         approvalTxId,
-      });
+      };
+      // Add swap or bridge tx to history
+      this.#addTxToHistory(pollingArgs);
+      // Start polling for bridge tx status
+      this.startPollingForBridgeTxStatus(txMeta.id);
       // Track Solana Swap completed event
       if (isSolanaChainId(quoteResponse.quote.srcChainId) && !isBridgeTx) {
         this.#trackUnifiedSwapBridgeEvent(
