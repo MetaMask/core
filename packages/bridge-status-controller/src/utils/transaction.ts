@@ -3,7 +3,9 @@ import type { TxData } from '@metamask/bridge-controller';
 import {
   ChainId,
   formatChainIdToHex,
+  getEthUsdtResetData,
   isCrossChain,
+  isEthUsdt,
   type QuoteMetadata,
   type QuoteResponse,
 } from '@metamask/bridge-controller';
@@ -14,12 +16,41 @@ import {
   type TransactionMeta,
 } from '@metamask/transaction-controller';
 import { createProjectLogger } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 import { v4 as uuid } from 'uuid';
 
 import { LINEA_DELAY_MS } from '../constants';
-import type { SolanaTransactionMeta } from '../types';
+import type {
+  BridgeStatusControllerMessenger,
+  SolanaTransactionMeta,
+} from '../types';
 
 export const generateActionId = () => (Date.now() + Math.random()).toString();
+
+export const getUSDTAllowanceResetTx = async (
+  messagingSystem: BridgeStatusControllerMessenger,
+  quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
+) => {
+  const hexChainId = formatChainIdToHex(quoteResponse.quote.srcChainId);
+  if (
+    quoteResponse.approval &&
+    isEthUsdt(hexChainId, quoteResponse.quote.srcAsset.address)
+  ) {
+    const allowance = new BigNumber(
+      await messagingSystem.call(
+        'BridgeController:getBridgeERC20Allowance',
+        quoteResponse.quote.srcAsset.address,
+        hexChainId,
+      ),
+    );
+    const shouldResetApproval =
+      allowance.lt(quoteResponse.sentAmount.amount) && allowance.gt(0);
+    if (shouldResetApproval) {
+      return { ...quoteResponse.approval, data: getEthUsdtResetData() };
+    }
+  }
+  return undefined;
+};
 
 export const getStatusRequestParams = (
   quoteResponse: QuoteResponse<string | TxData>,

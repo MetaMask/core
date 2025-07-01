@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Extract `getUSDTAllowanceResetTx` and `calculateGasFees` into util files
+
 ### Fixed
 
 - Wait until a bridge transaction is confirmed before polling for its status. This reduces (or fully removes) premature `getTxStatus` calls, and enables adding batched bridge txs to history before its transaction Id is available ([#6052](https://github.com/MetaMask/core/pull/6052))

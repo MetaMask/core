@@ -7,8 +7,6 @@ import type {
 } from '@metamask/bridge-controller';
 import {
   formatChainIdToHex,
-  getEthUsdtResetData,
-  isEthUsdt,
   isSolanaChainId,
   StatusTypes,
   UnifiedSwapBridgeEventName,
@@ -19,7 +17,6 @@ import {
   isHardwareWallet,
 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
-import { toHex } from '@metamask/controller-utils';
 import { EthAccountType, SolScope } from '@metamask/keyring-api';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type {
@@ -33,7 +30,6 @@ import {
 } from '@metamask/transaction-controller';
 import type { UserOperationController } from '@metamask/user-operation-controller';
 import { numberToHex, type Hex } from '@metamask/utils';
-import { BigNumber } from 'bignumber.js';
 
 import {
   BRIDGE_PROD_API_BASE_URL,
@@ -55,7 +51,7 @@ import {
   fetchBridgeTxStatus,
   getStatusRequestWithSrcTxHash,
 } from './utils/bridge-status';
-import { getTxGasEstimates } from './utils/gas';
+import { calculateGasFees } from './utils/gas';
 import {
   getFinalizedTxProperties,
   getPriceImpactFromQuote,
@@ -71,6 +67,7 @@ import {
   getKeyringRequest,
   getStatusRequestParams,
   getTxMetaFields,
+  getUSDTAllowanceResetTx,
   handleLineaDelay,
   handleSolanaTxResponse,
 } from './utils/transaction';
@@ -615,7 +612,20 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     if (approval) {
       const approveTx = async () => {
-        await this.#handleUSDTAllowanceReset(quoteResponse);
+        const resetApprovalTx = await getUSDTAllowanceResetTx(
+          this.messagingSystem,
+          quoteResponse,
+        );
+        const resetTxMeta = resetApprovalTx
+          ? await this.#handleEvmTransaction({
+              transactionType: isBridgeTx
+                ? TransactionType.bridgeApproval
+                : TransactionType.swapApproval,
+              trade: resetApprovalTx,
+              quoteResponse,
+              requireApproval,
+            })
+          : undefined;
 
         const approvalTxMeta = await this.#handleEvmTransaction({
           transactionType: isBridgeTx
@@ -627,7 +637,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         });
 
         await handleLineaDelay(quoteResponse);
-        return approvalTxMeta;
+        return {
+          ...approvalTxMeta,
+          time: resetTxMeta?.time ?? approvalTxMeta.time,
+        };
       };
 
       return await this.#trace(
@@ -733,7 +746,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     };
     const transactionParamsWithMaxGas: TransactionParams = {
       ...transactionParams,
-      ...(await this.#calculateGasFees(
+      ...(await calculateGasFees(
+        this.messagingSystem,
+        this.#estimateGasFeeFn,
         transactionParams,
         networkClientId,
         hexChainId,
@@ -781,59 +796,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     return {
       ...getTxMetaFields(quoteResponse, approvalTxId),
       ...transactionMeta,
-    };
-  };
-
-  readonly #handleUSDTAllowanceReset = async (
-    quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
-  ) => {
-    const hexChainId = formatChainIdToHex(quoteResponse.quote.srcChainId);
-    if (
-      quoteResponse.approval &&
-      isEthUsdt(hexChainId, quoteResponse.quote.srcAsset.address)
-    ) {
-      const allowance = new BigNumber(
-        await this.messagingSystem.call(
-          'BridgeController:getBridgeERC20Allowance',
-          quoteResponse.quote.srcAsset.address,
-          hexChainId,
-        ),
-      );
-      const shouldResetApproval =
-        allowance.lt(quoteResponse.sentAmount.amount) && allowance.gt(0);
-      if (shouldResetApproval) {
-        await this.#handleEvmTransaction({
-          transactionType: TransactionType.bridgeApproval,
-          trade: { ...quoteResponse.approval, data: getEthUsdtResetData() },
-          quoteResponse,
-        });
-      }
-    }
-  };
-
-  readonly #calculateGasFees = async (
-    transactionParams: TransactionParams,
-    networkClientId: string,
-    chainId: Hex,
-  ) => {
-    const { gasFeeEstimates } = this.messagingSystem.call(
-      'GasFeeController:getState',
-    );
-    const { estimates: txGasFeeEstimates } = await this.#estimateGasFeeFn({
-      transactionParams,
-      chainId,
-      networkClientId,
-    });
-    const { maxFeePerGas, maxPriorityFeePerGas } = getTxGasEstimates({
-      networkGasFeeEstimates: gasFeeEstimates,
-      txGasFeeEstimates,
-    });
-    const maxGasLimit = toHex(transactionParams.gas ?? 0);
-
-    return {
-      maxFeePerGas,
-      maxPriorityFeePerGas,
-      gas: maxGasLimit,
     };
   };
 
