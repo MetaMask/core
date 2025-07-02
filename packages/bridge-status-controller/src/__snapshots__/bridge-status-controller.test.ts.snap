@@ -5,6 +5,7 @@ Object {
   "bridgeTxMetaId1": Object {
     "account": "0xaccount1",
     "approvalTxId": undefined,
+    "batchId": undefined,
     "estimatedProcessingTimeInSeconds": 15,
     "hasApprovalTx": false,
     "initialDestAssetBalance": undefined,
@@ -185,6 +186,7 @@ Object {
   "bridgeTxMetaId1": Object {
     "account": "0xaccount1",
     "approvalTxId": undefined,
+    "batchId": undefined,
     "estimatedProcessingTimeInSeconds": 15,
     "hasApprovalTx": false,
     "initialDestAssetBalance": undefined,
@@ -370,6 +372,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
 Object {
   "account": "0xaccount1",
   "approvalTxId": "test-approval-tx-id",
+  "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
@@ -547,7 +550,7 @@ Array [
         "srcChainId": "eip155:59144",
         "stxEnabled": false,
       },
-      "name": "Bridge Transaction Approval Completed",
+      "name": "Bridge Transaction Completed",
     },
     [Function],
   ],
@@ -557,7 +560,7 @@ Array [
         "srcChainId": "eip155:59144",
         "stxEnabled": false,
       },
-      "name": "Bridge Transaction Completed",
+      "name": "Bridge Transaction Approval Completed",
     },
     [Function],
   ],
@@ -566,21 +569,11 @@ Array [
 
 exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions 1`] = `
 Object {
-  "approvalTxId": undefined,
+  "batchId": "batchId1",
   "chainId": "0xa4b1",
-  "destinationChainId": "0xa",
-  "destinationTokenAddress": "0x0000000000000000000000000000000000000000",
-  "destinationTokenAmount": "990654755978612",
-  "destinationTokenDecimals": 18,
-  "destinationTokenSymbol": "ETH",
   "hash": "0xevmTxHash",
   "id": "test-tx-id",
-  "sourceTokenAddress": "0x0000000000000000000000000000000000000000",
-  "sourceTokenAmount": "991250000000000",
-  "sourceTokenDecimals": 18,
-  "sourceTokenSymbol": "ETH",
   "status": "unapproved",
-  "swapTokenValue": "1.234",
   "time": 1234567890,
   "txParams": Object {
     "chainId": "0xa4b1",
@@ -596,8 +589,9 @@ Object {
 
 exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions 2`] = `
 Object {
-  "account": "",
+  "account": "0xaccount1",
   "approvalTxId": undefined,
+  "batchId": "batchId1",
   "estimatedProcessingTimeInSeconds": 15,
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
@@ -719,11 +713,9 @@ Array [
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum",
       "transactionParams": Object {
-        "chainId": "0xa4b1",
         "data": "0xdata",
         "from": "0xaccount1",
         "gas": "21000",
-        "gasLimit": "21000",
         "to": "0xbridgeContract",
         "value": "0x0",
       },
@@ -736,22 +728,25 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
 Array [
   Array [
     Object {
-      "chainId": "0xa4b1",
-      "data": "0xdata",
+      "disable7702": true,
       "from": "0xaccount1",
-      "gas": "0x5208",
-      "gasLimit": "21000",
-      "maxFeePerGas": undefined,
-      "maxPriorityFeePerGas": undefined,
-      "to": "0xbridgeContract",
-      "value": "0x0",
-    },
-    Object {
-      "actionId": "1234567890.456",
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
-      "type": "bridge",
+      "transactions": Array [
+        Object {
+          "params": Object {
+            "data": "0xdata",
+            "from": "0xaccount1",
+            "gas": "0x5208",
+            "maxFeePerGas": "0x0",
+            "maxPriorityFeePerGas": "0x0",
+            "to": "0xbridgeContract",
+            "value": "0x0",
+          },
+          "type": "bridge",
+        },
+      ],
     },
   ],
 ]
@@ -790,6 +785,9 @@ Array [
     "GasFeeController:getState",
   ],
   Array [
+    "TransactionController:getState",
+  ],
+  Array [
     "AccountsController:getSelectedMultichainAccount",
   ],
 ]
@@ -818,6 +816,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
 Object {
   "account": "0xaccount1",
   "approvalTxId": "test-approval-tx-id",
+  "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
@@ -1144,6 +1143,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
 Object {
   "account": "0xaccount1",
   "approvalTxId": "test-approval-tx-id",
+  "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
@@ -1381,6 +1381,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
 Object {
   "account": "0xaccount1",
   "approvalTxId": undefined,
+  "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
@@ -1706,21 +1707,11 @@ Array [
 
 exports[`BridgeStatusController submitTx: EVM swap should handle smart transactions 1`] = `
 Object {
-  "approvalTxId": undefined,
+  "batchId": "batchId1",
   "chainId": "0xa4b1",
-  "destinationChainId": "0xa4b1",
-  "destinationTokenAddress": "0x0000000000000000000000000000000000000000",
-  "destinationTokenAmount": "990654755978612",
-  "destinationTokenDecimals": 18,
-  "destinationTokenSymbol": "ETH",
   "hash": "0xevmTxHash",
   "id": "test-tx-id",
-  "sourceTokenAddress": "0x0000000000000000000000000000000000000000",
-  "sourceTokenAmount": "991250000000000",
-  "sourceTokenDecimals": 18,
-  "sourceTokenSymbol": "ETH",
   "status": "unapproved",
-  "swapTokenValue": "1.234",
   "time": 1234567890,
   "txParams": Object {
     "chainId": "0xa4b1",
@@ -1738,8 +1729,9 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
 Object {
   "account": "",
   "approvalTxId": undefined,
+  "batchId": "batchId1",
   "estimatedProcessingTimeInSeconds": 0,
-  "hasApprovalTx": false,
+  "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": true,
   "pricingData": Object {
@@ -1859,11 +1851,22 @@ Array [
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum",
       "transactionParams": Object {
-        "chainId": "0xa4b1",
+        "data": "0xapprovalData",
+        "from": "0xaccount1",
+        "gas": "21000",
+        "to": "0xtokenContract",
+        "value": "0x0",
+      },
+    },
+  ],
+  Array [
+    Object {
+      "chainId": "0xa4b1",
+      "networkClientId": "arbitrum",
+      "transactionParams": Object {
         "data": "0xdata",
         "from": "0xaccount1",
         "gas": "21000",
-        "gasLimit": "21000",
         "to": "0xbridgeContract",
         "value": "0x0",
       },
@@ -1876,22 +1879,37 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
 Array [
   Array [
     Object {
-      "chainId": "0xa4b1",
-      "data": "0xdata",
+      "disable7702": true,
       "from": "0xaccount1",
-      "gas": "0x5208",
-      "gasLimit": "21000",
-      "maxFeePerGas": undefined,
-      "maxPriorityFeePerGas": undefined,
-      "to": "0xbridgeContract",
-      "value": "0x0",
-    },
-    Object {
-      "actionId": "1234567890.456",
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
-      "type": "swap",
+      "transactions": Array [
+        Object {
+          "params": Object {
+            "data": "0xapprovalData",
+            "from": "0xaccount1",
+            "gas": "0x5208",
+            "maxFeePerGas": "0x0",
+            "maxPriorityFeePerGas": "0x0",
+            "to": "0xtokenContract",
+            "value": "0x0",
+          },
+          "type": "swapApproval",
+        },
+        Object {
+          "params": Object {
+            "data": "0xdata",
+            "from": "0xaccount1",
+            "gas": "0x5208",
+            "maxFeePerGas": "0x0",
+            "maxPriorityFeePerGas": "0x0",
+            "to": "0xbridgeContract",
+            "value": "0x0",
+          },
+          "type": "swap",
+        },
+      ],
     },
   ],
 ]
@@ -1930,6 +1948,12 @@ Array [
     "GasFeeController:getState",
   ],
   Array [
+    "GasFeeController:getState",
+  ],
+  Array [
+    "TransactionController:getState",
+  ],
+  Array [
     "AccountsController:getSelectedMultichainAccount",
   ],
 ]
@@ -1952,224 +1976,6 @@ Object {
   },
   "type": "swap",
 }
-`;
-
-exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with approval 2`] = `
-Object {
-  "account": "0xaccount1",
-  "approvalTxId": "test-approval-tx-id",
-  "estimatedProcessingTimeInSeconds": 0,
-  "hasApprovalTx": true,
-  "initialDestAssetBalance": undefined,
-  "isStxEnabled": false,
-  "pricingData": Object {
-    "amountSent": "1.234",
-    "amountSentInUsd": undefined,
-    "quotedGasInUsd": undefined,
-    "quotedReturnInUsd": undefined,
-  },
-  "quote": Object {
-    "bridgeId": "lifi",
-    "bridges": Array [
-      "across",
-    ],
-    "destAsset": Object {
-      "address": "0x0000000000000000000000000000000000000000",
-      "assetId": "eip155:10/slip44:60",
-      "chainId": 10,
-      "coinKey": "ETH",
-      "decimals": 18,
-      "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-      "name": "ETH",
-      "priceUSD": "2478.63",
-      "symbol": "ETH",
-    },
-    "destChainId": 42161,
-    "destTokenAmount": "990654755978612",
-    "feeData": Object {
-      "metabridge": Object {
-        "amount": "8750000000000",
-        "asset": Object {
-          "address": "0x0000000000000000000000000000000000000000",
-          "assetId": "eip155:42161/slip44:60",
-          "chainId": 42161,
-          "coinKey": "ETH",
-          "decimals": 18,
-          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-          "name": "ETH",
-          "priceUSD": "2478.7",
-          "symbol": "ETH",
-        },
-      },
-    },
-    "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
-    "srcAsset": Object {
-      "address": "0x0000000000000000000000000000000000000000",
-      "assetId": "eip155:42161/slip44:60",
-      "chainId": 42161,
-      "coinKey": "ETH",
-      "decimals": 18,
-      "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-      "name": "ETH",
-      "priceUSD": "2478.7",
-      "symbol": "ETH",
-    },
-    "srcChainId": 42161,
-    "srcTokenAmount": "991250000000000",
-    "steps": Array [
-      Object {
-        "action": "bridge",
-        "destAmount": "990654755978612",
-        "destAsset": Object {
-          "address": "0x0000000000000000000000000000000000000000",
-          "assetId": "eip155:10/slip44:60",
-          "chainId": 10,
-          "coinKey": "ETH",
-          "decimals": 18,
-          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-          "name": "ETH",
-          "priceUSD": "2478.63",
-          "symbol": "ETH",
-        },
-        "destChainId": 10,
-        "protocol": Object {
-          "displayName": "Across",
-          "icon": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/acrossv2.png",
-          "name": "across",
-        },
-        "srcAmount": "991250000000000",
-        "srcAsset": Object {
-          "address": "0x0000000000000000000000000000000000000000",
-          "assetId": "eip155:42161/slip44:60",
-          "chainId": 42161,
-          "coinKey": "ETH",
-          "decimals": 18,
-          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-          "name": "ETH",
-          "priceUSD": "2478.7",
-          "symbol": "ETH",
-        },
-        "srcChainId": 42161,
-      },
-    ],
-  },
-  "slippagePercentage": 0,
-  "startTime": 1234567890,
-  "status": Object {
-    "srcChain": Object {
-      "chainId": 42161,
-      "txHash": "0xevmTxHash",
-    },
-    "status": "PENDING",
-  },
-  "targetContractAddress": undefined,
-  "txMetaId": "test-tx-id",
-}
-`;
-
-exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with approval 3`] = `
-Array [
-  Array [
-    Object {
-      "chainId": "0xa4b1",
-      "data": "0xapprovalData",
-      "from": "0xaccount1",
-      "gas": "0x5208",
-      "gasLimit": "21000",
-      "maxFeePerGas": undefined,
-      "maxPriorityFeePerGas": undefined,
-      "to": "0xtokenContract",
-      "value": "0x0",
-    },
-    Object {
-      "actionId": "1234567890.456",
-      "networkClientId": "arbitrum-client-id",
-      "origin": "metamask",
-      "requireApproval": false,
-      "type": "swapApproval",
-    },
-  ],
-  Array [
-    Object {
-      "chainId": "0xa4b1",
-      "data": "0xdata",
-      "from": "0xaccount1",
-      "gas": "0x5208",
-      "gasLimit": "21000",
-      "maxFeePerGas": undefined,
-      "maxPriorityFeePerGas": undefined,
-      "to": "0xbridgeContract",
-      "value": "0x0",
-    },
-    Object {
-      "actionId": "1234567890.456",
-      "networkClientId": "arbitrum",
-      "origin": "metamask",
-      "requireApproval": false,
-      "type": "swap",
-    },
-  ],
-]
-`;
-
-exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with approval 4`] = `
-Array [
-  Array [
-    "BridgeController:stopPollingForQuotes",
-  ],
-  Array [
-    "BridgeController:trackUnifiedSwapBridgeEvent",
-    "Unified SwapBridge Submitted",
-    Object {
-      "gas_included": false,
-      "price_impact": 0,
-      "provider": "lifi_across",
-      "quoted_time_minutes": 0,
-      "stx_enabled": false,
-      "token_symbol_destination": "ETH",
-      "token_symbol_source": "ETH",
-      "usd_amount_source": 0,
-      "usd_quoted_gas": 0,
-      "usd_quoted_return": 0,
-    },
-  ],
-  Array [
-    "AccountsController:getAccountByAddress",
-    "0xaccount1",
-  ],
-  Array [
-    "NetworkController:findNetworkClientIdByChainId",
-    "0xa4b1",
-  ],
-  Array [
-    "GasFeeController:getState",
-  ],
-  Array [
-    "TransactionController:getState",
-  ],
-  Array [
-    "AccountsController:getAccountByAddress",
-    "0xaccount1",
-  ],
-  Array [
-    "NetworkController:findNetworkClientIdByChainId",
-    "0xa4b1",
-  ],
-  Array [
-    "GasFeeController:getState",
-  ],
-  Array [
-    "TransactionController:getState",
-  ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
-  ],
-]
 `;
 
 exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with no approval 1`] = `
@@ -2195,6 +2001,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
 Object {
   "account": "0xaccount1",
   "approvalTxId": undefined,
+  "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 0,
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
@@ -2310,51 +2117,6 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with no approval 3`] = `
-Array [
-  Array [
-    Object {
-      "chainId": "0xa4b1",
-      "networkClientId": "arbitrum",
-      "transactionParams": Object {
-        "chainId": "0xa4b1",
-        "data": "0xdata",
-        "from": "0xaccount1",
-        "gas": "21000",
-        "gasLimit": "21000",
-        "to": "0xbridgeContract",
-        "value": "0x0",
-      },
-    },
-  ],
-]
-`;
-
-exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with no approval 4`] = `
-Array [
-  Array [
-    Object {
-      "chainId": "0xa4b1",
-      "data": "0xdata",
-      "from": "0xaccount1",
-      "gas": "0x5208",
-      "gasLimit": "21000",
-      "maxFeePerGas": undefined,
-      "maxPriorityFeePerGas": undefined,
-      "to": "0xbridgeContract",
-      "value": "0x0",
-    },
-    Object {
-      "actionId": "1234567890.456",
-      "networkClientId": "arbitrum",
-      "origin": "metamask",
-      "requireApproval": false,
-      "type": "swap",
-    },
-  ],
-]
-`;
-
-exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with no approval 5`] = `
 Array [
   Array [
     "BridgeController:stopPollingForQuotes",
@@ -2555,6 +2317,7 @@ exports[`BridgeStatusController submitTx: Solana bridge should successfully subm
 Object {
   "account": "0x123...",
   "approvalTxId": undefined,
+  "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 300,
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
@@ -2886,6 +2649,7 @@ exports[`BridgeStatusController submitTx: Solana swap should successfully submit
 Object {
   "account": "0x123...",
   "approvalTxId": undefined,
+  "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 300,
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
@@ -3123,46 +2887,75 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 
 exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should track failed event for bridge transaction 1`] = `
 Array [
-  Array [
-    "AccountsController:getAccountByAddress",
-    "0xaccount1",
-  ],
-  Array [
-    "BridgeController:trackUnifiedSwapBridgeEvent",
-    "Unified SwapBridge Failed",
-    Object {
-      "action_type": "swapbridge-v1",
-      "actual_time_minutes": 0,
-      "allowance_reset_transaction": undefined,
-      "approval_transaction": undefined,
-      "chain_id_destination": "eip155:10",
-      "chain_id_source": "eip155:42161",
-      "custom_slippage": true,
-      "destination_transaction": "FAILED",
-      "error_message": undefined,
-      "gas_included": false,
-      "is_hardware_wallet": false,
-      "price_impact": 0,
-      "provider": "lifi_across",
-      "quote_vs_execution_ratio": 1,
-      "quoted_time_minutes": 0.25,
-      "quoted_vs_used_gas_ratio": 1,
-      "security_warnings": Array [],
-      "slippage_limit": 0,
-      "source_transaction": "COMPLETE",
-      "stx_enabled": false,
-      "swap_type": "crosschain",
-      "token_address_destination": "eip155:10/slip44:60",
-      "token_address_source": "eip155:42161/slip44:60",
-      "token_symbol_destination": "ETH",
-      "token_symbol_source": "ETH",
-      "usd_actual_gas": 0,
-      "usd_actual_return": 0,
-      "usd_amount_source": 0,
-      "usd_quoted_gas": 0,
-      "usd_quoted_return": 0,
-    },
-  ],
+  "BridgeController:trackUnifiedSwapBridgeEvent",
+  "Unified SwapBridge Failed",
+  Object {
+    "action_type": "swapbridge-v1",
+    "actual_time_minutes": 0,
+    "allowance_reset_transaction": undefined,
+    "approval_transaction": undefined,
+    "chain_id_destination": "eip155:10",
+    "chain_id_source": "eip155:42161",
+    "custom_slippage": true,
+    "destination_transaction": "FAILED",
+    "error_message": undefined,
+    "gas_included": false,
+    "is_hardware_wallet": false,
+    "price_impact": 0,
+    "provider": "lifi_across",
+    "quote_vs_execution_ratio": 1,
+    "quoted_time_minutes": 0.25,
+    "quoted_vs_used_gas_ratio": 1,
+    "security_warnings": Array [],
+    "slippage_limit": 0,
+    "source_transaction": "COMPLETE",
+    "stx_enabled": false,
+    "swap_type": "crosschain",
+    "token_address_destination": "eip155:10/slip44:60",
+    "token_address_source": "eip155:42161/slip44:60",
+    "token_symbol_destination": "ETH",
+    "token_symbol_source": "ETH",
+    "usd_actual_gas": 0,
+    "usd_actual_return": 0,
+    "usd_amount_source": 0,
+    "usd_quoted_gas": 0,
+    "usd_quoted_return": 0,
+  },
+]
+`;
+
+exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should track failed event for bridge transaction if approval is dropped 1`] = `
+Array [
+  "BridgeController:trackUnifiedSwapBridgeEvent",
+  "Unified SwapBridge Failed",
+  Object {
+    "action_type": "swapbridge-v1",
+    "actual_time_minutes": 0,
+    "chain_id_destination": "eip155:42161",
+    "chain_id_source": "eip155:42161",
+    "custom_slippage": false,
+    "error_message": undefined,
+    "gas_included": false,
+    "is_hardware_wallet": false,
+    "price_impact": 0,
+    "provider": "",
+    "quote_vs_execution_ratio": 0,
+    "quoted_time_minutes": 0,
+    "quoted_vs_used_gas_ratio": 0,
+    "security_warnings": Array [],
+    "source_transaction": "FAILED",
+    "stx_enabled": false,
+    "swap_type": "crosschain",
+    "token_address_destination": "eip155:42161/slip44:60",
+    "token_address_source": "eip155:42161/slip44:60",
+    "token_symbol_destination": "",
+    "token_symbol_source": "",
+    "usd_actual_gas": 0,
+    "usd_actual_return": 0,
+    "usd_amount_source": 100,
+    "usd_quoted_gas": 0,
+    "usd_quoted_return": 0,
+  },
 ]
 `;
 
@@ -3245,6 +3038,41 @@ Array [
       "usd_quoted_return": 0,
     },
   ],
+]
+`;
+
+exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should track failed event for swap transaction if approval fails 1`] = `
+Array [
+  "BridgeController:trackUnifiedSwapBridgeEvent",
+  "Unified SwapBridge Failed",
+  Object {
+    "action_type": "swapbridge-v1",
+    "actual_time_minutes": 0,
+    "chain_id_destination": "eip155:42161",
+    "chain_id_source": "eip155:42161",
+    "custom_slippage": false,
+    "error_message": undefined,
+    "gas_included": false,
+    "is_hardware_wallet": false,
+    "price_impact": 0,
+    "provider": "",
+    "quote_vs_execution_ratio": 0,
+    "quoted_time_minutes": 0,
+    "quoted_vs_used_gas_ratio": 0,
+    "security_warnings": Array [],
+    "source_transaction": "FAILED",
+    "stx_enabled": false,
+    "swap_type": "single_chain",
+    "token_address_destination": "eip155:42161/slip44:60",
+    "token_address_source": "eip155:42161/slip44:60",
+    "token_symbol_destination": "",
+    "token_symbol_source": "",
+    "usd_actual_gas": 0,
+    "usd_actual_return": 0,
+    "usd_amount_source": 100,
+    "usd_quoted_gas": 0,
+    "usd_quoted_return": 0,
+  },
 ]
 `;
 
