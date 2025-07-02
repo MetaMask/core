@@ -328,25 +328,20 @@ function toChecksumHexAddressUnmemoized(address: unknown) {
 /**
  * Convert an address to a checksummed hexadecimal address.
  *
- * @param address - The address to convert.
- * @returns The address in 0x-prefixed hexadecimal checksummed form if it is valid.
+ * @param address - The address to convert. For backward compatibility reasons,
+ * this can be anything, even a non-hex string with an 0x prefix, but that usage
+ * is deprecated. Please use a valid hex string (with or without the `0x`
+ * prefix).
+ * @returns A 0x-prefixed checksummed version of `address` if it is a valid hex
+ * string, or the address as given otherwise.
  */
 export const toChecksumHexAddress: {
   (address: string): string;
   <T>(address: T): T;
 } = memoize(toChecksumHexAddressUnmemoized);
 
-/**
- * Validates that the input is a hex address. This utility method is a thin
- * wrapper around @metamask/utils.isValidHexAddress, with the exception that it
- * by default will return true for hex strings that are otherwise valid
- * hex addresses, but are not prefixed with `0x`.
- *
- * @param possibleAddress - Input parameter to check against.
- * @param options - The validation options.
- * @param options.allowNonPrefixed - If true will allow addresses without `0x` prefix.`
- * @returns Whether or not the input is a valid hex address.
- */
+// JSDoc is only used for memoized version of this function that is exported
+// eslint-disable-next-line jsdoc/require-jsdoc
 function isValidHexAddressUnmemoized(
   possibleAddress: string,
   { allowNonPrefixed = true } = {},
@@ -361,8 +356,20 @@ function isValidHexAddressUnmemoized(
   return isHexChecksumAddress(addressToCheck);
 }
 
+/**
+ * Validates that the input is a hex address. This utility method is a thin
+ * wrapper around `isValidHexAddress` from `@metamask/utils`, with the exception
+ * that it may return true for non-0x-prefixed hex strings (depending on the
+ * option below).
+ *
+ * @param possibleAddress - Input parameter to check against.
+ * @param options - The validation options.
+ * @param options.allowNonPrefixed - If true will regard addresses without a
+ * `0x` prefix as valid.
+ * @returns Whether or not the input is a valid hex address.
+ */
 export const isValidHexAddress: (
-  address: string,
+  possibleAddress: string,
   options?: { allowNonPrefixed?: boolean },
 ) => boolean = memoize(
   isValidHexAddressUnmemoized,
