@@ -1096,11 +1096,7 @@ describe('getPersistentState', () => {
         VisitorControllerEvents
       >({
         namespace: visitorName,
-      });
-      visitorControllerMessenger.delegate({
-        actions: ['VisitorController:clear'],
-        events: ['VisitorController:stateChange'],
-        messenger: globalMessenger,
+        parent: globalMessenger,
       });
       const visitorController = new VisitorController(
         visitorControllerMessenger,
@@ -1113,11 +1109,7 @@ describe('getPersistentState', () => {
         | VisitorOverflowControllerDelegatedEvents
       >({
         namespace: visitorOverflowName,
-      });
-      visitorOverflowControllerMessenger.delegate({
-        actions: ['VisitorOverflowController:updateMax'],
-        events: ['VisitorOverflowController:stateChange'],
-        messenger: globalMessenger,
+        parent: globalMessenger,
       });
       globalMessenger.delegate({
         actions: ['VisitorController:clear'],
