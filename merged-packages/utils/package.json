@@ -1,6 +1,6 @@
 {
   "name": "@metamask/utils",
-  "version": "11.4.1",
+  "version": "11.4.2",
   "description": "Various JavaScript/TypeScript utilities of wide relevance to the MetaMask codebase",
   "homepage": "https://github.com/MetaMask/utils#readme",
   "bugs": {
