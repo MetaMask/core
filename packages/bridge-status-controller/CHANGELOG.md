@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [34.0.0]
+
 ### Added
 
 - Add `batchId` to BridgeHistoryItem to enable querying history by batchId ([#6058](https://github.com/MetaMask/core/pull/6058))
@@ -394,7 +396,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@33.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@34.0.0...HEAD
+[34.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@33.0.0...@metamask/bridge-status-controller@34.0.0
 [33.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@32.0.0...@metamask/bridge-status-controller@33.0.0
 [32.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@31.0.0...@metamask/bridge-status-controller@32.0.0
 [31.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@30.0.0...@metamask/bridge-status-controller@31.0.0
