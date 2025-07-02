@@ -158,6 +158,18 @@ export type SeedlessOnboardingControllerState =
        * The encrypted keyring encryption key used to encrypt the keyring vault.
        */
       encryptedKeyringEncryptionKey?: string;
+
+      /**
+       * The access token used for pairing with profile sync auth service and to access other services.
+       */
+      accessToken?: string;
+
+      /**
+       * The metadata access token used to access the metadata service.
+       *
+       * This token is used to access the metadata service before the vault is created or unlocked.
+       */
+      metadataAccessToken?: string;
     };
 
 // Actions
@@ -320,6 +332,10 @@ export type VaultData = {
    * The revoke token to revoke refresh token and get new refresh token and new revoke token.
    */
   revokeToken: string;
+  /**
+   * The access token used for pairing with profile sync auth service and to access other services.
+   */
+  accessToken: string;
 };
 
 export type SecretDataType = Uint8Array | string | number;
