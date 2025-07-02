@@ -353,6 +353,9 @@ function isValidHexAddressUnmemoized(
     return false;
   }
 
+  // We used to rely on `isValidAddress` from `@ethereumjs/util` which allows
+  // for upper-case characters too. So we preserve this behavior and use our
+  // faster and memoized validation function instead.
   return isHexChecksumAddress(addressToCheck);
 }
 
