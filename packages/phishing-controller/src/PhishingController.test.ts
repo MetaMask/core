@@ -3025,6 +3025,38 @@ describe('PhishingController', () => {
       expect(nock.pendingMocks()).toHaveLength(0);
     });
   });
+
+  describe('getScanResultFromCache', () => {
+    it('returns the cached result for URLs that are in the cache', async () => {
+      const controller = getPhishingController();
+      const result = controller.getScanResultFromCache('https://example.com');
+      expect(result).toBeUndefined();
+      nock(PHISHING_DETECTION_BASE_URL)
+        .get(
+          `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent('example.com')}`,
+        )
+        .reply(200, {
+          recommendedAction: RecommendedAction.None,
+        });
+
+      await controller.scanUrl('https://example.com');
+
+      const result2 = controller.getScanResultFromCache('https://example.com');
+      expect(result2).toBeDefined();
+    });
+
+    it('returns undefined for invalid URLs', async () => {
+      const controller = getPhishingController();
+      const result = controller.getScanResultFromCache('not-a-url');
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined for URLs that are not in the cache', async () => {
+      const controller = getPhishingController();
+      const result = controller.getScanResultFromCache('https://example.com');
+      expect(result).toBeUndefined();
+    });
+  });
 });
 
 describe('URL Scan Cache', () => {

@@ -820,6 +820,22 @@ export class PhishingController extends BaseController<
   };
 
   /**
+   * Get a cached result if it exists and is not expired
+   *
+   * @param url - The URL to get the cached result for. You can pass in a full URL or just the hostname.
+   * @returns The cached scan result or undefined if not found or expired
+   */
+  getScanResultFromCache = (
+    url: string,
+  ): PhishingDetectionScanResult | undefined => {
+    const [hostname, ok] = getHostnameFromWebUrl(url);
+    if (!ok) {
+      return undefined;
+    }
+    return this.#urlScanCache.get(hostname);
+  };
+
+  /**
    * Process a batch of URLs (up to 50) for phishing detection.
    *
    * @param urls - A batch of URLs to scan.
