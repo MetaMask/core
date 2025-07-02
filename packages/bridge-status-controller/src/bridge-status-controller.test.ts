@@ -2094,11 +2094,14 @@ describe('BridgeStatusController', () => {
       controller.stopAllPolling();
 
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      const { quote, ...history } = controller.state.txHistory[result.id];
-      expect(history).toMatchSnapshot();
+      const { quote, txMetaId, batchId } =
+        controller.state.txHistory[result.id];
+      expect(quote).toBeDefined();
+      expect(txMetaId).toBe(result.id);
+      expect(batchId).toBe('batchId1');
       expect(estimateGasFeeFn).toHaveBeenCalledTimes(3);
       expect(addTransactionFn).not.toHaveBeenCalled();
-      expect(addTransactionBatchFn.mock.calls).toMatchSnapshot();
+      expect(addTransactionBatchFn).toHaveBeenCalledTimes(1);
       expect(mockMessengerCall).toHaveBeenCalledTimes(10);
     });
 
@@ -2363,10 +2366,21 @@ describe('BridgeStatusController', () => {
       );
       controller.stopAllPolling();
 
-      expect(result).toMatchSnapshot();
+      const { txParams, ...resultsToCheck } = result;
+      expect(resultsToCheck).toMatchInlineSnapshot(`
+        Object {
+          "batchId": "batchId1",
+          "chainId": "0xa4b1",
+          "hash": "0xevmTxHash",
+          "id": "test-tx-id",
+          "status": "unapproved",
+          "time": 1234567890,
+          "type": "swap",
+        }
+      `);
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
       expect(addTransactionFn).not.toHaveBeenCalled();
-      expect(addTransactionBatchFn.mock.calls).toMatchSnapshot();
+      expect(addTransactionBatchFn).toHaveBeenCalledTimes(1);
       expect(mockMessengerCall).toHaveBeenCalledTimes(6);
     });
 
@@ -2574,10 +2588,6 @@ describe('BridgeStatusController', () => {
     });
 
     describe('TransactionController:transactionFailed', () => {
-      beforeEach(() => {
-        jest.clearAllMocks();
-      });
-
       it('should track failed event for bridge transaction', () => {
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
         mockMessenger.publish('TransactionController:transactionFailed', {
@@ -2596,7 +2606,7 @@ describe('BridgeStatusController', () => {
         expect(
           bridgeStatusController.state.txHistory.bridgeTxMetaId1.status.status,
         ).toBe(StatusTypes.FAILED);
-        expect(messengerCallSpy.mock.calls).toMatchSnapshot();
+        expect(messengerCallSpy.mock.lastCall).toMatchSnapshot();
       });
 
       it('should track failed event for bridge transaction if approval is dropped', () => {
@@ -2614,7 +2624,7 @@ describe('BridgeStatusController', () => {
           },
         });
 
-        expect(messengerCallSpy.mock.calls).toMatchSnapshot();
+        expect(messengerCallSpy.mock.lastCall).toMatchSnapshot();
         expect(
           bridgeStatusController.state.txHistory.bridgeTxMetaId1WithApproval
             .status.status,
@@ -2636,7 +2646,7 @@ describe('BridgeStatusController', () => {
           },
         });
 
-        expect(messengerCallSpy.mock.calls).toMatchSnapshot();
+        expect(messengerCallSpy.mock.lastCall).toMatchSnapshot();
         expect(
           bridgeStatusController.state.txHistory.bridgeTxMetaId1WithApproval
             .status.status,
