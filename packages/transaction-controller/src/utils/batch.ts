@@ -246,16 +246,17 @@ async function getNestedTransactionMeta(
   ethQuery: EthQuery,
 ): Promise<NestedTransactionMetadata> {
   const { from } = request;
-  const { params, type: requestType } = singleRequest;
+  const { params, type: requestedType } = singleRequest;
 
-  const { type } = await determineTransactionType(
+  const { type: determinedType } = await determineTransactionType(
     { from, ...params },
     ethQuery,
   );
 
+  const type = requestedType ?? determinedType;
   return {
     ...params,
-    type: requestType ?? type,
+    type,
   };
 }
 

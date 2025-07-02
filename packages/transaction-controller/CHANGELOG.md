@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Preserve type of nested transactions in batch if specified in `TransactionBatchSingleRequest` ([#6056](https://github.com/MetaMask/core/pull/6056))
+- Preserve provided `type` in `transactions` when calling `addTransactionBatch` ([#6056](https://github.com/MetaMask/core/pull/6056))
 
 ## [58.1.0]
 

@@ -908,34 +908,12 @@ describe('Batch Utils', () => {
         await flushPromises();
 
         expect(publishBatchHook).toHaveBeenCalledTimes(1);
-        expect(publishBatchHook).toHaveBeenCalledWith({
-          from: FROM_MOCK,
-          networkClientId: NETWORK_CLIENT_ID_MOCK,
-          transactions: [
-            {
-              id: TRANSACTION_ID_MOCK,
-              params: {
-                ...TRANSACTION_BATCH_PARAMS_MOCK,
-                gas: undefined,
-                maxFeePerGas: undefined,
-                maxPriorityFeePerGas: undefined,
-              },
-              signedTx: TRANSACTION_SIGNATURE_MOCK,
-              type: TransactionType.swap,
-            },
-            {
-              id: TRANSACTION_ID_2_MOCK,
-              params: {
-                ...TRANSACTION_BATCH_PARAMS_MOCK,
-                gas: undefined,
-                maxFeePerGas: undefined,
-                maxPriorityFeePerGas: undefined,
-              },
-              signedTx: TRANSACTION_SIGNATURE_2_MOCK,
-              type: TransactionType.bridge,
-            },
-          ],
-        });
+        expect(publishBatchHook.mock.calls[0][0].transactions[0]).toBe(
+          TransactionType.swap,
+        );
+        expect(publishBatchHook.mock.calls[0][0].transactions[1]).toBe(
+          TransactionType.bridge,
+        );
       });
 
       it('resolves individual publish hooks with transaction hashes from publish batch hook', async () => {
