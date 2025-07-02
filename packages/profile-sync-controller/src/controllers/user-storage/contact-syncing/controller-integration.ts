@@ -478,14 +478,6 @@ export async function deleteContactInRemoteStorage(
   };
 
   return trace
-    ? await trace(
-        {
-          name: 'Contact Sync Delete Remote',
-          data: {
-            chainId: contact.chainId,
-          },
-        },
-        deleteContact,
-      )
+    ? await trace({ name: 'Contact Sync Delete Remote' }, deleteContact)
     : await deleteContact();
 }

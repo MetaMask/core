@@ -62,24 +62,7 @@ export async function saveInternalAccountToUserStorage(
   };
 
   return trace
-    ? await trace(
-        {
-          name: 'Account Sync Save Individual',
-          data: {
-            accountType: internalAccount.metadata.keyring.type,
-            hasCustomName: !isNameDefaultAccountName(
-              internalAccount.metadata.name,
-            ),
-            hasNameTimestamp: Boolean(
-              internalAccount.metadata.nameLastUpdatedAt,
-            ),
-            hasEntropySource: Boolean(internalAccount.options?.entropySource),
-            isHDAccount:
-              internalAccount.metadata.keyring.type === String(KeyringTypes.hd),
-          },
-        },
-        saveAccount,
-      )
+    ? await trace({ name: 'Account Sync Save Individual' }, saveAccount)
     : await saveAccount();
 }
 
@@ -429,15 +412,6 @@ export async function syncInternalAccountsWithUserStorage(
   };
 
   return trace
-    ? await trace(
-        {
-          name: 'Account Sync Full',
-          data: {
-            hasEntropySource: Boolean(entropySourceId),
-            maxAccountsToAdd: config.maxNumberOfAccountsToAdd ?? 0,
-          },
-        },
-        performAccountSync,
-      )
+    ? await trace({ name: 'Account Sync Full' }, performAccountSync)
     : await performAccountSync();
 }
