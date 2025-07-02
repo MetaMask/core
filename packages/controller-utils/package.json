@@ -63,7 +63,7 @@
     "@babel/runtime": "^7.23.9",
     "@metamask/auto-changelog": "^3.4.4",
     "@types/jest": "^27.4.1",
-    "@types/lodash": "^4.17.7",
+    "@types/lodash": "^4.17.20",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "jest-environment-jsdom": "^27.5.1",
