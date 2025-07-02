@@ -173,6 +173,39 @@ export class Messenger<
   }
 
   /**
+   * Registers action handlers for a list of methods on a class instance
+   *
+   * @param instance - The class instance with a name property and methods
+   * @param methodNames - The names of the methods to register as action handlers
+   * @param excludedMethods - Optional list of method names to exclude from registration
+   * @param exceptions - Optional map of method names to custom handlers
+   */
+  registerActionHandlers<
+    Instance extends { name: string },
+    MethodNames extends keyof Instance & string,
+  >(
+    instance: Instance,
+    methodNames: readonly MethodNames[],
+    excludedMethods: readonly string[] = ['constructor', 'messagingSystem'],
+    exceptions: Partial<
+      Record<MethodNames, (...args: unknown[]) => unknown>
+    > = {},
+  ) {
+    for (const methodName of methodNames) {
+      if (excludedMethods.includes(methodName)) {
+        continue;
+      }
+
+      const handler = exceptions[methodName] ?? instance[methodName];
+      if (typeof handler === 'function') {
+        const actionType =
+          `${instance.name}:${methodName}` as `${Instance['name']}:${MethodNames}`;
+        this.registerActionHandler(actionType, handler.bind(instance));
+      }
+    }
+  }
+
+  /**
    * Unregister an action handler.
    *
    * This will prevent this action from being called.
@@ -460,32 +493,32 @@ export class Messenger<
 }
 
 /**
- * Creates an action type for a method on a controller class
+ * Creates an action type for a method on a class instance
  *
- * @template Controller - The controller class type
+ * @template Instance - The class instance type with a name property
  * @template MethodName - The name of the method to create an action for
  */
 type MessengerMethodAction<
-  Controller extends { name: string },
-  MethodName extends keyof Controller & string,
-> = Controller[MethodName] extends (...args: never[]) => unknown
+  Instance extends { name: string },
+  MethodName extends keyof Instance & string,
+> = Instance[MethodName] extends (...args: never[]) => unknown
   ? {
-      type: `${Controller['name']}:${MethodName}`;
-      handler: Controller[MethodName];
+      type: `${Instance['name']}:${MethodName}`;
+      handler: Instance[MethodName];
     }
   : never;
 
 /**
- * Creates a union type of action types for multiple methods on a controller class
+ * Creates a union type of action types for multiple methods on a class instance
  *
- * @template Controller - The controller class type
+ * @template Instance - The class instance type with a name property
  * @template MethodNames - A union of method names to create actions for
  */
 export type MessengerMethodActions<
-  Controller extends { name: string },
-  MethodNames extends keyof Controller & string,
+  Instance extends { name: string },
+  MethodNames extends keyof Instance & string,
 > = {
-  [K in MethodNames]: MessengerMethodAction<Controller, K>;
+  [K in MethodNames]: MessengerMethodAction<Instance, K>;
 }[MethodNames];
 
 /**
@@ -500,47 +533,41 @@ export type ExtractActions<
 > = Extract<Actions, { type: ActionTypes }>;
 
 /**
- * Registers action handlers for a list of methods on a controller
+ * Registers action handlers for a list of methods on a class instance
  *
- * @param controller - The controller instance
- * @param messenger - The messenger to register the handlers with
+ * @param instance - The class instance with a name property and methods
+ * @param messenger - The messenger instance to register handlers on
+ * @param messenger.registerActionHandler - Function to register an action handler
  * @param methodNames - The names of the methods to register as action handlers
  * @param excludedMethods - Optional list of method names to exclude from registration
  * @param exceptions - Optional map of method names to custom handlers
  */
 export function registerMethodActionHandlers<
-  Controller extends { name: string },
-  MethodNames extends keyof Controller & string,
-  Action extends ActionConstraint,
-  Event extends EventConstraint,
-  AllowedAction extends string,
-  AllowedEvent extends string,
-  Messenger extends RestrictedMessenger<
-    Controller['name'],
-    Action,
-    Event,
-    AllowedAction,
-    AllowedEvent
-  >,
+  Instance extends { name: string },
+  MethodNames extends keyof Instance & string,
 >(
-  controller: Controller,
-  messenger: Messenger,
+  instance: Instance,
+  messenger: {
+    registerActionHandler: (
+      actionType: string,
+      handler: (...args: unknown[]) => unknown,
+    ) => void;
+  },
   methodNames: readonly MethodNames[],
   excludedMethods: readonly string[] = ['constructor', 'messagingSystem'],
   exceptions: Partial<
     Record<MethodNames, (...args: unknown[]) => unknown>
   > = {},
-): void {
+) {
   for (const methodName of methodNames) {
     if (excludedMethods.includes(methodName)) {
       continue;
     }
 
-    const handler = exceptions[methodName] ?? controller[methodName];
+    const handler = exceptions[methodName] ?? instance[methodName];
     if (typeof handler === 'function') {
-      const actionType =
-        `${controller.name}:${methodName}` as `${Controller['name']}:${MethodNames}`;
-      messenger.registerActionHandler(actionType, handler.bind(controller));
+      const actionType = `${instance.name}:${methodName}`;
+      messenger.registerActionHandler(actionType, handler.bind(instance));
     }
   }
 }
