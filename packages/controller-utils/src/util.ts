@@ -7,7 +7,6 @@ import {
   isHexString,
   remove0x,
   getChecksumAddress,
-  // TODO: we need to bump package version to get this
   isHexChecksumAddress,
 } from '@metamask/utils';
 import type { BigNumber } from 'bignumber.js';
