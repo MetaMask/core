@@ -393,6 +393,9 @@ export const findAndUpdateTransactionsInBatch = ({
     approvalMeta: undefined,
     tradeMeta: undefined,
   };
+
+  // This is a workaround to update the tx type after the tx is signed
+  // TODO: remove this once the tx type for batch txs is preserved in the tx controller
   const bridgeApprovalTxMeta = txs.find(
     (txMeta) =>
       txMeta.batchId === batchId &&
@@ -419,6 +422,7 @@ export const findAndUpdateTransactionsInBatch = ({
     updateTransactionFn(updatedTx, 'Update tx type to swapApproval');
     txBatch.approvalMeta = updatedTx;
   }
+
   const bridgeTxMeta = txs.find(
     (txMeta) =>
       txMeta.batchId === batchId && txMeta.txParams.data === bridgeTxData,
@@ -431,6 +435,7 @@ export const findAndUpdateTransactionsInBatch = ({
     updateTransactionFn(updatedTx, 'Update tx type to bridge');
     txBatch.tradeMeta = updatedTx;
   }
+
   const swapTxMeta = txs.find(
     (txMeta) =>
       txMeta.batchId === batchId && txMeta.txParams.data === swapTxData,
@@ -443,5 +448,6 @@ export const findAndUpdateTransactionsInBatch = ({
     updateTransactionFn(updatedTx, 'Update tx type to swap');
     txBatch.tradeMeta = updatedTx;
   }
+
   return txBatch;
 };
