@@ -793,6 +793,107 @@ Array [
 ]
 `;
 
+exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions with USDT reset 1`] = `
+Object {
+  "batchId": "batchId1",
+  "chainId": "0xa4b1",
+  "hash": "0xevmTxHash",
+  "id": "test-tx-id",
+  "status": "unapproved",
+  "time": 1234567890,
+  "txParams": Object {
+    "chainId": "0xa4b1",
+    "data": "0xdata",
+    "from": "0xaccount1",
+    "gasLimit": "0x5208",
+    "to": "0xbridgeContract",
+    "value": "0x0",
+  },
+  "type": "bridge",
+}
+`;
+
+exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions with USDT reset 2`] = `
+Object {
+  "account": "0xaccount1",
+  "approvalTxId": undefined,
+  "batchId": "batchId1",
+  "estimatedProcessingTimeInSeconds": 15,
+  "hasApprovalTx": true,
+  "initialDestAssetBalance": undefined,
+  "isStxEnabled": true,
+  "pricingData": Object {
+    "amountSent": "1.234",
+    "amountSentInUsd": undefined,
+    "quotedGasInUsd": undefined,
+    "quotedReturnInUsd": undefined,
+  },
+  "slippagePercentage": 0,
+  "startTime": 1234567890,
+  "status": Object {
+    "srcChain": Object {
+      "chainId": 42161,
+      "txHash": "0xevmTxHash",
+    },
+    "status": "PENDING",
+  },
+  "targetContractAddress": undefined,
+  "txMetaId": "test-tx-id",
+}
+`;
+
+exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions with USDT reset 3`] = `
+Array [
+  Array [
+    Object {
+      "disable7702": true,
+      "from": "0xaccount1",
+      "networkClientId": "arbitrum",
+      "origin": "metamask",
+      "requireApproval": false,
+      "transactions": Array [
+        Object {
+          "params": Object {
+            "data": "0x095ea7b30000000000000000000000000439e60f02a8900a951603950d8d4527f400c3f10000000000000000000000000000000000000000000000000000000000000000",
+            "from": "0xaccount1",
+            "gas": "0x5208",
+            "maxFeePerGas": "0x0",
+            "maxPriorityFeePerGas": "0x0",
+            "to": "0xtokenContract",
+            "value": "0x0",
+          },
+          "type": "bridgeApproval",
+        },
+        Object {
+          "params": Object {
+            "data": "0xapprovalData",
+            "from": "0xaccount1",
+            "gas": "0x5208",
+            "maxFeePerGas": "0x0",
+            "maxPriorityFeePerGas": "0x0",
+            "to": "0xtokenContract",
+            "value": "0x0",
+          },
+          "type": "bridgeApproval",
+        },
+        Object {
+          "params": Object {
+            "data": "0xdata",
+            "from": "0xaccount1",
+            "gas": "0x5208",
+            "maxFeePerGas": "0x0",
+            "maxPriorityFeePerGas": "0x0",
+            "to": "0xbridgeContract",
+            "value": "0x0",
+          },
+          "type": "bridge",
+        },
+      ],
+    },
+  ],
+]
+`;
+
 exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance 1`] = `
 Object {
   "chainId": "0xa4b1",
@@ -1731,7 +1832,7 @@ Object {
   "approvalTxId": undefined,
   "batchId": "batchId1",
   "estimatedProcessingTimeInSeconds": 0,
-  "hasApprovalTx": false,
+  "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": true,
   "pricingData": Object {
@@ -1851,6 +1952,19 @@ Array [
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum",
       "transactionParams": Object {
+        "data": "0xapprovalData",
+        "from": "0xaccount1",
+        "gas": "21000",
+        "to": "0xtokenContract",
+        "value": "0x0",
+      },
+    },
+  ],
+  Array [
+    Object {
+      "chainId": "0xa4b1",
+      "networkClientId": "arbitrum",
+      "transactionParams": Object {
         "data": "0xdata",
         "from": "0xaccount1",
         "gas": "21000",
@@ -1872,6 +1986,18 @@ Array [
       "origin": "metamask",
       "requireApproval": false,
       "transactions": Array [
+        Object {
+          "params": Object {
+            "data": "0xapprovalData",
+            "from": "0xaccount1",
+            "gas": "0x5208",
+            "maxFeePerGas": "0x0",
+            "maxPriorityFeePerGas": "0x0",
+            "to": "0xtokenContract",
+            "value": "0x0",
+          },
+          "type": "swapApproval",
+        },
         Object {
           "params": Object {
             "data": "0xdata",
@@ -1918,6 +2044,9 @@ Array [
   Array [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
+  ],
+  Array [
+    "GasFeeController:getState",
   ],
   Array [
     "GasFeeController:getState",

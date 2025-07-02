@@ -299,11 +299,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       )
       .filter((historyItem) => {
         // Check if we are already polling this tx, if so, skip restarting polling for that
-        const srcTxMetaId = historyItem.txMetaId;
-        if (!srcTxMetaId) {
-          return false;
-        }
-        const pollingToken = this.#pollingTokensByTxMetaId[srcTxMetaId];
+        const pollingToken =
+          this.#pollingTokensByTxMetaId[historyItem.txMetaId];
         return !pollingToken;
       })
       // Swap txs don't need to have their statuses polled
