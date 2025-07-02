@@ -5,6 +5,7 @@ Object {
   "bridgeTxMetaId1": Object {
     "account": "0xaccount1",
     "approvalTxId": undefined,
+    "batchId": undefined,
     "estimatedProcessingTimeInSeconds": 15,
     "hasApprovalTx": false,
     "initialDestAssetBalance": undefined,
@@ -185,6 +186,7 @@ Object {
   "bridgeTxMetaId1": Object {
     "account": "0xaccount1",
     "approvalTxId": undefined,
+    "batchId": undefined,
     "estimatedProcessingTimeInSeconds": 15,
     "hasApprovalTx": false,
     "initialDestAssetBalance": undefined,
@@ -370,6 +372,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
 Object {
   "account": "0xaccount1",
   "approvalTxId": "test-approval-tx-id",
+  "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
@@ -547,7 +550,7 @@ Array [
         "srcChainId": "eip155:59144",
         "stxEnabled": false,
       },
-      "name": "Bridge Transaction Approval Completed",
+      "name": "Bridge Transaction Completed",
     },
     [Function],
   ],
@@ -557,7 +560,7 @@ Array [
         "srcChainId": "eip155:59144",
         "stxEnabled": false,
       },
-      "name": "Bridge Transaction Completed",
+      "name": "Bridge Transaction Approval Completed",
     },
     [Function],
   ],
@@ -566,31 +569,7 @@ Array [
 
 exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions 1`] = `
 Object {
-  "approvalTxId": undefined,
-  "chainId": "0xa4b1",
-  "destinationChainId": "0xa",
-  "destinationTokenAddress": "0x0000000000000000000000000000000000000000",
-  "destinationTokenAmount": "990654755978612",
-  "destinationTokenDecimals": 18,
-  "destinationTokenSymbol": "ETH",
-  "hash": "0xevmTxHash",
-  "id": "test-tx-id",
-  "sourceTokenAddress": "0x0000000000000000000000000000000000000000",
-  "sourceTokenAmount": "991250000000000",
-  "sourceTokenDecimals": 18,
-  "sourceTokenSymbol": "ETH",
-  "status": "unapproved",
-  "swapTokenValue": "1.234",
-  "time": 1234567890,
-  "txParams": Object {
-    "chainId": "0xa4b1",
-    "data": "0xdata",
-    "from": "0xaccount1",
-    "gasLimit": "0x5208",
-    "to": "0xbridgeContract",
-    "value": "0x0",
-  },
-  "type": "bridge",
+  "batchId": "batchId1",
 }
 `;
 
@@ -598,6 +577,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
 Object {
   "account": "",
   "approvalTxId": undefined,
+  "batchId": "batchId1",
   "estimatedProcessingTimeInSeconds": 15,
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
@@ -703,12 +683,12 @@ Object {
   "status": Object {
     "srcChain": Object {
       "chainId": 42161,
-      "txHash": "0xevmTxHash",
+      "txHash": undefined,
     },
     "status": "PENDING",
   },
   "targetContractAddress": undefined,
-  "txMetaId": "test-tx-id",
+  "txMetaId": undefined,
 }
 `;
 
@@ -719,11 +699,9 @@ Array [
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum",
       "transactionParams": Object {
-        "chainId": "0xa4b1",
         "data": "0xdata",
         "from": "0xaccount1",
         "gas": "21000",
-        "gasLimit": "21000",
         "to": "0xbridgeContract",
         "value": "0x0",
       },
@@ -736,22 +714,25 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
 Array [
   Array [
     Object {
-      "chainId": "0xa4b1",
-      "data": "0xdata",
+      "disable7702": true,
       "from": "0xaccount1",
-      "gas": "0x5208",
-      "gasLimit": "21000",
-      "maxFeePerGas": undefined,
-      "maxPriorityFeePerGas": undefined,
-      "to": "0xbridgeContract",
-      "value": "0x0",
-    },
-    Object {
-      "actionId": "1234567890.456",
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
-      "type": "bridge",
+      "transactions": Array [
+        Object {
+          "params": Object {
+            "data": "0xdata",
+            "from": "0xaccount1",
+            "gas": "0x5208",
+            "maxFeePerGas": "0x0",
+            "maxPriorityFeePerGas": "0x0",
+            "to": "0xbridgeContract",
+            "value": "0x0",
+          },
+          "type": "bridge",
+        },
+      ],
     },
   ],
 ]
@@ -818,6 +799,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
 Object {
   "account": "0xaccount1",
   "approvalTxId": "test-approval-tx-id",
+  "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
@@ -1144,6 +1126,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
 Object {
   "account": "0xaccount1",
   "approvalTxId": "test-approval-tx-id",
+  "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
@@ -1381,6 +1364,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
 Object {
   "account": "0xaccount1",
   "approvalTxId": undefined,
+  "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
@@ -1706,31 +1690,7 @@ Array [
 
 exports[`BridgeStatusController submitTx: EVM swap should handle smart transactions 1`] = `
 Object {
-  "approvalTxId": undefined,
-  "chainId": "0xa4b1",
-  "destinationChainId": "0xa4b1",
-  "destinationTokenAddress": "0x0000000000000000000000000000000000000000",
-  "destinationTokenAmount": "990654755978612",
-  "destinationTokenDecimals": 18,
-  "destinationTokenSymbol": "ETH",
-  "hash": "0xevmTxHash",
-  "id": "test-tx-id",
-  "sourceTokenAddress": "0x0000000000000000000000000000000000000000",
-  "sourceTokenAmount": "991250000000000",
-  "sourceTokenDecimals": 18,
-  "sourceTokenSymbol": "ETH",
-  "status": "unapproved",
-  "swapTokenValue": "1.234",
-  "time": 1234567890,
-  "txParams": Object {
-    "chainId": "0xa4b1",
-    "data": "0xdata",
-    "from": "0xaccount1",
-    "gasLimit": "0x5208",
-    "to": "0xbridgeContract",
-    "value": "0x0",
-  },
-  "type": "swap",
+  "batchId": "batchId1",
 }
 `;
 
@@ -1738,6 +1698,7 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
 Object {
   "account": "",
   "approvalTxId": undefined,
+  "batchId": "batchId1",
   "estimatedProcessingTimeInSeconds": 0,
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
@@ -1843,12 +1804,12 @@ Object {
   "status": Object {
     "srcChain": Object {
       "chainId": 42161,
-      "txHash": "0xevmTxHash",
+      "txHash": undefined,
     },
     "status": "PENDING",
   },
   "targetContractAddress": undefined,
-  "txMetaId": "test-tx-id",
+  "txMetaId": undefined,
 }
 `;
 
@@ -1859,11 +1820,9 @@ Array [
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum",
       "transactionParams": Object {
-        "chainId": "0xa4b1",
         "data": "0xdata",
         "from": "0xaccount1",
         "gas": "21000",
-        "gasLimit": "21000",
         "to": "0xbridgeContract",
         "value": "0x0",
       },
@@ -1876,22 +1835,25 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
 Array [
   Array [
     Object {
-      "chainId": "0xa4b1",
-      "data": "0xdata",
+      "disable7702": true,
       "from": "0xaccount1",
-      "gas": "0x5208",
-      "gasLimit": "21000",
-      "maxFeePerGas": undefined,
-      "maxPriorityFeePerGas": undefined,
-      "to": "0xbridgeContract",
-      "value": "0x0",
-    },
-    Object {
-      "actionId": "1234567890.456",
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
-      "type": "swap",
+      "transactions": Array [
+        Object {
+          "params": Object {
+            "data": "0xdata",
+            "from": "0xaccount1",
+            "gas": "0x5208",
+            "maxFeePerGas": "0x0",
+            "maxPriorityFeePerGas": "0x0",
+            "to": "0xbridgeContract",
+            "value": "0x0",
+          },
+          "type": "swap",
+        },
+      ],
     },
   ],
 ]
@@ -1958,6 +1920,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
 Object {
   "account": "0xaccount1",
   "approvalTxId": "test-approval-tx-id",
+  "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 0,
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
@@ -2195,6 +2158,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
 Object {
   "account": "0xaccount1",
   "approvalTxId": undefined,
+  "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 0,
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
@@ -2555,6 +2519,7 @@ exports[`BridgeStatusController submitTx: Solana bridge should successfully subm
 Object {
   "account": "0x123...",
   "approvalTxId": undefined,
+  "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 300,
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
@@ -2886,6 +2851,7 @@ exports[`BridgeStatusController submitTx: Solana swap should successfully submit
 Object {
   "account": "0x123...",
   "approvalTxId": undefined,
+  "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 300,
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,

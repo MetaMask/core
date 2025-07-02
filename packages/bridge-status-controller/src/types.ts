@@ -104,7 +104,8 @@ export type StatusResponse = Infer<typeof StatusResponseSchema>;
 export type RefuelStatusResponse = object & StatusResponse;
 
 export type BridgeHistoryItem = {
-  txMetaId: string; // Need this to handle STX that might not have a txHash immediately
+  txMetaId?: string; // Need this to handle STX that might not have a txHash immediately
+  batchId?: string; // Need this to handle STX that might not have a txHash or txMetaId immediately
   quote: Quote;
   status: StatusResponse;
   startTime?: number; // timestamp in ms
@@ -176,7 +177,7 @@ export type QuoteMetadataSerialized = {
 };
 
 export type StartPollingForBridgeTxStatusArgs = {
-  bridgeTxMeta: TransactionMeta;
+  bridgeTxMeta: Partial<TransactionMeta>;
   statusRequest: StatusRequest;
   quoteResponse: QuoteResponse & QuoteMetadata;
   startTime?: BridgeHistoryItem['startTime'];
