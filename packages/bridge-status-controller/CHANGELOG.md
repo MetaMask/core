@@ -10,12 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `batchId` to BridgeHistoryItem to enable querying history by batchId when txId is not defined ([#6058](https://github.com/MetaMask/core/pull/6058))
-- Update txHistory item with status, approvalTxId and txMeta.id when transactionConfirmed or transactionFailed events are published by the TransactionController ([#6058](https://github.com/MetaMask/core/pull/6058))
 
 ### Changed
 
 - **BREAKING** Add tx batching functionality, which requires an `addTransactionBatchFn` handler to be passed to the BridgeStatusController's constructor ([#6058](https://github.com/MetaMask/core/pull/6058))
 - **BREAKING** Update batched txs after signing with correct tx types, which requires an `updateTransactionFn` handler to be passed to the BridgeStatusController's constructor ([#6058](https://github.com/MetaMask/core/pull/6058))
+- Add approvalTxId to txHistoryItem after signing batched transaction ([#6058](https://github.com/MetaMask/core/pull/6058))
 - Remove `addUserOperationFromTransaction` tx submission code and constructor arg since it is unsupported ([#6057](https://github.com/MetaMask/core/pull/6057))
 - Remove @metamask/user-operation-controller dependency ([#6057](https://github.com/MetaMask/core/pull/6057))
 - **BREAKING:** Bump peer dependency `@metamask/snaps-controllers` from `^12.0.0` to `^14.0.0` ([#6035](https://github.com/MetaMask/core/pull/6035))

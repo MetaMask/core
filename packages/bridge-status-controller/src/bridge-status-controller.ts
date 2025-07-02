@@ -74,7 +74,6 @@ import {
   handleSolanaTxResponse,
 } from './utils/transaction';
 import { generateActionId } from './utils/transaction';
-import { replaceBatchHistoryItem } from './utils/tx-history';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
   // We want to persist the bridge status state so that we can show the proper data for the Activity list
@@ -201,8 +200,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           ].includes(type) &&
           [TransactionStatus.failed].includes(status)
         ) {
-          // Re-key the history item with the txMeta.id and add FAILED status
-          this.#replaceBatchHistoryItem(transactionMeta);
+          // Mark tx as failed in txHistory
+          this.#markTxAsFailed(transactionMeta);
           // Track failed event
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Failed,
@@ -217,10 +216,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       'TransactionController:transactionConfirmed',
       (transactionMeta) => {
         const { type, id, chainId } = transactionMeta;
-
-        // Re-key the history item with the txMeta.id and add approvalTxId
-        this.#replaceBatchHistoryItem(transactionMeta);
-
         if (type === TransactionType.swap) {
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Completed,
@@ -240,19 +235,27 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     this.#restartPollingForIncompleteHistoryItems();
   }
 
-  readonly #replaceBatchHistoryItem = (txMeta: TransactionMeta) => {
-    this.update((state) => {
-      const { newTxHistory, keysToDelete } = replaceBatchHistoryItem(
-        state.txHistory,
-        txMeta,
-      );
-      state.txHistory = {
-        ...newTxHistory,
+  // Mark tx as failed in txHistory if either the approval or trade fails
+  readonly #markTxAsFailed = ({ id }: TransactionMeta) => {
+    const txHistoryKey = this.state.txHistory[id]
+      ? id
+      : Object.values(this.state.txHistory).find(
+          (item) => item.approvalTxId === id,
+        )?.txMetaId;
+
+    if (!txHistoryKey) {
+      return;
+    }
+
+    if (this.state.txHistory[id]) {
+      this.state.txHistory[id] = {
+        ...this.state.txHistory[id],
+        status: {
+          ...this.state.txHistory[id].status,
+          status: StatusTypes.FAILED,
+        },
       };
-      keysToDelete.forEach((key) => {
-        delete state.txHistory[key];
-      });
-    });
+    }
   };
 
   resetState = () => {
@@ -339,16 +342,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       isStxEnabled,
     } = startPollingForBridgeTxStatusArgs;
 
-    // This identifies the history item in state
-    // If txs are batched, use batchId as the key until the txs are confirmed and
-    // the tx id is available
-    const txHistoryKey = bridgeTxMeta.id ?? bridgeTxMeta.batchId;
-    if (!txHistoryKey) {
-      throw new Error(
-        'Failed to add tx to history: No batch or tx id to use as key',
-      );
-    }
-
+    const txHistoryKey = bridgeTxMeta.id;
     const accountAddress = this.#getMultichainSelectedAccountAddress();
     // Write all non-status fields to state so we can reference the quote in Activity list without the Bridge API
     // We know it's in progress but not the exact status yet
@@ -383,7 +377,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       isStxEnabled: isStxEnabled ?? false,
     };
     this.update((state) => {
-      // Use the txMeta.id or batchId as the key so we can reference the txMeta in TransactionController
+      // Use the txMeta.id as the key so we can reference the txMeta in TransactionController
       state.txHistory[txHistoryKey] = txHistoryItem;
     });
   };
@@ -826,7 +820,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   /**
-   * Submits EVM transactions to the TransactionController
+   * Submits batched EVM transactions to the TransactionController
    *
    * @param args - The parameters for the transaction
    * @param args.isBridgeTx - Whether the transaction is a bridge transaction
@@ -835,7 +829,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param args.resetApproval - The ethereum:USDT reset approval data to confirm
    * @param args.quoteResponse - The quote response
    * @param args.requireApproval - Whether to require approval for the transaction
-   * @returns A partial TransactionMeta that contains the batchId
+   * @returns The approvalMeta and tradeMeta for the batched transaction
    */
   readonly #handleEvmTransactionBatch = async (
     args: Omit<
@@ -871,7 +865,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       txDataByType,
     });
 
-    return { batchId, approvalMeta, tradeMeta };
+    if (!tradeMeta) {
+      throw new Error(
+        'Failed to update cross-chain swap transaction batch: tradeMeta not found',
+      );
+    }
+
+    return { approvalMeta, tradeMeta };
   };
 
   /**
@@ -904,7 +904,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       preConfirmationProperties,
     );
 
-    let txMeta: Partial<TransactionMeta> & Partial<SolanaTransactionMeta>;
+    let txMeta: TransactionMeta & Partial<SolanaTransactionMeta>;
     let approvalTxId: string | undefined;
     const startTime = Date.now();
 
@@ -967,20 +967,20 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         },
         async () => {
           if (isStxEnabledOnClient) {
-            const batchResult = await this.#handleEvmTransactionBatch({
-              isBridgeTx,
-              resetApproval: await getUSDTAllowanceResetTx(
-                this.messagingSystem,
+            const { tradeMeta, approvalMeta } =
+              await this.#handleEvmTransactionBatch({
+                isBridgeTx,
+                resetApproval: await getUSDTAllowanceResetTx(
+                  this.messagingSystem,
+                  quoteResponse,
+                ),
+                approval: quoteResponse.approval,
+                trade: quoteResponse.trade as TxData,
                 quoteResponse,
-              ),
-              approval: quoteResponse.approval,
-              trade: quoteResponse.trade as TxData,
-              quoteResponse,
-              requireApproval,
-            });
-            approvalTxId = batchResult.approvalMeta?.id;
-            // Fallback to just batchId if tx update doesn't return a tradeMeta
-            return batchResult.tradeMeta ?? { batchId: batchResult.batchId };
+                requireApproval,
+              });
+            approvalTxId = approvalMeta?.id;
+            return tradeMeta;
           }
           // Set approval time and id if an approval tx is needed
           const approvalTxMeta = await this.#handleApprovalTx(
@@ -1005,7 +1005,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     try {
       // Add swap or bridge tx to history
       this.#addTxToHistory({
-        bridgeTxMeta: txMeta, // Only the id and batchId fields are used by the BridgeStatusController
+        bridgeTxMeta: txMeta, // Only the id field is used by the BridgeStatusController
         statusRequest: {
           ...getStatusRequestParams(quoteResponse),
           srcTxHash: txMeta.hash,
