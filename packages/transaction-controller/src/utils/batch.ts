@@ -495,7 +495,6 @@ async function addTransactionBatchWithHook(
     let result = await publishBatchHook(hookParams);
 
     log('Publish batch hook result', result);
-    console.log('Publish batch hook result', result);
 
     if (result && !Array.isArray(result?.results)) {
       log('Fallback to sequential publish batch hook due to empty results');
