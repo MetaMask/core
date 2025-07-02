@@ -68,7 +68,6 @@ import {
   getClientRequest,
   getKeyringRequest,
   getStatusRequestParams,
-  getTxMetaFields,
   getUSDTAllowanceResetTx,
   handleLineaDelay,
   handleSolanaTxResponse,
@@ -646,7 +645,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   readonly #handleApprovalTx = async (
     isBridgeTx: boolean,
     quoteResponse: QuoteResponse<string | TxData> & QuoteMetadata,
-    requireApproval = false,
   ): Promise<TransactionMeta | undefined> => {
     const { approval } = quoteResponse;
 
@@ -659,8 +657,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             ? TransactionType.bridgeApproval
             : TransactionType.swapApproval,
           trade: approval,
-          quoteResponse,
-          requireApproval,
         });
 
         await handleLineaDelay(quoteResponse);
@@ -690,25 +686,16 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param params - The parameters for the transaction
    * @param params.transactionType - The type of transaction to submit
    * @param params.trade - The trade data to confirm
-   * @param params.quoteResponse - The quote response
-   * @param params.approvalTxId - The tx id of the approval tx
-   * @param params.shouldWaitForHash - Whether to wait for the hash of the transaction
    * @param params.requireApproval - Whether to require approval for the transaction
    * @returns The transaction meta
    */
   readonly #handleEvmTransaction = async ({
     transactionType,
     trade,
-    quoteResponse,
-    approvalTxId,
-    shouldWaitForHash = true,
     requireApproval = false,
   }: {
     transactionType: TransactionType;
     trade: TxData;
-    quoteResponse: Omit<QuoteResponse, 'approval' | 'trade'> & QuoteMetadata;
-    approvalTxId?: string;
-    shouldWaitForHash?: boolean;
     requireApproval?: boolean;
   }): Promise<TransactionMeta> => {
     const actionId = generateActionId().toString();
@@ -752,19 +739,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       )),
     };
 
-    const { result, transactionMeta } = await this.#addTransactionFn(
+    const { result } = await this.#addTransactionFn(
       transactionParamsWithMaxGas,
       requestOptions,
     );
 
-    if (shouldWaitForHash) {
-      return await this.#waitForHashAndReturnFinalTxMeta(result);
-    }
-
-    return {
-      ...getTxMetaFields(quoteResponse, approvalTxId),
-      ...transactionMeta,
-    };
+    return await this.#waitForHashAndReturnFinalTxMeta(result);
   };
 
   readonly #handleUSDTAllowanceReset = async (
@@ -778,7 +758,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       await this.#handleEvmTransaction({
         transactionType: TransactionType.bridgeApproval,
         trade: resetApproval,
-        quoteResponse,
       });
     }
   };
@@ -976,7 +955,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           const approvalTxMeta = await this.#handleApprovalTx(
             isBridgeTx,
             quoteResponse,
-            requireApproval,
           );
           approvalTxId = approvalTxMeta?.id;
           return await this.#handleEvmTransaction({
@@ -984,8 +962,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               ? TransactionType.bridge
               : TransactionType.swap,
             trade: quoteResponse.trade as TxData,
-            quoteResponse,
-            approvalTxId,
             requireApproval,
           });
         },

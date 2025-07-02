@@ -232,7 +232,7 @@ export const getClientRequest = (
   };
 };
 
-const toBatchTxParams = async (
+export const toBatchTxParams = (
   disable7702: boolean,
   { chainId, gasLimit, ...trade }: TxData,
   {
@@ -240,7 +240,7 @@ const toBatchTxParams = async (
     maxPriorityFeePerGas,
     gas,
   }: { maxFeePerGas?: string; maxPriorityFeePerGas?: string; gas?: string },
-): Promise<BatchTransactionParams> => {
+): BatchTransactionParams => {
   const params = {
     ...trade,
     data: trade.data as `0x${string}`,
@@ -276,12 +276,12 @@ export const getAddTransactionBatchParams = async ({
 }: {
   messagingSystem: BridgeStatusControllerMessenger;
   isBridgeTx: boolean;
-  approval?: TxData;
-  resetApproval?: TxData;
   trade: TxData;
   quoteResponse: Omit<QuoteResponse, 'approval' | 'trade'> & QuoteMetadata;
-  requireApproval?: boolean;
   estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee;
+  approval?: TxData;
+  resetApproval?: TxData;
+  requireApproval?: boolean;
 }) => {
   const selectedAccount = messagingSystem.call(
     'AccountsController:getAccountByAddress',

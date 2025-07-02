@@ -3,32 +3,32 @@ import type { FeeMarketGasFeeEstimates } from '@metamask/transaction-controller'
 import { GasFeeEstimateLevel } from '@metamask/transaction-controller';
 import { BigNumber } from 'bignumber.js';
 
-import { getTxGasEstimates } from './gas';
+import { calculateGasFees, getTxGasEstimates } from './gas';
+
+// Mock data
+const mockTxGasFeeEstimates = {
+  type: 'fee-market',
+  [GasFeeEstimateLevel.Low]: {
+    maxFeePerGas: '0x1234567890',
+    maxPriorityFeePerGas: '0x1234567890',
+  },
+  [GasFeeEstimateLevel.Medium]: {
+    maxFeePerGas: '0x1234567890',
+    maxPriorityFeePerGas: '0x1234567890',
+  },
+  [GasFeeEstimateLevel.High]: {
+    maxFeePerGas: '0x1234567890',
+    maxPriorityFeePerGas: '0x1234567890',
+  },
+} as FeeMarketGasFeeEstimates;
+
+const mockNetworkGasFeeEstimates = {
+  estimatedBaseFee: '0.00000001',
+} as GasFeeState['gasFeeEstimates'];
 
 describe('gas calculation utils', () => {
   describe('getTxGasEstimates', () => {
     it('should return gas fee estimates with baseAndPriorityFeePerGas when maxPriorityFeePerGas is provided', () => {
-      // Mock data
-      const mockTxGasFeeEstimates = {
-        type: 'fee-market',
-        [GasFeeEstimateLevel.Low]: {
-          maxFeePerGas: '0x1234567890',
-          maxPriorityFeePerGas: '0x1234567890',
-        },
-        [GasFeeEstimateLevel.Medium]: {
-          maxFeePerGas: '0x1234567890',
-          maxPriorityFeePerGas: '0x1234567890',
-        },
-        [GasFeeEstimateLevel.High]: {
-          maxFeePerGas: '0x1234567890',
-          maxPriorityFeePerGas: '0x1234567890',
-        },
-      } as FeeMarketGasFeeEstimates;
-
-      const mockNetworkGasFeeEstimates = {
-        estimatedBaseFee: '0.00000001',
-      } as GasFeeState['gasFeeEstimates'];
-
       // Call the function
       const result = getTxGasEstimates({
         txGasFeeEstimates: mockTxGasFeeEstimates,
@@ -46,17 +46,12 @@ describe('gas calculation utils', () => {
     });
 
     it('should handle missing high property in txGasFeeEstimates', () => {
-      // Mock data
-      const mockTxGasFeeEstimates = {} as FeeMarketGasFeeEstimates;
-
-      const mockNetworkGasFeeEstimates = {
-        estimatedBaseFee: '0.00000001',
-      } as GasFeeState['gasFeeEstimates'];
-
       // Call the function
       const result = getTxGasEstimates({
-        txGasFeeEstimates: mockTxGasFeeEstimates,
-        networkGasFeeEstimates: mockNetworkGasFeeEstimates,
+        txGasFeeEstimates: {} as never,
+        networkGasFeeEstimates: {
+          estimatedBaseFee: '0.00000001',
+        } as GasFeeState['gasFeeEstimates'],
       });
 
       // Verify the result
@@ -69,28 +64,11 @@ describe('gas calculation utils', () => {
 
     it('should use default estimatedBaseFee when not provided in networkGasFeeEstimates', () => {
       // Mock data
-      const mockTxGasFeeEstimates = {
-        type: 'fee-market',
-        [GasFeeEstimateLevel.Low]: {
-          maxFeePerGas: '0x1234567890',
-          maxPriorityFeePerGas: '0x1234567890',
-        },
-        [GasFeeEstimateLevel.Medium]: {
-          maxFeePerGas: '0x1234567890',
-          maxPriorityFeePerGas: '0x1234567890',
-        },
-        [GasFeeEstimateLevel.High]: {
-          maxFeePerGas: '0x1234567890',
-          maxPriorityFeePerGas: '0x1234567890',
-        },
-      } as FeeMarketGasFeeEstimates;
-
-      const mockNetworkGasFeeEstimates = {} as GasFeeState['gasFeeEstimates'];
 
       // Call the function
       const result = getTxGasEstimates({
         txGasFeeEstimates: mockTxGasFeeEstimates,
-        networkGasFeeEstimates: mockNetworkGasFeeEstimates,
+        networkGasFeeEstimates: {},
       });
 
       // Verify the result
@@ -100,6 +78,48 @@ describe('gas calculation utils', () => {
           .plus('0x1234567890', 16),
         maxFeePerGas: '0x1234567890',
         maxPriorityFeePerGas: '0x1234567890',
+      });
+    });
+  });
+
+  describe('calculateGasFees', () => {
+    const mockTrade = {
+      chainId: 1,
+      gasLimit: 1231,
+      to: '0x1',
+      data: '0x1',
+      from: '0x1',
+      value: '0x1',
+    };
+    it('should return empty object if 7702 is enabled (disable7702 is false)', async () => {
+      const result = await calculateGasFees(
+        false,
+        null as never,
+        jest.fn(),
+        mockTrade,
+        'mainnet',
+        '0x1',
+      );
+      expect(result).toStrictEqual({});
+    });
+
+    it('should txFee when provided', async () => {
+      const result = await calculateGasFees(
+        true,
+        null as never,
+        jest.fn(),
+        mockTrade,
+        'mainnet',
+        '0x1',
+        {
+          maxFeePerGas: '0x1234567890',
+          maxPriorityFeePerGas: '0x1234567890',
+        },
+      );
+      expect(result).toStrictEqual({
+        maxFeePerGas: '0x1234567890',
+        maxPriorityFeePerGas: '0x1234567890',
+        gas: '1231',
       });
     });
   });

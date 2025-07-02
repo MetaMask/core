@@ -2400,6 +2400,29 @@ describe('BridgeStatusController', () => {
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
     });
 
+    it('should throw error if account is not found', async () => {
+      mockMessengerCall.mockReturnValueOnce(undefined);
+      mockMessengerCall.mockReturnValueOnce('arbitrum');
+      mockMessengerCall.mockReturnValueOnce({
+        gasFeeEstimates: { estimatedBaseFee: '0x1234' },
+      });
+
+      const { controller, startPollingForBridgeTxStatusSpy } =
+        getController(mockMessengerCall);
+      await expect(
+        controller.submitTx(mockEvmQuoteResponse, true),
+      ).rejects.toThrow(
+        'Failed to submit cross-chain swap batch transaction: unknown account in trade data',
+      );
+      controller.stopAllPolling();
+
+      expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
+      expect(estimateGasFeeFn).not.toHaveBeenCalled();
+      expect(addTransactionFn).not.toHaveBeenCalled();
+      expect(addTransactionBatchFn).not.toHaveBeenCalled();
+      expect(mockMessengerCall).toHaveBeenCalledTimes(3);
+    });
+
     it('should throw error if batched tx is not found', async () => {
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum');
