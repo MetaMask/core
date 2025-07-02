@@ -1742,7 +1742,7 @@ export type PublishBatchHookRequest = {
 export type PublishBatchHookResult =
   | {
       /** Result data for each transaction in the batch. */
-      results: {
+      results?: {
         /** Hash of the transaction on the network. */
         transactionHash: Hex;
       }[];

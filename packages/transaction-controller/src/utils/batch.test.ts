@@ -117,6 +117,23 @@ const TRANSACTIONS_BATCH_MOCK = [
   },
 ];
 
+const PUBLISH_BATCH_HOOK_PARAMS = {
+  from: FROM_MOCK,
+  networkClientId: NETWORK_CLIENT_ID_MOCK,
+  transactions: [
+    {
+      id: TRANSACTION_ID_MOCK,
+      params: TRANSACTION_BATCH_PARAMS_MOCK,
+      signedTx: TRANSACTION_SIGNATURE_MOCK,
+    },
+    {
+      id: TRANSACTION_ID_2_MOCK,
+      params: TRANSACTION_BATCH_PARAMS_MOCK,
+      signedTx: TRANSACTION_SIGNATURE_2_MOCK,
+    },
+  ],
+};
+
 /**
  * Mocks the `ApprovalController:addRequest` action for the `requestApproval` function in `batch.ts`.
  *
@@ -816,22 +833,9 @@ describe('Batch Utils', () => {
         await flushPromises();
 
         expect(publishBatchHook).toHaveBeenCalledTimes(1);
-        expect(publishBatchHook).toHaveBeenCalledWith({
-          from: FROM_MOCK,
-          networkClientId: NETWORK_CLIENT_ID_MOCK,
-          transactions: [
-            {
-              id: TRANSACTION_ID_MOCK,
-              params: TRANSACTION_BATCH_PARAMS_MOCK,
-              signedTx: TRANSACTION_SIGNATURE_MOCK,
-            },
-            {
-              id: TRANSACTION_ID_2_MOCK,
-              params: TRANSACTION_BATCH_PARAMS_MOCK,
-              signedTx: TRANSACTION_SIGNATURE_2_MOCK,
-            },
-          ],
-        });
+        expect(publishBatchHook).toHaveBeenCalledWith(
+          PUBLISH_BATCH_HOOK_PARAMS,
+        );
       });
 
       it('resolves individual publish hooks with transaction hashes from publish batch hook', async () => {
@@ -1319,22 +1323,9 @@ describe('Batch Utils', () => {
       const assertSequentialPublishBatchHookCalled = () => {
         expect(sequentialPublishBatchHookMock).toHaveBeenCalledTimes(1);
         expect(sequentialPublishBatchHook).toHaveBeenCalledTimes(1);
-        expect(sequentialPublishBatchHook).toHaveBeenCalledWith({
-          from: FROM_MOCK,
-          networkClientId: NETWORK_CLIENT_ID_MOCK,
-          transactions: [
-            {
-              id: TRANSACTION_ID_MOCK,
-              params: TRANSACTION_BATCH_PARAMS_MOCK,
-              signedTx: TRANSACTION_SIGNATURE_MOCK,
-            },
-            {
-              id: TRANSACTION_ID_2_MOCK,
-              params: TRANSACTION_BATCH_PARAMS_MOCK,
-              signedTx: TRANSACTION_SIGNATURE_2_MOCK,
-            },
-          ],
-        });
+        expect(sequentialPublishBatchHook).toHaveBeenCalledWith(
+          PUBLISH_BATCH_HOOK_PARAMS,
+        );
       };
 
       it('throws if simulation is not supported', async () => {
@@ -1455,6 +1446,45 @@ describe('Batch Utils', () => {
         );
 
         assertSequentialPublishBatchHookCalled();
+
+        const result = await resultPromise;
+        expect(result?.batchId).toMatch(/^0x[0-9a-f]{32}$/u);
+      });
+
+      it('falls back sequentialPublishBatchHook when publishBatchHook returns empty results', async () => {
+        const { approve } = mockRequestApproval(MESSENGER_MOCK, {
+          state: 'approved',
+        });
+        mockSequentialPublishBatchHookResults();
+        setupSequentialPublishBatchHookMock(() => sequentialPublishBatchHook);
+        const publishBatchHookMock = jest
+          .fn()
+          .mockResolvedValue({ results: {} });
+
+        const resultPromise = addTransactionBatch({
+          ...request,
+          publishBatchHook: publishBatchHookMock,
+          messenger: MESSENGER_MOCK,
+          request: {
+            ...request.request,
+            origin: ORIGIN_MOCK,
+            disable7702: true,
+            disableHook: false,
+            disableSequential: false,
+          },
+        }).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+        approve();
+        await executePublishHooks();
+
+        assertSequentialPublishBatchHookCalled();
+        expect(publishBatchHookMock).toHaveBeenCalledTimes(1);
+        expect(publishBatchHookMock).toHaveBeenCalledWith(
+          PUBLISH_BATCH_HOOK_PARAMS,
+        );
 
         const result = await resultPromise;
         expect(result?.batchId).toMatch(/^0x[0-9a-f]{32}$/u);

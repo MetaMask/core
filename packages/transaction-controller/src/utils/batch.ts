@@ -488,17 +488,22 @@ async function addTransactionBatchWithHook(
       signedTx: signedTransactions[index],
     }));
 
-    log('Calling publish batch hook', { from, networkClientId, transactions });
+    const hookParams = { from, networkClientId, transactions };
 
-    const result = await publishBatchHook({
-      from,
-      networkClientId,
-      transactions,
-    });
+    log('Calling publish batch hook', hookParams);
+
+    let result = await publishBatchHook(hookParams);
 
     log('Publish batch hook result', result);
+    console.log('Publish batch hook result', result);
 
-    if (!result) {
+    if (result && !Array.isArray(result?.results)) {
+      log('Fallback to sequential publish batch hook due to empty results');
+      const sequentialBatchHook = sequentialPublishBatchHook.getHook();
+      result = await sequentialBatchHook(hookParams);
+    }
+
+    if (!result || !Array.isArray(result.results)) {
       throw new Error('Publish batch hook did not return a result');
     }
 
