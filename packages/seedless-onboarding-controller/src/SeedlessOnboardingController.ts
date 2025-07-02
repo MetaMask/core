@@ -1652,8 +1652,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     if (
       !value || // value is not defined
       typeof value !== 'object' || // value is not an object
-      !('authTokens' in value) || // authTokens is not defined
-      typeof value.authTokens !== 'object' || // authTokens is not an object
       !('toprfEncryptionKey' in value) || // toprfEncryptionKey is not defined
       typeof value.toprfEncryptionKey !== 'string' || // toprfEncryptionKey is not a string
       !('toprfPwEncryptionKey' in value) || // toprfPwEncryptionKey is not defined

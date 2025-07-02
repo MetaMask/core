@@ -502,8 +502,6 @@ async function decryptVault(vault: string, password: string) {
 function getMockInitialControllerState(options?: {
   withMockAuthenticatedUser?: boolean;
   withoutMockRevokeToken?: boolean;
-  withoutMockAccessToken?: boolean;
-  withoutMockMetadataAccessToken?: boolean;
   withMockAuthPubKey?: boolean;
   authPubKey?: string;
   vault?: string;
@@ -533,11 +531,9 @@ function getMockInitialControllerState(options?: {
     state.userId = userId;
     state.refreshToken = refreshToken;
     state.metadataAccessToken = metadataAccessToken;
+    state.accessToken = accessToken;
     if (!options?.withoutMockRevokeToken) {
       state.revokeToken = revokeToken;
-    }
-    if (!options?.withoutMockAccessToken) {
-      state.accessToken = accessToken;
     }
   }
 
@@ -2599,6 +2595,8 @@ describe('SeedlessOnboardingController', () => {
             authPubKey: MOCK_AUTH_PUB_KEY,
             refreshToken,
             revokeToken,
+            accessToken,
+            metadataAccessToken,
           },
         },
         async ({ controller, toprfClient }) => {
@@ -3695,7 +3693,6 @@ describe('SeedlessOnboardingController', () => {
 
           // Check if vault was re-encrypted with the new password and keys
           const expectedSerializedVaultData = JSON.stringify({
-            authTokens: controller.state.nodeAuthTokens,
             toprfEncryptionKey: bytesToBase64(newEncKey),
             toprfPwEncryptionKey: bytesToBase64(newPwEncKey),
             toprfAuthKeyPair: JSON.stringify({
@@ -3703,6 +3700,7 @@ describe('SeedlessOnboardingController', () => {
               pk: bytesToBase64(newAuthKeyPair.pk),
             }),
             revokeToken: controller.state.revokeToken,
+            accessToken: controller.state.accessToken,
           });
           expect(encryptorSpy).toHaveBeenCalledWith(
             GLOBAL_PASSWORD,
@@ -4186,6 +4184,7 @@ describe('SeedlessOnboardingController', () => {
                 pk: bytesToBase64(newAuthKeyPair.pk),
               }),
               revokeToken: controller.state.revokeToken,
+              accessToken: controller.state.accessToken,
             });
             expect(encryptorSpy).toHaveBeenCalledWith(
               GLOBAL_PASSWORD,
