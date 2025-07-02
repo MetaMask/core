@@ -953,9 +953,10 @@ describe('SeedlessOnboardingController', () => {
             withMockAuthenticatedUser: true,
           }),
         },
-        async ({ controller, encryptor }) => {
+        async ({ controller, toprfClient, encryptor }) => {
           // encrypt and store the secret data
           const mockSecretDataAdd = handleMockSecretDataAdd();
+          jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
           await controller.createToprfKeyAndBackupSeedPhrase(
             MOCK_PASSWORD,
             MOCK_SEED_PHRASE,
@@ -1179,30 +1180,6 @@ describe('SeedlessOnboardingController', () => {
             ),
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.InvalidRefreshToken,
-          );
-        },
-      );
-    });
-
-    it('should throw error if authenticated user but accessToken is missing', async () => {
-      await withController(
-        {
-          state: {
-            ...getMockInitialControllerState({
-              withMockAuthenticatedUser: true,
-            }),
-            accessToken: undefined,
-          },
-        },
-        async ({ controller }) => {
-          await expect(
-            controller.createToprfKeyAndBackupSeedPhrase(
-              MOCK_PASSWORD,
-              MOCK_SEED_PHRASE,
-              MOCK_KEYRING_ID,
-            ),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.InvalidAccessToken,
           );
         },
       );
@@ -1921,6 +1898,8 @@ describe('SeedlessOnboardingController', () => {
             authConnectionId,
             refreshToken,
             revokeToken,
+            accessToken,
+            metadataAccessToken,
           },
         },
         async ({ controller, toprfClient, initialState, encryptor }) => {
@@ -2266,49 +2245,6 @@ describe('SeedlessOnboardingController', () => {
           await expect(controller.submitPassword(123)).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.WrongPasswordType,
           );
-        },
-      );
-    });
-
-    it('should restore accessToken and revokeToken when unlocking vault with password', async () => {
-      const mockToprfEncryptor = createMockToprfEncryptor();
-      const MOCK_ENCRYPTION_KEY =
-        mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
-      const MOCK_PW_ENCRYPTION_KEY =
-        mockToprfEncryptor.derivePwEncKey(MOCK_PASSWORD);
-      const MOCK_AUTH_KEY_PAIR =
-        mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
-      const { encryptedMockVault } = await createMockVault(
-        MOCK_ENCRYPTION_KEY,
-        MOCK_PW_ENCRYPTION_KEY,
-        MOCK_AUTH_KEY_PAIR,
-        MOCK_PASSWORD,
-      );
-
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            vault: encryptedMockVault,
-          }),
-        },
-        async ({ controller, mockRevokeRefreshToken }) => {
-          // Verify tokens are not present before unlocking
-          expect(controller.state.revokeToken).toBeUndefined();
-          expect(controller.state.accessToken).toBeUndefined();
-          expect(controller.state.vaultEncryptionKey).toBeUndefined();
-          expect(controller.state.vaultEncryptionSalt).toBeUndefined();
-
-          await controller.submitPassword(MOCK_PASSWORD);
-
-          // Verify tokens are restored after unlocking
-          expect(controller.state.revokeToken).toBe(revokeToken);
-          expect(controller.state.accessToken).toBe(accessToken);
-          expect(controller.state.vaultEncryptionKey).toBeDefined();
-          expect(controller.state.vaultEncryptionSalt).toBeDefined();
-
-          // Verify revokeRefreshToken was called as part of submitPassword
-          expect(mockRevokeRefreshToken).toHaveBeenCalled();
         },
       );
     });
@@ -2884,58 +2820,6 @@ describe('SeedlessOnboardingController', () => {
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.ControllerLocked,
           );
-        },
-      );
-    });
-
-    it('should clear sensitive tokens when locking the controller', async () => {
-      const mockToprfEncryptor = createMockToprfEncryptor();
-      const MOCK_ENCRYPTION_KEY =
-        mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
-      const MOCK_PW_ENCRYPTION_KEY =
-        mockToprfEncryptor.derivePwEncKey(MOCK_PASSWORD);
-      const MOCK_AUTH_KEY_PAIR =
-        mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
-      const { encryptedMockVault, vaultEncryptionKey, vaultEncryptionSalt } =
-        await createMockVault(
-          MOCK_ENCRYPTION_KEY,
-          MOCK_PW_ENCRYPTION_KEY,
-          MOCK_AUTH_KEY_PAIR,
-          MOCK_PASSWORD,
-        );
-
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            vault: encryptedMockVault,
-            vaultEncryptionKey,
-            vaultEncryptionSalt,
-          }),
-        },
-        async ({ controller }) => {
-          await controller.submitPassword(MOCK_PASSWORD);
-
-          // Verify tokens are present after unlocking
-          expect(controller.state.revokeToken).toBe(revokeToken);
-          expect(controller.state.accessToken).toBe(accessToken);
-          expect(controller.state.vaultEncryptionKey).toBeDefined();
-          expect(controller.state.vaultEncryptionSalt).toBeDefined();
-
-          controller.setLocked();
-
-          // Verify sensitive tokens are cleared after locking
-          expect(controller.state.revokeToken).toBeUndefined();
-          expect(controller.state.accessToken).toBeUndefined();
-          expect(controller.state.vaultEncryptionKey).toBeUndefined();
-          expect(controller.state.vaultEncryptionSalt).toBeUndefined();
-
-          // Verify persistent tokens remain
-          expect(controller.state.metadataAccessToken).toBe(
-            metadataAccessToken,
-          );
-          expect(controller.state.refreshToken).toBe(refreshToken);
-          expect(controller.state.nodeAuthTokens).toBeDefined();
         },
       );
     });

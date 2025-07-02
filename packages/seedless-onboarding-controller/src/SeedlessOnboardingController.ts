@@ -1588,13 +1588,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         SeedlessOnboardingControllerErrorMessage.InvalidRefreshToken,
       );
     }
-
-    if (!('accessToken' in value) || typeof value.accessToken !== 'string') {
-      throw new Error(
-        SeedlessOnboardingControllerErrorMessage.InvalidAccessToken,
-      );
-    }
-
     if (
       !('metadataAccessToken' in value) ||
       typeof value.metadataAccessToken !== 'string'
