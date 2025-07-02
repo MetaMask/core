@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `batchId` to BridgeHistoryItem to enable querying history by batchId when txId is not defined
+
 ### Changed
 
+- **BREAKING** Add tx batching functionality, which requires an `addTransactionBatchFn` handler to be passed to the BridgeStatusController's constructor
+- **BREAKING** Make BridgeHistoryItem.txMetaId optional. Batched transactions don't immediately have a transaction ID so a transaction may be keyed using batchId until it is confirmed
 - **BREAKING:** Bump peer dependency `@metamask/snaps-controllers` from `^12.0.0` to `^14.0.0` ([#6035](https://github.com/MetaMask/core/pull/6035))
 
 ### Fixed
