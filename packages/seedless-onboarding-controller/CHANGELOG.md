@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - updated `updateBackupMetadataState` method param with `{ keyringId?: string; data: Uint8Array; type: SecretType }`. Previously , `{ keyringId: string; seedPhrase: Uint8Array }`.
 - Added `submitGlobalPassword`. ([#5995](https://github.com/MetaMask/core/pull/5995))
 - Added `storeKeyringEncryptionKey` and `loadKeyringEncryptionKey`. ([#5995](https://github.com/MetaMask/core/pull/5995))
+- Added validations in `fetchAllSecretData`. ([#6047](https://github.com/MetaMask/core/pull/6047))
+  - Throwing `NoSecretDataFound` error when the client receives the empty secret data from the metadata store.
+  - Throwing `InvalidPrimarySecretDataType` error when the first secret data backup is not a `Mnemonic`. First backup must always be a `Mnemonic`
+    since generating a new mnemonic (SRP) is the only way to create a new wallet for a Social Login user.
 
 ### Changed
 
@@ -33,6 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - removed parameter `oldPassword`
   - no longer verifying old password
   - explicitly requring unlocked controller
+- **BREAKING** Changed data structure of return values from `fetchAllSecretData`. ([#6047](https://github.com/MetaMask/core/pull/6047))
+  - Now returns `SecretMetadata[]` object instead of `Record<SecretType, Uint8Array[]>`
 
 ### Removed
 

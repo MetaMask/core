@@ -56,7 +56,7 @@
     "@metamask/accounts-controller": "^31.0.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-api": "^18.0.0",
-    "@metamask/keyring-controller": "^22.0.2",
+    "@metamask/keyring-controller": "^22.1.0",
     "@metamask/providers": "^22.1.0",
     "@metamask/snaps-controllers": "^14.0.1",
     "@types/jest": "^27.4.1",
