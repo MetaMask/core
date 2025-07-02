@@ -373,13 +373,17 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       approvalTxId,
       isStxEnabled,
     } = startPollingForBridgeTxStatusArgs;
-    const accountAddress = this.#getMultichainSelectedAccountAddress();
-    const txIdToUse = bridgeTxMeta.id ?? bridgeTxMeta.batchId;
-    if (!txIdToUse) {
+
+    // Tis identifies the history item in state
+    // If it's a batched tx, we use the batchId until the tx is confirmed and
+    // the tx id is available
+    const txHistoryKey = bridgeTxMeta.id ?? bridgeTxMeta.batchId;
+    if (!txHistoryKey) {
       throw new Error(
         'Failed to add tx to history: No batch or tx id to use as key',
       );
     }
+    const accountAddress = this.#getMultichainSelectedAccountAddress();
     // Write all non-status fields to state so we can reference the quote in Activity list without the Bridge API
     // We know it's in progress but not the exact status yet
     const txHistoryItem = {
@@ -414,7 +418,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     };
     this.update((state) => {
       // Use the txMeta.id or batchId as the key so we can reference the txMeta in TransactionController
-      state.txHistory[txIdToUse] = txHistoryItem;
+      state.txHistory[txHistoryKey] = txHistoryItem;
     });
   };
 
