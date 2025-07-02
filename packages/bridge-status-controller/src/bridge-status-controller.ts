@@ -848,28 +848,27 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       estimateGasFeeFn: this.#estimateGasFeeFn,
       ...args,
     });
-    const bridgeApprovalTxData = transactionParams.transactions.find(
-      ({ type }) => type === TransactionType.bridgeApproval,
-    )?.params.data;
-    const swapApprovalTxData = transactionParams.transactions.find(
-      ({ type }) => type === TransactionType.swapApproval,
-    )?.params.data;
-    const bridgeTxData = transactionParams.transactions.find(
-      ({ type }) => type === TransactionType.bridge,
-    )?.params.data;
-    const swapTxData = transactionParams.transactions.find(
-      ({ type }) => type === TransactionType.swap,
-    )?.params.data;
+    const txDataByType = {
+      [TransactionType.bridgeApproval]: transactionParams.transactions.find(
+        ({ type }) => type === TransactionType.bridgeApproval,
+      )?.params.data,
+      [TransactionType.swapApproval]: transactionParams.transactions.find(
+        ({ type }) => type === TransactionType.swapApproval,
+      )?.params.data,
+      [TransactionType.bridge]: transactionParams.transactions.find(
+        ({ type }) => type === TransactionType.bridge,
+      )?.params.data,
+      [TransactionType.swap]: transactionParams.transactions.find(
+        ({ type }) => type === TransactionType.swap,
+      )?.params.data,
+    };
 
     const { batchId } = await this.#addTransactionBatchFn(transactionParams);
     const { approvalMeta, tradeMeta } = findAndUpdateTransactionsInBatch({
       messagingSystem: this.messagingSystem,
       updateTransactionFn: this.#updateTransactionFn,
       batchId,
-      bridgeApprovalTxData,
-      swapApprovalTxData,
-      bridgeTxData,
-      swapTxData,
+      txDataByType,
     });
 
     return { batchId, approvalMeta, tradeMeta };

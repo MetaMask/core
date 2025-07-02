@@ -370,18 +370,12 @@ export const findAndUpdateTransactionsInBatch = ({
   messagingSystem,
   updateTransactionFn,
   batchId,
-  bridgeApprovalTxData,
-  swapApprovalTxData,
-  bridgeTxData,
-  swapTxData,
+  txDataByType,
 }: {
   messagingSystem: BridgeStatusControllerMessenger;
   updateTransactionFn: typeof TransactionController.prototype.updateTransaction;
   batchId: string;
-  bridgeApprovalTxData?: string;
-  swapApprovalTxData?: string;
-  bridgeTxData?: string;
-  swapTxData?: string;
+  txDataByType: { [key in TransactionType]?: string };
 }) => {
   const txs = messagingSystem.call(
     'TransactionController:getState',
@@ -396,58 +390,22 @@ export const findAndUpdateTransactionsInBatch = ({
 
   // This is a workaround to update the tx type after the tx is signed
   // TODO: remove this once the tx type for batch txs is preserved in the tx controller
-  const bridgeApprovalTxMeta = txs.find(
-    (txMeta) =>
-      txMeta.batchId === batchId &&
-      txMeta.txParams.data === bridgeApprovalTxData,
-  );
-  if (bridgeApprovalTxMeta) {
-    const updatedTx = {
-      ...bridgeApprovalTxMeta,
-      type: TransactionType.bridgeApproval,
-    };
-    updateTransactionFn(updatedTx, 'Update tx type to bridgeApproval');
-    txBatch.approvalMeta = updatedTx;
-  }
-
-  const swapApprovalTxMeta = txs.find(
-    (txMeta) =>
-      txMeta.batchId === batchId && txMeta.txParams.data === swapApprovalTxData,
-  );
-  if (swapApprovalTxMeta) {
-    const updatedTx = {
-      ...swapApprovalTxMeta,
-      type: TransactionType.swapApproval,
-    };
-    updateTransactionFn(updatedTx, 'Update tx type to swapApproval');
-    txBatch.approvalMeta = updatedTx;
-  }
-
-  const bridgeTxMeta = txs.find(
-    (txMeta) =>
-      txMeta.batchId === batchId && txMeta.txParams.data === bridgeTxData,
-  );
-  if (bridgeTxMeta) {
-    const updatedTx = {
-      ...bridgeTxMeta,
-      type: TransactionType.bridge,
-    };
-    updateTransactionFn(updatedTx, 'Update tx type to bridge');
-    txBatch.tradeMeta = updatedTx;
-  }
-
-  const swapTxMeta = txs.find(
-    (txMeta) =>
-      txMeta.batchId === batchId && txMeta.txParams.data === swapTxData,
-  );
-  if (swapTxMeta) {
-    const updatedTx = {
-      ...swapTxMeta,
-      type: TransactionType.swap,
-    };
-    updateTransactionFn(updatedTx, 'Update tx type to swap');
-    txBatch.tradeMeta = updatedTx;
-  }
+  Object.entries(txDataByType).forEach(([txType, txData]) => {
+    const txMeta = txs.find(
+      (tx) => tx.batchId === batchId && tx.txParams.data === txData,
+    );
+    if (txMeta) {
+      const updatedTx = { ...txMeta, type: txType as TransactionType };
+      updateTransactionFn(updatedTx, `Update tx type to ${txType}`);
+      txBatch[
+        [TransactionType.bridgeApproval, TransactionType.swapApproval].includes(
+          txType as TransactionType,
+        )
+          ? 'approvalMeta'
+          : 'tradeMeta'
+      ] = updatedTx;
+    }
+  });
 
   return txBatch;
 };
