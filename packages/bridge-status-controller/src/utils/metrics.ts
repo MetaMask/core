@@ -34,6 +34,7 @@ import type { QuoteFetchData } from '../../../bridge-controller/src/utils/metric
 export const getTxStatusesFromHistory = ({
   status,
   hasApprovalTx,
+  approvalTxId,
   quote,
 }: BridgeHistoryItem): TxStatusData => {
   const source_transaction = status.srcChain.txHash
@@ -56,7 +57,8 @@ export const getTxStatusesFromHistory = ({
     allowance_reset_transaction: isEthUsdtTx
       ? allowance_reset_transaction
       : undefined,
-    approval_transaction: hasApprovalTx ? approval_transaction : undefined,
+    approval_transaction:
+      hasApprovalTx || approvalTxId ? approval_transaction : undefined,
     source_transaction,
     destination_transaction:
       status.status === StatusTypes.FAILED
@@ -152,10 +154,13 @@ export const getEVMTxPropertiesFromTransactionMeta = (
   transactionMeta: TransactionMeta,
 ) => {
   return {
-    source_transaction:
-      transactionMeta.status === TransactionStatus.failed
-        ? StatusTypes.FAILED
-        : StatusTypes.COMPLETE,
+    source_transaction: [
+      TransactionStatus.failed,
+      TransactionStatus.dropped,
+      TransactionStatus.rejected,
+    ].includes(transactionMeta.status)
+      ? StatusTypes.FAILED
+      : StatusTypes.COMPLETE,
     error_message: transactionMeta.error?.message
       ? 'Failed to finalize swap tx'
       : undefined,
@@ -178,7 +183,10 @@ export const getEVMTxPropertiesFromTransactionMeta = (
     custom_slippage: false,
     is_hardware_wallet: false,
     swap_type:
-      transactionMeta.type === TransactionType.swap
+      transactionMeta.type &&
+      [TransactionType.swap, TransactionType.swapApproval].includes(
+        transactionMeta.type,
+      )
         ? MetricsSwapType.SINGLE
         : MetricsSwapType.CROSSCHAIN,
     security_warnings: [],

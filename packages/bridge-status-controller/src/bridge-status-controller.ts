@@ -189,7 +189,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       'TransactionController:transactionFailed',
       ({ transactionMeta }) => {
         const { type, status, id } = transactionMeta;
-
         if (
           type &&
           [
@@ -198,16 +197,22 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             TransactionType.bridgeApproval,
             TransactionType.swapApproval,
           ].includes(type) &&
-          [TransactionStatus.failed].includes(status)
+          [
+            TransactionStatus.failed,
+            TransactionStatus.dropped,
+            TransactionStatus.rejected,
+          ].includes(status)
         ) {
           // Mark tx as failed in txHistory
           this.#markTxAsFailed(transactionMeta);
           // Track failed event
-          this.#trackUnifiedSwapBridgeEvent(
-            UnifiedSwapBridgeEventName.Failed,
-            id,
-            getEVMTxPropertiesFromTransactionMeta(transactionMeta),
-          );
+          if (status !== TransactionStatus.rejected) {
+            this.#trackUnifiedSwapBridgeEvent(
+              UnifiedSwapBridgeEventName.Failed,
+              id,
+              getEVMTxPropertiesFromTransactionMeta(transactionMeta),
+            );
+          }
         }
       },
     );
@@ -239,23 +244,15 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   readonly #markTxAsFailed = ({ id }: TransactionMeta) => {
     const txHistoryKey = this.state.txHistory[id]
       ? id
-      : Object.values(this.state.txHistory).find(
-          (item) => item.approvalTxId === id,
-        )?.txMetaId;
-
+      : Object.keys(this.state.txHistory).find(
+          (key) => this.state.txHistory[key].approvalTxId === id,
+        );
     if (!txHistoryKey) {
       return;
     }
-
-    if (this.state.txHistory[id]) {
-      this.state.txHistory[id] = {
-        ...this.state.txHistory[id],
-        status: {
-          ...this.state.txHistory[id].status,
-          status: StatusTypes.FAILED,
-        },
-      };
-    }
+    this.update((statusState) => {
+      statusState.txHistory[txHistoryKey].status.status = StatusTypes.FAILED;
+    });
   };
 
   resetState = () => {
