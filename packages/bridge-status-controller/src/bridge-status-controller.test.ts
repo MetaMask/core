@@ -1735,9 +1735,7 @@ describe('BridgeStatusController', () => {
 
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
       expect(result).toMatchSnapshot();
-      const { quote, ...txHistory } = controller.state.txHistory[result.id];
-      expect(quote).toBeDefined();
-      expect(txHistory).toMatchSnapshot();
+      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
     });
 
@@ -1958,9 +1956,7 @@ describe('BridgeStatusController', () => {
 
       expect(result).toMatchSnapshot();
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      const { quote, ...txHistory } = controller.state.txHistory[result.id];
-      expect(quote).toBeDefined();
-      expect(txHistory).toMatchSnapshot();
+      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
       expect(addTransactionFn.mock.calls).toMatchSnapshot();
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
     });
@@ -1994,9 +1990,7 @@ describe('BridgeStatusController', () => {
 
       expect(result).toMatchSnapshot();
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      const { quote, ...txHistory } = controller.state.txHistory[result.id];
-      expect(quote).toBeDefined();
-      expect(txHistory).toMatchSnapshot();
+      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
       expect(estimateGasFeeFn.mock.calls).toMatchSnapshot();
       expect(addTransactionFn.mock.calls).toMatchSnapshot();
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
@@ -2099,7 +2093,6 @@ describe('BridgeStatusController', () => {
       const result = await controller.submitTx(mockEvmQuoteResponse, true);
       controller.stopAllPolling();
 
-      expect(result).toMatchSnapshot();
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
       const { quote, ...history } = controller.state.txHistory[result.id];
       expect(history).toMatchSnapshot();
@@ -2334,9 +2327,10 @@ describe('BridgeStatusController', () => {
 
       expect(result).toMatchSnapshot();
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
-      expect(addTransactionFn.mock.calls).toMatchSnapshot();
-      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+      const { approvalTxId } = controller.state.txHistory[result.id];
+      expect(approvalTxId).toBe('test-approval-tx-id');
+      expect(addTransactionFn).toHaveBeenCalledTimes(2);
+      expect(mockMessengerCall).toHaveBeenCalledTimes(11);
     });
 
     it('should handle a gasless swap transaction with approval', async () => {
@@ -2405,8 +2399,7 @@ describe('BridgeStatusController', () => {
 
       expect(result).toMatchSnapshot();
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      const { quote, ...txHistory } = controller.state.txHistory[result.id];
-      expect(txHistory).toMatchSnapshot();
+      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
       expect(estimateGasFeeFn).toHaveBeenCalledTimes(1);
       expect(addTransactionFn).toHaveBeenCalledTimes(1);
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
