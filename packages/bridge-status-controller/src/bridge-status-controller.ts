@@ -73,6 +73,7 @@ import {
   handleSolanaTxResponse,
 } from './utils/transaction';
 import { generateActionId } from './utils/transaction';
+import { replaceBatchHistoryItem } from './utils/tx-history';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
   // We want to persist the bridge status state so that we can show the proper data for the Activity list
@@ -179,30 +180,23 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // Set interval
     this.setIntervalLength(REFRESH_INTERVAL_MS);
 
-    // TODO update txHistory with the txMeta.id, approvalTxId
     this.messagingSystem.subscribe(
       'TransactionController:transactionFailed',
       ({ transactionMeta }) => {
         const { type, status, id } = transactionMeta;
+
         if (
           type &&
-          [TransactionType.bridge, TransactionType.swap].includes(type) &&
-          ![TransactionStatus.signed, TransactionStatus.approved].includes(
-            status,
-          )
+          [
+            TransactionType.bridge,
+            TransactionType.swap,
+            TransactionType.bridgeApproval,
+            TransactionType.swapApproval,
+          ].includes(type) &&
+          [TransactionStatus.failed].includes(status)
         ) {
-          // Mark tx as failed in txHistory
-          this.update((bridgeStatusState) => {
-            if (bridgeStatusState.txHistory[id]) {
-              bridgeStatusState.txHistory[id] = {
-                ...bridgeStatusState.txHistory[id],
-                status: {
-                  ...bridgeStatusState.txHistory[id].status,
-                  status: StatusTypes.FAILED,
-                },
-              };
-            }
-          });
+          // Re-key the history item with the txMeta.id and add FAILED status
+          this.#replaceBatchHistoryItem(transactionMeta);
           // Track failed event
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Failed,
@@ -213,11 +207,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       },
     );
 
-    // TODO update txHistory with the txMeta.id, approvalTxId
     this.messagingSystem.subscribe(
       'TransactionController:transactionConfirmed',
       (transactionMeta) => {
         const { type, id, chainId } = transactionMeta;
+
+        // Re-key the history item with the txMeta.id and add approvalTxId
+        this.#replaceBatchHistoryItem(transactionMeta);
+
         if (type === TransactionType.swap) {
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Completed,
@@ -236,6 +233,21 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // Check for historyItems that do not have a status of complete and restart polling
     this.#restartPollingForIncompleteHistoryItems();
   }
+
+  readonly #replaceBatchHistoryItem = (txMeta: TransactionMeta) => {
+    this.update((state) => {
+      const { newTxHistory, keysToDelete } = replaceBatchHistoryItem(
+        state.txHistory,
+        txMeta,
+      );
+      state.txHistory = {
+        ...newTxHistory,
+      };
+      keysToDelete.forEach((key) => {
+        delete state.txHistory[key];
+      });
+    });
+  };
 
   resetState = () => {
     this.update((state) => {
