@@ -52,6 +52,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/multichain-transactions-controller`](packages/multichain-transactions-controller)
 - [`@metamask/name-controller`](packages/name-controller)
 - [`@metamask/network-controller`](packages/network-controller)
+- [`@metamask/network-visibility-controller`](packages/network-visibility-controller)
 - [`@metamask/notification-services-controller`](packages/notification-services-controller)
 - [`@metamask/permission-controller`](packages/permission-controller)
 - [`@metamask/permission-log-controller`](packages/permission-log-controller)
@@ -109,6 +110,7 @@ linkStyle default opacity:0.5
   multichain_transactions_controller(["@metamask/multichain-transactions-controller"]);
   name_controller(["@metamask/name-controller"]);
   network_controller(["@metamask/network-controller"]);
+  network_visibility_controller(["@metamask/network-visibility-controller"]);
   notification_services_controller(["@metamask/notification-services-controller"]);
   permission_controller(["@metamask/permission-controller"]);
   permission_log_controller(["@metamask/permission-log-controller"]);
@@ -219,6 +221,7 @@ linkStyle default opacity:0.5
   name_controller --> controller_utils;
   network_controller --> base_controller;
   network_controller --> controller_utils;
+  network_controller --> error_reporting_service;
   network_controller --> eth_json_rpc_provider;
   network_controller --> json_rpc_engine;
   network_controller --> error_reporting_service;
