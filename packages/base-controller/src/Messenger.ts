@@ -144,6 +144,16 @@ export class Messenger<
 > {
   readonly #namespace: Namespace;
 
+  /**
+   * The parent messenger. All actions/events under this namespace are automatically delegated to
+   * the parent messenger.
+   */
+  readonly #parent?: Messenger<
+    Action | ActionConstraint,
+    Event | EventConstraint,
+    string
+  >;
+
   readonly #actions = new Map<Action['type'], Action['handler']>();
 
   readonly #events = new Map<Event['type'], EventSubscriptionMap<Event>>();
@@ -191,8 +201,19 @@ export class Messenger<
    * @param args - Constructor arguments
    * @param args.namespace - The messenger namespace.
    */
-  constructor({ namespace }: { namespace: Namespace }) {
+  constructor({
+    namespace,
+    parent,
+  }: {
+    namespace: Namespace;
+    parent?: Messenger<
+      Action | ActionConstraint,
+      Event | EventConstraint,
+      string
+    >;
+  }) {
     this.#namespace = namespace;
+    this.#parent = parent;
   }
 
   /**
@@ -218,6 +239,9 @@ export class Messenger<
       );
     }
     this.#registerActionHandler(actionType, handler);
+    if (this.#parent) {
+      this.delegate({ actions: [actionType], messenger: this.#parent });
+    }
   }
 
   /**
@@ -369,6 +393,12 @@ export class Messenger<
         }:'`,
       );
     }
+    if (
+      this.#parent &&
+      !this.#subscriptionDelegationTargets.get(eventType)?.has(this.#parent)
+    ) {
+      this.delegate({ events: [eventType], messenger: this.#parent });
+    }
     this.#registerInitialEventPayload({ eventType, getPayload });
   }
 
@@ -434,6 +464,12 @@ export class Messenger<
       throw new Error(
         `Only allowed publishing events prefixed by '${this.#namespace}:'`,
       );
+    }
+    if (
+      this.#parent &&
+      !this.#subscriptionDelegationTargets.get(eventType)?.has(this.#parent)
+    ) {
+      this.delegate({ events: [eventType], messenger: this.#parent });
     }
     this.#publish(eventType, ...payload);
   }
@@ -682,57 +718,6 @@ export class Messenger<
   }
 
   /**
-   * Delegate all internal actions and/or events to another messenger.
-   *
-   * @param args - Arguments.
-   * @param args.actions - All actions being delegated (must include all actions in namespace).
-   * @param args.events - All events to delegate (must include all events in namespace).
-   * @param args.messenger - The messenger to delegate to.
-   */
-  delegateAll<
-    InternalAction extends NamespacedAction<
-      Action,
-      Namespace
-    > = NamespacedAction<Action, Namespace>,
-    InternalEvent extends NamespacedEvent<Event, Namespace> = NamespacedEvent<
-      Event,
-      Namespace
-    >,
-    InternalNamespacedActions extends readonly (InternalAction['type'] &
-      NamespacedName<Namespace>)[] = (InternalAction['type'] &
-      NamespacedName<Namespace>)[],
-    InternalNamespacedEvents extends readonly (InternalEvent['type'] &
-      NamespacedName<Namespace>)[] = (InternalEvent['type'] &
-      NamespacedName<Namespace>)[],
-  >({
-    actions,
-    events,
-    messenger,
-  }: {
-    actions: InternalNamespacedActions &
-      ([InternalAction['type']] extends InternalNamespacedActions
-        ? unknown
-        : never);
-    events: InternalNamespacedEvents &
-      ([InternalEvent['type']] extends InternalNamespacedEvents
-        ? unknown
-        : never);
-    messenger: DelegatedMessenger<
-      NamespacedAction<Action, Namespace>,
-      NamespacedEvent<Event, Namespace>
-    >;
-  }) {
-    this.delegate<
-      NamespacedAction<Action, Namespace>,
-      NamespacedEvent<Event, Namespace>
-    >({
-      actions,
-      events,
-      messenger,
-    });
-  }
-
-  /**
    * Revoke delegated actions and/or events from another messenger.
    *
    * @param args - Arguments.
@@ -749,6 +734,9 @@ export class Messenger<
     events?: readonly DelegatedEvent['type'][];
     messenger: DelegatedMessenger<DelegatedAction, DelegatedEvent>;
   }) {
+    if (messenger === this.#parent) {
+      throw new Error('Cannot revoke from parent');
+    }
     for (const actionType of actions) {
       const delegationTargets = this.#actionDelegationTargets.get(actionType);
       if (!delegationTargets || !delegationTargets.has(messenger)) {

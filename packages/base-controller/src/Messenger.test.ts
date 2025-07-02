@@ -26,6 +26,28 @@ describe('Messenger', () => {
     expect(count).toBe(1);
   });
 
+  it('automatically delegates actions to parent upon registration', () => {
+    type CountAction = {
+      type: 'Fixture:count';
+      handler: (increment: number) => void;
+    };
+    const parentMessenger = new Messenger<CountAction, never, 'Parent'>({
+      namespace: 'Parent',
+    });
+    const messenger = new Messenger<CountAction, never, 'Fixture'>({
+      namespace: 'Fixture',
+      parent: parentMessenger,
+    });
+
+    let count = 0;
+    messenger.registerActionHandler('Fixture:count', (increment: number) => {
+      count += increment;
+    });
+    parentMessenger.call('Fixture:count', 1);
+
+    expect(count).toBe(1);
+  });
+
   it('should allow registering and calling multiple different action handlers', () => {
     // These 'Other' types are included to demonstrate that messenger generics can indeed be unions
     // of actions and events from different modules.
@@ -194,6 +216,24 @@ describe('Messenger', () => {
 
     const handler = sinon.stub();
     messenger.subscribe('Fixture:message', handler);
+    messenger.publish('Fixture:message', 'hello');
+
+    expect(handler.calledWithExactly('hello')).toBe(true);
+    expect(handler.callCount).toBe(1);
+  });
+
+  it('automatically delegates events to parent upon first publish', () => {
+    type MessageEvent = { type: 'Fixture:message'; payload: [string] };
+    const parentMessenger = new Messenger<never, MessageEvent, 'Parent'>({
+      namespace: 'Parent',
+    });
+    const messenger = new Messenger<never, MessageEvent, 'Fixture'>({
+      namespace: 'Fixture',
+      parent: parentMessenger,
+    });
+
+    const handler = sinon.stub();
+    parentMessenger.subscribe('Fixture:message', handler);
     messenger.publish('Fixture:message', 'hello');
 
     expect(handler.calledWithExactly('hello')).toBe(true);
@@ -486,6 +526,38 @@ describe('Messenger', () => {
       expect(handler.calledWithExactly('a', undefined)).toBe(true);
       expect(handler.callCount).toBe(1);
     });
+  });
+
+  it('automatically delegates to parent when an initial payload is registered', () => {
+    const state = {
+      propA: 1,
+      propB: 1,
+    };
+    type MessageEvent = {
+      type: 'Fixture:complexMessage';
+      payload: [typeof state];
+    };
+    const parentMessenger = new Messenger<never, MessageEvent, 'Parent'>({
+      namespace: 'Parent',
+    });
+    const messenger = new Messenger<never, MessageEvent, 'Fixture'>({
+      namespace: 'Fixture',
+      parent: parentMessenger,
+    });
+    const handler = sinon.stub();
+
+    messenger.registerInitialEventPayload({
+      eventType: 'Fixture:complexMessage',
+      getPayload: () => [state],
+    });
+
+    parentMessenger.subscribe('Fixture:complexMessage', handler, (obj) => obj.propA);
+    messenger.publish('Fixture:complexMessage', state);
+    expect(handler.callCount).toBe(0);
+    state.propA += 1;
+    messenger.publish('Fixture:complexMessage', state);
+    expect(handler.getCall(0)?.args).toStrictEqual([2, 1]);
+    expect(handler.callCount).toBe(1);
   });
 
   it('should publish event to many subscribers with the same selector', () => {
@@ -866,130 +938,28 @@ describe('Messenger', () => {
     });
   });
 
-  describe('delegateAll', () => {
-    it('allows delegating all events', () => {
+  describe('revoke', () => {
+    it('throws when attempting to revoke from parent', () => {
       type ExampleEvent = {
         type: 'Source:event';
         payload: ['test'];
       };
+      const parentMessenger = new Messenger<never, ExampleEvent, 'Parent'>({
+        namespace: 'Parent',
+      });
       const sourceMessenger = new Messenger<never, ExampleEvent, 'Source'>({
         namespace: 'Source',
-      });
-      const delegatedMessenger = new Messenger<
-        never,
-        ExampleEvent,
-        'Destination'
-      >({ namespace: 'Destination' });
-      const subscriber = jest.fn();
-
-      sourceMessenger.delegateAll({
-        messenger: delegatedMessenger,
-        actions: [],
-        events: ['Source:event'],
+        parent: parentMessenger,
       });
 
-      delegatedMessenger.subscribe('Source:event', subscriber);
-      sourceMessenger.publish('Source:event', 'test');
-      expect(subscriber).toHaveBeenCalledWith('test');
+      expect(() =>
+        sourceMessenger.revoke({
+          messenger: parentMessenger,
+          events: ['Source:event'],
+        }),
+      ).toThrow('Cannot revoke from parent');
     });
 
-    it('allows delegating all actions', () => {
-      type ExampleAction = {
-        type: 'Source:getLength';
-        handler: (input: string) => string;
-      };
-      const sourceMessenger = new Messenger<ExampleAction, never, 'Source'>({
-        namespace: 'Source',
-      });
-      const delegatedMessenger = new Messenger<
-        ExampleAction,
-        never,
-        'Destination'
-      >({ namespace: 'Destination' });
-      const handler = jest.fn((input) => input.length);
-      sourceMessenger.registerActionHandler('Source:getLength', handler);
-
-      sourceMessenger.delegateAll({
-        messenger: delegatedMessenger,
-        actions: ['Source:getLength'],
-        events: [],
-      });
-
-      const result = delegatedMessenger.call('Source:getLength', 'test');
-      expect(result).toBe(4);
-      expect(handler).toHaveBeenCalledWith('test');
-    });
-
-    it('has type error when delegating a subset of events', () => {
-      type ExampleEvent1 = {
-        type: 'Source:event1';
-        payload: ['test'];
-      };
-      type ExampleEvent2 = {
-        type: 'Source:event2';
-        payload: ['test'];
-      };
-      const sourceMessenger = new Messenger<
-        never,
-        ExampleEvent1 | ExampleEvent2,
-        'Source'
-      >({
-        namespace: 'Source',
-      });
-      const delegatedMessenger = new Messenger<
-        never,
-        ExampleEvent1,
-        'Destination'
-      >({ namespace: 'Destination' });
-
-      sourceMessenger.delegateAll({
-        messenger: delegatedMessenger,
-        actions: [],
-        // @ts-expect-error This error is the expected because an event is missing
-        events: ['Source:event1'],
-      });
-      // Suppress warning about missing expect
-      // TODO: Test the type using `tsd` instead of Jest
-      expect(true);
-    });
-
-    it('has type error when delegating a subset of actions', () => {
-      type ExampleAction1 = {
-        type: 'Source:getLength1';
-        handler: (input: string) => string;
-      };
-      type ExampleAction2 = {
-        type: 'Source:getLength2';
-        handler: (input: string) => string;
-      };
-      const sourceMessenger = new Messenger<
-        ExampleAction1 | ExampleAction2,
-        never,
-        'Source'
-      >({
-        namespace: 'Source',
-      });
-      const delegatedMessenger = new Messenger<
-        ExampleAction1,
-        never,
-        'Destination'
-      >({ namespace: 'Destination' });
-      const handler = jest.fn((input) => input.length);
-      sourceMessenger.registerActionHandler('Source:getLength1', handler);
-
-      sourceMessenger.delegateAll({
-        messenger: delegatedMessenger,
-        // @ts-expect-error This error is the expected because an action is missing
-        actions: ['Source:getLength1'],
-        events: [],
-      });
-      // Suppress warning about missing expect
-      // TODO: Test the type using `tsd` instead of Jest
-      expect(true);
-    });
-  });
-
-  describe('revoke', () => {
     it('allows revoking a delegated event', () => {
       type ExampleEvent = {
         type: 'Source:event';
