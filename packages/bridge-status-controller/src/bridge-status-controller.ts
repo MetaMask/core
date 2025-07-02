@@ -63,6 +63,7 @@ import {
   getTxStatusesFromHistory,
 } from './utils/metrics';
 import {
+  findAndUpdateTransactionsInBatch,
   getAddTransactionBatchParams,
   getClientRequest,
   getKeyringRequest,
@@ -110,6 +111,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
   readonly #addTransactionBatchFn: typeof TransactionController.prototype.addTransactionBatch;
 
+  readonly #updateTransactionFn: typeof TransactionController.prototype.updateTransaction;
+
   readonly #estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee;
 
   readonly #trace: TraceCallback;
@@ -121,6 +124,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     fetchFn,
     addTransactionFn,
     addTransactionBatchFn,
+    updateTransactionFn,
     estimateGasFeeFn,
     config,
     traceFn,
@@ -131,6 +135,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     fetchFn: FetchFunction;
     addTransactionFn: typeof TransactionController.prototype.addTransaction;
     addTransactionBatchFn: typeof TransactionController.prototype.addTransactionBatch;
+    updateTransactionFn: typeof TransactionController.prototype.updateTransaction;
     estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee;
     config?: {
       customBridgeApiBaseUrl?: string;
@@ -152,6 +157,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     this.#fetchFn = fetchFn;
     this.#addTransactionFn = addTransactionFn;
     this.#addTransactionBatchFn = addTransactionBatchFn;
+    this.#updateTransactionFn = updateTransactionFn;
     this.#estimateGasFeeFn = estimateGasFeeFn;
     this.#config = {
       customBridgeApiBaseUrl:
@@ -842,7 +848,31 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       estimateGasFeeFn: this.#estimateGasFeeFn,
       ...args,
     });
-    return await this.#addTransactionBatchFn(transactionParams);
+    const bridgeApprovalTxData = transactionParams.transactions.find(
+      ({ type }) => type === TransactionType.bridgeApproval,
+    )?.params.data;
+    const swapApprovalTxData = transactionParams.transactions.find(
+      ({ type }) => type === TransactionType.swapApproval,
+    )?.params.data;
+    const bridgeTxData = transactionParams.transactions.find(
+      ({ type }) => type === TransactionType.bridge,
+    )?.params.data;
+    const swapTxData = transactionParams.transactions.find(
+      ({ type }) => type === TransactionType.swap,
+    )?.params.data;
+
+    const { batchId } = await this.#addTransactionBatchFn(transactionParams);
+    const { approvalMeta, tradeMeta } = findAndUpdateTransactionsInBatch({
+      messagingSystem: this.messagingSystem,
+      updateTransactionFn: this.#updateTransactionFn,
+      batchId,
+      bridgeApprovalTxData,
+      swapApprovalTxData,
+      bridgeTxData,
+      swapTxData,
+    });
+
+    return { batchId, approvalMeta, tradeMeta };
   };
 
   /**
@@ -938,7 +968,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         },
         async () => {
           if (isStxEnabledOnClient) {
-            return await this.#handleEvmTransactionBatch({
+            const batchResult = await this.#handleEvmTransactionBatch({
               isBridgeTx,
               resetApproval: await getUSDTAllowanceResetTx(
                 this.messagingSystem,
@@ -949,6 +979,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               quoteResponse,
               requireApproval,
             });
+            approvalTxId = batchResult.approvalMeta?.id;
+            // Fallback to just batchId if tx update doesn't return a tradeMeta
+            return batchResult.tradeMeta ?? { batchId: batchResult.batchId };
           }
           // Set approval time and id if an approval tx is needed
           const approvalTxMeta = await this.#handleApprovalTx(

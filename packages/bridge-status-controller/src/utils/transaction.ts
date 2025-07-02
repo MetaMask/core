@@ -365,3 +365,83 @@ export const getAddTransactionBatchParams = async ({
 
   return transactionParams;
 };
+
+export const findAndUpdateTransactionsInBatch = ({
+  messagingSystem,
+  updateTransactionFn,
+  batchId,
+  bridgeApprovalTxData,
+  swapApprovalTxData,
+  bridgeTxData,
+  swapTxData,
+}: {
+  messagingSystem: BridgeStatusControllerMessenger;
+  updateTransactionFn: typeof TransactionController.prototype.updateTransaction;
+  batchId: string;
+  bridgeApprovalTxData?: string;
+  swapApprovalTxData?: string;
+  bridgeTxData?: string;
+  swapTxData?: string;
+}) => {
+  const txs = messagingSystem.call(
+    'TransactionController:getState',
+  ).transactions;
+  const txBatch: {
+    approvalMeta?: TransactionMeta;
+    tradeMeta?: TransactionMeta;
+  } = {
+    approvalMeta: undefined,
+    tradeMeta: undefined,
+  };
+  const bridgeApprovalTxMeta = txs.find(
+    (txMeta) =>
+      txMeta.batchId === batchId &&
+      txMeta.txParams.data === bridgeApprovalTxData,
+  );
+  if (bridgeApprovalTxMeta) {
+    const updatedTx = {
+      ...bridgeApprovalTxMeta,
+      type: TransactionType.bridgeApproval,
+    };
+    updateTransactionFn(updatedTx, 'Update tx type to bridgeApproval');
+    txBatch.approvalMeta = updatedTx;
+  }
+
+  const swapApprovalTxMeta = txs.find(
+    (txMeta) =>
+      txMeta.batchId === batchId && txMeta.txParams.data === swapApprovalTxData,
+  );
+  if (swapApprovalTxMeta) {
+    const updatedTx = {
+      ...swapApprovalTxMeta,
+      type: TransactionType.swapApproval,
+    };
+    updateTransactionFn(updatedTx, 'Update tx type to swapApproval');
+    txBatch.approvalMeta = updatedTx;
+  }
+  const bridgeTxMeta = txs.find(
+    (txMeta) =>
+      txMeta.batchId === batchId && txMeta.txParams.data === bridgeTxData,
+  );
+  if (bridgeTxMeta) {
+    const updatedTx = {
+      ...bridgeTxMeta,
+      type: TransactionType.bridge,
+    };
+    updateTransactionFn(updatedTx, 'Update tx type to bridge');
+    txBatch.tradeMeta = updatedTx;
+  }
+  const swapTxMeta = txs.find(
+    (txMeta) =>
+      txMeta.batchId === batchId && txMeta.txParams.data === swapTxData,
+  );
+  if (swapTxMeta) {
+    const updatedTx = {
+      ...swapTxMeta,
+      type: TransactionType.swap,
+    };
+    updateTransactionFn(updatedTx, 'Update tx type to swap');
+    txBatch.tradeMeta = updatedTx;
+  }
+  return txBatch;
+};
