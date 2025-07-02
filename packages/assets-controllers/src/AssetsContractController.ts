@@ -18,6 +18,7 @@ import type {
 } from '@metamask/network-controller';
 import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
 import { getKnownPropertyNames, type Hex } from '@metamask/utils';
+import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type BN from 'bn.js';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 
@@ -28,6 +29,11 @@ import {
 import { ERC20Standard } from './Standards/ERC20Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import { ERC721Standard } from './Standards/NftStandards/ERC721/ERC721Standard';
+import {
+  aggregate3,
+  type Aggregate3Call,
+  type Aggregate3Result,
+} from './multicall';
 
 /**
  * Check if token detection is enabled for certain networks
@@ -769,6 +775,80 @@ export class AssetsContractController {
     }
 
     return balance.toHexString();
+  }
+
+  /**
+   * Execute multiple contract calls using Multicall3's aggregate3 function.
+   * This allows for more efficient batch calls with individual failure handling.
+   *
+   * @param calls - Array of calls to execute via aggregate3
+   * @param networkClientId - Network Client ID to fetch the provider with
+   * @returns Promise resolving to array of results from aggregate3
+   */
+  async executeAggregate3(
+    calls: Aggregate3Call[],
+    networkClientId?: NetworkClientId,
+  ): Promise<Aggregate3Result[]> {
+    const chainId = this.#getCorrectChainId(networkClientId);
+    const provider = this.#getCorrectProvider(networkClientId);
+
+    return await aggregate3(calls, chainId, provider);
+  }
+
+  /**
+   * Get ERC20 token balances for multiple tokens using aggregate3.
+   * This is more efficient than individual balanceOf calls.
+   *
+   * @param userAddress - The user address to check balances for
+   * @param tokenAddresses - Array of ERC20 token contract addresses
+   * @param networkClientId - Network Client ID to fetch the provider with
+   * @returns Promise resolving to map of token address to balance
+   */
+  async getERC20BalancesWithAggregate3(
+    userAddress: string,
+    tokenAddresses: string[],
+    networkClientId?: NetworkClientId,
+  ): Promise<Record<string, BN>> {
+    const provider = this.#getCorrectProvider(networkClientId);
+
+    // Create a contract instance to access the interface
+    const contract = new Contract(
+      '0x0000000000000000000000000000000000000000',
+      abiERC20,
+      provider,
+    );
+
+    // Create calls for balanceOf function
+    const calls: Aggregate3Call[] = tokenAddresses.map((tokenAddress) => ({
+      target: tokenAddress,
+      allowFailure: true, // Allow individual calls to fail
+      callData: contract.interface.encodeFunctionData('balanceOf(address)', [
+        userAddress,
+      ]),
+    }));
+
+    const results = await this.executeAggregate3(calls, networkClientId);
+
+    // Process results and create balance map
+    const balanceMap: Record<string, BN> = {};
+    results.forEach((result, index) => {
+      if (result.success) {
+        try {
+          const balance = contract.interface.decodeFunctionResult(
+            'balanceOf(address)',
+            result.returnData,
+          )[0];
+          balanceMap[tokenAddresses[index]] = balance;
+        } catch (error) {
+          console.error(
+            `Error decoding balance for token ${tokenAddresses[index]}:`,
+            error,
+          );
+        }
+      }
+    });
+
+    return balanceMap;
   }
 }
 

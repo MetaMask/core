@@ -131,7 +131,7 @@ const MULTICALL_CONTRACT_BY_CHAINID = {
   '0x96f': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x3cc5': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x4571': '0xcA11bde05977b3631167028862bE2a173976CA11',
-  '0xe99': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  '0xe99': '0xca11bde05977b3631167028862be2a173976ca11',
   '0x7d0': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x1297': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x1d5e': '0xcA11bde05977b3631167028862bE2a173976CA11',
@@ -193,30 +193,11 @@ const MULTICALL_CONTRACT_BY_CHAINID = {
   '0xa1337': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x1f2b': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0xf63': '0xcA11bde05977b3631167028862bE2a173976CA11',
-  '0x144': '0xF9cda624FBC7e059355ce98a31693d299FACd963',
+  '0x144': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x118': '0xF9cda624FBC7e059355ce98a31693d299FACd963',
   '0x12c': '0xF9cda624FBC7e059355ce98a31693d299FACd963',
   '0x18995f': '0xF9cda624FBC7e059355ce98a31693d299FACd963',
   '0x2b74': '0xF9cda624FBC7e059355ce98a31693d299FACd963',
-  '0xfc': '0xcA11bde05977b3631167028862bE2a173976CA11',
-  '0x9da': '0xcA11bde05977b3631167028862bE2a173976CA11',
-  '0x137': '0xcA11bde05977b3631167028862bE2a173976CA11',
-  '0x13ed': '0xcA11bde05977b3631167028862bE2a173976CA11',
-  '0x24b1': '0xcA11bde05977b3631167028862bE2a173976CA11',
-  '0xba9302': '0xcA11bde05977b3631167028862bE2a173976CA11',
-  '0x7c8': '0xcA11bde05977b3631167028862bE2a173976CA11',
-  '0x138d5': '0xcA11bde05977b3631167028862bE2a173976CA11',
-  '0x6d': '0xcA11bde05977b3631167028862bE2a173976CA11',
-  '0x343b': '0xcA11bde05977b3631167028862bE2a173976CA11',
-  '0x34a1': '0xcA11bde05977b3631167028862bE2a173976CA11',
-  '0x3109': '0xcA11bde05977b3631167028862bE2a173976CA11',
-  '0x91b': '0xcA11bde05977b3631167028862bE2a173976CA11',
-  '0xa96': '0xcA11bde05977b3631167028862bE2a173976CA11',
-  '0x22c3': '0xcA11bde05977b3631167028862bE2a173976CA11',
-  '0x2be3': '0xcA11bde05977b3631167028862bE2a173976CA11',
-  '0xbf03': '0xcA11bde05977b3631167028862bE2a173976CA11',
-  '0x1b254': '0xcA11bde05977b3631167028862bE2a173976CA11',
-  '0xa7b14': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x2276': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x1b9e': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x6a63bb8': '0xcA11bde05977b3631167028862bE2a173976CA11',
@@ -259,6 +240,19 @@ const MULTICALL_CONTRACT_BY_CHAINID = {
   '0x221': '0xcA11bde05977b3631167028862bE2a173976CA11',
 } as Record<Hex, Hex>;
 
+// Multicall3 contract addresses by chain ID
+const MULTICALL3_CONTRACT_BY_CHAINID = {
+  '0x1': '0xcA11bde05977b3631167028862bE2a173976CA11', // Ethereum Mainnet
+  '0x5': '0xcA11bde05977b3631167028862bE2a173976CA11', // Goerli
+  '0xaa36a7': '0xcA11bde05977b3631167028862bE2a173976CA11', // Sepolia
+  '0x89': '0xcA11bde05977b3631167028862bE2a173976CA11', // Polygon
+  '0xa': '0xcA11bde05977b3631167028862bE2a173976CA11', // Optimism
+  '0xa4b1': '0xcA11bde05977b3631167028862bE2a173976CA11', // Arbitrum One
+  '0x2105': '0xcA11bde05977b3631167028862bE2a173976CA11', // Base
+  '0xe704': '0xcA11bde05977b3631167028862bE2a173976CA11', // Linea
+  '0x144': '0xcA11bde05977b3631167028862bE2a173976CA11', // zkSync Era
+} as const satisfies Record<Hex, string>;
+
 const multicallAbi = [
   {
     name: 'tryAggregate',
@@ -288,6 +282,36 @@ const multicallAbi = [
   },
 ];
 
+// Multicall3 ABI for aggregate3 function
+const multicall3Abi = [
+  {
+    name: 'aggregate3',
+    type: 'function',
+    stateMutability: 'payable',
+    inputs: [
+      {
+        name: 'calls',
+        type: 'tuple[]',
+        components: [
+          { name: 'target', type: 'address' },
+          { name: 'allowFailure', type: 'bool' },
+          { name: 'callData', type: 'bytes' },
+        ],
+      },
+    ],
+    outputs: [
+      {
+        name: 'returnData',
+        type: 'tuple[]',
+        components: [
+          { name: 'success', type: 'bool' },
+          { name: 'returnData', type: 'bytes' },
+        ],
+      },
+    ],
+  },
+];
+
 type Call = {
   contract: Contract;
   functionSignature: string;
@@ -295,6 +319,17 @@ type Call = {
 };
 
 export type MulticallResult = { success: boolean; value: unknown };
+
+export type Aggregate3Call = {
+  target: string;
+  allowFailure: boolean;
+  callData: string;
+};
+
+export type Aggregate3Result = {
+  success: boolean;
+  returnData: string;
+};
 
 const multicall = async (
   calls: Call[],
@@ -415,4 +450,46 @@ export const multicallOrFallback = async (
   }
 
   return await fallback(calls, maxCallsParallel);
+};
+
+/**
+ * Execute multiple contract calls using Multicall3's aggregate3 function.
+ * This allows for more efficient batch calls with individual failure handling.
+ *
+ * @param calls - Array of calls to execute via aggregate3
+ * @param chainId - The hexadecimal chain id
+ * @param provider - An ethers rpc provider
+ * @returns Promise resolving to array of results from aggregate3
+ */
+export const aggregate3 = async (
+  calls: Aggregate3Call[],
+  chainId: Hex,
+  provider: Web3Provider,
+): Promise<Aggregate3Result[]> => {
+  if (calls.length === 0) {
+    return [];
+  }
+
+  // Check if Multicall3 is supported on this chain
+  if (
+    !((id): id is keyof typeof MULTICALL3_CONTRACT_BY_CHAINID =>
+      id in MULTICALL3_CONTRACT_BY_CHAINID)(chainId)
+  ) {
+    throw new Error(`Multicall3 not supported on chain ${chainId}`);
+  }
+
+  const multicall3Address = MULTICALL3_CONTRACT_BY_CHAINID[chainId];
+  const multicall3Contract = new Contract(
+    multicall3Address,
+    multicall3Abi,
+    provider,
+  );
+
+  try {
+    const results = await multicall3Contract.callStatic.aggregate3(calls);
+    return results;
+  } catch (error) {
+    console.error('Error executing aggregate3:', error);
+    throw error;
+  }
 };
