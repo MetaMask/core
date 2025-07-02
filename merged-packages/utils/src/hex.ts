@@ -1,5 +1,4 @@
-import type { Struct } from '@metamask/superstruct';
-import { is, pattern, string } from '@metamask/superstruct';
+import { pattern, type Struct, string } from '@metamask/superstruct';
 import { keccak_256 as keccak256 } from '@noble/hashes/sha3';
 import memoize from 'lodash.memoize';
 
@@ -7,19 +6,28 @@ import { assert } from './assert';
 
 export type Hex = `0x${string}`;
 
-export const HexStruct = pattern(string(), /^(?:0x)?[0-9a-f]+$/iu);
-export const StrictHexStruct = pattern(string(), /^0x[0-9a-f]+$/iu) as Struct<
+// Use native regexes instead of superstruct for maximum performance.
+// Pre-compiled regex for maximum performance - avoids recompilation on each call
+const HEX_REGEX = /^(?:0x)?[0-9a-f]+$/iu;
+const STRICT_HEX_REGEX = /^0x[0-9a-f]+$/iu;
+const HEX_ADDRESS_REGEX = /^0x[0-9a-f]{40}$/u;
+const HEX_CHECKSUM_ADDRESS_REGEX = /^0x[0-9a-fA-F]{40}$/u;
+
+export const HexStruct = pattern(string(), HEX_REGEX);
+export const StrictHexStruct = pattern(string(), STRICT_HEX_REGEX) as Struct<
   Hex,
   null
 >;
-export const HexAddressStruct = pattern(
-  string(),
-  /^0x[0-9a-f]{40}$/u,
-) as Struct<Hex, null>;
+export const HexAddressStruct = pattern(string(), HEX_ADDRESS_REGEX) as Struct<
+  Hex,
+  null
+>;
 export const HexChecksumAddressStruct = pattern(
   string(),
-  /^0x[0-9a-fA-F]{40}$/u,
+  HEX_CHECKSUM_ADDRESS_REGEX,
 ) as Struct<Hex, null>;
+
+const isString = (value: unknown): value is string => typeof value === 'string';
 
 /**
  * Check if a string is a valid hex string.
@@ -28,7 +36,7 @@ export const HexChecksumAddressStruct = pattern(
  * @returns Whether the value is a valid hex string.
  */
 export function isHexString(value: unknown): value is string {
-  return is(value, HexStruct);
+  return isString(value) && HEX_REGEX.test(value);
 }
 
 /**
@@ -39,7 +47,27 @@ export function isHexString(value: unknown): value is string {
  * @returns Whether the value is a valid hex string.
  */
 export function isStrictHexString(value: unknown): value is Hex {
-  return is(value, StrictHexStruct);
+  return isString(value) && STRICT_HEX_REGEX.test(value);
+}
+
+/**
+ * Check if a string is a valid hex address.
+ *
+ * @param value - The value to check.
+ * @returns Whether the value is a valid hex address.
+ */
+export function isHexAddress(value: unknown): value is Hex {
+  return isString(value) && HEX_ADDRESS_REGEX.test(value);
+}
+
+/**
+ * Check if a string is a valid hex checksum address.
+ *
+ * @param value - The value to check.
+ * @returns Whether the value is a valid hex checksum address.
+ */
+export function isHexChecksumAddress(value: unknown): value is Hex {
+  return isString(value) && HEX_CHECKSUM_ADDRESS_REGEX.test(value);
 }
 
 /**
@@ -67,20 +95,6 @@ export function assertIsStrictHexString(value: unknown): asserts value is Hex {
 }
 
 /**
- * Validate that the passed prefixed hex string is an all-lowercase
- * hex address, or a valid mixed-case checksum address.
- *
- * @param possibleAddress - Input parameter to check against.
- * @returns Whether or not the input is a valid hex address.
- */
-export function isValidHexAddress(possibleAddress: Hex) {
-  return (
-    is(possibleAddress, HexAddressStruct) ||
-    isValidChecksumAddress(possibleAddress)
-  );
-}
-
-/**
  * Encode a passed hex string as an ERC-55 mixed-case checksum address.
  * This is the unmemoized version, primarily used for testing.
  *
@@ -89,7 +103,7 @@ export function isValidHexAddress(possibleAddress: Hex) {
  * @see https://eips.ethereum.org/EIPS/eip-55
  */
 export function getChecksumAddressUnmemoized(hexAddress: Hex): Hex {
-  assert(is(hexAddress, HexChecksumAddressStruct), 'Invalid hex address.');
+  assert(isHexChecksumAddress(hexAddress), 'Invalid hex address.');
   const address = remove0x(hexAddress).toLowerCase();
 
   const hashBytes = keccak256(address);
@@ -127,13 +141,44 @@ export const getChecksumAddress = memoize(getChecksumAddressUnmemoized);
  * @param possibleChecksum - The hex address to check.
  * @returns True if the address is a checksum address.
  */
-export function isValidChecksumAddress(possibleChecksum: Hex) {
-  if (!is(possibleChecksum, HexChecksumAddressStruct)) {
+export function isValidChecksumAddressUnmemoized(possibleChecksum: Hex) {
+  if (!isHexChecksumAddress(possibleChecksum)) {
     return false;
   }
 
   return getChecksumAddress(possibleChecksum) === possibleChecksum;
 }
+
+/**
+ * Validate that the passed hex string is a valid ERC-55 mixed-case
+ * checksum address.
+ *
+ * @param possibleChecksum - The hex address to check.
+ * @returns True if the address is a checksum address.
+ */
+export const isValidChecksumAddress = memoize(isValidChecksumAddressUnmemoized);
+
+/**
+ * Validate that the passed prefixed hex string is an all-lowercase
+ * hex address, or a valid mixed-case checksum address.
+ *
+ * @param possibleAddress - Input parameter to check against.
+ * @returns Whether or not the input is a valid hex address.
+ */
+export function isValidHexAddressUnmemoized(possibleAddress: Hex) {
+  return (
+    isHexAddress(possibleAddress) || isValidChecksumAddress(possibleAddress)
+  );
+}
+
+/**
+ * Validate that the passed prefixed hex string is an all-lowercase
+ * hex address, or a valid mixed-case checksum address.
+ *
+ * @param possibleAddress - Input parameter to check against.
+ * @returns Whether or not the input is a valid hex address.
+ */
+export const isValidHexAddress = memoize(isValidHexAddressUnmemoized);
 
 /**
  * Add the `0x`-prefix to a hexadecimal string. If the string already has the

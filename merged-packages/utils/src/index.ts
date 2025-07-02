@@ -15,6 +15,8 @@ export {
   HexChecksumAddressStruct,
   isHexString,
   isStrictHexString,
+  isHexAddress,
+  isHexChecksumAddress,
   assertIsHexString,
   assertIsStrictHexString,
   isValidHexAddress,

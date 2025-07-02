@@ -118,6 +118,8 @@ describe('index', () => {
         "isErrorWithCode",
         "isErrorWithMessage",
         "isErrorWithStack",
+        "isHexAddress",
+        "isHexChecksumAddress",
         "isHexString",
         "isJsonRpcError",
         "isJsonRpcFailure",

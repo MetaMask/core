@@ -123,6 +123,8 @@ describe('node', () => {
         "isErrorWithCode",
         "isErrorWithMessage",
         "isErrorWithStack",
+        "isHexAddress",
+        "isHexChecksumAddress",
         "isHexString",
         "isJsonRpcError",
         "isJsonRpcFailure",

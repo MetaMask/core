@@ -3,10 +3,12 @@ import {
   add0x,
   assertIsHexString,
   assertIsStrictHexString,
-  isValidChecksumAddress,
+  isValidChecksumAddressUnmemoized as isValidChecksumAddress,
   isHexString,
+  isHexAddress,
+  isHexChecksumAddress,
   isStrictHexString,
-  isValidHexAddress,
+  isValidHexAddressUnmemoized as isValidHexAddress,
   remove0x,
   getChecksumAddressUnmemoized as getChecksumAddress,
   getChecksumAddress as getChecksumAddressMemoized,
@@ -153,6 +155,100 @@ describe('assertIsStrictHexString', () => {
     expect(() => assertIsStrictHexString(hexString)).toThrow(
       'Value must be a hexadecimal string, starting with "0x".',
     );
+  });
+});
+
+describe('isHexAddress', () => {
+  it.each([
+    '0x0000000000000000000000000000000000000000',
+    '0x1234567890abcdef1234567890abcdef12345678',
+    '0xffffffffffffffffffffffffffffffffffffffff',
+    '0x0123456789abcdef0123456789abcdef01234567',
+  ])('returns true for a valid hex address', (hexString) => {
+    expect(isHexAddress(hexString)).toBe(true);
+  });
+
+  it.each([
+    true,
+    false,
+    null,
+    undefined,
+    0,
+    1,
+    {},
+    [],
+    // Missing 0x prefix
+    '0000000000000000000000000000000000000000',
+    '1234567890abcdef1234567890abcdef12345678',
+    // Wrong case prefix
+    '0X1234567890abcdef1234567890abcdef12345678',
+    // Too short
+    '0x123456789abcdef1234567890abcdef1234567',
+    '0x',
+    '0x0',
+    '0x123',
+    // Too long
+    '0x1234567890abcdef1234567890abcdef123456789',
+    '0x1234567890abcdef1234567890abcdef12345678a',
+    // Contains uppercase letters (should be lowercase only)
+    '0x1234567890ABCDEF1234567890abcdef12345678',
+    '0x1234567890abcdef1234567890ABCDEF12345678',
+    '0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF',
+    // Invalid characters
+    '0x1234567890abcdefg123456789abcdef12345678',
+    '0x1234567890abcdef1234567890abcdef1234567g',
+    '0x1234567890abcdef123456789abcdef12345678!',
+  ])('returns false for an invalid hex address', (hexString) => {
+    expect(isHexAddress(hexString)).toBe(false);
+  });
+});
+
+describe('isHexChecksumAddress', () => {
+  it.each([
+    '0x0000000000000000000000000000000000000000',
+    '0x1234567890abcdef1234567890abcdef12345678',
+    '0x1234567890ABCDEF1234567890abcdef12345678',
+    '0x1234567890abcdef1234567890ABCDEF12345678',
+    '0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF',
+    '0xffffffffffffffffffffffffffffffffffffffff',
+    '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+    '0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed',
+    '0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359',
+  ])('returns true for a valid hex checksum address', (hexString) => {
+    expect(isHexChecksumAddress(hexString)).toBe(true);
+  });
+
+  it.each([
+    true,
+    false,
+    null,
+    undefined,
+    0,
+    1,
+    {},
+    [],
+    // Missing 0x prefix
+    '0000000000000000000000000000000000000000',
+    '1234567890abcdef1234567890abcdef12345678',
+    'd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+    // Wrong case prefix
+    '0X1234567890abcdef1234567890abcdef12345678',
+    '0Xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+    // Too short
+    '0x123456789abcdef1234567890abcdef1234567',
+    '0x',
+    '0x0',
+    '0x123',
+    // Too long
+    '0x1234567890abcdef1234567890abcdef123456789',
+    '0x1234567890abcdef1234567890abcdef12345678a',
+    // Invalid characters
+    '0x1234567890abcdefg123456789abcdef12345678',
+    '0x1234567890abcdef1234567890abcdef1234567g',
+    '0x1234567890abcdef123456789abcdef12345678!',
+    '0x1234567890abcdef123456789abcdef12345678@',
+  ])('returns false for an invalid hex checksum address', (hexString) => {
+    expect(isHexChecksumAddress(hexString)).toBe(false);
   });
 });
 
