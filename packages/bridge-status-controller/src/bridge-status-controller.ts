@@ -342,7 +342,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       isStxEnabled,
     } = startPollingForBridgeTxStatusArgs;
 
-    const txHistoryKey = bridgeTxMeta.id;
     const accountAddress = this.#getMultichainSelectedAccountAddress();
     // Write all non-status fields to state so we can reference the quote in Activity list without the Bridge API
     // We know it's in progress but not the exact status yet
@@ -378,14 +377,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     };
     this.update((state) => {
       // Use the txMeta.id as the key so we can reference the txMeta in TransactionController
-      state.txHistory[txHistoryKey] = txHistoryItem;
+      state.txHistory[bridgeTxMeta.id] = txHistoryItem;
     });
   };
 
-  readonly #startPollingForTxId = (txId?: string) => {
-    if (!txId) {
-      return;
-    }
+  readonly #startPollingForTxId = (txId: string) => {
     // If we are already polling for this tx, stop polling for it before restarting
     const existingPollingToken = this.#pollingTokensByTxMetaId[txId];
     if (existingPollingToken) {
@@ -884,7 +880,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   submitTx = async (
     quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
     isStxEnabledOnClient: boolean,
-  ): Promise<Partial<TransactionMeta> & Partial<SolanaTransactionMeta>> => {
+  ): Promise<TransactionMeta & Partial<SolanaTransactionMeta>> => {
     this.messagingSystem.call('BridgeController:stopPollingForQuotes');
 
     // Before the tx is confirmed, its data is not available in txHistory

@@ -232,7 +232,7 @@ export const getClientRequest = (
   };
 };
 
-const toTransactionBatchParams = async (
+const toBatchTxParams = async (
   disable7702: boolean,
   { chainId, gasLimit, ...trade }: TxData,
   {
@@ -315,11 +315,7 @@ export const getAddTransactionBatchParams = async ({
       type: isBridgeTx
         ? TransactionType.bridgeApproval
         : TransactionType.swapApproval,
-      params: await toTransactionBatchParams(
-        disable7702,
-        resetApproval,
-        gasFees,
-      ),
+      params: await toBatchTxParams(disable7702, resetApproval, gasFees),
     });
   }
   if (approval) {
@@ -336,7 +332,7 @@ export const getAddTransactionBatchParams = async ({
       type: isBridgeTx
         ? TransactionType.bridgeApproval
         : TransactionType.swapApproval,
-      params: await toTransactionBatchParams(disable7702, approval, gasFees),
+      params: await toBatchTxParams(disable7702, approval, gasFees),
     });
   }
   const gasFees = await calculateGasFees(
@@ -350,7 +346,7 @@ export const getAddTransactionBatchParams = async ({
   );
   transactions.push({
     type: isBridgeTx ? TransactionType.bridge : TransactionType.swap,
-    params: await toTransactionBatchParams(disable7702, trade, gasFees),
+    params: await toBatchTxParams(disable7702, trade, gasFees),
   });
   const transactionParams: Parameters<
     TransactionController['addTransactionBatch']
