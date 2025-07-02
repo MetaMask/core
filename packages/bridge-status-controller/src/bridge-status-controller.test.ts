@@ -1497,7 +1497,7 @@ describe('BridgeStatusController', () => {
       expect(
         startPollingForBridgeTxStatusSpy.mock.lastCall[0],
       ).toMatchSnapshot();
-      expect(controller.state.txHistory[result.id as never]).toMatchSnapshot();
+      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
     });
 
     it('should throw error when snap ID is missing', async () => {
@@ -1735,7 +1735,9 @@ describe('BridgeStatusController', () => {
 
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
       expect(result).toMatchSnapshot();
-      expect(controller.state.txHistory[result.id as never]).toMatchSnapshot();
+      const { quote, ...txHistory } = controller.state.txHistory[result.id];
+      expect(quote).toBeDefined();
+      expect(txHistory).toMatchSnapshot();
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
     });
 
@@ -1956,7 +1958,9 @@ describe('BridgeStatusController', () => {
 
       expect(result).toMatchSnapshot();
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      expect(controller.state.txHistory[result.id as never]).toMatchSnapshot();
+      const { quote, ...txHistory } = controller.state.txHistory[result.id];
+      expect(quote).toBeDefined();
+      expect(txHistory).toMatchSnapshot();
       expect(addTransactionFn.mock.calls).toMatchSnapshot();
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
     });
@@ -1990,7 +1994,9 @@ describe('BridgeStatusController', () => {
 
       expect(result).toMatchSnapshot();
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      expect(controller.state.txHistory[result.id as never]).toMatchSnapshot();
+      const { quote, ...txHistory } = controller.state.txHistory[result.id];
+      expect(quote).toBeDefined();
+      expect(txHistory).toMatchSnapshot();
       expect(estimateGasFeeFn.mock.calls).toMatchSnapshot();
       expect(addTransactionFn.mock.calls).toMatchSnapshot();
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
@@ -2055,7 +2061,7 @@ describe('BridgeStatusController', () => {
 
       expect(result).toMatchSnapshot();
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      expect(controller.state.txHistory[result.id as never]).toMatchSnapshot();
+      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
       expect(estimateGasFeeFn.mock.calls).toMatchSnapshot();
       expect(addTransactionFn.mock.calls).toMatchSnapshot();
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
@@ -2186,7 +2192,7 @@ describe('BridgeStatusController', () => {
       expect(handleLineaDelaySpy).toHaveBeenCalledTimes(1);
       expect(result).toMatchSnapshot();
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      expect(controller.state.txHistory[result.id as never]).toMatchSnapshot();
+      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
       expect(mockTraceFn.mock.calls).toMatchSnapshot();
     });
@@ -2328,9 +2334,46 @@ describe('BridgeStatusController', () => {
 
       expect(result).toMatchSnapshot();
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      expect(controller.state.txHistory[result.id as never]).toMatchSnapshot();
+      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
       expect(addTransactionFn.mock.calls).toMatchSnapshot();
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+    });
+
+    it('should handle a gasless swap transaction with approval', async () => {
+      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+      mockMessengerCall.mockReturnValueOnce('arbitrum');
+      addTransactionBatchFn.mockResolvedValueOnce({
+        batchId: 'batchId1',
+      });
+      mockMessengerCall.mockReturnValueOnce({
+        transactions: [{ ...mockEvmTxMeta, batchId: 'batchId1' }],
+      });
+
+      const { controller, startPollingForBridgeTxStatusSpy } =
+        getController(mockMessengerCall);
+      const result = await controller.submitTx(
+        {
+          ...mockEvmQuoteResponse,
+          quote: {
+            ...mockEvmQuoteResponse.quote,
+            gasIncluded: true,
+            feeData: {
+              txFee: {
+                maxFeePerGas: '123',
+                maxPriorityFeePerGas: '123',
+              } as never,
+            } as never,
+          },
+        },
+        true,
+      );
+      controller.stopAllPolling();
+
+      expect(result).toMatchSnapshot();
+      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+      expect(addTransactionFn).not.toHaveBeenCalled();
+      expect(addTransactionBatchFn.mock.calls).toMatchSnapshot();
+      expect(mockMessengerCall).toHaveBeenCalledTimes(6);
     });
 
     it('should successfully submit an EVM swap transaction with no approval', async () => {
@@ -2362,9 +2405,10 @@ describe('BridgeStatusController', () => {
 
       expect(result).toMatchSnapshot();
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      expect(controller.state.txHistory[result.id as never]).toMatchSnapshot();
-      expect(estimateGasFeeFn.mock.calls).toMatchSnapshot();
-      expect(addTransactionFn.mock.calls).toMatchSnapshot();
+      const { quote, ...txHistory } = controller.state.txHistory[result.id];
+      expect(txHistory).toMatchSnapshot();
+      expect(estimateGasFeeFn).toHaveBeenCalledTimes(1);
+      expect(addTransactionFn).toHaveBeenCalledTimes(1);
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
     });
 
