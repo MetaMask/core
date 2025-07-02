@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `batchId` to BridgeHistoryItem to enable querying history by batchId when txId is not defined ([#6058](https://github.com/MetaMask/core/pull/6058))
+- Add `batchId` to BridgeHistoryItem to enable querying history by batchId ([#6058](https://github.com/MetaMask/core/pull/6058))
 
 ### Changed
 
