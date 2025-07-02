@@ -8,17 +8,17 @@ export type {
   AccountWallet,
   AccountWalletId,
   AccountWalletMetadata,
-  AccountWalletCategory,
   AccountGroup,
   AccountGroupId,
   AccountGroupMetadata,
+} from './AccountTreeController';
+export {
+  AccountWalletCategory,
+  AccountTreeController,
+  getDefaultAccountTreeControllerState,
   toAccountGroupId,
   toAccountWalletId,
   toDefaultAccountGroupId,
   DEFAULT_ACCOUNT_GROUP_NAME,
   DEFAULT_ACCOUNT_GROUP_UNIQUE_ID,
-} from './AccountTreeController';
-export {
-  AccountTreeController,
-  getDefaultAccountTreeControllerState,
 } from './AccountTreeController';

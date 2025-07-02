@@ -4,6 +4,7 @@ import { BaseController } from '@metamask/base-controller';
 import type {
   KeyPair,
   NodeAuthTokens,
+  RecoverEncryptionKeyResult,
   SEC1EncodedPublicKey,
 } from '@metamask/toprf-secure-backup';
 import {
@@ -328,9 +329,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           rawToprfPwEncryptionKey: pwEncKey,
           rawToprfAuthKeyPair: authKeyPair,
         });
-        this.#persistAuthPubKey({
-          authPubKey: authKeyPair.pk,
-        });
       };
 
       await this.#executeWithTokenRefresh(
@@ -391,9 +389,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @param password - The optional password used to create new wallet. If not provided, `cached Encryption Key` will be used.
    * @returns A promise that resolves to the secret data.
    */
-  async fetchAllSecretData(
-    password?: string,
-  ): Promise<Record<SecretType, Uint8Array[]>> {
+  async fetchAllSecretData(password?: string): Promise<SecretMetadata[]> {
     return await this.#withControllerLock(async () => {
       // assert that the user is authenticated before fetching the secret data
       this.#assertIsAuthenticatedUser(this.state);
@@ -416,53 +412,29 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         authKeyPair = keysFromVault.toprfAuthKeyPair;
       }
 
-      try {
-        const performFetch = async (): Promise<
-          Record<SecretType, Uint8Array[]>
-        > => {
-          const secretData = await this.toprfClient.fetchAllSecretDataItems({
-            decKey: encKey,
-            authKeyPair,
-          });
-
-          if (secretData?.length > 0 && password) {
-            // if password is provided, we need to create a new vault with the auth data. (supposedly the user is trying to rehydrate the wallet)
-            await this.#createNewVaultWithAuthData({
-              password,
-              rawToprfEncryptionKey: encKey,
-              rawToprfPwEncryptionKey: pwEncKey,
-              rawToprfAuthKeyPair: authKeyPair,
-            });
-
-            this.#persistAuthPubKey({
-              authPubKey: authKeyPair.pk,
-            });
-          }
-
-          const result: Record<SecretType, Uint8Array[]> = {
-            mnemonic: [],
-            privateKey: [],
-          };
-          const secrets =
-            SecretMetadata.parseSecretsFromMetadataStore(secretData);
-
-          secrets.forEach((secret) => {
-            result[secret.type].push(secret.data);
-          });
-
-          return result;
-        };
-
-        return await this.#executeWithTokenRefresh(
-          performFetch,
-          'fetchAllSecretData',
+      const performFetch = async (): Promise<SecretMetadata[]> => {
+        const secrets = await this.#fetchAllSecretDataFromMetadataStore(
+          encKey,
+          authKeyPair,
         );
-      } catch (error) {
-        log('Error fetching secret data', error);
-        throw new Error(
-          SeedlessOnboardingControllerErrorMessage.FailedToFetchSecretMetadata,
-        );
-      }
+
+        if (password) {
+          // if password is provided, we need to create a new vault with the auth data. (supposedly the user is trying to rehydrate the wallet)
+          await this.#createNewVaultWithAuthData({
+            password,
+            rawToprfEncryptionKey: encKey,
+            rawToprfPwEncryptionKey: pwEncKey,
+            rawToprfAuthKeyPair: authKeyPair,
+          });
+        }
+
+        return secrets;
+      };
+
+      return await this.#executeWithTokenRefresh(
+        performFetch,
+        'fetchAllSecretData',
+      );
     });
   }
 
@@ -512,9 +484,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           rawToprfAuthKeyPair: newAuthKeyPair,
         });
 
-        this.#persistAuthPubKey({
-          authPubKey: newAuthKeyPair.pk,
-        });
         this.#resetPasswordOutdatedCache();
 
         // store the keyring encryption key if it exists
@@ -661,10 +630,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           rawToprfPwEncryptionKey: pwEncKey,
           rawToprfAuthKeyPair: authKeyPair,
         });
-        // persist the latest global password authPubKey
-        this.#persistAuthPubKey({
-          authPubKey: authKeyPair.pk,
-        });
+
         this.#resetPasswordOutdatedCache();
       };
       return await this.#executeWithTokenRefresh(
@@ -961,12 +927,14 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @returns A promise that resolves to the encryption key and authentication key pair.
    * @throws RecoveryError - If failed to recover the encryption key.
    */
-  async #recoverEncKey(password: string) {
+  async #recoverEncKey(
+    password: string,
+  ): Promise<Omit<RecoverEncryptionKeyResult, 'rateLimitResetResult'>> {
+    this.#assertIsAuthenticatedUser(this.state);
+
+    const { authConnectionId, groupedAuthConnectionId, userId } = this.state;
+
     try {
-      this.#assertIsAuthenticatedUser(this.state);
-
-      const { authConnectionId, groupedAuthConnectionId, userId } = this.state;
-
       const recoverEncKeyResult = await this.toprfClient.recoverEncKey({
         nodeAuthTokens: this.state.nodeAuthTokens,
         password,
@@ -976,8 +944,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       });
       return recoverEncKeyResult;
     } catch (error) {
-      console.log('error', error);
-      console.log('isTokenExpiredError', this.#isTokenExpiredError(error));
       // throw token expired error for token refresh handler
       if (this.#isTokenExpiredError(error)) {
         throw error;
@@ -985,6 +951,43 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
 
       throw RecoveryError.getInstance(error);
     }
+  }
+
+  async #fetchAllSecretDataFromMetadataStore(
+    encKey: Uint8Array,
+    authKeyPair: KeyPair,
+  ) {
+    let secretData: Uint8Array[] = [];
+    try {
+      // fetch and decrypt the secret data from the metadata store
+      secretData = await this.toprfClient.fetchAllSecretDataItems({
+        decKey: encKey,
+        authKeyPair,
+      });
+    } catch (error) {
+      log('Error fetching secret data', error);
+      if (this.#isTokenExpiredError(error)) {
+        throw error;
+      }
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.FailedToFetchSecretMetadata,
+      );
+    }
+
+    // user must have at least one secret data
+    if (secretData?.length > 0) {
+      const secrets = SecretMetadata.parseSecretsFromMetadataStore(secretData);
+      // validate the primary secret data is a mnemonic (SRP)
+      const primarySecret = secrets[0];
+      if (primarySecret.type !== SecretType.Mnemonic) {
+        throw new Error(
+          SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
+        );
+      }
+      return secrets;
+    }
+
+    throw new Error(SeedlessOnboardingControllerErrorMessage.NoSecretDataFound);
   }
 
   /**
@@ -1337,6 +1340,11 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       password,
       serializedVaultData,
       pwEncKey: rawToprfPwEncryptionKey,
+    });
+
+    // update the authPubKey in the state
+    this.#persistAuthPubKey({
+      authPubKey: rawToprfAuthKeyPair.pk,
     });
   }
 
