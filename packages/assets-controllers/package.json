@@ -93,7 +93,7 @@
     "@metamask/snaps-controllers": "^14.0.1",
     "@metamask/transaction-controller": "^58.1.0",
     "@types/jest": "^27.4.1",
-    "@types/lodash": "^4.17.20",
+    "@types/lodash": "^4.14.191",
     "@types/node": "^16.18.54",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",

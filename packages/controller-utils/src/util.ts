@@ -322,7 +322,17 @@ function toChecksumHexAddressUnmemoized(address: unknown) {
     return hexPrefixed;
   }
 
-  return getChecksumAddress(hexPrefixed);
+  try {
+    return getChecksumAddress(hexPrefixed);
+  } catch (error) {
+    // This is necessary for backward compatibility with the old behavior of
+    // `ethereumjs-util` which would return the original string if the address
+    // was invalid.
+    if (error instanceof Error && error.message === 'Invalid hex address.') {
+      return hexPrefixed;
+    }
+    throw error;
+  }
 }
 
 /**

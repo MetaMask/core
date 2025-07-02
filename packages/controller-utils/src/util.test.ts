@@ -321,6 +321,10 @@ describe('util', () => {
       expect(util.toChecksumHexAddress(null)).toBeNull();
     });
 
+    it('should return the address untouched if it is not a valid hex address', () => {
+      expect(util.toChecksumHexAddress('0x1')).toBe('0x1');
+    });
+
     it('should memoize results for same input', () => {
       const testAddress = '4e1ff7229bddaf0a73df183a88d9c3a04cc975e0';
 
