@@ -558,6 +558,7 @@ const executePollingWithPendingStatus = async () => {
     fetchFn: jest.fn(),
     addTransactionFn: jest.fn(),
     addTransactionBatchFn: jest.fn(),
+    updateTransactionFn: jest.fn(),
     estimateGasFeeFn: jest.fn(),
     config: {},
   });
@@ -595,6 +596,7 @@ const mockSelectedAccount = {
 
 const addTransactionFn = jest.fn();
 const addTransactionBatchFn = jest.fn();
+const updateTransactionFn = jest.fn();
 const estimateGasFeeFn = jest.fn();
 
 const getController = (call: jest.Mock, traceFn?: jest.Mock) => {
@@ -611,6 +613,7 @@ const getController = (call: jest.Mock, traceFn?: jest.Mock) => {
     addTransactionFn,
     addTransactionBatchFn,
     estimateGasFeeFn,
+    updateTransactionFn,
     traceFn,
   });
 
@@ -636,6 +639,7 @@ describe('BridgeStatusController', () => {
         fetchFn: jest.fn(),
         addTransactionFn: jest.fn(),
         addTransactionBatchFn: jest.fn(),
+        updateTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
       });
       expect(bridgeStatusController.state).toStrictEqual(EMPTY_INIT_STATE);
@@ -649,6 +653,7 @@ describe('BridgeStatusController', () => {
         fetchFn: jest.fn(),
         addTransactionFn: jest.fn(),
         addTransactionBatchFn: jest.fn(),
+        updateTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
         state: {
           txHistory: MockTxHistory.getPending(),
@@ -686,6 +691,7 @@ describe('BridgeStatusController', () => {
         fetchFn: jest.fn(),
         addTransactionFn: jest.fn(),
         addTransactionBatchFn: jest.fn(),
+        updateTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
       });
       jest.advanceTimersByTime(10000);
@@ -709,6 +715,7 @@ describe('BridgeStatusController', () => {
         fetchFn: jest.fn(),
         addTransactionFn: jest.fn(),
         addTransactionBatchFn: jest.fn(),
+        updateTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
       });
 
@@ -747,6 +754,7 @@ describe('BridgeStatusController', () => {
         fetchFn: jest.fn(),
         addTransactionFn: jest.fn(),
         addTransactionBatchFn: jest.fn(),
+        updateTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
       });
       const fetchBridgeTxStatusSpy = jest.spyOn(
@@ -828,6 +836,7 @@ describe('BridgeStatusController', () => {
         fetchFn: jest.fn(),
         addTransactionFn: jest.fn(),
         addTransactionBatchFn: jest.fn(),
+        updateTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
       });
 
@@ -867,6 +876,7 @@ describe('BridgeStatusController', () => {
         fetchFn: jest.fn(),
         addTransactionFn: jest.fn(),
         addTransactionBatchFn: jest.fn(),
+        updateTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
       });
 
@@ -908,6 +918,7 @@ describe('BridgeStatusController', () => {
         fetchFn: jest.fn(),
         addTransactionFn: jest.fn(),
         addTransactionBatchFn: jest.fn(),
+        updateTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
       });
 
@@ -971,7 +982,9 @@ describe('BridgeStatusController', () => {
         fetchFn: jest.fn(),
         addTransactionFn: jest.fn(),
         addTransactionBatchFn: jest.fn(),
+        updateTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
+        traceFn: jest.fn(),
       });
 
       // Start polling with no srcTxHash
@@ -1059,6 +1072,7 @@ describe('BridgeStatusController', () => {
         fetchFn: jest.fn(),
         addTransactionFn: jest.fn(),
         addTransactionBatchFn: jest.fn(),
+        updateTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
       });
       const fetchBridgeTxStatusSpy = jest
@@ -1146,6 +1160,7 @@ describe('BridgeStatusController', () => {
         fetchFn: jest.fn(),
         addTransactionFn: jest.fn(),
         addTransactionBatchFn: jest.fn(),
+        updateTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
       });
       const fetchBridgeTxStatusSpy = jest
@@ -1247,6 +1262,7 @@ describe('BridgeStatusController', () => {
         fetchFn: jest.fn(),
         addTransactionFn: jest.fn(),
         addTransactionBatchFn: jest.fn(),
+        updateTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
       });
       const fetchBridgeTxStatusSpy = jest
@@ -2386,6 +2402,7 @@ describe('BridgeStatusController', () => {
         fetchFn: jest.fn(),
         addTransactionFn: jest.fn(),
         addTransactionBatchFn: jest.fn(),
+        updateTransactionFn: jest.fn(),
         estimateGasFeeFn: jest.fn(),
         state: {
           txHistory: {
