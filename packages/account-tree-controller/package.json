@@ -48,8 +48,8 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^8.0.1",
-    "@metamask/snaps-sdk": "^7.1.0",
-    "@metamask/snaps-utils": "^9.4.0",
+    "@metamask/snaps-sdk": "^9.0.0",
+    "@metamask/snaps-utils": "^11.0.0",
     "lodash": "^4.17.21"
   },
   "devDependencies": {
@@ -58,7 +58,7 @@
     "@metamask/keyring-api": "^18.0.0",
     "@metamask/keyring-controller": "^22.0.2",
     "@metamask/providers": "^22.1.0",
-    "@metamask/snaps-controllers": "^12.3.1",
+    "@metamask/snaps-controllers": "^14.0.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
@@ -72,7 +72,7 @@
     "@metamask/accounts-controller": "^31.0.0",
     "@metamask/keyring-controller": "^22.0.0",
     "@metamask/providers": "^22.0.0",
-    "@metamask/snaps-controllers": "^12.0.0",
+    "@metamask/snaps-controllers": "^14.0.0",
     "webextension-polyfill": "^0.10.0 || ^0.11.0 || ^0.12.0"
   },
   "engines": {

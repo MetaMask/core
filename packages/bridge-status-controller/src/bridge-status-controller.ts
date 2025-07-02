@@ -20,7 +20,7 @@ import {
 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { toHex } from '@metamask/controller-utils';
-import { EthAccountType, SolScope } from '@metamask/keyring-api';
+import { SolScope } from '@metamask/keyring-api';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type {
   TransactionController,
@@ -31,7 +31,6 @@ import {
   TransactionType,
   type TransactionMeta,
 } from '@metamask/transaction-controller';
-import type { UserOperationController } from '@metamask/user-operation-controller';
 import { numberToHex, type Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
@@ -111,8 +110,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
   readonly #estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee;
 
-  readonly #addUserOperationFromTransactionFn?: typeof UserOperationController.prototype.addUserOperationFromTransaction;
-
   readonly #trace: TraceCallback;
 
   constructor({
@@ -121,7 +118,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     clientId,
     fetchFn,
     addTransactionFn,
-    addUserOperationFromTransactionFn,
     estimateGasFeeFn,
     config,
     traceFn,
@@ -132,7 +128,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     fetchFn: FetchFunction;
     addTransactionFn: typeof TransactionController.prototype.addTransaction;
     estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee;
-    addUserOperationFromTransactionFn?: typeof UserOperationController.prototype.addUserOperationFromTransaction;
     config?: {
       customBridgeApiBaseUrl?: string;
     };
@@ -152,7 +147,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     this.#clientId = clientId;
     this.#fetchFn = fetchFn;
     this.#addTransactionFn = addTransactionFn;
-    this.#addUserOperationFromTransactionFn = addUserOperationFromTransactionFn;
     this.#estimateGasFeeFn = estimateGasFeeFn;
     this.#config = {
       customBridgeApiBaseUrl:
@@ -192,6 +186,19 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             status,
           )
         ) {
+          // Mark tx as failed in txHistory
+          this.update((bridgeStatusState) => {
+            if (bridgeStatusState.txHistory[id]) {
+              bridgeStatusState.txHistory[id] = {
+                ...bridgeStatusState.txHistory[id],
+                status: {
+                  ...bridgeStatusState.txHistory[id].status,
+                  status: StatusTypes.FAILED,
+                },
+              };
+            }
+          });
+          // Track failed event
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Failed,
             id,
@@ -204,13 +211,16 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     this.messagingSystem.subscribe(
       'TransactionController:transactionConfirmed',
       (transactionMeta) => {
-        const { type, id } = transactionMeta;
+        const { type, id, chainId } = transactionMeta;
         if (type === TransactionType.swap) {
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Completed,
             id,
             getEVMTxPropertiesFromTransactionMeta(transactionMeta),
           );
+        }
+        if (type === TransactionType.bridge && !isSolanaChainId(chainId)) {
+          this.#startPollingForTxId(id);
         }
       },
     );
@@ -283,9 +293,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
       // We manually call startPolling() here rather than go through startPollingForBridgeTxStatus()
       // because we don't want to overwrite the existing historyItem in state
-      this.#pollingTokensByTxMetaId[bridgeTxMetaId] = this.startPolling({
-        bridgeTxMetaId,
-      });
+      this.#startPollingForTxId(bridgeTxMetaId);
     });
   };
 
@@ -341,27 +349,39 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     });
   };
 
+  readonly #startPollingForTxId = (txId: string) => {
+    // If we are already polling for this tx, stop polling for it before restarting
+    const existingPollingToken = this.#pollingTokensByTxMetaId[txId];
+    if (existingPollingToken) {
+      this.stopPollingByPollingToken(existingPollingToken);
+    }
+
+    const txHistoryItem = this.state.txHistory[txId];
+    if (!txHistoryItem) {
+      return;
+    }
+    const { quote } = txHistoryItem;
+
+    const isBridgeTx = isCrossChain(quote.srcChainId, quote.destChainId);
+    if (isBridgeTx) {
+      this.#pollingTokensByTxMetaId[txId] = this.startPolling({
+        bridgeTxMetaId: txId,
+      });
+    }
+  };
+
   /**
-   * Starts polling for the bridge tx status
+   * Adds tx to history and starts polling for the bridge tx status
    *
    * @param txHistoryMeta - The parameters for creating the history item
    */
   startPollingForBridgeTxStatus = (
     txHistoryMeta: StartPollingForBridgeTxStatusArgsSerialized,
   ) => {
-    const { quoteResponse, bridgeTxMeta } = txHistoryMeta;
+    const { bridgeTxMeta } = txHistoryMeta;
 
     this.#addTxToHistory(txHistoryMeta);
-
-    const isBridgeTx = isCrossChain(
-      quoteResponse.quote.srcChainId,
-      quoteResponse.quote.destChainId,
-    );
-    if (isBridgeTx) {
-      this.#pollingTokensByTxMetaId[bridgeTxMeta.id] = this.startPolling({
-        bridgeTxMetaId: bridgeTxMeta.id,
-      });
-    }
+    this.#startPollingForTxId(bridgeTxMeta.id);
   };
 
   // This will be called after you call this.startPolling()
@@ -578,11 +598,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   readonly #waitForHashAndReturnFinalTxMeta = async (
-    hashPromise?:
-      | Awaited<ReturnType<TransactionController['addTransaction']>>['result']
-      | Awaited<
-          ReturnType<UserOperationController['addUserOperationFromTransaction']>
-        >['hash'],
+    hashPromise?: Awaited<
+      ReturnType<TransactionController['addTransaction']>
+    >['result'],
   ): Promise<TransactionMeta> => {
     const transactionHash = await hashPromise;
     const finalTransactionMeta: TransactionMeta | undefined =
@@ -733,39 +751,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       )),
     };
 
-    let result:
-      | Awaited<ReturnType<TransactionController['addTransaction']>>['result']
-      | Awaited<
-          ReturnType<UserOperationController['addUserOperationFromTransaction']>
-        >['hash']
-      | undefined;
-    let transactionMeta: TransactionMeta | undefined;
-
-    const isSmartContractAccount =
-      selectedAccount.type === EthAccountType.Erc4337;
-    if (isSmartContractAccount && this.#addUserOperationFromTransactionFn) {
-      const smartAccountTxResult =
-        await this.#addUserOperationFromTransactionFn(
-          transactionParamsWithMaxGas,
-          requestOptions,
-        );
-      result = smartAccountTxResult.transactionHash;
-      transactionMeta = {
-        ...requestOptions,
-        chainId: hexChainId,
-        txParams: transactionParamsWithMaxGas,
-        time: Date.now(),
-        id: smartAccountTxResult.id,
-        status: TransactionStatus.confirmed,
-      };
-    } else {
-      const addTransactionResult = await this.#addTransactionFn(
-        transactionParamsWithMaxGas,
-        requestOptions,
-      );
-      result = addTransactionResult.result;
-      transactionMeta = addTransactionResult.transactionMeta;
-    }
+    const { result, transactionMeta } = await this.#addTransactionFn(
+      transactionParamsWithMaxGas,
+      requestOptions,
+    );
 
     if (shouldWaitForHash) {
       return await this.#waitForHashAndReturnFinalTxMeta(result);
@@ -950,8 +939,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     }
 
     try {
-      // Start polling for bridge tx status
-      this.startPollingForBridgeTxStatus({
+      // Add swap or bridge tx to history
+      this.#addTxToHistory({
         bridgeTxMeta: txMeta, // Only the id field is used by the BridgeStatusController
         statusRequest: {
           ...getStatusRequestParams(quoteResponse),
@@ -963,12 +952,17 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         startTime: approvalTime ?? Date.now(),
         approvalTxId,
       });
-      // Track Solana Swap completed event
-      if (isSolanaChainId(quoteResponse.quote.srcChainId) && !isBridgeTx) {
-        this.#trackUnifiedSwapBridgeEvent(
-          UnifiedSwapBridgeEventName.Completed,
-          txMeta.id,
-        );
+
+      if (isSolanaChainId(quoteResponse.quote.srcChainId)) {
+        // Start polling for bridge tx status
+        this.#startPollingForTxId(txMeta.id);
+        // Track Solana Swap completed event
+        if (!isBridgeTx) {
+          this.#trackUnifiedSwapBridgeEvent(
+            UnifiedSwapBridgeEventName.Completed,
+            txMeta.id,
+          );
+        }
       }
     } catch {
       // Ignore errors here, we don't want to crash the app if this fails and tx submission succeeds
