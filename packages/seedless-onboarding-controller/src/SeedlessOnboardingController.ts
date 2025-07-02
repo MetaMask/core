@@ -975,21 +975,19 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     }
 
     // user must have at least one secret data
-    if (secretData.length === 0) {
-      throw new Error(
-        SeedlessOnboardingControllerErrorMessage.NoSecretDataFound,
-      );
+    if (secretData?.length > 0) {
+      const secrets = SecretMetadata.parseSecretsFromMetadataStore(secretData);
+      // validate the primary secret data is a mnemonic (SRP)
+      const primarySecret = secrets[0];
+      if (primarySecret.type !== SecretType.Mnemonic) {
+        throw new Error(
+          SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
+        );
+      }
+      return secrets;
     }
 
-    const secrets = SecretMetadata.parseSecretsFromMetadataStore(secretData);
-    // validate the primary secret data is a mnemonic (SRP)
-    const primarySecret = secrets[0];
-    if (primarySecret.type !== SecretType.Mnemonic) {
-      throw new Error(
-        SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
-      );
-    }
-    return secrets;
+    throw new Error(SeedlessOnboardingControllerErrorMessage.NoSecretDataFound);
   }
 
   /**
