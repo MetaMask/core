@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Preserve type of nested transactions in batch if specified in `TransactionBatchSingleRequest` ([]())
+
 ## [58.1.0]
 
 ### Added

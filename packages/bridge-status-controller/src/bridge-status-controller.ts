@@ -6,9 +6,6 @@ import type {
   QuoteResponse,
 } from '@metamask/bridge-controller';
 import {
-  formatChainIdToHex,
-  getEthUsdtResetData,
-  isEthUsdt,
   isSolanaChainId,
   StatusTypes,
   UnifiedSwapBridgeEventName,
@@ -19,20 +16,15 @@ import {
   isHardwareWallet,
 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
-import { toHex } from '@metamask/controller-utils';
 import { SolScope } from '@metamask/keyring-api';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import type {
-  TransactionController,
-  TransactionParams,
-} from '@metamask/transaction-controller';
+import type { TransactionController } from '@metamask/transaction-controller';
 import {
   TransactionStatus,
   TransactionType,
   type TransactionMeta,
 } from '@metamask/transaction-controller';
 import { numberToHex, type Hex } from '@metamask/utils';
-import { BigNumber } from 'bignumber.js';
 
 import {
   BRIDGE_PROD_API_BASE_URL,
@@ -54,7 +46,6 @@ import {
   fetchBridgeTxStatus,
   getStatusRequestWithSrcTxHash,
 } from './utils/bridge-status';
-import { getTxGasEstimates } from './utils/gas';
 import {
   getFinalizedTxProperties,
   getPriceImpactFromQuote,
@@ -66,14 +57,13 @@ import {
   getTxStatusesFromHistory,
 } from './utils/metrics';
 import {
+  getAddTransactionBatchParams,
   getClientRequest,
   getKeyringRequest,
   getStatusRequestParams,
-  getTxMetaFields,
-  handleLineaDelay,
+  getUSDTAllowanceResetTx,
   handleSolanaTxResponse,
 } from './utils/transaction';
-import { generateActionId } from './utils/transaction';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
   // We want to persist the bridge status state so that we can show the proper data for the Activity list
@@ -106,7 +96,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     customBridgeApiBaseUrl: string;
   };
 
-  readonly #addTransactionFn: typeof TransactionController.prototype.addTransaction;
+  readonly #addTransactionBatchFn: typeof TransactionController.prototype.addTransactionBatch;
 
   readonly #estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee;
 
@@ -117,7 +107,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     state,
     clientId,
     fetchFn,
-    addTransactionFn,
+    addTransactionBatchFn,
     estimateGasFeeFn,
     config,
     traceFn,
@@ -126,8 +116,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     state?: Partial<BridgeStatusControllerState>;
     clientId: BridgeClientId;
     fetchFn: FetchFunction;
-    addTransactionFn: typeof TransactionController.prototype.addTransaction;
     estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee;
+    addTransactionBatchFn: typeof TransactionController.prototype.addTransactionBatch;
     config?: {
       customBridgeApiBaseUrl?: string;
     };
@@ -146,7 +136,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     this.#clientId = clientId;
     this.#fetchFn = fetchFn;
-    this.#addTransactionFn = addTransactionFn;
+    this.#addTransactionBatchFn = addTransactionBatchFn;
     this.#estimateGasFeeFn = estimateGasFeeFn;
     this.#config = {
       customBridgeApiBaseUrl:
@@ -178,6 +168,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     this.messagingSystem.subscribe(
       'TransactionController:transactionFailed',
       ({ transactionMeta }) => {
+        console.error('=====transactionFailed', transactionMeta);
         const { type, status, id } = transactionMeta;
         if (
           type &&
@@ -186,6 +177,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             status,
           )
         ) {
+          this.#updateTxHistoryWithTxMeta(transactionMeta);
           // Mark tx as failed in txHistory
           this.update((bridgeStatusState) => {
             if (bridgeStatusState.txHistory[id]) {
@@ -212,13 +204,21 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       'TransactionController:transactionConfirmed',
       (transactionMeta) => {
         const { type, id, chainId } = transactionMeta;
+        this.#updateTxHistoryWithTxMeta(transactionMeta);
+
+        console.error('=====transactionConfirmed', transactionMeta);
+
         if (type === TransactionType.swap) {
+          // TODO update status to COMPLETED and completion time
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Completed,
             id,
             getEVMTxPropertiesFromTransactionMeta(transactionMeta),
           );
         }
+        // Start polling for tx status when bridge src tx is confirmed
+        // Polling starts for solana bridges right away so skip here
+        // Also, this event is only published for EVM transactions
         if (type === TransactionType.bridge && !isSolanaChainId(chainId)) {
           this.#startPollingForTxId(id);
         }
@@ -230,6 +230,67 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // Check for historyItems that do not have a status of complete and restart polling
     this.#restartPollingForIncompleteHistoryItems();
   }
+
+  /*
+  Re-key history item by txId when tx is confirmed
+  */
+  readonly #updateTxHistoryWithTxMeta = (transactionMeta: TransactionMeta) => {
+    const { id, batchId, type, status } = transactionMeta;
+
+    // TODO if txMeta is failed, stop polling and update item
+    const txHistoryItemById = id ? this.state.txHistory[id] : undefined;
+    const txHistoryItemByBatchId = batchId
+      ? this.state.txHistory[batchId]
+      : undefined;
+    if (
+      status === TransactionStatus.failed &&
+      (txHistoryItemById || txHistoryItemByBatchId)
+    ) {
+      const pollingToken = this.#pollingTokensByTxMetaId[id];
+      if (pollingToken) {
+        this.stopPollingByPollingToken(pollingToken);
+      }
+      if (txHistoryItemById) {
+        this.update((state) => {
+          state.txHistory[id].status = {
+            ...txHistoryItemById.status,
+            status: StatusTypes.FAILED,
+          };
+        });
+      }
+      if (txHistoryItemByBatchId && batchId) {
+        this.update((state) => {
+          state.txHistory[batchId].status = {
+            ...txHistoryItemByBatchId.status,
+            status: StatusTypes.FAILED,
+          };
+        });
+      }
+    }
+    // if tx batchId is in history, update the history item with the new transactionMeta
+    if (batchId && txHistoryItemByBatchId) {
+      this.update((state) => {
+        state.txHistory[id] = state.txHistory[batchId];
+        state.txHistory[id].txMetaId = id;
+        delete state.txHistory[batchId];
+      });
+    }
+    if (
+      txHistoryItemById &&
+      batchId === txHistoryItemById.batchId &&
+      type &&
+      [
+        TransactionType.swapApproval,
+        TransactionType.bridgeApproval,
+        TransactionType.tokenMethodApprove,
+      ].includes(type)
+    ) {
+      // TODO if tx is approval, append to either batchId or id as approvalTxId
+      this.update((state) => {
+        state.txHistory[id].approvalTxId = id;
+      });
+    }
+  };
 
   resetState = () => {
     this.update((state) => {
@@ -276,6 +337,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       .filter((historyItem) => {
         // Check if we are already polling this tx, if so, skip restarting polling for that
         const srcTxMetaId = historyItem.txMetaId;
+        if (!srcTxMetaId) {
+          return false;
+        }
         const pollingToken = this.#pollingTokensByTxMetaId[srcTxMetaId];
         return !pollingToken;
       })
@@ -291,8 +355,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     incompleteHistoryItems.forEach((historyItem) => {
       const bridgeTxMetaId = historyItem.txMetaId;
 
-      // We manually call startPolling() here rather than go through startPollingForBridgeTxStatus()
-      // because we don't want to overwrite the existing historyItem in state
       this.#startPollingForTxId(bridgeTxMetaId);
     });
   };
@@ -311,11 +373,22 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       approvalTxId,
       isStxEnabled,
     } = startPollingForBridgeTxStatusArgs;
+
+    // Tis identifies the history item in state
+    // If it's a batched tx, we use the batchId until the tx is confirmed and
+    // the tx id is available
+    const txHistoryKey = bridgeTxMeta.id ?? bridgeTxMeta.batchId;
+    if (!txHistoryKey) {
+      throw new Error(
+        'Failed to add tx to history: No batch or tx id to use as key',
+      );
+    }
     const accountAddress = this.#getMultichainSelectedAccountAddress();
     // Write all non-status fields to state so we can reference the quote in Activity list without the Bridge API
     // We know it's in progress but not the exact status yet
     const txHistoryItem = {
       txMetaId: bridgeTxMeta.id,
+      batchId: bridgeTxMeta.batchId,
       quote: quoteResponse.quote,
       startTime,
       estimatedProcessingTimeInSeconds:
@@ -344,12 +417,15 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       isStxEnabled: isStxEnabled ?? false,
     };
     this.update((state) => {
-      // Use the txMeta.id as the key so we can reference the txMeta in TransactionController
-      state.txHistory[bridgeTxMeta.id] = txHistoryItem;
+      // Use the txMeta.id or batchId as the key so we can reference the txMeta in TransactionController
+      state.txHistory[txHistoryKey] = txHistoryItem;
     });
   };
 
-  readonly #startPollingForTxId = (txId: string) => {
+  readonly #startPollingForTxId = (txId?: string) => {
+    if (!txId) {
+      return;
+    }
     // If we are already polling for this tx, stop polling for it before restarting
     const existingPollingToken = this.#pollingTokensByTxMetaId[txId];
     if (existingPollingToken) {
@@ -373,7 +449,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   /**
    * Adds tx to history and starts polling for the bridge tx status
    *
-   * @param txHistoryMeta - The parameters for creating the history item
+   * @param txHistoryMeta - The tx history meta to add to state and start polling for
    */
   startPollingForBridgeTxStatus = (
     txHistoryMeta: StartPollingForBridgeTxStatusArgsSerialized,
@@ -476,7 +552,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     const { txHistory } = this.state;
     // Prefer the srcTxHash from bridgeStatusState so we don't have to l ook up in TransactionController
     // But it is possible to have bridgeHistoryItem in state without the srcTxHash yet when it is an STX
-    const srcTxHash = txHistory[bridgeTxMetaId].status.srcChain.txHash;
+    const srcTxHash = txHistory[bridgeTxMetaId]?.status.srcChain.txHash;
 
     if (srcTxHash) {
       return srcTxHash;
@@ -597,226 +673,30 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     return txMeta;
   };
 
-  readonly #waitForHashAndReturnFinalTxMeta = async (
-    hashPromise?: Awaited<
-      ReturnType<TransactionController['addTransaction']>
-    >['result'],
-  ): Promise<TransactionMeta> => {
-    const transactionHash = await hashPromise;
-    const finalTransactionMeta: TransactionMeta | undefined =
-      this.messagingSystem
-        .call('TransactionController:getState')
-        .transactions.find(
-          (tx: TransactionMeta) => tx.hash === transactionHash,
-        );
-    if (!finalTransactionMeta) {
-      throw new Error(
-        'Failed to submit cross-chain swap tx: txMeta for txHash was not found',
-      );
-    }
-    return finalTransactionMeta;
-  };
-
-  readonly #handleApprovalTx = async (
-    isBridgeTx: boolean,
-    quoteResponse: QuoteResponse<string | TxData> & QuoteMetadata,
-    requireApproval = false,
-  ): Promise<TransactionMeta | undefined> => {
-    const { approval } = quoteResponse;
-
-    if (approval) {
-      const approveTx = async () => {
-        await this.#handleUSDTAllowanceReset(quoteResponse);
-
-        const approvalTxMeta = await this.#handleEvmTransaction({
-          transactionType: isBridgeTx
-            ? TransactionType.bridgeApproval
-            : TransactionType.swapApproval,
-          trade: approval,
-          quoteResponse,
-          requireApproval,
-        });
-
-        await handleLineaDelay(quoteResponse);
-        return approvalTxMeta;
-      };
-
-      return await this.#trace(
-        {
-          name: isBridgeTx
-            ? TraceName.BridgeTransactionApprovalCompleted
-            : TraceName.SwapTransactionApprovalCompleted,
-          data: {
-            srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
-            stxEnabled: false,
-          },
-        },
-        approveTx,
-      );
-    }
-
-    return undefined;
-  };
-
-  readonly #handleEvmSmartTransaction = async ({
-    isBridgeTx,
-    trade,
-    quoteResponse,
-    approvalTxId,
-    requireApproval = false,
-  }: {
-    isBridgeTx: boolean;
-    trade: TxData;
-    quoteResponse: Omit<QuoteResponse, 'approval' | 'trade'> & QuoteMetadata;
-    approvalTxId?: string;
-    requireApproval?: boolean;
-  }) => {
-    return await this.#handleEvmTransaction({
-      transactionType: isBridgeTx
-        ? TransactionType.bridge
-        : TransactionType.swap,
-      trade,
-      quoteResponse,
-      approvalTxId,
-      shouldWaitForHash: false, // Set to false to indicate we don't want to wait for hash
-      requireApproval,
-    });
-  };
-
   /**
-   * Submits an EVM transaction to the TransactionController
+   * Submits EVM transactions to the TransactionController
    *
-   * @param params - The parameters for the transaction
-   * @param params.transactionType - The type of transaction to submit
-   * @param params.trade - The trade data to confirm
-   * @param params.quoteResponse - The quote response
-   * @param params.approvalTxId - The tx id of the approval tx
-   * @param params.shouldWaitForHash - Whether to wait for the hash of the transaction
-   * @param params.requireApproval - Whether to require approval for the transaction
-   * @returns The transaction meta
+   * @param args - The parameters for the transaction
+   * @param args.isBridgeTx - Whether the transaction is a bridge transaction
+   * @param args.trade - The trade data to confirm
+   * @param args.approval - The approval data to confirm
+   * @param args.resetApproval - The ethereum:USDT reset approval data to confirm
+   * @param args.quoteResponse - The quote response
+   * @param args.requireApproval - Whether to require approval for the transaction
+   * @returns A partial TransactionMeta that contains the batchId
    */
-  readonly #handleEvmTransaction = async ({
-    transactionType,
-    trade,
-    quoteResponse,
-    approvalTxId,
-    shouldWaitForHash = true,
-    requireApproval = false,
-  }: {
-    transactionType: TransactionType;
-    trade: TxData;
-    quoteResponse: Omit<QuoteResponse, 'approval' | 'trade'> & QuoteMetadata;
-    approvalTxId?: string;
-    shouldWaitForHash?: boolean;
-    requireApproval?: boolean;
-  }): Promise<TransactionMeta> => {
-    const actionId = generateActionId().toString();
-
-    const selectedAccount = this.messagingSystem.call(
-      'AccountsController:getAccountByAddress',
-      trade.from,
-    );
-    if (!selectedAccount) {
-      throw new Error(
-        'Failed to submit cross-chain swap transaction: unknown account in trade data',
-      );
-    }
-    const hexChainId = formatChainIdToHex(trade.chainId);
-    const networkClientId = this.messagingSystem.call(
-      'NetworkController:findNetworkClientIdByChainId',
-      hexChainId,
-    );
-
-    const requestOptions = {
-      actionId,
-      networkClientId,
-      requireApproval,
-      type: transactionType,
-      origin: 'metamask',
-    };
-    const transactionParams: Parameters<
-      TransactionController['addTransaction']
-    >[0] = {
-      ...trade,
-      chainId: hexChainId,
-      gasLimit: trade.gasLimit?.toString(),
-      gas: trade.gasLimit?.toString(),
-    };
-    const transactionParamsWithMaxGas: TransactionParams = {
-      ...transactionParams,
-      ...(await this.#calculateGasFees(
-        transactionParams,
-        networkClientId,
-        hexChainId,
-      )),
-    };
-
-    const { result, transactionMeta } = await this.#addTransactionFn(
-      transactionParamsWithMaxGas,
-      requestOptions,
-    );
-
-    if (shouldWaitForHash) {
-      return await this.#waitForHashAndReturnFinalTxMeta(result);
-    }
-
-    return {
-      ...getTxMetaFields(quoteResponse, approvalTxId),
-      ...transactionMeta,
-    };
-  };
-
-  readonly #handleUSDTAllowanceReset = async (
-    quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
+  readonly #handleEvmTransactionBatch = async (
+    args: Omit<
+      Parameters<typeof getAddTransactionBatchParams>[0],
+      'messagingSystem' | 'estimateGasFeeFn'
+    >,
   ) => {
-    const hexChainId = formatChainIdToHex(quoteResponse.quote.srcChainId);
-    if (
-      quoteResponse.approval &&
-      isEthUsdt(hexChainId, quoteResponse.quote.srcAsset.address)
-    ) {
-      const allowance = new BigNumber(
-        await this.messagingSystem.call(
-          'BridgeController:getBridgeERC20Allowance',
-          quoteResponse.quote.srcAsset.address,
-          hexChainId,
-        ),
-      );
-      const shouldResetApproval =
-        allowance.lt(quoteResponse.sentAmount.amount) && allowance.gt(0);
-      if (shouldResetApproval) {
-        await this.#handleEvmTransaction({
-          transactionType: TransactionType.bridgeApproval,
-          trade: { ...quoteResponse.approval, data: getEthUsdtResetData() },
-          quoteResponse,
-        });
-      }
-    }
-  };
-
-  readonly #calculateGasFees = async (
-    transactionParams: TransactionParams,
-    networkClientId: string,
-    chainId: Hex,
-  ) => {
-    const { gasFeeEstimates } = this.messagingSystem.call(
-      'GasFeeController:getState',
-    );
-    const { estimates: txGasFeeEstimates } = await this.#estimateGasFeeFn({
-      transactionParams,
-      chainId,
-      networkClientId,
+    const transactionParams = await getAddTransactionBatchParams({
+      messagingSystem: this.messagingSystem,
+      estimateGasFeeFn: this.#estimateGasFeeFn,
+      ...args,
     });
-    const { maxFeePerGas, maxPriorityFeePerGas } = getTxGasEstimates({
-      networkGasFeeEstimates: gasFeeEstimates,
-      txGasFeeEstimates,
-    });
-    const maxGasLimit = toHex(transactionParams.gas ?? 0);
-
-    return {
-      maxFeePerGas,
-      maxPriorityFeePerGas,
-      gas: maxGasLimit,
-    };
+    return await this.#addTransactionBatchFn(transactionParams);
   };
 
   /**
@@ -829,7 +709,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   submitTx = async (
     quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
     isStxEnabledOnClient: boolean,
-  ): Promise<TransactionMeta & Partial<SolanaTransactionMeta>> => {
+  ): Promise<Partial<TransactionMeta> & Partial<SolanaTransactionMeta>> => {
     this.messagingSystem.call('BridgeController:stopPollingForQuotes');
 
     // Before the tx is confirmed, its data is not available in txHistory
@@ -849,13 +729,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       preConfirmationProperties,
     );
 
-    let txMeta: TransactionMeta & Partial<SolanaTransactionMeta>;
-    let approvalTime: number | undefined, approvalTxId: string | undefined;
+    let txMeta: Partial<TransactionMeta> & Partial<SolanaTransactionMeta>;
 
     const isBridgeTx = isCrossChain(
       quoteResponse.quote.srcChainId,
       quoteResponse.quote.destChainId,
     );
+    const startTime = Date.now();
 
     // Submit SOLANA tx
     if (
@@ -898,14 +778,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         this.#clientId === BridgeClientId.MOBILE &&
         isHardwareWallet(this.#getMultichainSelectedAccount());
 
-      // Set approval time and id if an approval tx is needed
-      const approvalTxMeta = await this.#handleApprovalTx(
-        isBridgeTx,
-        quoteResponse,
-        requireApproval,
-      );
-      approvalTime = approvalTxMeta?.time;
-      approvalTxId = approvalTxMeta?.id;
       // Handle smart transactions if enabled
       txMeta = await this.#trace(
         {
@@ -917,31 +789,27 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             stxEnabled: isStxEnabledOnClient,
           },
         },
-        async () =>
-          isStxEnabledOnClient
-            ? await this.#handleEvmSmartTransaction({
-                isBridgeTx,
-                trade: quoteResponse.trade as TxData,
-                quoteResponse,
-                approvalTxId,
-                requireApproval,
-              })
-            : await this.#handleEvmTransaction({
-                transactionType: isBridgeTx
-                  ? TransactionType.bridge
-                  : TransactionType.swap,
-                trade: quoteResponse.trade as TxData,
-                quoteResponse,
-                approvalTxId,
-                requireApproval,
-              }),
+        async () => {
+          const { approval, trade } = quoteResponse as QuoteResponse;
+          const resetApproval = approval
+            ? await getUSDTAllowanceResetTx(this.messagingSystem, quoteResponse)
+            : undefined;
+          return await this.#handleEvmTransactionBatch({
+            isBridgeTx,
+            trade,
+            approval,
+            resetApproval,
+            quoteResponse,
+            requireApproval,
+          });
+        },
       );
     }
 
     try {
       // Add swap or bridge tx to history
       this.#addTxToHistory({
-        bridgeTxMeta: txMeta, // Only the id field is used by the BridgeStatusController
+        bridgeTxMeta: txMeta, // Only the id and batchId fields are used by the BridgeStatusController
         statusRequest: {
           ...getStatusRequestParams(quoteResponse),
           srcTxHash: txMeta.hash,
@@ -949,8 +817,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         quoteResponse,
         slippagePercentage: 0, // TODO include slippage provided by quote if using dynamic slippage, or slippage from quote request
         isStxEnabled: isStxEnabledOnClient,
-        startTime: approvalTime ?? Date.now(),
-        approvalTxId,
+        startTime,
       });
 
       if (isSolanaChainId(quoteResponse.quote.srcChainId)) {
