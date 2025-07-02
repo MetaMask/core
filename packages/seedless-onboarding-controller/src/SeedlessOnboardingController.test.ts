@@ -489,19 +489,19 @@ async function decryptVault(vault: string, password: string) {
  * @param options - The options.
  * @param options.withMockAuthenticatedUser - Whether to skip the authenticate method and use the mock authenticated user.
  * @param options.withoutMockRevokeToken - Whether to skip the revokeToken in authenticated user state.
- * @param options.withoutMockAccessToken - Whether to skip the accessToken in authenticated user state.
- * @param options.withoutMockMetadataAccessToken - Whether to skip the metadataAccessToken in authenticated user state.
  * @param options.withMockAuthPubKey - Whether to skip the checkPasswordOutdated method and use the mock authPubKey.
  * @param options.authPubKey - The mock authPubKey.
  * @param options.vault - The mock vault data.
  * @param options.vaultEncryptionKey - The mock vault encryption key.
  * @param options.vaultEncryptionSalt - The mock vault encryption salt.
  * @param options.encryptedKeyringEncryptionKey - The mock encrypted keyring encryption key.
+ * @param options.withoutMockAccessToken - Whether to skip the accessToken in authenticated user state.
  * @returns The initial controller state with the mock authenticated user.
  */
 function getMockInitialControllerState(options?: {
   withMockAuthenticatedUser?: boolean;
   withoutMockRevokeToken?: boolean;
+  withoutMockAccessToken?: boolean;
   withMockAuthPubKey?: boolean;
   authPubKey?: string;
   vault?: string;
@@ -531,7 +531,9 @@ function getMockInitialControllerState(options?: {
     state.userId = userId;
     state.refreshToken = refreshToken;
     state.metadataAccessToken = metadataAccessToken;
-    state.accessToken = accessToken;
+    if (!options?.withoutMockAccessToken) {
+      state.accessToken = accessToken;
+    }
     if (!options?.withoutMockRevokeToken) {
       state.revokeToken = revokeToken;
     }
