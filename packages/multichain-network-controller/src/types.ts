@@ -186,10 +186,17 @@ export type AccountsControllerSelectedAccountChangeEvent = {
   payload: [InternalAccount];
 };
 
+export type TransactionControllerTransactionConfirmedEvent = {
+  type: `TransactionController:transactionConfirmed`;
+  payload: [transactionMeta: Record<string, unknown>];
+};
+
 /**
  * Events that this controller is allowed to subscribe.
  */
-export type AllowedEvents = AccountsControllerSelectedAccountChangeEvent;
+export type AllowedEvents =
+  | AccountsControllerSelectedAccountChangeEvent
+  | TransactionControllerTransactionConfirmedEvent;
 
 export type MultichainNetworkControllerAllowedActions =
   | MultichainNetworkControllerActions

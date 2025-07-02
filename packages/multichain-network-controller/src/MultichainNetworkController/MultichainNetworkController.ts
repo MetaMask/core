@@ -39,6 +39,12 @@ export class MultichainNetworkController extends BaseController<
 > {
   readonly #networkService: AbstractMultichainNetworkService;
 
+  /**
+   * Delay in milliseconds to wait for blockchain indexing services to process
+   * new transactions before refreshing network activity data
+   */
+  static readonly #TRANSACTION_INDEXING_DELAY_MS = 30000;
+
   constructor({
     messenger,
     state,
@@ -293,6 +299,27 @@ export class MultichainNetworkController extends BaseController<
   }
 
   /**
+   * Handles when a transaction is confirmed to refresh network activity data
+   * Includes a delay to allow blockchain indexing services to process new transactions
+   */
+  async #handleOnTransactionConfirmed() {
+    try {
+      await new Promise((resolve) =>
+        setTimeout(
+          resolve,
+          MultichainNetworkController.#TRANSACTION_INDEXING_DELAY_MS,
+        ),
+      );
+      await this.getNetworksWithTransactionActivityByAccounts();
+    } catch (error) {
+      console.error(
+        'Failed to refresh network activity after transaction confirmed:',
+        error,
+      );
+    }
+  }
+
+  /**
    * Subscribes to message events.
    */
   #subscribeToMessageEvents() {
@@ -300,6 +327,14 @@ export class MultichainNetworkController extends BaseController<
     this.messagingSystem.subscribe(
       'AccountsController:selectedAccountChange',
       (account) => this.#handleOnSelectedAccountChange(account),
+    );
+
+    // Handle transaction confirmation to refresh network activity
+    this.messagingSystem.subscribe(
+      'TransactionController:transactionConfirmed',
+      async () => {
+        await this.#handleOnTransactionConfirmed();
+      },
     );
   }
 
