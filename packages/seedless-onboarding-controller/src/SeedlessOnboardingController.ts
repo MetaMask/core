@@ -328,9 +328,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           rawToprfPwEncryptionKey: pwEncKey,
           rawToprfAuthKeyPair: authKeyPair,
         });
-        this.#persistAuthPubKey({
-          authPubKey: authKeyPair.pk,
-        });
       };
 
       await this.#executeWithTokenRefresh(
@@ -433,10 +430,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
               rawToprfPwEncryptionKey: pwEncKey,
               rawToprfAuthKeyPair: authKeyPair,
             });
-
-            this.#persistAuthPubKey({
-              authPubKey: authKeyPair.pk,
-            });
           }
 
           const result: Record<SecretType, Uint8Array[]> = {
@@ -512,9 +505,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           rawToprfAuthKeyPair: newAuthKeyPair,
         });
 
-        this.#persistAuthPubKey({
-          authPubKey: newAuthKeyPair.pk,
-        });
         this.#resetPasswordOutdatedCache();
 
         // store the keyring encryption key if it exists
@@ -661,10 +651,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           rawToprfPwEncryptionKey: pwEncKey,
           rawToprfAuthKeyPair: authKeyPair,
         });
-        // persist the latest global password authPubKey
-        this.#persistAuthPubKey({
-          authPubKey: authKeyPair.pk,
-        });
+
         this.#resetPasswordOutdatedCache();
       };
       return await this.#executeWithTokenRefresh(
@@ -1337,6 +1324,11 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       password,
       serializedVaultData,
       pwEncKey: rawToprfPwEncryptionKey,
+    });
+
+    // update the authPubKey in the state
+    this.#persistAuthPubKey({
+      authPubKey: rawToprfAuthKeyPair.pk,
     });
   }
 

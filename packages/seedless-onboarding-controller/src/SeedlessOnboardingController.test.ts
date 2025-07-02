@@ -1249,12 +1249,12 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller, toprfClient }) => {
+          await controller.submitPassword(MOCK_PASSWORD);
+
           mockFetchAuthPubKey(
             toprfClient,
             base64ToBytes(controller.state.authPubKey as string),
           );
-
-          await controller.submitPassword(MOCK_PASSWORD);
 
           // encrypt and store the secret data
           const mockSecretDataAdd = handleMockSecretDataAdd();
@@ -1287,12 +1287,12 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller, toprfClient }) => {
+          await controller.submitPassword(MOCK_PASSWORD);
+
           mockFetchAuthPubKey(
             toprfClient,
             base64ToBytes(controller.state.authPubKey as string),
           );
-
-          await controller.submitPassword(MOCK_PASSWORD);
 
           // encrypt and store the secret data
           const mockSecretDataAdd = handleMockSecretDataAdd();
@@ -1371,12 +1371,12 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller, toprfClient }) => {
+          await controller.submitPassword(MOCK_PASSWORD);
+
           mockFetchAuthPubKey(
             toprfClient,
             base64ToBytes(controller.state.authPubKey as string),
           );
-
-          await controller.submitPassword(MOCK_PASSWORD);
 
           // encrypt and store the secret data
           const mockSecretDataAdd = handleMockSecretDataAdd();
@@ -1408,12 +1408,12 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller, encryptor, toprfClient }) => {
+          await controller.submitPassword(MOCK_PASSWORD);
+
           mockFetchAuthPubKey(
             toprfClient,
             base64ToBytes(controller.state.authPubKey as string),
           );
-
-          await controller.submitPassword(MOCK_PASSWORD);
 
           jest
             .spyOn(encryptor, 'decryptWithKey')
@@ -1628,12 +1628,12 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller, toprfClient }) => {
+          await controller.submitPassword(MOCK_PASSWORD);
+
           mockFetchAuthPubKey(
             toprfClient,
             base64ToBytes(controller.state.authPubKey as string),
           );
-
-          await controller.submitPassword(MOCK_PASSWORD);
 
           await expect(
             controller.addNewSecretData(MOCK_SEED_PHRASE, SecretType.Mnemonic),
@@ -4052,11 +4052,6 @@ describe('SeedlessOnboardingController', () => {
             }),
           },
           async ({ controller, toprfClient, mockRefreshJWTToken }) => {
-            mockFetchAuthPubKey(
-              toprfClient,
-              base64ToBytes(controller.state.authPubKey as string),
-            );
-
             await controller.submitPassword(MOCK_PASSWORD);
 
             jest
@@ -4075,6 +4070,11 @@ describe('SeedlessOnboardingController', () => {
               nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
               isNewUser: false,
             });
+
+            mockFetchAuthPubKey(
+              toprfClient,
+              base64ToBytes(controller.state.authPubKey as string),
+            );
 
             await controller.addNewSecretData(
               NEW_KEY_RING.seedPhrase,
