@@ -52,7 +52,7 @@
     "@metamask/eth-query": "^4.0.0",
     "@metamask/ethjs-unit": "^0.3.0",
     "@metamask/polling-controller": "^14.0.0",
-    "@metamask/utils": "^11.2.0",
+    "@metamask/utils": "^11.4.2",
     "@types/bn.js": "^5.1.5",
     "@types/uuid": "^8.3.0",
     "bn.js": "^5.2.1",

@@ -53,7 +53,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-controller": "^22.1.0",
-    "@metamask/utils": "^11.2.0",
+    "@metamask/utils": "^11.4.2",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
