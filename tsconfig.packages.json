@@ -13,7 +13,8 @@
      * `jest.config.packages.js`.
      */
     "paths": {
-      "@metamask/*": ["../*/src"]
+      "@metamask/*": ["../*/src"],
+      "@metamask/*/auth": ["../*/src/auth"]
     },
     "strict": true,
     "target": "ES2020"
