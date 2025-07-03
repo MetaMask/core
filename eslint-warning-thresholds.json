@@ -134,7 +134,7 @@
     "jsdoc/check-tag-names": 2
   },
   "packages/base-controller/src/Messenger.test.ts": {
-    "import-x/namespace": 33
+    "import-x/namespace": 34
   },
   "packages/base-controller/src/RestrictedMessenger.test.ts": {
     "import-x/namespace": 31
