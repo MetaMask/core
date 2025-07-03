@@ -36,4 +36,3 @@ export type {
 export { Messenger } from './Messenger';
 export type { RestrictedMessengerConstraint } from './RestrictedMessenger';
 export { RestrictedMessenger } from './RestrictedMessenger';
-export { registerMethodActionHandlers } from './Messenger';
