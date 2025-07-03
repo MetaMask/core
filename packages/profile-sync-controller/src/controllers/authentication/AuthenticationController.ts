@@ -17,7 +17,12 @@ import {
   createSnapAllPublicKeysRequest,
   createSnapSignMessageRequest,
 } from './auth-snap-requests';
-import type { LoginResponse, SRPInterface, UserProfile } from '../../sdk';
+import type {
+  LoginResponse,
+  SRPInterface,
+  UserProfile,
+  UserProfileMetaMetrics,
+} from '../../sdk';
 import {
   assertMessageStartsWithMetamask,
   AuthType,
@@ -59,6 +64,7 @@ type ActionsObj = CreateActionsObj<
   | 'performSignOut'
   | 'getBearerToken'
   | 'getSessionProfile'
+  | 'getUserProfileMetaMetrics'
   | 'isSignedIn'
 >;
 export type Actions =
@@ -75,6 +81,8 @@ export type AuthenticationControllerGetBearerToken =
   ActionsObj['getBearerToken'];
 export type AuthenticationControllerGetSessionProfile =
   ActionsObj['getSessionProfile'];
+export type AuthenticationControllerGetUserProfileMetaMetrics =
+  ActionsObj['getUserProfileMetaMetrics'];
 export type AuthenticationControllerIsSignedIn = ActionsObj['isSignedIn'];
 
 export type AuthenticationControllerStateChangeEvent =
@@ -213,6 +221,11 @@ export default class AuthenticationController extends BaseController<
       'AuthenticationController:performSignOut',
       this.performSignOut.bind(this),
     );
+
+    this.messagingSystem.registerActionHandler(
+      'AuthenticationController:getUserProfileMetaMetrics',
+      this.getUserProfileMetaMetrics.bind(this),
+    );
   }
 
   async #getLoginResponseFromState(
@@ -312,6 +325,11 @@ export default class AuthenticationController extends BaseController<
   ): Promise<UserProfile> {
     this.#assertIsUnlocked('getSessionProfile');
     return await this.#auth.getUserProfile(entropySourceId);
+  }
+
+  public async getUserProfileMetaMetrics(): Promise<UserProfileMetaMetrics> {
+    this.#assertIsUnlocked('getUserProfileMetaMetrics');
+    return await this.#auth.getUserProfileMetaMetrics();
   }
 
   public isSignedIn(): boolean {

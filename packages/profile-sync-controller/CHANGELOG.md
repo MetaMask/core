@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add new `AuthenticationController:getUserProfileMetaMetrics` method
+  - This fetches data containing all MetaMetrics sessions related to the currently authenticated user, in the form of `UserProfileMetaMetrics`
+
 ### Changed
 
 - **BREAKING:** Bump peer dependency `@metamask/snaps-controllers` from `^12.0.0` to `^14.0.0` ([#6035](https://github.com/MetaMask/core/pull/6035))
