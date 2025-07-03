@@ -9,10 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [18.4.1]
 
-### Uncategorized
+### Changed
 
-- chore: use faster address checksum functions ([#6054](https://github.com/MetaMask/core/pull/6054))
-- Release 456.0.0 ([#6064](https://github.com/MetaMask/core/pull/6064))
+- Bump `@metamask/controller-utils` from `^11.10.0` to `^11.11.0` ([#6069](https://github.com/MetaMask/core/pull/6069))
 
 ## [18.4.0]
 
