@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add peer dependency `@metamask/profile-sync-controller`
+- **BREAKING:** Add `profileId`-based rate limiting support for Accounts API calls
+  - Use `AuthenticationController:getBearerToken` in order to get a bearer token that gets attached to every request to the Accounts API
+
 ## [0.9.0]
 
 ### Changed

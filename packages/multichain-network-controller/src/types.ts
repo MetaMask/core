@@ -23,6 +23,7 @@ import type {
 
 import type { ActiveNetworksByAddress } from './api/accounts-api';
 import type { MultichainNetworkController } from './MultichainNetworkController/MultichainNetworkController';
+import type { AuthenticationControllerGetBearerToken } from '../../profile-sync-controller/dist/controllers/authentication/AuthenticationController.cjs';
 
 export const MULTICHAIN_NETWORK_CONTROLLER_NAME = 'MultichainNetworkController';
 
@@ -178,7 +179,8 @@ export type AllowedActions =
   | AccountsControllerListMultichainAccountsAction
   | NetworkControllerRemoveNetworkAction
   | NetworkControllerGetSelectedChainIdAction
-  | NetworkControllerFindNetworkClientIdByChainIdAction;
+  | NetworkControllerFindNetworkClientIdByChainIdAction
+  | AuthenticationControllerGetBearerToken;
 
 // Re-define event here to avoid circular dependency with AccountsController
 export type AccountsControllerSelectedAccountChangeEvent = {

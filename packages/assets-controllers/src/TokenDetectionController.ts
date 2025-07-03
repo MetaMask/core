@@ -55,6 +55,7 @@ import type {
   TokensControllerAddDetectedTokensAction,
   TokensControllerGetStateAction,
 } from './TokensController';
+import type { AuthenticationControllerGetBearerToken } from '../../profile-sync-controller/dist/controllers/authentication/AuthenticationController.cjs';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -93,6 +94,7 @@ export const STATIC_MAINNET_TOKEN_LIST = Object.entries<LegacyToken>(
 
 /**
  * Function that takes a TokensChainsCache object and maps chainId with TokenListMap.
+ *
  * @param tokensChainsCache - TokensChainsCache input object
  * @returns returns the map of chainId with TokenListMap
  */
@@ -129,7 +131,8 @@ export type AllowedActions =
   | KeyringControllerGetStateAction
   | PreferencesControllerGetStateAction
   | TokensControllerGetStateAction
-  | TokensControllerAddDetectedTokensAction;
+  | TokensControllerAddDetectedTokensAction
+  | AuthenticationControllerGetBearerToken;
 
 export type TokenDetectionControllerStateChangeEvent =
   ControllerStateChangeEvent<typeof controllerName, TokenDetectionState>;
@@ -162,13 +165,20 @@ type TokenDetectionPollingInput = {
 
 /**
  * Controller that passively polls on a set interval for Tokens auto detection
- * @property intervalId - Polling interval used to fetch new token rates
- * @property selectedAddress - Vault selected address
- * @property networkClientId - The network client ID of the current selected network
- * @property disabled - Boolean to track if network requests are blocked
- * @property isUnlocked - Boolean to track if the keyring state is unlocked
- * @property isDetectionEnabledFromPreferences - Boolean to track if detection is enabled from PreferencesController
- * @property isDetectionEnabledForNetwork - Boolean to track if detected is enabled for current network
+ *
+ * intervalId - Polling interval used to fetch new token rates
+ *
+ * selectedAddress - Vault selected address
+ *
+ * networkClientId - The network client ID of the current selected network
+ *
+ * disabled - Boolean to track if network requests are blocked
+ *
+ * isUnlocked - Boolean to track if the keyring state is unlocked
+ *
+ * isDetectionEnabledFromPreferences - Boolean to track if detection is enabled from PreferencesController
+ *
+ * isDetectionEnabledForNetwork - Boolean to track if detected is enabled for current network
  */
 export class TokenDetectionController extends StaticIntervalPollingController<TokenDetectionPollingInput>()<
   typeof controllerName,
@@ -179,7 +189,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
   #selectedAccountId: string;
 
-  #networkClientId: NetworkClientId;
+  readonly #networkClientId: NetworkClientId;
 
   #tokensChainsCache: TokensChainsCache = {};
 
@@ -189,7 +199,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
   #isDetectionEnabledFromPreferences: boolean;
 
-  #isDetectionEnabledForNetwork: boolean;
+  readonly #isDetectionEnabledForNetwork: boolean;
 
   readonly #getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
 
@@ -199,20 +209,24 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     properties: {
       tokens: string[];
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/naming-convention
+
       token_standard: string;
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/naming-convention
+
       asset_type: string;
     };
   }) => void;
 
-  #accountsAPI = {
+  readonly #accountsAPI = {
     isAccountsAPIEnabled: true,
     supportedNetworksCache: null as number[] | null,
     platform: '' as 'extension' | 'mobile',
 
-    async getSupportedNetworks() {
+    async getSupportedNetworks(options: {
+      getAuthenticationControllerBearerToken: () => ReturnType<
+        AuthenticationControllerGetBearerToken['handler']
+      >;
+    }) {
       /* istanbul ignore next */
       if (!this.isAccountsAPIEnabled) {
         throw new Error('Accounts API Feature Switch is disabled');
@@ -223,7 +237,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         return this.supportedNetworksCache;
       }
 
-      const result = await fetchSupportedNetworks().catch(() => null);
+      const { getAuthenticationControllerBearerToken } = options;
+
+      const result = await fetchSupportedNetworks({
+        getAuthenticationControllerBearerToken,
+      }).catch(() => null);
       this.supportedNetworksCache = result;
       return result;
     },
@@ -232,7 +250,13 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       address: string,
       chainIds: Hex[],
       supportedNetworks: number[] | null,
+      options: {
+        getAuthenticationControllerBearerToken: () => ReturnType<
+          AuthenticationControllerGetBearerToken['handler']
+        >;
+      },
     ) {
+      const { getAuthenticationControllerBearerToken } = options;
       const chainIdNumbers = chainIds.map((chainId) => hexToNumber(chainId));
 
       if (
@@ -249,6 +273,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         address,
         {
           networks: chainIdNumbers,
+          getAuthenticationControllerBearerToken,
         },
         this.platform,
       );
@@ -287,10 +312,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       properties: {
         tokens: string[];
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
+
         token_standard: string;
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
+
         asset_type: string;
       };
     }) => void;
@@ -439,7 +464,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
   /**
    * Internal isActive state
-   * @type {boolean}
+   *
    */
   get isActive(): boolean {
     return !this.#disabled && this.#isUnlocked;
@@ -485,6 +510,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
   /**
    * Compares current and previous tokensChainsCache object focusing only on the data object.
+   *
    * @param tokensChainsCache - current tokensChainsCache input object
    * @param previousTokensChainsCache - previous tokensChainsCache input object
    * @returns boolean indicating if the two objects are equal
@@ -711,7 +737,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
     let supportedNetworks;
     if (this.#accountsAPI.isAccountsAPIEnabled) {
-      supportedNetworks = await this.#accountsAPI.getSupportedNetworks();
+      supportedNetworks = await this.#accountsAPI.getSupportedNetworks({
+        getAuthenticationControllerBearerToken:
+          this.#getAuthenticationControllerBearerToken.bind(this),
+      });
     }
     const { chainsToDetectUsingRpc, chainsToDetectUsingAccountAPI } =
       this.#getChainsToDetect(clientNetworks, supportedNetworks);
@@ -812,6 +841,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
   /**
    * This adds detected tokens from the Accounts API, avoiding the multi-call RPC calls for balances
+   *
    * @param options - method arguments
    * @param options.selectedAddress - address to check against
    * @param options.chainIds - array of chainIds to check tokens for
@@ -830,7 +860,15 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     return await safelyExecute(async () => {
       // Fetch balances for multiple chain IDs at once
       const tokenBalancesByChain = await this.#accountsAPI
-        .getMultiNetworksBalances(selectedAddress, chainIds, supportedNetworks)
+        .getMultiNetworksBalances(
+          selectedAddress,
+          chainIds,
+          supportedNetworks,
+          {
+            getAuthenticationControllerBearerToken:
+              this.#getAuthenticationControllerBearerToken.bind(this),
+          },
+        )
         .catch(() => null);
 
       if (tokenBalancesByChain === null) {
@@ -879,10 +917,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
             properties: {
               tokens: eventTokensDetails,
               // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
+
               token_standard: ERC20,
               // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
+
               asset_type: ASSET_TYPES.TOKEN,
             },
           });
@@ -904,6 +942,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
   /**
    * Helper function to filter and build token data for detected tokens
+   *
    * @param options.tokenCandidateSlices - these are tokens we know a user does not have (by checking the tokens controller).
    * We will use these these token candidates to determine if a token found from the API is valid to be added on the users wallet.
    * It will also prevent us to adding tokens a user already has
@@ -1009,10 +1048,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
           properties: {
             tokens: eventTokensDetails,
             // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/naming-convention
+
             token_standard: ERC20,
             // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/naming-convention
+
             asset_type: ASSET_TYPES.TOKEN,
           },
         });
@@ -1040,6 +1079,14 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       this.#selectedAccountId,
     );
     return account?.address || '';
+  }
+
+  async #getAuthenticationControllerBearerToken(): ReturnType<
+    AuthenticationControllerGetBearerToken['handler']
+  > {
+    return await this.messagingSystem.call(
+      'AuthenticationController:getBearerToken',
+    );
   }
 }
 

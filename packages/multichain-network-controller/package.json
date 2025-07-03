@@ -75,7 +75,8 @@
   },
   "peerDependencies": {
     "@metamask/accounts-controller": "^31.0.0",
-    "@metamask/network-controller": "^24.0.0"
+    "@metamask/network-controller": "^24.0.0",
+    "@metamask/profile-sync-controller": "^19.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

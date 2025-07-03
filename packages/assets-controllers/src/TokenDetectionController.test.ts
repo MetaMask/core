@@ -177,6 +177,7 @@ function buildTokenDetectionControllerMessenger(
       'TokensController:addDetectedTokens',
       'TokenListController:getState',
       'PreferencesController:getState',
+      'AuthenticationController:getBearerToken',
     ],
     allowedEvents: [
       'AccountsController:selectedEvmAccountChange',
@@ -2616,10 +2617,10 @@ describe('TokenDetectionController', () => {
             properties: {
               tokens: [`${sampleTokenA.symbol} - ${sampleTokenA.address}`],
               // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
+
               token_standard: 'ERC20',
               // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
+
               asset_type: 'TOKEN',
             },
           });
@@ -2759,6 +2760,7 @@ describe('TokenDetectionController', () => {
     /**
      * Test Utility - Arrange and Act `detectTokens()` with the Accounts API feature
      * RPC flow will return `sampleTokenA` and the Accounts API flow will use `sampleTokenB`
+     *
      * @param props - options to modify these tests
      * @param props.overrideMockTokensCache - change the tokens cache
      * @param props.mockMultiChainAPI - change the Accounts API responses

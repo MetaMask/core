@@ -703,6 +703,7 @@ describe('TransactionController', () => {
           'NetworkController:getNetworkClientById',
           'NetworkController:findNetworkClientIdByChainId',
           'RemoteFeatureFlagController:getState',
+          'AuthenticationController:getBearerToken',
         ],
         allowedEvents: [],
       });
