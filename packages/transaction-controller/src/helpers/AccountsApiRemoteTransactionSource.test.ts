@@ -143,11 +143,17 @@ describe('AccountsApiRemoteTransactionSource', () => {
       ).fetchTransactions(REQUEST_MOCK);
 
       expect(getAccountTransactionsMock).toHaveBeenCalledTimes(1);
-      expect(getAccountTransactionsMock).toHaveBeenCalledWith({
-        address: ADDRESS_MOCK,
-        chainIds: SUPPORTED_CHAIN_IDS,
-        sortDirection: 'DESC',
-      });
+      expect(getAccountTransactionsMock).toHaveBeenCalledWith(
+        {
+          address: ADDRESS_MOCK,
+          chainIds: SUPPORTED_CHAIN_IDS,
+          sortDirection: 'DESC',
+        },
+        {
+          getAuthenticationControllerBearerToken:
+            mockAuthenticationControllerGetBearerToken,
+        },
+      );
     });
 
     it('returns normalized standard transaction', async () => {

@@ -113,7 +113,7 @@ export class AccountsApiRemoteTransactionSource
         },
         {
           getAuthenticationControllerBearerToken:
-            this.#getAuthenticationControllerBearerToken.bind(this),
+            this.#getAuthenticationControllerBearerToken,
         },
       );
 
