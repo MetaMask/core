@@ -604,7 +604,7 @@ function createMockAuthenticationMessenger() {
  * @returns mock auth endpoints
  */
 function mockAuthenticationFlowEndpoints(params?: {
-  endpointFail: 'nonce' | 'login' | 'token';
+  endpointFail: 'nonce' | 'login' | 'token' | 'metametrics';
 }) {
   const {
     mockNonceUrl,
@@ -619,7 +619,7 @@ function mockAuthenticationFlowEndpoints(params?: {
     mockOAuth2TokenUrl:
       params?.endpointFail === 'token' ? { status: 500 } : undefined,
     mockUserProfileMetaMetrics:
-      params?.endpointFail === 'token' ? { status: 500 } : undefined,
+      params?.endpointFail === 'metametrics' ? { status: 500 } : undefined,
   });
 
   return {
