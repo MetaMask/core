@@ -3620,7 +3620,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-api@npm:^18.0.0":
+"@metamask/keyring-api@npm:18.0.0, @metamask/keyring-api@npm:^18.0.0":
   version: 18.0.0
   resolution: "@metamask/keyring-api@npm:18.0.0"
   dependencies:
@@ -3672,7 +3672,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/keyring-internal-api@npm:^6.2.0":
+"@metamask/keyring-internal-api@npm:6.2.0, @metamask/keyring-internal-api@npm:^6.2.0":
   version: 6.2.0
   resolution: "@metamask/keyring-internal-api@npm:6.2.0"
   dependencies:
@@ -3712,7 +3712,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-utils@npm:^3.0.0":
+"@metamask/keyring-utils@npm:3.0.0, @metamask/keyring-utils@npm:^3.0.0":
   version: 3.0.0
   resolution: "@metamask/keyring-utils@npm:3.0.0"
   dependencies:
@@ -3770,6 +3770,50 @@ __metadata:
   checksum: 10/2d456882c5180eaf02d07f578ee8b8806d18639349d086a6b3b68c87e7ea294749efc332bfe7c1d5fb700933e71f31a46d3cd07b94c4e91c80faea5f9729bf0d
   languageName: node
   linkType: hard
+
+"@metamask/multichain-account-api@npm:@metamask-previews/multichain-account-api@0.0.0-daddb4b":
+  version: 0.0.0-daddb4b
+  resolution: "@metamask-previews/multichain-account-api@npm:0.0.0-daddb4b"
+  dependencies:
+    "@metamask/keyring-api": "npm:18.0.0"
+    "@metamask/keyring-internal-api": "npm:6.2.0"
+    "@metamask/keyring-utils": "npm:3.0.0"
+    "@metamask/utils": "npm:^11.1.0"
+  checksum: 10/e42f1b4b2650d00029b3d9daa918022efb70ba57585ea01815ac563b45e3c33a19680f39bd7354af67a23d201acc66cfe221d26218cefdf2ed43e9b140b871b0
+  languageName: node
+  linkType: hard
+
+"@metamask/multichain-account-controller@workspace:packages/multichain-account-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/multichain-account-controller@workspace:packages/multichain-account-controller"
+  dependencies:
+    "@metamask/accounts-controller": "npm:^31.0.0"
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/base-controller": "npm:^8.0.1"
+    "@metamask/keyring-api": "npm:^18.0.0"
+    "@metamask/keyring-controller": "npm:^22.0.2"
+    "@metamask/keyring-internal-api": "npm:^6.2.0"
+    "@metamask/keyring-snap-client": "npm:^5.0.0"
+    "@metamask/multichain-account-api": "npm:^0.0.0"
+    "@metamask/snaps-controllers": "npm:^12.3.1"
+    "@metamask/snaps-sdk": "npm:^7.1.0"
+    "@metamask/snaps-utils": "npm:^9.4.0"
+    "@types/jest": "npm:^27.4.1"
+    "@types/uuid": "npm:^8.3.0"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^27.5.1"
+    ts-jest: "npm:^27.1.4"
+    typedoc: "npm:^0.24.8"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.2.2"
+    uuid: "npm:^8.3.2"
+  peerDependencies:
+    "@metamask/accounts-controller": ^31.0.0
+    "@metamask/keyring-controller": ^22.0.0
+    "@metamask/multichain-account-api": ^0.0.0
+    "@metamask/snaps-controllers": ^12.0.0
+  languageName: unknown
+  linkType: soft
 
 "@metamask/multichain-api-middleware@workspace:packages/multichain-api-middleware":
   version: 0.0.0-use.local
