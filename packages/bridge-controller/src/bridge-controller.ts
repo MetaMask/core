@@ -237,6 +237,25 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     );
   }
 
+  async fetchQuotes(requests: GenericQuoteRequest[]) {
+    return await Promise.all(
+      requests.map(async (request) => {
+        const quotes = await fetchBridgeQuotes(
+          request,
+          null as never,
+          this.#clientId,
+          this.#fetchFn,
+          this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
+        );
+
+        const quotesWithL1GasFees = await this.#appendL1GasFees(quotes);
+        const quotesWithSolanaFees = await this.#appendSolanaFees(quotes);
+
+        return quotesWithL1GasFees ?? quotesWithSolanaFees ?? quotes;
+      }),
+    );
+  }
+
   _executePoll = async (pollingInput: BridgePollingInput) => {
     await this.#fetchBridgeQuotes(pollingInput);
   };
