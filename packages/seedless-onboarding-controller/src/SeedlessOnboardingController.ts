@@ -130,7 +130,7 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
     // stays outside of vault as this token is accessed by the metadata service
     // before the vault is created or unlocked.
     metadataAccessToken: {
-      persist: false,
+      persist: true,
       anonymous: true,
     },
     encryptedSeedlessEncryptionKey: {
@@ -229,13 +229,15 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @param params.socialLoginEmail - The user email from Social login.
    * @param params.refreshToken - refresh token for refreshing expired nodeAuthTokens.
    * @param params.revokeToken - revoke token for revoking refresh token and get new refresh token and new revoke token.
-   * @param params.accessToken - access token for pairing with profile sync auth service and to access other services.
-   * @param params.metadataAccessToken - metadata access token for accessing the metadata service before the vault is created or unlocked.
+   * @param params.accessToken - Access token for pairing with profile sync auth service and to access other services.
+   * @param params.metadataAccessToken - Metadata access token for accessing the metadata service before the vault is created or unlocked.
    * @param params.skipLock - Optional flag to skip acquiring the controller lock. (to prevent deadlock in case the caller already acquired the lock)
    * @returns A promise that resolves to the authentication result.
    */
   async authenticate(params: {
     idTokens: string[];
+    accessToken: string;
+    metadataAccessToken: string;
     authConnection: AuthConnection;
     authConnectionId: string;
     userId: string;
@@ -243,8 +245,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     socialLoginEmail?: string;
     refreshToken?: string;
     revokeToken?: string;
-    accessToken?: string;
-    metadataAccessToken?: string;
     skipLock?: boolean;
   }) {
     const doAuthenticateWithNodes = async () => {
@@ -1677,10 +1677,12 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         connection: this.state.authConnection,
         refreshToken,
       });
-      const { idTokens } = res;
+      const { idTokens, accessToken, metadataAccessToken } = res;
       // re-authenticate with the new id tokens to set new node auth tokens
       await this.authenticate({
         idTokens,
+        accessToken,
+        metadataAccessToken,
         authConnection: this.state.authConnection,
         authConnectionId: this.state.authConnectionId,
         groupedAuthConnectionId: this.state.groupedAuthConnectionId,

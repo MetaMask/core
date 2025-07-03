@@ -236,7 +236,11 @@ export type ToprfKeyDeriver = {
 export type RefreshJWTToken = (params: {
   connection: AuthConnection;
   refreshToken: string;
-}) => Promise<{ idTokens: string[] }>;
+}) => Promise<{
+  idTokens: string[];
+  accessToken: string;
+  metadataAccessToken: string;
+}>;
 
 export type RevokeRefreshToken = (params: {
   connection: AuthConnection;
