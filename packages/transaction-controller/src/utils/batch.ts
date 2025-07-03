@@ -602,12 +602,12 @@ async function processTransactionWithHook(
   const { transactionMeta } = await addTransaction(
     transactionMetaForGasEstimates.txParams,
     {
-      type,
       batchId,
       disableGasBuffer: true,
       networkClientId,
       publishHook,
       requireApproval: false,
+      type,
     },
   );
 
@@ -631,13 +631,13 @@ async function processTransactionWithHook(
   log('Processed new transaction with hook', {
     id,
     params: newParams,
-    type: nestedTransaction.type,
+    type,
   });
 
   return {
     id,
     params: newParams,
-    type: nestedTransaction.type,
+    type,
   };
 }
 
