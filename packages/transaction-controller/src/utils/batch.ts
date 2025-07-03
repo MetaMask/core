@@ -246,13 +246,14 @@ async function getNestedTransactionMeta(
   ethQuery: EthQuery,
 ): Promise<NestedTransactionMetadata> {
   const { from } = request;
-  const { params } = singleRequest;
+  const { params, type: requestedType } = singleRequest;
 
-  const { type } = await determineTransactionType(
+  const { type: determinedType } = await determineTransactionType(
     { from, ...params },
     ethQuery,
   );
 
+  const type = requestedType ?? determinedType;
   return {
     ...params,
     type,
@@ -544,7 +545,7 @@ async function processTransactionWithHook(
   request: AddTransactionBatchRequest,
   txBatchMeta?: TransactionBatchMeta,
 ) {
-  const { existingTransaction, params } = nestedTransaction;
+  const { existingTransaction, params, type } = nestedTransaction;
 
   const {
     addTransaction,
@@ -595,6 +596,7 @@ async function processTransactionWithHook(
   const { transactionMeta } = await addTransaction(
     transactionMetaForGasEstimates.txParams,
     {
+      type,
       batchId,
       disableGasBuffer: true,
       networkClientId,
@@ -620,11 +622,16 @@ async function processTransactionWithHook(
     value,
   };
 
-  log('Processed new transaction with hook', { id, params: newParams });
+  log('Processed new transaction with hook', {
+    id,
+    params: newParams,
+    type: nestedTransaction.type,
+  });
 
   return {
     id,
     params: newParams,
+    type: nestedTransaction.type,
   };
 }
 

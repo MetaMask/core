@@ -834,6 +834,88 @@ describe('Batch Utils', () => {
         });
       });
 
+      it('calls publish batch hook with requested transaction type', async () => {
+        const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
+
+        addTransactionMock
+          .mockResolvedValueOnce({
+            transactionMeta: {
+              ...TRANSACTION_META_MOCK,
+              id: TRANSACTION_ID_MOCK,
+            },
+            result: Promise.resolve(''),
+          })
+          .mockResolvedValueOnce({
+            transactionMeta: {
+              ...TRANSACTION_META_MOCK,
+              id: TRANSACTION_ID_2_MOCK,
+            },
+            result: Promise.resolve(''),
+          });
+
+        publishBatchHook.mockResolvedValue({
+          results: [
+            {
+              transactionHash: TRANSACTION_HASH_MOCK,
+            },
+            {
+              transactionHash: TRANSACTION_HASH_2_MOCK,
+            },
+          ],
+        });
+
+        addTransactionBatch({
+          ...request,
+          publishBatchHook,
+          request: {
+            ...request.request,
+            transactions: [
+              {
+                ...request.request.transactions[0],
+                type: TransactionType.swap,
+              },
+              {
+                ...request.request.transactions[1],
+                type: TransactionType.bridge,
+              },
+            ],
+            disable7702: true,
+          },
+        }).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+
+        const publishHooks = addTransactionMock.mock.calls.map(
+          ([, options]) => options.publishHook,
+        );
+
+        publishHooks[0]?.(
+          TRANSACTION_META_MOCK,
+          TRANSACTION_SIGNATURE_MOCK,
+        ).catch(() => {
+          // Intentionally empty
+        });
+
+        publishHooks[1]?.(
+          TRANSACTION_META_MOCK,
+          TRANSACTION_SIGNATURE_2_MOCK,
+        ).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+
+        expect(publishBatchHook).toHaveBeenCalledTimes(1);
+        expect(publishBatchHook.mock.calls[0][0].transactions[0]).toBe(
+          TransactionType.swap,
+        );
+        expect(publishBatchHook.mock.calls[0][0].transactions[1]).toBe(
+          TransactionType.bridge,
+        );
+      });
+
       it('resolves individual publish hooks with transaction hashes from publish batch hook', async () => {
         const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
 
