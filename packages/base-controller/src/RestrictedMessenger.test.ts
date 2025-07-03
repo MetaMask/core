@@ -1475,6 +1475,7 @@ describe('RestrictedMessenger', () => {
 
       class TestController {
         name = 'TestController';
+
         readonly nonFunction = 'not a function';
 
         getValue() {
