@@ -48,6 +48,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/logging-controller`](packages/logging-controller)
 - [`@metamask/message-manager`](packages/message-manager)
 - [`@metamask/messenger`](packages/messenger)
+- [`@metamask/multichain-account-controller`](packages/multichain-account-controller)
 - [`@metamask/multichain-api-middleware`](packages/multichain-api-middleware)
 - [`@metamask/multichain-network-controller`](packages/multichain-network-controller)
 - [`@metamask/multichain-transactions-controller`](packages/multichain-transactions-controller)
@@ -106,6 +107,7 @@ linkStyle default opacity:0.5
   logging_controller(["@metamask/logging-controller"]);
   message_manager(["@metamask/message-manager"]);
   messenger(["@metamask/messenger"]);
+  multichain_account_controller(["@metamask/multichain-account-controller"]);
   multichain_api_middleware(["@metamask/multichain-api-middleware"]);
   multichain_network_controller(["@metamask/multichain-network-controller"]);
   multichain_transactions_controller(["@metamask/multichain-transactions-controller"]);
