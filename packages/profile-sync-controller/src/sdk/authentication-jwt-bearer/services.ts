@@ -1,4 +1,9 @@
-import type { AccessToken, ErrorMessage, UserProfile } from './types';
+import type {
+  AccessToken,
+  ErrorMessage,
+  UserProfile,
+  UserProfileMetaMetrics,
+} from './types';
 import { AuthType } from './types';
 import type { Env, Platform } from '../../shared/env';
 import { getEnvUrls, getOidcClientId } from '../../shared/env';
@@ -24,6 +29,9 @@ export const SRP_LOGIN_URL = (env: Env) =>
 
 export const SIWE_LOGIN_URL = (env: Env) =>
   `${getEnvUrls(env).authApiUrl}/api/v2/siwe/login`;
+
+export const PROFILE_METAMETRICS_URL = (env: Env) =>
+  `${getEnvUrls(env).authApiUrl}/api/v2/profile/metametrics`;
 
 const getAuthenticationUrl = (authType: AuthType, env: Env): string => {
   switch (authType) {
@@ -250,5 +258,44 @@ export async function authenticate(
     const errorMessage =
       e instanceof Error ? e.message : JSON.stringify(e ?? '');
     throw new SignInError(`unable to perform SRP login: ${errorMessage}`);
+  }
+}
+
+/**
+ * Service to get the Profile MetaMetrics
+ *
+ * @param env - server environment
+ * @param accessToken - JWT access token used to access protected resources
+ * @returns Profile MetaMetrics information.
+ */
+export async function getUserProfileMetaMetrics(
+  env: Env,
+  accessToken: string,
+): Promise<UserProfileMetaMetrics> {
+  const profileMetaMetricsUrl = new URL(PROFILE_METAMETRICS_URL(env));
+
+  try {
+    const response = await fetch(profileMetaMetricsUrl, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      const responseBody = (await response.json()) as ErrorMessage;
+      throw new Error(
+        `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+      );
+    }
+
+    const profileJson: UserProfileMetaMetrics = await response.json();
+
+    return profileJson;
+  } catch (e) {
+    /* istanbul ignore next */
+    const errorMessage =
+      e instanceof Error ? e.message : JSON.stringify(e ?? '');
+    throw new SignInError(`failed to get profile metametrics: ${errorMessage}`);
   }
 }
