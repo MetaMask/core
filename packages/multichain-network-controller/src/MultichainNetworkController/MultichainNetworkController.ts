@@ -2,9 +2,9 @@ import { BaseController } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkClientId } from '@metamask/network-controller';
+import type { AuthenticationControllerGetBearerToken } from '@metamask/profile-sync-controller/auth';
 import { type CaipChainId, isCaipChainId } from '@metamask/utils';
 
-import type { AuthenticationControllerGetBearerToken } from '../../../profile-sync-controller/dist/controllers/authentication/AuthenticationController.cjs';
 import {
   type ActiveNetworksByAddress,
   toAllowedCaipAccountIds,

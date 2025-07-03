@@ -33,6 +33,7 @@ import type {
   PreferencesControllerGetStateAction,
   PreferencesControllerStateChangeEvent,
 } from '@metamask/preferences-controller';
+import type { AuthenticationControllerGetBearerToken } from '@metamask/profile-sync-controller/auth';
 import type { TransactionControllerTransactionConfirmedEvent } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { hexToNumber } from '@metamask/utils';
@@ -55,7 +56,6 @@ import type {
   TokensControllerAddDetectedTokensAction,
   TokensControllerGetStateAction,
 } from './TokensController';
-import type { AuthenticationControllerGetBearerToken } from '../../profile-sync-controller/dist/controllers/authentication/AuthenticationController.cjs';
 
 const DEFAULT_INTERVAL = 180000;
 

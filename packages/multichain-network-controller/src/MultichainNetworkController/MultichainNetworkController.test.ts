@@ -17,10 +17,10 @@ import type {
   NetworkControllerRemoveNetworkAction,
   NetworkControllerFindNetworkClientIdByChainIdAction,
 } from '@metamask/network-controller';
+import type { AuthenticationControllerGetBearerToken } from '@metamask/profile-sync-controller/auth';
 import { KnownCaipNamespace, type CaipAccountId } from '@metamask/utils';
 
 import { MultichainNetworkController } from './MultichainNetworkController';
-import type { AuthenticationControllerGetBearerToken } from '../../../profile-sync-controller/dist/controllers/authentication/AuthenticationController.cjs';
 import { createMockInternalAccount } from '../../tests/utils';
 import { type ActiveNetworksResponse } from '../api/accounts-api';
 import { getDefaultMultichainNetworkControllerState } from '../constants';

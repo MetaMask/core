@@ -1,11 +1,11 @@
 import { handleFetch } from '@metamask/controller-utils';
+import type { AuthenticationControllerGetBearerToken } from '@metamask/profile-sync-controller/auth';
 
 import type {
   GetBalancesQueryParams,
   GetBalancesResponse,
   GetSupportedNetworksResponse,
 } from './types';
-import type { AuthenticationControllerGetBearerToken } from '../../../profile-sync-controller/dist/controllers/authentication/AuthenticationController.cjs';
 
 export const MULTICHAIN_ACCOUNTS_DOMAIN = 'https://accounts.api.cx.metamask.io';
 

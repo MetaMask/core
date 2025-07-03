@@ -20,10 +20,10 @@ import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkClientId,
 } from '@metamask/network-controller';
+import type { AuthenticationControllerGetBearerToken } from '@metamask/profile-sync-controller/auth';
 
 import type { ActiveNetworksByAddress } from './api/accounts-api';
 import type { MultichainNetworkController } from './MultichainNetworkController/MultichainNetworkController';
-import type { AuthenticationControllerGetBearerToken } from '../../profile-sync-controller/dist/controllers/authentication/AuthenticationController.cjs';
 
 export const MULTICHAIN_NETWORK_CONTROLLER_NAME = 'MultichainNetworkController';
 
