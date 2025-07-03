@@ -465,6 +465,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   /**
    * Internal isActive state
    *
+   * @returns boolean indicating if the controller is active
    */
   get isActive(): boolean {
     return !this.#disabled && this.#isUnlocked;
