@@ -659,10 +659,10 @@ describe('MultichainNetworkController', () => {
 
       expect(mockNetworkService.fetchNetworkActivity).toHaveBeenCalledWith(
         [`${KnownCaipNamespace.Eip155}:0:${MOCK_EVM_ADDRESS}`],
-        expect.any(Function),
+        {
+          getAuthenticationControllerBearerToken: expect.any(Function),
+        },
       );
-
-      // expect(mockAuthenticationControllerGetBearerToken).toHaveBeenCalled();
 
       expect(result).toStrictEqual({
         [MOCK_EVM_ADDRESS]: {
