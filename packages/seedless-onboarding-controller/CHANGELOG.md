@@ -9,12 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.0]
 
-### Uncategorized
-
-- Release 456.0.0 ([#6064](https://github.com/MetaMask/core/pull/6064))
-- fix: Auth Pubkey persistance in the Seedless controller state ([#6055](https://github.com/MetaMask/core/pull/6055))
-- Release 429.0.0 ([#5930](https://github.com/MetaMask/core/pull/5930))
-
 ### Added
 
 - Added `PrivateKey sync` feature to the controller ([#5948](https://github.com/MetaMask/core/pull/5948)).
