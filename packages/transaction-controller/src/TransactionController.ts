@@ -120,6 +120,7 @@ import type {
   AfterSimulateHook,
   BeforeSignHook,
   TransactionContainerType,
+  TransactionAsset,
 } from './types';
 import {
   GasFeeEstimateLevel,
@@ -1106,6 +1107,7 @@ export class TransactionController extends BaseController<
    * @param txParams - Standard parameters for an Ethereum transaction.
    * @param options - Additional options to control how the transaction is added.
    * @param options.actionId - Unique ID to prevent duplicate requests.
+   * @param options.assets - Assets required by the transaction.
    * @param options.batchId - A custom ID for the batch this transaction belongs to.
    * @param options.deviceConfirmedOn - An enum to indicate what device confirmed the transaction.
    * @param options.disableGasBuffer - Whether to disable the gas estimation buffer.
@@ -1128,6 +1130,7 @@ export class TransactionController extends BaseController<
     txParams: TransactionParams,
     options: {
       actionId?: string;
+      assets?: TransactionAsset[];
       batchId?: Hex;
       deviceConfirmedOn?: WalletDevice;
       disableGasBuffer?: boolean;
@@ -1151,6 +1154,7 @@ export class TransactionController extends BaseController<
 
     const {
       actionId,
+      assets,
       batchId,
       deviceConfirmedOn,
       disableGasBuffer,
@@ -1244,6 +1248,7 @@ export class TransactionController extends BaseController<
       : {
           // Add actionId to txMeta to check if same actionId is seen again
           actionId,
+          assets,
           batchId,
           chainId,
           dappSuggestedGasFees,
