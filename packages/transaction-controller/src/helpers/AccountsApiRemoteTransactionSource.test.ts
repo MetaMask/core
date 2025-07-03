@@ -15,6 +15,9 @@ jest.mock('../utils/transaction-type');
 
 jest.useFakeTimers();
 
+const MOCK_ACCESS_TOKEN = 'mock-access-token';
+const mockAuthenticationControllerGetBearerToken = jest.fn();
+
 const ADDRESS_MOCK = '0x123';
 const ONE_DAY_MS = 1000 * 60 * 60 * 24;
 const NOW_MOCK = 789000 + ONE_DAY_MS;
@@ -101,10 +104,18 @@ const TRANSACTION_TOKEN_TRANSFER_MOCK = {
 describe('AccountsApiRemoteTransactionSource', () => {
   const getAccountTransactionsMock = jest.mocked(getAccountTransactions);
   const determineTransactionTypeMock = jest.mocked(determineTransactionType);
+  const baseOptions = {
+    getAuthenticationControllerBearerToken:
+      mockAuthenticationControllerGetBearerToken,
+  };
 
   beforeEach(() => {
     jest.resetAllMocks();
     jest.setSystemTime(NOW_MOCK);
+
+    mockAuthenticationControllerGetBearerToken.mockResolvedValue(
+      MOCK_ACCESS_TOKEN,
+    );
 
     getAccountTransactionsMock.mockResolvedValue(
       {} as GetAccountTransactionsResponse,
@@ -118,24 +129,31 @@ describe('AccountsApiRemoteTransactionSource', () => {
 
   describe('getSupportedChains', () => {
     it('returns supported chains', () => {
-      const supportedChains =
-        new AccountsApiRemoteTransactionSource().getSupportedChains();
+      const supportedChains = new AccountsApiRemoteTransactionSource(
+        baseOptions,
+      ).getSupportedChains();
       expect(supportedChains.length).toBeGreaterThan(0);
     });
   });
 
   describe('fetchTransactions', () => {
     it('queries accounts API', async () => {
-      await new AccountsApiRemoteTransactionSource().fetchTransactions(
-        REQUEST_MOCK,
-      );
+      await new AccountsApiRemoteTransactionSource(
+        baseOptions,
+      ).fetchTransactions(REQUEST_MOCK);
 
       expect(getAccountTransactionsMock).toHaveBeenCalledTimes(1);
-      expect(getAccountTransactionsMock).toHaveBeenCalledWith({
-        address: ADDRESS_MOCK,
-        chainIds: SUPPORTED_CHAIN_IDS,
-        sortDirection: 'DESC',
-      });
+      expect(getAccountTransactionsMock).toHaveBeenCalledWith(
+        {
+          address: ADDRESS_MOCK,
+          chainIds: SUPPORTED_CHAIN_IDS,
+          sortDirection: 'DESC',
+        },
+        {
+          getAuthenticationControllerBearerToken:
+            mockAuthenticationControllerGetBearerToken,
+        },
+      );
     });
 
     it('returns normalized standard transaction', async () => {
@@ -144,10 +162,9 @@ describe('AccountsApiRemoteTransactionSource', () => {
         pageInfo: { hasNextPage: false, count: 1 },
       });
 
-      const transactions =
-        await new AccountsApiRemoteTransactionSource().fetchTransactions(
-          REQUEST_MOCK,
-        );
+      const transactions = await new AccountsApiRemoteTransactionSource(
+        baseOptions,
+      ).fetchTransactions(REQUEST_MOCK);
 
       expect(transactions).toStrictEqual([TRANSACTION_STANDARD_MOCK]);
     });
@@ -158,10 +175,9 @@ describe('AccountsApiRemoteTransactionSource', () => {
         pageInfo: { hasNextPage: false, count: 1 },
       });
 
-      const transactions =
-        await new AccountsApiRemoteTransactionSource().fetchTransactions(
-          REQUEST_MOCK,
-        );
+      const transactions = await new AccountsApiRemoteTransactionSource(
+        baseOptions,
+      ).fetchTransactions(REQUEST_MOCK);
 
       expect(transactions).toStrictEqual([TRANSACTION_TOKEN_TRANSFER_MOCK]);
     });
@@ -172,11 +188,12 @@ describe('AccountsApiRemoteTransactionSource', () => {
         pageInfo: { hasNextPage: false, count: 1 },
       });
 
-      const transactions =
-        await new AccountsApiRemoteTransactionSource().fetchTransactions({
-          ...REQUEST_MOCK,
-          updateTransactions: false,
-        });
+      const transactions = await new AccountsApiRemoteTransactionSource(
+        baseOptions,
+      ).fetchTransactions({
+        ...REQUEST_MOCK,
+        updateTransactions: false,
+      });
 
       expect(transactions).toStrictEqual([]);
     });
@@ -187,11 +204,12 @@ describe('AccountsApiRemoteTransactionSource', () => {
         pageInfo: { hasNextPage: false, count: 1 },
       });
 
-      const transactions =
-        await new AccountsApiRemoteTransactionSource().fetchTransactions({
-          ...REQUEST_MOCK,
-          includeTokenTransfers: false,
-        });
+      const transactions = await new AccountsApiRemoteTransactionSource(
+        baseOptions,
+      ).fetchTransactions({
+        ...REQUEST_MOCK,
+        includeTokenTransfers: false,
+      });
 
       expect(transactions).toStrictEqual([]);
     });
@@ -202,10 +220,9 @@ describe('AccountsApiRemoteTransactionSource', () => {
         pageInfo: { hasNextPage: false, count: 1 },
       });
 
-      const transactions =
-        await new AccountsApiRemoteTransactionSource().fetchTransactions(
-          REQUEST_MOCK,
-        );
+      const transactions = await new AccountsApiRemoteTransactionSource(
+        baseOptions,
+      ).fetchTransactions(REQUEST_MOCK);
 
       expect(transactions[0].type).toBe(TransactionType.tokenMethodTransfer);
     });

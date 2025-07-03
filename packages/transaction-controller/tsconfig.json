@@ -11,6 +11,7 @@
     { "path": "../controller-utils" },
     { "path": "../gas-fee-controller" },
     { "path": "../network-controller" },
+    { "path": "../profile-sync-controller" },
     { "path": "../remote-feature-flag-controller" }
   ],
   "include": ["../../types", "./src", "./tests"]

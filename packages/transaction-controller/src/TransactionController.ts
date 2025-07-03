@@ -43,6 +43,7 @@ import type {
   Transaction as NonceTrackerTransaction,
 } from '@metamask/nonce-tracker';
 import { NonceTracker } from '@metamask/nonce-tracker';
+import type { AuthenticationControllerGetBearerToken } from '@metamask/profile-sync-controller/auth';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import {
   errorCodes,
@@ -465,7 +466,8 @@ export type AllowedActions =
   | KeyringControllerSignEip7702AuthorizationAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
-  | RemoteFeatureFlagControllerGetStateAction;
+  | RemoteFeatureFlagControllerGetStateAction
+  | AuthenticationControllerGetBearerToken;
 
 /**
  * The external events available to the {@link TransactionController}.
@@ -984,7 +986,10 @@ export class TransactionController extends BaseController<
         this.#incomingTransactionOptions.includeTokenTransfers,
       isEnabled: this.#incomingTransactionOptions.isEnabled,
       messenger: this.messagingSystem,
-      remoteTransactionSource: new AccountsApiRemoteTransactionSource(),
+      remoteTransactionSource: new AccountsApiRemoteTransactionSource({
+        getAuthenticationControllerBearerToken:
+          this.#getAuthenticationControllerBearerToken.bind(this),
+      }),
       trimTransactions: this.#trimTransactionsForState.bind(this),
       updateTransactions: this.#incomingTransactionOptions.updateTransactions,
     });
@@ -4036,6 +4041,14 @@ export class TransactionController extends BaseController<
     return transactionMeta;
   }
 
+  async #getAuthenticationControllerBearerToken(): ReturnType<
+    AuthenticationControllerGetBearerToken['handler']
+  > {
+    return await this.messagingSystem.call(
+      'AuthenticationController:getBearerToken',
+    );
+  }
+
   async #updateFirstTimeInteraction(
     transactionMeta: TransactionMeta,
     {
@@ -4079,7 +4092,11 @@ export class TransactionController extends BaseController<
     try {
       const { count } = await this.#trace(
         { name: 'Account Address Relationship', parentContext: traceContext },
-        () => getAccountAddressRelationship(request),
+        () =>
+          getAccountAddressRelationship(request, {
+            getAuthenticationControllerBearerToken:
+              this.#getAuthenticationControllerBearerToken.bind(this),
+          }),
       );
 
       const isFirstTimeInteraction =

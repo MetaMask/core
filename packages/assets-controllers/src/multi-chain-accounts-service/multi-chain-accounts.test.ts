@@ -10,9 +10,19 @@ import {
 
 const MOCK_ADDRESS = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
 
+const MOCK_ACCESS_TOKEN = 'mock-access-token';
+const mockAuthenticationControllerGetBearerToken = jest.fn();
+
 describe('fetchSupportedNetworks()', () => {
   const createMockAPI = () =>
     nock(MULTICHAIN_ACCOUNTS_DOMAIN).get('/v1/supportedNetworks');
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockAuthenticationControllerGetBearerToken.mockResolvedValue(
+      MOCK_ACCESS_TOKEN,
+    );
+  });
 
   it('should successfully return supported networks array', async () => {
     const mockAPI = createMockAPI().reply(
@@ -20,19 +30,39 @@ describe('fetchSupportedNetworks()', () => {
       MOCK_GET_SUPPORTED_NETWORKS_RESPONSE,
     );
 
-    const result = await fetchSupportedNetworks();
+    const result = await fetchSupportedNetworks({
+      getAuthenticationControllerBearerToken:
+        mockAuthenticationControllerGetBearerToken,
+    });
     expect(result).toStrictEqual(
       MOCK_GET_SUPPORTED_NETWORKS_RESPONSE.fullSupport,
     );
     expect(mockAPI.isDone()).toBe(true);
   });
 
+  it('should attach the correct Authorization header', async () => {
+    const mockAPI = createMockAPI()
+      .matchHeader('Authorization', `Bearer ${MOCK_ACCESS_TOKEN}`)
+      .reply(200, MOCK_GET_SUPPORTED_NETWORKS_RESPONSE);
+
+    await fetchSupportedNetworks({
+      getAuthenticationControllerBearerToken:
+        mockAuthenticationControllerGetBearerToken,
+    });
+    expect(mockAuthenticationControllerGetBearerToken).toHaveBeenCalledTimes(1);
+    expect(mockAPI.isDone()).toBe(true);
+  });
+
   it('should throw error when fetch fails', async () => {
     const mockAPI = createMockAPI().reply(500);
 
-    await expect(async () => await fetchSupportedNetworks()).rejects.toThrow(
-      expect.any(Error),
-    );
+    await expect(
+      async () =>
+        await fetchSupportedNetworks({
+          getAuthenticationControllerBearerToken:
+            mockAuthenticationControllerGetBearerToken,
+        }),
+    ).rejects.toThrow(expect.any(Error));
     expect(mockAPI.isDone()).toBe(true);
   });
 });
@@ -43,12 +73,42 @@ describe('fetchMultiChainBalances()', () => {
       `/v2/accounts/${MOCK_ADDRESS}/balances`,
     );
 
+  beforeEach(() => {
+    mockAuthenticationControllerGetBearerToken.mockResolvedValue(
+      MOCK_ACCESS_TOKEN,
+    );
+  });
+
   it('should successfully return balances response', async () => {
     const mockAPI = createMockAPI().reply(200, MOCK_GET_BALANCES_RESPONSE);
 
-    const result = await fetchMultiChainBalances(MOCK_ADDRESS, {}, 'extension');
+    const result = await fetchMultiChainBalances(
+      MOCK_ADDRESS,
+      {
+        getAuthenticationControllerBearerToken:
+          mockAuthenticationControllerGetBearerToken,
+      },
+      'extension',
+    );
     expect(result).toBeDefined();
     expect(result).toStrictEqual(MOCK_GET_BALANCES_RESPONSE);
+    expect(mockAPI.isDone()).toBe(true);
+  });
+
+  it('should attach the correct Authorization header', async () => {
+    const mockAPI = createMockAPI()
+      .matchHeader('Authorization', `Bearer ${MOCK_ACCESS_TOKEN}`)
+      .reply(200, MOCK_GET_BALANCES_RESPONSE);
+
+    await fetchMultiChainBalances(
+      MOCK_ADDRESS,
+      {
+        getAuthenticationControllerBearerToken:
+          mockAuthenticationControllerGetBearerToken,
+      },
+      'extension',
+    );
+    expect(mockAuthenticationControllerGetBearerToken).toHaveBeenCalledTimes(1);
     expect(mockAPI.isDone()).toBe(true);
   });
 
@@ -63,6 +123,8 @@ describe('fetchMultiChainBalances()', () => {
       MOCK_ADDRESS,
       {
         networks: [1, 10],
+        getAuthenticationControllerBearerToken:
+          mockAuthenticationControllerGetBearerToken,
       },
       'extension',
     );
@@ -84,7 +146,14 @@ describe('fetchMultiChainBalances()', () => {
 
       await expect(
         async () =>
-          await fetchMultiChainBalances(MOCK_ADDRESS, {}, 'extension'),
+          await fetchMultiChainBalances(
+            MOCK_ADDRESS,
+            {
+              getAuthenticationControllerBearerToken:
+                mockAuthenticationControllerGetBearerToken,
+            },
+            'extension',
+          ),
       ).rejects.toThrow(expect.any(Error));
       expect(mockAPI.isDone()).toBe(true);
     },

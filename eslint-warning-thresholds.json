@@ -74,13 +74,9 @@
     "jsdoc/tag-lines": 11
   },
   "packages/assets-controllers/src/TokenDetectionController.test.ts": {
-    "import-x/namespace": 11,
-    "jsdoc/tag-lines": 1
+    "import-x/namespace": 11
   },
   "packages/assets-controllers/src/TokenDetectionController.ts": {
-    "@typescript-eslint/prefer-readonly": 3,
-    "jsdoc/check-tag-names": 8,
-    "jsdoc/tag-lines": 6,
     "no-unused-private-class-members": 2
   },
   "packages/assets-controllers/src/TokenListController.test.ts": {
@@ -110,9 +106,6 @@
     "jest/no-conditional-in-test": 2
   },
   "packages/assets-controllers/src/assetsUtil.ts": {
-    "jsdoc/tag-lines": 2
-  },
-  "packages/assets-controllers/src/multi-chain-accounts-service/multi-chain-accounts.ts": {
     "jsdoc/tag-lines": 2
   },
   "packages/assets-controllers/src/multicall.test.ts": {

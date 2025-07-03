@@ -1,4 +1,5 @@
 import { successfulFetch } from '@metamask/controller-utils';
+import type { AuthenticationControllerGetBearerToken } from '@metamask/profile-sync-controller/auth';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
@@ -116,10 +117,17 @@ const log = createModuleLogger(projectLogger, 'accounts-api');
  * Fetch account address relationship from the accounts API.
  *
  * @param request - The request object.
+ * @param options - Options for the request.
+ * @param options.getAuthenticationControllerBearerToken - A function that returns the bearer token from the AuthenticationController.
  * @returns The raw response object from the API.
  */
 export async function getAccountAddressRelationship(
   request: GetAccountAddressRelationshipRequest,
+  options: {
+    getAuthenticationControllerBearerToken: () => ReturnType<
+      AuthenticationControllerGetBearerToken['handler']
+    >;
+  },
 ): Promise<AccountAddressRelationshipResult> {
   const { chainId, from, to } = request;
 
@@ -128,12 +136,16 @@ export async function getAccountAddressRelationship(
     throw new FirstTimeInteractionError('Unsupported chain ID');
   }
 
+  const authenticationControllerBearerToken =
+    await options.getAuthenticationControllerBearerToken();
+
   const url = `${BASE_URL}/v1/networks/${chainId}/accounts/${from}/relationships/${to}`;
 
   log('Getting account address relationship', { request, url });
 
   const headers = {
     [CLIENT_HEADER]: CLIENT_ID,
+    Authorization: `Bearer ${authenticationControllerBearerToken}`,
   };
 
   const response = await successfulFetch(url, { headers });
@@ -160,10 +172,17 @@ export async function getAccountAddressRelationship(
  * Fetch account transactions from the accounts API.
  *
  * @param request - The request object.
+ * @param options - Options for the request.
+ * @param options.getAuthenticationControllerBearerToken - A function that returns the bearer token from the AuthenticationController.
  * @returns The response object.
  */
 export async function getAccountTransactions(
   request: GetAccountTransactionsRequest,
+  options: {
+    getAuthenticationControllerBearerToken: () => ReturnType<
+      AuthenticationControllerGetBearerToken['handler']
+    >;
+  },
 ): Promise<GetAccountTransactionsResponse> {
   const {
     address,
@@ -207,8 +226,12 @@ export async function getAccountTransactions(
 
   const clientId = [CLIENT_ID, ...(tags || [])].join('__');
 
+  const authenticationControllerBearerToken =
+    await options.getAuthenticationControllerBearerToken();
+
   const headers = {
     [CLIENT_HEADER]: clientId,
+    Authorization: `Bearer ${authenticationControllerBearerToken}`,
   };
 
   const response = await successfulFetch(url, { headers });

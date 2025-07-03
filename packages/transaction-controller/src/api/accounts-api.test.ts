@@ -16,6 +16,9 @@ jest.mock('@metamask/controller-utils', () => ({
   successfulFetch: jest.fn(),
 }));
 
+const MOCK_ACCESS_TOKEN = 'mock-access-token';
+const mockAuthenticationControllerGetBearerToken = jest.fn();
+
 const ADDRESS_MOCK = '0x123';
 const CHAIN_IDS_MOCK = ['0x1', '0x2'] as Hex[];
 const CURSOR_MOCK = '0x456';
@@ -57,6 +60,9 @@ describe('Accounts API', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
+    mockAuthenticationControllerGetBearerToken.mockResolvedValue(
+      MOCK_ACCESS_TOKEN,
+    );
   });
 
   describe('getAccountAddressRelationship', () => {
@@ -70,6 +76,10 @@ describe('Accounts API', () => {
 
         const result = await getAccountAddressRelationship(
           FIRST_TIME_REQUEST_MOCK,
+          {
+            getAuthenticationControllerBearerToken:
+              mockAuthenticationControllerGetBearerToken,
+          },
         );
 
         expect(result).toStrictEqual({
@@ -82,6 +92,10 @@ describe('Accounts API', () => {
 
         const result = await getAccountAddressRelationship(
           FIRST_TIME_REQUEST_MOCK,
+          {
+            getAuthenticationControllerBearerToken:
+              mockAuthenticationControllerGetBearerToken,
+          },
         );
 
         expect(result).toStrictEqual({
@@ -95,9 +109,31 @@ describe('Accounts API', () => {
 
       const result = await getAccountAddressRelationship(
         FIRST_TIME_REQUEST_MOCK,
+        {
+          getAuthenticationControllerBearerToken:
+            mockAuthenticationControllerGetBearerToken,
+        },
       );
 
       expect(result).toStrictEqual(EXISTING_RELATIONSHIP_RESPONSE_MOCK);
+    });
+
+    it('includes the Authorization header', async () => {
+      mockFetch(EXISTING_RELATIONSHIP_RESPONSE_MOCK);
+
+      await getAccountAddressRelationship(FIRST_TIME_REQUEST_MOCK, {
+        getAuthenticationControllerBearerToken:
+          mockAuthenticationControllerGetBearerToken,
+      });
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: `Bearer ${MOCK_ACCESS_TOKEN}`,
+          }),
+        }),
+      );
     });
 
     describe('throws FirstTimeInteractionError', () => {
@@ -108,9 +144,12 @@ describe('Accounts API', () => {
           to: TO_ADDRESS,
         };
 
-        await expect(getAccountAddressRelationship(request)).rejects.toThrow(
-          FirstTimeInteractionError,
-        );
+        await expect(
+          getAccountAddressRelationship(request, {
+            getAuthenticationControllerBearerToken:
+              mockAuthenticationControllerGetBearerToken,
+          }),
+        ).rejects.toThrow(FirstTimeInteractionError);
       });
 
       it('on error response', async () => {
@@ -119,7 +158,10 @@ describe('Accounts API', () => {
         });
 
         await expect(
-          getAccountAddressRelationship(FIRST_TIME_REQUEST_MOCK),
+          getAccountAddressRelationship(FIRST_TIME_REQUEST_MOCK, {
+            getAuthenticationControllerBearerToken:
+              mockAuthenticationControllerGetBearerToken,
+          }),
         ).rejects.toThrow(FirstTimeInteractionError);
       });
     });
@@ -129,13 +171,19 @@ describe('Accounts API', () => {
     it('queries the accounts API with the correct parameters', async () => {
       mockFetch(ACCOUNT_RESPONSE_MOCK);
 
-      const response = await getAccountTransactions({
-        address: ADDRESS_MOCK,
-        chainIds: CHAIN_IDS_MOCK,
-        cursor: CURSOR_MOCK,
-        endTimestamp: END_TIMESTAMP_MOCK,
-        startTimestamp: START_TIMESTAMP_MOCK,
-      });
+      const response = await getAccountTransactions(
+        {
+          address: ADDRESS_MOCK,
+          chainIds: CHAIN_IDS_MOCK,
+          cursor: CURSOR_MOCK,
+          endTimestamp: END_TIMESTAMP_MOCK,
+          startTimestamp: START_TIMESTAMP_MOCK,
+        },
+        {
+          getAuthenticationControllerBearerToken:
+            mockAuthenticationControllerGetBearerToken,
+        },
+      );
 
       expect(response).toStrictEqual(ACCOUNT_RESPONSE_MOCK);
 
@@ -149,21 +197,54 @@ describe('Accounts API', () => {
     it('includes the client header', async () => {
       mockFetch(ACCOUNT_RESPONSE_MOCK);
 
-      await getAccountTransactions({
-        address: ADDRESS_MOCK,
-        chainIds: CHAIN_IDS_MOCK,
-        cursor: CURSOR_MOCK,
-        endTimestamp: END_TIMESTAMP_MOCK,
-        startTimestamp: START_TIMESTAMP_MOCK,
-        tags: [TAG_MOCK, TAG_2_MOCK],
-      });
+      await getAccountTransactions(
+        {
+          address: ADDRESS_MOCK,
+          chainIds: CHAIN_IDS_MOCK,
+          cursor: CURSOR_MOCK,
+          endTimestamp: END_TIMESTAMP_MOCK,
+          startTimestamp: START_TIMESTAMP_MOCK,
+          tags: [TAG_MOCK, TAG_2_MOCK],
+        },
+        {
+          getAuthenticationControllerBearerToken:
+            mockAuthenticationControllerGetBearerToken,
+        },
+      );
 
       expect(fetchMock).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          headers: {
+          headers: expect.objectContaining({
             'x-metamask-clientproduct': `metamask-transaction-controller__${TAG_MOCK}__${TAG_2_MOCK}`,
-          },
+          }),
+        }),
+      );
+    });
+
+    it('includes the Authorization header', async () => {
+      mockFetch(ACCOUNT_RESPONSE_MOCK);
+
+      await getAccountTransactions(
+        {
+          address: ADDRESS_MOCK,
+          chainIds: CHAIN_IDS_MOCK,
+          cursor: CURSOR_MOCK,
+          endTimestamp: END_TIMESTAMP_MOCK,
+          startTimestamp: START_TIMESTAMP_MOCK,
+        },
+        {
+          getAuthenticationControllerBearerToken:
+            mockAuthenticationControllerGetBearerToken,
+        },
+      );
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: `Bearer ${MOCK_ACCESS_TOKEN}`,
+          }),
         }),
       );
     });

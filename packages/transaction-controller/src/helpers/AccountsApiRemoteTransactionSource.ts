@@ -1,4 +1,5 @@
 import { BNToHex } from '@metamask/controller-utils';
+import type { AuthenticationControllerGetBearerToken } from '@metamask/profile-sync-controller/auth';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 import { v1 as random } from 'uuid';
@@ -42,6 +43,19 @@ const log = createModuleLogger(
 export class AccountsApiRemoteTransactionSource
   implements RemoteTransactionSource
 {
+  readonly #getAuthenticationControllerBearerToken: () => ReturnType<
+    AuthenticationControllerGetBearerToken['handler']
+  >;
+
+  constructor(options: {
+    getAuthenticationControllerBearerToken: () => ReturnType<
+      AuthenticationControllerGetBearerToken['handler']
+    >;
+  }) {
+    this.#getAuthenticationControllerBearerToken =
+      options.getAuthenticationControllerBearerToken;
+  }
+
   getSupportedChains(): Hex[] {
     return SUPPORTED_CHAIN_IDS;
   }
@@ -90,12 +104,18 @@ export class AccountsApiRemoteTransactionSource
     const transactions: TransactionResponse[] = [];
 
     try {
-      const response = await getAccountTransactions({
-        address,
-        chainIds,
-        sortDirection: 'DESC',
-        tags,
-      });
+      const response = await getAccountTransactions(
+        {
+          address,
+          chainIds,
+          sortDirection: 'DESC',
+          tags,
+        },
+        {
+          getAuthenticationControllerBearerToken:
+            this.#getAuthenticationControllerBearerToken,
+        },
+      );
 
       if (response?.data) {
         transactions.push(...response.data);

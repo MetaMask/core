@@ -8,7 +8,8 @@
     { "path": "../base-controller" },
     { "path": "../controller-utils" },
     { "path": "../network-controller" },
-    { "path": "../keyring-controller" }
+    { "path": "../keyring-controller" },
+    { "path": "../profile-sync-controller" }
   ],
   "include": ["../../types", "./src", "./tests"]
 }
