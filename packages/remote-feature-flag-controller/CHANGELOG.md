@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- remote-feature-flag-controller: Fix flaky test ([#5730](https://github.com/MetaMask/core/pull/5730))
-- Release 319.0.0 ([#5439](https://github.com/MetaMask/core/pull/5439))
-- Revert "Release 319.0.0 (#5437)" ([#5437](https://github.com/MetaMask/core/pull/5437))
-- Release 319.0.0 ([#5437](https://github.com/MetaMask/core/pull/5437))
-
 ### Changed
 
 - Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))

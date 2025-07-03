@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [31.0.1]
+
 ### Uncategorized
 
 - Release 456.0.0 ([#6064](https://github.com/MetaMask/core/pull/6064))
@@ -542,7 +544,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@31.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@31.0.1...HEAD
+[31.0.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@31.0.0...@metamask/signature-controller@31.0.1
 [31.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@30.0.0...@metamask/signature-controller@31.0.0
 [30.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@29.0.0...@metamask/signature-controller@30.0.0
 [29.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@28.0.0...@metamask/signature-controller@29.0.0
