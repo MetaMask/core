@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add new `AuthenticationController:getUserProfileMetaMetrics` method
+- Add new `AuthenticationController:getUserProfileMetaMetrics` method ([#6068](https://github.com/MetaMask/core/pull/6068))
   - This method fetches data using the Authentication API, returning all MetaMetrics sessions related to the currently authenticated user, in the form of `typeof UserProfileMetaMetrics`
 
 ### Changed

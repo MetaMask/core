@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump peer dependency `@metamask/profile-sync-controller` to `^20.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+- **BREAKING:** Bump peer dependency `@metamask/profile-sync-controller` to `^20.0.0` ([#6071](https://github.com/MetaMask/core/pull/6071))
 
 ## [12.0.1]
 
