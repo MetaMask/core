@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: add `AuthenticationController:getUserProfileMetaMetrics` new method/action ([#6068](https://github.com/MetaMask/core/pull/6068))
+- Release 456.0.0 ([#6064](https://github.com/MetaMask/core/pull/6064))
+
 ### Added
 
 - Add new `AuthenticationController:getUserProfileMetaMetrics` method
