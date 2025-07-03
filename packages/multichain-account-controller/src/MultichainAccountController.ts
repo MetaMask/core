@@ -4,33 +4,19 @@ import type {
   AccountsControllerListMultichainAccountsAction,
 } from '@metamask/accounts-controller';
 import type { RestrictedMessenger } from '@metamask/base-controller';
-import { SolScope, type EntropySourceId } from '@metamask/keyring-api';
-import type {
-  KeyringControllerWithKeyringAction,
-  KeyringMetadata,
-  KeyringSelector,
-} from '@metamask/keyring-controller';
-import { KeyringTypes } from '@metamask/keyring-controller';
-import type {
-  EthKeyring,
-  InternalAccount,
-} from '@metamask/keyring-internal-api';
-import { KeyringClient } from '@metamask/keyring-snap-client';
+import type { EntropySourceId } from '@metamask/keyring-api';
+import type { KeyringControllerWithKeyringAction } from '@metamask/keyring-controller';
 import type {
   AccountProvider,
   MultichainAccountWalletId,
 } from '@metamask/multichain-account-api';
 import {
-  MultichainAccountAdapter,
   MultichainAccountWalletAdapter,
   toMultichainAccountWalletId,
   type MultichainAccount,
   type MultichainAccountWallet,
 } from '@metamask/multichain-account-api';
 import type { HandleSnapRequest as SnapControllerHandleSnapRequestAction } from '@metamask/snaps-controllers';
-import type { SnapId } from '@metamask/snaps-sdk';
-import { HandlerType } from '@metamask/snaps-utils';
-import type { Json, JsonRpcRequest } from '@metamask/utils';
 
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
 import { SolAccountProvider } from './providers/SolAccountProvider';
