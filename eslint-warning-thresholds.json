@@ -137,7 +137,7 @@
     "import-x/namespace": 34
   },
   "packages/base-controller/src/RestrictedMessenger.test.ts": {
-    "import-x/namespace": 31
+    "import-x/namespace": 32
   },
   "packages/build-utils/src/transforms/remove-fenced-code.test.ts": {
     "import-x/order": 1
