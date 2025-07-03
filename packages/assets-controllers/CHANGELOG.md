@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Add `profileId`-based rate limiting support for Accounts API calls
   - Use `AuthenticationController:getBearerToken` in order to get a bearer token that gets attached to every request to the Accounts API
 
+## [70.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/snaps-controllers` from `^12.0.0` to `^14.0.0` ([#6035](https://github.com/MetaMask/core/pull/6035))
+- Update `MultichainAssetsRatesController` to use the new `onAssetsMarketData` handler in addition of `onAssetsConversion` to get marketData ([#6035](https://github.com/MetaMask/core/pull/6035))
+  - This change improves the handler interface for fetching asset market data from Snaps
+- Bump `@metamask/snaps-sdk` from `^7.1.0` to `^9.0.0` ([#6035](https://github.com/MetaMask/core/pull/6035))
+- Bump `@metamask/snaps-utils` from `^9.4.0` to `^11.0.0` ([#6035](https://github.com/MetaMask/core/pull/6035))
+
 ## [69.0.0]
 
 ### Changed
@@ -1741,7 +1751,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@69.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@70.0.0...HEAD
+[70.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@69.0.0...@metamask/assets-controllers@70.0.0
 [69.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@68.2.0...@metamask/assets-controllers@69.0.0
 [68.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@68.1.0...@metamask/assets-controllers@68.2.0
 [68.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@68.0.0...@metamask/assets-controllers@68.1.0

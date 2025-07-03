@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/assets-controllers` from `^69.0.0` to `^70.0.0` ([#6061](https://github.com/MetaMask/core/pull/6061))
+- **BREAKING:** Bump peer dependency `@metamask/snaps-controllers` from `^12.0.0` to `^14.0.0` ([#6035](https://github.com/MetaMask/core/pull/6035))
+
 ## [34.0.0]
 
 ### Added

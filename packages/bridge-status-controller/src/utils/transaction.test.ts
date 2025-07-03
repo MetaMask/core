@@ -19,6 +19,7 @@ import {
   handleLineaDelay,
   getKeyringRequest,
   getClientRequest,
+  toBatchTxParams,
 } from './transaction';
 import { LINEA_DELAY_MS } from '../constants';
 
@@ -1195,6 +1196,26 @@ describe('Bridge Status Controller Transaction Utils', () => {
             scope: SolScope.Mainnet,
           },
         },
+      });
+    });
+  });
+
+  describe('toBatchTxParams', () => {
+    it('should return params without gas if disable7702 is false', () => {
+      const mockTrade = {
+        chainId: 1,
+        gasLimit: 1231,
+        to: '0x1',
+        data: '0x1',
+        from: '0x1',
+        value: '0x1',
+      };
+      const result = toBatchTxParams(false, mockTrade, {});
+      expect(result).toStrictEqual({
+        data: '0x1',
+        from: '0x1',
+        to: '0x1',
+        value: '0x1',
       });
     });
   });

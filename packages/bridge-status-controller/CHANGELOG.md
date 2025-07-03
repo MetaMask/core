@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [34.0.0]
+
+### Added
+
+- Add `batchId` to BridgeHistoryItem to enable querying history by batchId ([#6058](https://github.com/MetaMask/core/pull/6058))
+
+### Changed
+
+- **BREAKING** Add tx batching functionality, which requires an `addTransactionBatchFn` handler to be passed to the BridgeStatusController's constructor ([#6058](https://github.com/MetaMask/core/pull/6058))
+- **BREAKING** Update batched txs after signing with correct tx types, which requires an `updateTransactionFn` handler to be passed to the BridgeStatusController's constructor ([#6058](https://github.com/MetaMask/core/pull/6058))
+- Add approvalTxId to txHistoryItem after signing batched transaction ([#6058](https://github.com/MetaMask/core/pull/6058))
+- Remove `addUserOperationFromTransaction` tx submission code and constructor arg since it is unsupported ([#6057](https://github.com/MetaMask/core/pull/6057))
+- Remove @metamask/user-operation-controller dependency ([#6057](https://github.com/MetaMask/core/pull/6057))
+- **BREAKING:** Bump peer dependency `@metamask/snaps-controllers` from `^12.0.0` to `^14.0.0` ([#6035](https://github.com/MetaMask/core/pull/6035))
+
+### Fixed
+
+- Wait until a bridge transaction is confirmed before polling for its status. This reduces (or fully removes) premature `getTxStatus` calls, and enables adding batched bridge txs to history before its transaction Id is available ([#6052](https://github.com/MetaMask/core/pull/6052))
+
 ## [33.0.0]
 
 ### Changed
@@ -377,7 +396,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@33.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@34.0.0...HEAD
+[34.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@33.0.0...@metamask/bridge-status-controller@34.0.0
 [33.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@32.0.0...@metamask/bridge-status-controller@33.0.0
 [32.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@31.0.0...@metamask/bridge-status-controller@32.0.0
 [31.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@30.0.0...@metamask/bridge-status-controller@31.0.0
