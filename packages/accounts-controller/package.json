@@ -55,7 +55,7 @@
     "@metamask/keyring-utils": "^3.0.0",
     "@metamask/snaps-sdk": "^9.0.0",
     "@metamask/snaps-utils": "^11.0.0",
-    "@metamask/utils": "^11.2.0",
+    "@metamask/utils": "^11.4.2",
     "deepmerge": "^4.2.2",
     "ethereum-cryptography": "^2.1.2",
     "immer": "^9.0.6",
