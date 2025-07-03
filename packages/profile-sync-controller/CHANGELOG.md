@@ -7,15 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat: add `AuthenticationController:getUserProfileMetaMetrics` new method/action ([#6068](https://github.com/MetaMask/core/pull/6068))
-- Release 456.0.0 ([#6064](https://github.com/MetaMask/core/pull/6064))
+## [20.0.0]
 
 ### Added
 
 - Add new `AuthenticationController:getUserProfileMetaMetrics` method
-  - This fetches data containing all MetaMetrics sessions related to the currently authenticated user, in the form of `UserProfileMetaMetrics`
+  - This method fetches data using the Authentication API, returning all MetaMetrics sessions related to the currently authenticated user, in the form of `typeof UserProfileMetaMetrics`
 
 ### Changed
 
@@ -654,7 +651,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@19.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@20.0.0...HEAD
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@19.0.0...@metamask/profile-sync-controller@20.0.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@18.0.0...@metamask/profile-sync-controller@19.0.0
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@17.1.0...@metamask/profile-sync-controller@18.0.0
 [17.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@17.0.0...@metamask/profile-sync-controller@17.1.0
