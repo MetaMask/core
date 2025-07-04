@@ -46,7 +46,9 @@ export class MultichainAccountController {
       new EvmAccountProvider(this.#messenger),
       new SolAccountProvider(this.#messenger),
     ];
+  }
 
+  init(): void {
     // Gather all entropy sources first.
     const entropySources = new Set<EntropySourceId>();
     for (const provider of this.#providers) {
