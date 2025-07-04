@@ -38,6 +38,7 @@ function assertInternalAccountExists(
 }
 
 const SOLANA_SNAP_ID = 'npm:@metamask/solana-wallet-snap' as SnapId;
+
 export class SolAccountProvider implements AccountProvider {
   readonly #messenger: MultichainAccountControllerMessenger;
 
