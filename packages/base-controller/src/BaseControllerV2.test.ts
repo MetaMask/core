@@ -1471,7 +1471,6 @@ describe('getPersistentState', () => {
 
       new TestController();
 
-      // Verify the methods are registered and callable
       const testResult = messenger.call('TestController:testMethod');
       expect(testResult).toBe('test result from BaseController');
 
