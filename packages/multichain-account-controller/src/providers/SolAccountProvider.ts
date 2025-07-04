@@ -112,11 +112,27 @@ export class SolAccountProvider implements AccountProvider {
       displayConfirmation: false,
     });
 
+    // FIXME: This part of the flow is truly async, so when the `KeyringClient`
+    // returns the `KeyringAccount`, its `InternalAccount` won't be "ready"
+    // right away. For now we just re-create a fake `InternalAccount` and
+    // we might have to rely solely on `account.id`.
+
     // Actually get the associated `InternalAccount`.
-    const account = this.#messenger.call(
-     'AccountsController:getAccount',
-     keyringAccount.id,
-    );
+    // const account = this.#messenger.call(
+    //  'AccountsController:getAccount',
+    //  keyringAccount.id,
+    // );
+
+    const account: InternalAccount = {
+      ...keyringAccount,
+      metadata: {
+        name: `Solana account -- ${keyringAccount.options.index}`,
+        importTime: 0,
+        keyring: {
+          type: KeyringTypes.snap,
+        },
+      },
+    };
 
     // We MUST have the associated internal account.
     assertInternalAccountExists(account);
