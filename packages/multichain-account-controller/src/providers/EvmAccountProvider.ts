@@ -9,6 +9,7 @@ import type {
   InternalAccount,
 } from '@metamask/keyring-internal-api';
 import type { AccountProvider } from '@metamask/multichain-account-api';
+
 import type { MultichainAccountControllerMessenger } from '../types';
 
 // Max index used by discovery (until we move the proper discovery here).
@@ -70,22 +71,31 @@ export class EvmAccountProvider implements AccountProvider {
     entropySource: EntropySourceId;
     groupIndex: number;
   }) {
-    const addresses = await this.#withKeyring(
+    const [address] = await this.#withKeyring(
       { id: entropySource },
       async ({ keyring }) => {
         const accounts = await keyring.getAccounts();
-        if (groupIndex <= accounts.length) {
+        if (groupIndex < accounts.length) {
           // Nothing new to create, we just re-use the existing accounts here,
           return [accounts[groupIndex]];
         }
 
+        // For now, we don't allow for gap, so if we need to create a new
+        // account, this has to be the next one.
+        if (groupIndex !== accounts.length) {
+          throw new Error('Trying to create too many accounts');
+        }
+
         // Create new accounts (and returns their addresses).
-        return await keyring.addAccounts(groupIndex);
+        // NOTE: We need the `+ 1` here since we use the "number of accounts"
+        // in `addAccounts`, so:
+        // - 1 means, 1 account  -> index 0
+        // - 2 means, 2 accounts -> index 0 and 1
+        // - etc...
+        return await keyring.addAccounts(groupIndex + 1);
       },
     );
 
-    // Only use the account associated for that index.
-    const address = addresses[groupIndex];
     const account = this.#messenger.call(
       'AccountsController:getAccountByAddress',
       address,
