@@ -1174,6 +1174,12 @@ export class NetworkController extends BaseController<
       );
 
     this.registerActionHandlers(MESSENGER_EXPOSED_METHODS);
+    this.messagingSystem.registerActionHandler(
+      'NetworkController:getEthQuery',
+      () => {
+        return this.#ethQuery;
+      },
+    );
   }
 
   /**
