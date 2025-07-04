@@ -1435,5 +1435,48 @@ describe('getPersistentState', () => {
         'A handler for TestController:messagingSystem has not been registered',
       );
     });
+
+    it('should register action handlers through "registerActionHandlers" method from BaseController', () => {
+      const messenger = new Messenger<TestControllerActions, never>();
+      const restrictedMessenger = messenger.getRestricted({
+        name: 'TestController',
+        allowedActions: [],
+        allowedEvents: [],
+      });
+
+      class TestController extends BaseController<
+        'TestController',
+        CountControllerState,
+        TestControllerMessenger
+      > {
+        constructor() {
+          super({
+            messenger: restrictedMessenger,
+            name: 'TestController',
+            state: { count: 0 },
+            metadata: countControllerStateMetadata,
+          });
+
+          this.registerActionHandlers(['testMethod', 'method1']);
+        }
+
+        testMethod() {
+          return 'test result from BaseController';
+        }
+
+        method1() {
+          return 'method1 result from BaseController';
+        }
+      }
+
+      new TestController();
+
+      // Verify the methods are registered and callable
+      const testResult = messenger.call('TestController:testMethod');
+      expect(testResult).toBe('test result from BaseController');
+
+      const method1Result = messenger.call('TestController:method1');
+      expect(method1Result).toBe('method1 result from BaseController');
+    });
   });
 });
