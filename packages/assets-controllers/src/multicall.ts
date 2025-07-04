@@ -1,7 +1,7 @@
 import { Contract } from '@ethersproject/contracts';
 import type { Web3Provider } from '@ethersproject/providers';
 import type { Hex } from '@metamask/utils';
-import type BN from 'bn.js';
+import BN from 'bn.js';
 
 import { reduceInBatchesSerially } from './assetsUtil';
 
@@ -496,13 +496,15 @@ export const aggregate3 = async (
 };
 
 /**
- * Get ERC20 token balances for multiple addresses and multiple tokens using aggregate3.
+ * Get ERC20 token balances and native token balances for multiple addresses using aggregate3.
  * This is more efficient than individual balanceOf calls for multiple addresses and tokens.
+ * Native token balances are mapped to the zero address (0x0000000000000000000000000000000000000000).
  *
  * @param tokenAddresses - Array of ERC20 token contract addresses
  * @param userAddresses - Array of user addresses to check balances for
  * @param chainId - The hexadecimal chain id
  * @param provider - An ethers rpc provider
+ * @param includeNative - Whether to include native token balances (default: true)
  * @returns Promise resolving to map of token address to map of user address to balance
  */
 export const getERC20BalancesForMultipleAddresses = async (
@@ -510,6 +512,7 @@ export const getERC20BalancesForMultipleAddresses = async (
   userAddresses: string[],
   chainId: Hex,
   provider: Web3Provider,
+  includeNative = true,
 ): Promise<Record<string, Record<string, BN>>> => {
   if (userAddresses.length === 0 || tokenAddresses.length === 0) {
     return {};
@@ -556,6 +559,22 @@ export const getERC20BalancesForMultipleAddresses = async (
     });
   });
 
+  // Add native token balance calls if requested
+  if (includeNative) {
+    const multicall3Address = MULTICALL3_CONTRACT_BY_CHAINID[chainId];
+    userAddresses.forEach((userAddress) => {
+      calls.push({
+        target: multicall3Address,
+        allowFailure: true,
+        callData: '0x4d2301cc', // getEthBalance(address) function selector
+      });
+      callMapping.push({
+        tokenAddress: '0x0000000000000000000000000000000000000000', // Zero address for native token
+        userAddress,
+      });
+    });
+  }
+
   try {
     const results = await aggregate3(calls, chainId, provider);
 
@@ -564,11 +583,21 @@ export const getERC20BalancesForMultipleAddresses = async (
     results.forEach((result, index) => {
       if (result.success) {
         try {
-          const balance = tempContract.interface.decodeFunctionResult(
-            'balanceOf(address)',
-            result.returnData,
-          )[0];
           const { tokenAddress, userAddress } = callMapping[index];
+
+          let balance: BN;
+
+          // Handle native token balance (zero address)
+          if (tokenAddress === '0x0000000000000000000000000000000000000000') {
+            // For native token, the result is directly the balance
+            balance = new BN(result.returnData.slice(2), 16); // Remove '0x' prefix and convert from hex
+          } else {
+            // For ERC20 tokens, decode the balanceOf result
+            balance = tempContract.interface.decodeFunctionResult(
+              'balanceOf(address)',
+              result.returnData,
+            )[0];
+          }
 
           if (!balanceMap[tokenAddress]) {
             balanceMap[tokenAddress] = {};

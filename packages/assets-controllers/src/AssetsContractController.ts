@@ -856,18 +856,21 @@ export class AssetsContractController {
   }
 
   /**
-   * Get ERC20 token balances for multiple addresses and multiple tokens using aggregate3.
+   * Get ERC20 token balances and native token balances for multiple addresses using aggregate3.
    * This is more efficient than individual balanceOf calls for multiple addresses and tokens.
+   * Native token balances are mapped to the zero address (0x0000000000000000000000000000000000000000).
    *
    * @param tokenAddresses - Array of ERC20 token contract addresses
    * @param userAddresses - Array of user addresses to check balances for
    * @param networkClientId - Network Client ID to fetch the provider with
+   * @param includeNative - Whether to include native token balances (default: true)
    * @returns Promise resolving to map of token address to map of user address to balance
    */
   async getERC20BalancesForMultipleAddresses(
     tokenAddresses: string[],
     userAddresses: string[],
     networkClientId?: NetworkClientId,
+    includeNative = true,
   ): Promise<Record<string, Record<string, BN>>> {
     const chainId = this.#getCorrectChainId(networkClientId);
     const provider = this.#getCorrectProvider(networkClientId);
@@ -877,6 +880,7 @@ export class AssetsContractController {
       userAddresses,
       chainId,
       provider,
+      includeNative,
     );
   }
 }
