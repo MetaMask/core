@@ -44,6 +44,8 @@ export enum SeedlessOnboardingControllerErrorMessage {
   MissingKeyringId = `${controllerName} - Keyring ID is required to store SRP backups.`,
   FailedToEncryptAndStoreSecretData = `${controllerName} - Failed to encrypt and store secret data`,
   FailedToFetchSecretMetadata = `${controllerName} - Failed to fetch secret metadata`,
+  NoSecretDataFound = `${controllerName} - No secret data found`,
+  InvalidPrimarySecretDataType = `${controllerName} - Primary secret data must be of type mnemonic.`,
   FailedToChangePassword = `${controllerName} - Failed to change password`,
   TooManyLoginAttempts = `${controllerName} - Too many login attempts`,
   IncorrectPassword = `${controllerName} - Incorrect password`,
