@@ -1,7 +1,7 @@
 {
   "name": "@metamask/multichain-account-controller",
   "version": "0.0.0",
-  "description": "example",
+  "description": "Controller to manage multichain accounts",
   "keywords": [
     "MetaMask",
     "Ethereum"
@@ -37,12 +37,14 @@
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:docs": "typedoc",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/multichain-account-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/multichain-account-controller",
     "publish:preview": "yarn npm publish --tag preview",
-    "test": "jest --reporters=jest-silent-reporter",
-    "test:clean": "jest --clearCache",
-    "test:verbose": "jest --verbose",
-    "test:watch": "jest --watch"
+    "since-latest-release": "../../scripts/since-latest-release.sh",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
+    "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
+    "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
     "@metamask/base-controller": "^8.0.1",
