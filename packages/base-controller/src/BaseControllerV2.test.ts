@@ -1324,5 +1324,22 @@ describe('getPersistentState', () => {
         'A handler for TestController:method2 has not been registered',
       );
     });
+
+    it('should register all specified methods when excludedMethods uses default value', () => {
+      const { messenger } = createTestController({
+        methodsToRegister: ['testMethod', 'method1', 'method2'],
+        // excludedMethods is not specified, so it should use default value []
+      });
+
+      // All specified methods should be registered since excludedMethods defaults to []
+      const testResult = messenger.call('TestController:testMethod');
+      expect(testResult).toBe('test result');
+
+      const method1Result = messenger.call('TestController:method1');
+      expect(method1Result).toBe('method1 result');
+
+      const method2Result = messenger.call('TestController:method2');
+      expect(method2Result).toBe('method2 result');
+    });
   });
 });
