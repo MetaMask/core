@@ -1,15 +1,24 @@
+import type { SnapKeyring } from '@metamask/eth-snap-keyring';
 import {
   SolAccountType,
   SolScope,
   type EntropySourceId,
 } from '@metamask/keyring-api';
+import type {
+  KeyringMetadata,
+  KeyringSelector,
+} from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
-import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type {
+  EthKeyring,
+  InternalAccount,
+} from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { AccountProvider } from '@metamask/multichain-account-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
+
 import type { MultichainAccountControllerMessenger } from '../types';
 
 type SolInternalAccount = InternalAccount & {
@@ -28,18 +37,40 @@ function assertInternalAccountExists(
   }
 }
 
+const SOLANA_SNAP_ID = 'npm:@metamask/solana-wallet-snap' as SnapId;
 export class SolAccountProvider implements AccountProvider {
   readonly #messenger: MultichainAccountControllerMessenger;
- 
+
   readonly #client: KeyringClient;
 
   constructor(messenger: MultichainAccountControllerMessenger) {
     this.#messenger = messenger;
 
-    // TODO: Change this once we introduce 1 Snap keyring per Snaps
-    this.#client = this.#getKeyringClientFromSnapId(
-      'npm:@metamask/solana-wallet-snap',
+    // TODO: Change this once we introduce 1 Snap keyring per Snaps.
+    this.#client = this.#getKeyringClientFromSnapId(SOLANA_SNAP_ID);
+  }
+
+  async #withKeyring<SelectedKeyring, CallbackResult = void>(
+    selector: KeyringSelector,
+    operation: ({
+      keyring,
+      metadata,
+    }: {
+      keyring: SelectedKeyring;
+      metadata: KeyringMetadata;
+    }) => Promise<CallbackResult>,
+  ): Promise<CallbackResult> {
+    const result = await this.#messenger.call(
+      'KeyringController:withKeyring',
+      selector,
+      ({ keyring, metadata }) =>
+        operation({
+          keyring: keyring as SelectedKeyring,
+          metadata,
+        }),
     );
+
+    return result as CallbackResult;
   }
 
   #getKeyringClientFromSnapId(snapId: string): KeyringClient {
@@ -63,12 +94,28 @@ export class SolAccountProvider implements AccountProvider {
     entropySource: EntropySourceId;
     derivationPath: `m/${string}`;
   }) {
-    const keyringAccount = await this.#client.createAccount(opts);
+    // NOTE: We're not supposed to make the keyring instance escape `withKeyring` but
+    // we have to use the `SnapKeyring` instance to be able to create Solana account
+    // without triggering UI confirmation.
+    // Also, creating account that way won't invalidate the snap keyring state. The
+    // account will get created and persisted properly with the Snap account creation
+    // flow "asynchronously" (with `notify:accountCreated`).
+    const createAccount = await this.#withKeyring<
+      SnapKeyring,
+      SnapKeyring['createAccount']
+    >({ type: KeyringTypes.snap }, async ({ keyring }) =>
+      keyring.createAccount.bind(keyring),
+    );
+
+    const keyringAccount = await createAccount(SOLANA_SNAP_ID, opts, {
+      displayAccountNameSuggestion: false,
+      displayConfirmation: false,
+    });
 
     // Actually get the associated `InternalAccount`.
     const account = this.#messenger.call(
-      'AccountsController:getAccount',
-      keyringAccount.id,
+     'AccountsController:getAccount',
+     keyringAccount.id,
     );
 
     // We MUST have the associated internal account.

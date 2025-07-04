@@ -3790,6 +3790,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^31.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.1"
+    "@metamask/eth-snap-keyring": "npm:^13.0.0"
     "@metamask/keyring-api": "npm:^18.0.0"
     "@metamask/keyring-controller": "npm:^22.0.2"
     "@metamask/keyring-internal-api": "npm:^6.2.0"
