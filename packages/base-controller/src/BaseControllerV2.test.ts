@@ -1391,5 +1391,49 @@ describe('getPersistentState', () => {
         messengerWithNoCustomExclusions.call('TestController:method2'),
       ).toBe('method2 result');
     });
+
+    it('should never register hard-excluded methods even when explicitly requested', () => {
+      type ExtendedTestActions = {
+        type: 'TestController:normalMethod';
+        handler: () => string;
+      };
+
+      const messenger = new Messenger<ExtendedTestActions, never>();
+
+      // Create a mock controller-like object with the hard-excluded method names
+      const mockController = {
+        name: 'TestController',
+        constructor: () => 'constructor called',
+        messagingSystem: () => 'messagingSystem called',
+        normalMethod: () => 'normal method called',
+      };
+
+      // Try to register methods including the hard-excluded ones
+      messenger.registerActionHandlers(
+        mockController,
+        ['constructor', 'messagingSystem', 'normalMethod'],
+        [], // Empty exclusions - but hard exclusions should still apply
+      );
+
+      // normalMethod should be registered
+      expect(messenger.call('TestController:normalMethod')).toBe(
+        'normal method called',
+      );
+
+      // Hard-excluded methods should NEVER be registered, regardless of being in methodNames
+      expect(() => {
+        // @ts-expect-error - TestController:constructor is hard-excluded
+        messenger.call('TestController:constructor');
+      }).toThrow(
+        'A handler for TestController:constructor has not been registered',
+      );
+
+      expect(() => {
+        // @ts-expect-error - TestController:messagingSystem is hard-excluded
+        messenger.call('TestController:messagingSystem');
+      }).toThrow(
+        'A handler for TestController:messagingSystem has not been registered',
+      );
+    });
   });
 });
