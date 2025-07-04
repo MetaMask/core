@@ -130,7 +130,7 @@ export class RestrictedMessenger<
    * Registers action handlers for a list of methods on a class instance
    *
    * @param instance - The class instance with a name property and methods
-   * @param methodNames - The names of the methods to register as action handlers
+   * @param methodNames - The names of the methods to register as action handlers (excluding hard-excluded methods)
    * @param excludedMethods - Optional list of method names to exclude from registration
    * @param exceptions - Optional map of method names to custom handlers
    */
@@ -140,7 +140,7 @@ export class RestrictedMessenger<
   >(
     instance: Instance,
     methodNames: readonly MethodNames[],
-    excludedMethods: readonly string[] = ['constructor', 'messagingSystem'],
+    excludedMethods: readonly string[] = [],
     exceptions: Partial<
       Record<MethodNames, (...args: unknown[]) => unknown>
     > = {},
