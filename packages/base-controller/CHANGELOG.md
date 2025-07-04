@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `registerActionHandlers` method to `BaseController`, `Messenger`, and `RestrictedMessenger` for simplified bulk action handler registration ([#5927](https://github.com/MetaMask/core/pull/5927))
+  - Allows registering multiple action handlers at once by passing an array of method names
+  - Supports automatic exclusion of specified methods (defaults to `['constructor', 'messagingSystem']`)
+  - Provides custom handler exceptions for specific methods
+  - Automatically binds methods to the controller instance
+  - Reduces boilerplate code when registering multiple action handlers
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
