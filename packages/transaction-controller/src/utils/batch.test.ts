@@ -1091,8 +1091,6 @@ describe('Batch Utils', () => {
       });
 
       it('throws if publish batch hook does not return result', async () => {
-        const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
-
         addTransactionMock
           .mockResolvedValueOnce({
             transactionMeta: {
@@ -1109,11 +1107,14 @@ describe('Batch Utils', () => {
             result: Promise.resolve(''),
           });
 
-        publishBatchHook.mockResolvedValue(undefined);
+        const publishBatchHookMock = jest.fn().mockResolvedValue(undefined);
+        sequentialPublishBatchHookMock.mockReturnValue({
+          getHook: () => publishBatchHookMock,
+        } as unknown as SequentialPublishBatchHook);
 
         const resultPromise = addTransactionBatch({
           ...request,
-          publishBatchHook,
+          publishBatchHook: publishBatchHookMock,
           request: { ...request.request, disable7702: true },
         });
 
@@ -1451,15 +1452,13 @@ describe('Batch Utils', () => {
         expect(result?.batchId).toMatch(/^0x[0-9a-f]{32}$/u);
       });
 
-      it('falls back sequentialPublishBatchHook when publishBatchHook returns empty results', async () => {
+      it('falls back sequentialPublishBatchHook when publishBatchHook returns undefined', async () => {
         const { approve } = mockRequestApproval(MESSENGER_MOCK, {
           state: 'approved',
         });
         mockSequentialPublishBatchHookResults();
         setupSequentialPublishBatchHookMock(() => sequentialPublishBatchHook);
-        const publishBatchHookMock = jest
-          .fn()
-          .mockResolvedValue({ results: {} });
+        const publishBatchHookMock = jest.fn().mockResolvedValue(undefined);
 
         const resultPromise = addTransactionBatch({
           ...request,

@@ -435,7 +435,7 @@ async function addTransactionBatchWithHook(
 
   let publishBatchHook = null;
 
-  if (!disableHook) {
+  if (!disableHook && requestPublishBatchHook) {
     publishBatchHook = requestPublishBatchHook;
   } else if (!disableSequential) {
     publishBatchHook = sequentialPublishBatchHook.getHook();
@@ -496,13 +496,13 @@ async function addTransactionBatchWithHook(
 
     log('Publish batch hook result', result);
 
-    if (result && !Array.isArray(result?.results)) {
+    if (!result && !(publishBatchHook instanceof SequentialPublishBatchHook)) {
       log('Fallback to sequential publish batch hook due to empty results');
       const sequentialBatchHook = sequentialPublishBatchHook.getHook();
       result = await sequentialBatchHook(hookParams);
     }
 
-    if (!result || !Array.isArray(result.results)) {
+    if (!result?.results?.length) {
       throw new Error('Publish batch hook did not return a result');
     }
 
