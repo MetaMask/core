@@ -414,6 +414,7 @@ async function addTransactionBatchWithHook(
   } = userRequest;
 
   let resultCallbacks: AcceptResultCallbacks | undefined;
+  let isSequentialBatchHook = false;
 
   log('Adding transaction batch using hook', userRequest);
 
@@ -435,10 +436,11 @@ async function addTransactionBatchWithHook(
 
   let publishBatchHook = null;
 
-  if (!disableHook) {
+  if (!disableHook && requestPublishBatchHook) {
     publishBatchHook = requestPublishBatchHook;
   } else if (!disableSequential) {
     publishBatchHook = sequentialPublishBatchHook.getHook();
+    isSequentialBatchHook = true;
   }
 
   if (!publishBatchHook) {
@@ -488,17 +490,21 @@ async function addTransactionBatchWithHook(
       signedTx: signedTransactions[index],
     }));
 
-    log('Calling publish batch hook', { from, networkClientId, transactions });
+    const hookParams = { from, networkClientId, transactions };
 
-    const result = await publishBatchHook({
-      from,
-      networkClientId,
-      transactions,
-    });
+    log('Calling publish batch hook', hookParams);
+
+    let result = await publishBatchHook(hookParams);
 
     log('Publish batch hook result', result);
 
-    if (!result) {
+    if (!result && !isSequentialBatchHook && !disableSequential) {
+      log('Fallback to sequential publish batch hook due to empty results');
+      const sequentialBatchHook = sequentialPublishBatchHook.getHook();
+      result = await sequentialBatchHook(hookParams);
+    }
+
+    if (!result?.results?.length) {
       throw new Error('Publish batch hook did not return a result');
     }
 
