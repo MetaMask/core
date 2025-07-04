@@ -10,6 +10,7 @@ import {
 } from './utils';
 import { isContactBridgedFromAccounts } from './utils';
 import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
+import { TraceName } from '../constants/traces';
 
 export type SyncContactsWithUserStorageConfig = {
   onContactSyncErroneousSituation?: (
@@ -240,13 +241,15 @@ export async function syncContactsWithUserStorage(
   };
 
   if (trace) {
+    console.log('[TRACE DEBUG] About to call trace for ContactSyncFull');
+
     // Gather pre-sync metrics for performance analysis
     const initialLocalContacts = localVisibleContacts;
     const initialValidRemoteContacts = validRemoteContacts;
 
     return await trace(
       {
-        name: 'Contact Sync Full',
+        name: TraceName.ContactSyncFull,
         data: {
           localContactCount: initialLocalContacts.length,
           remoteContactCount: initialValidRemoteContacts.length,
@@ -269,7 +272,7 @@ export async function syncContactsWithUserStorage(
       performSync,
     );
   }
-
+  console.log('[TRACE DEBUG] No trace function available for ContactSyncFull');
   return await performSync();
 }
 
@@ -340,7 +343,7 @@ async function saveContactsToUserStorage(
   return trace
     ? await trace(
         {
-          name: 'Contact Sync Save Batch',
+          name: TraceName.ContactSyncSaveBatch,
           data: {
             contactCount: contacts.length,
             // Performance scaling indicators
@@ -396,21 +399,28 @@ export async function updateContactInRemoteStorage(
     );
   };
 
-  return trace
-    ? await trace(
-        {
-          name: 'Contact Sync Update Remote',
-          data: {
-            chainId: contact.chainId,
-            // Performance indicators
-            hasTimestamp: Boolean(contact.lastUpdatedAt),
-            hasMemo: Boolean(contact.memo?.length),
-            isUpdate: Boolean(contact.lastUpdatedAt), // vs new contact
-          },
+  if (trace) {
+    console.log(
+      '[TRACE DEBUG] About to call trace for ContactSyncUpdateRemote',
+    );
+    return await trace(
+      {
+        name: TraceName.ContactSyncUpdateRemote,
+        data: {
+          chainId: contact.chainId,
+          // Performance indicators
+          hasTimestamp: Boolean(contact.lastUpdatedAt),
+          hasMemo: Boolean(contact.memo?.length),
+          isUpdate: Boolean(contact.lastUpdatedAt), // vs new contact
         },
-        updateContact,
-      )
-    : await updateContact();
+      },
+      updateContact,
+    );
+  }
+  console.log(
+    '[TRACE DEBUG] No trace function available for ContactSyncUpdateRemote',
+  );
+  return await updateContact();
 }
 
 /**
@@ -426,6 +436,7 @@ export async function deleteContactInRemoteStorage(
   options: ContactSyncingOptions,
 ): Promise<void> {
   const { trace } = options;
+  console.log('[TRACE DEBUG] deleteContactInRemoteStorage called with trace:', Boolean(trace));
 
   const deleteContact = async () => {
     if (
@@ -478,6 +489,6 @@ export async function deleteContactInRemoteStorage(
   };
 
   return trace
-    ? await trace({ name: 'Contact Sync Delete Remote' }, deleteContact)
+    ? await trace({ name: TraceName.ContactSyncDeleteRemote }, deleteContact)
     : await deleteContact();
 }

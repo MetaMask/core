@@ -12,6 +12,7 @@ import {
   mapInternalAccountToUserStorageAccount,
 } from './utils';
 import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
+import { TraceName } from '../constants/traces';
 
 /**
  * Saves an individual internal account to the user storage.
@@ -61,9 +62,19 @@ export async function saveInternalAccountToUserStorage(
     }
   };
 
-  return trace
-    ? await trace({ name: 'Account Sync Save Individual' }, saveAccount)
-    : await saveAccount();
+  if (trace) {
+    console.log(
+      '[TRACE DEBUG] About to call trace for AccountSyncSaveIndividual',
+    );
+    return await trace(
+      { name: TraceName.AccountSyncSaveIndividual },
+      saveAccount,
+    );
+  }
+  console.log(
+    '[TRACE DEBUG] No trace function available for AccountSyncSaveIndividual',
+  );
+  return await saveAccount();
 }
 
 /**
@@ -411,7 +422,10 @@ export async function syncInternalAccountsWithUserStorage(
     }
   };
 
-  return trace
-    ? await trace({ name: 'Account Sync Full' }, performAccountSync)
-    : await performAccountSync();
+  if (trace) {
+    console.log('[TRACE DEBUG] About to call trace for AccountSyncFull');
+    return await trace({ name: TraceName.AccountSyncFull }, performAccountSync);
+  }
+  console.log('[TRACE DEBUG] No trace function available for AccountSyncFull');
+  return await performAccountSync();
 }
