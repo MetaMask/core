@@ -436,7 +436,10 @@ export async function deleteContactInRemoteStorage(
   options: ContactSyncingOptions,
 ): Promise<void> {
   const { trace } = options;
-  console.log('[TRACE DEBUG] deleteContactInRemoteStorage called with trace:', Boolean(trace));
+  console.log(
+    '[TRACE DEBUG] deleteContactInRemoteStorage called with trace:',
+    Boolean(trace),
+  );
 
   const deleteContact = async () => {
     if (
