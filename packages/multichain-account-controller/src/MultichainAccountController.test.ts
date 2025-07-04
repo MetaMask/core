@@ -1,9 +1,5 @@
 import { Messenger } from '@metamask/base-controller';
-import type {
-  EntropySourceId,
-  KeyringAccount,
-  KeyringRequest,
-} from '@metamask/keyring-api';
+import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import {
   EthAccountType,
   EthMethod,
@@ -16,14 +12,14 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { v4 as uuid } from 'uuid';
 
-import {
-  MultichainAccountController,
-  type AllowedActions,
-  type AllowedEvents,
-  type MultichainAccountControllerActions,
-  type MultichainAccountControllerEvents,
-  type MultichainAccountControllerMessenger,
-} from './MultichainAccountController';
+import { MultichainAccountController } from './MultichainAccountController';
+import type {
+  AllowedActions,
+  AllowedEvents,
+  MultichainAccountControllerActions,
+  MultichainAccountControllerEvents,
+  MultichainAccountControllerMessenger,
+} from './types';
 
 const ETH_EOA_METHODS = [
   EthMethod.PersonalSign,
