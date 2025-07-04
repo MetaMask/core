@@ -110,6 +110,7 @@ export class SolAccountProvider implements AccountProvider {
     const keyringAccount = await createAccount(SOLANA_SNAP_ID, opts, {
       displayAccountNameSuggestion: false,
       displayConfirmation: false,
+      setSelectedAccount: false,
     });
 
     // FIXME: This part of the flow is truly async, so when the `KeyringClient`
