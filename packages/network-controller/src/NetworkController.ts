@@ -1173,7 +1173,10 @@ export class NetworkController extends BaseController<
         this.state.networkConfigurationsByChainId,
       );
 
-    this.registerActionHandlers(MESSENGER_EXPOSED_METHODS);
+    this.messagingSystem.registerActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
     this.messagingSystem.registerActionHandler(
       'NetworkController:getEthQuery',
       () => {

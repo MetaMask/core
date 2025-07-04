@@ -313,28 +313,6 @@ export class BaseController<
   protected destroy() {
     this.messagingSystem.clearEventSubscriptions(`${this.name}:stateChange`);
   }
-
-  /**
-   * Registers action handlers for a list of methods on this controller.
-   *
-   * @param methodNames - The names of the methods to register as action handlers (excluding hard-excluded methods)
-   * @param excludedMethods - Optional list of method names to exclude from registration
-   * @param exceptions - Optional map of method names to custom handlers
-   */
-  protected registerActionHandlers<MethodNames extends keyof this & string>(
-    methodNames: readonly MethodNames[],
-    excludedMethods: readonly string[] = [],
-    exceptions: Partial<
-      Record<MethodNames, (...args: unknown[]) => unknown>
-    > = {},
-  ): void {
-    this.messagingSystem.registerActionHandlers(
-      this,
-      methodNames,
-      excludedMethods,
-      exceptions,
-    );
-  }
 }
 
 /**
