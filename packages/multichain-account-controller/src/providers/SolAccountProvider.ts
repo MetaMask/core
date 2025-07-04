@@ -10,7 +10,7 @@ import type { AccountProvider } from '@metamask/multichain-account-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
-import type { MultichainAccountControllerMessenger } from 'src/MultichainAccountController';
+import type { MultichainAccountControllerMessenger } from '../types';
 
 type SolInternalAccount = InternalAccount & {
   options: {
@@ -30,7 +30,7 @@ function assertInternalAccountExists(
 
 export class SolAccountProvider implements AccountProvider {
   readonly #messenger: MultichainAccountControllerMessenger;
-
+ 
   readonly #client: KeyringClient;
 
   constructor(messenger: MultichainAccountControllerMessenger) {

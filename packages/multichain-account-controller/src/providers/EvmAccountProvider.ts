@@ -9,7 +9,7 @@ import type {
   InternalAccount,
 } from '@metamask/keyring-internal-api';
 import type { AccountProvider } from '@metamask/multichain-account-api';
-import type { MultichainAccountControllerMessenger } from 'src/MultichainAccountController';
+import type { MultichainAccountControllerMessenger } from '../types';
 
 // Max index used by discovery (until we move the proper discovery here).
 const MAX_GROUP_INDEX = 1;
