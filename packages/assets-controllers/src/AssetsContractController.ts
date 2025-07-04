@@ -33,6 +33,7 @@ import {
   aggregate3,
   type Aggregate3Call,
   type Aggregate3Result,
+  getERC20BalancesForMultipleAddresses,
 } from './multicall';
 
 /**
@@ -182,6 +183,9 @@ export type AssetsContractControllerGetTokenStandardAndDetailsAction =
 
 export type AssetsContractControllerGetBalancesInSingleCallAction =
   AssetsContractControllerActionsMap['getBalancesInSingleCall'];
+
+export type AssetsContractControllerGetERC20BalancesForMultipleAddressesAction =
+  AssetsContractControllerActionsMap['getERC20BalancesForMultipleAddresses'];
 
 /**
  * The union of all internal messenger events available to the {@link AssetsContractControllerMessenger}.
@@ -849,6 +853,31 @@ export class AssetsContractController {
     });
 
     return balanceMap;
+  }
+
+  /**
+   * Get ERC20 token balances for multiple addresses and multiple tokens using aggregate3.
+   * This is more efficient than individual balanceOf calls for multiple addresses and tokens.
+   *
+   * @param tokenAddresses - Array of ERC20 token contract addresses
+   * @param userAddresses - Array of user addresses to check balances for
+   * @param networkClientId - Network Client ID to fetch the provider with
+   * @returns Promise resolving to map of token address to map of user address to balance
+   */
+  async getERC20BalancesForMultipleAddresses(
+    tokenAddresses: string[],
+    userAddresses: string[],
+    networkClientId?: NetworkClientId,
+  ): Promise<Record<string, Record<string, BN>>> {
+    const chainId = this.#getCorrectChainId(networkClientId);
+    const provider = this.#getCorrectProvider(networkClientId);
+
+    return await getERC20BalancesForMultipleAddresses(
+      tokenAddresses,
+      userAddresses,
+      chainId,
+      provider,
+    );
   }
 }
 

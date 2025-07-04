@@ -1,6 +1,7 @@
 import { Contract } from '@ethersproject/contracts';
 import type { Web3Provider } from '@ethersproject/providers';
 import type { Hex } from '@metamask/utils';
+import type BN from 'bn.js';
 
 import { reduceInBatchesSerially } from './assetsUtil';
 
@@ -490,6 +491,104 @@ export const aggregate3 = async (
     return results;
   } catch (error) {
     console.error('Error executing aggregate3:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get ERC20 token balances for multiple addresses and multiple tokens using aggregate3.
+ * This is more efficient than individual balanceOf calls for multiple addresses and tokens.
+ *
+ * @param tokenAddresses - Array of ERC20 token contract addresses
+ * @param userAddresses - Array of user addresses to check balances for
+ * @param chainId - The hexadecimal chain id
+ * @param provider - An ethers rpc provider
+ * @returns Promise resolving to map of token address to map of user address to balance
+ */
+export const getERC20BalancesForMultipleAddresses = async (
+  tokenAddresses: string[],
+  userAddresses: string[],
+  chainId: Hex,
+  provider: Web3Provider,
+): Promise<Record<string, Record<string, BN>>> => {
+  if (userAddresses.length === 0 || tokenAddresses.length === 0) {
+    return {};
+  }
+
+  // Check if Multicall3 is supported on this chain
+  if (
+    !((id): id is keyof typeof MULTICALL3_CONTRACT_BY_CHAINID =>
+      id in MULTICALL3_CONTRACT_BY_CHAINID)(chainId)
+  ) {
+    throw new Error(`Multicall3 not supported on chain ${chainId}`);
+  }
+
+  // Create a temporary contract instance to encode the balanceOf function calls
+  const tempContract = new Contract(
+    '0x0000000000000000000000000000000000000000',
+    [
+      {
+        name: 'balanceOf',
+        type: 'function',
+        inputs: [{ name: 'account', type: 'address' }],
+        outputs: [{ name: '', type: 'uint256' }],
+        stateMutability: 'view',
+      },
+    ],
+    provider,
+  );
+
+  // Create calls for balanceOf function for each token address and user address combination
+  const calls: Aggregate3Call[] = [];
+  const callMapping: { tokenAddress: string; userAddress: string }[] = [];
+
+  tokenAddresses.forEach((tokenAddress) => {
+    userAddresses.forEach((userAddress) => {
+      calls.push({
+        target: tokenAddress,
+        allowFailure: true, // Allow individual calls to fail
+        callData: tempContract.interface.encodeFunctionData(
+          'balanceOf(address)',
+          [userAddress],
+        ),
+      });
+      callMapping.push({ tokenAddress, userAddress });
+    });
+  });
+
+  try {
+    const results = await aggregate3(calls, chainId, provider);
+
+    // Process results and create balance map
+    const balanceMap: Record<string, Record<string, BN>> = {};
+    results.forEach((result, index) => {
+      if (result.success) {
+        try {
+          const balance = tempContract.interface.decodeFunctionResult(
+            'balanceOf(address)',
+            result.returnData,
+          )[0];
+          const { tokenAddress, userAddress } = callMapping[index];
+
+          if (!balanceMap[tokenAddress]) {
+            balanceMap[tokenAddress] = {};
+          }
+          balanceMap[tokenAddress][userAddress] = balance;
+        } catch (error) {
+          console.error(
+            `Error decoding balance for token ${callMapping[index].tokenAddress} and address ${callMapping[index].userAddress}:`,
+            error,
+          );
+        }
+      }
+    });
+
+    return balanceMap;
+  } catch (error) {
+    console.error(
+      'Error executing getERC20BalancesForMultipleAddresses:',
+      error,
+    );
     throw error;
   }
 };
