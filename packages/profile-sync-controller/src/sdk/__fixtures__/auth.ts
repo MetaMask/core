@@ -6,10 +6,12 @@ import {
   MOCK_OIDC_TOKEN_RESPONSE,
   MOCK_OIDC_TOKEN_URL,
   MOCK_PAIR_IDENTIFIERS_URL,
+  MOCK_PROFILE_METAMETRICS_URL,
   MOCK_SIWE_LOGIN_RESPONSE,
   MOCK_SIWE_LOGIN_URL,
   MOCK_SRP_LOGIN_RESPONSE,
   MOCK_SRP_LOGIN_URL,
+  MOCK_USER_PROFILE_METAMETRICS_RESPONSE,
 } from '../mocks/auth';
 
 type MockReply = {
@@ -69,12 +71,27 @@ export const handleMockOAuth2Token = (mockReply?: MockReply) => {
   return mockTokenEndpoint;
 };
 
+export const handleMockUserProfileMetaMetrics = (mockReply?: MockReply) => {
+  const reply = mockReply ?? {
+    status: 200,
+    body: MOCK_USER_PROFILE_METAMETRICS_RESPONSE,
+  };
+  const mockUserProfileMetaMetricsEndpoint = nock(MOCK_PROFILE_METAMETRICS_URL)
+    .persist()
+    .get('')
+    .query(true)
+    .reply(reply.status, reply.body);
+
+  return mockUserProfileMetaMetricsEndpoint;
+};
+
 export const arrangeAuthAPIs = (options?: {
   mockNonceUrl?: MockReply;
   mockOAuth2TokenUrl?: MockReply;
   mockSrpLoginUrl?: MockReply;
   mockSiweLoginUrl?: MockReply;
   mockPairIdentifiers?: MockReply;
+  mockUserProfileMetaMetrics?: MockReply;
 }) => {
   const mockNonceUrl = handleMockNonce(options?.mockNonceUrl);
   const mockOAuth2TokenUrl = handleMockOAuth2Token(options?.mockOAuth2TokenUrl);
@@ -83,6 +100,9 @@ export const arrangeAuthAPIs = (options?: {
   const mockPairIdentifiersUrl = handleMockPairIdentifiers(
     options?.mockPairIdentifiers,
   );
+  const mockUserProfileMetaMetricsUrl = handleMockUserProfileMetaMetrics(
+    options?.mockUserProfileMetaMetrics,
+  );
 
   return {
     mockNonceUrl,
@@ -90,5 +110,6 @@ export const arrangeAuthAPIs = (options?: {
     mockSrpLoginUrl,
     mockSiweLoginUrl,
     mockPairIdentifiersUrl,
+    mockUserProfileMetaMetricsUrl,
   };
 };

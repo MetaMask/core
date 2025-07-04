@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add performance tracing to user storage syncing operations (contacts and accounts) ([#6050](https://github.com/MetaMask/core/pull/6050))
 
+## [20.0.0]
+
+### Added
+
+- Add new `AuthenticationController:getUserProfileMetaMetrics` method ([#6068](https://github.com/MetaMask/core/pull/6068))
+  - This method fetches data using the Authentication API, returning all MetaMetrics sessions related to the currently authenticated user, in the form of `typeof UserProfileMetaMetrics`
+
 ### Changed
 
 - **BREAKING:** Bump peer dependency `@metamask/snaps-controllers` from `^12.0.0` to `^14.0.0` ([#6035](https://github.com/MetaMask/core/pull/6035))
@@ -648,7 +655,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@19.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@20.0.0...HEAD
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@19.0.0...@metamask/profile-sync-controller@20.0.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@18.0.0...@metamask/profile-sync-controller@19.0.0
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@17.1.0...@metamask/profile-sync-controller@18.0.0
 [17.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@17.0.0...@metamask/profile-sync-controller@17.1.0
