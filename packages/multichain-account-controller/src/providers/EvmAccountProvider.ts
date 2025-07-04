@@ -86,13 +86,8 @@ export class EvmAccountProvider implements AccountProvider {
           throw new Error('Trying to create too many accounts');
         }
 
-        // Create new accounts (and returns their addresses).
-        // NOTE: We need the `+ 1` here since we use the "number of accounts"
-        // in `addAccounts`, so:
-        // - 1 means, 1 account  -> index 0
-        // - 2 means, 2 accounts -> index 0 and 1
-        // - etc...
-        return await keyring.addAccounts(groupIndex + 1);
+        // Create next account (and returns their addresses).
+        return await keyring.addAccounts(1);
       },
     );
 
