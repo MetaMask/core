@@ -173,6 +173,44 @@ export class Messenger<
   }
 
   /**
+   * Registers action handlers for a list of methods on a class instance
+   *
+   * @param instance - The class instance with a name property and methods
+   * @param methodNames - The names of the methods to register as action handlers (excluding hard-excluded methods)
+   * @param excludedMethods - Optional list of method names to exclude from registration
+   * @param exceptions - Optional map of method names to custom handlers
+   */
+  registerActionHandlers<
+    Instance extends { name: string },
+    MethodNames extends keyof Instance & string,
+  >(
+    instance: Instance,
+    methodNames: readonly MethodNames[],
+    excludedMethods: readonly string[] = [],
+    exceptions: Partial<
+      Record<MethodNames, (...args: unknown[]) => unknown>
+    > = {},
+  ) {
+    const hardExclusions = ['constructor', 'messagingSystem'];
+
+    for (const methodName of methodNames) {
+      if (
+        hardExclusions.includes(methodName) ||
+        excludedMethods.includes(methodName)
+      ) {
+        continue;
+      }
+
+      const handler = exceptions[methodName] ?? instance[methodName];
+      if (typeof handler === 'function') {
+        const actionType =
+          `${instance.name}:${methodName}` as `${Instance['name']}:${MethodNames}`;
+        this.registerActionHandler(actionType, handler.bind(instance));
+      }
+    }
+  }
+
+  /**
    * Unregister an action handler.
    *
    * This will prevent this action from being called.
@@ -458,3 +496,43 @@ export class Messenger<
     });
   }
 }
+
+/**
+ * Creates an action type for a method on a class instance
+ *
+ * @template Instance - The class instance type with a name property
+ * @template MethodName - The name of the method to create an action for
+ */
+type MessengerMethodAction<
+  Instance extends { name: string },
+  MethodName extends keyof Instance & string,
+> = Instance[MethodName] extends (...args: never[]) => unknown
+  ? {
+      type: `${Instance['name']}:${MethodName}`;
+      handler: Instance[MethodName];
+    }
+  : never;
+
+/**
+ * Creates a union type of action types for multiple methods on a class instance
+ *
+ * @template Instance - The class instance type with a name property
+ * @template MethodNames - A union of method names to create actions for
+ */
+export type MessengerMethodActions<
+  Instance extends { name: string },
+  MethodNames extends keyof Instance & string,
+> = {
+  [K in MethodNames]: MessengerMethodAction<Instance, K>;
+}[MethodNames];
+
+/**
+ * Extracts specific action types from a union of actions by their type strings
+ *
+ * @template Actions - The union of action types to extract from
+ * @template ActionTypes - A union of action type strings to extract
+ */
+export type ExtractActions<
+  Actions extends ActionConstraint,
+  ActionTypes extends Actions['type'],
+> = Extract<Actions, { type: ActionTypes }>;
