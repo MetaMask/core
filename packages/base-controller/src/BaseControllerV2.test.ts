@@ -1182,7 +1182,7 @@ describe('getPersistentState', () => {
     }) {
       const {
         methodsToRegister,
-        excludedMethods = [],
+        excludedMethods,
         exceptions = {},
         instanceValue = 'controller instance',
       } = options;
@@ -1325,21 +1325,72 @@ describe('getPersistentState', () => {
       );
     });
 
-    it('should register all specified methods when excludedMethods uses default value', () => {
-      const { messenger } = createTestController({
-        methodsToRegister: ['testMethod', 'method1', 'method2'],
-        // excludedMethods is not specified, so it should use default value []
+    it('should exclude methods that match default exclusion patterns', () => {
+      // Test that when we don't specify excludedMethods, it uses defaults ['constructor', 'messagingSystem']
+      // vs when we specify an empty array, nothing is excluded
+      const { messenger: messengerWithDefaults } = createTestController({
+        methodsToRegister: ['testMethod', 'method1'],
+        // excludedMethods not specified - uses default ['constructor', 'messagingSystem']
       });
 
-      // All specified methods should be registered since excludedMethods defaults to []
-      const testResult = messenger.call('TestController:testMethod');
-      expect(testResult).toBe('test result');
+      const { messenger: messengerWithEmptyExclusions } = createTestController({
+        methodsToRegister: ['testMethod', 'method1'],
+        excludedMethods: [], // Explicitly empty - no exclusions
+      });
 
-      const method1Result = messenger.call('TestController:method1');
-      expect(method1Result).toBe('method1 result');
+      // Both should register the same methods since 'testMethod' and 'method1' are not in default exclusions
+      expect(messengerWithDefaults.call('TestController:testMethod')).toBe(
+        'test result',
+      );
+      expect(messengerWithDefaults.call('TestController:method1')).toBe(
+        'method1 result',
+      );
 
-      const method2Result = messenger.call('TestController:method2');
-      expect(method2Result).toBe('method2 result');
+      expect(
+        messengerWithEmptyExclusions.call('TestController:testMethod'),
+      ).toBe('test result');
+      expect(messengerWithEmptyExclusions.call('TestController:method1')).toBe(
+        'method1 result',
+      );
+    });
+
+    it('should demonstrate exclusion behavior with explicit exclusions', () => {
+      // Test explicit exclusions vs default exclusions
+      const { messenger: messengerWithExplicitExclusions } =
+        createTestController({
+          methodsToRegister: ['testMethod', 'method1', 'method2'],
+          excludedMethods: ['method1'], // Explicitly exclude method1
+        });
+
+      const { messenger: messengerWithDefaultExclusions } =
+        createTestController({
+          methodsToRegister: ['testMethod', 'method1', 'method2'],
+          // Uses default exclusions ['constructor', 'messagingSystem'] - should not affect our methods
+        });
+
+      // With explicit exclusions: method1 should be excluded
+      expect(
+        messengerWithExplicitExclusions.call('TestController:testMethod'),
+      ).toBe('test result');
+      expect(
+        messengerWithExplicitExclusions.call('TestController:method2'),
+      ).toBe('method2 result');
+      expect(() => {
+        messengerWithExplicitExclusions.call('TestController:method1');
+      }).toThrow(
+        'A handler for TestController:method1 has not been registered',
+      );
+
+      // With default exclusions: all methods should be registered since none are 'constructor' or 'messagingSystem'
+      expect(
+        messengerWithDefaultExclusions.call('TestController:testMethod'),
+      ).toBe('test result');
+      expect(
+        messengerWithDefaultExclusions.call('TestController:method1'),
+      ).toBe('method1 result');
+      expect(
+        messengerWithDefaultExclusions.call('TestController:method2'),
+      ).toBe('method2 result');
     });
   });
 });
