@@ -1,0 +1,180 @@
+import type { AccountId } from '@metamask/accounts-controller';
+import { EthAccountType, type EntropySourceId } from '@metamask/keyring-api';
+import {
+  KeyringTypes,
+  type KeyringMetadata,
+  type KeyringSelector,
+} from '@metamask/keyring-controller';
+import type {
+  EthKeyring,
+  InternalAccount,
+} from '@metamask/keyring-internal-api';
+import type { AccountProvider } from '@metamask/multichain-account-api';
+
+import type { MultichainAccountControllerMessenger } from '../types';
+
+// Max index used by discovery (until we move the proper discovery here).
+const MAX_GROUP_INDEX = 1;
+
+type EoaInternalAccount = InternalAccount & {
+  options: {
+    index: number;
+    entropySource: EntropySourceId;
+  };
+};
+
+// eslint-disable-next-line jsdoc/require-jsdoc
+function assertInternalAccountExists(
+  account: InternalAccount | undefined,
+): asserts account is InternalAccount {
+  if (!account) {
+    throw new Error('Internal account does not exist');
+  }
+}
+
+export class EvmAccountProvider implements AccountProvider<InternalAccount> {
+  readonly #messenger: MultichainAccountControllerMessenger;
+
+  constructor(messenger: MultichainAccountControllerMessenger) {
+    this.#messenger = messenger;
+  }
+
+  async #withKeyring<
+    SelectedKeyring extends EthKeyring = EthKeyring,
+    CallbackResult = void,
+  >(
+    selector: KeyringSelector,
+    operation: ({
+      keyring,
+      metadata,
+    }: {
+      keyring: SelectedKeyring;
+      metadata: KeyringMetadata;
+    }) => Promise<CallbackResult>,
+  ): Promise<CallbackResult> {
+    const result = await this.#messenger.call(
+      'KeyringController:withKeyring',
+      selector,
+      ({ keyring, metadata }) =>
+        operation({
+          keyring: keyring as SelectedKeyring,
+          metadata,
+        }),
+    );
+
+    return result as CallbackResult;
+  }
+
+  async createAccounts({
+    entropySource,
+    groupIndex,
+  }: {
+    entropySource: EntropySourceId;
+    groupIndex: number;
+  }) {
+    const [address] = await this.#withKeyring(
+      { id: entropySource },
+      async ({ keyring }) => {
+        const accounts = await keyring.getAccounts();
+        if (groupIndex < accounts.length) {
+          // Nothing new to create, we just re-use the existing accounts here,
+          return [accounts[groupIndex]];
+        }
+
+        // For now, we don't allow for gap, so if we need to create a new
+        // account, this has to be the next one.
+        if (groupIndex !== accounts.length) {
+          throw new Error('Trying to create too many accounts');
+        }
+
+        // Create next account (and returns their addresses).
+        return await keyring.addAccounts(1);
+      },
+    );
+
+    const account = this.#messenger.call(
+      'AccountsController:getAccountByAddress',
+      address,
+    );
+
+    // We MUST have the associated internal account.
+    assertInternalAccountExists(account);
+
+    return [account.id];
+  }
+
+  async discoverAndCreateAccounts({
+    entropySource,
+    groupIndex,
+  }: {
+    entropySource: EntropySourceId;
+    groupIndex: number;
+  }) {
+    // TODO: Move account discovery here (for EVM).
+
+    if (groupIndex < MAX_GROUP_INDEX) {
+      return await this.createAccounts({ entropySource, groupIndex });
+    }
+    return [];
+  }
+
+  #getAccounts(
+    filter: (account: InternalAccount) => boolean = () => true,
+  ): EoaInternalAccount[] {
+    return this.#messenger
+      .call('AccountsController:listMultichainAccounts')
+      .filter((account) => {
+        // We only check for EOA accounts for multichain accounts.
+        if (
+          account.type !== EthAccountType.Eoa ||
+          account.metadata.keyring.type !== (KeyringTypes.hd as string)
+        ) {
+          return false;
+        }
+
+        // TODO: Maybe use superstruct to validate the structure of HD account since they are not strongly-typed for now?
+        if (!account.options.entropySource) {
+          console.warn(
+            "! Found an HD account with no entropy source: account won't be associated to its wallet.",
+          );
+          return false;
+        }
+
+        // TODO: We need to add this index for native accounts too!
+        if (account.options.index === undefined) {
+          console.warn(
+            "! Found an HD account with no index: account won't be associated to its wallet.",
+          );
+          return false;
+        }
+
+        return filter(account);
+      }) as EoaInternalAccount[]; // Safe, we did check for options fields during filtering.
+  }
+
+  getAccounts({
+    entropySource,
+    groupIndex,
+  }: {
+    entropySource: EntropySourceId;
+    groupIndex: number;
+  }): AccountId[] {
+    return this.#getAccounts((account) => {
+      return (
+        account.options.entropySource === entropySource &&
+        account.options.index === groupIndex
+      );
+    }).map((account) => account.id);
+  }
+
+  getAccount(id: AccountId): InternalAccount {
+    // TODO: Maybe just use a proper find for faster lookup?
+    const [found] = this.#getAccounts((account) => account.id === id);
+
+    if (!found) {
+      throw new Error(`Unable to find EVM account: ${id}`);
+    }
+
+    return found;
+  }
+}
