@@ -1,3 +1,4 @@
+import type { TraceCallback } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
 import type {
@@ -37,4 +38,5 @@ export type UserStorageContactEntry = {
 export type ContactSyncingOptions = {
   getUserStorageControllerInstance: () => UserStorageController;
   getMessenger: () => UserStorageControllerMessenger;
+  trace?: TraceCallback;
 };
