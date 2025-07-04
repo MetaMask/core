@@ -1,3 +1,4 @@
+import type { AccountId } from '@metamask/accounts-controller';
 import { EthAccountType, type EntropySourceId } from '@metamask/keyring-api';
 import {
   KeyringTypes,
@@ -31,7 +32,7 @@ function assertInternalAccountExists(
   }
 }
 
-export class EvmAccountProvider implements AccountProvider {
+export class EvmAccountProvider implements AccountProvider<InternalAccount> {
   readonly #messenger: MultichainAccountControllerMessenger;
 
   constructor(messenger: MultichainAccountControllerMessenger) {
@@ -99,7 +100,7 @@ export class EvmAccountProvider implements AccountProvider {
     // We MUST have the associated internal account.
     assertInternalAccountExists(account);
 
-    return [account];
+    return [account.id];
   }
 
   async discoverAndCreateAccounts({
@@ -117,7 +118,9 @@ export class EvmAccountProvider implements AccountProvider {
     return [];
   }
 
-  #getAccounts(): EoaInternalAccount[] {
+  #getAccounts(
+    filter: (account: InternalAccount) => boolean = () => true,
+  ): EoaInternalAccount[] {
     return this.#messenger
       .call('AccountsController:listMultichainAccounts')
       .filter((account) => {
@@ -145,7 +148,7 @@ export class EvmAccountProvider implements AccountProvider {
           return false;
         }
 
-        return true;
+        return filter(account);
       }) as EoaInternalAccount[]; // Safe, we did check for options fields during filtering.
   }
 
@@ -155,22 +158,23 @@ export class EvmAccountProvider implements AccountProvider {
   }: {
     entropySource: EntropySourceId;
     groupIndex: number;
-  }): InternalAccount[] {
-    return this.#getAccounts().filter((account) => {
+  }): AccountId[] {
+    return this.#getAccounts((account) => {
       return (
         account.options.entropySource === entropySource &&
         account.options.index === groupIndex
       );
-    });
+    }).map((account) => account.id);
   }
 
-  getEntropySources(): EntropySourceId[] {
-    const entropySources = new Set<EntropySourceId>();
+  getAccount(id: AccountId): InternalAccount {
+    // TODO: Maybe just use a proper find for faster lookup?
+    const [found] = this.#getAccounts((account) => account.id === id);
 
-    for (const account of this.#getAccounts()) {
-      entropySources.add(account.options.entropySource);
+    if (!found) {
+      throw new Error(`Unable to find EVM account: ${id}`);
     }
 
-    return Array.from(entropySources);
+    return found;
   }
 }

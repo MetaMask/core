@@ -47,7 +47,7 @@
     "elliptic@6.5.4": "^6.5.7",
     "fast-xml-parser@^4.3.4": "^4.4.1",
     "ws@7.4.6": "^7.5.10",
-    "@metamask/multichain-account-api@^0.0.0": "npm:@metamask-previews/multichain-account-api@0.0.0-daddb4b"
+    "@metamask/multichain-account-api@^0.0.0": "npm:@metamask-previews/multichain-account-api@0.0.0-5ab4699"
   },
   "devDependencies": {
     "@babel/core": "^7.23.5",

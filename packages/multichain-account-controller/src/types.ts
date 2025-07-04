@@ -4,7 +4,10 @@ import type {
   AccountsControllerListMultichainAccountsAction,
 } from '@metamask/accounts-controller';
 import type { RestrictedMessenger } from '@metamask/base-controller';
-import type { KeyringControllerWithKeyringAction } from '@metamask/keyring-controller';
+import type {
+  KeyringControllerGetStateAction,
+  KeyringControllerWithKeyringAction,
+} from '@metamask/keyring-controller';
 import type { HandleSnapRequest as SnapControllerHandleSnapRequestAction } from '@metamask/snaps-controllers';
 
 /**
@@ -27,7 +30,8 @@ export type AllowedActions =
   | AccountsControllerGetAccountAction
   | AccountsControllerGetAccountByAddressAction
   | SnapControllerHandleSnapRequestAction
-  | KeyringControllerWithKeyringAction;
+  | KeyringControllerWithKeyringAction
+  | KeyringControllerGetStateAction;
 
 /**
  * All events published by other modules that {@link MultichainAccountController}

@@ -1,4 +1,6 @@
 import type { EntropySourceId } from '@metamask/keyring-api';
+import { KeyringTypes } from '@metamask/keyring-controller';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
   AccountProvider,
   MultichainAccountWalletId,
@@ -27,9 +29,12 @@ type MultichainAccountControllerOptions = {
 export class MultichainAccountController {
   readonly #messenger: MultichainAccountControllerMessenger;
 
-  readonly #providers: AccountProvider[];
+  readonly #providers: AccountProvider<InternalAccount>[];
 
-  readonly #wallets: Map<MultichainAccountWalletId, MultichainAccountWallet>;
+  readonly #wallets: Map<
+    MultichainAccountWalletId,
+    MultichainAccountWallet<InternalAccount>
+  >;
 
   /**
    * Constructs a new MultichainAccountController.
@@ -50,10 +55,12 @@ export class MultichainAccountController {
 
   init(): void {
     // Gather all entropy sources first.
-    const entropySources = new Set<EntropySourceId>();
-    for (const provider of this.#providers) {
-      for (const entropySource of provider.getEntropySources()) {
-        entropySources.add(entropySource);
+    const { keyrings } = this.#messenger.call('KeyringController:getState');
+
+    const entropySources = [];
+    for (const keyring of keyrings) {
+      if (keyring.type === KeyringTypes.hd) {
+        entropySources.push(keyring.metadata.id);
       }
     }
 
@@ -69,7 +76,9 @@ export class MultichainAccountController {
     }
   }
 
-  #getWallet(entropySource: EntropySourceId): MultichainAccountWallet {
+  #getWallet(
+    entropySource: EntropySourceId,
+  ): MultichainAccountWallet<InternalAccount> {
     const wallet = this.#wallets.get(
       toMultichainAccountWalletId(entropySource),
     );
@@ -89,9 +98,9 @@ export class MultichainAccountController {
   }: {
     entropySource: EntropySourceId;
     groupIndex: number;
-  }): MultichainAccount {
+  }): MultichainAccount<InternalAccount> {
     const multichainAccount =
-      this.#getWallet(entropySource).accounts[groupIndex];
+      this.#getWallet(entropySource).getMultichainAccount(groupIndex);
 
     if (!multichainAccount) {
       throw new Error(`No multichain account for index: ${groupIndex}`);
@@ -104,15 +113,15 @@ export class MultichainAccountController {
     entropySource,
   }: {
     entropySource: EntropySourceId;
-  }): MultichainAccount[] {
-    return this.#getWallet(entropySource).accounts;
+  }): MultichainAccount<InternalAccount>[] {
+    return this.#getWallet(entropySource).getMultichainAccounts();
   }
 
   async createNextMultichainAccount({
     entropySource,
   }: {
     entropySource: EntropySourceId;
-  }): Promise<MultichainAccount> {
+  }): Promise<MultichainAccount<InternalAccount>> {
     return await this.#getWallet(entropySource).createNextMultichainAccount();
   }
 
@@ -120,7 +129,7 @@ export class MultichainAccountController {
     entropySource,
   }: {
     entropySource: EntropySourceId;
-  }): Promise<MultichainAccount[]> {
+  }): Promise<MultichainAccount<InternalAccount>[]> {
     return await this.#getWallet(
       entropySource,
     ).discoverAndCreateMultichainAccounts();

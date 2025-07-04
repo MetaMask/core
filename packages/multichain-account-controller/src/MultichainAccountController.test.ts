@@ -115,12 +115,14 @@ describe('MultichainAccountController', () => {
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
       });
       expect(multichainAccounts).toHaveLength(2); // Group index 0 + 1.
-      expect(multichainAccounts[0].accounts).toHaveLength(1); // Just EVM.
-      expect(multichainAccounts[0].accounts[0].type).toBe(EthAccountType.Eoa);
-      expect(multichainAccounts[1].accounts).toHaveLength(1); // Just SOL.
-      expect(multichainAccounts[1].accounts[0].type).toBe(
-        SolAccountType.DataAccount,
-      );
+
+      const internalAccounts0 = multichainAccounts[0].getAccounts();
+      expect(internalAccounts0).toHaveLength(1); // Just EVM.
+      expect(internalAccounts0[0].type).toBe(EthAccountType.Eoa);
+
+      const internalAccounts1 = multichainAccounts[1].getAccounts();
+      expect(internalAccounts1).toHaveLength(1); // Just SOL.
+      expect(internalAccounts1[0].type).toBe(SolAccountType.DataAccount);
     });
 
     it('throws if trying to access an unknown wallet', () => {
@@ -167,8 +169,10 @@ describe('MultichainAccountController', () => {
         groupIndex,
       });
       expect(multichainAccount.index).toBe(groupIndex);
-      expect(multichainAccount.accounts).toHaveLength(1);
-      expect(multichainAccount.accounts[0]).toStrictEqual(accounts[1]);
+
+      const internalAccounts = multichainAccount.getAccounts();
+      expect(internalAccounts).toHaveLength(1);
+      expect(internalAccounts[0]).toStrictEqual(accounts[1]);
     });
 
     it('throws if trying to access an out-of-bound group index', () => {
@@ -271,11 +275,11 @@ describe('MultichainAccountController', () => {
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
       });
       expect(multichainAccount.index).toBe(1);
-      expect(multichainAccount.accounts).toHaveLength(2); // EVM + SOL.
-      expect(multichainAccount.accounts[0].type).toBe(EthAccountType.Eoa);
-      expect(multichainAccount.accounts[1].type).toBe(
-        SolAccountType.DataAccount,
-      );
+
+      const internalAccounts = multichainAccount.getAccounts();
+      expect(internalAccounts).toHaveLength(2); // EVM + SOL.
+      expect(internalAccounts[0].type).toBe(EthAccountType.Eoa);
+      expect(internalAccounts[1].type).toBe(SolAccountType.DataAccount);
     });
   });
 

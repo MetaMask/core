@@ -1,3 +1,4 @@
+import type { AccountId } from '@metamask/accounts-controller';
 import type { SnapKeyring } from '@metamask/eth-snap-keyring';
 import {
   SolAccountType,
@@ -9,10 +10,7 @@ import type {
   KeyringSelector,
 } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
-import type {
-  EthKeyring,
-  InternalAccount,
-} from '@metamask/keyring-internal-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { AccountProvider } from '@metamask/multichain-account-api';
 import type { SnapId } from '@metamask/snaps-sdk';
@@ -28,18 +26,9 @@ type SolInternalAccount = InternalAccount & {
   };
 };
 
-// eslint-disable-next-line jsdoc/require-jsdoc
-function assertInternalAccountExists(
-  account: InternalAccount | undefined,
-): asserts account is InternalAccount {
-  if (!account) {
-    throw new Error('Internal account does not exist');
-  }
-}
-
 const SOLANA_SNAP_ID = 'npm:@metamask/solana-wallet-snap' as SnapId;
 
-export class SolAccountProvider implements AccountProvider {
+export class SolAccountProvider implements AccountProvider<InternalAccount> {
   readonly #messenger: MultichainAccountControllerMessenger;
 
   readonly #client: KeyringClient;
@@ -114,32 +103,7 @@ export class SolAccountProvider implements AccountProvider {
       setSelectedAccount: false,
     });
 
-    // FIXME: This part of the flow is truly async, so when the `KeyringClient`
-    // returns the `KeyringAccount`, its `InternalAccount` won't be "ready"
-    // right away. For now we just re-create a fake `InternalAccount` and
-    // we might have to rely solely on `account.id`.
-
-    // Actually get the associated `InternalAccount`.
-    // const account = this.#messenger.call(
-    //  'AccountsController:getAccount',
-    //  keyringAccount.id,
-    // );
-
-    const account: InternalAccount = {
-      ...keyringAccount,
-      metadata: {
-        name: `Solana account -- ${keyringAccount.options.index}`,
-        importTime: 0,
-        keyring: {
-          type: KeyringTypes.snap,
-        },
-      },
-    };
-
-    // We MUST have the associated internal account.
-    assertInternalAccountExists(account);
-
-    return account;
+    return keyringAccount.id;
   }
 
   async createAccounts({
@@ -149,12 +113,12 @@ export class SolAccountProvider implements AccountProvider {
     entropySource: EntropySourceId;
     groupIndex: number;
   }) {
-    const account = await this.#createAccount({
+    const id = await this.#createAccount({
       entropySource,
       derivationPath: `m/44'/501'/${groupIndex}'/0'`,
     });
 
-    return [account];
+    return [id];
   }
 
   async discoverAndCreateAccounts({
@@ -178,7 +142,9 @@ export class SolAccountProvider implements AccountProvider {
     );
   }
 
-  #getAccounts(): SolInternalAccount[] {
+  #getAccounts(
+    filter: (account: InternalAccount) => boolean = () => true,
+  ): SolInternalAccount[] {
     return this.#messenger
       .call('AccountsController:listMultichainAccounts')
       .filter((account) => {
@@ -206,7 +172,7 @@ export class SolAccountProvider implements AccountProvider {
           return false;
         }
 
-        return true;
+        return filter(account);
       }) as SolInternalAccount[]; // Safe, we did check for options fields during filtering.
   }
 
@@ -216,22 +182,25 @@ export class SolAccountProvider implements AccountProvider {
   }: {
     entropySource: EntropySourceId;
     groupIndex: number;
-  }): InternalAccount[] {
-    return this.#getAccounts().filter((account) => {
-      return (
-        account.options.entropySource === entropySource &&
-        account.options.index === groupIndex
-      );
-    });
+  }): AccountId[] {
+    return this.#getAccounts()
+      .filter((account) => {
+        return (
+          account.options.entropySource === entropySource &&
+          account.options.index === groupIndex
+        );
+      })
+      .map((account) => account.id);
   }
 
-  getEntropySources(): EntropySourceId[] {
-    const entropySources = new Set<EntropySourceId>();
+  getAccount(id: AccountId): InternalAccount {
+    // TODO: Maybe just use a proper find for faster lookup?
+    const [found] = this.#getAccounts((account) => account.id === id);
 
-    for (const account of this.#getAccounts()) {
-      entropySources.add(account.options.entropySource);
+    if (!found) {
+      throw new Error(`Unable to find Solana account: ${id}`);
     }
 
-    return Array.from(entropySources);
+    return found;
   }
 }
