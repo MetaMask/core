@@ -1,227 +1,26 @@
-import { Messenger } from '@metamask/base-controller';
-import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
-import {
-  EthAccountType,
-  EthMethod,
-  EthScope,
-  SolAccountType,
-  SolMethod,
-  SolScope,
-} from '@metamask/keyring-api';
-import { KeyringTypes } from '@metamask/keyring-controller';
+import type { Messenger } from '@metamask/base-controller';
+import { EthAccountType, SolAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { v4 as uuid } from 'uuid';
 
 import { MultichainAccountController } from './MultichainAccountController';
+import {
+  getMultichainAccountControllerMessenger,
+  getRootMessenger,
+  MOCK_HARDWARE_ACCOUNT_1,
+  MOCK_HD_ACCOUNT_1,
+  MOCK_HD_ACCOUNT_2,
+  MOCK_HD_KEYRING_1,
+  MOCK_HD_KEYRING_2,
+  MOCK_SNAP_ACCOUNT_1,
+  MOCK_SNAP_ACCOUNT_2,
+  MockAccountBuilder,
+} from './tests';
 import type {
   AllowedActions,
   AllowedEvents,
   MultichainAccountControllerActions,
   MultichainAccountControllerEvents,
-  MultichainAccountControllerMessenger,
 } from './types';
-
-const ETH_EOA_METHODS = [
-  EthMethod.PersonalSign,
-  EthMethod.Sign,
-  EthMethod.SignTransaction,
-  EthMethod.SignTypedDataV1,
-  EthMethod.SignTypedDataV3,
-  EthMethod.SignTypedDataV4,
-] as const;
-
-const MOCK_SNAP_1 = {
-  id: 'local:mock-snap-id-1',
-  name: 'Mock Snap 1',
-  enabled: true,
-  manifest: {
-    proposedName: 'Mock Snap 1',
-  },
-};
-
-const MOCK_SNAP_2 = {
-  id: 'local:mock-snap-id-2',
-  name: 'Mock Snap 2',
-  enabled: true,
-  manifest: {
-    proposedName: 'Mock Snap 2',
-  },
-};
-
-const MOCK_ENTROPY_SOURCE_1 = 'mock-keyring-id-1';
-const MOCK_ENTROPY_SOURCE_2 = 'mock-keyring-id-2';
-
-const MOCK_HD_KEYRING_1 = {
-  type: KeyringTypes.hd,
-  metadata: { id: MOCK_ENTROPY_SOURCE_1, name: 'HD Keyring 1' },
-  accounts: ['0x123'],
-};
-
-const MOCK_HD_KEYRING_2 = {
-  type: KeyringTypes.hd,
-  metadata: { id: MOCK_ENTROPY_SOURCE_2, name: 'HD Keyring 2' },
-  accounts: ['0x456'],
-};
-
-const MOCK_HD_ACCOUNT_1: InternalAccount = {
-  id: 'mock-id-1',
-  address: '0x123',
-  options: {
-    entropySource: MOCK_HD_KEYRING_1.metadata.id,
-    index: 0,
-  },
-  methods: [...ETH_EOA_METHODS],
-  type: EthAccountType.Eoa,
-  scopes: [EthScope.Eoa],
-  metadata: {
-    name: 'Account 1',
-    keyring: { type: KeyringTypes.hd },
-    importTime: 0,
-    lastSelected: 0,
-    nameLastUpdatedAt: 0,
-  },
-};
-
-const MOCK_HD_ACCOUNT_2: InternalAccount = {
-  id: 'mock-id-2',
-  address: '0x456',
-  options: {
-    entropySource: MOCK_HD_KEYRING_2.metadata.id,
-    index: 0,
-  },
-  methods: [...ETH_EOA_METHODS],
-  type: EthAccountType.Eoa,
-  scopes: [EthScope.Eoa],
-  metadata: {
-    name: 'Account 2',
-    keyring: { type: KeyringTypes.hd },
-    importTime: 0,
-    lastSelected: 0,
-    nameLastUpdatedAt: 0,
-  },
-};
-
-const MOCK_SNAP_ACCOUNT_1: InternalAccount = {
-  id: 'mock-snap-id-1',
-  address: 'aabbccdd',
-  options: {
-    entropySource: MOCK_HD_KEYRING_2.metadata.id,
-    index: 0,
-  }, // Note: shares entropy with MOCK_HD_ACCOUNT_2
-  methods: Object.values(SolMethod),
-  type: SolAccountType.DataAccount,
-  scopes: [SolScope.Mainnet],
-  metadata: {
-    name: 'Snap Account 1',
-    keyring: { type: KeyringTypes.snap },
-    snap: MOCK_SNAP_1,
-    importTime: 0,
-    lastSelected: 0,
-  },
-};
-
-const MOCK_SNAP_ACCOUNT_2: InternalAccount = {
-  id: 'mock-snap-id-2',
-  address: '0x789',
-  options: {},
-  methods: [...ETH_EOA_METHODS],
-  type: EthAccountType.Eoa,
-  scopes: [EthScope.Eoa],
-  metadata: {
-    name: 'Snap Acc 2',
-    keyring: { type: KeyringTypes.snap },
-    snap: MOCK_SNAP_2,
-    importTime: 0,
-    lastSelected: 0,
-  },
-};
-
-const MOCK_HARDWARE_ACCOUNT_1: InternalAccount = {
-  id: 'mock-hardware-id-1',
-  address: '0xABC',
-  options: {},
-  methods: [...ETH_EOA_METHODS],
-  type: EthAccountType.Eoa,
-  scopes: [EthScope.Eoa],
-  metadata: {
-    name: 'Hardware Acc 1',
-    keyring: { type: KeyringTypes.ledger },
-    importTime: 0,
-    lastSelected: 0,
-  },
-};
-
-class MockAccountBuilder {
-  readonly #account: InternalAccount;
-
-  constructor(account: InternalAccount) {
-    // Make a deep-copy to avoid mutating the same ref.
-    this.#account = JSON.parse(JSON.stringify(account));
-  }
-
-  static from(account: InternalAccount): MockAccountBuilder {
-    return new MockAccountBuilder(account);
-  }
-
-  static toKeyringAccount(account: InternalAccount): KeyringAccount {
-    const { metadata, ...keyringAccount } = account;
-
-    return keyringAccount;
-  }
-
-  withUuuid() {
-    this.#account.id = uuid();
-    return this;
-  }
-
-  withEntropySource(entropySource: EntropySourceId) {
-    this.#account.options.entropySource = entropySource;
-    return this;
-  }
-
-  withGroupIndex(groupIndex: number) {
-    this.#account.options.index = groupIndex;
-    return this;
-  }
-
-  get() {
-    return this.#account;
-  }
-}
-
-/**
- * Creates a new root messenger instance for testing.
- *
- * @returns A new Messenger instance.
- */
-function getRootMessenger() {
-  return new Messenger<
-    MultichainAccountControllerActions | AllowedActions,
-    MultichainAccountControllerEvents | AllowedEvents
-  >();
-}
-
-/**
- * Retrieves a restricted messenger for the MultichainAccountController.
- *
- * @param messenger - The root messenger instance. Defaults to a new Messenger created by getRootMessenger().
- * @returns The restricted messenger for the MultichainAccountController.
- */
-function getMultichainAccountControllerMessenger(
-  messenger = getRootMessenger(),
-): MultichainAccountControllerMessenger {
-  return messenger.getRestricted({
-    name: 'MultichainAccountController',
-    allowedEvents: [],
-    allowedActions: [
-      'AccountsController:getAccount',
-      'AccountsController:getAccountByAddress',
-      'AccountsController:listMultichainAccounts',
-      'SnapController:handleRequest',
-      'KeyringController:withKeyring',
-    ],
-  });
-}
 
 /**
  * Sets up the MultichainAccountController for testing.
