@@ -40,8 +40,8 @@ export type {
   NetworkControllerAddNetworkAction,
   NetworkControllerRemoveNetworkAction,
   NetworkControllerUpdateNetworkAction,
-  NetworkControllerGetNetworkConfigurationByNetworkClientId,
-} from './network-controller-method-action-types';
+  NetworkControllerGetNetworkConfigurationByNetworkClientIdAction as NetworkControllerGetNetworkConfigurationByNetworkClientId,
+} from './NetworkController-method-action-types';
 export {
   getDefaultNetworkControllerState,
   selectAvailableNetworkClientIds,

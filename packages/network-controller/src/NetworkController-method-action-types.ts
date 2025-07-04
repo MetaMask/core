@@ -5,18 +5,6 @@
 import type { NetworkController } from './NetworkController';
 
 /**
- * Returns the Infura network client with the given ID.
- *
- * @param networkClientId - A network client ID.
- * @returns The network client.
- * @throws If a network client does not exist with the given ID.
- */
-export type NetworkControllerGetNetworkClientByIdAction = {
-  type: `NetworkController:getNetworkClientById`;
-  handler: NetworkController['getNetworkClientById'];
-};
-
-/**
  * Accesses the provider and block tracker for the currently selected network.
  *
  * @returns an object with the provider and block tracker proxies for the currently selected network.
@@ -32,36 +20,13 @@ export type NetworkControllerGetSelectedNetworkClientAction = {
  * @returns The chain ID of the selected network client in hex format or undefined if there is no network client.
  */
 export type NetworkControllerGetSelectedChainIdAction = {
-  type: 'NetworkController:getSelectedChainId';
+  type: `NetworkController:getSelectedChainId`;
   handler: NetworkController['getSelectedChainId'];
 };
 
-/**
- * Determines whether the network supports EIP-1559 by checking whether the
- * latest block has a `baseFeePerGas` property, then updates state
- * appropriately.
- *
- * @param networkClientId - The networkClientId to fetch the correct provider against which to check 1559 compatibility.
- * @returns A promise that resolves to true if the network supports EIP-1559
- * , false otherwise, or `undefined` if unable to determine the compatibility.
- */
-export type NetworkControllerGetEIP1559CompatibilityAction = {
-  type: `NetworkController:getEIP1559Compatibility`;
-  handler: NetworkController['getEIP1559Compatibility'];
-};
-
-/**
- * Searches for the default RPC endpoint configured for the given chain and
- * returns its network client ID. This can then be passed to
- * {@link getNetworkClientById} to retrieve the network client.
- *
- * @param chainId - Chain ID to search for.
- * @returns The ID of the network client created for the chain's default RPC
- * endpoint.
- */
-export type NetworkControllerFindNetworkClientIdByChainIdAction = {
-  type: `NetworkController:findNetworkClientIdByChainId`;
-  handler: NetworkController['findNetworkClientIdByChainId'];
+export type NetworkControllerGetNetworkClientByIdAction = {
+  type: `NetworkController:getNetworkClientById`;
+  handler: NetworkController['getNetworkClientById'];
 };
 
 /**
@@ -92,13 +57,27 @@ export type NetworkControllerSetActiveNetworkAction = {
 };
 
 /**
+ * Determines whether the network supports EIP-1559 by checking whether the
+ * latest block has a `baseFeePerGas` property, then updates state
+ * appropriately.
+ *
+ * @param networkClientId - The networkClientId to fetch the correct provider against which to check 1559 compatibility.
+ * @returns A promise that resolves to true if the network supports EIP-1559
+ * , false otherwise, or `undefined` if unable to determine the compatibility.
+ */
+export type NetworkControllerGetEIP1559CompatibilityAction = {
+  type: `NetworkController:getEIP1559Compatibility`;
+  handler: NetworkController['getEIP1559Compatibility'];
+};
+
+/**
  * Returns the network configuration that has been filed under the given chain
  * ID.
  *
  * @param chainId - The chain ID to use as a key.
  * @returns The network configuration if one exists, or undefined.
  */
-export type NetworkControllerGetNetworkConfigurationByChainId = {
+export type NetworkControllerGetNetworkConfigurationByChainIdAction = {
   type: `NetworkController:getNetworkConfigurationByChainId`;
   handler: NetworkController['getNetworkConfigurationByChainId'];
 };
@@ -110,7 +89,7 @@ export type NetworkControllerGetNetworkConfigurationByChainId = {
  * @param networkClientId - The network client ID to use as a key.
  * @returns The network configuration if one exists, or undefined.
  */
-export type NetworkControllerGetNetworkConfigurationByNetworkClientId = {
+export type NetworkControllerGetNetworkConfigurationByNetworkClientIdAction = {
   type: `NetworkController:getNetworkConfigurationByNetworkClientId`;
   handler: NetworkController['getNetworkConfigurationByNetworkClientId'];
 };
@@ -127,22 +106,8 @@ export type NetworkControllerGetNetworkConfigurationByNetworkClientId = {
  * @see {@link NetworkConfiguration}
  */
 export type NetworkControllerAddNetworkAction = {
-  type: 'NetworkController:addNetwork';
+  type: `NetworkController:addNetwork`;
   handler: NetworkController['addNetwork'];
-};
-
-/**
- * Destroys and unregisters the network identified by the given chain ID, also
- * removing the associated network configuration from state.
- *
- * @param chainId - The chain ID associated with an existing network.
- * @throws if `chainId` does not refer to an existing network configuration,
- * or if the currently selected network is being removed.
- * @see {@link NetworkConfiguration}
- */
-export type NetworkControllerRemoveNetworkAction = {
-  type: 'NetworkController:removeNetwork';
-  handler: NetworkController['removeNetwork'];
 };
 
 /**
@@ -170,6 +135,34 @@ export type NetworkControllerRemoveNetworkAction = {
  * @see {@link NetworkConfiguration}
  */
 export type NetworkControllerUpdateNetworkAction = {
-  type: 'NetworkController:updateNetwork';
+  type: `NetworkController:updateNetwork`;
   handler: NetworkController['updateNetwork'];
+};
+
+/**
+ * Destroys and unregisters the network identified by the given chain ID, also
+ * removing the associated network configuration from state.
+ *
+ * @param chainId - The chain ID associated with an existing network.
+ * @throws if `chainId` does not refer to an existing network configuration,
+ * or if the currently selected network is being removed.
+ * @see {@link NetworkConfiguration}
+ */
+export type NetworkControllerRemoveNetworkAction = {
+  type: `NetworkController:removeNetwork`;
+  handler: NetworkController['removeNetwork'];
+};
+
+/**
+ * Searches for the default RPC endpoint configured for the given chain and
+ * returns its network client ID. This can then be passed to
+ * {@link getNetworkClientById} to retrieve the network client.
+ *
+ * @param chainId - Chain ID to search for.
+ * @returns The ID of the network client created for the chain's default RPC
+ * endpoint.
+ */
+export type NetworkControllerFindNetworkClientIdByChainIdAction = {
+  type: `NetworkController:findNetworkClientIdByChainId`;
+  handler: NetworkController['findNetworkClientIdByChainId'];
 };

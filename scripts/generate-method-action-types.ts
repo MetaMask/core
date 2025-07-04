@@ -1,0 +1,333 @@
+#!yarn ts-node
+
+import * as fs from 'fs';
+import * as path from 'path';
+import * as ts from 'typescript';
+
+type MethodInfo = {
+  name: string;
+  jsDoc: string;
+  signature: string;
+};
+
+type ControllerInfo = {
+  name: string;
+  filePath: string;
+  exposedMethods: string[];
+  methods: MethodInfo[];
+};
+
+/**
+ * Main entry point for the script.
+ */
+async function main() {
+  console.log('🔍 Searching for controllers with MESSENGER_EXPOSED_METHODS...');
+
+  const controllers = await findControllersWithExposedMethods();
+
+  if (controllers.length === 0) {
+    console.log('⚠️  No controllers found with MESSENGER_EXPOSED_METHODS');
+    return;
+  }
+
+  console.log(
+    `📦 Found ${controllers.length} controller(s) with exposed methods`,
+  );
+
+  for (const controller of controllers) {
+    console.log(`\n🔧 Processing ${controller.name}...`);
+    await generateActionTypesFile(controller);
+    console.log(`✅ Generated action types for ${controller.name}`);
+  }
+
+  console.log('\n🎉 All action types generated successfully!');
+}
+
+/**
+ * Finds all controller files that have MESSENGER_EXPOSED_METHODS constants.
+ *
+ * @returns A list of controller information objects.
+ */
+async function findControllersWithExposedMethods(): Promise<ControllerInfo[]> {
+  const packagesDir = path.resolve(__dirname, '../packages');
+  const controllers: ControllerInfo[] = [];
+
+  const packageDirs = await fs.promises.readdir(packagesDir, {
+    withFileTypes: true,
+  });
+
+  for (const packageDir of packageDirs) {
+    if (!packageDir.isDirectory()) {
+      continue;
+    }
+
+    const packagePath = path.join(packagesDir, packageDir.name);
+    const srcPath = path.join(packagePath, 'src');
+
+    if (!fs.existsSync(srcPath)) {
+      continue;
+    }
+
+    const srcFiles = await fs.promises.readdir(srcPath);
+
+    for (const file of srcFiles) {
+      if (!file.endsWith('.ts') || file.endsWith('.test.ts')) {
+        continue;
+      }
+
+      const filePath = path.join(srcPath, file);
+      const content = await fs.promises.readFile(filePath, 'utf8');
+
+      if (content.includes('MESSENGER_EXPOSED_METHODS')) {
+        const controllerInfo = await parseControllerFile(filePath);
+        if (controllerInfo) {
+          controllers.push(controllerInfo);
+        }
+      }
+    }
+  }
+
+  return controllers;
+}
+
+/**
+ * Context for AST visiting.
+ */
+type VisitorContext = {
+  exposedMethods: string[];
+  className: string;
+  methods: MethodInfo[];
+  sourceFile: ts.SourceFile;
+};
+
+/**
+ * Visits AST nodes to find exposed methods and controller class.
+ *
+ * @param context - The visitor context.
+ * @returns A function to visit nodes.
+ */
+function createASTVisitor(context: VisitorContext) {
+  /**
+   * Visits AST nodes to find exposed methods and controller class.
+   *
+   * @param node - The AST node to visit.
+   */
+  function visitNode(node: ts.Node): void {
+    if (ts.isVariableStatement(node)) {
+      const declaration = node.declarationList.declarations[0];
+      if (
+        ts.isIdentifier(declaration.name) &&
+        declaration.name.text === 'MESSENGER_EXPOSED_METHODS'
+      ) {
+        if (declaration.initializer) {
+          let arrayExpression: ts.ArrayLiteralExpression | undefined;
+
+          // Handle direct array literal
+          if (ts.isArrayLiteralExpression(declaration.initializer)) {
+            arrayExpression = declaration.initializer;
+          }
+          // Handle "as const" assertion: expression is wrapped in type assertion
+          else if (
+            ts.isAsExpression(declaration.initializer) &&
+            ts.isArrayLiteralExpression(declaration.initializer.expression)
+          ) {
+            arrayExpression = declaration.initializer.expression;
+          }
+
+          if (arrayExpression) {
+            context.exposedMethods = arrayExpression.elements
+              .filter(ts.isStringLiteral)
+              .map((element) => element.text);
+          }
+        }
+      }
+    }
+
+    // Find the controller class
+    if (ts.isClassDeclaration(node) && node.name) {
+      const classText = node.name.text;
+      if (classText.includes('Controller')) {
+        context.className = classText;
+
+        // Extract method info for exposed methods
+        for (const member of node.members) {
+          if (
+            ts.isMethodDeclaration(member) &&
+            member.name &&
+            ts.isIdentifier(member.name)
+          ) {
+            const methodName = member.name.text;
+            if (context.exposedMethods.includes(methodName)) {
+              const jsDoc = extractJSDoc(member, context.sourceFile);
+              const signature = extractMethodSignature(member);
+              context.methods.push({
+                name: methodName,
+                jsDoc,
+                signature,
+              });
+            }
+          }
+        }
+      }
+    }
+
+    ts.forEachChild(node, visitNode);
+  }
+
+  return visitNode;
+}
+
+/**
+ * Parses a controller file to extract exposed methods and their metadata.
+ *
+ * @param filePath - Path to the controller file to parse.
+ * @returns Controller information or null if parsing fails.
+ */
+async function parseControllerFile(
+  filePath: string,
+): Promise<ControllerInfo | null> {
+  try {
+    const content = await fs.promises.readFile(filePath, 'utf8');
+    const sourceFile = ts.createSourceFile(
+      filePath,
+      content,
+      ts.ScriptTarget.Latest,
+      true,
+    );
+
+    const context: VisitorContext = {
+      exposedMethods: [],
+      className: '',
+      methods: [],
+      sourceFile,
+    };
+
+    createASTVisitor(context)(sourceFile);
+
+    if (context.exposedMethods.length === 0 || !context.className) {
+      return null;
+    }
+
+    return {
+      name: context.className,
+      filePath,
+      exposedMethods: context.exposedMethods,
+      methods: context.methods,
+    };
+  } catch (error) {
+    console.error(`Error parsing ${filePath}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Extracts JSDoc comment from a method declaration.
+ *
+ * @param node - The method declaration node.
+ * @param sourceFile - The source file.
+ * @returns The JSDoc comment.
+ */
+function extractJSDoc(
+  node: ts.MethodDeclaration,
+  sourceFile: ts.SourceFile,
+): string {
+  const jsDocTags = ts.getJSDocCommentsAndTags(node);
+  if (jsDocTags.length === 0) {
+    return '';
+  }
+
+  const jsDoc = jsDocTags[0];
+  if (ts.isJSDoc(jsDoc)) {
+    const fullText = sourceFile.getFullText();
+    const start = jsDoc.getFullStart();
+    const end = jsDoc.getEnd();
+    return fullText.substring(start, end).trim();
+  }
+
+  return '';
+}
+
+/**
+ * Extracts method signature as a string for the handler type.
+ *
+ * @param node - The method declaration node.
+ * @returns The method signature.
+ */
+function extractMethodSignature(node: ts.MethodDeclaration): string {
+  // Since we're just using the method reference in the handler type,
+  // we don't need the full signature - just return the method name
+  // The actual signature will be inferred from the controller class
+  return node.name ? (node.name as ts.Identifier).text : '';
+}
+
+/**
+ * Generates the action types file for a controller.
+ *
+ * @param controller - The controller information object.
+ */
+async function generateActionTypesFile(
+  controller: ControllerInfo,
+): Promise<void> {
+  const outputDir = path.dirname(controller.filePath);
+  const outputFile = path.join(
+    outputDir,
+    `${controller.name}-method-action-types.ts`,
+  );
+
+  const content = generateActionTypesContent(controller);
+  await fs.promises.writeFile(outputFile, content, 'utf8');
+}
+
+/**
+ * Generates the content for the action types file.
+ *
+ * @param controller - The controller information object.
+ * @returns The content for the action types file.
+ */
+function generateActionTypesContent(controller: ControllerInfo): string {
+  const controllerImportPath = `./${controller.name}`;
+
+  let content = `/**
+ * This file is auto generated by \`scripts/generate-method-action-types.ts\`.
+ * Do not edit manually.
+ */
+import type { ${controller.name} } from '${controllerImportPath}';
+
+`;
+
+  // Generate action types for each exposed method
+  for (const method of controller.methods) {
+    const actionTypeName = `${controller.name}${capitalize(method.name)}Action`;
+    const actionString = `${controller.name}:${method.name}`;
+
+    // Add the JSDoc if available
+    if (method.jsDoc) {
+      content += `${method.jsDoc}\n`;
+    }
+
+    content += `export type ${actionTypeName} = {
+  type: \`${actionString}\`;
+  handler: ${controller.name}['${method.name}'];
+};
+
+`;
+  }
+
+  return content;
+}
+
+/**
+ * Capitalizes the first letter of a string.
+ *
+ * @param str - The string to capitalize.
+ * @returns The capitalized string.
+ */
+function capitalize(str: string): string {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+// Error handling wrapper
+main().catch((error) => {
+  console.error('❌ Script failed:', error);
+  process.exitCode = 1;
+});
