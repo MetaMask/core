@@ -1738,6 +1738,7 @@ export type PublishBatchHookRequest = {
   transactions: PublishBatchHookTransaction[];
 };
 
+/** Result of calling a publish batch hook. */
 export type PublishBatchHookResult =
   | {
       /** Result data for each transaction in the batch. */
