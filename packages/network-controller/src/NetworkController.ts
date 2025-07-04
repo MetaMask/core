@@ -1178,7 +1178,7 @@ export class NetworkController extends BaseController<
       MESSENGER_EXPOSED_METHODS,
     );
     this.messagingSystem.registerActionHandler(
-      'NetworkController:getEthQuery',
+      `${this.name}:getEthQuery`,
       () => {
         return this.#ethQuery;
       },
