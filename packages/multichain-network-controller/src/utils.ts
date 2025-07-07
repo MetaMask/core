@@ -31,17 +31,27 @@ export function isEvmCaipChainId(chainId: CaipChainId): boolean {
 /**
  * Returns the chain id of the non-EVM network based on the account address.
  *
- * @param address - The address to check.
+ * @param scopes - The scopes to check.
  * @returns The caip chain id of the non-EVM network.
  */
-export function getChainIdForNonEvmAddress(
-  address: string,
-): SupportedCaipChainId {
-  // This condition is not the most robust. Once we support more networks, we will need to update this logic.
-  if (isSolanaAddress(address)) {
-    return SolScope.Mainnet;
+export function getChainIdForNonEvm(scopes: string[]): SupportedCaipChainId {
+  const solanaScope = Object.values(SolScope).find((scope) =>
+    scopes.includes(scope),
+  );
+  if (solanaScope) {
+    return solanaScope;
   }
-  return BtcScope.Mainnet;
+
+  const bitcoinScope = Object.values(BtcScope).find((scope) =>
+    scopes.includes(scope),
+  );
+  if (bitcoinScope) {
+    return bitcoinScope;
+  }
+
+  throw new Error(
+    `Unsupported scope: ${scopes.join(', ')}. Only Solana and Bitcoin are supported.`,
+  );
 }
 
 /**
