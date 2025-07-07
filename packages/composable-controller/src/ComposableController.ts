@@ -163,13 +163,13 @@ export class ComposableController<
         // eslint-disable-next-line no-empty
       } catch (_) {}
       // False negative. `name` is a string type.
-
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       throw new Error(`${name} - ${INVALID_CONTROLLER_ERROR}`);
     }
     try {
       this.messagingSystem.subscribe(
         // False negative. `name` is a string type.
-
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `${name}:stateChange`,
         (childState: StateConstraint) => {
           this.update((state) => {
@@ -181,7 +181,7 @@ export class ComposableController<
       );
     } catch (error: unknown) {
       // False negative. `name` is a string type.
-
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       console.error(`${name} - ${String(error)}`);
     }
   }

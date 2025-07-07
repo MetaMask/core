@@ -97,7 +97,6 @@ const ADD_USER_OPERATION_OPTIONS_MOCK: AddUserOperationOptions = {
 
 /**
  * Creates a mock user operation messenger.
- *
  * @returns The mock user operation messenger.
  */
 function createMessengerMock() {
@@ -111,7 +110,6 @@ function createMessengerMock() {
 
 /**
  * Creates a mock smart contract account.
- *
  * @returns The mock smart contract account.
  */
 function createSmartContractAccountMock() {
@@ -124,7 +122,6 @@ function createSmartContractAccountMock() {
 
 /**
  * Creates a mock bundler.
- *
  * @returns The mock bundler.
  */
 function createBundlerMock() {
@@ -136,7 +133,6 @@ function createBundlerMock() {
 
 /**
  * Creates a mock PendingUserOperationTracker.
- *
  * @returns The mock PendingUserOperationTracker.
  */
 function createPendingUserOperationTrackerMock() {

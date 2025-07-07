@@ -11,13 +11,6 @@ import type { Hex } from '@metamask/utils';
 import nock from 'nock';
 import * as sinon from 'sinon';
 
-import * as tokenService from './token-service';
-import type {
-  TokenListMap,
-  TokenListState,
-  TokenListControllerMessenger,
-} from './TokenListController';
-import { TokenListController } from './TokenListController';
 import { advanceTime } from '../../../tests/helpers';
 import type {
   ExtractAvailableAction,
@@ -28,6 +21,13 @@ import {
   buildInfuraNetworkClientConfiguration,
   buildMockGetNetworkClientById,
 } from '../../network-controller/tests/helpers';
+import * as tokenService from './token-service';
+import type {
+  TokenListMap,
+  TokenListState,
+  TokenListControllerMessenger,
+} from './TokenListController';
+import { TokenListController } from './TokenListController';
 
 const name = 'TokenListController';
 const timestamp = Date.now();
@@ -1270,7 +1270,7 @@ describe('TokenListController', () => {
  */
 function getTokensPath(chainId: Hex) {
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
   return `/tokens/${convertHexToDecimal(
     chainId,
   )}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`;

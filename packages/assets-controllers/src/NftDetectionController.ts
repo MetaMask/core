@@ -71,18 +71,13 @@ const supportedNftDetectionNetworks: Set<Hex> = new Set([
 ]);
 
 /**
- * ApiNft
+ * @type ApiNft
  *
  * NFT object coming from OpenSea api
- *
- * token_id - The NFT identifier
- *
- * num_sales - Number of sales
- *
- * background_color - The background color to be displayed with the item
- *
- * image_url - URI of an image associated with this NFT
- *
+ * @property token_id - The NFT identifier
+ * @property num_sales - Number of sales
+ * @property background_color - The background color to be displayed with the item
+ * @property image_url - URI of an image associated with this NFT
  * @property image_preview_url - URI of a smaller image associated with this NFT
  * @property image_thumbnail_url - URI of a thumbnail image associated with this NFT
  * @property image_original_url - URI of the original image associated with this NFT
@@ -97,59 +92,54 @@ const supportedNftDetectionNetworks: Set<Hex> = new Set([
  */
 export type ApiNft = {
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   token_id: string;
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   num_sales: number | null;
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   background_color: string | null;
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   image_url: string | null;
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   image_preview_url: string | null;
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   image_thumbnail_url: string | null;
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   image_original_url: string | null;
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   animation_url: string | null;
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   animation_original_url: string | null;
   name: string | null;
   description: string | null;
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   external_link: string | null;
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   asset_contract: ApiNftContract;
   creator: ApiNftCreator;
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   last_sale: ApiNftLastSale | null;
 };
 
 /**
- * ApiNftContract
+ * @type ApiNftContract
  *
  * NFT contract object coming from OpenSea api
- *
- * address - Address of the NFT contract
- *
- * asset_contract_type - The NFT type, it could be `semi-fungible` or `non-fungible`
- *
- * created_date - Creation date
- *
- * collection - Object containing the contract name and URI of an image associated
- *
+ * @property address - Address of the NFT contract
+ * @property asset_contract_type - The NFT type, it could be `semi-fungible` or `non-fungible`
+ * @property created_date - Creation date
+ * @property collection - Object containing the contract name and URI of an image associated
  * @property schema_name - The schema followed by the contract, it could be `ERC721` or `ERC1155`
  * @property symbol - The NFT contract symbol
  * @property total_supply - Total supply of NFTs
@@ -159,69 +149,63 @@ export type ApiNft = {
 export type ApiNftContract = {
   address: string;
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   asset_contract_type: string | null;
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   created_date: string | null;
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   schema_name: string | null;
   symbol: string | null;
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   total_supply: string | null;
   description: string | null;
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   external_link: string | null;
   collection: {
     name: string | null;
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     image_url?: string | null;
     tokenCount?: string | null;
   };
 };
 
 /**
- * ApiNftLastSale
+ * @type ApiNftLastSale
  *
  * NFT sale object coming from OpenSea api
- *
- * event_timestamp - Object containing a `username`
- *
- * total_price - URI of NFT image associated with this owner
- *
- * transaction - Object containing transaction_hash and block_hash
+ * @property event_timestamp - Object containing a `username`
+ * @property total_price - URI of NFT image associated with this owner
+ * @property transaction - Object containing transaction_hash and block_hash
  */
 export type ApiNftLastSale = {
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   event_timestamp: string;
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   total_price: string;
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   transaction: { transaction_hash: string; block_hash: string };
 };
 
 /**
- * ApiNftCreator
+ * @type ApiNftCreator
  *
  * NFT creator object coming from OpenSea api
- *
- * user - Object containing a `username`
- *
- * profile_img_url - URI of NFT image associated with this owner
- *
- * address - The owner address
+ * @property user - Object containing a `username`
+ * @property profile_img_url - URI of NFT image associated with this owner
+ * @property address - The owner address
  */
 export type ApiNftCreator = {
   user: { username: string };
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   profile_img_url: string;
   address: string;
 };
@@ -249,13 +233,13 @@ export type Blockaid = {
   contract: string;
   chainId: number;
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   result_type: BlockaidResultType;
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   malicious_score: string;
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   attack_types: object;
 };
 
@@ -549,7 +533,6 @@ export class NftDetectionController extends BaseController<
 
   /**
    * Handles the state change of the preference controller.
-   *
    * @param preferencesState - The new state of the preference controller.
    * @param preferencesState.useNftDetection - Boolean indicating user preference on NFT detection.
    */

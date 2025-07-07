@@ -1,5 +1,5 @@
-import { Bundler } from './Bundler';
 import type { UserOperation } from '../types';
+import { Bundler } from './Bundler';
 
 const URL_MOCK = 'http://test.com';
 const ENTRYPOINT_MOCK = '0x123';
@@ -46,7 +46,6 @@ describe('Bundler', () => {
 
       /**
        * Mock fetch to return a JSON response.
-       *
        * @param jsonResponse - The JSON response to return.
        */
       function mockJsonResponse(jsonResponse: Record<string, unknown>) {

@@ -101,7 +101,7 @@ export class RemoteFeatureFlagController extends BaseController<
 
   #inProgressFlagUpdate?: Promise<ServiceResponse>;
 
-  readonly #getMetaMetricsId: () => string;
+  #getMetaMetricsId: () => string;
 
   /**
    * Constructs a new RemoteFeatureFlagController instance.
@@ -149,6 +149,7 @@ export class RemoteFeatureFlagController extends BaseController<
    * Checks if the cached feature flags are expired based on the fetch interval.
    *
    * @returns Whether the cache is expired (`true`) or still valid (`false`).
+   * @private
    */
   #isCacheExpired(): boolean {
     return Date.now() - this.state.cacheTimestamp > this.#fetchInterval;
@@ -188,10 +189,10 @@ export class RemoteFeatureFlagController extends BaseController<
    * Updates the controller's state with new feature flags and resets the cache timestamp.
    *
    * @param remoteFeatureFlags - The new feature flags to cache.
+   * @private
    */
   async #updateCache(remoteFeatureFlags: FeatureFlags) {
-    const processedRemoteFeatureFlags =
-      await this.#processRemoteFeatureFlags(remoteFeatureFlags);
+    const processedRemoteFeatureFlags = await this.#processRemoteFeatureFlags(remoteFeatureFlags);
     this.update(() => {
       return {
         remoteFeatureFlags: processedRemoteFeatureFlags,

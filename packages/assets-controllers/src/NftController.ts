@@ -83,18 +83,13 @@ type SuggestedNftMeta = {
 };
 
 /**
- * Nft
+ * @type Nft
  *
  * NFT representation
- *
- * address - Hex address of a ERC721 contract
- *
- * description - The NFT description
- *
- * image - URI of custom NFT image associated with this tokenId
- *
- * name - Name associated with this tokenId and contract address
- *
+ * @property address - Hex address of a ERC721 contract
+ * @property description - The NFT description
+ * @property image - URI of custom NFT image associated with this tokenId
+ * @property name - Name associated with this tokenId and contract address
  * @property tokenId - The NFT identifier
  * @property numberOfSales - Number of sales
  * @property backgroundColor - The background color to be displayed with the item
@@ -120,18 +115,13 @@ type NftUpdate = {
 };
 
 /**
- * NftContract
+ * @type NftContract
  *
  * NFT contract information representation
- *
- * name - Contract name
- *
- * logo - Contract logo
- *
- * address - Contract address
- *
- * symbol - Contract symbol
- *
+ * @property name - Contract name
+ * @property logo - Contract logo
+ * @property address - Contract address
+ * @property symbol - Contract symbol
  * @property description - Contract description
  * @property totalSupply - Total supply of NFTs
  * @property assetContractType - The NFT type, it could be `semi-fungible` or `non-fungible`
@@ -153,18 +143,13 @@ export type NftContract = {
 };
 
 /**
- * NftMetadata
+ * @type NftMetadata
  *
  * NFT custom information
- *
- * name - NFT custom name
- *
- * description - The NFT description
- *
- * numberOfSales - Number of sales
- *
- * backgroundColor - The background color to be displayed with the item
- *
+ * @property name - NFT custom name
+ * @property description - The NFT description
+ * @property numberOfSales - Number of sales
+ * @property backgroundColor - The background color to be displayed with the item
  * @property image - Image custom image URI
  * @property imagePreview - URI of a smaller image associated with this NFT
  * @property imageThumbnail - URI of a thumbnail image associated with this NFT
@@ -202,15 +187,12 @@ export type NftMetadata = {
 };
 
 /**
- * NftControllerState
+ * @type NftControllerState
  *
  * NFT controller state
- *
- * allNftContracts - Object containing NFT contract information
- *
- * allNfts - Object containing NFTs per account and network
- *
- * ignoredNfts - List of NFTs that should be ignored
+ * @property allNftContracts - Object containing NFT contract information
+ * @property allNfts - Object containing NFTs per account and network
+ * @property ignoredNfts - List of NFTs that should be ignored
  */
 export type NftControllerState = {
   allNftContracts: {
@@ -327,7 +309,7 @@ export class NftController extends BaseController<
 
   #openSeaEnabled: boolean;
 
-  readonly #useIpfsSubdomains: boolean;
+  #useIpfsSubdomains: boolean;
 
   #isIpfsGatewayEnabled: boolean;
 
@@ -397,14 +379,14 @@ export class NftController extends BaseController<
     this.messagingSystem.subscribe(
       'PreferencesController:stateChange',
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       this.#onPreferencesControllerStateChange.bind(this),
     );
 
     this.messagingSystem.subscribe(
       'AccountsController:selectedEvmAccountChange',
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       this.#onSelectedAccountChange.bind(this),
     );
   }
@@ -465,7 +447,7 @@ export class NftController extends BaseController<
 
   getNftApi() {
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     return `${NFT_API_BASE_URL}/tokens`;
   }
 
@@ -510,7 +492,7 @@ export class NftController extends BaseController<
 
   #getNftCollectionApi(): string {
     // False negative.
-
+    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     return `${NFT_API_BASE_URL}/collections`;
   }
 
@@ -885,12 +867,12 @@ export class NftController extends BaseController<
         address: contractAddress,
         ...blockchainContractData,
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         schema_name: nftMetadataFromApi?.standard ?? null,
         collection: {
           name: null,
           // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           image_url:
             nftMetadataFromApi?.collection?.image ??
             nftMetadataFromApi?.collection?.imageUrl ??
@@ -906,24 +888,24 @@ export class NftController extends BaseController<
     return {
       address: contractAddress,
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       asset_contract_type: null,
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       created_date: null,
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       schema_name: null,
       symbol: null,
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       total_supply: null,
       description: null,
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       external_link: null,
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       collection: { name: null, image_url: null },
     };
   }
@@ -1078,21 +1060,21 @@ export class NftController extends BaseController<
       );
       const {
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         asset_contract_type,
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         created_date,
         symbol,
         description,
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         external_link,
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         schema_name,
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         collection: { name, image_url, tokenCount },
       } = contractInformation;
 
@@ -1268,7 +1250,7 @@ export class NftController extends BaseController<
     if (type !== ERC721 && type !== ERC1155) {
       throw rpcErrors.invalidParams(
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `Non NFT asset type ${type} not supported by watchNft`,
       );
     }
@@ -1412,6 +1394,7 @@ export class NftController extends BaseController<
         networkClientId,
       );
       return ownerAddress.toLowerCase() === owner.toLowerCase();
+      // eslint-disable-next-line no-empty
     } catch {
       // Ignore ERC-721 contract error
     }
@@ -1426,6 +1409,7 @@ export class NftController extends BaseController<
         networkClientId,
       );
       return !balance.isZero();
+      // eslint-disable-next-line no-empty
     } catch {
       // Ignore ERC-1155 contract error
     }

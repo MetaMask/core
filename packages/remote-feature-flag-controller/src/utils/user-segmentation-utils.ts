@@ -5,7 +5,6 @@ import type { FeatureFlagScopeValue } from '../remote-feature-flag-controller-ty
 
 /**
  * Converts a UUID string to a BigInt by removing dashes and converting to hexadecimal.
- *
  * @param uuid - The UUID string to convert
  * @returns The UUID as a BigInt value
  */
@@ -23,7 +22,6 @@ const UUID_V4_VALUE_RANGE_BIGINT = MAX_UUID_V4_BIGINT - MIN_UUID_V4_BIGINT;
  * Generates a deterministic random number between 0 and 1 based on a metaMetricsId.
  * This is useful for A/B testing and feature flag rollouts where we want
  * consistent group assignment for the same user.
- *
  * @param metaMetricsId - The unique identifier used to generate the deterministic random number. Must be either:
  * - A UUIDv4 string (e.g., '123e4567-e89b-12d3-a456-426614174000'
  * - A hex string with '0x' prefix (e.g., '0x86bacb9b2bf9a7e8d2b147eadb95ac9aaa26842327cd24afc8bd4b3c1d136420')

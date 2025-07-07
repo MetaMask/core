@@ -3,13 +3,6 @@
 import { TransactionType } from '@metamask/transaction-controller';
 import { cloneDeep } from 'lodash';
 
-import {
-  validateAddUserOperationOptions,
-  validateAddUserOperationRequest,
-  validatePrepareUserOperationResponse,
-  validateSignUserOperationResponse,
-  validateUpdateUserOperationResponse,
-} from './validation';
 import type {
   PrepareUserOperationResponse,
   SignUserOperationResponse,
@@ -19,6 +12,13 @@ import type {
   AddUserOperationOptions,
   AddUserOperationRequest,
 } from '../UserOperationController';
+import {
+  validateAddUserOperationOptions,
+  validateAddUserOperationRequest,
+  validatePrepareUserOperationResponse,
+  validateSignUserOperationResponse,
+  validateUpdateUserOperationResponse,
+} from './validation';
 
 const ADD_USER_OPERATION_REQUEST_MOCK: AddUserOperationRequest = {
   data: '0x1',
@@ -65,14 +65,13 @@ const SIGN_USER_OPERATION_RESPONSE_MOCK: SignUserOperationResponse = {
 
 /**
  * Copy an object and set a property path to a given value.
- *
  * @param object - The object to copy.
  * @param pathString - The property path to set.
  * @param value - The value to set.
  * @returns The copied object with the property path set to the given value.
  */
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+// eslint-disable-next-line @typescript-eslint/naming-convention
 function setPropertyPath<T>(object: T, pathString: string, value: unknown): T {
   const copy = cloneDeep(object);
   const path = pathString.split('.');
@@ -90,7 +89,6 @@ function setPropertyPath<T>(object: T, pathString: string, value: unknown): T {
 
 /**
  * Expect a validation error to be thrown.
- *
  * @param validateFunction - The validation function to call.
  * @param input - The input to validate.
  * @param propertyName - The property name to set.
@@ -100,7 +98,7 @@ function setPropertyPath<T>(object: T, pathString: string, value: unknown): T {
  * @param rootPropertyName - The name of the root input.
  */
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+// eslint-disable-next-line @typescript-eslint/naming-convention
 function expectValidationError<T>(
   validateFunction: (request: T) => void,
   input: T,

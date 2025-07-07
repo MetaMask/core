@@ -166,7 +166,6 @@ const chainIdToNativeTokenAddress: Record<Hex, Hex> = {
  * Returns the address that should be used to query the price api for the
  * chain's native token. On most chains, this is signified by the zero address.
  * But on some chains, the native token has a specific address.
- *
  * @param chainId - The hexadecimal chain id.
  * @returns The address of the chain's native token.
  */
@@ -185,7 +184,6 @@ type SupportedCurrency =
  * The list of chain IDs that can be supplied in the URL for the `/spot-prices`
  * endpoint, but in hexadecimal form (for consistency with how we represent
  * chain IDs in other places).
- *
  * @see Used by {@link CodefiTokenPricesServiceV2} to validate that a given chain ID is supported by V2 of the Codefi Price API.
  */
 export const SUPPORTED_CHAIN_IDS = [

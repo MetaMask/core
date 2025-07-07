@@ -56,9 +56,9 @@ export type PhishingDetectorConfiguration = {
 };
 
 export class PhishingDetector {
-  readonly #configs: PhishingDetectorConfiguration[];
+  #configs: PhishingDetectorConfiguration[];
 
-  readonly #legacyConfig: boolean;
+  #legacyConfig: boolean;
 
   /**
    * Construct a phishing detector, which can check whether origins are known
@@ -220,6 +220,7 @@ export class PhishingDetector {
    * Checks if a URL is blocked against the hashed request blocklist.
    * This is done by hashing the URL's hostname and checking it against the hashed request blocklist.
    *
+   *
    * @param urlString - The URL to check.
    * @returns An object indicating if the URL is blocked and relevant metadata.
    */
@@ -289,7 +290,6 @@ export class PhishingDetector {
 
 /**
  * Runs a regex match to determine if a string is a IPFS CID
- *
  * @returns Regex string for IPFS CID
  */
 function ipfsCidRegex() {

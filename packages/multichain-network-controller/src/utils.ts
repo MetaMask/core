@@ -1,3 +1,4 @@
+import { BtcScope, SolScope } from '@metamask/keyring-api';
 import type { NetworkConfiguration } from '@metamask/network-controller';
 import {
   type Hex,

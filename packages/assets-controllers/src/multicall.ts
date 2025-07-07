@@ -373,7 +373,6 @@ const fallback = async (
  * Executes an array of contract calls. If the chain supports multicalls,
  * the calls will be executed in single RPC requests (up to maxCallsPerMulticall).
  * Otherwise the calls will be executed separately in parallel (up to maxCallsParallel).
- *
  * @param calls - An array of contract calls to execute.
  * @param chainId - The hexadecimal chain id.
  * @param provider - An ethers rpc provider.

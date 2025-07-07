@@ -1,3 +1,5 @@
+/* eslint-disable jsdoc/require-jsdoc */
+
 import { createModuleLogger, projectLogger } from '../logger';
 import type { UserOperation, UserOperationReceipt } from '../types';
 
@@ -25,7 +27,7 @@ export type BundlerEstimateUserOperationGasResponse = {
  * A helper class for interacting with a bundler.
  */
 export class Bundler {
-  readonly #url: string;
+  #url: string;
 
   constructor(url: string) {
     this.#url = url;
@@ -56,7 +58,6 @@ export class Bundler {
 
   /**
    * Retrieve the receipt for a user operation.
-   *
    * @param hash - The hash of the user operation.
    * @returns The receipt for the user operation, or `undefined` if the user operation is pending.
    */
@@ -73,7 +74,6 @@ export class Bundler {
 
   /**
    * Submit a user operation to the bundler.
-   *
    * @param userOperation - The signed user operation to submit.
    * @param entrypoint - The address of entrypoint to use for the user operation.
    * @returns The hash of the user operation.
@@ -99,7 +99,7 @@ export class Bundler {
   }
 
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   async #query<T>(method: string, params: unknown[]): Promise<T> {
     const request = {
       method: 'POST',

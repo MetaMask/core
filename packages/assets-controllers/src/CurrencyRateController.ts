@@ -14,15 +14,12 @@ import { Mutex } from 'async-mutex';
 import { fetchMultiExchangeRate as defaultFetchMultiExchangeRate } from './crypto-compare-service';
 
 /**
- * currencyRates - Object keyed by native currency
- *
- * currencyRates.conversionDate - Timestamp of conversion rate expressed in ms since UNIX epoch
- *
- * currencyRates.conversionRate - Conversion rate from current base asset to the current currency
- *
- * currentCurrency - Currently-active ISO 4217 currency code
- *
- * usdConversionRate - Conversion rate from usd to the current currency
+ * @type CurrencyRateState
+ * @property currencyRates - Object keyed by native currency
+ * @property currencyRates.conversionDate - Timestamp of conversion rate expressed in ms since UNIX epoch
+ * @property currencyRates.conversionRate - Conversion rate from current base asset to the current currency
+ * @property currentCurrency - Currently-active ISO 4217 currency code
+ * @property usdConversionRate - Conversion rate from usd to the current currency
  */
 export type CurrencyRateState = {
   currentCurrency: string;

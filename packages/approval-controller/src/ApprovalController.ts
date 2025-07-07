@@ -353,13 +353,13 @@ export class ApprovalController extends BaseController<
   ApprovalControllerState,
   ApprovalControllerMessenger
 > {
-  readonly #approvals: Map<string, ApprovalCallbacks>;
+  #approvals: Map<string, ApprovalCallbacks>;
 
-  readonly #origins: Map<string, Map<string, number>>;
+  #origins: Map<string, Map<string, number>>;
 
-  readonly #showApprovalRequest: () => void;
+  #showApprovalRequest: () => void;
 
-  readonly #typesExcludedFromRateLimiting: string[];
+  #typesExcludedFromRateLimiting: string[];
 
   /**
    * Construct an Approval controller.
@@ -600,6 +600,7 @@ export class ApprovalController extends BaseController<
       return Array.from(
         (this.#origins.get(origin) || new Map()).values(),
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
       ).reduce((total, value) => total + value, 0);
     }
 

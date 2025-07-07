@@ -27,7 +27,6 @@ import type {
 
 /**
  * Validate a request to add a user operation.
- *
  * @param request - The request to validate.
  */
 export function validateAddUserOperationRequest(
@@ -50,7 +49,6 @@ export function validateAddUserOperationRequest(
 
 /**
  * Validate the options when adding a user operation.
- *
  * @param options - The options to validate.
  */
 export function validateAddUserOperationOptions(
@@ -92,7 +90,6 @@ export function validateAddUserOperationOptions(
 
 /**
  * Validate the response from a smart contract account when preparing the user operation.
- *
  * @param response - The response to validate.
  */
 export function validatePrepareUserOperationResponse(
@@ -138,7 +135,6 @@ export function validatePrepareUserOperationResponse(
 
 /**
  * Validate the response from a smart contract account when updating the user operation.
- *
  * @param response - The response to validate.
  */
 export function validateUpdateUserOperationResponse(
@@ -162,7 +158,6 @@ export function validateUpdateUserOperationResponse(
 
 /**
  * Validate the response from a smart contract account when signing the user operation.
- *
  * @param response - The response to validate.
  */
 export function validateSignUserOperationResponse(
@@ -183,13 +178,12 @@ export function validateSignUserOperationResponse(
 
 /**
  * Validate data against a struct.
- *
  * @param data - The data to validate.
  * @param struct - The struct to validate against.
  * @param message - The message to throw if validation fails.
  */
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+// eslint-disable-next-line @typescript-eslint/naming-convention
 function validate<T>(data: unknown, struct: Struct<T>, message: string) {
   try {
     assert(data, struct, message);
@@ -213,7 +207,6 @@ function validate<T>(data: unknown, struct: Struct<T>, message: string) {
 
 /**
  * Define the Hex type used by superstruct.
- *
  * @returns The Hex superstruct type.
  */
 function defineHex() {
@@ -224,7 +217,6 @@ function defineHex() {
 
 /**
  * Define the HexOrEmptyBytes type used by superstruct.
- *
  * @returns The HexOrEmptyBytes superstruct type.
  */
 function defineHexOrEmptyBytes() {

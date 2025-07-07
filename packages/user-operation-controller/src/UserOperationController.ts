@@ -75,21 +75,21 @@ type Events = {
 
 export type UserOperationControllerEventEmitter = EventEmitter & {
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   on<T extends keyof Events>(
     eventName: T,
     listener: (...args: Events[T]) => void,
   ): UserOperationControllerEventEmitter;
 
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   once<T extends keyof Events>(
     eventName: T,
     listener: (...args: Events[T]) => void,
   ): UserOperationControllerEventEmitter;
 
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   emit<T extends keyof Events>(eventName: T, ...args: Events[T]): boolean;
 };
 
@@ -199,11 +199,11 @@ export class UserOperationController extends BaseController<
 > {
   hub: UserOperationControllerEventEmitter;
 
-  readonly #entrypoint: string;
+  #entrypoint: string;
 
-  readonly #getGasFeeEstimates: () => Promise<GasFeeState>;
+  #getGasFeeEstimates: () => Promise<GasFeeState>;
 
-  readonly #pendingUserOperationTracker: PendingUserOperationTracker;
+  #pendingUserOperationTracker: PendingUserOperationTracker;
 
   /**
    * Construct a UserOperationController instance.
@@ -706,7 +706,7 @@ export class UserOperationController extends BaseController<
         log('In listener...');
         this.hub.emit('user-operation-confirmed', metadata);
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         this.hub.emit(`${metadata.id}:confirmed`, metadata);
       },
     );
@@ -716,7 +716,7 @@ export class UserOperationController extends BaseController<
       (metadata, error) => {
         this.hub.emit('user-operation-failed', metadata, error);
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         this.hub.emit(`${metadata.id}:failed`, metadata, error);
       },
     );

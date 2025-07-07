@@ -4,6 +4,7 @@ import { Messenger } from '@metamask/base-controller';
 import { errorCodes, JsonRpcError } from '@metamask/rpc-errors';
 import { nanoid } from 'nanoid';
 
+import { flushPromises } from '../../../tests/helpers';
 import type {
   AddApprovalOptions,
   ApprovalControllerActions,
@@ -24,7 +25,6 @@ import {
   MissingApprovalFlowError,
   NoApprovalFlowsError,
 } from './errors';
-import { flushPromises } from '../../../tests/helpers';
 
 jest.mock('nanoid');
 
@@ -1284,7 +1284,7 @@ describe('approval controller', () => {
       });
 
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       messenger.call(
         'ApprovalController:addRequest',
         { id: 'foo', origin: 'bar.baz', type: TYPE },
@@ -1310,7 +1310,7 @@ describe('approval controller', () => {
       });
 
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       messenger.call(
         'ApprovalController:addRequest',
         { id: 'foo', origin: 'bar.baz', type: TYPE },

@@ -2,13 +2,13 @@ import { BaseController } from '@metamask/base-controller';
 import { Mutex } from 'async-mutex';
 import type { Draft } from 'immer';
 
+import { fetchMultiExchangeRate as defaultFetchExchangeRate } from '../crypto-compare-service';
 import type {
   ConversionRates,
   RatesControllerState,
   RatesControllerOptions,
   RatesControllerMessenger,
 } from './types';
-import { fetchMultiExchangeRate as defaultFetchExchangeRate } from '../crypto-compare-service';
 
 export const name = 'RatesController';
 
@@ -57,7 +57,7 @@ export class RatesController extends BaseController<
 
   readonly #includeUsdRate;
 
-  readonly #intervalLength: number;
+  #intervalLength: number;
 
   #intervalId: NodeJS.Timeout | undefined;
 
@@ -105,7 +105,7 @@ export class RatesController extends BaseController<
    * const result = await this.#withLock(criticalLogic);
    */
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   async #withLock<R>(callback: () => R) {
     const releaseLock = await this.#mutex.acquire();
     try {
@@ -189,7 +189,6 @@ export class RatesController extends BaseController<
 
   /**
    * Returns the current list of cryptocurrency.
-   *
    * @returns The cryptocurrency list.
    */
   getCryptocurrencyList(): Cryptocurrency[] {
@@ -199,7 +198,6 @@ export class RatesController extends BaseController<
 
   /**
    * Sets the list of supported cryptocurrencies.
-   *
    * @param cryptocurrencies - The list of supported cryptocurrencies.
    */
   async setCryptocurrencyList(
@@ -219,7 +217,6 @@ export class RatesController extends BaseController<
 
   /**
    * Sets the internal fiat currency and update rates accordingly.
-   *
    * @param fiatCurrency - The fiat currency.
    */
   async setFiatCurrency(fiatCurrency: string): Promise<void> {

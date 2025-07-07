@@ -10,5 +10,5 @@ export type Log = EthSignLog | GenericLog;
  * Export all other types from these files for usage by clients
  */
 export * from './EthSignLog';
-export type * from './GenericLog';
+export * from './GenericLog';
 export * from './LogType';

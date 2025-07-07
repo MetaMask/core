@@ -18,9 +18,9 @@ const LABEL = 'Ethereum Name Service (ENS)';
 const log = createModuleLogger(projectLogger, 'ens');
 
 export class ENSNameProvider implements NameProvider {
-  readonly #isEnabled: () => boolean;
+  #isEnabled: () => boolean;
 
-  readonly #reverseLookup: ReverseLookupCallback;
+  #reverseLookup: ReverseLookupCallback;
 
   constructor({
     isEnabled,

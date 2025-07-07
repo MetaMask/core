@@ -23,18 +23,18 @@ import type { PreferencesState } from '@metamask/preferences-controller';
 import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import assert from 'assert';
 
-import type { AssetsContractControllerMessenger } from './AssetsContractController';
-import {
-  AssetsContractController,
-  MISSING_PROVIDER_ERROR,
-} from './AssetsContractController';
-import { SupportedTokenDetectionNetworks } from './assetsUtil';
 import { mockNetwork } from '../../../tests/mock-network';
 import type {
   ExtractAvailableAction,
   ExtractAvailableEvent,
 } from '../../base-controller/tests/helpers';
 import { buildInfuraNetworkClientConfiguration } from '../../network-controller/tests/helpers';
+import type { AssetsContractControllerMessenger } from './AssetsContractController';
+import {
+  AssetsContractController,
+  MISSING_PROVIDER_ERROR,
+} from './AssetsContractController';
+import { SupportedTokenDetectionNetworks } from './assetsUtil';
 
 const ERC20_UNI_ADDRESS = '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984';
 const ERC20_SAI_ADDRESS = '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359';

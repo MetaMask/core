@@ -14,7 +14,7 @@ const LABEL = 'Blockchain (Token Name)';
 const log = createModuleLogger(projectLogger, 'token');
 
 export class TokenNameProvider implements NameProvider {
-  readonly #isEnabled: () => boolean;
+  #isEnabled: () => boolean;
 
   constructor({ isEnabled }: { isEnabled?: () => boolean } = {}) {
     this.#isEnabled = isEnabled || (() => true);

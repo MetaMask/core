@@ -8,17 +8,12 @@ import { NetworkClientType } from '../packages/network-controller/src/types';
  * An object which instructs the MockedNetwork class which JSON-RPC request
  * should be mocked and how that request should respond.
  *
- * request - The JSON-RPC request that should be mocked.
- *
- * request.method - The JSON-RPC method.
- *
- * request.params - The JSON-RPC params (optional).
- *
- * response - The JSON-RPC response that the request should return.
- *
- * response.result - Specifies the `result` field of the JSON-RPC
+ * @property request - The JSON-RPC request that should be mocked.
+ * @property request.method - The JSON-RPC method.
+ * @property request.params - The JSON-RPC params (optional).
+ * @property response - The JSON-RPC response that the request should return.
+ * @property response.result - Specifies the `result` field of the JSON-RPC
  * response.
- *
  * @property response.error - Specifies the `error` field of the JSON-RPC
  * response.
  * @property error - The error that should be raised upon making the request.
@@ -87,11 +82,11 @@ function getErrorMessage(error: unknown): string {
  * JSON-RPC requests that are sent to a network.
  */
 class MockedNetwork {
-  readonly #networkClientConfiguration: NetworkClientConfiguration;
+  #networkClientConfiguration: NetworkClientConfiguration;
 
-  readonly #requestMocks: JsonRpcRequestMock[];
+  #requestMocks: JsonRpcRequestMock[];
 
-  readonly #nockScope: nock.Scope;
+  #nockScope: nock.Scope;
 
   readonly #rpcUrl: string;
 
@@ -116,7 +111,7 @@ class MockedNetwork {
     const rpcUrl =
       networkClientConfiguration.type === 'infura'
         ? // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           `https://${networkClientConfiguration.network}.infura.io`
         : networkClientConfiguration.rpcUrl;
     this.#nockScope = nock(rpcUrl);

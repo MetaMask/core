@@ -87,8 +87,9 @@ export class ERC721Standard {
    */
   getTokenURI = async (address: string, tokenId: string): Promise<string> => {
     const contract = new Contract(address, abiERC721, this.provider);
-    const supportsMetadata =
-      await this.contractSupportsMetadataInterface(address);
+    const supportsMetadata = await this.contractSupportsMetadataInterface(
+      address,
+    );
     if (!supportsMetadata) {
       // Do not throw error here, supporting Metadata interface is optional even though majority of ERC721 nfts do support it.
       // This change is made because of instances of NFTs that are ERC404( mixed ERC20 / ERC721 implementation).

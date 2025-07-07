@@ -22,7 +22,7 @@ export type LogEntry = {
 /**
  * Logging controller state
  *
- * logs - An object of logs indexed by their ids
+ * @property logs - An object of logs indexed by their ids
  */
 export type LoggingControllerState = {
   logs: {

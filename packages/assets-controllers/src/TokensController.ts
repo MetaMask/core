@@ -57,18 +57,13 @@ import type {
 import type { Token } from './TokenRatesController';
 
 /**
- * SuggestedAssetMeta
+ * @type SuggestedAssetMeta
  *
  * Suggested asset by EIP747 meta data
- *
- * id - Generated UUID associated with this suggested asset
- *
- * time - Timestamp associated with this this suggested asset
- *
- * type - Type type this suggested asset
- *
- * asset - Asset suggested object
- *
+ * @property id - Generated UUID associated with this suggested asset
+ * @property time - Timestamp associated with this this suggested asset
+ * @property type - Type type this suggested asset
+ * @property asset - Asset suggested object
  * @property interactingAddress - Account address that requested watch asset
  */
 type SuggestedAssetMeta = {
@@ -80,15 +75,12 @@ type SuggestedAssetMeta = {
 };
 
 /**
- * TokensControllerState
+ * @type TokensControllerState
  *
  * Assets controller state
- *
- * allTokens - Object containing tokens by network and account
- *
- * allIgnoredTokens - Object containing hidden/ignored tokens by network and account
- *
- * allDetectedTokens - Object containing tokens detected with non-zero balances
+ * @property allTokens - Object containing tokens by network and account
+ * @property allIgnoredTokens - Object containing hidden/ignored tokens by network and account
+ * @property allDetectedTokens - Object containing tokens detected with non-zero balances
  */
 export type TokensControllerState = {
   allTokens: { [chainId: Hex]: { [key: string]: Token[] } };
@@ -182,13 +174,12 @@ export class TokensController extends BaseController<
 
   #selectedAccountId: string;
 
-  readonly #provider: Provider;
+  #provider: Provider;
 
   readonly #abortController: AbortController;
 
   /**
    * Tokens controller options
-   *
    * @param options - Constructor options.
    * @param options.chainId - The chain ID of the current network.
    * @param options.provider - Network provider.
@@ -319,7 +310,6 @@ export class TokensController extends BaseController<
 
   /**
    * Handles the event when the network state changes.
-   *
    * @param _ - The network state.
    * @param patches - An array of patch operations performed on the network state.
    */
@@ -855,7 +845,7 @@ export class TokensController extends BaseController<
     if (await this.#detectIsERC721(asset.address, networkClientId)) {
       throw rpcErrors.invalidParams(
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `Contract ${asset.address} must match type ${type}, but was detected as ${ERC721}`,
       );
     }
@@ -869,7 +859,7 @@ export class TokensController extends BaseController<
     if (isErc1155) {
       throw rpcErrors.invalidParams(
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `Contract ${asset.address} must match type ${type}, but was detected as ${ERC1155}`,
       );
     }
@@ -898,7 +888,7 @@ export class TokensController extends BaseController<
     ) {
       throw rpcErrors.invalidParams(
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `The symbol in the request (${asset.symbol}) does not match the symbol in the contract (${contractSymbol})`,
       );
     }
@@ -929,7 +919,7 @@ export class TokensController extends BaseController<
     ) {
       throw rpcErrors.invalidParams(
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `The decimals in the request (${asset.decimals}) do not match the decimals in the contract (${contractDecimals})`,
       );
     }
@@ -939,7 +929,7 @@ export class TokensController extends BaseController<
     if (!Number.isInteger(decimalsNum) || decimalsNum > 36 || decimalsNum < 0) {
       throw rpcErrors.invalidParams(
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `Invalid decimals "${decimalsStr}": must be an integer 0 <= 36`,
       );
     }

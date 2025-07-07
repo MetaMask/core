@@ -85,11 +85,10 @@ export const MISSING_PROVIDER_ERROR =
   'AssetsContractController failed to set the provider correctly. A provider must be set for this method to be available';
 
 /**
- * BalanceMap
+ * @type BalanceMap
  *
  * Key value object containing the balance for each tokenAddress
- *
- * [tokenAddress] - Address of the token
+ * @property [tokenAddress] - Address of the token
  */
 export type BalanceMap = {
   [tokenAddress: string]: BN;
@@ -103,7 +102,6 @@ const name = 'AssetsContractController';
 /**
  * A utility type that derives the public method names of a given messenger consumer class,
  * and uses it to generate the class's internal messenger action types.
- *
  * @template Controller - A messenger consumer class.
  */
 // TODO: Figure out generic constraint and move to base-controller

@@ -1,4 +1,3 @@
-import { ClientConfigApiService } from './client-config-api-service';
 import { BASE_URL } from '../constants';
 import type {
   ApiDataResponse,
@@ -9,6 +8,7 @@ import {
   DistributionType,
   EnvironmentType,
 } from '../remote-feature-flag-controller-types';
+import { ClientConfigApiService } from './client-config-api-service';
 
 const mockServerFeatureFlagsResponse: ApiDataResponse = [
   { feature1: false },
@@ -249,7 +249,6 @@ describe('ClientConfigApiService', () => {
 
 /**
  * Creates a mock fetch function with configurable response data and options
- *
  * @template T - The type of data to be returned by the fetch response
  * @param params - Configuration parameters
  * @param params.response - Optional Response properties to override defaults

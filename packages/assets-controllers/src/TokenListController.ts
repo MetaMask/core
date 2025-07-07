@@ -166,7 +166,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       this.messagingSystem.subscribe(
         'NetworkController:stateChange',
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
         async (networkControllerState) => {
           await this.#onNetworkControllerStateChange(networkControllerState);
         },

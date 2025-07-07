@@ -143,14 +143,14 @@ export class SubjectMetadataController extends BaseController<
 
     this.messagingSystem.registerActionHandler(
       // ESLint is confused by the string literal type.
-
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:getSubjectMetadata`,
       this.getSubjectMetadata.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
       // ESLint is confused by the string literal type.
-
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:addSubjectMetadata`,
       this.addSubjectMetadata.bind(this),
     );

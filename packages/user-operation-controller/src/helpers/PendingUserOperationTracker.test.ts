@@ -1,11 +1,11 @@
 import { query } from '@metamask/controller-utils';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 
-import * as BundlerHelper from './Bundler';
-import { PendingUserOperationTracker } from './PendingUserOperationTracker';
 import type { UserOperationMetadata, UserOperationReceipt } from '../types';
 import { UserOperationStatus } from '../types';
 import type { UserOperationControllerMessenger } from '../UserOperationController';
+import * as BundlerHelper from './Bundler';
+import { PendingUserOperationTracker } from './PendingUserOperationTracker';
 
 const CHAIN_ID_MOCK = '0x5';
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
@@ -44,7 +44,6 @@ jest.mock('@metamask/controller-utils', () => ({
 
 /**
  * Creates a mock user operation messenger.
- *
  * @returns The mock user operation messenger.
  */
 function createMessengerMock() {
@@ -56,7 +55,6 @@ function createMessengerMock() {
 
 /**
  * Creates a mock bundler.
- *
  * @returns The mock bundler.
  */
 function createBundlerMock() {
@@ -72,7 +70,6 @@ describe('PendingUserOperationTracker', () => {
 
   /**
    * Simulate the scenario where a user operation is confirmed.
-   *
    * @param beforeCallback - An optional callback to execute before the scenario is run.
    * @param overrideReceipt - An optional receipt to override the default mock receipt.
    */
@@ -103,7 +100,6 @@ describe('PendingUserOperationTracker', () => {
 
   /**
    * Simulate the scenario where a user operation fails.
-   *
    * @param beforeCallback - An optional callback to execute before the scenario is run.
    */
   async function onFailedUserOperation(
@@ -135,9 +131,7 @@ describe('PendingUserOperationTracker', () => {
       blockTracker: { getCurrentBlock: () => BLOCK_NUMBER_MOCK },
       configuration: { chainId: CHAIN_ID_MOCK },
       provider: {},
-    } as unknown as ReturnType<
-      NetworkControllerGetNetworkClientByIdAction['handler']
-    >);
+    } as unknown as ReturnType<NetworkControllerGetNetworkClientByIdAction['handler']>);
   });
 
   describe('_executePoll', () => {

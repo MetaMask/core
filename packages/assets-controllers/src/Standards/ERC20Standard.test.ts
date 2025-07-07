@@ -68,8 +68,9 @@ describe('ERC20Standard', () => {
         result:
           '0x0000000000000000000000000000000000000000000000000000000000000012',
       });
-    const maticDecimals =
-      await erc20Standard.getTokenDecimals(ERC20_MATIC_ADDRESS);
+    const maticDecimals = await erc20Standard.getTokenDecimals(
+      ERC20_MATIC_ADDRESS,
+    );
     expect(maticDecimals.toString()).toBe('18');
   });
 
