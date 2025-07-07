@@ -25,7 +25,7 @@ const allPlaceholdersRegex = new RegExp(
 const prettierRc = require(path.join(
   REPO_ROOT,
   '.prettierrc.js',
-)) as PrettierOptions;
+) as PrettierOptions;
 
 /**
  * The data necessary to create a new package.

@@ -8,12 +8,12 @@ import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/netw
 import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 
-import { advanceTime } from '../../../tests/helpers';
 import type {
   CurrencyRateStateChange,
   GetCurrencyRateState,
 } from './CurrencyRateController';
 import { CurrencyRateController } from './CurrencyRateController';
+import { advanceTime } from '../../../tests/helpers';
 
 const name = 'CurrencyRateController' as const;
 

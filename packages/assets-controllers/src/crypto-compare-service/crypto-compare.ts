@@ -75,7 +75,7 @@ function getMultiPricingURL(
  * @param json.Message - The error message.
  */
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
+
 function handleErrorResponse(json: { Response?: string; Message?: string }) {
   if (json.Response === 'Error') {
     throw new Error(json.Message);
@@ -115,7 +115,7 @@ export async function fetchExchangeRate(
     throw new Error(
       `Invalid response for ${currency.toUpperCase()}: ${
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
         json[currency.toUpperCase()]
       }`,
     );
@@ -123,7 +123,7 @@ export async function fetchExchangeRate(
 
   if (includeUSDRate && !Number.isFinite(usdConversionRate)) {
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
     throw new Error(`Invalid response for usdConversionRate: ${json.USD}`);
   }
 

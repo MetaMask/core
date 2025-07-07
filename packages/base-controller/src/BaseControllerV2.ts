@@ -50,7 +50,7 @@ export type StateConstraint = Record<string, Json>;
  * information: https://immerjs.github.io/immer/docs/patches)
  */
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
+
 export type Listener<T> = (state: T, patches: Patch[]) => void;
 
 /**
@@ -63,7 +63,7 @@ export type Listener<T> = (state: T, patches: Patch[]) => void;
  * @returns Something derived from controller state.
  */
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
+
 export type StateDeriver<T extends Json> = (value: T) => Json;
 
 /**
@@ -73,7 +73,7 @@ export type StateDeriver<T extends Json> = (value: T) => Json;
  * get an anonymized representation of the state.
  */
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
+
 export type StateMetadata<T extends StateConstraint> = {
   [P in keyof T]-?: StatePropertyMetadata<T[P]>;
 };
@@ -81,16 +81,17 @@ export type StateMetadata<T extends StateConstraint> = {
 /**
  * Metadata for a single state property
  *
- * @property persist - Indicates whether this property should be persisted
+ * persist - Indicates whether this property should be persisted
  * (`true` for persistent, `false` for transient), or is set to a function
  * that derives the persistent state from the state.
- * @property anonymous - Indicates whether this property is already anonymous,
+ *
+ * anonymous - Indicates whether this property is already anonymous,
  * (`true` for anonymous, `false` if it has potential to be personally
  * identifiable), or is set to a function that returns an anonymized
  * representation of this state.
  */
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
+
 export type StatePropertyMetadata<T extends Json> = {
   persist: boolean | StateDeriver<T>;
   anonymous: boolean | StateDeriver<T>;
@@ -165,7 +166,7 @@ export class BaseController<
   ControllerName extends string,
   ControllerState extends StateConstraint,
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   messenger extends RestrictedMessenger<
     ControllerName,
     ActionConstraint | ControllerActions<ControllerName, ControllerState>,

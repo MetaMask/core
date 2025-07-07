@@ -55,9 +55,11 @@ export type PermissionHistory = Record<string, PermissionEntry>;
 
 /**
  *
- * Permission log controller state
- * @property permissionHistory - permission history
- * @property permissionActivityLog - permission activity logs
+ *Permission log controller state
+ *
+ *permissionHistory - permission history
+ *
+ * permissionActivityLog - permission activity logs
  */
 export type PermissionLogControllerState = {
   permissionHistory: PermissionHistory;
@@ -94,7 +96,7 @@ export class PermissionLogController extends BaseController<
   PermissionLogControllerState,
   PermissionLogControllerMessenger
 > {
-  #restrictedMethods: Set<string>;
+  readonly #restrictedMethods: Set<string>;
 
   constructor({
     messenger,
@@ -134,7 +136,7 @@ export class PermissionLogController extends BaseController<
     }
     const newEntries = {
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/naming-convention
+
       eth_accounts: {
         accounts: this.#getAccountToTimeMap(accounts, Date.now()),
       },
@@ -302,7 +304,7 @@ export class PermissionLogController extends BaseController<
       const accounts = result as string[];
       newEntries = {
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
+
         eth_accounts: {
           accounts: this.#getAccountToTimeMap(accounts, time),
           lastApproved: time,

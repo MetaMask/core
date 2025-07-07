@@ -116,7 +116,7 @@ export class SelectedNetworkController extends BaseController<
   SelectedNetworkControllerState,
   SelectedNetworkControllerMessenger
 > {
-  #domainProxyMap: Map<Domain, NetworkProxy>;
+  readonly #domainProxyMap: Map<Domain, NetworkProxy>;
 
   #useRequestQueuePreference: boolean;
 
@@ -199,12 +199,16 @@ export class SelectedNetworkController extends BaseController<
         if (patch) {
           const networkClientIdToChainId = Object.values(
             networkConfigurationsByChainId,
-          ).reduce((acc, network) => {
-            network.rpcEndpoints.forEach(
-              ({ networkClientId }) => (acc[networkClientId] = network.chainId),
-            );
-            return acc;
-          }, {} as Record<string, Hex>);
+          ).reduce(
+            (acc, network) => {
+              network.rpcEndpoints.forEach(
+                ({ networkClientId }) =>
+                  (acc[networkClientId] = network.chainId),
+              );
+              return acc;
+            },
+            {} as Record<string, Hex>,
+          );
 
           Object.entries(this.state.domains).forEach(
             ([domain, networkClientIdForDomain]) => {

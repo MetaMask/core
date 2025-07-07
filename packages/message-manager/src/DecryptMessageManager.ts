@@ -48,13 +48,16 @@ type DecryptMessageManagerOptions = {
 };
 
 /**
- * @type DecryptMessage
+ * DecryptMessage
  *
  * Represents and contains data about a 'eth_decrypt' type signature request.
  * These are created when a signature for an eth_decrypt call is requested.
- * @property id - An id to track and identify the message object
- * @property messageParams - The parameters to pass to the eth_decrypt method once the request is approved
- * @property type - The json-prc signing method for which a signature request has been made.
+ *
+ * id - An id to track and identify the message object
+ *
+ * messageParams - The parameters to pass to the eth_decrypt method once the request is approved
+ *
+ * type - The json-prc signing method for which a signature request has been made.
  * A 'DecryptMessage' which always has a 'eth_decrypt' type
  */
 export type DecryptMessage = AbstractMessage & {
@@ -62,24 +65,29 @@ export type DecryptMessage = AbstractMessage & {
 };
 
 /**
- * @type DecryptMessageParams
+ * DecryptMessageParams
  *
  * Represents the parameters to pass to the eth_decrypt method once the request is approved.
- * @property data - A hex string conversion of the raw buffer data of the signature request
+ *
+ * data - A hex string conversion of the raw buffer data of the signature request
  */
 export type DecryptMessageParams = AbstractMessageParams & {
   data: string;
 };
 
 /**
- * @type DecryptMessageParamsMetamask
+ * DecryptMessageParamsMetamask
  *
  * Represents the parameters to pass to the eth_decrypt method once the request is approved
  * plus data added by MetaMask.
- * @property metamaskId - Added for tracking and identification within MetaMask
- * @property data - A hex string conversion of the raw buffer data of the signature request
- * @property from - Address to sign this message from
- * @property origin? - Added for request origin identification
+ *
+ * metamaskId - Added for tracking and identification within MetaMask
+ *
+ * data - A hex string conversion of the raw buffer data of the signature request
+ *
+ * from - Address to sign this message from
+ *
+ * origin? - Added for request origin identification
  */
 // This interface was created before this ESLint rule was added.
 // Convert to a `type` in a future major version.

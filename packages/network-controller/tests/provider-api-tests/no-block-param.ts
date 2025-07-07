@@ -151,7 +151,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
 
   for (const emptyValue of [null, undefined, '\u003cnil\u003e']) {
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
     it(`does not retry an empty response of "${emptyValue}"`, async () => {
       const request = { method };
       const mockResult = emptyValue;
@@ -176,7 +176,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
     });
 
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
     it(`does not reuse the result of a previous request if it was "${emptyValue}"`, async () => {
       const requests = [{ method }, { method }];
       const mockResults = [emptyValue, 'some result'];

@@ -6198,7 +6198,7 @@ describe('PermissionController', () => {
       });
 
       // ESLint is confused; this signature is async.
-      // eslint-disable-next-line @typescript-eslint/await-thenable
+
       const response = await engine.handle(request);
       assertIsJsonRpcFailure(response);
       expect(response.error).toMatchObject(
@@ -6222,7 +6222,7 @@ describe('PermissionController', () => {
       const expectedError = errors.methodNotFound('wallet_foo', { origin });
 
       // ESLint is confused; this signature is async.
-      // eslint-disable-next-line @typescript-eslint/await-thenable
+
       const response = await engine.handle(request);
       assertIsJsonRpcFailure(response);
       const { error } = response;
@@ -6273,7 +6273,7 @@ describe('PermissionController', () => {
       );
 
       // ESLint is confused; this signature is async.
-      // eslint-disable-next-line @typescript-eslint/await-thenable
+
       const response = await engine.handle(request);
       assertIsJsonRpcFailure(response);
       const { error } = response;

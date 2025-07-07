@@ -37,12 +37,15 @@ function msgHexToText(hex: string): string {
 }
 
 /**
- * @type WrappedSIWERequest
+ * WrappedSIWERequest
  *
  * Sign-In With Ethereum (SIWE)(EIP-4361) message with request metadata
- * @property {string} from - Subject account address
- * @property {string} origin - The RFC 3986 originating authority of the signing request, including scheme
- * @property {ParsedMessage} siwe - The data parsed from the message
+ *
+ * from - Subject account address
+ *
+ * origin - The RFC 3986 originating authority of the signing request, including scheme
+ *
+ * siwe - The data parsed from the message
  */
 // This interface was created before this ESLint rule was added.
 // Convert to a `type` in a future major version.
@@ -143,7 +146,6 @@ export const isValidSIWEOrigin = (req: WrappedSIWERequest): boolean => {
 /**
  * A locally defined object used to provide data to identify a Sign-In With Ethereum (SIWE)(EIP-4361) message and provide the parsed message
  *
- * @typedef SIWEMessage
  * @param {boolean} isSIWEMessage - Does the intercepted message conform to the SIWE specification?
  * @param {ParsedMessage} parsedMessage - The data parsed out of the message
  */

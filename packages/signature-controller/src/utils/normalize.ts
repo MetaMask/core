@@ -5,6 +5,7 @@ import type { MessageParamsPersonal, MessageParamsTyped } from '../types';
 
 /**
  * Normalize personal message params.
+ *
  * @param messageParams - The message params to normalize.
  * @returns The normalized message params.
  */
@@ -19,6 +20,7 @@ export function normalizePersonalMessageParams(
 
 /**
  * Normalize typed message params.
+ *
  * @param messageParams - The message params to normalize.
  * @param version - The version of the typed signature request.
  * @returns The normalized message params.

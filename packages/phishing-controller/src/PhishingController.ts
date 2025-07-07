@@ -54,7 +54,7 @@ export const METAMASK_HOTLIST_DIFF_URL = `${PHISHING_CONFIG_BASE_URL}${METAMASK_
 export const C2_DOMAIN_BLOCKLIST_URL = `${CLIENT_SIDE_DETECION_BASE_URL}${C2_DOMAIN_BLOCKLIST_ENDPOINT}`;
 
 /**
- * @type ListTypes
+ * ListTypes
  *
  * Type outlining the types of lists provided by aggregating different source lists
  */
@@ -65,14 +65,19 @@ export type ListTypes =
   | 'c2DomainBlocklist';
 
 /**
- * @type EthPhishingResponse
+ * EthPhishingResponse
  *
  * Configuration response from the eth-phishing-detect package
  * consisting of approved and unapproved website origins
- * @property blacklist - List of unapproved origins
- * @property fuzzylist - List of fuzzy-matched unapproved origins
- * @property tolerance - Fuzzy match tolerance level
- * @property version - Version number of this configuration
+ *
+ * blacklist - List of unapproved origins
+ *
+ * fuzzylist - List of fuzzy-matched unapproved origins
+ *
+ * tolerance - Fuzzy match tolerance level
+ *
+ * version - Version number of this configuration
+ *
  * @property whitelist - List of approved origins
  */
 export type EthPhishingResponse = {
@@ -84,12 +89,15 @@ export type EthPhishingResponse = {
 };
 
 /**
- * @type C2DomainBlocklistResponse
+ * C2DomainBlocklistResponse
  *
  * Response for blocklist update requests
- * @property recentlyAdded - List of c2 domains recently added to the blocklist
- * @property recentlyRemoved - List of c2 domains recently removed from the blocklist
- * @property lastFetchedAt - Timestamp of the last fetch request
+ *
+ * recentlyAdded - List of c2 domains recently added to the blocklist
+ *
+ * recentlyRemoved - List of c2 domains recently removed from the blocklist
+ *
+ * lastFetchedAt - Timestamp of the last fetch request
  */
 export type C2DomainBlocklistResponse = {
   recentlyAdded: string[];
@@ -98,17 +106,21 @@ export type C2DomainBlocklistResponse = {
 };
 
 /**
- * @type PhishingStalelist
+ * PhishingStalelist
  *
  * type defining expected type of the stalelist.json file.
- * @property eth_phishing_detect_config - Stale list sourced from eth-phishing-detect's config.json.
- * @property tolerance - Fuzzy match tolerance level
- * @property lastUpdated - Timestamp of last update.
- * @property version - Stalelist data structure iteration.
+ *
+ * eth_phishing_detect_config - Stale list sourced from eth-phishing-detect's config.json.
+ *
+ * tolerance - Fuzzy match tolerance level
+ *
+ * lastUpdated - Timestamp of last update.
+ *
+ * version - Stalelist data structure iteration.
  */
 export type PhishingStalelist = {
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   eth_phishing_detect_config: Record<ListTypes, string[]>;
   tolerance: number;
   version: number;
@@ -116,13 +128,18 @@ export type PhishingStalelist = {
 };
 
 /**
- * @type PhishingListState
+ * PhishingListState
  *
  * type defining the persisted list state. This is the persisted state that is updated frequently with `this.maybeUpdateState()`.
- * @property allowlist - List of approved origins (legacy naming "whitelist")
- * @property blocklist - List of unapproved origins (legacy naming "blacklist")
- * @property c2DomainBlocklist - List of hashed hostnames that C2 requests are blocked against.
- * @property fuzzylist - List of fuzzy-matched unapproved origins
+ *
+ * allowlist - List of approved origins (legacy naming "whitelist")
+ *
+ * blocklist - List of unapproved origins (legacy naming "blacklist")
+ *
+ * c2DomainBlocklist - List of hashed hostnames that C2 requests are blocked against.
+ *
+ * fuzzylist - List of fuzzy-matched unapproved origins
+ *
  * @property tolerance - Fuzzy match tolerance level
  * @property lastUpdated - Timestamp of last update.
  * @property version - Version of the phishing list state.
@@ -140,13 +157,17 @@ export type PhishingListState = {
 };
 
 /**
- * @type HotlistDiff
+ * HotlistDiff
  *
  * type defining the expected type of the diffs in hotlist.json file.
- * @property url - Url of the diff entry.
- * @property timestamp - Timestamp at which the diff was identified.
- * @property targetList - The list name where the diff was identified.
- * @property isRemoval - Was the diff identified a removal type.
+ *
+ * url - Url of the diff entry.
+ *
+ * timestamp - Timestamp at which the diff was identified.
+ *
+ * targetList - The list name where the diff was identified.
+ *
+ * isRemoval - Was the diff identified a removal type.
  */
 export type HotlistDiff = {
   url: string;
@@ -156,19 +177,23 @@ export type HotlistDiff = {
 };
 
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
+
 export type DataResultWrapper<T> = {
   data: T;
 };
 
 /**
- * @type Hotlist
+ * Hotlist
  *
  * Type defining expected hotlist.json file.
- * @property url - Url of the diff entry.
- * @property timestamp - Timestamp at which the diff was identified.
- * @property targetList - The list name where the diff was identified.
- * @property isRemoval - Was the diff identified a removal type.
+ *
+ * url - Url of the diff entry.
+ *
+ * timestamp - Timestamp at which the diff was identified.
+ *
+ * targetList - The list name where the diff was identified.
+ *
+ * isRemoval - Was the diff identified a removal type.
  */
 export type Hotlist = HotlistDiff[];
 
@@ -216,6 +241,7 @@ const metadata = {
 
 /**
  * Get a default empty state for the controller.
+ *
  * @returns The default empty state.
  */
 const getDefaultState = (): PhishingControllerState => {
@@ -230,11 +256,13 @@ const getDefaultState = (): PhishingControllerState => {
 };
 
 /**
- * @type PhishingControllerState
+ * PhishingControllerState
  *
  * Phishing controller state
- * @property phishing - eth-phishing-detect configuration
- * @property whitelist - array of temporarily-approved origins
+ *
+ * phishing - eth-phishing-detect configuration
+ *
+ * whitelist - array of temporarily-approved origins
  */
 export type PhishingControllerState = {
   phishingLists: PhishingListState[];

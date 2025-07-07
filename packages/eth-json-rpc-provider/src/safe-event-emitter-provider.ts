@@ -53,7 +53,7 @@ export function convertEip1193RequestToJsonRpcRequest<
  * It is not compliant with any Ethereum provider standard.
  */
 export class SafeEventEmitterProvider extends SafeEventEmitter {
-  #engine: JsonRpcEngine;
+  readonly #engine: JsonRpcEngine;
 
   /**
    * Construct a SafeEventEmitterProvider from a JSON-RPC engine.

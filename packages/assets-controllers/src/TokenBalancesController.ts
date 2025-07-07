@@ -52,9 +52,12 @@ const metadata = {
 
 /**
  * Token balances controller options
- * @property interval - Polling interval used to fetch new token balances.
- * @property messenger - A messenger.
- * @property state - Initial state for the controller.
+ *
+ * interval - Polling interval used to fetch new token balances.
+ *
+ * messenger - A messenger.
+ *
+ * state - Initial state for the controller.
  */
 type TokenBalancesControllerOptions = {
   interval?: number;
@@ -69,7 +72,8 @@ type TokenBalances = Record<Hex, Record<Hex, Record<Hex, Hex>>>;
 
 /**
  * Token balances controller state
- * @property tokenBalances - A mapping from account address to chain id to token address to balance.
+ *
+ * tokenBalances - A mapping from account address to chain id to token address to balance.
  */
 export type TokenBalancesControllerState = {
   tokenBalances: TokenBalances;
@@ -206,12 +210,13 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
 
   /**
    * Determines whether to query all accounts, or just the selected account.
+   *
    * @param preferences - The preferences state.
    * @param preferences.isMultiAccountBalancesEnabled - whether to query all accounts (mobile).
    * @param preferences.useMultiAccountBalanceChecker - whether to query all accounts (extension).
    * @returns true if all accounts should be queried.
    */
-  #calculateQueryMultipleAccounts = ({
+  readonly #calculateQueryMultipleAccounts = ({
     isMultiAccountBalancesEnabled,
     useMultiAccountBalanceChecker,
   }: PreferencesState & { useMultiAccountBalanceChecker?: boolean }) => {
@@ -223,9 +228,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
 
   /**
    * Handles the event for preferences state changes.
+   *
    * @param preferences - The preferences state.
    */
-  #onPreferencesStateChange = (preferences: PreferencesState) => {
+  readonly #onPreferencesStateChange = (preferences: PreferencesState) => {
     // Update the user preference for whether to query multiple accounts.
     const queryMultipleAccounts =
       this.#calculateQueryMultipleAccounts(preferences);
@@ -241,11 +247,12 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
 
   /**
    * Handles the event for tokens state changes.
+   *
    * @param state - The token state.
    * @param state.allTokens - The state for imported tokens across all chains.
    * @param state.allDetectedTokens - The state for detected tokens across all chains.
    */
-  #onTokensStateChange = ({
+  readonly #onTokensStateChange = ({
     allTokens,
     allDetectedTokens,
   }: TokensControllerState) => {
@@ -266,6 +273,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
 
   /**
    * Handles the event for network state changes.
+   *
    * @param _ - The network state.
    * @param patches - An array of patch operations performed on the network state.
    */
@@ -307,11 +315,12 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
 
   /**
    * Returns an array of chain ids that have tokens.
+   *
    * @param allTokens - The state for imported tokens across all chains.
    * @param allDetectedTokens - The state for detected tokens across all chains.
    * @returns An array of chain ids that have tokens.
    */
-  #getChainIds = (
+  readonly #getChainIds = (
     allTokens: TokensControllerState['allTokens'],
     allDetectedTokens: TokensControllerState['allDetectedTokens'],
   ) =>
@@ -324,6 +333,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
 
   /**
    * Polls for erc20 token balances.
+   *
    * @param input - The input for the poll.
    * @param input.chainId - The chain id to poll token balances on.
    */
@@ -333,6 +343,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
 
   /**
    * Updates the token balances for the given chain ids.
+   *
    * @param input - The input for the update.
    * @param input.chainIds - The chain ids to update token balances for.
    * Or omitted to update all chains that contain tokens.
@@ -493,6 +504,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
 
   /**
    * Updates token balances for the given chain id.
+   *
    * @param input - The input for the update.
    * @param input.chainId - The chain id to update token balances on.
    */
@@ -586,6 +598,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
 
   /**
    * Returns the network client for a given chain id
+   *
    * @param chainId - The chain id to get the network client for.
    * @returns The network client for the given chain id.
    */

@@ -1,4 +1,3 @@
-/* eslint-enable @typescript-eslint/no-unused-vars */
 import type {
   AcceptRequest as AcceptApprovalRequest,
   AddApprovalRequest,
@@ -487,12 +486,13 @@ type MergeCaveatResult<CaveatType extends CaveatConstraint | undefined> =
 export type ExtractPermission<
   ControllerPermissionSpecification extends PermissionSpecificationConstraint,
   ControllerCaveatSpecification extends CaveatSpecificationConstraint,
-> = ControllerPermissionSpecification extends ValidPermissionSpecification<ControllerPermissionSpecification>
-  ? ValidPermission<
-      ControllerPermissionSpecification['targetName'],
-      ExtractCaveats<ControllerCaveatSpecification>
-    >
-  : never;
+> =
+  ControllerPermissionSpecification extends ValidPermissionSpecification<ControllerPermissionSpecification>
+    ? ValidPermission<
+        ControllerPermissionSpecification['targetName'],
+        ExtractCaveats<ControllerCaveatSpecification>
+      >
+    : never;
 
 /**
  * Extracts the restricted method permission(s) specified by the given
@@ -1198,7 +1198,8 @@ export class PermissionController<
       ControllerPermissionSpecification,
       ControllerCaveatSpecification
     >['parentCapability'],
-    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
+    CaveatType extends
+      ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
   >(origin: OriginString, target: TargetName, caveatType: CaveatType): boolean {
     return Boolean(this.getCaveat(origin, target, caveatType));
   }
@@ -1223,7 +1224,8 @@ export class PermissionController<
       ControllerPermissionSpecification,
       ControllerCaveatSpecification
     >['parentCapability'],
-    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
+    CaveatType extends
+      ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
   >(
     origin: OriginString,
     target: TargetName,
@@ -1263,7 +1265,8 @@ export class PermissionController<
       ControllerPermissionSpecification,
       ControllerCaveatSpecification
     >['parentCapability'],
-    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
+    CaveatType extends
+      ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
   >(
     origin: OriginString,
     target: TargetName,
@@ -1300,7 +1303,8 @@ export class PermissionController<
       ControllerPermissionSpecification,
       ControllerCaveatSpecification
     >['parentCapability'],
-    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
+    CaveatType extends
+      ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
     CaveatValue extends ExtractCaveatValue<
       ControllerCaveatSpecification,
       CaveatType
@@ -1341,7 +1345,8 @@ export class PermissionController<
       ControllerPermissionSpecification,
       ControllerCaveatSpecification
     >['parentCapability'],
-    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
+    CaveatType extends
+      ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
   >(
     origin: OriginString,
     target: TargetName,
@@ -1512,7 +1517,8 @@ export class PermissionController<
    */
   removeCaveat<
     TargetName extends ControllerPermissionSpecification['targetName'],
-    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
+    CaveatType extends
+      ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
   >(origin: OriginString, target: TargetName, caveatType: CaveatType): void {
     this.update((draftState) => {
       const permission = draftState.subjects[origin]?.permissions[target];

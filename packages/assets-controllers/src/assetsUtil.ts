@@ -50,6 +50,7 @@ export function compareNftMetadata(newNftMetadata: NftMetadata, nft: Nft) {
 
 /**
  * Checks whether the existing nft object has all the keys of the new incoming nft metadata object
+ *
  * @param newNftMetadata - New nft metadata object
  * @param nft - Existing nft object to compare with
  * @returns Whether the existing nft object has all the new keys from the new Nft metadata object
@@ -124,7 +125,7 @@ export const formatIconUrlWithProxy = ({
 }) => {
   const chainIdDecimal = convertHexToDecimal(chainId).toString();
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
   return `https://static.cx.metamask.io/api/v1/tokenIcons/${chainIdDecimal}/${tokenAddress.toLowerCase()}.png`;
 };
 
@@ -133,61 +134,61 @@ export const formatIconUrlWithProxy = ({
  */
 export enum SupportedTokenDetectionNetworks {
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   mainnet = '0x1', // decimal: 1
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   bsc = '0x38', // decimal: 56
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   polygon = '0x89', // decimal: 137
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   avax = '0xa86a', // decimal: 43114
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   aurora = '0x4e454152', // decimal: 1313161554
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   linea_goerli = '0xe704', // decimal: 59140
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   linea_mainnet = '0xe708', // decimal: 59144
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   arbitrum = '0xa4b1', // decimal: 42161
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   optimism = '0xa', // decimal: 10
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   base = '0x2105', // decimal: 8453
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   zksync = '0x144', // decimal: 324
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   cronos = '0x19', // decimal: 25
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   celo = '0xa4ec', // decimal: 42220
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   gnosis = '0x64', // decimal: 100
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   fantom = '0xfa', // decimal: 250
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   polygon_zkevm = '0x44d', // decimal: 1101
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   moonbeam = '0x504', // decimal: 1284
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   moonriver = '0x505', // decimal: 1285
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   sei = '0x531', // decimal: 1329
 }
 
@@ -196,10 +197,10 @@ export enum SupportedTokenDetectionNetworks {
  */
 export enum SupportedStakedBalanceNetworks {
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   mainnet = '0x1', // decimal: 1
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   hoodi = '0x88bb0', // decimal: 560048
 }
 
@@ -440,6 +441,7 @@ export async function fetchTokenContractExchangeRates({
 
 /**
  * Function to search for a specific value in a given map and return the key
+ *
  * @param map - map input to search value
  * @param value - the value to search for
  * @returns returns key that corresponds to the value

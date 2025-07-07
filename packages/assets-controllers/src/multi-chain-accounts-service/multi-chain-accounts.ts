@@ -25,6 +25,7 @@ const getBalancesUrl = (
 
 /**
  * Fetches Supported Networks.
+ *
  * @returns supported networks (decimal)
  */
 export async function fetchSupportedNetworks(): Promise<number[]> {
@@ -35,6 +36,7 @@ export async function fetchSupportedNetworks(): Promise<number[]> {
 
 /**
  * Fetches Balances for multiple networks.
+ *
  * @param address - address to fetch balances from
  * @param options - params to pass down for a more refined search
  * @param options.networks - the networks (in decimal) that you want to filter by

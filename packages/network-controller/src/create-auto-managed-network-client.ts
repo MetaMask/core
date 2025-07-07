@@ -52,7 +52,7 @@ export type AutoManagedNetworkClient<
  * something, so this object represents that "something".
  */
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
+
 const UNINITIALIZED_TARGET = { __UNINITIALIZED__: true };
 
 /**

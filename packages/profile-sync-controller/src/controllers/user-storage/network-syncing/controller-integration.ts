@@ -49,7 +49,6 @@ export function startNetworkSyncing(props: StartNetworkSyncingProps) {
     messenger.subscribe(
       'NetworkController:networkRemoved',
 
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (networkConfiguration) => {
         try {
           // If blocked (e.g. we have not yet performed a main-sync), then we should not perform any mutations

@@ -20,7 +20,7 @@ export const TOKEN_METADATA_NO_SUPPORT_ERROR =
 function getTokensURL(chainId: Hex) {
   const occurrenceFloor = chainId === ChainId['linea-mainnet'] ? 1 : 3;
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
   return `${TOKEN_END_POINT_API}/tokens/${convertHexToDecimal(
     chainId,
   )}?occurrenceFloor=${occurrenceFloor}&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`;
@@ -35,7 +35,7 @@ function getTokensURL(chainId: Hex) {
  */
 function getTokenMetadataURL(chainId: Hex, tokenAddress: string) {
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
   return `${TOKEN_END_POINT_API}/token/${convertHexToDecimal(
     chainId,
   )}?address=${tokenAddress}`;
@@ -89,7 +89,7 @@ export async function fetchTokenListByChainId(
  * @returns The token metadata, or `undefined` if the request was either aborted or failed.
  */
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
+
 export async function fetchTokenMetadata<T>(
   chainId: Hex,
   tokenAddress: string,
@@ -152,7 +152,7 @@ async function parseJsonResponse(apiResponse: Response): Promise<unknown> {
   // api may return errors as json without setting an error http status code
   if (responseObj?.error) {
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
     throw new Error(`TokenService Error: ${responseObj.error}`);
   }
   return responseObj;

@@ -8,7 +8,7 @@ import { createStreamMiddleware, createEngineStream } from '.';
 const artificialDelay = async (time = 0) =>
   new Promise((resolve) => setTimeout(resolve, time));
 // TODO: Replace `any` with type
-// eslint-disable-next-line @typescript-eslint/no-empty-function,@typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const noop = function (_a: any) {};
 
 const jsonrpc = '2.0' as const;
@@ -178,7 +178,7 @@ describe('retry logic in middleware connected to a port', () => {
     // Initially sent once
     const responsePromise1 = engineA?.handle(req1);
     // intentionally not awaited
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+
     engineA?.handle(req2);
     await artificialDelay();
 
@@ -214,7 +214,7 @@ describe('retry logic in middleware connected to a port', () => {
 
     // Initially sent once, message count at 1
     // intentionally not awaited
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+
     engineA?.handle(req);
     await artificialDelay();
     expect(messages).toHaveLength(1);
@@ -265,7 +265,7 @@ describe('retry logic in middleware connected to a port', () => {
 
     // Initially sent once, message count at 1
     // intentionally not awaited
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+
     engineA?.handle(req);
     await artificialDelay();
     expect(messages).toHaveLength(1);

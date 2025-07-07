@@ -356,7 +356,7 @@ export async function withMockedCommunications(
   const rpcUrl =
     providerType === 'infura'
       ? // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
         `https://${infuraNetwork}.infura.io`
       : customRpcUrl;
   const nockScope = buildScopeForMockingRequests(rpcUrl, expectedHeaders);

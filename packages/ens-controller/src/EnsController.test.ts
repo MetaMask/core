@@ -11,6 +11,12 @@ import {
   getDefaultNetworkControllerState,
 } from '@metamask/network-controller';
 
+import { EnsController, DEFAULT_ENS_NETWORK_MAP } from './EnsController';
+import type {
+  EnsControllerState,
+  EnsControllerMessenger,
+  AllowedActions,
+} from './EnsController';
 import type {
   ExtractAvailableAction,
   ExtractAvailableEvent,
@@ -19,12 +25,6 @@ import {
   buildMockGetNetworkClientById,
   buildCustomNetworkClientConfiguration,
 } from '../../network-controller/tests/helpers';
-import { EnsController, DEFAULT_ENS_NETWORK_MAP } from './EnsController';
-import type {
-  EnsControllerState,
-  EnsControllerMessenger,
-  AllowedActions,
-} from './EnsController';
 
 const defaultState: EnsControllerState = {
   ensEntries: {},
@@ -48,7 +48,7 @@ jest.mock('@ethersproject/providers', () => {
 
   return {
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
+
     __esModule: true,
     ...originalModule,
   };

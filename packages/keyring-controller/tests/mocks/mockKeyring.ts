@@ -6,10 +6,10 @@ export class MockKeyring implements EthKeyring {
 
   public type = 'Mock Keyring';
 
-  #accounts: Hex[] = [];
+  readonly #accounts: Hex[] = [];
 
   constructor(options: Record<string, unknown> | undefined = {}) {
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises, @typescript-eslint/promise-function-async
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.deserialize(options);
   }
 

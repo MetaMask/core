@@ -33,13 +33,18 @@ import type {
 } from './TokensController';
 
 /**
- * @type Token
+ * Token
  *
  * Token representation
- * @property address - Hex address of the token contract
- * @property decimals - Number of decimals the token uses
- * @property symbol - Symbol of the token
- * @property aggregators - An array containing the token's aggregators
+ *
+ * address - Hex address of the token contract
+ *
+ * decimals - Number of decimals the token uses
+ *
+ * symbol - Symbol of the token
+ *
+ * aggregators - An array containing the token's aggregators
+ *
  * @property image - Image of the token, url or bit32 image
  * @property hasBalanceError - 'true' if there is an error while updating the token balance
  * @property isERC721 - 'true' if the token is a ERC721 token
@@ -119,10 +124,11 @@ export type AllowedEvents =
 export const controllerName = 'TokenRatesController';
 
 /**
- * @type TokenRatesState
+ * TokenRatesState
  *
  * Token rates controller state
- * @property marketData - Market data for tokens, keyed by chain ID and then token contract address.
+ *
+ * marketData - Market data for tokens, keyed by chain ID and then token contract address.
  */
 export type TokenRatesControllerState = {
   marketData: Record<Hex, Record<Hex, MarketDataDetails>>;
@@ -242,7 +248,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
 
   #disabled: boolean;
 
-  #interval: number;
+  readonly #interval: number;
 
   #allTokens: TokensControllerState['allTokens'];
 
@@ -296,7 +302,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     this.messagingSystem.subscribe(
       'TokensController:stateChange',
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
       async ({ allTokens, allDetectedTokens }) => {
         if (this.#disabled) {
           return;
@@ -354,7 +360,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     this.messagingSystem.subscribe(
       'NetworkController:stateChange',
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
       async ({ networkConfigurationsByChainId }, patches) => {
         const chainIdAndNativeCurrency: {
           chainId: Hex;

@@ -38,11 +38,13 @@ import { reduceInBatchesSerially, TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 const controllerName = 'AccountTrackerController';
 
 /**
- * @type AccountInformation
+ * AccountInformation
  *
  * Account information object
- * @property balance - Hex string of an account balance in wei
- * @property stakedBalance - Hex string of an account staked balance in wei
+ *
+ * balance - Hex string of an account balance in wei
+ *
+ * stakedBalance - Hex string of an account staked balance in wei
  */
 export type AccountInformation = {
   balance: string;
@@ -50,10 +52,11 @@ export type AccountInformation = {
 };
 
 /**
- * @type AccountTrackerControllerState
+ * AccountTrackerControllerState
  *
  * Account tracker controller state
- * @property accountsByChainId - Map of addresses to account information by chain
+ *
+ * accountsByChainId - Map of addresses to account information by chain
  */
 export type AccountTrackerControllerState = {
   accountsByChainId: Record<string, { [address: string]: AccountInformation }>;

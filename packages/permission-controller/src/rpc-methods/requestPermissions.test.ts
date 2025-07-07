@@ -71,7 +71,7 @@ describe('requestPermissions RPC method', () => {
     engine.push<[RequestedPermissions], PermissionConstraint[]>(
       createAsyncMiddleware(async (req, res, next) =>
         // This promise will be awaited by the createAsyncMiddleware wrapper.
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
         implementation(req, res, next, end, {
           requestPermissionsForOrigin: mockRequestPermissionsForOrigin,
         }),
@@ -132,7 +132,7 @@ describe('requestPermissions RPC method', () => {
 
       // @ts-expect-error Intentional destructive testing
       // ESLint is confused; this signature is async.
-      // eslint-disable-next-line @typescript-eslint/await-thenable
+
       const response = await engine.handle(request);
       assertIsJsonRpcFailure(response);
       delete response.error.stack;

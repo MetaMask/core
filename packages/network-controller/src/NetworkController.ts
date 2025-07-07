@@ -73,7 +73,7 @@ export type NetworkMetadata = {
    * EIPs supported by the network.
    */
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   EIPS: {
     [eipNumber: number]: boolean;
   };
@@ -293,7 +293,7 @@ export type UpdateNetworkFields = Omit<NetworkConfiguration, 'rpcEndpoints'> & {
  * itself.
  */
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
+
 export function knownKeysOf<K extends PropertyKey>(
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1138,7 +1138,7 @@ export class NetworkController extends BaseController<
 > {
   #ethQuery?: EthQuery;
 
-  #infuraProjectId: string;
+  readonly #infuraProjectId: string;
 
   #previouslySelectedNetworkClientId: string;
 
@@ -1152,7 +1152,7 @@ export class NetworkController extends BaseController<
     | AutoManagedNetworkClient<CustomNetworkClientConfiguration>
     | AutoManagedNetworkClient<InfuraNetworkClientConfiguration>;
 
-  #log: Logger | undefined;
+  readonly #log: Logger | undefined;
 
   readonly #getRpcServiceOptions: NetworkControllerOptions['getRpcServiceOptions'];
 
@@ -1230,7 +1230,7 @@ export class NetworkController extends BaseController<
 
     this.messagingSystem.registerActionHandler(
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
       `${this.name}:getEthQuery`,
       () => {
         return this.#ethQuery;
@@ -1239,49 +1239,49 @@ export class NetworkController extends BaseController<
 
     this.messagingSystem.registerActionHandler(
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
       `${this.name}:getNetworkClientById`,
       this.getNetworkClientById.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
       `${this.name}:getEIP1559Compatibility`,
       this.getEIP1559Compatibility.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
       `${this.name}:setActiveNetwork`,
       this.setActiveNetwork.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
       `${this.name}:setProviderType`,
       this.setProviderType.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
       `${this.name}:findNetworkClientIdByChainId`,
       this.findNetworkClientIdByChainId.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
       `${this.name}:getNetworkConfigurationByChainId`,
       this.getNetworkConfigurationByChainId.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
       // ESLint is mistaken here; `name` is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
       `${this.name}:getNetworkConfigurationByNetworkClientId`,
       this.getNetworkConfigurationByNetworkClientId.bind(this),
     );
@@ -1298,21 +1298,21 @@ export class NetworkController extends BaseController<
 
     this.messagingSystem.registerActionHandler(
       // ESLint is mistaken here; `name` is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
       `${this.name}:addNetwork`,
       this.addNetwork.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
       // ESLint is mistaken here; `name` is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
       `${this.name}:removeNetwork`,
       this.removeNetwork.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
       // ESLint is mistaken here; `name` is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
       `${this.name}:updateNetwork`,
       this.updateNetwork.bind(this),
     );
@@ -1379,6 +1379,7 @@ export class NetworkController extends BaseController<
 
   /**
    * Accesses the provider and block tracker for the currently selected network.
+   *
    * @returns The proxy and block tracker proxies.
    * @deprecated This method has been replaced by `getSelectedNetworkClient` (which has a more easily used return type) and will be removed in a future release.
    */
@@ -1489,7 +1490,7 @@ export class NetworkController extends BaseController<
       if (!infuraNetworkClient) {
         throw new Error(
           // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
           `No Infura network client was found with the ID "${networkClientId}".`,
         );
       }
@@ -1503,7 +1504,7 @@ export class NetworkController extends BaseController<
     if (!customNetworkClient) {
       throw new Error(
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
         `No custom network client was found with the ID "${networkClientId}".`,
       );
     }
@@ -1820,7 +1821,7 @@ export class NetworkController extends BaseController<
     if ((type as unknown) === NetworkType.rpc) {
       throw new Error(
         // This ESLint rule mistakenly produces an error.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
         `NetworkController - cannot call "setProviderType" with type "${NetworkType.rpc}". Use "setActiveNetwork"`,
       );
     }
@@ -2256,7 +2257,7 @@ export class NetworkController extends BaseController<
     ) {
       throw new Error(
         // This ESLint rule mistakenly produces an error.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
         `Could not update network: Cannot update RPC endpoints in such a way that the selected network '${this.state.selectedNetworkClientId}' would be removed without a replacement. Choose a different RPC endpoint as the selected network via the \`replacementSelectedRpcEndpointIndex\` option.`,
       );
     }
@@ -2500,13 +2501,13 @@ export class NetworkController extends BaseController<
         if (existingNetworkConfiguration === null) {
           throw new Error(
             // This ESLint rule mistakenly produces an error.
-            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
             `Could not add network for chain ${args.networkFields.chainId} as another network for that chain already exists ('${existingNetworkConfigurationViaChainId.name}')`,
           );
         } else {
           throw new Error(
             // This ESLint rule mistakenly produces an error.
-            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
             `Cannot move network from chain ${existingNetworkConfiguration.chainId} to ${networkFields.chainId} as another network for that chain already exists ('${existingNetworkConfigurationViaChainId.name}')`,
           );
         }
@@ -2536,7 +2537,7 @@ export class NetworkController extends BaseController<
       if (!isValidUrl(rpcEndpointFields.url)) {
         throw new Error(
           // This ESLint rule mistakenly produces an error.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
           `${errorMessagePrefix}: An entry in \`rpcEndpoints\` has invalid URL '${rpcEndpointFields.url}'`,
         );
       }
@@ -2552,7 +2553,7 @@ export class NetworkController extends BaseController<
       ) {
         throw new Error(
           // This is a string.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
           `${errorMessagePrefix}: Custom RPC endpoint '${rpcEndpointFields.url}' has invalid network client ID '${networkClientId}'`,
         );
       }
@@ -2567,7 +2568,7 @@ export class NetworkController extends BaseController<
       ) {
         throw new Error(
           // This is a string.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
           `${errorMessagePrefix}: RPC endpoint '${rpcEndpointFields.url}' refers to network client '${networkClientId}' that does not exist`,
         );
       }
@@ -2601,13 +2602,13 @@ export class NetworkController extends BaseController<
           if (mode === 'update') {
             throw new Error(
               // This ESLint rule mistakenly produces an error.
-              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
               `Could not update network to point to same RPC endpoint as existing network for chain ${networkConfiguration.chainId} ('${networkConfiguration.name}')`,
             );
           } else {
             throw new Error(
               // This ESLint rule mistakenly produces an error.
-              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
               `Could not add network that points to same RPC endpoint as existing network for chain ${networkConfiguration.chainId} ('${networkConfiguration.name}')`,
             );
           }
@@ -2661,10 +2662,10 @@ export class NetworkController extends BaseController<
         throw new Error(
           mode === 'add'
             ? // This is a string.
-              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
               `Could not add network with chain ID ${networkFields.chainId} and Infura RPC endpoint for '${infuraNetworkNickname}' which represents ${infuraChainId}, as the two conflict`
             : // This is a string.
-              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
               `Could not update network with chain ID ${networkFields.chainId} and Infura RPC endpoint for '${infuraNetworkNickname}' which represents ${infuraChainId}, as the two conflict`,
         );
       }

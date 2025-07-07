@@ -56,12 +56,12 @@ describe('multicall', () => {
       expect(results).toMatchObject([
         {
           success: true,
-          // eslint-disable-next-line @typescript-eslint/naming-convention
+
           value: { _hex: '0x01' },
         },
         {
           success: true,
-          // eslint-disable-next-line @typescript-eslint/naming-convention
+
           value: { _hex: '0x02' },
         },
       ]);
@@ -111,12 +111,12 @@ describe('multicall', () => {
       expect(results).toMatchObject([
         {
           success: true,
-          // eslint-disable-next-line @typescript-eslint/naming-convention
+
           value: { _hex: '0x01' },
         },
         {
           success: true,
-          // eslint-disable-next-line @typescript-eslint/naming-convention
+
           value: { _hex: '0x02' },
         },
       ]);
@@ -151,7 +151,7 @@ describe('multicall', () => {
       expect(results).toMatchObject([
         {
           success: true,
-          // eslint-disable-next-line @typescript-eslint/naming-convention
+
           value: { _hex: '0x01' },
         },
       ]);

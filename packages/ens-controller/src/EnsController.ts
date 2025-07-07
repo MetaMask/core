@@ -41,12 +41,15 @@ export const DEFAULT_ENS_NETWORK_MAP: Record<number, Hex> = {
 };
 
 /**
- * @type EnsEntry
+ * EnsEntry
  *
  * ENS entry representation
- * @property chainId - Id of the associated chain
- * @property ensName - The ENS name
- * @property address - Hex address with the ENS name, or null
+ *
+ * chainId - Id of the associated chain
+ *
+ * ensName - The ENS name
+ *
+ * address - Hex address with the ENS name, or null
  */
 export type EnsEntry = {
   chainId: Hex;
@@ -55,10 +58,11 @@ export type EnsEntry = {
 };
 
 /**
- * @type EnsControllerState
+ * EnsControllerState
  *
  * ENS controller state
- * @property ensEntries - Object of ENS entry objects
+ *
+ * ensEntries - Object of ENS entry objects
  */
 export type EnsControllerState = {
   ensEntries: {
@@ -241,7 +245,7 @@ export class EnsController extends BaseController<
     ) {
       throw new Error(
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
         `Invalid ENS entry: { chainId:${chainId}, ensName:${ensName}, address:${address}}`,
       );
     }

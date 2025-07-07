@@ -12,7 +12,7 @@ import type { UserOperationControllerMessenger } from '../UserOperationControlle
 import { toEip155ChainId } from '../utils/chain-id';
 
 export class SnapSmartContractAccount implements SmartContractAccount {
-  #messenger: UserOperationControllerMessenger;
+  readonly #messenger: UserOperationControllerMessenger;
 
   constructor(messenger: UserOperationControllerMessenger) {
     this.#messenger = messenger;

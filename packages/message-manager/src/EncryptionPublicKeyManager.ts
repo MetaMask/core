@@ -49,38 +49,48 @@ type EncryptionPublicKeyManagerOptions = {
 };
 
 /**
- * @type EncryptionPublicKey
+ * EncryptionPublicKey
  *
  * Represents and contains data about a 'eth_getEncryptionPublicKey' type request.
  * These are created when an encryption public key is requested.
- * @property id - An id to track and identify the message object
- * @property messageParams - The parameters to pass to the eth_getEncryptionPublicKey method once the request is approved
- * @property type - The json-prc method for which an encryption public key request has been made.
+ *
+ * id - An id to track and identify the message object
+ *
+ * messageParams - The parameters to pass to the eth_getEncryptionPublicKey method once the request is approved
+ *
+ * type - The json-prc method for which an encryption public key request has been made.
  * A 'Message' which always has a 'eth_getEncryptionPublicKey' type
- * @property rawSig - Encryption public key
+ *
+ * rawSig - Encryption public key
  */
 export type EncryptionPublicKey = AbstractMessage & {
   messageParams: EncryptionPublicKeyParams;
 };
 
 /**
- * @type EncryptionPublicKeyParams
+ * EncryptionPublicKeyParams
  *
  * Represents the parameters to pass to the method once the request is approved.
- * @property from - Address from which to extract the encryption public key
- * @property origin? - Added for request origin identification
+ *
+ * from - Address from which to extract the encryption public key
+ *
+ * origin? - Added for request origin identification
  */
 export type EncryptionPublicKeyParams = AbstractMessageParams;
 
 /**
- * @type MessageParamsMetamask
+ * MessageParamsMetamask
  *
  * Represents the parameters to pass to the eth_getEncryptionPublicKey method once the request is approved
  * plus data added by MetaMask.
- * @property metamaskId - Added for tracking and identification within MetaMask
- * @property data - Encryption public key
- * @property from - Address from which to extract the encryption public key
- * @property origin? - Added for request origin identification
+ *
+ * metamaskId - Added for tracking and identification within MetaMask
+ *
+ * data - Encryption public key
+ *
+ * from - Address from which to extract the encryption public key
+ *
+ * origin? - Added for request origin identification
  */
 export type EncryptionPublicKeyParamsMetamask =
   AbstractMessageParamsMetamask & {

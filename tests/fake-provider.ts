@@ -36,13 +36,18 @@ export type FakeProviderResponse = { result: any } | { error: string };
  * throw an error, and if it returns a promise, that promise can either be
  * resolved with a response object or reject with an error.
  *
- * @property request - Looks for a request matching these specifications.
- * @property request.method - The RPC method to which this stub will be matched.
- * @property request.params - The params to which this stub will be matched.
- * @property response - Instructs `request` to return a promise that resolves
+ * request - Looks for a request matching these specifications.
+ *
+ * request.method - The RPC method to which this stub will be matched.
+ *
+ * request.params - The params to which this stub will be matched.
+ *
+ * response - Instructs `request` to return a promise that resolves
  * with a response object.
- * @property response.result - Specifies a successful response, with this as the
+ *
+ * response.result - Specifies a successful response, with this as the
  * `result`.
+ *
  * @property response.error - Specifies an error response, with this as the
  * `error`.
  * @property error - Instructs `request` to return a promise that rejects with
@@ -84,7 +89,7 @@ export type FakeProviderStub = {
 /**
  * The set of options that the FakeProvider constructor takes.
  *
- * @property stubs - A set of objects that allow specifying the behavior
+ * stubs - A set of objects that allow specifying the behavior
  * of specific invocations of `request` matching a `method`.
  */
 type FakeProviderEngineOptions = {
@@ -105,9 +110,9 @@ type FakeProviderEngineOptions = {
 export class FakeProvider extends SafeEventEmitterProvider {
   calledStubs: FakeProviderStub[];
 
-  #originalStubs: FakeProviderStub[];
+  readonly #originalStubs: FakeProviderStub[];
 
-  #stubs: FakeProviderStub[];
+  readonly #stubs: FakeProviderStub[];
 
   /**
    * Makes a new instance of the fake provider.
