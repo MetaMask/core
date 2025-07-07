@@ -65,6 +65,11 @@ export async function syncContactsWithUserStorage(
     onContactDeleted,
   } = config;
 
+  // Cannot perform sync, conditions not met
+  if (!canPerformContactSyncing(options)) {
+    return;
+  }
+
   // Get all local contacts from AddressBookController (exclude chain "*" contacts)
   const localVisibleContacts =
     getMessenger()
@@ -85,11 +90,6 @@ export async function syncContactsWithUserStorage(
 
   const performSync = async () => {
     try {
-      // Cannot perform sync, conditions not met
-      if (!canPerformContactSyncing(options)) {
-        return;
-      }
-
       // Activate sync semaphore to prevent event loops
       await getUserStorageControllerInstance().setIsContactSyncingInProgress(
         true,
@@ -164,6 +164,9 @@ export async function syncContactsWithUserStorage(
       }
 
       // Apply local deletions
+      // Note: Individual errors are intentionally NOT caught here to ensure they reach Sentry
+      // for debugging. Previous versions silently suppressed these errors which made
+      // troubleshooting contact sync issues difficult.
       for (const contact of contactsToDeleteLocally) {
         getMessenger().call(
           'AddressBookController:delete',
@@ -177,6 +180,9 @@ export async function syncContactsWithUserStorage(
       }
 
       // Apply local additions/updates
+      // Note: Individual errors are intentionally NOT caught here to ensure they reach Sentry
+      // for debugging. Previous versions silently suppressed these errors which made
+      // troubleshooting contact sync issues difficult.
       for (const contact of contactsToAddOrUpdateLocally) {
         if (!contact.deletedAt) {
           getMessenger().call(
@@ -232,7 +238,7 @@ export async function syncContactsWithUserStorage(
     const initialLocalContacts = localVisibleContacts;
     const initialValidRemoteContacts = validRemoteContacts;
 
-    return await trace(
+    await trace(
       {
         name: TraceName.ContactSyncFull,
         data: {
@@ -256,9 +262,11 @@ export async function syncContactsWithUserStorage(
       },
       performSync,
     );
+
+    return;
   }
 
-  return await performSync();
+  await performSync();
 }
 
 /**
