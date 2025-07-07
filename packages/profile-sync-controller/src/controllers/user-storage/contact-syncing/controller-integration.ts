@@ -65,8 +65,23 @@ export async function syncContactsWithUserStorage(
     onContactDeleted,
   } = config;
 
-  let localVisibleContacts: AddressBookEntry[] = [];
-  let validRemoteContacts: SyncAddressBookEntry[] = [];
+  // Get all local contacts from AddressBookController (exclude chain "*" contacts)
+  const localVisibleContacts =
+    getMessenger()
+      .call('AddressBookController:list')
+      .filter((contact) => !isContactBridgedFromAccounts(contact))
+      .filter(
+        (contact) => contact.address && contact.chainId && contact.name?.trim(),
+      ) || [];
+
+  // Get remote contacts from user storage API
+  const remoteContacts = await getRemoteContacts(options);
+
+  // Filter remote contacts to exclude invalid ones (or empty array if no remote contacts)
+  const validRemoteContacts =
+    remoteContacts?.filter(
+      (contact) => contact.address && contact.chainId && contact.name?.trim(),
+    ) || [];
 
   const performSync = async () => {
     try {
@@ -79,26 +94,6 @@ export async function syncContactsWithUserStorage(
       await getUserStorageControllerInstance().setIsContactSyncingInProgress(
         true,
       );
-
-      // Get all local contacts from AddressBookController (exclude chain "*" contacts)
-      localVisibleContacts =
-        getMessenger()
-          .call('AddressBookController:list')
-          .filter((contact) => !isContactBridgedFromAccounts(contact))
-          .filter(
-            (contact) =>
-              contact.address && contact.chainId && contact.name?.trim(),
-          ) || [];
-
-      // Get remote contacts from user storage API
-      const remoteContacts = await getRemoteContacts(options);
-
-      // Filter remote contacts to exclude invalid ones (or empty array if no remote contacts)
-      validRemoteContacts =
-        remoteContacts?.filter(
-          (contact) =>
-            contact.address && contact.chainId && contact.name?.trim(),
-        ) || [];
 
       // Prepare maps for efficient lookup
       const localContactsMap = new Map<string, AddressBookEntry>();
@@ -170,39 +165,31 @@ export async function syncContactsWithUserStorage(
 
       // Apply local deletions
       for (const contact of contactsToDeleteLocally) {
-        try {
-          getMessenger().call(
-            'AddressBookController:delete',
-            contact.chainId,
-            contact.address,
-          );
+        getMessenger().call(
+          'AddressBookController:delete',
+          contact.chainId,
+          contact.address,
+        );
 
-          if (onContactDeleted) {
-            onContactDeleted();
-          }
-        } catch (error) {
-          console.error('Error deleting contact:', error);
+        if (onContactDeleted) {
+          onContactDeleted();
         }
       }
 
       // Apply local additions/updates
       for (const contact of contactsToAddOrUpdateLocally) {
         if (!contact.deletedAt) {
-          try {
-            getMessenger().call(
-              'AddressBookController:set',
-              contact.address,
-              contact.name || '',
-              contact.chainId,
-              contact.memo || '',
-              contact.addressType,
-            );
+          getMessenger().call(
+            'AddressBookController:set',
+            contact.address,
+            contact.name || '',
+            contact.chainId,
+            contact.memo || '',
+            contact.addressType,
+          );
 
-            if (onContactUpdated) {
-              onContactUpdated();
-            }
-          } catch (error) {
-            console.error('Error updating contact:', error);
+          if (onContactUpdated) {
+            onContactUpdated();
           }
         }
       }
@@ -241,8 +228,6 @@ export async function syncContactsWithUserStorage(
   };
 
   if (trace) {
-    console.log('[TRACE DEBUG] About to call trace for ContactSyncFull');
-
     // Gather pre-sync metrics for performance analysis
     const initialLocalContacts = localVisibleContacts;
     const initialValidRemoteContacts = validRemoteContacts;
@@ -272,7 +257,7 @@ export async function syncContactsWithUserStorage(
       performSync,
     );
   }
-  console.log('[TRACE DEBUG] No trace function available for ContactSyncFull');
+
   return await performSync();
 }
 
@@ -400,9 +385,6 @@ export async function updateContactInRemoteStorage(
   };
 
   if (trace) {
-    console.log(
-      '[TRACE DEBUG] About to call trace for ContactSyncUpdateRemote',
-    );
     return await trace(
       {
         name: TraceName.ContactSyncUpdateRemote,
@@ -417,9 +399,7 @@ export async function updateContactInRemoteStorage(
       updateContact,
     );
   }
-  console.log(
-    '[TRACE DEBUG] No trace function available for ContactSyncUpdateRemote',
-  );
+
   return await updateContact();
 }
 
@@ -436,11 +416,6 @@ export async function deleteContactInRemoteStorage(
   options: ContactSyncingOptions,
 ): Promise<void> {
   const { trace } = options;
-  console.log(
-    '[TRACE DEBUG] deleteContactInRemoteStorage called with trace:',
-    Boolean(trace),
-  );
-
   const deleteContact = async () => {
     if (
       !canPerformContactSyncing(options) ||

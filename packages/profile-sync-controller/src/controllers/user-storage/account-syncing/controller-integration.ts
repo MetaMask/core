@@ -63,17 +63,12 @@ export async function saveInternalAccountToUserStorage(
   };
 
   if (trace) {
-    console.log(
-      '[TRACE DEBUG] About to call trace for AccountSyncSaveIndividual',
-    );
     return await trace(
       { name: TraceName.AccountSyncSaveIndividual },
       saveAccount,
     );
   }
-  console.log(
-    '[TRACE DEBUG] No trace function available for AccountSyncSaveIndividual',
-  );
+
   return await saveAccount();
 }
 
@@ -423,9 +418,8 @@ export async function syncInternalAccountsWithUserStorage(
   };
 
   if (trace) {
-    console.log('[TRACE DEBUG] About to call trace for AccountSyncFull');
     return await trace({ name: TraceName.AccountSyncFull }, performAccountSync);
   }
-  console.log('[TRACE DEBUG] No trace function available for AccountSyncFull');
+
   return await performAccountSync();
 }
