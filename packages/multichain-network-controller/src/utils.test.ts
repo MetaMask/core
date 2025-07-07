@@ -19,15 +19,25 @@ import {
 } from './utils';
 
 describe('utils', () => {
-  describe('getChainIdForNonEvmAddress', () => {
-    it('returns Solana chain ID for Solana addresses', () => {
-      const solanaAddress = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
-      expect(getChainIdForNonEvm(solanaAddress)).toBe(SolScope.Mainnet);
+  describe('getChainIdForNonEvm', () => {
+    it('returns Solana chain ID for Solana scopes', () => {
+      const scopes = [SolScope.Mainnet, SolScope.Testnet, SolScope.Devnet];
+      expect(getChainIdForNonEvm(scopes)).toBe(SolScope.Mainnet);
     });
 
-    it('returns Bitcoin chain ID for non-Solana addresses', () => {
-      const bitcoinAddress = 'bc1qzqc2aqlw8nwa0a05ehjkk7dgt8308ac7kzw9a6';
-      expect(getChainIdForNonEvm(bitcoinAddress)).toBe(BtcScope.Mainnet);
+    it('returns Bitcoin chain ID for Bitcoin scopes', () => {
+      let scopes = [BtcScope.Mainnet];
+      expect(getChainIdForNonEvm(scopes)).toBe(BtcScope.Mainnet);
+
+      scopes = [BtcScope.Testnet];
+      expect(getChainIdForNonEvm(scopes)).toBe(BtcScope.Testnet);
+    });
+
+    it('throws error if network is not found', () => {
+      const scopes = ['unknown:scope' as CaipChainId];
+      expect(() => getChainIdForNonEvm(scopes)).toThrow(
+        'Unsupported scope: unknown:scope.',
+      );
     });
   });
 
