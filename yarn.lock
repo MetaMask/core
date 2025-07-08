@@ -2632,7 +2632,7 @@ __metadata:
     "@metamask/phishing-controller": "npm:^12.6.0"
     "@metamask/polling-controller": "npm:^14.0.0"
     "@metamask/preferences-controller": "npm:^18.4.1"
-    "@metamask/profile-sync-controller": "npm:^19.0.0"
+    "@metamask/profile-sync-controller": "npm:^20.0.0"
     "@metamask/providers": "npm:^22.1.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/snaps-controllers": "npm:^14.0.1"
@@ -2671,7 +2671,7 @@ __metadata:
     "@metamask/permission-controller": ^11.0.0
     "@metamask/phishing-controller": ^12.5.0
     "@metamask/preferences-controller": ^18.0.0
-    "@metamask/profile-sync-controller": ^19.0.0
+    "@metamask/profile-sync-controller": ^20.0.0
     "@metamask/providers": ^22.0.0
     "@metamask/snaps-controllers": ^14.0.0
     "@metamask/transaction-controller": ^58.0.0
@@ -3821,7 +3821,7 @@ __metadata:
     "@metamask/keyring-controller": "npm:^22.1.0"
     "@metamask/keyring-internal-api": "npm:^6.2.0"
     "@metamask/network-controller": "npm:^24.0.0"
-    "@metamask/profile-sync-controller": "npm:^19.0.0"
+    "@metamask/profile-sync-controller": "npm:^20.0.0"
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/utils": "npm:^11.4.2"
     "@solana/addresses": "npm:^2.0.0"
@@ -3840,7 +3840,7 @@ __metadata:
   peerDependencies:
     "@metamask/accounts-controller": ^31.0.0
     "@metamask/network-controller": ^24.0.0
-    "@metamask/profile-sync-controller": ^19.0.0
+    "@metamask/profile-sync-controller": ^20.0.0
   languageName: unknown
   linkType: soft
 
@@ -4593,7 +4593,7 @@ __metadata:
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/network-controller": "npm:^24.0.0"
     "@metamask/nonce-tracker": "npm:^6.0.0"
-    "@metamask/profile-sync-controller": "npm:^19.0.0"
+    "@metamask/profile-sync-controller": "npm:^20.0.0"
     "@metamask/remote-feature-flag-controller": "npm:^1.6.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/utils": "npm:^11.4.2"
@@ -4622,7 +4622,7 @@ __metadata:
     "@metamask/eth-block-tracker": ">=9"
     "@metamask/gas-fee-controller": ^24.0.0
     "@metamask/network-controller": ^24.0.0
-    "@metamask/profile-sync-controller": ^19.0.0
+    "@metamask/profile-sync-controller": ^20.0.0
     "@metamask/remote-feature-flag-controller": ^1.5.0
   languageName: unknown
   linkType: soft
