@@ -161,7 +161,8 @@ export const isNativeAddress = (address?: string | null) =>
   address === '' || // assets controllers set the native asset address to an empty string
   !address ||
   Object.values(SYMBOL_TO_SLIP44_MAP).some(
-    (reference) => address.includes(reference) || reference.endsWith(address), // check if it matches any supported SLIP44 references
+    // check if it matches any supported SLIP44 references
+    (reference) => address.includes(reference) || reference.endsWith(address),
   );
 
 /**
