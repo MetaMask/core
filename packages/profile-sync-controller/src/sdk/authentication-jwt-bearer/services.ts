@@ -16,6 +16,9 @@ export const NONCE_URL = (env: Env) =>
 export const PAIR_IDENTIFIERS = (env: Env) =>
   `${getEnvUrls(env).authApiUrl}/api/v2/identifiers/pair`;
 
+export const PAIR_SOCIAL_IDENTIFIER = (env: Env) =>
+  `${getEnvUrls(env).authApiUrl}/api/v2/identifiers/pair/social`;
+
 export const OIDC_TOKEN_URL = (env: Env) =>
   `${getEnvUrls(env).oidcApiUrl}/oauth2/token`;
 

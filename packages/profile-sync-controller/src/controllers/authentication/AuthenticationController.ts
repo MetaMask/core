@@ -24,6 +24,8 @@ import {
   Env,
   JwtBearerAuth,
 } from '../../sdk';
+import { authorizeOIDC, getNonce, PAIR_SOCIAL_IDENTIFIER } from '../../sdk/authentication-jwt-bearer/services';
+import { PairError } from '../../sdk/errors';
 import type { MetaMetricsAuth } from '../../shared/types/services';
 
 const controllerName = 'AuthenticationController';
@@ -32,6 +34,8 @@ const controllerName = 'AuthenticationController';
 export type AuthenticationControllerState = {
   isSignedIn: boolean;
   srpSessionData?: Record<string, LoginResponse>;
+  socialPairingDone?: boolean;
+  pairingInProgress?: boolean;
 };
 export const defaultState: AuthenticationControllerState = {
   isSignedIn: false,
@@ -44,6 +48,14 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
   srpSessionData: {
     persist: true,
     anonymous: false,
+  },
+  socialPairingDone: {
+    persist: true,
+    anonymous: true,
+  },
+  pairingInProgress: {
+    persist: false,
+    anonymous: true,
   },
 };
 
@@ -88,7 +100,11 @@ export type Events = AuthenticationControllerStateChangeEvent;
 // Allowed Actions
 export type AllowedActions =
   | HandleSnapRequest
-  | KeyringControllerGetStateAction;
+  | KeyringControllerGetStateAction
+  | {
+      type: 'SeedlessOnboardingController:getState';
+      handler: () => { accessToken?: string };
+    };
 
 export type AllowedEvents =
   | KeyringControllerLockEvent
@@ -277,6 +293,11 @@ export default class AuthenticationController extends BaseController<
       accessTokens.push(accessToken);
     }
 
+    // don't await for the pairing to finish
+    this.#tryPairingWithSeedlessAccessToken().catch(() => {
+      // don't care
+    });
+
     return accessTokens;
   }
 
@@ -284,6 +305,7 @@ export default class AuthenticationController extends BaseController<
     this.update((state) => {
       state.isSignedIn = false;
       state.srpSessionData = undefined;
+      state.socialPairingDone = false;
     });
   }
 
@@ -316,6 +338,95 @@ export default class AuthenticationController extends BaseController<
 
   public isSignedIn(): boolean {
     return this.state.isSignedIn;
+  }
+
+  async #tryPairingWithSeedlessAccessToken(): Promise<void> {
+    const { socialPairingDone, pairingInProgress } = this.state;
+    if (socialPairingDone || pairingInProgress) {
+      return;
+    }
+
+    // Get accessToken from SeedlessOnboardingController
+    let seedlessState;
+    try {
+      seedlessState = this.messagingSystem.call('SeedlessOnboardingController:getState');
+    } catch (error) {
+      // SeedlessOnboardingController might not be available
+      return;
+    }
+
+    const accessToken = seedlessState?.accessToken;
+    if (!accessToken) {
+      return;
+    }
+
+    try {
+      this.update((state) => {
+        state.pairingInProgress = true;
+      });
+
+      if (await this.#pairSocialIdentifier(accessToken)) {
+        this.update((state) => {
+          state.socialPairingDone = true;
+        });
+      }
+    } catch (error) {
+      // ignore the error - pairing failure should not affect other flows
+    } finally {
+      this.update((state) => {
+        state.pairingInProgress = false;
+      });
+    }
+  }
+
+  async #pairSocialIdentifier(accessToken: string): Promise<boolean> {
+    // TODO: need to hardcode the env as web3auth prod is not available.
+    const env = Env.DEV;
+
+    // Exchange the social token with an access token
+    const tokenResponse = await authorizeOIDC(accessToken, env, this.#metametrics.agent);
+
+    // Prepare the SRP signature
+    const identifier = await this.#snapGetPublicKey();
+    const profile = await this.#auth.getUserProfile();
+    const n = await getNonce(profile.profileId, env);
+    const raw = `metamask:${n.nonce}:${identifier}`;
+    const sig = await this.#snapSignMessage(raw);
+    const primaryIdentifierSignature = {
+      signature: sig,
+      raw_message: raw,
+      identifier_type: AuthType.SRP,
+      encrypted_storage_key: '', // Not yet part of this flow, so we leave it empty
+    };
+
+    const pairUrl = new URL(PAIR_SOCIAL_IDENTIFIER(env));
+
+    try {
+      const response = await fetch(pairUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${tokenResponse.accessToken}`,
+        },
+        body: JSON.stringify({
+          nonce: n.nonce,
+          login: primaryIdentifierSignature,
+        }),
+      });
+
+      if (!response.ok) {
+        const responseBody = (await response.json()) as { message: string; error: string };
+        throw new Error(
+          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+        );
+      }
+
+      return true;
+    } catch (e) {
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+      throw new PairError(`unable to pair identifiers: ${errorMessage}`);
+    }
   }
 
   /**
