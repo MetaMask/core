@@ -5,22 +5,25 @@ import {
   type KeyringMetadata,
   type KeyringSelector,
 } from '@metamask/keyring-controller';
-import type {
-  EthKeyring,
-  InternalAccount,
-} from '@metamask/keyring-internal-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { AccountProvider } from '@metamask/multichain-account-api';
 
 import type { MultichainAccountControllerMessenger } from '../types';
 
-type Bip44Account<Account extends KeyringAccount> = Account & {
+export type Bip44Account<Account extends KeyringAccount> = Account & {
   options: {
     index: number;
     entropySource: EntropySourceId;
   };
 };
 
-function isBip44Account<Account extends KeyringAccount>(
+/**
+ * Checks if an account is BIP-44 compatible.
+ *
+ * @param account - The account to be tested.
+ * @returns True if the account is BIP-44 compatible.
+ */
+export function isBip44Account<Account extends KeyringAccount>(
   account: Account,
 ): account is Bip44Account<Account> {
   // TODO: Maybe use superstruct to validate the structure of HD account since they are not strongly-typed for now?
