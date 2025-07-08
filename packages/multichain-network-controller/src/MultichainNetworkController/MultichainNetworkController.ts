@@ -23,7 +23,7 @@ import {
 } from '../types';
 import {
   checkIfSupportedCaipChainId,
-  getChainIdForNonEvmAddress,
+  getChainIdForNonEvm,
   convertEvmCaipToHexChainId,
   isEvmCaipChainId,
 } from '../utils';
@@ -255,7 +255,7 @@ export class MultichainNetworkController extends BaseController<
    * @param account - The account that was changed
    */
   #handleOnSelectedAccountChange(account: InternalAccount) {
-    const { type: accountType, address: accountAddress, scopes } = account;
+    const { type: accountType, scopes } = account;
     const isEvmAccount = isEvmAccountType(accountType);
 
     // Handle switching to EVM network
@@ -282,7 +282,7 @@ export class MultichainNetworkController extends BaseController<
       return;
     }
 
-    const nonEvmChainId = getChainIdForNonEvmAddress(accountAddress);
+    const nonEvmChainId = getChainIdForNonEvm(scopes);
     this.update((state) => {
       state.selectedMultichainNetworkChainId = nonEvmChainId;
       state.isEvmSelected = false;
