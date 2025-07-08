@@ -165,7 +165,7 @@ describe('EvmAccountProvider', () => {
 
     const unknownAccount = MOCK_HD_ACCOUNT_2;
     expect(() => provider.getAccount(unknownAccount.id)).toThrow(
-      `Unable to find EVM account: ${unknownAccount.id}`,
+      `Unable to find account: ${unknownAccount.id}`,
     );
   });
 

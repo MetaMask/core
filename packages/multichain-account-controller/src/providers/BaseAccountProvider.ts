@@ -117,7 +117,7 @@ export abstract class BaseAccountProvider
     const [found] = this.#getAccounts((account) => account.id === id);
 
     if (!found) {
-      throw new Error(`Unable to find EVM account: ${id}`);
+      throw new Error(`Unable to find account: ${id}`);
     }
 
     return found;
