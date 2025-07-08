@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add an optional `isSingleSwapBridgeButtonEnabled` feature flag that indicates whether Swap and Bridge entrypoints should be combined ([#6078](https://github.com/MetaMask/core/pull/6078))
+
 ### Changed
 
 - **BREAKING:** Bump peer dependency `@metamask/assets-controllers` from `^69.0.0` to `^70.0.0` ([#6061](https://github.com/MetaMask/core/pull/6061))
