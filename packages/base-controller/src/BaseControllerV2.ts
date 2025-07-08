@@ -124,7 +124,7 @@ export type BaseControllerInstance = Omit<
     BaseController<
       string,
       StateConstraint,
-      Messenger<ActionConstraint, EventConstraint, string>
+      Messenger<string, ActionConstraint, EventConstraint>
     >
   >,
   'metadata'
@@ -167,9 +167,9 @@ export class BaseController<
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
   // eslint-disable-next-line @typescript-eslint/naming-convention
   messenger extends Messenger<
+    ControllerName,
     ActionConstraint | ControllerActions<ControllerName, ControllerState>,
-    EventConstraint | ControllerEvents<ControllerName, ControllerState>,
-    ControllerName
+    EventConstraint | ControllerEvents<ControllerName, ControllerState>
   >,
 > {
   #internalState: ControllerState;

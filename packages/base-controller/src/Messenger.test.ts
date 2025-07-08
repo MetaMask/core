@@ -13,7 +13,7 @@ describe('Messenger', () => {
       type: 'Fixture:count';
       handler: (increment: number) => void;
     };
-    const messenger = new Messenger<CountAction, never, 'Fixture'>({
+    const messenger = new Messenger<'Fixture', CountAction, never>({
       namespace: 'Fixture',
     });
 
@@ -43,9 +43,9 @@ describe('Messenger', () => {
       | { type: 'Fixture:concat'; handler: (message: string) => void }
       | { type: 'Fixture:reset'; handler: (initialMessage: string) => void };
     const messenger = new Messenger<
+      'Fixture',
       MessageAction | GetOtherState,
-      OtherStateChange,
-      'Fixture'
+      OtherStateChange
     >({ namespace: 'Fixture' });
 
     let message = '';
@@ -68,7 +68,7 @@ describe('Messenger', () => {
 
   it('should allow registering and calling an action handler with no parameters', () => {
     type IncrementAction = { type: 'Fixture:increment'; handler: () => void };
-    const messenger = new Messenger<IncrementAction, never, 'Fixture'>({
+    const messenger = new Messenger<'Fixture', IncrementAction, never>({
       namespace: 'Fixture',
     });
 
@@ -86,7 +86,7 @@ describe('Messenger', () => {
       type: 'Fixture:message';
       handler: (to: string, message: string) => void;
     };
-    const messenger = new Messenger<MessageAction, never, 'Fixture'>({
+    const messenger = new Messenger<'Fixture', MessageAction, never>({
       namespace: 'Fixture',
     });
 
@@ -104,7 +104,7 @@ describe('Messenger', () => {
       type: 'Fixture:add';
       handler: (a: number, b: number) => number;
     };
-    const messenger = new Messenger<AddAction, never, 'Fixture'>({
+    const messenger = new Messenger<'Fixture', AddAction, never>({
       namespace: 'Fixture',
     });
 
@@ -118,7 +118,7 @@ describe('Messenger', () => {
 
   it('should not allow registering multiple action handlers under the same name', () => {
     type PingAction = { type: 'Fixture:ping'; handler: () => void };
-    const messenger = new Messenger<PingAction, never, 'Fixture'>({
+    const messenger = new Messenger<'Fixture', PingAction, never>({
       namespace: 'Fixture',
     });
 
@@ -131,7 +131,7 @@ describe('Messenger', () => {
 
   it('should throw when calling unregistered action', () => {
     type PingAction = { type: 'Fixture:ping'; handler: () => void };
-    const messenger = new Messenger<PingAction, never, 'Fixture'>({
+    const messenger = new Messenger<'Fixture', PingAction, never>({
       namespace: 'Fixture',
     });
 
@@ -142,7 +142,7 @@ describe('Messenger', () => {
 
   it('should throw when calling an action that has been unregistered', () => {
     type PingAction = { type: 'Fixture:ping'; handler: () => void };
-    const messenger = new Messenger<PingAction, never, 'Fixture'>({
+    const messenger = new Messenger<'Fixture', PingAction, never>({
       namespace: 'Fixture',
     });
 
@@ -165,7 +165,7 @@ describe('Messenger', () => {
 
   it('should throw when calling an action after actions have been reset', () => {
     type PingAction = { type: 'Fixture:ping'; handler: () => void };
-    const messenger = new Messenger<PingAction, never, 'Fixture'>({
+    const messenger = new Messenger<'Fixture', PingAction, never>({
       namespace: 'Fixture',
     });
 
@@ -188,7 +188,7 @@ describe('Messenger', () => {
 
   it('should publish event to subscriber', () => {
     type MessageEvent = { type: 'Fixture:message'; payload: [string] };
-    const messenger = new Messenger<never, MessageEvent, 'Fixture'>({
+    const messenger = new Messenger<'Fixture', never, MessageEvent>({
       namespace: 'Fixture',
     });
 
@@ -204,7 +204,7 @@ describe('Messenger', () => {
     type MessageEvent =
       | { type: 'Fixture:message'; payload: [string] }
       | { type: 'Fixture:ping'; payload: [] };
-    const messenger = new Messenger<never, MessageEvent, 'Fixture'>({
+    const messenger = new Messenger<'Fixture', never, MessageEvent>({
       namespace: 'Fixture',
     });
 
@@ -224,7 +224,7 @@ describe('Messenger', () => {
 
   it('should publish event with no payload to subscriber', () => {
     type PingEvent = { type: 'Fixture:ping'; payload: [] };
-    const messenger = new Messenger<never, PingEvent, 'Fixture'>({
+    const messenger = new Messenger<'Fixture', never, PingEvent>({
       namespace: 'Fixture',
     });
 
@@ -238,7 +238,7 @@ describe('Messenger', () => {
 
   it('should publish event with multiple payload parameters to subscriber', () => {
     type MessageEvent = { type: 'Fixture:message'; payload: [string, string] };
-    const messenger = new Messenger<never, MessageEvent, 'Fixture'>({
+    const messenger = new Messenger<'Fixture', never, MessageEvent>({
       namespace: 'Fixture',
     });
 
@@ -252,7 +252,7 @@ describe('Messenger', () => {
 
   it('should publish event once to subscriber even if subscribed multiple times', () => {
     type MessageEvent = { type: 'Fixture:message'; payload: [string] };
-    const messenger = new Messenger<never, MessageEvent, 'Fixture'>({
+    const messenger = new Messenger<'Fixture', never, MessageEvent>({
       namespace: 'Fixture',
     });
 
@@ -267,7 +267,7 @@ describe('Messenger', () => {
 
   it('should publish event to many subscribers', () => {
     type MessageEvent = { type: 'Fixture:message'; payload: [string] };
-    const messenger = new Messenger<never, MessageEvent, 'Fixture'>({
+    const messenger = new Messenger<'Fixture', never, MessageEvent>({
       namespace: 'Fixture',
     });
 
@@ -293,7 +293,7 @@ describe('Messenger', () => {
         type: 'Fixture:complexMessage';
         payload: [typeof state];
       };
-      const messenger = new Messenger<never, MessageEvent, 'Fixture'>({
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
         namespace: 'Fixture',
       });
       messenger.registerInitialEventPayload({
@@ -323,7 +323,7 @@ describe('Messenger', () => {
         type: 'Fixture:complexMessage';
         payload: [typeof state];
       };
-      const messenger = new Messenger<never, MessageEvent, 'Fixture'>({
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
         namespace: 'Fixture',
       });
       messenger.registerInitialEventPayload({
@@ -353,7 +353,7 @@ describe('Messenger', () => {
         type: 'Fixture:complexMessage';
         payload: [typeof state];
       };
-      const messenger = new Messenger<never, MessageEvent, 'Fixture'>({
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
         namespace: 'Fixture',
       });
       const handler = sinon.stub();
@@ -379,7 +379,7 @@ describe('Messenger', () => {
         type: 'Fixture:complexMessage';
         payload: [typeof state];
       };
-      const messenger = new Messenger<never, MessageEvent, 'Fixture'>({
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
         namespace: 'Fixture',
       });
       const handler = sinon.stub();
@@ -404,7 +404,7 @@ describe('Messenger', () => {
         type: 'Fixture:complexMessage';
         payload: [typeof state];
       };
-      const messenger = new Messenger<never, MessageEvent, 'Fixture'>({
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
         namespace: 'Fixture',
       });
       const handler = sinon.stub();
@@ -426,7 +426,7 @@ describe('Messenger', () => {
         type: 'Fixture:complexMessage';
         payload: [Record<string, unknown>];
       };
-      const messenger = new Messenger<never, MessageEvent, 'Fixture'>({
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
         namespace: 'Fixture',
       });
 
@@ -449,7 +449,7 @@ describe('Messenger', () => {
         type: 'Fixture:complexMessage';
         payload: [Record<string, unknown>];
       };
-      const messenger = new Messenger<never, MessageEvent, 'Fixture'>({
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
         namespace: 'Fixture',
       });
 
@@ -470,7 +470,7 @@ describe('Messenger', () => {
         type: 'Fixture:complexMessage';
         payload: [Record<string, unknown>];
       };
-      const messenger = new Messenger<never, MessageEvent, 'Fixture'>({
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
         namespace: 'Fixture',
       });
 
@@ -493,7 +493,7 @@ describe('Messenger', () => {
       type: 'Fixture:complexMessage';
       payload: [Record<string, unknown>];
     };
-    const messenger = new Messenger<never, MessageEvent, 'Fixture'>({
+    const messenger = new Messenger<'Fixture', never, MessageEvent>({
       namespace: 'Fixture',
     });
 
@@ -530,7 +530,7 @@ describe('Messenger', () => {
   it('should throw subscriber errors in a timeout', () => {
     const setTimeoutStub = sinon.stub(globalThis, 'setTimeout');
     type MessageEvent = { type: 'Fixture:message'; payload: [string] };
-    const messenger = new Messenger<never, MessageEvent, 'Fixture'>({
+    const messenger = new Messenger<'Fixture', never, MessageEvent>({
       namespace: 'Fixture',
     });
 
@@ -546,7 +546,7 @@ describe('Messenger', () => {
   it('should continue calling subscribers when one throws', () => {
     const setTimeoutStub = sinon.stub(globalThis, 'setTimeout');
     type MessageEvent = { type: 'Fixture:message'; payload: [string] };
-    const messenger = new Messenger<never, MessageEvent, 'Fixture'>({
+    const messenger = new Messenger<'Fixture', never, MessageEvent>({
       namespace: 'Fixture',
     });
 
@@ -568,7 +568,7 @@ describe('Messenger', () => {
 
   it('should not call subscriber after unsubscribing', () => {
     type MessageEvent = { type: 'Fixture:message'; payload: [string] };
-    const messenger = new Messenger<never, MessageEvent, 'Fixture'>({
+    const messenger = new Messenger<'Fixture', never, MessageEvent>({
       namespace: 'Fixture',
     });
 
@@ -585,7 +585,7 @@ describe('Messenger', () => {
       type: 'Fixture:complexMessage';
       payload: [Record<string, unknown>];
     };
-    const messenger = new Messenger<never, MessageEvent, 'Fixture'>({
+    const messenger = new Messenger<'Fixture', never, MessageEvent>({
       namespace: 'Fixture',
     });
 
@@ -601,7 +601,7 @@ describe('Messenger', () => {
 
   it('should throw when unsubscribing when there are no subscriptions', () => {
     type MessageEvent = { type: 'Fixture:message'; payload: [string] };
-    const messenger = new Messenger<never, MessageEvent, 'Fixture'>({
+    const messenger = new Messenger<'Fixture', never, MessageEvent>({
       namespace: 'Fixture',
     });
 
@@ -613,7 +613,7 @@ describe('Messenger', () => {
 
   it('should throw when unsubscribing a handler that is not subscribed', () => {
     type MessageEvent = { type: 'Fixture:message'; payload: [string] };
-    const messenger = new Messenger<never, MessageEvent, 'Fixture'>({
+    const messenger = new Messenger<'Fixture', never, MessageEvent>({
       namespace: 'Fixture',
     });
 
@@ -628,7 +628,7 @@ describe('Messenger', () => {
 
   it('should not call subscriber after clearing event subscriptions', () => {
     type MessageEvent = { type: 'Fixture:message'; payload: [string] };
-    const messenger = new Messenger<never, MessageEvent, 'Fixture'>({
+    const messenger = new Messenger<'Fixture', never, MessageEvent>({
       namespace: 'Fixture',
     });
 
@@ -642,7 +642,7 @@ describe('Messenger', () => {
 
   it('should not throw when clearing event that has no subscriptions', () => {
     type MessageEvent = { type: 'Fixture:message'; payload: [string] };
-    const messenger = new Messenger<never, MessageEvent, 'Fixture'>({
+    const messenger = new Messenger<'Fixture', never, MessageEvent>({
       namespace: 'Fixture',
     });
 
@@ -653,7 +653,7 @@ describe('Messenger', () => {
 
   it('should not call subscriber after resetting subscriptions', () => {
     type MessageEvent = { type: 'Fixture:message'; payload: [string] };
-    const messenger = new Messenger<never, MessageEvent, 'Fixture'>({
+    const messenger = new Messenger<'Fixture', never, MessageEvent>({
       namespace: 'Fixture',
     });
 
@@ -671,13 +671,13 @@ describe('Messenger', () => {
         type: 'Source:event';
         payload: ['test'];
       };
-      const sourceMessenger = new Messenger<never, ExampleEvent, 'Source'>({
+      const sourceMessenger = new Messenger<'Source', never, ExampleEvent>({
         namespace: 'Source',
       });
       const delegatedMessenger = new Messenger<
+        'Destination',
         never,
-        ExampleEvent,
-        'Destination'
+        ExampleEvent
       >({ namespace: 'Destination' });
       const subscriber = jest.fn();
 
@@ -696,13 +696,13 @@ describe('Messenger', () => {
         type: 'Source:event';
         payload: [string];
       };
-      const sourceMessenger = new Messenger<never, ExampleEvent, 'Source'>({
+      const sourceMessenger = new Messenger<'Source', never, ExampleEvent>({
         namespace: 'Source',
       });
       const delegatedMessenger = new Messenger<
+        'Destination',
         never,
-        ExampleEvent,
-        'Destination'
+        ExampleEvent
       >({ namespace: 'Destination' });
       const subscriber = jest.fn();
 
@@ -732,13 +732,13 @@ describe('Messenger', () => {
         type: 'Source:event';
         payload: [string];
       };
-      const sourceMessenger = new Messenger<never, ExampleEvent, 'Source'>({
+      const sourceMessenger = new Messenger<'Source', never, ExampleEvent>({
         namespace: 'Source',
       });
       const delegatedMessenger = new Messenger<
+        'Destination',
         never,
-        ExampleEvent,
-        'Destination'
+        ExampleEvent
       >({ namespace: 'Destination' });
       const subscriber = jest.fn();
 
@@ -768,13 +768,13 @@ describe('Messenger', () => {
         type: 'Source:getLength';
         handler: (input: string) => string;
       };
-      const sourceMessenger = new Messenger<ExampleAction, never, 'Source'>({
+      const sourceMessenger = new Messenger<'Source', ExampleAction, never>({
         namespace: 'Source',
       });
       const delegatedMessenger = new Messenger<
+        'Destination',
         ExampleAction,
-        never,
-        'Destination'
+        never
       >({ namespace: 'Destination' });
       const handler = jest.fn((input) => input.length);
       sourceMessenger.registerActionHandler('Source:getLength', handler);
@@ -794,13 +794,13 @@ describe('Messenger', () => {
         type: 'Source:getLength';
         handler: (input: string) => string;
       };
-      const sourceMessenger = new Messenger<ExampleAction, never, 'Source'>({
+      const sourceMessenger = new Messenger<'Source', ExampleAction, never>({
         namespace: 'Source',
       });
       const delegatedMessenger = new Messenger<
+        'Destination',
         ExampleAction,
-        never,
-        'Destination'
+        never
       >({ namespace: 'Destination' });
       const handler = jest.fn((input) => input.length);
 
@@ -821,13 +821,13 @@ describe('Messenger', () => {
         type: 'Source:getLength';
         handler: (input: string) => string;
       };
-      const sourceMessenger = new Messenger<ExampleAction, never, 'Source'>({
+      const sourceMessenger = new Messenger<'Source', ExampleAction, never>({
         namespace: 'Source',
       });
       const delegatedMessenger = new Messenger<
+        'Destination',
         ExampleAction,
-        never,
-        'Destination'
+        never
       >({ namespace: 'Destination' });
 
       sourceMessenger.delegate({
@@ -845,13 +845,13 @@ describe('Messenger', () => {
         type: 'Source:getLength';
         handler: (input: string) => string;
       };
-      const sourceMessenger = new Messenger<ExampleAction, never, 'Source'>({
+      const sourceMessenger = new Messenger<'Source', ExampleAction, never>({
         namespace: 'Source',
       });
       const delegatedMessenger = new Messenger<
+        'Destination',
         ExampleAction,
-        never,
-        'Destination'
+        never
       >({ namespace: 'Destination' });
       sourceMessenger.delegate({
         messenger: delegatedMessenger,
@@ -872,13 +872,13 @@ describe('Messenger', () => {
         type: 'Source:event';
         payload: ['test'];
       };
-      const sourceMessenger = new Messenger<never, ExampleEvent, 'Source'>({
+      const sourceMessenger = new Messenger<'Source', never, ExampleEvent>({
         namespace: 'Source',
       });
       const delegatedMessenger = new Messenger<
+        'Destination',
         never,
-        ExampleEvent,
-        'Destination'
+        ExampleEvent
       >({ namespace: 'Destination' });
       const subscriber = jest.fn();
       sourceMessenger.delegate({
@@ -909,16 +909,16 @@ describe('Messenger', () => {
         payload: ['second'];
       };
       const sourceMessenger = new Messenger<
+        'Source',
         never,
-        ExampleFirstEvent | ExampleSecondEvent,
-        'Source'
+        ExampleFirstEvent | ExampleSecondEvent
       >({
         namespace: 'Source',
       });
       const delegatedMessenger = new Messenger<
+        'Destination',
         never,
-        ExampleFirstEvent | ExampleSecondEvent,
-        'Destination'
+        ExampleFirstEvent | ExampleSecondEvent
       >({ namespace: 'Destination' });
       const subscriber = jest.fn();
       sourceMessenger.delegate({
@@ -946,18 +946,18 @@ describe('Messenger', () => {
         type: 'Source:event';
         payload: ['first test' | 'second test'];
       };
-      const sourceMessenger = new Messenger<never, ExampleEvent, 'Source'>({
+      const sourceMessenger = new Messenger<'Source', never, ExampleEvent>({
         namespace: 'Source',
       });
       const firstDelegatedMessenger = new Messenger<
+        'FirstDestination',
         never,
-        ExampleEvent,
-        'FirstDestination'
+        ExampleEvent
       >({ namespace: 'FirstDestination' });
       const secondDelegatedMessenger = new Messenger<
+        'SecondDestination',
         never,
-        ExampleEvent,
-        'SecondDestination'
+        ExampleEvent
       >({ namespace: 'SecondDestination' });
       const firstSubscriber = jest.fn();
       const secondSubscriber = jest.fn();
@@ -993,18 +993,18 @@ describe('Messenger', () => {
         type: 'Source:event';
         payload: ['first test' | 'second test'];
       };
-      const sourceMessenger = new Messenger<never, ExampleEvent, 'Source'>({
+      const sourceMessenger = new Messenger<'Source', never, ExampleEvent>({
         namespace: 'Source',
       });
       const firstDelegatedMessenger = new Messenger<
+        'FirstDestination',
         never,
-        ExampleEvent,
-        'FirstDestination'
+        ExampleEvent
       >({ namespace: 'FirstDestination' });
       const secondDelegatedMessenger = new Messenger<
+        'SecondDestination',
         never,
-        ExampleEvent,
-        'SecondDestination'
+        ExampleEvent
       >({ namespace: 'SecondDestination' });
       const firstSubscriber = jest.fn();
       sourceMessenger.delegate({
@@ -1032,13 +1032,13 @@ describe('Messenger', () => {
         type: 'Source:event';
         payload: ['test'];
       };
-      const sourceMessenger = new Messenger<never, ExampleEvent, 'Source'>({
+      const sourceMessenger = new Messenger<'Source', never, ExampleEvent>({
         namespace: 'Source',
       });
       const delegatedMessenger = new Messenger<
+        'Destination',
         never,
-        ExampleEvent,
-        'Destination'
+        ExampleEvent
       >({ namespace: 'Destination' });
 
       expect(() =>
@@ -1054,13 +1054,13 @@ describe('Messenger', () => {
         type: 'Source:getLength';
         handler: (input: string) => string;
       };
-      const sourceMessenger = new Messenger<ExampleAction, never, 'Source'>({
+      const sourceMessenger = new Messenger<'Source', ExampleAction, never>({
         namespace: 'Source',
       });
       const delegatedMessenger = new Messenger<
+        'Destination',
         ExampleAction,
-        never,
-        'Destination'
+        never
       >({ namespace: 'Destination' });
       const handler = jest.fn((input) => input.length);
 
@@ -1094,16 +1094,16 @@ describe('Messenger', () => {
         handler: (seed: string) => string;
       };
       const sourceMessenger = new Messenger<
+        'Source',
         ExampleFirstAction | ExampleSecondAction,
-        never,
-        'Source'
+        never
       >({
         namespace: 'Source',
       });
       const delegatedMessenger = new Messenger<
+        'Destination',
         ExampleFirstAction | ExampleSecondAction,
-        never,
-        'Destination'
+        never
       >({ namespace: 'Destination' });
       const handler = jest.fn((input) => input.length);
 
@@ -1137,18 +1137,18 @@ describe('Messenger', () => {
         type: 'Source:getLength';
         handler: (input: string) => string;
       };
-      const sourceMessenger = new Messenger<ExampleAction, never, 'Source'>({
+      const sourceMessenger = new Messenger<'Source', ExampleAction, never>({
         namespace: 'Source',
       });
       const firstDelegatedMessenger = new Messenger<
+        'FirstDestination',
         ExampleAction,
-        never,
-        'FirstDestination'
+        never
       >({ namespace: 'FirstDestination' });
       const secondDelegatedMessenger = new Messenger<
+        'SecondDestination',
         ExampleAction,
-        never,
-        'SecondDestination'
+        never
       >({ namespace: 'SecondDestination' });
       const handler = jest.fn((input) => input.length);
 
@@ -1197,18 +1197,18 @@ describe('Messenger', () => {
         type: 'Source:getLength';
         handler: (input: string) => string;
       };
-      const sourceMessenger = new Messenger<ExampleAction, never, 'Source'>({
+      const sourceMessenger = new Messenger<'Source', ExampleAction, never>({
         namespace: 'Source',
       });
       const firstDelegatedMessenger = new Messenger<
+        'FirstDestination',
         ExampleAction,
-        never,
-        'FirstDestination'
+        never
       >({ namespace: 'FirstDestination' });
       const secondDelegatedMessenger = new Messenger<
+        'SecondDestination',
         ExampleAction,
-        never,
-        'SecondDestination'
+        never
       >({ namespace: 'SecondDestination' });
       const handler = jest.fn((input) => input.length);
       sourceMessenger.delegate({
@@ -1238,13 +1238,13 @@ describe('Messenger', () => {
         type: 'Source:getLength';
         handler: (input: string) => string;
       };
-      const sourceMessenger = new Messenger<ExampleAction, never, 'Source'>({
+      const sourceMessenger = new Messenger<'Source', ExampleAction, never>({
         namespace: 'Source',
       });
       const delegatedMessenger = new Messenger<
+        'Destination',
         ExampleAction,
-        never,
-        'Destination'
+        never
       >({ namespace: 'Destination' });
 
       expect(() =>

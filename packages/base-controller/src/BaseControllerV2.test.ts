@@ -39,9 +39,9 @@ export const countControllerStateMetadata = {
 };
 
 type CountMessenger = Messenger<
+  typeof countControllerName,
   CountControllerAction,
-  CountControllerEvent,
-  typeof countControllerName
+  CountControllerEvent
 >;
 
 /**
@@ -106,9 +106,9 @@ const messagesControllerStateMetadata = {
 };
 
 type MessagesMessenger = Messenger<
+  typeof messagesControllerName,
   MessagesControllerAction,
-  MessagesControllerEvent,
-  typeof messagesControllerName
+  MessagesControllerEvent
 >;
 
 /**
@@ -969,9 +969,9 @@ describe('getPersistentState', () => {
     };
 
     type VisitorMessenger = Messenger<
+          typeof visitorName,
       VisitorControllerActions,
-      VisitorControllerEvents,
-      typeof visitorName
+      VisitorControllerEvents
     >;
     class VisitorController extends BaseController<
       typeof visitorName,
@@ -1037,11 +1037,11 @@ describe('getPersistentState', () => {
     };
 
     type VisitorOverflowMessenger = Messenger<
+      typeof visitorOverflowName,
       | VisitorOverflowControllerActions
       | VisitorOverflowControllerDelegatedActions,
       | VisitorOverflowControllerEvents
-      | VisitorOverflowControllerDelegatedEvents,
-      typeof visitorOverflowName
+      | VisitorOverflowControllerDelegatedEvents
     >;
 
     class VisitorOverflowController extends BaseController<
@@ -1086,41 +1086,41 @@ describe('getPersistentState', () => {
     }
 
     it('should allow messaging between controllers', () => {
-      const messenger = new Messenger<
+      const globalMessenger = new Messenger<
+        'Global',
         VisitorControllerActions | VisitorOverflowControllerActions,
-        VisitorControllerEvents | VisitorOverflowControllerEvents,
-        'Global'
+        VisitorControllerEvents | VisitorOverflowControllerEvents
       >({ namespace: 'Global' });
       const visitorControllerMessenger = new Messenger<
+        typeof visitorName,
         VisitorControllerActions,
-        VisitorControllerEvents,
-        typeof visitorName
+        VisitorControllerEvents
       >({
         namespace: visitorName,
       });
       visitorControllerMessenger.delegate({
         actions: ['VisitorController:clear'],
         events: ['VisitorController:stateChange'],
-        messenger,
+        messenger: globalMessenger,
       });
       const visitorController = new VisitorController(
         visitorControllerMessenger,
       );
       const visitorOverflowControllerMessenger = new Messenger<
+        typeof visitorOverflowName,
         | VisitorOverflowControllerActions
         | VisitorOverflowControllerDelegatedActions,
         | VisitorOverflowControllerEvents
-        | VisitorOverflowControllerDelegatedEvents,
-        typeof visitorOverflowName
+        | VisitorOverflowControllerDelegatedEvents
       >({
         namespace: visitorOverflowName,
       });
       visitorOverflowControllerMessenger.delegate({
         actions: ['VisitorOverflowController:updateMax'],
         events: ['VisitorOverflowController:stateChange'],
-        messenger,
+        messenger: globalMessenger,
       });
-      messenger.delegate({
+      globalMessenger.delegate({
         actions: ['VisitorController:clear'],
         events: ['VisitorController:stateChange'],
         messenger: visitorOverflowControllerMessenger,
@@ -1129,7 +1129,7 @@ describe('getPersistentState', () => {
         visitorOverflowControllerMessenger,
       );
 
-      messenger.call('VisitorOverflowController:updateMax', 2);
+      globalMessenger.call('VisitorOverflowController:updateMax', 2);
       visitorController.addVisitor('A');
       visitorController.addVisitor('B');
       visitorController.addVisitor('C'); // this should trigger an overflow

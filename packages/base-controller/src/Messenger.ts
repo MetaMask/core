@@ -107,9 +107,8 @@ export type NamespacedName<Namespace extends string = string> =
 type DelegatedMessenger<
   Action extends ActionConstraint,
   Event extends EventConstraint,
-  Namespace extends string = string,
 > = Pick<
-  Messenger<Action | ActionConstraint, Event | EventConstraint, Namespace>,
+  Messenger<string, Action | ActionConstraint, Event | EventConstraint>,
   | 'publishDelegated'
   | 'registerDelegatedActionHandler'
   | 'registerDelegatedInitialEventPayload'
@@ -129,9 +128,9 @@ type DelegatedMessenger<
  * @template Namespace - The namespace for the messenger.
  */
 export class Messenger<
+  Namespace extends string,
   Action extends ActionConstraint,
   Event extends EventConstraint,
-  Namespace extends string,
 > {
   readonly #namespace: Namespace;
 
