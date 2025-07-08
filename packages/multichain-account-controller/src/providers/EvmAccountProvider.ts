@@ -1,19 +1,12 @@
-import type { AccountId } from '@metamask/accounts-controller';
 import { EthAccountType, type EntropySourceId } from '@metamask/keyring-api';
-import {
-  KeyringTypes,
-  type KeyringMetadata,
-  type KeyringSelector,
-} from '@metamask/keyring-controller';
+import { KeyringTypes } from '@metamask/keyring-controller';
 import type {
   EthKeyring,
   InternalAccount,
 } from '@metamask/keyring-internal-api';
-import type { AccountProvider } from '@metamask/multichain-account-api';
 import type { Hex } from '@metamask/utils';
 
 import { BaseAccountProvider } from './BaseAccountProvider';
-import type { MultichainAccountControllerMessenger } from '../types';
 
 // Max index used by discovery (until we move the proper discovery here).
 const MAX_GROUP_INDEX = 1;
