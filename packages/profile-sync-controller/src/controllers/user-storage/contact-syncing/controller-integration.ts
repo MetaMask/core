@@ -10,7 +10,7 @@ import {
 } from './utils';
 import { isContactBridgedFromAccounts } from './utils';
 import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
-import { TraceName } from '../constants/traces';
+import { TraceName } from '../constants';
 
 export type SyncContactsWithUserStorageConfig = {
   onContactSyncErroneousSituation?: (
@@ -69,6 +69,10 @@ export async function syncContactsWithUserStorage(
   if (!canPerformContactSyncing(options)) {
     return;
   }
+
+  // NOTE: Pre-sync operations (canPerformContactSyncing, AddressBookController:list, getRemoteContacts)
+  // are intentionally outside try-catch to let errors bubble up to Sentry for better debugging.
+  // Only "erroneous situation" errors during sync logic itself should be caught.
 
   // Get all local contacts from AddressBookController (exclude chain "*" contacts)
   const localVisibleContacts =

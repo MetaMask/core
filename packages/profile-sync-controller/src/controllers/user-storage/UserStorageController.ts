@@ -424,6 +424,7 @@ export default class UserStorageController extends BaseController<
 
     this.#env.isNetworkSyncingEnabled = Boolean(env?.isNetworkSyncingEnabled);
     this.#config = config;
+    // NOTE: Fallback trace function may not handle async operations correctly, but works in practice
     this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
 
     this.#userStorage = new UserStorage(

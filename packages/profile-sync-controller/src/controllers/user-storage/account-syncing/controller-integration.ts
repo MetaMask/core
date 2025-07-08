@@ -12,7 +12,7 @@ import {
   mapInternalAccountToUserStorageAccount,
 } from './utils';
 import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
-import { TraceName } from '../constants/traces';
+import { TraceName } from '../constants';
 
 /**
  * Saves an individual internal account to the user storage.
