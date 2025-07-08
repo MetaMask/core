@@ -83,6 +83,7 @@ export const ChainConfigurationSchema = type({
   topAssets: optional(array(string())),
   isUnifiedUIEnabled: optional(boolean()),
   isSnapConfirmationEnabled: optional(boolean()),
+  isSingleSwapBridgeButtonEnabled: optional(boolean()),
 });
 
 /**
