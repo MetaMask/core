@@ -2616,11 +2616,7 @@ describe('TokenDetectionController', () => {
             category: 'Wallet',
             properties: {
               tokens: [`${sampleTokenA.symbol} - ${sampleTokenA.address}`],
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
               token_standard: 'ERC20',
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
               asset_type: 'TOKEN',
             },
           });
