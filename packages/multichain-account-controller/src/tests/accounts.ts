@@ -166,6 +166,11 @@ export class MockAccountBuilder {
     return this;
   }
 
+  withAddressSuffix(suffix: string) {
+    this.#account.address += suffix;
+    return this;
+  }
+
   withEntropySource(entropySource: EntropySourceId) {
     this.#account.options.entropySource = entropySource;
     return this;
