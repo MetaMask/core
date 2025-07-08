@@ -82,6 +82,7 @@ export const ChainConfigurationSchema = type({
   refreshRate: optional(number()),
   topAssets: optional(array(string())),
   isUnifiedUIEnabled: optional(boolean()),
+  isSingleSwapBridgeButtonEnabled: optional(boolean()),
 });
 
 /**
