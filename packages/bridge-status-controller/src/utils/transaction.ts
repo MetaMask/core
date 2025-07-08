@@ -177,38 +177,6 @@ export const handleLineaDelay = async (
   }
 };
 
-export const getKeyringRequest = (
-  quoteResponse: Omit<QuoteResponse<string>, 'approval'> & QuoteMetadata,
-  selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
-) => {
-  const keyringReqId = uuid();
-  const snapRequestId = uuid();
-
-  return {
-    origin: 'metamask',
-    snapId: selectedAccount.metadata.snap?.id as never,
-    handler: 'onKeyringRequest' as never,
-    request: {
-      id: keyringReqId,
-      jsonrpc: '2.0',
-      method: 'keyring_submitRequest',
-      params: {
-        request: {
-          params: {
-            account: { address: selectedAccount.address },
-            transaction: quoteResponse.trade,
-            scope: SolScope.Mainnet,
-          },
-          method: 'signAndSendTransaction',
-        },
-        id: snapRequestId,
-        account: selectedAccount.id,
-        scope: SolScope.Mainnet,
-      },
-    },
-  };
-};
-
 export const getClientRequest = (
   quoteResponse: Omit<QuoteResponse<string>, 'approval'> & QuoteMetadata,
   selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
