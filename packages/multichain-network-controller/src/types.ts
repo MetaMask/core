@@ -35,7 +35,9 @@ export type MultichainNetworkMetadata = {
 export type SupportedCaipChainId =
   | BtcScope.Mainnet
   | BtcScope.Testnet
+  | BtcScope.Testnet4
   | BtcScope.Signet
+  | BtcScope.Regtest
   | SolScope.Mainnet
   | SolScope.Testnet
   | SolScope.Devnet;

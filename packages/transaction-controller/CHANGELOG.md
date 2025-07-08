@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Add peer dependency `@metamask/profile-sync-controller`
 - **BREAKING:** Add `profileId`-based rate limiting support for Accounts API calls
   - Use `AuthenticationController:getBearerToken` in order to get a bearer token that gets attached to every request to the Accounts API
+- Add fallback to the sequential hook when `publishBatchHook` returns empty ([#6063](https://github.com/MetaMask/core/pull/6063))
 
 ## [58.1.1]
 
