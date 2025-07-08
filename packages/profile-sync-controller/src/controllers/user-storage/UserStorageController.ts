@@ -535,7 +535,7 @@ export default class UserStorageController extends BaseController<
   ): Promise<string | null> {
     return await this.#userStorage.getItem(path, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
-      validateAgainstSchema: true,
+      validateAgainstSchema: false,
       entropySourceId,
     });
   }
@@ -554,7 +554,7 @@ export default class UserStorageController extends BaseController<
   ): Promise<string[] | null> {
     return await this.#userStorage.getAllFeatureItems(path, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
-      validateAgainstSchema: true,
+      validateAgainstSchema: false,
       entropySourceId,
     });
   }
@@ -575,7 +575,7 @@ export default class UserStorageController extends BaseController<
   ): Promise<void> {
     return await this.#userStorage.setItem(path, value, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
-      validateAgainstSchema: true,
+      validateAgainstSchema: false,
       entropySourceId,
     });
   }
@@ -598,7 +598,7 @@ export default class UserStorageController extends BaseController<
   ): Promise<void> {
     return await this.#userStorage.batchSetItems(path, values, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
-      validateAgainstSchema: true,
+      validateAgainstSchema: false,
       entropySourceId,
     });
   }
@@ -616,7 +616,7 @@ export default class UserStorageController extends BaseController<
   ): Promise<void> {
     return await this.#userStorage.deleteItem(path, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
-      validateAgainstSchema: true,
+      validateAgainstSchema: false,
       entropySourceId,
     });
   }
