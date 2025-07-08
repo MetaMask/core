@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Remove schema enforcement for user storage paths. This will improve DX by preventing developers from having to update the schema before using the SDK or Controllers for their features.
+
 ## [20.0.0]
 
 ### Added

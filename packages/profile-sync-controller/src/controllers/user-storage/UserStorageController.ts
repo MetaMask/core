@@ -49,12 +49,12 @@ import {
   performMainNetworkSync,
   startNetworkSyncing,
 } from './network-syncing/controller-integration';
+import type {
+  UserStorageGenericFeatureKey,
+  UserStorageGenericPathWithFeatureAndKey,
+  UserStorageGenericPathWithFeatureOnly,
+} from '../../sdk';
 import { Env, UserStorage } from '../../sdk';
-import type { UserStorageFeatureKeys } from '../../shared/storage-schema';
-import {
-  type UserStoragePathWithFeatureAndKey,
-  type UserStoragePathWithFeatureOnly,
-} from '../../shared/storage-schema';
 import type { NativeScrypt } from '../../shared/types/encryption';
 import { EventQueue } from '../../shared/utils/event-queue';
 import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests';
@@ -530,12 +530,11 @@ export default class UserStorageController extends BaseController<
    * @returns the decrypted string contents found from user storage (or null if not found)
    */
   public async performGetStorage(
-    path: UserStoragePathWithFeatureAndKey,
+    path: UserStorageGenericPathWithFeatureAndKey,
     entropySourceId?: string,
   ): Promise<string | null> {
     return await this.#userStorage.getItem(path, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
-      validateAgainstSchema: true,
       entropySourceId,
     });
   }
@@ -549,12 +548,11 @@ export default class UserStorageController extends BaseController<
    * @returns the array of decrypted string contents found from user storage (or null if not found)
    */
   public async performGetStorageAllFeatureEntries(
-    path: UserStoragePathWithFeatureOnly,
+    path: UserStorageGenericPathWithFeatureOnly,
     entropySourceId?: string,
   ): Promise<string[] | null> {
     return await this.#userStorage.getAllFeatureItems(path, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
-      validateAgainstSchema: true,
       entropySourceId,
     });
   }
@@ -569,13 +567,12 @@ export default class UserStorageController extends BaseController<
    * @returns nothing. NOTE that an error is thrown if fails to store data.
    */
   public async performSetStorage(
-    path: UserStoragePathWithFeatureAndKey,
+    path: UserStorageGenericPathWithFeatureAndKey,
     value: string,
     entropySourceId?: string,
   ): Promise<void> {
     return await this.#userStorage.setItem(path, value, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
-      validateAgainstSchema: true,
       entropySourceId,
     });
   }
@@ -589,16 +586,13 @@ export default class UserStorageController extends BaseController<
    * @param entropySourceId - The entropy source ID used to generate the encryption key.
    * @returns nothing. NOTE that an error is thrown if fails to store data.
    */
-  public async performBatchSetStorage<
-    FeatureName extends UserStoragePathWithFeatureOnly,
-  >(
-    path: FeatureName,
-    values: [UserStorageFeatureKeys<FeatureName>, string][],
+  public async performBatchSetStorage(
+    path: UserStorageGenericPathWithFeatureOnly,
+    values: [UserStorageGenericFeatureKey, string][],
     entropySourceId?: string,
   ): Promise<void> {
     return await this.#userStorage.batchSetItems(path, values, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
-      validateAgainstSchema: true,
       entropySourceId,
     });
   }
@@ -611,12 +605,11 @@ export default class UserStorageController extends BaseController<
    * @returns nothing. NOTE that an error is thrown if fails to delete data.
    */
   public async performDeleteStorage(
-    path: UserStoragePathWithFeatureAndKey,
+    path: UserStorageGenericPathWithFeatureAndKey,
     entropySourceId?: string,
   ): Promise<void> {
     return await this.#userStorage.deleteItem(path, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
-      validateAgainstSchema: true,
       entropySourceId,
     });
   }
@@ -630,7 +623,7 @@ export default class UserStorageController extends BaseController<
    * @returns nothing. NOTE that an error is thrown if fails to delete data.
    */
   public async performDeleteStorageAllFeatureEntries(
-    path: UserStoragePathWithFeatureOnly,
+    path: UserStorageGenericPathWithFeatureOnly,
     entropySourceId?: string,
   ): Promise<void> {
     return await this.#userStorage.deleteAllFeatureItems(path, {
@@ -648,11 +641,9 @@ export default class UserStorageController extends BaseController<
    * @param entropySourceId - The entropy source ID used to generate the encryption key.
    * @returns nothing. NOTE that an error is thrown if fails to store data.
    */
-  public async performBatchDeleteStorage<
-    FeatureName extends UserStoragePathWithFeatureOnly,
-  >(
-    path: FeatureName,
-    values: UserStorageFeatureKeys<FeatureName>[],
+  public async performBatchDeleteStorage(
+    path: UserStorageGenericPathWithFeatureOnly,
+    values: UserStorageGenericFeatureKey[],
     entropySourceId?: string,
   ): Promise<void> {
     return await this.#userStorage.batchDeleteItems(path, values, {
