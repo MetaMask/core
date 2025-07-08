@@ -150,6 +150,7 @@ function createASTVisitor(context: VisitorContext) {
         context.className = classText;
 
         // Extract method info for exposed methods
+        const seenMethods = new Set<string>();
         for (const member of node.members) {
           if (
             ts.isMethodDeclaration(member) &&
@@ -157,7 +158,11 @@ function createASTVisitor(context: VisitorContext) {
             ts.isIdentifier(member.name)
           ) {
             const methodName = member.name.text;
-            if (context.exposedMethods.includes(methodName)) {
+            if (
+              context.exposedMethods.includes(methodName) &&
+              !seenMethods.has(methodName)
+            ) {
+              seenMethods.add(methodName);
               const jsDoc = extractJSDoc(member, context.sourceFile);
               const signature = extractMethodSignature(member);
               context.methods.push({
@@ -241,10 +246,46 @@ function extractJSDoc(
     const fullText = sourceFile.getFullText();
     const start = jsDoc.getFullStart();
     const end = jsDoc.getEnd();
-    return fullText.substring(start, end).trim();
+    const rawJsDoc = fullText.substring(start, end).trim();
+    return formatJSDoc(rawJsDoc);
   }
 
   return '';
+}
+
+/**
+ * Formats JSDoc comments to have consistent indentation for the generated file.
+ *
+ * @param rawJsDoc - The raw JSDoc comment from the source.
+ * @returns The formatted JSDoc comment.
+ */
+function formatJSDoc(rawJsDoc: string): string {
+  const lines = rawJsDoc.split('\n');
+  const formattedLines: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (i === 0) {
+      // First line should be /**
+      formattedLines.push('/**');
+    } else if (i === lines.length - 1) {
+      // Last line should be */
+      formattedLines.push(' */');
+    } else {
+      // Middle lines should start with ' * '
+      const trimmed = line.trim();
+      if (trimmed.startsWith('*')) {
+        // Remove existing * and normalize
+        const content = trimmed.substring(1).trim();
+        formattedLines.push(content ? ` * ${content}` : ' *');
+      } else {
+        // Handle lines that don't start with *
+        formattedLines.push(trimmed ? ` * ${trimmed}` : ' *');
+      }
+    }
+  }
+
+  return formattedLines.join('\n');
 }
 
 /**

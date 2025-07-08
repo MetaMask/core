@@ -24,6 +24,13 @@ export type NetworkControllerGetSelectedChainIdAction = {
   handler: NetworkController['getSelectedChainId'];
 };
 
+/**
+ * Returns the Infura network client with the given ID.
+ *
+ * @param infuraNetworkClientId - An Infura network client ID.
+ * @returns The Infura network client.
+ * @throws If an Infura network client does not exist with the given ID.
+ */
 export type NetworkControllerGetNetworkClientByIdAction = {
   type: `NetworkController:getNetworkClientById`;
   handler: NetworkController['getNetworkClientById'];
@@ -166,3 +173,4 @@ export type NetworkControllerFindNetworkClientIdByChainIdAction = {
   type: `NetworkController:findNetworkClientIdByChainId`;
   handler: NetworkController['findNetworkClientIdByChainId'];
 };
+

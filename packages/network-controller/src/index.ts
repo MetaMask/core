@@ -22,6 +22,7 @@ export type {
   NetworkControllerEvents,
   NetworkControllerGetStateAction,
   NetworkControllerGetEthQueryAction,
+  NetworkControllerGetNetworkConfigurationByNetworkClientId,
   NetworkControllerActions,
   NetworkControllerMessenger,
   NetworkControllerOptions,
@@ -40,7 +41,7 @@ export type {
   NetworkControllerAddNetworkAction,
   NetworkControllerRemoveNetworkAction,
   NetworkControllerUpdateNetworkAction,
-  NetworkControllerGetNetworkConfigurationByNetworkClientIdAction as NetworkControllerGetNetworkConfigurationByNetworkClientId,
+  NetworkControllerGetNetworkConfigurationByNetworkClientIdAction,
 } from './NetworkController-method-action-types';
 export {
   getDefaultNetworkControllerState,

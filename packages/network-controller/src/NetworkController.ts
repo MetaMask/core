@@ -516,6 +516,14 @@ export type NetworkControllerGetEthQueryAction = {
   handler: () => EthQuery | undefined;
 };
 
+/**
+ * @deprecated Use NetworkControllerGetNetworkConfigurationByNetworkClientIdAction instead
+ */
+export type NetworkControllerGetNetworkConfigurationByNetworkClientId = {
+  type: `NetworkController:getNetworkConfigurationByNetworkClientId`;
+  handler: NetworkController['getNetworkConfigurationByNetworkClientId'];
+};
+
 // Define the methods we want to expose via the messenger
 const MESSENGER_EXPOSED_METHODS = [
   'getNetworkClientById',

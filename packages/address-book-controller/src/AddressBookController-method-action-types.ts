@@ -40,3 +40,4 @@ export type AddressBookControllerSetAction = {
   type: `AddressBookController:set`;
   handler: AddressBookController['set'];
 };
+
