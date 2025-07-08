@@ -13,12 +13,10 @@ import {
   getActionType,
   formatChainIdToCaip,
   isCrossChain,
-  getBridgeFeatureFlags,
   isHardwareWallet,
 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { toHex } from '@metamask/controller-utils';
-import { SolScope } from '@metamask/keyring-api';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type {
   TransactionController,
@@ -66,7 +64,6 @@ import {
   findAndUpdateTransactionsInBatch,
   getAddTransactionBatchParams,
   getClientRequest,
-  getKeyringRequest,
   getStatusRequestParams,
   getUSDTAllowanceResetTx,
   handleLineaDelay,
@@ -600,11 +597,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       );
     }
 
-    const bridgeFeatureFlags = getBridgeFeatureFlags(this.messagingSystem);
-    const request = bridgeFeatureFlags?.chains?.[SolScope.Mainnet]
-      ?.isSnapConfirmationEnabled
-      ? getKeyringRequest(quoteResponse, selectedAccount)
-      : getClientRequest(quoteResponse, selectedAccount);
+    const request = getClientRequest(quoteResponse, selectedAccount);
     const requestResponse = (await this.messagingSystem.call(
       'SnapController:handleRequest',
       request,
