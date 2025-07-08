@@ -38,6 +38,7 @@ export function getMultichainAccountControllerMessenger(
       'AccountsController:listMultichainAccounts',
       'SnapController:handleRequest',
       'KeyringController:withKeyring',
+      'KeyringController:getState',
     ],
   });
 }

@@ -1,5 +1,6 @@
 import type { Messenger } from '@metamask/base-controller';
 import { EthAccountType, SolAccountType } from '@metamask/keyring-api';
+import type { KeyringObject } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import { MultichainAccountController } from './MultichainAccountController';
@@ -27,17 +28,20 @@ import type {
  *
  * @param options - Configuration options for setup.
  * @param options.messenger - An optional messenger instance to use. Defaults to a new Messenger.
+ * @param options.keyrings - List of keyrings to use.
  * @param options.accounts - List of accounts to use.
  * @returns An object containing the controller instance and the messenger.
  */
 function setup({
   messenger = getRootMessenger(),
+  keyrings = [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
   accounts,
 }: {
   messenger?: Messenger<
     MultichainAccountControllerActions | AllowedActions,
     MultichainAccountControllerEvents | AllowedEvents
   >;
+  keyrings?: KeyringObject[];
   accounts?: InternalAccount[];
 } = {}): {
   controller: MultichainAccountController;
@@ -46,6 +50,11 @@ function setup({
     MultichainAccountControllerEvents | AllowedEvents
   >;
 } {
+  messenger.registerActionHandler('KeyringController:getState', () => ({
+    isUnlocked: true,
+    keyrings,
+  }));
+
   if (accounts) {
     messenger.registerActionHandler(
       'AccountsController:listMultichainAccounts',
@@ -56,6 +65,8 @@ function setup({
   const controller = new MultichainAccountController({
     messenger: getMultichainAccountControllerMessenger(messenger),
   });
+  controller.init();
+
   return { controller, messenger };
 }
 
@@ -127,6 +138,7 @@ describe('MultichainAccountController', () => {
 
     it('throws if trying to access an unknown wallet', () => {
       const { controller } = setup({
+        keyrings: [MOCK_HD_KEYRING_1],
         accounts: [
           // Wallet 1:
           MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
@@ -228,16 +240,20 @@ describe('MultichainAccountController', () => {
         .withUuuid() // Required by KeyringClient.
         .get();
 
-      // Required by the EvmAccountProvider:
-      const mockWithKeyring = jest
-        .fn()
-        .mockResolvedValue(mockNextEvmAccount.address);
+      // Required by the EvmAccountProvider + SolAccountProvider:
+      const mockWithKeyring = jest.fn();
       messenger.registerActionHandler(
         'KeyringController:withKeyring',
         mockWithKeyring,
       );
 
+      // Required by the EvmAccountProvider:
+      mockWithKeyring.mockResolvedValueOnce([mockNextEvmAccount.address]);
+
       // Required by the SolAccountProvider:
+      mockWithKeyring.mockResolvedValueOnce(
+        jest.fn().mockResolvedValue(mockNextSolAccount),
+      );
       const mockHandleRequest = jest.fn().mockResolvedValue(
         MockAccountBuilder.toKeyringAccount(mockNextSolAccount), // Required by KeyringClient.
       );
