@@ -13,7 +13,6 @@ export type NetworkControllerGetSelectedNetworkClientAction = {
   type: `NetworkController:getSelectedNetworkClient`;
   handler: NetworkController['getSelectedNetworkClient'];
 };
-
 /**
  * Accesses the chain ID from the selected network client.
  *
@@ -23,7 +22,6 @@ export type NetworkControllerGetSelectedChainIdAction = {
   type: `NetworkController:getSelectedChainId`;
   handler: NetworkController['getSelectedChainId'];
 };
-
 /**
  * Returns the Infura network client with the given ID.
  *
@@ -35,7 +33,6 @@ export type NetworkControllerGetNetworkClientByIdAction = {
   type: `NetworkController:getNetworkClientById`;
   handler: NetworkController['getNetworkClientById'];
 };
-
 /**
  * Convenience method to update provider network type settings.
  *
@@ -47,7 +44,6 @@ export type NetworkControllerSetProviderTypeAction = {
   type: `NetworkController:setProviderType`;
   handler: NetworkController['setProviderType'];
 };
-
 /**
  * Changes the selected network.
  *
@@ -62,7 +58,6 @@ export type NetworkControllerSetActiveNetworkAction = {
   type: `NetworkController:setActiveNetwork`;
   handler: NetworkController['setActiveNetwork'];
 };
-
 /**
  * Determines whether the network supports EIP-1559 by checking whether the
  * latest block has a `baseFeePerGas` property, then updates state
@@ -76,7 +71,6 @@ export type NetworkControllerGetEIP1559CompatibilityAction = {
   type: `NetworkController:getEIP1559Compatibility`;
   handler: NetworkController['getEIP1559Compatibility'];
 };
-
 /**
  * Returns the network configuration that has been filed under the given chain
  * ID.
@@ -88,7 +82,6 @@ export type NetworkControllerGetNetworkConfigurationByChainIdAction = {
   type: `NetworkController:getNetworkConfigurationByChainId`;
   handler: NetworkController['getNetworkConfigurationByChainId'];
 };
-
 /**
  * Returns the network configuration that contains an RPC endpoint with the
  * given network client ID.
@@ -100,7 +93,6 @@ export type NetworkControllerGetNetworkConfigurationByNetworkClientIdAction = {
   type: `NetworkController:getNetworkConfigurationByNetworkClientId`;
   handler: NetworkController['getNetworkConfigurationByNetworkClientId'];
 };
-
 /**
  * Creates and registers network clients for the collection of Infura and
  * custom RPC endpoints that can be used to make requests for a particular
@@ -116,7 +108,6 @@ export type NetworkControllerAddNetworkAction = {
   type: `NetworkController:addNetwork`;
   handler: NetworkController['addNetwork'];
 };
-
 /**
  * Updates the configuration for a previously stored network filed under the
  * given chain ID, creating + registering new network clients to represent RPC
@@ -145,7 +136,6 @@ export type NetworkControllerUpdateNetworkAction = {
   type: `NetworkController:updateNetwork`;
   handler: NetworkController['updateNetwork'];
 };
-
 /**
  * Destroys and unregisters the network identified by the given chain ID, also
  * removing the associated network configuration from state.
@@ -159,7 +149,6 @@ export type NetworkControllerRemoveNetworkAction = {
   type: `NetworkController:removeNetwork`;
   handler: NetworkController['removeNetwork'];
 };
-
 /**
  * Searches for the default RPC endpoint configured for the given chain and
  * returns its network client ID. This can then be passed to
@@ -173,4 +162,3 @@ export type NetworkControllerFindNetworkClientIdByChainIdAction = {
   type: `NetworkController:findNetworkClientIdByChainId`;
   handler: NetworkController['findNetworkClientIdByChainId'];
 };
-

@@ -349,12 +349,10 @@ import type { ${controller.name} } from '${controllerImportPath}';
     content += `export type ${actionTypeName} = {
   type: \`${actionString}\`;
   handler: ${controller.name}['${method.name}'];
-};
-
-`;
+};\n`;
   }
 
-  return content;
+  return `${content.trimEnd()}\n`;
 }
 
 /**

@@ -13,7 +13,6 @@ export type AddressBookControllerListAction = {
   type: `AddressBookController:list`;
   handler: AddressBookController['list'];
 };
-
 /**
  * Remove a contract entry by address.
  *
@@ -25,7 +24,6 @@ export type AddressBookControllerDeleteAction = {
   type: `AddressBookController:delete`;
   handler: AddressBookController['delete'];
 };
-
 /**
  * Add or update a contact entry by address.
  *
@@ -40,4 +38,3 @@ export type AddressBookControllerSetAction = {
   type: `AddressBookController:set`;
   handler: AddressBookController['set'];
 };
-
