@@ -635,6 +635,7 @@ export default class UserStorageController extends BaseController<
   ): Promise<void> {
     return await this.#userStorage.deleteAllFeatureItems(path, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
+      validateAgainstSchema: false,
       entropySourceId,
     });
   }
@@ -657,6 +658,7 @@ export default class UserStorageController extends BaseController<
   ): Promise<void> {
     return await this.#userStorage.batchDeleteItems(path, values, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
+      validateAgainstSchema: false,
       entropySourceId,
     });
   }
