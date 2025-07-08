@@ -78,7 +78,7 @@ export abstract class BaseAccountProvider
   }
 
   #getAccounts(
-    filter: (account: InternalAccount) => boolean = () => true,
+    filter: (account: InternalAccount) => boolean,
   ): Bip44Account<InternalAccount>[] {
     const accounts: Bip44Account<InternalAccount>[] = [];
 
