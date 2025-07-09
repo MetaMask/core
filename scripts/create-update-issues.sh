@@ -11,7 +11,7 @@ run-create-issue-command() {
 
   if [[ $dry_run -eq 1 ]]; then
     if [[ -n $labels ]]; then
-      echo "> gh issue create --title \"$title\" --body \"$body\" --repo \"$repo\" --label \"$labels"\"
+      echo "> gh issue create --title \"$title\" --body \"$body\" --repo \"$repo\" --label \"$labels\""
     else
       echo "> gh issue create --title \"$title\" --body \"$body\" --repo \"$repo\""
     fi
