@@ -10,9 +10,17 @@ run-create-issue-command() {
   local labels="$5"
 
   if [[ $dry_run -eq 1 ]]; then
-    echo "> gh issue create --title \"$title\" --body \"$body\" --repo \"$repo\" --label \"$labels"\"
+    if [[ -n $labels ]]; then
+      echo "> gh issue create --title \"$title\" --body \"$body\" --repo \"$repo\" --label \"$labels"\"
+    else
+      echo "> gh issue create --title \"$title\" --body \"$body\" --repo \"$repo\""
+    fi
   else
-    gh issue create --title "$title" --body "$body" --repo "$repo" --label "$labels"
+    if [[ -n $labels ]]; then
+      gh issue create --title "$title" --body "$body" --repo "$repo" --label "$labels"
+    else
+      gh issue create --title "$title" --body "$body" --repo "$repo"
+    fi
   fi
 }
 
@@ -87,7 +95,7 @@ main() {
   local full_ref="$(git rev-parse "$ref")"
 
   echo "Looking for release tags pointing to $full_ref for major-bumped packages..."
-  IFS=$'\n' read -r -d '' -a tag_array < <(git tag --points-at "$full_ref" | grep -E '^@metamask/[a-z0-9-]+@\d+\.0\.0$' && printf '\0')
+  IFS=$'\n' read -r -d '' -a tag_array < <(git tag --points-at "$full_ref" | grep -E '^@metamask/[a-z0-9-]+@[0-9]+\.0\.0$' && printf '\0')
 
   if [[ "${#tag_array[@]}" -eq 0 ]]; then
     echo "No tags to process, nothing to do."
