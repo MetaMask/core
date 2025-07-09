@@ -9,7 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **BREAKING**: Remove schema enforcement for user storage paths. This will improve DX by preventing developers from having to update the schema before using the SDK or Controllers for their features.
+- **BREAKING**: Remove schema enforcement for user storage paths ([#6075](https://github.com/MetaMask/core/pull/6075))
+  - This will improve DX by preventing developers from having to update the schema before using the SDK or Controllers for their features.
+- **BREAKING**: Remove network syncing code ([#6068](https://github.com/MetaMask/core/pull/6068))
+  - This code has never been used in production, and won't likely be used in the future
+  - Remove `@metamask/network-controller` dependency and peerDependency
 
 ## [20.0.0]
 
