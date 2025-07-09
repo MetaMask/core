@@ -5,8 +5,8 @@ DEFAULT_LABEL="client-controller-update"
 run-create-issue-command() {
   local dry_run="$1"
   local repo="$2"
-  local package_name="$3"
-  local version="$4"
+  local title="$3"
+  local body="$4"
   local labels="$5"
 
   if [[ $dry_run -eq 1 ]]; then
@@ -30,13 +30,13 @@ create-issue() {
 
   local exitcode
 
-  run-create-issue-command "$dry_run" "$repo" "$package_name" "$version" "$labels"
+  run-create-issue-command "$dry_run" "$repo" "$title" "$body" "$labels"
   exitcode=$?
 
   if [[ $exitcode -ne 0 ]]; then
     echo "That didn't work, trying to create issue in ${repo} for ${package_name} ${version} without labels"
 
-    run-create-issue-command "$dry_run" "$repo" "$package_name" "$version"
+    run-create-issue-command "$dry_run" "$repo" "$title" "$body"
     exitcode=$?
   fi
 
