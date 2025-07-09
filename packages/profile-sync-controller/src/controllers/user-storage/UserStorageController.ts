@@ -38,18 +38,11 @@ import { setupAccountSyncingSubscriptions } from './account-syncing/setup-subscr
 import { BACKUPANDSYNC_FEATURES } from './constants';
 import { syncContactsWithUserStorage } from './contact-syncing/controller-integration';
 import { setupContactSyncingSubscriptions } from './contact-syncing/setup-subscriptions';
-<<<<<<< Updated upstream
-import {
-  performMainNetworkSync,
-  startNetworkSyncing,
-} from './network-syncing/controller-integration';
 import type {
   UserStorageGenericFeatureKey,
   UserStorageGenericPathWithFeatureAndKey,
   UserStorageGenericPathWithFeatureOnly,
 } from '../../sdk';
-=======
->>>>>>> Stashed changes
 import { Env, UserStorage } from '../../sdk';
 import type { NativeScrypt } from '../../shared/types/encryption';
 import { EventQueue } from '../../shared/utils/event-queue';

@@ -13,30 +13,6 @@ export const USER_STORAGE_FEATURE_NAMES = {
   notifications: 'notifications',
   accounts: 'accounts_v2',
   addressBook: 'addressBook',
-<<<<<<< Updated upstream
-=======
-} as const;
-
-export type UserStorageFeatureNames =
-  (typeof USER_STORAGE_FEATURE_NAMES)[keyof typeof USER_STORAGE_FEATURE_NAMES];
-
-export const USER_STORAGE_SCHEMA = {
-  [USER_STORAGE_FEATURE_NAMES.notifications]: ['notification_settings'],
-  [USER_STORAGE_FEATURE_NAMES.accounts]: [ALLOW_ARBITRARY_KEYS], // keyed by account addresses
-  [USER_STORAGE_FEATURE_NAMES.addressBook]: [ALLOW_ARBITRARY_KEYS], // keyed by address_chainId
-} as const;
-
-type UserStorageSchema = typeof USER_STORAGE_SCHEMA;
-
-export type UserStorageFeatureKeys<Feature extends UserStorageFeatureNames> =
-  UserStorageSchema[Feature][0] extends typeof ALLOW_ARBITRARY_KEYS
-    ? string
-    : UserStorageSchema[Feature][number];
-
-type UserStorageFeatureAndKey = {
-  feature: UserStorageFeatureNames;
-  key: UserStorageFeatureKeys<UserStorageFeatureNames>;
->>>>>>> Stashed changes
 };
 
 export type UserStorageGenericFeatureName = string;
