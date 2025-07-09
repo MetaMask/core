@@ -9,7 +9,6 @@ import type {
   KeyringControllerState,
   KeyringControllerStateChangeEvent,
 } from '@metamask/keyring-controller';
-import type { Hex } from '@metamask/utils';
 
 import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants';
 
@@ -141,10 +140,6 @@ export type PreferencesState = {
    * User to opt in for smart account upgrade for all user accounts.
    */
   smartAccountOptIn: boolean;
-  /**
-   * User to opt in for smart account upgrade for specific accounts.
-   */
-  smartAccountOptInForAccounts: Hex[];
 };
 
 const metadata = {
@@ -169,7 +164,6 @@ const metadata = {
   privacyMode: { persist: true, anonymous: true },
   dismissSmartAccountSuggestionEnabled: { persist: true, anonymous: true },
   smartAccountOptIn: { persist: true, anonymous: true },
-  smartAccountOptInForAccounts: { persist: true, anonymous: true },
 };
 
 const name = 'PreferencesController';
@@ -252,7 +246,6 @@ export function getDefaultPreferencesState(): PreferencesState {
     privacyMode: false,
     dismissSmartAccountSuggestionEnabled: false,
     smartAccountOptIn: true,
-    smartAccountOptInForAccounts: [],
   };
 }
 
@@ -628,18 +621,6 @@ export class PreferencesController extends BaseController<
   setSmartAccountOptIn(smartAccountOptIn: boolean) {
     this.update((state) => {
       state.smartAccountOptIn = smartAccountOptIn;
-    });
-  }
-
-  /**
-   * Add account to list of accounts for which user has optedin
-   * smart account upgrade.
-   *
-   * @param accounts - accounts for which user wants to optin for smart account upgrade
-   */
-  setSmartAccountOptInForAccounts(accounts: Hex[] = []): void {
-    this.update((state) => {
-      state.smartAccountOptInForAccounts = accounts;
     });
   }
 }
