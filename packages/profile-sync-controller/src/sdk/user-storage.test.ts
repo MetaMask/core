@@ -1,3 +1,5 @@
+import type { UserStorageGenericFeatureKey } from 'src/shared/storage-schema';
+
 import { arrangeAuthAPIs } from './__fixtures__/auth';
 import { arrangeAuth, typedMockFn } from './__fixtures__/test-utils';
 import {
@@ -21,7 +23,6 @@ import encryption, { createSHA256Hash } from '../shared/encryption';
 import { SHARED_SALT } from '../shared/encryption/constants';
 import { Env } from '../shared/env';
 import { USER_STORAGE_FEATURE_NAMES } from '../shared/storage-schema';
-import type { UserStorageFeatureKeys } from '../shared/storage-schema';
 
 const MOCK_SRP = '0x6265617665726275696c642e6f7267';
 const MOCK_ADDRESS = '0x68757d15a4d8d1421c17003512AFce15D3f3FaDa';
@@ -213,10 +214,7 @@ describe('User Storage', () => {
   });
 
   it('batch set items', async () => {
-    const dataToStore: [
-      UserStorageFeatureKeys<typeof USER_STORAGE_FEATURE_NAMES.accounts>,
-      string,
-    ][] = [
+    const dataToStore: [UserStorageGenericFeatureKey, string][] = [
       ['0x123', JSON.stringify(MOCK_NOTIFICATIONS_DATA)],
       ['0x456', JSON.stringify(MOCK_NOTIFICATIONS_DATA)],
     ];
@@ -366,9 +364,7 @@ describe('User Storage', () => {
   });
 
   it('user storage: batch delete items', async () => {
-    const keysToDelete: UserStorageFeatureKeys<
-      typeof USER_STORAGE_FEATURE_NAMES.accounts
-    >[] = ['0x123', '0x456'];
+    const keysToDelete: UserStorageGenericFeatureKey[] = ['0x123', '0x456'];
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
     const { userStorage } = arrangeUserStorage(auth);
 
