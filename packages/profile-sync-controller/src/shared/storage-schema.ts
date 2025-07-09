@@ -12,7 +12,6 @@ import { createSHA256Hash } from './encryption';
 export const USER_STORAGE_FEATURE_NAMES = {
   notifications: 'notifications',
   accounts: 'accounts_v2',
-  networks: 'networks',
   addressBook: 'addressBook',
 };
 
