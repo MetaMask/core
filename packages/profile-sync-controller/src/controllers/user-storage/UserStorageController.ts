@@ -20,7 +20,11 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import type { TraceCallback } from '@metamask/controller-utils';
+import type {
+  TraceCallback,
+  TraceContext,
+  TraceRequest,
+} from '@metamask/controller-utils';
 import {
   KeyringTypes,
   type KeyringControllerGetStateAction,
@@ -424,8 +428,17 @@ export default class UserStorageController extends BaseController<
 
     this.#env.isNetworkSyncingEnabled = Boolean(env?.isNetworkSyncingEnabled);
     this.#config = config;
-    // NOTE: Fallback trace function may not handle async operations correctly, but works in practice
-    this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
+    this.#trace =
+      trace ??
+      (async <ReturnType>(
+        _request: TraceRequest,
+        fn?: (context?: TraceContext) => ReturnType,
+      ): Promise<ReturnType> => {
+        if (!fn) {
+          return undefined as ReturnType;
+        }
+        return await Promise.resolve(fn());
+      });
 
     this.#userStorage = new UserStorage(
       {
