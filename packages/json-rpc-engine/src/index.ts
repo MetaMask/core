@@ -1,11 +1,12 @@
+// Legacy
 export type {
   AsyncJsonRpcEngineNextCallback,
   AsyncJsonrpcMiddleware,
-} from './createAsyncMiddleware';
-export { createAsyncMiddleware } from './createAsyncMiddleware';
-export { createScaffoldMiddleware } from './createScaffoldMiddleware';
+} from './legacy/createAsyncMiddleware';
+export { createAsyncMiddleware } from './legacy/createAsyncMiddleware';
+export { createScaffoldMiddleware } from './legacy/createScaffoldMiddleware';
 export { getUniqueId } from './getUniqueId';
-export { createIdRemapMiddleware } from './idRemapMiddleware';
+export { createIdRemapMiddleware } from './legacy/idRemapMiddleware';
 export type {
   JsonRpcEngineCallbackError,
   JsonRpcEngineReturnHandler,
@@ -13,6 +14,6 @@ export type {
   JsonRpcEngineEndCallback,
   JsonRpcMiddleware,
   JsonRpcNotificationHandler,
-} from './JsonRpcEngine';
-export { JsonRpcEngine } from './JsonRpcEngine';
-export { mergeMiddleware } from './mergeMiddleware';
+} from './legacy/JsonRpcEngine';
+export { JsonRpcEngine } from './legacy/JsonRpcEngine';
+export { mergeMiddleware } from './legacy/mergeMiddleware';

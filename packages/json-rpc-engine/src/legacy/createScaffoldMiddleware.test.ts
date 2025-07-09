@@ -5,8 +5,8 @@ import {
   assertIsJsonRpcFailure,
 } from '@metamask/utils';
 
-import type { JsonRpcMiddleware } from '.';
-import { JsonRpcEngine, createScaffoldMiddleware } from '.';
+import type { JsonRpcMiddleware } from '..';
+import { JsonRpcEngine, createScaffoldMiddleware } from '..';
 
 describe('createScaffoldMiddleware', () => {
   it('basic middleware test', async () => {

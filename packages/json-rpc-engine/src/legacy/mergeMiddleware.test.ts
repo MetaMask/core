@@ -1,7 +1,7 @@
 import type { JsonRpcRequest } from '@metamask/utils';
 import { assertIsJsonRpcSuccess, hasProperty } from '@metamask/utils';
 
-import { JsonRpcEngine, mergeMiddleware } from '.';
+import { JsonRpcEngine, mergeMiddleware } from '..';
 
 const jsonrpc = '2.0' as const;
 

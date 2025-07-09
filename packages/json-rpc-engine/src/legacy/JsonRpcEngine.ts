@@ -352,7 +352,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
    */
   // This function is used in tests, so we cannot easily change it to use the
   // hash syntax.
-  // eslint-disable-next-line no-restricted-syntax
+
   private async _promiseHandle(
     request: JsonRpcRequest | JsonRpcNotification,
   ): Promise<JsonRpcResponse | void> {
