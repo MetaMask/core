@@ -174,19 +174,44 @@ export type StoredGatorPermission<
 };
 
 /**
- * Represents a list of gator permissions filtered by permission type.
+ * Represents a list of gator permissions filtered by permission type and chainId.
  */
 export type GatorPermissionsList = {
-  'native-token-stream': StoredGatorPermission<
-    SignerParam,
-    NativeTokenStreamPermission
-  >[];
-  'native-token-periodic': StoredGatorPermission<
-    SignerParam,
-    NativeTokenPeriodicPermission
-  >[];
-  'erc20-token-stream': StoredGatorPermission<
-    SignerParam,
-    Erc20TokenStreamPermission
-  >[];
+  'native-token-stream': {
+    [chainId: Hex]: StoredGatorPermission<
+      SignerParam,
+      NativeTokenStreamPermission
+    >[];
+  };
+  'native-token-periodic': {
+    [chainId: Hex]: StoredGatorPermission<
+      SignerParam,
+      NativeTokenPeriodicPermission
+    >[];
+  };
+  'erc20-token-stream': {
+    [chainId: Hex]: StoredGatorPermission<
+      SignerParam,
+      Erc20TokenStreamPermission
+    >[];
+  };
 };
+
+/**
+ * Represents the supported permission type(e.g. 'native-token-stream', 'native-token-periodic', 'erc20-token-stream') of the gator permissions list.
+ */
+export type SupportedGatorPermissionType = keyof GatorPermissionsList;
+
+/**
+ * Represents a list of gator permissions filtered by permission type.(ie, a record of gator permissions by permission type with chainId as the key)
+ */
+export type GatorPermissionsListByPermissionType<
+  PermissionType extends SupportedGatorPermissionType,
+> = GatorPermissionsList[PermissionType];
+
+/**
+ * Represents a list of gator permissions filtered by permission type and chainId.(ie, a array of gator permissions for a given chainId and permission type)
+ */
+export type GatorPermissionsListItemsByPermissionTypeAndChainId<
+  PermissionType extends SupportedGatorPermissionType,
+> = GatorPermissionsList[PermissionType][Hex];

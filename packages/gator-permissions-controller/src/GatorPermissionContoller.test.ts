@@ -1,4 +1,5 @@
 import { Messenger } from '@metamask/base-controller';
+import type { Hex } from '@metamask/utils';
 
 import type {
   AllowedActions,
@@ -14,10 +15,15 @@ import type {
   StoredGatorPermission,
 } from './types';
 
+const MOCK_CHAIN_ID_1: Hex = '0xaa36a7';
+const MOCK_CHAIN_ID_2: Hex = '0x1';
+
 type MockGatorPermissionsStorageEntriesConfig = {
-  nativeTokenStream: number;
-  nativeTokenPeriodic: number;
-  erc20TokenStream: number;
+  [chainId: string]: {
+    nativeTokenStream: number;
+    nativeTokenPeriodic: number;
+    erc20TokenStream: number;
+  };
 };
 
 /**
@@ -31,7 +37,7 @@ function createMockGatorPermissionsStorageEntries(
   amount: number,
   mockStorageEntry: StoredGatorPermission<AccountSigner, PermissionTypes>,
 ): string[] {
-  return Array.from({ length: amount }, (index: number) =>
+  return Array.from({ length: amount }, (_, index: number) =>
     JSON.stringify({
       ...mockStorageEntry,
       expiry: mockStorageEntry.permissionResponse.expiry + index,
@@ -48,137 +54,144 @@ function createMockGatorPermissionsStorageEntries(
 function mockGatorPermissionsStorageEntriesFactory(
   config: MockGatorPermissionsStorageEntriesConfig,
 ): string[] {
-  const mockNativeTokenStreamStorageEntry: StoredGatorPermission<
-    AccountSigner,
-    NativeTokenStreamPermission
-  > = {
-    permissionResponse: {
-      chainId: '0xaa36a7',
-      address: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
-      expiry: 1750291200,
-      isAdjustmentAllowed: true,
-      signer: {
-        type: 'account',
-        data: { address: '0x4f71DA06987BfeDE90aF0b33E1e3e4ffDCEE7a63' },
-      },
-      permission: {
-        type: 'native-token-stream',
-        data: {
-          maxAmount: '0x22b1c8c1227a0000',
-          initialAmount: '0x6f05b59d3b20000',
-          amountPerSecond: '0x6f05b59d3b20000',
-          startTime: 1747699200,
-          justification:
-            'This is a very important request for streaming allowance for some very important thing',
-        },
-        rules: {},
-      },
-      context: '0x00000000',
-      accountMeta: [
-        {
-          factory: '0x69Aa2f9fe1572F1B640E1bbc512f5c3a734fc77c',
-          factoryData: '0x0000000',
-        },
-      ],
-      signerMeta: {
-        delegationManager: '0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3',
-      },
-    },
-    siteOrigin: 'http://localhost:8000',
-  };
+  const result: string[] = [];
 
-  const mockNativeTokenPeriodicStorageEntry: StoredGatorPermission<
-    AccountSigner,
-    NativeTokenPeriodicPermission
-  > = {
-    permissionResponse: {
-      chainId: '0xaa36a7',
-      address: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
-      expiry: 1750291200,
-      isAdjustmentAllowed: true,
-      signer: {
-        type: 'account',
-        data: { address: '0x4f71DA06987BfeDE90aF0b33E1e3e4ffDCEE7a63' },
-      },
-      permission: {
-        type: 'native-token-periodic',
-        data: {
-          periodAmount: '0x22b1c8c1227a0000',
-          periodDuration: 1747699200,
-          startTime: 1747699200,
-          justification:
-            'This is a very important request for streaming allowance for some very important thing',
+  // Create entries for each chainId
+  Object.entries(config).forEach(([chainId, counts]) => {
+    const mockNativeTokenStreamStorageEntry: StoredGatorPermission<
+      AccountSigner,
+      NativeTokenStreamPermission
+    > = {
+      permissionResponse: {
+        chainId: chainId as Hex,
+        address: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
+        expiry: 1750291200,
+        isAdjustmentAllowed: true,
+        signer: {
+          type: 'account',
+          data: { address: '0x4f71DA06987BfeDE90aF0b33E1e3e4ffDCEE7a63' },
         },
-        rules: {},
-      },
-      context: '0x00000000',
-      accountMeta: [
-        {
-          factory: '0x69Aa2f9fe1572F1B640E1bbc512f5c3a734fc77c',
-          factoryData: '0x0000000',
+        permission: {
+          type: 'native-token-stream',
+          data: {
+            maxAmount: '0x22b1c8c1227a0000',
+            initialAmount: '0x6f05b59d3b20000',
+            amountPerSecond: '0x6f05b59d3b20000',
+            startTime: 1747699200,
+            justification:
+              'This is a very important request for streaming allowance for some very important thing',
+          },
+          rules: {},
         },
-      ],
-      signerMeta: {
-        delegationManager: '0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3',
+        context: '0x00000000',
+        accountMeta: [
+          {
+            factory: '0x69Aa2f9fe1572F1B640E1bbc512f5c3a734fc77c',
+            factoryData: '0x0000000',
+          },
+        ],
+        signerMeta: {
+          delegationManager: '0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3',
+        },
       },
-    },
-    siteOrigin: 'http://localhost:8000',
-  };
+      siteOrigin: 'http://localhost:8000',
+    };
 
-  const mockErc20TokenStreamStorageEntry: StoredGatorPermission<
-    AccountSigner,
-    Erc20TokenStreamPermission
-  > = {
-    permissionResponse: {
-      chainId: '0xaa36a7',
-      address: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
-      expiry: 1750291200,
-      isAdjustmentAllowed: true,
-      signer: {
-        type: 'account',
-        data: { address: '0x4f71DA06987BfeDE90aF0b33E1e3e4ffDCEE7a63' },
-      },
-      permission: {
-        type: 'erc20-token-stream',
-        data: {
-          initialAmount: '0x22b1c8c1227a0000',
-          maxAmount: '0x6f05b59d3b20000',
-          amountPerSecond: '0x6f05b59d3b20000',
-          startTime: 1747699200,
-          tokenAddress: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
-          justification:
-            'This is a very important request for streaming allowance for some very important thing',
+    const mockNativeTokenPeriodicStorageEntry: StoredGatorPermission<
+      AccountSigner,
+      NativeTokenPeriodicPermission
+    > = {
+      permissionResponse: {
+        chainId: chainId as Hex,
+        address: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
+        expiry: 1750291200,
+        isAdjustmentAllowed: true,
+        signer: {
+          type: 'account',
+          data: { address: '0x4f71DA06987BfeDE90aF0b33E1e3e4ffDCEE7a63' },
         },
-        rules: {},
-      },
-      context: '0x00000000',
-      accountMeta: [
-        {
-          factory: '0x69Aa2f9fe1572F1B640E1bbc512f5c3a734fc77c',
-          factoryData: '0x0000000',
+        permission: {
+          type: 'native-token-periodic',
+          data: {
+            periodAmount: '0x22b1c8c1227a0000',
+            periodDuration: 1747699200,
+            startTime: 1747699200,
+            justification:
+              'This is a very important request for streaming allowance for some very important thing',
+          },
+          rules: {},
         },
-      ],
-      signerMeta: {
-        delegationManager: '0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3',
+        context: '0x00000000',
+        accountMeta: [
+          {
+            factory: '0x69Aa2f9fe1572F1B640E1bbc512f5c3a734fc77c',
+            factoryData: '0x0000000',
+          },
+        ],
+        signerMeta: {
+          delegationManager: '0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3',
+        },
       },
-    },
-    siteOrigin: 'http://localhost:8000',
-  };
+      siteOrigin: 'http://localhost:8000',
+    };
 
-  return [
-    ...createMockGatorPermissionsStorageEntries(
-      config.nativeTokenStream,
-      mockNativeTokenStreamStorageEntry,
-    ),
-    ...createMockGatorPermissionsStorageEntries(
-      config.nativeTokenPeriodic,
-      mockNativeTokenPeriodicStorageEntry,
-    ),
-    ...createMockGatorPermissionsStorageEntries(
-      config.erc20TokenStream,
-      mockErc20TokenStreamStorageEntry,
-    ),
-  ];
+    const mockErc20TokenStreamStorageEntry: StoredGatorPermission<
+      AccountSigner,
+      Erc20TokenStreamPermission
+    > = {
+      permissionResponse: {
+        chainId: chainId as Hex,
+        address: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
+        expiry: 1750291200,
+        isAdjustmentAllowed: true,
+        signer: {
+          type: 'account',
+          data: { address: '0x4f71DA06987BfeDE90aF0b33E1e3e4ffDCEE7a63' },
+        },
+        permission: {
+          type: 'erc20-token-stream',
+          data: {
+            initialAmount: '0x22b1c8c1227a0000',
+            maxAmount: '0x6f05b59d3b20000',
+            amountPerSecond: '0x6f05b59d3b20000',
+            startTime: 1747699200,
+            tokenAddress: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
+            justification:
+              'This is a very important request for streaming allowance for some very important thing',
+          },
+          rules: {},
+        },
+        context: '0x00000000',
+        accountMeta: [
+          {
+            factory: '0x69Aa2f9fe1572F1B640E1bbc512f5c3a734fc77c',
+            factoryData: '0x0000000',
+          },
+        ],
+        signerMeta: {
+          delegationManager: '0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3',
+        },
+      },
+      siteOrigin: 'http://localhost:8000',
+    };
+
+    result.push(
+      ...createMockGatorPermissionsStorageEntries(
+        counts.nativeTokenStream,
+        mockNativeTokenStreamStorageEntry,
+      ),
+      ...createMockGatorPermissionsStorageEntries(
+        counts.nativeTokenPeriodic,
+        mockNativeTokenPeriodicStorageEntry,
+      ),
+      ...createMockGatorPermissionsStorageEntries(
+        counts.erc20TokenStream,
+        mockErc20TokenStreamStorageEntry,
+      ),
+    );
+  });
+
+  return result;
 }
 
 /**
@@ -214,9 +227,16 @@ function createMockGatorPermissionsMessenger() {
   const mockPerformSignIn = jest.fn();
   const mockGetStorageAllFeatureEntries = jest.fn().mockResolvedValue(
     mockGatorPermissionsStorageEntriesFactory({
-      nativeTokenStream: 5,
-      nativeTokenPeriodic: 5,
-      erc20TokenStream: 5,
+      [MOCK_CHAIN_ID_1]: {
+        nativeTokenStream: 5,
+        nativeTokenPeriodic: 5,
+        erc20TokenStream: 5,
+      },
+      [MOCK_CHAIN_ID_2]: {
+        nativeTokenStream: 5,
+        nativeTokenPeriodic: 5,
+        erc20TokenStream: 5,
+      },
     }),
   );
 
@@ -259,9 +279,9 @@ describe('gator-permissions-controller - constructor() tests', () => {
     expect(controller.state.isGatorPermissionsEnabled).toBe(false);
     expect(controller.state.gatorPermissionsListStringify).toStrictEqual(
       JSON.stringify({
-        'native-token-stream': [],
-        'native-token-periodic': [],
-        'erc20-token-stream': [],
+        'native-token-stream': {},
+        'native-token-periodic': {},
+        'erc20-token-stream': {},
       }),
     );
     expect(controller.state.isFetchingGatorPermissions).toBe(false);
@@ -272,9 +292,9 @@ describe('gator-permissions-controller - constructor() tests', () => {
     const customState = {
       isGatorPermissionsEnabled: true,
       gatorPermissionsListStringify: JSON.stringify({
-        'native-token-stream': [],
-        'native-token-periodic': [],
-        'erc20-token-stream': [],
+        'native-token-stream': {},
+        'native-token-periodic': {},
+        'erc20-token-stream': {},
       }),
     };
 
@@ -309,9 +329,9 @@ describe('gator-permissions-controller - disableGatorPermissions() tests', () =>
     expect(controller.state.isGatorPermissionsEnabled).toBe(false);
     expect(controller.state.gatorPermissionsListStringify).toBe(
       JSON.stringify({
-        'native-token-stream': [],
-        'native-token-periodic': [],
-        'erc20-token-stream': [],
+        'native-token-stream': {},
+        'native-token-periodic': {},
+        'erc20-token-stream': {},
       }),
     );
   });
@@ -332,14 +352,18 @@ describe('gator-permissions-controller - fetchAndUpdateGatorPermissions() tests'
     const result = await controller.fetchAndUpdateGatorPermissions();
 
     expect(result).toStrictEqual({
-      'native-token-stream': expect.any(Array),
-      'native-token-periodic': expect.any(Array),
-      'erc20-token-stream': expect.any(Array),
+      'native-token-stream': expect.any(Object),
+      'native-token-periodic': expect.any(Object),
+      'erc20-token-stream': expect.any(Object),
     });
 
-    expect(result['native-token-stream']).toHaveLength(5);
-    expect(result['native-token-periodic']).toHaveLength(5);
-    expect(result['erc20-token-stream']).toHaveLength(5);
+    // Check that each permission type has the expected chainId
+    expect(result['native-token-stream'][MOCK_CHAIN_ID_1]).toHaveLength(5);
+    expect(result['native-token-periodic'][MOCK_CHAIN_ID_1]).toHaveLength(5);
+    expect(result['erc20-token-stream'][MOCK_CHAIN_ID_1]).toHaveLength(5);
+    expect(result['native-token-stream'][MOCK_CHAIN_ID_2]).toHaveLength(5);
+    expect(result['native-token-periodic'][MOCK_CHAIN_ID_2]).toHaveLength(5);
+    expect(result['erc20-token-stream'][MOCK_CHAIN_ID_2]).toHaveLength(5);
     expect(controller.state.isFetchingGatorPermissions).toBe(false);
   });
 
@@ -368,9 +392,9 @@ describe('gator-permissions-controller - fetchAndUpdateGatorPermissions() tests'
     const result = await controller.fetchAndUpdateGatorPermissions();
 
     expect(result).toStrictEqual({
-      'native-token-stream': [],
-      'native-token-periodic': [],
-      'erc20-token-stream': [],
+      'native-token-stream': {},
+      'native-token-periodic': {},
+      'erc20-token-stream': {},
     });
   });
 
@@ -389,9 +413,9 @@ describe('gator-permissions-controller - fetchAndUpdateGatorPermissions() tests'
     const result = await controller.fetchAndUpdateGatorPermissions();
 
     expect(result).toStrictEqual({
-      'native-token-stream': [],
-      'native-token-periodic': [],
-      'erc20-token-stream': [],
+      'native-token-stream': {},
+      'native-token-periodic': {},
+      'erc20-token-stream': {},
     });
   });
 
@@ -476,9 +500,9 @@ describe('gator-permissions-controller - gatorPermissionsList getter tests', () 
     const permissionsList = controller.gatorPermissionsList;
 
     expect(permissionsList).toStrictEqual({
-      'native-token-stream': [],
-      'native-token-periodic': [],
-      'erc20-token-stream': [],
+      'native-token-stream': {},
+      'native-token-periodic': {},
+      'erc20-token-stream': {},
     });
   });
 
@@ -489,9 +513,9 @@ describe('gator-permissions-controller - gatorPermissionsList getter tests', () 
       messenger,
       state: {
         gatorPermissionsListStringify: JSON.stringify({
-          'native-token-stream': [{ id: '1' }],
-          'native-token-periodic': [{ id: '2' }],
-          'erc20-token-stream': [{ id: '3' }],
+          'native-token-stream': { '0x1': [{ id: '1' }] },
+          'native-token-periodic': { '0x2': [{ id: '2' }] },
+          'erc20-token-stream': { '0x3': [{ id: '3' }] },
         }),
       },
     });
@@ -499,9 +523,9 @@ describe('gator-permissions-controller - gatorPermissionsList getter tests', () 
     const permissionsList = controller.gatorPermissionsList;
 
     expect(permissionsList).toStrictEqual({
-      'native-token-stream': [{ id: '1' }],
-      'native-token-periodic': [{ id: '2' }],
-      'erc20-token-stream': [{ id: '3' }],
+      'native-token-stream': { '0x1': [{ id: '1' }] },
+      'native-token-periodic': { '0x2': [{ id: '2' }] },
+      'erc20-token-stream': { '0x3': [{ id: '3' }] },
     });
   });
 });

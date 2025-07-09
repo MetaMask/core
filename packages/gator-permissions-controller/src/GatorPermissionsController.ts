@@ -76,9 +76,9 @@ const metadata: StateMetadata<GatorPermissionsControllerState> = {
 };
 
 const defaultGatorPermissionsList: GatorPermissionsList = {
-  'native-token-stream': [],
-  'native-token-periodic': [],
-  'erc20-token-stream': [],
+  'native-token-stream': {},
+  'native-token-periodic': {},
+  'erc20-token-stream': {},
 };
 
 export const defaultState: GatorPermissionsControllerState = {
@@ -260,13 +260,13 @@ export default class GatorPermissionsController extends BaseController<
   }
 
   /**
-   * Parses permissions from profile sync data and categorizes them by type.
+   * Parses permissions from profile sync data and categorizes them by type and chainId.
    *
    * @param permissionsData - An JSON stringified array of permission strings from profile sync.
    * @returns Parsed and categorized permissions list.
    * @throws {Error} If permission type is invalid.
    */
-  #categorizePermissionsDataByType(
+  #categorizePermissionsDataByTypeAndChainId(
     permissionsData: string[] | null,
   ): GatorPermissionsList {
     if (!permissionsData) {
@@ -287,23 +287,33 @@ export default class GatorPermissionsController extends BaseController<
 
         const permissionType =
           parsedPermission.permissionResponse.permission.type;
+        const { chainId } = parsedPermission.permissionResponse;
 
         if (permissionType === 'native-token-stream') {
-          gatorPermissionsList['native-token-stream'].push(
+          if (!gatorPermissionsList['native-token-stream'][chainId]) {
+            gatorPermissionsList['native-token-stream'][chainId] = [];
+          }
+          gatorPermissionsList['native-token-stream'][chainId].push(
             parsedPermission as StoredGatorPermission<
               SignerParam,
               NativeTokenStreamPermission
             >,
           );
         } else if (permissionType === 'native-token-periodic') {
-          gatorPermissionsList['native-token-periodic'].push(
+          if (!gatorPermissionsList['native-token-periodic'][chainId]) {
+            gatorPermissionsList['native-token-periodic'][chainId] = [];
+          }
+          gatorPermissionsList['native-token-periodic'][chainId].push(
             parsedPermission as StoredGatorPermission<
               SignerParam,
               NativeTokenPeriodicPermission
             >,
           );
         } else if (permissionType === 'erc20-token-stream') {
-          gatorPermissionsList['erc20-token-stream'].push(
+          if (!gatorPermissionsList['erc20-token-stream'][chainId]) {
+            gatorPermissionsList['erc20-token-stream'][chainId] = [];
+          }
+          gatorPermissionsList['erc20-token-stream'][chainId].push(
             parsedPermission as StoredGatorPermission<
               SignerParam,
               Erc20TokenStreamPermission
@@ -316,9 +326,9 @@ export default class GatorPermissionsController extends BaseController<
         return gatorPermissionsList;
       },
       {
-        'native-token-stream': [],
-        'native-token-periodic': [],
-        'erc20-token-stream': [],
+        'native-token-stream': {},
+        'native-token-periodic': {},
+        'erc20-token-stream': {},
       } as GatorPermissionsList,
     );
   }
@@ -391,7 +401,7 @@ export default class GatorPermissionsController extends BaseController<
 
       // Categorize permissions by type and update state
       const gatorPermissionsList =
-        this.#categorizePermissionsDataByType(permissionsData);
+        this.#categorizePermissionsDataByTypeAndChainId(permissionsData);
 
       this.update((state) => {
         state.gatorPermissionsListStringify =

@@ -6,9 +6,9 @@ import {
 describe('utils - serializeGatorPermissionsList() tests', () => {
   it('serializes a gator permissions list to a string', () => {
     const gatorPermissionsList = {
-      'native-token-stream': [],
-      'native-token-periodic': [],
-      'erc20-token-stream': [],
+      'native-token-stream': {},
+      'native-token-periodic': {},
+      'erc20-token-stream': {},
     };
 
     const serializedGatorPermissionsList =
@@ -23,9 +23,9 @@ describe('utils - serializeGatorPermissionsList() tests', () => {
 describe('utils - deserializeGatorPermissionsList() tests', () => {
   it('deserializes a gator permissions list from a string', () => {
     const gatorPermissionsList = {
-      'native-token-stream': [],
-      'native-token-periodic': [],
-      'erc20-token-stream': [],
+      'native-token-stream': {},
+      'native-token-periodic': {},
+      'erc20-token-stream': {},
     };
 
     const serializedGatorPermissionsList =
