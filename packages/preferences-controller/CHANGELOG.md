@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [19.0.0]
 
-### Changed
+### Removed
 
 - Removed un-used preference `smartAccountOptInForAccounts` [#6079](https://github.com/MetaMask/core/pull/6079)
 
