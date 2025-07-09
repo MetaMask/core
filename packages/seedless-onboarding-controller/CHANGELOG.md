@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.1]
 
-### Uncategorized
+### Changed
 
 - fix: remove buffer usage in seedless controller ([#6080](https://github.com/MetaMask/core/pull/6080))
 
