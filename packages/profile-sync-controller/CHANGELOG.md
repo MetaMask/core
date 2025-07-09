@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add performance tracing to user storage syncing operations (contacts and accounts) ([#6050](https://github.com/MetaMask/core/pull/6050))
 
+### Removed
+
+- **BREAKING**: Remove schema enforcement for user storage paths. This will improve DX by preventing developers from having to update the schema before using the SDK or Controllers for their features.
+
 ## [20.0.0]
 
 ### Added

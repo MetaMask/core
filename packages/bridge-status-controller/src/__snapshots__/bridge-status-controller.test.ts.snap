@@ -2182,9 +2182,6 @@ Array [
     "AccountsController:getSelectedMultichainAccount",
   ],
   Array [
-    "RemoteFeatureFlagController:getState",
-  ],
-  Array [
     "SnapController:handleRequest",
     Object {
       "handler": "onClientRequest",
@@ -2247,9 +2244,6 @@ Array [
   ],
   Array [
     "AccountsController:getSelectedMultichainAccount",
-  ],
-  Array [
-    "RemoteFeatureFlagController:getState",
   ],
   Array [
     "SnapController:handleRequest",
@@ -2481,9 +2475,6 @@ Array [
     "AccountsController:getSelectedMultichainAccount",
   ],
   Array [
-    "RemoteFeatureFlagController:getState",
-  ],
-  Array [
     "SnapController:handleRequest",
     Object {
       "handler": "onClientRequest",
@@ -2546,9 +2537,6 @@ Array [
   ],
   Array [
     "AccountsController:getSelectedMultichainAccount",
-  ],
-  Array [
-    "RemoteFeatureFlagController:getState",
   ],
   Array [
     "SnapController:handleRequest",
