@@ -27,6 +27,7 @@ describe('PreferencesController', () => {
       isMultiAccountBalancesEnabled: true,
       showTestNetworks: false,
       smartAccountOptIn: true,
+      smartAccountOptInForAccounts: [],
       isIpfsGatewayEnabled: true,
       useTransactionSimulations: true,
       useMultiRpcMigration: true,
@@ -563,6 +564,13 @@ describe('PreferencesController', () => {
     expect(controller.state.smartAccountOptIn).toBe(true);
     controller.setSmartAccountOptIn(false);
     expect(controller.state.smartAccountOptIn).toBe(false);
+  });
+
+  it('should set smartAccountOptInForAccounts', () => {
+    const controller = setupPreferencesController();
+    expect(controller.state.smartAccountOptInForAccounts).toHaveLength(0);
+    controller.setSmartAccountOptInForAccounts(['0x1', '0x2']);
+    expect(controller.state.smartAccountOptInForAccounts[0]).toBe('0x1');
   });
 });
 
