@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Requests to an RPC endpoint that returns a 502 response ("bad gateway") will now be retried ([#5923](https://github.com/MetaMask/core/pull/5923))
 - All JSON-RPC errors that represent 4xx and 5xx responses from RPC endpoints now include the HTTP status code under `data.httpStatus` ([#5923](https://github.com/MetaMask/core/pull/5923))
 - 3xx responses from RPC endpoints are no longer treated as errors ([#5923](https://github.com/MetaMask/core/pull/5923))
+- Bump `@metamask/controller-utils` from `^11.10.0` to `^11.11.0` ([#6069](https://github.com/MetaMask/core/pull/6069))
+- Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
 
 ### Fixed
 

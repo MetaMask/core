@@ -1,6 +1,6 @@
 {
   "name": "@metamask/ens-controller",
-  "version": "17.0.0",
+  "version": "17.0.1",
   "description": "Maps ENS names to their resolved addresses by chain id",
   "keywords": [
     "MetaMask",
@@ -49,8 +49,8 @@
   "dependencies": {
     "@ethersproject/providers": "^5.7.0",
     "@metamask/base-controller": "^8.0.1",
-    "@metamask/controller-utils": "^11.10.0",
-    "@metamask/utils": "^11.2.0",
+    "@metamask/controller-utils": "^11.11.0",
+    "@metamask/utils": "^11.4.2",
     "punycode": "^2.1.1"
   },
   "devDependencies": {

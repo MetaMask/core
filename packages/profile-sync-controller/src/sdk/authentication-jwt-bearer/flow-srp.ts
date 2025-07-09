@@ -1,6 +1,11 @@
 import type { Eip1193Provider } from 'ethers';
 
-import { authenticate, authorizeOIDC, getNonce } from './services';
+import {
+  authenticate,
+  authorizeOIDC,
+  getNonce,
+  getUserProfileMetaMetrics,
+} from './services';
 import type {
   AuthConfig,
   AuthSigningOptions,
@@ -9,6 +14,7 @@ import type {
   IBaseAuth,
   LoginResponse,
   UserProfile,
+  UserProfileMetaMetrics,
 } from './types';
 import type { MetaMetricsAuth } from '../../shared/types/services';
 import { ValidationError } from '../errors';
@@ -110,6 +116,11 @@ export class SRPJwtBearerAuth implements IBaseAuth {
 
   async getIdentifier(entropySourceId?: string): Promise<string> {
     return await this.#options.signing.getIdentifier(entropySourceId);
+  }
+
+  async getUserProfileMetaMetrics(): Promise<UserProfileMetaMetrics> {
+    const accessToken = await this.getAccessToken();
+    return await getUserProfileMetaMetrics(this.#config.env, accessToken);
   }
 
   async signMessage(

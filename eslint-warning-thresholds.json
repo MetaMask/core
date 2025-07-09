@@ -165,7 +165,6 @@
   },
   "packages/controller-utils/src/util.test.ts": {
     "import-x/no-named-as-default": 1,
-    "import-x/order": 1,
     "jest/no-conditional-in-test": 1,
     "promise/param-names": 2
   },
