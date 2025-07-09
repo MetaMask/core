@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat: remove storage schema enforcement ([#6075](https://github.com/MetaMask/core/pull/6075))
-
 ### Removed
 
 - **BREAKING**: Remove schema enforcement for user storage paths. This will improve DX by preventing developers from having to update the schema before using the SDK or Controllers for their features.
