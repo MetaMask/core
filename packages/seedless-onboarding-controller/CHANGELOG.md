@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Revert recent releases ([#6085](https://github.com/MetaMask/core/pull/6085))
-- Release/462.0.0 ([#6084](https://github.com/MetaMask/core/pull/6084))
-- fix: remove buffer usage in seedless controller ([#6080](https://github.com/MetaMask/core/pull/6080))
-
 ## [2.0.0]
 
 ### Added
