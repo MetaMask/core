@@ -142,8 +142,6 @@ const metadata: StateMetadata<UserStorageControllerState> = {
 
 type ControllerConfig = {
   env: Env;
-  // TEMP until 6081 is merged
-  isNetworkSyncingEnabled: boolean;
   accountSyncing?: {
     maxNumberOfAccountsToAdd?: number;
     /**
@@ -314,7 +312,6 @@ export default class UserStorageController extends BaseController<
 
   readonly #config: ControllerConfig = {
     env: Env.PRD,
-    isNetworkSyncingEnabled: false,
   };
 
   #isUnlocked = false;
