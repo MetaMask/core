@@ -58,12 +58,13 @@ describe('user-storage/user-storage-controller - constructor() tests', () => {
     const { messengerMocks } = arrangeMocks();
     new UserStorageController({
       messenger: messengerMocks.messenger,
-      env: {
-        isNetworkSyncingEnabled: true,
-      },
       state: {
         ...defaultState,
         hasNetworkSyncingSyncedAtLeastOnce: true,
+      },
+      // TEMP until 6081 is merged
+      config: {
+        isNetworkSyncingEnabled: true,
       },
     });
 
@@ -832,9 +833,6 @@ describe('user-storage/user-storage-controller - syncNetworks() tests', () => {
       arrangeMocks();
     const controller = new UserStorageController({
       messenger,
-      env: {
-        isNetworkSyncingEnabled: false,
-      },
     });
 
     await controller.syncNetworks();
@@ -850,10 +848,9 @@ describe('user-storage/user-storage-controller - syncNetworks() tests', () => {
       arrangeMocks();
     const controller = new UserStorageController({
       messenger,
-      env: {
-        isNetworkSyncingEnabled: true,
-      },
       config: {
+        // TEMP until 6081 is merged
+        isNetworkSyncingEnabled: true,
         networkSyncing: {
           onNetworkAdded: jest.fn(),
           onNetworkRemoved: jest.fn(),

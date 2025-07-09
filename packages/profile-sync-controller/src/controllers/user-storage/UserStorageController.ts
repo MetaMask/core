@@ -160,6 +160,9 @@ const metadata: StateMetadata<UserStorageControllerState> = {
 };
 
 type ControllerConfig = {
+  env: Env;
+  // TEMP until 6081 is merged
+  isNetworkSyncingEnabled: boolean;
   accountSyncing?: {
     maxNumberOfAccountsToAdd?: number;
     /**
@@ -342,12 +345,6 @@ export default class UserStorageController extends BaseController<
   UserStorageControllerState,
   UserStorageControllerMessenger
 > {
-  // This is replaced with the actual value in the constructor
-  // We will remove this once the feature will be released
-  readonly #env = {
-    isNetworkSyncingEnabled: false,
-  };
-
   readonly #userStorage: UserStorage;
 
   readonly #auth = {
@@ -368,7 +365,10 @@ export default class UserStorageController extends BaseController<
     },
   };
 
-  readonly #config?: ControllerConfig;
+  readonly #config: ControllerConfig = {
+    env: Env.PRD,
+    isNetworkSyncingEnabled: false,
+  };
 
   #isUnlocked = false;
 
@@ -398,16 +398,12 @@ export default class UserStorageController extends BaseController<
   constructor({
     messenger,
     state,
-    env,
     config,
     nativeScryptCrypto,
   }: {
     messenger: UserStorageControllerMessenger;
     state?: UserStorageControllerState;
-    config?: ControllerConfig;
-    env?: {
-      isNetworkSyncingEnabled?: boolean;
-    };
+    config?: Partial<ControllerConfig>;
     nativeScryptCrypto?: NativeScrypt;
   }) {
     super({
@@ -417,12 +413,14 @@ export default class UserStorageController extends BaseController<
       state: { ...defaultState, ...state },
     });
 
-    this.#env.isNetworkSyncingEnabled = Boolean(env?.isNetworkSyncingEnabled);
-    this.#config = config;
+    this.#config = {
+      ...this.#config,
+      ...config,
+    };
 
     this.#userStorage = new UserStorage(
       {
-        env: Env.PRD,
+        env: this.#config.env,
         auth: {
           getAccessToken: (entropySourceId?: string) =>
             this.messagingSystem.call(
@@ -470,7 +468,8 @@ export default class UserStorageController extends BaseController<
     });
 
     // Network Syncing
-    if (this.#env.isNetworkSyncingEnabled) {
+    // TEMP until 6081 is merged
+    if (this.#config.isNetworkSyncingEnabled) {
       startNetworkSyncing({
         messenger,
         getUserStorageControllerInstance: () => this,
@@ -876,7 +875,8 @@ export default class UserStorageController extends BaseController<
   }
 
   async syncNetworks() {
-    if (!this.#env.isNetworkSyncingEnabled) {
+    // TEMP until 6081 is merged
+    if (!this.#config.isNetworkSyncingEnabled) {
       return;
     }
 
