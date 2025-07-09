@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "rootDir": "../.."
+  },
+  "references": [
+    {
+      "path": "../../packages/base-controller"
+    },
+    {
+      "path": "../../packages/network-controller"
+    },
+    {
+      "path": "../../packages/multichain-network-controller"
+    }
+  ],
+  "include": ["../../types", "./src", "tests/NetworkOrderController.test.ts"]
+}
