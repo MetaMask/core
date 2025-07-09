@@ -143,6 +143,7 @@ export type PreferencesState = {
   smartAccountOptIn: boolean;
   /**
    * User to opt in for smart account upgrade for specific accounts.
+   *
    * @deprecated This preference is deprecated and will be removed in the future.
    */
   smartAccountOptInForAccounts: Hex[];
