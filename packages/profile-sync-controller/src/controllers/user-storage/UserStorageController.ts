@@ -146,6 +146,7 @@ const metadata: StateMetadata<UserStorageControllerState> = {
 };
 
 type ControllerConfig = {
+  env: Env;
   accountSyncing?: {
     maxNumberOfAccountsToAdd?: number;
     /**
@@ -314,7 +315,9 @@ export default class UserStorageController extends BaseController<
     },
   };
 
-  readonly #config?: ControllerConfig;
+  readonly #config: ControllerConfig = {
+    env: Env.PRD,
+  };
 
   readonly #trace: TraceCallback;
 
@@ -352,7 +355,7 @@ export default class UserStorageController extends BaseController<
   }: {
     messenger: UserStorageControllerMessenger;
     state?: UserStorageControllerState;
-    config?: ControllerConfig;
+    config?: Partial<ControllerConfig>;
     nativeScryptCrypto?: NativeScrypt;
     trace?: TraceCallback;
   }) {
@@ -363,7 +366,10 @@ export default class UserStorageController extends BaseController<
       state: { ...defaultState, ...state },
     });
 
-    this.#config = config;
+    this.#config = {
+      ...this.#config,
+      ...config,
+    };
     this.#trace =
       trace ??
       (async <ReturnType>(
@@ -378,7 +384,7 @@ export default class UserStorageController extends BaseController<
 
     this.#userStorage = new UserStorage(
       {
-        env: Env.PRD,
+        env: this.#config.env,
         auth: {
           getAccessToken: (entropySourceId?: string) =>
             this.messagingSystem.call(
