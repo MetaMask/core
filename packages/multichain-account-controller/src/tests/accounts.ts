@@ -155,12 +155,6 @@ export class MockAccountBuilder {
     return new MockAccountBuilder(account);
   }
 
-  static toKeyringAccount(account: InternalAccount): KeyringAccount {
-    const { metadata, ...keyringAccount } = account;
-
-    return keyringAccount;
-  }
-
   withUuuid() {
     this.#account.id = uuid();
     return this;

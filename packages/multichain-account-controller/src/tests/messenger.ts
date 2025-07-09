@@ -27,7 +27,7 @@ export function getRootMessenger() {
  * @returns The restricted messenger for the MultichainAccountController.
  */
 export function getMultichainAccountControllerMessenger(
-  messenger = getRootMessenger(),
+  messenger: ReturnType<typeof getRootMessenger>,
 ): MultichainAccountControllerMessenger {
   return messenger.getRestricted({
     name: 'MultichainAccountController',
