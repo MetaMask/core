@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.5.0]
+
+### Changed
+
+- Removed un-used preference `smartAccountOptInForAccounts` [#6079](https://github.com/MetaMask/core/pull/6079)
+
 ## [18.4.1]
 
 ### Changed
@@ -401,7 +407,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.4.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.5.0...HEAD
+[18.5.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.4.1...@metamask/preferences-controller@18.5.0
 [18.4.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.4.0...@metamask/preferences-controller@18.4.1
 [18.4.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.3.0...@metamask/preferences-controller@18.4.0
 [18.3.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.2.0...@metamask/preferences-controller@18.3.0
