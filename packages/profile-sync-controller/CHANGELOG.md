@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `env` options in both `AuthenticationController` and `UserStorageController`'s `config` constructor param ([#6082](https://github.com/MetaMask/core/pull/6082))
+  - This will let consumers choose to use prod, dev or UAT environments for Identity operations
+
 ### Removed
 
 - **BREAKING**: Remove schema enforcement for user storage paths ([#6075](https://github.com/MetaMask/core/pull/6075))

@@ -52,6 +52,10 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
   },
 };
 
+type ControllerConfig = {
+  env: Env;
+};
+
 // Messenger Actions
 type CreateActionsObj<Controller extends keyof AuthenticationController> = {
   [K in Controller]: {
@@ -124,6 +128,10 @@ export default class AuthenticationController extends BaseController<
 
   readonly #auth: SRPInterface;
 
+  readonly #config: ControllerConfig = {
+    env: Env.PRD,
+  };
+
   #isUnlocked = false;
 
   readonly #keyringController = {
@@ -146,10 +154,12 @@ export default class AuthenticationController extends BaseController<
   constructor({
     messenger,
     state,
+    config,
     metametrics,
   }: {
     messenger: AuthenticationControllerMessenger;
     state?: AuthenticationControllerState;
+    config?: Partial<ControllerConfig>;
     /**
      * Not using the Messaging System as we
      * do not want to tie this strictly to extension
@@ -167,11 +177,16 @@ export default class AuthenticationController extends BaseController<
       throw new Error('`metametrics` field is required');
     }
 
+    this.#config = {
+      ...this.#config,
+      ...config,
+    };
+
     this.#metametrics = metametrics;
 
     this.#auth = new JwtBearerAuth(
       {
-        env: Env.PRD,
+        env: this.#config.env,
         platform: metametrics.agent,
         type: AuthType.SRP,
       },
