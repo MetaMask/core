@@ -7,8 +7,8 @@ import {
   isJsonRpcSuccess,
 } from '@metamask/utils';
 
-import type { JsonRpcMiddleware } from '..';
-import { JsonRpcEngine } from '..';
+import type { JsonRpcMiddleware } from '.';
+import { JsonRpcEngine } from '.';
 
 const jsonrpc = '2.0' as const;
 

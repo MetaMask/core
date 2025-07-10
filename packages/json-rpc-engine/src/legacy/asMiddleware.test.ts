@@ -1,7 +1,7 @@
 import type { JsonRpcRequest } from '@metamask/utils';
 import { assertIsJsonRpcSuccess, isJsonRpcSuccess } from '@metamask/utils';
 
-import { JsonRpcEngine } from '..';
+import { JsonRpcEngine } from '.';
 
 const jsonrpc = '2.0' as const;
 
