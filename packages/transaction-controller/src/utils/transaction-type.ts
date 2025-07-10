@@ -100,7 +100,7 @@ function getMethodName(data?: string): string | undefined {
     return undefined;
   }
 
-  const fourByte = data.substring(0, 10);
+  const fourByte = data.substring(0, 10).toLowerCase();
 
   for (const interfaceInstance of [
     ERC20Interface,
