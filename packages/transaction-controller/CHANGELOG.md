@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add fallback to the sequential hook when `publishBatchHook` returns empty ([#6063](https://github.com/MetaMask/core/pull/6063))
 
+### Fixed
+
+- Preserve provided `type` in `transactions` when calling `addTransactionBatch` ([#6056](https://github.com/MetaMask/core/pull/6056))
+
 ## [58.1.1]
 
 ### Changed
@@ -18,10 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.10.0` to `^11.11.0` ([#6069](https://github.com/MetaMask/core/pull/6069))
   - This upgrade includes performance improvements to checksum hex address normalization
 - Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
-
-### Fixed
-
-- Preserve provided `type` in `transactions` when calling `addTransactionBatch` ([#6056](https://github.com/MetaMask/core/pull/6056))
 
 ## [58.1.0]
 
