@@ -15,6 +15,8 @@ import {
   isJsonRpcRequest,
 } from '@metamask/utils';
 
+import { stringify } from '../utils';
+
 export type JsonRpcEngineCallbackError = Error | SerializedJsonRpcError | null;
 
 /**
@@ -590,7 +592,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
                 new JsonRpcError(
                   errorCodes.rpc.internal,
                   `JsonRpcEngine: "next" return handlers must be functions. ` +
-                    `Received "${typeof returnHandler}" for request:\n${jsonify(
+                    `Received "${typeof returnHandler}" for request:\n${stringify(
                       request,
                     )}`,
                   { request },
@@ -648,7 +650,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
     if (!hasProperty(response, 'result') && !hasProperty(response, 'error')) {
       throw new JsonRpcError(
         errorCodes.rpc.internal,
-        `JsonRpcEngine: Response has no error or result for request:\n${jsonify(
+        `JsonRpcEngine: Response has no error or result for request:\n${stringify(
           request,
         )}`,
         { request },
@@ -658,19 +660,9 @@ export class JsonRpcEngine extends SafeEventEmitter {
     if (!isComplete) {
       throw new JsonRpcError(
         errorCodes.rpc.internal,
-        `JsonRpcEngine: Nothing ended request:\n${jsonify(request)}`,
+        `JsonRpcEngine: Nothing ended request:\n${stringify(request)}`,
         { request },
       );
     }
   }
-}
-
-/**
- * JSON-stringifies a request object.
- *
- * @param request - The request object to JSON-stringify.
- * @returns The JSON-stringified request object.
- */
-function jsonify(request: JsonRpcRequest): string {
-  return JSON.stringify(request, null, 2);
 }
