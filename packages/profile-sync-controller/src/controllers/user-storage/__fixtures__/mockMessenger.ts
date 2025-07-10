@@ -64,17 +64,12 @@ export function createCustomUserStorageMessenger(props?: {
       'AuthenticationController:performSignIn',
       'AccountsController:listAccounts',
       'AccountsController:updateAccountMetadata',
-      'NetworkController:getState',
-      'NetworkController:addNetwork',
-      'NetworkController:updateNetwork',
-      'NetworkController:removeNetwork',
     ],
     allowedEvents: props?.overrideEvents ?? [
       'KeyringController:lock',
       'KeyringController:unlock',
       'AccountsController:accountRenamed',
       'AccountsController:accountAdded',
-      'NetworkController:networkRemoved',
       'AddressBookController:contactUpdated',
       'AddressBookController:contactDeleted',
     ],
@@ -173,26 +168,6 @@ export function mockUserStorageMessenger(
     'AccountsController:updateAccounts',
   ).mockResolvedValue(true as never);
 
-  const mockNetworkControllerGetState = typedMockFn(
-    'NetworkController:getState',
-  ).mockReturnValue({
-    selectedNetworkClientId: '',
-    networksMetadata: {},
-    networkConfigurationsByChainId: {},
-  });
-
-  const mockNetworkControllerAddNetwork = typedMockFn(
-    'NetworkController:addNetwork',
-  );
-
-  const mockNetworkControllerRemoveNetwork = typedMockFn(
-    'NetworkController:removeNetwork',
-  );
-
-  const mockNetworkControllerUpdateNetwork = typedMockFn(
-    'NetworkController:updateNetwork',
-  );
-
   jest.spyOn(messenger, 'call').mockImplementation((...args) => {
     const typedArgs = args as unknown as CallParams;
     const [actionType] = typedArgs;
@@ -267,25 +242,6 @@ export function mockUserStorageMessenger(
       return mockAccountsUpdateAccountMetadata(...params);
     }
 
-    if (actionType === 'NetworkController:getState') {
-      return mockNetworkControllerGetState();
-    }
-
-    if (actionType === 'NetworkController:addNetwork') {
-      const [, ...params] = typedArgs;
-      return mockNetworkControllerAddNetwork(...params);
-    }
-
-    if (actionType === 'NetworkController:removeNetwork') {
-      const [, ...params] = typedArgs;
-      return mockNetworkControllerRemoveNetwork(...params);
-    }
-
-    if (actionType === 'NetworkController:updateNetwork') {
-      const [, ...params] = typedArgs;
-      return mockNetworkControllerUpdateNetwork(...params);
-    }
-
     throw new Error(
       `MOCK_FAIL - unsupported messenger call: ${actionType as string}`,
     );
@@ -308,9 +264,5 @@ export function mockUserStorageMessenger(
     mockWithKeyringSelector,
     mockAccountsUpdateAccountMetadata,
     mockAccountsListAccounts,
-    mockNetworkControllerGetState,
-    mockNetworkControllerAddNetwork,
-    mockNetworkControllerRemoveNetwork,
-    mockNetworkControllerUpdateNetwork,
   };
 }

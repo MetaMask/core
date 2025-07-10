@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add performance tracing to user storage syncing operations (contacts and accounts) ([#6050](https://github.com/MetaMask/core/pull/6050))
+- Add `env` options in both `AuthenticationController` and `UserStorageController`'s `config` constructor param ([#6082](https://github.com/MetaMask/core/pull/6082))
+  - This will let consumers choose to use prod, dev or UAT environments for Identity operations
+
+### Removed
+
+- **BREAKING**: Remove schema enforcement for user storage paths ([#6075](https://github.com/MetaMask/core/pull/6075))
+  - This will improve DX by preventing developers from having to update the schema before using the SDK or Controllers for their features.
+- **BREAKING**: Remove network syncing code ([#6081](https://github.com/MetaMask/core/pull/6081))
+  - This code has never been used in production, and won't likely be used in the future
+  - Remove `@metamask/network-controller` dependency and peerDependency
+
 ## [20.0.0]
 
 ### Added

@@ -524,19 +524,6 @@ const getMessengerMock = ({
             },
           ],
         };
-      } else if (method === 'RemoteFeatureFlagController:getState') {
-        return {
-          remoteFeatureFlags: {
-            bridgeConfig: {
-              support: true,
-              chains: {
-                [ChainId.SOLANA]: {
-                  isSnapConfirmationEnabled: false,
-                },
-              },
-            },
-          },
-        };
       }
       return null;
     }),
@@ -1469,20 +1456,6 @@ describe('BridgeStatusController', () => {
 
     it('should successfully submit a transaction', async () => {
       mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
-      // Mock the RemoteFeatureFlagController:getState call that happens in getBridgeFeatureFlags
-      mockMessengerCall.mockReturnValueOnce({
-        remoteFeatureFlags: {
-          cacheTimestamp: 1234567890,
-          bridgeConfig: {
-            support: true,
-            chains: {
-              [ChainId.SOLANA]: {
-                isSnapConfirmationEnabled: true,
-              },
-            },
-          },
-        },
-      });
       mockMessengerCall.mockResolvedValueOnce('signature');
       mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
 
@@ -1506,19 +1479,6 @@ describe('BridgeStatusController', () => {
         metadata: { snap: undefined },
       };
       mockMessengerCall.mockReturnValueOnce(accountWithoutSnap);
-      // Mock the RemoteFeatureFlagController:getState call that happens in getBridgeFeatureFlags
-      mockMessengerCall.mockReturnValueOnce({
-        remoteFeatureFlags: {
-          bridgeConfig: {
-            support: true,
-            chains: {
-              [ChainId.SOLANA]: {
-                isSnapConfirmationEnabled: false,
-              },
-            },
-          },
-        },
-      });
       mockMessengerCall.mockReturnValueOnce(accountWithoutSnap);
 
       const { controller, startPollingForBridgeTxStatusSpy } =
@@ -1549,19 +1509,6 @@ describe('BridgeStatusController', () => {
 
     it('should handle snap controller errors', async () => {
       mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
-      // Mock the RemoteFeatureFlagController:getState call that happens in getBridgeFeatureFlags
-      mockMessengerCall.mockReturnValueOnce({
-        remoteFeatureFlags: {
-          bridgeConfig: {
-            support: true,
-            chains: {
-              [ChainId.SOLANA]: {
-                isSnapConfirmationEnabled: false,
-              },
-            },
-          },
-        },
-      });
       mockMessengerCall.mockRejectedValueOnce(new Error('Snap error'));
 
       const { controller, startPollingForBridgeTxStatusSpy } =
@@ -1708,19 +1655,6 @@ describe('BridgeStatusController', () => {
 
     it('should successfully submit a transaction', async () => {
       mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
-      // Mock the RemoteFeatureFlagController:getState call that happens in getBridgeFeatureFlags
-      mockMessengerCall.mockReturnValueOnce({
-        remoteFeatureFlags: {
-          bridgeConfig: {
-            support: true,
-            chains: {
-              [ChainId.SOLANA]: {
-                isSnapConfirmationEnabled: false,
-              },
-            },
-          },
-        },
-      });
       mockMessengerCall.mockResolvedValueOnce({
         signature: 'signature',
       });
@@ -1775,19 +1709,6 @@ describe('BridgeStatusController', () => {
 
     it('should handle snap controller errors', async () => {
       mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
-      // Mock the RemoteFeatureFlagController:getState call that happens in getBridgeFeatureFlags
-      mockMessengerCall.mockReturnValueOnce({
-        remoteFeatureFlags: {
-          bridgeConfig: {
-            support: true,
-            chains: {
-              [ChainId.SOLANA]: {
-                isSnapConfirmationEnabled: false,
-              },
-            },
-          },
-        },
-      });
       mockMessengerCall.mockRejectedValueOnce(new Error('Snap error'));
 
       const { controller, startPollingForBridgeTxStatusSpy } =

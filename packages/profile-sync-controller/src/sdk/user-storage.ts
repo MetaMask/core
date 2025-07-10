@@ -37,7 +37,6 @@ export type GetUserStorageAllFeatureEntriesResponse = {
 }[];
 
 export type UserStorageMethodOptions = {
-  validateAgainstSchema?: boolean;
   nativeScryptCrypto?: NativeScrypt;
   entropySourceId?: string;
 };
@@ -147,9 +146,7 @@ export class UserStorage {
         storageKey,
         options?.nativeScryptCrypto,
       );
-      const encryptedPath = createEntryPath(path, storageKey, {
-        validateAgainstSchema: Boolean(options?.validateAgainstSchema),
-      });
+      const encryptedPath = createEntryPath(path, storageKey);
 
       const url = new URL(STORAGE_URL(this.env, encryptedPath));
 
@@ -286,9 +283,7 @@ export class UserStorage {
     try {
       const headers = await this.#getAuthorizationHeader(entropySourceId);
       const storageKey = await this.getStorageKey(entropySourceId);
-      const encryptedPath = createEntryPath(path, storageKey, {
-        validateAgainstSchema: Boolean(options?.validateAgainstSchema),
-      });
+      const encryptedPath = createEntryPath(path, storageKey);
 
       const url = new URL(STORAGE_URL(this.env, encryptedPath));
 
@@ -439,9 +434,7 @@ export class UserStorage {
     try {
       const headers = await this.#getAuthorizationHeader(entropySourceId);
       const storageKey = await this.getStorageKey(entropySourceId);
-      const encryptedPath = createEntryPath(path, storageKey, {
-        validateAgainstSchema: Boolean(options?.validateAgainstSchema),
-      });
+      const encryptedPath = createEntryPath(path, storageKey);
 
       const url = new URL(STORAGE_URL(this.env, encryptedPath));
 
