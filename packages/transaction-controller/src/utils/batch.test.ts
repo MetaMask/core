@@ -368,6 +368,53 @@ describe('Batch Utils', () => {
       const result = await addTransactionBatch(request);
 
       expect(result.batchId).toMatch(/^0x[0-9a-f]{32}$/u);
+      expect(addTransactionMock.mock.calls).toStrictEqual({});
+    });
+
+    it('preserves nested transaction types when disable7702 is false', async () => {
+      const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
+
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      const result = await addTransactionBatch({
+        ...request,
+        publishBatchHook,
+        request: {
+          ...request.request,
+          transactions: [
+            {
+              ...request.request.transactions[0],
+              type: TransactionType.swapApproval,
+            },
+            {
+              ...request.request.transactions[1],
+              type: TransactionType.bridgeApproval,
+            },
+          ],
+          disable7702: false,
+        },
+      });
+
+      expect(result.batchId).toMatch(/^0x[0-9a-f]{32}$/u);
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock.mock.calls[0][1].type).toStrictEqual(
+        TransactionType.batch,
+      );
+
+      expect(
+        addTransactionMock.mock.calls[0][1].nestedTransactions?.[0].type,
+      ).toBe(TransactionType.swapApproval);
+      expect(
+        addTransactionMock.mock.calls[0][1].nestedTransactions?.[1].type,
+      ).toBe(TransactionType.bridgeApproval);
     });
 
     it('returns provided batch ID', async () => {
@@ -889,6 +936,7 @@ describe('Batch Utils', () => {
           // Intentionally empty
         });
 
+        expect(request.request.transactions).toHaveLength(2);
         await flushPromises();
 
         const publishHooks = addTransactionMock.mock.calls.map(
@@ -912,10 +960,10 @@ describe('Batch Utils', () => {
         await flushPromises();
 
         expect(publishBatchHook).toHaveBeenCalledTimes(1);
-        expect(publishBatchHook.mock.calls[0][0].transactions[0]).toBe(
+        expect(publishBatchHook.mock.calls[0][0].transactions[0].type).toBe(
           TransactionType.swap,
         );
-        expect(publishBatchHook.mock.calls[0][0].transactions[1]).toBe(
+        expect(publishBatchHook.mock.calls[0][0].transactions[1].type).toBe(
           TransactionType.bridge,
         );
       });
