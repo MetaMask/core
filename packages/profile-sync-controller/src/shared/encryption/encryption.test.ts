@@ -1,7 +1,8 @@
 import encryption, { createSHA256Hash } from './encryption';
 
 describe('encryption tests', () => {
-  const PASSWORD = '123';
+  const PASSWORD = createSHA256Hash('123'); // Convert to hex for V2 encryption
+  const ORIGINAL_PASSWORD = '123'; // Original password for V1 decryption tests
   const DATA1 = 'Hello World';
   const DATA2 = JSON.stringify({ foo: 'bar' });
 
@@ -28,7 +29,10 @@ describe('encryption tests', () => {
 
   it('should decrypt some existing data', async () => {
     const encryptedData = `{"v":"1","t":"scrypt","d":"WNEp1QXUZsxCfW9b27uzZ18CtsMvKP6+cqLq8NLAItXeYcFcUjtKprfvedHxf5JN9Q7pe50qnA==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}`;
-    const result = await encryption.decryptString(encryptedData, PASSWORD);
+    const result = await encryption.decryptString(
+      encryptedData,
+      ORIGINAL_PASSWORD,
+    );
     expect(result).toBe(DATA1);
   });
 
