@@ -949,7 +949,7 @@ describe('AssetsContractController with NetworkClientId', () => {
     });
 
     const balance = await assetsContract.getStakedBalanceForChain(
-      TEST_ACCOUNT_PUBLIC_ADDRESS,
+      [TEST_ACCOUNT_PUBLIC_ADDRESS],
       'mainnet',
     );
 
@@ -965,15 +965,15 @@ describe('AssetsContractController with NetworkClientId', () => {
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
-  it('should default staked ethereum balance to undefined if network is not supported', async () => {
+  it('should default staked ethereum balance to empty if network is not supported', async () => {
     const { assetsContract, provider } = await setupAssetContractControllers();
     assetsContract.setProvider(provider);
 
     const balance = await assetsContract.getStakedBalanceForChain(
-      TEST_ACCOUNT_PUBLIC_ADDRESS,
+      [TEST_ACCOUNT_PUBLIC_ADDRESS],
       'sepolia',
     );
 
-    expect(balance).toBeUndefined();
+    expect(balance).toStrictEqual({});
   });
 });

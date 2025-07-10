@@ -1322,7 +1322,7 @@ describe('AssetsContractController', () => {
     });
 
     const balance = await assetsContract.getStakedBalanceForChain(
-      TEST_ACCOUNT_PUBLIC_ADDRESS,
+      [TEST_ACCOUNT_PUBLIC_ADDRESS],
     );
 
     // exchange rate shares = 1e18
@@ -1331,7 +1331,7 @@ describe('AssetsContractController', () => {
     // user assets = 2e18
 
     expect(balance).toBeDefined();
-    expect(balance).toBe('0x1bc16d674ec80000');
+    expect(balance).toStrictEqual({"0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D": "0x1bc16d674ec80000"});
     expect(BigNumber.from(balance).toString()).toBe((2e18).toString());
 
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
@@ -1367,12 +1367,12 @@ describe('AssetsContractController', () => {
     });
 
     const balance = await assetsContract.getStakedBalanceForChain(
-      TEST_ACCOUNT_PUBLIC_ADDRESS,
+      [TEST_ACCOUNT_PUBLIC_ADDRESS],
     );
 
     expect(balance).toBeDefined();
-    expect(balance).toBe('0x00');
-    expect(BigNumber.from(balance).toString()).toBe('0');
+    expect(balance).toStrictEqual({"0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D": "0x00"});
+    expect(BigNumber.from(balance["0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D"]).toString()).toBe('0');
     expect(errorSpy).toHaveBeenCalledTimes(0);
 
     errorSpy.mockRestore();
@@ -1391,12 +1391,12 @@ describe('AssetsContractController', () => {
     assetsContract.setProvider(provider);
 
     const balance = await assetsContract.getStakedBalanceForChain(
-      TEST_ACCOUNT_PUBLIC_ADDRESS,
+      [TEST_ACCOUNT_PUBLIC_ADDRESS],
     );
 
     expect(balance).toBeDefined();
-    expect(balance).toBe('0x00');
-    expect(BigNumber.from(balance).toString()).toBe('0');
+    expect(balance).toStrictEqual({"0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D": "0x00"});
+    expect(BigNumber.from(balance["0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D"]).toString()).toBe('0');
     expect(errorSpy).toHaveBeenCalledTimes(1);
     expect(errorSpy).toHaveBeenCalledWith(error);
 
@@ -1407,7 +1407,7 @@ describe('AssetsContractController', () => {
   it('should throw missing provider error when getting staked ethereum balance and missing provider', async () => {
     const { assetsContract, messenger } = await setupAssetContractControllers();
     await expect(
-      assetsContract.getStakedBalanceForChain(TEST_ACCOUNT_PUBLIC_ADDRESS),
+      assetsContract.getStakedBalanceForChain([TEST_ACCOUNT_PUBLIC_ADDRESS]),
     ).rejects.toThrow(MISSING_PROVIDER_ERROR);
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });

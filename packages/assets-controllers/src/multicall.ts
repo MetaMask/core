@@ -288,7 +288,7 @@ const multicallAbi = [
   },
 ];
 
-type Call = {
+export type Call = {
   contract: Contract;
   functionSignature: string;
   arguments: unknown[];

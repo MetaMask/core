@@ -28,6 +28,7 @@ import {
 import { ERC20Standard } from './Standards/ERC20Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import { ERC721Standard } from './Standards/NftStandards/ERC721/ERC721Standard';
+import { Call, multicallOrFallback } from './multicall';
 
 /**
  * Check if token detection is enabled for certain networks
@@ -107,8 +108,8 @@ const name = 'AssetsContractController';
 // TODO: Figure out generic constraint and move to base-controller
 type ControllerActionsMap<Controller> = {
   [ClassMethod in keyof Controller as Controller[ClassMethod] extends ActionConstraint['handler']
-    ? ClassMethod
-    : never]: {
+  ? ClassMethod
+  : never]: {
     type: `${typeof name}:${ClassMethod & string}`;
     handler: Controller[ClassMethod];
   };
@@ -325,11 +326,11 @@ export class AssetsContractController {
   #getCorrectProvider(networkClientId?: NetworkClientId): Web3Provider {
     const provider = networkClientId
       ? this.messagingSystem.call(
-          `NetworkController:getNetworkClientById`,
-          networkClientId,
-        ).provider
+        `NetworkController:getNetworkClientById`,
+        networkClientId,
+      ).provider
       : (this.messagingSystem.call('NetworkController:getSelectedNetworkClient')
-          ?.provider ?? this.#provider);
+        ?.provider ?? this.#provider);
 
     if (provider === undefined) {
       throw new Error(MISSING_PROVIDER_ERROR);
@@ -704,21 +705,23 @@ export class AssetsContractController {
   }
 
   /**
-   * Get the staked ethereum balance for an address in a single call.
+   * Get the staked ethereum balance for multiple addresses in a single call.
    *
-   * @param address - The address to check staked ethereum balance for.
+   * @param addresses - The addresses to check staked ethereum balance for.
    * @param networkClientId - Network Client ID to fetch the provider with.
    * @returns The hex staked ethereum balance for address.
    */
   async getStakedBalanceForChain(
-    address: string,
+    addresses: string[],
     networkClientId?: NetworkClientId,
-  ): Promise<StakedBalance> {
+  ): Promise<Record<string, StakedBalance>> {
     const chainId = this.#getCorrectChainId(networkClientId);
     const provider = this.#getCorrectProvider(networkClientId);
 
-    // balance defaults to zero
-    let balance: BigNumber = BigNumber.from(0);
+    const balances = addresses.reduce<Record<string, StakedBalance>>((accumulator, address) => {
+      accumulator[address] = '0x00';
+      return accumulator;
+    }, {})
 
     // Only fetch staked balance on supported networks
     if (
@@ -727,14 +730,14 @@ export class AssetsContractController {
         SupportedStakedBalanceNetworks.hoodi,
       ].includes(chainId as SupportedStakedBalanceNetworks)
     ) {
-      return undefined as StakedBalance;
+      return {};
     }
     // Only fetch staked balance if contract address exists
     if (
       !((id): id is keyof typeof STAKING_CONTRACT_ADDRESS_BY_CHAINID =>
         id in STAKING_CONTRACT_ADDRESS_BY_CHAINID)(chainId)
     ) {
-      return undefined as StakedBalance;
+      return {};
     }
 
     const contractAddress = STAKING_CONTRACT_ADDRESS_BY_CHAINID[chainId];
@@ -756,19 +759,41 @@ export class AssetsContractController {
     ];
 
     try {
-      const contract = new Contract(contractAddress, abi, provider);
-      const userShares = await contract.getShares(address);
+      const calls = addresses.map((address) => ({
+        contract: new Contract(contractAddress, abi, provider),
+        functionSignature: 'getShares(address)',
+        arguments: [address],
+      }));
 
-      // convert shares to assets only if address shares > 0 else return default balance
-      if (!userShares.lte(0)) {
-        balance = await contract.convertToAssets(userShares.toString());
-      }
+      const userShares = await multicallOrFallback(calls, chainId, provider);
+
+      const nonZeroCalls = userShares.map((shares, index) => {
+        if (shares.success && (shares.value as BigNumber).gt(0)) {
+          return {
+            address: addresses[index],
+            call: {
+              contract: new Contract(contractAddress, abi, provider),
+              functionSignature: 'convertToAssets(uint256)',
+              arguments: [(shares.value as BigNumber).toString()],
+            }
+          }
+        }
+        return null;
+      }).filter(Boolean) as { call: Call, address: string }[];
+
+      const nonZeroBalances = await multicallOrFallback(nonZeroCalls.map(call => call.call), chainId, provider);
+      nonZeroBalances.forEach((balance, index) => {
+        if (balance.success && balance.value) {
+          const address = nonZeroCalls[index].address;
+          balances[address] = (balance.value as BigNumber).toHexString();
+        }
+      })
     } catch (error) {
       // if we get an error, log and return the default value
       console.error(error);
     }
 
-    return balance.toHexString();
+    return balances;
   }
 }
 
