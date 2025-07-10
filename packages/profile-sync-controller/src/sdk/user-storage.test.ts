@@ -20,7 +20,6 @@ import {
 import type { StorageOptions } from './user-storage';
 import { STORAGE_URL, UserStorage } from './user-storage';
 import encryption, { createSHA256Hash } from '../shared/encryption';
-import { SHARED_SALT } from '../shared/encryption/constants';
 import { Env } from '../shared/env';
 import { USER_STORAGE_FEATURE_NAMES } from '../shared/storage-schema';
 
@@ -92,12 +91,11 @@ describe('User Storage', () => {
     expect(response).toBe(data);
   });
 
-  it('re-encrypts data if received entry was encrypted with a random salt, and saves it back to user storage', async () => {
+  it('re-encrypts data if received entry was encrypted with v1 encryption params, and saves it back to user storage', async () => {
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
     const { userStorage } = arrangeUserStorage(auth);
 
     // This corresponds to 'data1'
-    // Encrypted with a random salt
     const mockResponse = {
       HashedKey: 'entry1',
       Data: '{"v":"1","t":"scrypt","d":"HIu+WgFBCtKo6rEGy0R8h8t/JgXhzC2a3AF6epahGY2h6GibXDKxSBf6ppxM099Gmg==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}',
@@ -115,11 +113,9 @@ describe('User Storage', () => {
           return;
         }
 
-        const isEncryptedUsingSharedSalt =
-          encryption.getSalt(requestBody.data).toString() ===
-          SHARED_SALT.toString();
-
-        expect(isEncryptedUsingSharedSalt).toBe(true);
+        // Verify that the data was re-encrypted to V2 format
+        const parsed = JSON.parse(requestBody.data);
+        expect(parsed.v).toBe('2');
       },
     );
 
@@ -152,7 +148,7 @@ describe('User Storage', () => {
     expect(responseAllFeatureEntries).toStrictEqual([data]);
   });
 
-  it('re-encrypts data if received entries were encrypted with random salts, and saves it back to user storage', async () => {
+  it('re-encrypts data if received entries were encrypted with v1 encryption, and saves it back to user storage', async () => {
     // This corresponds to [['entry1', 'data1'], ['entry2', 'data2'], ['HASHED_KEY', '{ "hello": "world" }']]
     // Each entry has been encrypted with a random salt, except for the last entry
     // The last entry is used to test if the function can handle payloads that contain both random salts and the shared salt
@@ -184,20 +180,13 @@ describe('User Storage', () => {
           return;
         }
 
-        const doEntriesHaveDifferentSalts =
-          encryption.getIfEntriesHaveDifferentSalts(
-            Object.entries(requestBody.data).map((entry) => entry[1] as string),
-          );
-
-        expect(doEntriesHaveDifferentSalts).toBe(false);
-
-        const doEntriesUseSharedSalt = Object.entries(requestBody.data).every(
+        // All re-encrypted entries should be V2
+        const doEntriesUseV2Encryption = Object.entries(requestBody.data).every(
           ([_entryKey, entryValue]) =>
-            encryption.getSalt(entryValue as string).toString() ===
-            SHARED_SALT.toString(),
+            JSON.parse(entryValue as string).v === '2',
         );
 
-        expect(doEntriesUseSharedSalt).toBe(true);
+        expect(doEntriesUseV2Encryption).toBe(true);
 
         const wereOnlyNonEmptySaltEntriesUploaded =
           Object.entries(requestBody.data).length === 2;

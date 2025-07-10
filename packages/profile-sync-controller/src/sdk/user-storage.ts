@@ -1,7 +1,6 @@
 import type { IBaseAuth } from './authentication-jwt-bearer/types';
 import { NotFoundError, UserStorageError } from './errors';
 import encryption, { createSHA256Hash } from '../shared/encryption';
-import { SHARED_SALT } from '../shared/encryption/constants';
 import type { Env } from '../shared/env';
 import { getEnvUrls } from '../shared/env';
 import type {
@@ -318,10 +317,13 @@ export class UserStorage {
         options?.nativeScryptCrypto,
       );
 
-      // Re-encrypt the entry if it was encrypted with a random salt
-      const salt = encryption.getSalt(encryptedData);
-      if (salt.toString() !== SHARED_SALT.toString()) {
-        await this.#upsertUserStorage(path, decryptedData, options);
+      // Migrate data from v1 to v2 encryption
+      if (JSON.parse(encryptedData).v === '1') {
+        const reEncryptedData = await encryption.encryptString(
+          decryptedData,
+          storageKey,
+        );
+        await this.#upsertUserStorage(path, reEncryptedData, options);
       }
 
       return decryptedData;
@@ -388,17 +390,13 @@ export class UserStorage {
           );
           decryptedData.push(data);
 
-          // Re-encrypt the entry was encrypted with a random salt
-          const salt = encryption.getSalt(entry.Data);
-          if (salt.toString() !== SHARED_SALT.toString()) {
-            reEncryptedEntries.push([
-              entry.HashedKey,
-              await encryption.encryptString(
-                data,
-                storageKey,
-                options?.nativeScryptCrypto,
-              ),
-            ]);
+          // Migrate data from v1 to v2 encryption
+          if (JSON.parse(entry.Data).v === '1') {
+            const reEncryptedData = await encryption.encryptString(
+              data,
+              storageKey,
+            );
+            reEncryptedEntries.push([entry.HashedKey, reEncryptedData]);
           }
         } catch {
           // do nothing

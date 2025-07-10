@@ -13,6 +13,7 @@ import {
   ALGORITHM_KEY_SIZE,
   ALGORITHM_NONCE_SIZE,
   SCRYPT_N,
+  SCRYPT_N_V2,
   SCRYPT_p,
   SCRYPT_r,
   SCRYPT_SALT_SIZE,
@@ -28,7 +29,7 @@ import type { NativeScrypt } from '../types/encryption';
 
 export type EncryptedPayload = {
   // version
-  v: '1';
+  v: '1' | '2';
 
   // key derivation function algorithm - scrypt
   t: 'scrypt';
@@ -55,11 +56,23 @@ class EncryptorDecryptor {
     nativeScryptCrypto?: NativeScrypt,
   ): Promise<string> {
     try {
-      return await this.#encryptStringV1(
+      const startTimestamp = Date.now();
+      console.warn(
+        `Scrypt removal: Encrypting string with password: ${password} at ${new Date(startTimestamp).toISOString()}`,
+      );
+      const encryptedData = await this.#encryptStringV1(
         plaintext,
         password,
         nativeScryptCrypto,
+        {
+          N: SCRYPT_N_V2,
+        },
       );
+      console.warn(
+        `Scrypt removal: Encryption completed in ${Date.now() - startTimestamp} ms`,
+      );
+
+      return encryptedData;
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
       throw new Error(`Unable to encrypt string - ${errorMessage}`);
@@ -72,14 +85,24 @@ class EncryptorDecryptor {
     nativeScryptCrypto?: NativeScrypt,
   ): Promise<string> {
     try {
+      const startTimestamp = Date.now();
+      console.warn(
+        `Scrypt removal: Decrypting string with password: ${password} at ${new Date(startTimestamp).toISOString()}`,
+      );
       const encryptedData: EncryptedPayload = JSON.parse(encryptedDataStr);
-      if (encryptedData.v === '1') {
+
+      if (['1', '2'].includes(encryptedData.v)) {
         if (encryptedData.t === 'scrypt') {
-          return await this.#decryptStringV1(
+          const decryptedData = await this.#decryptStringV1(
             encryptedData,
             password,
             nativeScryptCrypto,
           );
+
+          console.warn(
+            `Scrypt removal: Decryption completed in ${Date.now() - startTimestamp} ms (using V${encryptedData.v} encryption)`,
+          );
+          return decryptedData;
         }
       }
       throw new Error(
@@ -95,11 +118,14 @@ class EncryptorDecryptor {
     plaintext: string,
     password: string,
     nativeScryptCrypto?: NativeScrypt,
+    scryptOverrides = {
+      N: SCRYPT_N,
+    },
   ): Promise<string> {
     const { key, salt } = await this.#getOrGenerateScryptKey(
       password,
       {
-        N: SCRYPT_N,
+        N: scryptOverrides.N,
         r: SCRYPT_r,
         p: SCRYPT_p,
         dkLen: ALGORITHM_KEY_SIZE,
@@ -119,11 +145,11 @@ class EncryptorDecryptor {
     const encryptedData = byteArrayToBase64(ciphertextAndNonceAndSalt);
 
     const encryptedPayload: EncryptedPayload = {
-      v: '1',
+      v: '2',
       t: 'scrypt',
       d: encryptedData,
       o: {
-        N: SCRYPT_N,
+        N: scryptOverrides.N,
         r: SCRYPT_r,
         p: SCRYPT_p,
         dkLen: ALGORITHM_KEY_SIZE,
