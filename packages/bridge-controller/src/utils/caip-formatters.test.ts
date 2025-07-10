@@ -127,11 +127,23 @@ describe('CAIP Formatters', () => {
     });
 
     it('should return native asset for chainId when address is Solana native asset', () => {
-      const result = formatAddressToAssetId(
-        '11111111111111111111111111111111',
-        SolScope.Mainnet,
-      );
+      const result = formatAddressToAssetId('501', SolScope.Mainnet);
       expect(result).toBe('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501');
+    });
+
+    it('should return native asset for chainId when address is BSC native asset', () => {
+      const result = formatAddressToAssetId('714', '0x38');
+      expect(result).toBe('eip155:56/slip44:714');
+    });
+
+    it('should return native asset for chainId when address is BSC native assetId', () => {
+      const result = formatAddressToAssetId('slip44:714', 56);
+      expect(result).toBe('eip155:56/slip44:714');
+    });
+
+    it('should return native asset for chainId=BSC when address is zero address', () => {
+      const result = formatAddressToAssetId(AddressZero, 56);
+      expect(result).toBe('eip155:56/slip44:714');
     });
 
     it('should create Solana token asset type when chainId is Solana', () => {
