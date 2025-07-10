@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat: submit swap STX with addTransactionBatch ([#6058](https://github.com/MetaMask/core/pull/6058))
-- chore: remove user operation tx submission for swaps/bridge ([#6057](https://github.com/MetaMask/core/pull/6057))
-
 ## [35.0.0]
 
 ### Added
