@@ -1121,7 +1121,7 @@ describe('RestrictedMessenger', () => {
     expect(currentCount).toBe(10);
   });
 
-  describe('registerActionHandlers', () => {
+  describe('registerMethodActionHandlers', () => {
     it('should register action handlers for specified methods', () => {
       type TestActions =
         | { type: 'TestController:getState'; handler: () => { count: number } }
@@ -1160,7 +1160,7 @@ describe('RestrictedMessenger', () => {
       const controller = new TestController();
       const methodNames = ['getState', 'increment'] as const;
 
-      restrictedMessenger.registerActionHandlers(controller, methodNames);
+      restrictedMessenger.registerMethodActionHandlers(controller, methodNames);
 
       const state = restrictedMessenger.call('TestController:getState');
       expect(state).toStrictEqual({ count: 0 });
@@ -1192,7 +1192,7 @@ describe('RestrictedMessenger', () => {
       }
 
       const controller = new TestController();
-      restrictedMessenger.registerActionHandlers(controller, [
+      restrictedMessenger.registerMethodActionHandlers(controller, [
         'getPrivateValue',
       ]);
 
@@ -1221,7 +1221,9 @@ describe('RestrictedMessenger', () => {
       }
 
       const controller = new TestController();
-      restrictedMessenger.registerActionHandlers(controller, ['fetchData']);
+      restrictedMessenger.registerMethodActionHandlers(controller, [
+        'fetchData',
+      ]);
 
       const result = await restrictedMessenger.call(
         'TestController:fetchData',
@@ -1260,7 +1262,9 @@ describe('RestrictedMessenger', () => {
       }
 
       const controller = new TestController();
-      restrictedMessenger.registerActionHandlers(controller, ['getValue']);
+      restrictedMessenger.registerMethodActionHandlers(controller, [
+        'getValue',
+      ]);
 
       // getValue should be registered
       expect(restrictedMessenger.call('TestController:getValue')).toBe(
@@ -1280,53 +1284,6 @@ describe('RestrictedMessenger', () => {
         restrictedMessenger.call('TestController:messagingSystem');
       }).toThrow(
         'A handler for TestController:messagingSystem has not been registered',
-      );
-    });
-
-    it('should exclude methods specified in excludedMethods parameter', () => {
-      type TestActions =
-        | { type: 'TestController:method1'; handler: () => string }
-        | { type: 'TestController:method2'; handler: () => string };
-
-      const messenger = new Messenger<TestActions, never>();
-      const restrictedMessenger = messenger.getRestricted({
-        name: 'TestController',
-        allowedActions: [],
-        allowedEvents: [],
-      });
-
-      class TestController {
-        name = 'TestController';
-
-        method1() {
-          return 'method1';
-        }
-
-        method2() {
-          return 'method2';
-        }
-      }
-
-      const controller = new TestController();
-      const methodNames = ['method1', 'method2'] as const;
-      const excludedMethods = ['method2'];
-
-      restrictedMessenger.registerActionHandlers(
-        controller,
-        methodNames,
-        excludedMethods,
-      );
-
-      // method1 should be registered
-      expect(restrictedMessenger.call('TestController:method1')).toBe(
-        'method1',
-      );
-
-      // method2 should be excluded
-      expect(() => {
-        restrictedMessenger.call('TestController:method2');
-      }).toThrow(
-        'A handler for TestController:method2 has not been registered',
       );
     });
 
@@ -1354,10 +1311,9 @@ describe('RestrictedMessenger', () => {
       const customHandler = sinon.fake(() => 'custom value');
       const exceptions = { getValue: customHandler };
 
-      restrictedMessenger.registerActionHandlers(
+      restrictedMessenger.registerMethodActionHandlers(
         controller,
         ['getValue'],
-        [],
         exceptions,
       );
 
@@ -1392,10 +1348,9 @@ describe('RestrictedMessenger', () => {
       };
       const exceptions = { getCustomValue: customHandler };
 
-      restrictedMessenger.registerActionHandlers(
+      restrictedMessenger.registerMethodActionHandlers(
         controller,
         ['getCustomValue'],
-        [],
         exceptions,
       );
 
@@ -1426,10 +1381,9 @@ describe('RestrictedMessenger', () => {
       const controller = new TestController();
       const exceptions = { getValue: undefined };
 
-      restrictedMessenger.registerActionHandlers(
+      restrictedMessenger.registerMethodActionHandlers(
         controller,
         ['getValue'],
-        [],
         exceptions,
       );
 
@@ -1454,7 +1408,7 @@ describe('RestrictedMessenger', () => {
       const methodNames: readonly string[] = [];
 
       expect(() => {
-        restrictedMessenger.registerActionHandlers(
+        restrictedMessenger.registerMethodActionHandlers(
           controller,
           methodNames as never[],
         );
@@ -1484,7 +1438,9 @@ describe('RestrictedMessenger', () => {
       }
 
       const controller = new TestController();
-      restrictedMessenger.registerActionHandlers(controller, ['getValue'], []);
+      restrictedMessenger.registerMethodActionHandlers(controller, [
+        'getValue',
+      ]);
 
       // getValue should be registered
       expect(restrictedMessenger.call('TestController:getValue')).toBe('test');
@@ -1530,8 +1486,12 @@ describe('RestrictedMessenger', () => {
       const controller1 = new TestController('Controller1');
       const controller2 = new TestController('Controller2');
 
-      restrictedMessenger1.registerActionHandlers(controller1, ['getValue']);
-      restrictedMessenger2.registerActionHandlers(controller2, ['getValue']);
+      restrictedMessenger1.registerMethodActionHandlers(controller1, [
+        'getValue',
+      ]);
+      restrictedMessenger2.registerMethodActionHandlers(controller2, [
+        'getValue',
+      ]);
 
       expect(restrictedMessenger1.call('Controller1:getValue')).toBe(
         'value from Controller1',
@@ -1570,7 +1530,7 @@ describe('RestrictedMessenger', () => {
       }
 
       const controller = new ChildController();
-      restrictedMessenger.registerActionHandlers(controller, [
+      restrictedMessenger.registerMethodActionHandlers(controller, [
         'baseMethod',
         'childMethod',
       ]);

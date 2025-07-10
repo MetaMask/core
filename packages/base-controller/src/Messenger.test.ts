@@ -557,7 +557,7 @@ describe('Messenger', () => {
     expect(handler.callCount).toBe(0);
   });
 
-  describe('registerActionHandlers', () => {
+  describe('registerMethodActionHandlers', () => {
     it('should register action handlers for specified methods', () => {
       type TestActions =
         | { type: 'TestController:getState'; handler: () => { data: string } }
@@ -591,7 +591,7 @@ describe('Messenger', () => {
       const controller = new TestController();
       const methodNames = ['getState', 'increment'] as const;
 
-      messenger.registerActionHandlers(controller, methodNames);
+      messenger.registerMethodActionHandlers(controller, methodNames);
 
       const state = messenger.call('TestController:getState');
       expect(state).toStrictEqual({ count: 0 });
@@ -618,7 +618,7 @@ describe('Messenger', () => {
       }
 
       const controller = new TestController();
-      messenger.registerActionHandlers(controller, ['getPrivateValue']);
+      messenger.registerMethodActionHandlers(controller, ['getPrivateValue']);
 
       const result = messenger.call('TestController:getPrivateValue');
       expect(result).toBe('secret');
@@ -640,7 +640,7 @@ describe('Messenger', () => {
       }
 
       const controller = new TestController();
-      messenger.registerActionHandlers(controller, ['fetchData']);
+      messenger.registerMethodActionHandlers(controller, ['fetchData']);
 
       const result = await messenger.call('TestController:fetchData', '123');
       expect(result).toBe('data-123');
@@ -671,7 +671,7 @@ describe('Messenger', () => {
       }
 
       const controller = new TestController();
-      messenger.registerActionHandlers(controller, ['getValue']);
+      messenger.registerMethodActionHandlers(controller, ['getValue']);
 
       // getValue should be registered
       expect(messenger.call('TestController:getValue')).toBe('test value');
@@ -689,46 +689,6 @@ describe('Messenger', () => {
         messenger.call('TestController:messagingSystem');
       }).toThrow(
         'A handler for TestController:messagingSystem has not been registered',
-      );
-    });
-
-    it('should exclude methods specified in excludedMethods parameter', () => {
-      type TestActions =
-        | { type: 'TestController:method1'; handler: () => string }
-        | { type: 'TestController:method2'; handler: () => string };
-
-      const messenger = new Messenger<TestActions, never>();
-
-      class TestController {
-        name = 'TestController';
-
-        method1() {
-          return 'method1';
-        }
-
-        method2() {
-          return 'method2';
-        }
-      }
-
-      const controller = new TestController();
-      const methodNames = ['method1', 'method2'] as const;
-      const excludedMethods = ['method2'];
-
-      messenger.registerActionHandlers(
-        controller,
-        methodNames,
-        excludedMethods,
-      );
-
-      // method1 should be registered
-      expect(messenger.call('TestController:method1')).toBe('method1');
-
-      // method2 should be excluded
-      expect(() => {
-        messenger.call('TestController:method2');
-      }).toThrow(
-        'A handler for TestController:method2 has not been registered',
       );
     });
 
@@ -751,10 +711,9 @@ describe('Messenger', () => {
       const customHandler = sinon.fake(() => 'custom value');
       const exceptions = { getValue: customHandler };
 
-      messenger.registerActionHandlers(
+      messenger.registerMethodActionHandlers(
         controller,
         ['getValue'],
-        [],
         exceptions,
       );
 
@@ -784,10 +743,9 @@ describe('Messenger', () => {
       };
       const exceptions = { getCustomValue: customHandler };
 
-      messenger.registerActionHandlers(
+      messenger.registerMethodActionHandlers(
         controller,
         ['getCustomValue'],
-        [],
         exceptions,
       );
 
@@ -813,10 +771,9 @@ describe('Messenger', () => {
       const controller = new TestController();
       const exceptions = { getValue: undefined };
 
-      messenger.registerActionHandlers(
+      messenger.registerMethodActionHandlers(
         controller,
         ['getValue'],
-        [],
         exceptions,
       );
 
@@ -836,7 +793,10 @@ describe('Messenger', () => {
       const methodNames: readonly string[] = [];
 
       expect(() => {
-        messenger.registerActionHandlers(controller, methodNames as never[]);
+        messenger.registerMethodActionHandlers(
+          controller,
+          methodNames as never[],
+        );
       }).not.toThrow();
     });
 
@@ -858,7 +818,7 @@ describe('Messenger', () => {
       }
 
       const controller = new TestController();
-      messenger.registerActionHandlers(controller, ['getValue'], []);
+      messenger.registerMethodActionHandlers(controller, ['getValue']);
 
       // getValue should be registered
       expect(messenger.call('TestController:getValue')).toBe('test');
@@ -894,8 +854,8 @@ describe('Messenger', () => {
       const controller1 = new TestController('Controller1');
       const controller2 = new TestController('Controller2');
 
-      messenger.registerActionHandlers(controller1, ['getValue']);
-      messenger.registerActionHandlers(controller2, ['getValue']);
+      messenger.registerMethodActionHandlers(controller1, ['getValue']);
+      messenger.registerMethodActionHandlers(controller2, ['getValue']);
 
       expect(messenger.call('Controller1:getValue')).toBe(
         'value from Controller1',
@@ -929,7 +889,7 @@ describe('Messenger', () => {
       }
 
       const controller = new ChildController();
-      messenger.registerActionHandlers(controller, [
+      messenger.registerMethodActionHandlers(controller, [
         'baseMethod',
         'childMethod',
       ]);

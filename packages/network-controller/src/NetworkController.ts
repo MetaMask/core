@@ -524,7 +524,6 @@ export type NetworkControllerGetNetworkConfigurationByNetworkClientId = {
   handler: NetworkController['getNetworkConfigurationByNetworkClientId'];
 };
 
-// Define the methods we want to expose via the messenger
 const MESSENGER_EXPOSED_METHODS = [
   'getNetworkClientById',
   'getSelectedNetworkClient',
@@ -1181,7 +1180,7 @@ export class NetworkController extends BaseController<
         this.state.networkConfigurationsByChainId,
       );
 
-    this.messagingSystem.registerActionHandlers(
+    this.messagingSystem.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );

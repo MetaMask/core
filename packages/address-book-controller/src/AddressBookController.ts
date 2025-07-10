@@ -98,7 +98,6 @@ export type AddressBookControllerContactDeletedEvent = {
   payload: [AddressBookEntry];
 };
 
-// Define the methods we want to expose via the messenger
 const MESSENGER_EXPOSED_METHODS = ['list', 'set', 'delete'] as const;
 
 type AddressBookControllerMethodActions = MessengerMethodActions<
@@ -186,7 +185,7 @@ export class AddressBookController extends BaseController<
       state: mergedState,
     });
 
-    this.messagingSystem.registerActionHandlers(
+    this.messagingSystem.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );

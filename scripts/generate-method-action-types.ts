@@ -3,6 +3,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as ts from 'typescript';
+import yargs from 'yargs';
 
 type MethodInfo = {
   name: string;
@@ -18,9 +19,105 @@ type ControllerInfo = {
 };
 
 /**
+ * The parsed command-line arguments.
+ */
+type CommandLineArguments = {
+  /**
+   * Whether to check if the action types files are up to date.
+   */
+  check: boolean;
+  /**
+   * Whether to fix the action types files.
+   */
+  fix: boolean;
+};
+
+/**
+ * Uses `yargs` to parse the arguments given to the script.
+ *
+ * @returns The command line arguments.
+ */
+async function parseCommandLineArguments(): Promise<CommandLineArguments> {
+  const { check, fix } = await yargs(process.argv.slice(2))
+    .option('check', {
+      type: 'boolean',
+      description: 'Check if generated action type files are up to date',
+      default: false,
+    })
+    .option('fix', {
+      type: 'boolean',
+      description: 'Generate/update action type files',
+      default: false,
+    })
+    .help().argv;
+
+  return { check, fix };
+}
+
+/**
+ * Checks if generated action types files are up to date.
+ *
+ * @param controllers - Array of controller information objects.
+ */
+async function checkActionTypesFiles(
+  controllers: ControllerInfo[],
+): Promise<void> {
+  let hasErrors = false;
+
+  for (const controller of controllers) {
+    const outputDir = path.dirname(controller.filePath);
+    const outputFile = path.join(
+      outputDir,
+      `${controller.name}-method-action-types.ts`,
+    );
+
+    const expectedContent = generateActionTypesContent(controller);
+
+    try {
+      const actualContent = await fs.promises.readFile(outputFile, 'utf8');
+
+      if (actualContent !== expectedContent) {
+        console.error(
+          `❌ ${controller.name}-method-action-types.ts is out of date`,
+        );
+        hasErrors = true;
+      } else {
+        console.log(
+          `✅ ${controller.name}-method-action-types.ts is up to date`,
+        );
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        console.error(
+          `❌ ${controller.name}-method-action-types.ts does not exist`,
+        );
+      } else {
+        console.error(
+          `❌ Error reading ${controller.name}-method-action-types.ts:`,
+          error,
+        );
+      }
+      hasErrors = true;
+    }
+  }
+
+  if (hasErrors) {
+    console.error('\n💥 Some action type files are out of date or missing.');
+    console.error(
+      'Run `yarn generate-method-action-types --fix` to update them.',
+    );
+    process.exitCode = 1;
+  } else {
+    console.log('\n🎉 All action type files are up to date!');
+  }
+}
+
+/**
  * Main entry point for the script.
  */
 async function main() {
+  const { check, fix } = await parseCommandLineArguments();
+
   console.log('🔍 Searching for controllers with MESSENGER_EXPOSED_METHODS...');
 
   const controllers = await findControllersWithExposedMethods();
@@ -34,13 +131,22 @@ async function main() {
     `📦 Found ${controllers.length} controller(s) with exposed methods`,
   );
 
-  for (const controller of controllers) {
-    console.log(`\n🔧 Processing ${controller.name}...`);
-    await generateActionTypesFile(controller);
-    console.log(`✅ Generated action types for ${controller.name}`);
-  }
+  if (check) {
+    await checkActionTypesFiles(controllers);
+  } else {
+    // Default mode, --fix mode, or generate mode: generate files
+    if (fix) {
+      console.log('🔧 Running in fix mode...');
+    }
 
-  console.log('\n🎉 All action types generated successfully!');
+    for (const controller of controllers) {
+      console.log(`\n🔧 Processing ${controller.name}...`);
+      await generateActionTypesFile(controller);
+      console.log(`✅ Generated action types for ${controller.name}`);
+    }
+
+    console.log('\n🎉 All action types generated successfully!');
+  }
 }
 
 /**

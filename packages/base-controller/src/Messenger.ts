@@ -176,31 +176,20 @@ export class Messenger<
    * Registers action handlers for a list of methods on a class instance
    *
    * @param instance - The class instance with a name property and methods
-   * @param methodNames - The names of the methods to register as action handlers (excluding hard-excluded methods)
-   * @param excludedMethods - Optional list of method names to exclude from registration
+   * @param methodNames - The names of the methods to register as action handlers
    * @param exceptions - Optional map of method names to custom handlers
    */
-  registerActionHandlers<
+  registerMethodActionHandlers<
     Instance extends { name: string },
     MethodNames extends keyof Instance & string,
   >(
     instance: Instance,
     methodNames: readonly MethodNames[],
-    excludedMethods: readonly string[] = [],
     exceptions: Partial<
       Record<MethodNames, (...args: unknown[]) => unknown>
     > = {},
   ) {
-    const hardExclusions = ['constructor', 'messagingSystem'];
-
     for (const methodName of methodNames) {
-      if (
-        hardExclusions.includes(methodName) ||
-        excludedMethods.includes(methodName)
-      ) {
-        continue;
-      }
-
       const handler = exceptions[methodName] ?? instance[methodName];
       if (typeof handler === 'function') {
         const actionType =
@@ -215,7 +204,7 @@ export class Messenger<
    *
    * This will prevent this action from being called.
    *
-   * @param actionType - The action type. This is a unqiue identifier for this action.
+   * @param actionType - The action type. This is a unique identifier for this action.
    * @template ActionType - A type union of Action type strings.
    */
   unregisterActionHandler<ActionType extends Action['type']>(
