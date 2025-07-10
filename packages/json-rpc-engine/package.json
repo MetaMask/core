@@ -68,13 +68,15 @@
   "dependencies": {
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/safe-event-emitter": "^3.0.0",
-    "@metamask/utils": "^11.4.2"
+    "@metamask/utils": "^11.4.2",
+    "immer": "^9.0.6"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@types/jest": "^27.4.1",
+    "@types/lodash": "^4.14.191",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "jest-it-up": "^2.0.2",
