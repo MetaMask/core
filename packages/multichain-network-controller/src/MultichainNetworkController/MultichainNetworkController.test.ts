@@ -17,6 +17,7 @@ import type {
   NetworkControllerRemoveNetworkAction,
   NetworkControllerFindNetworkClientIdByChainIdAction,
 } from '@metamask/network-controller';
+import type { AuthenticationControllerGetBearerToken } from '@metamask/profile-sync-controller/auth';
 import { KnownCaipNamespace, type CaipAccountId } from '@metamask/utils';
 
 import { MultichainNetworkController } from './MultichainNetworkController';
@@ -43,8 +44,19 @@ function createMockNetworkService(
 ): AbstractMultichainNetworkService {
   return {
     fetchNetworkActivity: jest
-      .fn<Promise<ActiveNetworksResponse>, [CaipAccountId[]]>()
-      .mockResolvedValue(mockResponse),
+      .fn<
+        Promise<ActiveNetworksResponse>,
+        [
+          CaipAccountId[],
+          { getAuthenticationControllerBearerToken: () => Promise<string> },
+        ]
+      >()
+      .mockImplementation(
+        async (_, { getAuthenticationControllerBearerToken }) => {
+          await getAuthenticationControllerBearerToken();
+          return mockResponse;
+        },
+      ),
   };
 }
 
@@ -147,6 +159,15 @@ function setupController({
     mockGetSelectedChainId,
   );
 
+  const mockAuthenticationControllerGetBearerToken = jest.fn<
+    ReturnType<AuthenticationControllerGetBearerToken['handler']>,
+    Parameters<AuthenticationControllerGetBearerToken['handler']>
+  >();
+  messenger.registerActionHandler(
+    'AuthenticationController:getBearerToken',
+    mockAuthenticationControllerGetBearerToken,
+  );
+
   const mockFindNetworkClientIdByChainId =
     findNetworkClientIdByChainId ??
     jest.fn<
@@ -173,6 +194,7 @@ function setupController({
       'NetworkController:getSelectedChainId',
       'NetworkController:findNetworkClientIdByChainId',
       'AccountsController:listMultichainAccounts',
+      'AuthenticationController:getBearerToken',
     ],
     allowedEvents: ['AccountsController:selectedAccountChange'],
   });
@@ -219,6 +241,7 @@ function setupController({
     mockRemoveNetwork,
     mockGetSelectedChainId,
     mockFindNetworkClientIdByChainId,
+    mockAuthenticationControllerGetBearerToken,
     publishSpy,
     triggerSelectedAccountChange,
     networkService: mockNetworkService ?? defaultNetworkService,
@@ -606,9 +629,15 @@ describe('MultichainNetworkController', () => {
       };
 
       const mockNetworkService = createMockNetworkService(mockResponse);
-      await mockNetworkService.fetchNetworkActivity([
-        `${KnownCaipNamespace.Eip155}:${MOCK_EVM_CHAIN_1}:${MOCK_EVM_ADDRESS}`,
-      ]);
+      await mockNetworkService.fetchNetworkActivity(
+        [
+          `${KnownCaipNamespace.Eip155}:${MOCK_EVM_CHAIN_1}:${MOCK_EVM_ADDRESS}`,
+        ],
+        {
+          getAuthenticationControllerBearerToken: async () =>
+            'mock-access-token',
+        },
+      );
 
       const { controller, messenger } = setupController({
         mockNetworkService,
@@ -628,9 +657,12 @@ describe('MultichainNetworkController', () => {
       const result =
         await controller.getNetworksWithTransactionActivityByAccounts();
 
-      expect(mockNetworkService.fetchNetworkActivity).toHaveBeenCalledWith([
-        `${KnownCaipNamespace.Eip155}:0:${MOCK_EVM_ADDRESS}`,
-      ]);
+      expect(mockNetworkService.fetchNetworkActivity).toHaveBeenCalledWith(
+        [`${KnownCaipNamespace.Eip155}:0:${MOCK_EVM_ADDRESS}`],
+        {
+          getAuthenticationControllerBearerToken: expect.any(Function),
+        },
+      );
 
       expect(result).toStrictEqual({
         [MOCK_EVM_ADDRESS]: {

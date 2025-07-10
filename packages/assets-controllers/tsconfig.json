@@ -15,7 +15,8 @@
     { "path": "../phishing-controller" },
     { "path": "../polling-controller" },
     { "path": "../permission-controller" },
-    { "path": "../transaction-controller" }
+    { "path": "../transaction-controller" },
+    { "path": "../profile-sync-controller" }
   ],
   "include": ["../../types", "./src", "../../tests"]
 }

@@ -10,10 +10,6 @@ import {
 } from '../api/accounts-api';
 
 describe('MultichainNetworkService', () => {
-  beforeEach(() => {
-    jest.resetAllMocks();
-  });
-
   const mockFetch = jest.fn();
   const MOCK_EVM_ADDRESS = '0x1234567890123456789012345678901234567890';
   const MOCK_EVM_CHAIN_1 = '1';
@@ -23,6 +19,17 @@ describe('MultichainNetworkService', () => {
     `${KnownCaipNamespace.Eip155}:${MOCK_EVM_CHAIN_1}:${MOCK_EVM_ADDRESS}`,
     `${KnownCaipNamespace.Eip155}:${MOCK_EVM_CHAIN_137}:${MOCK_EVM_ADDRESS}`,
   ];
+
+  const MOCK_ACCESS_TOKEN = 'mock-access-token';
+  const mockAuthenticationControllerGetBearerToken = jest.fn();
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+
+    mockAuthenticationControllerGetBearerToken.mockResolvedValue(
+      MOCK_ACCESS_TOKEN,
+    );
+  });
 
   describe('constructor', () => {
     it('creates an instance with the provided fetch implementation', () => {
@@ -48,7 +55,10 @@ describe('MultichainNetworkService', () => {
         fetch: mockFetch,
       });
 
-      const result = await service.fetchNetworkActivity([]);
+      const result = await service.fetchNetworkActivity([], {
+        getAuthenticationControllerBearerToken:
+          mockAuthenticationControllerGetBearerToken,
+      });
 
       expect(mockFetch).not.toHaveBeenCalled();
       expect(result).toStrictEqual({ activeNetworks: [] });
@@ -70,7 +80,10 @@ describe('MultichainNetworkService', () => {
       const service = new MultichainNetworkService({
         fetch: mockFetch,
       });
-      const result = await service.fetchNetworkActivity(validAccountIds);
+      const result = await service.fetchNetworkActivity(validAccountIds, {
+        getAuthenticationControllerBearerToken:
+          mockAuthenticationControllerGetBearerToken,
+      });
 
       expect(mockFetch).toHaveBeenCalledWith(
         `${MULTICHAIN_ACCOUNTS_BASE_URL}/v2/activeNetworks?accountIds=${encodeURIComponent(validAccountIds.join(','))}`,
@@ -78,6 +91,7 @@ describe('MultichainNetworkService', () => {
           method: 'GET',
           headers: {
             [MULTICHAIN_ACCOUNTS_CLIENT_HEADER]: MULTICHAIN_ACCOUNTS_CLIENT_ID,
+            Authorization: `Bearer ${MOCK_ACCESS_TOKEN}`,
             Accept: 'application/json',
           },
         },
@@ -116,7 +130,10 @@ describe('MultichainNetworkService', () => {
         fetch: mockFetch,
       });
 
-      const result = await service.fetchNetworkActivity(manyAccountIds);
+      const result = await service.fetchNetworkActivity(manyAccountIds, {
+        getAuthenticationControllerBearerToken:
+          mockAuthenticationControllerGetBearerToken,
+      });
 
       expect(mockFetch).toHaveBeenCalledTimes(2);
 
@@ -160,7 +177,10 @@ describe('MultichainNetworkService', () => {
         batchSize: customBatchSize,
       });
 
-      const result = await service.fetchNetworkActivity(manyAccountIds);
+      const result = await service.fetchNetworkActivity(manyAccountIds, {
+        getAuthenticationControllerBearerToken:
+          mockAuthenticationControllerGetBearerToken,
+      });
 
       expect(mockFetch).toHaveBeenCalledTimes(3);
 
@@ -180,7 +200,10 @@ describe('MultichainNetworkService', () => {
       });
 
       await expect(
-        service.fetchNetworkActivity(validAccountIds),
+        service.fetchNetworkActivity(validAccountIds, {
+          getAuthenticationControllerBearerToken:
+            mockAuthenticationControllerGetBearerToken,
+        }),
       ).rejects.toThrow('HTTP error! status: 404');
     });
 
@@ -195,7 +218,10 @@ describe('MultichainNetworkService', () => {
       });
 
       await expect(
-        service.fetchNetworkActivity(validAccountIds),
+        service.fetchNetworkActivity(validAccountIds, {
+          getAuthenticationControllerBearerToken:
+            mockAuthenticationControllerGetBearerToken,
+        }),
       ).rejects.toThrow(
         'At path: activeNetworks -- Expected an array value, but received: undefined',
       );
@@ -211,7 +237,10 @@ describe('MultichainNetworkService', () => {
       });
 
       await expect(
-        service.fetchNetworkActivity(validAccountIds),
+        service.fetchNetworkActivity(validAccountIds, {
+          getAuthenticationControllerBearerToken:
+            mockAuthenticationControllerGetBearerToken,
+        }),
       ).rejects.toThrow('Request timeout: Failed to fetch active networks');
     });
 
@@ -224,7 +253,10 @@ describe('MultichainNetworkService', () => {
       });
 
       await expect(
-        service.fetchNetworkActivity(validAccountIds),
+        service.fetchNetworkActivity(validAccountIds, {
+          getAuthenticationControllerBearerToken:
+            mockAuthenticationControllerGetBearerToken,
+        }),
       ).rejects.toThrow(networkError.message);
     });
 
@@ -236,7 +268,10 @@ describe('MultichainNetworkService', () => {
       });
 
       await expect(
-        service.fetchNetworkActivity(validAccountIds),
+        service.fetchNetworkActivity(validAccountIds, {
+          getAuthenticationControllerBearerToken:
+            mockAuthenticationControllerGetBearerToken,
+        }),
       ).rejects.toThrow('Failed to fetch active networks: Unknown error');
     });
   });

@@ -13,7 +13,10 @@
      * `jest.config.packages.js`.
      */
     "paths": {
-      "@metamask/*": ["../*/src"]
+      "@metamask/*": ["../*/src"],
+      "@metamask/profile-sync-controller/auth": [
+        "../profile-sync-controller/src/controllers/authentication"
+      ]
     },
     "strict": true,
     "target": "ES2020"

@@ -2,6 +2,7 @@ import { BaseController } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkClientId } from '@metamask/network-controller';
+import type { AuthenticationControllerGetBearerToken } from '@metamask/profile-sync-controller/auth';
 import { type CaipChainId, isCaipChainId } from '@metamask/utils';
 
 import {
@@ -155,6 +156,14 @@ export class MultichainNetworkController extends BaseController<
     return await this.#setActiveEvmNetwork(id);
   }
 
+  async #getAuthenticationControllerBearerToken(): ReturnType<
+    AuthenticationControllerGetBearerToken['handler']
+  > {
+    return await this.messagingSystem.call(
+      'AuthenticationController:getBearerToken',
+    );
+  }
+
   /**
    * Returns the active networks for the available EVM addresses (non-EVM networks will be supported in the future).
    * Fetches the data from the API and caches it in state.
@@ -176,8 +185,13 @@ export class MultichainNetworkController extends BaseController<
       .map((account: InternalAccount) => toAllowedCaipAccountIds(account))
       .flat();
 
-    const activeNetworks =
-      await this.#networkService.fetchNetworkActivity(formattedAccounts);
+    const activeNetworks = await this.#networkService.fetchNetworkActivity(
+      formattedAccounts,
+      {
+        getAuthenticationControllerBearerToken:
+          this.#getAuthenticationControllerBearerToken.bind(this),
+      },
+    );
     const formattedNetworks = toActiveNetworksByAddress(activeNetworks);
 
     this.update((state) => {

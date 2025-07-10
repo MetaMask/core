@@ -20,6 +20,7 @@ import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkClientId,
 } from '@metamask/network-controller';
+import type { AuthenticationControllerGetBearerToken } from '@metamask/profile-sync-controller/auth';
 
 import type { ActiveNetworksByAddress } from './api/accounts-api';
 import type { MultichainNetworkController } from './MultichainNetworkController/MultichainNetworkController';
@@ -180,7 +181,8 @@ export type AllowedActions =
   | AccountsControllerListMultichainAccountsAction
   | NetworkControllerRemoveNetworkAction
   | NetworkControllerGetSelectedChainIdAction
-  | NetworkControllerFindNetworkClientIdByChainIdAction;
+  | NetworkControllerFindNetworkClientIdByChainIdAction
+  | AuthenticationControllerGetBearerToken;
 
 // Re-define event here to avoid circular dependency with AccountsController
 export type AccountsControllerSelectedAccountChangeEvent = {
