@@ -2,22 +2,19 @@ import { gcm } from '@noble/ciphers/aes';
 import { randomBytes } from '@noble/ciphers/webcrypto';
 import { scryptAsync } from '@noble/hashes/scrypt';
 import { sha256 } from '@noble/hashes/sha256';
-import { utf8ToBytes, concatBytes, bytesToHex } from '@noble/hashes/utils';
+import {
+  utf8ToBytes,
+  concatBytes,
+  bytesToHex,
+  hexToBytes,
+} from '@noble/hashes/utils';
 
 import {
   getCachedKeyBySalt,
   getCachedKeyGeneratedWithSharedSalt,
   setCachedKey,
 } from './cache';
-import {
-  ALGORITHM_KEY_SIZE,
-  ALGORITHM_NONCE_SIZE,
-  SCRYPT_N,
-  SCRYPT_p,
-  SCRYPT_r,
-  SCRYPT_SALT_SIZE,
-  SHARED_SALT,
-} from './constants';
+import { ALGORITHM_NONCE_SIZE, SHARED_SALT } from './constants';
 import {
   base64ToByteArray,
   byteArrayToBase64,
@@ -48,18 +45,21 @@ export type EncryptedPayload = {
   saltLen: number;
 };
 
+export type EncryptedPayloadV2 = {
+  // version
+  v: '2';
+
+  // algorithm
+  t: 'gcm';
+
+  // data
+  d: string;
+};
+
 class EncryptorDecryptor {
-  async encryptString(
-    plaintext: string,
-    password: string,
-    nativeScryptCrypto?: NativeScrypt,
-  ): Promise<string> {
+  async encryptString(plaintext: string, password: string): Promise<string> {
     try {
-      return await this.#encryptStringV1(
-        plaintext,
-        password,
-        nativeScryptCrypto,
-      );
+      return await this.#encryptStringV2(plaintext, password);
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
       throw new Error(`Unable to encrypt string - ${errorMessage}`);
@@ -72,7 +72,15 @@ class EncryptorDecryptor {
     nativeScryptCrypto?: NativeScrypt,
   ): Promise<string> {
     try {
-      const encryptedData: EncryptedPayload = JSON.parse(encryptedDataStr);
+      const encryptedData: EncryptedPayload | EncryptedPayloadV2 =
+        JSON.parse(encryptedDataStr);
+
+      if (encryptedData.v === '2') {
+        if (encryptedData.t === 'gcm') {
+          return await this.#decryptStringV2(encryptedData, password);
+        }
+      }
+
       if (encryptedData.v === '1') {
         if (encryptedData.t === 'scrypt') {
           return await this.#decryptStringV1(
@@ -82,6 +90,7 @@ class EncryptorDecryptor {
           );
         }
       }
+
       throw new Error(
         `Unsupported encrypted data payload - ${encryptedDataStr}`,
       );
@@ -91,44 +100,15 @@ class EncryptorDecryptor {
     }
   }
 
-  async #encryptStringV1(
-    plaintext: string,
-    password: string,
-    nativeScryptCrypto?: NativeScrypt,
-  ): Promise<string> {
-    const { key, salt } = await this.#getOrGenerateScryptKey(
-      password,
-      {
-        N: SCRYPT_N,
-        r: SCRYPT_r,
-        p: SCRYPT_p,
-        dkLen: ALGORITHM_KEY_SIZE,
-      },
-      undefined,
-      nativeScryptCrypto,
-    );
-
-    // Encrypt and prepend salt.
+  async #encryptStringV2(plaintext: string, password: string): Promise<string> {
     const plaintextRaw = utf8ToBytes(plaintext);
-    const ciphertextAndNonceAndSalt = concatBytes(
-      salt,
-      this.#encrypt(plaintextRaw, key),
-    );
+    const passwordRaw = hexToBytes(password);
+    const cipherTextAndNonce = this.#encrypt(plaintextRaw, passwordRaw);
 
-    // Convert to Base64
-    const encryptedData = byteArrayToBase64(ciphertextAndNonceAndSalt);
-
-    const encryptedPayload: EncryptedPayload = {
-      v: '1',
-      t: 'scrypt',
-      d: encryptedData,
-      o: {
-        N: SCRYPT_N,
-        r: SCRYPT_r,
-        p: SCRYPT_p,
-        dkLen: ALGORITHM_KEY_SIZE,
-      },
-      saltLen: SCRYPT_SALT_SIZE,
+    const encryptedPayload: EncryptedPayloadV2 = {
+      v: '2',
+      t: 'gcm',
+      d: byteArrayToBase64(cipherTextAndNonce),
     };
 
     return JSON.stringify(encryptedPayload);
@@ -170,9 +150,28 @@ class EncryptorDecryptor {
     return bytesToUtf8(this.#decrypt(ciphertextAndNonce, key));
   }
 
-  getSalt(encryptedDataStr: string) {
+  async #decryptStringV2(
+    data: EncryptedPayloadV2,
+    password: string,
+  ): Promise<string> {
+    const { d: base64CiphertextAndNonce } = data;
+
+    const ciphertextAndNonce = base64ToByteArray(base64CiphertextAndNonce);
+    const passwordRaw = hexToBytes(password);
+
+    return bytesToUtf8(this.#decrypt(ciphertextAndNonce, passwordRaw));
+  }
+
+  getSalt(encryptedDataStr: string): Uint8Array | null {
     try {
-      const encryptedData: EncryptedPayload = JSON.parse(encryptedDataStr);
+      const encryptedData: EncryptedPayload | EncryptedPayloadV2 =
+        JSON.parse(encryptedDataStr);
+
+      if (encryptedData.v === '2') {
+        // V2 encryption doesn't use traditional salts, return null to indicate no salt
+        return null;
+      }
+
       if (encryptedData.v === '1') {
         if (encryptedData.t === 'scrypt') {
           const { d: base64CiphertextAndNonceAndSalt, saltLen } = encryptedData;
@@ -205,16 +204,17 @@ class EncryptorDecryptor {
           return undefined;
         }
       })
-      .filter((s): s is Uint8Array => s !== undefined);
+      .filter((s): s is Uint8Array | null => s !== undefined);
 
-    const strSet = new Set(salts.map((arr) => arr.toString()));
+    // Convert to strings for comparison, using 'null' for null values
+    const strSet = new Set(
+      salts.map((salt) => (salt ? salt.toString() : 'null')),
+    );
     return strSet.size === salts.length;
   }
 
   #encrypt(plaintext: Uint8Array, key: Uint8Array): Uint8Array {
     const nonce = randomBytes(ALGORITHM_NONCE_SIZE);
-
-    // Encrypt and prepend nonce.
     const ciphertext = gcm(key, nonce).encrypt(plaintext);
 
     return concatBytes(nonce, ciphertext);

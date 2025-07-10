@@ -20,7 +20,6 @@ import {
 import type { StorageOptions } from './user-storage';
 import { STORAGE_URL, UserStorage } from './user-storage';
 import encryption, { createSHA256Hash } from '../shared/encryption';
-import { SHARED_SALT } from '../shared/encryption/constants';
 import { Env } from '../shared/env';
 import { USER_STORAGE_FEATURE_NAMES } from '../shared/storage-schema';
 
@@ -115,11 +114,14 @@ describe('User Storage', () => {
           return;
         }
 
-        const isEncryptedUsingSharedSalt =
-          encryption.getSalt(requestBody.data).toString() ===
-          SHARED_SALT.toString();
+        const salt = encryption.getSalt(requestBody.data);
+        // V2 encryption doesn't use salts, so we expect null for re-encrypted data
+        expect(salt).toBeNull();
 
-        expect(isEncryptedUsingSharedSalt).toBe(true);
+        // Verify that the data was re-encrypted to V2 format
+        const parsed = JSON.parse(requestBody.data);
+        expect(parsed.v).toBe('2');
+        expect(parsed.t).toBe('gcm');
       },
     );
 
@@ -191,13 +193,15 @@ describe('User Storage', () => {
 
         expect(doEntriesHaveDifferentSalts).toBe(false);
 
-        const doEntriesUseSharedSalt = Object.entries(requestBody.data).every(
-          ([_entryKey, entryValue]) =>
-            encryption.getSalt(entryValue as string).toString() ===
-            SHARED_SALT.toString(),
+        const entrySalts = Object.entries(requestBody.data).map(
+          ([_entryKey, entryValue]) => encryption.getSalt(entryValue as string),
+        );
+        // All re-encrypted entries should be V2 (no salts), so all should be null
+        const doEntriesUseV2Encryption = entrySalts.every(
+          (salt) => salt === null,
         );
 
-        expect(doEntriesUseSharedSalt).toBe(true);
+        expect(doEntriesUseV2Encryption).toBe(true);
 
         const wereOnlyNonEmptySaltEntriesUploaded =
           Object.entries(requestBody.data).length === 2;
