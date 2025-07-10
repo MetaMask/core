@@ -891,7 +891,7 @@ async function expectCodeowner(workspace, workspaceBasename) {
       )
     ) {
       workspace.error(
-        'Missing CODEOWNER rule for CHANGELOG.md co-ownership with core platofrm team',
+        'Missing CODEOWNER rule for CHANGELOG.md co-ownership with core platform team',
       );
     }
 
