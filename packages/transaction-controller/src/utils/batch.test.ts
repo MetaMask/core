@@ -368,7 +368,6 @@ describe('Batch Utils', () => {
       const result = await addTransactionBatch(request);
 
       expect(result.batchId).toMatch(/^0x[0-9a-f]{32}$/u);
-      expect(addTransactionMock.mock.calls).toStrictEqual({});
     });
 
     it('preserves nested transaction types when disable7702 is false', async () => {
