@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING**`scanUrl` hits the v2 endpoint now. Returns `hostname` instead of `domainName` now. ([#5981](https://github.com/MetaMask/core/pull/5981))
+- Bump `@metamask/controller-utils` from `^11.10.0` to `^11.11.0` ([#6069](https://github.com/MetaMask/core/pull/6069))
 
 ## [12.6.0]
 

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/profile-sync-controller",
-  "version": "19.0.0",
+  "version": "20.0.0",
   "description": "The profile sync helps developers synchronize data across multiple clients and devices in a privacy-preserving way. All data saved in the user storage database is encrypted client-side to preserve privacy. The user storage provides a modular design, giving developers the flexibility to construct and manage their storage spaces in a way that best suits their needs",
   "keywords": [
     "MetaMask",
@@ -115,9 +115,8 @@
     "@metamask/accounts-controller": "^31.0.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-api": "^18.0.0",
-    "@metamask/keyring-controller": "^22.0.2",
+    "@metamask/keyring-controller": "^22.1.0",
     "@metamask/keyring-internal-api": "^6.2.0",
-    "@metamask/network-controller": "^24.0.0",
     "@metamask/providers": "^22.1.0",
     "@metamask/snaps-controllers": "^14.0.1",
     "@types/jest": "^27.4.1",
@@ -135,7 +134,6 @@
   "peerDependencies": {
     "@metamask/accounts-controller": "^31.0.0",
     "@metamask/keyring-controller": "^22.0.0",
-    "@metamask/network-controller": "^24.0.0",
     "@metamask/providers": "^22.0.0",
     "@metamask/snaps-controllers": "^14.0.0",
     "webextension-polyfill": "^0.10.0 || ^0.11.0 || ^0.12.0"
