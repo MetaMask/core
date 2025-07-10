@@ -27,6 +27,16 @@
         "default": "./dist/index.cjs"
       }
     },
+    "./legacy": {
+      "import": {
+        "types": "./dist/legacy/index.d.mts",
+        "default": "./dist/legacy/index.mjs"
+      },
+      "require": {
+        "types": "./dist/legacy/index.d.cts",
+        "default": "./dist/legacy/index.cjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "main": "./dist/index.cjs",
