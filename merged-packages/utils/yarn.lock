@@ -1081,7 +1081,7 @@ __metadata:
     "@types/debug": ^4.1.7
     "@types/jest": ^28.1.7
     "@types/jest-when": ^3.5.3
-    "@types/lodash.memoize": ^4.1.9
+    "@types/lodash": ^4.17.20
     "@types/node": ~18.18.14
     "@types/uuid": ^9.0.8
     "@typescript-eslint/eslint-plugin": ^5.43.0
@@ -1099,7 +1099,7 @@ __metadata:
     jest: ^29.2.2
     jest-it-up: ^2.0.2
     jest-when: ^3.6.0
-    lodash.memoize: ^4.1.2
+    lodash: ^4.17.21
     pony-cause: ^2.1.10
     prettier: ^2.7.1
     prettier-plugin-packagejson: ^2.3.0
@@ -1553,19 +1553,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/lodash.memoize@npm:^4.1.9":
-  version: 4.1.9
-  resolution: "@types/lodash.memoize@npm:4.1.9"
-  dependencies:
-    "@types/lodash": "*"
-  checksum: d11efe604911aabbf9c49eb02e944de856619d6e0ab348d83be3ff07de245ee605ea71b1f3ee24b5c134286d02625119edf3ac2c0e6aa4732f699b1f4aa55240
-  languageName: node
-  linkType: hard
-
-"@types/lodash@npm:*":
-  version: 4.17.19
-  resolution: "@types/lodash@npm:4.17.19"
-  checksum: a75452bd0ed21c9dba98c0d395ef0f9de3220a8410dc07dfb041f84c7f1733b88648f1ba8e62b14f70ff9e935797b618f7060fba40abdf754cdbfb27a99ec27e
+"@types/lodash@npm:^4.17.20":
+  version: 4.17.20
+  resolution: "@types/lodash@npm:4.17.20"
+  checksum: dc7bb4653514dd91117a4c4cec2c37e2b5a163d7643445e4757d76a360fabe064422ec7a42dde7450c5e7e0e7e678d5e6eae6d2a919abcddf581d81e63e63839
   languageName: node
   linkType: hard
 
@@ -5297,7 +5288,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lodash.memoize@npm:4.x, lodash.memoize@npm:^4.1.2":
+"lodash.memoize@npm:4.x":
   version: 4.1.2
   resolution: "lodash.memoize@npm:4.1.2"
   checksum: 9ff3942feeccffa4f1fafa88d32f0d24fdc62fd15ded5a74a5f950ff5f0c6f61916157246744c620173dddf38d37095a92327d5fd3861e2063e736a5c207d089

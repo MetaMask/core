@@ -1,6 +1,6 @@
 import { pattern, type Struct, string } from '@metamask/superstruct';
 import { keccak_256 as keccak256 } from '@noble/hashes/sha3';
-import memoize from 'lodash.memoize';
+import { memoize } from 'lodash';
 
 import { assert } from './assert';
 
