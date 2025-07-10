@@ -107,7 +107,6 @@ describe('determineTransactionType', () => {
   });
 
   it('does not identify contract codes with DELEGATION_PREFIX as contract addresses', async () => {
-
     const result = await determineTransactionType(
       {
         to: '0x9e673399f795D01116e9A8B2dD2F156705131ee9',
