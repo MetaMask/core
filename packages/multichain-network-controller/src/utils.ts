@@ -1,4 +1,3 @@
-import { BtcScope, SolScope } from '@metamask/keyring-api';
 import type { NetworkConfiguration } from '@metamask/network-controller';
 import {
   type Hex,
@@ -9,7 +8,6 @@ import {
   hexToNumber,
   add0x,
 } from '@metamask/utils';
-import { isAddress as isSolanaAddress } from '@solana/addresses';
 
 import { AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS } from './constants';
 import type {
@@ -29,19 +27,22 @@ export function isEvmCaipChainId(chainId: CaipChainId): boolean {
 }
 
 /**
- * Returns the chain id of the non-EVM network based on the account address.
+ * Returns the chain id of the non-EVM network based on the account scopes.
  *
- * @param address - The address to check.
+ * @param scopes - The scopes to check.
  * @returns The caip chain id of the non-EVM network.
  */
-export function getChainIdForNonEvmAddress(
-  address: string,
+export function getChainIdForNonEvm(
+  scopes: CaipChainId[],
 ): SupportedCaipChainId {
-  // This condition is not the most robust. Once we support more networks, we will need to update this logic.
-  if (isSolanaAddress(address)) {
-    return SolScope.Mainnet;
+  const supportedScope = scopes.find((scope) =>
+    Object.keys(AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS).includes(scope),
+  );
+  if (supportedScope) {
+    return supportedScope as SupportedCaipChainId;
   }
-  return BtcScope.Mainnet;
+
+  throw new Error(`Unsupported scope: ${scopes.join(', ')}.`);
 }
 
 /**
