@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Revert recent releases ([#6085](https://github.com/MetaMask/core/pull/6085))
+
 ### Deprecated
 
 - Deprecate preference `smartAccountOptInForAccounts` and function `setSmartAccountOptInForAccounts` ([#6087](https://github.com/MetaMask/core/pull/6087))
