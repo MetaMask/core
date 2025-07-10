@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.11.0]
+
 ### Added
 
 - Add convenience variables for calculating the number of milliseconds in a higher unit of time
@@ -17,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
+- Improve performance of `isValidHexAddress` and `toChecksumHexAddress` ([#6054](https://github.com/MetaMask/core/pull/6054))
+  - Replace `ethereumjs-util` lib with faster `@metamask/utils` functions
+  - Memoize `isValidHexAddress` and `toChecksumHexAddress` functions
 - Update `createServicePolicy` to reduce circuit break duration from 30 minutes to 2 minutes ([#6015](https://github.com/MetaMask/core/pull/6015))
   - When hitting an API, this reduces the default duration for which requests to the API are paused when perceived to be unavailable
 
@@ -542,7 +548,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.10.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.11.0...HEAD
+[11.11.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.10.0...@metamask/controller-utils@11.11.0
 [11.10.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.9.0...@metamask/controller-utils@11.10.0
 [11.9.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.8.0...@metamask/controller-utils@11.9.0
 [11.8.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.7.0...@metamask/controller-utils@11.8.0

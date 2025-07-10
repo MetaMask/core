@@ -1,7 +1,6 @@
 import {
   createEntryPath,
   getFeatureAndKeyFromPath,
-  USER_STORAGE_SCHEMA,
   USER_STORAGE_FEATURE_NAMES,
 } from './storage-schema';
 
@@ -30,34 +29,6 @@ describe('user-storage/schema.ts', () => {
       );
     });
 
-    it('should throw error if feature is invalid', () => {
-      const path = 'invalid.feature';
-      expect(() =>
-        getFeatureAndKeyFromPath(path as ErroneousUserStoragePath),
-      ).toThrow('user-storage - invalid feature provided: invalid');
-    });
-
-    it('should throw error if key is invalid', () => {
-      const feature = USER_STORAGE_FEATURE_NAMES.notifications;
-      const path = `${feature}.invalid`;
-      const validKeys = USER_STORAGE_SCHEMA[feature].join(', ');
-
-      expect(() =>
-        getFeatureAndKeyFromPath(path as ErroneousUserStoragePath),
-      ).toThrow(
-        `user-storage - invalid key provided for this feature: invalid. Valid keys: ${validKeys}`,
-      );
-    });
-
-    it('should not throw errors if validateAgainstSchema is false', () => {
-      const path = 'invalid.feature';
-      expect(() =>
-        getFeatureAndKeyFromPath(path, {
-          validateAgainstSchema: false,
-        }),
-      ).not.toThrow();
-    });
-
     it('should return feature and key from path', () => {
       const result = getFeatureAndKeyFromPath(
         `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
@@ -75,16 +46,6 @@ describe('user-storage/schema.ts', () => {
       expect(result).toStrictEqual({
         feature: USER_STORAGE_FEATURE_NAMES.accounts,
         key: '0x123',
-      });
-    });
-
-    it('should return feature and key from path with arbitrary feature and key when validateAgainstSchema is false', () => {
-      const result = getFeatureAndKeyFromPath('feature.key', {
-        validateAgainstSchema: false,
-      });
-      expect(result).toStrictEqual({
-        feature: 'feature',
-        key: 'key',
       });
     });
   });

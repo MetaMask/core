@@ -11,7 +11,9 @@ import type {
 
 export const BTC_NATIVE_ASSET = `${BtcScope.Mainnet}/slip44:0`;
 export const BTC_TESTNET_NATIVE_ASSET = `${BtcScope.Testnet}/slip44:0`;
+export const BTC_TESTNET4_NATIVE_ASSET = `${BtcScope.Testnet4}/slip44:0`;
 export const BTC_SIGNET_NATIVE_ASSET = `${BtcScope.Signet}/slip44:0`;
+export const BTC_REGTEST_NATIVE_ASSET = `${BtcScope.Regtest}/slip44:0`;
 export const SOL_NATIVE_ASSET = `${SolScope.Mainnet}/slip44:501`;
 export const SOL_TESTNET_NATIVE_ASSET = `${SolScope.Testnet}/slip44:501`;
 export const SOL_DEVNET_NATIVE_ASSET = `${SolScope.Devnet}/slip44:501`;
@@ -35,10 +37,22 @@ export const AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS: Record<
     nativeCurrency: BTC_TESTNET_NATIVE_ASSET,
     isEvm: false,
   },
+  [BtcScope.Testnet4]: {
+    chainId: BtcScope.Testnet4,
+    name: 'Bitcoin Testnet4',
+    nativeCurrency: BTC_TESTNET4_NATIVE_ASSET,
+    isEvm: false,
+  },
   [BtcScope.Signet]: {
     chainId: BtcScope.Signet,
-    name: 'Bitcoin Signet',
+    name: 'Bitcoin Mutinynet',
     nativeCurrency: BTC_SIGNET_NATIVE_ASSET,
+    isEvm: false,
+  },
+  [BtcScope.Regtest]: {
+    chainId: BtcScope.Regtest,
+    name: 'Bitcoin Regtest',
+    nativeCurrency: BTC_REGTEST_NATIVE_ASSET,
     isEvm: false,
   },
   [SolScope.Mainnet]: {
@@ -68,7 +82,9 @@ export const AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS: Record<
  */
 export const NON_EVM_TESTNET_IDS: CaipChainId[] = [
   BtcScope.Testnet,
+  BtcScope.Testnet4,
   BtcScope.Signet,
+  BtcScope.Regtest,
   SolScope.Testnet,
   SolScope.Devnet,
 ];
@@ -122,7 +138,9 @@ export const MULTICHAIN_NETWORK_CONTROLLER_METADATA = {
 export const MULTICHAIN_NETWORK_TICKER: Record<CaipChainId, string> = {
   [BtcScope.Mainnet]: 'BTC',
   [BtcScope.Testnet]: 'tBTC',
+  [BtcScope.Testnet4]: 'tBTC',
   [BtcScope.Signet]: 'sBTC',
+  [BtcScope.Regtest]: 'rBTC',
   [SolScope.Mainnet]: 'SOL',
   [SolScope.Testnet]: 'tSOL',
   [SolScope.Devnet]: 'dSOL',
@@ -135,7 +153,9 @@ export const MULTICHAIN_NETWORK_TICKER: Record<CaipChainId, string> = {
 export const MULTICHAIN_NETWORK_DECIMAL_PLACES: Record<CaipChainId, number> = {
   [BtcScope.Mainnet]: 8,
   [BtcScope.Testnet]: 8,
+  [BtcScope.Testnet4]: 8,
   [BtcScope.Signet]: 8,
+  [BtcScope.Regtest]: 8,
   [SolScope.Mainnet]: 5,
   [SolScope.Testnet]: 5,
   [SolScope.Devnet]: 5,
