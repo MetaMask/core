@@ -882,16 +882,16 @@ async function expectCodeowner(workspace, workspaceBasename) {
     return;
   }
 
-  if (!packageCodeownerRule.includes('@MetaMask/wallet-framework-engineers')) {
+  if (!packageCodeownerRule.includes('@MetaMask/core-platform')) {
     if (
       !codeownerRules.some(
         (rule) =>
           rule.startsWith(`/packages/${workspaceBasename}/CHANGELOG.md`) &&
-          rule.includes('@MetaMask/wallet-framework-engineers'),
+          rule.includes('@MetaMask/core-platform'),
       )
     ) {
       workspace.error(
-        'Missing CODEOWNER rule for CHANGELOG.md co-ownership with wallet framework team',
+        'Missing CODEOWNER rule for CHANGELOG.md co-ownership with core platofrm team',
       );
     }
 
@@ -899,11 +899,11 @@ async function expectCodeowner(workspace, workspaceBasename) {
       !codeownerRules.some(
         (rule) =>
           rule.startsWith(`/packages/${workspaceBasename}/package.json`) &&
-          rule.includes('@MetaMask/wallet-framework-engineers'),
+          rule.includes('@MetaMask/core-platform'),
       )
     ) {
       workspace.error(
-        'Missing CODEOWNER rule for package.json co-ownership with wallet framework team',
+        'Missing CODEOWNER rule for package.json co-ownership with core platform team',
       );
     }
   }
