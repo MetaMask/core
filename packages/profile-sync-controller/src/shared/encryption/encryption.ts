@@ -59,7 +59,16 @@ export type EncryptedPayloadV2 = {
 class EncryptorDecryptor {
   async encryptString(plaintext: string, password: string): Promise<string> {
     try {
-      return await this.#encryptStringV2(plaintext, password);
+      const startTimestamp = Date.now();
+      console.warn(
+        `Scrypt removal: Encrypting string with password: ${password} at ${new Date(startTimestamp).toISOString()}`,
+      );
+      const encryptedData = await this.#encryptStringV2(plaintext, password);
+      console.warn(
+        `Scrypt removal: Encryption completed in ${Date.now() - startTimestamp} ms`,
+      );
+
+      return encryptedData;
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
       throw new Error(`Unable to encrypt string - ${errorMessage}`);
@@ -72,22 +81,37 @@ class EncryptorDecryptor {
     nativeScryptCrypto?: NativeScrypt,
   ): Promise<string> {
     try {
+      const startTimestamp = Date.now();
+      console.warn(
+        `Scrypt removal: Decrypting string with password: ${password} at ${new Date(startTimestamp).toISOString()}`,
+      );
       const encryptedData: EncryptedPayload | EncryptedPayloadV2 =
         JSON.parse(encryptedDataStr);
 
       if (encryptedData.v === '2') {
         if (encryptedData.t === 'gcm') {
-          return await this.#decryptStringV2(encryptedData, password);
+          const decryptedData = await this.#decryptStringV2(
+            encryptedData,
+            password,
+          );
+          console.warn(
+            `Scrypt removal: Decryption completed in ${Date.now() - startTimestamp} ms (using V2 encryption)`,
+          );
+          return decryptedData;
         }
       }
 
       if (encryptedData.v === '1') {
         if (encryptedData.t === 'scrypt') {
-          return await this.#decryptStringV1(
+          const decryptedData = await this.#decryptStringV1(
             encryptedData,
             password,
             nativeScryptCrypto,
           );
+          console.warn(
+            `Scrypt removal: Decryption completed in ${Date.now() - startTimestamp} ms (using V1 encryption)`,
+          );
+          return decryptedData;
         }
       }
 
