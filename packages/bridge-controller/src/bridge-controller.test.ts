@@ -358,6 +358,7 @@ describe('BridgeController', function () {
       srcTokenAmount: '1000000000000000000',
       slippage: 0.5,
       walletAddress: '0x123',
+      destWalletAddress: 'SolanaWalletAddres1234',
     };
     const quoteRequest = {
       ...quoteParams,
@@ -677,6 +678,22 @@ describe('BridgeController', function () {
       expect.objectContaining({
         minimumBalanceForRentExemptionInLamports: '0',
         quotes: [],
+        quotesLoadingStatus: null,
+      }),
+    );
+
+    /*
+    Add destWalletAddress
+    */
+    await bridgeController.updateBridgeQuoteRequestParams(
+      { ...quoteParams, destWalletAddress: 'SolanaWalletAddres1234' },
+      metricsContext,
+    );
+    jest.advanceTimersByTime(2000);
+    expect(bridgeController.state).toStrictEqual(
+      expect.objectContaining({
+        minimumBalanceForRentExemptionInLamports: '0',
+        quotes: [],
         quotesLoadingStatus: RequestStatus.LOADING,
       }),
     );
@@ -703,7 +720,7 @@ describe('BridgeController', function () {
       messengerMock.call.mock.calls.filter(([action]) =>
         action.includes('SnapController'),
       ),
-    ).toHaveLength(8);
+    ).toHaveLength(9);
 
     /*
     Test min balance fetch failure
@@ -735,13 +752,13 @@ describe('BridgeController', function () {
       messengerMock.call.mock.calls.filter(([action]) =>
         action.includes('SnapController'),
       ),
-    ).toHaveLength(11);
+    ).toHaveLength(12);
     expect(
       messengerMock.call.mock.calls.filter(([action]) =>
         action.includes('SnapController'),
       ),
     ).toMatchSnapshot();
-    expect(consoleWarnSpy).toHaveBeenCalledTimes(4);
+    expect(consoleWarnSpy).toHaveBeenCalledTimes(5);
     expect(consoleWarnSpy).toHaveBeenCalledWith(
       'Failed to fetch asset exchange rates',
       new Error('Currency rate error'),
@@ -1053,6 +1070,46 @@ describe('BridgeController', function () {
           srcTokenAddress: '0x0000000000000000000000000000000000000000',
           walletAddress: undefined,
           destChainId: 10,
+          destTokenAddress: '0x123',
+        },
+        quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
+        quotesLastFetched: DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLastFetched,
+        quotesLoadingStatus:
+          DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLoadingStatus,
+      }),
+    );
+  });
+
+  it('updateBridgeQuoteRequestParams should not trigger quote polling if bridging to or from solana and destWalletAddress is undefined', async function () {
+    const stopAllPollingSpy = jest.spyOn(bridgeController, 'stopAllPolling');
+    const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
+    messengerMock.call.mockReturnValue({
+      address: '0x123',
+      provider: jest.fn(),
+    } as never);
+
+    await bridgeController.updateBridgeQuoteRequestParams(
+      {
+        srcChainId: 1,
+        destChainId: ChainId.SOLANA,
+        srcTokenAddress: '0x0000000000000000000000000000000000000000',
+        destTokenAddress: '0x123',
+        slippage: 0.5,
+      },
+      metricsContext,
+    );
+
+    expect(stopAllPollingSpy).toHaveBeenCalledTimes(1);
+    expect(startPollingSpy).not.toHaveBeenCalled();
+
+    expect(bridgeController.state).toStrictEqual(
+      expect.objectContaining({
+        quoteRequest: {
+          srcChainId: 1,
+          slippage: 0.5,
+          srcTokenAddress: '0x0000000000000000000000000000000000000000',
+          walletAddress: undefined,
+          destChainId: ChainId.SOLANA,
           destTokenAddress: '0x123',
         },
         quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
@@ -1537,6 +1594,7 @@ describe('BridgeController', function () {
         destTokenAddress: '0x0000000000000000000000000000000000000000',
         srcTokenAmount: '1000000',
         walletAddress: '0x123',
+        destWalletAddress: '0x5342',
         slippage: 0.5,
       };
 
