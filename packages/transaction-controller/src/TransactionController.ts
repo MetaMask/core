@@ -120,6 +120,7 @@ import type {
   AfterSimulateHook,
   BeforeSignHook,
   TransactionContainerType,
+  NestedTransactionMetadata,
 } from './types';
 import {
   GasFeeEstimateLevel,
@@ -1132,7 +1133,7 @@ export class TransactionController extends BaseController<
       deviceConfirmedOn?: WalletDevice;
       disableGasBuffer?: boolean;
       method?: string;
-      nestedTransactions?: BatchTransactionParams[];
+      nestedTransactions?: NestedTransactionMetadata[];
       networkClientId: NetworkClientId;
       origin?: string;
       publishHook?: PublishHook;
