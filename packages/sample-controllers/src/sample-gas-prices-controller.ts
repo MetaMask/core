@@ -9,6 +9,7 @@ import type { Hex } from '@metamask/utils';
 
 import type { NetworkControllerGetStateAction } from './network-controller-types';
 import type { SampleAbstractGasPricesService } from './sample-gas-prices-service';
+import { SampleGasPricesControllerMethodActions } from './sample-gas-prices-controller-method-action-types';
 
 // === GENERAL ===
 
@@ -77,13 +78,7 @@ export type SampleGasPricesControllerGetStateAction = ControllerGetStateAction<
   SampleGasPricesControllerState
 >;
 
-/**
- * The action which can be used to update gas prices.
- */
-export type SampleGasPricesControllerUpdateGasPricesAction = {
-  type: `${typeof controllerName}:updateGasPrices`;
-  handler: SampleGasPricesController['updateGasPrices'];
-};
+const MESSENGER_EXPOSED_METHODS = ['updateGasPrices'] as const;
 
 /**
  * All actions that {@link SampleGasPricesController} registers, to be called
@@ -91,7 +86,7 @@ export type SampleGasPricesControllerUpdateGasPricesAction = {
  */
 export type SampleGasPricesControllerActions =
   | SampleGasPricesControllerGetStateAction
-  | SampleGasPricesControllerUpdateGasPricesAction;
+  | SampleGasPricesControllerMethodActions;
 
 /**
  * All actions that {@link SampleGasPricesController} calls internally.
@@ -231,6 +226,10 @@ export class SampleGasPricesController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:updateGasPrices`,
       this.updateGasPrices.bind(this),
+    );
+    this.messagingSystem.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 
