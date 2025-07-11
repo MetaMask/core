@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add fallback to the sequential hook when `publishBatchHook` returns empty ([#6063](https://github.com/MetaMask/core/pull/6063))
 
+### Fixed
+
+- Preserve provided `type` in `transactions` when calling `addTransactionBatch` ([#6056](https://github.com/MetaMask/core/pull/6056))
+
 ## [58.1.1]
 
 ### Changed
