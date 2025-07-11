@@ -92,7 +92,8 @@ main() {
     echo
   fi
 
-  local full_ref="$(git rev-parse "$ref")"
+  local full_ref
+  full_ref="$(git rev-parse "$ref")"
 
   echo "Looking for release tags pointing to $full_ref for major-bumped packages..."
   IFS=$'\n' read -r -d '' -a tag_array < <(git tag --points-at "$full_ref" | grep -E '^@metamask/[a-z0-9-]+@[0-9]+\.0\.0$' && printf '\0')
