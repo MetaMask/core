@@ -1,5 +1,5 @@
 import type { Patch } from 'immer';
-import * as sinon from 'sinon';
+import sinon from 'sinon';
 
 import { Messenger } from './Messenger';
 
