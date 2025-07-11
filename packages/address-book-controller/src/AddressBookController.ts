@@ -1,7 +1,6 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  MessengerMethodActions,
   RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
@@ -13,6 +12,8 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
+
+import type { AddressBookControllerMethodActions } from './AddressBookController-method-action-types';
 
 /**
  * ContactEntry representation
@@ -99,11 +100,6 @@ export type AddressBookControllerContactDeletedEvent = {
 };
 
 const MESSENGER_EXPOSED_METHODS = ['list', 'set', 'delete'] as const;
-
-type AddressBookControllerMethodActions = MessengerMethodActions<
-  AddressBookController,
-  (typeof MESSENGER_EXPOSED_METHODS)[number]
->;
 
 /**
  * The actions that can be performed using the {@link AddressBookController}.

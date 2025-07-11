@@ -174,3 +174,20 @@ export type NetworkControllerFindNetworkClientIdByChainIdAction = {
   type: `NetworkController:findNetworkClientIdByChainId`;
   handler: NetworkController['findNetworkClientIdByChainId'];
 };
+
+/**
+ * Union of all NetworkController action types.
+ */
+export type NetworkControllerMethodActions =
+  | NetworkControllerGetSelectedNetworkClientAction
+  | NetworkControllerGetSelectedChainIdAction
+  | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerSetProviderTypeAction
+  | NetworkControllerSetActiveNetworkAction
+  | NetworkControllerGetEIP1559CompatibilityAction
+  | NetworkControllerGetNetworkConfigurationByChainIdAction
+  | NetworkControllerGetNetworkConfigurationByNetworkClientIdAction
+  | NetworkControllerAddNetworkAction
+  | NetworkControllerUpdateNetworkAction
+  | NetworkControllerRemoveNetworkAction
+  | NetworkControllerFindNetworkClientIdByChainIdAction;

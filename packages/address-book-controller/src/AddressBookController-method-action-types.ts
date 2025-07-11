@@ -41,3 +41,11 @@ export type AddressBookControllerSetAction = {
   type: `AddressBookController:set`;
   handler: AddressBookController['set'];
 };
+
+/**
+ * Union of all AddressBookController action types.
+ */
+export type AddressBookControllerMethodActions =
+  | AddressBookControllerListAction
+  | AddressBookControllerDeleteAction
+  | AddressBookControllerSetAction;

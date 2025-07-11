@@ -1,9 +1,15 @@
 #!yarn ts-node
 
+import { ESLint } from 'eslint';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as ts from 'typescript';
 import yargs from 'yargs';
+
+const eslint = new ESLint({
+  fix: true, // Auto-fix what we can
+  errorOnUnmatchedPattern: false,
+});
 
 type MethodInfo = {
   name: string;
@@ -71,7 +77,10 @@ async function checkActionTypesFiles(
       `${controller.name}-method-action-types.ts`,
     );
 
-    const expectedContent = generateActionTypesContent(controller);
+    const expectedContent = await generateActionTypesContent(
+      controller,
+      outputFile,
+    );
 
     try {
       const actualContent = await fs.promises.readFile(outputFile, 'utf8');
@@ -421,7 +430,7 @@ async function generateActionTypesFile(
     `${controller.name}-method-action-types.ts`,
   );
 
-  const content = generateActionTypesContent(controller);
+  const content = await generateActionTypesContent(controller, outputFile);
   await fs.promises.writeFile(outputFile, content, 'utf8');
 }
 
@@ -429,9 +438,13 @@ async function generateActionTypesFile(
  * Generates the content for the action types file.
  *
  * @param controller - The controller information object.
+ * @param outputFile - The path to the output file.
  * @returns The content for the action types file.
  */
-function generateActionTypesContent(controller: ControllerInfo): string {
+async function generateActionTypesContent(
+  controller: ControllerInfo,
+  outputFile: string,
+): Promise<string> {
   const controllerImportPath = `./${controller.name}`;
 
   let content = `/**
@@ -443,10 +456,14 @@ import type { ${controller.name} } from '${controllerImportPath}';
 
 `;
 
+  const actionTypeNames: string[] = [];
+
   // Generate action types for each exposed method
   for (const method of controller.methods) {
     const actionTypeName = `${controller.name}${capitalize(method.name)}Action`;
     const actionString = `${controller.name}:${method.name}`;
+
+    actionTypeNames.push(actionTypeName);
 
     // Add the JSDoc if available
     if (method.jsDoc) {
@@ -459,7 +476,17 @@ import type { ${controller.name} } from '${controllerImportPath}';
 };\n\n`;
   }
 
-  return `${content.trimEnd()}\n`;
+  // Generate union type of all action types
+  if (actionTypeNames.length > 0) {
+    const unionTypeName = `${controller.name}MethodActions`;
+    content += `/**
+ * Union of all ${controller.name} action types.
+ */
+export type ${unionTypeName} = ${actionTypeNames.join(' | ')};\n`;
+  }
+
+  // Lint the generated content
+  return await lintFileContent(`${content.trimEnd()}\n`, outputFile);
 }
 
 /**
@@ -470,6 +497,40 @@ import type { ${controller.name} } from '${controllerImportPath}';
  */
 function capitalize(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+/**
+ * Lints TypeScript content using ESLint and returns the fixed content.
+ *
+ * @param content - The TypeScript content to lint.
+ * @param outputFilePath - The path where the file would be written (used for file type detection).
+ * @returns The linted content.
+ */
+async function lintFileContent(
+  content: string,
+  outputFilePath: string,
+): Promise<string> {
+  // Write temporary file for ESLint to process (ensures proper TS file detection)
+  const tempFile = outputFilePath.replace('.ts', '.tmp.ts');
+  await fs.promises.writeFile(tempFile, content, 'utf8');
+
+  try {
+    // Lint the temporary file
+    const results = await eslint.lintFiles([tempFile]);
+    await ESLint.outputFixes(results);
+
+    // Read back the potentially fixed content
+    const lintedContent = await fs.promises.readFile(tempFile, 'utf8');
+
+    return lintedContent;
+  } finally {
+    // Clean up temporary file
+    try {
+      await fs.promises.unlink(tempFile);
+    } catch {
+      // Ignore cleanup errors
+    }
+  }
 }
 
 // Error handling wrapper

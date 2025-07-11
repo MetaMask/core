@@ -1,7 +1,6 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  MessengerMethodActions,
   RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
@@ -46,6 +45,7 @@ import type {
 } from './create-auto-managed-network-client';
 import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
 import { projectLogger, createModuleLogger } from './logger';
+import type { NetworkControllerMethodActions } from './NetworkController-method-action-types';
 import type { RpcServiceOptions } from './rpc-service/rpc-service';
 import { NetworkClientType } from './types';
 import type {
@@ -538,11 +538,6 @@ const MESSENGER_EXPOSED_METHODS = [
   'removeNetwork',
   'updateNetwork',
 ] as const;
-
-type NetworkControllerMethodActions = MessengerMethodActions<
-  NetworkController,
-  (typeof MESSENGER_EXPOSED_METHODS)[number]
->;
 
 export type NetworkControllerActions =
   | NetworkControllerGetStateAction
