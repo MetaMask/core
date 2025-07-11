@@ -48,13 +48,15 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^8.0.1",
+    "@metamask/snaps-sdk": "^9.0.0",
+    "@metamask/snaps-utils": "^11.0.0",
     "@metamask/utils": "^11.4.2"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/profile-sync-controller": "^20.0.0",
+    "@metamask/snaps-controllers": "^14.0.1",
     "@ts-bridge/cli": "^0.6.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
@@ -65,7 +67,7 @@
     "typescript": "~5.2.2"
   },
   "peerDependencies": {
-    "@metamask/profile-sync-controller": "^20.0.0"
+    "@metamask/snaps-controllers": "^14.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

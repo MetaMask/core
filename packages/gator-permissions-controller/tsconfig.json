@@ -3,9 +3,6 @@
   "compilerOptions": {
     "baseUrl": "./"
   },
-  "references": [
-    { "path": "../base-controller" },
-    { "path": "../profile-sync-controller" }
-  ],
+  "references": [{ "path": "../base-controller" }],
   "include": ["../../types", "./src"]
 }

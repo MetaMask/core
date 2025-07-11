@@ -10,9 +10,9 @@ export type {
   GatorPermissionsControllerFetchAndUpdateGatorPermissions,
   GatorPermissionsControllerEnableGatorPermissions,
   GatorPermissionsControllerDisableGatorPermissions,
-  Actions,
+  GatorPermissionsControllerActions,
   AllowedActions,
-  Events,
+  GatorPermissionsControllerActionsEvents,
   AllowedEvents,
   GatorPermissionsControllerStateChangeEvent,
 } from './GatorPermissionsController';

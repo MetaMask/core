@@ -197,7 +197,6 @@ linkStyle default opacity:0.5
   gas_fee_controller --> polling_controller;
   gas_fee_controller --> network_controller;
   gator-permissions-controller --> base_controller;
-  gator-permissions-controller --> profile_sync_controller;
   json_rpc_middleware_stream --> json_rpc_engine;
   keyring_controller --> base_controller;
   logging_controller --> base_controller;

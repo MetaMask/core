@@ -1,9 +1,11 @@
 import { Messenger } from '@metamask/base-controller';
+import type { SnapId } from '@metamask/snaps-sdk';
 import type { Hex } from '@metamask/utils';
 
 import type {
   AllowedActions,
   AllowedEvents,
+  GatorPermissionsControllerConfig,
 } from './GatorPermissionsController';
 import GatorPermissionsController from './GatorPermissionsController';
 import type {
@@ -36,13 +38,14 @@ type MockGatorPermissionsStorageEntriesConfig = {
 function createMockGatorPermissionsStorageEntries(
   amount: number,
   mockStorageEntry: StoredGatorPermission<AccountSigner, PermissionTypes>,
-): string[] {
-  return Array.from({ length: amount }, (_, index: number) =>
-    JSON.stringify({
-      ...mockStorageEntry,
+): StoredGatorPermission<AccountSigner, PermissionTypes>[] {
+  return Array.from({ length: amount }, (_, index: number) => ({
+    ...mockStorageEntry,
+    permissionResponse: {
+      ...mockStorageEntry.permissionResponse,
       expiry: mockStorageEntry.permissionResponse.expiry + index,
-    }),
-  );
+    },
+  }));
 }
 
 /**
@@ -53,8 +56,8 @@ function createMockGatorPermissionsStorageEntries(
  */
 function mockGatorPermissionsStorageEntriesFactory(
   config: MockGatorPermissionsStorageEntriesConfig,
-): string[] {
-  const result: string[] = [];
+): StoredGatorPermission<AccountSigner, PermissionTypes>[] {
+  const result: StoredGatorPermission<AccountSigner, PermissionTypes>[] = [];
 
   // Create entries for each chainId
   Object.entries(config).forEach(([chainId, counts]) => {
@@ -203,11 +206,7 @@ function createGatorPermissionsMessenger() {
   const baseMessenger = new Messenger<AllowedActions, AllowedEvents>();
   const messenger = baseMessenger.getRestricted({
     name: 'GatorPermissionsController',
-    allowedActions: [
-      'AuthenticationController:isSignedIn',
-      'AuthenticationController:performSignIn',
-      'UserStorageController:performGetStorageAllFeatureEntries',
-    ],
+    allowedActions: ['SnapController:handleRequest', 'SnapController:has'],
     allowedEvents: [],
   });
 
@@ -223,9 +222,7 @@ function createMockGatorPermissionsMessenger() {
   const { baseMessenger, messenger } = createGatorPermissionsMessenger();
 
   const mockCall = jest.spyOn(messenger, 'call');
-  const mockIsSignedIn = jest.fn();
-  const mockPerformSignIn = jest.fn();
-  const mockGetStorageAllFeatureEntries = jest.fn().mockResolvedValue(
+  const mockGetGrantedPermissions = jest.fn().mockResolvedValue(
     mockGatorPermissionsStorageEntriesFactory({
       [MOCK_CHAIN_ID_1]: {
         nativeTokenStream: 5,
@@ -239,21 +236,15 @@ function createMockGatorPermissionsMessenger() {
       },
     }),
   );
+  const mockHasSnap = jest.fn().mockResolvedValue(true);
 
   mockCall.mockImplementation((...args) => {
     const [actionType] = args;
-    if (actionType === 'AuthenticationController:isSignedIn') {
-      return mockIsSignedIn();
+    if (actionType === 'SnapController:handleRequest') {
+      return mockGetGrantedPermissions();
     }
-
-    if (actionType === 'AuthenticationController:performSignIn') {
-      return mockPerformSignIn();
-    }
-
-    if (
-      actionType === 'UserStorageController:performGetStorageAllFeatureEntries'
-    ) {
-      return mockGetStorageAllFeatureEntries();
+    if (actionType === 'SnapController:has') {
+      return mockHasSnap();
     }
 
     throw new Error(
@@ -264,16 +255,20 @@ function createMockGatorPermissionsMessenger() {
   return {
     messenger,
     baseMessenger,
-    mockIsSignedIn,
-    mockPerformSignIn,
-    mockGetStorageAllFeatureEntries,
+    mockGetGrantedPermissions,
+    mockHasSnap,
   };
 }
+
+const mockGatorPermissionsControllerConfig: GatorPermissionsControllerConfig = {
+  gatorPermissionsProviderSnapId: 'local:http://localhost:8082' as SnapId,
+};
 
 describe('gator-permissions-controller - constructor() tests', () => {
   it('creates GatorPermissionsController with default state', () => {
     const controller = new GatorPermissionsController({
       messenger: createMockGatorPermissionsMessenger().messenger,
+      config: mockGatorPermissionsControllerConfig,
     });
 
     expect(controller.state.isGatorPermissionsEnabled).toBe(false);
@@ -285,7 +280,6 @@ describe('gator-permissions-controller - constructor() tests', () => {
       }),
     );
     expect(controller.state.isFetchingGatorPermissions).toBe(false);
-    expect(controller.state.isUpdatingGatorPermissions).toBe(false);
   });
 
   it('creates GatorPermissionsController with custom state', () => {
@@ -300,24 +294,40 @@ describe('gator-permissions-controller - constructor() tests', () => {
 
     const controller = new GatorPermissionsController({
       messenger: createMockGatorPermissionsMessenger().messenger,
+      config: mockGatorPermissionsControllerConfig,
       state: customState,
     });
 
+    expect(controller.permissionsProviderSnapId).toBe(
+      mockGatorPermissionsControllerConfig.gatorPermissionsProviderSnapId,
+    );
     expect(controller.state.isGatorPermissionsEnabled).toBe(true);
     expect(controller.state.gatorPermissionsListStringify).toBe(
       customState.gatorPermissionsListStringify,
     );
   });
+
+  it('creates GatorPermissionsController with default config', () => {
+    const controller = new GatorPermissionsController({
+      messenger: createMockGatorPermissionsMessenger().messenger,
+    });
+
+    expect(controller.permissionsProviderSnapId).toBe(
+      '@metamask/gator-permissions-snap' as SnapId,
+    );
+    expect(controller.state.isGatorPermissionsEnabled).toBe(false);
+    expect(controller.state.isFetchingGatorPermissions).toBe(false);
+  });
 });
 
 describe('gator-permissions-controller - disableGatorPermissions() tests', () => {
   it('disables gator permissions successfully', async () => {
-    const { messenger, mockIsSignedIn } = createMockGatorPermissionsMessenger();
+    const { messenger } = createMockGatorPermissionsMessenger();
 
-    // Mock user already signed in
-    mockIsSignedIn.mockReturnValue(true);
-
-    const controller = new GatorPermissionsController({ messenger });
+    const controller = new GatorPermissionsController({
+      messenger,
+      config: mockGatorPermissionsControllerConfig,
+    });
 
     // Enable first
     await controller.enableGatorPermissions();
@@ -339,12 +349,12 @@ describe('gator-permissions-controller - disableGatorPermissions() tests', () =>
 
 describe('gator-permissions-controller - fetchAndUpdateGatorPermissions() tests', () => {
   it('fetches and updates gator permissions successfully', async () => {
-    const { messenger, mockIsSignedIn } = createMockGatorPermissionsMessenger();
+    const { messenger } = createMockGatorPermissionsMessenger();
 
-    // Mock user already signed in
-    mockIsSignedIn.mockReturnValue(true);
-
-    const controller = new GatorPermissionsController({ messenger });
+    const controller = new GatorPermissionsController({
+      messenger,
+      config: mockGatorPermissionsControllerConfig,
+    });
 
     // Enable first
     await controller.enableGatorPermissions();
@@ -370,7 +380,10 @@ describe('gator-permissions-controller - fetchAndUpdateGatorPermissions() tests'
   it('throws error when gator permissions are not enabled', async () => {
     const { messenger } = createMockGatorPermissionsMessenger();
 
-    const controller = new GatorPermissionsController({ messenger });
+    const controller = new GatorPermissionsController({
+      messenger,
+      config: mockGatorPermissionsControllerConfig,
+    });
 
     await expect(controller.fetchAndUpdateGatorPermissions()).rejects.toThrow(
       'Failed to fetch gator permissions',
@@ -378,13 +391,15 @@ describe('gator-permissions-controller - fetchAndUpdateGatorPermissions() tests'
   });
 
   it('handles null permissions data', async () => {
-    const { messenger, mockGetStorageAllFeatureEntries, mockIsSignedIn } =
+    const { messenger, mockGetGrantedPermissions } =
       createMockGatorPermissionsMessenger();
 
-    mockGetStorageAllFeatureEntries.mockResolvedValue(null);
-    mockIsSignedIn.mockReturnValue(true);
+    mockGetGrantedPermissions.mockResolvedValue(null);
 
-    const controller = new GatorPermissionsController({ messenger });
+    const controller = new GatorPermissionsController({
+      messenger,
+      config: mockGatorPermissionsControllerConfig,
+    });
 
     // Enable first
     await controller.enableGatorPermissions();
@@ -399,13 +414,15 @@ describe('gator-permissions-controller - fetchAndUpdateGatorPermissions() tests'
   });
 
   it('handles empty permissions data', async () => {
-    const { messenger, mockGetStorageAllFeatureEntries, mockIsSignedIn } =
+    const { messenger, mockGetGrantedPermissions } =
       createMockGatorPermissionsMessenger();
 
-    mockGetStorageAllFeatureEntries.mockResolvedValue([]);
-    mockIsSignedIn.mockReturnValue(true);
+    mockGetGrantedPermissions.mockResolvedValue([]);
 
-    const controller = new GatorPermissionsController({ messenger });
+    const controller = new GatorPermissionsController({
+      messenger,
+      config: mockGatorPermissionsControllerConfig,
+    });
 
     // Enable first
     await controller.enableGatorPermissions();
@@ -420,21 +437,30 @@ describe('gator-permissions-controller - fetchAndUpdateGatorPermissions() tests'
   });
 
   it('throws error for invalid permission type', async () => {
-    const { messenger, mockGetStorageAllFeatureEntries, mockIsSignedIn } =
+    const { messenger, mockGetGrantedPermissions } =
       createMockGatorPermissionsMessenger();
 
-    mockGetStorageAllFeatureEntries.mockResolvedValue([
-      JSON.stringify({
+    mockGetGrantedPermissions.mockResolvedValue([
+      {
         permissionResponse: {
+          chainId: '0x1' as Hex,
+          address: '0x123',
+          expiry: 1750291200,
+          isAdjustmentAllowed: true,
           signer: { type: 'account', data: { address: '0x123' } },
           permission: { type: 'invalid-type' },
+          context: '0x00000000',
+          accountMeta: [],
+          signerMeta: {},
         },
         siteOrigin: 'http://localhost:8000',
-      }),
+      },
     ]);
-    mockIsSignedIn.mockReturnValue(true);
 
-    const controller = new GatorPermissionsController({ messenger });
+    const controller = new GatorPermissionsController({
+      messenger,
+      config: mockGatorPermissionsControllerConfig,
+    });
 
     // Enable first
     await controller.enableGatorPermissions();
@@ -445,21 +471,30 @@ describe('gator-permissions-controller - fetchAndUpdateGatorPermissions() tests'
   });
 
   it('throws error for non-account signer type', async () => {
-    const { messenger, mockGetStorageAllFeatureEntries, mockIsSignedIn } =
+    const { messenger, mockGetGrantedPermissions } =
       createMockGatorPermissionsMessenger();
 
-    mockGetStorageAllFeatureEntries.mockResolvedValue([
-      JSON.stringify({
+    mockGetGrantedPermissions.mockResolvedValue([
+      {
         permissionResponse: {
+          chainId: '0x1' as Hex,
+          address: '0x123',
+          expiry: 1750291200,
+          isAdjustmentAllowed: true,
           signer: { type: 'wallet', data: {} },
           permission: { type: 'native-token-stream' },
+          context: '0x00000000',
+          accountMeta: [],
+          signerMeta: {},
         },
         siteOrigin: 'http://localhost:8000',
-      }),
+      },
     ]);
-    mockIsSignedIn.mockReturnValue(true);
 
-    const controller = new GatorPermissionsController({ messenger });
+    const controller = new GatorPermissionsController({
+      messenger,
+      config: mockGatorPermissionsControllerConfig,
+    });
 
     // Enable first
     await controller.enableGatorPermissions();
@@ -470,15 +505,15 @@ describe('gator-permissions-controller - fetchAndUpdateGatorPermissions() tests'
   });
 
   it('handles error during fetch and update', async () => {
-    const { messenger, mockGetStorageAllFeatureEntries, mockIsSignedIn } =
+    const { messenger, mockGetGrantedPermissions } =
       createMockGatorPermissionsMessenger();
 
-    mockGetStorageAllFeatureEntries.mockRejectedValue(
-      new Error('Storage error'),
-    );
-    mockIsSignedIn.mockReturnValue(true);
+    mockGetGrantedPermissions.mockRejectedValue(new Error('Storage error'));
 
-    const controller = new GatorPermissionsController({ messenger });
+    const controller = new GatorPermissionsController({
+      messenger,
+      config: mockGatorPermissionsControllerConfig,
+    });
 
     // Enable first
     await controller.enableGatorPermissions();
@@ -495,7 +530,10 @@ describe('gator-permissions-controller - gatorPermissionsList getter tests', () 
   it('returns parsed gator permissions list', () => {
     const { messenger } = createMockGatorPermissionsMessenger();
 
-    const controller = new GatorPermissionsController({ messenger });
+    const controller = new GatorPermissionsController({
+      messenger,
+      config: mockGatorPermissionsControllerConfig,
+    });
 
     const permissionsList = controller.gatorPermissionsList;
 
@@ -511,6 +549,7 @@ describe('gator-permissions-controller - gatorPermissionsList getter tests', () 
 
     const controller = new GatorPermissionsController({
       messenger,
+      config: mockGatorPermissionsControllerConfig,
       state: {
         gatorPermissionsListStringify: JSON.stringify({
           'native-token-stream': { '0x1': [{ id: '1' }] },
@@ -534,33 +573,25 @@ describe('gator-permissions-controller - private methods tests', () => {
   it('clears loading states on initialization', () => {
     const { messenger } = createMockGatorPermissionsMessenger();
 
-    const controller = new GatorPermissionsController({ messenger });
+    const controller = new GatorPermissionsController({
+      messenger,
+      config: mockGatorPermissionsControllerConfig,
+    });
 
     expect(controller.state.isFetchingGatorPermissions).toBe(false);
-    expect(controller.state.isUpdatingGatorPermissions).toBe(false);
   });
 
   it('asserts gator permissions are enabled', async () => {
-    const { messenger, mockIsSignedIn } = createMockGatorPermissionsMessenger();
+    const { messenger } = createMockGatorPermissionsMessenger();
 
-    // Mock user already signed in
-    mockIsSignedIn.mockReturnValue(true);
-
-    const controller = new GatorPermissionsController({ messenger });
+    const controller = new GatorPermissionsController({
+      messenger,
+      config: mockGatorPermissionsControllerConfig,
+    });
 
     // Should not throw when enabled
     await controller.enableGatorPermissions();
     expect(controller.state.isGatorPermissionsEnabled).toBe(true);
-  });
-
-  it('asserts gator permissions are not enabled', async () => {
-    const { messenger } = createMockGatorPermissionsMessenger();
-
-    const controller = new GatorPermissionsController({ messenger });
-
-    await expect(controller.fetchAndUpdateGatorPermissions()).rejects.toThrow(
-      'Failed to fetch gator permissions',
-    );
   });
 });
 
@@ -572,7 +603,10 @@ describe('gator-permissions-controller - message handlers tests', () => {
       'registerActionHandler',
     );
 
-    new GatorPermissionsController({ messenger });
+    new GatorPermissionsController({
+      messenger,
+      config: mockGatorPermissionsControllerConfig,
+    });
 
     expect(mockRegisterActionHandler).toHaveBeenCalledWith(
       'GatorPermissionsController:fetchAndUpdateGatorPermissions',
@@ -590,68 +624,16 @@ describe('gator-permissions-controller - message handlers tests', () => {
 });
 
 describe('gator-permissions-controller - enableGatorPermissions() tests', () => {
-  it('enables gator permissions successfully when user is already signed in', async () => {
-    const { messenger, mockIsSignedIn } = createMockGatorPermissionsMessenger();
+  it('enables gator permissions successfully', async () => {
+    const { messenger } = createMockGatorPermissionsMessenger();
 
-    // Mock user already signed in
-    mockIsSignedIn.mockReturnValue(true);
-
-    const controller = new GatorPermissionsController({ messenger });
-
-    await controller.enableGatorPermissions();
-
-    expect(controller.state.isGatorPermissionsEnabled).toBe(true);
-    expect(controller.state.isUpdatingGatorPermissions).toBe(false);
-  });
-
-  it('enables gator permissions successfully when user needs to sign in', async () => {
-    const { messenger, mockIsSignedIn, mockPerformSignIn } =
-      createMockGatorPermissionsMessenger();
-
-    // Mock user not signed in initially, then signed in after sign in
-    mockIsSignedIn.mockReturnValueOnce(false).mockReturnValueOnce(true);
-    mockPerformSignIn.mockResolvedValue(undefined);
-
-    const controller = new GatorPermissionsController({ messenger });
+    const controller = new GatorPermissionsController({
+      messenger,
+      config: mockGatorPermissionsControllerConfig,
+    });
 
     await controller.enableGatorPermissions();
 
     expect(controller.state.isGatorPermissionsEnabled).toBe(true);
-    expect(controller.state.isUpdatingGatorPermissions).toBe(false);
-    expect(mockPerformSignIn).toHaveBeenCalled();
-  });
-
-  it('handles error during enableGatorPermissions when signIn fails', async () => {
-    const { messenger, mockIsSignedIn, mockPerformSignIn } =
-      createMockGatorPermissionsMessenger();
-
-    // Mock user not signed in and sign in fails
-    mockIsSignedIn.mockReturnValue(false);
-    mockPerformSignIn.mockRejectedValue(new Error('Sign in failed'));
-
-    const controller = new GatorPermissionsController({ messenger });
-
-    await expect(controller.enableGatorPermissions()).rejects.toThrow(
-      'Unable to enable gator permissions',
-    );
-
-    expect(controller.state.isGatorPermissionsEnabled).toBe(false);
-    expect(controller.state.isUpdatingGatorPermissions).toBe(false);
-  });
-});
-
-describe('gator-permissions-controller - auth methods tests', () => {
-  it('calls signIn when user is not signed in', async () => {
-    const { messenger, mockIsSignedIn, mockPerformSignIn } =
-      createMockGatorPermissionsMessenger();
-
-    mockIsSignedIn.mockReturnValue(false);
-    mockPerformSignIn.mockResolvedValue(undefined);
-
-    const controller = new GatorPermissionsController({ messenger });
-
-    await controller.enableGatorPermissions();
-
-    expect(mockPerformSignIn).toHaveBeenCalled();
   });
 });
