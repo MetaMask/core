@@ -131,23 +131,12 @@ export class RestrictedMessenger<
    *
    * @param instance - The class instance with a name property and methods
    * @param methodNames - The names of the methods to register as action handlers
-   * @param exceptions - Optional map of method names to custom handlers
    */
   registerMethodActionHandlers<
     Instance extends { name: string },
     MethodNames extends keyof Instance & string,
-  >(
-    instance: Instance,
-    methodNames: readonly MethodNames[],
-    exceptions: Partial<
-      Record<MethodNames, (...args: unknown[]) => unknown>
-    > = {},
-  ) {
-    this.#messenger.registerMethodActionHandlers(
-      instance,
-      methodNames,
-      exceptions,
-    );
+  >(instance: Instance, methodNames: readonly MethodNames[]) {
+    this.#messenger.registerMethodActionHandlers(instance, methodNames);
   }
 
   /**

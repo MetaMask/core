@@ -177,20 +177,13 @@ export class Messenger<
    *
    * @param instance - The class instance with a name property and methods
    * @param methodNames - The names of the methods to register as action handlers
-   * @param exceptions - Optional map of method names to custom handlers
    */
   registerMethodActionHandlers<
     Instance extends { name: string },
     MethodNames extends keyof Instance & string,
-  >(
-    instance: Instance,
-    methodNames: readonly MethodNames[],
-    exceptions: Partial<
-      Record<MethodNames, (...args: unknown[]) => unknown>
-    > = {},
-  ) {
+  >(instance: Instance, methodNames: readonly MethodNames[]) {
     for (const methodName of methodNames) {
-      const handler = exceptions[methodName] ?? instance[methodName];
+      const handler = instance[methodName];
       if (typeof handler === 'function') {
         const actionType =
           `${instance.name}:${methodName}` as `${Instance['name']}:${MethodNames}`;
