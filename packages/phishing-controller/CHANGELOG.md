@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add proper action registration for `bulkScanUrls` method as `PhishingControllerBulkScanUrlsAction`
+- Export `PhishingControllerBulkScanUrlsAction` type for external use
+
 ## [13.0.0]
 
 ### Added
