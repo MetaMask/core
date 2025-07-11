@@ -26,7 +26,10 @@ import type {
   NetworkClientConfiguration,
   NetworkClientId,
 } from '@metamask/network-controller';
-import type { BulkPhishingDetectionScanResponse } from '@metamask/phishing-controller';
+import type {
+  BulkPhishingDetectionScanResponse,
+  PhishingControllerBulkScanUrlsAction,
+} from '@metamask/phishing-controller';
 import { RecommendedAction } from '@metamask/phishing-controller';
 import {
   getDefaultPreferencesState,
@@ -55,7 +58,6 @@ import type {
   AllowedActions as NftControllerAllowedActions,
   AllowedEvents as NftControllerAllowedEvents,
   NFTStandardType,
-  PhishingControllerBulkScanUrlsAction,
   NftMetadata,
 } from './NftController';
 import { NftController } from './NftController';
