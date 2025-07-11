@@ -17,6 +17,13 @@ import * as AccountSyncControllerIntegrationModule from './account-syncing/contr
 import { BACKUPANDSYNC_FEATURES } from './constants';
 import { MOCK_STORAGE_DATA, MOCK_STORAGE_KEY } from './mocks/mockStorage';
 import UserStorageController, { defaultState } from './UserStorageController';
+import {
+  ALGORITHM_KEY_SIZE,
+  SCRYPT_N_V2,
+  SCRYPT_p,
+  SCRYPT_r,
+  SCRYPT_SALT_SIZE,
+} from '../../shared/encryption/constants';
 import { USER_STORAGE_FEATURE_NAMES } from '../../shared/storage-schema';
 
 describe('user-storage/user-storage-controller - constructor() tests', () => {
@@ -934,5 +941,61 @@ describe('user-storage/user-storage-controller - snap handling', () => {
 
     messengerMocks.baseMessenger.publish('KeyringController:unlock');
     expect(await controller.getStorageKey()).toBe(MOCK_STORAGE_KEY);
+  });
+});
+
+describe('user-storage/user-storage-controller - encryption callbacks', () => {
+  const arrangeMocks = async () => {
+    const messengerMocks = mockUserStorageMessenger();
+    const mockOnDecrypt = jest.fn();
+    const mockOnEncrypt = jest.fn();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      config: {
+        encryption: {
+          onDecrypt: mockOnDecrypt,
+          onEncrypt: mockOnEncrypt,
+        },
+      },
+    });
+
+    await Promise.all([
+      mockEndpointGetUserStorage(
+        `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+      ),
+      mockEndpointUpsertUserStorage(
+        `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+      ),
+    ]);
+
+    return { mockOnDecrypt, mockOnEncrypt, controller };
+  };
+
+  it('calls encryption callbacks if they are set', async () => {
+    const { mockOnEncrypt, mockOnDecrypt, controller } = await arrangeMocks();
+
+    await controller.performSetStorage(
+      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+      'new data',
+    );
+
+    await controller.performGetStorage(
+      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+    );
+
+    const scryptParams = {
+      o: {
+        N: SCRYPT_N_V2,
+        dkLen: ALGORITHM_KEY_SIZE,
+        p: SCRYPT_p,
+        r: SCRYPT_r,
+      },
+      saltLen: SCRYPT_SALT_SIZE,
+      t: 'scrypt',
+      v: '1',
+    };
+
+    expect(mockOnEncrypt).toHaveBeenCalledWith(scryptParams);
+    expect(mockOnDecrypt).toHaveBeenCalledWith(scryptParams);
   });
 });

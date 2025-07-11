@@ -1,5 +1,6 @@
 import type { IBaseAuth } from './authentication-jwt-bearer/types';
 import { NotFoundError, UserStorageError } from './errors';
+import type { EncryptedPayload } from '../shared/encryption';
 import encryption, { createSHA256Hash } from '../shared/encryption';
 import type { Env } from '../shared/env';
 import { getEnvUrls } from '../shared/env';
@@ -38,6 +39,8 @@ export type GetUserStorageAllFeatureEntriesResponse = {
 export type UserStorageMethodOptions = {
   nativeScryptCrypto?: NativeScrypt;
   entropySourceId?: string;
+  onEncrypt?: (encryptedData: Omit<EncryptedPayload, 'd'>) => Promise<void>;
+  onDecrypt?: (encryptedData: Omit<EncryptedPayload, 'd'>) => Promise<void>;
 };
 
 type ErrorMessage = {
@@ -140,11 +143,10 @@ export class UserStorage {
     try {
       const headers = await this.#getAuthorizationHeader(entropySourceId);
       const storageKey = await this.getStorageKey(entropySourceId);
-      const encryptedData = await encryption.encryptString(
-        data,
-        storageKey,
-        options?.nativeScryptCrypto,
-      );
+      const encryptedData = await encryption.encryptString(data, storageKey, {
+        nativeScryptCrypto: options?.nativeScryptCrypto,
+        onEncrypt: options?.onEncrypt,
+      });
       const encryptedPath = createEntryPath(path, storageKey);
 
       const url = new URL(STORAGE_URL(this.env, encryptedPath));
@@ -195,11 +197,10 @@ export class UserStorage {
         data.map(async (d) => {
           return [
             this.#createEntryKey(d[0], storageKey),
-            await encryption.encryptString(
-              d[1],
-              storageKey,
-              options?.nativeScryptCrypto,
-            ),
+            await encryption.encryptString(d[1], storageKey, {
+              nativeScryptCrypto: options?.nativeScryptCrypto,
+              onEncrypt: options?.onEncrypt,
+            }),
           ];
         }),
       );
@@ -314,7 +315,10 @@ export class UserStorage {
       const decryptedData = await encryption.decryptString(
         encryptedData,
         storageKey,
-        options?.nativeScryptCrypto,
+        {
+          nativeScryptCrypto: options?.nativeScryptCrypto,
+          onDecrypt: options?.onDecrypt,
+        },
       );
 
       // Data migration
@@ -379,11 +383,10 @@ export class UserStorage {
         }
 
         try {
-          const data = await encryption.decryptString(
-            entry.Data,
-            storageKey,
-            options?.nativeScryptCrypto,
-          );
+          const data = await encryption.decryptString(entry.Data, storageKey, {
+            nativeScryptCrypto: options?.nativeScryptCrypto,
+            onDecrypt: options?.onDecrypt,
+          });
           decryptedData.push(data);
 
           // Data migration
@@ -391,6 +394,10 @@ export class UserStorage {
             const reEncryptedData = await encryption.encryptString(
               data,
               storageKey,
+              {
+                nativeScryptCrypto: options?.nativeScryptCrypto,
+                onEncrypt: options?.onEncrypt,
+              },
             );
             reEncryptedEntries.push([entry.HashedKey, reEncryptedData]);
           }

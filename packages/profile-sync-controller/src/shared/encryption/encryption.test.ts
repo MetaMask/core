@@ -1,4 +1,11 @@
-import { SCRYPT_N, SCRYPT_N_V2 } from './constants';
+import {
+  ALGORITHM_KEY_SIZE,
+  SCRYPT_N,
+  SCRYPT_N_V2,
+  SCRYPT_p,
+  SCRYPT_r,
+  SCRYPT_SALT_SIZE,
+} from './constants';
 import encryption, { createSHA256Hash } from './encryption';
 
 describe('encryption tests', () => {
@@ -79,6 +86,42 @@ describe('encryption tests', () => {
       ACCOUNTS_ENCRYPTED_DATA_WITH_SALT,
       ACCOUNTS_PASSWORD,
     );
+    expect(decryptedData).toBe(ACCOUNTS_DECRYPTED_DATA);
+  });
+
+  it('should fire the onEncrypt callback if provided', async () => {
+    const onEncrypt = jest.fn();
+    const encryptedData = await encryption.encryptString(DATA1, PASSWORD, {
+      onEncrypt,
+    });
+    expect(onEncrypt).toHaveBeenCalledWith({
+      v: '1',
+      t: 'scrypt',
+      o: {
+        N: SCRYPT_N_V2,
+        r: SCRYPT_r,
+        p: SCRYPT_p,
+        dkLen: ALGORITHM_KEY_SIZE,
+      },
+      saltLen: SCRYPT_SALT_SIZE,
+    });
+    expect(encryptedData).toBeDefined();
+  });
+
+  it('should fire the onDecrypt callback if provided', async () => {
+    const onDecrypt = jest.fn();
+    const decryptedData = await encryption.decryptString(
+      ACCOUNTS_ENCRYPTED_DATA_WITH_SALT,
+      ACCOUNTS_PASSWORD,
+      { onDecrypt },
+    );
+    const encryptedData = JSON.parse(ACCOUNTS_ENCRYPTED_DATA_WITH_SALT);
+    expect(onDecrypt).toHaveBeenCalledWith({
+      v: encryptedData.v,
+      t: encryptedData.t,
+      o: encryptedData.o,
+      saltLen: encryptedData.saltLen,
+    });
     expect(decryptedData).toBe(ACCOUNTS_DECRYPTED_DATA);
   });
 

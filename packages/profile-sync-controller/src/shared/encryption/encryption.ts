@@ -53,17 +53,30 @@ class EncryptorDecryptor {
   async encryptString(
     plaintext: string,
     password: string,
-    nativeScryptCrypto?: NativeScrypt,
+    options?: {
+      nativeScryptCrypto?: NativeScrypt;
+      onEncrypt?: (encryptedData: Omit<EncryptedPayload, 'd'>) => Promise<void>;
+    },
   ): Promise<string> {
     try {
-      return await this.#encryptStringV1(
+      const encryptedString = await this.#encryptStringV1(
         plaintext,
         password,
-        nativeScryptCrypto,
+        options?.nativeScryptCrypto,
         {
           N: SCRYPT_N_V2,
         },
       );
+
+      const encryptedData: EncryptedPayload = JSON.parse(encryptedString);
+      await options?.onEncrypt?.({
+        v: encryptedData.v,
+        t: encryptedData.t,
+        o: encryptedData.o,
+        saltLen: encryptedData.saltLen,
+      });
+
+      return encryptedString;
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
       throw new Error(`Unable to encrypt string - ${errorMessage}`);
@@ -73,17 +86,27 @@ class EncryptorDecryptor {
   async decryptString(
     encryptedDataStr: string,
     password: string,
-    nativeScryptCrypto?: NativeScrypt,
+    options?: {
+      nativeScryptCrypto?: NativeScrypt;
+      onDecrypt?: (encryptedData: Omit<EncryptedPayload, 'd'>) => Promise<void>;
+    },
   ): Promise<string> {
     try {
       const encryptedData: EncryptedPayload = JSON.parse(encryptedDataStr);
+
+      await options?.onDecrypt?.({
+        v: encryptedData.v,
+        t: encryptedData.t,
+        o: encryptedData.o,
+        saltLen: encryptedData.saltLen,
+      });
 
       if (encryptedData.v === '1') {
         if (encryptedData.t === 'scrypt') {
           return await this.#decryptStringV1(
             encryptedData,
             password,
-            nativeScryptCrypto,
+            options?.nativeScryptCrypto,
           );
         }
       }
