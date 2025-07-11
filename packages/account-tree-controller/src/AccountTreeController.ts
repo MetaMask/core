@@ -1,9 +1,10 @@
 import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
-import { toDefaultAccountGroupId } from '@metamask/account-api';
+import { toAccountWalletId } from '@metamask/account-api';
 import type {
   AccountId,
   AccountsControllerAccountAddedEvent,
   AccountsControllerAccountRemovedEvent,
+  AccountsControllerGetAccountAction,
   AccountsControllerListMultichainAccountsAction,
 } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
@@ -19,6 +20,7 @@ import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controlle
 
 import type { Rule } from './rules';
 import { EntropySourceRule, SnapIdRule, KeyringTypeRule } from './rules';
+import type { AccountTreeWallet } from './AccountTreeWallet';
 
 const controllerName = 'AccountTreeController';
 
@@ -67,6 +69,7 @@ export type AccountTreeControllerGetStateAction = ControllerGetStateAction<
 >;
 
 export type AllowedActions =
+  | AccountsControllerGetAccountAction
   | AccountsControllerListMultichainAccountsAction
   | KeyringControllerGetStateAction
   | SnapControllerGetSnap;
@@ -113,8 +116,6 @@ export function getDefaultAccountTreeControllerState(): AccountTreeControllerSta
   };
 }
 
-export const DEFAULT_ACCOUNT_GROUP_NAME: string = 'Default';
-
 export class AccountTreeController extends BaseController<
   typeof controllerName,
   AccountTreeControllerState,
@@ -123,6 +124,8 @@ export class AccountTreeController extends BaseController<
   readonly #reverse: Map<AccountId, AccountReverseMapping>;
 
   readonly #rules: Rule[];
+
+  readonly #wallets: Map<AccountWalletId, AccountTreeWallet>;
 
   /**
    * Constructor for AccountTreeController.
@@ -147,6 +150,7 @@ export class AccountTreeController extends BaseController<
         ...state,
       },
     });
+    this.#wallets = new Map();
 
     // Reverse map to allow fast node access from an account ID.
     this.#reverse = new Map();
@@ -217,38 +221,44 @@ export class AccountTreeController extends BaseController<
     account: InternalAccount,
   ) {
     for (const rule of this.#rules) {
-      const match = rule.match(account);
+      const result = rule.match(account);
 
-      if (!match) {
+      if (!result) {
         // No match for that rule, we go to the next one.
         continue;
       }
 
-      const walletId = match.id;
-      const walletName = match.name;
-      const groupId = toDefaultAccountGroupId(walletId); // Use a single-group for now until multichain accounts is supported.
-      const groupName = DEFAULT_ACCOUNT_GROUP_NAME;
+      const walletId = toAccountWalletId(result.category, result.id);
+      let wallet = this.#wallets.get(walletId);
+      if (!wallet) {
+        // If we don't have any AccountTreeWallet yet, we just create it.
+        wallet = rule.build(result);
+      }
+
+      // This will automatically creates the group if it's missing.
+      const group = wallet.addAccount(account);
+      const groupId = group.id;
 
       if (!wallets[walletId]) {
-        wallets[walletId] = {
-          id: walletId,
+        wallets[wallet.id] = {
+          id: wallet.id,
           groups: {
-            [groupId]: {
-              id: groupId,
+            [group.id]: {
+              id: group.id,
               accounts: [],
-              metadata: { name: groupName },
+              metadata: { name: group.getDefaultName() },
             },
           },
           metadata: {
-            name: walletName,
+            name: wallet.getDefaultName(),
           },
         };
       }
-      wallets[walletId].groups[groupId].accounts.push(account.id);
+      wallets[wallet.id].groups[group.id].accounts.push(account.id);
 
       // Update the reverse mapping for this account.
       this.#reverse.set(account.id, {
-        walletId,
+        walletId: wallet.id,
         groupId,
       });
 

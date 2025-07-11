@@ -1,7 +1,4 @@
-import {
-  AccountWalletCategory,
-  toAccountWalletId,
-} from '@metamask/account-api';
+import { AccountWalletCategory } from '@metamask/account-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
@@ -10,6 +7,29 @@ import { stripSnapPrefix } from '@metamask/snaps-utils';
 import type { RuleMatch } from './Rule';
 import { BaseRule } from './Rule';
 import { hasKeyringType } from './utils';
+import type { AccountTreeControllerMessenger } from '../AccountTreeController';
+import { AccountTreeWallet } from '../AccountTreeWallet';
+
+class SnapIdWallet extends AccountTreeWallet {
+  readonly snapId: SnapId;
+
+  constructor(messenger: AccountTreeControllerMessenger, snapId: SnapId) {
+    super(messenger, AccountWalletCategory.Snap, snapId);
+    this.snapId = snapId;
+  }
+
+  getDefaultName(): string {
+    const snap = this.messenger.call('SnapController:get', this.snapId);
+    const snapName = snap
+      ? // TODO: Handle localization here, but that's a "client thing", so we don't have a `core` controller
+        // to refer to.
+        snap.manifest.proposedName
+      : stripSnapPrefix(this.snapId);
+
+    console.log('snapName is', snapName);
+    return snapName;
+  }
+}
 
 export class SnapIdRule extends BaseRule {
   match(account: InternalAccount): RuleMatch | undefined {
@@ -22,22 +42,15 @@ export class SnapIdRule extends BaseRule {
 
       return {
         category: AccountWalletCategory.Snap,
-        id: toAccountWalletId(AccountWalletCategory.Snap, id),
-        name: this.#getSnapName(id as SnapId),
+        id,
       };
     }
 
     return undefined;
   }
 
-  #getSnapName(snapId: SnapId): string {
-    const snap = this.messenger.call('SnapController:get', snapId);
-    const snapName = snap
-      ? // TODO: Handle localization here, but that's a "client thing", so we don't have a `core` controller
-        // to refer to.
-        snap.manifest.proposedName
-      : stripSnapPrefix(snapId);
-
-    return snapName;
+  build({ id: snapId }: RuleMatch) {
+    // We assume that `type` is really a `KeyringTypes`.
+    return new SnapIdWallet(this.messenger, snapId as SnapId);
   }
 }

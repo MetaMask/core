@@ -1,13 +1,50 @@
-import {
-  AccountWalletCategory,
-  toAccountWalletId,
-} from '@metamask/account-api';
+import { AccountWalletCategory } from '@metamask/account-api';
+import type { KeyringObject } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { RuleMatch } from './Rule';
 import { BaseRule } from './Rule';
 import { hasKeyringType } from './utils';
+import type { AccountTreeControllerMessenger } from '../AccountTreeController';
+import { AccountTreeWallet } from '../AccountTreeWallet';
+
+class EntropySourceWallet extends AccountTreeWallet {
+  readonly entropySource: string;
+
+  constructor(
+    messenger: AccountTreeControllerMessenger,
+    entropySource: string,
+  ) {
+    super(messenger, AccountWalletCategory.Entropy, entropySource);
+    this.entropySource = entropySource;
+  }
+
+  static getEntropySourceIndex(
+    keyrings: KeyringObject[],
+    entropySource: string,
+  ) {
+    return keyrings
+      .filter((keyring) => keyring.type === (KeyringTypes.hd as string))
+      .findIndex((keyring) => keyring.metadata.id === entropySource);
+  }
+
+  getDefaultName(): string {
+    const { keyrings } = this.messenger.call('KeyringController:getState');
+
+    const index = EntropySourceWallet.getEntropySourceIndex(
+      keyrings,
+      this.entropySource,
+    );
+    if (index === -1) {
+      // NOTE: This should never really fail, as we checked for this precondition
+      // during rule matching.
+      throw new Error('Unable to get index for entropy source');
+    }
+
+    return `Wallet ${index + 1}`; // Use human indexing.
+  }
+}
 
 export class EntropySourceRule extends BaseRule {
   match(account: InternalAccount): RuleMatch | undefined {
@@ -41,10 +78,15 @@ export class EntropySourceRule extends BaseRule {
       return undefined;
     }
 
+    // NOTE: We make this check now, so that we are guaranteed that `getDefaultName` will never fail if we
+    // pass that point:
+    // ------------------------------------------------------------------------------------------------------
     // We check if we can get the name for that entropy source, if not this means this entropy does not match
     // any HD keyrings, thus, is invalid (this account will be grouped by another rule).
-    const entropySourceName = this.#getEntropySourceName(entropySource);
-    if (!entropySourceName) {
+    const { keyrings } = this.messenger.call('KeyringController:getState');
+    if (
+      EntropySourceWallet.getEntropySourceIndex(keyrings, entropySource) === -1
+    ) {
       console.warn(
         '! Tried to name a wallet using an unknown entropy, this should not be possible.',
       );
@@ -53,22 +95,11 @@ export class EntropySourceRule extends BaseRule {
 
     return {
       category: AccountWalletCategory.Entropy,
-      id: toAccountWalletId(AccountWalletCategory.Entropy, entropySource),
-      name: entropySourceName,
+      id: entropySource,
     };
   }
 
-  #getEntropySourceName(entropySource: string): string | undefined {
-    const { keyrings } = this.messenger.call('KeyringController:getState');
-
-    const index = keyrings
-      .filter((keyring) => keyring.type === (KeyringTypes.hd as string))
-      .findIndex((keyring) => keyring.metadata.id === entropySource);
-
-    if (index === -1) {
-      return undefined;
-    }
-
-    return `Wallet ${index + 1}`; // Use human indexing.
+  build({ id: entropySource }: RuleMatch) {
+    return new EntropySourceWallet(this.messenger, entropySource);
   }
 }

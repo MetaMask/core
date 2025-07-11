@@ -1,12 +1,11 @@
-import {
-  AccountWalletCategory,
-  toAccountWalletId,
-} from '@metamask/account-api';
+import { AccountWalletCategory } from '@metamask/account-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { RuleMatch } from './Rule';
 import { BaseRule } from './Rule';
+import type { AccountTreeControllerMessenger } from '../AccountTreeController';
+import { AccountTreeWallet } from '../AccountTreeWallet';
 
 /**
  * Get wallet name from a keyring type.
@@ -49,14 +48,31 @@ export function getAccountWalletNameFromKeyringType(type: KeyringTypes) {
   }
 }
 
+class KeyringTypeWallet extends AccountTreeWallet {
+  readonly type: KeyringTypes;
+
+  constructor(messenger: AccountTreeControllerMessenger, type: KeyringTypes) {
+    super(messenger, AccountWalletCategory.Keyring, type);
+    this.type = type;
+  }
+
+  getDefaultName(): string {
+    return getAccountWalletNameFromKeyringType(this.type);
+  }
+}
+
 export class KeyringTypeRule extends BaseRule {
   match(account: InternalAccount): RuleMatch | undefined {
     const { type } = account.metadata.keyring;
 
     return {
       category: AccountWalletCategory.Keyring,
-      id: toAccountWalletId(AccountWalletCategory.Keyring, type),
-      name: getAccountWalletNameFromKeyringType(type as KeyringTypes),
+      id: type,
     };
+  }
+
+  build({ id: type }: RuleMatch) {
+    // We assume that `type` is really a `KeyringTypes`.
+    return new KeyringTypeWallet(this.messenger, type as KeyringTypes);
   }
 }

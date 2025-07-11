@@ -24,8 +24,8 @@ import {
   type AllowedActions,
   type AllowedEvents,
   type AccountGroupMetadata,
-  DEFAULT_ACCOUNT_GROUP_NAME,
 } from './AccountTreeController';
+import { DEFAULT_ACCOUNT_GROUP_NAME } from './AccountTreeGroup';
 import { getAccountWalletNameFromKeyringType } from './rules/KeyringTypeRule';
 
 const ETH_EOA_METHODS = [
