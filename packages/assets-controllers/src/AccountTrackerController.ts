@@ -36,7 +36,7 @@ import { reduceInBatchesSerially, TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import { Contract } from '@ethersproject/contracts';
 import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import { Web3Provider } from '@ethersproject/providers';
-import BN from 'bn.js';
+import { BigNumber } from '@ethersproject/bignumber';
 
 /**
  * The name of the {@link AccountTrackerController}.
@@ -384,7 +384,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
           accountsToUpdate.forEach((address, index) => {
             accountsForChain[address] = {
-              balance: (nativeBalances[index] as BN).toString('hex'),
+              balance: (nativeBalances[index] as BigNumber).toHexString(),
             };
           })
         } else {
@@ -489,6 +489,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   > {
     const { ethQuery } = this.#getCorrectNetworkClient(networkClientId);
 
+    // TODO: This should use multicall when enabled by the user.
     return await Promise.all(
       addresses.map(
         (address): Promise<[string, string, StakedBalance] | undefined> => {
