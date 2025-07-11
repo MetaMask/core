@@ -8,8 +8,8 @@ import { BaseController } from '@metamask/base-controller';
 import type { Hex } from '@metamask/utils';
 
 import type { NetworkControllerGetStateAction } from './network-controller-types';
+import type { SampleGasPricesControllerMethodActions } from './sample-gas-prices-controller-method-action-types';
 import type { SampleAbstractGasPricesService } from './sample-gas-prices-service';
-import { SampleGasPricesControllerMethodActions } from './sample-gas-prices-controller-method-action-types';
 
 // === GENERAL ===
 
@@ -223,10 +223,6 @@ export class SampleGasPricesController extends BaseController<
 
     this.#gasPricesService = gasPricesService;
 
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:updateGasPrices`,
-      this.updateGasPrices.bind(this),
-    );
     this.messagingSystem.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
