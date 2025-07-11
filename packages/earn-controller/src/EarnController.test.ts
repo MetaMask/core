@@ -12,6 +12,10 @@ import {
   EarnEnvironments,
 } from '@metamask/stake-sdk';
 
+import {
+  HOODI_TESTNET_CHAIN_ID_DECIMAL,
+  HOODI_TESTNET_CHAIN_ID_HEX,
+} from './constants';
 import type {
   EarnControllerGetStateAction,
   EarnControllerStateChangeEvent,
@@ -1088,13 +1092,62 @@ describe('EarnController', () => {
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
         ).toHaveBeenNthCalledWith(2, [mockAccount2Address], 1, false);
       });
+
+      it('fetches using Ethereum Mainnet fallback if pooled-staking does not support active chainId', async () => {
+        const { controller } = await setupController({
+          mockGetNetworkControllerState: jest.fn(() => ({
+            selectedNetworkClientId: '2',
+            networkConfigurations: {
+              '2': { chainId: '0x2' },
+            },
+          })),
+          mockGetNetworkClientById: jest.fn(() => ({
+            configuration: { chainId: '0x2' },
+          })),
+        });
+
+        await controller.refreshPooledStakes();
+
+        // Assertion on second call since the first is part of controller setup.
+        expect(
+          mockedEarnApiService?.pooledStaking?.getPooledStakes,
+        ).toHaveBeenNthCalledWith(2, [mockAccount1Address], 1, false);
+      });
+
+      it("fetches using Ethereum Hoodi if it's the active chainId", async () => {
+        const { controller } = await setupController({
+          mockGetNetworkControllerState: jest.fn(() => ({
+            selectedNetworkClientId: HOODI_TESTNET_CHAIN_ID_DECIMAL,
+            networkConfigurations: {
+              HOODI_TESTNET_CHAIN_ID_DECIMAL: {
+                chainId: HOODI_TESTNET_CHAIN_ID_HEX,
+              },
+            },
+          })),
+          mockGetNetworkClientById: jest.fn(() => ({
+            configuration: { chainId: HOODI_TESTNET_CHAIN_ID_HEX },
+          })),
+        });
+
+        await controller.refreshPooledStakes();
+
+        // Assertion on second call since the first is part of controller setup.
+        expect(
+          mockedEarnApiService?.pooledStaking?.getPooledStakes,
+        ).toHaveBeenNthCalledWith(
+          2,
+          [mockAccount1Address],
+          HOODI_TESTNET_CHAIN_ID_DECIMAL,
+          false,
+        );
+      });
     });
 
-    describe('refreshStakingEligibility', () => {
-      it('fetches staking eligibility using active account (default)', async () => {
+    describe('refreshEarnEligibility', () => {
+      it('fetches earn eligibility using active account (default)', async () => {
         const { controller } = await setupController();
 
-        await controller.refreshStakingEligibility();
+        await controller.refreshEarnEligibility();
 
         // Assertion on second call since the first is part of controller setup.
         expect(
@@ -1102,9 +1155,9 @@ describe('EarnController', () => {
         ).toHaveBeenNthCalledWith(2, [mockAccount1Address]);
       });
 
-      it('fetches staking eligibility using options.address override', async () => {
+      it('fetches earn eligibility using options.address override', async () => {
         const { controller } = await setupController();
-        await controller.refreshStakingEligibility({
+        await controller.refreshEarnEligibility({
           address: mockAccount2Address,
         });
 
@@ -1124,6 +1177,50 @@ describe('EarnController', () => {
           mockedEarnApiService?.pooledStaking?.getVaultData,
         ).toHaveBeenCalledTimes(2);
       });
+
+      it('fetches using Ethereum Mainnet fallback if pooled-staking does not support active chainId', async () => {
+        const { controller } = await setupController({
+          mockGetNetworkControllerState: jest.fn(() => ({
+            selectedNetworkClientId: 2,
+            networkConfigurations: {
+              2: {
+                chainId: '0x2',
+              },
+            },
+          })),
+          mockGetNetworkClientById: jest.fn(() => ({
+            configuration: { chainId: '0x2' },
+          })),
+        });
+
+        await controller.refreshPooledStakingVaultMetadata();
+
+        expect(
+          mockedEarnApiService?.pooledStaking?.getVaultData,
+        ).toHaveBeenNthCalledWith(2, 1);
+      });
+
+      it('fetches using Ethereum Hoodi if it is the active chainId', async () => {
+        const { controller } = await setupController({
+          mockGetNetworkControllerState: jest.fn(() => ({
+            selectedNetworkClientId: HOODI_TESTNET_CHAIN_ID_DECIMAL,
+            networkConfigurations: {
+              HOODI_TESTNET_CHAIN_ID_DECIMAL: {
+                chainId: HOODI_TESTNET_CHAIN_ID_HEX,
+              },
+            },
+          })),
+          mockGetNetworkClientById: jest.fn(() => ({
+            configuration: { chainId: HOODI_TESTNET_CHAIN_ID_HEX },
+          })),
+        });
+
+        await controller.refreshPooledStakingVaultMetadata();
+
+        expect(
+          mockedEarnApiService?.pooledStaking?.getVaultData,
+        ).toHaveBeenNthCalledWith(2, HOODI_TESTNET_CHAIN_ID_DECIMAL);
+      });
     });
 
     describe('refreshPooledStakingVaultDailyApys', () => {
@@ -1139,21 +1236,9 @@ describe('EarnController', () => {
         );
       });
 
-      it('refreshes vault daily apys with passed chainId', async () => {
-        const { controller } = await setupController();
-        await controller.refreshPooledStakingVaultDailyApys(1);
-
-        expect(
-          mockedEarnApiService?.pooledStaking?.getVaultDailyApys,
-        ).toHaveBeenNthCalledWith(2, 1, 365, 'desc');
-        expect(controller.state.pooled_staking[1].vaultDailyApys).toStrictEqual(
-          mockPooledStakingVaultDailyApys,
-        );
-      });
-
       it('refreshes vault daily apys with custom days', async () => {
         const { controller } = await setupController();
-        await controller.refreshPooledStakingVaultDailyApys(1, 180);
+        await controller.refreshPooledStakingVaultDailyApys(180);
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultDailyApys,
@@ -1165,7 +1250,7 @@ describe('EarnController', () => {
 
       it('refreshes vault daily apys with ascending order', async () => {
         const { controller } = await setupController();
-        await controller.refreshPooledStakingVaultDailyApys(1, 365, 'asc');
+        await controller.refreshPooledStakingVaultDailyApys(365, 'asc');
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultDailyApys,
@@ -1177,7 +1262,7 @@ describe('EarnController', () => {
 
       it('refreshes vault daily apys with custom days and ascending order', async () => {
         const { controller } = await setupController();
-        await controller.refreshPooledStakingVaultDailyApys(1, 180, 'asc');
+        await controller.refreshPooledStakingVaultDailyApys(180, 'asc');
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultDailyApys,
@@ -1187,7 +1272,7 @@ describe('EarnController', () => {
         );
       });
 
-      it('refreshes vault daily apys with different network client id', async () => {
+      it("refreshes vault daily apys using Ethereum Mainnet fallback if pooled-staking doesn't support chainId", async () => {
         const { controller } = await setupController({
           mockGetNetworkControllerState: jest.fn(() => ({
             selectedNetworkClientId: '2',
@@ -1204,10 +1289,43 @@ describe('EarnController', () => {
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultDailyApys,
-        ).toHaveBeenNthCalledWith(2, 2, 365, 'desc');
-        expect(controller.state.pooled_staking[2].vaultDailyApys).toStrictEqual(
+        ).toHaveBeenNthCalledWith(2, 1, 365, 'desc');
+        expect(controller.state.pooled_staking[1].vaultDailyApys).toStrictEqual(
           mockPooledStakingVaultDailyApys,
         );
+        expect(controller.state.pooled_staking[2]).toBeUndefined();
+      });
+
+      it('refreshes vault daily apys using Ethereum Hoodi if it is the active chainId', async () => {
+        const { controller } = await setupController({
+          mockGetNetworkControllerState: jest.fn(() => ({
+            selectedNetworkClientId: HOODI_TESTNET_CHAIN_ID_DECIMAL,
+            networkConfigurations: {
+              HOODI_TESTNET_CHAIN_ID_DECIMAL: {
+                chainId: HOODI_TESTNET_CHAIN_ID_HEX,
+              },
+            },
+          })),
+          mockGetNetworkClientById: jest.fn(() => ({
+            configuration: { chainId: HOODI_TESTNET_CHAIN_ID_HEX },
+          })),
+        });
+
+        await controller.refreshPooledStakingVaultDailyApys();
+
+        expect(
+          mockedEarnApiService?.pooledStaking?.getVaultDailyApys,
+        ).toHaveBeenNthCalledWith(
+          2,
+          HOODI_TESTNET_CHAIN_ID_DECIMAL,
+          365,
+          'desc',
+        );
+        expect(
+          controller.state.pooled_staking[HOODI_TESTNET_CHAIN_ID_DECIMAL]
+            .vaultDailyApys,
+        ).toStrictEqual(mockPooledStakingVaultDailyApys);
+        expect(controller.state.pooled_staking[1]).toBeUndefined();
       });
     });
 
@@ -1224,19 +1342,7 @@ describe('EarnController', () => {
         ).toStrictEqual(mockPooledStakingVaultApyAverages);
       });
 
-      it('refreshes vault apy averages with passed chainId', async () => {
-        const { controller } = await setupController();
-        await controller.refreshPooledStakingVaultApyAverages(1);
-
-        expect(
-          mockedEarnApiService?.pooledStaking?.getVaultApyAverages,
-        ).toHaveBeenNthCalledWith(2, 1);
-        expect(
-          controller.state.pooled_staking[1].vaultApyAverages,
-        ).toStrictEqual(mockPooledStakingVaultApyAverages);
-      });
-
-      it('refreshes vault apy averages with different network client id', async () => {
+      it("refreshes vault apy averages using Ethereum Mainnet fallback if pooled-staking doesn't support chainId", async () => {
         const { controller } = await setupController({
           mockGetNetworkControllerState: jest.fn(() => ({
             selectedNetworkClientId: '2',
@@ -1253,10 +1359,33 @@ describe('EarnController', () => {
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultApyAverages,
-        ).toHaveBeenNthCalledWith(2, 2);
+        ).toHaveBeenNthCalledWith(2, 1);
         expect(
-          controller.state.pooled_staking[2].vaultApyAverages,
+          controller.state.pooled_staking[1].vaultApyAverages,
         ).toStrictEqual(mockPooledStakingVaultApyAverages);
+        expect(controller.state.pooled_staking[2]).toBeUndefined();
+      });
+
+      it('refreshes vault apy averages using Ethereum Hoodi if it is the active chainId', async () => {
+        const { controller } = await setupController({
+          mockGetNetworkControllerState: jest.fn(() => ({
+            selectedNetworkClientId: HOODI_TESTNET_CHAIN_ID_DECIMAL,
+            networkConfigurations: {
+              HOODI_TESTNET_CHAIN_ID_DECIMAL: {
+                chainId: HOODI_TESTNET_CHAIN_ID_HEX,
+              },
+            },
+          })),
+          mockGetNetworkClientById: jest.fn(() => ({
+            configuration: { chainId: HOODI_TESTNET_CHAIN_ID_HEX },
+          })),
+        });
+
+        await controller.refreshPooledStakingVaultApyAverages();
+
+        expect(
+          mockedEarnApiService?.pooledStaking?.getVaultApyAverages,
+        ).toHaveBeenNthCalledWith(2, HOODI_TESTNET_CHAIN_ID_DECIMAL);
       });
     });
   });
@@ -1309,15 +1438,14 @@ describe('EarnController', () => {
       it('uses event payload account address to update staking eligibility', async () => {
         const { controller, messenger } = await setupController();
 
-        jest.spyOn(controller, 'refreshStakingEligibility').mockResolvedValue();
+        jest.spyOn(controller, 'refreshEarnEligibility').mockResolvedValue();
         jest.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
 
         messenger.publish('AccountsController:selectedAccountChange', account);
 
-        expect(controller.refreshStakingEligibility).toHaveBeenNthCalledWith(
-          1,
-          { address: account.address },
-        );
+        expect(controller.refreshEarnEligibility).toHaveBeenNthCalledWith(1, {
+          address: account.address,
+        });
         expect(controller.refreshPooledStakes).toHaveBeenNthCalledWith(1, {
           address: account.address,
         });
@@ -1516,7 +1644,7 @@ describe('EarnController', () => {
         ).toHaveBeenCalledTimes(2);
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakingEligibility,
-        ).toHaveBeenCalledTimes(4);
+        ).toHaveBeenCalledTimes(3);
       });
     });
 
