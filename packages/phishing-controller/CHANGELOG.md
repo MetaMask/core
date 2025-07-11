@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add proper action registration for `bulkScanUrls` method as `PhishingControllerBulkScanUrlsAction`
-- Export `PhishingControllerBulkScanUrlsAction` type for external use
+- Add proper action registration for `bulkScanUrls` method as `PhishingControllerBulkScanUrlsAction` ([#6105](https://github.com/MetaMask/core/pull/6105))
+- Export `PhishingControllerBulkScanUrlsAction` type for external use ([#6105](https://github.com/MetaMask/core/pull/6105))
 
 ## [13.0.0]
 
