@@ -958,7 +958,9 @@ describe('AssetsContractController with NetworkClientId', () => {
 
     expect(balance).toBeDefined();
     expect(balance[TEST_ACCOUNT_PUBLIC_ADDRESS]).toBe('0x081f495b33d2df');
-    expect(BigNumber.from(balance[TEST_ACCOUNT_PUBLIC_ADDRESS]).toString()).toBe("2286199736881887");
+    expect(
+      BigNumber.from(balance[TEST_ACCOUNT_PUBLIC_ADDRESS]).toString(),
+    ).toBe('2286199736881887');
 
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });

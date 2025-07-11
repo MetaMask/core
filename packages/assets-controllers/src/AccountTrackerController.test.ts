@@ -16,6 +16,7 @@ import type {
   AllowedEvents,
 } from './AccountTrackerController';
 import { AccountTrackerController } from './AccountTrackerController';
+import { FakeProvider } from '../../../tests/fake-provider';
 import { advanceTime } from '../../../tests/helpers';
 import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
 import type {
@@ -26,7 +27,6 @@ import {
   buildCustomNetworkClientConfiguration,
   buildMockGetNetworkClientById,
 } from '../../network-controller/tests/helpers';
-import { FakeProvider } from '../../../tests/fake-provider';
 
 jest.mock('@metamask/controller-utils', () => {
   return {
@@ -35,10 +35,11 @@ jest.mock('@metamask/controller-utils', () => {
   };
 });
 
-const mockGetStakedBalanceForChain = async (addresses: string[]) => addresses.reduce<Record<string, string>>((accumulator, address) => {
-  accumulator[address] = '0x1';
-  return accumulator;
-}, {});
+const mockGetStakedBalanceForChain = async (addresses: string[]) =>
+  addresses.reduce<Record<string, string>>((accumulator, address) => {
+    accumulator[address] = '0x1';
+    return accumulator;
+  }, {});
 
 const ADDRESS_1 = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 const CHECKSUM_ADDRESS_1 = toChecksumHexAddress(ADDRESS_1);
@@ -784,7 +785,10 @@ type WithControllerCallback<ReturnValue> = ({
 }: {
   controller: AccountTrackerController;
   triggerSelectedAccountChange: (account: InternalAccount) => void;
-  refresh: (clock: sinon.SinonFakeTimers, networkClientIds: NetworkClientId[]) => Promise<void>;
+  refresh: (
+    clock: sinon.SinonFakeTimers,
+    networkClientIds: NetworkClientId[],
+  ) => Promise<void>;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = {
@@ -849,7 +853,7 @@ async function withController<ReturnValue>(
         stubs: [
           {
             request: {
-              method: 'eth_chainId'
+              method: 'eth_chainId',
             },
             response: { result: network.configuration.chainId },
           },
@@ -860,12 +864,15 @@ async function withController<ReturnValue>(
               params: [
                 {
                   to: '0xb1f8e55c7f64d203c1400b9d8555d050f94adf39',
-                  data: '0xf0002ea9000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000001000000000000000000000000c38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000'
+                  data: '0xf0002ea9000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000001000000000000000000000000c38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000',
                 },
-                'latest'
-              ]
+                'latest',
+              ],
             },
-            response: { result: '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000acac5457a3517e' },
+            response: {
+              result:
+                '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000acac5457a3517e',
+            },
           },
           // Return a balance of 0.04860317424178419 ETH for ADDRESS_1 and 185731.896670448046411083 ETH for ADDRESS_2
           {
@@ -874,14 +881,18 @@ async function withController<ReturnValue>(
               params: [
                 {
                   to: '0xb1f8e55c7f64d203c1400b9d8555d050f94adf39',
-                  data: '0xf0002ea9000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000002000000000000000000000000c38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d000000000000000000000000742d35cc6634c0532925a3b844bc454e4438f44e00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000'
+                  data: '0xf0002ea9000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000002000000000000000000000000c38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d000000000000000000000000742d35cc6634c0532925a3b844bc454e4438f44e00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000',
                 },
-                'latest'
-              ]
+                'latest',
+              ],
             },
-            response: { result: '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000acac5457a3517e0000000000000000000000000000000000000000000027548bd9e4026c918d4b' },
-          }
-        ]
+            response: {
+              result:
+                '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000acac5457a3517e0000000000000000000000000000000000000000000027548bd9e4026c918d4b',
+            },
+          },
+        ],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       }) as any;
 
       return { ...network, provider };
@@ -922,17 +933,20 @@ async function withController<ReturnValue>(
     messenger.publish('AccountsController:selectedEvmAccountChange', account);
   };
 
-  const refresh = async (clock: sinon.SinonFakeTimers, networkClientIds: NetworkClientId[]) => {
-    const promise = controller.refresh(networkClientIds);
-    await clock.tickAsync(1)
-    await promise;
-  }
-
   const controller = new AccountTrackerController({
     messenger: accountTrackerMessenger,
     getStakedBalanceForChain: jest.fn(),
     ...options,
   });
+
+  const refresh = async (
+    clock: sinon.SinonFakeTimers,
+    networkClientIds: NetworkClientId[],
+  ) => {
+    const promise = controller.refresh(networkClientIds);
+    await clock.tickAsync(1);
+    await promise;
+  };
 
   return await testFunction({
     controller,

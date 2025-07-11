@@ -23,18 +23,18 @@ import type { PreferencesState } from '@metamask/preferences-controller';
 import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import assert from 'assert';
 
-import { mockNetwork } from '../../../tests/mock-network';
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../base-controller/tests/helpers';
-import { buildInfuraNetworkClientConfiguration } from '../../network-controller/tests/helpers';
 import type { AssetsContractControllerMessenger } from './AssetsContractController';
 import {
   AssetsContractController,
   MISSING_PROVIDER_ERROR,
 } from './AssetsContractController';
 import { SupportedTokenDetectionNetworks } from './assetsUtil';
+import { mockNetwork } from '../../../tests/mock-network';
+import type {
+  ExtractAvailableAction,
+  ExtractAvailableEvent,
+} from '../../base-controller/tests/helpers';
+import { buildInfuraNetworkClientConfiguration } from '../../network-controller/tests/helpers';
 
 const ERC20_UNI_ADDRESS = '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984';
 const ERC20_SAI_ADDRESS = '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359';
@@ -116,9 +116,9 @@ async function setupAssetContractControllers({
     useNetworkControllerProvider
       ? networkController.getNetworkClientById.bind(networkController)
       : (networkClientId: NetworkClientId) => ({
-        ...networkController.getNetworkClientById(networkClientId),
-        provider,
-      }),
+          ...networkController.getNetworkClientById(networkClientId),
+          provider,
+        }),
   );
 
   const assetsContractMessenger = messenger.getRestricted({
@@ -1321,16 +1321,18 @@ describe('AssetsContractController', () => {
       ],
     });
 
-    const balance = await assetsContract.getStakedBalanceForChain(
-      [TEST_ACCOUNT_PUBLIC_ADDRESS],
-    );
+    const balance = await assetsContract.getStakedBalanceForChain([
+      TEST_ACCOUNT_PUBLIC_ADDRESS,
+    ]);
 
     // Shares: 2214485034479690
     // Assets: 2286199736881887 (0.002286199736881887 ETH)
 
     expect(balance).toBeDefined();
     expect(balance[TEST_ACCOUNT_PUBLIC_ADDRESS]).toBe('0x081f495b33d2df');
-    expect(BigNumber.from(balance[TEST_ACCOUNT_PUBLIC_ADDRESS]).toString()).toBe("2286199736881887");
+    expect(
+      BigNumber.from(balance[TEST_ACCOUNT_PUBLIC_ADDRESS]).toString(),
+    ).toBe('2286199736881887');
 
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
@@ -1364,13 +1366,19 @@ describe('AssetsContractController', () => {
       ],
     });
 
-    const balance = await assetsContract.getStakedBalanceForChain(
-      [TEST_ACCOUNT_PUBLIC_ADDRESS],
-    );
+    const balance = await assetsContract.getStakedBalanceForChain([
+      TEST_ACCOUNT_PUBLIC_ADDRESS,
+    ]);
 
     expect(balance).toBeDefined();
-    expect(balance).toStrictEqual({ "0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D": "0x00" });
-    expect(BigNumber.from(balance["0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D"]).toString()).toBe('0');
+    expect(balance).toStrictEqual({
+      '0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D': '0x00',
+    });
+    expect(
+      BigNumber.from(
+        balance['0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D'],
+      ).toString(),
+    ).toBe('0');
     expect(errorSpy).toHaveBeenCalledTimes(0);
 
     errorSpy.mockRestore();
@@ -1388,13 +1396,19 @@ describe('AssetsContractController', () => {
       await setupAssetContractControllers();
     assetsContract.setProvider(provider);
 
-    const balance = await assetsContract.getStakedBalanceForChain(
-      [TEST_ACCOUNT_PUBLIC_ADDRESS],
-    );
+    const balance = await assetsContract.getStakedBalanceForChain([
+      TEST_ACCOUNT_PUBLIC_ADDRESS,
+    ]);
 
     expect(balance).toBeDefined();
-    expect(balance).toStrictEqual({ "0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D": "0x00" });
-    expect(BigNumber.from(balance["0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D"]).toString()).toBe('0');
+    expect(balance).toStrictEqual({
+      '0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D': '0x00',
+    });
+    expect(
+      BigNumber.from(
+        balance['0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D'],
+      ).toString(),
+    ).toBe('0');
     expect(errorSpy).toHaveBeenCalledTimes(1);
     expect(errorSpy).toHaveBeenCalledWith(error);
 
