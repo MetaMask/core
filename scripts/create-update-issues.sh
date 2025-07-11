@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -euo pipefail
+
 DEFAULT_LABEL="client-controller-update"
 
 run-create-issue-command() {
@@ -7,7 +9,7 @@ run-create-issue-command() {
   local repo="$2"
   local title="$3"
   local body="$4"
-  local labels="$5"
+  local labels="${5:-}"
 
   if [[ $dry_run -eq 1 ]]; then
     if [[ -n $labels ]]; then
@@ -38,14 +40,18 @@ create-issue() {
 
   local exitcode
 
+  set +e
   run-create-issue-command "$dry_run" "$repo" "$title" "$body" "$labels"
   exitcode=$?
+  set -e
 
   if [[ $exitcode -ne 0 ]]; then
     echo "That didn't work, trying to create issue in ${repo} for ${package_name} ${version} without labels"
 
+    set +e
     run-create-issue-command "$dry_run" "$repo" "$title" "$body"
     exitcode=$?
+    set -e
   fi
 
   if [[ $exitcode -eq 0 ]]; then
@@ -126,9 +132,9 @@ main() {
 
     # Create the issues
     echo
-    create-issue "$dry_run" "MetaMask/metamask-extension" "$package_name" "$version" "$labels"
+    create-issue "$dry_run" "MetaMask/metamask-extension" "$package_name" "$version" "$labels" || true
     echo
-    create-issue "$dry_run" "MetaMask/metamask-mobile" "$package_name" "$version" "$labels"
+    create-issue "$dry_run" "MetaMask/metamask-mobile" "$package_name" "$version" "$labels" || true
   done
 }
 
