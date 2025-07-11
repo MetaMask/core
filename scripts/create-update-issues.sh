@@ -29,7 +29,7 @@ create-issue() {
   local body="A new major version of \`${package_name}\`, ${version}, is now available. This issue has been assigned to you and your team because you code-own this package in the \`core\` repo. If this package is present in this project, please prioritize upgrading it soon to unblock new features and bugfixes."
   local labels="$DEFAULT_LABEL"
   if [[ -n $team_labels ]]; then
-    labels+="$team_labels"
+    labels+=",$team_labels"
   fi
 
   local exitcode
