@@ -36,10 +36,12 @@ create-issue() {
 
   echo "Creating issue in ${repo} with labels: \"${labels}\"..."
 
+  echo "----------------------------------------"
   set +e
   run-create-issue-command "$dry_run" "$repo" "$title" "$body" "$labels"
   exitcode=$?
   set -e
+  echo "----------------------------------------"
 
   if [[ $exitcode -eq 0 ]]; then
     if [[ -n $team_labels ]]; then
