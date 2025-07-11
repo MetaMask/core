@@ -25,7 +25,7 @@
     "lint:dependencies": "depcheck && yarn dedupe --check",
     "lint:dependencies:fix": "depcheck && yarn dedupe",
     "lint:eslint": "yarn build:only-clean && yarn ts-node ./scripts/run-eslint.ts --cache",
-    "lint:fix": "yarn lint:eslint --fix && echo && yarn lint:misc --write && yarn constraints --fix && yarn lint:dependencies:fix",
+    "lint:fix": "yarn lint:eslint --quiet --fix && yarn lint:misc --write && yarn constraints --fix && yarn lint:dependencies:fix",
     "lint:misc": "prettier --no-error-on-unmatched-pattern '**/*.json' '**/*.md' '**/*.yml' '!.yarnrc.yml' '!merged-packages/**' --ignore-path .gitignore",
     "lint:teams": "ts-node scripts/lint-teams-json.ts",
     "prepack": "./scripts/prepack.sh",
