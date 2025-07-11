@@ -30,7 +30,6 @@ export type {
   NamespacedBy,
   NotNamespacedBy,
   NamespacedName,
-  MessengerMethodActions,
 } from './Messenger';
 export { Messenger } from './Messenger';
 export type { RestrictedMessengerConstraint } from './RestrictedMessenger';
