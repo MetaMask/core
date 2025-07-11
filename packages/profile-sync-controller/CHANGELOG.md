@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Dumb down the `N` `scrypt` parameter in order to increase performance on clients
+  - This decreases the impact of the KDF on all clients to around 99%
+  - Add backwards compatible migration logic
+  - Add encryption callbacks so we can measure the impact of future migrations through analytics
+
 ## [21.0.0]
 
 ### Added
