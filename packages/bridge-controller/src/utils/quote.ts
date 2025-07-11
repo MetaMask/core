@@ -5,7 +5,7 @@ import {
 } from '@metamask/controller-utils';
 import { BigNumber } from 'bignumber.js';
 
-import { isNativeAddress } from './bridge';
+import { isNativeAddress, isSolanaChainId } from './bridge';
 import type {
   ExchangeRate,
   GenericQuoteRequest,
@@ -28,6 +28,18 @@ export const isValidQuoteRequest = (
   ];
   if (requireAmount) {
     stringFields.push('srcTokenAmount');
+  }
+  // If bridging and one of the chains is solana, require the dest wallet address
+  if (
+    partialRequest.destChainId &&
+    partialRequest.srcChainId &&
+    isSolanaChainId(partialRequest.destChainId) ===
+      !isSolanaChainId(partialRequest.srcChainId)
+  ) {
+    stringFields.push('destWalletAddress');
+    if (!partialRequest.destWalletAddress) {
+      return false;
+    }
   }
   const numberFields = [];
   // if slippage is defined, require it to be a number
