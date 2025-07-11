@@ -6,6 +6,7 @@ export const ALGORITHM_KEY_SIZE = 16; // 16 bytes
 // see: https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#scrypt
 export const SCRYPT_SALT_SIZE = 16; // 16 bytes
 export const SCRYPT_N = 2 ** 17; // CPU/memory cost parameter (must be a power of 2, > 1)
+export const SCRYPT_N_V2 = 2;
 export const SCRYPT_r = 8; // Block size parameter
 export const SCRYPT_p = 1; // Parallelization parameter
 

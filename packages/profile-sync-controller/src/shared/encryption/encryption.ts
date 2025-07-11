@@ -13,6 +13,7 @@ import {
   ALGORITHM_KEY_SIZE,
   ALGORITHM_NONCE_SIZE,
   SCRYPT_N,
+  SCRYPT_N_V2,
   SCRYPT_p,
   SCRYPT_r,
   SCRYPT_SALT_SIZE,
@@ -52,14 +53,30 @@ class EncryptorDecryptor {
   async encryptString(
     plaintext: string,
     password: string,
-    nativeScryptCrypto?: NativeScrypt,
+    options?: {
+      nativeScryptCrypto?: NativeScrypt;
+      onEncrypt?: (encryptedData: Omit<EncryptedPayload, 'd'>) => Promise<void>;
+    },
   ): Promise<string> {
     try {
-      return await this.#encryptStringV1(
+      const encryptedString = await this.#encryptStringV1(
         plaintext,
         password,
-        nativeScryptCrypto,
+        options?.nativeScryptCrypto,
+        {
+          N: SCRYPT_N_V2,
+        },
       );
+
+      const encryptedData: EncryptedPayload = JSON.parse(encryptedString);
+      await options?.onEncrypt?.({
+        v: encryptedData.v,
+        t: encryptedData.t,
+        o: encryptedData.o,
+        saltLen: encryptedData.saltLen,
+      });
+
+      return encryptedString;
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
       throw new Error(`Unable to encrypt string - ${errorMessage}`);
@@ -69,16 +86,27 @@ class EncryptorDecryptor {
   async decryptString(
     encryptedDataStr: string,
     password: string,
-    nativeScryptCrypto?: NativeScrypt,
+    options?: {
+      nativeScryptCrypto?: NativeScrypt;
+      onDecrypt?: (encryptedData: Omit<EncryptedPayload, 'd'>) => Promise<void>;
+    },
   ): Promise<string> {
     try {
       const encryptedData: EncryptedPayload = JSON.parse(encryptedDataStr);
+
+      await options?.onDecrypt?.({
+        v: encryptedData.v,
+        t: encryptedData.t,
+        o: encryptedData.o,
+        saltLen: encryptedData.saltLen,
+      });
+
       if (encryptedData.v === '1') {
         if (encryptedData.t === 'scrypt') {
           return await this.#decryptStringV1(
             encryptedData,
             password,
-            nativeScryptCrypto,
+            options?.nativeScryptCrypto,
           );
         }
       }
@@ -95,11 +123,14 @@ class EncryptorDecryptor {
     plaintext: string,
     password: string,
     nativeScryptCrypto?: NativeScrypt,
+    scryptOverrides = {
+      N: SCRYPT_N,
+    },
   ): Promise<string> {
     const { key, salt } = await this.#getOrGenerateScryptKey(
       password,
       {
-        N: SCRYPT_N,
+        N: scryptOverrides.N,
         r: SCRYPT_r,
         p: SCRYPT_p,
         dkLen: ALGORITHM_KEY_SIZE,
@@ -123,7 +154,7 @@ class EncryptorDecryptor {
       t: 'scrypt',
       d: encryptedData,
       o: {
-        N: SCRYPT_N,
+        N: scryptOverrides.N,
         r: SCRYPT_r,
         p: SCRYPT_p,
         dkLen: ALGORITHM_KEY_SIZE,
@@ -196,19 +227,13 @@ class EncryptorDecryptor {
     }
   }
 
-  getIfEntriesHaveDifferentSalts(entries: string[]): boolean {
-    const salts = entries
-      .map((e) => {
-        try {
-          return this.getSalt(e);
-        } catch {
-          return undefined;
-        }
-      })
-      .filter((s): s is Uint8Array => s !== undefined);
+  doesEntryNeedReEncryption(encryptedDataStr: string): boolean {
+    const doesEntryHaveRandomSalt =
+      this.getSalt(encryptedDataStr).toString() !== SHARED_SALT.toString();
+    const doesEntryUseOldScryptN =
+      JSON.parse(encryptedDataStr).o?.N !== SCRYPT_N_V2;
 
-    const strSet = new Set(salts.map((arr) => arr.toString()));
-    return strSet.size === salts.length;
+    return doesEntryHaveRandomSalt || doesEntryUseOldScryptN;
   }
 
   #encrypt(plaintext: Uint8Array, key: Uint8Array): Uint8Array {
