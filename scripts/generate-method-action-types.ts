@@ -125,7 +125,7 @@ async function checkActionTypesFiles(
  * Main entry point for the script.
  */
 async function main() {
-  const { check, fix } = await parseCommandLineArguments();
+  const { fix } = await parseCommandLineArguments();
 
   console.log('🔍 Searching for controllers with MESSENGER_EXPOSED_METHODS...');
 
@@ -140,14 +140,7 @@ async function main() {
     `📦 Found ${controllers.length} controller(s) with exposed methods`,
   );
 
-  if (check) {
-    await checkActionTypesFiles(controllers);
-  } else {
-    // Default mode, --fix mode, or generate mode: generate files
-    if (fix) {
-      console.log('🔧 Running in fix mode...');
-    }
-
+  if (fix) {
     for (const controller of controllers) {
       console.log(`\n🔧 Processing ${controller.name}...`);
       await generateActionTypesFile(controller);
@@ -155,6 +148,9 @@ async function main() {
     }
 
     console.log('\n🎉 All action types generated successfully!');
+  } else {
+    // Default mode, --check mode, or no mode: check files
+    await checkActionTypesFiles(controllers);
   }
 }
 

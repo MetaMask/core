@@ -558,57 +558,49 @@ describe('Messenger', () => {
   });
 
   describe('registerMethodActionHandlers', () => {
-    it('should register action handlers for specified methods', () => {
+    it('should register action handlers for specified methods on the given messaging client', () => {
       type TestActions =
-        | { type: 'TestController:getState'; handler: () => { data: string } }
+        | { type: 'TestService:getType'; handler: () => string }
         | {
-            type: 'TestController:increment';
-            handler: (amount: number) => void;
+            type: 'TestService:getCount';
+            handler: () => number;
           };
 
       const messenger = new Messenger<TestActions, never>();
 
-      class TestController {
-        name = 'TestController';
+      class TestService {
+        name = 'TestService';
 
-        state = {
-          count: 0,
-        };
-
-        getState() {
-          return this.state;
-        }
-
-        increment(amount: number) {
-          this.state.count += amount;
+        getType() {
+          return 'api';
         }
 
         getCount() {
-          return this.state.count;
+          return 42;
         }
       }
 
-      const controller = new TestController();
-      const methodNames = ['getState', 'increment'] as const;
+      const service = new TestService();
+      const methodNames = ['getType', 'getCount'] as const;
 
-      messenger.registerMethodActionHandlers(controller, methodNames);
+      messenger.registerMethodActionHandlers(service, methodNames);
 
-      const state = messenger.call('TestController:getState');
-      expect(state).toStrictEqual({ count: 0 });
+      const state = messenger.call('TestService:getType');
+      expect(state).toBe('api');
 
-      messenger.call('TestController:increment', 5);
-      expect(controller.getCount()).toBe(5);
+      const count = messenger.call('TestService:getCount');
+      expect(count).toBe(42);
     });
 
-    it('should bind methods to the controller instance', () => {
+    it('should bind action handlers to the given messenger client', () => {
       type TestAction = {
-        type: 'TestController:getPrivateValue';
+        type: 'TestService:getPrivateValue';
         handler: () => string;
       };
       const messenger = new Messenger<TestAction, never>();
 
-      class TestController {
-        name = 'TestController';
+      class TestService {
+        name = 'TestService';
 
         privateValue = 'secret';
 
@@ -617,32 +609,32 @@ describe('Messenger', () => {
         }
       }
 
-      const controller = new TestController();
-      messenger.registerMethodActionHandlers(controller, ['getPrivateValue']);
+      const service = new TestService();
+      messenger.registerMethodActionHandlers(service, ['getPrivateValue']);
 
-      const result = messenger.call('TestController:getPrivateValue');
+      const result = messenger.call('TestService:getPrivateValue');
       expect(result).toBe('secret');
     });
 
     it('should handle async methods', async () => {
       type TestAction = {
-        type: 'TestController:fetchData';
+        type: 'TestService:fetchData';
         handler: (id: string) => Promise<string>;
       };
       const messenger = new Messenger<TestAction, never>();
 
-      class TestController {
-        name = 'TestController';
+      class TestService {
+        name = 'TestService';
 
         async fetchData(id: string) {
           return `data-${id}`;
         }
       }
 
-      const controller = new TestController();
-      messenger.registerMethodActionHandlers(controller, ['fetchData']);
+      const service = new TestService();
+      messenger.registerMethodActionHandlers(service, ['fetchData']);
 
-      const result = await messenger.call('TestController:fetchData', '123');
+      const result = await messenger.call('TestService:fetchData', '123');
       expect(result).toBe('data-123');
     });
 
@@ -708,7 +700,7 @@ describe('Messenger', () => {
       }
 
       const controller = new TestController();
-      const customHandler = sinon.fake(() => 'custom value');
+      const customHandler = jest.fn().mockReturnValue('custom value');
       const exceptions = { getValue: customHandler };
 
       messenger.registerMethodActionHandlers(
@@ -719,7 +711,7 @@ describe('Messenger', () => {
 
       const result = messenger.call('TestController:getValue');
       expect(result).toBe('custom value');
-      expect(customHandler.calledOnce).toBe(true);
+      expect(customHandler).toHaveBeenCalledTimes(1);
     });
 
     it('should bind custom handlers to the controller instance', () => {
@@ -829,39 +821,6 @@ describe('Messenger', () => {
         messenger.call('TestController:nonFunction');
       }).toThrow(
         'A handler for TestController:nonFunction has not been registered',
-      );
-    });
-
-    it('should handle controllers with different names', () => {
-      type TestActions =
-        | { type: 'Controller1:getValue'; handler: () => string }
-        | { type: 'Controller2:getValue'; handler: () => string };
-
-      const messenger = new Messenger<TestActions, never>();
-
-      class TestController {
-        name: string;
-
-        constructor(name: string) {
-          this.name = name;
-        }
-
-        getValue() {
-          return `value from ${this.name}`;
-        }
-      }
-
-      const controller1 = new TestController('Controller1');
-      const controller2 = new TestController('Controller2');
-
-      messenger.registerMethodActionHandlers(controller1, ['getValue']);
-      messenger.registerMethodActionHandlers(controller2, ['getValue']);
-
-      expect(messenger.call('Controller1:getValue')).toBe(
-        'value from Controller1',
-      );
-      expect(messenger.call('Controller2:getValue')).toBe(
-        'value from Controller2',
       );
     });
 

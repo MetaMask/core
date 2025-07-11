@@ -244,12 +244,12 @@ export class AssetsContractController {
     this.#ipfsGateway = IPFS_DEFAULT_GATEWAY_URL;
     this.#chainId = initialChainId;
 
-    this.#registerMethodActionHandlers();
+    this.#registerActionHandlers();
     this.#registerEventSubscriptions();
   }
 
   // TODO: Expand into base-controller utility function that batch registers action handlers.
-  #registerMethodActionHandlers() {
+  #registerActionHandlers() {
     const methodsExcludedFromMessenger = [
       'constructor',
       'messagingSystem',

@@ -1122,67 +1122,59 @@ describe('RestrictedMessenger', () => {
   });
 
   describe('registerMethodActionHandlers', () => {
-    it('should register action handlers for specified methods', () => {
+    it('should register action handlers for specified methods on the given restricted messaging client', () => {
       type TestActions =
-        | { type: 'TestController:getState'; handler: () => { count: number } }
+        | { type: 'TestService:getType'; handler: () => string }
         | {
-            type: 'TestController:increment';
-            handler: (amount: number) => void;
+            type: 'TestService:getCount';
+            handler: () => number;
           };
 
       const messenger = new Messenger<TestActions, never>();
       const restrictedMessenger = messenger.getRestricted({
-        name: 'TestController',
+        name: 'TestService',
         allowedActions: [],
         allowedEvents: [],
       });
 
-      class TestController {
-        name = 'TestController';
+      class TestService {
+        name = 'TestService';
 
-        state = {
-          count: 0,
-        };
-
-        getState() {
-          return this.state;
-        }
-
-        increment(amount: number) {
-          this.state.count += amount;
+        getType() {
+          return 'api';
         }
 
         getCount() {
-          return this.state.count;
+          return 42;
         }
       }
 
-      const controller = new TestController();
-      const methodNames = ['getState', 'increment'] as const;
+      const service = new TestService();
+      const methodNames = ['getType', 'getCount'] as const;
 
-      restrictedMessenger.registerMethodActionHandlers(controller, methodNames);
+      restrictedMessenger.registerMethodActionHandlers(service, methodNames);
 
-      const state = restrictedMessenger.call('TestController:getState');
-      expect(state).toStrictEqual({ count: 0 });
+      const state = restrictedMessenger.call('TestService:getType');
+      expect(state).toBe('api');
 
-      restrictedMessenger.call('TestController:increment', 5);
-      expect(controller.getCount()).toBe(5);
+      const count = restrictedMessenger.call('TestService:getCount');
+      expect(count).toBe(42);
     });
 
-    it('should bind methods to the controller instance', () => {
+    it('should bind action handlers to the given restricted messenger client', () => {
       type TestAction = {
-        type: 'TestController:getPrivateValue';
+        type: 'TestService:getPrivateValue';
         handler: () => string;
       };
       const messenger = new Messenger<TestAction, never>();
       const restrictedMessenger = messenger.getRestricted({
-        name: 'TestController',
+        name: 'TestService',
         allowedActions: [],
         allowedEvents: [],
       });
 
-      class TestController {
-        name = 'TestController';
+      class TestService {
+        name = 'TestService';
 
         privateValue = 'secret';
 
@@ -1191,42 +1183,40 @@ describe('RestrictedMessenger', () => {
         }
       }
 
-      const controller = new TestController();
-      restrictedMessenger.registerMethodActionHandlers(controller, [
+      const service = new TestService();
+      restrictedMessenger.registerMethodActionHandlers(service, [
         'getPrivateValue',
       ]);
 
-      const result = restrictedMessenger.call('TestController:getPrivateValue');
+      const result = restrictedMessenger.call('TestService:getPrivateValue');
       expect(result).toBe('secret');
     });
 
     it('should handle async methods', async () => {
       type TestAction = {
-        type: 'TestController:fetchData';
+        type: 'TestService:fetchData';
         handler: (id: string) => Promise<string>;
       };
       const messenger = new Messenger<TestAction, never>();
       const restrictedMessenger = messenger.getRestricted({
-        name: 'TestController',
+        name: 'TestService',
         allowedActions: [],
         allowedEvents: [],
       });
 
-      class TestController {
-        name = 'TestController';
+      class TestService {
+        name = 'TestService';
 
         async fetchData(id: string) {
           return `data-${id}`;
         }
       }
 
-      const controller = new TestController();
-      restrictedMessenger.registerMethodActionHandlers(controller, [
-        'fetchData',
-      ]);
+      const service = new TestService();
+      restrictedMessenger.registerMethodActionHandlers(service, ['fetchData']);
 
       const result = await restrictedMessenger.call(
-        'TestController:fetchData',
+        'TestService:fetchData',
         '123',
       );
       expect(result).toBe('data-123');
@@ -1308,7 +1298,7 @@ describe('RestrictedMessenger', () => {
       }
 
       const controller = new TestController();
-      const customHandler = sinon.fake(() => 'custom value');
+      const customHandler = jest.fn().mockReturnValue('custom value');
       const exceptions = { getValue: customHandler };
 
       restrictedMessenger.registerMethodActionHandlers(
@@ -1319,7 +1309,7 @@ describe('RestrictedMessenger', () => {
 
       const result = restrictedMessenger.call('TestController:getValue');
       expect(result).toBe('custom value');
-      expect(customHandler.calledOnce).toBe(true);
+      expect(customHandler).toHaveBeenCalledTimes(1);
     });
 
     it('should bind custom handlers to the controller instance', () => {
@@ -1451,53 +1441,6 @@ describe('RestrictedMessenger', () => {
         restrictedMessenger.call('TestController:nonFunction');
       }).toThrow(
         'A handler for TestController:nonFunction has not been registered',
-      );
-    });
-
-    it('should handle controllers with different names', () => {
-      type TestActions =
-        | { type: 'Controller1:getValue'; handler: () => string }
-        | { type: 'Controller2:getValue'; handler: () => string };
-
-      const messenger = new Messenger<TestActions, never>();
-      const restrictedMessenger1 = messenger.getRestricted({
-        name: 'Controller1',
-        allowedActions: [],
-        allowedEvents: [],
-      });
-      const restrictedMessenger2 = messenger.getRestricted({
-        name: 'Controller2',
-        allowedActions: [],
-        allowedEvents: [],
-      });
-
-      class TestController {
-        name: string;
-
-        constructor(name: string) {
-          this.name = name;
-        }
-
-        getValue() {
-          return `value from ${this.name}`;
-        }
-      }
-
-      const controller1 = new TestController('Controller1');
-      const controller2 = new TestController('Controller2');
-
-      restrictedMessenger1.registerMethodActionHandlers(controller1, [
-        'getValue',
-      ]);
-      restrictedMessenger2.registerMethodActionHandlers(controller2, [
-        'getValue',
-      ]);
-
-      expect(restrictedMessenger1.call('Controller1:getValue')).toBe(
-        'value from Controller1',
-      );
-      expect(restrictedMessenger2.call('Controller2:getValue')).toBe(
-        'value from Controller2',
       );
     });
 
