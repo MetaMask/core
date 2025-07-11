@@ -6,7 +6,7 @@ export type {
   SampleGasPricesControllerState,
   SampleGasPricesControllerStateChangeEvent,
 } from './sample-gas-prices-controller';
-export type { SampleGasPricesControllerMethodActions } from './sample-gas-prices-controller-method-action-types';
+export type { SampleGasPricesControllerUpdateGasPricesAction } from './sample-gas-prices-controller-method-action-types';
 export {
   getDefaultSampleGasPricesControllerState,
   SampleGasPricesController,
