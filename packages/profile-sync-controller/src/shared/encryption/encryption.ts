@@ -29,7 +29,7 @@ import type { NativeScrypt } from '../types/encryption';
 
 export type EncryptedPayload = {
   // version
-  v: '1' | '2';
+  v: '1';
 
   // key derivation function algorithm - scrypt
   t: 'scrypt';
@@ -56,11 +56,7 @@ class EncryptorDecryptor {
     nativeScryptCrypto?: NativeScrypt,
   ): Promise<string> {
     try {
-      const startTimestamp = Date.now();
-      console.warn(
-        `Scrypt removal: Encrypting string with password: ${password} at ${new Date(startTimestamp).toISOString()}`,
-      );
-      const encryptedData = await this.#encryptStringV1(
+      return await this.#encryptStringV1(
         plaintext,
         password,
         nativeScryptCrypto,
@@ -68,11 +64,6 @@ class EncryptorDecryptor {
           N: SCRYPT_N_V2,
         },
       );
-      console.warn(
-        `Scrypt removal: Encryption completed in ${Date.now() - startTimestamp} ms`,
-      );
-
-      return encryptedData;
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
       throw new Error(`Unable to encrypt string - ${errorMessage}`);
@@ -85,24 +76,15 @@ class EncryptorDecryptor {
     nativeScryptCrypto?: NativeScrypt,
   ): Promise<string> {
     try {
-      const startTimestamp = Date.now();
-      console.warn(
-        `Scrypt removal: Decrypting string with password: ${password} at ${new Date(startTimestamp).toISOString()}`,
-      );
       const encryptedData: EncryptedPayload = JSON.parse(encryptedDataStr);
 
-      if (['1', '2'].includes(encryptedData.v)) {
+      if (encryptedData.v === '1') {
         if (encryptedData.t === 'scrypt') {
-          const decryptedData = await this.#decryptStringV1(
+          return await this.#decryptStringV1(
             encryptedData,
             password,
             nativeScryptCrypto,
           );
-
-          console.warn(
-            `Scrypt removal: Decryption completed in ${Date.now() - startTimestamp} ms (using V${encryptedData.v} encryption)`,
-          );
-          return decryptedData;
         }
       }
       throw new Error(
@@ -145,7 +127,7 @@ class EncryptorDecryptor {
     const encryptedData = byteArrayToBase64(ciphertextAndNonceAndSalt);
 
     const encryptedPayload: EncryptedPayload = {
-      v: '2',
+      v: '1',
       t: 'scrypt',
       d: encryptedData,
       o: {
@@ -222,19 +204,13 @@ class EncryptorDecryptor {
     }
   }
 
-  getIfEntriesHaveDifferentSalts(entries: string[]): boolean {
-    const salts = entries
-      .map((e) => {
-        try {
-          return this.getSalt(e);
-        } catch {
-          return undefined;
-        }
-      })
-      .filter((s): s is Uint8Array => s !== undefined);
+  doesEntryNeedReEncryption(encryptedDataStr: string): boolean {
+    const doesEntryHaveRandomSalt =
+      this.getSalt(encryptedDataStr).toString() !== SHARED_SALT.toString();
+    const doesEntryUseOldScryptN =
+      JSON.parse(encryptedDataStr).o?.N !== SCRYPT_N_V2;
 
-    const strSet = new Set(salts.map((arr) => arr.toString()));
-    return strSet.size === salts.length;
+    return doesEntryHaveRandomSalt || doesEntryUseOldScryptN;
   }
 
   #encrypt(plaintext: Uint8Array, key: Uint8Array): Uint8Array {

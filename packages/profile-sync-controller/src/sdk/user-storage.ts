@@ -317,13 +317,9 @@ export class UserStorage {
         options?.nativeScryptCrypto,
       );
 
-      // Migrate data from v1 to v2 encryption
-      if (JSON.parse(encryptedData).v === '1') {
-        const reEncryptedData = await encryption.encryptString(
-          decryptedData,
-          storageKey,
-        );
-        await this.#upsertUserStorage(path, reEncryptedData, options);
+      // Data migration
+      if (encryption.doesEntryNeedReEncryption(encryptedData)) {
+        await this.#upsertUserStorage(path, decryptedData, options);
       }
 
       return decryptedData;
@@ -390,8 +386,8 @@ export class UserStorage {
           );
           decryptedData.push(data);
 
-          // Migrate data from v1 to v2 encryption
-          if (JSON.parse(entry.Data).v === '1') {
+          // Data migration
+          if (encryption.doesEntryNeedReEncryption(entry.Data)) {
             const reEncryptedData = await encryption.encryptString(
               data,
               storageKey,
