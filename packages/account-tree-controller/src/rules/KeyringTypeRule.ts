@@ -1,4 +1,12 @@
+import {
+  AccountWalletCategory,
+  toAccountWalletId,
+} from '@metamask/account-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
+
+import type { RuleMatch } from './Rule';
+import { BaseRule } from './Rule';
 
 /**
  * Get wallet name from a keyring type.
@@ -38,5 +46,17 @@ export function getAccountWalletNameFromKeyringType(type: KeyringTypes) {
     default: {
       return 'Unknown';
     }
+  }
+}
+
+export class KeyringTypeRule extends BaseRule {
+  match(account: InternalAccount): RuleMatch | undefined {
+    const { type } = account.metadata.keyring;
+
+    return {
+      category: AccountWalletCategory.Keyring,
+      id: toAccountWalletId(AccountWalletCategory.Keyring, type),
+      name: getAccountWalletNameFromKeyringType(type as KeyringTypes),
+    };
   }
 }

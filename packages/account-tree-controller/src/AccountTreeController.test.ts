@@ -1,3 +1,8 @@
+import {
+  AccountWalletCategory,
+  toAccountWalletId,
+  toDefaultAccountGroupId,
+} from '@metamask/account-api';
 import { Messenger } from '@metamask/base-controller';
 import {
   EthAccountType,
@@ -12,7 +17,6 @@ import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controlle
 
 import {
   AccountTreeController,
-  AccountWalletCategory,
   type AccountTreeControllerMessenger,
   type AccountTreeControllerActions,
   type AccountTreeControllerEvents,
@@ -20,11 +24,9 @@ import {
   type AllowedActions,
   type AllowedEvents,
   type AccountGroupMetadata,
-  toDefaultAccountGroupId,
   DEFAULT_ACCOUNT_GROUP_NAME,
-  toAccountWalletId,
 } from './AccountTreeController';
-import { getAccountWalletNameFromKeyringType } from './names';
+import { getAccountWalletNameFromKeyringType } from './rules/KeyringTypeRule';
 
 const ETH_EOA_METHODS = [
   EthMethod.PersonalSign,

@@ -2443,10 +2443,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/account-api@npm:@metamask-previews/account-api@0.0.0-dff9202":
+  version: 0.0.0-dff9202
+  resolution: "@metamask-previews/account-api@npm:0.0.0-dff9202"
+  dependencies:
+    "@metamask/keyring-api": "npm:18.0.0"
+    "@metamask/keyring-utils": "npm:3.0.0"
+  checksum: 10/aa2899901b8b70da76a1f0868da5a72fcb03eabf884932e0044cb09af528eca4ad89e7734e6e3a7b70b3b33e61b54b4e31570ba8adf2f6eb04db10b865b096d2
+  languageName: node
+  linkType: hard
+
 "@metamask/account-tree-controller@workspace:packages/account-tree-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/account-tree-controller@workspace:packages/account-tree-controller"
   dependencies:
+    "@metamask/account-api": "npm:^0.0.0"
     "@metamask/accounts-controller": "npm:^31.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.1"
@@ -3627,7 +3638,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-api@npm:^18.0.0":
+"@metamask/keyring-api@npm:18.0.0, @metamask/keyring-api@npm:^18.0.0":
   version: 18.0.0
   resolution: "@metamask/keyring-api@npm:18.0.0"
   dependencies:
@@ -3719,7 +3730,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-utils@npm:^3.0.0":
+"@metamask/keyring-utils@npm:3.0.0, @metamask/keyring-utils@npm:^3.0.0":
   version: 3.0.0
   resolution: "@metamask/keyring-utils@npm:3.0.0"
   dependencies:

@@ -5,10 +5,10 @@ export type {
   AccountTreeControllerStateChangeEvent,
   AccountTreeControllerEvents,
   AccountTreeControllerMessenger,
-  AccountWallet,
+  AccountWalletObject as AccountWallet,
   AccountWalletId,
   AccountWalletMetadata,
-  AccountGroup,
+  AccountGroupObject as AccountGroup,
   AccountGroupId,
   AccountGroupMetadata,
 } from './AccountTreeController';
