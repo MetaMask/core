@@ -706,6 +706,8 @@ export class AccountsController extends BaseController<
             // getting the keyring instance here feels a bit overkill.
             // This will be naturally fixed once every keyring start using `KeyringAccount` and implement the keyring API.
             derivationPath: getDerivationPathForIndex(accountIndex),
+            // Required now for multichain accounts.
+            index: accountIndex, // TODO: Rename those to `groupIndex` maybe?
           };
         }
 
