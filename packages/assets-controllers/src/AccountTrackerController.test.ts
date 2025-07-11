@@ -5,7 +5,6 @@ import {
   type NetworkClientId,
   type NetworkClientConfiguration,
   getDefaultNetworkControllerState,
-  NetworkClient,
 } from '@metamask/network-controller';
 import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import * as sinon from 'sinon';
@@ -892,7 +891,7 @@ async function withController<ReturnValue>(
             },
           },
         ],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       }) as any;
 
       return { ...network, provider };
