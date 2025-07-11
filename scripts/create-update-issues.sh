@@ -9,20 +9,12 @@ run-create-issue-command() {
   local repo="$2"
   local title="$3"
   local body="$4"
-  local labels="${5:-}"
+  local labels="$5"
 
   if [[ $dry_run -eq 1 ]]; then
-    if [[ -n $labels ]]; then
-      echo "> gh issue create --title \"$title\" --body \"$body\" --repo \"$repo\" --label \"$labels\""
-    else
-      echo "> gh issue create --title \"$title\" --body \"$body\" --repo \"$repo\""
-    fi
+    echo "> gh issue create --title \"$title\" --body \"$body\" --repo \"$repo\" --label \"$labels\""
   else
-    if [[ -n $labels ]]; then
-      gh issue create --title "$title" --body "$body" --repo "$repo" --label "$labels"
-    else
-      gh issue create --title "$title" --body "$body" --repo "$repo"
-    fi
+    gh issue create --title "$title" --body "$body" --repo "$repo" --label "$labels"
   fi
 }
 
@@ -31,33 +23,32 @@ create-issue() {
   local repo="$2"
   local package_name="$3"
   local version="$4"
-  local labels="$5"
+  local team_labels="$5"
 
   local title="Upgrade ${package_name} to version ${version}"
   local body="A new major version of \`${package_name}\`, ${version}, is now available. This issue has been assigned to you and your team because you code-own this package in the \`core\` repo. If this package is present in this project, please prioritize upgrading it soon to unblock new features and bugfixes."
-
-  echo "Creating issue in ${repo} with labels: ${labels}"
+  local labels="$DEFAULT_LABEL"
+  if [[ -n $team_labels ]]; then
+    labels+="$team_labels"
+  fi
 
   local exitcode
+
+  echo "Creating issue in ${repo} with labels: \"${labels}\"..."
 
   set +e
   run-create-issue-command "$dry_run" "$repo" "$title" "$body" "$labels"
   exitcode=$?
   set -e
 
-  if [[ $exitcode -ne 0 ]]; then
-    echo "That didn't work, trying to create issue in ${repo} for ${package_name} ${version} without labels"
-
-    set +e
-    run-create-issue-command "$dry_run" "$repo" "$title" "$body"
-    exitcode=$?
-    set -e
-  fi
-
   if [[ $exitcode -eq 0 ]]; then
-    echo "Successfully created issue!"
+    if [[ -n $team_labels ]]; then
+      echo "✅ Successfully created issue!"
+    else
+      echo "⚠️ Successfully created issue, but you will need to assign the correct team label (see URL above)."
+    fi
   else
-    echo "That didn't work, please create the issue manually"
+    echo "❌ Issue was not created. Please create an issue manually which requests that ${package_name} be updated to version ${version}, assigning the correct team labels."
   fi
 
   return $exitcode
@@ -69,11 +60,12 @@ main() {
   local package_name
   local package_name_without_leading_at
   local version
+  local found_team_labels
   local team_labels
-  local labels
 
   local dry_run=1
   local ref="HEAD"
+  local exitcode=0
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -121,21 +113,33 @@ main() {
     echo
 
     # Use teams.json to determine which teams code-own this package, and what their labels are
-    team_labels=$(jq -r --arg key "$package_name_without_leading_at" '.[$key]' teams.json)
-    labels="$DEFAULT_LABEL"
-    if [[ $team_labels == "null" ]]; then
-      echo "Did not find team labels for ${package_name}, will create issues anyway"
+    found_team_labels=$(jq -r --arg key "${package_name_without_leading_at}" '.[$key]' teams.json)
+    if [[ $found_team_labels == "null" ]]; then
+      echo "Did not find team labels for ${package_name}. Creating issues anyway..."
+      team_labels=""
+      exitcode=1
     else
-      echo "Found team labels for ${package_name}: ${team_labels}"
-      labels+=",$team_labels"
+      echo "Found team labels for ${package_name}: \"${found_team_labels}\". Creating issues..."
+      team_labels="$found_team_labels"
     fi
 
     # Create the issues
     echo
-    create-issue "$dry_run" "MetaMask/metamask-extension" "$package_name" "$version" "$labels" || true
+    if ! create-issue "$dry_run" "MetaMask/metamask-extension" "$package_name" "$version" "$team_labels"; then
+      exitcode=1
+    fi
     echo
-    create-issue "$dry_run" "MetaMask/metamask-mobile" "$package_name" "$version" "$labels" || true
+    if ! create-issue "$dry_run" "MetaMask/metamask-mobile" "$package_name" "$version" "$team_labels"; then
+      exitcode=1
+    fi
   done
+
+  if [[ $exitcode -ne 0 ]]; then
+    echo
+    echo "One or more errors were encountered while creating issues. See above warnings/errors for details."
+  fi
+
+  return $exitcode
 }
 
 main "$@"
