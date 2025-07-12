@@ -1144,12 +1144,17 @@ describe('EarnController', () => {
 
       it('uses DEFAULT_POOLED_STAKING_CHAIN_STATE when switching to unpopulated supported chain', async () => {
         // Start with controller configured for mainnet
-        const mockGetNetworkControllerState = jest.fn(() => ({
-          selectedNetworkClientId: '1',
-          networkConfigurations: {
-            '1': { chainId: '0x1' },
-          },
-        }));
+        const mockGetNetworkControllerState = jest.fn(
+          (): {
+            selectedNetworkClientId: string;
+            networkConfigurations: Record<string, { chainId: string }>;
+          } => ({
+            selectedNetworkClientId: '1',
+            networkConfigurations: {
+              '1': { chainId: '0x1' },
+            },
+          }),
+        );
 
         const mockGetNetworkClientById = jest.fn(() => ({
           configuration: { chainId: '0x1' },
@@ -1191,7 +1196,6 @@ describe('EarnController', () => {
         mockGetNetworkControllerState.mockReturnValue({
           selectedNetworkClientId: HOODI_TESTNET_CHAIN_ID_DECIMAL.toString(),
           networkConfigurations: {
-            // @ts-expect-error bypassing type check since we need to test on a different chainId
             [HOODI_TESTNET_CHAIN_ID_DECIMAL]: {
               chainId: HOODI_TESTNET_CHAIN_ID_HEX,
             },
@@ -1314,12 +1318,17 @@ describe('EarnController', () => {
 
       it('uses DEFAULT_POOLED_STAKING_CHAIN_STATE when switching to unpopulated supported chain', async () => {
         // Start with controller configured for mainnet
-        const mockGetNetworkControllerState = jest.fn(() => ({
-          selectedNetworkClientId: '1',
-          networkConfigurations: {
-            '1': { chainId: '0x1' },
-          },
-        }));
+        const mockGetNetworkControllerState = jest.fn(
+          (): {
+            selectedNetworkClientId: string;
+            networkConfigurations: Record<string, { chainId: string }>;
+          } => ({
+            selectedNetworkClientId: '1',
+            networkConfigurations: {
+              '1': { chainId: '0x1' },
+            },
+          }),
+        );
 
         const mockGetNetworkClientById = jest.fn(() => ({
           configuration: { chainId: '0x1' },
@@ -1366,7 +1375,6 @@ describe('EarnController', () => {
         mockGetNetworkControllerState.mockReturnValue({
           selectedNetworkClientId: HOODI_TESTNET_CHAIN_ID_DECIMAL.toString(),
           networkConfigurations: {
-            // @ts-expect-error bypassing type check since we need to test on a different chainId
             [HOODI_TESTNET_CHAIN_ID_DECIMAL]: {
               chainId: HOODI_TESTNET_CHAIN_ID_HEX,
             },
@@ -1510,12 +1518,17 @@ describe('EarnController', () => {
 
       it('uses DEFAULT_POOLED_STAKING_CHAIN_STATE when switching to unpopulated supported chain', async () => {
         // Start with controller configured for mainnet
-        const mockGetNetworkControllerState = jest.fn(() => ({
-          selectedNetworkClientId: '1',
-          networkConfigurations: {
-            '1': { chainId: '0x1' },
-          },
-        }));
+        const mockGetNetworkControllerState = jest.fn(
+          (): {
+            selectedNetworkClientId: string;
+            networkConfigurations: Record<string, { chainId: string }>;
+          } => ({
+            selectedNetworkClientId: '1',
+            networkConfigurations: {
+              '1': { chainId: '0x1' },
+            },
+          }),
+        );
 
         const mockGetNetworkClientById = jest.fn(() => ({
           configuration: { chainId: '0x1' },
@@ -1566,7 +1579,6 @@ describe('EarnController', () => {
         mockGetNetworkControllerState.mockReturnValue({
           selectedNetworkClientId: HOODI_TESTNET_CHAIN_ID_DECIMAL.toString(),
           networkConfigurations: {
-            // @ts-expect-error bypassing type check since we need to test on a different chainId
             [HOODI_TESTNET_CHAIN_ID_DECIMAL]: {
               chainId: HOODI_TESTNET_CHAIN_ID_HEX,
             },
@@ -1664,12 +1676,17 @@ describe('EarnController', () => {
 
       it('uses DEFAULT_POOLED_STAKING_CHAIN_STATE when switching to unpopulated supported chain', async () => {
         // Start with controller configured for mainnet
-        const mockGetNetworkControllerState = jest.fn(() => ({
-          selectedNetworkClientId: '1',
-          networkConfigurations: {
-            '1': { chainId: '0x1' },
-          },
-        }));
+        const mockGetNetworkControllerState = jest.fn(
+          (): {
+            selectedNetworkClientId: string;
+            networkConfigurations: Record<string, { chainId: string }>;
+          } => ({
+            selectedNetworkClientId: '1',
+            networkConfigurations: {
+              '1': { chainId: '0x1' },
+            },
+          }),
+        );
 
         const mockGetNetworkClientById = jest.fn(() => ({
           configuration: { chainId: '0x1' },
@@ -1717,7 +1734,6 @@ describe('EarnController', () => {
         mockGetNetworkControllerState.mockReturnValue({
           selectedNetworkClientId: HOODI_TESTNET_CHAIN_ID_DECIMAL.toString(),
           networkConfigurations: {
-            // @ts-expect-error bypassing type check since we need to test on a different chainId
             [HOODI_TESTNET_CHAIN_ID_DECIMAL]: {
               chainId: HOODI_TESTNET_CHAIN_ID_HEX,
             },
