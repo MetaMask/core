@@ -1141,6 +1141,96 @@ describe('EarnController', () => {
           false,
         );
       });
+
+      it('uses DEFAULT_POOLED_STAKING_CHAIN_STATE when switching to unpopulated supported chain', async () => {
+        // Start with controller configured for mainnet
+        const mockGetNetworkControllerState = jest.fn(() => ({
+          selectedNetworkClientId: '1',
+          networkConfigurations: {
+            '1': { chainId: '0x1' },
+          },
+        }));
+
+        const mockGetNetworkClientById = jest.fn(() => ({
+          configuration: { chainId: '0x1' },
+          provider: {
+            request: jest.fn(),
+            on: jest.fn(),
+            removeListener: jest.fn(),
+          },
+        }));
+
+        const { controller } = await setupController({
+          mockGetNetworkControllerState,
+          mockGetNetworkClientById,
+          options: {
+            state: {
+              // Start with only mainnet data
+              pooled_staking: {
+                1: {
+                  ...DEFAULT_POOLED_STAKING_CHAIN_STATE,
+                  pooledStakes: mockPooledStakes,
+                  exchangeRate: '1.0',
+                },
+                isEligible: true,
+              },
+            },
+          },
+        });
+
+        // Wait for constructor's async operations to complete
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        // Verify initial state: only mainnet populated
+        expect(controller.state.pooled_staking[1]).toBeDefined();
+        expect(
+          controller.state.pooled_staking[HOODI_TESTNET_CHAIN_ID_DECIMAL],
+        ).toBeUndefined();
+
+        // Now simulate switching to Hoodi testnet by updating the mocks
+        mockGetNetworkControllerState.mockReturnValue({
+          selectedNetworkClientId: HOODI_TESTNET_CHAIN_ID_DECIMAL.toString(),
+          networkConfigurations: {
+            // @ts-expect-error bypassing type check since we need to test on a different chainId
+            [HOODI_TESTNET_CHAIN_ID_DECIMAL]: {
+              chainId: HOODI_TESTNET_CHAIN_ID_HEX,
+            },
+          },
+        });
+
+        mockGetNetworkClientById.mockReturnValue({
+          configuration: { chainId: HOODI_TESTNET_CHAIN_ID_HEX },
+          provider: {
+            request: jest.fn(),
+            on: jest.fn(),
+            removeListener: jest.fn(),
+          },
+        });
+
+        // Call refreshPooledStakes - should use fallback for unpopulated Hoodi chainId
+        await controller.refreshPooledStakes();
+
+        // Verify Hoodi testnet data was created using DEFAULT_POOLED_STAKING_CHAIN_STATE as base
+        expect(
+          controller.state.pooled_staking[HOODI_TESTNET_CHAIN_ID_DECIMAL],
+        ).toStrictEqual({
+          ...DEFAULT_POOLED_STAKING_CHAIN_STATE,
+          pooledStakes: mockPooledStakes,
+          exchangeRate: '1.5',
+        });
+
+        // Verify API was called with Hoodi testnet chainId
+        expect(
+          mockedEarnApiService?.pooledStaking?.getPooledStakes,
+        ).toHaveBeenCalledWith(
+          [mockAccount1Address],
+          HOODI_TESTNET_CHAIN_ID_DECIMAL,
+          false,
+        );
+
+        // Verify mainnet data is still intact
+        expect(controller.state.pooled_staking[1]).toBeDefined();
+      });
     });
 
     describe('refreshEarnEligibility', () => {
@@ -1220,6 +1310,96 @@ describe('EarnController', () => {
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultData,
         ).toHaveBeenNthCalledWith(2, HOODI_TESTNET_CHAIN_ID_DECIMAL);
+      });
+
+      it('uses DEFAULT_POOLED_STAKING_CHAIN_STATE when switching to unpopulated supported chain', async () => {
+        // Start with controller configured for mainnet
+        const mockGetNetworkControllerState = jest.fn(() => ({
+          selectedNetworkClientId: '1',
+          networkConfigurations: {
+            '1': { chainId: '0x1' },
+          },
+        }));
+
+        const mockGetNetworkClientById = jest.fn(() => ({
+          configuration: { chainId: '0x1' },
+          provider: {
+            request: jest.fn(),
+            on: jest.fn(),
+            removeListener: jest.fn(),
+          },
+        }));
+
+        const { controller } = await setupController({
+          mockGetNetworkControllerState,
+          mockGetNetworkClientById,
+          options: {
+            state: {
+              // Start with only mainnet data
+              pooled_staking: {
+                1: {
+                  ...DEFAULT_POOLED_STAKING_CHAIN_STATE,
+                  vaultMetadata: {
+                    apy: '3.5',
+                    capacity: '500000',
+                    feePercent: 5,
+                    totalAssets: '250000',
+                    vaultAddress: '0x123',
+                  },
+                },
+                isEligible: true,
+              },
+            },
+          },
+        });
+
+        // Wait for constructor's async operations to complete
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        // Verify initial state: only mainnet populated
+        expect(controller.state.pooled_staking[1]).toBeDefined();
+        expect(
+          controller.state.pooled_staking[HOODI_TESTNET_CHAIN_ID_DECIMAL],
+        ).toBeUndefined();
+
+        // Now simulate switching to Hoodi testnet by updating the mocks
+        mockGetNetworkControllerState.mockReturnValue({
+          selectedNetworkClientId: HOODI_TESTNET_CHAIN_ID_DECIMAL.toString(),
+          networkConfigurations: {
+            // @ts-expect-error bypassing type check since we need to test on a different chainId
+            [HOODI_TESTNET_CHAIN_ID_DECIMAL]: {
+              chainId: HOODI_TESTNET_CHAIN_ID_HEX,
+            },
+          },
+        });
+
+        mockGetNetworkClientById.mockReturnValue({
+          configuration: { chainId: HOODI_TESTNET_CHAIN_ID_HEX },
+          provider: {
+            request: jest.fn(),
+            on: jest.fn(),
+            removeListener: jest.fn(),
+          },
+        });
+
+        // Call refreshPooledStakingVaultMetadata - should use fallback for unpopulated Hoodi chainId
+        await controller.refreshPooledStakingVaultMetadata();
+
+        // Verify Hoodi testnet data was created using DEFAULT_POOLED_STAKING_CHAIN_STATE as base
+        expect(
+          controller.state.pooled_staking[HOODI_TESTNET_CHAIN_ID_DECIMAL],
+        ).toStrictEqual({
+          ...DEFAULT_POOLED_STAKING_CHAIN_STATE,
+          vaultMetadata: mockVaultMetadata,
+        });
+
+        // Verify API was called with Hoodi testnet chainId
+        expect(
+          mockedEarnApiService?.pooledStaking?.getVaultData,
+        ).toHaveBeenCalledWith(HOODI_TESTNET_CHAIN_ID_DECIMAL);
+
+        // Verify mainnet data is still intact
+        expect(controller.state.pooled_staking[1]).toBeDefined();
       });
     });
 
@@ -1327,6 +1507,100 @@ describe('EarnController', () => {
         ).toStrictEqual(mockPooledStakingVaultDailyApys);
         expect(controller.state.pooled_staking[1]).toBeUndefined();
       });
+
+      it('uses DEFAULT_POOLED_STAKING_CHAIN_STATE when switching to unpopulated supported chain', async () => {
+        // Start with controller configured for mainnet
+        const mockGetNetworkControllerState = jest.fn(() => ({
+          selectedNetworkClientId: '1',
+          networkConfigurations: {
+            '1': { chainId: '0x1' },
+          },
+        }));
+
+        const mockGetNetworkClientById = jest.fn(() => ({
+          configuration: { chainId: '0x1' },
+          provider: {
+            request: jest.fn(),
+            on: jest.fn(),
+            removeListener: jest.fn(),
+          },
+        }));
+
+        const { controller } = await setupController({
+          mockGetNetworkControllerState,
+          mockGetNetworkClientById,
+          options: {
+            state: {
+              // Start with only mainnet data
+              pooled_staking: {
+                1: {
+                  ...DEFAULT_POOLED_STAKING_CHAIN_STATE,
+                  vaultDailyApys: [
+                    {
+                      id: 99,
+                      chain_id: 1,
+                      vault_address: '0x999',
+                      timestamp: '2025-01-01T00:00:00.000Z',
+                      daily_apy: '4.5',
+                      created_at: '2025-01-02T01:00:00.000Z',
+                      updated_at: '2025-01-02T01:00:00.000Z',
+                    },
+                  ],
+                },
+                isEligible: true,
+              },
+            },
+          },
+        });
+
+        // Wait for constructor's async operations to complete
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        // Verify initial state: only mainnet populated
+        expect(controller.state.pooled_staking[1]).toBeDefined();
+        expect(
+          controller.state.pooled_staking[HOODI_TESTNET_CHAIN_ID_DECIMAL],
+        ).toBeUndefined();
+
+        // Now simulate switching to Hoodi testnet by updating the mocks
+        mockGetNetworkControllerState.mockReturnValue({
+          selectedNetworkClientId: HOODI_TESTNET_CHAIN_ID_DECIMAL.toString(),
+          networkConfigurations: {
+            // @ts-expect-error bypassing type check since we need to test on a different chainId
+            [HOODI_TESTNET_CHAIN_ID_DECIMAL]: {
+              chainId: HOODI_TESTNET_CHAIN_ID_HEX,
+            },
+          },
+        });
+
+        mockGetNetworkClientById.mockReturnValue({
+          configuration: { chainId: HOODI_TESTNET_CHAIN_ID_HEX },
+          provider: {
+            request: jest.fn(),
+            on: jest.fn(),
+            removeListener: jest.fn(),
+          },
+        });
+
+        // Call refreshPooledStakingVaultDailyApys - should use fallback for unpopulated Hoodi chainId
+        await controller.refreshPooledStakingVaultDailyApys();
+
+        // Verify Hoodi testnet data was created using DEFAULT_POOLED_STAKING_CHAIN_STATE as base
+        expect(
+          controller.state.pooled_staking[HOODI_TESTNET_CHAIN_ID_DECIMAL],
+        ).toStrictEqual({
+          ...DEFAULT_POOLED_STAKING_CHAIN_STATE,
+          vaultDailyApys: mockPooledStakingVaultDailyApys,
+        });
+
+        // Verify API was called with Hoodi testnet chainId
+        expect(
+          mockedEarnApiService?.pooledStaking?.getVaultDailyApys,
+        ).toHaveBeenCalledWith(HOODI_TESTNET_CHAIN_ID_DECIMAL, 365, 'desc');
+
+        // Verify mainnet data is still intact
+        expect(controller.state.pooled_staking[1]).toBeDefined();
+      });
     });
 
     describe('refreshPooledStakingVaultApyAverages', () => {
@@ -1386,6 +1660,97 @@ describe('EarnController', () => {
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultApyAverages,
         ).toHaveBeenNthCalledWith(2, HOODI_TESTNET_CHAIN_ID_DECIMAL);
+      });
+
+      it('uses DEFAULT_POOLED_STAKING_CHAIN_STATE when switching to unpopulated supported chain', async () => {
+        // Start with controller configured for mainnet
+        const mockGetNetworkControllerState = jest.fn(() => ({
+          selectedNetworkClientId: '1',
+          networkConfigurations: {
+            '1': { chainId: '0x1' },
+          },
+        }));
+
+        const mockGetNetworkClientById = jest.fn(() => ({
+          configuration: { chainId: '0x1' },
+          provider: {
+            request: jest.fn(),
+            on: jest.fn(),
+            removeListener: jest.fn(),
+          },
+        }));
+
+        const { controller } = await setupController({
+          mockGetNetworkControllerState,
+          mockGetNetworkClientById,
+          options: {
+            state: {
+              // Start with only mainnet data
+              pooled_staking: {
+                1: {
+                  ...DEFAULT_POOLED_STAKING_CHAIN_STATE,
+                  vaultApyAverages: {
+                    oneDay: '2.5',
+                    oneWeek: '2.8',
+                    oneMonth: '3.0',
+                    threeMonths: '3.2',
+                    sixMonths: '3.1',
+                    oneYear: '2.9',
+                  },
+                },
+                isEligible: true,
+              },
+            },
+          },
+        });
+
+        // Wait for constructor's async operations to complete
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        // Verify initial state: only mainnet populated
+        expect(controller.state.pooled_staking[1]).toBeDefined();
+        expect(
+          controller.state.pooled_staking[HOODI_TESTNET_CHAIN_ID_DECIMAL],
+        ).toBeUndefined();
+
+        // Now simulate switching to Hoodi testnet by updating the mocks
+        mockGetNetworkControllerState.mockReturnValue({
+          selectedNetworkClientId: HOODI_TESTNET_CHAIN_ID_DECIMAL.toString(),
+          networkConfigurations: {
+            // @ts-expect-error bypassing type check since we need to test on a different chainId
+            [HOODI_TESTNET_CHAIN_ID_DECIMAL]: {
+              chainId: HOODI_TESTNET_CHAIN_ID_HEX,
+            },
+          },
+        });
+
+        mockGetNetworkClientById.mockReturnValue({
+          configuration: { chainId: HOODI_TESTNET_CHAIN_ID_HEX },
+          provider: {
+            request: jest.fn(),
+            on: jest.fn(),
+            removeListener: jest.fn(),
+          },
+        });
+
+        // Call refreshPooledStakingVaultApyAverages - should use fallback for unpopulated Hoodi chainId
+        await controller.refreshPooledStakingVaultApyAverages();
+
+        // Verify Hoodi testnet data was created using DEFAULT_POOLED_STAKING_CHAIN_STATE as base
+        expect(
+          controller.state.pooled_staking[HOODI_TESTNET_CHAIN_ID_DECIMAL],
+        ).toStrictEqual({
+          ...DEFAULT_POOLED_STAKING_CHAIN_STATE,
+          vaultApyAverages: mockPooledStakingVaultApyAverages,
+        });
+
+        // Verify API was called with Hoodi testnet chainId
+        expect(
+          mockedEarnApiService?.pooledStaking?.getVaultApyAverages,
+        ).toHaveBeenCalledWith(HOODI_TESTNET_CHAIN_ID_DECIMAL);
+
+        // Verify mainnet data is still intact
+        expect(controller.state.pooled_staking[1]).toBeDefined();
       });
     });
   });
