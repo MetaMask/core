@@ -154,7 +154,7 @@ export class Messenger<
    *
    * This will make the registered function available to call via the `call` method.
    *
-   * @param actionType - The action type. This is a unqiue identifier for this action.
+   * @param actionType - The action type. This is a unique identifier for this action.
    * @param handler - The action handler. This function gets called when the `call` method is
    * invoked with the given action type.
    * @throws Will throw when a handler has been registered for this action type already.
@@ -173,11 +173,31 @@ export class Messenger<
   }
 
   /**
+   * Registers action handlers for a list of methods on a class instance
+   *
+   * @param instance - The class instance with a name property and methods
+   * @param methodNames - The names of the methods to register as action handlers
+   */
+  registerMethodActionHandlers<
+    Instance extends { name: string },
+    MethodNames extends keyof Instance & string,
+  >(instance: Instance, methodNames: readonly MethodNames[]) {
+    for (const methodName of methodNames) {
+      const handler = instance[methodName];
+      if (typeof handler === 'function') {
+        const actionType =
+          `${instance.name}:${methodName}` as `${Instance['name']}:${MethodNames}`;
+        this.registerActionHandler(actionType, handler.bind(instance));
+      }
+    }
+  }
+
+  /**
    * Unregister an action handler.
    *
    * This will prevent this action from being called.
    *
-   * @param actionType - The action type. This is a unqiue identifier for this action.
+   * @param actionType - The action type. This is a unique identifier for this action.
    * @template ActionType - A type union of Action type strings.
    */
   unregisterActionHandler<ActionType extends Action['type']>(

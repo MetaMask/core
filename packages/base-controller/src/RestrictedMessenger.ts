@@ -127,6 +127,19 @@ export class RestrictedMessenger<
   }
 
   /**
+   * Registers action handlers for a list of methods on a class instance
+   *
+   * @param instance - The class instance with a name property and methods
+   * @param methodNames - The names of the methods to register as action handlers
+   */
+  registerMethodActionHandlers<
+    Instance extends { name: string },
+    MethodNames extends keyof Instance & string,
+  >(instance: Instance, methodNames: readonly MethodNames[]) {
+    this.#messenger.registerMethodActionHandlers(instance, methodNames);
+  }
+
+  /**
    * Unregister an action handler.
    *
    * This will prevent this action from being called.

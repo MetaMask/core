@@ -133,12 +133,6 @@
   "packages/base-controller/src/BaseControllerV2.ts": {
     "jsdoc/check-tag-names": 2
   },
-  "packages/base-controller/src/Messenger.test.ts": {
-    "import-x/namespace": 33
-  },
-  "packages/base-controller/src/RestrictedMessenger.test.ts": {
-    "import-x/namespace": 31
-  },
   "packages/build-utils/src/transforms/remove-fenced-code.test.ts": {
     "import-x/order": 1
   },
