@@ -67,23 +67,6 @@ async function parseCommandLineArguments(): Promise<CommandLineArguments> {
 }
 
 /**
- * Normalizes content for comparison (remove extra whitespace differences)
- *
- * - Replace multiple spaces with a single space
- * - Replace `;\s*}` with `;}`
- * - Trim the content
- *
- * @param content - The content to normalize.
- * @returns The normalized content.
- */
-function normalize(content: string): string {
-  return content
-    .replace(/\s+/gu, ' ')
-    .replace(/;\s*\}/gu, ';}')
-    .trim();
-}
-
-/**
  * Checks if generated action types files are up to date.
  *
  * @param controllers - Array of controller information objects.
@@ -102,19 +85,18 @@ async function checkActionTypesFiles(
       `${baseFileName}-method-action-types.ts`,
     );
 
-    const expectedContent = await generateActionTypesContent(
-      controller,
+    const rawExpectedContent = await generateActionTypesContent(controller);
+
+    // Lint the expected content to match what would be on disk after linting
+    const expectedContent = await lintFileContent(
+      rawExpectedContent,
       outputFile,
     );
 
     try {
       const actualContent = await fs.promises.readFile(outputFile, 'utf8');
 
-      if (normalize(actualContent) !== normalize(expectedContent)) {
-        console.log('Actual content:');
-        console.log(actualContent);
-        console.log('Expected content:');
-        console.log(expectedContent);
+      if (actualContent !== expectedContent) {
         console.error(
           `❌ ${baseFileName}-method-action-types.ts is out of date`,
         );
@@ -454,20 +436,19 @@ async function generateActionTypesFile(
     `${baseFileName}-method-action-types.ts`,
   );
 
-  const content = await generateActionTypesContent(controller, outputFile);
-  await fs.promises.writeFile(outputFile, content, 'utf8');
+  const content = await generateActionTypesContent(controller);
+  const lintedContent = await lintFileContent(content, outputFile);
+  await fs.promises.writeFile(outputFile, lintedContent, 'utf8');
 }
 
 /**
  * Generates the content for the action types file.
  *
  * @param controller - The controller information object.
- * @param outputFile - The path to the output file.
  * @returns The content for the action types file.
  */
 async function generateActionTypesContent(
   controller: ControllerInfo,
-  outputFile: string,
 ): Promise<string> {
   const baseFileName = path.basename(controller.filePath, '.ts');
   const controllerImportPath = `./${baseFileName}`;
@@ -510,8 +491,7 @@ import type { ${controller.name} } from '${controllerImportPath}';
 export type ${unionTypeName} = ${actionTypeNames.join(' | ')};\n`;
   }
 
-  // Lint the generated content
-  return await lintFileContent(`${content.trimEnd()}\n`, outputFile);
+  return `${content.trimEnd()}\n`;
 }
 
 /**
