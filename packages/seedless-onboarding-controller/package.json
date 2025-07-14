@@ -47,7 +47,7 @@
     "since-latest-release": "../../scripts/since-latest-release.sh"
   },
   "dependencies": {
-    "@metamask/auth-network-utils": "^0.3.1",
+    "@metamask/auth-network-utils": "^0.3.0",
     "@metamask/base-controller": "^8.0.1",
     "@metamask/toprf-secure-backup": "^0.6.0",
     "@metamask/utils": "^11.2.0",
