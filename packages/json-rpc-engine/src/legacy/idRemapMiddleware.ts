@@ -10,6 +10,7 @@ import { getUniqueId } from '../getUniqueId';
  *
  * If used, should be the first middleware in the stack.
  *
+ * @deprecated Use `JsonRpcEngineV2` and its corresponding types instead.
  * @returns The ID remap middleware function.
  */
 export function createIdRemapMiddleware(): JsonRpcMiddleware<
