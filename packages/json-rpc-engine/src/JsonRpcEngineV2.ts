@@ -4,7 +4,7 @@ import type {
   JsonRpcNotification,
   NonEmptyArray,
 } from '@metamask/utils';
-import { produce } from 'immer';
+import { freeze, produce } from 'immer';
 
 import { isRequest, JsonRpcEngineError, stringify } from './utils';
 import type { JsonRpcCall } from './utils';
@@ -121,7 +121,7 @@ export class JsonRpcEngineV2<
   }> {
     const returnHandlers: ReturnHandler[] = [];
 
-    let request = structuredClone(originalRequest);
+    let request = freeze({ ...originalRequest });
     let result: Extract<Result, Json | typeof EndNotification> | undefined;
 
     for (const middleware of this.#middleware) {
