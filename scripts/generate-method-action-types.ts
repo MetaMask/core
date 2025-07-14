@@ -94,13 +94,12 @@ async function checkActionTypesFiles(
     );
 
     try {
-      const actualContent = await fs.promises.readFile(outputFile, 'utf8');
+      const rawActualContent = await fs.promises.readFile(outputFile, 'utf8');
+
+      // Lint the actual content to match what would be on disk after linting
+      const actualContent = await lintFileContent(rawActualContent, outputFile);
 
       if (actualContent !== expectedContent) {
-        console.log('Actual content:');
-        console.log(actualContent);
-        console.log('Expected content:');
-        console.log(expectedContent);
         console.error(
           `❌ ${baseFileName}-method-action-types.ts is out of date`,
         );
