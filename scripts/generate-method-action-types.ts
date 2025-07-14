@@ -100,6 +100,10 @@ async function checkActionTypesFiles(
       const actualContent = await lintFileContent(rawActualContent, outputFile);
 
       if (actualContent !== expectedContent) {
+        console.log('actualContent');
+        console.log(actualContent);
+        console.log('expectedContent');
+        console.log(expectedContent);
         console.error(
           `❌ ${baseFileName}-method-action-types.ts is out of date`,
         );
