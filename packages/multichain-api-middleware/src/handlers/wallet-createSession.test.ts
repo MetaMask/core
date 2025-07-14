@@ -9,7 +9,6 @@ import {
 import * as ChainAgnosticPermission from '@metamask/chain-agnostic-permission';
 import { MultichainNetwork } from '@metamask/multichain-transactions-controller';
 import { invalidParams } from '@metamask/permission-controller';
-
 import type {
   Hex,
   Json,
@@ -881,8 +880,8 @@ describe('wallet_createSession', () => {
     });
   });
 
-  it('throws error if approved CAIP-25 permission has no CAIP-25 caveat value', async () => {
-    const { handler, requestPermissionsForOrigin } = createMockedHandler();
+  it('calls end with error if approved CAIP-25 permission has no CAIP-25 caveat value', async () => {
+    const { handler, requestPermissionsForOrigin, end } = createMockedHandler();
     requestPermissionsForOrigin.mockReturnValue([
       {
         [Caip25EndowmentPermissionName]: {
@@ -896,14 +895,16 @@ describe('wallet_createSession', () => {
       },
     ]);
 
-    await expect(
-      handler({
-        ...baseRequest,
-        params: {
-          ...baseRequest.params,
-        },
-      }),
-    ).rejects.toThrow(Caip25Errors.unknownErrorOrNoScopesAuthorized());
+    await handler({
+      ...baseRequest,
+      params: {
+        ...baseRequest.params,
+      },
+    });
+
+    expect(end).toHaveBeenCalledWith(
+      Caip25Errors.unknownErrorOrNoScopesAuthorized(),
+    );
   });
 
   describe('address case sensitivity', () => {
