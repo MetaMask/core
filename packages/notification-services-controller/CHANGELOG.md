@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/profile-sync-controller` to `^21.0.0` ([#6100](https://github.com/MetaMask/core/pull/6100))
+
+## [13.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/profile-sync-controller` to `^20.0.0` ([#6071](https://github.com/MetaMask/core/pull/6071))
+
+## [12.0.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.10.0` to `^11.11.0` ([#6069](https://github.com/MetaMask/core/pull/6069))
+  - This upgrade includes performance improvements to checksum hex address normalization
+- Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
+
 ## [12.0.0]
 
 ### Changed
@@ -473,7 +493,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@12.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@14.0.0...HEAD
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@13.0.0...@metamask/notification-services-controller@14.0.0
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@12.0.1...@metamask/notification-services-controller@13.0.0
+[12.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@12.0.0...@metamask/notification-services-controller@12.0.1
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@11.0.0...@metamask/notification-services-controller@12.0.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@10.0.0...@metamask/notification-services-controller@11.0.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@9.0.0...@metamask/notification-services-controller@10.0.0

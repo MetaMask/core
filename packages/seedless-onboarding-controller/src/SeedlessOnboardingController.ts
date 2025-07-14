@@ -1886,7 +1886,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @returns The decoded node auth token.
    */
   decodeNodeAuthToken(token: string): DecodedNodeAuthToken {
-    return JSON.parse(Buffer.from(token, 'base64').toString());
+    return JSON.parse(bytesToUtf8(base64ToBytes(token)));
   }
 
   /**
