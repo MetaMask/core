@@ -4,6 +4,43 @@ set -euo pipefail
 
 DEFAULT_LABEL="client-controller-update"
 
+existing-issue-found() {
+  local repo="$1"
+  local package_name="$2"
+  local version="$3"
+
+  local all_issues
+  if ! all_issues=$(gh issue list --repo "$repo" --label "$DEFAULT_LABEL" --state open --json number,title,url 2>&1); then
+    echo "❌ Failed to fetch issues from ${repo}"
+    echo "$all_issues"
+    exit 1
+  fi
+
+  if [[ -z "$all_issues" || "$all_issues" == "[]" ]]; then
+    echo "Found no issues in the repo."
+    return 1
+  fi
+
+  local package_name_without_at="${package_name#@}"
+  local package_name_escaped="${package_name//./\\.}"
+  local package_name_without_at_escaped="${package_name_without_at//./\\.}"
+  local regex_pattern="^(Update|Upgrade) (${package_name_escaped}|${package_name_without_at_escaped}) to version ${version//./\\.}$"
+
+  local matching_issues
+  matching_issues=$(echo "$all_issues" | jq --raw-output --arg pattern "$regex_pattern" '.[] | select(.title | test($pattern)) | "- #\(.number): \(.title) (\(.url))"')
+
+  if [[ -n "$matching_issues" ]]; then
+    local issue_count
+    issue_count=$(echo "$matching_issues" | wc -l | sed 's/^[[:space:]]*//')
+    echo "Found $issue_count existing issue(s) matching pattern: \"$regex_pattern\""
+    echo "$matching_issues"
+    return 0
+  fi
+
+  echo "Found no existing issues matching pattern: \"$regex_pattern\""
+  return 1
+}
+
 run-create-issue-command() {
   local dry_run="$1"
   local repo="$2"
@@ -33,6 +70,12 @@ create-issue() {
   fi
 
   local exitcode
+
+  echo "Checking for existing issues in ${repo}..."
+  if existing-issue-found "$repo" "$package_name" "$version"; then
+    echo "⏭️ Not creating issue because it already exists"
+    return 0
+  fi
 
   echo "Creating issue in ${repo} with labels: \"${labels}\"..."
 
@@ -115,7 +158,7 @@ main() {
     echo
 
     # Use teams.json to determine which teams code-own this package, and what their labels are
-    found_team_labels=$(jq -r --arg key "${package_name_without_leading_at}" '.[$key]' teams.json)
+    found_team_labels=$(jq --raw-output --arg key "${package_name_without_leading_at}" '.[$key]' teams.json)
     if [[ $found_team_labels == "null" ]]; then
       echo "Did not find team labels for ${package_name}. Creating issues anyway..."
       team_labels=""
