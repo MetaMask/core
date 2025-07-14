@@ -1,10 +1,10 @@
-import {
-  type Json,
-  type JsonRpcRequest,
-  type JsonRpcNotification,
-  type NonEmptyArray,
-  hasProperty,
+import type {
+  Json,
+  JsonRpcRequest,
+  JsonRpcNotification,
+  NonEmptyArray,
 } from '@metamask/utils';
+import { produce } from 'immer';
 
 import { isRequest, stringify } from './utils';
 import type { JsonRpcCall } from './utils';
@@ -99,12 +99,12 @@ export class MiddlewareEngine<
   /**
    * Run the middleware for a request.
    *
-   * @param request - The request to run the middleware for.
+   * @param originalRequest - The request to run the middleware for.
    * @param context - The context to pass to the middleware.
    * @returns The result from the middleware.
    */
   async #runMiddleware(
-    request: Request,
+    originalRequest: Request,
     context: Context,
   ): Promise<{
     result: Extract<Result, Json | typeof EndNotification>;
@@ -113,15 +113,14 @@ export class MiddlewareEngine<
   }> {
     const returnHandlers: ReturnHandler[] = [];
 
-    // Each middleware receives its own copy of the request.
-    let requestCopy = copyRequest(request);
+    let request = structuredClone(originalRequest);
     let result: Extract<Result, Json | typeof EndNotification> | undefined;
 
     for (const middleware of this.#middleware) {
-      const currentResult = await middleware(requestCopy, context);
-      // Immediately make a new copy of the request, to effectively revoke the
-      // ability of the previous middleware to modify the request.
-      requestCopy = copyRequest(requestCopy);
+      let currentResult: Result | undefined;
+      request = await updateRequest(request, async (draft) => {
+        currentResult = await middleware(draft, context);
+      });
 
       if (typeof currentResult === 'function') {
         returnHandlers.push(currentResult);
@@ -136,23 +135,23 @@ export class MiddlewareEngine<
     }
 
     if (result === undefined) {
-      throw new Error(`Nothing ended call:\n${stringify(requestCopy)}`);
-    } else if (isRequest(request)) {
+      throw new Error(`Nothing ended call:\n${stringify(request)}`);
+    } else if (isRequest(originalRequest)) {
       if (result === EndNotification) {
         throw new Error(
-          `Request handled as notification:\n${stringify(requestCopy)}`,
+          `Request handled as notification:\n${stringify(request)}`,
         );
       }
     } else if (result !== EndNotification) {
       throw new Error(
-        `Notification handled as request:\n${stringify(requestCopy)}`,
+        `Notification handled as request:\n${stringify(request)}`,
       );
     }
 
     return {
-      result: result as Extract<Result, Json | typeof EndNotification>,
+      result,
       returnHandlers,
-      finalRequest: requestCopy,
+      finalRequest: request,
     };
   }
 
@@ -180,12 +179,11 @@ export class MiddlewareEngine<
       );
     }
 
-    let finalResult: Json = structuredClone(initialResult) as Json;
+    let finalResult = initialResult as Json;
     for (const returnHandler of returnHandlers) {
-      const updatedResult = await returnHandler(finalResult);
-      if (updatedResult !== undefined) {
-        finalResult = structuredClone(updatedResult);
-      }
+      finalResult = await produce(finalResult, async (draft: Json) => {
+        return await returnHandler(draft);
+      });
     }
 
     return finalResult as Extract<Result, Json>;
@@ -205,22 +203,27 @@ export class MiddlewareEngine<
 const readonlyProps = ['id', 'jsonrpc'] as const;
 
 /**
- * Make a copy of a request.
+ * Update a request using Immer.
  *
- * @param request - The request to copy.
- * @returns The copied request.
+ * @param request - The request to update.
+ * @param recipe - The recipe function.
+ * @returns The updated request.
  */
-function copyRequest<Target extends JsonRpcCall>(request: Target): Target {
-  const copy = structuredClone(request);
-  readonlyProps.forEach((prop) => {
-    if (hasProperty(copy, prop)) {
-      Object.defineProperty(copy, prop, {
-        value: copy[prop],
-        writable: false,
-        configurable: false,
-        enumerable: true,
-      });
-    }
+async function updateRequest<Request extends JsonRpcCall>(
+  request: Request,
+  recipe: (request: Request) => Promise<void>,
+): Promise<Request> {
+  return produce(request, async (draft) => {
+    const draftProxy = new Proxy(draft, {
+      set(target, prop, value) {
+        if (readonlyProps.includes(prop as (typeof readonlyProps)[number])) {
+          throw new TypeError(
+            `Cannot assign to read only property '${String(prop)}'`,
+          );
+        }
+        return Reflect.set(target, prop, value);
+      },
+    });
+    await recipe(draftProxy as Request);
   });
-  return copy;
 }
