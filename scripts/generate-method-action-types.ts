@@ -9,6 +9,7 @@ import yargs from 'yargs';
 const eslint = new ESLint({
   fix: true, // Auto-fix what we can
   errorOnUnmatchedPattern: false,
+  overrideConfigFile: path.resolve(__dirname, '../eslint.config.mjs'),
 });
 
 type MethodInfo = {
@@ -94,10 +95,6 @@ async function checkActionTypesFiles(
       const actualContent = await fs.promises.readFile(outputFile, 'utf8');
 
       if (actualContent !== expectedContent) {
-        console.log('Actual content:');
-        console.log(actualContent);
-        console.log('Expected content:');
-        console.log(expectedContent);
         console.error(
           `❌ ${baseFileName}-method-action-types.ts is out of date`,
         );
