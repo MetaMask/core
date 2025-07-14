@@ -96,7 +96,7 @@ main() {
   full_ref="$(git rev-parse "$ref")"
 
   echo "Looking for release tags pointing to $full_ref for major-bumped packages..."
-  IFS=$'\n' read -r -d '' -a tag_array < <(git tag --points-at "$full_ref" | grep -E '^@metamask/[a-z0-9-]+@[0-9]+\.0\.0$' && printf '\0')
+  IFS=$'\n' read -r -d '' -a tag_array < <(git tag --points-at "$full_ref" | grep -E '^@metamask/[^@/]+@[0-9]+\.0\.0$' && printf '\0')
 
   if [[ "${#tag_array[@]}" -eq 0 ]]; then
     echo "No tags to process, nothing to do."
