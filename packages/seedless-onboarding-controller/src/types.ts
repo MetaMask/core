@@ -376,7 +376,6 @@ export type DecodedNodeAuthToken = {
   signature: string;
 };
 
-
 export type DecodedBaseJWTToken = {
   /**
    * The expiration time of the token in seconds.

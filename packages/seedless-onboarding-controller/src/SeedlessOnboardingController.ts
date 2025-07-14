@@ -45,7 +45,6 @@ import type {
   DecodedBaseJWTToken,
 } from './types';
 
-
 const log = createModuleLogger(projectLogger, controllerName);
 
 /**
@@ -224,23 +223,27 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   }> {
     const { metadataAccessToken } = this.state;
     if (!metadataAccessToken) {
-      throw new Error(SeedlessOnboardingControllerErrorMessage.InvalidMetadataAccessToken);
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.InvalidMetadataAccessToken,
+      );
     }
-    
+
     // Check if token is expired and refresh if needed
     const decodedToken = this.decodeJWTToken(metadataAccessToken);
     if (decodedToken.exp < Math.floor(Date.now() / 1000)) {
       // Token is expired, refresh it
       await this.refreshAuthTokens();
-      
+
       // Get the new token after refresh
       const { metadataAccessToken: newMetadataAccessToken } = this.state;
       if (!newMetadataAccessToken) {
-        throw new Error(SeedlessOnboardingControllerErrorMessage.InvalidMetadataAccessToken);
+        throw new Error(
+          SeedlessOnboardingControllerErrorMessage.InvalidMetadataAccessToken,
+        );
       }
       return { metadataAccessToken: newMetadataAccessToken };
     }
-    
+
     return { metadataAccessToken };
   }
 
@@ -1798,10 +1801,15 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     try {
       // proactively check for expired tokens and refresh them if needed
       const isNodeAuthTokenExpired = this.checkNodeAuthTokenExpired();
-      const isMetadataAccessTokenExpired = this.checkMetadataAccessTokenExpired();
+      const isMetadataAccessTokenExpired =
+        this.checkMetadataAccessTokenExpired();
       const isAccessTokenExpired = this.checkAccessTokenExpired();
-      
-      if (isNodeAuthTokenExpired || isMetadataAccessTokenExpired || isAccessTokenExpired) {
+
+      if (
+        isNodeAuthTokenExpired ||
+        isMetadataAccessTokenExpired ||
+        isAccessTokenExpired
+      ) {
         log(
           `JWT token expired during ${operationName}, attempting to refresh tokens`,
           'node auth token exp check',
@@ -1864,7 +1872,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     }
   }
 
-
   public checkAccessTokenExpired(): boolean {
     try {
       this.#assertIsAuthenticatedUser(this.state);
@@ -1905,13 +1912,17 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     // Decode the payload (second part)
     const payload = parts[1];
     // Add padding if needed for base64 decoding
-    const paddedPayload = payload + '='.repeat((4 - payload.length % 4) % 4);
-    
+    const paddedPayload = payload + '='.repeat((4 - (payload.length % 4)) % 4);
+
     try {
-      const decoded = JSON.parse(Buffer.from(paddedPayload, 'base64').toString());
+      const decoded = JSON.parse(
+        Buffer.from(paddedPayload, 'base64').toString(),
+      );
       return decoded as DecodedBaseJWTToken;
     } catch (error) {
-      throw new Error('Failed to decode JWT token');
+      throw new Error(
+        `Failed to decode JWT token: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 }

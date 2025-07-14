@@ -185,10 +185,14 @@ async function withController<ReturnValue>(
   });
 
   // In the withController function, before creating the controller:
-  const originalFetchMetadataAccessCreds = SeedlessOnboardingController.prototype.fetchMetadataAccessCreds;
-  SeedlessOnboardingController.prototype.fetchMetadataAccessCreds = jest.fn().mockResolvedValue({
-    metadataAccessToken: 'mock-metadata-access-token',
-  });
+  const originalFetchMetadataAccessCreds =
+    SeedlessOnboardingController.prototype.fetchMetadataAccessCreds;
+
+  jest
+    .spyOn(SeedlessOnboardingController.prototype, 'fetchMetadataAccessCreds')
+    .mockResolvedValue({
+      metadataAccessToken: 'mock-metadata-access-token',
+    });
 
   const controller = new SeedlessOnboardingController({
     encryptor,
@@ -199,11 +203,14 @@ async function withController<ReturnValue>(
     ...rest,
   });
 
-  SeedlessOnboardingController.prototype.fetchMetadataAccessCreds = originalFetchMetadataAccessCreds;
+  SeedlessOnboardingController.prototype.fetchMetadataAccessCreds =
+    originalFetchMetadataAccessCreds;
 
   // default node auth token not expired for testing
   jest.spyOn(controller, 'checkNodeAuthTokenExpired').mockReturnValue(false);
-  jest.spyOn(controller, 'checkMetadataAccessTokenExpired').mockReturnValue(false);
+  jest
+    .spyOn(controller, 'checkMetadataAccessTokenExpired')
+    .mockReturnValue(false);
   jest.spyOn(controller, 'checkAccessTokenExpired').mockReturnValue(false);
 
   const { toprfClient } = controller;
