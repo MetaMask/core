@@ -147,6 +147,30 @@ export type PreferencesState = {
    * @deprecated This preference is deprecated and will be removed in the future.
    */
   smartAccountOptInForAccounts: Hex[];
+  /**
+   * The user's preferred language locale
+   */
+  currentLocale: string;
+  /**
+   * The user's preferred theme (light, dark, or auto)
+   */
+  theme: string;
+  /**
+   * Whether to use blockie identicons instead of jazzicons
+   */
+  useBlockie: boolean;
+  /**
+   * The user's preferred currency for conversion rates
+   */
+  currentCurrency: string;
+  /**
+   * Whether to show native token as the main balance
+   */
+  showNativeTokenAsMainBalance: boolean;
+  /**
+   * Whether to hide tokens with zero balance
+   */
+  hideZeroBalanceTokens: boolean;
 };
 
 const metadata = {
@@ -172,6 +196,12 @@ const metadata = {
   dismissSmartAccountSuggestionEnabled: { persist: true, anonymous: true },
   smartAccountOptIn: { persist: true, anonymous: true },
   smartAccountOptInForAccounts: { persist: true, anonymous: true },
+  currentLocale: { persist: true, anonymous: true },
+  theme: { persist: true, anonymous: true },
+  useBlockie: { persist: true, anonymous: true },
+  currentCurrency: { persist: true, anonymous: true },
+  showNativeTokenAsMainBalance: { persist: true, anonymous: true },
+  hideZeroBalanceTokens: { persist: true, anonymous: true },
 };
 
 const name = 'PreferencesController';
@@ -255,6 +285,12 @@ export function getDefaultPreferencesState(): PreferencesState {
     dismissSmartAccountSuggestionEnabled: false,
     smartAccountOptIn: true,
     smartAccountOptInForAccounts: [],
+    currentLocale: 'en',
+    theme: 'auto',
+    useBlockie: false,
+    currentCurrency: 'USD',
+    showNativeTokenAsMainBalance: false,
+    hideZeroBalanceTokens: false,
   };
 }
 
@@ -643,6 +679,72 @@ export class PreferencesController extends BaseController<
   setSmartAccountOptInForAccounts(accounts: Hex[] = []): void {
     this.update((state) => {
       state.smartAccountOptInForAccounts = accounts;
+    });
+  }
+
+  /**
+   * Sets the user's preferred language locale
+   *
+   * @param currentLocale - The language locale (e.g., 'en', 'es', 'fr')
+   */
+  setCurrentLocale(currentLocale: string): void {
+    this.update((state) => {
+      state.currentLocale = currentLocale;
+    });
+  }
+
+  /**
+   * Sets the user's preferred theme
+   *
+   * @param theme - The theme preference ('light', 'dark', or 'auto')
+   */
+  setTheme(theme: string): void {
+    this.update((state) => {
+      state.theme = theme;
+    });
+  }
+
+  /**
+   * Sets whether to use blockie identicons instead of jazzicons
+   *
+   * @param useBlockie - Whether to use blockie identicons
+   */
+  setUseBlockie(useBlockie: boolean): void {
+    this.update((state) => {
+      state.useBlockie = useBlockie;
+    });
+  }
+
+  /**
+   * Sets the user's preferred currency for conversion rates
+   *
+   * @param currentCurrency - The currency code (e.g., 'USD', 'EUR', 'GBP')
+   */
+  setCurrentCurrency(currentCurrency: string): void {
+    this.update((state) => {
+      state.currentCurrency = currentCurrency;
+    });
+  }
+
+  /**
+   * Sets whether to show native token as the main balance
+   *
+   * @param showNativeTokenAsMainBalance - Whether to show native token as main balance
+   */
+  setShowNativeTokenAsMainBalance(showNativeTokenAsMainBalance: boolean): void {
+    this.update((state) => {
+      state.showNativeTokenAsMainBalance = showNativeTokenAsMainBalance;
+    });
+  }
+
+  /**
+   * Sets whether to hide tokens with zero balance
+   *
+   * @param hideZeroBalanceTokens - Whether to hide tokens with zero balance
+   */
+  setHideZeroBalanceTokens(hideZeroBalanceTokens: boolean): void {
+    this.update((state) => {
+      state.hideZeroBalanceTokens = hideZeroBalanceTokens;
     });
   }
 }
