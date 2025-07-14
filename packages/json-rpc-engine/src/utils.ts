@@ -33,3 +33,10 @@ export const isNotification = <Params extends JsonRpcParams>(
 export function stringify(value: Json | Readonly<Json>): string {
   return JSON.stringify(value, null, 2);
 }
+
+export class JsonRpcEngineError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'JsonRpcEngineError';
+  }
+}

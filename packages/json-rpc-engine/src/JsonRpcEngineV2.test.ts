@@ -1,12 +1,12 @@
 import { Json } from '@metamask/utils';
 
-import type { JsonRpcMiddleware } from './MiddlewareEngine';
-import { MiddlewareEngine, EndNotification } from './MiddlewareEngine';
+import type { JsonRpcMiddleware } from './JsonRpcEngineV2';
+import { JsonRpcEngineV2, EndNotification } from './JsonRpcEngineV2';
 import type { JsonRpcCall, JsonRpcNotification, JsonRpcRequest } from './utils';
 
-describe('MiddlewareEngine', () => {
+describe('JsonRpcEngineV2', () => {
   it('should handle a request', async () => {
-    const engine = new MiddlewareEngine({
+    const engine = new JsonRpcEngineV2({
       middleware: [
         (req: JsonRpcNotification, context): void => {},
         (req: JsonRpcNotification, context): typeof EndNotification => {
@@ -34,7 +34,7 @@ describe('MiddlewareEngine', () => {
     };
     type foo = ReturnType<typeof middleware2>;
 
-    const engine2 = new MiddlewareEngine({
+    const engine2 = new JsonRpcEngineV2({
       middleware: [
         // @ts-expect-error Should be illegal.
         (req: JsonRpcRequest, context): void | typeof EndNotification => {
@@ -43,7 +43,7 @@ describe('MiddlewareEngine', () => {
       ],
     });
 
-    const engine3 = new MiddlewareEngine({
+    const engine3 = new JsonRpcEngineV2({
       middleware: [
         ((req: JsonRpcRequest, context) => {
           return null;
@@ -51,7 +51,7 @@ describe('MiddlewareEngine', () => {
       ],
     });
 
-    const engine4 = new MiddlewareEngine({
+    const engine4 = new JsonRpcEngineV2({
       middleware: [
         ((req: JsonRpcCall, context): null => {
           return null;
