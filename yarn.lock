@@ -4324,6 +4324,7 @@ __metadata:
     "@noble/hashes": "npm:^1.4.0"
     "@types/elliptic": "npm:^6"
     "@types/jest": "npm:^27.4.1"
+    "@types/json-stable-stringify-without-jsonify": "npm:^1.0.2"
     async-mutex: "npm:^0.5.0"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
@@ -5601,6 +5602,13 @@ __metadata:
   version: 7.0.15
   resolution: "@types/json-schema@npm:7.0.15"
   checksum: 10/1a3c3e06236e4c4aab89499c428d585527ce50c24fe8259e8b3926d3df4cfbbbcf306cfc73ddfb66cbafc973116efd15967020b0f738f63e09e64c7d260519e7
+  languageName: node
+  linkType: hard
+
+"@types/json-stable-stringify-without-jsonify@npm:^1.0.2":
+  version: 1.0.2
+  resolution: "@types/json-stable-stringify-without-jsonify@npm:1.0.2"
+  checksum: 10/b8822ef38b1e845cca8151ef2baf5c99bc935364e94317b91eb1ffabb9280a0debd791b3b450f99e15bd121c0ecbecae926095b9f6b169e95a4659b4eb59f90f
   languageName: node
   linkType: hard
 

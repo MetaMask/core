@@ -64,6 +64,7 @@
     "@noble/hashes": "^1.4.0",
     "@types/elliptic": "^6",
     "@types/jest": "^27.4.1",
+    "@types/json-stable-stringify-without-jsonify": "^1.0.2",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "jest-environment-node": "^27.5.1",
