@@ -1,9 +1,16 @@
 import { Caip25Errors } from './errors';
 
 describe('Caip25Errors', () => {
+  it('unknownErrorOrNoScopesAuthorized', () => {
+    expect(Caip25Errors.unknownErrorOrNoScopesAuthorized().message).toBe(
+      'Unknown error with request',
+    );
+    expect(Caip25Errors.unknownErrorOrNoScopesAuthorized().code).toBe(5000);
+  });
+
   it('requestedChainsNotSupportedError', () => {
     expect(Caip25Errors.requestedChainsNotSupportedError().message).toBe(
-      'Requested chains are not supported',
+      'Requested networks are not supported',
     );
     expect(Caip25Errors.requestedChainsNotSupportedError().code).toBe(5100);
   });
@@ -36,5 +43,12 @@ describe('Caip25Errors', () => {
       'Unknown notification(s) requested',
     );
     expect(Caip25Errors.unknownNotificationsRequestedError().code).toBe(5202);
+  });
+
+  it('invalidSessionPropertiesError', () => {
+    expect(Caip25Errors.invalidSessionPropertiesError().message).toBe(
+      'Invalid sessionProperties requested',
+    );
+    expect(Caip25Errors.invalidSessionPropertiesError().code).toBe(5302);
   });
 });
