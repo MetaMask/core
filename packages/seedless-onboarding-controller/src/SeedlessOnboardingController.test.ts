@@ -517,6 +517,8 @@ async function decryptVault(vault: string, password: string) {
  * @param options.vaultEncryptionSalt - The mock vault encryption salt.
  * @param options.encryptedKeyringEncryptionKey - The mock encrypted keyring encryption key.
  * @param options.withoutMockAccessToken - Whether to skip the accessToken in authenticated user state.
+ * @param options.metadataAccessToken - The mock metadata access token.
+ * @param options.accessToken - The mock access token.
  * @returns The initial controller state with the mock authenticated user.
  */
 function getMockInitialControllerState(options?: {
@@ -529,6 +531,8 @@ function getMockInitialControllerState(options?: {
   vaultEncryptionKey?: string;
   vaultEncryptionSalt?: string;
   encryptedKeyringEncryptionKey?: string;
+  metadataAccessToken?: string;
+  accessToken?: string;
 }): Partial<SeedlessOnboardingControllerState> {
   const state = getDefaultSeedlessOnboardingControllerState();
 
@@ -551,9 +555,10 @@ function getMockInitialControllerState(options?: {
     state.groupedAuthConnectionId = groupedAuthConnectionId;
     state.userId = userId;
     state.refreshToken = refreshToken;
-    state.metadataAccessToken = metadataAccessToken;
-    if (!options?.withoutMockAccessToken) {
-      state.accessToken = accessToken;
+    state.metadataAccessToken =
+      options?.metadataAccessToken ?? metadataAccessToken;
+    if (!options?.withoutMockAccessToken || options?.accessToken) {
+      state.accessToken = options?.accessToken ?? accessToken;
     }
     if (!options?.withoutMockRevokeToken) {
       state.revokeToken = revokeToken;
@@ -4641,6 +4646,259 @@ describe('SeedlessOnboardingController', () => {
           },
         );
       });
+    });
+  });
+  describe('fetchMetadataAccessCreds', () => {
+    const createMockJWTToken = (exp: number) => {
+      const payload = { exp };
+      const encodedPayload = btoa(JSON.stringify(payload));
+      return `header.${encodedPayload}.signature`;
+    };
+
+    it('should return the current metadata access token if not expired', async () => {
+      const futureExp = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
+      const validToken = createMockJWTToken(futureExp);
+
+      const { messenger } = mockSeedlessOnboardingMessenger();
+      const controller = new SeedlessOnboardingController({
+        messenger,
+        encryptor: createMockVaultEncryptor(),
+        refreshJWTToken: jest.fn(),
+        revokeRefreshToken: jest.fn(),
+        state: getMockInitialControllerState({
+          withMockAuthenticatedUser: true,
+          metadataAccessToken: validToken,
+        }),
+      });
+
+      const result = await controller.fetchMetadataAccessCreds();
+
+      expect(result).toStrictEqual({
+        metadataAccessToken: validToken,
+      });
+    });
+
+    it('should throw error if metadataAccessToken is missing', async () => {
+      const { messenger } = mockSeedlessOnboardingMessenger();
+      const state = getMockInitialControllerState({
+        withMockAuthenticatedUser: true,
+      });
+      delete state.metadataAccessToken;
+      const controller = new SeedlessOnboardingController({
+        messenger,
+        encryptor: createMockVaultEncryptor(),
+        refreshJWTToken: jest.fn(),
+        revokeRefreshToken: jest.fn(),
+        state,
+      });
+
+      await expect(controller.fetchMetadataAccessCreds()).rejects.toThrow(
+        SeedlessOnboardingControllerErrorMessage.InvalidMetadataAccessToken,
+      );
+    });
+
+    it('should call refreshAuthTokens if metadataAccessToken is expired', async () => {
+      const pastExp = Math.floor(Date.now() / 1000) - 3600; // 1 hour ago
+      const expiredToken = createMockJWTToken(pastExp);
+      const { messenger } = mockSeedlessOnboardingMessenger();
+      const controller = new SeedlessOnboardingController({
+        messenger,
+        encryptor: createMockVaultEncryptor(),
+        refreshJWTToken: jest.fn(),
+        revokeRefreshToken: jest.fn(),
+        state: getMockInitialControllerState({
+          withMockAuthenticatedUser: true,
+          metadataAccessToken: expiredToken,
+        }),
+      });
+
+      // mock refreshAuthTokens to return a new token
+      jest.spyOn(controller, 'refreshAuthTokens').mockResolvedValue();
+
+      await controller.fetchMetadataAccessCreds();
+
+      expect(controller.refreshAuthTokens).toHaveBeenCalled();
+    });
+  });
+
+  describe('checkMetadataAccessTokenExpired', () => {
+    const createMockJWTToken = (exp: number) => {
+      const payload = { exp };
+      const encodedPayload = btoa(JSON.stringify(payload));
+      return `header.${encodedPayload}.signature`;
+    };
+
+    it('should return false if metadata access token is not expired', async () => {
+      const futureExp = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
+      const validToken = createMockJWTToken(futureExp);
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            metadataAccessToken: validToken,
+          }),
+        },
+        async ({ controller }) => {
+          // Restore the original implementation to test the real logic
+          jest
+            .spyOn(controller, 'checkMetadataAccessTokenExpired')
+            .mockRestore();
+
+          const result = controller.checkMetadataAccessTokenExpired();
+          expect(result).toBe(false);
+        },
+      );
+    });
+
+    it('should return true if metadata access token is expired', async () => {
+      const pastExp = Math.floor(Date.now() / 1000) - 3600; // 1 hour ago
+      const expiredToken = createMockJWTToken(pastExp);
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            metadataAccessToken: expiredToken,
+          }),
+        },
+        async ({ controller }) => {
+          // Restore the original implementation to test the real logic
+          jest
+            .spyOn(controller, 'checkMetadataAccessTokenExpired')
+            .mockRestore();
+
+          const result = controller.checkMetadataAccessTokenExpired();
+          expect(result).toBe(true);
+        },
+      );
+    });
+
+    it('should return true if user is not authenticated', async () => {
+      await withController(async ({ controller }) => {
+        // Restore the original implementation to test the real logic
+        jest.spyOn(controller, 'checkMetadataAccessTokenExpired').mockRestore();
+
+        const result = controller.checkMetadataAccessTokenExpired();
+        expect(result).toBe(true);
+      });
+    });
+
+    it('should return true if token has invalid format', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            metadataAccessToken: 'invalid.token.format',
+          }),
+        },
+        async ({ controller }) => {
+          // Restore the original implementation to test the real logic
+          jest
+            .spyOn(controller, 'checkMetadataAccessTokenExpired')
+            .mockRestore();
+
+          const result = controller.checkMetadataAccessTokenExpired();
+          expect(result).toBe(true);
+        },
+      );
+    });
+  });
+
+  describe('checkAccessTokenExpired', () => {
+    const createMockJWTToken = (exp: number) => {
+      const payload = { exp };
+      const encodedPayload = btoa(JSON.stringify(payload));
+      return `header.${encodedPayload}.signature`;
+    };
+
+    it('should return false if access token is not expired', async () => {
+      const futureExp = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
+      const validToken = createMockJWTToken(futureExp);
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            accessToken: validToken,
+          }),
+        },
+        async ({ controller }) => {
+          // Restore the original implementation to test the real logic
+          jest.spyOn(controller, 'checkAccessTokenExpired').mockRestore();
+
+          const result = controller.checkAccessTokenExpired();
+          expect(result).toBe(false);
+        },
+      );
+    });
+
+    it('should return true if access token is expired', async () => {
+      const pastExp = Math.floor(Date.now() / 1000) - 3600; // 1 hour ago
+      const expiredToken = createMockJWTToken(pastExp);
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            accessToken: expiredToken,
+          }),
+        },
+        async ({ controller }) => {
+          // Restore the original implementation to test the real logic
+          jest.spyOn(controller, 'checkAccessTokenExpired').mockRestore();
+
+          const result = controller.checkAccessTokenExpired();
+          expect(result).toBe(true);
+        },
+      );
+    });
+
+    it('should return true if access token is missing', async () => {
+      const state = getMockInitialControllerState({
+        withMockAuthenticatedUser: true,
+      });
+      delete state.accessToken;
+      await withController(
+        {
+          state,
+        },
+        async ({ controller }) => {
+          // Restore the original implementation to test the real logic
+          jest.spyOn(controller, 'checkAccessTokenExpired').mockRestore();
+
+          const result = controller.checkAccessTokenExpired();
+          expect(result).toBe(true);
+        },
+      );
+    });
+
+    it('should return true if user is not authenticated', async () => {
+      await withController(async ({ controller }) => {
+        // Restore the original implementation to test the real logic
+        jest.spyOn(controller, 'checkAccessTokenExpired').mockRestore();
+
+        const result = controller.checkAccessTokenExpired();
+        expect(result).toBe(true);
+      });
+    });
+
+    it('should return true if token has invalid format', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            metadataAccessToken: 'invalid.token.format',
+          }),
+        },
+        async ({ controller }) => {
+          // Restore the original implementation to test the real logic
+          jest.spyOn(controller, 'checkAccessTokenExpired').mockRestore();
+
+          const result = controller.checkAccessTokenExpired();
+          expect(result).toBe(true);
+        },
+      );
     });
   });
 });

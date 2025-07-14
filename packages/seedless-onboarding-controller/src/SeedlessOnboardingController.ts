@@ -41,9 +41,8 @@ import type {
   VaultEncryptor,
   RefreshJWTToken,
   RevokeRefreshToken,
-  DecodedNodeAuthToken,
-  DecodedBaseJWTToken,
 } from './types';
+import { decodeJWTToken, decodeNodeAuthToken } from './utils';
 
 const log = createModuleLogger(projectLogger, controllerName);
 
@@ -229,19 +228,17 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     }
 
     // Check if token is expired and refresh if needed
-    const decodedToken = this.decodeJWTToken(metadataAccessToken);
+    const decodedToken = decodeJWTToken(metadataAccessToken);
     if (decodedToken.exp < Math.floor(Date.now() / 1000)) {
       // Token is expired, refresh it
       await this.refreshAuthTokens();
 
       // Get the new token after refresh
       const { metadataAccessToken: newMetadataAccessToken } = this.state;
-      if (!newMetadataAccessToken) {
-        throw new Error(
-          SeedlessOnboardingControllerErrorMessage.InvalidMetadataAccessToken,
-        );
-      }
-      return { metadataAccessToken: newMetadataAccessToken };
+
+      return {
+        metadataAccessToken: newMetadataAccessToken as string,
+      };
     }
 
     return { metadataAccessToken };
@@ -1853,7 +1850,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     // all auth tokens should be expired at the same time so we can check the first one
     const firstAuthToken = nodeAuthTokens[0]?.authToken;
     // node auth token is base64 encoded json object
-    const decodedToken = this.decodeNodeAuthToken(firstAuthToken);
+    const decodedToken = decodeNodeAuthToken(firstAuthToken);
     // check if the token is expired
     return decodedToken.exp < Date.now() / 1000;
   }
@@ -1862,10 +1859,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     try {
       this.#assertIsAuthenticatedUser(this.state);
       const { metadataAccessToken } = this.state;
-      if (!metadataAccessToken) {
-        return true; // Consider missing token as expired
-      }
-      const decodedToken = this.decodeJWTToken(metadataAccessToken);
+      // assertIsAuthenticatedUser will throw if metadataAccessToken is missing
+      const decodedToken = decodeJWTToken(metadataAccessToken as string);
       return decodedToken.exp < Math.floor(Date.now() / 1000);
     } catch {
       return true; // Consider unauthenticated user as having expired tokens
@@ -1879,50 +1874,10 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       if (!accessToken) {
         return true; // Consider missing token as expired
       }
-      const decodedToken = this.decodeJWTToken(accessToken);
+      const decodedToken = decodeJWTToken(accessToken);
       return decodedToken.exp < Math.floor(Date.now() / 1000);
     } catch {
       return true; // Consider unauthenticated user as having expired tokens
-    }
-  }
-
-  /**
-   * Decode the node auth token from base64 to json object.
-   *
-   * @param token - The node auth token to decode.
-   * @returns The decoded node auth token.
-   */
-  decodeNodeAuthToken(token: string): DecodedNodeAuthToken {
-    return JSON.parse(bytesToUtf8(base64ToBytes(token)));
-  }
-
-  /**
-   * Decode JWT token
-   *
-   * @param token - The JWT token to decode.
-   * @returns The decoded JWT token.
-   */
-  decodeJWTToken(token: string): DecodedBaseJWTToken {
-    // JWT tokens have 3 parts separated by dots: header.payload.signature
-    const parts = token.split('.');
-    if (parts.length !== 3) {
-      throw new Error('Invalid JWT token format');
-    }
-
-    // Decode the payload (second part)
-    const payload = parts[1];
-    // Add padding if needed for base64 decoding
-    const paddedPayload = payload + '='.repeat((4 - (payload.length % 4)) % 4);
-
-    try {
-      const decoded = JSON.parse(
-        Buffer.from(paddedPayload, 'base64').toString(),
-      );
-      return decoded as DecodedBaseJWTToken;
-    } catch (error) {
-      throw new Error(
-        `Failed to decode JWT token: ${error instanceof Error ? error.message : String(error)}`,
-      );
     }
   }
 }
