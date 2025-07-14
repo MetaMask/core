@@ -1,10 +1,10 @@
-import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
+import { createAsyncMiddleware } from '@metamask/json-rpc-engine/legacy';
 import type {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   JsonRpcEngine,
   JsonRpcMiddleware,
   AsyncJsonRpcEngineNextCallback,
-} from '@metamask/json-rpc-engine';
+} from '@metamask/json-rpc-engine/legacy';
 import type {
   Json,
   PendingJsonRpcResponse,

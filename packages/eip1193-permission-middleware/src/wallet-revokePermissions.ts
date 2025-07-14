@@ -2,7 +2,7 @@ import { Caip25EndowmentPermissionName } from '@metamask/chain-agnostic-permissi
 import type {
   AsyncJsonRpcEngineNextCallback,
   JsonRpcEngineEndCallback,
-} from '@metamask/json-rpc-engine';
+} from '@metamask/json-rpc-engine/legacy';
 import { invalidParams, MethodNames } from '@metamask/permission-controller';
 import {
   isNonEmptyArray,

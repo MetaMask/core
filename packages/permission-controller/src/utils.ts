@@ -1,7 +1,7 @@
 import type {
   JsonRpcEngineEndCallback,
   JsonRpcEngineNextCallback,
-} from '@metamask/json-rpc-engine';
+} from '@metamask/json-rpc-engine/legacy';
 import type {
   Json,
   JsonRpcParams,

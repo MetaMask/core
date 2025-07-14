@@ -2,7 +2,7 @@ import type { ExternalScopeString } from '@metamask/chain-agnostic-permission';
 import type {
   JsonRpcEngineEndCallback,
   JsonRpcEngineNextCallback,
-} from '@metamask/json-rpc-engine';
+} from '@metamask/json-rpc-engine/legacy';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
 
