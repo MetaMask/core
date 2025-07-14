@@ -184,6 +184,12 @@ async function withController<ReturnValue>(
     newRefreshToken: 'newRefreshToken',
   });
 
+  // In the withController function, before creating the controller:
+  const originalFetchMetadataAccessCreds = SeedlessOnboardingController.prototype.fetchMetadataAccessCreds;
+  SeedlessOnboardingController.prototype.fetchMetadataAccessCreds = jest.fn().mockResolvedValue({
+    metadataAccessToken: 'mock-metadata-access-token',
+  });
+
   const controller = new SeedlessOnboardingController({
     encryptor,
     messenger,
@@ -193,8 +199,12 @@ async function withController<ReturnValue>(
     ...rest,
   });
 
+  SeedlessOnboardingController.prototype.fetchMetadataAccessCreds = originalFetchMetadataAccessCreds;
+
   // default node auth token not expired for testing
   jest.spyOn(controller, 'checkNodeAuthTokenExpired').mockReturnValue(false);
+  jest.spyOn(controller, 'checkMetadataAccessTokenExpired').mockReturnValue(false);
+  jest.spyOn(controller, 'checkAccessTokenExpired').mockReturnValue(false);
 
   const { toprfClient } = controller;
   return await fn({
@@ -390,6 +400,10 @@ async function mockCreateToprfKeyAndBackupSeedPhrase<EKey>(
   keyringId: string,
 ) {
   mockcreateLocalKey(toprfClient, password);
+
+  jest.spyOn(controller, 'fetchMetadataAccessCreds').mockResolvedValueOnce({
+    metadataAccessToken: 'mock-metadata-access-token',
+  });
 
   // persist the local enc key
   jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
@@ -4489,7 +4503,7 @@ describe('SeedlessOnboardingController', () => {
       });
     });
 
-    describe('refreshNodeAuthTokens', () => {
+    describe('refreshAuthTokens', () => {
       it('should successfully refresh node auth tokens', async () => {
         const mockToprfEncryptor = createMockToprfEncryptor();
         const MOCK_ENCRYPTION_KEY =
@@ -4540,7 +4554,7 @@ describe('SeedlessOnboardingController', () => {
               isNewUser: false,
             });
 
-            await controller.refreshNodeAuthTokens();
+            await controller.refreshAuthTokens();
 
             expect(mockRefreshJWTToken).toHaveBeenCalledWith({
               connection: controller.state.authConnection,
@@ -4559,7 +4573,7 @@ describe('SeedlessOnboardingController', () => {
 
       it('should throw error if controller not authenticated', async () => {
         await withController(async ({ controller }) => {
-          await expect(controller.refreshNodeAuthTokens()).rejects.toThrow(
+          await expect(controller.refreshAuthTokens()).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.MissingAuthUserInfo,
           );
         });
@@ -4578,8 +4592,8 @@ describe('SeedlessOnboardingController', () => {
               new Error('Refresh failed'),
             );
 
-            // Call refreshNodeAuthTokens and expect it to throw
-            await expect(controller.refreshNodeAuthTokens()).rejects.toThrow(
+            // Call refreshAuthTokens and expect it to throw
+            await expect(controller.refreshAuthTokens()).rejects.toThrow(
               SeedlessOnboardingControllerErrorMessage.AuthenticationError,
             );
 
@@ -4610,8 +4624,8 @@ describe('SeedlessOnboardingController', () => {
               .spyOn(toprfClient, 'authenticate')
               .mockRejectedValueOnce(new Error('Authentication failed'));
 
-            // Call refreshNodeAuthTokens and expect it to throw
-            await expect(controller.refreshNodeAuthTokens()).rejects.toThrow(
+            // Call refreshAuthTokens and expect it to throw
+            await expect(controller.refreshAuthTokens()).rejects.toThrow(
               SeedlessOnboardingControllerErrorMessage.AuthenticationError,
             );
 

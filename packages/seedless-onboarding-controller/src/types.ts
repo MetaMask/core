@@ -375,3 +375,27 @@ export type DecodedNodeAuthToken = {
   scope: string;
   signature: string;
 };
+
+
+export type DecodedBaseJWTToken = {
+  /**
+   * The expiration time of the token in seconds.
+   */
+  exp: number;
+  /**
+   * The issued at time of the token in seconds.
+   */
+  iat: number;
+  /**
+   * The audience of the token.
+   */
+  aud: string;
+  /**
+   * The issuer of the token.
+   */
+  iss: string;
+  /**
+   * The subject of the token.
+   */
+  sub: string;
+};
