@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [21.0.0]
+
 ### Added
 
 - Add performance tracing to user storage syncing operations (contacts and accounts) ([#6050](https://github.com/MetaMask/core/pull/6050))
@@ -665,7 +667,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@20.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@21.0.0...HEAD
+[21.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@20.0.0...@metamask/profile-sync-controller@21.0.0
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@19.0.0...@metamask/profile-sync-controller@20.0.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@18.0.0...@metamask/profile-sync-controller@19.0.0
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@17.1.0...@metamask/profile-sync-controller@18.0.0
