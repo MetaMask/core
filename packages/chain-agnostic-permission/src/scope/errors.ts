@@ -5,13 +5,21 @@ import { JsonRpcError } from '@metamask/rpc-errors';
  */
 export const Caip25Errors = {
   /**
+   * Thrown when an unknown error occurs or no scopes were authorized in a CAIP-25 request.
+   *
+   * @returns A new JsonRpcError instance.
+   */
+  unknownErrorOrNoScopesAuthorized: () =>
+    new JsonRpcError(5000, 'Unknown error with request'),
+
+  /**
    * Thrown when chains requested in a CAIP-25 `wallet_createSession` call are not supported by the wallet.
    * Defined in [CAIP-25 error codes section](https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-25.md#trusted-failure-codes).
    *
    * @returns A new JsonRpcError instance.
    */
   requestedChainsNotSupportedError: () =>
-    new JsonRpcError(5100, 'Requested chains are not supported'),
+    new JsonRpcError(5100, 'Requested networks are not supported'),
 
   /**
    * Thrown when methods requested in a CAIP-25 `wallet_createSession` call are not supported by the wallet.
@@ -50,4 +58,13 @@ export const Caip25Errors = {
    */
   unknownNotificationsRequestedError: () =>
     new JsonRpcError(5202, 'Unknown notification(s) requested'),
+
+  /**
+   * Thrown when sessionProperties requested in a CAIP-25 `wallet_createSession` call are not supported by the wallet.
+   * Defined in [CAIP-25 error codes section](https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-25.md#trust-agnostic-malformed-request-failure-codes)
+   *
+   * @returns A new JsonRpcError instance.
+   */
+  invalidSessionPropertiesError: () =>
+    new JsonRpcError(5302, 'Invalid sessionProperties requested'),
 };
