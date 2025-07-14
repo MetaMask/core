@@ -111,6 +111,10 @@ async function checkActionTypesFiles(
       const actualContent = await fs.promises.readFile(outputFile, 'utf8');
 
       if (normalize(actualContent) !== normalize(expectedContent)) {
+        console.log('Actual content:');
+        console.log(actualContent);
+        console.log('Expected content:');
+        console.log(expectedContent);
         console.error(
           `❌ ${baseFileName}-method-action-types.ts is out of date`,
         );
