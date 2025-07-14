@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add general settings properties for cross-platform synchronization ([#6111](https://github.com/MetaMask/core/pull/6111))
+
 ### Deprecated
 
 - Deprecate preference `smartAccountOptInForAccounts` and function `setSmartAccountOptInForAccounts` ([#6087](https://github.com/MetaMask/core/pull/6087))
