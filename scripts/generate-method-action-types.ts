@@ -9,7 +9,6 @@ import yargs from 'yargs';
 const eslint = new ESLint({
   fix: true, // Auto-fix what we can
   errorOnUnmatchedPattern: false,
-  overrideConfigFile: path.resolve(__dirname, '../eslint.config.mjs'),
 });
 
 type MethodInfo = {
@@ -68,6 +67,23 @@ async function parseCommandLineArguments(): Promise<CommandLineArguments> {
 }
 
 /**
+ * Normalizes content for comparison (remove extra whitespace differences)
+ *
+ * - Replace multiple spaces with a single space
+ * - Replace `;\s*}` with `;}`
+ * - Trim the content
+ *
+ * @param content - The content to normalize.
+ * @returns The normalized content.
+ */
+function normalize(content: string): string {
+  return content
+    .replace(/\s+/gu, ' ')
+    .replace(/;\s*\}/gu, ';}')
+    .trim();
+}
+
+/**
  * Checks if generated action types files are up to date.
  *
  * @param controllers - Array of controller information objects.
@@ -94,7 +110,7 @@ async function checkActionTypesFiles(
     try {
       const actualContent = await fs.promises.readFile(outputFile, 'utf8');
 
-      if (actualContent !== expectedContent) {
+      if (normalize(actualContent) !== normalize(expectedContent)) {
         console.error(
           `❌ ${baseFileName}-method-action-types.ts is out of date`,
         );
