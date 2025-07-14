@@ -1,4 +1,4 @@
-import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine/legacy';
 import { providerErrors } from '@metamask/rpc-errors';
 
 import { providerFromMiddleware } from './provider-from-middleware';

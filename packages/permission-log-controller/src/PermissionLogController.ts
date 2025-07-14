@@ -2,7 +2,7 @@ import {
   BaseController,
   type RestrictedMessenger,
 } from '@metamask/base-controller';
-import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine/legacy';
 import {
   type Json,
   type JsonRpcRequest,

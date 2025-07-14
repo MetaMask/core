@@ -1,7 +1,7 @@
 import { Web3Provider } from '@ethersproject/providers';
 import EthQuery from '@metamask/eth-query';
 import EthJsQuery from '@metamask/ethjs-query';
-import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine/legacy';
 import { providerErrors } from '@metamask/rpc-errors';
 import { type JsonRpcRequest, type Json } from '@metamask/utils';
 import { BrowserProvider } from 'ethers';

@@ -2,7 +2,7 @@ import { Messenger } from '@metamask/base-controller';
 import type {
   JsonRpcEngineReturnHandler,
   JsonRpcEngineNextCallback,
-} from '@metamask/json-rpc-engine';
+} from '@metamask/json-rpc-engine/legacy';
 import {
   type PendingJsonRpcResponse,
   type JsonRpcRequest,

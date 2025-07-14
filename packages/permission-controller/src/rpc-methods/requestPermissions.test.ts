@@ -1,7 +1,7 @@
 import {
   JsonRpcEngine,
   createAsyncMiddleware,
-} from '@metamask/json-rpc-engine';
+} from '@metamask/json-rpc-engine/legacy';
 import { rpcErrors, serializeError } from '@metamask/rpc-errors';
 import {
   assertIsJsonRpcFailure,
