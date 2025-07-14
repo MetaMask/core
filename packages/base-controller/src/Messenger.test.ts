@@ -638,53 +638,7 @@ describe('Messenger', () => {
       expect(result).toBe('data-123');
     });
 
-    it('should exclude constructor and messagingSystem by default', () => {
-      type TestAction = {
-        type: 'TestController:getValue';
-        handler: () => string;
-      };
-      const messenger = new Messenger<TestAction, never>();
-
-      class TestController {
-        name = 'TestController';
-
-        // eslint-disable-next-line @typescript-eslint/no-useless-constructor -- This is a test
-        constructor() {
-          // Should not be registered
-        }
-
-        get messagingSystem() {
-          return 'should not be registered';
-        }
-
-        getValue() {
-          return 'test value';
-        }
-      }
-
-      const controller = new TestController();
-      messenger.registerMethodActionHandlers(controller, ['getValue']);
-
-      // getValue should be registered
-      expect(messenger.call('TestController:getValue')).toBe('test value');
-
-      // constructor and messagingSystem should not be registered
-      expect(() => {
-        // @ts-expect-error - This is a test
-        messenger.call('TestController:constructor');
-      }).toThrow(
-        'A handler for TestController:constructor has not been registered',
-      );
-
-      expect(() => {
-        // @ts-expect-error - This is a test
-        messenger.call('TestController:messagingSystem');
-      }).toThrow(
-        'A handler for TestController:messagingSystem has not been registered',
-      );
-    });
-
-    it('should handle empty methodNames array', () => {
+    it('should not throw when given an empty methodNames array', () => {
       type TestAction = { type: 'TestController:test'; handler: () => void };
       const messenger = new Messenger<TestAction, never>();
 

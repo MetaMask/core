@@ -185,8 +185,7 @@ export class Messenger<
     for (const methodName of methodNames) {
       const handler = instance[methodName];
       if (typeof handler === 'function') {
-        const actionType =
-          `${instance.name}:${methodName}` as `${Instance['name']}:${MethodNames}`;
+        const actionType = `${instance.name}:${methodName}` as const;
         this.registerActionHandler(actionType, handler.bind(instance));
       }
     }
@@ -221,7 +220,7 @@ export class Messenger<
    * This function will call the action handler corresponding to the given action type, passing
    * along any parameters given.
    *
-   * @param actionType - The action type. This is a unqiue identifier for this action.
+   * @param actionType - The action type. This is a unique identifier for this action.
    * @param params - The action parameters. These must match the type of the parameters of the
    * registered action handler.
    * @throws Will throw when no handler has been registered for the given type.
