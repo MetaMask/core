@@ -2,7 +2,7 @@ import type {
   JsonRpcEngineNextCallback,
   JsonRpcEngineEndCallback,
   JsonRpcMiddleware,
-} from '@metamask/json-rpc-engine';
+} from '@metamask/json-rpc-engine/legacy';
 import SafeEventEmitter from '@metamask/safe-event-emitter';
 import {
   hasProperty,

@@ -8,7 +8,7 @@ import { isPlainObject } from '@metamask/controller-utils';
 import type {
   AsyncJsonRpcEngineNextCallback,
   JsonRpcEngineEndCallback,
-} from '@metamask/json-rpc-engine';
+} from '@metamask/json-rpc-engine/legacy';
 import {
   type Caveat,
   type CaveatSpecificationConstraint,

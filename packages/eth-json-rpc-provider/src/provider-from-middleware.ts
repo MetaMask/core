@@ -1,5 +1,5 @@
-import { JsonRpcEngine } from '@metamask/json-rpc-engine';
-import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine/legacy';
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine/legacy';
 import type { Json, JsonRpcParams } from '@metamask/utils';
 
 import { providerFromEngine } from './provider-from-engine';

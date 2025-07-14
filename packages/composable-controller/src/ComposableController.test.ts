@@ -1,6 +1,6 @@
 import type { RestrictedMessenger } from '@metamask/base-controller';
 import { BaseController, Messenger } from '@metamask/base-controller';
-import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine/legacy';
 import type { Patch } from 'immer';
 import * as sinon from 'sinon';
 
