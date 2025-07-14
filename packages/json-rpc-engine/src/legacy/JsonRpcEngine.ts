@@ -17,16 +17,28 @@ import {
 
 export type JsonRpcEngineCallbackError = Error | SerializedJsonRpcError | null;
 
+/**
+ * @deprecated Use `JsonRpcEngineV2` and its corresponding types instead.
+ */
 export type JsonRpcEngineReturnHandler = (
   done: (error?: unknown) => void,
 ) => void;
 
+/**
+ * @deprecated Use `JsonRpcEngineV2` and its corresponding types instead.
+ */
 export type JsonRpcEngineNextCallback = (
   returnHandlerCallback?: JsonRpcEngineReturnHandler,
 ) => void;
 
+/**
+ * @deprecated Use `JsonRpcEngineV2` and its corresponding types instead.
+ */
 export type JsonRpcEngineEndCallback = (error?: unknown) => void;
 
+/**
+ * @deprecated Use `JsonRpcEngineV2` and its corresponding types instead.
+ */
 export type JsonRpcMiddleware<
   Params extends JsonRpcParams,
   Result extends Json,
@@ -43,6 +55,9 @@ export type JsonRpcMiddleware<
 const DESTROYED_ERROR_MESSAGE =
   'This engine is destroyed and can no longer be used.';
 
+/**
+ * @deprecated Use `JsonRpcEngineV2` and its corresponding types instead.
+ */
 export type JsonRpcNotificationHandler<Params extends JsonRpcParams> = (
   notification: JsonRpcNotification<Params>,
 ) => void | Promise<void>;
@@ -62,7 +77,10 @@ type JsonRpcEngineArgs = {
 
 /**
  * A JSON-RPC request and response processor.
+ *
  * Give it a stack of middleware, pass it requests, and get back responses.
+ *
+ * @deprecated Use `JsonRpcEngineV2` instead.
  */
 export class JsonRpcEngine extends SafeEventEmitter {
   /**
