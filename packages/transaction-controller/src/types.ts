@@ -39,6 +39,8 @@ export type TransactionMeta = {
    */
   actionId?: string;
 
+  assets?: TransactionAsset[];
+
   /**
    * Base fee of the block as a hex value, introduced in EIP-1559.
    */
@@ -1877,3 +1879,8 @@ export type BeforeSignHook = (request: {
     }
   | undefined
 >;
+
+export type TransactionAsset = {
+  address: Hex;
+  amount: Hex;
+};
