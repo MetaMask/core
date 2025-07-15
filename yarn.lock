@@ -4198,6 +4198,7 @@ __metadata:
     "@metamask/keyring-controller": "npm:^22.1.0"
     "@metamask/keyring-internal-api": "npm:^7.0.0"
     "@metamask/providers": "npm:^22.1.0"
+    "@metamask/seedless-onboarding-controller": "npm:^2.1.0"
     "@metamask/snaps-controllers": "npm:^14.0.1"
     "@metamask/snaps-sdk": "npm:^9.0.0"
     "@metamask/snaps-utils": "npm:^11.0.0"
@@ -4336,7 +4337,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/seedless-onboarding-controller@workspace:packages/seedless-onboarding-controller":
+"@metamask/seedless-onboarding-controller@npm:^2.1.0, @metamask/seedless-onboarding-controller@workspace:packages/seedless-onboarding-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/seedless-onboarding-controller@workspace:packages/seedless-onboarding-controller"
   dependencies:
