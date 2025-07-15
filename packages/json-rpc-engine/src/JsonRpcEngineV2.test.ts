@@ -417,6 +417,18 @@ describe('JsonRpcEngineV2', () => {
         expect(returnHandlerResults).toStrictEqual(['3', '2', '1']);
       });
 
+      it.skip('returns the expected result after no-op return handler', async () => {
+        const middleware1 = jest.fn(() => () => undefined);
+        const middleware2 = jest.fn(() => null);
+        const engine = new JsonRpcEngineV2({
+          middleware: [middleware1, middleware2],
+        });
+
+        const result = await engine.handle(makeRequest());
+
+        expect(result).toBe(null);
+      });
+
       it('lets return handler update the result', async () => {
         const middleware1 = jest.fn(() => () => {
           return '1';
