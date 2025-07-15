@@ -14,13 +14,14 @@ export type WalletRuleMatch = {
  */
 export type WalletRule = {
   /**
-   * Try to see if the account matches this rule. If the account matches, then the
-   * rule will return a {@link WalletRuleMatch} which means this account needs to be
-   * grouped within a wallet associated with this rule.
+   * Apply the rule and check if the account matches.
+   *
+   * If the account matches, then the rule will return a {@link WalletRuleMatch} which means
+   * this account needs to be grouped within a wallet associated with this rule.
    *
    * If a wallet already exists for this account (based on {@link WalletRuleMatch}) then
-   * the account will be added to that wallet instance into its proper group
-   * (different for every wallets).
+   * the account will be added to that wallet instance into its proper group (different for
+   * every wallets).
    *
    * @param account - The account to match.
    * @returns A {@link WalletRuleMatch} if this account is part of that rule/wallet, returns
@@ -30,7 +31,7 @@ export type WalletRule = {
 };
 
 /**
- * Base abstract class for {@link WalletRule}.
+ * Abstract base class for {@link WalletRule}.
  */
 export abstract class BaseWalletRule implements WalletRule {
   protected readonly messenger: AccountTreeControllerMessenger;
