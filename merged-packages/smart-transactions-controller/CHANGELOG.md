@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.0.0]
+
+### Added
+
+- Add support for type 4 transaction ([#521](https://github.com/MetaMask/smart-transactions-controller/pull/521))
+
 ### Changed
 
 - **BREAKING:** Bump peer dependency on `@metamask/network-controller` to `^24.0.0` ([#519](https://github.com/MetaMask/smart-transactions-controller/pull/519))
@@ -565,7 +571,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial SmartTransactionsController ([#1](https://github.com/MetaMask/smart-transactions-controller/pull/1))
 - Initial commit
 
-[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v16.5.0...HEAD
+[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v17.0.0...HEAD
+[17.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v16.5.0...v17.0.0
 [16.5.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v16.4.0...v16.5.0
 [16.4.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v16.3.1...v16.4.0
 [16.3.1]: https://github.com/MetaMask/smart-transactions-controller/compare/v16.3.0...v16.3.1
