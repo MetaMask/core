@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Update `NftController` to use properly exported `PhishingControllerBulkScanUrlsAction` type from `@metamask/phishing-controller` ([#6105](https://github.com/MetaMask/core/pull/6105))
+
 ## [71.0.0]
 
 ### Changed
