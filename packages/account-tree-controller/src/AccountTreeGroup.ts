@@ -10,10 +10,18 @@ import type { AccountTreeControllerMessenger } from 'src';
 
 export const DEFAULT_ACCOUNT_GROUP_NAME: string = 'Default';
 
+/**
+ * Account group coming from the {@link AccountTreeController}.
+ */
 export type AccountTreeGroup = {
+  /**
+   * Account IDs for that account group.
+   */
   get accounts(): AccountId[];
 } & AccountGroup<InternalAccount>;
 
+// This class is meant to be used internally by every rules. It exposes mutable operations
+// which should not leak outside of this package.
 export class MutableAccountTreeGroup implements AccountTreeGroup {
   readonly id: AccountGroupId;
 
@@ -65,8 +73,8 @@ export class MutableAccountTreeGroup implements AccountTreeGroup {
     this.#accounts.add(account.id);
   }
 
+  // NOTE: This method SHOULD BE overriden if a rule need to name its group differently.
   getDefaultName(): string {
-    // TODO: We might need to make this customizable when introducing multichain account.
     return DEFAULT_ACCOUNT_GROUP_NAME;
   }
 }
