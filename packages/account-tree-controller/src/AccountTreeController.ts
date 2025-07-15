@@ -199,6 +199,14 @@ export class AccountTreeController extends BaseController<
     });
   }
 
+  getWallet(id: AccountWalletId): AccountTreeWallet | undefined {
+    return this.#wallets.get(id);
+  }
+
+  getWallets(): AccountTreeWallet[] {
+    return Array.from(this.#wallets.values());
+  }
+
   #handleAccountAdded(account: InternalAccount) {
     this.update((state) => {
       this.#insert(state.accountTree.wallets, account);
@@ -239,6 +247,7 @@ export class AccountTreeController extends BaseController<
       if (!wallet) {
         // If we don't have any AccountTreeWallet yet, we just create it.
         wallet = rule.build(result);
+        this.#wallets.set(wallet.id, wallet);
       }
 
       // This will automatically creates the group if it's missing.

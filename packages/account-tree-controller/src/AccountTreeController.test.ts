@@ -176,6 +176,7 @@ function getAccountTreeControllerMessenger(
     ],
     allowedActions: [
       'AccountsController:listMultichainAccounts',
+      'AccountsController:getAccount',
       'KeyringController:getState',
       'SnapController:get',
     ],
@@ -570,6 +571,139 @@ describe('AccountTreeController', () => {
           },
         },
       } as AccountTreeControllerState);
+    });
+  });
+
+  describe('getWallet', () => {
+    it('gets a wallet using its ID', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+      controller.init();
+
+      const walletId = toAccountWalletId(
+        AccountWalletCategory.Entropy,
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const wallet = controller.getWallet(walletId);
+      expect(wallet).toBeDefined();
+    });
+
+    it('gets undefined is wallet ID is not matching any wallet', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+      controller.init();
+
+      const wallet = controller.getWallet('entropy:unknown');
+      expect(wallet).toBeUndefined();
+    });
+  });
+
+  describe('getWallets', () => {
+    it('gets all wallets', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+      controller.init();
+
+      const wallets = controller.getWallets();
+      expect(wallets).toHaveLength(2);
+    });
+  });
+
+  describe('AccountTreeWallet', () => {
+    it('gets account groups from a wallet', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      controller.init();
+
+      const wallets = controller.getWallets();
+      expect(wallets).toHaveLength(1);
+
+      const wallet = wallets[0];
+      const groups = wallet.getAccountGroups();
+      expect(groups).toHaveLength(1);
+      expect(groups[0].id).toStrictEqual(toDefaultAccountGroupId(wallet.id));
+    });
+
+    it('gets a specific account group using its ID', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      controller.init();
+
+      const wallets = controller.getWallets();
+      expect(wallets).toHaveLength(1);
+
+      const wallet = wallets[0];
+      const groupId = toDefaultAccountGroupId(wallet.id);
+      const group = wallet.getAccountGroup(groupId);
+      expect(group).toBeDefined();
+      expect(group?.id).toStrictEqual(groupId);
+    });
+  });
+
+  describe('AccountTreeGroup', () => {
+    it('gets accounts from an account group', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      controller.init();
+
+      // Required by `getAccounts` below.
+      messenger.registerActionHandler(
+        'AccountsController:getAccount',
+        () => MOCK_HD_ACCOUNT_1,
+      );
+
+      const wallets = controller.getWallets();
+      expect(wallets).toHaveLength(1);
+
+      const wallet = wallets[0];
+      const groups = wallet.getAccountGroups();
+      expect(groups).toHaveLength(1);
+
+      const group = groups[0];
+      const accounts = group.getAccounts();
+      const accountIds = group.accounts;
+      expect(accounts).toHaveLength(1);
+      expect(accounts.map((account) => account.id)).toStrictEqual(accountIds);
+    });
+
+    it('skips account if it cannot be resolved', () => {
+      const { controller, messenger, spies } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      controller.init();
+
+      // Required by `getAccounts` below.
+      messenger.registerActionHandler(
+        'AccountsController:getAccount',
+        () => undefined, // Not resolved
+      );
+
+      const wallets = controller.getWallets();
+      const wallet = wallets[0];
+      const groups = wallet.getAccountGroups();
+      const group = groups[0];
+
+      const accountIds = group.accounts;
+      expect(accountIds).toHaveLength(1);
+
+      const accounts = group.getAccounts();
+      expect(spies.consoleWarn).toHaveBeenCalledWith(
+        `! Unable to get account: "${accountIds[0]}"`,
+      );
+      expect(accounts).toHaveLength(0); // None account could be resolved.
     });
   });
 });

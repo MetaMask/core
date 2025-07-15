@@ -40,10 +40,6 @@ export abstract class MutableAccountTreeWallet implements AccountTreeWallet {
     this.#groups = new Map();
   }
 
-  protected addAccountGroup(group: AccountTreeGroup) {
-    return this.#groups.set(group.id, group);
-  }
-
   getAccountGroup(groupId: AccountGroupId): AccountTreeGroup | undefined {
     return this.#groups.get(groupId);
   }
