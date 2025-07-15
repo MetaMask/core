@@ -11,7 +11,6 @@ import type {
   AuthConfig,
   AuthSigningOptions,
   AuthStorageOptions,
-  ErrorMessage,
   IBaseAuth,
   LoginResponse,
   UserProfile,
@@ -28,7 +27,6 @@ import {
   isSnapConnected,
 } from '../utils/messaging-signing-snap-requests';
 import { validateLoginResponse } from '../utils/validate-login-response';
-import { Env } from '../../shared/env';
 
 type JwtBearerAuth_SRP_Options = {
   storage: AuthStorageOptions;
