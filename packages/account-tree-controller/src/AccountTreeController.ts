@@ -232,6 +232,10 @@ export class AccountTreeController extends BaseController<
     account: InternalAccount,
   ) {
     for (const rule of this.#rules) {
+      // NOTE: Instead of de-coupling `match` and `build`, each "rules" could actually
+      // hold the reference of each of their wallets and returns that directly when
+      // calling `match`.
+      // This way, we don't need to have `match` and `build` seperated.
       const result = rule.match(account);
 
       if (!result) {
