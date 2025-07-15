@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Update `NftController` to use properly exported `PhishingControllerBulkScanUrlsAction` type from `@metamask/phishing-controller` ([#6105](https://github.com/MetaMask/core/pull/6105))
-- Bump peer dependency `@metamask/phishing-controller` to `^13.1.0` ([#6120](https://github.com/MetaMask/core/pull/6120))
+- Bump dev dependency `@metamask/phishing-controller` to `^13.1.0` ([#6120](https://github.com/MetaMask/core/pull/6120))
 
 ## [71.0.0]
 
