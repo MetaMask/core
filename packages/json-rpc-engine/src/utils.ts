@@ -5,6 +5,7 @@ import {
   type JsonRpcParams,
   type JsonRpcRequest as BaseJsonRpcRequest,
 } from '@metamask/utils';
+import { original as getOriginalState } from 'immer';
 
 export type JsonRpcNotification<Params extends JsonRpcParams = JsonRpcParams> =
   BaseJsonRpcNotification<Params>;
@@ -39,4 +40,20 @@ export class JsonRpcEngineError extends Error {
     super(message);
     this.name = 'JsonRpcEngineError';
   }
+}
+
+/**
+ * For cloning a request object _inside_ a middleware.
+ *
+ * **Must** be used to continue to access request data after the middleware has
+ * returned. This is because middleware receive an `immer` draft of the request,
+ * which is a proxy that becomes revoked after the middleware returns.
+ *
+ * @param request - The request to clone.
+ * @returns The cloned request.
+ */
+export function cloneRequest<Request extends JsonRpcCall>(
+  request: Request,
+): Request {
+  return structuredClone(getOriginalState(request)) as Request;
 }

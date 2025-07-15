@@ -3602,6 +3602,7 @@ __metadata:
     immer: "npm:^9.0.6"
     jest: "npm:^27.5.1"
     jest-it-up: "npm:^2.0.2"
+    lodash: "npm:^4.17.21"
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typescript: "npm:~5.2.2"

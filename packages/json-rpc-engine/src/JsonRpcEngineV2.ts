@@ -17,7 +17,7 @@ type ReturnHandler<Result extends Json = Json> = (
   result: Result,
 ) => void | Result | Promise<void | Result>;
 
-type MiddlewareResultConstraint<Request extends JsonRpcCall> =
+export type MiddlewareResultConstraint<Request extends JsonRpcCall> =
   Request extends JsonRpcNotification
     ? Request extends JsonRpcRequest
       ? void | Json | ReturnHandler
@@ -28,8 +28,9 @@ type HandledResult<Result extends MiddlewareResultConstraint<JsonRpcCall>> =
   Exclude<Result, typeof EndNotification> | void;
 
 export type JsonRpcMiddleware<
-  Request extends JsonRpcCall,
-  Result extends MiddlewareResultConstraint<Request>,
+  Request extends JsonRpcCall = JsonRpcCall,
+  Result extends
+    MiddlewareResultConstraint<Request> = MiddlewareResultConstraint<Request>,
 > = (request: Request, context: Context) => Result | Promise<Result>;
 
 type Options<
@@ -96,12 +97,14 @@ export class JsonRpcEngineV2<
   }
 
   async #handle(request: Request, context: Context = {}): Promise<Result> {
-    const { result, returnHandlers, finalRequest } = await this.#runMiddleware(
+    const { result, returnHandlers } = await this.#runMiddleware(
       request,
       context,
     );
 
-    return await this.#runReturnHandlers(result, returnHandlers, finalRequest);
+    return returnHandlers.length === 0
+      ? result
+      : await this.#runReturnHandlers(result, returnHandlers);
   }
 
   /**
@@ -120,6 +123,7 @@ export class JsonRpcEngineV2<
     finalRequest: Readonly<Request>;
   }> {
     const returnHandlers: ReturnHandler[] = [];
+    const isReq = isRequest(originalRequest);
 
     let request = freeze({ ...originalRequest });
     let result: Extract<Result, Json | typeof EndNotification> | undefined;
@@ -131,6 +135,12 @@ export class JsonRpcEngineV2<
       });
 
       if (typeof currentResult === 'function') {
+        if (!isReq) {
+          throw new JsonRpcEngineError(
+            `Middleware returned a return handler for notification: ${stringify(request)}`,
+          );
+        }
+
         returnHandlers.push(currentResult);
       } else if (currentResult !== undefined) {
         // Cast required due to incorrect type narrowing
@@ -146,7 +156,7 @@ export class JsonRpcEngineV2<
       throw new JsonRpcEngineError(
         `Nothing ended request: ${stringify(request)}`,
       );
-    } else if (isRequest(originalRequest)) {
+    } else if (isReq) {
       if (result === EndNotification) {
         throw new JsonRpcEngineError(
           `Request handled as notification: ${stringify(request)}`,
@@ -170,30 +180,19 @@ export class JsonRpcEngineV2<
    *
    * @param initialResult - The initial result from the middleware.
    * @param returnHandlers - The return handlers to run.
-   * @param request - The request that caused the result. Only used for logging.
-   * Will not be passed to the return handlers.
    * @returns The final result.
    */
   async #runReturnHandlers(
     initialResult: Extract<Result, Json | typeof EndNotification>,
     returnHandlers: ReturnHandler[],
-    request: Readonly<Request>,
   ): Promise<Result> {
-    if (returnHandlers.length === 0) {
-      return initialResult;
-    }
-
-    if (initialResult === EndNotification) {
-      throw new JsonRpcEngineError(
-        `Received return handlers for notification: ${stringify(request)}`,
-      );
-    }
-
     let result = initialResult;
-    for (const returnHandler of returnHandlers) {
-      result = await produce(result, async (draft: Json) => {
-        return await returnHandler(draft);
-      });
+    // ATTN: Run return handlers in reverse order of registration.
+    for (const returnHandler of returnHandlers.reverse()) {
+      // Return handlers can either modify the result in place or return a new value.
+      result = await produce(result, async (draft: Json) =>
+        returnHandler(draft),
+      );
     }
 
     return result;
@@ -238,6 +237,6 @@ async function updateRequest<Request extends JsonRpcCall>(
     // The Jest parser encounters "TS2589: Type instantiation is excessively
     // deep and possibly infinite."
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await recipe(draftProxy as any);
+    return recipe(draftProxy as any);
   });
 }
