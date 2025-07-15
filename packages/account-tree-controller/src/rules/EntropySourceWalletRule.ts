@@ -7,9 +7,9 @@ import type { KeyringObject } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
+import { hasKeyringType } from './utils';
 import type { WalletRuleMatch } from './WalletRule';
 import { BaseWalletRule } from './WalletRule';
-import { hasKeyringType } from './utils';
 import type { AccountTreeControllerMessenger } from '../AccountTreeController';
 import { MutableAccountTreeWallet } from '../AccountTreeWallet';
 

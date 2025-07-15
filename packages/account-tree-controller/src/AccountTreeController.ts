@@ -19,7 +19,11 @@ import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controlle
 
 import type { AccountTreeWallet } from './AccountTreeWallet';
 import type { WalletRule } from './rules';
-import { EntropySourceWalletRule, SnapWalletRule, KeyringWalletRule } from './rules';
+import {
+  EntropySourceWalletRule,
+  SnapWalletRule,
+  KeyringWalletRule,
+} from './rules';
 
 const controllerName = 'AccountTreeController';
 

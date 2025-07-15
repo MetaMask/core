@@ -8,9 +8,9 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { stripSnapPrefix } from '@metamask/snaps-utils';
 
+import { hasKeyringType } from './utils';
 import type { WalletRuleMatch } from './WalletRule';
 import { BaseWalletRule } from './WalletRule';
-import { hasKeyringType } from './utils';
 import type { AccountTreeControllerMessenger } from '../AccountTreeController';
 import { MutableAccountTreeWallet } from '../AccountTreeWallet';
 
