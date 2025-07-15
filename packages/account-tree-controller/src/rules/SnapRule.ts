@@ -10,7 +10,7 @@ import { hasKeyringType } from './utils';
 import type { AccountTreeControllerMessenger } from '../AccountTreeController';
 import { MutableAccountTreeWallet } from '../AccountTreeWallet';
 
-class SnapIdWallet extends MutableAccountTreeWallet {
+class SnapWallet extends MutableAccountTreeWallet {
   readonly snapId: SnapId;
 
   constructor(messenger: AccountTreeControllerMessenger, snapId: SnapId) {
@@ -30,7 +30,7 @@ class SnapIdWallet extends MutableAccountTreeWallet {
   }
 }
 
-export class SnapIdRule extends BaseRule {
+export class SnapRule extends BaseRule {
   match(account: InternalAccount): RuleMatch | undefined {
     if (
       hasKeyringType(account, KeyringTypes.snap) &&
@@ -49,7 +49,6 @@ export class SnapIdRule extends BaseRule {
   }
 
   build({ id: snapId }: RuleMatch) {
-    // We assume that `type` is really a `KeyringTypes`.
-    return new SnapIdWallet(this.messenger, snapId as SnapId);
+    return new SnapWallet(this.messenger, snapId as SnapId);
   }
 }

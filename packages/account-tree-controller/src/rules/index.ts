@@ -1,4 +1,4 @@
 export * from './Rule';
 export * from './EntropySourceRule';
-export * from './SnapIdRule';
+export * from './SnapRule';
 export * from './KeyringTypeRule';

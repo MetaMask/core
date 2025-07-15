@@ -23,7 +23,7 @@ import type {
   MutableAccountTreeWallet,
 } from './AccountTreeWallet';
 import type { Rule } from './rules';
-import { EntropySourceRule, SnapIdRule, KeyringTypeRule } from './rules';
+import { EntropySourceRule, SnapRule, KeyringTypeRule } from './rules';
 
 const controllerName = 'AccountTreeController';
 
@@ -163,7 +163,7 @@ export class AccountTreeController extends BaseController<
       // 1. We group by entropy-source
       new EntropySourceRule(this.messagingSystem),
       // 2. We group by Snap ID
-      new SnapIdRule(this.messagingSystem),
+      new SnapRule(this.messagingSystem),
       // 3. We group by wallet type (this rule cannot fail and will group all non-matching accounts)
       new KeyringTypeRule(this.messagingSystem),
     ];
