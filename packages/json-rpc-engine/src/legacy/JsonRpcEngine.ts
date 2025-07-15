@@ -379,6 +379,8 @@ export class JsonRpcEngine extends SafeEventEmitter {
         // For notifications, the response will be `undefined`, and any caught
         // errors are unexpected and should be surfaced to the caller.
         if (error && res === undefined) {
+          // We are not going to change this behavior.
+          // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
           reject(error);
         } else {
           // Excepting notifications, there will always be a response, and it will
@@ -622,6 +624,8 @@ export class JsonRpcEngine extends SafeEventEmitter {
   ): Promise<void> {
     for (const handler of handlers) {
       await new Promise<void>((resolve, reject) => {
+        // We are not going to change this behavior.
+        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
         handler((error) => (error ? reject(error) : resolve()));
       });
     }

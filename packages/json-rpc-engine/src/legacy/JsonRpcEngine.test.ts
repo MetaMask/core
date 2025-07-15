@@ -428,6 +428,8 @@ describe('JsonRpcEngine', () => {
     const engine = new JsonRpcEngine();
 
     engine.push(function (request, response, _next, end) {
+      // Separate handling for the 4th request.
+      // eslint-disable-next-line jest/no-conditional-in-test
       if (request.id === 4) {
         delete response.result;
         response.error = rpcErrors.internal({ message: 'foobar' });
@@ -465,6 +467,8 @@ describe('JsonRpcEngine', () => {
     const engine = new JsonRpcEngine();
 
     engine.push(function (request, response, _next, end) {
+      // Separate handling for the 4th request.
+      // eslint-disable-next-line jest/no-conditional-in-test
       if (request.id === 4) {
         delete response.result;
         response.error = rpcErrors.internal({ message: 'foobar' });
