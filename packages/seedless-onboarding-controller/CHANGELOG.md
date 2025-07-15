@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added `access_token` and `metadata_access_token` in seedless controller state. ([#6060](https://github.com/MetaMask/core/pull/6060))
+  - `access_token` can be used by profile sync pairing and for other apis access after wallet is unlocked.
+  - `metadata_access_token` is used to give access for web3auth metadata apis.
+
 ## [2.0.1]
 
 ### Fixed
