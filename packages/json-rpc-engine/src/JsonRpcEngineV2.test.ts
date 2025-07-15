@@ -417,7 +417,7 @@ describe('JsonRpcEngineV2', () => {
         expect(returnHandlerResults).toStrictEqual(['3', '2', '1']);
       });
 
-      it.skip('returns the expected result after no-op return handler', async () => {
+      it('returns the expected result after no-op return handler', async () => {
         const middleware1 = jest.fn(() => () => undefined);
         const middleware2 = jest.fn(() => null);
         const engine = new JsonRpcEngineV2({
@@ -426,7 +426,7 @@ describe('JsonRpcEngineV2', () => {
 
         const result = await engine.handle(makeRequest());
 
-        expect(result).toBe(null);
+        expect(result).toBeNull();
       });
 
       it('lets return handler update the result', async () => {
@@ -498,7 +498,7 @@ describe('JsonRpcEngineV2', () => {
   describe('asMiddleware', () => {
     it('returns a middleware function', async () => {
       const engine1 = new JsonRpcEngineV2({
-        middleware: [jest.fn(() => null)],
+        middleware: [() => null],
       });
       const engine2 = new JsonRpcEngineV2({
         middleware: [engine1.asMiddleware()],
@@ -509,24 +509,102 @@ describe('JsonRpcEngineV2', () => {
       expect(result).toBeNull();
     });
 
-    it.skip('composes request mutation', async () => {
+    it('permits returning undefined if a later middleware ends the request', async () => {
+      const engine1 = new JsonRpcEngineV2({
+        middleware: [() => undefined],
+      });
+      const engine2 = new JsonRpcEngineV2({
+        middleware: [engine1.asMiddleware(), () => null],
+      });
+
+      const result = await engine2.handle(makeRequest());
+
+      expect(result).toBeNull();
+    });
+
+    it('composes nested engines', async () => {
+      const middleware1 = jest.fn(() => undefined);
+      const middleware2 = jest.fn(() => undefined);
+      const engine1 = new JsonRpcEngineV2({
+        middleware: [middleware1],
+      });
+      const engine2 = new JsonRpcEngineV2({
+        middleware: [engine1.asMiddleware(), middleware2],
+      });
+      const engine3 = new JsonRpcEngineV2({
+        middleware: [engine2.asMiddleware(), () => null],
+      });
+
+      const result = await engine3.handle(makeRequest());
+
+      expect(result).toBeNull();
+      expect(middleware1).toHaveBeenCalledTimes(1);
+      expect(middleware2).toHaveBeenCalledTimes(1);
+    });
+
+    it('propagates request mutation', async () => {
       const engine1 = new JsonRpcEngineV2<JsonRpcRequest, number | void>({
         middleware: [
           (req) => {
             req.params = [2];
           },
-          // @ts-expect-error This will work.
-          (req) => req.params[0] * 2,
+          (req) => {
+            req.method = 'test_request_2';
+            // @ts-expect-error Will obviously work.
+            req.params[0] *= 2;
+          },
         ],
       });
+
+      let observedMethod: string | undefined;
       const engine2 = new JsonRpcEngineV2({
-        // @ts-expect-error This will work.
-        middleware: [engine1.asMiddleware(), (req) => req.params[0] * 2],
+        middleware: [
+          engine1.asMiddleware(),
+          (req) => {
+            observedMethod = req.method;
+            // @ts-expect-error Will obviously work.
+            return req.params[0] * 2;
+          },
+        ],
       });
 
       const result = await engine2.handle(makeRequest());
 
       expect(result).toBe(8);
+      expect(observedMethod).toBe('test_request_2');
+    });
+
+    it('runs return handlers in expected order', async () => {
+      const returnHandlerResults: string[] = [];
+      const engine1 = new JsonRpcEngineV2({
+        middleware: [
+          () => () => {
+            returnHandlerResults.push('1:a');
+          },
+          () => () => {
+            returnHandlerResults.push('1:b');
+          },
+        ],
+      });
+
+      const engine2 = new JsonRpcEngineV2({
+        middleware: [
+          engine1.asMiddleware(),
+          () => () => {
+            returnHandlerResults.push('2:a');
+          },
+          () => () => {
+            returnHandlerResults.push('2:b');
+          },
+          () => null,
+        ],
+      });
+
+      await engine2.handle(makeRequest());
+
+      // Order of return handlers is reversed _within_ engines, but not
+      // _between_ engines.
+      expect(returnHandlerResults).toStrictEqual(['1:b', '1:a', '2:b', '2:a']);
     });
   });
 });
