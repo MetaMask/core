@@ -2443,10 +2443,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/account-api@npm:^0.1.0":
+  version: 0.1.0
+  resolution: "@metamask/account-api@npm:0.1.0"
+  dependencies:
+    "@metamask/keyring-api": "npm:^18.0.0"
+    "@metamask/keyring-utils": "npm:^3.0.0"
+  checksum: 10/6c7338c8551d39b96e3d04ed3a944ebb7ca48d7f9cb0fdf27c878e12311372d03a61123dc5e7ea21135c095920db7c52a79be4c81afd04a6d62e5c5306dd12cb
+  languageName: node
+  linkType: hard
+
 "@metamask/account-tree-controller@workspace:packages/account-tree-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/account-tree-controller@workspace:packages/account-tree-controller"
   dependencies:
+    "@metamask/account-api": "npm:^0.1.0"
     "@metamask/accounts-controller": "npm:^31.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.1"
@@ -2466,6 +2477,7 @@ __metadata:
     typescript: "npm:~5.2.2"
     webextension-polyfill: "npm:^0.12.0"
   peerDependencies:
+    "@metamask/account-api": ^0.1.0
     "@metamask/accounts-controller": ^31.0.0
     "@metamask/keyring-controller": ^22.0.0
     "@metamask/providers": ^22.0.0
