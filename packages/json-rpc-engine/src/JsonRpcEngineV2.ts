@@ -14,7 +14,7 @@ export const EndNotification = Symbol.for('JsonRpcEngine:EndNotification');
 type Context = Record<string, unknown>;
 
 type ReturnHandler<Result extends Json = Json> = (
-  result: Result,
+  result: Result | undefined,
 ) => void | Result | Promise<void | Result>;
 
 export type MiddlewareResultConstraint<Request extends JsonRpcCall> =
@@ -30,7 +30,8 @@ type HandledResult<Result extends MiddlewareResultConstraint<JsonRpcCall>> =
 export type JsonRpcMiddleware<
   Request extends JsonRpcCall = JsonRpcCall,
   Result extends
-    MiddlewareResultConstraint<Request> = MiddlewareResultConstraint<Request>,
+    | MiddlewareResultConstraint<Request>
+    | undefined = MiddlewareResultConstraint<Request>,
 > = (request: Request, context: Context) => Result | Promise<Result>;
 
 type Options<
@@ -61,7 +62,7 @@ export class JsonRpcEngineV2<
   }
 
   /**
-   * Handle a JSON-RPC request. A response will be returned.
+   * Handle a JSON-RPC request. A result will be returned.
    *
    * @param request - The JSON-RPC request to handle.
    * @returns The JSON-RPC response.
@@ -71,14 +72,21 @@ export class JsonRpcEngineV2<
   ): Promise<Exclude<HandledResult<Result>, void>>;
 
   /**
-   * Handle a JSON-RPC notification. No response will be returned.
+   * Handle a JSON-RPC notification. No result will be returned.
    *
    * @param notification - The JSON-RPC notification to handle.
    */
   async handle(notification: Request & JsonRpcNotification): Promise<void>;
 
   async handle(request: Request): Promise<HandledResult<Result>> {
-    const result = await this.#handle(request);
+    const { result } = await this.#handle(freeze({ ...request }));
+
+    if (result === undefined) {
+      throw new JsonRpcEngineError(
+        `Nothing ended request: ${stringify(request)}`,
+      );
+    }
+
     return result === EndNotification
       ? undefined
       : (result as HandledResult<Result>);
@@ -89,22 +97,40 @@ export class JsonRpcEngineV2<
   /**
    * Handle a JSON-RPC call. A response will be returned if the call is a request.
    *
-   * @param call - The JSON-RPC call to handle.
+   * @param request - The JSON-RPC call to handle.
    * @returns The JSON-RPC response, if any.
    */
-  async handleAny(call: Request): Promise<Extract<Result, Json> | void> {
-    return this.handle(call);
+  async handleAny(request: Request): Promise<Extract<Result, Json> | void> {
+    return this.handle(request);
   }
 
-  async #handle(request: Request, context: Context = {}): Promise<Result> {
-    const { result, returnHandlers } = await this.#runMiddleware(
+  /**
+   * Handle a JSON-RPC request. Throws if a middleware or return handler
+   * performs an invalid operation. Permits returning an `undefined` result.
+   *
+   * @param request - The JSON-RPC request to handle.
+   * @param context - The context to pass to the middleware.
+   * @returns The result from the middleware.
+   */
+  async #handle(
+    request: Request,
+    context: Context = {},
+  ): Promise<{
+    result: Result | undefined;
+    finalRequest: Readonly<Request>;
+  }> {
+    const { result, returnHandlers, finalRequest } = await this.#runMiddleware(
       request,
       context,
     );
 
-    return returnHandlers.length === 0
-      ? result
-      : await this.#runReturnHandlers(result, returnHandlers);
+    return {
+      result:
+        returnHandlers.length === 0
+          ? result
+          : await this.#runReturnHandlers(result, returnHandlers),
+      finalRequest,
+    };
   }
 
   /**
@@ -118,14 +144,14 @@ export class JsonRpcEngineV2<
     originalRequest: Request,
     context: Context,
   ): Promise<{
-    result: Extract<Result, Json | typeof EndNotification>;
+    result: Extract<Result, Json | typeof EndNotification> | undefined;
     returnHandlers: ReturnHandler[];
     finalRequest: Readonly<Request>;
   }> {
     const returnHandlers: ReturnHandler[] = [];
     const isReq = isRequest(originalRequest);
 
-    let request = freeze({ ...originalRequest });
+    let request = originalRequest;
     let result: Extract<Result, Json | typeof EndNotification> | undefined;
 
     for (const middleware of this.#middleware) {
@@ -143,7 +169,7 @@ export class JsonRpcEngineV2<
 
         returnHandlers.push(currentResult);
       } else if (currentResult !== undefined) {
-        // Cast required due to incorrect type narrowing
+        // Cast required due to unexpected type narrowing
         result = currentResult as Extract<
           Result,
           Json | typeof EndNotification
@@ -152,20 +178,18 @@ export class JsonRpcEngineV2<
       }
     }
 
-    if (result === undefined) {
-      throw new JsonRpcEngineError(
-        `Nothing ended request: ${stringify(request)}`,
-      );
-    } else if (isReq) {
-      if (result === EndNotification) {
+    if (result !== undefined) {
+      if (isReq) {
+        if (result === EndNotification) {
+          throw new JsonRpcEngineError(
+            `Request handled as notification: ${stringify(request)}`,
+          );
+        }
+      } else if (result !== EndNotification) {
         throw new JsonRpcEngineError(
-          `Request handled as notification: ${stringify(request)}`,
+          `Notification handled as request: ${stringify(request)}`,
         );
       }
-    } else if (result !== EndNotification) {
-      throw new JsonRpcEngineError(
-        `Notification handled as request: ${stringify(request)}`,
-      );
     }
 
     return {
@@ -183,16 +207,21 @@ export class JsonRpcEngineV2<
    * @returns The final result.
    */
   async #runReturnHandlers(
-    initialResult: Extract<Result, Json | typeof EndNotification>,
-    returnHandlers: ReturnHandler[],
-  ): Promise<Result> {
+    initialResult: Extract<Result, Json | typeof EndNotification> | undefined,
+    returnHandlers: readonly ReturnHandler[],
+  ): Promise<Result | undefined> {
     let result = initialResult;
-    // ATTN: Run return handlers in reverse order of registration.
-    for (const returnHandler of returnHandlers.reverse()) {
-      // Return handlers can either modify the result in place or return a new value.
-      result = await produce(result, async (draft: Json) =>
-        returnHandler(draft),
-      );
+    // Run return handlers in reverse order of registration.
+    for (let i = returnHandlers.length - 1; i >= 0; i--) {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const returnHandler = returnHandlers[i]!;
+
+      result = await produce(result, async (draft: Json) => {
+        // Return handlers can either modify the result in place or return a
+        // new value.
+        const newResult = await returnHandler(draft);
+        return newResult === undefined ? draft : newResult;
+      });
     }
 
     return result;
@@ -203,8 +232,17 @@ export class JsonRpcEngineV2<
    *
    * @returns The JSON-RPC middleware.
    */
-  asMiddleware(): JsonRpcMiddleware<Request, Result> {
-    return async (request, context) => this.#handle(request, context);
+  asMiddleware(): JsonRpcMiddleware<Request, Result | undefined> {
+    return async (request, context) => {
+      const { result, finalRequest } = await this.#handle(request, context);
+      // Propagate any changes to the request to the original request.
+      request.method = finalRequest.method;
+      // @ts-expect-error TypeScript complains about this for unknown reasons
+      // (and not because finalRequest is readonly)
+      request.params = finalRequest.params;
+
+      return result;
+    };
   }
 }
 
@@ -212,7 +250,9 @@ export class JsonRpcEngineV2<
 const readonlyProps = ['id', 'jsonrpc'] as const;
 
 /**
- * Update a request using Immer.
+ * Update a request using `immer`. Middleware may update the `method` and
+ * `params` properties, but not the `id` or `jsonrpc` properties. The request
+ * object must be updated in place.
  *
  * @param request - The request to update.
  * @param recipe - The recipe function.
