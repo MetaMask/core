@@ -1,15 +1,12 @@
 import { Messenger } from '@metamask/base-controller';
 
-import AuthenticationController from './AuthenticationController';
 import type {
   AllowedActions,
   AllowedEvents,
   AuthenticationControllerState,
 } from './AuthenticationController';
-import {
-  MOCK_LOGIN_RESPONSE,
-  MOCK_OATH_TOKEN_RESPONSE,
-} from './mocks/mockResponses';
+import AuthenticationController from './AuthenticationController';
+import { MOCK_LOGIN_RESPONSE, MOCK_OATH_TOKEN_RESPONSE } from './mocks';
 import type { LoginResponse } from '../../sdk';
 import { Platform } from '../../sdk';
 import { arrangeAuthAPIs } from '../../sdk/__fixtures__/auth';
@@ -54,6 +51,8 @@ describe('authentication/authentication-controller - constructor() tests', () =>
 
     expect(controller.state.isSignedIn).toBe(false);
     expect(controller.state.srpSessionData).toBeUndefined();
+    expect(controller.state.socialPairingDone).toBeUndefined();
+    expect(controller.state.pairingInProgress).toBeUndefined();
   });
 
   it('should initialize with override state', () => {
@@ -204,19 +203,181 @@ describe('authentication/authentication-controller - performSignIn() tests', () 
   }
 });
 
+describe('authentication/authentication-controller - performSignIn() with pairing functionality', () => {
+  it('triggers social pairing when social token is available', async () => {
+    const metametrics = createMockAuthMetaMetrics();
+    const mockEndpoints = arrangeAuthAPIs();
+    const { messenger, mockSeedlessOnboardingGetState } =
+      createMockAuthenticationMessenger();
+
+    // Mock social token is available
+    mockSeedlessOnboardingGetState.mockReturnValue({
+      accessToken: 'MOCK_SOCIAL_TOKEN',
+    });
+
+    const controller = new AuthenticationController({ messenger, metametrics });
+
+    const result = await controller.performSignIn();
+
+    // Verify sign-in still works normally
+    expect(result).toStrictEqual([
+      MOCK_OATH_TOKEN_RESPONSE.access_token,
+      MOCK_OATH_TOKEN_RESPONSE.access_token,
+    ]);
+
+    // Verify SeedlessOnboardingController was called
+    expect(mockSeedlessOnboardingGetState).toHaveBeenCalled();
+
+    // Note: Pairing happens asynchronously, so we need to wait longer
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Should have attempted pairing
+    expect(controller.state.isSignedIn).toBe(true);
+    expect(controller.state.socialPairingDone).toBe(true);
+    expect(controller.state.pairingInProgress).toBe(false);
+    mockEndpoints.mockNonceUrl.done();
+    mockEndpoints.mockSrpLoginUrl.done();
+    mockEndpoints.mockOAuth2TokenUrl.done();
+    mockEndpoints.mockPairSocialIdentifierUrl.done();
+  });
+
+  it('does not attempt pairing when social token is unavailable', async () => {
+    const mockEndpoints = arrangeAuthAPIs();
+    const { messenger, mockSeedlessOnboardingGetState } =
+      createMockAuthenticationMessenger();
+
+    mockSeedlessOnboardingGetState.mockReturnValue({
+      accessToken: null,
+    });
+
+    const controller = new AuthenticationController({
+      messenger,
+      metametrics: createMockAuthMetaMetrics(),
+    });
+
+    await controller.performSignIn();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(controller.state.socialPairingDone).toBeUndefined();
+    expect(controller.state.pairingInProgress).toBeUndefined();
+    expect(mockEndpoints.mockPairSocialIdentifierUrl.isDone()).toBe(false);
+    mockEndpoints.mockNonceUrl.done();
+    mockEndpoints.mockSrpLoginUrl.done();
+    mockEndpoints.mockOAuth2TokenUrl.done();
+  });
+
+  it('does not attempt pairing when already done', async () => {
+    const mockEndpoints = arrangeAuthAPIs();
+    const { messenger, mockSeedlessOnboardingGetState } =
+      createMockAuthenticationMessenger();
+
+    mockSeedlessOnboardingGetState.mockReturnValue({
+      accessToken: 'MOCK_SOCIAL_TOKEN',
+    });
+
+    const controller = new AuthenticationController({
+      messenger,
+      metametrics: createMockAuthMetaMetrics(),
+      state: {
+        isSignedIn: false,
+        socialPairingDone: true,
+      },
+    });
+
+    await controller.performSignIn();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    // Should not update state since pairing was already done
+    expect(controller.state.socialPairingDone).toBe(true);
+    expect(controller.state.pairingInProgress).toBeUndefined();
+    expect(mockEndpoints.mockPairSocialIdentifierUrl.isDone()).toBe(false);
+    mockEndpoints.mockNonceUrl.done();
+    mockEndpoints.mockSrpLoginUrl.done();
+    mockEndpoints.mockOAuth2TokenUrl.done();
+  });
+
+  it('does not attempt pairing when pairing is already in progress', async () => {
+    const mockEndpoints = arrangeAuthAPIs();
+    const { messenger, mockSeedlessOnboardingGetState } =
+      createMockAuthenticationMessenger();
+
+    mockSeedlessOnboardingGetState.mockReturnValue({
+      accessToken: 'MOCK_SOCIAL_TOKEN',
+    });
+
+    const controller = new AuthenticationController({
+      messenger,
+      metametrics: createMockAuthMetaMetrics(),
+      state: {
+        isSignedIn: false,
+        pairingInProgress: true,
+      },
+    });
+
+    await controller.performSignIn();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    // Should not change pairing state since it was already in progress
+    expect(controller.state.pairingInProgress).toBe(true);
+    expect(mockEndpoints.mockPairSocialIdentifierUrl.isDone()).toBe(false);
+    mockEndpoints.mockNonceUrl.done();
+    mockEndpoints.mockSrpLoginUrl.done();
+    mockEndpoints.mockOAuth2TokenUrl.done();
+  });
+
+  it('handles pairing failures gracefully', async () => {
+    const metametrics = createMockAuthMetaMetrics();
+    const mockEndpoints = arrangeAuthAPIs({
+      mockPairSocialIdentifier: { status: 400 },
+    });
+    const { messenger, mockSeedlessOnboardingGetState } =
+      createMockAuthenticationMessenger();
+
+    mockSeedlessOnboardingGetState.mockReturnValue({
+      accessToken: 'MOCK_SOCIAL_TOKEN',
+    });
+
+    const controller = new AuthenticationController({ messenger, metametrics });
+
+    const result = await controller.performSignIn();
+
+    // Sign-in should still succeed even if pairing fails
+    expect(result).toStrictEqual([
+      MOCK_OATH_TOKEN_RESPONSE.access_token,
+      MOCK_OATH_TOKEN_RESPONSE.access_token,
+    ]);
+    expect(controller.state.isSignedIn).toBe(true);
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Pairing should have been attempted but failed
+    expect(controller.state.socialPairingDone).toBeUndefined();
+    expect(controller.state.pairingInProgress).toBe(false);
+    mockEndpoints.mockNonceUrl.done();
+    mockEndpoints.mockSrpLoginUrl.done();
+    mockEndpoints.mockOAuth2TokenUrl.done();
+    mockEndpoints.mockPairSocialIdentifierUrl.done();
+  });
+});
+
 describe('authentication/authentication-controller - performSignOut() tests', () => {
   it('should remove signed in user and any access tokens', () => {
     const metametrics = createMockAuthMetaMetrics();
     const { messenger } = createMockAuthenticationMessenger();
     const controller = new AuthenticationController({
       messenger,
-      state: mockSignedInState(),
+      state: {
+        ...mockSignedInState(),
+        socialPairingDone: true,
+        pairingInProgress: false,
+      },
       metametrics,
     });
 
     controller.performSignOut();
     expect(controller.state.isSignedIn).toBe(false);
     expect(controller.state.srpSessionData).toBeUndefined();
+    expect(controller.state.socialPairingDone).toBe(false);
   });
 });
 
@@ -555,6 +716,10 @@ function createMockAuthenticationMessenger() {
     .fn()
     .mockReturnValue({ isUnlocked: true });
 
+  const mockSeedlessOnboardingGetState = jest.fn().mockReturnValue({
+    accessToken: 'MOCK_SOCIAL_TOKEN',
+  });
+
   mockCall.mockImplementation((...args) => {
     const [actionType, params] = args;
     if (actionType === 'SnapController:handleRequest') {
@@ -581,6 +746,10 @@ function createMockAuthenticationMessenger() {
       return mockKeyringControllerGetState();
     }
 
+    if (actionType === 'SeedlessOnboardingController:getState') {
+      return mockSeedlessOnboardingGetState();
+    }
+
     throw new Error(
       `MOCK_FAIL - unsupported messenger call: ${actionType as string}`,
     );
@@ -593,6 +762,7 @@ function createMockAuthenticationMessenger() {
     mockSnapGetAllPublicKeys,
     mockSnapSignMessage,
     mockKeyringControllerGetState,
+    mockSeedlessOnboardingGetState,
   };
 }
 

@@ -129,6 +129,61 @@ describe('Identifier Pairing', () => {
   });
 });
 
+describe('Social Identifier Pairing', () => {
+  it('successfully pairs with social identifier', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { mockNonceUrl, mockOAuth2TokenUrl, mockPairSocialIdentifierUrl } =
+      arrangeAuthAPIs();
+
+    const result = await auth.pairSocialIdentifier('MOCK_JWT_TOKEN');
+
+    expect(result).toBe(true);
+    expect(mockNonceUrl.isDone()).toBe(true);
+    expect(mockOAuth2TokenUrl.isDone()).toBe(true);
+    expect(mockPairSocialIdentifierUrl.isDone()).toBe(true);
+  });
+
+  it('handles social pairing failures', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { mockNonceUrl, mockOAuth2TokenUrl, mockPairSocialIdentifierUrl } =
+      arrangeAuthAPIs({
+        mockPairSocialIdentifier: { status: 400 },
+      });
+
+    const result = await auth.pairSocialIdentifier('INVALID_TOKEN');
+
+    expect(result).toBe(false);
+    expect(mockNonceUrl.isDone()).toBe(true);
+    expect(mockOAuth2TokenUrl.isDone()).toBe(true);
+    expect(mockPairSocialIdentifierUrl.isDone()).toBe(true);
+  });
+
+  it('handles social pairing authentication failures', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { mockOAuth2TokenUrl } = arrangeAuthAPIs({
+      mockOAuth2TokenUrl: { status: 401 },
+    });
+
+    await expect(auth.pairSocialIdentifier('INVALID_TOKEN')).rejects.toThrow(
+      /unable to get access token.*/u,
+    );
+    expect(mockOAuth2TokenUrl.isDone()).toBe(true);
+  });
+
+  it('handles social pairing nonce failures', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { mockNonceUrl, mockOAuth2TokenUrl } = arrangeAuthAPIs({
+      mockNonceUrl: { status: 400 },
+    });
+
+    await expect(auth.pairSocialIdentifier('MOCK_JWT_TOKEN')).rejects.toThrow(
+      /failed to generate nonce.*/u,
+    );
+    expect(mockOAuth2TokenUrl.isDone()).toBe(true);
+    expect(mockNonceUrl.isDone()).toBe(true);
+  });
+});
+
 describe('Authentication - constructor()', () => {
   it('errors on invalid auth type', async () => {
     expect(() => {
