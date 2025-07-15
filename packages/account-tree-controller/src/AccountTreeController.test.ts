@@ -211,6 +211,9 @@ function setup({
     AccountTreeControllerActions | AllowedActions,
     AccountTreeControllerEvents | AllowedEvents
   >;
+  spies: {
+    consoleWarn: jest.SpyInstance;
+  },
 } {
   const controller = new AccountTreeController({
     messenger: getAccountTreeControllerMessenger(messenger),
@@ -231,10 +234,18 @@ function setup({
     }));
   }
 
-  return { controller, messenger };
+  const consoleWarnSpy = jest
+    .spyOn(console, 'warn')
+    .mockImplementation(() => undefined);
+
+  return { controller, messenger, spies: { consoleWarn: consoleWarnSpy }};
 }
 
 describe('AccountTreeController', () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+  });
+
   describe('init', () => {
     it('groups accounts by entropy source, then snapId, then wallet type', () => {
       const { controller, messenger } = setup({
@@ -347,17 +358,13 @@ describe('AccountTreeController', () => {
         options: {},
       };
 
-      const { controller } = setup({
+      const { controller, spies } = setup({
         accounts: [mockHdAccountWithoutEntropy],
         keyrings: [],
       });
 
-      const consoleWarnSpy = jest
-        .spyOn(console, 'warn')
-        .mockImplementation(() => undefined);
-
       controller.init();
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect(spies.consoleWarn).toHaveBeenCalledWith(
         "! Found an HD account with no entropy source: account won't be associated to its wallet",
       );
 
@@ -371,7 +378,6 @@ describe('AccountTreeController', () => {
           expectedGroupId
         ]?.accounts,
       ).toContain(mockHdAccountWithoutEntropy.id);
-      consoleWarnSpy.mockRestore();
     });
 
     it('handles Snap accounts with entropy source', () => {
