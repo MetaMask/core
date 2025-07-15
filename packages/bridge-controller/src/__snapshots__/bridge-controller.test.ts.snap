@@ -562,6 +562,32 @@ Array [
   Array [
     "SnapController:handleRequest",
     Object {
+      "handler": "onProtocolRequest",
+      "origin": "metamask",
+      "request": Object {
+        "jsonrpc": "2.0",
+        "method": " ",
+        "params": Object {
+          "request": Object {
+            "id": "test-uuid-1234",
+            "jsonrpc": "2.0",
+            "method": "getMinimumBalanceForRentExemption",
+            "params": Array [
+              0,
+              Object {
+                "commitment": "confirmed",
+              },
+            ],
+          },
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
       "handler": "onRpcRequest",
       "origin": "metamask",
       "request": Object {
@@ -717,6 +743,7 @@ Object {
   "quoteRequest": Object {
     "destChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
     "destTokenAddress": "123d1",
+    "destWalletAddress": "SolanaWalletAddres1234",
     "insufficientBal": false,
     "slippage": 0.5,
     "srcChainId": "0x1",
@@ -745,6 +772,7 @@ Object {
   "quoteRequest": Object {
     "destChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
     "destTokenAddress": "123d1",
+    "destWalletAddress": "SolanaWalletAddres1234",
     "insufficientBal": false,
     "slippage": 0.5,
     "srcChainId": "0x1",
