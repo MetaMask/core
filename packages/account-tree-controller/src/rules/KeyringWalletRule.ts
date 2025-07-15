@@ -89,6 +89,7 @@ export class KeyringWalletRule extends BaseWalletRule {
     );
     if (!wallet) {
       wallet = new KeyringTypeWallet(this.messenger, keyringType);
+      this.#wallets.set(wallet.id, wallet);
     }
 
     // This will automatically creates the group if it's missing.

@@ -115,6 +115,7 @@ export class EntropySourceWalletRule extends BaseWalletRule {
     );
     if (!wallet) {
       wallet = new EntropySourceWallet(this.messenger, entropySource);
+      this.#wallets.set(wallet.id, wallet);
     }
 
     // This will automatically creates the group if it's missing.

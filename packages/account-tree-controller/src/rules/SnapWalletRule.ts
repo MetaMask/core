@@ -60,6 +60,7 @@ export class SnapWalletRule extends BaseWalletRule {
       let wallet = this.#wallets.get(SnapWallet.toAccountWalletId(snapId));
       if (!wallet) {
         wallet = new SnapWallet(this.messenger, snapId);
+        this.#wallets.set(wallet.id, wallet);
       }
 
       // This will automatically creates the group if it's missing.
