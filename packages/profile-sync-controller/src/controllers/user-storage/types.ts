@@ -1,6 +1,6 @@
 import type {
-  UserStoragePathWithFeatureAndKey,
-  UserStoragePathWithFeatureOnly,
+  UserStorageGenericPathWithFeatureAndKey,
+  UserStorageGenericPathWithFeatureOnly,
 } from '../../shared/storage-schema';
 import type { NativeScrypt } from '../../shared/types/encryption';
 
@@ -11,11 +11,11 @@ export type UserStorageBaseOptions = {
 };
 
 export type UserStorageOptions = UserStorageBaseOptions & {
-  path: UserStoragePathWithFeatureAndKey;
+  path: UserStorageGenericPathWithFeatureAndKey;
 };
 
 export type UserStorageAllFeatureEntriesOptions = UserStorageBaseOptions & {
-  path: UserStoragePathWithFeatureOnly;
+  path: UserStorageGenericPathWithFeatureOnly;
 };
 
 export type UserStorageBatchUpsertOptions = UserStorageAllFeatureEntriesOptions;
