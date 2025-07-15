@@ -27,7 +27,7 @@ import {
   type AccountGroupMetadata,
 } from './AccountTreeController';
 import { DEFAULT_ACCOUNT_GROUP_NAME } from './AccountTreeGroup';
-import { getAccountWalletNameFromKeyringType } from './rules/KeyringTypeRule';
+import { getAccountWalletNameFromKeyringType } from './rules/KeyringWalletRule';
 
 const ETH_EOA_METHODS = [
   EthMethod.PersonalSign,

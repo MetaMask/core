@@ -2,7 +2,7 @@
 
 import { Messenger } from '@metamask/base-controller';
 
-import { EntropySourceWallet } from './EntropySourceRule';
+import { EntropySourceWallet } from './EntropySourceWalletRule';
 import type {
   AccountTreeControllerActions,
   AccountTreeControllerEvents,

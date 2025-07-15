@@ -1,8 +1,8 @@
 import { KeyringTypes } from '@metamask/keyring-controller';
 
-import { getAccountWalletNameFromKeyringType } from './KeyringTypeRule';
+import { getAccountWalletNameFromKeyringType } from './KeyringWalletRule';
 
-describe('KeyringTypeRule', () => {
+describe('KeyringWalletRule', () => {
   describe('getWalletNameFromKeyringType', () => {
     it.each(Object.values(KeyringTypes))(
       'computes wallet name from: %s',

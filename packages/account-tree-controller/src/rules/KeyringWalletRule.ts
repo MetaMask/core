@@ -6,8 +6,8 @@ import {
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { RuleMatch } from './Rule';
-import { BaseRule } from './Rule';
+import type { WalletRuleMatch } from './WalletRule';
+import { BaseWalletRule } from './WalletRule';
 import type { AccountTreeControllerMessenger } from '../AccountTreeController';
 import { MutableAccountTreeWallet } from '../AccountTreeWallet';
 
@@ -69,7 +69,7 @@ class KeyringTypeWallet extends MutableAccountTreeWallet {
   }
 }
 
-export class KeyringTypeRule extends BaseRule {
+export class KeyringWalletRule extends BaseWalletRule {
   readonly #wallets: Map<AccountWalletId, KeyringTypeWallet>;
 
   constructor(messenger: AccountTreeControllerMessenger) {
@@ -78,13 +78,15 @@ export class KeyringTypeRule extends BaseRule {
     this.#wallets = new Map();
   }
 
-  match(account: InternalAccount): RuleMatch | undefined {
+  match(account: InternalAccount): WalletRuleMatch | undefined {
     const { type } = account.metadata.keyring;
     // We assume that `type` is really a `KeyringTypes`.
     const keyringType = type as KeyringTypes;
 
     // Check if a wallet already exists for that keyring type.
-    let wallet = this.#wallets.get(KeyringTypeWallet.toAccountWalletId(keyringType));
+    let wallet = this.#wallets.get(
+      KeyringTypeWallet.toAccountWalletId(keyringType),
+    );
     if (!wallet) {
       wallet = new KeyringTypeWallet(this.messenger, keyringType);
     }

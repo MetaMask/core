@@ -18,8 +18,8 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
 
 import type { AccountTreeWallet } from './AccountTreeWallet';
-import type { Rule } from './rules';
-import { EntropySourceRule, SnapRule, KeyringTypeRule } from './rules';
+import type { WalletRule } from './rules';
+import { EntropySourceWalletRule, SnapWalletRule, KeyringWalletRule } from './rules';
 
 const controllerName = 'AccountTreeController';
 
@@ -122,7 +122,7 @@ export class AccountTreeController extends BaseController<
 > {
   readonly #reverse: Map<AccountId, AccountReverseMapping>;
 
-  readonly #rules: Rule[];
+  readonly #rules: WalletRule[];
 
   readonly #wallets: Map<AccountWalletId, AccountTreeWallet>;
 
@@ -157,11 +157,11 @@ export class AccountTreeController extends BaseController<
     // Rules to apply to construct the wallets tree.
     this.#rules = [
       // 1. We group by entropy-source
-      new EntropySourceRule(this.messagingSystem),
+      new EntropySourceWalletRule(this.messagingSystem),
       // 2. We group by Snap ID
-      new SnapRule(this.messagingSystem),
+      new SnapWalletRule(this.messagingSystem),
       // 3. We group by wallet type (this rule cannot fail and will group all non-matching accounts)
-      new KeyringTypeRule(this.messagingSystem),
+      new KeyringWalletRule(this.messagingSystem),
     ];
 
     this.messagingSystem.subscribe(

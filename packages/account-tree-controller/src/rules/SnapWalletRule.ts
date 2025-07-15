@@ -8,8 +8,8 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { stripSnapPrefix } from '@metamask/snaps-utils';
 
-import type { RuleMatch } from './Rule';
-import { BaseRule } from './Rule';
+import type { WalletRuleMatch } from './WalletRule';
+import { BaseWalletRule } from './WalletRule';
 import { hasKeyringType } from './utils';
 import type { AccountTreeControllerMessenger } from '../AccountTreeController';
 import { MutableAccountTreeWallet } from '../AccountTreeWallet';
@@ -38,7 +38,7 @@ class SnapWallet extends MutableAccountTreeWallet {
   }
 }
 
-export class SnapRule extends BaseRule {
+export class SnapWalletRule extends BaseWalletRule {
   readonly #wallets: Map<AccountWalletId, SnapWallet>;
 
   constructor(messenger: AccountTreeControllerMessenger) {
@@ -47,7 +47,7 @@ export class SnapRule extends BaseRule {
     this.#wallets = new Map();
   }
 
-  match(account: InternalAccount): RuleMatch | undefined {
+  match(account: InternalAccount): WalletRuleMatch | undefined {
     if (
       hasKeyringType(account, KeyringTypes.snap) &&
       account.metadata.snap &&

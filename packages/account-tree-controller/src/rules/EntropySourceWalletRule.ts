@@ -7,8 +7,8 @@ import type { KeyringObject } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { RuleMatch } from './Rule';
-import { BaseRule } from './Rule';
+import type { WalletRuleMatch } from './WalletRule';
+import { BaseWalletRule } from './WalletRule';
 import { hasKeyringType } from './utils';
 import type { AccountTreeControllerMessenger } from '../AccountTreeController';
 import { MutableAccountTreeWallet } from '../AccountTreeWallet';
@@ -54,7 +54,7 @@ export class EntropySourceWallet extends MutableAccountTreeWallet {
   }
 }
 
-export class EntropySourceRule extends BaseRule {
+export class EntropySourceWalletRule extends BaseWalletRule {
   readonly #wallets: Map<AccountWalletId, EntropySourceWallet>;
 
   constructor(messenger: AccountTreeControllerMessenger) {
@@ -63,7 +63,7 @@ export class EntropySourceRule extends BaseRule {
     this.#wallets = new Map();
   }
 
-  match(account: InternalAccount): RuleMatch | undefined {
+  match(account: InternalAccount): WalletRuleMatch | undefined {
     let entropySource: string | undefined;
 
     if (hasKeyringType(account, KeyringTypes.hd)) {
@@ -110,7 +110,9 @@ export class EntropySourceRule extends BaseRule {
     }
 
     // Check if a wallet already exists for that entropy source.
-    let wallet = this.#wallets.get(EntropySourceWallet.toAccountWalletId(entropySource));
+    let wallet = this.#wallets.get(
+      EntropySourceWallet.toAccountWalletId(entropySource),
+    );
     if (!wallet) {
       wallet = new EntropySourceWallet(this.messenger, entropySource);
     }
