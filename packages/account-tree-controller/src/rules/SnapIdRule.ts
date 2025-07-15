@@ -26,7 +26,6 @@ class SnapIdWallet extends MutableAccountTreeWallet {
         snap.manifest.proposedName
       : stripSnapPrefix(this.snapId);
 
-    console.log('snapName is', snapName);
     return snapName;
   }
 }
