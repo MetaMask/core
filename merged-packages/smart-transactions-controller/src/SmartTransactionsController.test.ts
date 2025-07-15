@@ -39,11 +39,6 @@ import type { SmartTransaction, UnsignedTransaction, Hex } from './types';
 import { SmartTransactionStatuses, ClientId } from './types';
 import * as utils from './utils';
 
-jest.mock('@ethersproject/bytes', () => ({
-  ...jest.requireActual('@ethersproject/bytes'),
-  hexlify: (str: string) => `0x${str}`,
-}));
-
 jest.mock('@metamask/eth-query', () => {
   const EthQuery = jest.requireActual('@metamask/eth-query');
   return class FakeEthQuery extends EthQuery {
@@ -730,7 +725,7 @@ describe('SmartTransactionsController', () => {
     it('should acquire nonce for Swap transactions only', async () => {
       // Create a mock for getNonceLock
       const mockGetNonceLock = jest.fn().mockResolvedValue({
-        nextNonce: 'nextNonce',
+        nextNonce: 42,
         nonceDetails: { test: 'details' },
         releaseLock: jest.fn(),
       });
@@ -840,7 +835,7 @@ describe('SmartTransactionsController', () => {
             ][0];
 
           // Verify nonce was set correctly on the txParams in the created transaction
-          expect(createdSmartTransaction.txParams.nonce).toBe('0x42'); // 42 as a hex string
+          expect(createdSmartTransaction.txParams.nonce).toBe('0x2a'); // 42 in hex
 
           // Verify transaction type is set to 'swap' by default
           expect(createdSmartTransaction.type).toBe('swap');
@@ -2652,7 +2647,7 @@ async function withController<ReturnValue>(
     messenger,
     clientId: ClientId.Mobile,
     getNonceLock: jest.fn().mockResolvedValue({
-      nextNonce: 'nextNonce',
+      nextNonce: 42,
       releaseLock: jest.fn(),
     }),
     confirmExternalTransaction: jest.fn(),

@@ -1,6 +1,6 @@
-import { TransactionFactory } from '@ethereumjs/tx';
-import { bytesToHex } from '@ethereumjs/util';
-import { hexlify } from '@ethersproject/bytes';
+import { arrayify, hexlify } from '@ethersproject/bytes';
+import { keccak256 } from '@ethersproject/keccak256';
+import { parse } from '@ethersproject/transactions';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import { BigNumber } from 'bignumber.js';
@@ -224,15 +224,23 @@ export const incrementNonceInHex = (nonceInHex: string): string => {
   return hexlify(Number(nonceInDec) + 1);
 };
 
+const isType4Transaction = (signedTxHex: string) => {
+  return typeof signedTxHex === 'string' && signedTxHex.startsWith('0x04');
+};
+
 export const getTxHash = (signedTxHex: any) => {
   if (!signedTxHex) {
     return '';
   }
-  const txHashBytes = TransactionFactory.fromSerializedData(
-    // eslint-disable-next-line no-restricted-globals
-    Buffer.from(signedTxHex.slice(2), 'hex'),
-  ).hash();
-  return bytesToHex(txHashBytes);
+  try {
+    const parsed = parse(signedTxHex);
+    return parsed?.hash ?? '';
+  } catch (error) {
+    if (isType4Transaction(signedTxHex)) {
+      return hexlify(keccak256(arrayify(signedTxHex)));
+    }
+    throw error;
+  }
 };
 
 export const getSmartTransactionMetricsProperties = (

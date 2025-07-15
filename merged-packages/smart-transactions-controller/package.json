@@ -30,6 +30,8 @@
     "@ethereumjs/tx": "^5.2.1",
     "@ethereumjs/util": "^9.0.2",
     "@ethersproject/bytes": "^5.7.0",
+    "@ethersproject/keccak256": "^5.8.0",
+    "@ethersproject/transactions": "^5.7.0",
     "@metamask/base-controller": "^7.0.1",
     "@metamask/controller-utils": "^11.0.0",
     "@metamask/eth-json-rpc-provider": "^4.1.6",
