@@ -56,7 +56,7 @@ export class SnapWalletRule extends BaseWalletRule {
       const { id } = account.metadata.snap;
       const snapId = id as SnapId;
 
-      // Check if a wallet already exists for that keyring type.
+      // Check if a wallet already exists for that Snap ID.
       let wallet = this.#wallets.get(SnapWallet.toAccountWalletId(snapId));
       if (!wallet) {
         wallet = new SnapWallet(this.messenger, snapId);
