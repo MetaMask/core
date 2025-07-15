@@ -17,7 +17,7 @@ export type AccountTreeGroup = {
   /**
    * Account IDs for that account group.
    */
-  get accounts(): AccountId[];
+  getAccountIds(): AccountId[];
 
   /**
    * Gets the default name for that account group.
@@ -48,7 +48,7 @@ export class MutableAccountTreeGroup implements AccountTreeGroup {
     this.#accounts = new Set();
   }
 
-  get accounts(): AccountId[] {
+  getAccountIds(): AccountId[] {
     return Array.from(this.#accounts); // FIXME: Should we force the copy here?
   }
 

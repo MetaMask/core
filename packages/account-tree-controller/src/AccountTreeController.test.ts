@@ -673,7 +673,7 @@ describe('AccountTreeController', () => {
 
       const group = groups[0];
       const accounts = group.getAccounts();
-      const accountIds = group.accounts;
+      const accountIds = group.getAccountIds();
       expect(accounts).toHaveLength(1);
       expect(accounts.map((account) => account.id)).toStrictEqual(accountIds);
     });
@@ -696,7 +696,7 @@ describe('AccountTreeController', () => {
       const groups = wallet.getAccountGroups();
       const group = groups[0];
 
-      const accountIds = group.accounts;
+      const accountIds = group.getAccountIds();
       expect(accountIds).toHaveLength(1);
 
       const accounts = group.getAccounts();
