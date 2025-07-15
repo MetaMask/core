@@ -758,7 +758,7 @@ describe('RpcService', () => {
     });
 
     it('extracts a username and password from the URL to the Authorization header', async () => {
-      nock('https://rpc.example.chain', {
+      const scope = nock('https://rpc.example.chain', {
         reqheaders: {
           Authorization: 'Basic dXNlcm5hbWU6cGFzc3dvcmQ=',
         },
@@ -774,6 +774,11 @@ describe('RpcService', () => {
           jsonrpc: '2.0',
           result: '0x1',
         });
+      const promiseForRequestUrl = new Promise<string>((resolve) => {
+        scope.on('request', (request) => {
+          resolve(request.options.href);
+        });
+      });
       const service = new RpcService({
         fetch,
         btoa,
@@ -792,6 +797,7 @@ describe('RpcService', () => {
         jsonrpc: '2.0',
         result: '0x1',
       });
+      expect(await promiseForRequestUrl).toBe('https://rpc.example.chain/');
     });
 
     it('makes the request with Accept and Content-Type headers by default', async () => {
