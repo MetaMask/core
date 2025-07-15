@@ -30,6 +30,11 @@ export type AccountTreeWallet = {
    * @returns Account tree groups.
    */
   getAccountGroups(): AccountTreeGroup[];
+
+  /**
+   * Gets the default name for that account wallet.
+   */
+  getDefaultName(): string;
 } & AccountWallet<InternalAccount>;
 
 // This class is meant to be used internally by every rules. It exposes mutable operations

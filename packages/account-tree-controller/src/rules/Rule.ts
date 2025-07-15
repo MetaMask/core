@@ -1,18 +1,12 @@
-import type { AccountWalletCategory } from '@metamask/account-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { AccountTreeControllerMessenger } from 'src/AccountTreeController';
 
-import type { MutableAccountTreeWallet } from '../AccountTreeWallet';
+import type { AccountTreeGroup } from '../AccountTreeGroup';
+import type { AccountTreeWallet } from '../AccountTreeWallet';
 
-/**
- * A rule match
- */
 export type RuleMatch = {
-  /** Account wallet category. */
-  category: AccountWalletCategory;
-
-  /** Unique ID that will be used to compute a unique account wallet ID. */
-  id: string;
+  wallet: AccountTreeWallet;
+  group: AccountTreeGroup;
 };
 
 /**
@@ -33,15 +27,6 @@ export type Rule = {
    * `undefined` otherwise.
    */
   match(account: InternalAccount): RuleMatch | undefined;
-
-  /**
-   * Build a wallet for that rule based on a {@link RuleMatch}. If wallet already
-   * exists for this same match. The previous wallet instance needs to be re-used.
-   *
-   * @param result - The result of a `match` call (if any).
-   * @returns A new wallet instance for that rule based the `match` result.
-   */
-  build(result: RuleMatch): MutableAccountTreeWallet;
 };
 
 /**
@@ -55,6 +40,4 @@ export abstract class BaseRule implements Rule {
   }
 
   abstract match(account: InternalAccount): RuleMatch | undefined;
-
-  abstract build(result: RuleMatch): MutableAccountTreeWallet;
 }

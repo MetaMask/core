@@ -1,4 +1,8 @@
-import { AccountWalletCategory } from '@metamask/account-api';
+import type { AccountWalletId } from '@metamask/account-api';
+import {
+  AccountWalletCategory,
+  toAccountWalletId,
+} from '@metamask/account-api';
 import type { KeyringObject } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -18,6 +22,10 @@ export class EntropySourceWallet extends MutableAccountTreeWallet {
   ) {
     super(messenger, AccountWalletCategory.Entropy, entropySource);
     this.entropySource = entropySource;
+  }
+
+  static toAccountWalletId(entropySource: string) {
+    return toAccountWalletId(AccountWalletCategory.Entropy, entropySource);
   }
 
   static getEntropySourceIndex(
@@ -47,6 +55,14 @@ export class EntropySourceWallet extends MutableAccountTreeWallet {
 }
 
 export class EntropySourceRule extends BaseRule {
+  readonly #wallets: Map<AccountWalletId, EntropySourceWallet>;
+
+  constructor(messenger: AccountTreeControllerMessenger) {
+    super(messenger);
+
+    this.#wallets = new Map();
+  }
+
   match(account: InternalAccount): RuleMatch | undefined {
     let entropySource: string | undefined;
 
@@ -93,13 +109,18 @@ export class EntropySourceRule extends BaseRule {
       return undefined;
     }
 
-    return {
-      category: AccountWalletCategory.Entropy,
-      id: entropySource,
-    };
-  }
+    // Check if a wallet already exists for that entropy source.
+    let wallet = this.#wallets.get(EntropySourceWallet.toAccountWalletId(entropySource));
+    if (!wallet) {
+      wallet = new EntropySourceWallet(this.messenger, entropySource);
+    }
 
-  build({ id: entropySource }: RuleMatch) {
-    return new EntropySourceWallet(this.messenger, entropySource);
+    // This will automatically creates the group if it's missing.
+    const group = wallet.addAccount(account);
+
+    return {
+      wallet,
+      group,
+    };
   }
 }

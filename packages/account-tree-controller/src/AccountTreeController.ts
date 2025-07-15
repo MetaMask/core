@@ -1,5 +1,4 @@
 import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
-import { toAccountWalletId } from '@metamask/account-api';
 import type {
   AccountId,
   AccountsControllerAccountAddedEvent,
@@ -18,10 +17,7 @@ import type { KeyringControllerGetStateAction } from '@metamask/keyring-controll
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
 
-import type {
-  AccountTreeWallet,
-  MutableAccountTreeWallet,
-} from './AccountTreeWallet';
+import type { AccountTreeWallet } from './AccountTreeWallet';
 import type { Rule } from './rules';
 import { EntropySourceRule, SnapRule, KeyringTypeRule } from './rules';
 
@@ -128,7 +124,7 @@ export class AccountTreeController extends BaseController<
 
   readonly #rules: Rule[];
 
-  readonly #wallets: Map<AccountWalletId, MutableAccountTreeWallet>;
+  readonly #wallets: Map<AccountWalletId, AccountTreeWallet>;
 
   /**
    * Constructor for AccountTreeController.
@@ -232,31 +228,20 @@ export class AccountTreeController extends BaseController<
     account: InternalAccount,
   ) {
     for (const rule of this.#rules) {
-      // NOTE: Instead of de-coupling `match` and `build`, each "rules" could actually
-      // hold the reference of each of their wallets and returns that directly when
-      // calling `match`.
-      // This way, we don't need to have `match` and `build` seperated.
-      const result = rule.match(account);
+      const match = rule.match(account);
 
-      if (!result) {
+      if (!match) {
         // No match for that rule, we go to the next one.
         continue;
       }
 
-      // Update in-memory wallet/group instances.
-      const walletId = toAccountWalletId(result.category, result.id);
-      let wallet = this.#wallets.get(walletId);
-      if (!wallet) {
-        // If we don't have any wallet yet, we just create it.
-        wallet = rule.build(result);
-        this.#wallets.set(wallet.id, wallet);
-      }
+      const { wallet, group } = match;
 
-      // This will automatically creates the group if it's missing.
-      const group = wallet.addAccount(account);
+      // Update in-memory wallet/group instances.
+      this.#wallets.set(wallet.id, wallet);
 
       // Update controller's state.
-      if (!wallets[walletId]) {
+      if (!wallets[wallet.id]) {
         wallets[wallet.id] = {
           id: wallet.id,
           groups: {

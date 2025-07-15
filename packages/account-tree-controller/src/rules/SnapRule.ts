@@ -1,4 +1,8 @@
-import { AccountWalletCategory } from '@metamask/account-api';
+import type { AccountWalletId } from '@metamask/account-api';
+import {
+  AccountWalletCategory,
+  toAccountWalletId,
+} from '@metamask/account-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
@@ -18,6 +22,10 @@ class SnapWallet extends MutableAccountTreeWallet {
     this.snapId = snapId;
   }
 
+  static toAccountWalletId(snapId: SnapId) {
+    return toAccountWalletId(AccountWalletCategory.Snap, snapId);
+  }
+
   getDefaultName(): string {
     const snap = this.messenger.call('SnapController:get', this.snapId);
     const snapName = snap
@@ -31,6 +39,14 @@ class SnapWallet extends MutableAccountTreeWallet {
 }
 
 export class SnapRule extends BaseRule {
+  readonly #wallets: Map<AccountWalletId, SnapWallet>;
+
+  constructor(messenger: AccountTreeControllerMessenger) {
+    super(messenger);
+
+    this.#wallets = new Map();
+  }
+
   match(account: InternalAccount): RuleMatch | undefined {
     if (
       hasKeyringType(account, KeyringTypes.snap) &&
@@ -38,17 +54,23 @@ export class SnapRule extends BaseRule {
       account.metadata.snap.enabled
     ) {
       const { id } = account.metadata.snap;
+      const snapId = id as SnapId;
+
+      // Check if a wallet already exists for that keyring type.
+      let wallet = this.#wallets.get(SnapWallet.toAccountWalletId(snapId));
+      if (!wallet) {
+        wallet = new SnapWallet(this.messenger, snapId);
+      }
+
+      // This will automatically creates the group if it's missing.
+      const group = wallet.addAccount(account);
 
       return {
-        category: AccountWalletCategory.Snap,
-        id,
+        wallet,
+        group,
       };
     }
 
     return undefined;
-  }
-
-  build({ id: snapId }: RuleMatch) {
-    return new SnapWallet(this.messenger, snapId as SnapId);
   }
 }

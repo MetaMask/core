@@ -18,6 +18,11 @@ export type AccountTreeGroup = {
    * Account IDs for that account group.
    */
   get accounts(): AccountId[];
+
+  /**
+   * Gets the default name for that account group.
+   */
+  getDefaultName(): string;
 } & AccountGroup<InternalAccount>;
 
 // This class is meant to be used internally by every rules. It exposes mutable operations
@@ -73,7 +78,6 @@ export class MutableAccountTreeGroup implements AccountTreeGroup {
     this.#accounts.add(account.id);
   }
 
-  // NOTE: This method SHOULD BE overriden if a rule need to name its group differently.
   getDefaultName(): string {
     return DEFAULT_ACCOUNT_GROUP_NAME;
   }

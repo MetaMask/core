@@ -1,4 +1,8 @@
-import { AccountWalletCategory } from '@metamask/account-api';
+import type { AccountWalletId } from '@metamask/account-api';
+import {
+  AccountWalletCategory,
+  toAccountWalletId,
+} from '@metamask/account-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
@@ -56,23 +60,41 @@ class KeyringTypeWallet extends MutableAccountTreeWallet {
     this.type = type;
   }
 
+  static toAccountWalletId(type: KeyringTypes) {
+    return toAccountWalletId(AccountWalletCategory.Keyring, type);
+  }
+
   getDefaultName(): string {
     return getAccountWalletNameFromKeyringType(this.type);
   }
 }
 
 export class KeyringTypeRule extends BaseRule {
-  match(account: InternalAccount): RuleMatch | undefined {
-    const { type } = account.metadata.keyring;
+  readonly #wallets: Map<AccountWalletId, KeyringTypeWallet>;
 
-    return {
-      category: AccountWalletCategory.Keyring,
-      id: type,
-    };
+  constructor(messenger: AccountTreeControllerMessenger) {
+    super(messenger);
+
+    this.#wallets = new Map();
   }
 
-  build({ id: type }: RuleMatch) {
+  match(account: InternalAccount): RuleMatch | undefined {
+    const { type } = account.metadata.keyring;
     // We assume that `type` is really a `KeyringTypes`.
-    return new KeyringTypeWallet(this.messenger, type as KeyringTypes);
+    const keyringType = type as KeyringTypes;
+
+    // Check if a wallet already exists for that keyring type.
+    let wallet = this.#wallets.get(KeyringTypeWallet.toAccountWalletId(keyringType));
+    if (!wallet) {
+      wallet = new KeyringTypeWallet(this.messenger, keyringType);
+    }
+
+    // This will automatically creates the group if it's missing.
+    const group = wallet.addAccount(account);
+
+    return {
+      wallet,
+      group,
+    };
   }
 }
