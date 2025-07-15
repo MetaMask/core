@@ -1,10 +1,11 @@
-import type { JsonRpcId, NonEmptyArray } from '@metamask/utils';
+import type { NonEmptyArray } from '@metamask/utils';
 import { Json } from '@metamask/utils';
 import { original as getOriginalState } from 'immer';
 import cloneDeep from 'lodash/cloneDeep';
 
 import type {
   JsonRpcMiddleware,
+  MiddlewareContext,
   MiddlewareResultConstraint,
 } from './JsonRpcEngineV2';
 import { JsonRpcEngineV2, EndNotification } from './JsonRpcEngineV2';
@@ -54,7 +55,7 @@ const makeMockMiddleware = <
   ...rest: JsonRpcMiddleware<Request, Result>[]
 ): NonEmptyArray<JsonRpcMiddleware<Request, Result>> =>
   [middleware, ...rest].map(
-    (fn) => (request: Request, context: Record<string, unknown>) =>
+    (fn) => (request: Request, context: MiddlewareContext) =>
       fn(getOriginalState(request) as Request, context),
   ) as NonEmptyArray<JsonRpcMiddleware<Request, Result>>;
 
@@ -73,7 +74,7 @@ describe('JsonRpcEngineV2', () => {
         await engine.handle(notification);
 
         expect(middleware).toHaveBeenCalledTimes(1);
-        expect(middleware).toHaveBeenCalledWith(notification, {});
+        expect(middleware).toHaveBeenCalledWith(notification, expect.any(Map));
       });
 
       it('returns no result', async () => {
@@ -186,7 +187,7 @@ describe('JsonRpcEngineV2', () => {
 
         expect(result).toBeNull();
         expect(middleware).toHaveBeenCalledTimes(1);
-        expect(middleware).toHaveBeenCalledWith(request, {});
+        expect(middleware).toHaveBeenCalledWith(request, expect.any(Map));
       });
 
       it('returns a result from the middleware, with multiple middleware', async () => {
@@ -201,9 +202,9 @@ describe('JsonRpcEngineV2', () => {
 
         expect(result).toBeNull();
         expect(middleware1).toHaveBeenCalledTimes(1);
-        expect(middleware1).toHaveBeenCalledWith(request, {});
+        expect(middleware1).toHaveBeenCalledWith(request, expect.any(Map));
         expect(middleware2).toHaveBeenCalledTimes(1);
-        expect(middleware2).toHaveBeenCalledWith(request, {});
+        expect(middleware2).toHaveBeenCalledWith(request, expect.any(Map));
       });
 
       it('throws if a middleware throws', async () => {
@@ -477,6 +478,71 @@ describe('JsonRpcEngineV2', () => {
         );
       });
     });
+
+    describe('context', () => {
+      it('passes the context to the middleware', async () => {
+        const middleware = jest.fn((_req, context) => {
+          expect(context).toBeInstanceOf(Map);
+          return null;
+        });
+        const engine = new JsonRpcEngineV2({
+          middleware: [middleware],
+        });
+
+        await engine.handle(makeRequest());
+      });
+
+      it('propagates context changes to subsequent middleware', async () => {
+        const middleware1 = jest.fn((_req, context) => {
+          context.set('foo', 'bar');
+        });
+        const middleware2 = jest.fn((_req, context) => {
+          return context.get('foo') as string;
+        });
+        const engine = new JsonRpcEngineV2<JsonRpcCall, string | void>({
+          middleware: [middleware1, middleware2],
+        });
+
+        const result = await engine.handle(makeRequest());
+
+        expect(result).toBe('bar');
+      });
+
+      it('propagates context changes from middleware to return handlers', async () => {
+        const middleware1 = jest.fn((_req, context) => () => {
+          return context.get('foo') as string;
+        });
+        const middleware2 = jest.fn((_req, context) => {
+          context.set('foo', 'bar');
+        });
+        const engine = new JsonRpcEngineV2<JsonRpcCall, (() => string) | void>({
+          middleware: [middleware1, middleware2],
+        });
+
+        const result = await engine.handle(makeRequest());
+
+        expect(result).toBe('bar');
+      });
+
+      it('propagates context changes from return handlers to return handlers', async () => {
+        const middleware1 = jest.fn((_req, context) => () => {
+          return context.get('foo') as string;
+        });
+        const middleware2 = jest.fn((_req, context) => () => {
+          context.set('foo', 'bar');
+        });
+        const engine = new JsonRpcEngineV2<
+          JsonRpcCall,
+          (() => string) | (() => void)
+        >({
+          middleware: [middleware1, middleware2],
+        });
+
+        const result = await engine.handle(makeRequest());
+
+        expect(result).toBe('bar');
+      });
+    });
   });
 
   describe('handleAny', () => {
@@ -572,6 +638,32 @@ describe('JsonRpcEngineV2', () => {
 
       expect(result).toBe(8);
       expect(observedMethod).toBe('test_request_2');
+    });
+
+    it('propagates context changes', async () => {
+      const engine1 = new JsonRpcEngineV2({
+        middleware: [
+          (_req, context) => {
+            const num = context.get('foo') as number;
+            context.set('foo', num * 2);
+          },
+        ],
+      });
+      const engine2 = new JsonRpcEngineV2<JsonRpcCall, number | void>({
+        middleware: [
+          (_req, context) => {
+            context.set('foo', 2);
+          },
+          engine1.asMiddleware(),
+          (_req, context) => {
+            return (context.get('foo') as number) * 2;
+          },
+        ],
+      });
+
+      const result = await engine2.handle(makeRequest());
+
+      expect(result).toBe(8);
     });
 
     it('runs return handlers in expected order', async () => {

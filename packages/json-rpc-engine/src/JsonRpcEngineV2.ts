@@ -11,7 +11,7 @@ import type { JsonRpcCall } from './utils';
 
 export const EndNotification = Symbol.for('JsonRpcEngine:EndNotification');
 
-type Context = Record<string, unknown>;
+export type MiddlewareContext = Map<string, unknown>;
 
 type ReturnHandler<Result extends Json = Json> = (
   result: Result | undefined,
@@ -24,15 +24,15 @@ export type MiddlewareResultConstraint<Request extends JsonRpcCall> =
       : void | typeof EndNotification
     : void | Json | ReturnHandler;
 
-type HandledResult<Result extends MiddlewareResultConstraint<JsonRpcCall>> =
-  Exclude<Result, typeof EndNotification> | void;
-
 export type JsonRpcMiddleware<
   Request extends JsonRpcCall = JsonRpcCall,
   Result extends
     | MiddlewareResultConstraint<Request>
     | undefined = MiddlewareResultConstraint<Request>,
-> = (request: Request, context: Context) => Result | Promise<Result>;
+> = (request: Request, context: MiddlewareContext) => Result | Promise<Result>;
+
+type HandledResult<Result extends MiddlewareResultConstraint<JsonRpcCall>> =
+  Exclude<Result, typeof EndNotification> | void;
 
 type Options<
   Request extends JsonRpcCall,
@@ -114,7 +114,7 @@ export class JsonRpcEngineV2<
    */
   async #handle(
     request: Request,
-    context: Context = {},
+    context: MiddlewareContext = new Map(),
   ): Promise<{
     result: Result | undefined;
     finalRequest: Readonly<Request>;
@@ -142,7 +142,7 @@ export class JsonRpcEngineV2<
    */
   async #runMiddleware(
     originalRequest: Request,
-    context: Context,
+    context: MiddlewareContext,
   ): Promise<{
     result: Extract<Result, Json | typeof EndNotification> | undefined;
     returnHandlers: ReturnHandler[];
