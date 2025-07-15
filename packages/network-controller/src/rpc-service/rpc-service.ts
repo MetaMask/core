@@ -273,15 +273,12 @@ export class RpcService implements AbstractRpcService {
 
     this.#fetch = givenFetch;
     const normalizedUrl = getNormalizedEndpointUrl(endpointUrl);
-
     this.#fetchOptions = this.#getDefaultFetchOptions(
       normalizedUrl,
       fetchOptions,
       givenBtoa,
     );
-
     this.endpointUrl = stripCredentialsFromUrl(normalizedUrl);
-
     this.#failoverService = failoverService;
 
     const policy = createServicePolicy({
