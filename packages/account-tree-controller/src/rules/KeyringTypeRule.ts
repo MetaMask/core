@@ -5,7 +5,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { RuleMatch } from './Rule';
 import { BaseRule } from './Rule';
 import type { AccountTreeControllerMessenger } from '../AccountTreeController';
-import { AccountTreeWallet } from '../AccountTreeWallet';
+import { MutableAccountTreeWallet } from '../AccountTreeWallet';
 
 /**
  * Get wallet name from a keyring type.
@@ -48,7 +48,7 @@ export function getAccountWalletNameFromKeyringType(type: KeyringTypes) {
   }
 }
 
-class KeyringTypeWallet extends AccountTreeWallet {
+class KeyringTypeWallet extends MutableAccountTreeWallet {
   readonly type: KeyringTypes;
 
   constructor(messenger: AccountTreeControllerMessenger, type: KeyringTypes) {

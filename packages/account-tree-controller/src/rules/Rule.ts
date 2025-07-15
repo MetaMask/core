@@ -2,7 +2,7 @@ import type { AccountWalletCategory } from '@metamask/account-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { AccountTreeControllerMessenger } from 'src/AccountTreeController';
 
-import type { AccountTreeWallet } from '../AccountTreeWallet';
+import type { MutableAccountTreeWallet } from '../AccountTreeWallet';
 
 export type RuleMatch = {
   category: AccountWalletCategory;
@@ -12,7 +12,7 @@ export type RuleMatch = {
 export type Rule = {
   match(account: InternalAccount): RuleMatch | undefined;
 
-  build(result: RuleMatch): AccountTreeWallet;
+  build(result: RuleMatch): MutableAccountTreeWallet;
 };
 
 export abstract class BaseRule implements Rule {
@@ -24,5 +24,5 @@ export abstract class BaseRule implements Rule {
 
   abstract match(account: InternalAccount): RuleMatch | undefined;
 
-  abstract build(result: RuleMatch): AccountTreeWallet;
+  abstract build(result: RuleMatch): MutableAccountTreeWallet;
 }

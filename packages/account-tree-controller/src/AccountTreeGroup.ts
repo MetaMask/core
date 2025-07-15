@@ -10,7 +10,11 @@ import type { AccountTreeControllerMessenger } from 'src';
 
 export const DEFAULT_ACCOUNT_GROUP_NAME: string = 'Default';
 
-export class AccountTreeGroup implements AccountGroup<InternalAccount> {
+export type AccountTreeGroup = {
+  get accounts(): AccountId[];
+} & AccountGroup<InternalAccount>;
+
+export class MutableAccountTreeGroup implements AccountTreeGroup {
   readonly id: AccountGroupId;
 
   readonly wallet: AccountWallet<InternalAccount>;
@@ -33,7 +37,7 @@ export class AccountTreeGroup implements AccountGroup<InternalAccount> {
   }
 
   get accounts(): AccountId[] {
-    return this.#accounts.slice(); // Force the copy here.
+    return this.#accounts.slice(); // FIXME: Should we force the copy here?
   }
 
   getAccounts(): InternalAccount[] {

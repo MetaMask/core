@@ -1,4 +1,7 @@
-import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
+import type {
+  AccountGroupId,
+  AccountWalletId,
+} from '@metamask/account-api';
 import { toAccountWalletId } from '@metamask/account-api';
 import type {
   AccountId,
@@ -18,9 +21,12 @@ import type { KeyringControllerGetStateAction } from '@metamask/keyring-controll
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
 
+import type {
+  AccountTreeWallet,
+  MutableAccountTreeWallet,
+} from './AccountTreeWallet';
 import type { Rule } from './rules';
 import { EntropySourceRule, SnapIdRule, KeyringTypeRule } from './rules';
-import type { AccountTreeWallet } from './AccountTreeWallet';
 
 const controllerName = 'AccountTreeController';
 
@@ -125,7 +131,7 @@ export class AccountTreeController extends BaseController<
 
   readonly #rules: Rule[];
 
-  readonly #wallets: Map<AccountWalletId, AccountTreeWallet>;
+  readonly #wallets: Map<AccountWalletId, MutableAccountTreeWallet>;
 
   /**
    * Constructor for AccountTreeController.

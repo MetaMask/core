@@ -10,18 +10,23 @@ import {
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import { type AccountTreeControllerMessenger } from './AccountTreeController';
-import { AccountTreeGroup } from './AccountTreeGroup';
+import type { AccountTreeGroup } from './AccountTreeGroup';
+import { MutableAccountTreeGroup } from './AccountTreeGroup';
 
-export abstract class AccountTreeWallet
-  implements AccountWallet<InternalAccount>
-{
+export type AccountTreeWallet = {
+  getAccountGroup(groupId: AccountGroupId): AccountTreeGroup | undefined;
+
+  getAccountGroups(): AccountTreeGroup[];
+} & AccountWallet<InternalAccount>;
+
+export abstract class MutableAccountTreeWallet implements AccountTreeWallet {
   readonly id: AccountWalletId;
 
   readonly category: AccountWalletCategory;
 
   readonly messenger: AccountTreeControllerMessenger;
 
-  readonly #groups: Map<AccountGroupId, AccountTreeGroup>;
+  readonly #groups: Map<AccountGroupId, MutableAccountTreeGroup>;
 
   constructor(
     messenger: AccountTreeControllerMessenger,
@@ -48,7 +53,7 @@ export abstract class AccountTreeWallet
   }
 
   // NOTE: This method SHOULD BE overriden if we need to group things differently.
-  addAccount(account: InternalAccount): AccountTreeGroup {
+  addAccount(account: InternalAccount): MutableAccountTreeGroup {
     const id = DEFAULT_ACCOUNT_GROUP_UNIQUE_ID;
 
     // Accounts for that group. We start with no accounts and will re-use the existing
@@ -66,7 +71,7 @@ export abstract class AccountTreeWallet
     accounts.push(account.id);
 
     // We (re-)create the account group and attach it to this wallet.
-    group = new AccountTreeGroup(this.messenger, this, id, [account.id]);
+    group = new MutableAccountTreeGroup(this.messenger, this, id, [account.id]);
     this.#groups.set(group.id, group);
 
     return group;

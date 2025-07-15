@@ -7,9 +7,9 @@ import type { RuleMatch } from './Rule';
 import { BaseRule } from './Rule';
 import { hasKeyringType } from './utils';
 import type { AccountTreeControllerMessenger } from '../AccountTreeController';
-import { AccountTreeWallet } from '../AccountTreeWallet';
+import { MutableAccountTreeWallet } from '../AccountTreeWallet';
 
-class EntropySourceWallet extends AccountTreeWallet {
+export class EntropySourceWallet extends MutableAccountTreeWallet {
   readonly entropySource: string;
 
   constructor(
