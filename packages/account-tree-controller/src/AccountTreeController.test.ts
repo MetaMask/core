@@ -214,7 +214,7 @@ function setup({
   >;
   spies: {
     consoleWarn: jest.SpyInstance;
-  },
+  };
 } {
   const controller = new AccountTreeController({
     messenger: getAccountTreeControllerMessenger(messenger),
@@ -239,7 +239,7 @@ function setup({
     .spyOn(console, 'warn')
     .mockImplementation(() => undefined);
 
-  return { controller, messenger, spies: { consoleWarn: consoleWarnSpy }};
+  return { controller, messenger, spies: { consoleWarn: consoleWarnSpy } };
 }
 
 describe('AccountTreeController', () => {

@@ -1,7 +1,4 @@
-import type {
-  AccountGroupId,
-  AccountWalletId,
-} from '@metamask/account-api';
+import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
 import { toAccountWalletId } from '@metamask/account-api';
 import type {
   AccountId,
