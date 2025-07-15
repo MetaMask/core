@@ -52,23 +52,15 @@ export abstract class MutableAccountTreeWallet implements AccountTreeWallet {
   addAccount(account: InternalAccount): MutableAccountTreeGroup {
     const id = DEFAULT_ACCOUNT_GROUP_UNIQUE_ID;
 
-    // Accounts for that group. We start with no accounts and will re-use the existing
-    // ones (if any) + add the new one.
-    let accounts = [];
-
     // Use a single-group by default.
-    const groupId = toAccountGroupId(this.id, id);
-    let group = this.#groups.get(groupId);
-    if (group) {
-      // Group exists already, we will just re-create it after (this way we don't have
-      // to expose any mutable method to "update its content").
-      accounts = group.accounts;
+    let group = this.#groups.get(toAccountGroupId(this.id, id));
+    if (!group) {
+      // We create the account group and attach it to this wallet.
+      group = new MutableAccountTreeGroup(this.messenger, this, id);
+      this.#groups.set(group.id, group);
     }
-    accounts.push(account.id);
 
-    // We (re-)create the account group and attach it to this wallet.
-    group = new MutableAccountTreeGroup(this.messenger, this, id, [account.id]);
-    this.#groups.set(group.id, group);
+    group.addAccount(account);
 
     return group;
   }

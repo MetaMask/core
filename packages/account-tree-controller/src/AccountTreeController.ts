@@ -239,18 +239,19 @@ export class AccountTreeController extends BaseController<
         continue;
       }
 
+      // Update in-memory wallet/group instances.
       const walletId = toAccountWalletId(result.category, result.id);
       let wallet = this.#wallets.get(walletId);
       if (!wallet) {
-        // If we don't have any AccountTreeWallet yet, we just create it.
+        // If we don't have any wallet yet, we just create it.
         wallet = rule.build(result);
         this.#wallets.set(wallet.id, wallet);
       }
 
       // This will automatically creates the group if it's missing.
       const group = wallet.addAccount(account);
-      const groupId = group.id;
 
+      // Update controller's state.
       if (!wallets[walletId]) {
         wallets[wallet.id] = {
           id: wallet.id,
@@ -271,7 +272,7 @@ export class AccountTreeController extends BaseController<
       // Update the reverse mapping for this account.
       this.#reverse.set(account.id, {
         walletId: wallet.id,
-        groupId,
+        groupId: group.id,
       });
 
       return;

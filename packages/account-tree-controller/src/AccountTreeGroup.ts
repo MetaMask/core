@@ -21,23 +21,22 @@ export class MutableAccountTreeGroup implements AccountTreeGroup {
 
   readonly messenger: AccountTreeControllerMessenger;
 
-  readonly #accounts: AccountId[];
+  readonly #accounts: Set<AccountId>;
 
   constructor(
     messenger: AccountTreeControllerMessenger,
     wallet: AccountWallet<InternalAccount>,
     id: string,
-    accounts: AccountId[],
   ) {
     this.id = toAccountGroupId(wallet.id, id);
     this.wallet = wallet;
     this.messenger = messenger;
 
-    this.#accounts = accounts;
+    this.#accounts = new Set();
   }
 
   get accounts(): AccountId[] {
-    return this.#accounts.slice(); // FIXME: Should we force the copy here?
+    return Array.from(this.#accounts); // FIXME: Should we force the copy here?
   }
 
   getAccounts(): InternalAccount[] {
@@ -60,6 +59,10 @@ export class MutableAccountTreeGroup implements AccountTreeGroup {
 
   getAccount(id: AccountId): InternalAccount | undefined {
     return this.messenger.call('AccountsController:getAccount', id);
+  }
+
+  addAccount(account: InternalAccount) {
+    this.#accounts.add(account.id);
   }
 
   getDefaultName(): string {
