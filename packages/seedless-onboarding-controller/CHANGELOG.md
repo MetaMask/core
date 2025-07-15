@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0]
+
+### Added
+
+- Added `access_token` and `metadata_access_token` in seedless controller state. ([#6060](https://github.com/MetaMask/core/pull/6060))
+  - `access_token` can be used by profile sync pairing and for other apis access after wallet is unlocked.
+  - `metadata_access_token` is used to give access for web3auth metadata apis.
+
 ## [2.0.1]
 
 ### Fixed
@@ -78,7 +86,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `checkIsPasswordOutdated`: Check if the password is current device is outdated, i.e. user changed password in another device.
     - `clearState`: Reset the state of the controller to the defaults.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@2.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@2.1.0...HEAD
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@2.0.1...@metamask/seedless-onboarding-controller@2.1.0
 [2.0.1]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@2.0.0...@metamask/seedless-onboarding-controller@2.0.1
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@1.0.0...@metamask/seedless-onboarding-controller@2.0.0
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/seedless-onboarding-controller@1.0.0
