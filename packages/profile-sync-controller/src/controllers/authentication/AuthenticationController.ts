@@ -10,6 +10,7 @@ import type {
   KeyringControllerLockEvent,
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
+import type { SeedlessOnboardingControllerGetStateAction } from '@metamask/seedless-onboarding-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 
 import {
@@ -37,7 +38,6 @@ const controllerName = 'AuthenticationController';
 export type AuthenticationControllerState = {
   isSignedIn: boolean;
   srpSessionData?: Record<string, LoginResponse>;
-  socialPairingToken?: string;
   socialPairingDone?: boolean;
   pairingInProgress?: boolean;
 };
@@ -53,10 +53,6 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
     persist: true,
     anonymous: false,
   },
-  socialPairingToken: {
-    persist: true,
-    anonymous: true,
-  },
   socialPairingDone: {
     persist: true,
     anonymous: true,
@@ -64,7 +60,7 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
   pairingInProgress: {
     persist: false,
     anonymous: true,
-  }
+  },
 };
 
 type ControllerConfig = {
@@ -85,7 +81,6 @@ type ActionsObj = CreateActionsObj<
   | 'getSessionProfile'
   | 'getUserProfileMetaMetrics'
   | 'isSignedIn'
-  | 'ingestSocialLoginToken'
 >;
 export type Actions =
   | ActionsObj[keyof ActionsObj]
@@ -116,7 +111,8 @@ export type Events = AuthenticationControllerStateChangeEvent;
 // Allowed Actions
 export type AllowedActions =
   | HandleSnapRequest
-  | KeyringControllerGetStateAction;
+  | KeyringControllerGetStateAction
+  | SeedlessOnboardingControllerGetStateAction;
 
 export type AllowedEvents =
   | KeyringControllerLockEvent
@@ -333,7 +329,6 @@ export default class AuthenticationController extends BaseController<
     this.update((state) => {
       state.isSignedIn = false;
       state.srpSessionData = undefined;
-      state.socialPairingToken = undefined;
       state.socialPairingDone = false;
     });
   }
@@ -374,48 +369,29 @@ export default class AuthenticationController extends BaseController<
     return this.state.isSignedIn;
   }
 
-  /**
-   * Stores a social login JWT token in controller state temporarily
-   * until it can be used for pairing.
-   * This token will automatically be removed from state after
-   * successful pairing or during a sign-out request.
-   *
-   * @param token - The JWT token from seedless onboarding OAuth flow
-   */
-  public ingestSocialLoginToken(token: string) {
-    this.update((state) => {
-      state.socialPairingToken = token;
-      state.socialPairingDone = false;
-    });
-  }
-
   async #tryPairingWithSocialToken(): Promise<void> {
-    console.log(`GIGEL: trying to pair with seedless token`);
-    const { socialPairingToken, socialPairingDone, pairingInProgress } = this.state;
+    const { accessToken: socialPairingToken } = this.messagingSystem.call(
+      'SeedlessOnboardingController:getState',
+    );
+    const { socialPairingDone, pairingInProgress } = this.state;
     if (socialPairingDone || !socialPairingToken || pairingInProgress) {
-      console.log(`GIGEL: pairing conditions not met`);
       return;
     }
 
     try {
+      console.log(`starting to pair with social token`);
       this.update((state) => {
         state.pairingInProgress = true;
       });
-      console.log(`GIGEL: pairing with seedless token ${socialPairingToken}`);
-      if (await this.#auth.pairSocialIdentifier(socialPairingToken)) {
-        console.log(`GIGEL: successfully paired with seedless onboarding token`);
+      const paired = await this.#auth.pairSocialIdentifier(socialPairingToken);
+      console.log(`pairing with social token success=${paired}`);
+      if (paired) {
         this.update((state) => {
           state.socialPairingDone = true;
-          state.socialPairingToken = undefined;
         });
-      } else {
-        console.log(`GIGEL: pairing with seedless token failed`);
-        // ignore the error
       }
-    } catch (error) {
-      console.error('GIGEL: Failed to pair identifiers:', error);
-      // ignore the error
     } finally {
+      console.log(`pairing attempt done`);
       this.update((state) => {
         state.pairingInProgress = false;
       });

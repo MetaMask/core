@@ -217,27 +217,16 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   }
 
   async pairSocialIdentifier(jwt: string): Promise<boolean> {
-    console.log(
-      `GIGEL: pairing primary SRP with social token ${jwt}`,
-    );
-
-    // TODO: need to hardcode the env as web3auth prod is not available.
-    // const { env, platform } = this.#config;
-    const { platform } = this.#config;
-    const env = Env.DEV;
+    // TODO: We need to sync the ENV this library is using with the build type of the client, otherwise the pairing will fail because the clients will use the auth server corresponding to the build type but the library hardcodes to PRD.
+    const { env, platform } = this.#config;
 
     // Exchange the social token with an access token
-    console.log(`GIGEL: exchanging social token for access token`);
     const tokenResponse = await authorizeOIDC(jwt, env, platform);
-    console.log(`GIGEL: obtained access token ${tokenResponse.accessToken}`);
 
     // Prepare the SRP signature
     const identifier = await this.getIdentifier();
-    const profile = await this.getUserProfile();
-    const n = await getNonce(profile.profileId, env);
-    console.log(
-      `GIGEL: pairing social token with profile ${profile.profileId} with nonce ${n.nonce}`,
-    );
+    // TODO: should we get the nonce for the profileID instead of for the identifier?
+    const n = await getNonce(identifier, env);
     const raw = `metamask:${n.nonce}:${identifier}`;
     const sig = await this.signMessage(raw);
     const primaryIdentifierSignature = {
@@ -257,25 +246,15 @@ export class SRPJwtBearerAuth implements IBaseAuth {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${tokenResponse.accessToken}`,
         },
-        body: JSON.stringify({
-          nonce: n.nonce,
-          login: primaryIdentifierSignature,
-        }),
+        body: JSON.stringify({ login: primaryIdentifierSignature }),
       });
 
-      if (!response.ok) {
-        const responseBody = (await response.json()) as ErrorMessage;
-        throw new Error(
-          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
-        );
-      }
+      return response.ok;
     } catch (e) {
       /* istanbul ignore next */
       const errorMessage =
         e instanceof Error ? e.message : JSON.stringify(e ?? '');
       throw new PairError(`unable to pair identifiers: ${errorMessage}`);
     }
-
-    return false;
   }
 }
