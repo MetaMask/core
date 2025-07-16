@@ -45,7 +45,6 @@ import type {
 } from './create-auto-managed-network-client';
 import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
 import { projectLogger, createModuleLogger } from './logger';
-import type { NetworkControllerMethodActions } from './NetworkController-method-action-types';
 import type { RpcServiceOptions } from './rpc-service/rpc-service';
 import { NetworkClientType } from './types';
 import type {
@@ -516,33 +515,87 @@ export type NetworkControllerGetEthQueryAction = {
   handler: () => EthQuery | undefined;
 };
 
+export type NetworkControllerGetNetworkClientByIdAction = {
+  type: `NetworkController:getNetworkClientById`;
+  handler: NetworkController['getNetworkClientById'];
+};
+
+export type NetworkControllerGetSelectedNetworkClientAction = {
+  type: `NetworkController:getSelectedNetworkClient`;
+  handler: NetworkController['getSelectedNetworkClient'];
+};
+
+export type NetworkControllerGetSelectedChainIdAction = {
+  type: 'NetworkController:getSelectedChainId';
+  handler: NetworkController['getSelectedChainId'];
+};
+
+export type NetworkControllerGetEIP1559CompatibilityAction = {
+  type: `NetworkController:getEIP1559Compatibility`;
+  handler: NetworkController['getEIP1559Compatibility'];
+};
+
+export type NetworkControllerFindNetworkClientIdByChainIdAction = {
+  type: `NetworkController:findNetworkClientIdByChainId`;
+  handler: NetworkController['findNetworkClientIdByChainId'];
+};
+
 /**
- * @deprecated Use NetworkControllerGetNetworkConfigurationByNetworkClientIdAction instead
+ * Change the currently selected network to the given built-in network type.
+ *
+ * @deprecated This action has been replaced by `setActiveNetwork`, and will be
+ * removed in a future release.
  */
+export type NetworkControllerSetProviderTypeAction = {
+  type: `NetworkController:setProviderType`;
+  handler: NetworkController['setProviderType'];
+};
+
+export type NetworkControllerSetActiveNetworkAction = {
+  type: `NetworkController:setActiveNetwork`;
+  handler: NetworkController['setActiveNetwork'];
+};
+
+export type NetworkControllerGetNetworkConfigurationByChainId = {
+  type: `NetworkController:getNetworkConfigurationByChainId`;
+  handler: NetworkController['getNetworkConfigurationByChainId'];
+};
+
 export type NetworkControllerGetNetworkConfigurationByNetworkClientId = {
   type: `NetworkController:getNetworkConfigurationByNetworkClientId`;
   handler: NetworkController['getNetworkConfigurationByNetworkClientId'];
 };
 
-const MESSENGER_EXPOSED_METHODS = [
-  'getNetworkClientById',
-  'getSelectedNetworkClient',
-  'getSelectedChainId',
-  'getEIP1559Compatibility',
-  'findNetworkClientIdByChainId',
-  'setProviderType',
-  'setActiveNetwork',
-  'getNetworkConfigurationByChainId',
-  'getNetworkConfigurationByNetworkClientId',
-  'addNetwork',
-  'removeNetwork',
-  'updateNetwork',
-] as const;
+export type NetworkControllerAddNetworkAction = {
+  type: 'NetworkController:addNetwork';
+  handler: NetworkController['addNetwork'];
+};
+
+export type NetworkControllerRemoveNetworkAction = {
+  type: 'NetworkController:removeNetwork';
+  handler: NetworkController['removeNetwork'];
+};
+
+export type NetworkControllerUpdateNetworkAction = {
+  type: 'NetworkController:updateNetwork';
+  handler: NetworkController['updateNetwork'];
+};
 
 export type NetworkControllerActions =
   | NetworkControllerGetStateAction
   | NetworkControllerGetEthQueryAction
-  | NetworkControllerMethodActions;
+  | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerGetSelectedNetworkClientAction
+  | NetworkControllerGetSelectedChainIdAction
+  | NetworkControllerGetEIP1559CompatibilityAction
+  | NetworkControllerFindNetworkClientIdByChainIdAction
+  | NetworkControllerSetActiveNetworkAction
+  | NetworkControllerSetProviderTypeAction
+  | NetworkControllerGetNetworkConfigurationByChainId
+  | NetworkControllerGetNetworkConfigurationByNetworkClientId
+  | NetworkControllerAddNetworkAction
+  | NetworkControllerRemoveNetworkAction
+  | NetworkControllerUpdateNetworkAction;
 
 /**
  * All actions that {@link NetworkController} calls internally.
@@ -1175,15 +1228,93 @@ export class NetworkController extends BaseController<
         this.state.networkConfigurationsByChainId,
       );
 
-    this.messagingSystem.registerMethodActionHandlers(
-      this,
-      MESSENGER_EXPOSED_METHODS,
-    );
     this.messagingSystem.registerActionHandler(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:getEthQuery`,
       () => {
         return this.#ethQuery;
       },
+    );
+
+    this.messagingSystem.registerActionHandler(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      `${this.name}:getNetworkClientById`,
+      this.getNetworkClientById.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      `${this.name}:getEIP1559Compatibility`,
+      this.getEIP1559Compatibility.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      `${this.name}:setActiveNetwork`,
+      this.setActiveNetwork.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      `${this.name}:setProviderType`,
+      this.setProviderType.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      `${this.name}:findNetworkClientIdByChainId`,
+      this.findNetworkClientIdByChainId.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      `${this.name}:getNetworkConfigurationByChainId`,
+      this.getNetworkConfigurationByChainId.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      // ESLint is mistaken here; `name` is a string.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      `${this.name}:getNetworkConfigurationByNetworkClientId`,
+      this.getNetworkConfigurationByNetworkClientId.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${this.name}:getSelectedNetworkClient`,
+      this.getSelectedNetworkClient.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${this.name}:getSelectedChainId`,
+      this.getSelectedChainId.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      // ESLint is mistaken here; `name` is a string.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      `${this.name}:addNetwork`,
+      this.addNetwork.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      // ESLint is mistaken here; `name` is a string.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      `${this.name}:removeNetwork`,
+      this.removeNetwork.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      // ESLint is mistaken here; `name` is a string.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      `${this.name}:updateNetwork`,
+      this.updateNetwork.bind(this),
     );
   }
 
