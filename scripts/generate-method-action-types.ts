@@ -87,9 +87,6 @@ async function checkActionTypesFiles(
 
     const rawExpectedContent = generateActionTypesContent(controller);
 
-    console.log('rawExpectedContent');
-    console.log(rawExpectedContent);
-
     // Lint the expected content to match what would be on disk after linting
     const expectedContent = await lintFileContent(
       rawExpectedContent,
@@ -99,15 +96,19 @@ async function checkActionTypesFiles(
     try {
       const rawActualContent = await fs.promises.readFile(outputFile, 'utf8');
 
-      console.log('rawActualContent');
-      console.log(rawActualContent);
-
       // Lint the actual content to match what would be on disk after linting
       const actualContent = await lintFileContent(rawActualContent, outputFile);
 
       if (actualContent !== expectedContent) {
+        console.log('rawExpectedContent');
+        console.log(rawExpectedContent);
+
+        console.log('rawActualContent');
+        console.log(rawActualContent);
+
         console.log('actualContent');
         console.log(actualContent);
+
         console.log('expectedContent');
         console.log(expectedContent);
         console.error(
@@ -496,10 +497,14 @@ import type { ${controller.name} } from '${controllerImportPath}';
   // Generate union type of all action types
   if (actionTypeNames.length > 0) {
     const unionTypeName = `${controller.name}MethodActions`;
+
+    // Generate with intentionally poor formatting to force ESLint to normalize it
+    const unionTypes = actionTypeNames.join('|'); // No spaces around |
+
     content += `/**
  * Union of all ${controller.name} action types.
  */
-export type ${unionTypeName} = ${actionTypeNames.join(' | ')};\n`;
+export   type    ${unionTypeName}=${unionTypes};\n`; // Extra spaces to force normalization
   }
 
   return `${content.trimEnd()}\n`;
