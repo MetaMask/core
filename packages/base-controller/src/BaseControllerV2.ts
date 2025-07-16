@@ -2,11 +2,7 @@ import type { Json, PublicInterface } from '@metamask/utils';
 import { enablePatches, produceWithPatches, applyPatches, freeze } from 'immer';
 import type { Draft, Patch } from 'immer';
 
-import type { ActionConstraint, EventConstraint } from './Messenger';
-import type {
-  RestrictedMessenger,
-  RestrictedMessengerConstraint,
-} from './RestrictedMessenger';
+import type { ActionConstraint, EventConstraint, Messenger } from './Messenger';
 
 enablePatches();
 
@@ -125,7 +121,11 @@ export type StateMetadataConstraint = Record<
  */
 export type BaseControllerInstance = Omit<
   PublicInterface<
-    BaseController<string, StateConstraint, RestrictedMessengerConstraint>
+    BaseController<
+      string,
+      StateConstraint,
+      Messenger<string, ActionConstraint, EventConstraint>
+    >
   >,
   'metadata'
 > & {
@@ -166,12 +166,10 @@ export class BaseController<
   ControllerState extends StateConstraint,
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
   // eslint-disable-next-line @typescript-eslint/naming-convention
-  messenger extends RestrictedMessenger<
+  messenger extends Messenger<
     ControllerName,
     ActionConstraint | ControllerActions<ControllerName, ControllerState>,
-    EventConstraint | ControllerEvents<ControllerName, ControllerState>,
-    string,
-    string
+    EventConstraint | ControllerEvents<ControllerName, ControllerState>
   >,
 > {
   #internalState: ControllerState;
