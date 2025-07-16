@@ -6,6 +6,11 @@ import * as path from 'path';
 import * as ts from 'typescript';
 import yargs from 'yargs';
 
+const eslint = new ESLint({
+  fix: true,
+  errorOnUnmatchedPattern: false,
+});
+
 type MethodInfo = {
   name: string;
   jsDoc: string;
@@ -71,49 +76,103 @@ async function checkActionTypesFiles(
 ): Promise<void> {
   let hasErrors = false;
 
-  for (const controller of controllers) {
-    console.log(`\n🔧 Checking ${controller.name}...`);
-    const outputDir = path.dirname(controller.filePath);
-    const baseFileName = path.basename(controller.filePath, '.ts');
-    const outputFile = path.join(
-      outputDir,
-      `${baseFileName}-method-action-types.ts`,
-    );
+  // Track files that exist and their corresponding temp files
+  const fileComparisonJobs: {
+    tempFile: string;
+    actualFile: string;
+    baseFileName: string;
+  }[] = [];
+  const tempFiles: string[] = [];
 
-    const rawExpectedContent = generateActionTypesContent(controller);
+  try {
+    // Check each controller and prepare comparison jobs
+    for (const controller of controllers) {
+      console.log(`\n🔧 Checking ${controller.name}...`);
+      const outputDir = path.dirname(controller.filePath);
+      const baseFileName = path.basename(controller.filePath, '.ts');
+      const outputFile = path.join(
+        outputDir,
+        `${baseFileName}-method-action-types.ts`,
+      );
 
-    // Lint the expected content to match what would be on disk after linting
-    const expectedContent = await lintFileContent(
-      rawExpectedContent,
-      outputFile,
-    );
+      const expectedContent = generateActionTypesContent(controller);
+      const tempFile = outputFile.replace(
+        '.ts',
+        `-${Date.now()}-${Math.random().toString(36).substring(7)}-expected.ts`,
+      );
 
-    try {
-      const rawActualContent = await fs.promises.readFile(outputFile, 'utf8');
+      try {
+        // Check if actual file exists first
+        await fs.promises.access(outputFile);
 
-      // Lint the actual content to match what would be on disk after linting
-      const actualContent = await lintFileContent(rawActualContent, outputFile);
+        // Write expected content to temp file
+        await fs.promises.writeFile(tempFile, expectedContent, 'utf8');
+        tempFiles.push(tempFile);
 
-      if (actualContent !== expectedContent) {
-        console.error(
-          `❌ ${baseFileName}-method-action-types.ts is out of date`,
-        );
+        // Add to comparison jobs
+        fileComparisonJobs.push({
+          tempFile,
+          actualFile: outputFile,
+          baseFileName,
+        });
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+          console.error(
+            `❌ ${baseFileName}-method-action-types.ts does not exist`,
+          );
+        } else {
+          console.error(
+            `❌ Error reading ${baseFileName}-method-action-types.ts:`,
+            error,
+          );
+        }
         hasErrors = true;
-      } else {
-        console.log(`✅ ${baseFileName}-method-action-types.ts is up to date`);
       }
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        console.error(
-          `❌ ${baseFileName}-method-action-types.ts does not exist`,
+    }
+
+    // Run ESLint on all files at once if we have comparisons to make
+    if (fileComparisonJobs.length > 0) {
+      console.log('\n📝 Running ESLint to compare files...');
+
+      const allFiles = [
+        ...fileComparisonJobs.map((job) => job.tempFile),
+        ...fileComparisonJobs.map((job) => job.actualFile),
+      ];
+
+      const results = await eslint.lintFiles(allFiles);
+      await ESLint.outputFixes(results);
+
+      // Compare expected vs actual content
+      for (const job of fileComparisonJobs) {
+        const expectedContent = await fs.promises.readFile(
+          job.tempFile,
+          'utf8',
         );
-      } else {
-        console.error(
-          `❌ Error reading ${baseFileName}-method-action-types.ts:`,
-          error,
+        const actualContent = await fs.promises.readFile(
+          job.actualFile,
+          'utf8',
         );
+
+        if (expectedContent !== actualContent) {
+          console.error(
+            `❌ ${job.baseFileName}-method-action-types.ts is out of date`,
+          );
+          hasErrors = true;
+        } else {
+          console.log(
+            `✅ ${job.baseFileName}-method-action-types.ts is up to date`,
+          );
+        }
       }
-      hasErrors = true;
+    }
+  } finally {
+    // Clean up temp files
+    for (const tempFile of tempFiles) {
+      try {
+        await fs.promises.unlink(tempFile);
+      } catch {
+        // Ignore cleanup errors
+      }
     }
   }
 
@@ -148,12 +207,7 @@ async function main() {
   );
 
   if (fix) {
-    for (const controller of controllers) {
-      console.log(`\n🔧 Processing ${controller.name}...`);
-      await generateActionTypesFile(controller);
-      console.log(`✅ Generated action types for ${controller.name}`);
-    }
-
+    await generateAllActionTypesFiles(controllers);
     console.log('\n🎉 All action types generated successfully!');
   } else {
     // -check mode: check files
@@ -420,23 +474,45 @@ function extractMethodSignature(node: ts.MethodDeclaration): string {
 }
 
 /**
- * Generates the action types file for a controller.
+ * Generates action types files for all controllers.
  *
- * @param controller - The controller information object.
+ * @param controllers - Array of controller information objects.
  */
-async function generateActionTypesFile(
-  controller: ControllerInfo,
+async function generateAllActionTypesFiles(
+  controllers: ControllerInfo[],
 ): Promise<void> {
-  const outputDir = path.dirname(controller.filePath);
-  const baseFileName = path.basename(controller.filePath, '.ts');
-  const outputFile = path.join(
-    outputDir,
-    `${baseFileName}-method-action-types.ts`,
-  );
+  const outputFiles: string[] = [];
 
-  const generatedContent = generateActionTypesContent(controller);
-  const lintedContent = await lintFileContent(generatedContent, outputFile);
-  await fs.promises.writeFile(outputFile, lintedContent, 'utf8');
+  // Write all files first
+  for (const controller of controllers) {
+    console.log(`\n🔧 Processing ${controller.name}...`);
+    const outputDir = path.dirname(controller.filePath);
+    const baseFileName = path.basename(controller.filePath, '.ts');
+    const outputFile = path.join(
+      outputDir,
+      `${baseFileName}-method-action-types.ts`,
+    );
+
+    const generatedContent = generateActionTypesContent(controller);
+    await fs.promises.writeFile(outputFile, generatedContent, 'utf8');
+    outputFiles.push(outputFile);
+    console.log(`✅ Generated action types for ${controller.name}`);
+  }
+
+  // Run ESLint on all the actual files
+  if (outputFiles.length > 0) {
+    console.log('\n📝 Running ESLint on generated files...');
+
+    const results = await eslint.lintFiles(outputFiles);
+    await ESLint.outputFixes(results);
+    const errors = ESLint.getErrorResults(results);
+    if (errors.length > 0) {
+      console.error('❌ ESLint errors:', errors);
+      process.exitCode = 1;
+    } else {
+      console.log('✅ ESLint formatting applied');
+    }
+  }
 }
 
 /**
@@ -498,55 +574,6 @@ export type ${unionTypeName} = ${actionTypeNames.join(' | ')};\n`;
  */
 function capitalize(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);
-}
-
-/**
- * Lints TypeScript content using ESLint and returns the fixed content.
- *
- * @param content - The TypeScript content to lint.
- * @param outputFilePath - The path where the file would be written (used for file type detection).
- * @returns The linted content.
- */
-async function lintFileContent(
-  content: string,
-  outputFilePath: string,
-): Promise<string> {
-  // Write temporary file for ESLint to process - required because lintText won't work
-  // properly for TypeScript files without a real file path for import resolution
-  const tempFile = outputFilePath.replace('.ts', `-${Date.now()}-temp.ts`);
-  await fs.promises.writeFile(tempFile, content, 'utf8');
-
-  try {
-    // Create ESLint instance AFTER temp file exists so TypeScript can discover it
-    const eslint = new ESLint({
-      fix: true,
-      errorOnUnmatchedPattern: false,
-      cache: false,
-      cwd: path.resolve(__dirname, '..'),
-      overrideConfigFile: path.resolve(__dirname, '../eslint.config.mjs'),
-    });
-
-    // Use file-based linting since temp file exists and we want full project context
-    const results = await eslint.lintFiles([tempFile]);
-    await ESLint.outputFixes(results);
-
-    console.log(
-      'results',
-      JSON.stringify(ESLint.getErrorResults(results), null, 2),
-    );
-
-    // Read back the fixed content
-    const lintedContent = await fs.promises.readFile(tempFile, 'utf8');
-
-    return lintedContent;
-  } finally {
-    // Clean up temporary file
-    try {
-      await fs.promises.unlink(tempFile);
-    } catch {
-      // Ignore cleanup errors
-    }
-  }
 }
 
 // Error handling wrapper
