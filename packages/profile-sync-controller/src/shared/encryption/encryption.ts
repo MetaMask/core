@@ -263,7 +263,7 @@ class EncryptorDecryptor {
     salt?: Uint8Array,
     nativeScryptCrypto?: NativeScrypt,
   ) {
-    const hashedPassword = createSHA256Hash(password);
+    const hashedPassword = `${createSHA256Hash(password)}.${o.N}.${o.r}.${o.p}.${o.dkLen}`;
     const cachedKey = salt
       ? getCachedKeyBySalt(hashedPassword, salt)
       : getCachedKeyGeneratedWithSharedSalt(hashedPassword);
