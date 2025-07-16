@@ -6,11 +6,6 @@ import * as path from 'path';
 import * as ts from 'typescript';
 import yargs from 'yargs';
 
-const eslint = new ESLint({
-  fix: true,
-  errorOnUnmatchedPattern: false,
-});
-
 type MethodInfo = {
   name: string;
   jsDoc: string;
@@ -70,9 +65,11 @@ async function parseCommandLineArguments(): Promise<CommandLineArguments> {
  * Checks if generated action types files are up to date.
  *
  * @param controllers - Array of controller information objects.
+ * @param eslint - The ESLint instance to use for formatting.
  */
 async function checkActionTypesFiles(
   controllers: ControllerInfo[],
+  eslint: ESLint,
 ): Promise<void> {
   let hasErrors = false;
 
@@ -198,12 +195,17 @@ async function main() {
     `📦 Found ${controllers.length} controller(s) with exposed methods`,
   );
 
+  const eslint = new ESLint({
+    fix: true,
+    errorOnUnmatchedPattern: false,
+  });
+
   if (fix) {
-    await generateAllActionTypesFiles(controllers);
+    await generateAllActionTypesFiles(controllers, eslint);
     console.log('\n🎉 All action types generated successfully!');
   } else {
     // -check mode: check files
-    await checkActionTypesFiles(controllers);
+    await checkActionTypesFiles(controllers, eslint);
   }
 }
 
@@ -469,9 +471,11 @@ function extractMethodSignature(node: ts.MethodDeclaration): string {
  * Generates action types files for all controllers.
  *
  * @param controllers - Array of controller information objects.
+ * @param eslint - The ESLint instance to use for formatting.
  */
 async function generateAllActionTypesFiles(
   controllers: ControllerInfo[],
+  eslint: ESLint,
 ): Promise<void> {
   const outputFiles: string[] = [];
 

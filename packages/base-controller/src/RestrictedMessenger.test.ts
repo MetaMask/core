@@ -1122,7 +1122,7 @@ describe('RestrictedMessenger', () => {
   });
 
   describe('registerMethodActionHandlers', () => {
-    it('should register action handlers for specified methods on the given restricted messaging client', () => {
+    it('should register action handlers for specified methods on the given messenger client', () => {
       type TestActions =
         | { type: 'TestService:getType'; handler: () => string }
         | {
@@ -1161,7 +1161,7 @@ describe('RestrictedMessenger', () => {
       expect(count).toBe(42);
     });
 
-    it('should bind action handlers to the given restricted messenger client', () => {
+    it('should bind action handlers to the given messenger client', () => {
       type TestAction = {
         type: 'TestService:getPrivateValue';
         handler: () => string;

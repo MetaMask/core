@@ -173,20 +173,21 @@ export class Messenger<
   }
 
   /**
-   * Registers action handlers for a list of methods on a class instance
+   * Registers action handlers for a list of methods on a messenger client
    *
-   * @param instance - The class instance with a name property and methods
-   * @param methodNames - The names of the methods to register as action handlers
+   * @param messengerClient - The object that is expected to make use of the messenger.
+   * @param methodNames - The names of the methods on the messenger client to register as action
+   * handlers
    */
   registerMethodActionHandlers<
-    Instance extends { name: string },
-    MethodNames extends keyof Instance & string,
-  >(instance: Instance, methodNames: readonly MethodNames[]) {
+    MessengerClient extends { name: string },
+    MethodNames extends keyof MessengerClient & string,
+  >(messengerClient: MessengerClient, methodNames: readonly MethodNames[]) {
     for (const methodName of methodNames) {
-      const handler = instance[methodName];
-      if (typeof handler === 'function') {
-        const actionType = `${instance.name}:${methodName}` as const;
-        this.registerActionHandler(actionType, handler.bind(instance));
+      const method = messengerClient[methodName];
+      if (typeof method === 'function') {
+        const actionType = `${messengerClient.name}:${methodName}` as const;
+        this.registerActionHandler(actionType, method.bind(messengerClient));
       }
     }
   }

@@ -558,7 +558,7 @@ describe('Messenger', () => {
   });
 
   describe('registerMethodActionHandlers', () => {
-    it('should register action handlers for specified methods on the given messaging client', () => {
+    it('should register action handlers for specified methods on the given messenger client', () => {
       type TestActions =
         | { type: 'TestService:getType'; handler: () => string }
         | {
