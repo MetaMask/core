@@ -9,8 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Dumb down the `N` `scrypt` parameter in order to increase performance on clients
-  - This decreases the impact of the KDF on all clients to around 99%
+- Reduce the `N` `scrypt` parameter used to compute the encryption key in order to significantly increase performance on clients.
+  - The input to the KDF is already a long, high entropy non-user-generated string so it does not make sense to use a KDF with high compute cost.
+  - This decreases the impact of the KDF on all clients by around 99%
   - Add backwards compatible migration logic
   - Add encryption callbacks so we can measure the impact of future migrations through analytics
 
