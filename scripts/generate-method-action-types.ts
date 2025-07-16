@@ -520,8 +520,21 @@ async function lintFileContent(
     // Create ESLint instance AFTER temp file exists so TypeScript can discover it
     const eslint = new ESLint({
       fix: true,
-      cache: false,
       errorOnUnmatchedPattern: false,
+      cwd: path.resolve(__dirname, '..'),
+      overrideConfigFile: path.resolve(__dirname, '../eslint.config.mjs'),
+      // Override for temp files to avoid TypeScript project service caching
+      overrideConfig: [
+        {
+          files: ['**/*-temp.ts'],
+          languageOptions: {
+            parserOptions: {
+              // Disable project service to avoid file caching issues with dynamic files
+              project: false,
+            },
+          },
+        },
+      ],
     });
 
     const results = await eslint.lintText(content, {
