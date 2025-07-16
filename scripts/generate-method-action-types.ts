@@ -7,7 +7,7 @@ import * as ts from 'typescript';
 import yargs from 'yargs';
 
 const eslint = new ESLint({
-  fix: true, // Auto-fix what we can
+  fix: true,
   errorOnUnmatchedPattern: false,
 });
 
@@ -85,7 +85,7 @@ async function checkActionTypesFiles(
       `${baseFileName}-method-action-types.ts`,
     );
 
-    const rawExpectedContent = await generateActionTypesContent(controller);
+    const rawExpectedContent = generateActionTypesContent(controller);
 
     // Lint the expected content to match what would be on disk after linting
     const expectedContent = await lintFileContent(
@@ -443,8 +443,8 @@ async function generateActionTypesFile(
     `${baseFileName}-method-action-types.ts`,
   );
 
-  const content = await generateActionTypesContent(controller);
-  const lintedContent = await lintFileContent(content, outputFile);
+  const generatedContent = generateActionTypesContent(controller);
+  const lintedContent = await lintFileContent(generatedContent, outputFile);
   await fs.promises.writeFile(outputFile, lintedContent, 'utf8');
 }
 
@@ -454,9 +454,7 @@ async function generateActionTypesFile(
  * @param controller - The controller information object.
  * @returns The content for the action types file.
  */
-async function generateActionTypesContent(
-  controller: ControllerInfo,
-): Promise<string> {
+function generateActionTypesContent(controller: ControllerInfo): string {
   const baseFileName = path.basename(controller.filePath, '.ts');
   const controllerImportPath = `./${baseFileName}`;
 
