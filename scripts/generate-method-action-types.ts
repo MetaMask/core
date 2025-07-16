@@ -132,12 +132,9 @@ async function checkActionTypesFiles(
     if (fileComparisonJobs.length > 0) {
       console.log('\n📝 Running ESLint to compare files...');
 
-      const allFiles = [
-        ...fileComparisonJobs.map((job) => job.tempFile),
-        ...fileComparisonJobs.map((job) => job.actualFile),
-      ];
-
-      const results = await eslint.lintFiles(allFiles);
+      const results = await eslint.lintFiles(
+        fileComparisonJobs.map((job) => job.tempFile),
+      );
       await ESLint.outputFixes(results);
 
       // Compare expected vs actual content
