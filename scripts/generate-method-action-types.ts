@@ -521,29 +521,21 @@ async function lintFileContent(
     const eslint = new ESLint({
       fix: true,
       errorOnUnmatchedPattern: false,
+      cache: false,
       cwd: path.resolve(__dirname, '..'),
       overrideConfigFile: path.resolve(__dirname, '../eslint.config.mjs'),
-      // Override for temp files to avoid TypeScript project service caching
-      overrideConfig: [
-        {
-          files: ['**/*-temp.ts'],
-          languageOptions: {
-            parserOptions: {
-              // Disable project service to avoid file caching issues with dynamic files
-              project: false,
-            },
-          },
-        },
-      ],
     });
 
-    const results = await eslint.lintText(content, {
-      filePath: tempFile,
-    });
+    // Use file-based linting since temp file exists and we want full project context
+    const results = await eslint.lintFiles([tempFile]);
+    await ESLint.outputFixes(results);
 
-    console.log('results', JSON.stringify(results, null, 2));
+    console.log('results', JSON.stringify(results));
 
-    return results[0]?.output ?? content;
+    // Read back the fixed content
+    const lintedContent = await fs.promises.readFile(tempFile, 'utf8');
+
+    return lintedContent;
   } finally {
     // Clean up temporary file
     try {
