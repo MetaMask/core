@@ -530,7 +530,10 @@ async function lintFileContent(
     const results = await eslint.lintFiles([tempFile]);
     await ESLint.outputFixes(results);
 
-    console.log('results', JSON.stringify(results));
+    console.log(
+      'results',
+      JSON.stringify(ESLint.getErrorResults(results), null, 2),
+    );
 
     // Read back the fixed content
     const lintedContent = await fs.promises.readFile(tempFile, 'utf8');
