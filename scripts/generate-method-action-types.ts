@@ -82,7 +82,6 @@ async function checkActionTypesFiles(
     actualFile: string;
     baseFileName: string;
   }[] = [];
-  const tempFiles: string[] = [];
 
   try {
     // Check each controller and prepare comparison jobs
@@ -107,7 +106,6 @@ async function checkActionTypesFiles(
 
         // Write expected content to temp file
         await fs.promises.writeFile(tempFile, expectedContent, 'utf8');
-        tempFiles.push(tempFile);
 
         // Add to comparison jobs
         fileComparisonJobs.push({
@@ -167,9 +165,9 @@ async function checkActionTypesFiles(
     }
   } finally {
     // Clean up temp files
-    for (const tempFile of tempFiles) {
+    for (const job of fileComparisonJobs) {
       try {
-        await fs.promises.unlink(tempFile);
+        await fs.promises.unlink(job.tempFile);
       } catch {
         // Ignore cleanup errors
       }
