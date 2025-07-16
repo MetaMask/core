@@ -95,10 +95,7 @@ async function checkActionTypesFiles(
       );
 
       const expectedContent = generateActionTypesContent(controller);
-      const expectedTempFile = actualFile.replace(
-        '.ts',
-        `-${Date.now()}-${Math.random().toString(36).substring(7)}-expected.ts`,
-      );
+      const expectedTempFile = actualFile.replace('.ts', '.tmp.ts');
 
       try {
         // Check if actual file exists first
