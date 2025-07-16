@@ -215,7 +215,8 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   }
 
   async pairSocialIdentifier(jwt: string): Promise<boolean> {
-    // TODO: We need to sync the ENV this library is using with the build type of the client, otherwise the pairing will fail because the clients will use the auth server corresponding to the build type but the library hardcodes to PRD.
+    // The ENV this library uses must be in sync with the build type of the
+    // client since that dictates which web3auth auth server is in use.
     const { env, platform } = this.#config;
 
     // Exchange the social token with an access token
@@ -223,7 +224,6 @@ export class SRPJwtBearerAuth implements IBaseAuth {
 
     // Prepare the SRP signature
     const identifier = await this.getIdentifier();
-    // TODO: should we get the nonce for the profileID instead of for the identifier?
     const n = await getNonce(identifier, env);
     const raw = `metamask:${n.nonce}:${identifier}`;
     const sig = await this.signMessage(raw);
@@ -237,7 +237,6 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     const pairUrl = new URL(PAIR_SOCIAL_IDENTIFIER(env));
 
     try {
-      // TODO: this will FAIL as long as the ENV don't match.
       const response = await fetch(pairUrl, {
         method: 'POST',
         headers: {

@@ -318,8 +318,8 @@ export default class AuthenticationController extends BaseController<
     }
 
     // don't await for the pairing to finish
-    this.#tryPairingWithSocialToken().catch((_) => {
-      // don't care
+    this.#tryPairingWithSocialToken().catch(() => {
+      // no-op. failures must not interfere with the sign-in flow
     });
 
     return accessTokens;
