@@ -22,7 +22,7 @@
     "changelog:validate": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run changelog:validate",
     "create-package": "ts-node scripts/create-package",
     "generate-method-action-types": "ts-node scripts/generate-method-action-types.ts",
-    "lint": "yarn generate-method-action-types --check && yarn lint:eslint && echo && yarn lint:misc --check && yarn constraints && yarn lint:dependencies && yarn lint:teams",
+    "lint": "yarn lint:eslint && echo && yarn lint:misc --check && yarn constraints && yarn lint:dependencies && yarn lint:teams && yarn generate-method-action-types --check",
     "lint:dependencies": "depcheck && yarn dedupe --check",
     "lint:dependencies:fix": "depcheck && yarn dedupe",
     "lint:eslint": "yarn build:only-clean && yarn ts-node ./scripts/run-eslint.ts --cache",
