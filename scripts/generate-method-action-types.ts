@@ -9,8 +9,6 @@ import yargs from 'yargs';
 const eslint = new ESLint({
   fix: true,
   errorOnUnmatchedPattern: false,
-  cwd: path.resolve(__dirname, '../'),
-  overrideConfigFile: path.resolve(__dirname, '../eslint.config.mjs'),
 });
 
 type MethodInfo = {
