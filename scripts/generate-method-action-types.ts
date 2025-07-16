@@ -543,7 +543,7 @@ async function lintFileContent(
       filePath: tempFile,
     });
 
-    console.log('results', results);
+    console.log('results', JSON.stringify(results, null, 2));
     console.log('results[0]?.output', results[0]?.output);
 
     return results[0]?.output ?? content;
