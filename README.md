@@ -64,6 +64,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/sample-controllers`](packages/sample-controllers)
 - [`@metamask/seedless-onboarding-controller`](packages/seedless-onboarding-controller)
 - [`@metamask/selected-network-controller`](packages/selected-network-controller)
+- [`@metamask/shield-controller`](packages/shield-controller)
 - [`@metamask/signature-controller`](packages/signature-controller)
 - [`@metamask/token-search-discovery-controller`](packages/token-search-discovery-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
@@ -121,6 +122,7 @@ linkStyle default opacity:0.5
   sample_controllers(["@metamask/sample-controllers"]);
   seedless_onboarding_controller(["@metamask/seedless-onboarding-controller"]);
   selected_network_controller(["@metamask/selected-network-controller"]);
+  shield_controller(["@metamask/shield-controller"]);
   signature_controller(["@metamask/signature-controller"]);
   token_search_discovery_controller(["@metamask/token-search-discovery-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
@@ -162,7 +164,6 @@ linkStyle default opacity:0.5
   bridge_status_controller --> base_controller;
   bridge_status_controller --> controller_utils;
   bridge_status_controller --> polling_controller;
-  bridge_status_controller --> user_operation_controller;
   bridge_status_controller --> accounts_controller;
   bridge_status_controller --> bridge_controller;
   bridge_status_controller --> gas_fee_controller;
@@ -243,7 +244,6 @@ linkStyle default opacity:0.5
   profile_sync_controller --> base_controller;
   profile_sync_controller --> accounts_controller;
   profile_sync_controller --> keyring_controller;
-  profile_sync_controller --> network_controller;
   rate_limit_controller --> base_controller;
   remote_feature_flag_controller --> base_controller;
   remote_feature_flag_controller --> controller_utils;
