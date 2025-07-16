@@ -34,7 +34,7 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
-import type { BulkPhishingDetectionScanResponse } from '@metamask/phishing-controller';
+import type { PhishingControllerBulkScanUrlsAction } from '@metamask/phishing-controller';
 import { RecommendedAction } from '@metamask/phishing-controller';
 import type {
   PreferencesControllerStateChangeEvent,
@@ -232,14 +232,6 @@ export type NftControllerGetStateAction = ControllerGetStateAction<
   NftControllerState
 >;
 export type NftControllerActions = NftControllerGetStateAction;
-
-/**
- * Action type for bulk scanning URLs with PhishingController
- */
-export type PhishingControllerBulkScanUrlsAction = {
-  type: 'PhishingController:bulkScanUrls';
-  handler: (urls: string[]) => Promise<BulkPhishingDetectionScanResponse>;
-};
 
 /**
  * The external actions available to the {@link NftController}.
