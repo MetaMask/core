@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Include EVM assetIds in `isNativeAddress` util when checking whether an address string is a native token ([#6076](https://github.com/MetaMask/core/pull/6076))
+
 ## [36.0.0]
 
 ### Changed
