@@ -373,16 +373,28 @@ export default class AuthenticationController extends BaseController<
     const { accessToken: socialPairingToken } = this.messagingSystem.call(
       'SeedlessOnboardingController:getState',
     );
-    const { socialPairingDone, pairingInProgress } = this.state;
-    if (socialPairingDone || !socialPairingToken || pairingInProgress) {
+
+    // Early return if no social pairing token
+    if (!socialPairingToken) {
+      return;
+    }
+
+    // Atomically check and set pairingInProgress to prevent race conditions
+    let conditionsMet = false;
+    this.update((state) => {
+      if (state.socialPairingDone || state.pairingInProgress) {
+        return;
+      }
+      state.pairingInProgress = true;
+      conditionsMet = true;
+    });
+
+    if (!conditionsMet) {
       return;
     }
 
     try {
       console.log(`starting to pair with social token`);
-      this.update((state) => {
-        state.pairingInProgress = true;
-      });
       const paired = await this.#auth.pairSocialIdentifier(socialPairingToken);
       console.log(`pairing with social token success=${paired}`);
       if (paired) {
