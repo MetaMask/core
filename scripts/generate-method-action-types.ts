@@ -87,6 +87,9 @@ async function checkActionTypesFiles(
 
     const rawExpectedContent = generateActionTypesContent(controller);
 
+    console.log('rawExpectedContent');
+    console.log(rawExpectedContent);
+
     // Lint the expected content to match what would be on disk after linting
     const expectedContent = await lintFileContent(
       rawExpectedContent,
@@ -95,6 +98,9 @@ async function checkActionTypesFiles(
 
     try {
       const rawActualContent = await fs.promises.readFile(outputFile, 'utf8');
+
+      console.log('rawActualContent');
+      console.log(rawActualContent);
 
       // Lint the actual content to match what would be on disk after linting
       const actualContent = await lintFileContent(rawActualContent, outputFile);
