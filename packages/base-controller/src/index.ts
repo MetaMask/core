@@ -10,13 +10,13 @@ export type {
   StatePropertyMetadataConstraint,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-} from './BaseControllerV2';
+} from './BaseController';
 export {
   BaseController,
   getAnonymizedState,
   getPersistentState,
   isBaseController,
-} from './BaseControllerV2';
+} from './BaseController';
 export type {
   ActionHandler,
   ExtractActionParameters,
