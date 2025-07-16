@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [72.0.0]
+
+### Changed
+
+- Update `NftController` to use properly exported `PhishingControllerBulkScanUrlsAction` type from `@metamask/phishing-controller` ([#6105](https://github.com/MetaMask/core/pull/6105))
+- Bump dev dependency `@metamask/phishing-controller` to `^13.1.0` ([#6120](https://github.com/MetaMask/core/pull/6120))
+
 ## [71.0.0]
 
 ### Changed
@@ -1759,7 +1766,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@71.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@72.0.0...HEAD
+[72.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@71.0.0...@metamask/assets-controllers@72.0.0
 [71.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@70.0.1...@metamask/assets-controllers@71.0.0
 [70.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@70.0.0...@metamask/assets-controllers@70.0.1
 [70.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@69.0.0...@metamask/assets-controllers@70.0.0
