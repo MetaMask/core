@@ -6,11 +6,6 @@ import * as path from 'path';
 import * as ts from 'typescript';
 import yargs from 'yargs';
 
-const eslint = new ESLint({
-  fix: true,
-  errorOnUnmatchedPattern: false,
-});
-
 type MethodInfo = {
   name: string;
   jsDoc: string;
@@ -486,14 +481,10 @@ import type { ${controller.name} } from '${controllerImportPath}';
   // Generate union type of all action types
   if (actionTypeNames.length > 0) {
     const unionTypeName = `${controller.name}MethodActions`;
-
-    // Generate with intentionally poor formatting to force ESLint to normalize it
-    const unionTypes = actionTypeNames.join('|'); // No spaces around |
-
     content += `/**
  * Union of all ${controller.name} action types.
  */
-export   type    ${unionTypeName}=${unionTypes};\n`; // Extra spaces to force normalization
+export type ${unionTypeName} = ${actionTypeNames.join(' | ')};\n`;
   }
 
   return `${content.trimEnd()}\n`;
@@ -524,19 +515,18 @@ async function lintFileContent(
   // properly for TypeScript files without a real file path for import resolution
   const tempFile = outputFilePath.replace('.ts', `${Date.now()}-temp.ts`);
   await fs.promises.writeFile(tempFile, content, 'utf8');
-  // check if the file exists
-  if (!fs.existsSync(tempFile)) {
-    console.error(`Failed to write temporary file: ${tempFile}`);
-  } else {
-    console.log(`Wrote temporary file: ${tempFile}`);
-  }
 
   try {
+    // Create ESLint instance AFTER temp file exists so TypeScript can discover it
+    const eslint = new ESLint({
+      fix: true,
+      errorOnUnmatchedPattern: false,
+    });
+
     const results = await eslint.lintText(content, {
       filePath: tempFile,
     });
 
-    console.log('dirname', __dirname);
     console.log('results', JSON.stringify(results, null, 2));
 
     return results[0]?.output ?? content;
