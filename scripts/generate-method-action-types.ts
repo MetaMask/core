@@ -78,7 +78,7 @@ async function checkActionTypesFiles(
 
   // Track files that exist and their corresponding temp files
   const fileComparisonJobs: {
-    tempFile: string;
+    expectedTempFile: string;
     actualFile: string;
     baseFileName: string;
   }[] = [];
@@ -89,28 +89,28 @@ async function checkActionTypesFiles(
       console.log(`\n🔧 Checking ${controller.name}...`);
       const outputDir = path.dirname(controller.filePath);
       const baseFileName = path.basename(controller.filePath, '.ts');
-      const outputFile = path.join(
+      const actualFile = path.join(
         outputDir,
         `${baseFileName}-method-action-types.ts`,
       );
 
       const expectedContent = generateActionTypesContent(controller);
-      const tempFile = outputFile.replace(
+      const expectedTempFile = actualFile.replace(
         '.ts',
         `-${Date.now()}-${Math.random().toString(36).substring(7)}-expected.ts`,
       );
 
       try {
         // Check if actual file exists first
-        await fs.promises.access(outputFile);
+        await fs.promises.access(actualFile);
 
         // Write expected content to temp file
-        await fs.promises.writeFile(tempFile, expectedContent, 'utf8');
+        await fs.promises.writeFile(expectedTempFile, expectedContent, 'utf8');
 
         // Add to comparison jobs
         fileComparisonJobs.push({
-          tempFile,
-          actualFile: outputFile,
+          expectedTempFile,
+          actualFile,
           baseFileName,
         });
       } catch (error) {
@@ -133,14 +133,14 @@ async function checkActionTypesFiles(
       console.log('\n📝 Running ESLint to compare files...');
 
       const results = await eslint.lintFiles(
-        fileComparisonJobs.map((job) => job.tempFile),
+        fileComparisonJobs.map((job) => job.expectedTempFile),
       );
       await ESLint.outputFixes(results);
 
       // Compare expected vs actual content
       for (const job of fileComparisonJobs) {
         const expectedContent = await fs.promises.readFile(
-          job.tempFile,
+          job.expectedTempFile,
           'utf8',
         );
         const actualContent = await fs.promises.readFile(
@@ -164,7 +164,7 @@ async function checkActionTypesFiles(
     // Clean up temp files
     for (const job of fileComparisonJobs) {
       try {
-        await fs.promises.unlink(job.tempFile);
+        await fs.promises.unlink(job.expectedTempFile);
       } catch {
         // Ignore cleanup errors
       }
