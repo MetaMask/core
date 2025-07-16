@@ -162,7 +162,6 @@ linkStyle default opacity:0.5
   bridge_status_controller --> base_controller;
   bridge_status_controller --> controller_utils;
   bridge_status_controller --> polling_controller;
-  bridge_status_controller --> user_operation_controller;
   bridge_status_controller --> accounts_controller;
   bridge_status_controller --> bridge_controller;
   bridge_status_controller --> gas_fee_controller;
@@ -243,7 +242,6 @@ linkStyle default opacity:0.5
   profile_sync_controller --> base_controller;
   profile_sync_controller --> accounts_controller;
   profile_sync_controller --> keyring_controller;
-  profile_sync_controller --> network_controller;
   rate_limit_controller --> base_controller;
   remote_feature_flag_controller --> base_controller;
   remote_feature_flag_controller --> controller_utils;
