@@ -535,7 +535,7 @@ async function lintFileContent(
 ): Promise<string> {
   // Write temporary file for ESLint to process - required because lintText won't work
   // properly for TypeScript files without a real file path for import resolution
-  const tempFile = outputFilePath.replace('.ts', `-${Date.now()}.tmp.ts`);
+  const tempFile = outputFilePath.replace('.ts', `-temp.ts`);
   await fs.promises.writeFile(tempFile, content, 'utf8');
 
   try {
