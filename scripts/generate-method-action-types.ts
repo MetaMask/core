@@ -521,18 +521,16 @@ async function lintFileContent(
   outputFilePath: string,
 ): Promise<string> {
   // Write temporary file for ESLint to process (ensures proper TS file detection)
-  const tempFile = outputFilePath.replace('.ts', '.tmp.ts');
+  const tempFile = outputFilePath.replace('.ts', `${Date.now()}.tmp.ts`);
   await fs.promises.writeFile(tempFile, content, 'utf8');
 
   try {
     // Lint the temporary file
-    const results = await eslint.lintFiles([tempFile]);
-    await ESLint.outputFixes(results);
+    const results = await eslint.lintText(content, {
+      filePath: tempFile,
+    });
 
-    // Read back the potentially fixed content
-    const lintedContent = await fs.promises.readFile(tempFile, 'utf8');
-
-    return lintedContent;
+    return results[0]?.output ?? content;
   } finally {
     // Clean up temporary file
     try {
