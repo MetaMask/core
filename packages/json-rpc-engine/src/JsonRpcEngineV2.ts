@@ -13,31 +13,38 @@ export const EndNotification = Symbol.for('JsonRpcEngine:EndNotification');
 
 export type MiddlewareContext = Map<string, unknown>;
 
-type ReturnHandler<Result extends Json = Json> = (
-  result: Result | undefined,
-) => void | Result | Promise<void | Result>;
+export type ReturnHandler<Result extends Json | void = Json | void> = (
+  result: Result | void,
+) => Result | void | Promise<Result | void>;
 
-export type MiddlewareResultConstraint<Request extends JsonRpcCall> =
-  Request extends JsonRpcNotification
-    ? Request extends JsonRpcRequest
-      ? void | Json | ReturnHandler
-      : void | typeof EndNotification
-    : void | Json | ReturnHandler;
+type MiddlewareReturnValue =
+  | Json
+  | void
+  | ReturnHandler
+  | typeof EndNotification;
+
+// "EngineResult" being the "Result" generic parameter of the engine
+export type MiddlewareResult<EngineResult extends Json | void = Json | void> =
+  | EngineResult
+  | ReturnHandler<EngineResult>
+  | typeof EndNotification
+  | void;
 
 export type JsonRpcMiddleware<
   Request extends JsonRpcCall = JsonRpcCall,
-  Result extends
-    | MiddlewareResultConstraint<Request>
-    | undefined = MiddlewareResultConstraint<Request>,
-> = (request: Request, context: MiddlewareContext) => Result | Promise<Result>;
+  EngineResult extends Json | void = Json | void,
+> = (
+  request: Request,
+  context: MiddlewareContext,
+) => MiddlewareResult<EngineResult> | Promise<MiddlewareResult<EngineResult>>;
 
-type HandledResult<Result extends MiddlewareResultConstraint<JsonRpcCall>> =
-  Exclude<Result, typeof EndNotification> | void;
+// The return type of `handle()` and `handleAny()`
+type HandledResult<Result extends MiddlewareReturnValue> = Exclude<
+  Result,
+  typeof EndNotification | ReturnHandler
+> | void;
 
-type Options<
-  Request extends JsonRpcCall,
-  Result extends MiddlewareResultConstraint<Request>,
-> = {
+type Options<Request extends JsonRpcCall, Result extends Json | void> = {
   middleware: NonEmptyArray<JsonRpcMiddleware<Request, Result>>;
 };
 
@@ -51,7 +58,7 @@ type Options<
  */
 export class JsonRpcEngineV2<
   Request extends JsonRpcCall,
-  Result extends MiddlewareResultConstraint<Request>,
+  Result extends Json | void,
 > {
   static readonly EndNotification = EndNotification;
 
@@ -100,7 +107,7 @@ export class JsonRpcEngineV2<
    * @param request - The JSON-RPC call to handle.
    * @returns The JSON-RPC response, if any.
    */
-  async handleAny(request: Request): Promise<Extract<Result, Json> | void> {
+  async handleAny(request: Request): Promise<HandledResult<Result>> {
     return this.handle(request);
   }
 
@@ -116,7 +123,7 @@ export class JsonRpcEngineV2<
     request: Request,
     context: MiddlewareContext = new Map(),
   ): Promise<{
-    result: Result | undefined;
+    result: MiddlewareResult<Result> | void;
     finalRequest: Readonly<Request>;
   }> {
     const { result, returnHandlers, finalRequest } = await this.#runMiddleware(
@@ -144,18 +151,18 @@ export class JsonRpcEngineV2<
     originalRequest: Request,
     context: MiddlewareContext,
   ): Promise<{
-    result: Extract<Result, Json | typeof EndNotification> | undefined;
-    returnHandlers: ReturnHandler[];
+    result: MiddlewareResult<Result>;
+    returnHandlers: ReturnHandler<Result>[];
     finalRequest: Readonly<Request>;
   }> {
-    const returnHandlers: ReturnHandler[] = [];
+    const returnHandlers: ReturnHandler<Result>[] = [];
     const isReq = isRequest(originalRequest);
 
     let request = originalRequest;
-    let result: Extract<Result, Json | typeof EndNotification> | undefined;
+    let result: MiddlewareResult<Result> | undefined;
 
     for (const middleware of this.#middleware) {
-      let currentResult: Result | undefined;
+      let currentResult: MiddlewareResult<Result> | undefined;
       request = await updateRequest(request, async (draft) => {
         currentResult = await middleware(draft, context);
       });
@@ -207,16 +214,16 @@ export class JsonRpcEngineV2<
    * @returns The final result.
    */
   async #runReturnHandlers(
-    initialResult: Extract<Result, Json | typeof EndNotification> | undefined,
-    returnHandlers: readonly ReturnHandler[],
-  ): Promise<Result | undefined> {
+    initialResult: MiddlewareResult<Result> | void,
+    returnHandlers: readonly ReturnHandler<Result>[],
+  ): Promise<Result | void> {
     let result = initialResult;
     // Run return handlers in reverse order of registration.
     for (let i = returnHandlers.length - 1; i >= 0; i--) {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const returnHandler = returnHandlers[i]!;
 
-      result = await produce(result, async (draft: Json) => {
+      result = await produce(result, async (draft: Result) => {
         // Return handlers can either modify the result in place or return a
         // new value.
         const newResult = await returnHandler(draft);
@@ -224,7 +231,7 @@ export class JsonRpcEngineV2<
       });
     }
 
-    return result;
+    return result as Result | void;
   }
 
   /**
@@ -232,7 +239,7 @@ export class JsonRpcEngineV2<
    *
    * @returns The JSON-RPC middleware.
    */
-  asMiddleware(): JsonRpcMiddleware<Request, Result | undefined> {
+  asMiddleware(): JsonRpcMiddleware<Request> {
     return async (request, context) => {
       const { result, finalRequest } = await this.#handle(request, context);
       // Propagate any changes to the request to the original request.
@@ -241,7 +248,7 @@ export class JsonRpcEngineV2<
       // (and not because finalRequest is readonly)
       request.params = finalRequest.params;
 
-      return result;
+      return result as MiddlewareResult;
     };
   }
 }
