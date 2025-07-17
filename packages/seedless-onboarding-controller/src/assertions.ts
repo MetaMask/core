@@ -20,7 +20,7 @@ export function assertIsValidVaultData(
     typeof value.toprfPwEncryptionKey !== 'string' || // toprfPwEncryptionKey is not a string
     !('toprfAuthKeyPair' in value) || // toprfAuthKeyPair is not defined
     typeof value.toprfAuthKeyPair !== 'string' || // toprfAuthKeyPair is not a string
-    // throw error if revoke token exist but is not a string and is not undefined
+    // revoke token exists but is not a string and is not undefined
     ('revokeToken' in value &&
       typeof value.revokeToken !== 'string' &&
       value.revokeToken !== undefined) ||

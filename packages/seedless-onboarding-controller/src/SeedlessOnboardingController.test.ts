@@ -452,7 +452,7 @@ async function createMockVault(
       sk: `0x${authKeyPair.sk.toString(16)}`,
       pk: bytesToBase64(authKeyPair.pk),
     }),
-    revokeToken: mockRevokeToken || undefined,
+    revokeToken: mockRevokeToken,
     accessToken: mockAccessToken,
   });
 
