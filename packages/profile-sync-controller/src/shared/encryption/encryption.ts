@@ -228,12 +228,16 @@ class EncryptorDecryptor {
   }
 
   doesEntryNeedReEncryption(encryptedDataStr: string): boolean {
-    const doesEntryHaveRandomSalt =
-      this.getSalt(encryptedDataStr).toString() !== SHARED_SALT.toString();
-    const doesEntryUseOldScryptN =
-      JSON.parse(encryptedDataStr).o?.N !== SCRYPT_N_V2;
+    try {
+      const doesEntryHaveRandomSalt =
+        this.getSalt(encryptedDataStr).toString() !== SHARED_SALT.toString();
+      const doesEntryUseOldScryptN =
+        JSON.parse(encryptedDataStr).o?.N !== SCRYPT_N_V2;
 
-    return doesEntryHaveRandomSalt || doesEntryUseOldScryptN;
+      return doesEntryHaveRandomSalt || doesEntryUseOldScryptN;
+    } catch {
+      return false;
+    }
   }
 
   #encrypt(plaintext: Uint8Array, key: Uint8Array): Uint8Array {
