@@ -14,8 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `revokeRefreshToken` now accepts `revokeToken` instead of `password`.([#6136](https://github.com/MetaMask/core/pull/6136))
-  - Vault creation logic is removed from `revokeRefreshToken` and should be handled by caller.
+- `revokeRefreshToken` is removed and a private function named `revokeRefreshTokenAndUpdateState` is added as a replacement.([#6136](https://github.com/MetaMask/core/pull/6136))
 
 ### Fixed
 
