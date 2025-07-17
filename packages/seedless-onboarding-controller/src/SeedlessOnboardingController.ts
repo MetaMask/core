@@ -1802,7 +1802,18 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       const isMetadataAccessTokenExpired =
         this.checkMetadataAccessTokenExpired();
 
-      if (isNodeAuthTokenExpired || isMetadataAccessTokenExpired) {
+      // access token is only accessible when the vault is unlocked
+      // so skip the check if the vault is locked
+      let isAccessTokenExpired = false;
+      if (this.#isUnlocked) {
+        isAccessTokenExpired = this.checkAccessTokenExpired();
+      }
+
+      if (
+        isNodeAuthTokenExpired ||
+        isMetadataAccessTokenExpired ||
+        isAccessTokenExpired
+      ) {
         log(
           `JWT token expired during ${operationName}, attempting to refresh tokens`,
           'node auth token exp check',
@@ -1857,6 +1868,20 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       const { metadataAccessToken } = this.state;
       // assertIsAuthenticatedUser will throw if metadataAccessToken is missing
       const decodedToken = decodeJWTToken(metadataAccessToken as string);
+      return decodedToken.exp < Math.floor(Date.now() / 1000);
+    } catch {
+      return true; // Consider unauthenticated user as having expired tokens
+    }
+  }
+
+  public checkAccessTokenExpired(): boolean {
+    try {
+      this.#assertIsAuthenticatedUser(this.state);
+      const { accessToken } = this.state;
+      if (!accessToken) {
+        return true; // Consider missing token as expired
+      }
+      const decodedToken = decodeJWTToken(accessToken);
       return decodedToken.exp < Math.floor(Date.now() / 1000);
     } catch {
       return true; // Consider unauthenticated user as having expired tokens
