@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- remove `access_token` validation when the wallet is locked. ([#6133](https://github.com/MetaMask/core/pull/6133))
+
 ## [2.1.0]
 
 ### Added

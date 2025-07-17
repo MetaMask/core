@@ -1800,7 +1800,13 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       const isNodeAuthTokenExpired = this.checkNodeAuthTokenExpired();
       const isMetadataAccessTokenExpired =
         this.checkMetadataAccessTokenExpired();
-      const isAccessTokenExpired = this.checkAccessTokenExpired();
+
+      // access token is only accessible when the vault is unlocked
+      // so skip the check if the vault is locked
+      let isAccessTokenExpired = false;
+      if (this.#isUnlocked) {
+        isAccessTokenExpired = this.checkAccessTokenExpired();
+      }
 
       if (
         isNodeAuthTokenExpired ||
@@ -1855,6 +1861,11 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     return decodedToken.exp < Date.now() / 1000;
   }
 
+  /**
+   * Check if the current metadata access token is expired.
+   *
+   * @returns True if the metadata access token is expired, false otherwise.
+   */
   public checkMetadataAccessTokenExpired(): boolean {
     try {
       this.#assertIsAuthenticatedUser(this.state);
@@ -1867,6 +1878,12 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     }
   }
 
+  /**
+   * Check if the current access token is expired.
+   * When the vault is locked, the access token is not accessible, so we return false.
+   *
+   * @returns True if the access token is expired, false otherwise.
+   */
   public checkAccessTokenExpired(): boolean {
     try {
       this.#assertIsAuthenticatedUser(this.state);
