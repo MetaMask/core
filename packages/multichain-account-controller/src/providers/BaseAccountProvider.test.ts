@@ -1,3 +1,4 @@
+import { KeyringAccountEntropyTypeOption } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Json } from '@metamask/utils';
 
@@ -14,15 +15,26 @@ describe('isBip44Account', () => {
   });
 
   it.each([
-    { tc: 'no entropy', options: { entropySource: undefined } },
-    { tc: 'no index', options: { index: undefined } },
+    {
+      tc: 'no entropy options',
+      options: {
+        // No entropy
+      },
+    },
+    {
+      tc: 'invalid entropy type',
+      options: {
+        entropy: {
+          type: KeyringAccountEntropyTypeOption.PrivateKey,
+        },
+      },
+    },
   ])(
     'returns false if an account is not BIP-44 compatible: $tc',
     ({ options }) => {
       const account: InternalAccount = {
         ...MOCK_HD_ACCOUNT_1,
         options: {
-          ...MOCK_HD_ACCOUNT_1.options,
           ...options,
         } as unknown as Record<string, Json>, // To allow `undefined` values.
       };

@@ -2443,13 +2443,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/account-api@npm:^0.1.0":
-  version: 0.1.0
-  resolution: "@metamask/account-api@npm:0.1.0"
+"@metamask/account-api@npm:@metamask-previews/account-api@0.1.0-e86c8ec":
+  version: 0.1.0-e86c8ec
+  resolution: "@metamask-previews/account-api@npm:0.1.0-e86c8ec"
   dependencies:
-    "@metamask/keyring-api": "npm:^18.0.0"
-    "@metamask/keyring-utils": "npm:^3.0.0"
-  checksum: 10/6c7338c8551d39b96e3d04ed3a944ebb7ca48d7f9cb0fdf27c878e12311372d03a61123dc5e7ea21135c095920db7c52a79be4c81afd04a6d62e5c5306dd12cb
+    "@metamask/keyring-api": "npm:18.0.0"
+    "@metamask/keyring-utils": "npm:3.0.0"
+  checksum: 10/7f05c71ef71cf703063d525608e3788cc2953bfd8378309f0c4dc636a74910042bbc5dd67dca2680448020cfa1b29dd51f4710a858951f3bc4cf7d0c48f878f0
   languageName: node
   linkType: hard
 
@@ -3639,7 +3639,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-api@npm:18.0.0, @metamask/keyring-api@npm:^18.0.0":
+"@metamask/keyring-api@npm:18.0.0":
   version: 18.0.0
   resolution: "@metamask/keyring-api@npm:18.0.0"
   dependencies:
@@ -3651,7 +3651,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-controller@npm:^22.1.0, @metamask/keyring-controller@workspace:packages/keyring-controller":
+"@metamask/keyring-api@npm:@metamask-previews/keyring-api@18.0.0-e86c8ec":
+  version: 18.0.0-e86c8ec
+  resolution: "@metamask-previews/keyring-api@npm:18.0.0-e86c8ec"
+  dependencies:
+    "@metamask/keyring-utils": "npm:3.0.0"
+    "@metamask/superstruct": "npm:^3.1.0"
+    "@metamask/utils": "npm:^11.1.0"
+    bitcoin-address-validation: "npm:^2.2.3"
+  checksum: 10/425022ebf8648cf25de3c5839fb76143ea578803ac58003b65ceded7dab8cc93f56ba8d454700b555ab12e5423b81c7b1d388b7437a4a88a89c776276109f913
+  languageName: node
+  linkType: hard
+
+"@metamask/keyring-controller@npm:^22.0.2, @metamask/keyring-controller@npm:^22.1.0, @metamask/keyring-controller@workspace:packages/keyring-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/keyring-controller@workspace:packages/keyring-controller"
   dependencies:
@@ -3691,14 +3703,14 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/keyring-internal-api@npm:^6.2.0":
-  version: 6.2.0
-  resolution: "@metamask/keyring-internal-api@npm:6.2.0"
+"@metamask/keyring-internal-api@npm:@metamask-previews/keyring-internal-api@6.2.0-e86c8ec":
+  version: 6.2.0-e86c8ec
+  resolution: "@metamask-previews/keyring-internal-api@npm:6.2.0-e86c8ec"
   dependencies:
-    "@metamask/keyring-api": "npm:^18.0.0"
-    "@metamask/keyring-utils": "npm:^3.0.0"
+    "@metamask/keyring-api": "npm:18.0.0"
+    "@metamask/keyring-utils": "npm:3.0.0"
     "@metamask/superstruct": "npm:^3.1.0"
-  checksum: 10/81d1d91528ab422cc99d78204a23e21fbc96c9d3ae9ebb2589a28a897b2968f9c576af22f18c3e36c6731e518e2bd890272d5a1ce4f5e42ebbc589594a170dd8
+  checksum: 10/f48efb208896392e9b383f9847ff56209613d729c8b2110b4d579182245073cb3e9e6c274d842990d2b407ccc1df41525d93ac658afc4e6b5e956f6c491f9550
   languageName: node
   linkType: hard
 
@@ -3731,7 +3743,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-utils@npm:3.0.0, @metamask/keyring-utils@npm:^3.0.0":
+"@metamask/keyring-utils@npm:3.0.0":
   version: 3.0.0
   resolution: "@metamask/keyring-utils@npm:3.0.0"
   dependencies:
@@ -3740,6 +3752,18 @@ __metadata:
     "@metamask/utils": "npm:^11.1.0"
     bitcoin-address-validation: "npm:^2.2.3"
   checksum: 10/eff3c0b9a86d6a25c5dd443946ba3ff56cb94fcb915a4eb061089819805e1e78eba2ea5cfb12a47ec4606542870c417de422f755947389ab9f3a4f08e96742db
+  languageName: node
+  linkType: hard
+
+"@metamask/keyring-utils@npm:@metamask-previews/keyring-utils@3.0.0-e86c8ec":
+  version: 3.0.0-e86c8ec
+  resolution: "@metamask-previews/keyring-utils@npm:3.0.0-e86c8ec"
+  dependencies:
+    "@ethereumjs/tx": "npm:^5.4.0"
+    "@metamask/superstruct": "npm:^3.1.0"
+    "@metamask/utils": "npm:^11.1.0"
+    bitcoin-address-validation: "npm:^2.2.3"
+  checksum: 10/7f4d636a4ddd13ed33604fe50aa07ed5ebffff271ace26f6939813f5275064297d9add9b2b9d2afbc50023c001c737dfb91f741712431a50f3a7c75f3b13f058
   languageName: node
   linkType: hard
 
@@ -3807,21 +3831,11 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/multichain-account-api@npm:@metamask-previews/multichain-account-api@0.0.0-5ab4699":
-  version: 0.0.0-5ab4699
-  resolution: "@metamask-previews/multichain-account-api@npm:0.0.0-5ab4699"
-  dependencies:
-    "@metamask/keyring-api": "npm:18.0.0"
-    "@metamask/keyring-utils": "npm:3.0.0"
-    "@metamask/utils": "npm:^11.1.0"
-  checksum: 10/5a781f8e77f592ad1fb515e87f88c03f0d4fbf02f38f5de0e4c7996fb0db40c4fe3099e310bf13cee111d8eeeec7c15ef96e5c87343ba9ef513cc7db92b1952c
-  languageName: node
-  linkType: hard
-
 "@metamask/multichain-account-controller@workspace:packages/multichain-account-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/multichain-account-controller@workspace:packages/multichain-account-controller"
   dependencies:
+    "@metamask/account-api": "npm:^0.1.0"
     "@metamask/accounts-controller": "npm:^31.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.1"
@@ -3830,11 +3844,11 @@ __metadata:
     "@metamask/keyring-controller": "npm:^22.0.2"
     "@metamask/keyring-internal-api": "npm:^6.2.0"
     "@metamask/keyring-snap-client": "npm:^5.0.0"
-    "@metamask/multichain-account-api": "npm:^0.0.0"
     "@metamask/providers": "npm:^22.1.0"
-    "@metamask/snaps-controllers": "npm:^12.3.1"
-    "@metamask/snaps-sdk": "npm:^7.1.0"
-    "@metamask/snaps-utils": "npm:^9.4.0"
+    "@metamask/snaps-controllers": "npm:^14.0.1"
+    "@metamask/snaps-sdk": "npm:^9.0.0"
+    "@metamask/snaps-utils": "npm:^11.0.0"
+    "@metamask/superstruct": "npm:^3.1.0"
     "@types/jest": "npm:^27.4.1"
     "@types/uuid": "npm:^8.3.0"
     deepmerge: "npm:^4.2.2"
@@ -3848,9 +3862,8 @@ __metadata:
   peerDependencies:
     "@metamask/accounts-controller": ^31.0.0
     "@metamask/keyring-controller": ^22.0.0
-    "@metamask/multichain-account-api": ^0.0.0
     "@metamask/providers": ^22.0.0
-    "@metamask/snaps-controllers": ^12.0.0
+    "@metamask/snaps-controllers": ^14.0.0
     webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
   languageName: unknown
   linkType: soft

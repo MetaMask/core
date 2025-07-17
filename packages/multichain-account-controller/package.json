@@ -47,14 +47,15 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
+    "@metamask/account-api": "^0.1.0",
     "@metamask/base-controller": "^8.0.1",
     "@metamask/keyring-api": "^18.0.0",
     "@metamask/keyring-controller": "^19.0.0",
     "@metamask/keyring-internal-api": "^6.2.0",
     "@metamask/keyring-snap-client": "^5.0.0",
-    "@metamask/multichain-account-api": "^0.0.0",
-    "@metamask/snaps-sdk": "^7.1.0",
-    "@metamask/snaps-utils": "^9.4.0"
+    "@metamask/snaps-sdk": "^9.0.0",
+    "@metamask/snaps-utils": "^11.0.0",
+    "@metamask/superstruct": "^3.1.0"
   },
   "devDependencies": {
     "@metamask/accounts-controller": "^31.0.0",
@@ -62,7 +63,7 @@
     "@metamask/eth-snap-keyring": "^13.0.0",
     "@metamask/keyring-controller": "^22.0.2",
     "@metamask/providers": "^22.1.0",
-    "@metamask/snaps-controllers": "^12.3.1",
+    "@metamask/snaps-controllers": "^14.0.1",
     "@types/jest": "^27.4.1",
     "@types/uuid": "^8.3.0",
     "deepmerge": "^4.2.2",
@@ -77,9 +78,8 @@
   "peerDependencies": {
     "@metamask/accounts-controller": "^31.0.0",
     "@metamask/keyring-controller": "^22.0.0",
-    "@metamask/multichain-account-api": "^0.0.0",
     "@metamask/providers": "^22.0.0",
-    "@metamask/snaps-controllers": "^12.0.0",
+    "@metamask/snaps-controllers": "^14.0.0",
     "webextension-polyfill": "^0.10.0 || ^0.11.0 || ^0.12.0"
   },
   "engines": {

@@ -1,8 +1,9 @@
-import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
+import type { EntropySourceId } from '@metamask/keyring-api';
 import {
   EthAccountType,
   EthMethod,
   EthScope,
+  KeyringAccountEntropyTypeOption,
   SolAccountType,
   SolMethod,
   SolScope,
@@ -10,6 +11,8 @@ import {
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { v4 as uuid } from 'uuid';
+
+import { isBip44Account } from '../providers/BaseAccountProvider';
 
 const ETH_EOA_METHODS = [
   EthMethod.PersonalSign,
@@ -59,8 +62,12 @@ export const MOCK_HD_ACCOUNT_1: InternalAccount = {
   id: 'mock-id-1',
   address: '0x123',
   options: {
-    entropySource: MOCK_HD_KEYRING_1.metadata.id,
-    index: 0,
+    entropy: {
+      type: KeyringAccountEntropyTypeOption.Mnemonic,
+      id: MOCK_HD_KEYRING_1.metadata.id,
+      groupIndex: 0,
+      derivationPath: '',
+    },
   },
   methods: [...ETH_EOA_METHODS],
   type: EthAccountType.Eoa,
@@ -78,8 +85,12 @@ export const MOCK_HD_ACCOUNT_2: InternalAccount = {
   id: 'mock-id-2',
   address: '0x456',
   options: {
-    entropySource: MOCK_HD_KEYRING_2.metadata.id,
-    index: 0,
+    entropy: {
+      type: KeyringAccountEntropyTypeOption.Mnemonic,
+      id: MOCK_HD_KEYRING_2.metadata.id,
+      groupIndex: 0,
+      derivationPath: '',
+    },
   },
   methods: [...ETH_EOA_METHODS],
   type: EthAccountType.Eoa,
@@ -97,9 +108,14 @@ export const MOCK_SNAP_ACCOUNT_1: InternalAccount = {
   id: 'mock-snap-id-1',
   address: 'aabbccdd',
   options: {
-    entropySource: MOCK_HD_KEYRING_2.metadata.id,
-    index: 0,
-  }, // Note: shares entropy with MOCK_HD_ACCOUNT_2
+    entropy: {
+      type: KeyringAccountEntropyTypeOption.Mnemonic,
+      // NOTE: shares entropy with MOCK_HD_ACCOUNT_2
+      id: MOCK_HD_KEYRING_2.metadata.id,
+      groupIndex: 0,
+      derivationPath: '',
+    },
+  },
   methods: SOL_METHODS,
   type: SolAccountType.DataAccount,
   scopes: [SolScope.Mainnet],
@@ -155,7 +171,7 @@ export class MockAccountBuilder {
     return new MockAccountBuilder(account);
   }
 
-  withUuuid() {
+  withUuid() {
     this.#account.id = uuid();
     return this;
   }
@@ -166,12 +182,20 @@ export class MockAccountBuilder {
   }
 
   withEntropySource(entropySource: EntropySourceId) {
-    this.#account.options.entropySource = entropySource;
+    if (!isBip44Account(this.#account)) {
+      throw new Error('Invalid BIP-44 account');
+    }
+
+    this.#account.options.entropy.id = entropySource;
     return this;
   }
 
   withGroupIndex(groupIndex: number) {
-    this.#account.options.index = groupIndex;
+    if (!isBip44Account(this.#account)) {
+      throw new Error('Invalid BIP-44 account');
+    }
+
+    this.#account.options.entropy.groupIndex = groupIndex;
     return this;
   }
 

@@ -1,6 +1,6 @@
 /* eslint-disable jsdoc/require-jsdoc */
 import type { Messenger } from '@metamask/base-controller';
-import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
+import type { KeyringAccount } from '@metamask/keyring-api';
 import { EthAccountType, SolAccountType } from '@metamask/keyring-api';
 import type { KeyringObject } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -66,27 +66,9 @@ function mockAccountProvider<Provider>(
     .mocked(providerClass)
     .mockImplementation(() => mocks as unknown as Provider);
 
-  mocks.getAccounts.mockImplementation(
-    ({
-      entropySource,
-      groupIndex,
-    }: {
-      entropySource: EntropySourceId;
-      groupIndex: number;
-    }) =>
-      accounts
-        .filter(
-          (account) =>
-            account.type === type &&
-            account.options.entropySource === entropySource &&
-            account.options.index === groupIndex,
-        )
-        .map((account) => account.id),
+  mocks.getAccounts.mockImplementation(() =>
+    accounts.filter((account) => account.type === type),
   );
-
-  mocks.getAccount.mockImplementation((id: InternalAccount['id']) => {
-    return accounts.find((account) => account.id === id);
-  });
 }
 
 function setup({
@@ -294,178 +276,6 @@ describe('MultichainAccountController', () => {
           groupIndex,
         }),
       ).toThrow(`No multichain account for index: ${groupIndex}`);
-    });
-  });
-
-  describe('createNextMultichainAccount', () => {
-    it('creates the next multichain account', async () => {
-      // Used to build the initial wallet with 1 multichain account (for
-      // group index 0)!
-      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
-        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
-        .withGroupIndex(0)
-        .get();
-
-      const { controller, mocks } = setup({ accounts: [mockEvmAccount] });
-
-      // Before creating the next multichain account, we need to mock some actions:
-      const mockNextEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_2)
-        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
-        .withGroupIndex(1)
-        .get();
-      const mockNextSolAccount = MockAccountBuilder.from(MOCK_SNAP_ACCOUNT_1)
-        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
-        .withGroupIndex(1)
-        .withUuuid() // Required by KeyringClient.
-        .get();
-
-      // We need to mock every call made to the providers when creating an accounts:
-      for (const [mocksAccountProvider, mockNextAccount] of [
-        [mocks.EvmAccountProvider, mockNextEvmAccount],
-        [mocks.SolAccountProvider, mockNextSolAccount],
-      ] as const) {
-        // 1. Create the accounts for the new index and returns their IDs.
-        mocksAccountProvider.createAccounts.mockResolvedValueOnce([
-          mockNextAccount.id,
-        ]);
-        // 2. When the adapter creates a new multichain account, it will query all
-        // accounts for this given index (so similar to the one we just created).
-        mocksAccountProvider.getAccounts.mockReturnValueOnce([mockNextAccount]);
-        // 3. Required when we call `getAccounts` (below) on the multichain account.
-        mocksAccountProvider.getAccount.mockReturnValueOnce(mockNextAccount);
-      }
-
-      const multichainAccount = await controller.createNextMultichainAccount({
-        entropySource: MOCK_HD_KEYRING_1.metadata.id,
-      });
-      expect(multichainAccount.index).toBe(1);
-
-      const internalAccounts = multichainAccount.getAccounts();
-      expect(internalAccounts).toHaveLength(2); // EVM + SOL.
-      expect(internalAccounts[0].type).toBe(EthAccountType.Eoa);
-      expect(internalAccounts[1].type).toBe(SolAccountType.DataAccount);
-    });
-  });
-
-  describe('discoverAndCreateMultichainAccounts', () => {
-    it('discovers and creates multichain accounts', async () => {
-      // Starts with no accounts, to simulate the discovery.
-      const { controller, mocks } = setup({ accounts: [] });
-
-      // We need to mock every call made to the providers when discovery an accounts:
-      for (const [mocksAccountProvider, mockDiscoveredAccount] of [
-        [mocks.EvmAccountProvider, MOCK_HD_ACCOUNT_1],
-        [mocks.SolAccountProvider, MOCK_SNAP_ACCOUNT_1],
-      ] as const) {
-        mocksAccountProvider.discoverAndCreateAccounts.mockResolvedValueOnce([
-          mockDiscoveredAccount.id, // Account that got discovered and created.
-        ]);
-        mocksAccountProvider.discoverAndCreateAccounts.mockResolvedValueOnce(
-          [], // Stop the discovery.
-        );
-        mocksAccountProvider.getAccounts.mockReturnValue([
-          mockDiscoveredAccount.id, // Account that got created during discovery.
-        ]);
-        mocksAccountProvider.getAccount.mockReturnValue(mockDiscoveredAccount);
-      }
-
-      const multichainAccounts =
-        await controller.discoverAndCreateMultichainAccounts({
-          entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        });
-      // We only discover 1 account on each providers, which should only have 1 multichain
-      // account.
-      expect(multichainAccounts).toHaveLength(1);
-      expect(multichainAccounts[0].index).toBe(0);
-
-      const internalAccounts = multichainAccounts[0].getAccounts();
-      expect(internalAccounts).toHaveLength(2); // EVM + SOL.
-      expect(internalAccounts[0].type).toBe(EthAccountType.Eoa);
-      expect(internalAccounts[1].type).toBe(SolAccountType.DataAccount);
-    });
-
-    it('discovers and creates multichain accounts for multiple index', async () => {
-      // Starts with no accounts, to simulate the discovery.
-      const { controller, mocks } = setup({ accounts: [] });
-
-      const maxGroupIndex = 10;
-      for (let i = 0; i < maxGroupIndex; i++) {
-        // We need to mock every call made to the providers when discovery an accounts:
-        for (const [mocksAccountProvider, mockDiscoveredAccount] of [
-          [mocks.EvmAccountProvider, MOCK_HD_ACCOUNT_1],
-          [mocks.SolAccountProvider, MOCK_SNAP_ACCOUNT_1],
-        ] as const) {
-          const mockDiscoveredAccountForIndex = MockAccountBuilder.from(
-            mockDiscoveredAccount,
-          )
-            .withGroupIndex(i)
-            .withUuuid()
-            .get();
-
-          mocksAccountProvider.discoverAndCreateAccounts.mockResolvedValueOnce([
-            mockDiscoveredAccountForIndex.id, // Account that got discovered and created.
-          ]);
-        }
-      }
-
-      // Stop the discoveries.
-      mocks.EvmAccountProvider.discoverAndCreateAccounts.mockResolvedValueOnce(
-        [],
-      );
-      mocks.SolAccountProvider.discoverAndCreateAccounts.mockResolvedValueOnce(
-        [],
-      );
-
-      const multichainAccounts =
-        await controller.discoverAndCreateMultichainAccounts({
-          entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        });
-      expect(multichainAccounts).toHaveLength(maxGroupIndex);
-    });
-
-    it('discovers and creates multichain accounts and fill gaps (alignmnent mechanism)', async () => {
-      // Starts with no accounts, to simulate the discovery.
-      const { controller, mocks } = setup({ accounts: [] });
-
-      // We only mock calls for the EVM providers, the Solana provider won't discovery anything.
-      const mocksAccountProvider = mocks.EvmAccountProvider;
-      const mockDiscoveredAccount = MOCK_HD_ACCOUNT_1;
-      mocksAccountProvider.discoverAndCreateAccounts.mockResolvedValueOnce([
-        mockDiscoveredAccount.id, // Account that got discovered and created.
-      ]);
-      mocksAccountProvider.discoverAndCreateAccounts.mockResolvedValueOnce(
-        [], // Stop the discovery.
-      );
-      mocksAccountProvider.getAccounts.mockReturnValue([
-        mockDiscoveredAccount.id, // Account that got created during discovery.
-      ]);
-      mocksAccountProvider.getAccount.mockReturnValue(mockDiscoveredAccount);
-
-      // No discovery for Solana.
-      mocks.SolAccountProvider.discoverAndCreateAccounts.mockResolvedValue([]);
-      mocks.SolAccountProvider.createAccounts.mockResolvedValue(
-        MOCK_SNAP_ACCOUNT_1.id,
-      );
-      mocks.SolAccountProvider.getAccounts.mockReturnValue([
-        MOCK_SNAP_ACCOUNT_1.id,
-      ]);
-      mocks.SolAccountProvider.getAccount.mockReturnValue(MOCK_SNAP_ACCOUNT_1);
-
-      const multichainAccounts =
-        await controller.discoverAndCreateMultichainAccounts({
-          entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        });
-      // We only discover 1 account on the EVM providers, which is still produce 1 multichain
-      // account.
-      expect(multichainAccounts).toHaveLength(1);
-      expect(multichainAccounts[0].index).toBe(0);
-
-      // And Solana account must have been created too (we "aligned" all accounts).
-      expect(mocks.SolAccountProvider.createAccounts).toHaveBeenCalled();
-      const internalAccounts = multichainAccounts[0].getAccounts();
-      expect(internalAccounts).toHaveLength(2); // EVM + SOL.
-      expect(internalAccounts[0].type).toBe(EthAccountType.Eoa);
-      expect(internalAccounts[1].type).toBe(SolAccountType.DataAccount);
     });
   });
 });

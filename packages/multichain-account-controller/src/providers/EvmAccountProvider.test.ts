@@ -11,7 +11,6 @@ import {
   getRootMessenger,
   MOCK_HD_ACCOUNT_1,
   MOCK_HD_ACCOUNT_2,
-  MOCK_HD_KEYRING_1,
   MockAccountBuilder,
 } from '../tests';
 import type {
@@ -54,7 +53,7 @@ class MockEthKeyring implements EthKeyring {
     for (let i = 0; i < numberOfAccounts; i++) {
       this.accounts.push(
         MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
-          .withUuuid()
+          .withUuid()
           .withAddressSuffix(`${this.accounts.length}`)
           .get(),
       );
@@ -132,20 +131,12 @@ function setup({
 
 describe('EvmAccountProvider', () => {
   it('gets accounts', () => {
+    const accounts = [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2];
     const { provider } = setup({
-      accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+      accounts,
     });
 
-    const accountsForIndex0 = provider.getAccounts({
-      entropySource: MOCK_HD_KEYRING_1.metadata.id,
-      groupIndex: 0,
-    });
-    const accountsForIndex1 = provider.getAccounts({
-      entropySource: MOCK_HD_KEYRING_1.metadata.id,
-      groupIndex: 1,
-    });
-    expect(accountsForIndex0).toHaveLength(1);
-    expect(accountsForIndex1).toHaveLength(0);
+    expect(provider.getAccounts()).toStrictEqual(accounts);
   });
 
   it('gets a specific account', () => {
@@ -167,83 +158,5 @@ describe('EvmAccountProvider', () => {
     expect(() => provider.getAccount(unknownAccount.id)).toThrow(
       `Unable to find account: ${unknownAccount.id}`,
     );
-  });
-
-  it('creates accounts', async () => {
-    const accounts = [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2];
-    const { provider, keyring } = setup({
-      accounts,
-    });
-
-    const newGroupIndex = accounts.length; // Group-index are 0-based.
-    const newAccounts = await provider.createAccounts({
-      entropySource: MOCK_HD_KEYRING_1.metadata.id,
-      groupIndex: newGroupIndex,
-    });
-    expect(newAccounts).toHaveLength(1);
-    expect(keyring.getAccounts).toHaveBeenCalled(); // Checks for existing accounts.
-    expect(keyring.addAccounts).toHaveBeenCalledWith(1); // Create 1 account.
-  });
-
-  it('does not re-create accounts (idempotent)', async () => {
-    const accounts = [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2];
-    const { provider } = setup({
-      accounts,
-    });
-
-    const newAccounts = await provider.createAccounts({
-      entropySource: MOCK_HD_KEYRING_1.metadata.id,
-      groupIndex: 0,
-    });
-    expect(newAccounts).toHaveLength(1);
-    expect(newAccounts[0]).toStrictEqual(MOCK_HD_ACCOUNT_1.id);
-  });
-
-  it('throws when trying to create gaps', async () => {
-    const { provider } = setup({
-      accounts: [MOCK_HD_ACCOUNT_1],
-    });
-
-    await expect(
-      provider.createAccounts({
-        entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        groupIndex: 10,
-      }),
-    ).rejects.toThrow('Trying to create too many accounts');
-  });
-
-  it('throws if internal account cannot be found', async () => {
-    const { provider, mocks } = setup({
-      accounts: [MOCK_HD_ACCOUNT_1],
-    });
-
-    // Simulate an account not found.
-    mocks.getAccountsByAddress.mockImplementation(() => undefined);
-
-    await expect(
-      provider.createAccounts({
-        entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        groupIndex: 1,
-      }),
-    ).rejects.toThrow('Internal account does not exist');
-  });
-
-  it('discover accounts', async () => {
-    const { provider } = setup({
-      accounts: [], // No accounts by defaults, so we can discover them
-    });
-
-    const accounts = await provider.discoverAndCreateAccounts({
-      entropySource: MOCK_HD_KEYRING_1.metadata.id,
-      groupIndex: 0,
-    });
-    expect(accounts).toHaveLength(1);
-
-    // For now, we cannot beyond index 0 for the discovery.
-    const noAccounts = await provider.discoverAndCreateAccounts({
-      entropySource: MOCK_HD_KEYRING_1.metadata.id,
-      groupIndex: 1,
-    });
-    expect(noAccounts).toHaveLength(0);
   });
 });

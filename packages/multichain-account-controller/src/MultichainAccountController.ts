@@ -1,16 +1,15 @@
+import type {
+  MultichainAccountWalletId,
+  AccountProvider,
+} from '@metamask/account-api';
+import {
+  MultichainAccountWallet,
+  toMultichainAccountWalletId,
+  type MultichainAccount,
+} from '@metamask/account-api';
 import type { EntropySourceId } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type {
-  AccountProvider,
-  MultichainAccountWalletId,
-} from '@metamask/multichain-account-api';
-import {
-  MultichainAccountWalletAdapter,
-  toMultichainAccountWalletId,
-  type MultichainAccount,
-  type MultichainAccountWallet,
-} from '@metamask/multichain-account-api';
 
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
 import { SolAccountProvider } from './providers/SolAccountProvider';
@@ -59,7 +58,7 @@ export class MultichainAccountController {
 
     const entropySources = [];
     for (const keyring of keyrings) {
-      if (keyring.type === KeyringTypes.hd) {
+      if (keyring.type === (KeyringTypes.hd as string)) {
         entropySources.push(keyring.metadata.id);
       }
     }
@@ -67,7 +66,7 @@ export class MultichainAccountController {
     for (const entropySource of entropySources) {
       // This will automatically create all multichain accounts for that wallet (based
       // on the accounts owned by each account providers).
-      const wallet = new MultichainAccountWalletAdapter({
+      const wallet = new MultichainAccountWallet({
         entropySource,
         providers: this.#providers,
       });
@@ -115,23 +114,5 @@ export class MultichainAccountController {
     entropySource: EntropySourceId;
   }): MultichainAccount<InternalAccount>[] {
     return this.#getWallet(entropySource).getMultichainAccounts();
-  }
-
-  async createNextMultichainAccount({
-    entropySource,
-  }: {
-    entropySource: EntropySourceId;
-  }): Promise<MultichainAccount<InternalAccount>> {
-    return await this.#getWallet(entropySource).createNextMultichainAccount();
-  }
-
-  async discoverAndCreateMultichainAccounts({
-    entropySource,
-  }: {
-    entropySource: EntropySourceId;
-  }): Promise<MultichainAccount<InternalAccount>[]> {
-    return await this.#getWallet(
-      entropySource,
-    ).discoverAndCreateMultichainAccounts();
   }
 }
