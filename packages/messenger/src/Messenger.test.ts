@@ -186,6 +186,31 @@ describe('Messenger', () => {
     expect(pingCount).toBe(0);
   });
 
+  it('should throw when calling a delegated action after actions have been reset', () => {
+    type PingAction = { type: 'Fixture:ping'; handler: () => void };
+    const messenger = new Messenger<'Fixture', PingAction, never>({
+      namespace: 'Fixture',
+    });
+    let pingCount = 0;
+    messenger.registerActionHandler('Fixture:ping', () => {
+      pingCount += 1;
+    });
+    const delegatedMessenger = new Messenger<'Destination', PingAction, never>({
+      namespace: 'Destination',
+    });
+    messenger.delegate({
+      messenger: delegatedMessenger,
+      actions: ['Fixture:ping'],
+    });
+
+    messenger.clearActions();
+
+    expect(() => {
+      delegatedMessenger.call('Fixture:ping');
+    }).toThrow('A handler for Fixture:ping has not been registered');
+    expect(pingCount).toBe(0);
+  });
+
   it('should publish event to subscriber', () => {
     type MessageEvent = { type: 'Fixture:message'; payload: [string] };
     const messenger = new Messenger<'Fixture', never, MessageEvent>({

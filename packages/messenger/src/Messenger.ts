@@ -323,7 +323,9 @@ export class Messenger<
    * This prevents all actions from being called.
    */
   clearActions() {
-    this.#actions.clear();
+    for (const actionType of this.#actions.keys()) {
+      this.#unregisterActionHandler(actionType);
+    }
   }
 
   /**
