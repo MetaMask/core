@@ -184,6 +184,16 @@ export class Messenger<
 > {
   readonly #namespace: Namespace;
 
+  /**
+   * The parent messenger. All actions/events under this namespace are automatically delegated to
+   * the parent messenger.
+   */
+  readonly #parent?: Messenger<
+    string,
+    Action | ActionConstraint,
+    Event | EventConstraint
+  >;
+
   readonly #actions = new Map<Action['type'], Action['handler']>();
 
   readonly #events = new Map<Event['type'], EventSubscriptionMap<Event>>();
@@ -225,11 +235,26 @@ export class Messenger<
   /**
    * Construct a messenger.
    *
+   * If a parent messenger is given, all actions and events under this messenger's namespace will
+   * be delegated to the parent automatically.
+   *
    * @param args - Constructor arguments
    * @param args.namespace - The messenger namespace.
+   * @param args.parent - The parent messenger.
    */
-  constructor({ namespace }: { namespace: Namespace }) {
+  constructor({
+    namespace,
+    parent,
+  }: {
+    namespace: Namespace;
+    parent?: Messenger<
+      string,
+      Action | ActionConstraint,
+      Event | EventConstraint
+    >;
+  }) {
     this.#namespace = namespace;
+    this.#parent = parent;
   }
 
   /**
@@ -257,6 +282,9 @@ export class Messenger<
       );
     }
     this.#registerActionHandler(actionType, handler);
+    if (this.#parent) {
+      this.delegate({ actions: [actionType], messenger: this.#parent });
+    }
   }
 
   #registerActionHandler<ActionType extends Action['type']>(
@@ -400,6 +428,12 @@ export class Messenger<
         }:'`,
       );
     }
+    if (
+      this.#parent &&
+      !this.#subscriptionDelegationTargets.get(eventType)?.has(this.#parent)
+    ) {
+      this.delegate({ events: [eventType], messenger: this.#parent });
+    }
     this.#registerInitialEventPayload({ eventType, getPayload });
   }
 
@@ -448,6 +482,12 @@ export class Messenger<
       throw new Error(
         `Only allowed publishing events prefixed by '${this.#namespace}:'`,
       );
+    }
+    if (
+      this.#parent &&
+      !this.#subscriptionDelegationTargets.get(eventType)?.has(this.#parent)
+    ) {
+      this.delegate({ events: [eventType], messenger: this.#parent });
     }
     this.#publish(eventType, ...payload);
   }
@@ -805,6 +845,9 @@ export class Messenger<
     events?: DelegatedEvents;
     messenger: Delegatee;
   }) {
+    if (messenger === this.#parent) {
+      throw new Error('Cannot revoke from parent');
+    }
     for (const actionType of actions || []) {
       const delegationTargets = this.#actionDelegationTargets.get(actionType);
       if (!delegationTargets || !delegationTargets.has(messenger)) {
