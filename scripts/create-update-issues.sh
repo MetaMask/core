@@ -5,6 +5,22 @@ set -euo pipefail
 DEFAULT_REF="HEAD"
 DEFAULT_LABEL="client-controller-update"
 
+print-usage() {
+  cat <<EOT
+Detects major-bumped packages in a release commit and creates tickets in clients
+that instructs engineers to upgrade to them.
+
+Usage: $0 [--ref REF] [--no-dry-run]
+
+OPTIONS:
+
+--ref REF, -r REF       The release commit to inspect.
+--no-dry-run            By default, this script won't do anything. Pass this
+                        option to override that.
+--help, -h              You're looking at it ;)
+EOT
+}
+
 existing-issue-found() {
   local repo="$1"
   local package_name="$2"
@@ -115,22 +131,35 @@ main() {
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --ref)
+      --ref|-r)
+        if [[ "$2" =~ - ]]; then
+          echo "ERROR: Invalid argument for $1."
+          echo
+          echo "---------------------"
+          print-usage
+          exit 1
+        fi
         if [[ -n "${2:-}" ]]; then
           ref="$2"
           shift 2
         else
           ref="$DEFAULT_REF"
-          shift 1
+          shift
         fi
         ;;
       --no-dry-run)
         dry_run=0
         shift
         ;;
+      --help|-h)
+        print-usage
+        exit 0
+        ;;
       *)
-        echo "Unknown argument: $1"
-        echo "Usage: $0 [--ref REF] [--no-dry-run]"
+        echo "ERROR: Unknown argument: $1"
+        echo
+        echo "---------------------"
+        print-usage
         exit 1
         ;;
     esac
@@ -142,7 +171,13 @@ main() {
   fi
 
   local full_ref
-  full_ref="$(git rev-parse "$ref")"
+  if ! full_ref="$(git rev-parse "$ref" 2>/dev/null)"; then
+    echo "ERROR: Unknown ref \"$ref\"."
+    echo
+    echo "---------------------"
+    print-usage
+    exit 1
+  fi
 
   if [[ "$full_ref" == "$ref" ]]; then
     echo "Looking for release tags pointing to $full_ref for major-bumped packages..."
