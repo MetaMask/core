@@ -403,7 +403,10 @@ export default class AuthenticationController extends BaseController<
       console.log(`pairing with social token success=${paired}`);
       if (paired) {
         this.update((state) => {
-          state.socialPairingDone = true;
+          // Prevents a race condition when sign-out is performed before pairing completes
+          if (state.isSignedIn) {
+            state.socialPairingDone = true;
+          }
         });
       }
     } finally {

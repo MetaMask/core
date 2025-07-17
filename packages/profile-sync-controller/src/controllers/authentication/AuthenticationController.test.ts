@@ -393,8 +393,8 @@ describe('authentication/authentication-controller - performSignIn() with pairin
     });
 
     const controller = new AuthenticationController({ messenger, metametrics });
-    const requestCounter  = jest.fn();
-    mockEndpoints.mockPairSocialIdentifierUrl.on('request', requestCounter)
+    const requestCounter = jest.fn();
+    mockEndpoints.mockPairSocialIdentifierUrl.on('request', requestCounter);
 
     // Call performSignIn 10 times in parallel
     const signInPromises = Array.from({ length: 10 }, () =>
@@ -447,6 +447,46 @@ describe('authentication/authentication-controller - performSignOut() tests', ()
     expect(controller.state.isSignedIn).toBe(false);
     expect(controller.state.srpSessionData).toBeUndefined();
     expect(controller.state.socialPairingDone).toBe(false);
+  });
+
+  it('prevents race condition where async pairing could set socialPairingDone to true after sign-out', async () => {
+    const metametrics = createMockAuthMetaMetrics();
+    const mockEndpoints = arrangeAuthAPIs();
+    const { messenger, mockSeedlessOnboardingGetState } =
+      createMockAuthenticationMessenger();
+
+    // Ensure social token is available for pairing
+    mockSeedlessOnboardingGetState.mockReturnValue({
+      accessToken: MOCK_SOCIAL_TOKEN,
+    });
+
+    const controller = new AuthenticationController({ messenger, metametrics });
+
+    // Start sign-in which triggers async pairing
+    await controller.performSignIn();
+    // Immediately sign out before async pairing completes
+    controller.performSignOut();
+
+    // Verify initial sign-out state
+    expect(controller.state.isSignedIn).toBe(false);
+    expect(controller.state.socialPairingDone).toBe(false);
+    expect(controller.state.srpSessionData).toBeUndefined();
+
+    // Wait a bit for the async pairing operation to complete
+    await waitFor(() => {
+      expect(controller.state.pairingInProgress).toBe(false);
+    });
+
+    // Verify that socialPairingDone remains false after sign-out
+    expect(controller.state.isSignedIn).toBe(false);
+    expect(controller.state.socialPairingDone).toBe(false);
+    expect(controller.state.srpSessionData).toBeUndefined();
+    expect(controller.state.pairingInProgress).toBe(false);
+
+    mockEndpoints.mockNonceUrl.done();
+    mockEndpoints.mockSrpLoginUrl.done();
+    mockEndpoints.mockOAuth2TokenUrl.done();
+    mockEndpoints.mockPairSocialIdentifierUrl.done();
   });
 });
 
