@@ -10,12 +10,9 @@ import {
   type LendingApiService,
   type LendingMarket,
   EarnEnvironments,
+  ChainId,
 } from '@metamask/stake-sdk';
 
-import {
-  HOODI_TESTNET_CHAIN_ID_DECIMAL,
-  HOODI_TESTNET_CHAIN_ID_HEX,
-} from './constants';
 import type {
   EarnControllerGetStateAction,
   EarnControllerStateChangeEvent,
@@ -36,6 +33,7 @@ import {
   TransactionStatus,
   TransactionType,
 } from '../../transaction-controller/src';
+import { HOODI_TESTNET_CHAIN_ID_DECIMAL, HOODI_TESTNET_CHAIN_ID_HEX } from './constants';
 
 jest.mock('@metamask/stake-sdk', () => ({
   EarnSdk: {
@@ -119,6 +117,7 @@ function getEarnControllerMessenger(
     ],
     allowedEvents: [
       'NetworkController:stateChange',
+      'NetworkController:networkDidChange',
       'AccountsController:selectedAccountChange',
       'TransactionController:transactionConfirmed',
     ],
@@ -855,12 +854,11 @@ describe('EarnController', () => {
       const { messenger } = await setupController();
 
       messenger.publish(
-        'NetworkController:stateChange',
+        'NetworkController:networkDidChange',
         {
           ...getDefaultNetworkControllerState(),
           selectedNetworkClientId: '2',
         },
-        [],
       );
 
       expect(EarnSdk.create).toHaveBeenCalledTimes(2);
@@ -883,12 +881,11 @@ describe('EarnController', () => {
       });
 
       messenger.publish(
-        'NetworkController:stateChange',
+        'NetworkController:networkDidChange',
         {
           ...getDefaultNetworkControllerState(),
           selectedNetworkClientId: '2',
         },
-        [],
       );
 
       expect(EarnSdk.create).toHaveBeenCalledTimes(2);
@@ -1050,7 +1047,7 @@ describe('EarnController', () => {
         // Assertion on second call since the first is part of controller setup.
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
-        ).toHaveBeenNthCalledWith(2, [mockAccount1Address], 1, false);
+        ).toHaveBeenNthCalledWith(2, [mockAccount1Address], ChainId.ETHEREUM, false);
       });
 
       it('fetches without resetting cache when resetCache is undefined', async () => {
@@ -1060,7 +1057,7 @@ describe('EarnController', () => {
         // Assertion on second call since the first is part of controller setup.
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
-        ).toHaveBeenNthCalledWith(2, [mockAccount1Address], 1, false);
+        ).toHaveBeenNthCalledWith(2, [mockAccount1Address], ChainId.ETHEREUM, false);
       });
 
       it('fetches while resetting cache', async () => {
@@ -1070,7 +1067,7 @@ describe('EarnController', () => {
         // Assertion on second call since the first is part of controller setup.
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
-        ).toHaveBeenNthCalledWith(2, [mockAccount1Address], 1, true);
+        ).toHaveBeenNthCalledWith(2, [mockAccount1Address], ChainId.ETHEREUM, true);
       });
 
       it('fetches using active account (default)', async () => {
@@ -1080,7 +1077,7 @@ describe('EarnController', () => {
         // Assertion on second call since the first is part of controller setup.
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
-        ).toHaveBeenNthCalledWith(2, [mockAccount1Address], 1, false);
+        ).toHaveBeenNthCalledWith(2, [mockAccount1Address], ChainId.ETHEREUM, false);
       });
 
       it('fetches using options.address override', async () => {
@@ -1093,43 +1090,30 @@ describe('EarnController', () => {
         ).toHaveBeenNthCalledWith(2, [mockAccount2Address], 1, false);
       });
 
-      it('fetches using Ethereum Mainnet fallback if pooled-staking does not support active chainId', async () => {
-        const { controller } = await setupController({
-          mockGetNetworkControllerState: jest.fn(() => ({
-            selectedNetworkClientId: '2',
-            networkConfigurations: {
-              '2': { chainId: '0x2' },
-            },
-          })),
-          mockGetNetworkClientById: jest.fn(() => ({
-            configuration: { chainId: '0x2' },
-          })),
-        });
-
+      it('fetches using Ethereum Mainnet fallback if chainId is not provided', async () => {
+        const { controller } = await setupController();
         await controller.refreshPooledStakes();
 
         // Assertion on second call since the first is part of controller setup.
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
-        ).toHaveBeenNthCalledWith(2, [mockAccount1Address], 1, false);
+        ).toHaveBeenNthCalledWith(2, [mockAccount1Address], ChainId.ETHEREUM, false);
       });
 
-      it("fetches using Ethereum Hoodi if it's the active chainId", async () => {
-        const { controller } = await setupController({
-          mockGetNetworkControllerState: jest.fn(() => ({
-            selectedNetworkClientId: HOODI_TESTNET_CHAIN_ID_DECIMAL,
-            networkConfigurations: {
-              HOODI_TESTNET_CHAIN_ID_DECIMAL: {
-                chainId: HOODI_TESTNET_CHAIN_ID_HEX,
-              },
-            },
-          })),
-          mockGetNetworkClientById: jest.fn(() => ({
-            configuration: { chainId: HOODI_TESTNET_CHAIN_ID_HEX },
-          })),
-        });
+      it('fetches using Ethereum Mainnet fallback if pooled-staking does not support provided chainId', async () => {
+        isSupportedPooledStakingChainMock.mockReturnValue(false);
+        const { controller } = await setupController();
+        await controller.refreshPooledStakes({ chainId: 2 });
 
-        await controller.refreshPooledStakes();
+        // Assertion on second call since the first is part of controller setup.
+        expect(
+          mockedEarnApiService?.pooledStaking?.getPooledStakes,
+        ).toHaveBeenNthCalledWith(2, [mockAccount1Address], ChainId.ETHEREUM, false);
+      });
+
+      it("fetches using Ethereum Hoodi if it's the provided chainId", async () => {
+        const { controller } = await setupController();
+        await controller.refreshPooledStakes({ chainId: ChainId.HOODI });
 
         // Assertion on second call since the first is part of controller setup.
         expect(
@@ -1137,103 +1121,9 @@ describe('EarnController', () => {
         ).toHaveBeenNthCalledWith(
           2,
           [mockAccount1Address],
-          HOODI_TESTNET_CHAIN_ID_DECIMAL,
+          ChainId.HOODI,
           false,
         );
-      });
-
-      it('uses DEFAULT_POOLED_STAKING_CHAIN_STATE when switching to unpopulated supported chain', async () => {
-        // Start with controller configured for mainnet
-        const mockGetNetworkControllerState = jest.fn(
-          (): {
-            selectedNetworkClientId: string;
-            networkConfigurations: Record<string, { chainId: string }>;
-          } => ({
-            selectedNetworkClientId: '1',
-            networkConfigurations: {
-              '1': { chainId: '0x1' },
-            },
-          }),
-        );
-
-        const mockGetNetworkClientById = jest.fn(() => ({
-          configuration: { chainId: '0x1' },
-          provider: {
-            request: jest.fn(),
-            on: jest.fn(),
-            removeListener: jest.fn(),
-          },
-        }));
-
-        const { controller } = await setupController({
-          mockGetNetworkControllerState,
-          mockGetNetworkClientById,
-          options: {
-            state: {
-              // Start with only mainnet data
-              pooled_staking: {
-                1: {
-                  ...DEFAULT_POOLED_STAKING_CHAIN_STATE,
-                  pooledStakes: mockPooledStakes,
-                  exchangeRate: '1.0',
-                },
-                isEligible: true,
-              },
-            },
-          },
-        });
-
-        // Wait for constructor's async operations to complete
-        await new Promise((resolve) => setTimeout(resolve, 0));
-
-        // Verify initial state: only mainnet populated
-        expect(controller.state.pooled_staking[1]).toBeDefined();
-        expect(
-          controller.state.pooled_staking[HOODI_TESTNET_CHAIN_ID_DECIMAL],
-        ).toBeUndefined();
-
-        // Now simulate switching to Hoodi testnet by updating the mocks
-        mockGetNetworkControllerState.mockReturnValue({
-          selectedNetworkClientId: HOODI_TESTNET_CHAIN_ID_DECIMAL.toString(),
-          networkConfigurations: {
-            [HOODI_TESTNET_CHAIN_ID_DECIMAL]: {
-              chainId: HOODI_TESTNET_CHAIN_ID_HEX,
-            },
-          },
-        });
-
-        mockGetNetworkClientById.mockReturnValue({
-          configuration: { chainId: HOODI_TESTNET_CHAIN_ID_HEX },
-          provider: {
-            request: jest.fn(),
-            on: jest.fn(),
-            removeListener: jest.fn(),
-          },
-        });
-
-        // Call refreshPooledStakes - should use fallback for unpopulated Hoodi chainId
-        await controller.refreshPooledStakes();
-
-        // Verify Hoodi testnet data was created using DEFAULT_POOLED_STAKING_CHAIN_STATE as base
-        expect(
-          controller.state.pooled_staking[HOODI_TESTNET_CHAIN_ID_DECIMAL],
-        ).toStrictEqual({
-          ...DEFAULT_POOLED_STAKING_CHAIN_STATE,
-          pooledStakes: mockPooledStakes,
-          exchangeRate: '1.5',
-        });
-
-        // Verify API was called with Hoodi testnet chainId
-        expect(
-          mockedEarnApiService?.pooledStaking?.getPooledStakes,
-        ).toHaveBeenCalledWith(
-          [mockAccount1Address],
-          HOODI_TESTNET_CHAIN_ID_DECIMAL,
-          false,
-        );
-
-        // Verify mainnet data is still intact
-        expect(controller.state.pooled_staking[1]).toBeDefined();
       });
     });
 
@@ -1272,142 +1162,32 @@ describe('EarnController', () => {
         ).toHaveBeenCalledTimes(2);
       });
 
-      it('fetches using Ethereum Mainnet fallback if pooled-staking does not support active chainId', async () => {
-        const { controller } = await setupController({
-          mockGetNetworkControllerState: jest.fn(() => ({
-            selectedNetworkClientId: 2,
-            networkConfigurations: {
-              2: {
-                chainId: '0x2',
-              },
-            },
-          })),
-          mockGetNetworkClientById: jest.fn(() => ({
-            configuration: { chainId: '0x2' },
-          })),
-        });
-
+      it('fetches using Ethereum Mainnet fallback if chainId is not provided', async () => {
+        const { controller } = await setupController();
         await controller.refreshPooledStakingVaultMetadata();
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultData,
-        ).toHaveBeenNthCalledWith(2, 1);
+        ).toHaveBeenNthCalledWith(2, ChainId.ETHEREUM);
       });
 
-      it('fetches using Ethereum Hoodi if it is the active chainId', async () => {
-        const { controller } = await setupController({
-          mockGetNetworkControllerState: jest.fn(() => ({
-            selectedNetworkClientId: HOODI_TESTNET_CHAIN_ID_DECIMAL,
-            networkConfigurations: {
-              HOODI_TESTNET_CHAIN_ID_DECIMAL: {
-                chainId: HOODI_TESTNET_CHAIN_ID_HEX,
-              },
-            },
-          })),
-          mockGetNetworkClientById: jest.fn(() => ({
-            configuration: { chainId: HOODI_TESTNET_CHAIN_ID_HEX },
-          })),
-        });
-
-        await controller.refreshPooledStakingVaultMetadata();
+      it('fetches using Ethereum Mainnet fallback if pooled-staking does not support provided chainId', async () => {
+        isSupportedPooledStakingChainMock.mockReturnValue(false);
+        const { controller } = await setupController();
+        await controller.refreshPooledStakingVaultMetadata(2);
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultData,
-        ).toHaveBeenNthCalledWith(2, HOODI_TESTNET_CHAIN_ID_DECIMAL);
+        ).toHaveBeenNthCalledWith(2, ChainId.ETHEREUM);
       });
 
-      it('uses DEFAULT_POOLED_STAKING_CHAIN_STATE when switching to unpopulated supported chain', async () => {
-        // Start with controller configured for mainnet
-        const mockGetNetworkControllerState = jest.fn(
-          (): {
-            selectedNetworkClientId: string;
-            networkConfigurations: Record<string, { chainId: string }>;
-          } => ({
-            selectedNetworkClientId: '1',
-            networkConfigurations: {
-              '1': { chainId: '0x1' },
-            },
-          }),
-        );
+      it('fetches using Ethereum Hoodi if it is the provided chainId', async () => {
+        const { controller } = await setupController();
+        await controller.refreshPooledStakingVaultMetadata(ChainId.HOODI);
 
-        const mockGetNetworkClientById = jest.fn(() => ({
-          configuration: { chainId: '0x1' },
-          provider: {
-            request: jest.fn(),
-            on: jest.fn(),
-            removeListener: jest.fn(),
-          },
-        }));
-
-        const { controller } = await setupController({
-          mockGetNetworkControllerState,
-          mockGetNetworkClientById,
-          options: {
-            state: {
-              // Start with only mainnet data
-              pooled_staking: {
-                1: {
-                  ...DEFAULT_POOLED_STAKING_CHAIN_STATE,
-                  vaultMetadata: {
-                    apy: '3.5',
-                    capacity: '500000',
-                    feePercent: 5,
-                    totalAssets: '250000',
-                    vaultAddress: '0x123',
-                  },
-                },
-                isEligible: true,
-              },
-            },
-          },
-        });
-
-        // Wait for constructor's async operations to complete
-        await new Promise((resolve) => setTimeout(resolve, 0));
-
-        // Verify initial state: only mainnet populated
-        expect(controller.state.pooled_staking[1]).toBeDefined();
-        expect(
-          controller.state.pooled_staking[HOODI_TESTNET_CHAIN_ID_DECIMAL],
-        ).toBeUndefined();
-
-        // Now simulate switching to Hoodi testnet by updating the mocks
-        mockGetNetworkControllerState.mockReturnValue({
-          selectedNetworkClientId: HOODI_TESTNET_CHAIN_ID_DECIMAL.toString(),
-          networkConfigurations: {
-            [HOODI_TESTNET_CHAIN_ID_DECIMAL]: {
-              chainId: HOODI_TESTNET_CHAIN_ID_HEX,
-            },
-          },
-        });
-
-        mockGetNetworkClientById.mockReturnValue({
-          configuration: { chainId: HOODI_TESTNET_CHAIN_ID_HEX },
-          provider: {
-            request: jest.fn(),
-            on: jest.fn(),
-            removeListener: jest.fn(),
-          },
-        });
-
-        // Call refreshPooledStakingVaultMetadata - should use fallback for unpopulated Hoodi chainId
-        await controller.refreshPooledStakingVaultMetadata();
-
-        // Verify Hoodi testnet data was created using DEFAULT_POOLED_STAKING_CHAIN_STATE as base
-        expect(
-          controller.state.pooled_staking[HOODI_TESTNET_CHAIN_ID_DECIMAL],
-        ).toStrictEqual({
-          ...DEFAULT_POOLED_STAKING_CHAIN_STATE,
-          vaultMetadata: mockVaultMetadata,
-        });
-
-        // Verify API was called with Hoodi testnet chainId
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultData,
-        ).toHaveBeenCalledWith(HOODI_TESTNET_CHAIN_ID_DECIMAL);
-
-        // Verify mainnet data is still intact
-        expect(controller.state.pooled_staking[1]).toBeDefined();
+        ).toHaveBeenNthCalledWith(2, ChainId.HOODI);
       });
     });
 
@@ -1426,7 +1206,7 @@ describe('EarnController', () => {
 
       it('refreshes vault daily apys with custom days', async () => {
         const { controller } = await setupController();
-        await controller.refreshPooledStakingVaultDailyApys(180);
+        await controller.refreshPooledStakingVaultDailyApys(1, 180, 'desc');
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultDailyApys,
@@ -1438,7 +1218,7 @@ describe('EarnController', () => {
 
       it('refreshes vault daily apys with ascending order', async () => {
         const { controller } = await setupController();
-        await controller.refreshPooledStakingVaultDailyApys(365, 'asc');
+        await controller.refreshPooledStakingVaultDailyApys(1, 365, 'asc');
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultDailyApys,
@@ -1450,7 +1230,7 @@ describe('EarnController', () => {
 
       it('refreshes vault daily apys with custom days and ascending order', async () => {
         const { controller } = await setupController();
-        await controller.refreshPooledStakingVaultDailyApys(180, 'asc');
+        await controller.refreshPooledStakingVaultDailyApys(1, 180, 'asc');
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultDailyApys,
@@ -1460,20 +1240,10 @@ describe('EarnController', () => {
         );
       });
 
-      it("refreshes vault daily apys using Ethereum Mainnet fallback if pooled-staking doesn't support chainId", async () => {
-        const { controller } = await setupController({
-          mockGetNetworkControllerState: jest.fn(() => ({
-            selectedNetworkClientId: '2',
-            networkConfigurations: {
-              '2': { chainId: '0x2' },
-            },
-          })),
-          mockGetNetworkClientById: jest.fn(() => ({
-            configuration: { chainId: '0x2' },
-          })),
-        });
-
-        await controller.refreshPooledStakingVaultDailyApys();
+      it("refreshes vault daily apys using Ethereum Mainnet fallback if pooled-staking doesn't support provided chainId", async () => {
+        isSupportedPooledStakingChainMock.mockReturnValue(false);
+        const { controller } = await setupController();
+        await controller.refreshPooledStakingVaultDailyApys(2);
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultDailyApys,
@@ -1484,134 +1254,22 @@ describe('EarnController', () => {
         expect(controller.state.pooled_staking[2]).toBeUndefined();
       });
 
-      it('refreshes vault daily apys using Ethereum Hoodi if it is the active chainId', async () => {
-        const { controller } = await setupController({
-          mockGetNetworkControllerState: jest.fn(() => ({
-            selectedNetworkClientId: HOODI_TESTNET_CHAIN_ID_DECIMAL,
-            networkConfigurations: {
-              HOODI_TESTNET_CHAIN_ID_DECIMAL: {
-                chainId: HOODI_TESTNET_CHAIN_ID_HEX,
-              },
-            },
-          })),
-          mockGetNetworkClientById: jest.fn(() => ({
-            configuration: { chainId: HOODI_TESTNET_CHAIN_ID_HEX },
-          })),
-        });
-
-        await controller.refreshPooledStakingVaultDailyApys();
+      it('refreshes vault daily apys using Ethereum Hoodi if it is the provided chainId', async () => {
+        const { controller } = await setupController();
+        await controller.refreshPooledStakingVaultDailyApys(ChainId.HOODI);
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultDailyApys,
         ).toHaveBeenNthCalledWith(
           2,
-          HOODI_TESTNET_CHAIN_ID_DECIMAL,
+          ChainId.HOODI,
           365,
           'desc',
         );
         expect(
-          controller.state.pooled_staking[HOODI_TESTNET_CHAIN_ID_DECIMAL]
+          controller.state.pooled_staking[ChainId.HOODI]
             .vaultDailyApys,
         ).toStrictEqual(mockPooledStakingVaultDailyApys);
-        expect(controller.state.pooled_staking[1]).toBeUndefined();
-      });
-
-      it('uses DEFAULT_POOLED_STAKING_CHAIN_STATE when switching to unpopulated supported chain', async () => {
-        // Start with controller configured for mainnet
-        const mockGetNetworkControllerState = jest.fn(
-          (): {
-            selectedNetworkClientId: string;
-            networkConfigurations: Record<string, { chainId: string }>;
-          } => ({
-            selectedNetworkClientId: '1',
-            networkConfigurations: {
-              '1': { chainId: '0x1' },
-            },
-          }),
-        );
-
-        const mockGetNetworkClientById = jest.fn(() => ({
-          configuration: { chainId: '0x1' },
-          provider: {
-            request: jest.fn(),
-            on: jest.fn(),
-            removeListener: jest.fn(),
-          },
-        }));
-
-        const { controller } = await setupController({
-          mockGetNetworkControllerState,
-          mockGetNetworkClientById,
-          options: {
-            state: {
-              // Start with only mainnet data
-              pooled_staking: {
-                1: {
-                  ...DEFAULT_POOLED_STAKING_CHAIN_STATE,
-                  vaultDailyApys: [
-                    {
-                      id: 99,
-                      chain_id: 1,
-                      vault_address: '0x999',
-                      timestamp: '2025-01-01T00:00:00.000Z',
-                      daily_apy: '4.5',
-                      created_at: '2025-01-02T01:00:00.000Z',
-                      updated_at: '2025-01-02T01:00:00.000Z',
-                    },
-                  ],
-                },
-                isEligible: true,
-              },
-            },
-          },
-        });
-
-        // Wait for constructor's async operations to complete
-        await new Promise((resolve) => setTimeout(resolve, 0));
-
-        // Verify initial state: only mainnet populated
-        expect(controller.state.pooled_staking[1]).toBeDefined();
-        expect(
-          controller.state.pooled_staking[HOODI_TESTNET_CHAIN_ID_DECIMAL],
-        ).toBeUndefined();
-
-        // Now simulate switching to Hoodi testnet by updating the mocks
-        mockGetNetworkControllerState.mockReturnValue({
-          selectedNetworkClientId: HOODI_TESTNET_CHAIN_ID_DECIMAL.toString(),
-          networkConfigurations: {
-            [HOODI_TESTNET_CHAIN_ID_DECIMAL]: {
-              chainId: HOODI_TESTNET_CHAIN_ID_HEX,
-            },
-          },
-        });
-
-        mockGetNetworkClientById.mockReturnValue({
-          configuration: { chainId: HOODI_TESTNET_CHAIN_ID_HEX },
-          provider: {
-            request: jest.fn(),
-            on: jest.fn(),
-            removeListener: jest.fn(),
-          },
-        });
-
-        // Call refreshPooledStakingVaultDailyApys - should use fallback for unpopulated Hoodi chainId
-        await controller.refreshPooledStakingVaultDailyApys();
-
-        // Verify Hoodi testnet data was created using DEFAULT_POOLED_STAKING_CHAIN_STATE as base
-        expect(
-          controller.state.pooled_staking[HOODI_TESTNET_CHAIN_ID_DECIMAL],
-        ).toStrictEqual({
-          ...DEFAULT_POOLED_STAKING_CHAIN_STATE,
-          vaultDailyApys: mockPooledStakingVaultDailyApys,
-        });
-
-        // Verify API was called with Hoodi testnet chainId
-        expect(
-          mockedEarnApiService?.pooledStaking?.getVaultDailyApys,
-        ).toHaveBeenCalledWith(HOODI_TESTNET_CHAIN_ID_DECIMAL, 365, 'desc');
-
-        // Verify mainnet data is still intact
-        expect(controller.state.pooled_staking[1]).toBeDefined();
       });
     });
 
@@ -1628,20 +1286,10 @@ describe('EarnController', () => {
         ).toStrictEqual(mockPooledStakingVaultApyAverages);
       });
 
-      it("refreshes vault apy averages using Ethereum Mainnet fallback if pooled-staking doesn't support chainId", async () => {
-        const { controller } = await setupController({
-          mockGetNetworkControllerState: jest.fn(() => ({
-            selectedNetworkClientId: '2',
-            networkConfigurations: {
-              '2': { chainId: '0x2' },
-            },
-          })),
-          mockGetNetworkClientById: jest.fn(() => ({
-            configuration: { chainId: '0x2' },
-          })),
-        });
-
-        await controller.refreshPooledStakingVaultApyAverages();
+      it("refreshes vault apy averages using Ethereum Mainnet fallback if pooled-staking doesn't support provided chainId", async () => {
+        isSupportedPooledStakingChainMock.mockReturnValue(false);
+        const { controller } = await setupController();
+        await controller.refreshPooledStakingVaultApyAverages(2);
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultApyAverages,
@@ -1652,121 +1300,13 @@ describe('EarnController', () => {
         expect(controller.state.pooled_staking[2]).toBeUndefined();
       });
 
-      it('refreshes vault apy averages using Ethereum Hoodi if it is the active chainId', async () => {
-        const { controller } = await setupController({
-          mockGetNetworkControllerState: jest.fn(() => ({
-            selectedNetworkClientId: HOODI_TESTNET_CHAIN_ID_DECIMAL,
-            networkConfigurations: {
-              HOODI_TESTNET_CHAIN_ID_DECIMAL: {
-                chainId: HOODI_TESTNET_CHAIN_ID_HEX,
-              },
-            },
-          })),
-          mockGetNetworkClientById: jest.fn(() => ({
-            configuration: { chainId: HOODI_TESTNET_CHAIN_ID_HEX },
-          })),
-        });
-
-        await controller.refreshPooledStakingVaultApyAverages();
+      it('refreshes vault apy averages using Ethereum Hoodi if it is the provided chainId', async () => {
+        const { controller } = await setupController();
+        await controller.refreshPooledStakingVaultApyAverages(ChainId.HOODI);
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultApyAverages,
-        ).toHaveBeenNthCalledWith(2, HOODI_TESTNET_CHAIN_ID_DECIMAL);
-      });
-
-      it('uses DEFAULT_POOLED_STAKING_CHAIN_STATE when switching to unpopulated supported chain', async () => {
-        // Start with controller configured for mainnet
-        const mockGetNetworkControllerState = jest.fn(
-          (): {
-            selectedNetworkClientId: string;
-            networkConfigurations: Record<string, { chainId: string }>;
-          } => ({
-            selectedNetworkClientId: '1',
-            networkConfigurations: {
-              '1': { chainId: '0x1' },
-            },
-          }),
-        );
-
-        const mockGetNetworkClientById = jest.fn(() => ({
-          configuration: { chainId: '0x1' },
-          provider: {
-            request: jest.fn(),
-            on: jest.fn(),
-            removeListener: jest.fn(),
-          },
-        }));
-
-        const { controller } = await setupController({
-          mockGetNetworkControllerState,
-          mockGetNetworkClientById,
-          options: {
-            state: {
-              // Start with only mainnet data
-              pooled_staking: {
-                1: {
-                  ...DEFAULT_POOLED_STAKING_CHAIN_STATE,
-                  vaultApyAverages: {
-                    oneDay: '2.5',
-                    oneWeek: '2.8',
-                    oneMonth: '3.0',
-                    threeMonths: '3.2',
-                    sixMonths: '3.1',
-                    oneYear: '2.9',
-                  },
-                },
-                isEligible: true,
-              },
-            },
-          },
-        });
-
-        // Wait for constructor's async operations to complete
-        await new Promise((resolve) => setTimeout(resolve, 0));
-
-        // Verify initial state: only mainnet populated
-        expect(controller.state.pooled_staking[1]).toBeDefined();
-        expect(
-          controller.state.pooled_staking[HOODI_TESTNET_CHAIN_ID_DECIMAL],
-        ).toBeUndefined();
-
-        // Now simulate switching to Hoodi testnet by updating the mocks
-        mockGetNetworkControllerState.mockReturnValue({
-          selectedNetworkClientId: HOODI_TESTNET_CHAIN_ID_DECIMAL.toString(),
-          networkConfigurations: {
-            [HOODI_TESTNET_CHAIN_ID_DECIMAL]: {
-              chainId: HOODI_TESTNET_CHAIN_ID_HEX,
-            },
-          },
-        });
-
-        mockGetNetworkClientById.mockReturnValue({
-          configuration: { chainId: HOODI_TESTNET_CHAIN_ID_HEX },
-          provider: {
-            request: jest.fn(),
-            on: jest.fn(),
-            removeListener: jest.fn(),
-          },
-        });
-
-        // Call refreshPooledStakingVaultApyAverages - should use fallback for unpopulated Hoodi chainId
-        await controller.refreshPooledStakingVaultApyAverages();
-
-        // Verify Hoodi testnet data was created using DEFAULT_POOLED_STAKING_CHAIN_STATE as base
-        expect(
-          controller.state.pooled_staking[HOODI_TESTNET_CHAIN_ID_DECIMAL],
-        ).toStrictEqual({
-          ...DEFAULT_POOLED_STAKING_CHAIN_STATE,
-          vaultApyAverages: mockPooledStakingVaultApyAverages,
-        });
-
-        // Verify API was called with Hoodi testnet chainId
-        expect(
-          mockedEarnApiService?.pooledStaking?.getVaultApyAverages,
-        ).toHaveBeenCalledWith(HOODI_TESTNET_CHAIN_ID_DECIMAL);
-
-        // Verify mainnet data is still intact
-        expect(controller.state.pooled_staking[1]).toBeDefined();
+        ).toHaveBeenNthCalledWith(2, ChainId.HOODI);
       });
     });
   });
@@ -1793,12 +1333,11 @@ describe('EarnController', () => {
         jest.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
 
         messenger.publish(
-          'NetworkController:stateChange',
+          'NetworkController:networkDidChange',
           {
             ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: '2',
           },
-          [],
         );
 
         expect(
@@ -2025,7 +1564,7 @@ describe('EarnController', () => {
         ).toHaveBeenCalledTimes(2);
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakingEligibility,
-        ).toHaveBeenCalledTimes(3);
+        ).toHaveBeenCalledTimes(4); // Additionally called twice in controller setup by refreshPooledStakingData
       });
     });
 
@@ -2049,6 +1588,7 @@ describe('EarnController', () => {
         ).mockResolvedValue(mockPositionHistory);
 
         const result = await controller.getLendingPositionHistory({
+          chainId: 1,
           positionId: '1',
           marketId: 'market1',
           marketAddress: '0x123',
@@ -2077,6 +1617,7 @@ describe('EarnController', () => {
           })),
         });
         const result = await controller.getLendingPositionHistory({
+          chainId: 1,
           positionId: '1',
           marketId: 'market1',
           marketAddress: '0x123',
@@ -2091,6 +1632,7 @@ describe('EarnController', () => {
         const { controller } = await setupController();
 
         const result = await controller.getLendingPositionHistory({
+          chainId: 2,
           positionId: '1',
           marketId: 'market1',
           marketAddress: '0x123',
@@ -2131,6 +1673,7 @@ describe('EarnController', () => {
         ).mockResolvedValue(mockApysAndAverages);
 
         const result = await controller.getLendingMarketDailyApysAndAverages({
+          chainId: 1,
           protocol: 'aave' as LendingMarket['protocol'],
           marketId: 'market1',
         });
@@ -2146,6 +1689,7 @@ describe('EarnController', () => {
         const { controller } = await setupController();
 
         const result = await controller.getLendingMarketDailyApysAndAverages({
+          chainId: 2,
           protocol: 'aave' as LendingMarket['protocol'],
           marketId: 'market1',
         });
@@ -2184,6 +1728,7 @@ describe('EarnController', () => {
 
         const result = await controller.executeLendingDeposit({
           amount: '100',
+          chainId: "0x1",
           protocol: 'aave' as LendingMarket['protocol'],
           underlyingTokenAddress: '0x123',
           gasOptions: {},
@@ -2239,6 +1784,7 @@ describe('EarnController', () => {
 
         const result = await controller.executeLendingDeposit({
           amount: '100',
+          chainId: "0x1",
           protocol: 'aave' as LendingMarket['protocol'],
           underlyingTokenAddress: '0x123',
           gasOptions: {},
@@ -2288,6 +1834,7 @@ describe('EarnController', () => {
         await expect(
           controller.executeLendingDeposit({
             amount: '100',
+            chainId: "0x1",
             protocol: 'aave' as LendingMarket['protocol'],
             underlyingTokenAddress: '0x123',
             gasOptions: {},
@@ -2303,6 +1850,7 @@ describe('EarnController', () => {
         await expect(
           controller.executeLendingDeposit({
             amount: '100',
+            chainId: "0x1",
             protocol: 'aave' as LendingMarket['protocol'],
             underlyingTokenAddress: '0x123',
             gasOptions: {},
@@ -2346,6 +1894,7 @@ describe('EarnController', () => {
         await expect(
           controller.executeLendingDeposit({
             amount: '100',
+            chainId: "0x1",
             protocol: 'aave' as LendingMarket['protocol'],
             underlyingTokenAddress: '0x123',
             gasOptions: {},
@@ -2389,6 +1938,7 @@ describe('EarnController', () => {
 
         const result = await controller.executeLendingWithdraw({
           amount: '100',
+          chainId: "0x1",
           protocol: 'aave' as LendingMarket['protocol'],
           underlyingTokenAddress: '0x123',
           gasOptions: {},
@@ -2445,6 +1995,7 @@ describe('EarnController', () => {
 
         const result = await controller.executeLendingWithdraw({
           amount: '100',
+          chainId: "0x1",
           protocol: 'aave' as LendingMarket['protocol'],
           underlyingTokenAddress: '0x123',
           gasOptions: {},
@@ -2475,6 +2026,7 @@ describe('EarnController', () => {
         await expect(
           controller.executeLendingWithdraw({
             amount: '100',
+            chainId: "0x1",
             protocol: 'aave' as LendingMarket['protocol'],
             underlyingTokenAddress: '0x123',
             gasOptions: {},
@@ -2518,6 +2070,7 @@ describe('EarnController', () => {
         await expect(
           controller.executeLendingWithdraw({
             amount: '100',
+            chainId: "0x1",
             protocol: 'aave' as LendingMarket['protocol'],
             underlyingTokenAddress: '0x123',
             gasOptions: {},
@@ -2561,6 +2114,7 @@ describe('EarnController', () => {
 
         const result = await controller.executeLendingTokenApprove({
           amount: '100',
+          chainId: "0x1",
           protocol: 'aave' as LendingMarket['protocol'],
           underlyingTokenAddress: '0x123',
           gasOptions: {},
@@ -2617,6 +2171,7 @@ describe('EarnController', () => {
 
         const result = await controller.executeLendingTokenApprove({
           amount: '100',
+          chainId: "0x1",
           protocol: 'aave' as LendingMarket['protocol'],
           underlyingTokenAddress: '0x123',
           gasOptions: {},
@@ -2647,6 +2202,7 @@ describe('EarnController', () => {
         await expect(
           controller.executeLendingTokenApprove({
             amount: '100',
+            chainId: "0x1",
             protocol: 'aave' as LendingMarket['protocol'],
             underlyingTokenAddress: '0x123',
             gasOptions: {},
@@ -2690,6 +2246,7 @@ describe('EarnController', () => {
         await expect(
           controller.executeLendingTokenApprove({
             amount: '100',
+            chainId: "0x1",
             protocol: 'aave' as LendingMarket['protocol'],
             underlyingTokenAddress: '0x123',
             gasOptions: {},

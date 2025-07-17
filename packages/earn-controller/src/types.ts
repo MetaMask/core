@@ -5,6 +5,7 @@ export type RefreshEarnEligibilityOptions = {
 export type RefreshPooledStakesOptions = {
   resetCache?: boolean;
   address?: string;
+  chainId?: number;
 };
 
 export type RefreshPooledStakingDataOptions = {

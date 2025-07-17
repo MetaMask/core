@@ -14,6 +14,7 @@ import { convertHexToDecimal, toHex } from '@metamask/controller-utils';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
+  NetworkControllerNetworkDidChangeEvent,
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
 import {
@@ -30,16 +31,15 @@ import {
   type GasLimitParams,
   type HistoricLendingMarketApys,
   EarnEnvironments,
+  ChainId,
+  isSupportedPooledStakingChain,
 } from '@metamask/stake-sdk';
 import {
   type TransactionController,
   TransactionType,
   type TransactionControllerTransactionConfirmedEvent,
-  CHAIN_IDS,
 } from '@metamask/transaction-controller';
-import type { Hex } from '@metamask/utils';
 
-import { HOODI_TESTNET_CHAIN_ID_HEX } from './constants';
 import type {
   RefreshEarnEligibilityOptions,
   RefreshLendingEligibilityOptions,
@@ -259,7 +259,8 @@ export type EarnControllerEvents = EarnControllerStateChangeEvent;
 export type AllowedEvents =
   | AccountsControllerSelectedAccountChangeEvent
   | NetworkControllerStateChangeEvent
-  | TransactionControllerTransactionConfirmedEvent;
+  | TransactionControllerTransactionConfirmedEvent
+  | NetworkControllerNetworkDidChangeEvent;
 
 /**
  * The messenger which is restricted to actions and events accessed by
@@ -291,7 +292,7 @@ export class EarnController extends BaseController<
 
   readonly #addTransactionFn: typeof TransactionController.prototype.addTransaction;
 
-  readonly #supportedPooledStakingChains: Hex[];
+  readonly #supportedPooledStakingChains: number[];
 
   readonly #env: EarnEnvironments;
 
@@ -323,10 +324,7 @@ export class EarnController extends BaseController<
     // temporary array of supported chains
     // TODO: remove this once we export a supported chains list from the sdk
     // from sdk or api to get lending and pooled staking chains
-    this.#supportedPooledStakingChains = [
-      CHAIN_IDS.MAINNET,
-      HOODI_TESTNET_CHAIN_ID_HEX,
-    ];
+    this.#supportedPooledStakingChains = [ChainId.ETHEREUM, ChainId.HOODI];
 
     this.#addTransactionFn = addTransactionFn;
 
@@ -341,25 +339,22 @@ export class EarnController extends BaseController<
 
     // Listen for network changes
     this.messagingSystem.subscribe(
-      'NetworkController:stateChange',
+      'NetworkController:networkDidChange',
       (networkControllerState) => {
-        if (
-          networkControllerState.selectedNetworkClientId !==
-          this.#selectedNetworkClientId
-        ) {
-          this.#initializeSDK(
-            networkControllerState.selectedNetworkClientId,
-          ).catch(console.error);
+        this.#initializeSDK(
+          networkControllerState.selectedNetworkClientId,
+        ).catch(console.error);
 
-          this.refreshPooledStakingVaultMetadata().catch(console.error);
-          this.refreshPooledStakingVaultDailyApys().catch(console.error);
-          this.refreshPooledStakingVaultApyAverages().catch(console.error);
-          this.refreshPooledStakes().catch(console.error);
+        // refresh pooled staking data
+        this.refreshPooledStakingVaultMetadata().catch(console.error);
+        this.refreshPooledStakingVaultDailyApys().catch(console.error);
+        this.refreshPooledStakingVaultApyAverages().catch(console.error);
+        this.refreshPooledStakes().catch(console.error);
 
-          // refresh lending data for all chains
-          this.refreshLendingMarkets().catch(console.error);
-          this.refreshLendingPositions().catch(console.error);
-        }
+        // refresh lending data for all chains
+        this.refreshLendingMarkets().catch(console.error);
+        this.refreshLendingPositions().catch(console.error);
+
         this.#selectedNetworkClientId =
           networkControllerState.selectedNetworkClientId;
       },
@@ -379,7 +374,6 @@ export class EarnController extends BaseController<
         // TODO: temp solution, this will refresh lending eligibility also
         // we could have a more general check, as what is happening is a compliance address check
         this.refreshEarnEligibility({ address }).catch(console.error);
-
         this.refreshPooledStakes({ address }).catch(console.error);
         this.refreshLendingPositions({ address }).catch(console.error);
       },
@@ -475,46 +469,6 @@ export class EarnController extends BaseController<
   }
 
   /**
-   * Gets the current chain id.
-   *
-   * @param networkClientId - The network client id to get the chain id for (optional).
-   * @returns The current chain id in decimal.
-   */
-  #getCurrentChainId(networkClientId?: string): number {
-    const networkClientIdToUse =
-      networkClientId ??
-      this.messagingSystem.call('NetworkController:getState')
-        .selectedNetworkClientId;
-
-    const {
-      configuration: { chainId },
-    } = this.messagingSystem.call(
-      'NetworkController:getNetworkClientById',
-      networkClientIdToUse,
-    );
-    return convertHexToDecimal(chainId);
-  }
-
-  /**
-   * Ensures chainId is compatible with pooled-staking. Falls back to Ethereum Mainnet if chainId is not supported.
-   *
-   * @returns The current chain id in decimal. Ethereum Mainnet if it's not an ethereum chain.
-   */
-  #getActivePooledStakingChainId(): number {
-    const activeChainId = this.#getCurrentChainId();
-
-    if (
-      !activeChainId ||
-      !this.#supportedPooledStakingChains.includes(toHex(activeChainId))
-    ) {
-      // Fallback to Ethereum Mainnet if chainId is not supported.
-      return convertHexToDecimal(CHAIN_IDS.MAINNET);
-    }
-
-    return activeChainId;
-  }
-
-  /**
    * Refreshes the pooled stakes data for the current account.
    * Fetches updated stake information including lifetime rewards, assets, and exit requests
    * from the staking API service and updates the state.
@@ -522,11 +476,13 @@ export class EarnController extends BaseController<
    * @param options - Optional arguments
    * @param [options.resetCache] - Control whether the BE cache should be invalidated (optional).
    * @param [options.address] - The address to refresh pooled stakes for (optional).
+   * @param [options.chainId] - The chain id to refresh pooled stakes for (optional).
    * @returns A promise that resolves when the stakes data has been updated
    */
   async refreshPooledStakes({
     resetCache = false,
     address,
+    chainId = ChainId.ETHEREUM,
   }: RefreshPooledStakesOptions = {}): Promise<void> {
     const addressToUse = address ?? this.#getCurrentAccount()?.address;
 
@@ -534,19 +490,22 @@ export class EarnController extends BaseController<
       return;
     }
 
-    const chainId = this.#getActivePooledStakingChainId();
+    const chainIdToUse = isSupportedPooledStakingChain(chainId)
+      ? chainId
+      : ChainId.ETHEREUM;
 
     const { accounts, exchangeRate } =
       await this.#earnApiService.pooledStaking.getPooledStakes(
         [addressToUse],
-        chainId,
+        chainIdToUse,
         resetCache,
       );
 
     this.update((state) => {
       const chainState =
-        state.pooled_staking[chainId] ?? DEFAULT_POOLED_STAKING_CHAIN_STATE;
-      state.pooled_staking[chainId] = {
+        state.pooled_staking[chainIdToUse] ??
+        DEFAULT_POOLED_STAKING_CHAIN_STATE;
+      state.pooled_staking[chainIdToUse] = {
         ...chainState,
         pooledStakes: accounts[0],
         exchangeRate,
@@ -589,18 +548,24 @@ export class EarnController extends BaseController<
    * Updates the vault metadata in the controller state including APY, capacity,
    * fee percentage, total assets, and vault address.
    *
+   * @param chainId - The chain id to refresh pooled staking vault metadata for (optional).
    * @returns A promise that resolves when the vault metadata has been updated
    */
-  async refreshPooledStakingVaultMetadata(): Promise<void> {
-    const chainId = this.#getActivePooledStakingChainId();
+  async refreshPooledStakingVaultMetadata(
+    chainId: number = ChainId.ETHEREUM,
+  ): Promise<void> {
+    const chainIdToUse = isSupportedPooledStakingChain(chainId)
+      ? chainId
+      : ChainId.ETHEREUM;
 
     const vaultMetadata =
-      await this.#earnApiService.pooledStaking.getVaultData(chainId);
+      await this.#earnApiService.pooledStaking.getVaultData(chainIdToUse);
 
     this.update((state) => {
       const chainState =
-        state.pooled_staking[chainId] ?? DEFAULT_POOLED_STAKING_CHAIN_STATE;
-      state.pooled_staking[chainId] = {
+        state.pooled_staking[chainIdToUse] ??
+        DEFAULT_POOLED_STAKING_CHAIN_STATE;
+      state.pooled_staking[chainIdToUse] = {
         ...chainState,
         vaultMetadata,
       };
@@ -611,27 +576,32 @@ export class EarnController extends BaseController<
    * Refreshes pooled staking vault daily apys for the current chain.
    * Updates the pooled staking vault daily apys controller state.
    *
+   * @param chainId - The chain id to refresh pooled staking vault daily apys for (optional).
    * @param days - The number of days to fetch pooled staking vault daily apys for (defaults to 365).
    * @param order - The order in which to fetch pooled staking vault daily apys. Descending order fetches the latest N days (latest working backwards). Ascending order fetches the oldest N days (oldest working forwards) (defaults to 'desc').
    * @returns A promise that resolves when the pooled staking vault daily apys have been updated.
    */
   async refreshPooledStakingVaultDailyApys(
+    chainId: number = ChainId.ETHEREUM,
     days = 365,
     order: 'asc' | 'desc' = 'desc',
   ): Promise<void> {
-    const chainId = this.#getActivePooledStakingChainId();
+    const chainIdToUse = isSupportedPooledStakingChain(chainId)
+      ? chainId
+      : ChainId.ETHEREUM;
 
     const vaultDailyApys =
       await this.#earnApiService.pooledStaking.getVaultDailyApys(
-        chainId,
+        chainIdToUse,
         days,
         order,
       );
 
     this.update((state) => {
       const chainState =
-        state.pooled_staking[chainId] ?? DEFAULT_POOLED_STAKING_CHAIN_STATE;
-      state.pooled_staking[chainId] = {
+        state.pooled_staking[chainIdToUse] ??
+        DEFAULT_POOLED_STAKING_CHAIN_STATE;
+      state.pooled_staking[chainIdToUse] = {
         ...chainState,
         vaultDailyApys,
       };
@@ -642,18 +612,26 @@ export class EarnController extends BaseController<
    * Refreshes pooled staking vault apy averages for the current chain.
    * Updates the pooled staking vault apy averages controller state.
    *
+   * @param chainId - The chain id to refresh pooled staking vault apy averages for (optional).
    * @returns A promise that resolves when the pooled staking vault apy averages have been updated.
    */
-  async refreshPooledStakingVaultApyAverages() {
-    const chainId = this.#getActivePooledStakingChainId();
+  async refreshPooledStakingVaultApyAverages(
+    chainId: number = ChainId.ETHEREUM,
+  ) {
+    const chainIdToUse = isSupportedPooledStakingChain(chainId)
+      ? chainId
+      : ChainId.ETHEREUM;
 
     const vaultApyAverages =
-      await this.#earnApiService.pooledStaking.getVaultApyAverages(chainId);
+      await this.#earnApiService.pooledStaking.getVaultApyAverages(
+        chainIdToUse,
+      );
 
     this.update((state) => {
       const chainState =
-        state.pooled_staking[chainId] ?? DEFAULT_POOLED_STAKING_CHAIN_STATE;
-      state.pooled_staking[chainId] = {
+        state.pooled_staking[chainIdToUse] ??
+        DEFAULT_POOLED_STAKING_CHAIN_STATE;
+      state.pooled_staking[chainIdToUse] = {
         ...chainState,
         vaultApyAverages,
       };
@@ -676,23 +654,28 @@ export class EarnController extends BaseController<
     address,
   }: RefreshPooledStakingDataOptions = {}): Promise<void> {
     const errors: Error[] = [];
-    await Promise.all([
-      this.refreshPooledStakes({ resetCache, address }).catch((error) => {
-        errors.push(error);
-      }),
-      this.refreshEarnEligibility({ address }).catch((error) => {
-        errors.push(error);
-      }),
-      this.refreshPooledStakingVaultMetadata().catch((error) => {
-        errors.push(error);
-      }),
-      this.refreshPooledStakingVaultDailyApys().catch((error) => {
-        errors.push(error);
-      }),
-      this.refreshPooledStakingVaultApyAverages().catch((error) => {
-        errors.push(error);
-      }),
-    ]);
+
+    for (const chainId of this.#supportedPooledStakingChains) {
+      await Promise.all([
+        this.refreshPooledStakes({ resetCache, address, chainId }).catch(
+          (error) => {
+            errors.push(error);
+          },
+        ),
+        this.refreshEarnEligibility({ address }).catch((error) => {
+          errors.push(error);
+        }),
+        this.refreshPooledStakingVaultMetadata(chainId).catch((error) => {
+          errors.push(error);
+        }),
+        this.refreshPooledStakingVaultDailyApys(chainId).catch((error) => {
+          errors.push(error);
+        }),
+        this.refreshPooledStakingVaultApyAverages(chainId).catch((error) => {
+          errors.push(error);
+        }),
+      ]);
+    }
 
     if (errors.length > 0) {
       throw new Error(
@@ -819,7 +802,7 @@ export class EarnController extends BaseController<
    *
    * @param options - Optional arguments
    * @param [options.address] - The address to get lending position history for (optional).
-   * @param [options.chainId] - The chain id to get lending position history for (optional).
+   * @param [options.chainId] - The chain id to get lending position history for.
    * @param [options.positionId] - The position id to get lending position history for.
    * @param [options.marketId] - The market id to get lending position history for.
    * @param [options.marketAddress] - The market address to get lending position history for.
@@ -837,7 +820,7 @@ export class EarnController extends BaseController<
     days = 730,
   }: {
     address?: string;
-    chainId?: number;
+    chainId: number;
     positionId: string;
     marketId: string;
     marketAddress: string;
@@ -845,15 +828,14 @@ export class EarnController extends BaseController<
     days?: number;
   }) {
     const addressToUse = address ?? this.#getCurrentAccount()?.address;
-    const chainIdToUse = chainId ?? this.#getCurrentChainId();
 
-    if (!addressToUse || !isSupportedLendingChain(chainIdToUse)) {
+    if (!addressToUse || !isSupportedLendingChain(chainId)) {
       return [];
     }
 
     return this.#earnApiService.lending.getPositionHistory(
       addressToUse,
-      chainIdToUse,
+      chainId,
       protocol,
       marketId,
       marketAddress,
@@ -866,7 +848,7 @@ export class EarnController extends BaseController<
    * Gets the lending market daily apys and averages for the current chain.
    *
    * @param options - Optional arguments
-   * @param [options.chainId] - The chain id to get lending market daily apys and averages for (optional).
+   * @param [options.chainId] - The chain id to get lending market daily apys and averages for.
    * @param [options.protocol] - The protocol to get lending market daily apys and averages for.
    * @param [options.marketId] - The market id to get lending market daily apys and averages for.
    * @param [options.days] - The number of days to get lending market daily apys and averages for (optional).
@@ -878,19 +860,17 @@ export class EarnController extends BaseController<
     marketId,
     days = 365,
   }: {
-    chainId?: number;
+    chainId: number;
     protocol: string;
     marketId: string;
     days?: number;
   }): Promise<HistoricLendingMarketApys> | undefined {
-    const chainIdToUse = chainId ?? this.#getCurrentChainId();
-
-    if (!isSupportedLendingChain(chainIdToUse)) {
+    if (!isSupportedLendingChain(chainId)) {
       return undefined;
     }
 
     return this.#earnApiService.lending.getHistoricMarketApys(
-      chainIdToUse,
+      chainId,
       protocol,
       marketId,
       days,
@@ -912,12 +892,14 @@ export class EarnController extends BaseController<
    */
   async executeLendingDeposit({
     amount,
+    chainId,
     protocol,
     underlyingTokenAddress,
     gasOptions,
     txOptions,
   }: {
     amount: string;
+    chainId: string;
     protocol: LendingMarket['protocol'];
     underlyingTokenAddress: string;
     gasOptions: {
@@ -953,7 +935,7 @@ export class EarnController extends BaseController<
       {
         ...transactionData,
         value: transactionData.value.toString(),
-        chainId: toHex(this.#getCurrentChainId()),
+        chainId: toHex(chainId),
         gasLimit,
       },
       {
@@ -980,12 +962,14 @@ export class EarnController extends BaseController<
    */
   async executeLendingWithdraw({
     amount,
+    chainId,
     protocol,
     underlyingTokenAddress,
     gasOptions,
     txOptions,
   }: {
     amount: string;
+    chainId: string;
     protocol: LendingMarket['protocol'];
     underlyingTokenAddress: string;
     gasOptions: {
@@ -1022,7 +1006,7 @@ export class EarnController extends BaseController<
       {
         ...transactionData,
         value: transactionData.value.toString(),
-        chainId: toHex(this.#getCurrentChainId()),
+        chainId: toHex(chainId),
         gasLimit,
       },
       {
@@ -1050,12 +1034,14 @@ export class EarnController extends BaseController<
   async executeLendingTokenApprove({
     protocol,
     amount,
+    chainId,
     underlyingTokenAddress,
     gasOptions,
     txOptions,
   }: {
     protocol: LendingMarket['protocol'];
     amount: string;
+    chainId: string;
     underlyingTokenAddress: string;
     gasOptions: {
       gasLimit?: GasLimitParams;
@@ -1091,7 +1077,7 @@ export class EarnController extends BaseController<
       {
         ...transactionData,
         value: transactionData.value.toString(),
-        chainId: toHex(this.#getCurrentChainId()),
+        chainId: toHex(chainId),
         gasLimit,
       },
       {
