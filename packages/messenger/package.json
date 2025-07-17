@@ -1,12 +1,12 @@
 {
-  "name": "PACKAGE_NAME",
+  "name": "@metamask/messenger",
   "version": "0.0.0",
-  "description": "PACKAGE_DESCRIPTION",
+  "description": "A type-safe message bus library",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/PACKAGE_DIRECTORY_NAME#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/messenger#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -37,10 +37,10 @@
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:docs": "typedoc",
-    "changelog:update": "../../scripts/update-changelog.sh PACKAGE_NAME",
-    "changelog:validate": "../../scripts/validate-changelog.sh PACKAGE_NAME",
-    "since-latest-release": "../../scripts/since-latest-release.sh",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/messenger",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/messenger",
     "publish:preview": "yarn npm publish --tag preview",
+    "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
@@ -50,14 +50,16 @@
     "@metamask/auto-changelog": "^3.4.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
+    "immer": "^9.0.6",
     "jest": "^27.5.1",
+    "sinon": "^9.2.4",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.2.2"
   },
   "engines": {
-    "node": "NODE_VERSIONS"
+    "node": "^18.18 || >=20"
   },
   "publishConfig": {
     "access": "public",
