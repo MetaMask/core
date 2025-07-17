@@ -14,6 +14,8 @@ module.exports = merge(baseConfig, {
   // The display name when running multiple projects
   displayName,
 
+  setupFiles: [path.resolve(__dirname, 'test/setup.ts')],
+
   // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {
     global: {

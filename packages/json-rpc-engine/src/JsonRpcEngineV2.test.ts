@@ -1,7 +1,6 @@
 import type { NonEmptyArray } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
 import { original as getOriginalState } from 'immer';
-import cloneDeep from 'lodash/cloneDeep';
 
 import type { JsonRpcMiddleware, MiddlewareContext } from './JsonRpcEngineV2';
 import { JsonRpcEngineV2, EndNotification } from './JsonRpcEngineV2';
@@ -15,12 +14,6 @@ import {
 } from './utils';
 
 const jsonrpc = '2.0' as const;
-
-// Mock structuredClone if it's not available.
-globalThis.structuredClone =
-  typeof globalThis.structuredClone === 'function'
-    ? globalThis.structuredClone
-    : cloneDeep;
 
 const makeRequest = <Request extends JsonRpcRequest>(
   params: Partial<Request> = {},
