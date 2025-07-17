@@ -733,11 +733,11 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   async #submitGlobalPassword({
     targetAuthPubKey,
     globalPassword,
-    maxKeyChainLength = 5,
+    maxKeyChainLength,
   }: {
     targetAuthPubKey: SEC1EncodedPublicKey;
     globalPassword: string;
-    maxKeyChainLength?: number;
+    maxKeyChainLength: number;
   }): Promise<void> {
     const { pwEncKey: curPwEncKey, authKeyPair: curAuthKeyPair } =
       await this.#recoverEncKey(globalPassword);
