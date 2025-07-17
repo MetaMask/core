@@ -1803,7 +1803,10 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   #isMaxKeyChainLengthError(error: unknown): boolean {
     if (error instanceof TOPRFError) {
       // todo: update this when the error message to error code once toprf sdk is updated.
-      return error.message === 'Exceeded maximum password chain length';
+      return (
+        error.message ===
+        'Could not fetch password. Exceeded maximum password chain length'
+      );
     }
 
     return false;
