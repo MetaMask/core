@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added a optional param `maxKeyChainLength` in `submitGlobalPassword` function.([#6134](https://github.com/MetaMask/core/pull/6134))
+
 ### Fixed
 
 - remove `access_token` validation when the wallet is locked. ([#6133](https://github.com/MetaMask/core/pull/6133))
