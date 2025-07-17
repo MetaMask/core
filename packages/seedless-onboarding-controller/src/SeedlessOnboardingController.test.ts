@@ -452,7 +452,7 @@ async function createMockVault(
       sk: `0x${authKeyPair.sk.toString(16)}`,
       pk: bytesToBase64(authKeyPair.pk),
     }),
-    revokeToken: mockRevokeToken,
+    revokeToken: mockRevokeToken || undefined,
     accessToken: mockAccessToken,
   });
 
@@ -1006,39 +1006,6 @@ describe('SeedlessOnboardingController', () => {
           expect(parsedVaultData.toprfEncryptionKey).toBeDefined();
           expect(parsedVaultData.toprfPwEncryptionKey).toBeDefined();
           expect(parsedVaultData.toprfAuthKeyPair).toBeDefined();
-        },
-      );
-    });
-
-    it('should throw error if revokeToken is missing when creating new vault', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            withMockAuthPubKey: true,
-            withoutMockRevokeToken: true,
-          }),
-        },
-        async ({ controller, toprfClient }) => {
-          mockcreateLocalKey(toprfClient, MOCK_PASSWORD);
-
-          // persist the local enc key
-          jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
-          // encrypt and store the secret data
-          handleMockSecretDataAdd();
-
-          await expect(
-            controller.createToprfKeyAndBackupSeedPhrase(
-              MOCK_PASSWORD,
-              MOCK_SEED_PHRASE,
-              MOCK_KEYRING_ID,
-            ),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.InvalidRevokeToken,
-          );
-
-          // Verify that persistLocalKey was called
-          expect(toprfClient.persistLocalKey).toHaveBeenCalledTimes(1);
         },
       );
     });
@@ -4942,6 +4909,97 @@ describe('SeedlessOnboardingController', () => {
 
           const result = controller.checkAccessTokenExpired();
           expect(result).toBe(true);
+        },
+      );
+    });
+  });
+
+  describe('revokeRefreshToken', () => {
+    const MOCK_PASSWORD = 'mock-password';
+
+    it('should return early without error when revokeToken is missing', async () => {
+      const mockToprfEncryptor = createMockToprfEncryptor();
+      const MOCK_ENCRYPTION_KEY =
+        mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
+      const MOCK_PW_ENCRYPTION_KEY =
+        mockToprfEncryptor.derivePwEncKey(MOCK_PASSWORD);
+      const MOCK_AUTH_KEY_PAIR =
+        mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
+
+      // Create vault without revokeToken
+      const { encryptedMockVault, vaultEncryptionKey, vaultEncryptionSalt } =
+        await createMockVault(
+          MOCK_ENCRYPTION_KEY,
+          MOCK_PW_ENCRYPTION_KEY,
+          MOCK_AUTH_KEY_PAIR,
+          MOCK_PASSWORD,
+          '', // No revokeToken
+          accessToken,
+        );
+
+      const state = getMockInitialControllerState({
+        withMockAuthenticatedUser: true,
+        withMockAuthPubKey: true,
+        vault: encryptedMockVault,
+        vaultEncryptionKey,
+        vaultEncryptionSalt,
+      });
+      delete state.revokeToken;
+      await withController(
+        {
+          state,
+        },
+        async ({ controller, mockRevokeRefreshToken }) => {
+          await controller.submitPassword(MOCK_PASSWORD);
+
+          // Verify the method doesn't throw and returns without calling the revoke function
+          expect(
+            await controller.revokeRefreshToken(MOCK_PASSWORD),
+          ).toBeUndefined();
+          expect(mockRevokeRefreshToken).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should successfully revoke token when revokeToken is present', async () => {
+      const mockToprfEncryptor = createMockToprfEncryptor();
+      const MOCK_ENCRYPTION_KEY =
+        mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
+      const MOCK_PW_ENCRYPTION_KEY =
+        mockToprfEncryptor.derivePwEncKey(MOCK_PASSWORD);
+      const MOCK_AUTH_KEY_PAIR =
+        mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
+
+      const { encryptedMockVault, vaultEncryptionKey, vaultEncryptionSalt } =
+        await createMockVault(
+          MOCK_ENCRYPTION_KEY,
+          MOCK_PW_ENCRYPTION_KEY,
+          MOCK_AUTH_KEY_PAIR,
+          MOCK_PASSWORD,
+          revokeToken, // Include revokeToken
+          accessToken,
+        );
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            vault: encryptedMockVault,
+            vaultEncryptionKey,
+            vaultEncryptionSalt,
+          }),
+        },
+        async ({ controller, mockRevokeRefreshToken }) => {
+          await controller.submitPassword(MOCK_PASSWORD);
+
+          await controller.revokeRefreshToken(MOCK_PASSWORD);
+
+          // Verify that the actual revokeRefreshToken function was called
+          expect(mockRevokeRefreshToken).toHaveBeenCalledWith({
+            connection: controller.state.authConnection,
+            revokeToken,
+          });
         },
       );
     });
