@@ -139,11 +139,17 @@ main() {
   full_ref="$(git rev-parse "$ref")"
 
   echo "Looking for release tags pointing to $full_ref for major-bumped packages..."
-  IFS=$'\n' read -r -d '' -a tag_array < <(git tag --points-at "$full_ref" | grep -E '^@metamask/[^@/]+@[0-9]+\.0\.0$' && printf '\0')
+
+  tag_array=()
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^@metamask/[^@]+@[0-9]+\.0\.0$ ]]; then
+      tag_array+=("$line")
+    fi
+  done < <(git tag --points-at "$full_ref" 2>/dev/null || true)
 
   if [[ "${#tag_array[@]}" -eq 0 ]]; then
     echo "No tags to process, nothing to do."
-    exit
+    exit 0
   fi
 
   for tag in "${tag_array[@]}"; do
