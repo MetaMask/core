@@ -57,4 +57,5 @@ export enum SeedlessOnboardingControllerErrorMessage {
   EncryptedKeyringEncryptionKeyNotSet = `${controllerName} - Encrypted keyring encryption key is not set`,
   EncryptedSeedlessEncryptionKeyNotSet = `${controllerName} - Encrypted seedless encryption key is not set`,
   VaultEncryptionKeyUndefined = `${controllerName} - Vault encryption key is not available`,
+  MaxKeyChainLengthExceeded = `${controllerName} - Max key chain length exceeded`,
 }
