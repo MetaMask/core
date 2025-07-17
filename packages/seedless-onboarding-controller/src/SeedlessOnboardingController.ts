@@ -639,15 +639,15 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       } = await this.#unlockVaultAndGetBackupEncKey(password);
       this.#setUnlocked();
 
+      if (revokeToken) {
+        await this.revokeRefreshToken(revokeToken);
+      }
       await this.#createNewVaultWithAuthData({
         password,
         rawToprfEncryptionKey: toprfEncryptionKey,
         rawToprfPwEncryptionKey: toprfPwEncryptionKey,
         rawToprfAuthKeyPair: toprfAuthKeyPair,
       });
-      if (revokeToken) {
-        await this.revokeRefreshToken(revokeToken);
-      }
     });
   }
 
@@ -775,16 +775,16 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       } = await this.#unlockVaultAndGetBackupEncKey(undefined, vaultKey);
       this.#setUnlocked();
 
+      if (revokeToken) {
+        // revoke and recyle refresh token after unlock to keep refresh token fresh, avoid malicious use of leaked refresh token
+        await this.revokeRefreshToken(revokeToken);
+      }
       await this.#createNewVaultWithAuthData({
         password: globalPassword,
         rawToprfEncryptionKey: toprfEncryptionKey,
         rawToprfPwEncryptionKey: toprfPwEncryptionKey,
         rawToprfAuthKeyPair: toprfAuthKeyPair,
       });
-      if (revokeToken) {
-        // revoke and recyle refresh token after unlock to keep refresh token fresh, avoid malicious use of leaked refresh token
-        await this.revokeRefreshToken(revokeToken);
-      }
     } catch (error) {
       if (this.#isTokenExpiredError(error)) {
         throw error;

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added a optional param `maxKeyChainLength` in `submitGlobalPassword` function.([#6134](https://github.com/MetaMask/core/pull/6134))
+- Separated vault update logic from `revokeRefreshToken`, `revokeRefreshToken` now accepts a revokeToken instead of password. ([#6134](https://github.com/MetaMask/core/pull/6134))
 
 ### Fixed
 
