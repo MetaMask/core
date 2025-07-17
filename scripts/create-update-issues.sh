@@ -2,6 +2,7 @@
 
 set -euo pipefail
 
+DEFAULT_REF="HEAD"
 DEFAULT_LABEL="client-controller-update"
 
 existing-issue-found() {
@@ -109,14 +110,19 @@ main() {
   local team_labels
 
   local dry_run=1
-  local ref="HEAD"
+  local ref="$DEFAULT_REF"
   local exitcode=0
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --ref)
-        ref="$2"
-        shift 2
+        if [[ -n "${2:-}" ]]; then
+          ref="$2"
+          shift 2
+        else
+          ref="$DEFAULT_REF"
+          shift 1
+        fi
         ;;
       --no-dry-run)
         dry_run=0
@@ -138,7 +144,11 @@ main() {
   local full_ref
   full_ref="$(git rev-parse "$ref")"
 
-  echo "Looking for release tags pointing to $full_ref for major-bumped packages..."
+  if [[ "$full_ref" == "$ref" ]]; then
+    echo "Looking for release tags pointing to $full_ref for major-bumped packages..."
+  else
+    echo "Looking for release tags pointing to $ref ($full_ref) for major-bumped packages..."
+  fi
 
   tag_array=()
   while IFS= read -r line; do
