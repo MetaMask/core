@@ -6,12 +6,14 @@ import type {
 } from '@metamask/utils';
 import { freeze, produce } from 'immer';
 
+import {
+  makeMiddlewareContext,
+  type MiddlewareContext,
+} from './MiddlewareContext';
 import { isRequest, JsonRpcEngineError, stringify } from './utils';
 import type { JsonRpcCall } from './utils';
 
 export const EndNotification = Symbol.for('JsonRpcEngine:EndNotification');
-
-export type MiddlewareContext = Map<string, unknown>;
 
 export type ReturnHandler<Result extends Json | void = Json | void> = (
   result: Result | void,
@@ -121,7 +123,7 @@ export class JsonRpcEngineV2<
    */
   async #handle(
     request: Request,
-    context: MiddlewareContext = new Map(),
+    context: MiddlewareContext = makeMiddlewareContext(),
   ): Promise<{
     result: MiddlewareResult<Result> | void;
     finalRequest: Readonly<Request>;
