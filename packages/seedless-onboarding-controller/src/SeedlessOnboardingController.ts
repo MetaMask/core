@@ -1754,9 +1754,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     // revoke token can be undefined if the max key chain length is reached.
     // TODO: remove this once we have better solution to handle max key chain length.
     if (!revokeToken) {
-      throw new Error(
-        SeedlessOnboardingControllerErrorMessage.InvalidRevokeToken,
-      );
+      return;
     }
 
     const { newRevokeToken, newRefreshToken } = await this.#revokeRefreshToken({
