@@ -32,4 +32,7 @@ export { BridgeId, BridgeStatusAction } from './types';
 
 export { BridgeStatusController } from './bridge-status-controller';
 
+export type { AbstractBridgeStatusService } from './bridge-status-service';
+export { BridgeStatusService } from './bridge-status-service';
+
 export { getTxMetaFields } from './utils/transaction';
