@@ -13,3 +13,7 @@ export const SCRYPT_p = 1; // Parallelization parameter
 export const SHARED_SALT = new Uint8Array([
   0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
 ]);
+// Different salt for SCRYPT_N_V2 to prevent cache collisions on outdated clients
+export const SHARED_SALT_V2 = new Uint8Array([
+  16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+]);

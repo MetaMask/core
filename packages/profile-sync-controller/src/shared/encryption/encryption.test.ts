@@ -41,10 +41,15 @@ describe('encryption tests', () => {
   });
 
   it('should derive and use a different key for entries that have the same password but different encryption options', async () => {
+    // Test decryption of old format (N:2^17 with SHARED_SALT)
     const data1EncryptedWithOldN =
       '{"v":"1","t":"scrypt","d":"AAECAwQFBgcICQoLDA0OD5rMiKCTz61h5abF98yn50UPflCq6Ozov3NAk+y4h6o5bp0jJLJ0rw==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}';
-    const data1EncryptedWithNewN =
-      '{"v":"1","t":"scrypt","d":"AAECAwQFBgcICQoLDA0ODx8V+QwHALZFtAw/DhXD9ev78fT327jgGXlB7/kXeZQc6zaRqw6VgA==","o":{"N":2,"r":8,"p":1,"dkLen":16},"saltLen":16}';
+
+    // Generate encrypted data with new format dynamically
+    const data1EncryptedWithNewN = await encryption.encryptString(
+      DATA1,
+      PASSWORD,
+    );
 
     const decrypted1 = await encryption.decryptString(
       data1EncryptedWithOldN,
@@ -160,7 +165,7 @@ describe('encryption tests', () => {
       expect(result).toBe(true);
     });
 
-    it('should return false if entry uses the shared salt and the new scrypt N parameter', () => {
+    it('should return false if entry uses new scrypt N parameter', () => {
       const entry = `{"v":"1","t":"scrypt","d":"AAECAwQFBgcICQoLDA0ODzGY11N8GhRoaD6YMqLp/sZnRHaG9gbNEyASWZSok/xBZhAOw2hKOH6qieSQSCYmtZZjqZ6lxfEfsYyS2ivGhUrVQmJYSXpr78As4Bc7pnLQACPfLJqiFwDVRG4Lf/k+DpfKzBmdS1h+nOiTHaN8MmMY6jKkfjVqnJSEkvKcQBnOBw27+PW8L1OQBXITaImO1GOE4OOBjfD4XX7uezBrsv0TuFWeDumSzYqDnw==","o":{"N":${SCRYPT_N_V2},"r":8,"p":1,"dkLen":16},"saltLen":16}`;
 
       const result = encryption.doesEntryNeedReEncryption(entry);

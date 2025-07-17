@@ -4,11 +4,7 @@ import { scryptAsync } from '@noble/hashes/scrypt';
 import { sha256 } from '@noble/hashes/sha256';
 import { utf8ToBytes, concatBytes, bytesToHex } from '@noble/hashes/utils';
 
-import {
-  getCachedKeyBySalt,
-  getCachedKeyGeneratedWithSharedSalt,
-  setCachedKey,
-} from './cache';
+import { getCachedKeyBySalt, setCachedKey } from './cache';
 import {
   ALGORITHM_KEY_SIZE,
   ALGORITHM_NONCE_SIZE,
@@ -18,6 +14,7 @@ import {
   SCRYPT_r,
   SCRYPT_SALT_SIZE,
   SHARED_SALT,
+  SHARED_SALT_V2,
 } from './constants';
 import {
   base64ToByteArray,
@@ -229,12 +226,12 @@ class EncryptorDecryptor {
 
   doesEntryNeedReEncryption(encryptedDataStr: string): boolean {
     try {
-      const doesEntryHaveRandomSalt =
-        this.getSalt(encryptedDataStr).toString() !== SHARED_SALT.toString();
-      const doesEntryUseOldScryptN =
-        JSON.parse(encryptedDataStr).o?.N !== SCRYPT_N_V2;
+      const encryptedData: EncryptedPayload = JSON.parse(encryptedDataStr);
 
-      return doesEntryHaveRandomSalt || doesEntryUseOldScryptN;
+      // Only check N value - in production, only two valid scenarios exist:
+      // 1. N:2**17 + SHARED_SALT (old code)
+      // 2. N:2 + SHARED_SALT_V2 (new code)
+      return encryptedData.o?.N !== SCRYPT_N_V2;
     } catch {
       return false;
     }
@@ -267,10 +264,13 @@ class EncryptorDecryptor {
     salt?: Uint8Array,
     nativeScryptCrypto?: NativeScrypt,
   ) {
-    const hashedPassword = `${password}.${o.N}.${o.r}.${o.p}.${o.dkLen}`;
-    const cachedKey = salt
-      ? getCachedKeyBySalt(hashedPassword, salt)
-      : getCachedKeyGeneratedWithSharedSalt(hashedPassword);
+    const hashedPassword = createSHA256Hash(password);
+
+    // Determine which salt to use (for both lookup and generation)
+    const targetSalt =
+      salt ?? (o.N === SCRYPT_N_V2 ? SHARED_SALT_V2 : SHARED_SALT);
+
+    const cachedKey = getCachedKeyBySalt(hashedPassword, targetSalt);
 
     if (cachedKey) {
       return {
@@ -279,7 +279,7 @@ class EncryptorDecryptor {
       };
     }
 
-    const newSalt = salt ?? SHARED_SALT;
+    const newSalt = targetSalt;
 
     let newKey: Uint8Array;
 
