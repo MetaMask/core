@@ -1,15 +1,10 @@
-import { createAsyncMiddleware } from '@metamask/json-rpc-engine/legacy';
 import type {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  JsonRpcEngine,
+  JsonRpcEngineV2,
   JsonRpcMiddleware,
-  AsyncJsonRpcEngineNextCallback,
-} from '@metamask/json-rpc-engine/legacy';
-import type {
-  Json,
-  PendingJsonRpcResponse,
-  JsonRpcRequest,
-} from '@metamask/utils';
+  JsonRpcCall,
+} from '@metamask/json-rpc-engine';
+import type { Json } from '@metamask/utils';
 
 import type {
   GenericPermissionController,
@@ -28,7 +23,7 @@ type PermissionMiddlewareFactoryOptions = {
 
 /**
  * Creates a permission middleware function factory. Intended for internal use
- * in the {@link PermissionController}. Like any {@link JsonRpcEngine}
+ * in the {@link PermissionController}. Like any {@link JsonRpcEngineV2}
  * middleware, each middleware will only receive requests from a particular
  * subject / origin. However, each middleware also requires access to some
  * `PermissionController` internals, which is why this "factory factory" exists.
@@ -55,22 +50,20 @@ export function getPermissionMiddlewareFactory({
 }: PermissionMiddlewareFactoryOptions) {
   return function createPermissionMiddleware(
     subject: PermissionSubjectMetadata,
-  ): JsonRpcMiddleware<RestrictedMethodParameters, Json> {
+  ): JsonRpcMiddleware<JsonRpcCall, Json> {
     const { origin } = subject;
     if (typeof origin !== 'string' || !origin) {
       throw new Error('The subject "origin" must be a non-empty string.');
     }
 
     const permissionsMiddleware = async (
-      req: JsonRpcRequest<RestrictedMethodParameters>,
-      res: PendingJsonRpcResponse,
-      next: AsyncJsonRpcEngineNextCallback,
-    ): Promise<void> => {
+      req: JsonRpcCall<RestrictedMethodParameters>,
+    ): Promise<Json | void> => {
       const { method, params } = req;
 
       // Skip registered unrestricted methods.
       if (isUnrestrictedMethod(method)) {
-        return next();
+        return;
       }
 
       // This will throw if no restricted method implementation is found.
@@ -85,17 +78,14 @@ export function getPermissionMiddlewareFactory({
       );
 
       if (result === undefined) {
-        res.error = internalError(
+        throw internalError(
           `Request for method "${req.method}" returned undefined result.`,
           { request: req },
         );
-        return undefined;
       }
 
-      res.result = result;
-      return undefined;
+      return result;
     };
-
-    return createAsyncMiddleware(permissionsMiddleware);
+    return permissionsMiddleware;
   };
 }

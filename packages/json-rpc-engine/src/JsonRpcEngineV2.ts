@@ -128,6 +128,7 @@ export class JsonRpcEngineV2<
     result: MiddlewareResult<Result> | void;
     finalRequest: Readonly<Request>;
   }> {
+    // TODO: Return handlers have to run for errors
     const { result, returnHandlers, finalRequest } = await this.#runMiddleware(
       request,
       context,
