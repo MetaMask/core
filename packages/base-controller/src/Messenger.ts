@@ -154,7 +154,7 @@ export class Messenger<
    *
    * This will make the registered function available to call via the `call` method.
    *
-   * @param actionType - The action type. This is a unqiue identifier for this action.
+   * @param actionType - The action type. This is a unique identifier for this action.
    * @param handler - The action handler. This function gets called when the `call` method is
    * invoked with the given action type.
    * @throws Will throw when a handler has been registered for this action type already.
@@ -173,11 +173,31 @@ export class Messenger<
   }
 
   /**
+   * Registers action handlers for a list of methods on a messenger client
+   *
+   * @param messengerClient - The object that is expected to make use of the messenger.
+   * @param methodNames - The names of the methods on the messenger client to register as action
+   * handlers
+   */
+  registerMethodActionHandlers<
+    MessengerClient extends { name: string },
+    MethodNames extends keyof MessengerClient & string,
+  >(messengerClient: MessengerClient, methodNames: readonly MethodNames[]) {
+    for (const methodName of methodNames) {
+      const method = messengerClient[methodName];
+      if (typeof method === 'function') {
+        const actionType = `${messengerClient.name}:${methodName}` as const;
+        this.registerActionHandler(actionType, method.bind(messengerClient));
+      }
+    }
+  }
+
+  /**
    * Unregister an action handler.
    *
    * This will prevent this action from being called.
    *
-   * @param actionType - The action type. This is a unqiue identifier for this action.
+   * @param actionType - The action type. This is a unique identifier for this action.
    * @template ActionType - A type union of Action type strings.
    */
   unregisterActionHandler<ActionType extends Action['type']>(
@@ -201,7 +221,7 @@ export class Messenger<
    * This function will call the action handler corresponding to the given action type, passing
    * along any parameters given.
    *
-   * @param actionType - The action type. This is a unqiue identifier for this action.
+   * @param actionType - The action type. This is a unique identifier for this action.
    * @param params - The action parameters. These must match the type of the parameters of the
    * registered action handler.
    * @throws Will throw when no handler has been registered for the given type.

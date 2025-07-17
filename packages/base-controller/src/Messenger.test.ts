@@ -1,5 +1,5 @@
 import type { Patch } from 'immer';
-import * as sinon from 'sinon';
+import sinon from 'sinon';
 
 import { Messenger } from './Messenger';
 
@@ -555,5 +555,173 @@ describe('Messenger', () => {
     messenger.publish('message', 'hello');
 
     expect(handler.callCount).toBe(0);
+  });
+
+  describe('registerMethodActionHandlers', () => {
+    it('should register action handlers for specified methods on the given messenger client', () => {
+      type TestActions =
+        | { type: 'TestService:getType'; handler: () => string }
+        | {
+            type: 'TestService:getCount';
+            handler: () => number;
+          };
+
+      const messenger = new Messenger<TestActions, never>();
+
+      class TestService {
+        name = 'TestService';
+
+        getType() {
+          return 'api';
+        }
+
+        getCount() {
+          return 42;
+        }
+      }
+
+      const service = new TestService();
+      const methodNames = ['getType', 'getCount'] as const;
+
+      messenger.registerMethodActionHandlers(service, methodNames);
+
+      const state = messenger.call('TestService:getType');
+      expect(state).toBe('api');
+
+      const count = messenger.call('TestService:getCount');
+      expect(count).toBe(42);
+    });
+
+    it('should bind action handlers to the given messenger client', () => {
+      type TestAction = {
+        type: 'TestService:getPrivateValue';
+        handler: () => string;
+      };
+      const messenger = new Messenger<TestAction, never>();
+
+      class TestService {
+        name = 'TestService';
+
+        privateValue = 'secret';
+
+        getPrivateValue() {
+          return this.privateValue;
+        }
+      }
+
+      const service = new TestService();
+      messenger.registerMethodActionHandlers(service, ['getPrivateValue']);
+
+      const result = messenger.call('TestService:getPrivateValue');
+      expect(result).toBe('secret');
+    });
+
+    it('should handle async methods', async () => {
+      type TestAction = {
+        type: 'TestService:fetchData';
+        handler: (id: string) => Promise<string>;
+      };
+      const messenger = new Messenger<TestAction, never>();
+
+      class TestService {
+        name = 'TestService';
+
+        async fetchData(id: string) {
+          return `data-${id}`;
+        }
+      }
+
+      const service = new TestService();
+      messenger.registerMethodActionHandlers(service, ['fetchData']);
+
+      const result = await messenger.call('TestService:fetchData', '123');
+      expect(result).toBe('data-123');
+    });
+
+    it('should not throw when given an empty methodNames array', () => {
+      type TestAction = { type: 'TestController:test'; handler: () => void };
+      const messenger = new Messenger<TestAction, never>();
+
+      class TestController {
+        name = 'TestController';
+      }
+
+      const controller = new TestController();
+      const methodNames: readonly string[] = [];
+
+      expect(() => {
+        messenger.registerMethodActionHandlers(
+          controller,
+          methodNames as never[],
+        );
+      }).not.toThrow();
+    });
+
+    it('should skip non-function properties', () => {
+      type TestAction = {
+        type: 'TestController:getValue';
+        handler: () => string;
+      };
+      const messenger = new Messenger<TestAction, never>();
+
+      class TestController {
+        name = 'TestController';
+
+        readonly nonFunction = 'not a function';
+
+        getValue() {
+          return 'test';
+        }
+      }
+
+      const controller = new TestController();
+      messenger.registerMethodActionHandlers(controller, ['getValue']);
+
+      // getValue should be registered
+      expect(messenger.call('TestController:getValue')).toBe('test');
+
+      // nonFunction should not be registered
+      expect(() => {
+        // @ts-expect-error - This is a test
+        messenger.call('TestController:nonFunction');
+      }).toThrow(
+        'A handler for TestController:nonFunction has not been registered',
+      );
+    });
+
+    it('should work with class inheritance', () => {
+      type TestActions =
+        | { type: 'ChildController:baseMethod'; handler: () => string }
+        | { type: 'ChildController:childMethod'; handler: () => string };
+
+      const messenger = new Messenger<TestActions, never>();
+
+      class BaseController {
+        name = 'BaseController';
+
+        baseMethod() {
+          return 'base method';
+        }
+      }
+
+      class ChildController extends BaseController {
+        name = 'ChildController';
+
+        childMethod() {
+          return 'child method';
+        }
+      }
+
+      const controller = new ChildController();
+      messenger.registerMethodActionHandlers(controller, [
+        'baseMethod',
+        'childMethod',
+      ]);
+
+      expect(messenger.call('ChildController:baseMethod')).toBe('base method');
+      expect(messenger.call('ChildController:childMethod')).toBe(
+        'child method',
+      );
+    });
   });
 });
