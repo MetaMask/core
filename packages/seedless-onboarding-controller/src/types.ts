@@ -334,7 +334,7 @@ export type VaultData = {
   toprfAuthKeyPair: string;
   /**
    * The revoke token to revoke refresh token and get new refresh token and new revoke token.
-   * Revoke is only available when max password chain length doesn't exceeds on a device.
+   * The revoke token may no longer be available after a large number of password changes. In this case, re-authentication is advised.
    */
   revokeToken?: string;
   /**
