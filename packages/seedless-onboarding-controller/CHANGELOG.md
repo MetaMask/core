@@ -7,15 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.2.0]
-
 ### Added
 
 - Added a optional param `maxKeyChainLength` in `submitGlobalPassword` function.([#6134](https://github.com/MetaMask/core/pull/6134))
+- Separated vault update logic from `revokeRefreshToken`, `revokeRefreshToken` now accepts a revokeToken instead of password. ([#6134](https://github.com/MetaMask/core/pull/6134))
+
+### Changed
+
+- `revokeRefreshToken` is removed and a private function named `revokeRefreshTokenAndUpdateState` is added as a replacement.([#6136](https://github.com/MetaMask/core/pull/6136))
+
+## [2.2.0]
 
 ### Fixed
 
-- remove `access_token` validation when the wallet is locked. ([#6133](https://github.com/MetaMask/core/pull/6133))
+- Removed `access_token` validation when the wallet is locked. ([#6133](https://github.com/MetaMask/core/pull/6133))
+- Removed `revoke_token` validation from `#parseVault` and `createNewVaultWithAuthData` to handle the case when max key chain length exceeds. ([#6136](https://github.com/MetaMask/core/pull/6136))
 
 ## [2.1.0]
 

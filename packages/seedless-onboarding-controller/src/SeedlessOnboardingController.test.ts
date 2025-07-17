@@ -1010,39 +1010,6 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
-    it('should throw error if revokeToken is missing when creating new vault', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            withMockAuthPubKey: true,
-            withoutMockRevokeToken: true,
-          }),
-        },
-        async ({ controller, toprfClient }) => {
-          mockcreateLocalKey(toprfClient, MOCK_PASSWORD);
-
-          // persist the local enc key
-          jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
-          // encrypt and store the secret data
-          handleMockSecretDataAdd();
-
-          await expect(
-            controller.createToprfKeyAndBackupSeedPhrase(
-              MOCK_PASSWORD,
-              MOCK_SEED_PHRASE,
-              MOCK_KEYRING_ID,
-            ),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.InvalidRevokeToken,
-          );
-
-          // Verify that persistLocalKey was called
-          expect(toprfClient.persistLocalKey).toHaveBeenCalledTimes(1);
-        },
-      );
-    });
-
     it('should throw error if accessToken is missing when creating new vault', async () => {
       await withController(
         {
