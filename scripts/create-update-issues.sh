@@ -4,6 +4,8 @@ set -euo pipefail
 
 DEFAULT_REF="HEAD"
 DEFAULT_LABEL="client-controller-update"
+EXTENSION_REPO="MetaMask/metamask-extension"
+MOBILE_REPO="MetaMask/metamask-mobile"
 
 print-usage() {
   cat <<EOT
@@ -25,13 +27,7 @@ existing-issue-found() {
   local repo="$1"
   local package_name="$2"
   local version="$3"
-
-  local all_issues
-  if ! all_issues=$(gh issue list --repo "$repo" --label "$DEFAULT_LABEL" --state open --json number,title,url 2>&1); then
-    echo "❌ Failed to fetch issues from ${repo}"
-    echo "$all_issues"
-    exit 1
-  fi
+  local all_issues="$4"
 
   if [[ -z "$all_issues" || "$all_issues" == "[]" ]]; then
     echo "Found no issues in the repo."
@@ -87,12 +83,6 @@ create-issue() {
   fi
 
   local exitcode
-
-  echo "Checking for existing issues in ${repo}..."
-  if existing-issue-found "$repo" "$package_name" "$version"; then
-    echo "⏭️ Not creating issue because it already exists"
-    return 0
-  fi
 
   echo "Creating issue in ${repo} with labels: \"${labels}\"..."
 
@@ -196,6 +186,20 @@ main() {
     exit 0
   fi
 
+  local all_issues_extension
+  if ! all_issues_extension=$(gh issue list --repo "$EXTENSION_REPO" --label "$DEFAULT_LABEL" --state open --json number,title,url 2>&1); then
+    echo "❌ Failed to fetch issues from ${repo}"
+    echo "$all_issues_extension"
+    exit 1
+  fi
+
+  local all_issues_mobile
+  if ! all_issues_mobile=$(gh issue list --repo "$MOBILE_REPO" --label "$DEFAULT_LABEL" --state open --json number,title,url 2>&1); then
+    echo "❌ Failed to fetch issues from ${repo}"
+    echo "$all_issues_mobile"
+    exit 1
+  fi
+
   for tag in "${tag_array[@]}"; do
     # The tag name looks like "<package_name>@<version>",
     # and "<package_name>" looks like "@metamask/*"
@@ -218,13 +222,21 @@ main() {
       team_labels="$found_team_labels"
     fi
 
-    # Create the issues
+    # Create the extension issue, if it doesn't exist yet
     echo
-    if ! create-issue "$dry_run" "MetaMask/metamask-extension" "$package_name" "$version" "$team_labels"; then
+    echo "Checking for existing issues in ${EXTENSION_REPO}..."
+    if existing-issue-found "${EXTENSION_REPO}" "$package_name" "$version" "${all_issues_extension[@]}"; then
+      echo "⏭️ Not creating issue because it already exists"
+    elif ! create-issue "$dry_run" "$EXTENSION_REPO" "$package_name" "$version" "$team_labels"; then
       exitcode=1
     fi
+
+    # Create the mobile issue, if it doesn't exist yet
     echo
-    if ! create-issue "$dry_run" "MetaMask/metamask-mobile" "$package_name" "$version" "$team_labels"; then
+    echo "Checking for existing issues in ${MOBILE_REPO}..."
+    if existing-issue-found "${MOBILE_REPO}" "$package_name" "$version" "${all_issues_mobile[@]}"; then
+      echo "⏭️ Not creating issue because it already exists"
+    elif ! create-issue "$dry_run" "$MOBILE_REPO" "$package_name" "$version" "$team_labels"; then
       exitcode=1
     fi
   done
