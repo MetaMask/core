@@ -18,11 +18,7 @@ import {
 import type { StorageOptions } from './user-storage';
 import { STORAGE_URL, UserStorage } from './user-storage';
 import encryption, { createSHA256Hash } from '../shared/encryption';
-import {
-  SCRYPT_N_V2,
-  SHARED_SALT,
-  SHARED_SALT_V2,
-} from '../shared/encryption/constants';
+import { SCRYPT_N_V2, SHARED_SALT_V2 } from '../shared/encryption/constants';
 import { Env } from '../shared/env';
 import type { UserStorageGenericFeatureKey } from '../shared/storage-schema';
 import { USER_STORAGE_FEATURE_NAMES } from '../shared/storage-schema';
