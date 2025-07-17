@@ -1,6 +1,8 @@
 # `@metamask/multichain-account-controller`
 
-example
+Multichain account stateless controller.
+
+This controller provides operations and functionalities around multichain accounts and wallets.
 
 ## Installation
 
