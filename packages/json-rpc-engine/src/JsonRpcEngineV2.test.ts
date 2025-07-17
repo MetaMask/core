@@ -2,8 +2,9 @@ import type { NonEmptyArray } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
 import { original as getOriginalState } from 'immer';
 
-import type { JsonRpcMiddleware, MiddlewareContext } from './JsonRpcEngineV2';
+import type { JsonRpcMiddleware } from './JsonRpcEngineV2';
 import { JsonRpcEngineV2, EndNotification } from './JsonRpcEngineV2';
+import type { MiddlewareContext } from './MiddlewareContext';
 import {
   cloneRequest,
   JsonRpcEngineError,
