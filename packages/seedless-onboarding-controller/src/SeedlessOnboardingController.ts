@@ -275,7 +275,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     revokeToken?: string;
     skipLock?: boolean;
   }) {
-    console.log('authenticate::params', params);
     const doAuthenticateWithNodes = async () => {
       try {
         const {
@@ -1889,7 +1888,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     try {
       this.#assertIsAuthenticatedUser(this.state);
       const { accessToken } = this.state;
-      console.log('checkAccessTokenExpired::accessToken', accessToken);
       if (!accessToken) {
         return true; // Consider missing token as expired
       }
