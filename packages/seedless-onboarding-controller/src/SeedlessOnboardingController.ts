@@ -35,7 +35,6 @@ import type {
   SeedlessOnboardingControllerMessenger,
   SeedlessOnboardingControllerOptions,
   SeedlessOnboardingControllerState,
-  VaultData,
   AuthenticatedUserDetails,
   SocialBackupsMetadata,
   SRPBackedUpUserDetails,
