@@ -1,13 +1,9 @@
 import type { NonEmptyArray } from '@metamask/utils';
-import { Json } from '@metamask/utils';
+import type { Json } from '@metamask/utils';
 import { original as getOriginalState } from 'immer';
 import cloneDeep from 'lodash/cloneDeep';
 
-import type {
-  JsonRpcMiddleware,
-  MiddlewareContext,
-  MiddlewareResultConstraint,
-} from './JsonRpcEngineV2';
+import type { JsonRpcMiddleware, MiddlewareContext } from './JsonRpcEngineV2';
 import { JsonRpcEngineV2, EndNotification } from './JsonRpcEngineV2';
 import {
   cloneRequest,
@@ -49,7 +45,7 @@ const makeRequest = <Request extends JsonRpcRequest>(
  */
 const makeMockMiddleware = <
   Request extends JsonRpcCall,
-  Result extends MiddlewareResultConstraint<Request>,
+  Result extends Json | void,
 >(
   middleware: JsonRpcMiddleware<Request, Result>,
   ...rest: JsonRpcMiddleware<Request, Result>[]
@@ -63,9 +59,8 @@ describe('JsonRpcEngineV2', () => {
   describe('handle', () => {
     describe('notifications', () => {
       it('passes the notification through middleware', async () => {
-        const middleware: JsonRpcMiddleware<JsonRpcNotification> = jest.fn(
-          () => EndNotification,
-        );
+        const middleware: JsonRpcMiddleware<JsonRpcNotification, void> =
+          jest.fn(() => EndNotification);
         const engine = new JsonRpcEngineV2({
           middleware: makeMockMiddleware(middleware),
         });
@@ -479,6 +474,72 @@ describe('JsonRpcEngineV2', () => {
       });
     });
 
+    describe('asynchrony', () => {
+      it('handles asynchronous middleware', async () => {
+        const middleware = jest.fn(async () => {
+          return null;
+        });
+        const engine = new JsonRpcEngineV2({
+          middleware: [middleware],
+        });
+
+        const result = await engine.handle(makeRequest());
+
+        expect(result).toBeNull();
+      });
+
+      it('handles mixed synchronous and asynchronous middleware', async () => {
+        const middleware1 = jest.fn((_req, context) => {
+          context.set('foo', [1]);
+        });
+        const middleware2 = jest.fn(async (_req, context) => {
+          const nums = context.get('foo') as number[];
+          context.set('foo', [...nums, 2]);
+        });
+        const middleware3 = jest.fn(async (_req, context) => {
+          const nums = context.get('foo') as number[];
+          return [...nums, 3];
+        });
+        const engine = new JsonRpcEngineV2<JsonRpcCall, number[] | void>({
+          middleware: [middleware1, middleware2, middleware3],
+        });
+
+        const result = await engine.handle(makeRequest());
+
+        expect(result).toStrictEqual([1, 2, 3]);
+      });
+
+      it('handles asynchronous return handlers', async () => {
+        const middleware = jest.fn(() => async () => {
+          return null;
+        });
+        const engine = new JsonRpcEngineV2({
+          middleware: [middleware],
+        });
+
+        const result = await engine.handle(makeRequest());
+
+        expect(result).toBeNull();
+      });
+
+      it('handles mixed synchronous and asynchronous return handlers', async () => {
+        const middleware1 = jest.fn(() => (result: number | void) => {
+          // eslint-disable-next-line jest/no-conditional-in-test
+          return (result ?? 0) * 2;
+        });
+        const middleware2 = jest.fn(() => async () => {
+          return 2;
+        });
+        const engine = new JsonRpcEngineV2({
+          middleware: [middleware1, middleware2],
+        });
+
+        const result = await engine.handle(makeRequest());
+
+        expect(result).toBe(4);
+      });
+    });
+
     describe('context', () => {
       it('passes the context to the middleware', async () => {
         const middleware = jest.fn((_req, context) => {
@@ -515,7 +576,7 @@ describe('JsonRpcEngineV2', () => {
         const middleware2 = jest.fn((_req, context) => {
           context.set('foo', 'bar');
         });
-        const engine = new JsonRpcEngineV2<JsonRpcCall, (() => string) | void>({
+        const engine = new JsonRpcEngineV2({
           middleware: [middleware1, middleware2],
         });
 
@@ -531,10 +592,7 @@ describe('JsonRpcEngineV2', () => {
         const middleware2 = jest.fn((_req, context) => () => {
           context.set('foo', 'bar');
         });
-        const engine = new JsonRpcEngineV2<
-          JsonRpcCall,
-          (() => string) | (() => void)
-        >({
+        const engine = new JsonRpcEngineV2({
           middleware: [middleware1, middleware2],
         });
 
@@ -649,7 +707,7 @@ describe('JsonRpcEngineV2', () => {
           },
         ],
       });
-      const engine2 = new JsonRpcEngineV2<JsonRpcCall, number | void>({
+      const engine2 = new JsonRpcEngineV2({
         middleware: [
           (_req, context) => {
             context.set('foo', 2);
@@ -700,104 +758,3 @@ describe('JsonRpcEngineV2', () => {
     });
   });
 });
-
-// describe('JsonRpcEngineV2', () => {
-//   it('should handle a request', async () => {
-//     const engine = new JsonRpcEngineV2({
-//       middleware: [
-//         (req: JsonRpcNotification, context): void => {},
-//         (req: JsonRpcNotification, context): typeof EndNotification => {
-//           return EndNotification;
-//         },
-//         (req: JsonRpcCall, context): void | typeof EndNotification => {
-//           return EndNotification;
-//         },
-//         // (req: JsonRpcRequest, context): void | typeof EndNotification => {
-//         //   return EndNotification;
-//         // },
-//       ],
-//     });
-
-//     const middleware: JsonRpcMiddleware<JsonRpcRequest, void> = (
-//       req,
-//       context,
-//     ) => {};
-//     const middleware2: JsonRpcMiddleware<
-//       JsonRpcRequest,
-//       // @ts-expect-error Should be illegal.
-//       typeof EndNotification
-//     > = (req, context) => {
-//       return EndNotification;
-//     };
-//     type foo = ReturnType<typeof middleware2>;
-
-//     const engine2 = new JsonRpcEngineV2({
-//       middleware: [
-//         // @ts-expect-error Should be illegal.
-//         (req: JsonRpcRequest, context): void | typeof EndNotification => {
-//           return EndNotification;
-//         },
-//       ],
-//     });
-
-//     const engine3 = new JsonRpcEngineV2({
-//       middleware: [
-//         ((req: JsonRpcRequest, context) => {
-//           return null;
-//         }) as JsonRpcMiddleware<JsonRpcRequest, null>,
-//       ],
-//     });
-
-//     const engine4 = new JsonRpcEngineV2({
-//       middleware: [
-//         ((req: JsonRpcCall, context): null => {
-//           return null;
-//         }) as JsonRpcMiddleware<JsonRpcCall, null>,
-//       ],
-//     });
-
-//     const reqRes = await engine4.handle({
-//       id: '1',
-//       method: 'foo',
-//       jsonrpc: '2.0',
-//       params: [],
-//     });
-
-//     const notifRes = await engine4.handle({
-//       method: 'foo',
-//       jsonrpc: '2.0',
-//       params: [],
-//     });
-
-//     const callRes = await engine4.handleAny({
-//       id: '1',
-//       method: 'foo',
-//       jsonrpc: '2.0',
-//       params: [],
-//     });
-
-//     const a: JsonRpcRequest = {
-//       id: '1',
-//       method: 'foo',
-//       jsonrpc: '2.0',
-//       params: [],
-//     };
-
-//     const foo: JsonRpcCall = {
-//       id: '1',
-//       method: 'foo',
-//       jsonrpc: '2.0',
-//       params: [],
-//     };
-
-//     const bar: JsonRpcNotification = {
-//       method: 'foo',
-//       jsonrpc: '2.0',
-//       params: [],
-//     };
-
-//     const fizz: JsonRpcNotification = foo;
-
-//     const b: JsonRpcRequest = foo;
-//   });
-// });
