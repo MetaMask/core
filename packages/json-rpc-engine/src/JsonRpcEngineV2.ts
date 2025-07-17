@@ -242,11 +242,14 @@ export class JsonRpcEngineV2<
   asMiddleware(): JsonRpcMiddleware<Request> {
     return async (request, context) => {
       const { result, finalRequest } = await this.#handle(request, context);
+
       // Propagate any changes to the request to the original request.
       request.method = finalRequest.method;
-      // @ts-expect-error TypeScript complains about this for unknown reasons
-      // (and not because finalRequest is readonly)
-      request.params = finalRequest.params;
+      if ('params' in finalRequest) {
+        request.params = finalRequest.params;
+      } else {
+        delete request.params;
+      }
 
       return result as MiddlewareResult;
     };

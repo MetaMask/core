@@ -362,7 +362,7 @@ describe('JsonRpcEngineV2', () => {
 
       it('throws if modifying the request outside of the middleware', async () => {
         let retained: JsonRpcCall | undefined;
-        const middleware = jest.fn((req) => {
+        const middleware = jest.fn((req: JsonRpcCall) => {
           retained = req;
           return null;
         });
@@ -689,6 +689,36 @@ describe('JsonRpcEngineV2', () => {
 
       expect(result).toBe(8);
       expect(observedMethod).toBe('test_request_2');
+    });
+
+    it('propagates request mutation (parameter deletion)', async () => {
+      const engine1 = new JsonRpcEngineV2<JsonRpcRequest, number | void>({
+        middleware: [
+          (req) => {
+            delete req.params;
+          },
+        ],
+      });
+
+      let observedRequest: unknown;
+      const engine2 = new JsonRpcEngineV2({
+        middleware: [
+          engine1.asMiddleware(),
+          (req) => {
+            observedRequest = cloneRequest(req);
+            return null;
+          },
+        ],
+      });
+
+      const result = await engine2.handle(makeRequest());
+
+      expect(result).toBeNull();
+      expect(observedRequest).toStrictEqual({
+        jsonrpc: '2.0',
+        id: '1',
+        method: 'test_request',
+      });
     });
 
     it('propagates context changes', async () => {
