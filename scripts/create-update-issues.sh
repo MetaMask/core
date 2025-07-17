@@ -124,7 +124,7 @@ main() {
         ;;
       *)
         echo "Unknown argument: $1"
-        echo "Usage: $0 [--ref=REF] [--no-dry-run]"
+        echo "Usage: $0 [--ref REF] [--no-dry-run]"
         exit 1
         ;;
     esac
