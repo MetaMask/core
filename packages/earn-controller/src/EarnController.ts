@@ -4,7 +4,6 @@ import type {
   AccountsControllerSelectedAccountChangeEvent,
 } from '@metamask/accounts-controller';
 import type {
-  ControllerGetStateAction,
   ControllerStateChangeEvent,
   RestrictedMessenger,
   StateMetadata,
@@ -13,7 +12,7 @@ import { BaseController } from '@metamask/base-controller';
 import { convertHexToDecimal, toHex } from '@metamask/controller-utils';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
-  NetworkControllerGetStateAction,
+  NetworkControllerGetSelectedNetworkClientAction,
   NetworkControllerNetworkDidChangeEvent,
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
@@ -220,24 +219,11 @@ export function getDefaultEarnControllerState(): EarnControllerState {
 // === MESSENGER ===
 
 /**
- * The action which can be used to retrieve the state of the EarnController.
- */
-export type EarnControllerGetStateAction = ControllerGetStateAction<
-  typeof controllerName,
-  EarnControllerState
->;
-
-/**
- * All actions that EarnController registers, to be called externally.
- */
-export type EarnControllerActions = EarnControllerGetStateAction;
-
-/**
  * All actions that EarnController calls internally.
  */
 export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
-  | NetworkControllerGetStateAction
+  | NetworkControllerGetSelectedNetworkClientAction
   | AccountsControllerGetSelectedAccountAction;
 
 /**
@@ -268,7 +254,7 @@ export type AllowedEvents =
  */
 export type EarnControllerMessenger = RestrictedMessenger<
   typeof controllerName,
-  EarnControllerActions | AllowedActions,
+  AllowedActions,
   EarnControllerEvents | AllowedEvents,
   AllowedActions['type'],
   AllowedEvents['type']
@@ -286,7 +272,7 @@ export class EarnController extends BaseController<
 > {
   #earnSDK: EarnSdk | null = null;
 
-  #selectedNetworkClientId?: string;
+  #selectedNetworkClientId: string;
 
   readonly #earnApiService: EarnApiService;
 
@@ -300,11 +286,13 @@ export class EarnController extends BaseController<
     messenger,
     state = {},
     addTransactionFn,
+    selectedNetworkClientId,
     env = EarnEnvironments.PROD,
   }: {
     messenger: EarnControllerMessenger;
     state?: Partial<EarnControllerState>;
     addTransactionFn: typeof TransactionController.prototype.addTransaction;
+    selectedNetworkClientId: string;
     env?: EarnEnvironments;
   }) {
     super({
@@ -328,14 +316,11 @@ export class EarnController extends BaseController<
 
     this.#addTransactionFn = addTransactionFn;
 
-    this.#initializeSDK().catch(console.error);
+    this.#selectedNetworkClientId = selectedNetworkClientId;
+
+    this.#initializeSDK(selectedNetworkClientId).catch(console.error);
     this.refreshPooledStakingData().catch(console.error);
     this.refreshLendingData().catch(console.error);
-
-    const { selectedNetworkClientId } = this.messagingSystem.call(
-      'NetworkController:getState',
-    );
-    this.#selectedNetworkClientId = selectedNetworkClientId;
 
     // Listen for network changes
     this.messagingSystem.subscribe(
@@ -417,16 +402,12 @@ export class EarnController extends BaseController<
   /**
    * Initializes the Earn SDK.
    *
-   * @param networkClientId - The network client id to initialize the Earn SDK for (optional).
+   * @param networkClientId - The network client id to initialize the Earn SDK for.
    */
-  async #initializeSDK(networkClientId?: string) {
-    const { selectedNetworkClientId } = networkClientId
-      ? { selectedNetworkClientId: networkClientId }
-      : this.messagingSystem.call('NetworkController:getState');
-
+  async #initializeSDK(networkClientId: string) {
     const networkClient = this.messagingSystem.call(
       'NetworkController:getNetworkClientById',
-      selectedNetworkClientId,
+      networkClientId,
     );
 
     if (!networkClient?.provider) {
@@ -882,6 +863,7 @@ export class EarnController extends BaseController<
    *
    * @param options - The options for the lending deposit transaction.
    * @param options.amount - The amount to deposit.
+   * @param options.chainId - The chain ID for the lending deposit transaction.
    * @param options.protocol - The protocol of the lending market.
    * @param options.underlyingTokenAddress - The address of the underlying token.
    * @param options.gasOptions - The gas options for the transaction.
@@ -952,6 +934,7 @@ export class EarnController extends BaseController<
    *
    * @param options - The options for the lending withdraw transaction.
    * @param options.amount - The amount to withdraw.
+   * @param options.chainId - The chain ID for the lending withdraw transaction.
    * @param options.protocol - The protocol of the lending market.
    * @param options.underlyingTokenAddress - The address of the underlying token.
    * @param options.gasOptions - The gas options for the transaction.
@@ -1023,6 +1006,7 @@ export class EarnController extends BaseController<
    *
    * @param options - The options for the lending token approve transaction.
    * @param options.amount - The amount to approve.
+   * @param options.chainId - The chain ID for the lending token approve transaction.
    * @param options.protocol - The protocol of the lending market.
    * @param options.underlyingTokenAddress - The address of the underlying token.
    * @param options.gasOptions - The gas options for the transaction.
