@@ -3492,6 +3492,51 @@ describe('SeedlessOnboardingController', () => {
         },
       );
     });
+
+    it('should throw MaxKeyChainLengthExceeded error when max key chain length is exceeded', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          const mockToprfEncryptor = createMockToprfEncryptor();
+          const encKey = mockToprfEncryptor.deriveEncKey(GLOBAL_PASSWORD);
+          const pwEncKey = mockToprfEncryptor.derivePwEncKey(GLOBAL_PASSWORD);
+          const authKeyPair =
+            mockToprfEncryptor.deriveAuthKeyPair(GLOBAL_PASSWORD);
+
+          // Mock recoverEncKey to succeed
+          jest.spyOn(toprfClient, 'recoverEncKey').mockResolvedValueOnce({
+            encKey,
+            pwEncKey,
+            authKeyPair,
+            rateLimitResetResult: Promise.resolve(),
+            keyShareIndex: 1,
+          });
+
+          // Mock recoverPwEncKey to throw max key chain length error
+          jest
+            .spyOn(toprfClient, 'recoverPwEncKey')
+            .mockRejectedValueOnce(
+              new TOPRFError(
+                1013,
+                'Could not fetch password. Exceeded maximum password chain length',
+              ),
+            );
+
+          await expect(
+            controller.submitGlobalPassword({
+              globalPassword: GLOBAL_PASSWORD,
+            }),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.MaxKeyChainLengthExceeded,
+          );
+        },
+      );
+    });
   });
 
   describe('syncLatestGlobalPassword', () => {

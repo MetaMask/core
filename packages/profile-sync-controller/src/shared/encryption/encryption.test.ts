@@ -45,7 +45,6 @@ describe('encryption tests', () => {
     const data1EncryptedWithOldN =
       '{"v":"1","t":"scrypt","d":"AAECAwQFBgcICQoLDA0OD5rMiKCTz61h5abF98yn50UPflCq6Ozov3NAk+y4h6o5bp0jJLJ0rw==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}';
 
-    // Generate encrypted data with new format dynamically
     const data1EncryptedWithNewN = await encryption.encryptString(
       DATA1,
       PASSWORD,

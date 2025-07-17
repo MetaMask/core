@@ -266,7 +266,6 @@ class EncryptorDecryptor {
   ) {
     const hashedPassword = createSHA256Hash(password);
 
-    // Determine which salt to use (for both lookup and generation)
     const targetSalt =
       salt ?? (o.N === SCRYPT_N_V2 ? SHARED_SALT_V2 : SHARED_SALT);
 
