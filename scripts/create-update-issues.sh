@@ -118,21 +118,20 @@ create-issue() {
 
 main() {
   local tag_array
-  local exitcode
   local package_name
   local package_name_without_leading_at
   local version
   local found_team_labels
   local team_labels
 
+  local exitcode=0
   local dry_run=1
   local ref="$DEFAULT_REF"
-  local exitcode=0
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --ref|-r)
-        if [[ "$2" =~ - ]]; then
+        if [[ "$2" =~ ^- ]]; then
           echo "ERROR: Invalid argument for $1."
           echo
           echo "---------------------"
