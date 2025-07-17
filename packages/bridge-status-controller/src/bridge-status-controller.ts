@@ -16,7 +16,7 @@ import {
   isHardwareWallet,
 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
-import { toHex } from '@metamask/controller-utils';
+import { handleFetch, toHex } from '@metamask/controller-utils';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type {
   TransactionController,
@@ -29,6 +29,8 @@ import {
 } from '@metamask/transaction-controller';
 import { numberToHex, type Hex } from '@metamask/utils';
 
+import type { AbstractBridgeStatusService } from './bridge-status-service';
+import { BridgeStatusService } from './bridge-status-service';
 import {
   BRIDGE_PROD_API_BASE_URL,
   BRIDGE_STATUS_CONTROLLER_NAME,
@@ -45,10 +47,7 @@ import type {
 } from './types';
 import { type BridgeStatusControllerMessenger } from './types';
 import { BridgeClientId } from './types';
-import {
-  fetchBridgeTxStatus,
-  getStatusRequestWithSrcTxHash,
-} from './utils/bridge-status';
+import { getStatusRequestWithSrcTxHash } from './utils/bridge-status';
 import { getTxGasEstimates } from './utils/gas';
 import {
   getFinalizedTxProperties,
@@ -96,7 +95,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
   readonly #clientId: BridgeClientId;
 
-  readonly #fetchFn: FetchFunction;
+  readonly #bridgeStatusService: AbstractBridgeStatusService;
 
   readonly #config: {
     customBridgeApiBaseUrl: string;
@@ -127,7 +126,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     messenger: BridgeStatusControllerMessenger;
     state?: Partial<BridgeStatusControllerState>;
     clientId: BridgeClientId;
-    fetchFn: FetchFunction;
+    fetchFn?: FetchFunction;
     addTransactionFn: typeof TransactionController.prototype.addTransaction;
     addTransactionBatchFn: typeof TransactionController.prototype.addTransactionBatch;
     updateTransactionFn: typeof TransactionController.prototype.updateTransaction;
@@ -149,7 +148,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     });
 
     this.#clientId = clientId;
-    this.#fetchFn = fetchFn;
+    this.#bridgeStatusService = new BridgeStatusService({
+      fetch: fetchFn ?? handleFetch,
+      config: {
+        clientId,
+        bridgeApiBaseUrl:
+          config?.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
+      },
+    });
     this.#addTransactionFn = addTransactionFn;
     this.#addTransactionBatchFn = addTransactionBatchFn;
     this.#updateTransactionFn = updateTransactionFn;
@@ -443,12 +449,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         historyItem.quote,
         srcTxHash,
       );
-      const status = await fetchBridgeTxStatus(
-        statusRequest,
-        this.#clientId,
-        this.#fetchFn,
-        this.#config.customBridgeApiBaseUrl,
-      );
+      const status =
+        await this.#bridgeStatusService.fetchBridgeStatus(statusRequest);
       const newBridgeHistoryItem = {
         ...historyItem,
         status,
