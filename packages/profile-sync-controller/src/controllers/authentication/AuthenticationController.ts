@@ -376,6 +376,10 @@ export default class AuthenticationController extends BaseController<
 
     // Early return if no social pairing token
     if (!socialPairingToken) {
+      this.update((state) => {
+        // set this to false when undefined to signal that an attempt was made.
+        state.socialPairingDone = state.socialPairingDone ?? false;
+      });
       return;
     }
 

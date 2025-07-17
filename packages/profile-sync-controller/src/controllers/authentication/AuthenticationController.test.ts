@@ -11,6 +11,7 @@ import type { LoginResponse } from '../../sdk';
 import { Platform } from '../../sdk';
 import { arrangeAuthAPIs } from '../../sdk/__fixtures__/auth';
 import { MOCK_USER_PROFILE_METAMETRICS_RESPONSE } from '../../sdk/mocks/auth';
+import { waitFor } from '../user-storage/__fixtures__/test-utils';
 
 const MOCK_ENTROPY_SOURCE_IDS = [
   'MOCK_ENTROPY_SOURCE_ID',
@@ -228,13 +229,12 @@ describe('authentication/authentication-controller - performSignIn() with pairin
     // Verify SeedlessOnboardingController was called
     expect(mockSeedlessOnboardingGetState).toHaveBeenCalled();
 
-    // Note: Pairing happens asynchronously, so we need to wait longer
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    // Should have attempted pairing
-    expect(controller.state.isSignedIn).toBe(true);
-    expect(controller.state.socialPairingDone).toBe(true);
-    expect(controller.state.pairingInProgress).toBe(false);
+    // Wait for pairing to complete asynchronously
+    await waitFor(() => {
+      expect(controller.state.isSignedIn).toBe(true);
+      expect(controller.state.socialPairingDone).toBe(true);
+      expect(controller.state.pairingInProgress).toBe(false);
+    });
     mockEndpoints.mockNonceUrl.done();
     mockEndpoints.mockSrpLoginUrl.done();
     mockEndpoints.mockOAuth2TokenUrl.done();
@@ -256,10 +256,16 @@ describe('authentication/authentication-controller - performSignIn() with pairin
     });
 
     await controller.performSignIn();
-    await new Promise((resolve) => setTimeout(resolve, 50));
 
-    expect(controller.state.socialPairingDone).toBeUndefined();
-    expect(controller.state.pairingInProgress).toBeUndefined();
+    // Wait a moment to ensure no pairing state changes occur
+    await waitFor(
+      () => {
+        expect(controller.state.isSignedIn).toBe(true);
+        expect(controller.state.socialPairingDone).toBe(false);
+        expect(controller.state.pairingInProgress).toBeUndefined();
+      },
+      { timeoutMs: 500 },
+    );
     expect(mockEndpoints.mockPairSocialIdentifierUrl.isDone()).toBe(false);
     mockEndpoints.mockNonceUrl.done();
     mockEndpoints.mockSrpLoginUrl.done();
@@ -285,11 +291,16 @@ describe('authentication/authentication-controller - performSignIn() with pairin
     });
 
     await controller.performSignIn();
-    await new Promise((resolve) => setTimeout(resolve, 50));
 
-    // Should not update state since pairing was already done
-    expect(controller.state.socialPairingDone).toBe(true);
-    expect(controller.state.pairingInProgress).toBeUndefined();
+    // Wait to ensure the state remains unchanged since pairing was already done
+    await waitFor(
+      () => {
+        expect(controller.state.isSignedIn).toBe(true);
+        expect(controller.state.socialPairingDone).toBe(true);
+        expect(controller.state.pairingInProgress).toBeUndefined();
+      },
+      { timeoutMs: 500 },
+    );
     expect(mockEndpoints.mockPairSocialIdentifierUrl.isDone()).toBe(false);
     mockEndpoints.mockNonceUrl.done();
     mockEndpoints.mockSrpLoginUrl.done();
@@ -315,10 +326,15 @@ describe('authentication/authentication-controller - performSignIn() with pairin
     });
 
     await controller.performSignIn();
-    await new Promise((resolve) => setTimeout(resolve, 50));
 
-    // Should not change pairing state since it was already in progress
-    expect(controller.state.pairingInProgress).toBe(true);
+    // Wait to ensure pairing state remains unchanged since it was already in progress
+    await waitFor(
+      () => {
+        expect(controller.state.isSignedIn).toBe(true);
+        expect(controller.state.pairingInProgress).toBe(true);
+      },
+      { timeoutMs: 500 },
+    );
     expect(mockEndpoints.mockPairSocialIdentifierUrl.isDone()).toBe(false);
     mockEndpoints.mockNonceUrl.done();
     mockEndpoints.mockSrpLoginUrl.done();
@@ -348,11 +364,12 @@ describe('authentication/authentication-controller - performSignIn() with pairin
     ]);
     expect(controller.state.isSignedIn).toBe(true);
 
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    // Pairing should have been attempted but failed
-    expect(controller.state.socialPairingDone).toBeUndefined();
-    expect(controller.state.pairingInProgress).toBe(false);
+    // Wait for the pairing attempt to complete (and fail)
+    await waitFor(() => {
+      expect(controller.state.isSignedIn).toBe(true);
+      expect(controller.state.socialPairingDone).toBeUndefined();
+      expect(controller.state.pairingInProgress).toBe(false);
+    });
     mockEndpoints.mockNonceUrl.done();
     mockEndpoints.mockSrpLoginUrl.done();
     mockEndpoints.mockOAuth2TokenUrl.done();
