@@ -334,8 +334,9 @@ export type VaultData = {
   toprfAuthKeyPair: string;
   /**
    * The revoke token to revoke refresh token and get new refresh token and new revoke token.
+   * Revoke is only available when max password chain length doesn't exceeds on a device.
    */
-  revokeToken: string;
+  revokeToken?: string;
   /**
    * The access token used for pairing with profile sync auth service and to access other services.
    */

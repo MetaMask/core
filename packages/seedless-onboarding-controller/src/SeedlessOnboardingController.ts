@@ -18,6 +18,7 @@ import { managedNonce } from '@noble/ciphers/webcrypto';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { Mutex } from 'async-mutex';
 
+import { assertIsValidVaultData } from './assertions';
 import type { AuthConnection } from './constants';
 import {
   controllerName,
@@ -1181,7 +1182,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     toprfEncryptionKey: Uint8Array;
     toprfPwEncryptionKey: Uint8Array;
     toprfAuthKeyPair: KeyPair;
-    revokeToken: string;
+    revokeToken?: string;
     accessToken: string;
   }> {
     return this.#withVaultLock(async () => {
@@ -1530,7 +1531,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     toprfEncryptionKey: Uint8Array;
     toprfPwEncryptionKey: Uint8Array;
     toprfAuthKeyPair: KeyPair;
-    revokeToken: string;
+    revokeToken?: string;
     accessToken: string;
   } {
     if (typeof data !== 'string') {
@@ -1548,7 +1549,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       );
     }
 
-    this.#assertIsValidVaultData(parsedVaultData);
+    assertIsValidVaultData(parsedVaultData);
 
     const rawToprfEncryptionKey = base64ToBytes(
       parsedVaultData.toprfEncryptionKey,
@@ -1667,34 +1668,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     this.update((state) => {
       delete state.passwordOutdatedCache;
     });
-  }
-
-  /**
-   * Check if the provided value is a valid vault data.
-   *
-   * @param value - The value to check.
-   * @throws If the value is not a valid vault data.
-   */
-  #assertIsValidVaultData(value: unknown): asserts value is VaultData {
-    // value is not valid vault data if any of the following conditions are true:
-    if (
-      !value || // value is not defined
-      typeof value !== 'object' || // value is not an object
-      !('toprfEncryptionKey' in value) || // toprfEncryptionKey is not defined
-      typeof value.toprfEncryptionKey !== 'string' || // toprfEncryptionKey is not a string
-      !('toprfPwEncryptionKey' in value) || // toprfPwEncryptionKey is not defined
-      typeof value.toprfPwEncryptionKey !== 'string' || // toprfPwEncryptionKey is not a string
-      !('toprfAuthKeyPair' in value) || // toprfAuthKeyPair is not defined
-      typeof value.toprfAuthKeyPair !== 'string' || // toprfAuthKeyPair is not a string
-      // throw error if revoke token exist but is not a string and is not undefined
-      ('revokeToken' in value &&
-        typeof value.revokeToken !== 'string' &&
-        value.revokeToken !== undefined) ||
-      !('accessToken' in value) || // accessToken is not defined
-      typeof value.accessToken !== 'string' // accessToken is not a string
-    ) {
-      throw new Error(SeedlessOnboardingControllerErrorMessage.VaultDataError);
-    }
   }
 
   /**
