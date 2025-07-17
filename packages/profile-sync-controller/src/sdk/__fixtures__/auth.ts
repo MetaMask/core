@@ -55,7 +55,6 @@ export const handleMockPairIdentifiers = (mockReply?: MockReply) => {
 export const handleMockPairSocialIdentifier = (mockReply?: MockReply) => {
   const reply = mockReply ?? { status: 200 };
   const mockPairSocialIdentifierEndpoint = nock(MOCK_PAIR_SOCIAL_IDENTIFIER_URL)
-    .persist()
     .post('')
     .reply(reply.status, reply.body);
 

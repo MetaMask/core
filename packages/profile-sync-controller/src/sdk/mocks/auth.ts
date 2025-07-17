@@ -23,9 +23,14 @@ export const MOCK_JWT =
 export const MOCK_ACCESS_JWT =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c';
 
+export const MOCK_PUBLIC_KEY = 'MOCK_PUBLIC_KEY';
+export const MOCK_SOCIAL_TOKEN = 'MOCK_SOCIAL_TOKEN';
+export const MOCK_NONCE = 'xGMm9SoihEKeAEfV';
+export const MOCK_SIGNED_MESSAGE = `metamask:${MOCK_NONCE}:${MOCK_PUBLIC_KEY}`;
+
 export const MOCK_NONCE_RESPONSE = {
-  nonce: 'xGMm9SoihEKeAEfV',
-  identifier: '0xd8641601Cb79a94FD872fE42d5b4a067A44a7e88',
+  nonce: MOCK_NONCE,
+  identifier: MOCK_PUBLIC_KEY,
   expires_in: 300,
 };
 

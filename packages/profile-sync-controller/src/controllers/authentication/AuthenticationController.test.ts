@@ -10,7 +10,12 @@ import { MOCK_LOGIN_RESPONSE, MOCK_OATH_TOKEN_RESPONSE } from './mocks';
 import type { LoginResponse } from '../../sdk';
 import { Platform } from '../../sdk';
 import { arrangeAuthAPIs } from '../../sdk/__fixtures__/auth';
-import { MOCK_USER_PROFILE_METAMETRICS_RESPONSE } from '../../sdk/mocks/auth';
+import {
+  MOCK_PUBLIC_KEY,
+  MOCK_SIGNED_MESSAGE,
+  MOCK_SOCIAL_TOKEN,
+  MOCK_USER_PROFILE_METAMETRICS_RESPONSE,
+} from '../../sdk/mocks/auth';
 import { waitFor } from '../user-storage/__fixtures__/test-utils';
 
 const MOCK_ENTROPY_SOURCE_IDS = [
@@ -213,7 +218,7 @@ describe('authentication/authentication-controller - performSignIn() with pairin
 
     // Mock social token is available
     mockSeedlessOnboardingGetState.mockReturnValue({
-      accessToken: 'MOCK_SOCIAL_TOKEN',
+      accessToken: MOCK_SOCIAL_TOKEN,
     });
 
     const controller = new AuthenticationController({ messenger, metametrics });
@@ -278,7 +283,7 @@ describe('authentication/authentication-controller - performSignIn() with pairin
       createMockAuthenticationMessenger();
 
     mockSeedlessOnboardingGetState.mockReturnValue({
-      accessToken: 'MOCK_SOCIAL_TOKEN',
+      accessToken: MOCK_SOCIAL_TOKEN,
     });
 
     const controller = new AuthenticationController({
@@ -313,7 +318,7 @@ describe('authentication/authentication-controller - performSignIn() with pairin
       createMockAuthenticationMessenger();
 
     mockSeedlessOnboardingGetState.mockReturnValue({
-      accessToken: 'MOCK_SOCIAL_TOKEN',
+      accessToken: MOCK_SOCIAL_TOKEN,
     });
 
     const controller = new AuthenticationController({
@@ -350,7 +355,7 @@ describe('authentication/authentication-controller - performSignIn() with pairin
       createMockAuthenticationMessenger();
 
     mockSeedlessOnboardingGetState.mockReturnValue({
-      accessToken: 'MOCK_SOCIAL_TOKEN',
+      accessToken: MOCK_SOCIAL_TOKEN,
     });
 
     const controller = new AuthenticationController({ messenger, metametrics });
@@ -374,6 +379,53 @@ describe('authentication/authentication-controller - performSignIn() with pairin
     mockEndpoints.mockSrpLoginUrl.done();
     mockEndpoints.mockOAuth2TokenUrl.done();
     mockEndpoints.mockPairSocialIdentifierUrl.done();
+  });
+
+  it('calls pairing endpoint only once when performSignIn is called 10 times in parallel', async () => {
+    const metametrics = createMockAuthMetaMetrics();
+    const mockEndpoints = arrangeAuthAPIs();
+    const { messenger, mockSeedlessOnboardingGetState } =
+      createMockAuthenticationMessenger();
+
+    // Mock social token is available
+    mockSeedlessOnboardingGetState.mockReturnValue({
+      accessToken: MOCK_SOCIAL_TOKEN,
+    });
+
+    const controller = new AuthenticationController({ messenger, metametrics });
+    const requestCounter  = jest.fn();
+    mockEndpoints.mockPairSocialIdentifierUrl.on('request', requestCounter)
+
+    // Call performSignIn 10 times in parallel
+    const signInPromises = Array.from({ length: 10 }, () =>
+      controller.performSignIn(),
+    );
+
+    const results = await Promise.all(signInPromises);
+
+    // Verify all sign-ins succeeded
+    results.forEach((result) => {
+      expect(result).toStrictEqual([
+        MOCK_OATH_TOKEN_RESPONSE.access_token,
+        MOCK_OATH_TOKEN_RESPONSE.access_token,
+      ]);
+    });
+
+    // Wait for pairing to complete
+    await waitFor(() => {
+      expect(controller.state.isSignedIn).toBe(true);
+      expect(controller.state.socialPairingDone).toBe(true);
+      expect(controller.state.pairingInProgress).toBe(false);
+    });
+
+    // Verify pairing endpoint was called exactly once
+    expect(mockEndpoints.mockPairSocialIdentifierUrl.isDone()).toBe(true);
+    expect(requestCounter).toHaveBeenCalledTimes(1);
+
+    // Clean up other endpoints (they could have been called multiple times)
+    mockEndpoints.mockNonceUrl.done();
+    mockEndpoints.mockSrpLoginUrl.done();
+    mockEndpoints.mockOAuth2TokenUrl.done();
   });
 });
 
@@ -574,7 +626,7 @@ describe('authentication/authentication-controller - getSessionProfile() tests',
   });
 
   // If the state is invalid, we need to re-login.
-  // But as wallet is locked, we will not be able to call the snap
+  // But as the wallet is locked, we will not be able to call the snap
   it('should throw error if wallet is locked', async () => {
     const metametrics = createMockAuthMetaMetrics();
     const { messenger, mockKeyringControllerGetState } =
@@ -719,22 +771,20 @@ function createMockAuthenticationMessenger() {
   const { baseMessenger, messenger } = createAuthenticationMessenger();
 
   const mockCall = jest.spyOn(messenger, 'call');
-  const mockSnapGetPublicKey = jest.fn().mockResolvedValue('MOCK_PUBLIC_KEY');
+  const mockSnapGetPublicKey = jest.fn().mockResolvedValue(MOCK_PUBLIC_KEY);
   const mockSnapGetAllPublicKeys = jest
     .fn()
     .mockResolvedValue(
-      MOCK_ENTROPY_SOURCE_IDS.map((id) => [id, 'MOCK_PUBLIC_KEY']),
+      MOCK_ENTROPY_SOURCE_IDS.map((id) => [id, MOCK_PUBLIC_KEY]),
     );
-  const mockSnapSignMessage = jest
-    .fn()
-    .mockResolvedValue('MOCK_SIGNED_MESSAGE');
+  const mockSnapSignMessage = jest.fn().mockResolvedValue(MOCK_SIGNED_MESSAGE);
 
   const mockKeyringControllerGetState = jest
     .fn()
     .mockReturnValue({ isUnlocked: true });
 
   const mockSeedlessOnboardingGetState = jest.fn().mockReturnValue({
-    accessToken: 'MOCK_SOCIAL_TOKEN',
+    accessToken: MOCK_SOCIAL_TOKEN,
   });
 
   mockCall.mockImplementation((...args) => {
