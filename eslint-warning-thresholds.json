@@ -127,10 +127,10 @@
   "packages/assets-controllers/src/token-prices-service/codefi-v2.ts": {
     "jsdoc/tag-lines": 2
   },
-  "packages/base-controller/src/BaseControllerV2.test.ts": {
+  "packages/base-controller/src/BaseController.test.ts": {
     "import-x/namespace": 16
   },
-  "packages/base-controller/src/BaseControllerV2.ts": {
+  "packages/base-controller/src/BaseController.ts": {
     "jsdoc/check-tag-names": 2
   },
   "packages/build-utils/src/transforms/remove-fenced-code.test.ts": {
