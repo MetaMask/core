@@ -40,6 +40,25 @@ describe('encryption tests', () => {
     expect(result).toBe(DATA1);
   });
 
+  it('should derive and use a different key for entries that have the same password but different encryption options', async () => {
+    const data1EncryptedWithOldN =
+      '{"v":"1","t":"scrypt","d":"AAECAwQFBgcICQoLDA0OD5rMiKCTz61h5abF98yn50UPflCq6Ozov3NAk+y4h6o5bp0jJLJ0rw==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}';
+    const data1EncryptedWithNewN =
+      '{"v":"1","t":"scrypt","d":"AAECAwQFBgcICQoLDA0ODx8V+QwHALZFtAw/DhXD9ev78fT327jgGXlB7/kXeZQc6zaRqw6VgA==","o":{"N":2,"r":8,"p":1,"dkLen":16},"saltLen":16}';
+
+    const decrypted1 = await encryption.decryptString(
+      data1EncryptedWithOldN,
+      PASSWORD,
+    );
+    const decrypted2 = await encryption.decryptString(
+      data1EncryptedWithNewN,
+      PASSWORD,
+    );
+
+    expect(decrypted1).toBe(DATA1);
+    expect(decrypted2).toBe(DATA1);
+  });
+
   it('should sha-256 hash a value and should be deterministic', () => {
     const DATA = 'Hello World';
     const EXPECTED_HASH =
