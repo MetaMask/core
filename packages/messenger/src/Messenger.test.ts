@@ -26,6 +26,28 @@ describe('Messenger', () => {
     expect(count).toBe(1);
   });
 
+  it('automatically delegates actions to parent upon registration', () => {
+    type CountAction = {
+      type: 'Fixture:count';
+      handler: (increment: number) => void;
+    };
+    const parentMessenger = new Messenger<'Parent', CountAction, never>({
+      namespace: 'Parent',
+    });
+    const messenger = new Messenger<'Fixture', CountAction, never>({
+      namespace: 'Fixture',
+      parent: parentMessenger,
+    });
+
+    let count = 0;
+    messenger.registerActionHandler('Fixture:count', (increment: number) => {
+      count += increment;
+    });
+    parentMessenger.call('Fixture:count', 1);
+
+    expect(count).toBe(1);
+  });
+
   it('should allow registering and calling multiple different action handlers', () => {
     // These 'Other' types are included to demonstrate that messenger generics can indeed be unions
     // of actions and events from different modules.
@@ -219,6 +241,24 @@ describe('Messenger', () => {
 
     const handler = sinon.stub();
     messenger.subscribe('Fixture:message', handler);
+    messenger.publish('Fixture:message', 'hello');
+
+    expect(handler.calledWithExactly('hello')).toBe(true);
+    expect(handler.callCount).toBe(1);
+  });
+
+  it('automatically delegates events to parent upon first publish', () => {
+    type MessageEvent = { type: 'Fixture:message'; payload: [string] };
+    const parentMessenger = new Messenger<'Parent', never, MessageEvent>({
+      namespace: 'Parent',
+    });
+    const messenger = new Messenger<'Fixture', never, MessageEvent>({
+      namespace: 'Fixture',
+      parent: parentMessenger,
+    });
+
+    const handler = sinon.stub();
+    parentMessenger.subscribe('Fixture:message', handler);
     messenger.publish('Fixture:message', 'hello');
 
     expect(handler.calledWithExactly('hello')).toBe(true);
@@ -511,6 +551,42 @@ describe('Messenger', () => {
       expect(handler.calledWithExactly('a', undefined)).toBe(true);
       expect(handler.callCount).toBe(1);
     });
+  });
+
+  it('automatically delegates to parent when an initial payload is registered', () => {
+    const state = {
+      propA: 1,
+      propB: 1,
+    };
+    type MessageEvent = {
+      type: 'Fixture:complexMessage';
+      payload: [typeof state];
+    };
+    const parentMessenger = new Messenger<'Parent', never, MessageEvent>({
+      namespace: 'Parent',
+    });
+    const messenger = new Messenger<'Fixture', never, MessageEvent>({
+      namespace: 'Fixture',
+      parent: parentMessenger,
+    });
+    const handler = sinon.stub();
+
+    messenger.registerInitialEventPayload({
+      eventType: 'Fixture:complexMessage',
+      getPayload: () => [state],
+    });
+
+    parentMessenger.subscribe(
+      'Fixture:complexMessage',
+      handler,
+      (obj) => obj.propA,
+    );
+    messenger.publish('Fixture:complexMessage', state);
+    expect(handler.callCount).toBe(0);
+    state.propA += 1;
+    messenger.publish('Fixture:complexMessage', state);
+    expect(handler.getCall(0)?.args).toStrictEqual([2, 1]);
+    expect(handler.callCount).toBe(1);
   });
 
   it('should publish event to many subscribers with the same selector', () => {
@@ -1080,6 +1156,27 @@ describe('Messenger', () => {
   });
 
   describe('revoke', () => {
+    it('throws when attempting to revoke from parent', () => {
+      type ExampleEvent = {
+        type: 'Source:event';
+        payload: ['test'];
+      };
+      const parentMessenger = new Messenger<'Parent', never, ExampleEvent>({
+        namespace: 'Parent',
+      });
+      const sourceMessenger = new Messenger<'Source', never, ExampleEvent>({
+        namespace: 'Source',
+        parent: parentMessenger,
+      });
+
+      expect(() =>
+        sourceMessenger.revoke({
+          messenger: parentMessenger,
+          events: ['Source:event'],
+        }),
+      ).toThrow('Cannot revoke from parent');
+    });
+
     it('allows revoking a delegated event', () => {
       type ExampleEvent = {
         type: 'Source:event';
