@@ -188,14 +188,14 @@ main() {
 
   local all_issues_extension
   if ! all_issues_extension=$(gh issue list --repo "$EXTENSION_REPO" --label "$DEFAULT_LABEL" --state open --json number,title,url 2>&1); then
-    echo "❌ Failed to fetch issues from ${repo}"
+    echo "❌ Failed to fetch issues from ${EXTENSION_REPO}"
     echo "$all_issues_extension"
     exit 1
   fi
 
   local all_issues_mobile
   if ! all_issues_mobile=$(gh issue list --repo "$MOBILE_REPO" --label "$DEFAULT_LABEL" --state open --json number,title,url 2>&1); then
-    echo "❌ Failed to fetch issues from ${repo}"
+    echo "❌ Failed to fetch issues from ${MOBILE_REPO}"
     echo "$all_issues_mobile"
     exit 1
   fi
