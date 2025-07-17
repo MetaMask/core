@@ -1375,12 +1375,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   }): Promise<void> {
     this.#assertIsAuthenticatedUser(this.state);
 
-    if (!this.state.revokeToken) {
-      throw new Error(
-        SeedlessOnboardingControllerErrorMessage.InvalidRevokeToken,
-      );
-    }
-
     if (!this.state.accessToken) {
       throw new Error(
         SeedlessOnboardingControllerErrorMessage.InvalidAccessToken,
@@ -1692,8 +1686,10 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       typeof value.toprfPwEncryptionKey !== 'string' || // toprfPwEncryptionKey is not a string
       !('toprfAuthKeyPair' in value) || // toprfAuthKeyPair is not defined
       typeof value.toprfAuthKeyPair !== 'string' || // toprfAuthKeyPair is not a string
-      !('revokeToken' in value) || // revokeToken is not defined
-      typeof value.revokeToken !== 'string' || // revokeToken is not a string
+      // throw error if revoke token exist but is not a string and is not undefined
+      ('revokeToken' in value &&
+        typeof value.revokeToken !== 'string' &&
+        value.revokeToken !== undefined) ||
       !('accessToken' in value) || // accessToken is not defined
       typeof value.accessToken !== 'string' // accessToken is not a string
     ) {
@@ -1754,6 +1750,14 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       toprfPwEncryptionKey,
       toprfAuthKeyPair,
     } = await this.#unlockVaultAndGetBackupEncKey();
+
+    // revoke token can be undefined if the max key chain length is reached.
+    // TODO: remove this once we have better solution to handle max key chain length.
+    if (!revokeToken) {
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.InvalidRevokeToken,
+      );
+    }
 
     const { newRevokeToken, newRefreshToken } = await this.#revokeRefreshToken({
       connection: this.state.authConnection,
