@@ -5,13 +5,13 @@ import * as sinon from 'sinon';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-} from './BaseControllerV2';
+} from './BaseController';
 import {
   BaseController,
   getAnonymizedState,
   getPersistentState,
   isBaseController,
-} from './BaseControllerV2';
+} from './BaseController';
 import { Messenger } from './Messenger';
 import type { RestrictedMessenger } from './RestrictedMessenger';
 import { JsonRpcEngine } from '../../json-rpc-engine/src';
