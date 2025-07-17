@@ -696,13 +696,16 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @description Unlock the controller with the latest global password.
    *
    * @param params - The parameters for unlocking the controller.
+   * @param params.maxKeyChainLength - The maximum chain length of the pwd encryption keys.
    * @param params.globalPassword - The latest global password.
    * @returns A promise that resolves to the success of the operation.
    */
   async submitGlobalPassword({
     globalPassword,
+    maxKeyChainLength = 5,
   }: {
     globalPassword: string;
+    maxKeyChainLength?: number;
   }): Promise<void> {
     return await this.#withControllerLock(async () => {
       return await this.#executeWithTokenRefresh(async () => {
@@ -710,6 +713,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         await this.#submitGlobalPassword({
           targetAuthPubKey: currentDeviceAuthPubKey,
           globalPassword,
+          maxKeyChainLength,
         });
       }, 'submitGlobalPassword');
     });
@@ -720,6 +724,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * password validity and unlock the controller.
    *
    * @param params - The parameters for submitting the global password.
+   * @param params.maxKeyChainLength - The maximum chain length of the pwd encryption keys.
    * @param params.targetAuthPubKey - The target public key of the keyring
    * encryption key to recover.
    * @param params.globalPassword - The latest global password.
@@ -729,9 +734,11 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   async #submitGlobalPassword({
     targetAuthPubKey,
     globalPassword,
+    maxKeyChainLength = 5,
   }: {
     targetAuthPubKey: SEC1EncodedPublicKey;
     globalPassword: string;
+    maxKeyChainLength?: number;
   }): Promise<void> {
     const { pwEncKey: curPwEncKey, authKeyPair: curAuthKeyPair } =
       await this.#recoverEncKey(globalPassword);
@@ -742,6 +749,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         targetAuthPubKey,
         curPwEncKey,
         curAuthKeyPair,
+        maxPwChainLength: maxKeyChainLength,
       });
       const { pwEncKey } = res;
       const vaultKey = await this.#loadSeedlessEncryptionKey(pwEncKey);
@@ -754,6 +762,11 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     } catch (error) {
       if (this.#isTokenExpiredError(error)) {
         throw error;
+      }
+      if (this.#isMaxKeyChainLengthError(error)) {
+        throw new Error(
+          SeedlessOnboardingControllerErrorMessage.MaxKeyChainLengthExceeded,
+        );
       }
       throw PasswordSyncError.getInstance(error);
     }
@@ -1775,6 +1788,23 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     if (error instanceof TOPRFError) {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
       return error.code === TOPRFErrorCode.AuthTokenExpired;
+    }
+
+    return false;
+  }
+
+  /**
+   * Check if the provided error is a max key chain length error.
+   *
+   * This method checks if the error is a TOPRF error with MaxKeyChainLength code.
+   *
+   * @param error - The error to check.
+   * @returns True if the error indicates max key chain length has been exceeded, false otherwise.
+   */
+  #isMaxKeyChainLengthError(error: unknown): boolean {
+    if (error instanceof TOPRFError) {
+      // todo: update this when the error message to error code once toprf sdk is updated.
+      return error.message === 'Exceeded maximum password chain length';
     }
 
     return false;
