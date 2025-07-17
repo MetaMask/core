@@ -386,7 +386,7 @@ describe('gator-permissions-controller - fetchAndUpdateGatorPermissions() tests'
     });
 
     await expect(controller.fetchAndUpdateGatorPermissions()).rejects.toThrow(
-      'Failed to fetch gator permissions',
+      'Gator permissions are not enabled',
     );
   });
 
@@ -466,7 +466,7 @@ describe('gator-permissions-controller - fetchAndUpdateGatorPermissions() tests'
     await controller.enableGatorPermissions();
 
     await expect(controller.fetchAndUpdateGatorPermissions()).rejects.toThrow(
-      'Failed to fetch gator permissions',
+      'Unsupported permission type: invalid-type',
     );
   });
 
@@ -500,7 +500,7 @@ describe('gator-permissions-controller - fetchAndUpdateGatorPermissions() tests'
     await controller.enableGatorPermissions();
 
     await expect(controller.fetchAndUpdateGatorPermissions()).rejects.toThrow(
-      'Failed to fetch gator permissions',
+      'Invalid permission signer type. Only account signer is supported',
     );
   });
 
@@ -519,7 +519,7 @@ describe('gator-permissions-controller - fetchAndUpdateGatorPermissions() tests'
     await controller.enableGatorPermissions();
 
     await expect(controller.fetchAndUpdateGatorPermissions()).rejects.toThrow(
-      'Failed to fetch gator permissions',
+      'Storage error',
     );
 
     expect(controller.state.isFetchingGatorPermissions).toBe(false);

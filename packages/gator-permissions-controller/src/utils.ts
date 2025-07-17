@@ -1,4 +1,9 @@
+import { createModuleLogger } from '@metamask/utils';
+
+import { projectLogger } from './logger';
 import type { GatorPermissionsList } from './types';
+
+const log = createModuleLogger(projectLogger, 'utils');
 
 /**
  * Serializes a gator permissions list to a string.
@@ -9,7 +14,12 @@ import type { GatorPermissionsList } from './types';
 export function serializeGatorPermissionsList(
   gatorPermissionsList: GatorPermissionsList,
 ): string {
-  return JSON.stringify(gatorPermissionsList);
+  try {
+    return JSON.stringify(gatorPermissionsList);
+  } catch (error) {
+    log('Failed to serialize gator permissions list', error);
+    throw error;
+  }
 }
 
 /**
@@ -21,5 +31,10 @@ export function serializeGatorPermissionsList(
 export function deserializeGatorPermissionsList(
   gatorPermissionsList: string,
 ): GatorPermissionsList {
-  return JSON.parse(gatorPermissionsList);
+  try {
+    return JSON.parse(gatorPermissionsList);
+  } catch (error) {
+    log('Failed to deserialize gator permissions list', error);
+    throw error;
+  }
 }

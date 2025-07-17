@@ -8,7 +8,9 @@ import { BaseController } from '@metamask/base-controller';
 import type { HandleSnapRequest, HasSnap } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
+import { createModuleLogger } from '@metamask/utils';
 
+import { projectLogger } from './logger';
 import type {
   GatorPermissionsList,
   NativeTokenStreamPermission,
@@ -29,6 +31,9 @@ const controllerName = 'GatorPermissionsController';
 // Default value for the gator permissions provider snap id
 const defaultGatorPermissionsProviderSnapId =
   '@metamask/gator-permissions-snap' as SnapId;
+
+// Logger for the controller
+const log = createModuleLogger(projectLogger, 'GatorPermissionsController');
 
 // Enum for the RPC methods of the gator permissions provider snap
 enum GatorPermissionsSnapRpcMethod {
@@ -428,9 +433,9 @@ export default class GatorPermissionsController extends BaseController<
       });
 
       return gatorPermissionsList;
-    } catch (err) {
-      console.error('Failed to fetch gator permissions', err);
-      throw new Error('Failed to fetch gator permissions');
+    } catch (error) {
+      log('Failed to fetch gator permissions', error);
+      throw error;
     } finally {
       this.#setIsFetchingGatorPermissions(false);
     }
