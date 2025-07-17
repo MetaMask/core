@@ -9,20 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `BASE` chain to notification UI config in `ui/constants.ts` ([#6124](https://github.com/MetaMask/core/pull/6124))
+- Add `BASE` chain to notification UI config in `ui/constants.ts` ([#6124](https://github.com/MetaMask/core/pull/6124))
 
 ### Changed
 
-- Modified push notification utility `getChainSymbol` in `get-notification-message.ts` to use UI constants ([#6124](https://github.com/MetaMask/core/pull/6124))
+- Update push notification utility `getChainSymbol` in `get-notification-message.ts` to use UI constants ([#6124](https://github.com/MetaMask/core/pull/6124))
 
 ### Removed
 
-- Removed old config/constants ([#6124](https://github.com/MetaMask/core/pull/6124))
-  - Removed `NOTIFICATION_CHAINS` constant from `notification-schema.ts`
-  - Removed `CHAIN_SYMBOLS` constant from `notification-schema.ts`
-  - Removed `SUPPORTED_CHAINS` constant from `notification-schema.ts`
-  - Removed `Trigger` type from `notification-schema.ts`
-  - Removed `TRIGGERS` constant from `notification-schema.ts`
+- **BREAKING:** Cleanup old config/constants ([#6124](https://github.com/MetaMask/core/pull/6124))
+  - Remove `NOTIFICATION_CHAINS` constant from `notification-schema.ts`
+  - Remove `CHAIN_SYMBOLS` constant from `notification-schema.ts`
+  - Remove `SUPPORTED_CHAINS` constant from `notification-schema.ts`
+  - Remove `Trigger` type from `notification-schema.ts`
+  - Remove `TRIGGERS` constant from `notification-schema.ts`
 
 ## [14.0.0]
 
