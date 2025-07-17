@@ -641,7 +641,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
 
       if (revokeToken) {
         await this.#revokeRefreshTokenAndUpdateState(revokeToken);
-        // re-creating with to persist the new revoke token
+        // re-creating vault with to persist the new revoke token
         await this.#createNewVaultWithAuthData({
           password,
           rawToprfEncryptionKey: toprfEncryptionKey,
@@ -779,7 +779,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       if (revokeToken) {
         // revoke and recyle refresh token after unlock to keep refresh token fresh, avoid malicious use of leaked refresh token
         await this.#revokeRefreshTokenAndUpdateState(revokeToken);
-        // re-creating with to persist the new revoke token
+        // re-creating vault with to persist the new revoke token
         await this.#createNewVaultWithAuthData({
           password: globalPassword,
           rawToprfEncryptionKey: toprfEncryptionKey,
