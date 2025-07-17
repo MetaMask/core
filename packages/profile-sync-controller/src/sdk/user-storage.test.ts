@@ -18,7 +18,11 @@ import {
 import type { StorageOptions } from './user-storage';
 import { STORAGE_URL, UserStorage } from './user-storage';
 import encryption, { createSHA256Hash } from '../shared/encryption';
-import { SCRYPT_N_V2, SHARED_SALT } from '../shared/encryption/constants';
+import {
+  SCRYPT_N_V2,
+  SHARED_SALT,
+  SHARED_SALT_V2,
+} from '../shared/encryption/constants';
 import { Env } from '../shared/env';
 import type { UserStorageGenericFeatureKey } from '../shared/storage-schema';
 import { USER_STORAGE_FEATURE_NAMES } from '../shared/storage-schema';
@@ -114,11 +118,15 @@ describe('User Storage', () => {
           return;
         }
 
-        const isEncryptedUsingSharedSalt =
+        const isEncryptedUsingSharedSaltV2 =
           encryption.getSalt(requestBody.data).toString() ===
-          SHARED_SALT.toString();
+          SHARED_SALT_V2.toString();
 
-        expect(isEncryptedUsingSharedSalt).toBe(true);
+        const isEncryptedUsingNewScryptN =
+          JSON.parse(requestBody.data).o.N === SCRYPT_N_V2;
+
+        expect(isEncryptedUsingSharedSaltV2).toBe(true);
+        expect(isEncryptedUsingNewScryptN).toBe(true);
       },
     );
 
@@ -220,13 +228,19 @@ describe('User Storage', () => {
           return;
         }
 
-        const doEntriesUseSharedSalt = Object.entries(requestBody.data).every(
+        const doEntriesUseSharedSaltV2 = Object.entries(requestBody.data).every(
           ([_entryKey, entryValue]) =>
             encryption.getSalt(entryValue as string).toString() ===
-            SHARED_SALT.toString(),
+            SHARED_SALT_V2.toString(),
         );
 
-        expect(doEntriesUseSharedSalt).toBe(true);
+        const doEntriesUseNewScryptN = Object.entries(requestBody.data).every(
+          ([_entryKey, entryValue]) =>
+            JSON.parse(entryValue as string).o.N === SCRYPT_N_V2,
+        );
+
+        expect(doEntriesUseSharedSaltV2).toBe(true);
+        expect(doEntriesUseNewScryptN).toBe(true);
 
         const wereOnlyNonEmptySaltEntriesUploaded =
           Object.entries(requestBody.data).length === 2;
