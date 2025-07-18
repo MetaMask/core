@@ -311,6 +311,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     incompleteHistoryItems.forEach((historyItem) => {
       const bridgeTxMetaId = historyItem.txMetaId;
+      const shouldSkipFetch = this.#shouldSkipFetchDueToFetchFailures(
+        historyItem.attempts,
+      );
+      if (shouldSkipFetch) {
+        return;
+      }
 
       // We manually call startPolling() here rather than go through startPollingForBridgeTxStatus()
       // because we don't want to overwrite the existing historyItem in state
