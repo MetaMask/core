@@ -228,10 +228,10 @@ class EncryptorDecryptor {
     try {
       const encryptedData: EncryptedPayload = JSON.parse(encryptedDataStr);
 
-      // Only check N value - in production, only two valid scenarios exist:
-      // 1. N:2**17 + SHARED_SALT (old code)
-      // 2. N:2 + SHARED_SALT_V2 (new code)
-      return encryptedData.o?.N !== SCRYPT_N_V2;
+      return (
+        encryptedData.o?.N !== SCRYPT_N_V2 ||
+        this.getSalt(encryptedDataStr).toString() !== SHARED_SALT_V2.toString()
+      );
     } catch {
       return false;
     }
@@ -266,8 +266,7 @@ class EncryptorDecryptor {
   ) {
     const hashedPassword = createSHA256Hash(password);
 
-    const targetSalt =
-      salt ?? (o.N === SCRYPT_N_V2 ? SHARED_SALT_V2 : SHARED_SALT);
+    const targetSalt = salt ?? SHARED_SALT_V2;
 
     const cachedKey = getCachedKeyBySalt(hashedPassword, targetSalt);
 

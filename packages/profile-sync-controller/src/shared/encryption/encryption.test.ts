@@ -164,8 +164,8 @@ describe('encryption tests', () => {
       expect(result).toBe(true);
     });
 
-    it('should return false if entry uses new scrypt N parameter', () => {
-      const entry = `{"v":"1","t":"scrypt","d":"AAECAwQFBgcICQoLDA0ODzGY11N8GhRoaD6YMqLp/sZnRHaG9gbNEyASWZSok/xBZhAOw2hKOH6qieSQSCYmtZZjqZ6lxfEfsYyS2ivGhUrVQmJYSXpr78As4Bc7pnLQACPfLJqiFwDVRG4Lf/k+DpfKzBmdS1h+nOiTHaN8MmMY6jKkfjVqnJSEkvKcQBnOBw27+PW8L1OQBXITaImO1GOE4OOBjfD4XX7uezBrsv0TuFWeDumSzYqDnw==","o":{"N":${SCRYPT_N_V2},"r":8,"p":1,"dkLen":16},"saltLen":16}`;
+    it('should return false if entry uses new scrypt N parameter', async () => {
+      const entry = await encryption.encryptString(DATA1, PASSWORD);
 
       const result = encryption.doesEntryNeedReEncryption(entry);
       expect(result).toBe(false);
