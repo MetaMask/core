@@ -122,7 +122,7 @@ export function getDerivationPathForIndex(index: number): string {
  * @param address - The address to match.
  * @returns The group index for that address, undefined if not able to match the address.
  */
-export function getGroupIndexFromAddress(
+export function getGroupIndexFromAddressIndex(
   keyring: KeyringObject,
   address: string,
 ): number | undefined {

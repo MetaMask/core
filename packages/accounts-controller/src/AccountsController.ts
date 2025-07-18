@@ -44,7 +44,7 @@ import type { WritableDraft } from 'immer/dist/internal.js';
 import type { MultichainNetworkControllerNetworkDidChangeEvent } from './types';
 import {
   getDerivationPathForIndex,
-  getGroupIndexFromAddress,
+  getGroupIndexFromAddressIndex,
   getUUIDFromAddressOfNormalAccount,
   isHdKeyringType,
   isHdSnapKeyringAccount,
@@ -653,7 +653,7 @@ export class AccountsController extends BaseController<
     let options: InternalAccount['options'] = {};
     if (isHdKeyringType(keyring.type)) {
       // We need to find the account index from its HD keyring.
-      const groupIndex = getGroupIndexFromAddress(keyring, address);
+      const groupIndex = getGroupIndexFromAddressIndex(keyring, address);
 
       // If for some reason, we cannot find this address, then the caller made a mistake
       // and it did not use the proper keyring object. For now, we do not fail and just
