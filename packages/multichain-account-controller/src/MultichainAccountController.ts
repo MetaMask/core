@@ -116,7 +116,7 @@ export class MultichainAccountController {
    * @param options - Options.
    * @param options.entropySource - The entropy source of the multichain account.
    * @param options.groupIndex - The group index of the multichain account.
-   * @throws If none multichain account match the entropy source and group index.
+   * @throws If none multichain account match this entropy source and group index.
    * @returns A reference to the multichain account.
    */
   getMultichainAccount({
@@ -141,6 +141,7 @@ export class MultichainAccountController {
    *
    * @param options - Options.
    * @param options.entropySource - The entropy source to query.
+   * @throws If no multichain accounts match this entropy source.
    * @returns A list of all multichain accounts.
    */
   getMultichainAccounts({
