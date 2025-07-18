@@ -1,11 +1,10 @@
-export type RefreshStakingEligibilityOptions = {
+export type RefreshEarnEligibilityOptions = {
   address?: string;
 };
 
 export type RefreshPooledStakesOptions = {
   resetCache?: boolean;
   address?: string;
-  chainId?: number;
 };
 
 export type RefreshPooledStakingDataOptions = {
