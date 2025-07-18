@@ -471,7 +471,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   /**
    * @deprecated For EVM/Solana swap/bridge txs we add tx to history in submitTx()
    * For Solana swap/bridge we start polling in submitTx()
-   * For EVM bridge listen for 'TransactionController:transactionConfirmed' and start polling there
+   * For EVM bridge we listen for 'TransactionController:transactionConfirmed' and start polling there
    * No clients currently call this, safe to remove in future versions
    *
    * Adds tx to history and starts polling for the bridge tx status
