@@ -9,7 +9,7 @@ import type {
   KeyringControllerState,
   KeyringControllerStateChangeEvent,
 } from '@metamask/keyring-controller';
-import type { Hex } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
 
 import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants';
 
@@ -147,6 +147,164 @@ export type PreferencesState = {
    * @deprecated This preference is deprecated and will be removed in the future.
    */
   smartAccountOptInForAccounts: Hex[];
+  /**
+   * Last sync timestamp for preferences
+   */
+  preferencesLastSyncedAt?: number;
+
+  // Visual/UI Preferences
+  /**
+   * Controls whether to use blockies or jazzicons for address icons
+   */
+  useBlockie: boolean;
+  /**
+   * The current theme (dark/light/os)
+   */
+  theme: string;
+  /**
+   * The current locale/language setting
+   */
+  currentLocale: string;
+  /**
+   * Text direction for RTL language support
+   */
+  textDirection?: string;
+
+  // Security/Privacy Preferences
+  /**
+   * Controls phishing detection
+   */
+  usePhishDetect: boolean;
+  /**
+   * Controls whether to use 4byte.directory for smart contract decoding
+   */
+  use4ByteResolution: boolean;
+  /**
+   * Controls whether to use currency rate APIs
+   */
+  useCurrencyRateCheck: boolean;
+  /**
+   * Controls whether to use external name resolution services
+   */
+  useExternalNameSources: boolean;
+  /**
+   * Master toggle for all external services
+   */
+  useExternalServices: boolean;
+  /**
+   * Controls ENS resolution in the address bar
+   */
+  useAddressBarEnsResolution: boolean;
+  /**
+   * Controls whether to override CSP headers (developer feature)
+   */
+  overrideContentSecurityPolicyHeader: boolean;
+
+  // Advanced Settings
+  /**
+   * Whether the SRP backup reminder has been dismissed
+   */
+  dismissSeedBackUpReminder: boolean;
+  /**
+   * Per-network advanced gas fee settings
+   */
+  advancedGasFee: Record<string, Record<string, string>>;
+  /**
+   * Cached known method signatures
+   */
+  knownMethodData: Record<string, string>;
+  /**
+   * Whether the user has forgotten their password
+   */
+  forgottenPassword: boolean;
+  /**
+   * Ledger hardware wallet transport type
+   */
+  ledgerTransportType: string;
+  /**
+   * Whether to save timestamps in MV3 (extension-specific)
+   */
+  enableMV3TimestampSave: boolean;
+
+  // Feature Flags
+  /**
+   * Controls watch-only Ethereum accounts
+   */
+  watchEthereumAccountEnabled: boolean;
+  /**
+   * Controls Snap-based accounts
+   */
+  addSnapAccountEnabled?: boolean;
+  /**
+   * Registry of available Snaps
+   */
+  snapRegistryList: Record<string, Json>;
+  /**
+   * Whether the add Snap account modal has been dismissed
+   */
+  snapsAddSnapAccountModalDismissed?: boolean;
+  /**
+   * Controls multi-account balance checking
+   */
+  useMultiAccountBalanceChecker: boolean;
+  /**
+   * Controls institutional wallet management features
+   */
+  manageInstitutionalWallets: boolean;
+
+  // User Experience Preferences
+  /**
+   * Auto-lock timeout in minutes
+   */
+  autoLockTimeLimit?: number;
+  /**
+   * Controls whether to show extension in full-size view
+   */
+  showExtensionInFullSizeView: boolean;
+  /**
+   * Controls whether to show fiat values on testnets
+   */
+  showFiatInTestnets: boolean;
+  /**
+   * Whether smart transactions migration has been applied
+   */
+  smartTransactionsMigrationApplied: boolean;
+  /**
+   * Controls whether to show native token as main balance
+   */
+  showNativeTokenAsMainBalance: boolean;
+  /**
+   * Controls whether to use native currency as primary
+   */
+  useNativeCurrencyAsPrimaryCurrency: boolean;
+  /**
+   * Controls whether to hide zero balance tokens
+   */
+  hideZeroBalanceTokens: boolean;
+  /**
+   * Controls whether petnames are enabled
+   */
+  petnamesEnabled: boolean;
+  /**
+   * Controls whether feature notifications are enabled
+   */
+  featureNotificationsEnabled: boolean;
+  /**
+   * Controls whether to show advanced confirmation details
+   */
+  showConfirmationAdvancedDetails: boolean;
+  /**
+   * Token filtering by network
+   */
+  tokenNetworkFilter: Record<string, boolean>;
+  /**
+   * Controls whether to skip deep link interstitial
+   */
+  skipDeepLinkInterstitial: boolean;
+  /**
+   * Controls whether to show multi-RPC modal
+   */
+  showMultiRpcModal: boolean;
 };
 
 const metadata = {
@@ -172,6 +330,48 @@ const metadata = {
   dismissSmartAccountSuggestionEnabled: { persist: true, anonymous: true },
   smartAccountOptIn: { persist: true, anonymous: true },
   smartAccountOptInForAccounts: { persist: true, anonymous: true },
+  preferencesLastSyncedAt: { persist: true, anonymous: true },
+  // Visual/UI Preferences
+  useBlockie: { persist: true, anonymous: true },
+  theme: { persist: true, anonymous: true },
+  currentLocale: { persist: true, anonymous: true },
+  textDirection: { persist: true, anonymous: false },
+  // Security/Privacy Preferences
+  usePhishDetect: { persist: true, anonymous: true },
+  use4ByteResolution: { persist: true, anonymous: true },
+  useCurrencyRateCheck: { persist: true, anonymous: true },
+  useExternalNameSources: { persist: true, anonymous: false },
+  useExternalServices: { persist: true, anonymous: false },
+  useAddressBarEnsResolution: { persist: true, anonymous: true },
+  overrideContentSecurityPolicyHeader: { persist: true, anonymous: true },
+  // Advanced Settings
+  dismissSeedBackUpReminder: { persist: true, anonymous: true },
+  advancedGasFee: { persist: true, anonymous: true },
+  knownMethodData: { persist: true, anonymous: false },
+  forgottenPassword: { persist: true, anonymous: true },
+  ledgerTransportType: { persist: true, anonymous: true },
+  enableMV3TimestampSave: { persist: true, anonymous: true },
+  // Feature Flags
+  watchEthereumAccountEnabled: { persist: true, anonymous: false },
+  addSnapAccountEnabled: { persist: true, anonymous: false },
+  snapRegistryList: { persist: true, anonymous: false },
+  snapsAddSnapAccountModalDismissed: { persist: true, anonymous: false },
+  useMultiAccountBalanceChecker: { persist: true, anonymous: true },
+  manageInstitutionalWallets: { persist: true, anonymous: false },
+  // User Experience Preferences
+  autoLockTimeLimit: { persist: true, anonymous: true },
+  showExtensionInFullSizeView: { persist: true, anonymous: true },
+  showFiatInTestnets: { persist: true, anonymous: true },
+  smartTransactionsMigrationApplied: { persist: true, anonymous: true },
+  showNativeTokenAsMainBalance: { persist: true, anonymous: true },
+  useNativeCurrencyAsPrimaryCurrency: { persist: true, anonymous: true },
+  hideZeroBalanceTokens: { persist: true, anonymous: true },
+  petnamesEnabled: { persist: true, anonymous: true },
+  featureNotificationsEnabled: { persist: true, anonymous: true },
+  showConfirmationAdvancedDetails: { persist: true, anonymous: true },
+  tokenNetworkFilter: { persist: true, anonymous: true },
+  skipDeepLinkInterstitial: { persist: true, anonymous: true },
+  showMultiRpcModal: { persist: true, anonymous: true },
 };
 
 const name = 'PreferencesController';
@@ -255,6 +455,47 @@ export function getDefaultPreferencesState(): PreferencesState {
     dismissSmartAccountSuggestionEnabled: false,
     smartAccountOptIn: true,
     smartAccountOptInForAccounts: [],
+    // Visual/UI Preferences
+    useBlockie: false,
+    theme: 'dark',
+    currentLocale: '',
+    textDirection: undefined,
+    // Security/Privacy Preferences
+    usePhishDetect: true,
+    use4ByteResolution: true,
+    useCurrencyRateCheck: true,
+    useExternalNameSources: true,
+    useExternalServices: true,
+    useAddressBarEnsResolution: true,
+    overrideContentSecurityPolicyHeader: true,
+    // Advanced Settings
+    dismissSeedBackUpReminder: false,
+    advancedGasFee: {},
+    knownMethodData: {},
+    forgottenPassword: false,
+    ledgerTransportType: 'webhid',
+    enableMV3TimestampSave: true,
+    // Feature Flags
+    watchEthereumAccountEnabled: false,
+    addSnapAccountEnabled: false,
+    snapRegistryList: {},
+    snapsAddSnapAccountModalDismissed: false,
+    useMultiAccountBalanceChecker: true,
+    manageInstitutionalWallets: false,
+    // User Experience Preferences
+    autoLockTimeLimit: undefined,
+    showExtensionInFullSizeView: false,
+    showFiatInTestnets: false,
+    smartTransactionsMigrationApplied: false,
+    showNativeTokenAsMainBalance: false,
+    useNativeCurrencyAsPrimaryCurrency: true,
+    hideZeroBalanceTokens: false,
+    petnamesEnabled: true,
+    featureNotificationsEnabled: false,
+    showConfirmationAdvancedDetails: false,
+    tokenNetworkFilter: {},
+    skipDeepLinkInterstitial: false,
+    showMultiRpcModal: false,
   };
 }
 
