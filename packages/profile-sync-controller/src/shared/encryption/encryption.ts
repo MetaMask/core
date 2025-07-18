@@ -13,7 +13,6 @@ import {
   SCRYPT_p,
   SCRYPT_r,
   SCRYPT_SALT_SIZE,
-  SHARED_SALT,
   SHARED_SALT_V2,
 } from './constants';
 import {
