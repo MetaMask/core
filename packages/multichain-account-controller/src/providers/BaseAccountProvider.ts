@@ -52,6 +52,9 @@ export abstract class BaseAccountProvider
     const accounts: Bip44Account<InternalAccount>[] = [];
 
     for (const account of this.messenger.call(
+      // NOTE: Even though the name is misleading, this only fetches all internal
+      // accounts, including EVM and non-EVM. We might wanna change this action
+      // name once we fully support multichain accounts.
       'AccountsController:listMultichainAccounts',
     )) {
       if (
