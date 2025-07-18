@@ -8,6 +8,7 @@ import {
   type MultichainAccount,
 } from '@metamask/account-api';
 import type { EntropySourceId } from '@metamask/keyring-api';
+import type { KeyringObject } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
@@ -59,23 +60,36 @@ export class MultichainAccountController {
   init(): void {
     // Gather all entropy sources first.
     const { keyrings } = this.#messenger.call('KeyringController:getState');
+    this.#setMultichainAccountWallets(keyrings);
 
-    const entropySources = [];
+    // TODO: For now, we to every `KeyringController` state change to detect when
+    // new entropy sources/SRPs are being added. Having a dedicated event when
+    // new keyrings are added would make this more efficient.
+    this.#messenger.subscribe('KeyringController:stateChange', (state) => {
+      this.#setMultichainAccountWallets(state.keyrings);
+    });
+  }
+
+  #setMultichainAccountWallets(keyrings: KeyringObject[]) {
     for (const keyring of keyrings) {
       if (keyring.type === (KeyringTypes.hd as string)) {
-        entropySources.push(keyring.metadata.id);
+        // Only HD keyrings have an entropy source/SRP.
+        const entropySource = keyring.metadata.id;
+
+        // Do not re-create wallets if they exists. Even if a keyrings got new accounts, this
+        // will be handled by the `*AccountProvider`s which are always in-sync with their
+        // keyrings and controllers (like the `AccountsController`).
+        if (!this.#wallets.has(toMultichainAccountWalletId(entropySource))) {
+          // This will automatically "associate" all multichain accounts for that wallet
+          // (based on the accounts owned by each account providers).
+          const wallet = new MultichainAccountWallet({
+            entropySource,
+            providers: this.#providers,
+          });
+
+          this.#wallets.set(wallet.id, wallet);
+        }
       }
-    }
-
-    for (const entropySource of entropySources) {
-      // This will automatically create all multichain accounts for that wallet (based
-      // on the accounts owned by each account providers).
-      const wallet = new MultichainAccountWallet({
-        entropySource,
-        providers: this.#providers,
-      });
-
-      this.#wallets.set(wallet.id, wallet);
     }
   }
 

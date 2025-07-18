@@ -31,7 +31,7 @@ export function getMultichainAccountControllerMessenger(
 ): MultichainAccountControllerMessenger {
   return messenger.getRestricted({
     name: 'MultichainAccountController',
-    allowedEvents: [],
+    allowedEvents: ['KeyringController:stateChange'],
     allowedActions: [
       'AccountsController:getAccount',
       'AccountsController:getAccountByAddress',

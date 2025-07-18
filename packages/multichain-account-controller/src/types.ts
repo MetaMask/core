@@ -6,6 +6,7 @@ import type {
 import type { RestrictedMessenger } from '@metamask/base-controller';
 import type {
   KeyringControllerGetStateAction,
+  KeyringControllerStateChangeEvent,
   KeyringControllerWithKeyringAction,
 } from '@metamask/keyring-controller';
 import type { HandleSnapRequest as SnapControllerHandleSnapRequestAction } from '@metamask/snaps-controllers';
@@ -37,7 +38,7 @@ export type AllowedActions =
  * All events published by other modules that {@link MultichainAccountController}
  * subscribes to.
  */
-export type AllowedEvents = never;
+export type AllowedEvents = KeyringControllerStateChangeEvent;
 
 /**
  * The messenger restricted to actions and events that

@@ -278,4 +278,57 @@ describe('MultichainAccountController', () => {
       ).toThrow(`No multichain account for index: ${groupIndex}`);
     });
   });
+
+  describe('on KeyringController:stateChange', () => {
+    it('re-sets the internal wallets if a new entropy source is being added', () => {
+      const keyrings = [MOCK_HD_KEYRING_1];
+      const accounts = [
+        // Wallet 1:
+        MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+          .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+          .withGroupIndex(0)
+          .get(),
+      ];
+      const { controller, messenger, mocks } = setup({
+        keyrings,
+        accounts,
+      });
+
+      // This wallet does not exist yet.
+      expect(() =>
+        controller.getMultichainAccounts({
+          entropySource: MOCK_HD_KEYRING_2.metadata.id,
+        }),
+      ).toThrow('Unknown wallet, not wallet matching this entropy source');
+
+      // Simulate new keyring being added.
+      keyrings.push(MOCK_HD_KEYRING_2);
+      // NOTE: We also need to update the account list now, since accounts
+      // are being used as soon as we construct the multichain account
+      // wallet.
+      accounts.push(
+        // Wallet 2:
+        MockAccountBuilder.from(MOCK_HD_ACCOUNT_2)
+          .withEntropySource(MOCK_HD_KEYRING_2.metadata.id)
+          .withGroupIndex(0)
+          .get(),
+      );
+      mocks.EvmAccountProvider.getAccounts.mockImplementation(() => accounts);
+      messenger.publish(
+        'KeyringController:stateChange',
+        {
+          isUnlocked: true,
+          keyrings,
+        },
+        [],
+      );
+
+      // We should now be able to query that wallet.
+      expect(
+        controller.getMultichainAccounts({
+          entropySource: MOCK_HD_KEYRING_2.metadata.id,
+        }),
+      ).toHaveLength(1);
+    });
+  });
 });
