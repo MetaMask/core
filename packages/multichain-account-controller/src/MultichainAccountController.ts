@@ -84,7 +84,8 @@ export class MultichainAccountController {
 
     if (!wallet) {
       throw new Error(
-        'Unknown wallet, not wallet matching this entropy source',
+        'Unknown wallet, no wallet matching this entropy source',
+
       );
     }
 
