@@ -2648,6 +2648,10 @@ describe('BridgeStatusController', () => {
 
         // Assertions - polling should now happen since attempts were reset
         expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(2);
+        expect(
+          controllerWithFailedAttempts.state.txHistory.bridgeTxMetaId1.attempts
+            ?.counter,
+        ).toBeUndefined(); // Should be undefined since we've reset attempts and fetchBridgeTxStatus did not error
       });
     });
 
