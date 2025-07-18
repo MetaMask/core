@@ -33,6 +33,7 @@ import {
   BRIDGE_PROD_API_BASE_URL,
   BRIDGE_STATUS_CONTROLLER_NAME,
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
+  MAX_ATTEMPTS,
   REFRESH_INTERVAL_MS,
   TraceName,
 } from './constants';
@@ -93,6 +94,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   BridgeStatusControllerMessenger
 > {
   #pollingTokensByTxMetaId: Record<SrcTxMetaId, string> = {};
+
+  #attempts: Record<SrcTxMetaId, number> = {};
 
   readonly #clientId: BridgeClientId;
 
@@ -469,12 +472,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
       const pollingToken = this.#pollingTokensByTxMetaId[bridgeTxMetaId];
 
-      if (
-        (status.status === StatusTypes.COMPLETE ||
-          status.status === StatusTypes.FAILED) &&
-        pollingToken
-      ) {
+      const isFinalStatus =
+        status.status === StatusTypes.COMPLETE ||
+        status.status === StatusTypes.FAILED;
+
+      if (isFinalStatus && pollingToken) {
         this.stopPollingByPollingToken(pollingToken);
+        delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
+        delete this.#attempts[bridgeTxMetaId];
 
         if (status.status === StatusTypes.COMPLETE) {
           this.#trackUnifiedSwapBridgeEvent(
@@ -491,6 +496,20 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       }
     } catch (e) {
       console.log('Failed to fetch bridge tx status', e);
+
+      if (!this.#attempts[bridgeTxMetaId]) {
+        this.#attempts[bridgeTxMetaId] = 1;
+      } else {
+        this.#attempts[bridgeTxMetaId] += 1;
+      }
+
+      const pollingToken = this.#pollingTokensByTxMetaId[bridgeTxMetaId];
+
+      if (this.#attempts[bridgeTxMetaId] > MAX_ATTEMPTS && pollingToken) {
+        this.stopPollingByPollingToken(pollingToken);
+        delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
+        delete this.#attempts[bridgeTxMetaId];
+      }
     }
   };
 

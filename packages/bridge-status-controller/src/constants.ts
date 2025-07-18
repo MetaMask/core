@@ -1,6 +1,7 @@
 import type { BridgeStatusControllerState } from './types';
 
-export const REFRESH_INTERVAL_MS = 10 * 1000;
+export const REFRESH_INTERVAL_MS = 10 * 1000; // 10 seconds
+export const MAX_ATTEMPTS = (10 * 60 * 1000) / REFRESH_INTERVAL_MS; // 60 attempts = 10 minutes
 
 export const BRIDGE_STATUS_CONTROLLER_NAME = 'BridgeStatusController';
 
