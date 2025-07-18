@@ -5,7 +5,8 @@
   },
   "references": [
     { "path": "../base-controller" },
-    { "path": "../accounts-controller" }
+    { "path": "../accounts-controller" },
+    { "path": "../keyring-controller" }
   ],
   "include": ["../../types", "./src"]
 }
