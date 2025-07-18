@@ -8,7 +8,10 @@ import {
   type MultichainAccount,
 } from '@metamask/account-api';
 import type { EntropySourceId } from '@metamask/keyring-api';
-import type { KeyringObject } from '@metamask/keyring-controller';
+import type {
+  KeyringControllerState,
+  KeyringObject,
+} from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
@@ -22,6 +25,16 @@ import type { MultichainAccountServiceMessenger } from './types';
 type MultichainAccountServiceOptions = {
   messenger: MultichainAccountServiceMessenger;
 };
+
+/**
+ * Select keyrings from keyring controller state.
+ *
+ * @param state - The keyring controller state.
+ * @returns The keyrings.
+ */
+function selectKeyringControllerKeyrings(state: KeyringControllerState) {
+  return state.keyrings;
+}
 
 /**
  * Service to expose multichain accounts capabilities.
@@ -59,15 +72,16 @@ export class MultichainAccountService {
    */
   init(): void {
     // Gather all entropy sources first.
-    const { keyrings } = this.#messenger.call('KeyringController:getState');
-    this.#setMultichainAccountWallets(keyrings);
+    const state = this.#messenger.call('KeyringController:getState');
+    this.#setMultichainAccountWallets(state.keyrings);
 
-    // TODO: For now, we to every `KeyringController` state change to detect when
-    // new entropy sources/SRPs are being added. Having a dedicated event when
-    // new keyrings are added would make this more efficient.
-    this.#messenger.subscribe('KeyringController:stateChange', (state) => {
-      this.#setMultichainAccountWallets(state.keyrings);
-    });
+    this.#messenger.subscribe(
+      'KeyringController:stateChange',
+      (keyrings) => {
+        this.#setMultichainAccountWallets(keyrings);
+      },
+      selectKeyringControllerKeyrings,
+    );
   }
 
   #setMultichainAccountWallets(keyrings: KeyringObject[]) {
