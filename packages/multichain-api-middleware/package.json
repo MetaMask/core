@@ -51,7 +51,7 @@
     "@metamask/chain-agnostic-permission": "^1.0.0",
     "@metamask/controller-utils": "^11.11.0",
     "@metamask/json-rpc-engine": "^10.0.3",
-    "@metamask/network-controller": "^24.0.0",
+    "@metamask/network-controller": "^24.0.1",
     "@metamask/permission-controller": "^11.0.6",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/utils": "^11.4.2",
