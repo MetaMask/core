@@ -33,6 +33,7 @@ import { BridgeStatusController } from './bridge-status-controller';
 import {
   BRIDGE_STATUS_CONTROLLER_NAME,
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
+  MAX_ATTEMPTS,
 } from './constants';
 import type {
   BridgeStatusControllerActions,
@@ -488,6 +489,7 @@ const MockTxHistory = {
       approvalTxId: undefined,
       isStxEnabled: true,
       hasApprovalTx: false,
+      attempts: undefined,
     },
   }),
 };
@@ -2583,6 +2585,71 @@ describe('BridgeStatusController', () => {
           controllerWithAttempts.state.txHistory.swapTxMetaId1.attempts
             ?.counter,
         ).toBe(5);
+      });
+
+      it('should restart polling for bridge transaction when attempts are reset', async () => {
+        // Setup - use the same pattern as "restarts polling for history items that are not complete"
+        jest.useFakeTimers();
+        const fetchBridgeTxStatusSpy = jest.spyOn(
+          bridgeStatusUtils,
+          'fetchBridgeTxStatus',
+        );
+        fetchBridgeTxStatusSpy.mockImplementationOnce(async () => {
+          return MockStatusResponse.getPending();
+        });
+        // .mockImplementationOnce(async () => {
+        //   return MockStatusResponse.getPending();
+        // })
+        // .mockImplementationOnce(async () => {
+        //   return MockStatusResponse.getPending();
+        // });
+
+        // Create controller with a bridge transaction that has failed attempts
+        const controllerWithFailedAttempts = new BridgeStatusController({
+          messenger: getMessengerMock(),
+          clientId: BridgeClientId.EXTENSION,
+          fetchFn: jest.fn(),
+          addTransactionFn: jest.fn(),
+          addTransactionBatchFn: jest.fn(),
+          updateTransactionFn: jest.fn(),
+          estimateGasFeeFn: jest.fn(),
+          state: {
+            txHistory: {
+              bridgeTxMetaId1: {
+                ...MockTxHistory.getPending({ txMetaId: 'bridgeTxMetaId1' })
+                  .bridgeTxMetaId1,
+                attempts: {
+                  counter: MAX_ATTEMPTS + 1, // High number to simulate failed attempts
+                  lastAttemptTime: Date.now() - 60000, // 1 minute ago
+                },
+              },
+            },
+          },
+        });
+
+        // Verify initial state has attempts
+        expect(
+          controllerWithFailedAttempts.state.txHistory.bridgeTxMetaId1.attempts
+            ?.counter,
+        ).toBe(MAX_ATTEMPTS + 1);
+
+        // Execute resetAttempts - this should reset attempts and restart polling
+        controllerWithFailedAttempts.resetAttempts({
+          txMetaId: 'bridgeTxMetaId1',
+        });
+
+        // Verify attempts were reset
+        expect(
+          controllerWithFailedAttempts.state.txHistory.bridgeTxMetaId1.attempts,
+        ).toBeUndefined();
+        expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+
+        // Now advance timer again - polling should work since attempts are reset
+        jest.advanceTimersByTime(10000);
+        await flushPromises();
+
+        // Assertions - polling should now happen since attempts were reset
+        expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(2);
       });
     });
 
