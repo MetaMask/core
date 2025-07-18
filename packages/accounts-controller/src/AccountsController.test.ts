@@ -4,12 +4,14 @@ import type {
   AccountAssetListUpdatedEventPayload,
   AccountBalancesUpdatedEventPayload,
   AccountTransactionsUpdatedEventPayload,
+  EntropySourceId,
 } from '@metamask/keyring-api';
 import {
   BtcAccountType,
   BtcScope,
   EthAccountType,
   EthScope,
+  KeyringAccountEntropyTypeOption,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -158,49 +160,60 @@ function mockUUIDWithNormalAccounts(accounts: InternalAccount[]) {
   mockUUID.mockImplementation(mockAccountUUIDs.mock.bind(mockAccountUUIDs));
 }
 
+class MockExpectedInternalAccountBuilder {
+  readonly #account: InternalAccount;
+
+  constructor(account: InternalAccount) {
+    this.#account = JSON.parse(JSON.stringify(account)) as InternalAccount;
+  }
+
+  static from(account: InternalAccount) {
+    return new MockExpectedInternalAccountBuilder(account);
+  }
+
+  setExpectedLastSelectedAsAny(): MockExpectedInternalAccountBuilder {
+    this.#account.metadata.lastSelected = expect.any(Number);
+    this.#account.metadata.importTime = expect.any(Number);
+
+    return this;
+  }
+
+  setExpectedEntropyOptions(
+    keyringId: EntropySourceId,
+  ): MockExpectedInternalAccountBuilder {
+    this.#account.options = {
+      ...this.#account.options,
+      entropySource: keyringId,
+      groupIndex: expect.any(Number),
+      derivationPath: expect.any(String),
+      // New type `KeyringAccount` options.
+      entropy: {
+        type: KeyringAccountEntropyTypeOption.Mnemonic,
+        id: keyringId,
+        groupIndex: expect.any(Number),
+        derivationPath: expect.any(String),
+      },
+    };
+    return this;
+  }
+
+  get(): InternalAccount {
+    return this.#account;
+  }
+}
+
 /**
  * Sets the `lastSelected` property of the given `account` to `expect.any(Number)`.
  *
  * @param account - The account to modify.
  * @returns The modified account.
  */
-function setLastSelectedAsAny(account: InternalAccount): InternalAccount {
-  const deepClonedAccount = JSON.parse(
-    JSON.stringify({
-      ...account,
-      metadata: {
-        ...account.metadata,
-        lastSelected: expect.any(Number),
-      },
-    }),
-  ) as InternalAccount;
-
-  deepClonedAccount.metadata.lastSelected = expect.any(Number);
-  deepClonedAccount.metadata.importTime = expect.any(Number);
-  return deepClonedAccount;
-}
-
-/**
- * Sets the `entropySource` property of the given `account` to the specified
- * keyringId value.
- *
- * @param account - The account to modify.
- * @param keyringId - The keyring ID to set as entropySource.
- * @returns The modified account.
- */
-function populateEntropySource(
+function setExpectedLastSelectedAsAny(
   account: InternalAccount,
-  keyringId: string,
 ): InternalAccount {
-  return JSON.parse(
-    JSON.stringify({
-      ...account,
-      options: {
-        ...account.options,
-        entropySource: keyringId,
-      },
-    }),
-  ) as InternalAccount;
+  return MockExpectedInternalAccountBuilder.from(account)
+    .setExpectedLastSelectedAsAny()
+    .get();
 }
 
 /**
@@ -678,7 +691,10 @@ describe('AccountsController', () => {
 
         expect(accounts).toStrictEqual([
           mockAccount,
-          setLastSelectedAsAny(populateEntropySource(mockAccount2, 'mock-id')),
+          MockExpectedInternalAccountBuilder.from(mockAccount2)
+            .setExpectedLastSelectedAsAny()
+            .setExpectedEntropyOptions('mock-id')
+            .get(),
         ]);
       });
 
@@ -744,8 +760,8 @@ describe('AccountsController', () => {
 
         expect(accounts).toStrictEqual([
           mockAccount,
-          setLastSelectedAsAny(mockAccount4),
-          setLastSelectedAsAny(
+          setExpectedLastSelectedAsAny(mockAccount4),
+          setExpectedLastSelectedAsAny(
             createExpectedInternalAccount({
               id: 'mock-id3',
               name: 'Snap Account 2',
@@ -819,7 +835,7 @@ describe('AccountsController', () => {
 
         expect(accounts).toStrictEqual([
           mockAccount,
-          setLastSelectedAsAny(mockAccount4),
+          setExpectedLastSelectedAsAny(mockAccount4),
         ]);
       });
 
@@ -878,7 +894,9 @@ describe('AccountsController', () => {
 
         const accounts = accountsController.listMultichainAccounts();
 
-        expect(accounts).toStrictEqual([setLastSelectedAsAny(mockAccount)]);
+        expect(accounts).toStrictEqual([
+          setExpectedLastSelectedAsAny(mockAccount),
+        ]);
       });
 
       it('increment the default account number when adding an account', async () => {
@@ -927,17 +945,17 @@ describe('AccountsController', () => {
         expect(accounts).toStrictEqual([
           mockAccount,
           mockAccount2,
-          setLastSelectedAsAny(
+          MockExpectedInternalAccountBuilder.from(
             createExpectedInternalAccount({
               id: 'mock-id3',
               name: 'Account 3',
               address: mockAccount3.address,
               keyringType: KeyringTypes.hd,
-              options: {
-                entropySource: 'mock-id',
-              },
             }),
-          ),
+          )
+            .setExpectedLastSelectedAsAny()
+            .setExpectedEntropyOptions('mock-id')
+            .get(),
         ]);
       });
 
@@ -993,18 +1011,20 @@ describe('AccountsController', () => {
 
         const accounts = accountsController.listMultichainAccounts();
 
-        expect(accounts.map(setLastSelectedAsAny)).toStrictEqual([
+        expect(accounts.map(setExpectedLastSelectedAsAny)).toStrictEqual([
           mockAccount,
           mockAccount2WithCustomName,
-          createExpectedInternalAccount({
-            id: 'mock-id3',
-            name: 'Account 3',
-            address: mockAccount3.address,
-            keyringType: KeyringTypes.hd,
-            options: {
-              entropySource: 'mock-id',
-            },
-          }),
+          MockExpectedInternalAccountBuilder.from(
+            createExpectedInternalAccount({
+              id: 'mock-id3',
+              name: 'Account 3',
+              address: mockAccount3.address,
+              keyringType: KeyringTypes.hd,
+            }),
+          )
+            .setExpectedLastSelectedAsAny()
+            .setExpectedEntropyOptions('mock-id')
+            .get(),
         ]);
       });
 
@@ -1106,7 +1126,10 @@ describe('AccountsController', () => {
 
         expect(accounts).toStrictEqual([
           mockAccount,
-          setLastSelectedAsAny(populateEntropySource(mockAccount2, 'mock-id')),
+          MockExpectedInternalAccountBuilder.from(mockAccount2)
+            .setExpectedLastSelectedAsAny()
+            .setExpectedEntropyOptions('mock-id')
+            .get(),
         ]);
         expect(accountsController.getSelectedAccount().id).toBe(mockAccount.id);
       });
@@ -1155,7 +1178,10 @@ describe('AccountsController', () => {
           // 2. AccountsController:stateChange
           3,
           'AccountsController:accountAdded',
-          setLastSelectedAsAny(populateEntropySource(mockAccount2, 'mock-id')),
+          MockExpectedInternalAccountBuilder.from(mockAccount2)
+            .setExpectedLastSelectedAsAny()
+            .setExpectedEntropyOptions('mock-id')
+            .get(),
         );
       });
     });
@@ -1200,9 +1226,11 @@ describe('AccountsController', () => {
 
         const accounts = accountsController.listMultichainAccounts();
 
-        expect(accounts).toStrictEqual([setLastSelectedAsAny(mockAccount2)]);
+        expect(accounts).toStrictEqual([
+          setExpectedLastSelectedAsAny(mockAccount2),
+        ]);
         expect(accountsController.getSelectedAccount()).toStrictEqual(
-          setLastSelectedAsAny(mockAccount2),
+          setExpectedLastSelectedAsAny(mockAccount2),
         );
       });
 
@@ -1255,11 +1283,11 @@ describe('AccountsController', () => {
         const accounts = accountsController.listMultichainAccounts();
 
         expect(accounts).toStrictEqual([
-          setLastSelectedAsAny(mockAccount),
-          setLastSelectedAsAny(mockAccount2),
+          setExpectedLastSelectedAsAny(mockAccount),
+          setExpectedLastSelectedAsAny(mockAccount2),
         ]);
         expect(accountsController.getSelectedAccount()).toStrictEqual(
-          setLastSelectedAsAny(mockAccount2),
+          setExpectedLastSelectedAsAny(mockAccount2),
         );
       });
 
@@ -1319,11 +1347,11 @@ describe('AccountsController', () => {
         const accounts = accountsController.listMultichainAccounts();
 
         expect(accounts).toStrictEqual([
-          setLastSelectedAsAny(mockAccount),
+          setExpectedLastSelectedAsAny(mockAccount),
           mockAccount2WithoutLastSelected,
         ]);
         expect(accountsController.getSelectedAccount()).toStrictEqual(
-          setLastSelectedAsAny(mockAccount),
+          setExpectedLastSelectedAsAny(mockAccount),
         );
       });
 
@@ -1469,9 +1497,7 @@ describe('AccountsController', () => {
         name: 'Account 1',
         address: '0x456',
         keyringType: KeyringTypes.hd,
-        options: {
-          entropySource: 'mock-id',
-        },
+        // Entropy options are added automatically by the controller.
       });
 
       mockUUIDWithNormalAccounts([
@@ -1512,7 +1538,12 @@ describe('AccountsController', () => {
 
       const selectedAccount = accountsController.getSelectedAccount();
       const accounts = accountsController.listMultichainAccounts();
-      const expectedAccount = setLastSelectedAsAny(mockReinitialisedAccount);
+      const expectedAccount = MockExpectedInternalAccountBuilder.from(
+        mockReinitialisedAccount,
+      )
+        .setExpectedLastSelectedAsAny()
+        .setExpectedEntropyOptions('mock-id')
+        .get();
 
       expect(selectedAccount).toStrictEqual(expectedAccount);
       expect(accounts).toStrictEqual([expectedAccount]);
@@ -1907,7 +1938,10 @@ describe('AccountsController', () => {
         mockGetKeyringByType.mockReturnValue([
           {
             type: KeyringTypes.snap,
-            listAccounts: async () => [mockSnapAccount, mockSnapAccount2],
+            getAccountByAddress: jest
+              .fn()
+              .mockReturnValueOnce(mockSnapAccount)
+              .mockReturnValueOnce(mockSnapAccount2),
           },
         ]),
       );
@@ -1947,7 +1981,9 @@ describe('AccountsController', () => {
       await accountsController.updateAccounts();
 
       expect(
-        accountsController.listMultichainAccounts().map(setLastSelectedAsAny),
+        accountsController
+          .listMultichainAccounts()
+          .map(setExpectedLastSelectedAsAny),
       ).toStrictEqual(expectedAccounts);
     });
 
@@ -2054,7 +2090,7 @@ describe('AccountsController', () => {
         mockGetKeyringByType.mockReturnValueOnce([
           {
             type: KeyringTypes.snap,
-            listAccounts: async () => [mockSnapAccount2],
+            getAccountByAddress: () => mockSnapAccount2,
           },
         ]),
       );
@@ -2126,7 +2162,7 @@ describe('AccountsController', () => {
         mockGetKeyringByType.mockReturnValueOnce([
           {
             type: KeyringTypes.snap,
-            listAccounts: async () => [mockSnapAccount2],
+            getAccountByAddress: () => mockSnapAccount2,
           },
         ]),
       );
@@ -2167,18 +2203,18 @@ describe('AccountsController', () => {
       });
       const expectedAccounts = [
         createExpectedInternalAccount({
-          name: 'Account 1',
-          id: 'mock-id',
-          address: mockAddress1,
-          keyringType: KeyringTypes.hd,
-          options: createMockInternalAccountOptions(1, KeyringTypes.hd, 0),
-        }),
-        createExpectedInternalAccount({
           name: 'Snap Account 1', // it is Snap Account 1 because it is the only snap account
           id: mockSnapAccount2.id,
           address: mockSnapAccount2.address,
           keyringType: KeyringTypes.snap,
           snap: mockSnapAccount2.metadata.snap,
+        }),
+        createExpectedInternalAccount({
+          name: 'Account 1',
+          id: 'mock-id',
+          address: mockAddress1,
+          keyringType: KeyringTypes.hd,
+          options: createMockInternalAccountOptions(1, KeyringTypes.hd, 0),
         }),
       ];
 
@@ -2251,7 +2287,9 @@ describe('AccountsController', () => {
       await accountsController.updateAccounts();
 
       expect(
-        accountsController.listMultichainAccounts().map(setLastSelectedAsAny),
+        accountsController
+          .listMultichainAccounts()
+          .map(setExpectedLastSelectedAsAny),
       ).toStrictEqual(expectedAccounts);
     });
 
@@ -2342,7 +2380,7 @@ describe('AccountsController', () => {
           mockGetKeyringByType.mockReturnValueOnce([
             {
               type: KeyringTypes.snap,
-              listAccounts: async () => [mockSnapAccount2],
+              getAccountByAddress: () => mockSnapAccount2,
             },
           ]),
         );
@@ -2392,6 +2430,177 @@ describe('AccountsController', () => {
         expect(selectedAccount.id).toStrictEqual(expectedSelectedId);
       },
     );
+
+    it('auto-migrates HD Snap accounts with new options', async () => {
+      const messenger = buildMessenger();
+
+      const mockHdKeyringId = 'mock-hd-keyring-id';
+
+      const mockHdAccount = createMockInternalAccount({
+        id: 'mock-id',
+        name: 'Account 1',
+        address: '0x123',
+        keyringType: KeyringTypes.hd,
+      });
+
+      const mockHdSnapAccountOptions = {
+        entropySource: mockHdKeyringId,
+        derivationPath: 'm/',
+        index: 0,
+      };
+      const mockHdSnapAccount = createMockInternalAccount({
+        id: 'mock-snap-id',
+        name: 'Solana Account 1',
+        address: '5VDKSDZ1sT4rMkkGWsQav3tzZLbydWF9As1cxdUDUq41',
+        keyringType: KeyringTypes.snap,
+        // This is required for HD Snap accounts:
+        options: mockHdSnapAccountOptions,
+      });
+
+      const mockKeyrings = [
+        {
+          type: KeyringTypes.hd,
+          accounts: [mockHdAccount.address],
+          metadata: {
+            id: mockHdKeyringId,
+            name: 'mock-keyring-id-name-1',
+          },
+        },
+        {
+          type: KeyringTypes.snap,
+          accounts: [mockHdSnapAccount.address],
+          metadata: {
+            id: 'mock-keyring-id-2',
+            name: 'mock-keyring-id-name-2',
+          },
+        },
+      ];
+
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringsByType',
+        mockGetKeyringByType.mockReturnValueOnce([
+          {
+            type: KeyringTypes.snap,
+            getAccountByAddress: () => mockHdSnapAccount,
+          },
+        ]),
+      );
+
+      messenger.registerActionHandler(
+        'KeyringController:getState',
+        mockGetState.mockReturnValue({
+          keyrings: mockKeyrings,
+        }),
+      );
+
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockHdAccount.id]: mockHdAccount,
+            },
+            selectedAccount: mockHdAccount.id,
+          },
+        },
+        messenger,
+      });
+
+      // Will automatically re-create the internal account list.
+      await accountsController.updateAccounts();
+
+      const account = accountsController.getAccount(mockHdSnapAccount.id);
+      expect(account?.options).toStrictEqual({
+        // We keep the original options.
+        ...mockHdSnapAccount.options,
+        // We add new ones to match the new "typed options" for keyring accounts.
+        entropy: {
+          type: KeyringAccountEntropyTypeOption.Mnemonic,
+          id: mockHdSnapAccountOptions.entropySource,
+          derivationPath: mockHdSnapAccountOptions.derivationPath,
+          groupIndex: mockHdSnapAccountOptions.index,
+        },
+      });
+    });
+
+    it('skips account if it cannot get the Snap keyring instance', async () => {
+      const messenger = buildMessenger();
+
+      const mockHdKeyringId = 'mock-hd-keyring-id';
+
+      const mockHdAccount = createMockInternalAccount({
+        id: 'mock-id',
+        name: 'Account 1',
+        address: '0x123',
+        keyringType: KeyringTypes.hd,
+      });
+
+      const mockHdSnapAccountOptions = {
+        entropySource: mockHdKeyringId,
+        derivationPath: 'm/',
+        index: 0,
+      };
+      const mockHdSnapAccount = createMockInternalAccount({
+        id: 'mock-snap-id',
+        name: 'Solana Account 1',
+        address: '5VDKSDZ1sT4rMkkGWsQav3tzZLbydWF9As1cxdUDUq41',
+        keyringType: KeyringTypes.snap,
+        // This is required for HD Snap accounts:
+        options: mockHdSnapAccountOptions,
+      });
+
+      const mockKeyrings = [
+        {
+          type: KeyringTypes.hd,
+          accounts: [mockHdAccount.address],
+          metadata: {
+            id: mockHdKeyringId,
+            name: 'mock-keyring-id-name-1',
+          },
+        },
+        {
+          type: KeyringTypes.snap,
+          accounts: [mockHdSnapAccount.address],
+          metadata: {
+            id: 'mock-keyring-id-2',
+            name: 'mock-keyring-id-name-2',
+          },
+        },
+      ];
+
+      // Make sure we cannot get a reference to the Snap keyring.
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringsByType',
+        mockGetKeyringByType.mockReturnValue([]),
+      );
+
+      messenger.registerActionHandler(
+        'KeyringController:getState',
+        mockGetState.mockReturnValue({
+          keyrings: mockKeyrings,
+        }),
+      );
+
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockHdAccount.id]: mockHdAccount,
+            },
+            selectedAccount: mockHdAccount.id,
+          },
+        },
+        messenger,
+      });
+
+      // Will automatically re-create the internal account list.
+      await accountsController.updateAccounts();
+
+      // This account has been skipped.
+      expect(
+        accountsController.getAccount(mockHdSnapAccount.id),
+      ).toBeUndefined();
+      expect(mockGetKeyringByType).toHaveBeenCalledTimes(1);
+    });
 
     it.todo(
       'does not re-fire a accountChanged event if the account is still the same',
@@ -2465,7 +2674,7 @@ describe('AccountsController', () => {
 
       const result = accountsController.getAccount(mockAccount.id);
 
-      expect(result).toStrictEqual(setLastSelectedAsAny(mockAccount));
+      expect(result).toStrictEqual(setExpectedLastSelectedAsAny(mockAccount));
     });
     it('return undefined for an unknown account ID', () => {
       const { accountsController } = setupAccountsController({
@@ -2793,7 +3002,7 @@ describe('AccountsController', () => {
       });
       const result = accountsController.getAccountExpect(mockAccount.id);
 
-      expect(result).toStrictEqual(setLastSelectedAsAny(mockAccount));
+      expect(result).toStrictEqual(setExpectedLastSelectedAsAny(mockAccount));
     });
 
     it('throw an error for an unknown account ID', () => {
@@ -2866,7 +3075,6 @@ describe('AccountsController', () => {
       expect(
         accountsController.state.internalAccounts.selectedAccount,
       ).toStrictEqual(mockNonEvmAccount.id);
-      console.log(accountsController.state.internalAccounts.selectedAccount);
 
       expect(messengerSpy.mock.calls).toHaveLength(2); // state change and then selectedAccountChange
 
@@ -2877,7 +3085,7 @@ describe('AccountsController', () => {
 
       expect(messengerSpy).toHaveBeenLastCalledWith(
         'AccountsController:selectedAccountChange',
-        setLastSelectedAsAny(mockNonEvmAccount),
+        setExpectedLastSelectedAsAny(mockNonEvmAccount),
       );
     });
   });
@@ -3170,8 +3378,8 @@ describe('AccountsController', () => {
       const accounts = accountsController.listMultichainAccounts();
       expect(accounts).toStrictEqual([
         mockAccount,
-        setLastSelectedAsAny(mockSimpleKeyring1),
-        setLastSelectedAsAny(mockSimpleKeyring2),
+        setExpectedLastSelectedAsAny(mockSimpleKeyring1),
+        setExpectedLastSelectedAsAny(mockSimpleKeyring2),
       ]);
     });
 
@@ -3227,8 +3435,8 @@ describe('AccountsController', () => {
       const accounts = accountsController.listMultichainAccounts();
       expect(accounts).toStrictEqual([
         mockAccount,
-        setLastSelectedAsAny(mockSimpleKeyring2),
-        setLastSelectedAsAny(mockSimpleKeyring3),
+        setExpectedLastSelectedAsAny(mockSimpleKeyring2),
+        setExpectedLastSelectedAsAny(mockSimpleKeyring3),
       ]);
     });
   });

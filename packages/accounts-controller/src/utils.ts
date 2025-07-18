@@ -1,4 +1,9 @@
+import type { KeyringAccount } from '@metamask/keyring-api';
+import type { KeyringObject } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { Infer } from '@metamask/superstruct';
+import { is, number, object, string } from '@metamask/superstruct';
 import { hexToBytes } from '@metamask/utils';
 import { sha256 } from 'ethereum-cryptography/sha256';
 import type { V4Options } from 'uuid';
@@ -74,10 +79,34 @@ export function getUUIDFromAddressOfNormalAccount(address: string): string {
  * @param keyringType - The account's keyring type.
  * @returns True if the keyring type is considered a "normal" keyring, false otherwise.
  */
-export function isNormalKeyringType(keyringType: KeyringTypes): boolean {
+export function isNormalKeyringType(
+  keyringType: KeyringTypes | string,
+): boolean {
   // Right now, we only have to "exclude" Snap accounts, but this might need to be
   // adapted later on if we have new kind of keyrings!
-  return keyringType !== KeyringTypes.snap;
+  return keyringType !== (KeyringTypes.snap as string);
+}
+
+/**
+ * Check if a keyring type is a Snap keyring.
+ *
+ * @param keyringType - The account's keyring type.
+ * @returns True if the keyring type is considered a Snap keyring, false otherwise.
+ */
+export function isSnapKeyringType(keyringType: KeyringTypes | string): boolean {
+  return keyringType === (KeyringTypes.snap as string);
+}
+
+/**
+ * Check if a keyring type is a simple keyring.
+ *
+ * @param keyringType - The account's keyring type.
+ * @returns True if the keyring type is considered a simple keyring, false otherwise.
+ */
+export function isSimpleKeyringType(
+  keyringType: KeyringTypes | string,
+): boolean {
+  return keyringType === (KeyringTypes.simple as string);
 }
 
 /**
@@ -86,8 +115,8 @@ export function isNormalKeyringType(keyringType: KeyringTypes): boolean {
  * @param keyringType - The account's keyring type.
  * @returns True if the keyring is a HD keyring, false otherwise.
  */
-export function isHdKeyringType(keyringType: KeyringTypes): boolean {
-  return keyringType === KeyringTypes.hd;
+export function isHdKeyringType(keyringType: KeyringTypes | string): boolean {
+  return keyringType === (KeyringTypes.hd as string);
 }
 
 /**
@@ -98,4 +127,72 @@ export function isHdKeyringType(keyringType: KeyringTypes): boolean {
  */
 export function getDerivationPathForIndex(index: number): string {
   return `m/44'/60'/0'/0/${index}`;
+}
+
+/**
+ * Get the group index from a keyring object (HD keyring only) and an address.
+ *
+ * @param keyring - The keyring object.
+ * @param address - The address to match.
+ * @returns The group index for that address, undefined if not able to match the address.
+ */
+export function getGroupIndexFromAddressIndex(
+  keyring: KeyringObject,
+  address: string,
+): number | undefined {
+  // NOTE: We mostly put that logic in a separate function so we can easily add coverage
+  // for (supposedly) unreachable code path.
+
+  if (!isHdKeyringType(keyring.type)) {
+    // We cannot extract the group index from non-HD keyrings.
+    return undefined;
+  }
+
+  // We need to find the account index from its HD keyring. We assume those
+  // accounts are ordered, thus we can use their index to compute their
+  // derivation path and group index.
+  const groupIndex = keyring.accounts.findIndex(
+    (accountAddress) => accountAddress === address,
+  );
+
+  // If for some reason, we cannot find this address, then the caller made a mistake
+  // and it did not use the proper keyring object. For now, we do not fail and just
+  // consider this account as "simple account".
+  if (groupIndex === -1) {
+    console.warn(`! Unable to get group index for HD account: "${address}"`);
+    return undefined;
+  }
+
+  return groupIndex;
+}
+
+/**
+ * HD keyring account for Snap accounts that handles non-EVM HD accounts.
+ */
+export const HdSnapKeyringAccountOptionsStruct = object({
+  entropySource: string(),
+  index: number(),
+  derivationPath: string(),
+});
+export type HdSnapKeyringAccountOptions = Infer<
+  typeof HdSnapKeyringAccountOptionsStruct
+>;
+
+/**
+ * HD keyring account for Snap accounts that handles non-EVM HD accounts.
+ */
+export type HdSnapKeyringAccount = InternalAccount & {
+  options: InternalAccount['options'] & HdSnapKeyringAccountOptions;
+};
+
+/**
+ * Check if an account is an HD Snap keyring account.
+ *
+ * @param account - Snap keyring account.
+ * @returns True if valid, false otherwise.
+ */
+export function isHdSnapKeyringAccount(
+  account: InternalAccount,
+): account is HdSnapKeyringAccount {
+  return is(account.options, HdSnapKeyringAccountOptionsStruct);
 }
