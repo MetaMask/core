@@ -9,7 +9,7 @@
 ## Accounts Team
 /packages/accounts-controller                @MetaMask/accounts-engineers
 /packages/multichain-transactions-controller @MetaMask/accounts-engineers
-/packages/multichain-account-service      @MetaMask/accounts-engineers
+/packages/multichain-account-service         @MetaMask/accounts-engineers
 /packages/account-tree-controller            @MetaMask/accounts-engineers
 
 ## Assets Team
