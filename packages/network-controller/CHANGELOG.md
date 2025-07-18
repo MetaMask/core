@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - If an RPC endpoint returns a 402, 404, or 5xx response, it is now represented as a JSON-RPC error with code -32002 (resource unavailable error) instead of -32603 (internal error) ([#5923](https://github.com/MetaMask/core/pull/5923))
 - If an RPC endpoint returns a 4xx response besides 401, 402, 404, 405, or 429, it is now represented as a JSON-RPC error with code -32080 (client error) instead of -32603 (internal error) ([#5923](https://github.com/MetaMask/core/pull/5923))
 - Improve detection of partial JSON responses from RPC endpoints ([#5923](https://github.com/MetaMask/core/pull/5923))
+- Fix "Request cannot be constructed from a URL that includes credentials" error when using RPC endpoints with embedded credentials ([#6116](https://github.com/MetaMask/core/pull/6116))
 
 ## [24.0.0]
 

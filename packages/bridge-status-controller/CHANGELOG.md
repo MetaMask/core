@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/keyring-api` from `^18.0.0` to `^19.0.0` ([#6146](https://github.com/MetaMask/core/pull/6146))
+
+## [36.0.0]
+
+### Changed
+
+- Bump `@metamask/bridge-controller` to `^36.0.0` ([#6120](https://github.com/MetaMask/core/pull/6120))
+
 ## [35.0.0]
 
 ### Changed
@@ -405,7 +415,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@35.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@36.0.0...HEAD
+[36.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@35.0.0...@metamask/bridge-status-controller@36.0.0
 [35.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@34.0.0...@metamask/bridge-status-controller@35.0.0
 [34.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@33.0.0...@metamask/bridge-status-controller@34.0.0
 [33.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@32.0.0...@metamask/bridge-status-controller@33.0.0

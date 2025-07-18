@@ -1,6 +1,6 @@
 {
   "name": "@metamask/bridge-controller",
-  "version": "35.0.0",
+  "version": "36.1.0",
   "description": "Manages bridge-related quote fetching functionality for MetaMask",
   "keywords": [
     "MetaMask",
@@ -55,9 +55,9 @@
     "@metamask/base-controller": "^8.0.1",
     "@metamask/controller-utils": "^11.11.0",
     "@metamask/gas-fee-controller": "^24.0.0",
-    "@metamask/keyring-api": "^18.0.0",
+    "@metamask/keyring-api": "^19.0.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
-    "@metamask/multichain-network-controller": "^0.9.0",
+    "@metamask/multichain-network-controller": "^0.10.0",
     "@metamask/polling-controller": "^14.0.0",
     "@metamask/utils": "^11.4.2",
     "bignumber.js": "^9.1.2",
@@ -66,7 +66,7 @@
   },
   "devDependencies": {
     "@metamask/accounts-controller": "^31.0.0",
-    "@metamask/assets-controllers": "^71.0.0",
+    "@metamask/assets-controllers": "^72.0.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/eth-json-rpc-provider": "^4.1.8",
     "@metamask/network-controller": "^24.0.0",
@@ -87,7 +87,7 @@
   },
   "peerDependencies": {
     "@metamask/accounts-controller": "^31.0.0",
-    "@metamask/assets-controllers": "^71.0.0",
+    "@metamask/assets-controllers": "^72.0.0",
     "@metamask/network-controller": "^24.0.0",
     "@metamask/remote-feature-flag-controller": "^1.6.0",
     "@metamask/snaps-controllers": "^14.0.0",

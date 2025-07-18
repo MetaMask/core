@@ -380,7 +380,8 @@ problem, we have created a CLI that automates most of the job for us, creatively
    - By default, `create-package` gives your package an MIT license.
    - If your desired license is _not_ MIT, then you must update your `LICENSE` file and the
      `license` field of `package.json`.
-3. Add your dependencies.
+3. Update `.github/CODEOWNERS` and `teams.json` to assign a team as the owner of the new package.
+4. Add your dependencies.
    - Do this as normal using `yarn`.
    - Remember, if you are adding other monorepo packages as dependents, don't forget to add them
      to the `references` array in your package's `tsconfig.json` and `tsconfig.build.json`.
