@@ -7,7 +7,7 @@ import type {
 import { KeyringAccountEntropyTypeOption } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { MultichainAccountControllerMessenger } from '../types';
+import type { MultichainAccountServiceMessenger } from '../types';
 
 export type Bip44Account<Account extends KeyringAccount> = Account & {
   options: {
@@ -40,9 +40,9 @@ export function isBip44Account<Account extends KeyringAccount>(
 export abstract class BaseAccountProvider
   implements AccountProvider<InternalAccount>
 {
-  protected readonly messenger: MultichainAccountControllerMessenger;
+  protected readonly messenger: MultichainAccountServiceMessenger;
 
-  constructor(messenger: MultichainAccountControllerMessenger) {
+  constructor(messenger: MultichainAccountServiceMessenger) {
     this.messenger = messenger;
   }
 

@@ -3807,9 +3807,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/multichain-account-controller@workspace:packages/multichain-account-controller":
+"@metamask/multichain-account-service@workspace:packages/multichain-account-service":
   version: 0.0.0-use.local
-  resolution: "@metamask/multichain-account-controller@workspace:packages/multichain-account-controller"
+  resolution: "@metamask/multichain-account-service@workspace:packages/multichain-account-service"
   dependencies:
     "@metamask/account-api": "npm:^0.2.0"
     "@metamask/accounts-controller": "npm:^31.0.0"

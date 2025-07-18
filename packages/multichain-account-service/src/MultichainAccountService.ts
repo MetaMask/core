@@ -14,20 +14,20 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
 import { SolAccountProvider } from './providers/SolAccountProvider';
-import type { MultichainAccountControllerMessenger } from './types';
+import type { MultichainAccountServiceMessenger } from './types';
 
 /**
- * The options that {@link MultichainAccountController} takes.
+ * The options that {@link MultichainAccountService} takes.
  */
-type MultichainAccountControllerOptions = {
-  messenger: MultichainAccountControllerMessenger;
+type MultichainAccountServiceOptions = {
+  messenger: MultichainAccountServiceMessenger;
 };
 
 /**
- * Stateless controller to expose multichain accounts capabilities.
+ * Service to expose multichain accounts capabilities.
  */
-export class MultichainAccountController {
-  readonly #messenger: MultichainAccountControllerMessenger;
+export class MultichainAccountService {
+  readonly #messenger: MultichainAccountServiceMessenger;
 
   readonly #providers: AccountProvider<InternalAccount>[];
 
@@ -37,13 +37,13 @@ export class MultichainAccountController {
   >;
 
   /**
-   * Constructs a new MultichainAccountController.
+   * Constructs a new MultichainAccountService.
    *
    * @param options - The options.
    * @param options.messenger - The messenger suited to this
-   * MultichainAccountController.
+   * MultichainAccountService.
    */
-  constructor({ messenger }: MultichainAccountControllerOptions) {
+  constructor({ messenger }: MultichainAccountServiceOptions) {
     this.#messenger = messenger;
     this.#wallets = new Map();
     // TODO: Rely on keyring capabilities once the keyring API is used by all keyrings.
@@ -54,7 +54,7 @@ export class MultichainAccountController {
   }
 
   /**
-   * Initialize the controller and constructs the internal reprensentation of
+   * Initialize the service and constructs the internal reprensentation of
    * multichain accounts and wallets.
    */
   init(): void {

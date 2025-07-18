@@ -5,11 +5,11 @@ import { EthAccountType, SolAccountType } from '@metamask/keyring-api';
 import type { KeyringObject } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import { MultichainAccountController } from './MultichainAccountController';
+import { MultichainAccountService } from './MultichainAccountService';
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
 import { SolAccountProvider } from './providers/SolAccountProvider';
 import {
-  getMultichainAccountControllerMessenger,
+  getMultichainAccountServiceMessenger,
   getRootMessenger,
   MOCK_HARDWARE_ACCOUNT_1,
   MOCK_HD_ACCOUNT_1,
@@ -23,9 +23,9 @@ import {
 import type {
   AllowedActions,
   AllowedEvents,
-  MultichainAccountControllerActions,
-  MultichainAccountControllerEvents,
-  MultichainAccountControllerMessenger,
+  MultichainAccountServiceActions,
+  MultichainAccountServiceEvents,
+  MultichainAccountServiceMessenger,
 } from './types';
 
 // Mock providers.
@@ -56,7 +56,7 @@ type Mocks = {
 
 function mockAccountProvider<Provider>(
   providerClass: new (
-    messenger: MultichainAccountControllerMessenger,
+    messenger: MultichainAccountServiceMessenger,
   ) => Provider,
   mocks: MockAccountProvider,
   accounts: InternalAccount[],
@@ -77,16 +77,16 @@ function setup({
   accounts,
 }: {
   messenger?: Messenger<
-    MultichainAccountControllerActions | AllowedActions,
-    MultichainAccountControllerEvents | AllowedEvents
+    MultichainAccountServiceActions | AllowedActions,
+    MultichainAccountServiceEvents | AllowedEvents
   >;
   keyrings?: KeyringObject[];
   accounts?: InternalAccount[];
 } = {}): {
-  controller: MultichainAccountController;
+  controller: MultichainAccountService;
   messenger: Messenger<
-    MultichainAccountControllerActions | AllowedActions,
-    MultichainAccountControllerEvents | AllowedEvents
+    MultichainAccountServiceActions | AllowedActions,
+    MultichainAccountServiceEvents | AllowedEvents
   >;
   mocks: Mocks;
 } {
@@ -133,15 +133,15 @@ function setup({
     );
   }
 
-  const controller = new MultichainAccountController({
-    messenger: getMultichainAccountControllerMessenger(messenger),
+  const controller = new MultichainAccountService({
+    messenger: getMultichainAccountServiceMessenger(messenger),
   });
   controller.init();
 
   return { controller, messenger, mocks };
 }
 
-describe('MultichainAccountController', () => {
+describe('MultichainAccountService', () => {
   describe('getMultichainAccounts', () => {
     it('gets multichain accounts', () => {
       const { controller } = setup({

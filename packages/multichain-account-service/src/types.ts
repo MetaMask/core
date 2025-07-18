@@ -12,18 +12,18 @@ import type {
 import type { HandleSnapRequest as SnapControllerHandleSnapRequestAction } from '@metamask/snaps-controllers';
 
 /**
- * All actions that {@link MultichainAccountController} registers so that other
+ * All actions that {@link MultichainAccountService} registers so that other
  * modules can call them.
  */
-export type MultichainAccountControllerActions = never;
+export type MultichainAccountServiceActions = never;
 /**
- * All events that {@link MultichainAccountController} publishes so that other modules
+ * All events that {@link MultichainAccountService} publishes so that other modules
  * can subscribe to them.
  */
-export type MultichainAccountControllerEvents = never;
+export type MultichainAccountServiceEvents = never;
 
 /**
- * All actions registered by other modules that {@link MultichainAccountController}
+ * All actions registered by other modules that {@link MultichainAccountService}
  * calls.
  */
 export type AllowedActions =
@@ -35,19 +35,19 @@ export type AllowedActions =
   | KeyringControllerGetStateAction;
 
 /**
- * All events published by other modules that {@link MultichainAccountController}
+ * All events published by other modules that {@link MultichainAccountService}
  * subscribes to.
  */
 export type AllowedEvents = KeyringControllerStateChangeEvent;
 
 /**
  * The messenger restricted to actions and events that
- * {@link MultichainAccountController} needs to access.
+ * {@link MultichainAccountService} needs to access.
  */
-export type MultichainAccountControllerMessenger = RestrictedMessenger<
-  'MultichainAccountController',
-  MultichainAccountControllerActions | AllowedActions,
-  MultichainAccountControllerEvents | AllowedEvents,
+export type MultichainAccountServiceMessenger = RestrictedMessenger<
+  'MultichainAccountService',
+  MultichainAccountServiceActions | AllowedActions,
+  MultichainAccountServiceEvents | AllowedEvents,
   AllowedActions['type'],
   AllowedEvents['type']
 >;

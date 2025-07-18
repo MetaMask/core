@@ -3,9 +3,9 @@ import { Messenger } from '@metamask/base-controller';
 import type {
   AllowedActions,
   AllowedEvents,
-  MultichainAccountControllerActions,
-  MultichainAccountControllerEvents,
-  MultichainAccountControllerMessenger,
+  MultichainAccountServiceActions,
+  MultichainAccountServiceEvents,
+  MultichainAccountServiceMessenger,
 } from '../types';
 
 /**
@@ -15,22 +15,22 @@ import type {
  */
 export function getRootMessenger() {
   return new Messenger<
-    MultichainAccountControllerActions | AllowedActions,
-    MultichainAccountControllerEvents | AllowedEvents
+    MultichainAccountServiceActions | AllowedActions,
+    MultichainAccountServiceEvents | AllowedEvents
   >();
 }
 
 /**
- * Retrieves a restricted messenger for the MultichainAccountController.
+ * Retrieves a restricted messenger for the MultichainAccountService.
  *
  * @param messenger - The root messenger instance. Defaults to a new Messenger created by getRootMessenger().
- * @returns The restricted messenger for the MultichainAccountController.
+ * @returns The restricted messenger for the MultichainAccountService.
  */
-export function getMultichainAccountControllerMessenger(
+export function getMultichainAccountServiceMessenger(
   messenger: ReturnType<typeof getRootMessenger>,
-): MultichainAccountControllerMessenger {
+): MultichainAccountServiceMessenger {
   return messenger.getRestricted({
-    name: 'MultichainAccountController',
+    name: 'MultichainAccountService',
     allowedEvents: ['KeyringController:stateChange'],
     allowedActions: [
       'AccountsController:getAccount',

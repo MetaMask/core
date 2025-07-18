@@ -9,7 +9,7 @@
 ## Accounts Team
 /packages/accounts-controller                @MetaMask/accounts-engineers
 /packages/multichain-transactions-controller @MetaMask/accounts-engineers
-/packages/multichain-account-controller      @MetaMask/accounts-engineers
+/packages/multichain-account-service      @MetaMask/accounts-engineers
 /packages/account-tree-controller            @MetaMask/accounts-engineers
 
 ## Assets Team
@@ -119,8 +119,8 @@
 /packages/logging-controller/CHANGELOG.md         @MetaMask/confirmations @MetaMask/core-platform
 /packages/message-manager/package.json            @MetaMask/confirmations @MetaMask/core-platform
 /packages/message-manager/CHANGELOG.md            @MetaMask/confirmations @MetaMask/core-platform
-/packages/multichain-account-controller/package.json @MetaMask/accounts-engineers @MetaMask/core-platform
-/packages/multichain-account-controller/CHANGELOG.md @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/multichain-account-service/package.json @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/multichain-account-service/CHANGELOG.md @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/multichain-api-middleware/package.json  @MetaMask/wallet-api-platform-engineers @MetaMask/core-platform
 /packages/multichain-api-middleware/CHANGELOG.md  @MetaMask/wallet-api-platform-engineers @MetaMask/core-platform
 /packages/name-controller/package.json            @MetaMask/confirmations @MetaMask/core-platform

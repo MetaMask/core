@@ -1,22 +1,22 @@
 import type { Messenger } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import { EvmAccountProvider } from './EvmAccountProvider';
+import { SolAccountProvider } from './SolAccountProvider';
 import {
-  getMultichainAccountControllerMessenger,
+  getMultichainAccountServiceMessenger,
   getRootMessenger,
   MOCK_HD_ACCOUNT_1,
-  MOCK_HD_ACCOUNT_2,
+  MOCK_SNAP_ACCOUNT_1,
 } from '../tests';
 import type {
   AllowedActions,
   AllowedEvents,
-  MultichainAccountControllerActions,
-  MultichainAccountControllerEvents,
+  MultichainAccountServiceActions,
+  MultichainAccountServiceEvents,
 } from '../types';
 
 /**
- * Sets up a EvmAccountProvider for testing.
+ * Sets up a SolAccountProvider for testing.
  *
  * @param options - Configuration options for setup.
  * @param options.messenger - An optional messenger instance to use. Defaults to a new Messenger.
@@ -28,15 +28,15 @@ function setup({
   accounts = [],
 }: {
   messenger?: Messenger<
-    MultichainAccountControllerActions | AllowedActions,
-    MultichainAccountControllerEvents | AllowedEvents
+    MultichainAccountServiceActions | AllowedActions,
+    MultichainAccountServiceEvents | AllowedEvents
   >;
   accounts?: InternalAccount[];
 } = {}): {
-  provider: EvmAccountProvider;
+  provider: SolAccountProvider;
   messenger: Messenger<
-    MultichainAccountControllerActions | AllowedActions,
-    MultichainAccountControllerEvents | AllowedEvents
+    MultichainAccountServiceActions | AllowedActions,
+    MultichainAccountServiceEvents | AllowedEvents
   >;
 } {
   messenger.registerActionHandler(
@@ -44,8 +44,8 @@ function setup({
     () => accounts,
   );
 
-  const provider = new EvmAccountProvider(
-    getMultichainAccountControllerMessenger(messenger),
+  const provider = new SolAccountProvider(
+    getMultichainAccountServiceMessenger(messenger),
   );
 
   return {
@@ -54,9 +54,9 @@ function setup({
   };
 }
 
-describe('EvmAccountProvider', () => {
+describe('SolAccountProvider', () => {
   it('gets accounts', () => {
-    const accounts = [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2];
+    const accounts = [MOCK_SNAP_ACCOUNT_1];
     const { provider } = setup({
       accounts,
     });
@@ -65,7 +65,7 @@ describe('EvmAccountProvider', () => {
   });
 
   it('gets a specific account', () => {
-    const account = MOCK_HD_ACCOUNT_1;
+    const account = MOCK_SNAP_ACCOUNT_1;
     const { provider } = setup({
       accounts: [account],
     });
@@ -74,12 +74,12 @@ describe('EvmAccountProvider', () => {
   });
 
   it('throws if account does not exist', () => {
-    const account = MOCK_HD_ACCOUNT_1;
+    const account = MOCK_SNAP_ACCOUNT_1;
     const { provider } = setup({
       accounts: [account],
     });
 
-    const unknownAccount = MOCK_HD_ACCOUNT_2;
+    const unknownAccount = MOCK_HD_ACCOUNT_1;
     expect(() => provider.getAccount(unknownAccount.id)).toThrow(
       `Unable to find account: ${unknownAccount.id}`,
     );

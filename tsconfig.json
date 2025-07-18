@@ -33,7 +33,7 @@
     { "path": "./packages/keyring-controller" },
     { "path": "./packages/message-manager" },
     { "path": "./packages/messenger" },
-    { "path": "./packages/multichain-account-controller" },
+    { "path": "./packages/multichain-account-service" },
     { "path": "./packages/multichain-api-middleware" },
     { "path": "./packages/multichain-network-controller" },
     { "path": "./packages/multichain-transactions-controller" },
