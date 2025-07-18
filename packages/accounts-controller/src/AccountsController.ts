@@ -1143,7 +1143,6 @@ export class AccountsController extends BaseController<
           // We need to type cast the `account` cause it's now typed as
           // a "HD Snap account" which as very specific options (which
           // are not typed the same way on `KeyringAccountOptions`.
-          //
           (account as InternalAccount).options = options;
         }
       }
