@@ -46,12 +46,7 @@
   },
   "resolutions": {
     "elliptic@6.5.4": "^6.5.7",
-    "fast-xml-parser@^4.3.4": "^4.4.1",
-    "ws@7.4.6": "^7.5.10",
-    "@metamask/keyring-utils@^3.0.0": "npm:@metamask-previews/keyring-utils@3.0.0-e86c8ec",
-    "@metamask/keyring-api@^18.0.0": "npm:@metamask-previews/keyring-api@18.0.0-e86c8ec",
-    "@metamask/keyring-internal-api@^6.2.0": "npm:@metamask-previews/keyring-internal-api@6.2.0-e86c8ec",
-    "@metamask/account-api@^0.1.0": "npm:@metamask-previews/account-api@0.1.0-e86c8ec"
+    "fast-xml-parser@^4.3.4": "^4.4.1"
   },
   "devDependencies": {
     "@babel/core": "^7.23.5",
