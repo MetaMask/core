@@ -55,9 +55,7 @@ type Mocks = {
 };
 
 function mockAccountProvider<Provider>(
-  providerClass: new (
-    messenger: MultichainAccountServiceMessenger,
-  ) => Provider,
+  providerClass: new (messenger: MultichainAccountServiceMessenger) => Provider,
   mocks: MockAccountProvider,
   accounts: InternalAccount[],
   type: KeyringAccount['type'],
@@ -83,7 +81,7 @@ function setup({
   keyrings?: KeyringObject[];
   accounts?: InternalAccount[];
 } = {}): {
-  controller: MultichainAccountService;
+  service: MultichainAccountService;
   messenger: Messenger<
     MultichainAccountServiceActions | AllowedActions,
     MultichainAccountServiceEvents | AllowedEvents
@@ -133,18 +131,18 @@ function setup({
     );
   }
 
-  const controller = new MultichainAccountService({
+  const service = new MultichainAccountService({
     messenger: getMultichainAccountServiceMessenger(messenger),
   });
-  controller.init();
+  service.init();
 
-  return { controller, messenger, mocks };
+  return { service, messenger, mocks };
 }
 
 describe('MultichainAccountService', () => {
   describe('getMultichainAccounts', () => {
     it('gets multichain accounts', () => {
-      const { controller } = setup({
+      const { service } = setup({
         accounts: [
           // Wallet 1:
           MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
@@ -167,19 +165,19 @@ describe('MultichainAccountService', () => {
       });
 
       expect(
-        controller.getMultichainAccounts({
+        service.getMultichainAccounts({
           entropySource: MOCK_HD_KEYRING_1.metadata.id,
         }),
       ).toHaveLength(1);
       expect(
-        controller.getMultichainAccounts({
+        service.getMultichainAccounts({
           entropySource: MOCK_HD_KEYRING_2.metadata.id,
         }),
       ).toHaveLength(1);
     });
 
     it('gets multichain accounts with multiple wallets', () => {
-      const { controller } = setup({
+      const { service } = setup({
         accounts: [
           // Wallet 1:
           MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
@@ -193,7 +191,7 @@ describe('MultichainAccountService', () => {
         ],
       });
 
-      const multichainAccounts = controller.getMultichainAccounts({
+      const multichainAccounts = service.getMultichainAccounts({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
       });
       expect(multichainAccounts).toHaveLength(2); // Group index 0 + 1.
@@ -208,7 +206,7 @@ describe('MultichainAccountService', () => {
     });
 
     it('throws if trying to access an unknown wallet', () => {
-      const { controller } = setup({
+      const { service } = setup({
         keyrings: [MOCK_HD_KEYRING_1],
         accounts: [
           // Wallet 1:
@@ -222,7 +220,7 @@ describe('MultichainAccountService', () => {
       // Wallet 2 should not exist, thus, this should throw.
       expect(() =>
         // NOTE: We use `getMultichainAccounts` which uses `#getWallet` under the hood.
-        controller.getMultichainAccounts({
+        service.getMultichainAccounts({
           entropySource: MOCK_HD_KEYRING_2.metadata.id,
         }),
       ).toThrow('Unknown wallet, no wallet matching this entropy source');
@@ -242,12 +240,12 @@ describe('MultichainAccountService', () => {
           .withGroupIndex(1)
           .get(),
       ];
-      const { controller } = setup({
+      const { service } = setup({
         accounts,
       });
 
       const groupIndex = 1;
-      const multichainAccount = controller.getMultichainAccount({
+      const multichainAccount = service.getMultichainAccount({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex,
       });
@@ -259,7 +257,7 @@ describe('MultichainAccountService', () => {
     });
 
     it('throws if trying to access an out-of-bound group index', () => {
-      const { controller } = setup({
+      const { service } = setup({
         accounts: [
           // Wallet 1:
           MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
@@ -271,7 +269,7 @@ describe('MultichainAccountService', () => {
 
       const groupIndex = 1;
       expect(() =>
-        controller.getMultichainAccount({
+        service.getMultichainAccount({
           entropySource: MOCK_HD_KEYRING_1.metadata.id,
           groupIndex,
         }),
@@ -289,14 +287,14 @@ describe('MultichainAccountService', () => {
           .withGroupIndex(0)
           .get(),
       ];
-      const { controller, messenger, mocks } = setup({
+      const { service, messenger, mocks } = setup({
         keyrings,
         accounts,
       });
 
       // This wallet does not exist yet.
       expect(() =>
-        controller.getMultichainAccounts({
+        service.getMultichainAccounts({
           entropySource: MOCK_HD_KEYRING_2.metadata.id,
         }),
       ).toThrow('Unknown wallet, no wallet matching this entropy source');
@@ -325,7 +323,7 @@ describe('MultichainAccountService', () => {
 
       // We should now be able to query that wallet.
       expect(
-        controller.getMultichainAccounts({
+        service.getMultichainAccounts({
           entropySource: MOCK_HD_KEYRING_2.metadata.id,
         }),
       ).toHaveLength(1);
