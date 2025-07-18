@@ -130,17 +130,11 @@ main() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --ref|-r)
-        if [[ "$2" =~ ^- ]]; then
-          echo "ERROR: Invalid argument for $1."
-          echo "---------------------"
-          print-usage
-          exit 1
-        fi
-        if [[ -n "${2:-}" ]]; then
+        if [[ -n "${2:-}" ]] && ! [[ "$2" =~ ^- ]]; then
           ref="$2"
           shift 2
         else
-          ref="$DEFAULT_REF"
+          ref=""
           shift
         fi
         ;;
@@ -160,6 +154,13 @@ main() {
         ;;
     esac
   done
+
+  if [[ -z "$ref" ]]; then
+    echo "ERROR: Missing ref."
+    echo "---------------------"
+    print-usage
+    exit 1
+  fi
 
   local full_ref
   if ! full_ref="$(git rev-parse "$ref" 2>/dev/null)"; then
