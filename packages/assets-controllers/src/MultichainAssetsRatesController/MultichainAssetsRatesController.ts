@@ -650,7 +650,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
     | OnAssetsConversionResponse
     | OnAssetHistoricalPriceResponse
     | OnAssetsMarketDataResponse
-    | null
+    | undefined
   > {
     try {
       return (await this.messagingSystem.call('SnapController:handleRequest', {
@@ -666,20 +666,16 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
         | OnAssetsConversionResponse
         | OnAssetHistoricalPriceResponse
         | OnAssetsMarketDataResponse
-        | null;
+        | undefined;
     } catch (error) {
-      // Handle specific error types
-      if (error instanceof Error) {
-        console.error(`Snap request failed for ${handler}:`, {
-          snapId,
-          handler,
-          message: error.message,
-          params,
-        });
-      } else {
-        console.error('Unknown error in snap request:', error);
-      }
-      return null;
+      console.error(`Snap request failed for ${handler}:`, {
+        snapId,
+        handler,
+        message: (error as Error).message,
+        params,
+      });
+      // Ignore
+      return undefined;
     }
   }
 
