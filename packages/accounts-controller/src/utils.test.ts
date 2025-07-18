@@ -41,14 +41,18 @@ describe('utils', () => {
     });
 
     it('returns undefined for non-HD keyrings', () => {
-      const badKeyring = {
-        ...keyring,
-        type: KeyringTypes.snap,
-      };
+      const { hd, ...badKeyringTypes } = KeyringTypes;
 
-      expect(
-        getGroupIndexFromAddressIndex(badKeyring, keyring.accounts[0]),
-      ).toBeUndefined();
+      for (const badKeyringType of Object.values(badKeyringTypes)) {
+        const badKeyring = {
+          ...keyring,
+          type: badKeyringType,
+        };
+
+        expect(
+          getGroupIndexFromAddressIndex(badKeyring, keyring.accounts[0]),
+        ).toBeUndefined();
+      }
     });
 
     it('returns undefined and log a warning if address cannot be found', () => {
