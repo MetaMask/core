@@ -120,6 +120,7 @@ export type {
   TokensControllerActions,
   TokensControllerGetStateAction,
   TokensControllerAddDetectedTokensAction,
+  TokensControllerAddTokensAction,
   TokensControllerEvents,
   TokensControllerStateChangeEvent,
   TokensControllerMessenger,
