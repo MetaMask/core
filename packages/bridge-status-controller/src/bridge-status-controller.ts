@@ -625,9 +625,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       if (isFinalStatus && pollingToken) {
         this.stopPollingByPollingToken(pollingToken);
         delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
-        this.update((state) => {
-          state.txHistory[bridgeTxMetaId].attempts = undefined;
-        });
 
         if (status.status === StatusTypes.COMPLETE) {
           this.#trackUnifiedSwapBridgeEvent(
