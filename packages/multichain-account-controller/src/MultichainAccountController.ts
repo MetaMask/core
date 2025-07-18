@@ -52,6 +52,10 @@ export class MultichainAccountController {
     ];
   }
 
+  /**
+   * Initialize the controller and constructs the internal reprensentation of
+   * multichain accounts and wallets.
+   */
   init(): void {
     // Gather all entropy sources first.
     const { keyrings } = this.#messenger.call('KeyringController:getState');
@@ -92,6 +96,15 @@ export class MultichainAccountController {
     return wallet;
   }
 
+  /**
+   * Gets a reference to the multichain account matching this entropy source and group index.
+   *
+   * @param options - Options.
+   * @param options.entropySource - The entropy source of the multichain account.
+   * @param options.groupIndex - The group index of the multichain account.
+   * @throws If none multichain account match the entropy source and group index.
+   * @returns A reference to the multichain account.
+   */
   getMultichainAccount({
     entropySource,
     groupIndex,
@@ -109,6 +122,13 @@ export class MultichainAccountController {
     return multichainAccount;
   }
 
+  /**
+   * Gets all multichain accounts for a given entropy source.
+   *
+   * @param options - Options.
+   * @param options.entropySource - The entropy source to query.
+   * @returns A list of all multichain accounts.
+   */
   getMultichainAccounts({
     entropySource,
   }: {
