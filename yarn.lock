@@ -3807,6 +3807,41 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/multichain-account-service@workspace:packages/multichain-account-service":
+  version: 0.0.0-use.local
+  resolution: "@metamask/multichain-account-service@workspace:packages/multichain-account-service"
+  dependencies:
+    "@metamask/account-api": "npm:^0.2.0"
+    "@metamask/accounts-controller": "npm:^31.0.0"
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/base-controller": "npm:^8.0.1"
+    "@metamask/eth-snap-keyring": "npm:^14.0.0"
+    "@metamask/keyring-api": "npm:^19.0.0"
+    "@metamask/keyring-controller": "npm:^22.1.0"
+    "@metamask/keyring-internal-api": "npm:^7.0.0"
+    "@metamask/keyring-snap-client": "npm:^6.0.0"
+    "@metamask/providers": "npm:^22.1.0"
+    "@metamask/snaps-controllers": "npm:^14.0.1"
+    "@metamask/snaps-sdk": "npm:^9.0.0"
+    "@metamask/snaps-utils": "npm:^11.0.0"
+    "@metamask/superstruct": "npm:^3.1.0"
+    "@types/jest": "npm:^27.4.1"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^27.5.1"
+    ts-jest: "npm:^27.1.4"
+    typedoc: "npm:^0.24.8"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.2.2"
+    webextension-polyfill: "npm:^0.12.0"
+  peerDependencies:
+    "@metamask/accounts-controller": ^31.0.0
+    "@metamask/keyring-controller": ^22.0.0
+    "@metamask/providers": ^22.0.0
+    "@metamask/snaps-controllers": ^14.0.0
+    webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
+  languageName: unknown
+  linkType: soft
+
 "@metamask/multichain-api-middleware@workspace:packages/multichain-api-middleware":
   version: 0.0.0-use.local
   resolution: "@metamask/multichain-api-middleware@workspace:packages/multichain-api-middleware"
