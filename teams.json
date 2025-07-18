@@ -24,6 +24,7 @@
   "metamask/logging-controller": "team-confirmations",
   "metamask/message-manager": "team-confirmations",
   "metamask/messenger": "team-wallet-framework",
+  "metamask/multichain-account-controller": "team-accounts",
   "metamask/multichain-api-middleware": "team-wallet-api-platform",
   "metamask/multichain-network-controller": "team-wallet-api-platform",
   "metamask/name-controller": "team-confirmations",
