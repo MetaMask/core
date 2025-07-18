@@ -472,7 +472,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     // If we've failed too many times, stop polling for the tx
     const pollingToken = this.#pollingTokensByTxMetaId[bridgeTxMetaId];
-    if (newAttempts.counter > MAX_ATTEMPTS && pollingToken) {
+    if (newAttempts.counter >= MAX_ATTEMPTS && pollingToken) {
       this.stopPollingByPollingToken(pollingToken);
       delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
     }
