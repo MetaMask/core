@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/keyring-api` from `^18.0.0` to `^19.0.0` ([#6146](https://github.com/MetaMask/core/pull/6146))
+
 ### Fixed
 
 - Improve error handling in `MultichainAssetsRatesController` for Snap request failures ([#6104](https://github.com/MetaMask/core/pull/6104))
@@ -14,9 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added null safety checks to prevent crashes when Snap requests return null
   - Controller now continues operation when individual Snap requests fail instead of crashing
   - Added comprehensive unit tests covering various error scenarios including JSON-RPC errors and network failures
-### Changed
-
-- Bump `@metamask/keyring-api` from `^18.0.0` to `^19.0.0` ([#6146](https://github.com/MetaMask/core/pull/6146))
 
 ## [72.0.0]
 
