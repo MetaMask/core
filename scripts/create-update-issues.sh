@@ -96,9 +96,17 @@ create-issue() {
 
   if [[ $exitcode -eq 0 ]]; then
     if [[ -n $team_labels ]]; then
-      echo "✅ Successfully created issue!"
+      if [[ $dry_run -eq 1 ]]; then
+        echo "✅ Would have successfully created issue!"
+      else
+        echo "✅ Successfully created issue!"
+      fi
     else
-      echo "⚠️ Successfully created issue, but you will need to assign the correct team label (see URL above)."
+      if [[ $dry_run -eq 1 ]]; then
+        echo "⚠️ Would have successfully created issue, but you would need to assign the correct team label."
+      else
+        echo "⚠️ Successfully created issue, but you will need to assign the correct team label (see URL above)."
+      fi
     fi
   else
     echo "❌ Issue was not created. Please create an issue manually which requests that ${package_name} be updated to version ${version}, assigning the correct team labels."
@@ -227,7 +235,11 @@ main() {
     echo
     echo "Checking for existing issues in ${EXTENSION_REPO}..."
     if existing-issue-found "${EXTENSION_REPO}" "$package_name" "$version" "$all_issues_extension"; then
-      echo "⏭️ Not creating issue because it already exists"
+      if [[ $dry_run -eq 1 ]]; then
+        echo "⏭️ Would not have created issue because it already exists"
+      else
+        echo "⏭️ Not creating issue because it already exists"
+      fi
     elif ! create-issue "$dry_run" "$EXTENSION_REPO" "$package_name" "$version" "$team_labels"; then
       exitcode=1
     fi
@@ -236,7 +248,11 @@ main() {
     echo
     echo "Checking for existing issues in ${MOBILE_REPO}..."
     if existing-issue-found "${MOBILE_REPO}" "$package_name" "$version" "$all_issues_mobile"; then
-      echo "⏭️ Not creating issue because it already exists"
+      if [[ $dry_run -eq 1 ]]; then
+        echo "⏭️ Would not have created issue because it already exists"
+      else
+        echo "⏭️ Not creating issue because it already exists"
+      fi
     elif ! create-issue "$dry_run" "$MOBILE_REPO" "$package_name" "$version" "$team_labels"; then
       exitcode=1
     fi
@@ -244,7 +260,7 @@ main() {
 
   if [[ $exitcode -ne 0 ]]; then
     echo
-    echo "One or more errors were encountered while creating issues. See above warnings/errors for details."
+    echo "One or more warnings or errors were found. See above for details."
   fi
 
   return $exitcode
