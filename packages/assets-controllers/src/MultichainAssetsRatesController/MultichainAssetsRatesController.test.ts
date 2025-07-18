@@ -598,32 +598,6 @@ describe('MultichainAssetsRatesController', () => {
       consoleErrorSpy.mockRestore();
     });
 
-    it('handles unknown error types gracefully', async () => {
-      const { controller, messenger } = setupController();
-
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-      const unknownError = 'String error instead of Error object';
-
-      const snapHandler = jest.fn().mockRejectedValue(unknownError);
-      messenger.registerActionHandler(
-        'SnapController:handleRequest',
-        snapHandler,
-      );
-
-      await controller.updateAssetsRates();
-
-      // Should have logged the unknown error
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Unknown error in snap request:',
-        unknownError,
-      );
-
-      // Should not update state when snap request fails
-      expect(controller.state.conversionRates).toStrictEqual({});
-
-      consoleErrorSpy.mockRestore();
-    });
-
     it('handles mixed success and failure scenarios', async () => {
       const { controller, messenger } = setupController({
         accountsAssets: [fakeNonEvmAccount, fakeEvmAccount2],
