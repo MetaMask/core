@@ -1,5 +1,3 @@
-import type { UserStorageGenericFeatureKey } from 'src/shared/storage-schema';
-
 import { arrangeAuthAPIs } from './__fixtures__/auth';
 import { arrangeAuth, typedMockFn } from './__fixtures__/test-utils';
 import {
@@ -20,8 +18,9 @@ import {
 import type { StorageOptions } from './user-storage';
 import { STORAGE_URL, UserStorage } from './user-storage';
 import encryption, { createSHA256Hash } from '../shared/encryption';
-import { SHARED_SALT } from '../shared/encryption/constants';
+import { SCRYPT_N_V2, SHARED_SALT_V2 } from '../shared/encryption/constants';
 import { Env } from '../shared/env';
+import type { UserStorageGenericFeatureKey } from '../shared/storage-schema';
 import { USER_STORAGE_FEATURE_NAMES } from '../shared/storage-schema';
 
 const MOCK_SRP = '0x6265617665726275696c642e6f7267';
@@ -115,11 +114,52 @@ describe('User Storage', () => {
           return;
         }
 
-        const isEncryptedUsingSharedSalt =
+        const isEncryptedUsingSharedSaltV2 =
           encryption.getSalt(requestBody.data).toString() ===
-          SHARED_SALT.toString();
+          SHARED_SALT_V2.toString();
 
-        expect(isEncryptedUsingSharedSalt).toBe(true);
+        const isEncryptedUsingNewScryptN =
+          JSON.parse(requestBody.data).o.N === SCRYPT_N_V2;
+
+        expect(isEncryptedUsingSharedSaltV2).toBe(true);
+        expect(isEncryptedUsingNewScryptN).toBe(true);
+      },
+    );
+
+    await userStorage.getItem(
+      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+    );
+    expect(mockGet.isDone()).toBe(true);
+    expect(mockPut.isDone()).toBe(true);
+  });
+
+  it('re-encrypts data if received entry was encrypted with the old scrypt N param, and saves it back to user storage', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    // This corresponds to 'data1'
+    // Encrypted with the old scrypt N param
+    const mockResponse = {
+      HashedKey: 'entry1',
+      Data: '{"v":"1","t":"scrypt","d":"HIu+WgFBCtKo6rEGy0R8h8t/JgXhzC2a3AF6epahGY2h6GibXDKxSBf6ppxM099Gmg==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}',
+    };
+
+    const mockGet = await handleMockUserStorageGet({
+      status: 200,
+      body: JSON.stringify(mockResponse),
+    });
+    const mockPut = handleMockUserStoragePut(
+      undefined,
+      async (_, requestBody) => {
+        // eslint-disable-next-line jest/no-conditional-in-test
+        if (typeof requestBody === 'string') {
+          return;
+        }
+
+        const isEncryptedUsingNewScryptN =
+          JSON.parse(requestBody.data).o.N === SCRYPT_N_V2;
+
+        expect(isEncryptedUsingNewScryptN).toBe(true);
       },
     );
 
@@ -184,25 +224,72 @@ describe('User Storage', () => {
           return;
         }
 
-        const doEntriesHaveDifferentSalts =
-          encryption.getIfEntriesHaveDifferentSalts(
-            Object.entries(requestBody.data).map((entry) => entry[1] as string),
-          );
-
-        expect(doEntriesHaveDifferentSalts).toBe(false);
-
-        const doEntriesUseSharedSalt = Object.entries(requestBody.data).every(
+        const doEntriesUseSharedSaltV2 = Object.entries(requestBody.data).every(
           ([_entryKey, entryValue]) =>
             encryption.getSalt(entryValue as string).toString() ===
-            SHARED_SALT.toString(),
+            SHARED_SALT_V2.toString(),
         );
 
-        expect(doEntriesUseSharedSalt).toBe(true);
+        const doEntriesUseNewScryptN = Object.entries(requestBody.data).every(
+          ([_entryKey, entryValue]) =>
+            JSON.parse(entryValue as string).o.N === SCRYPT_N_V2,
+        );
+
+        expect(doEntriesUseSharedSaltV2).toBe(true);
+        expect(doEntriesUseNewScryptN).toBe(true);
 
         const wereOnlyNonEmptySaltEntriesUploaded =
           Object.entries(requestBody.data).length === 2;
 
         expect(wereOnlyNonEmptySaltEntriesUploaded).toBe(true);
+      },
+    );
+
+    await userStorage.getAllFeatureItems(
+      USER_STORAGE_FEATURE_NAMES.notifications,
+    );
+    expect(mockGetAll.isDone()).toBe(true);
+    expect(mockPut.isDone()).toBe(true);
+  });
+
+  it('re-encrypts data if received entries were encrypted with the old scrypt N param, and saves it back to user storage', async () => {
+    // This corresponds to [['entry1', 'data1'], ['entry2', 'data2'], ['HASHED_KEY', '{ "hello": "world" }']]
+    // Each entry has been encrypted with a random salt, except for the last entry
+    // The last entry is used to test if the function can handle payloads that contain both random salts and the shared salt
+    const mockResponse = [
+      {
+        HashedKey: 'entry1',
+        Data: '{"v":"1","t":"scrypt","d":"HIu+WgFBCtKo6rEGy0R8h8t/JgXhzC2a3AF6epahGY2h6GibXDKxSBf6ppxM099Gmg==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}',
+      },
+      {
+        HashedKey: 'entry2',
+        Data: '{"v":"1","t":"scrypt","d":"3ioo9bxhjDjTmJWIGQMnOlnfa4ysuUNeLYTTmJ+qrq7gwI6hURH3ooUcBldJkHtvuQ==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}',
+      },
+      await MOCK_STORAGE_RESPONSE('data3'),
+    ];
+
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    const mockGetAll = await handleMockUserStorageGetAllFeatureEntries({
+      status: 200,
+      body: mockResponse,
+    });
+
+    const mockPut = handleMockUserStoragePut(
+      undefined,
+      async (_, requestBody) => {
+        // eslint-disable-next-line jest/no-conditional-in-test
+        if (typeof requestBody === 'string') {
+          return;
+        }
+
+        const doEntriesUseNewScryptN = Object.entries(requestBody.data).every(
+          ([_entryKey, entryValue]) =>
+            JSON.parse(entryValue as string).o.N === SCRYPT_N_V2,
+        );
+
+        expect(doEntriesUseNewScryptN).toBe(true);
       },
     );
 
