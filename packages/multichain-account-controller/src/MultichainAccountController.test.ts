@@ -225,7 +225,7 @@ describe('MultichainAccountController', () => {
         controller.getMultichainAccounts({
           entropySource: MOCK_HD_KEYRING_2.metadata.id,
         }),
-      ).toThrow('Unknown wallet, not wallet matching this entropy source');
+      ).toThrow('Unknown wallet, no wallet matching this entropy source');
     });
   });
 
@@ -299,7 +299,7 @@ describe('MultichainAccountController', () => {
         controller.getMultichainAccounts({
           entropySource: MOCK_HD_KEYRING_2.metadata.id,
         }),
-      ).toThrow('Unknown wallet, not wallet matching this entropy source');
+      ).toThrow('Unknown wallet, no wallet matching this entropy source');
 
       // Simulate new keyring being added.
       keyrings.push(MOCK_HD_KEYRING_2);
