@@ -117,6 +117,11 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
     await pairIdentifiers(n.nonce, logins, accessToken, this.#env);
   }
 
+  async pairSocialIdentifier(jwt: string): Promise<boolean> {
+    this.#assertSRP(this.#type, this.#sdk);
+    return await this.#sdk.pairSocialIdentifier(jwt);
+  }
+
   prepare(signer: {
     address: string;
     chainId: number;

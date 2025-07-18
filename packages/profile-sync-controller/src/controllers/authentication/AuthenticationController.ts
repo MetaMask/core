@@ -10,11 +10,12 @@ import type {
   KeyringControllerLockEvent,
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
+import type { SeedlessOnboardingControllerGetStateAction } from '@metamask/seedless-onboarding-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 
 import {
-  createSnapPublicKeyRequest,
   createSnapAllPublicKeysRequest,
+  createSnapPublicKeyRequest,
   createSnapSignMessageRequest,
 } from './auth-snap-requests';
 import type {
@@ -37,6 +38,8 @@ const controllerName = 'AuthenticationController';
 export type AuthenticationControllerState = {
   isSignedIn: boolean;
   srpSessionData?: Record<string, LoginResponse>;
+  socialPairingDone?: boolean;
+  pairingInProgress?: boolean;
 };
 export const defaultState: AuthenticationControllerState = {
   isSignedIn: false,
@@ -49,6 +52,14 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
   srpSessionData: {
     persist: true,
     anonymous: false,
+  },
+  socialPairingDone: {
+    persist: true,
+    anonymous: true,
+  },
+  pairingInProgress: {
+    persist: false,
+    anonymous: true,
   },
 };
 
@@ -100,7 +111,8 @@ export type Events = AuthenticationControllerStateChangeEvent;
 // Allowed Actions
 export type AllowedActions =
   | HandleSnapRequest
-  | KeyringControllerGetStateAction;
+  | KeyringControllerGetStateAction
+  | SeedlessOnboardingControllerGetStateAction;
 
 export type AllowedEvents =
   | KeyringControllerLockEvent
@@ -298,12 +310,17 @@ export default class AuthenticationController extends BaseController<
     const allPublicKeys = await this.#snapGetAllPublicKeys();
     const accessTokens = [];
 
-    // We iterate sequentially in order to be sure that the first entry
+    // We iterate sequentially to be sure that the first entry
     // is the primary SRP LoginResponse.
     for (const [entropySourceId] of allPublicKeys) {
       const accessToken = await this.#auth.getAccessToken(entropySourceId);
       accessTokens.push(accessToken);
     }
+
+    // don't await for the pairing to finish
+    this.#tryPairingWithSocialToken().catch(() => {
+      // no-op. failures must not interfere with the sign-in flow
+    });
 
     return accessTokens;
   }
@@ -312,6 +329,7 @@ export default class AuthenticationController extends BaseController<
     this.update((state) => {
       state.isSignedIn = false;
       state.srpSessionData = undefined;
+      state.socialPairingDone = false;
     });
   }
 
@@ -349,6 +367,51 @@ export default class AuthenticationController extends BaseController<
 
   public isSignedIn(): boolean {
     return this.state.isSignedIn;
+  }
+
+  async #tryPairingWithSocialToken(): Promise<void> {
+    const { accessToken: socialPairingToken } = this.messagingSystem.call(
+      'SeedlessOnboardingController:getState',
+    );
+
+    // Early return if no social pairing token
+    if (!socialPairingToken) {
+      this.update((state) => {
+        // set this to false when undefined to signal that an attempt was made.
+        state.socialPairingDone = state.socialPairingDone ?? false;
+      });
+      return;
+    }
+
+    // Atomically check and set pairingInProgress to prevent race conditions
+    let conditionsMet = false;
+    this.update((state) => {
+      if (state.socialPairingDone || state.pairingInProgress) {
+        return;
+      }
+      state.pairingInProgress = true;
+      conditionsMet = true;
+    });
+
+    if (!conditionsMet) {
+      return;
+    }
+
+    try {
+      const paired = await this.#auth.pairSocialIdentifier(socialPairingToken);
+      if (paired) {
+        this.update((state) => {
+          // Prevents a race condition when sign-out is performed before pairing completes
+          if (state.isSignedIn) {
+            state.socialPairingDone = true;
+          }
+        });
+      }
+    } finally {
+      this.update((state) => {
+        state.pairingInProgress = false;
+      });
+    }
   }
 
   /**
