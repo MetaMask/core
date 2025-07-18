@@ -17,8 +17,8 @@ Usage: $0 [--ref REF] [--no-dry-run]
 OPTIONS:
 
 --ref REF, -r REF       The release commit to inspect.
---no-dry-run            By default, this script won't do anything. Pass this
-                        option to override that.
+--no-dry-run            By default, this script won't do anything, to allow you
+                        to test it. Pass this option to override that.
 --help, -h              You're looking at it ;)
 EOT
 }
@@ -84,6 +84,7 @@ create-issue() {
 
   local exitcode
 
+  echo
   echo "Creating issue in ${repo} with labels: \"${labels}\"..."
 
   echo "----------------------------------------"
@@ -123,7 +124,6 @@ main() {
       --ref|-r)
         if [[ "$2" =~ ^- ]]; then
           echo "ERROR: Invalid argument for $1."
-          echo
           echo "---------------------"
           print-usage
           exit 1
@@ -146,7 +146,6 @@ main() {
         ;;
       *)
         echo "ERROR: Unknown argument: $1"
-        echo
         echo "---------------------"
         print-usage
         exit 1
@@ -154,18 +153,17 @@ main() {
     esac
   done
 
-  if [[ $dry_run -eq 1 ]]; then
-    echo "[[[ DRY-RUN MODE ]]]"
-    echo
-  fi
-
   local full_ref
   if ! full_ref="$(git rev-parse "$ref" 2>/dev/null)"; then
     echo "ERROR: Unknown ref \"$ref\"."
-    echo
     echo "---------------------"
     print-usage
     exit 1
+  fi
+
+  if [[ $dry_run -eq 1 ]]; then
+    echo "[[[ DRY-RUN MODE ]]]"
+    echo
   fi
 
   if [[ "$full_ref" == "$ref" ]]; then
@@ -173,7 +171,6 @@ main() {
   else
     echo "Looking for release tags pointing to $ref ($full_ref) for major-bumped packages..."
   fi
-
   tag_array=()
   while IFS= read -r line; do
     if [[ "$line" =~ ^@metamask/[^@]+@[0-9]+\.0\.0$ ]]; then
@@ -186,15 +183,19 @@ main() {
     exit 0
   fi
 
+  echo
+
   local all_issues_extension
-  if ! all_issues_extension=$(gh issue list --repo "$EXTENSION_REPO" --label "$DEFAULT_LABEL" --state open --json number,title,url 2>&1); then
+  echo "Fetching issues on $EXTENSION_REPO with label $DEFAULT_LABEL..."
+  if ! all_issues_extension="$(gh issue list --repo "$EXTENSION_REPO" --label "$DEFAULT_LABEL" --state open --json number,title,url 2>&1)"; then
     echo "❌ Failed to fetch issues from ${EXTENSION_REPO}"
     echo "$all_issues_extension"
     exit 1
   fi
 
   local all_issues_mobile
-  if ! all_issues_mobile=$(gh issue list --repo "$MOBILE_REPO" --label "$DEFAULT_LABEL" --state open --json number,title,url 2>&1); then
+  echo "Fetching issues on $MOBILE_REPO with label $DEFAULT_LABEL..."
+  if ! all_issues_mobile="$(gh issue list --repo "$MOBILE_REPO" --label "$DEFAULT_LABEL" --state open --json number,title,url 2>&1)"; then
     echo "❌ Failed to fetch issues from ${MOBILE_REPO}"
     echo "$all_issues_mobile"
     exit 1
@@ -225,7 +226,7 @@ main() {
     # Create the extension issue, if it doesn't exist yet
     echo
     echo "Checking for existing issues in ${EXTENSION_REPO}..."
-    if existing-issue-found "${EXTENSION_REPO}" "$package_name" "$version" "${all_issues_extension[@]}"; then
+    if existing-issue-found "${EXTENSION_REPO}" "$package_name" "$version" "$all_issues_extension"; then
       echo "⏭️ Not creating issue because it already exists"
     elif ! create-issue "$dry_run" "$EXTENSION_REPO" "$package_name" "$version" "$team_labels"; then
       exitcode=1
@@ -234,7 +235,7 @@ main() {
     # Create the mobile issue, if it doesn't exist yet
     echo
     echo "Checking for existing issues in ${MOBILE_REPO}..."
-    if existing-issue-found "${MOBILE_REPO}" "$package_name" "$version" "${all_issues_mobile[@]}"; then
+    if existing-issue-found "${MOBILE_REPO}" "$package_name" "$version" "$all_issues_mobile"; then
       echo "⏭️ Not creating issue because it already exists"
     elif ! create-issue "$dry_run" "$MOBILE_REPO" "$package_name" "$version" "$team_labels"; then
       exitcode=1
