@@ -6,7 +6,6 @@ describe('@metamask/json-rpc-engine', () => {
       Array [
         "getUniqueId",
         "JsonRpcEngineError",
-        "EndNotification",
         "JsonRpcEngineV2",
       ]
     `);

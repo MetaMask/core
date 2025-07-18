@@ -2,8 +2,8 @@ import type { NonEmptyArray } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
 import { original as getOriginalState } from 'immer';
 
-import type { JsonRpcMiddleware } from './JsonRpcEngineV2';
-import { JsonRpcEngineV2, EndNotification } from './JsonRpcEngineV2';
+import type { JsonRpcMiddleware, MiddlewareParams } from './JsonRpcEngineV2';
+import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
 import type { MiddlewareContext } from './MiddlewareContext';
 import {
   cloneRequest,
@@ -45,8 +45,9 @@ const makeMockMiddleware = <
   ...rest: JsonRpcMiddleware<Request, Result>[]
 ): NonEmptyArray<JsonRpcMiddleware<Request, Result>> =>
   [middleware, ...rest].map(
-    (fn) => (request: Request, context: MiddlewareContext) =>
-      fn(getOriginalState(request) as Request, context),
+    (fn) =>
+      ({ request, context, next }: MiddlewareParams<Request, Result>) =>
+        fn({ request: getOriginalState(request) as Request, context, next }),
   ) as NonEmptyArray<JsonRpcMiddleware<Request, Result>>;
 
 describe('JsonRpcEngineV2', () => {
@@ -54,7 +55,7 @@ describe('JsonRpcEngineV2', () => {
     describe('notifications', () => {
       it('passes the notification through middleware', async () => {
         const middleware: JsonRpcMiddleware<JsonRpcNotification, void> =
-          jest.fn(() => EndNotification);
+          jest.fn(() => undefined);
         const engine = new JsonRpcEngineV2({
           middleware: makeMockMiddleware(middleware),
         });
