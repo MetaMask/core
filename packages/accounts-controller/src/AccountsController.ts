@@ -11,7 +11,10 @@ import {
   type SnapKeyringAccountTransactionsUpdatedEvent,
   SnapKeyring,
 } from '@metamask/eth-snap-keyring';
-import type { KeyringAccountEntropyOptions } from '@metamask/keyring-api';
+import type {
+  KeyringAccountEntropyOptions,
+  KeyringAccountOptions,
+} from '@metamask/keyring-api';
 import {
   EthAccountType,
   EthMethod,
@@ -44,7 +47,7 @@ import {
   getGroupIndexFromAddress,
   getUUIDFromAddressOfNormalAccount,
   isHdKeyringType,
-  isNormalKeyringType,
+  isHdSnapKeyringAccount,
   isSimpleKeyringType,
   isSnapKeyringType,
   keyringTypeToName,
@@ -546,31 +549,42 @@ export class AccountsController extends BaseController<
    * @returns A Promise that resolves when the accounts have been updated.
    */
   async updateAccounts(): Promise<void> {
-    const snapAccounts = await this.#listSnapAccounts();
-    const normalAccounts = await this.#listNormalAccounts();
+    const keyringAccountIndexes = new Map<string, number>();
 
-    // keyring type map.
-    const keyringTypes = new Map<string, number>();
-    const previousAccounts = this.state.internalAccounts.accounts;
+    const existingInternalAccounts = this.state.internalAccounts.accounts;
+    const internalAccounts: AccountsControllerState['internalAccounts']['accounts'] =
+      {};
 
-    const accounts: Record<string, InternalAccount> = [
-      ...normalAccounts,
-      ...snapAccounts,
-    ].reduce(
-      (internalAccountMap, internalAccount) => {
-        const keyringTypeName = keyringTypeToName(
-          internalAccount.metadata.keyring.type,
+    const { keyrings } = this.messagingSystem.call(
+      'KeyringController:getState',
+    );
+    for (const keyring of keyrings) {
+      const keyringTypeName = keyringTypeToName(keyring.type);
+
+      for (const address of keyring.accounts) {
+        const internalAccount = this.#getInternalAccountFromAddressAndType(
+          address,
+          keyring,
         );
-        const keyringAccountIndex = keyringTypes.get(keyringTypeName) ?? 0;
-        if (keyringAccountIndex) {
-          keyringTypes.set(keyringTypeName, keyringAccountIndex + 1);
-        } else {
-          keyringTypes.set(keyringTypeName, 1);
+
+        // This should never really happen, but if for some reason we're not
+        // able to get the Snap keyring reference, this would return an
+        // undefined account.
+        // So we just skip it, even though, this should not really happen.
+        if (!internalAccount) {
+          continue;
         }
 
-        const existingAccount = previousAccounts[internalAccount.id];
+        const keyringAccountIndex =
+          keyringAccountIndexes.get(keyringTypeName) ?? 0;
+        if (keyringAccountIndex) {
+          keyringAccountIndexes.set(keyringTypeName, keyringAccountIndex + 1);
+        } else {
+          keyringAccountIndexes.set(keyringTypeName, 1);
+        }
 
-        internalAccountMap[internalAccount.id] = {
+        const existingAccount = existingInternalAccounts[internalAccount.id];
+        internalAccounts[internalAccount.id] = {
           ...internalAccount,
 
           metadata: {
@@ -584,14 +598,12 @@ export class AccountsController extends BaseController<
             lastSelected: existingAccount?.metadata.lastSelected ?? 0,
           },
         };
-
-        return internalAccountMap;
-      },
-      {} as Record<string, InternalAccount>,
-    );
+      }
+    }
 
     this.#update((state) => {
-      state.internalAccounts.accounts = accounts;
+      // @ts-expect-error - Test
+      state.internalAccounts.accounts = internalAccounts;
     });
   }
 
@@ -710,51 +722,6 @@ export class AccountsController extends BaseController<
     // Snap keyring is not available until the first account is created in the keyring
     // controller, so this might be undefined.
     return snapKeyring as SnapKeyring | undefined;
-  }
-
-  /**
-   * Returns a list of internal accounts created using the SnapKeyring.
-   *
-   * @returns A promise that resolves to an array of InternalAccount objects.
-   */
-  async #listSnapAccounts(): Promise<InternalAccount[]> {
-    const keyring = this.#getSnapKeyring();
-
-    if (!keyring) {
-      return [];
-    }
-
-    return keyring.listAccounts();
-  }
-
-  /**
-   * Returns a list of normal accounts.
-   * Note: listNormalAccounts is a temporary method until the keyrings all implement the InternalAccount interface.
-   * Once all keyrings implement the InternalAccount interface, this method can be removed and getAccounts can be used instead.
-   *
-   * @returns A Promise that resolves to an array of InternalAccount objects.
-   */
-  async #listNormalAccounts(): Promise<InternalAccount[]> {
-    const internalAccounts: InternalAccount[] = [];
-    const { keyrings } = this.messagingSystem.call(
-      'KeyringController:getState',
-    );
-
-    for (const keyring of keyrings) {
-      const keyringType = keyring.type;
-      if (!isNormalKeyringType(keyringType as KeyringTypes)) {
-        // We only consider "normal accounts" here, so keep looping
-        continue;
-      }
-
-      for (const address of keyring.accounts) {
-        internalAccounts.push(
-          this.#getInternalAccountForNonSnapAccount(address, keyring),
-        );
-      }
-    }
-
-    return internalAccounts;
   }
 
   /**
@@ -1156,7 +1123,32 @@ export class AccountsController extends BaseController<
 
       // This might be undefined if the Snap deleted the account before
       // reaching that point.
-      return snapKeyring.getAccountByAddress(address);
+      const account = snapKeyring.getAccountByAddress(address);
+      if (account) {
+        // MIGRATION: To avoid any existing Snap account migration, we are
+        // just "adding" the new typed options that we need for multichain
+        // accounts. Ultimately, we would need a real Snap account migrations
+        // (being handled by each Snaps).
+        if (isHdSnapKeyringAccount(account)) {
+          const options: KeyringAccountOptions = {
+            ...account.options,
+            entropy: {
+              type: KeyringAccountEntropyTypeOption.Mnemonic,
+              id: account.options.entropySource,
+              groupIndex: account.options.index,
+              derivationPath: account.options.derivationPath,
+            },
+          };
+
+          // We need to type cast the `account` cause it's now typed as
+          // a "HD Snap account" which as very specific options (which
+          // are not typed the same way on `KeyringAccountOptions`.
+          //
+          (account as InternalAccount).options = options;
+        }
+      }
+
+      return account;
     }
 
     return this.#getInternalAccountForNonSnapAccount(address, keyring);

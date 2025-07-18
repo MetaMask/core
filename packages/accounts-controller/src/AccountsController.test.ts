@@ -1,4 +1,5 @@
 import { Messenger } from '@metamask/base-controller';
+import { InfuraNetworkType } from '@metamask/controller-utils';
 import type {
   AccountAssetListUpdatedEventPayload,
   AccountBalancesUpdatedEventPayload,
@@ -39,7 +40,6 @@ import {
   getUUIDOptionsFromAddressOfNormalAccount,
   keyringTypeToName,
 } from './utils';
-import { InfuraNetworkType } from '@metamask/controller-utils';
 
 jest.mock('uuid');
 const mockUUID = jest.spyOn(uuid, 'v4');
@@ -1938,7 +1938,10 @@ describe('AccountsController', () => {
         mockGetKeyringByType.mockReturnValue([
           {
             type: KeyringTypes.snap,
-            listAccounts: async () => [mockSnapAccount, mockSnapAccount2],
+            getAccountByAddress: jest
+              .fn()
+              .mockReturnValueOnce(mockSnapAccount)
+              .mockReturnValueOnce(mockSnapAccount2),
           },
         ]),
       );
@@ -2087,7 +2090,7 @@ describe('AccountsController', () => {
         mockGetKeyringByType.mockReturnValueOnce([
           {
             type: KeyringTypes.snap,
-            listAccounts: async () => [mockSnapAccount2],
+            getAccountByAddress: () => mockSnapAccount2,
           },
         ]),
       );
@@ -2159,7 +2162,7 @@ describe('AccountsController', () => {
         mockGetKeyringByType.mockReturnValueOnce([
           {
             type: KeyringTypes.snap,
-            listAccounts: async () => [mockSnapAccount2],
+            getAccountByAddress: () => mockSnapAccount2,
           },
         ]),
       );
@@ -2200,18 +2203,18 @@ describe('AccountsController', () => {
       });
       const expectedAccounts = [
         createExpectedInternalAccount({
-          name: 'Account 1',
-          id: 'mock-id',
-          address: mockAddress1,
-          keyringType: KeyringTypes.hd,
-          options: createMockInternalAccountOptions(1, KeyringTypes.hd, 0),
-        }),
-        createExpectedInternalAccount({
           name: 'Snap Account 1', // it is Snap Account 1 because it is the only snap account
           id: mockSnapAccount2.id,
           address: mockSnapAccount2.address,
           keyringType: KeyringTypes.snap,
           snap: mockSnapAccount2.metadata.snap,
+        }),
+        createExpectedInternalAccount({
+          name: 'Account 1',
+          id: 'mock-id',
+          address: mockAddress1,
+          keyringType: KeyringTypes.hd,
+          options: createMockInternalAccountOptions(1, KeyringTypes.hd, 0),
         }),
       ];
 
@@ -2377,7 +2380,7 @@ describe('AccountsController', () => {
           mockGetKeyringByType.mockReturnValueOnce([
             {
               type: KeyringTypes.snap,
-              listAccounts: async () => [mockSnapAccount2],
+              getAccountByAddress: () => mockSnapAccount2,
             },
           ]),
         );
@@ -2427,6 +2430,177 @@ describe('AccountsController', () => {
         expect(selectedAccount.id).toStrictEqual(expectedSelectedId);
       },
     );
+
+    it('auto-migrates HD Snap accounts with new options', async () => {
+      const messenger = buildMessenger();
+
+      const mockHdKeyringId = 'mock-hd-keyring-id';
+
+      const mockHdAccount = createMockInternalAccount({
+        id: 'mock-id',
+        name: 'Account 1',
+        address: '0x123',
+        keyringType: KeyringTypes.hd,
+      });
+
+      const mockHdSnapAccountOptions = {
+        entropySource: mockHdKeyringId,
+        derivationPath: 'm/',
+        index: 0,
+      };
+      const mockHdSnapAccount = createMockInternalAccount({
+        id: 'mock-snap-id',
+        name: 'Solana Account 1',
+        address: '5VDKSDZ1sT4rMkkGWsQav3tzZLbydWF9As1cxdUDUq41',
+        keyringType: KeyringTypes.snap,
+        // This is required for HD Snap accounts:
+        options: mockHdSnapAccountOptions,
+      });
+
+      const mockKeyrings = [
+        {
+          type: KeyringTypes.hd,
+          accounts: [mockHdAccount.address],
+          metadata: {
+            id: mockHdKeyringId,
+            name: 'mock-keyring-id-name-1',
+          },
+        },
+        {
+          type: KeyringTypes.snap,
+          accounts: [mockHdSnapAccount.address],
+          metadata: {
+            id: 'mock-keyring-id-2',
+            name: 'mock-keyring-id-name-2',
+          },
+        },
+      ];
+
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringsByType',
+        mockGetKeyringByType.mockReturnValueOnce([
+          {
+            type: KeyringTypes.snap,
+            getAccountByAddress: () => mockHdSnapAccount,
+          },
+        ]),
+      );
+
+      messenger.registerActionHandler(
+        'KeyringController:getState',
+        mockGetState.mockReturnValue({
+          keyrings: mockKeyrings,
+        }),
+      );
+
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockHdAccount.id]: mockHdAccount,
+            },
+            selectedAccount: mockHdAccount.id,
+          },
+        },
+        messenger,
+      });
+
+      // Will automatically re-create the internal account list.
+      await accountsController.updateAccounts();
+
+      const account = accountsController.getAccount(mockHdSnapAccount.id);
+      expect(account?.options).toStrictEqual({
+        // We keep the original options.
+        ...mockHdSnapAccount.options,
+        // We add new ones to match the new "typed options" for keyring accounts.
+        entropy: {
+          type: KeyringAccountEntropyTypeOption.Mnemonic,
+          id: mockHdSnapAccountOptions.entropySource,
+          derivationPath: mockHdSnapAccountOptions.derivationPath,
+          groupIndex: mockHdSnapAccountOptions.index,
+        },
+      });
+    });
+
+    it('skips account if it cannot get the Snap keyring instance', async () => {
+      const messenger = buildMessenger();
+
+      const mockHdKeyringId = 'mock-hd-keyring-id';
+
+      const mockHdAccount = createMockInternalAccount({
+        id: 'mock-id',
+        name: 'Account 1',
+        address: '0x123',
+        keyringType: KeyringTypes.hd,
+      });
+
+      const mockHdSnapAccountOptions = {
+        entropySource: mockHdKeyringId,
+        derivationPath: 'm/',
+        index: 0,
+      };
+      const mockHdSnapAccount = createMockInternalAccount({
+        id: 'mock-snap-id',
+        name: 'Solana Account 1',
+        address: '5VDKSDZ1sT4rMkkGWsQav3tzZLbydWF9As1cxdUDUq41',
+        keyringType: KeyringTypes.snap,
+        // This is required for HD Snap accounts:
+        options: mockHdSnapAccountOptions,
+      });
+
+      const mockKeyrings = [
+        {
+          type: KeyringTypes.hd,
+          accounts: [mockHdAccount.address],
+          metadata: {
+            id: mockHdKeyringId,
+            name: 'mock-keyring-id-name-1',
+          },
+        },
+        {
+          type: KeyringTypes.snap,
+          accounts: [mockHdSnapAccount.address],
+          metadata: {
+            id: 'mock-keyring-id-2',
+            name: 'mock-keyring-id-name-2',
+          },
+        },
+      ];
+
+      // Make sure we cannot get a reference to the Snap keyring.
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringsByType',
+        mockGetKeyringByType.mockReturnValue([]),
+      );
+
+      messenger.registerActionHandler(
+        'KeyringController:getState',
+        mockGetState.mockReturnValue({
+          keyrings: mockKeyrings,
+        }),
+      );
+
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockHdAccount.id]: mockHdAccount,
+            },
+            selectedAccount: mockHdAccount.id,
+          },
+        },
+        messenger,
+      });
+
+      // Will automatically re-create the internal account list.
+      await accountsController.updateAccounts();
+
+      // This account has been skipped.
+      expect(
+        accountsController.getAccount(mockHdSnapAccount.id),
+      ).toBeUndefined();
+      expect(mockGetKeyringByType).toHaveBeenCalledTimes(1);
+    });
 
     it.todo(
       'does not re-fire a accountChanged event if the account is still the same',

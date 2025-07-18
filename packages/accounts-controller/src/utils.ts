@@ -1,5 +1,9 @@
+import type { KeyringAccount } from '@metamask/keyring-api';
 import type { KeyringObject } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { Infer } from '@metamask/superstruct';
+import { is, number, object, string } from '@metamask/superstruct';
 import { hexToBytes } from '@metamask/utils';
 import { sha256 } from 'ethereum-cryptography/sha256';
 import type { V4Options } from 'uuid';
@@ -92,20 +96,6 @@ export function isSimpleKeyringType(
 }
 
 /**
- * Check if a keyring type is considered a "normal" keyring.
- *
- * @param keyringType - The account's keyring type.
- * @returns True if the keyring type is considered a "normal" keyring, false otherwise.
- */
-export function isNormalKeyringType(
-  keyringType: KeyringTypes | string,
-): boolean {
-  // Right now, we only have to "exclude" Snap accounts, but this might need to be
-  // adapted later on if we have new kind of keyrings!
-  return keyringType !== (KeyringTypes.snap as string);
-}
-
-/**
  * Check if a keyring is a HD keyring.
  *
  * @param keyringType - The account's keyring type.
@@ -160,4 +150,35 @@ export function getGroupIndexFromAddress(
   }
 
   return groupIndex;
+}
+
+/**
+ * HD keyring account for Snap accounts that handles non-EVM HD accounts.
+ */
+export const HdSnapKeyringAccountOptionsStruct = object({
+  entropySource: string(),
+  index: number(),
+  derivationPath: string(),
+});
+export type HdSnapKeyringAccountOptions = Infer<
+  typeof HdSnapKeyringAccountOptionsStruct
+>;
+
+/**
+ * HD keyring account for Snap accounts that handles non-EVM HD accounts.
+ */
+export type HdSnapKeyringAccount = InternalAccount & {
+  options: InternalAccount['options'] & HdSnapKeyringAccountOptions;
+};
+
+/**
+ * Check if an account is an HD Snap keyring account.
+ *
+ * @param account - Snap keyring account.
+ * @returns True if valid, false otherwise.
+ */
+export function isHdSnapKeyringAccount(
+  account: InternalAccount,
+): account is HdSnapKeyringAccount {
+  return is(account.options, HdSnapKeyringAccountOptionsStruct);
 }
