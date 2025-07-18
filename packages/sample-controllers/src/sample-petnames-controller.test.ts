@@ -1,6 +1,9 @@
 import { Messenger } from '@metamask/base-controller';
 
-import type { SamplePetnamesControllerMessenger } from './sample-petnames-controller';
+import type {
+  SamplePetnamesControllerAssignPetnameAction,
+  SamplePetnamesControllerMessenger,
+} from './sample-petnames-controller';
 import { SamplePetnamesController } from './sample-petnames-controller';
 import type {
   ExtractAvailableAction,
@@ -10,7 +13,7 @@ import { PROTOTYPE_POLLUTION_BLOCKLIST } from '../../controller-utils/src/util';
 
 describe('SamplePetnamesController', () => {
   describe('constructor', () => {
-    it('uses all of the given state properties to initialize state', () => {
+    it('uses all of the given state properties to initialize state', async () => {
       const givenState = {
         namesByChainIdAndAddress: {
           '0x1': {
@@ -19,160 +22,248 @@ describe('SamplePetnamesController', () => {
           },
         },
       };
-      const controller = new SamplePetnamesController({
-        messenger: getMessenger(),
-        state: givenState,
-      });
 
-      expect(controller.state).toStrictEqual(givenState);
+      await withController({ state: givenState }, ({ controller }) => {
+        expect(controller.state).toStrictEqual(givenState);
+      });
     });
 
-    it('fills in missing state properties with default values', () => {
-      const controller = new SamplePetnamesController({
-        messenger: getMessenger(),
+    it('fills in missing state properties with default values', async () => {
+      await withController(({ controller }) => {
+        expect(controller.state).toMatchInlineSnapshot(`
+          Object {
+            "namesByChainIdAndAddress": Object {},
+          }
+        `);
       });
-
-      expect(controller.state).toMatchInlineSnapshot(`
-        Object {
-          "namesByChainIdAndAddress": Object {},
-        }
-      `);
     });
   });
 
-  describe('assignPetname', () => {
+  describe.each([
+    {
+      description: 'assignPetname',
+      assignPetname: ({
+        controller,
+        args,
+      }: {
+        controller: SamplePetnamesController;
+        args: Parameters<SamplePetnamesController['assignPetname']>;
+      }) => controller.assignPetname(...args),
+    },
+    {
+      description: 'SamplePetnamesController:assignPetname',
+      assignPetname: ({
+        messenger,
+        args,
+      }: {
+        messenger: UnrestrictedMessenger;
+        args: Parameters<
+          SamplePetnamesControllerAssignPetnameAction['handler']
+        >;
+      }) => messenger.call('SamplePetnamesController:assignPetname', ...args),
+    },
+  ])('$description', ({ assignPetname }) => {
     for (const blockedKey of PROTOTYPE_POLLUTION_BLOCKLIST) {
-      it(`throws if given a chainId of "${blockedKey}"`, () => {
-        const controller = new SamplePetnamesController({
-          messenger: getMessenger(),
+      it(`throws if given a chainId of "${blockedKey}"`, async () => {
+        await withController(({ controller, unrestrictedMessenger }) => {
+          expect(() =>
+            assignPetname({
+              controller,
+              messenger: unrestrictedMessenger,
+              // @ts-expect-error We are intentionally passing bad input.
+              args: [blockedKey, '0xbbbbbb', 'Account 2'],
+            }),
+          ).toThrow('Invalid chain ID');
         });
-
-        expect(() =>
-          // @ts-expect-error We are intentionally passing bad input.
-          controller.assignPetname(blockedKey, '0xbbbbbb', 'Account 2'),
-        ).toThrow('Invalid chain ID');
       });
     }
 
-    it('registers the given pet name in state with the given chain ID and address', () => {
-      const controller = new SamplePetnamesController({
-        messenger: getMessenger(),
-        state: {
-          namesByChainIdAndAddress: {
-            '0x1': {
-              '0xaaaaaa': 'Account 1',
+    it('registers the given pet name in state with the given chain ID and address', async () => {
+      await withController(
+        {
+          state: {
+            namesByChainIdAndAddress: {
+              '0x1': {
+                '0xaaaaaa': 'Account 1',
+              },
             },
           },
         },
-      });
+        async ({ controller, unrestrictedMessenger }) => {
+          assignPetname({
+            controller,
+            messenger: unrestrictedMessenger,
+            args: ['0x1', '0xbbbbbb', 'Account 2'],
+          });
 
-      controller.assignPetname('0x1', '0xbbbbbb', 'Account 2');
-
-      expect(controller.state).toStrictEqual({
-        namesByChainIdAndAddress: {
-          '0x1': {
-            '0xaaaaaa': 'Account 1',
-            '0xbbbbbb': 'Account 2',
-          },
+          expect(controller.state).toStrictEqual({
+            namesByChainIdAndAddress: {
+              '0x1': {
+                '0xaaaaaa': 'Account 1',
+                '0xbbbbbb': 'Account 2',
+              },
+            },
+          });
         },
-      });
+      );
     });
 
-    it("creates a new group for the chain if it doesn't already exist", () => {
-      const controller = new SamplePetnamesController({
-        messenger: getMessenger(),
-      });
+    it("creates a new group for the chain if it doesn't already exist", async () => {
+      await withController(async ({ controller, unrestrictedMessenger }) => {
+        assignPetname({
+          controller,
+          messenger: unrestrictedMessenger,
+          args: ['0x1', '0xaaaaaa', 'My Account'],
+        });
 
-      controller.assignPetname('0x1', '0xaaaaaa', 'My Account');
-
-      expect(controller.state).toStrictEqual({
-        namesByChainIdAndAddress: {
-          '0x1': {
-            '0xaaaaaa': 'My Account',
-          },
-        },
-      });
-    });
-
-    it('overwrites any existing pet name for the address', () => {
-      const controller = new SamplePetnamesController({
-        messenger: getMessenger(),
-        state: {
+        expect(controller.state).toStrictEqual({
           namesByChainIdAndAddress: {
             '0x1': {
-              '0xaaaaaa': 'Account 1',
+              '0xaaaaaa': 'My Account',
+            },
+          },
+        });
+      });
+    });
+
+    it('overwrites any existing pet name for the address', async () => {
+      await withController(
+        {
+          state: {
+            namesByChainIdAndAddress: {
+              '0x1': {
+                '0xaaaaaa': 'Account 1',
+              },
             },
           },
         },
-      });
+        async ({ controller, unrestrictedMessenger }) => {
+          assignPetname({
+            controller,
+            messenger: unrestrictedMessenger,
+            args: ['0x1', '0xaaaaaa', 'Old Account'],
+          });
 
-      controller.assignPetname('0x1', '0xaaaaaa', 'Old Account');
-
-      expect(controller.state).toStrictEqual({
-        namesByChainIdAndAddress: {
-          '0x1': {
-            '0xaaaaaa': 'Old Account',
-          },
+          expect(controller.state).toStrictEqual({
+            namesByChainIdAndAddress: {
+              '0x1': {
+                '0xaaaaaa': 'Old Account',
+              },
+            },
+          });
         },
-      });
+      );
     });
 
-    it('lowercases the given address before registering it to avoid duplicate entries', () => {
-      const controller = new SamplePetnamesController({
-        messenger: getMessenger(),
-        state: {
-          namesByChainIdAndAddress: {
-            '0x1': {
-              '0xaaaaaa': 'Account 1',
+    it('lowercases the given address before registering it to avoid duplicate entries', async () => {
+      await withController(
+        {
+          state: {
+            namesByChainIdAndAddress: {
+              '0x1': {
+                '0xaaaaaa': 'Account 1',
+              },
             },
           },
         },
-      });
+        async ({ controller, unrestrictedMessenger }) => {
+          assignPetname({
+            controller,
+            messenger: unrestrictedMessenger,
+            args: ['0x1', '0xAAAAAA', 'Account 1'],
+          });
 
-      controller.assignPetname('0x1', '0xAAAAAA', 'Old Account');
-
-      expect(controller.state).toStrictEqual({
-        namesByChainIdAndAddress: {
-          '0x1': {
-            '0xaaaaaa': 'Old Account',
-          },
+          expect(controller.state).toStrictEqual({
+            namesByChainIdAndAddress: {
+              '0x1': {
+                '0xaaaaaa': 'Account 1',
+              },
+            },
+          });
         },
-      });
+      );
     });
   });
 });
 
 /**
- * The union of actions that the root messenger allows.
+ * The callback that `withController` calls.
  */
-type RootAction = ExtractAvailableAction<SamplePetnamesControllerMessenger>;
+type WithControllerCallback<ReturnValue> = ({
+  controller,
+}: {
+  controller: SamplePetnamesController;
+  unrestrictedMessenger: UnrestrictedMessenger;
+  restrictedMessenger: SamplePetnamesControllerMessenger;
+}) => Promise<ReturnValue> | ReturnValue;
 
 /**
- * The union of events that the root messenger allows.
+ * The options that `withController` take.
  */
-type RootEvent = ExtractAvailableEvent<SamplePetnamesControllerMessenger>;
+type WithControllerOptions = Partial<
+  ConstructorParameters<typeof SamplePetnamesController>[0]
+>;
 
 /**
- * Constructs the unrestricted messenger. This can be used to call actions and
- * publish events within the tests for this controller.
+ * The arguments that `withController` takes.
+ */
+type WithControllerArgs<ReturnValue> =
+  | [WithControllerCallback<ReturnValue>]
+  | [WithControllerOptions, WithControllerCallback<ReturnValue>];
+
+/**
+ * The type of the messenger where all actions and events will be registered.
+ */
+type UnrestrictedMessenger = Messenger<
+  ExtractAvailableAction<SamplePetnamesControllerMessenger>,
+  ExtractAvailableEvent<SamplePetnamesControllerMessenger>
+>;
+
+/**
+ * Constructs a SamplePetnamesController based on the given options, and calls
+ * the given function with that controller.
  *
- * @returns The unrestricted messenger suited for SamplePetnamesController.
+ * @param args - Either a function, or an options bag + a function. The options
+ * bag is equivalent to the options that the controller takes, but `messenger`
+ * is filled in if not given. The function will be called with the built
+ * controller, unrestricted messenger, and restricted messenger.
+ * @returns The same return value as the given callback.
  */
-function getRootMessenger(): Messenger<RootAction, RootEvent> {
-  return new Messenger<RootAction, RootEvent>();
+async function withController<ReturnValue>(
+  ...args: WithControllerArgs<ReturnValue>
+): Promise<ReturnValue> {
+  const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
+  const unrestrictedMessenger = buildUnrestrictedMessenger();
+  const restrictedMessenger = buildRestrictedMessenger(unrestrictedMessenger);
+  const controller = new SamplePetnamesController({
+    messenger: restrictedMessenger,
+    ...rest,
+  });
+  return await fn({ controller, unrestrictedMessenger, restrictedMessenger });
 }
 
 /**
- * Constructs the messenger which is restricted to relevant SamplePetnamesController
- * actions and events.
+ * Constructs the unrestricted messenger for these tests. This is where all
+ * actions and events will ultimately be registered.
  *
- * @param rootMessenger - The root messenger to restrict.
+ * @returns The unrestricted messenger.
+ */
+function buildUnrestrictedMessenger(): UnrestrictedMessenger {
+  const unrestrictedMessenger: UnrestrictedMessenger = new Messenger();
+  return unrestrictedMessenger;
+}
+
+/**
+ * Constructs the messenger suited for SamplePetnamesController.
+ *
+ * @param unrestrictedMessenger - The messenger from which the controller
+ * messenger will be derived.
  * @returns The restricted messenger.
  */
-function getMessenger(
-  rootMessenger = getRootMessenger(),
+function buildRestrictedMessenger(
+  unrestrictedMessenger = buildUnrestrictedMessenger(),
 ): SamplePetnamesControllerMessenger {
-  return rootMessenger.getRestricted({
+  return unrestrictedMessenger.getRestricted({
     name: 'SamplePetnamesController',
     allowedActions: [],
     allowedEvents: [],
