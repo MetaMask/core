@@ -178,6 +178,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       `${BRIDGE_STATUS_CONTROLLER_NAME}:submitTx`,
       this.submitTx.bind(this),
     );
+    this.messagingSystem.registerActionHandler(
+      `${BRIDGE_STATUS_CONTROLLER_NAME}:resetAttempts`,
+      this.resetAttempts.bind(this),
+    );
 
     // Set interval
     this.setIntervalLength(REFRESH_INTERVAL_MS);
@@ -281,6 +285,71 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       const selectedChainId = selectedNetworkClient.configuration.chainId;
 
       this.#wipeBridgeStatusByChainId(address, selectedChainId);
+    }
+  };
+
+  /**
+   * Resets the attempts counter for a bridge transaction history item
+   * and restarts polling if it was previously stopped due to max attempts
+   *
+   * @param identifier - Object containing either txMetaId or txHash to identify the history item
+   * @param identifier.txMetaId - The transaction meta ID
+   * @param identifier.txHash - The transaction hash
+   */
+  resetAttempts = (identifier: { txMetaId?: string; txHash?: string }) => {
+    const { txMetaId, txHash } = identifier;
+
+    if (!txMetaId && !txHash) {
+      throw new Error('Either txMetaId or txHash must be provided');
+    }
+
+    // Find the history item by txMetaId or txHash
+    let targetTxMetaId: string | undefined;
+
+    if (txMetaId) {
+      // Direct lookup by txMetaId
+      if (this.state.txHistory[txMetaId]) {
+        targetTxMetaId = txMetaId;
+      }
+    } else if (txHash) {
+      // Search by txHash in status.srcChain.txHash
+      targetTxMetaId = Object.keys(this.state.txHistory).find(
+        (id) => this.state.txHistory[id].status.srcChain.txHash === txHash,
+      );
+    }
+
+    if (!targetTxMetaId) {
+      throw new Error(
+        `No bridge transaction history found for ${
+          txMetaId ? `txMetaId: ${txMetaId}` : `txHash: ${txHash}`
+        }`,
+      );
+    }
+
+    const historyItem = this.state.txHistory[targetTxMetaId];
+
+    // Reset the attempts counter
+    this.update((state) => {
+      if (targetTxMetaId) {
+        state.txHistory[targetTxMetaId].attempts = undefined;
+      }
+    });
+
+    // Restart polling if it was stopped and this is a bridge transaction
+    const isBridgeTx = isCrossChain(
+      historyItem.quote.srcChainId,
+      historyItem.quote.destChainId,
+    );
+
+    if (isBridgeTx) {
+      // Check if polling was stopped (no active polling token)
+      const existingPollingToken =
+        this.#pollingTokensByTxMetaId[targetTxMetaId];
+
+      if (!existingPollingToken) {
+        // Restart polling
+        this.#startPollingForTxId(targetTxMetaId);
+      }
     }
   };
 

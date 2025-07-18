@@ -20,6 +20,7 @@ export type {
   BridgeStatusControllerStartPollingForBridgeTxStatusAction,
   BridgeStatusControllerWipeBridgeStatusAction,
   BridgeStatusControllerResetStateAction,
+  BridgeStatusControllerResetAttemptsAction,
   BridgeStatusControllerEvents,
   BridgeStatusControllerStateChangeEvent,
   StartPollingForBridgeTxStatusArgs,
