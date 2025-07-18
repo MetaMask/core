@@ -2594,15 +2594,13 @@ describe('BridgeStatusController', () => {
           bridgeStatusUtils,
           'fetchBridgeTxStatus',
         );
-        fetchBridgeTxStatusSpy.mockImplementationOnce(async () => {
-          return MockStatusResponse.getPending();
-        });
-        // .mockImplementationOnce(async () => {
-        //   return MockStatusResponse.getPending();
-        // })
-        // .mockImplementationOnce(async () => {
-        //   return MockStatusResponse.getPending();
-        // });
+        fetchBridgeTxStatusSpy
+          .mockImplementationOnce(async () => {
+            return MockStatusResponse.getPending();
+          })
+          .mockImplementationOnce(async () => {
+            return MockStatusResponse.getPending();
+          });
 
         // Create controller with a bridge transaction that has failed attempts
         const controllerWithFailedAttempts = new BridgeStatusController({
