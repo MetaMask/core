@@ -64,14 +64,12 @@
     "@metamask/providers": "^22.1.0",
     "@metamask/snaps-controllers": "^14.0.1",
     "@types/jest": "^27.4.1",
-    "@types/uuid": "^8.3.0",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.2.2",
-    "uuid": "^8.3.2",
     "webextension-polyfill": "^0.12.0"
   },
   "peerDependencies": {

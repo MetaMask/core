@@ -10,7 +10,6 @@ import {
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { v4 as uuid } from 'uuid';
 
 import { isBip44Account } from '../providers/BaseAccountProvider';
 
@@ -171,31 +170,17 @@ export class MockAccountBuilder {
     return new MockAccountBuilder(account);
   }
 
-  withUuid() {
-    this.#account.id = uuid();
-    return this;
-  }
-
-  withAddressSuffix(suffix: string) {
-    this.#account.address += suffix;
-    return this;
-  }
-
   withEntropySource(entropySource: EntropySourceId) {
-    if (!isBip44Account(this.#account)) {
-      throw new Error('Invalid BIP-44 account');
+    if (isBip44Account(this.#account)) {
+      this.#account.options.entropy.id = entropySource;
     }
-
-    this.#account.options.entropy.id = entropySource;
     return this;
   }
 
   withGroupIndex(groupIndex: number) {
-    if (!isBip44Account(this.#account)) {
-      throw new Error('Invalid BIP-44 account');
+    if (isBip44Account(this.#account)) {
+      this.#account.options.entropy.groupIndex = groupIndex;
     }
-
-    this.#account.options.entropy.groupIndex = groupIndex;
     return this;
   }
 
