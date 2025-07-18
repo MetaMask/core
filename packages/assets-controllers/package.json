@@ -85,7 +85,7 @@
     "@metamask/keyring-controller": "^22.1.0",
     "@metamask/keyring-internal-api": "^7.0.0",
     "@metamask/keyring-snap-client": "^6.0.0",
-    "@metamask/network-controller": "^24.0.0",
+    "@metamask/network-controller": "^24.0.1",
     "@metamask/permission-controller": "^11.0.6",
     "@metamask/phishing-controller": "^13.1.0",
     "@metamask/preferences-controller": "^18.4.1",
