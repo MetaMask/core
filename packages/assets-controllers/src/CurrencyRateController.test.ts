@@ -578,7 +578,7 @@ describe('CurrencyRateController', () => {
       const fetchMultiExchangeRateStub = jest.fn();
       const messenger = getRestrictedMessenger();
       const controller = new CurrencyRateController({
-        useExternalServices: false,
+        useExternalServices: () => false,
         fetchMultiExchangeRate: fetchMultiExchangeRateStub,
         messenger,
         state: { currentCurrency: 'usd' },
@@ -602,7 +602,7 @@ describe('CurrencyRateController', () => {
       const fetchMultiExchangeRateStub = jest.fn();
       const messenger = getRestrictedMessenger();
       const controller = new CurrencyRateController({
-        useExternalServices: false,
+        useExternalServices: () => false,
         interval: 100,
         fetchMultiExchangeRate: fetchMultiExchangeRateStub,
         messenger,
@@ -625,7 +625,7 @@ describe('CurrencyRateController', () => {
       const fetchMultiExchangeRateStub = jest.fn();
       const messenger = getRestrictedMessenger();
       const controller = new CurrencyRateController({
-        useExternalServices: false,
+        useExternalServices: () => false,
         fetchMultiExchangeRate: fetchMultiExchangeRateStub,
         messenger,
         state: { currentCurrency: 'eur' },
@@ -649,7 +649,7 @@ describe('CurrencyRateController', () => {
       const fetchMultiExchangeRateStub = jest.fn();
       const messenger = getRestrictedMessenger();
       const controller = new CurrencyRateController({
-        useExternalServices: false,
+        useExternalServices: () => false,
         fetchMultiExchangeRate: fetchMultiExchangeRateStub,
         messenger,
         state: { currentCurrency: 'cad' },
@@ -673,7 +673,7 @@ describe('CurrencyRateController', () => {
       const fetchMultiExchangeRateStub = jest.fn();
       const messenger = getRestrictedMessenger();
       const controller = new CurrencyRateController({
-        useExternalServices: false,
+        useExternalServices: () => false,
         includeUsdRate: true,
         fetchMultiExchangeRate: fetchMultiExchangeRateStub,
         messenger,
@@ -701,7 +701,7 @@ describe('CurrencyRateController', () => {
         .mockResolvedValue({ eth: { usd: 2000, eur: 1800 } });
       const messenger = getRestrictedMessenger();
       const controller = new CurrencyRateController({
-        useExternalServices: true,
+        useExternalServices: () => true,
         fetchMultiExchangeRate: fetchMultiExchangeRateStub,
         messenger,
         state: { currentCurrency: 'eur' },
@@ -763,7 +763,7 @@ describe('CurrencyRateController', () => {
         .mockRejectedValue(new Error('API Error'));
       const messenger = getRestrictedMessenger();
       const controller = new CurrencyRateController({
-        useExternalServices: false,
+        useExternalServices: () => false,
         fetchMultiExchangeRate: fetchMultiExchangeRateStub,
         messenger,
         state: { currentCurrency: 'usd' },
