@@ -1,2 +1,6 @@
-export type { MultichainAccountServiceMessenger } from './types';
+export type {
+  MultichainAccountServiceActions,
+  MultichainAccountServiceEvents,
+  MultichainAccountServiceMessenger,
+} from './types';
 export { MultichainAccountService } from './MultichainAccountService';
