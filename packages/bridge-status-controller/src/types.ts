@@ -129,6 +129,14 @@ export type BridgeHistoryItem = {
   hasApprovalTx: boolean;
   approvalTxId?: string;
   isStxEnabled?: boolean;
+  /**
+   * Attempts tracking for exponential backoff on failed fetches.
+   * We track the number of attempts and the last attempt time for each txMetaId that has failed at least once
+   */
+  attempts?: {
+    counter: number;
+    lastAttemptTime: number; // timestamp in ms
+  };
 };
 
 export enum BridgeStatusAction {

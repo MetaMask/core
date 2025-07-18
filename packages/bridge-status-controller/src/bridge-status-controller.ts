@@ -95,8 +95,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 > {
   #pollingTokensByTxMetaId: Record<SrcTxMetaId, string> = {};
 
-  #attempts: Record<SrcTxMetaId, number> = {};
-
   readonly #clientId: BridgeClientId;
 
   readonly #fetchFn: FetchFunction;
@@ -425,10 +423,72 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     return this.#getMultichainSelectedAccount()?.address ?? '';
   }
 
+  readonly #shouldSkipFetchDueToFetchFailures = (
+    attempts?: BridgeHistoryItem['attempts'],
+  ) => {
+    // If there's an attempt, it means we've failed at least once,
+    // so we need to check if we need to wait longer due to exponential backoff
+    if (attempts) {
+      // Calculate exponential backoff delay: base interval * 2^(attempts-1)
+      const backoffDelay =
+        REFRESH_INTERVAL_MS * Math.pow(2, attempts.counter - 1);
+      const timeSinceLastAttempt = Date.now() - attempts.lastAttemptTime;
+
+      if (timeSinceLastAttempt < backoffDelay) {
+        // Not enough time has passed, skip this fetch
+        return true;
+      }
+    }
+    return false;
+  };
+
+  /**
+   * Handles the failure to fetch the bridge tx status
+   * We eventually stop polling for the tx if we fail too many times
+   * Failures (500 errors) can be due to:
+   * - The srcTxHash not being available immediately for STX
+   * - The srcTxHash being invalid for the chain. This case will never resolve so we stop polling for it to avoid hammering the Bridge API forever.
+   *
+   * @param bridgeTxMetaId - The txMetaId of the bridge tx
+   */
+  readonly #handleFetchFailure = (bridgeTxMetaId: string) => {
+    const { attempts } = this.state.txHistory[bridgeTxMetaId];
+
+    const newAttempts = attempts
+      ? {
+          counter: attempts.counter + 1,
+          lastAttemptTime: Date.now(),
+        }
+      : {
+          counter: 1,
+          lastAttemptTime: Date.now(),
+        };
+
+    // If we've failed too many times, stop polling for the tx
+    const pollingToken = this.#pollingTokensByTxMetaId[bridgeTxMetaId];
+    if (newAttempts.counter > MAX_ATTEMPTS && pollingToken) {
+      this.stopPollingByPollingToken(pollingToken);
+      delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
+    }
+
+    // Update the attempts counter
+    this.update((state) => {
+      state.txHistory[bridgeTxMetaId].attempts = newAttempts;
+    });
+  };
+
   readonly #fetchBridgeTxStatus = async ({
     bridgeTxMetaId,
   }: FetchBridgeTxStatusArgs) => {
     const { txHistory } = this.state;
+
+    if (
+      this.#shouldSkipFetchDueToFetchFailures(
+        txHistory[bridgeTxMetaId]?.attempts,
+      )
+    ) {
+      return;
+    }
 
     try {
       // We try here because we receive 500 errors from Bridge API if we try to fetch immediately after submitting the source tx
@@ -470,6 +530,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         state.txHistory[bridgeTxMetaId] = newBridgeHistoryItem;
       });
 
+      // Reset attempts counter on successful fetch
+      // A successful fetch does not mean the the tx is in a final state
+      this.update((state) => {
+        state.txHistory[bridgeTxMetaId].attempts = undefined;
+      });
+
       const pollingToken = this.#pollingTokensByTxMetaId[bridgeTxMetaId];
 
       const isFinalStatus =
@@ -479,7 +545,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       if (isFinalStatus && pollingToken) {
         this.stopPollingByPollingToken(pollingToken);
         delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
-        delete this.#attempts[bridgeTxMetaId];
+        this.update((state) => {
+          state.txHistory[bridgeTxMetaId].attempts = undefined;
+        });
 
         if (status.status === StatusTypes.COMPLETE) {
           this.#trackUnifiedSwapBridgeEvent(
@@ -496,20 +564,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       }
     } catch (e) {
       console.log('Failed to fetch bridge tx status', e);
-
-      if (!this.#attempts[bridgeTxMetaId]) {
-        this.#attempts[bridgeTxMetaId] = 1;
-      } else {
-        this.#attempts[bridgeTxMetaId] += 1;
-      }
-
-      const pollingToken = this.#pollingTokensByTxMetaId[bridgeTxMetaId];
-
-      if (this.#attempts[bridgeTxMetaId] > MAX_ATTEMPTS && pollingToken) {
-        this.stopPollingByPollingToken(pollingToken);
-        delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
-        delete this.#attempts[bridgeTxMetaId];
-      }
+      this.#handleFetchFailure(bridgeTxMetaId);
     }
   };
 
