@@ -1,9 +1,23 @@
 import type { KeyringObject } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 
-import { getGroupIndexFromAddressIndex } from './utils';
+import { getGroupIndexFromAddressIndex, isNormalKeyringType } from './utils';
 
 describe('utils', () => {
+  describe('isNormalKeyringType', () => {
+    const { snap: snapKeyringType, ...keyringTypes } = KeyringTypes;
+
+    it('returns true for normal keyring types', () => {
+      for (const keyringType of Object.values(keyringTypes)) {
+        expect(isNormalKeyringType(keyringType)).toBe(true);
+      }
+    });
+
+    it('returns false for snap keyring type', () => {
+      expect(isNormalKeyringType(snapKeyringType)).toBe(false);
+    });
+  });
+
   describe('getGroupIndexFromAddressIndex', () => {
     const keyring: KeyringObject = {
       type: KeyringTypes.hd,

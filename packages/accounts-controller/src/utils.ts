@@ -74,6 +74,20 @@ export function getUUIDFromAddressOfNormalAccount(address: string): string {
 }
 
 /**
+ * Check if a keyring type is considered a "normal" keyring.
+ *
+ * @param keyringType - The account's keyring type.
+ * @returns True if the keyring type is considered a "normal" keyring, false otherwise.
+ */
+export function isNormalKeyringType(
+  keyringType: KeyringTypes | string,
+): boolean {
+  // Right now, we only have to "exclude" Snap accounts, but this might need to be
+  // adapted later on if we have new kind of keyrings!
+  return keyringType !== (KeyringTypes.snap as string);
+}
+
+/**
  * Check if a keyring type is a Snap keyring.
  *
  * @param keyringType - The account's keyring type.
