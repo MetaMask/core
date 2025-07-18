@@ -1,11 +1,13 @@
 import { type Quote } from '@metamask/bridge-controller';
 
 import { validateBridgeStatusResponse } from './validators';
+import { REFRESH_INTERVAL_MS } from '../constants';
 import type {
   StatusResponse,
   StatusRequestWithSrcTxHash,
   StatusRequestDto,
   FetchFunction,
+  BridgeHistoryItem,
 } from '../types';
 
 export const getClientIdHeader = (clientId: string) => ({
@@ -73,4 +75,23 @@ export const getStatusRequestWithSrcTxHash = (
     quote,
     refuel: Boolean(refuel),
   };
+};
+
+export const shouldSkipFetchDueToFetchFailures = (
+  attempts?: BridgeHistoryItem['attempts'],
+) => {
+  // If there's an attempt, it means we've failed at least once,
+  // so we need to check if we need to wait longer due to exponential backoff
+  if (attempts) {
+    // Calculate exponential backoff delay: base interval * 2^(attempts-1)
+    const backoffDelay =
+      REFRESH_INTERVAL_MS * Math.pow(2, attempts.counter - 1);
+    const timeSinceLastAttempt = Date.now() - attempts.lastAttemptTime;
+
+    if (timeSinceLastAttempt < backoffDelay) {
+      // Not enough time has passed, skip this fetch
+      return true;
+    }
+  }
+  return false;
 };

@@ -49,6 +49,7 @@ import { BridgeClientId } from './types';
 import {
   fetchBridgeTxStatus,
   getStatusRequestWithSrcTxHash,
+  shouldSkipFetchDueToFetchFailures,
 } from './utils/bridge-status';
 import { getTxGasEstimates } from './utils/gas';
 import {
@@ -380,7 +381,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     incompleteHistoryItems.forEach((historyItem) => {
       const bridgeTxMetaId = historyItem.txMetaId;
-      const shouldSkipFetch = this.#shouldSkipFetchDueToFetchFailures(
+      const shouldSkipFetch = shouldSkipFetchDueToFetchFailures(
         historyItem.attempts,
       );
       if (shouldSkipFetch) {
@@ -503,25 +504,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     return this.#getMultichainSelectedAccount()?.address ?? '';
   }
 
-  readonly #shouldSkipFetchDueToFetchFailures = (
-    attempts?: BridgeHistoryItem['attempts'],
-  ) => {
-    // If there's an attempt, it means we've failed at least once,
-    // so we need to check if we need to wait longer due to exponential backoff
-    if (attempts) {
-      // Calculate exponential backoff delay: base interval * 2^(attempts-1)
-      const backoffDelay =
-        REFRESH_INTERVAL_MS * Math.pow(2, attempts.counter - 1);
-      const timeSinceLastAttempt = Date.now() - attempts.lastAttemptTime;
-
-      if (timeSinceLastAttempt < backoffDelay) {
-        // Not enough time has passed, skip this fetch
-        return true;
-      }
-    }
-    return false;
-  };
-
   /**
    * Handles the failure to fetch the bridge tx status
    * We eventually stop polling for the tx if we fail too many times
@@ -563,9 +545,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     const { txHistory } = this.state;
 
     if (
-      this.#shouldSkipFetchDueToFetchFailures(
-        txHistory[bridgeTxMetaId]?.attempts,
-      )
+      shouldSkipFetchDueToFetchFailures(txHistory[bridgeTxMetaId]?.attempts)
     ) {
       return;
     }
