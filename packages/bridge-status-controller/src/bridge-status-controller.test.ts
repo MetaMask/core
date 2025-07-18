@@ -390,6 +390,7 @@ const MockTxHistory = {
       isStxEnabled: false,
       hasApprovalTx: false,
       completionTime: undefined,
+      attempts: undefined,
     },
   }),
   getUnknown: ({
