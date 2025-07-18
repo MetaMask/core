@@ -2431,6 +2431,256 @@ describe('BridgeStatusController', () => {
     });
   });
 
+  describe('resetAttempts', () => {
+    let bridgeStatusController: BridgeStatusController;
+    let mockMessenger: jest.Mocked<BridgeStatusControllerMessenger>;
+
+    beforeEach(() => {
+      mockMessenger = getMessengerMock();
+      bridgeStatusController = new BridgeStatusController({
+        messenger: mockMessenger,
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: jest.fn(),
+        addTransactionFn: jest.fn(),
+        addTransactionBatchFn: jest.fn(),
+        updateTransactionFn: jest.fn(),
+        estimateGasFeeFn: jest.fn(),
+        state: {
+          txHistory: {
+            ...MockTxHistory.getPending({
+              txMetaId: 'bridgeTxMetaId1',
+              srcTxHash: '0xsrcTxHash1',
+            }),
+            ...MockTxHistory.getPendingSwap({
+              txMetaId: 'swapTxMetaId1',
+              srcTxHash: '0xswapTxHash1',
+            }),
+          },
+        },
+      });
+    });
+
+    describe('success cases', () => {
+      it('should reset attempts by txMetaId for bridge transaction', () => {
+        // Setup - add attempts to the history item using controller state initialization
+        const controllerWithAttempts = new BridgeStatusController({
+          messenger: mockMessenger,
+          clientId: BridgeClientId.EXTENSION,
+          fetchFn: jest.fn(),
+          addTransactionFn: jest.fn(),
+          addTransactionBatchFn: jest.fn(),
+          updateTransactionFn: jest.fn(),
+          estimateGasFeeFn: jest.fn(),
+          state: {
+            txHistory: {
+              bridgeTxMetaId1: {
+                ...MockTxHistory.getPending({ txMetaId: 'bridgeTxMetaId1' })
+                  .bridgeTxMetaId1,
+                attempts: {
+                  counter: 5,
+                  lastAttemptTime: Date.now(),
+                },
+              },
+            },
+          },
+        });
+
+        expect(
+          controllerWithAttempts.state.txHistory.bridgeTxMetaId1.attempts
+            ?.counter,
+        ).toBe(5);
+
+        // Execute
+        controllerWithAttempts.resetAttempts({ txMetaId: 'bridgeTxMetaId1' });
+
+        // Assert
+        expect(
+          controllerWithAttempts.state.txHistory.bridgeTxMetaId1.attempts,
+        ).toBeUndefined();
+      });
+
+      it('should reset attempts by txHash for bridge transaction', () => {
+        // Setup - add attempts to the history item using controller state initialization
+        const controllerWithAttempts = new BridgeStatusController({
+          messenger: mockMessenger,
+          clientId: BridgeClientId.EXTENSION,
+          fetchFn: jest.fn(),
+          addTransactionFn: jest.fn(),
+          addTransactionBatchFn: jest.fn(),
+          updateTransactionFn: jest.fn(),
+          estimateGasFeeFn: jest.fn(),
+          state: {
+            txHistory: {
+              bridgeTxMetaId1: {
+                ...MockTxHistory.getPending({ txMetaId: 'bridgeTxMetaId1' })
+                  .bridgeTxMetaId1,
+                attempts: {
+                  counter: 3,
+                  lastAttemptTime: Date.now(),
+                },
+              },
+            },
+          },
+        });
+
+        expect(
+          controllerWithAttempts.state.txHistory.bridgeTxMetaId1.attempts
+            ?.counter,
+        ).toBe(3);
+
+        // Execute
+        controllerWithAttempts.resetAttempts({ txHash: '0xsrcTxHash1' });
+
+        // Assert
+        expect(
+          controllerWithAttempts.state.txHistory.bridgeTxMetaId1.attempts,
+        ).toBeUndefined();
+      });
+
+      it('should prioritize txMetaId when both txMetaId and txHash are provided', () => {
+        // Setup - create controller with attempts on both transactions
+        const controllerWithAttempts = new BridgeStatusController({
+          messenger: mockMessenger,
+          clientId: BridgeClientId.EXTENSION,
+          fetchFn: jest.fn(),
+          addTransactionFn: jest.fn(),
+          addTransactionBatchFn: jest.fn(),
+          updateTransactionFn: jest.fn(),
+          estimateGasFeeFn: jest.fn(),
+          state: {
+            txHistory: {
+              bridgeTxMetaId1: {
+                ...MockTxHistory.getPending({ txMetaId: 'bridgeTxMetaId1' })
+                  .bridgeTxMetaId1,
+                attempts: {
+                  counter: 3,
+                  lastAttemptTime: Date.now(),
+                },
+              },
+              swapTxMetaId1: {
+                ...MockTxHistory.getPendingSwap({ txMetaId: 'swapTxMetaId1' })
+                  .swapTxMetaId1,
+                attempts: {
+                  counter: 5,
+                  lastAttemptTime: Date.now(),
+                },
+              },
+            },
+          },
+        });
+
+        // Execute with both identifiers - should use txMetaId (bridgeTxMetaId1)
+        controllerWithAttempts.resetAttempts({
+          txMetaId: 'bridgeTxMetaId1',
+          txHash: '0xswapTxHash1',
+        });
+
+        // Assert - only bridgeTxMetaId1 should have attempts reset
+        expect(
+          controllerWithAttempts.state.txHistory.bridgeTxMetaId1.attempts,
+        ).toBeUndefined();
+        expect(
+          controllerWithAttempts.state.txHistory.swapTxMetaId1.attempts
+            ?.counter,
+        ).toBe(5);
+      });
+    });
+
+    describe('error cases', () => {
+      it('should throw error when no identifier is provided', () => {
+        expect(() => {
+          bridgeStatusController.resetAttempts({});
+        }).toThrow('Either txMetaId or txHash must be provided');
+      });
+
+      it('should throw error when txMetaId is not found', () => {
+        expect(() => {
+          bridgeStatusController.resetAttempts({
+            txMetaId: 'nonexistentTxMetaId',
+          });
+        }).toThrow(
+          'No bridge transaction history found for txMetaId: nonexistentTxMetaId',
+        );
+      });
+
+      it('should throw error when txHash is not found', () => {
+        expect(() => {
+          bridgeStatusController.resetAttempts({
+            txHash: '0xnonexistentTxHash',
+          });
+        }).toThrow(
+          'No bridge transaction history found for txHash: 0xnonexistentTxHash',
+        );
+      });
+
+      it('should throw error when txMetaId is empty string', () => {
+        expect(() => {
+          bridgeStatusController.resetAttempts({ txMetaId: '' });
+        }).toThrow('Either txMetaId or txHash must be provided');
+      });
+
+      it('should throw error when txHash is empty string', () => {
+        expect(() => {
+          bridgeStatusController.resetAttempts({ txHash: '' });
+        }).toThrow('Either txMetaId or txHash must be provided');
+      });
+    });
+
+    describe('edge cases', () => {
+      it('should handle transaction with no srcChain.txHash when searching by txHash', () => {
+        // Setup - create a controller with a transaction without srcChain.txHash
+        const controllerWithNoHash = new BridgeStatusController({
+          messenger: mockMessenger,
+          clientId: BridgeClientId.EXTENSION,
+          fetchFn: jest.fn(),
+          addTransactionFn: jest.fn(),
+          addTransactionBatchFn: jest.fn(),
+          updateTransactionFn: jest.fn(),
+          estimateGasFeeFn: jest.fn(),
+          state: {
+            txHistory: {
+              noHashTx: {
+                ...MockTxHistory.getPending({ txMetaId: 'noHashTx' }).noHashTx,
+                status: {
+                  ...MockTxHistory.getPending({ txMetaId: 'noHashTx' }).noHashTx
+                    .status,
+                  srcChain: {
+                    ...MockTxHistory.getPending({ txMetaId: 'noHashTx' })
+                      .noHashTx.status.srcChain,
+                    txHash: undefined as never,
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        expect(() => {
+          controllerWithNoHash.resetAttempts({ txHash: '0xsomeHash' });
+        }).toThrow(
+          'No bridge transaction history found for txHash: 0xsomeHash',
+        );
+      });
+
+      it('should handle transaction that exists but has no attempts to reset', () => {
+        // Ensure transaction has no attempts initially
+        expect(
+          bridgeStatusController.state.txHistory.bridgeTxMetaId1.attempts,
+        ).toBeUndefined();
+
+        // Execute - should not throw error
+        expect(() => {
+          bridgeStatusController.resetAttempts({ txMetaId: 'bridgeTxMetaId1' });
+        }).not.toThrow();
+
+        // Assert - attempts should still be undefined
+        expect(
+          bridgeStatusController.state.txHistory.bridgeTxMetaId1.attempts,
+        ).toBeUndefined();
+      });
+    });
+  });
+
   describe('subscription handlers', () => {
     let mockBridgeStatusMessenger: jest.Mocked<BridgeStatusControllerMessenger>;
     let mockTrackEventFn: jest.Mock;
