@@ -6,10 +6,6 @@ import { isBip44Account } from './BaseAccountProvider';
 import { MOCK_HD_ACCOUNT_1 } from '../tests';
 
 describe('isBip44Account', () => {
-  beforeEach(() => {
-    jest.resetAllMocks();
-  });
-
   it('returns true if an account is BIP-44 compatible', () => {
     expect(isBip44Account(MOCK_HD_ACCOUNT_1)).toBe(true);
   });
