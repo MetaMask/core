@@ -602,7 +602,6 @@ export class AccountsController extends BaseController<
     }
 
     this.#update((state) => {
-      // @ts-expect-error - Test
       state.internalAccounts.accounts = internalAccounts;
     });
   }
