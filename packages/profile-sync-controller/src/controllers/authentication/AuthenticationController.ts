@@ -398,9 +398,7 @@ export default class AuthenticationController extends BaseController<
     }
 
     try {
-      console.log(`starting to pair with social token`);
       const paired = await this.#auth.pairSocialIdentifier(socialPairingToken);
-      console.log(`pairing with social token success=${paired}`);
       if (paired) {
         this.update((state) => {
           // Prevents a race condition when sign-out is performed before pairing completes
@@ -410,7 +408,6 @@ export default class AuthenticationController extends BaseController<
         });
       }
     } finally {
-      console.log(`pairing attempt done`);
       this.update((state) => {
         state.pairingInProgress = false;
       });
