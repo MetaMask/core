@@ -3075,7 +3075,7 @@ describe('TokenDetectionController', () => {
         await withController(
           {
             options: {
-              useTokenDetection: false,
+              useTokenDetection: () => false,
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
             },
@@ -3099,7 +3099,7 @@ describe('TokenDetectionController', () => {
         await withController(
           {
             options: {
-              useTokenDetection: true,
+              useTokenDetection: () => true,
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
             },
@@ -3143,7 +3143,7 @@ describe('TokenDetectionController', () => {
         await withController(
           {
             options: {
-              useTokenDetection: false,
+              useTokenDetection: () => false,
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
             },
@@ -3166,7 +3166,7 @@ describe('TokenDetectionController', () => {
         await withController(
           {
             options: {
-              useTokenDetection: true,
+              useTokenDetection: () => true,
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
             },
@@ -3214,7 +3214,7 @@ describe('TokenDetectionController', () => {
         await withController(
           {
             options: {
-              useExternalServices: false,
+              useExternalServices: () => false,
               disabled: false,
               useAccountsAPI: true,
             },
@@ -3257,7 +3257,7 @@ describe('TokenDetectionController', () => {
         await withController(
           {
             options: {
-              useExternalServices: true,
+              useExternalServices: () => true,
               disabled: false,
               useAccountsAPI: true,
             },
@@ -3303,7 +3303,7 @@ describe('TokenDetectionController', () => {
         await withController(
           {
             options: {
-              useExternalServices: true,
+              useExternalServices: () => true,
               disabled: false,
               useAccountsAPI: false,
             },
@@ -3346,7 +3346,7 @@ describe('TokenDetectionController', () => {
         await withController(
           {
             options: {
-              useExternalServices: true,
+              useExternalServices: () => true,
               disabled: false,
               useAccountsAPI: true,
             },
@@ -3399,7 +3399,7 @@ describe('TokenDetectionController', () => {
         await withController(
           {
             options: {
-              useExternalServices: true,
+              useExternalServices: () => true,
               useAccountsAPI: true,
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
@@ -3452,8 +3452,8 @@ describe('TokenDetectionController', () => {
         await withController(
           {
             options: {
-              useTokenDetection: false,
-              useExternalServices: true,
+              useTokenDetection: () => false,
+              useExternalServices: () => true,
               disabled: false,
               useAccountsAPI: true,
             },
@@ -3496,8 +3496,8 @@ describe('TokenDetectionController', () => {
         await withController(
           {
             options: {
-              useTokenDetection: true,
-              useExternalServices: true,
+              useTokenDetection: () => true,
+              useExternalServices: () => true,
               disabled: false,
               useAccountsAPI: true,
             },

@@ -286,8 +286,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     trackMetaMetricsEvent,
     messenger,
     useAccountsAPI = true,
-    useTokenDetection = true,
-    useExternalServices = true,
+    useTokenDetection = () => true,
+    useExternalServices = () => true,
     platform,
   }: {
     interval?: number;
@@ -308,8 +308,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     }) => void;
     messenger: TokenDetectionControllerMessenger;
     useAccountsAPI?: boolean;
-    useTokenDetection?: boolean;
-    useExternalServices?: boolean;
+    useTokenDetection?: () => boolean;
+    useExternalServices?: () => boolean;
     platform: 'extension' | 'mobile';
   }) {
     super({
@@ -350,8 +350,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     this.#isUnlocked = isUnlocked;
 
     this.#accountsAPI.isAccountsAPIEnabled = useAccountsAPI;
-    this.#useTokenDetection = useTokenDetection;
-    this.#useExternalServices = useExternalServices;
+    this.#useTokenDetection = useTokenDetection();
+    this.#useExternalServices = useExternalServices();
     this.#accountsAPI.platform = platform;
 
     this.#registerEventListeners();
@@ -458,7 +458,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    * @type {boolean}
    */
   get isActive(): boolean {
-    console.log('isActive .........', !this.#disabled, this.#isUnlocked);
     return !this.#disabled && this.#isUnlocked;
   }
 
@@ -908,7 +907,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
             },
           });
 
-          const networkClientId = await this.messagingSystem.call(
+          const networkClientId = this.messagingSystem.call(
             'NetworkController:findNetworkClientIdByChainId',
             chainId,
           );

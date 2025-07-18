@@ -111,7 +111,7 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
   constructor({
     includeUsdRate = false,
     interval = 180000,
-    useExternalServices = true,
+    useExternalServices = () => true,
     messenger,
     state,
     fetchMultiExchangeRate = defaultFetchMultiExchangeRate,
@@ -120,7 +120,7 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
     interval?: number;
     messenger: CurrencyRateMessenger;
     state?: Partial<CurrencyRateState>;
-    useExternalServices?: boolean;
+    useExternalServices?: () => boolean;
     fetchMultiExchangeRate?: typeof defaultFetchMultiExchangeRate;
   }) {
     super({
@@ -130,7 +130,7 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
       state: { ...defaultState, ...state },
     });
     this.includeUsdRate = includeUsdRate;
-    this.useExternalServices = useExternalServices;
+    this.useExternalServices = useExternalServices();
     this.setIntervalLength(interval);
     this.fetchMultiExchangeRate = fetchMultiExchangeRate;
   }
