@@ -39,6 +39,7 @@ import {
   getUUIDOptionsFromAddressOfNormalAccount,
   keyringTypeToName,
 } from './utils';
+import { InfuraNetworkType } from '@metamask/controller-utils';
 
 jest.mock('uuid');
 const mockUUID = jest.spyOn(uuid, 'v4');

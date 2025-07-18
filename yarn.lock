@@ -2493,6 +2493,7 @@ __metadata:
     "@ethereumjs/util": "npm:^9.1.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.1"
+    "@metamask/controller-utils": "npm:^11.11.0"
     "@metamask/eth-snap-keyring": "npm:^14.0.0"
     "@metamask/keyring-api": "npm:^19.0.0"
     "@metamask/keyring-controller": "npm:^22.1.0"
