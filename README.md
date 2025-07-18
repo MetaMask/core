@@ -47,6 +47,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/keyring-controller`](packages/keyring-controller)
 - [`@metamask/logging-controller`](packages/logging-controller)
 - [`@metamask/message-manager`](packages/message-manager)
+- [`@metamask/messenger`](packages/messenger)
 - [`@metamask/multichain-api-middleware`](packages/multichain-api-middleware)
 - [`@metamask/multichain-network-controller`](packages/multichain-network-controller)
 - [`@metamask/multichain-transactions-controller`](packages/multichain-transactions-controller)
@@ -59,7 +60,6 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/polling-controller`](packages/polling-controller)
 - [`@metamask/preferences-controller`](packages/preferences-controller)
 - [`@metamask/profile-sync-controller`](packages/profile-sync-controller)
-- [`@metamask/queued-request-controller`](packages/queued-request-controller)
 - [`@metamask/rate-limit-controller`](packages/rate-limit-controller)
 - [`@metamask/remote-feature-flag-controller`](packages/remote-feature-flag-controller)
 - [`@metamask/sample-controllers`](packages/sample-controllers)
@@ -105,6 +105,7 @@ linkStyle default opacity:0.5
   keyring_controller(["@metamask/keyring-controller"]);
   logging_controller(["@metamask/logging-controller"]);
   message_manager(["@metamask/message-manager"]);
+  messenger(["@metamask/messenger"]);
   multichain_api_middleware(["@metamask/multichain-api-middleware"]);
   multichain_network_controller(["@metamask/multichain-network-controller"]);
   multichain_transactions_controller(["@metamask/multichain-transactions-controller"]);
@@ -117,7 +118,6 @@ linkStyle default opacity:0.5
   polling_controller(["@metamask/polling-controller"]);
   preferences_controller(["@metamask/preferences-controller"]);
   profile_sync_controller(["@metamask/profile-sync-controller"]);
-  queued_request_controller(["@metamask/queued-request-controller"]);
   rate_limit_controller(["@metamask/rate-limit-controller"]);
   remote_feature_flag_controller(["@metamask/remote-feature-flag-controller"]);
   sample_controllers(["@metamask/sample-controllers"]);
@@ -164,11 +164,9 @@ linkStyle default opacity:0.5
   bridge_status_controller --> base_controller;
   bridge_status_controller --> controller_utils;
   bridge_status_controller --> polling_controller;
-  bridge_status_controller --> user_operation_controller;
   bridge_status_controller --> accounts_controller;
   bridge_status_controller --> bridge_controller;
   bridge_status_controller --> gas_fee_controller;
-  bridge_status_controller --> multichain_transactions_controller;
   bridge_status_controller --> network_controller;
   bridge_status_controller --> transaction_controller;
   chain_agnostic_permission --> controller_utils;
@@ -222,9 +220,9 @@ linkStyle default opacity:0.5
   name_controller --> controller_utils;
   network_controller --> base_controller;
   network_controller --> controller_utils;
-  network_controller --> error_reporting_service;
   network_controller --> eth_json_rpc_provider;
   network_controller --> json_rpc_engine;
+  network_controller --> error_reporting_service;
   notification_services_controller --> base_controller;
   notification_services_controller --> controller_utils;
   notification_services_controller --> keyring_controller;
@@ -246,12 +244,6 @@ linkStyle default opacity:0.5
   profile_sync_controller --> base_controller;
   profile_sync_controller --> accounts_controller;
   profile_sync_controller --> keyring_controller;
-  profile_sync_controller --> network_controller;
-  queued_request_controller --> base_controller;
-  queued_request_controller --> controller_utils;
-  queued_request_controller --> json_rpc_engine;
-  queued_request_controller --> network_controller;
-  queued_request_controller --> selected_network_controller;
   rate_limit_controller --> base_controller;
   remote_feature_flag_controller --> base_controller;
   remote_feature_flag_controller --> controller_utils;

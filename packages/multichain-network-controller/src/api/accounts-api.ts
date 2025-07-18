@@ -50,6 +50,10 @@ export const MULTICHAIN_ACCOUNTS_CLIENT_ID =
  */
 export const MULTICHAIN_ALLOWED_ACTIVE_NETWORK_SCOPES = [
   String(BtcScope.Mainnet),
+  String(BtcScope.Testnet),
+  String(BtcScope.Testnet4),
+  String(BtcScope.Signet),
+  String(BtcScope.Regtest),
   String(SolScope.Mainnet),
   String(EthScope.Mainnet),
   String(EthScope.Testnet),

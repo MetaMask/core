@@ -84,3 +84,15 @@ export type Pair = {
   identifierType: 'SIWE' | 'SRP';
   signMessage: (message: string) => Promise<string>;
 };
+
+export type UserProfileMetaMetrics = {
+  profile_id: string;
+  created_at: string;
+  lineage: {
+    metametrics_id: string;
+    agent: Platform;
+    created_at: string;
+    updated_at: string;
+    counter: number;
+  }[];
+};

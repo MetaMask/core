@@ -275,6 +275,11 @@ export type TestOrigin = {
   handler: PhishingController['test'];
 };
 
+export type PhishingControllerBulkScanUrlsAction = {
+  type: `${typeof controllerName}:bulkScanUrls`;
+  handler: PhishingController['bulkScanUrls'];
+};
+
 export type PhishingControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   PhishingControllerState
@@ -283,7 +288,8 @@ export type PhishingControllerGetStateAction = ControllerGetStateAction<
 export type PhishingControllerActions =
   | PhishingControllerGetStateAction
   | MaybeUpdateState
-  | TestOrigin;
+  | TestOrigin
+  | PhishingControllerBulkScanUrlsAction;
 
 export type PhishingControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -402,6 +408,11 @@ export class PhishingController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:testOrigin` as const,
       this.test.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:bulkScanUrls` as const,
+      this.bulkScanUrls.bind(this),
     );
   }
 

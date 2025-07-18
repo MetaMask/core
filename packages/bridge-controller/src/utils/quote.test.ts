@@ -1,3 +1,5 @@
+import { AddressZero } from '@ethersproject/constants';
+import { convertHexToDecimal } from '@metamask/controller-utils';
 import { BigNumber } from 'bignumber.js';
 
 import {
@@ -35,6 +37,7 @@ describe('Quote Utils', () => {
       walletAddress: '0x789',
       srcTokenAmount: '1000',
       slippage: 0.5,
+      gasIncluded: false,
     };
 
     it('should return true for valid request with all required fields', () => {
@@ -223,11 +226,22 @@ describe('Quote Metadata Utils', () => {
     it('should handle large numbers', () => {
       const largeQuote = {
         srcTokenAmount: '1000000000000000000',
-        srcAsset: { decimals: 18 },
-        feeData: {
-          metabridge: { amount: '100000000000000000' },
+        srcAsset: {
+          decimals: 18,
+          assetId: 'eip155:1/erc20:0x0000000000000000000000000000000000000000',
         },
-      } as Quote;
+        feeData: {
+          metabridge: {
+            amount: '100000000000000000',
+            asset: {
+              assetId:
+                'eip155:1/erc20:0x0000000000000000000000000000000000000000',
+              address: '0x0000000000000000000000000000000000000000',
+              decimals: 18,
+            },
+          },
+        },
+      } as unknown as Quote;
 
       const result = calcSentAmount(largeQuote, {
         exchangeRate: '2',
@@ -345,18 +359,40 @@ describe('Quote Metadata Utils', () => {
         ...mockBridgeQuote,
         quote: {
           ...mockBridgeQuote.quote,
-          srcAsset: { address: '0x0000000000000000000000000000000000000000' },
+          srcTokenAmount: '1000000000000000000',
+          feeData: {
+            metabridge: {
+              amount: '100000000000000000',
+              asset: {
+                address: AddressZero,
+                decimals: 18,
+                assetId:
+                  'eip155:1/erc20:0x0000000000000000000000000000000000000000',
+              },
+            },
+          },
+          srcAsset: {
+            address: AddressZero,
+            decimals: 18,
+            assetId:
+              'eip155:1/erc20:0x0000000000000000000000000000000000000000',
+          },
         },
-      } as QuoteResponse;
+      } as unknown as QuoteResponse;
 
       const result = calcRelayerFee(nativeBridgeQuote, {
         exchangeRate: '2',
         usdExchangeRate: '1.5',
       });
 
-      expect(result.amount).toStrictEqual(new BigNumber(0.1));
-      expect(result.valueInCurrency).toStrictEqual(new BigNumber(0.2));
-      expect(result.usd).toStrictEqual(new BigNumber(0.15));
+      expect(
+        convertHexToDecimal(nativeBridgeQuote.trade.value).toString(),
+      ).toBe('1200000000000000000');
+      expect(result).toStrictEqual({
+        amount: new BigNumber(0.1),
+        valueInCurrency: new BigNumber(0.2),
+        usd: new BigNumber(0.15),
+      });
     });
   });
 
@@ -638,8 +674,25 @@ describe('Quote Metadata Utils', () => {
       usd: '75',
     };
 
+    const mockQuote = {
+      feeData: {
+        txFee: {
+          asset: {
+            assetId:
+              'eip155:1/erc20:0x0000000000000000000000000000000000000000',
+          },
+        },
+      },
+      destAsset: {
+        assetId: 'eip155:10/erc20:0x0000000000000000000000000000000000000000',
+      },
+    } as unknown as Quote;
     it('should calculate adjusted return correctly', () => {
-      const result = calcAdjustedReturn(mockToAmount, mockNetworkFee);
+      const result = calcAdjustedReturn(
+        mockToAmount,
+        mockNetworkFee,
+        mockQuote,
+      );
 
       expect(result.valueInCurrency).toBe('900');
       expect(result.usd).toBe('675');
@@ -649,6 +702,7 @@ describe('Quote Metadata Utils', () => {
       const result = calcAdjustedReturn(
         { amount: '1000', valueInCurrency: null, usd: null },
         mockNetworkFee,
+        mockQuote,
       );
 
       expect(result.valueInCurrency).toBeNull();

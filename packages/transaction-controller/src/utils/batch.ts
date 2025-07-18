@@ -30,6 +30,7 @@ import { validateBatchRequest } from './validation';
 import type { TransactionControllerState } from '..';
 import {
   determineTransactionType,
+  GasFeeEstimateLevel,
   TransactionStatus,
   type BatchTransactionParams,
   type TransactionController,
@@ -37,6 +38,7 @@ import {
   type TransactionMeta,
 } from '..';
 import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow';
+import { updateTransactionGasEstimates } from '../helpers/GasFeePoller';
 import type { PendingTransactionTracker } from '../helpers/PendingTransactionTracker';
 import { CollectPublishHook } from '../hooks/CollectPublishHook';
 import { SequentialPublishBatchHook } from '../hooks/SequentialPublishBatchHook';
@@ -412,6 +414,7 @@ async function addTransactionBatchWithHook(
   } = userRequest;
 
   let resultCallbacks: AcceptResultCallbacks | undefined;
+  let isSequentialBatchHook = false;
 
   log('Adding transaction batch using hook', userRequest);
 
@@ -432,10 +435,12 @@ async function addTransactionBatchWithHook(
   }
 
   let publishBatchHook = null;
-  if (!disableHook) {
+
+  if (!disableHook && requestPublishBatchHook) {
     publishBatchHook = requestPublishBatchHook;
   } else if (!disableSequential) {
     publishBatchHook = sequentialPublishBatchHook.getHook();
+    isSequentialBatchHook = true;
   }
 
   if (!publishBatchHook) {
@@ -447,12 +452,13 @@ async function addTransactionBatchWithHook(
     throw rpcErrors.internal(`Can't process batch`);
   }
 
+  let txBatchMeta: TransactionBatchMeta | undefined;
   const batchId = generateBatchId();
   const transactionCount = nestedTransactions.length;
   const collectHook = new CollectPublishHook(transactionCount);
   try {
     if (requireApproval) {
-      const txBatchMeta = await prepareApprovalData({
+      txBatchMeta = await prepareApprovalData({
         batchId,
         request,
       });
@@ -471,6 +477,7 @@ async function addTransactionBatchWithHook(
         nestedTransaction,
         publishHook,
         request,
+        txBatchMeta,
       );
 
       hookTransactions.push(hookTransaction);
@@ -483,17 +490,21 @@ async function addTransactionBatchWithHook(
       signedTx: signedTransactions[index],
     }));
 
-    log('Calling publish batch hook', { from, networkClientId, transactions });
+    const hookParams = { from, networkClientId, transactions };
 
-    const result = await publishBatchHook({
-      from,
-      networkClientId,
-      transactions,
-    });
+    log('Calling publish batch hook', hookParams);
+
+    let result = await publishBatchHook(hookParams);
 
     log('Publish batch hook result', result);
 
-    if (!result) {
+    if (!result && !isSequentialBatchHook && !disableSequential) {
+      log('Fallback to sequential publish batch hook due to empty results');
+      const sequentialBatchHook = sequentialPublishBatchHook.getHook();
+      result = await sequentialBatchHook(hookParams);
+    }
+
+    if (!result?.results?.length) {
       throw new Error('Publish batch hook did not return a result');
     }
 
@@ -529,6 +540,7 @@ async function addTransactionBatchWithHook(
  * @param nestedTransaction - The nested transaction request.
  * @param publishHook - The publish hook to use for each transaction.
  * @param request - The request object including the user request and necessary callbacks.
+ * @param txBatchMeta - Metadata for the transaction batch.
  * @returns The single transaction request to be processed by the publish batch hook.
  */
 async function processTransactionWithHook(
@@ -536,6 +548,7 @@ async function processTransactionWithHook(
   nestedTransaction: TransactionBatchSingleRequest,
   publishHook: PublishHook,
   request: AddTransactionBatchRequest,
+  txBatchMeta?: TransactionBatchMeta,
 ) {
   const { existingTransaction, params } = nestedTransaction;
 
@@ -573,11 +586,20 @@ async function processTransactionWithHook(
     };
   }
 
+  const transactionMetaForGasEstimates = {
+    ...txBatchMeta,
+    txParams: { ...params, from, gas: txBatchMeta?.gas ?? params.gas },
+  };
+
+  if (txBatchMeta) {
+    updateTransactionGasEstimates({
+      txMeta: transactionMetaForGasEstimates as TransactionMeta,
+      userFeeLevel: GasFeeEstimateLevel.Medium,
+    });
+  }
+
   const { transactionMeta } = await addTransaction(
-    {
-      ...params,
-      from,
-    },
+    transactionMetaForGasEstimates.txParams,
     {
       batchId,
       disableGasBuffer: true,

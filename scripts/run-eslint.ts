@@ -12,6 +12,29 @@ const WARNING_THRESHOLDS_FILE = path.join(
 );
 
 /**
+ * The parsed command-line arguments.
+ */
+type CommandLineArguments = {
+  /**
+   * Whether to cache results to speed up future runs (true) or not (false).
+   */
+  cache: boolean;
+  /**
+   * A list of specific files to lint.
+   */
+  files: string[];
+  /**
+   * Whether to automatically fix lint errors (true) or not (false).
+   */
+  fix: boolean;
+  /**
+   * Whether to only report errors, disabling the warnings quality gate in the
+   * process (true) or not (false).
+   */
+  quiet: boolean;
+};
+
+/**
  * A two-level object mapping path to files in which warnings appear to the IDs
  * of rules for those warnings, then from rule IDs to the number of warnings for
  * the rule.
@@ -49,9 +72,40 @@ type WarningComparison = {
 };
 
 /**
- * The warning severity of level of an ESLint rule.
+ * The severity level for an ESLint message.
  */
-const WARNING = 1;
+const ESLintMessageSeverity = {
+  Warning: 1,
+  Error: 2,
+} as const;
+
+/**
+ * The result of applying the quality gate.
+ */
+const QualityGateStatus = {
+  /**
+   * The number of lint warnings increased.
+   */
+  Increase: 'increase',
+  /**
+   * The number of lint warnings decreased.
+   */
+  Decrease: 'decrease',
+  /**
+   * There was no change to the number of lint warnings.
+   */
+  NoChange: 'no-change',
+  /**
+   * The warning thresholds file did not previously exist.
+   */
+  Initialized: 'initialized',
+} as const;
+
+/**
+ * The result of applying the quality gate.
+ */
+type QualityGateStatus =
+  (typeof QualityGateStatus)[keyof typeof QualityGateStatus];
 
 // Run the script.
 main().catch((error) => {
@@ -63,14 +117,40 @@ main().catch((error) => {
  * The entrypoint to this script.
  */
 async function main() {
-  const { cache, fix, quiet } = await parseCommandLineArguments();
+  const {
+    cache,
+    fix,
+    files: givenFiles,
+    quiet,
+  } = await parseCommandLineArguments();
 
-  const eslint = new ESLint({ cache, fix });
-  const results = await runESLint(eslint, { fix, quiet });
-  const hasErrors = results.some((result) => result.errorCount > 0);
+  const eslint = new ESLint({
+    cache,
+    errorOnUnmatchedPattern: false,
+    fix,
+    ruleFilter: ({ severity }) =>
+      !quiet || severity === ESLintMessageSeverity.Error,
+  });
 
-  if (!quiet && !hasErrors) {
-    evaluateWarnings(results);
+  const fileFilteredResults = await eslint.lintFiles(
+    givenFiles.length > 0 ? givenFiles : ['.'],
+  );
+
+  const filteredResults = quiet
+    ? ESLint.getErrorResults(fileFilteredResults)
+    : fileFilteredResults;
+
+  await printResults(eslint, filteredResults);
+
+  if (fix) {
+    await ESLint.outputFixes(filteredResults);
+  }
+  const hasErrors = filteredResults.some((result) => result.errorCount > 0);
+
+  const qualityGateStatus = applyWarningThresholdsQualityGate(filteredResults);
+
+  if (hasErrors || qualityGateStatus === QualityGateStatus.Increase) {
+    process.exitCode = 1;
   }
 }
 
@@ -79,8 +159,8 @@ async function main() {
  *
  * @returns The parsed arguments.
  */
-async function parseCommandLineArguments() {
-  return yargs(process.argv.slice(2))
+async function parseCommandLineArguments(): Promise<CommandLineArguments> {
+  const { cache, fix, quiet, ...rest } = await yargs(process.argv.slice(2))
     .option('cache', {
       type: 'boolean',
       description: 'Cache results to speed up future runs',
@@ -88,52 +168,39 @@ async function parseCommandLineArguments() {
     })
     .option('fix', {
       type: 'boolean',
-      description: 'Automatically fix problems',
+      description:
+        'Automatically fix all problems; pair with --quiet to only fix errors',
       default: false,
     })
     .option('quiet', {
       type: 'boolean',
-      description:
-        'Only report errors, disabling the warnings quality gate in the process',
+      description: 'Only report or fix errors',
       default: false,
     })
-    .help().argv;
+    .help()
+    .string('_').argv;
+
+  // Type assertion: The types for `yargs`'s `string` method are wrong.
+  const files = rest._ as string[];
+
+  return { cache, fix, quiet, files };
 }
 
 /**
- * Runs ESLint on the project files.
+ * Uses the given results to print the output that `eslint` usually generates.
  *
  * @param eslint - The ESLint instance.
- * @param options - The options for running ESLint.
- * @param options.quiet - Whether to only report errors (true) or not (false).
- * @param options.fix - Whether to automatically fix problems (true) or not
- * (false).
- * @returns A promise that resolves to the lint results.
+ * @param results - The results from running `eslint`.
  */
-async function runESLint(
+async function printResults(
   eslint: ESLint,
-  options: { quiet: boolean; fix: boolean },
-): Promise<ESLint.LintResult[]> {
-  let results = await eslint.lintFiles(['.']);
-  const errorResults = ESLint.getErrorResults(results);
-
-  if (errorResults.length > 0) {
-    process.exitCode = 1;
-  }
-
-  if (options.quiet) {
-    results = errorResults;
-  }
-
+  results: ESLint.LintResult[],
+): Promise<void> {
   const formatter = await eslint.loadFormatter('stylish');
-  const resultText = formatter.format(results);
-  console.log(resultText);
-
-  if (options.fix) {
-    await ESLint.outputFixes(results);
+  const resultText = await formatter.format(results);
+  if (resultText.length > 0) {
+    console.log(resultText);
   }
-
-  return results;
 }
 
 /**
@@ -148,11 +215,22 @@ async function runESLint(
  * had increases and decreases. If are were more warnings overall then we fail,
  * otherwise we pass.
  *
- * @param results - The results of running ESLint.
+ * @param results - The results from running `eslint`.
+ * @returns True if the number of warnings has increased compared to the
+ * existing number of warnings, false if they have decreased or stayed the same.
  */
-function evaluateWarnings(results: ESLint.LintResult[]) {
+function applyWarningThresholdsQualityGate(
+  results: ESLint.LintResult[],
+): QualityGateStatus {
   const warningThresholds = loadWarningThresholds();
   const warningCounts = getWarningCounts(results);
+
+  const completeWarningCounts = removeFilesWithoutWarnings({
+    ...warningThresholds,
+    ...warningCounts,
+  });
+
+  let status;
 
   if (Object.keys(warningThresholds).length === 0) {
     console.log(
@@ -160,15 +238,24 @@ function evaluateWarnings(results: ESLint.LintResult[]) {
         'The following lint violations were produced and will be captured as thresholds for future runs:\n',
       ),
     );
-    for (const [filePath, ruleCounts] of Object.entries(warningCounts)) {
+
+    for (const [filePath, ruleCounts] of Object.entries(
+      completeWarningCounts,
+    )) {
       console.log(chalk.underline(filePath));
       for (const [ruleId, count] of Object.entries(ruleCounts)) {
         console.log(`  ${chalk.cyan(ruleId)}: ${count}`);
       }
     }
-    saveWarningThresholds(warningCounts);
+
+    saveWarningThresholds(completeWarningCounts);
+
+    status = QualityGateStatus.Initialized;
   } else {
-    const comparisonsByFile = compareWarnings(warningThresholds, warningCounts);
+    const comparisonsByFile = compareWarnings(
+      warningThresholds,
+      completeWarningCounts,
+    );
 
     const changes = Object.values(comparisonsByFile)
       .flat()
@@ -205,11 +292,11 @@ function evaluateWarnings(results: ESLint.LintResult[]) {
           }
         }
 
-        process.exitCode = 1;
+        status = QualityGateStatus.Increase;
       } else {
         console.log(
           chalk.green(
-            'The overall number of ESLint warnings has decreased, good work! ❤️ \n',
+            'The overall number of lint warnings has decreased, good work! ❤️ \n',
           ),
         );
 
@@ -237,10 +324,34 @@ function evaluateWarnings(results: ESLint.LintResult[]) {
           `\n${chalk.yellow.bold(path.basename(WARNING_THRESHOLDS_FILE))}${chalk.yellow(' has been updated with the new counts. Please make sure to commit the changes.')}`,
         );
 
-        saveWarningThresholds(warningCounts);
+        saveWarningThresholds(completeWarningCounts);
+
+        status = QualityGateStatus.Decrease;
       }
+    } else {
+      status = QualityGateStatus.NoChange;
     }
   }
+
+  return status;
+}
+
+/**
+ * Removes properties from the given warning counts object that have no warnings.
+ *
+ * @param warningCounts - The warning counts.
+ * @returns The transformed warning counts.
+ */
+function removeFilesWithoutWarnings(warningCounts: WarningCounts) {
+  return Object.entries(warningCounts).reduce(
+    (newWarningCounts: WarningCounts, [filePath, warnings]) => {
+      if (Object.keys(warnings).length === 0) {
+        return newWarningCounts;
+      }
+      return { ...newWarningCounts, [filePath]: warnings };
+    },
+    {},
+  );
 }
 
 /**
@@ -274,7 +385,7 @@ function saveWarningThresholds(newWarningCounts: WarningCounts): void {
  * Given a list of results from an the ESLint run, counts the number of warnings
  * produced per file and rule.
  *
- * @param results - The ESLint results.
+ * @param results - The results from running `eslint`.
  * @returns A two-level object mapping path to files in which warnings appear to
  * the IDs of rules for those warnings, then from rule IDs to the number of
  * warnings for the rule.
@@ -284,11 +395,14 @@ function getWarningCounts(results: ESLint.LintResult[]): WarningCounts {
     (workingWarningCounts, result) => {
       const { filePath } = result;
       const relativeFilePath = path.relative(PROJECT_DIRECTORY, filePath);
+      if (!workingWarningCounts[relativeFilePath]) {
+        workingWarningCounts[relativeFilePath] = {};
+      }
       for (const message of result.messages) {
-        if (message.severity === WARNING && message.ruleId) {
-          if (!workingWarningCounts[relativeFilePath]) {
-            workingWarningCounts[relativeFilePath] = {};
-          }
+        if (
+          message.severity === ESLintMessageSeverity.Warning &&
+          message.ruleId
+        ) {
           workingWarningCounts[relativeFilePath][message.ruleId] =
             (workingWarningCounts[relativeFilePath][message.ruleId] ?? 0) + 1;
         }

@@ -1,3 +1,8 @@
+import {
+  AccountWalletCategory,
+  toAccountWalletId,
+  toDefaultAccountGroupId,
+} from '@metamask/account-api';
 import { Messenger } from '@metamask/base-controller';
 import {
   EthAccountType,
@@ -6,13 +11,13 @@ import {
   SolAccountType,
   SolScope,
 } from '@metamask/keyring-api';
+import type { KeyringObject } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
 
 import {
   AccountTreeController,
-  AccountWalletCategory,
   type AccountTreeControllerMessenger,
   type AccountTreeControllerActions,
   type AccountTreeControllerEvents,
@@ -20,11 +25,9 @@ import {
   type AllowedActions,
   type AllowedEvents,
   type AccountGroupMetadata,
-  toDefaultAccountGroupId,
-  DEFAULT_ACCOUNT_GROUP_NAME,
-  toAccountWalletId,
 } from './AccountTreeController';
-import { getAccountWalletNameFromKeyringType } from './names';
+import { DEFAULT_ACCOUNT_GROUP_NAME } from './AccountTreeGroup';
+import { getAccountWalletNameFromKeyringType } from './rules/KeyringWalletRule';
 
 const ETH_EOA_METHODS = [
   EthMethod.PersonalSign,
@@ -173,6 +176,7 @@ function getAccountTreeControllerMessenger(
     ],
     allowedActions: [
       'AccountsController:listMultichainAccounts',
+      'AccountsController:getAccount',
       'KeyringController:getState',
       'SnapController:get',
     ],
@@ -185,49 +189,77 @@ function getAccountTreeControllerMessenger(
  * @param options - Configuration options for setup.
  * @param options.state - Partial initial state for the controller. Defaults to empty object.
  * @param options.messenger - An optional messenger instance to use. Defaults to a new Messenger.
+ * @param options.accounts - Accounts to use for AccountsController:listMultichainAccounts handler.
+ * @param options.keyrings - Keyring objects to use for KeyringController:getState handler.
  * @returns An object containing the controller instance and the messenger.
  */
 function setup({
   state = {},
   messenger = getRootMessenger(),
+  accounts = [],
+  keyrings = [],
 }: {
   state?: Partial<AccountTreeControllerState>;
   messenger?: Messenger<
     AccountTreeControllerActions | AllowedActions,
     AccountTreeControllerEvents | AllowedEvents
   >;
+  accounts?: InternalAccount[];
+  keyrings?: KeyringObject[];
 } = {}): {
   controller: AccountTreeController;
   messenger: Messenger<
     AccountTreeControllerActions | AllowedActions,
     AccountTreeControllerEvents | AllowedEvents
   >;
+  spies: {
+    consoleWarn: jest.SpyInstance;
+  };
 } {
   const controller = new AccountTreeController({
     messenger: getAccountTreeControllerMessenger(messenger),
     state,
   });
-  return { controller, messenger };
+
+  if (accounts) {
+    messenger.registerActionHandler(
+      'AccountsController:listMultichainAccounts',
+      () => accounts,
+    );
+  }
+
+  if (keyrings) {
+    messenger.registerActionHandler('KeyringController:getState', () => ({
+      isUnlocked: true,
+      keyrings,
+    }));
+  }
+
+  const consoleWarnSpy = jest
+    .spyOn(console, 'warn')
+    .mockImplementation(() => undefined);
+
+  return { controller, messenger, spies: { consoleWarn: consoleWarnSpy } };
 }
 
 describe('AccountTreeController', () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+  });
+
   describe('init', () => {
     it('groups accounts by entropy source, then snapId, then wallet type', () => {
-      const { controller, messenger } = setup();
-      messenger.registerActionHandler(
-        'AccountsController:listMultichainAccounts',
-        () => [
+      const { controller, messenger } = setup({
+        accounts: [
           MOCK_HD_ACCOUNT_1,
           MOCK_HD_ACCOUNT_2,
           MOCK_SNAP_ACCOUNT_1, // Belongs to MOCK_HD_ACCOUNT_2's wallet due to shared entropySource
           MOCK_SNAP_ACCOUNT_2, // Has its own Snap wallet
           MOCK_HARDWARE_ACCOUNT_1, // Has its own Keyring wallet
         ],
-      );
-      messenger.registerActionHandler('KeyringController:getState', () => ({
-        isUnlocked: true,
         keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
-      }));
+      });
+
       messenger.registerActionHandler(
         'SnapController:get',
         () =>
@@ -298,7 +330,7 @@ describe('AccountTreeController', () => {
                   metadata: mockDefaultGroupMetadata,
                 },
               },
-              metadata: { name: `Snap: ${MOCK_SNAP_1.manifest.proposedName}` },
+              metadata: { name: MOCK_SNAP_1.manifest.proposedName },
             },
             [expectedKeyringWalletId]: {
               id: expectedKeyringWalletId,
@@ -321,29 +353,22 @@ describe('AccountTreeController', () => {
     });
 
     it('warns and fall back to wallet type grouping if an HD account is missing entropySource', () => {
-      const consoleWarnSpy = jest
-        .spyOn(console, 'warn')
-        .mockImplementation(() => undefined);
-      const { controller, messenger } = setup();
       const mockHdAccountWithoutEntropy: InternalAccount = {
         ...MOCK_HD_ACCOUNT_1,
         id: 'mock-no-entropy-id',
         options: {},
       };
-      messenger.registerActionHandler(
-        'AccountsController:listMultichainAccounts',
-        () => [mockHdAccountWithoutEntropy],
-      );
-      messenger.registerActionHandler('KeyringController:getState', () => ({
-        isUnlocked: true,
+
+      const { controller, spies } = setup({
+        accounts: [mockHdAccountWithoutEntropy],
         keyrings: [],
-      }));
+      });
 
       controller.init();
-
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect(spies.consoleWarn).toHaveBeenCalledWith(
         "! Found an HD account with no entropy source: account won't be associated to its wallet",
       );
+
       const expectedKeyringWalletId = toAccountWalletId(
         AccountWalletCategory.Keyring,
         KeyringTypes.hd,
@@ -354,11 +379,9 @@ describe('AccountTreeController', () => {
           expectedGroupId
         ]?.accounts,
       ).toContain(mockHdAccountWithoutEntropy.id);
-      consoleWarnSpy.mockRestore();
     });
 
     it('handles Snap accounts with entropy source', () => {
-      const { controller, messenger } = setup();
       const mockSnapAccountWithEntropy: InternalAccount = {
         ...MOCK_SNAP_ACCOUNT_2,
         options: { entropySource: MOCK_HD_KEYRING_2.metadata.id },
@@ -367,14 +390,11 @@ describe('AccountTreeController', () => {
           snap: MOCK_SNAP_2,
         },
       };
-      messenger.registerActionHandler(
-        'AccountsController:listMultichainAccounts',
-        () => [mockSnapAccountWithEntropy],
-      );
-      messenger.registerActionHandler('KeyringController:getState', () => ({
-        isUnlocked: true,
+
+      const { controller } = setup({
+        accounts: [mockSnapAccountWithEntropy],
         keyrings: [MOCK_HD_KEYRING_2],
-      }));
+      });
 
       controller.init();
 
@@ -391,15 +411,11 @@ describe('AccountTreeController', () => {
     });
 
     it('fallback to Snap ID if Snap cannot be found', () => {
-      const { controller, messenger } = setup();
-      messenger.registerActionHandler(
-        'AccountsController:listMultichainAccounts',
-        () => [MOCK_SNAP_ACCOUNT_1],
-      );
-      messenger.registerActionHandler('KeyringController:getState', () => ({
-        isUnlocked: true,
+      const { controller, messenger } = setup({
+        accounts: [MOCK_SNAP_ACCOUNT_1],
         keyrings: [],
-      }));
+      });
+
       messenger.registerActionHandler('SnapController:get', () => undefined); // Snap won't be found.
 
       controller.init();
@@ -414,11 +430,10 @@ describe('AccountTreeController', () => {
       // FIXME: Do we really want this behavior?
       expect(
         controller.state.accountTree.wallets[wallet1Id]?.metadata.name,
-      ).toBe('Snap: mock-snap-id-1');
+      ).toBe('mock-snap-id-1');
     });
 
     it('fallback to HD keyring category if entropy sources cannot be found', () => {
-      const { controller, messenger } = setup();
       // Create entropy wallets that will both get "Wallet" as base name, then get numbered
       const mockHdAccount1: InternalAccount = {
         ...MOCK_HD_ACCOUNT_1,
@@ -428,14 +443,11 @@ describe('AccountTreeController', () => {
         ...MOCK_HD_ACCOUNT_2,
         options: { entropySource: MOCK_HD_KEYRING_2.metadata.id },
       };
-      messenger.registerActionHandler(
-        'AccountsController:listMultichainAccounts',
-        () => [mockHdAccount1, mockHdAccount2],
-      );
-      messenger.registerActionHandler('KeyringController:getState', () => ({
-        isUnlocked: true,
-        keyrings: [], // Entropy sources won't be found.
-      }));
+
+      const { controller } = setup({
+        accounts: [mockHdAccount1, mockHdAccount2],
+        keyrings: [],
+      });
 
       controller.init();
 
@@ -462,8 +474,6 @@ describe('AccountTreeController', () => {
 
   describe('on AccountsController:accountRemoved', () => {
     it('removes an account from the tree', () => {
-      const { controller, messenger } = setup();
-      //
       // 2 accounts that share the same entropy source (thus, same wallet).
       const mockHdAccount1 = {
         ...MOCK_HD_ACCOUNT_1,
@@ -478,16 +488,12 @@ describe('AccountTreeController', () => {
         },
       };
 
-      // Create entropy wallets that will both get "Wallet" as base name, then get numbered
-      messenger.registerActionHandler(
-        'AccountsController:listMultichainAccounts',
-        () => [mockHdAccount1, mockHdAccount2],
-      );
-      messenger.registerActionHandler('KeyringController:getState', () => ({
-        isUnlocked: true,
+      const { controller, messenger } = setup({
+        accounts: [mockHdAccount1, mockHdAccount2],
         keyrings: [MOCK_HD_KEYRING_1],
-      }));
+      });
 
+      // Create entropy wallets that will both get "Wallet" as base name, then get numbered
       controller.init();
 
       messenger.publish('AccountsController:accountRemoved', mockHdAccount1.id);
@@ -519,8 +525,6 @@ describe('AccountTreeController', () => {
 
   describe('on AccountsController:accountAdded', () => {
     it('adds an account from the tree', () => {
-      const { controller, messenger } = setup();
-      //
       // 2 accounts that share the same entropy source (thus, same wallet).
       const mockHdAccount1 = {
         ...MOCK_HD_ACCOUNT_1,
@@ -535,16 +539,12 @@ describe('AccountTreeController', () => {
         },
       };
 
-      // Create entropy wallets that will both get "Wallet" as base name, then get numbered
-      messenger.registerActionHandler(
-        'AccountsController:listMultichainAccounts',
-        () => [mockHdAccount1],
-      );
-      messenger.registerActionHandler('KeyringController:getState', () => ({
-        isUnlocked: true,
+      const { controller, messenger } = setup({
+        accounts: [mockHdAccount1],
         keyrings: [MOCK_HD_KEYRING_1],
-      }));
+      });
 
+      // Create entropy wallets that will both get "Wallet" as base name, then get numbered
       controller.init();
 
       messenger.publish('AccountsController:accountAdded', mockHdAccount2);
@@ -571,6 +571,139 @@ describe('AccountTreeController', () => {
           },
         },
       } as AccountTreeControllerState);
+    });
+  });
+
+  describe('getWallet', () => {
+    it('gets a wallet using its ID', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+      controller.init();
+
+      const walletId = toAccountWalletId(
+        AccountWalletCategory.Entropy,
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const wallet = controller.getWallet(walletId);
+      expect(wallet).toBeDefined();
+    });
+
+    it('gets undefined is wallet ID is not matching any wallet', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+      controller.init();
+
+      const wallet = controller.getWallet('entropy:unknown');
+      expect(wallet).toBeUndefined();
+    });
+  });
+
+  describe('getWallets', () => {
+    it('gets all wallets', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+      controller.init();
+
+      const wallets = controller.getWallets();
+      expect(wallets).toHaveLength(2);
+    });
+  });
+
+  describe('AccountTreeWallet', () => {
+    it('gets account groups from a wallet', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      controller.init();
+
+      const wallets = controller.getWallets();
+      expect(wallets).toHaveLength(1);
+
+      const wallet = wallets[0];
+      const groups = wallet.getAccountGroups();
+      expect(groups).toHaveLength(1);
+      expect(groups[0].id).toStrictEqual(toDefaultAccountGroupId(wallet.id));
+    });
+
+    it('gets a specific account group using its ID', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      controller.init();
+
+      const wallets = controller.getWallets();
+      expect(wallets).toHaveLength(1);
+
+      const wallet = wallets[0];
+      const groupId = toDefaultAccountGroupId(wallet.id);
+      const group = wallet.getAccountGroup(groupId);
+      expect(group).toBeDefined();
+      expect(group?.id).toStrictEqual(groupId);
+    });
+  });
+
+  describe('AccountTreeGroup', () => {
+    it('gets accounts from an account group', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      controller.init();
+
+      // Required by `getAccounts` below.
+      messenger.registerActionHandler(
+        'AccountsController:getAccount',
+        () => MOCK_HD_ACCOUNT_1,
+      );
+
+      const wallets = controller.getWallets();
+      expect(wallets).toHaveLength(1);
+
+      const wallet = wallets[0];
+      const groups = wallet.getAccountGroups();
+      expect(groups).toHaveLength(1);
+
+      const group = groups[0];
+      const accounts = group.getAccounts();
+      const accountIds = group.getAccountIds();
+      expect(accounts).toHaveLength(1);
+      expect(accounts.map((account) => account.id)).toStrictEqual(accountIds);
+    });
+
+    it('skips account if it cannot be resolved', () => {
+      const { controller, messenger, spies } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      controller.init();
+
+      // Required by `getAccounts` below.
+      messenger.registerActionHandler(
+        'AccountsController:getAccount',
+        () => undefined, // Not resolved
+      );
+
+      const wallets = controller.getWallets();
+      const wallet = wallets[0];
+      const groups = wallet.getAccountGroups();
+      const group = groups[0];
+
+      const accountIds = group.getAccountIds();
+      expect(accountIds).toHaveLength(1);
+
+      const accounts = group.getAccounts();
+      expect(spies.consoleWarn).toHaveBeenCalledWith(
+        `! Unable to get account: "${accountIds[0]}"`,
+      );
+      expect(accounts).toHaveLength(0); // None account could be resolved.
     });
   });
 });
