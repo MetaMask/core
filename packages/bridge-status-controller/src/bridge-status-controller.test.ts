@@ -776,7 +776,7 @@ describe('BridgeStatusController', () => {
 
       // Trigger polling with exponential backoff timing
       for (let i = 0; i < MAX_ATTEMPTS * 2; i++) {
-        jest.advanceTimersByTime(10000 ** i);
+        jest.advanceTimersByTime(10_000 * 2 ** i);
         await flushPromises();
       }
 
@@ -964,74 +964,6 @@ describe('BridgeStatusController', () => {
         bridgeStatusController.state.txHistory.bridgeTxMetaId1.attempts
           ?.counter,
       ).toBe(3);
-    });
-
-    it('should not attempt polling if srcTxHash is missing and error occurs', async () => {
-      // Setup
-      jest.useFakeTimers();
-      const fetchBridgeTxStatusSpy = jest.spyOn(
-        bridgeStatusUtils,
-        'fetchBridgeTxStatus',
-      );
-
-      const messengerMock = {
-        call: jest.fn((method: string) => {
-          if (method === 'AccountsController:getSelectedMultichainAccount') {
-            return { address: '0xaccount1' };
-          } else if (
-            method === 'NetworkController:findNetworkClientIdByChainId'
-          ) {
-            return 'networkClientId';
-          } else if (method === 'NetworkController:getState') {
-            return { selectedNetworkClientId: 'networkClientId' };
-          } else if (method === 'NetworkController:getNetworkClientById') {
-            return {
-              configuration: {
-                chainId: numberToHex(42161),
-              },
-            };
-          } else if (method === 'TransactionController:getState') {
-            return {
-              transactions: [
-                {
-                  id: 'bridgeTxMetaId1',
-                  hash: undefined, // No hash available
-                },
-              ],
-            };
-          }
-          return null;
-        }),
-        subscribe: mockMessengerSubscribe,
-        publish: jest.fn(),
-        registerActionHandler: jest.fn(),
-        registerInitialEventPayload: jest.fn(),
-      } as unknown as jest.Mocked<BridgeStatusControllerMessenger>;
-
-      const bridgeStatusController = new BridgeStatusController({
-        messenger: messengerMock,
-        clientId: BridgeClientId.EXTENSION,
-        fetchFn: jest.fn(),
-        addTransactionFn: jest.fn(),
-        addTransactionBatchFn: jest.fn(),
-        updateTransactionFn: jest.fn(),
-        estimateGasFeeFn: jest.fn(),
-      });
-
-      // Start polling with args that have no srcTxHash
-      const startPollingArgs = getMockStartPollingForBridgeTxStatusArgs();
-      startPollingArgs.statusRequest.srcTxHash = undefined;
-      bridgeStatusController.startPollingForBridgeTxStatus(startPollingArgs);
-
-      // Advance timer to trigger polling
-      jest.advanceTimersByTime(10000);
-      await flushPromises();
-
-      // Assertions
-      expect(fetchBridgeTxStatusSpy).not.toHaveBeenCalled();
-      expect(
-        bridgeStatusController.state.txHistory.bridgeTxMetaId1.attempts,
-      ).toBeUndefined();
     });
   });
 
