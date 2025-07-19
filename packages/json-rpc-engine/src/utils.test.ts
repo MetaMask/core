@@ -1,13 +1,9 @@
-import { produce } from 'immer';
-
 import {
   isRequest,
   isNotification,
   stringify,
   JsonRpcEngineError,
-  cloneRequest,
 } from './utils';
-import type { JsonRpcCall } from './utils';
 
 const jsonrpc = '2.0' as const;
 
@@ -64,34 +60,6 @@ describe('utils', () => {
       expect(error).toBeInstanceOf(Error);
       expect(error.name).toBe('JsonRpcEngineError');
       expect(error.message).toBe('test');
-    });
-  });
-
-  describe('cloneRequest', () => {
-    it('should clone a request', () => {
-      let clonedRequest: JsonRpcCall | undefined;
-
-      const producedRequest = produce(
-        {
-          jsonrpc,
-          id: 1,
-          method: 'eth_getBlockByNumber',
-          params: ['latest'],
-        },
-        (draft) => {
-          clonedRequest = cloneRequest(draft);
-          draft.id = 2;
-        },
-      );
-
-      expect(clonedRequest).toStrictEqual({
-        jsonrpc,
-        id: 1,
-        method: 'eth_getBlockByNumber',
-        params: ['latest'],
-      });
-      expect(producedRequest).not.toBe(clonedRequest);
-      expect(producedRequest.id).toBe(2);
     });
   });
 });

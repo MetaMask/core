@@ -69,7 +69,8 @@
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/safe-event-emitter": "^3.0.0",
     "@metamask/utils": "^11.4.2",
-    "immer": "^9.0.6"
+    "@types/deep-freeze-strict": "^1.1.0",
+    "deep-freeze-strict": "^1.1.1"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",

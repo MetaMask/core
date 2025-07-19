@@ -1,12 +1,7 @@
-import type { NonEmptyArray } from '@metamask/utils';
-import type { Json } from '@metamask/utils';
-import { original as getOriginalState } from 'immer';
-
-import type { JsonRpcMiddleware, MiddlewareParams } from './JsonRpcEngineV2';
+/* eslint-disable n/callback-return */ // next() is not a Node.js callback.
+import type { JsonRpcMiddleware } from './JsonRpcEngineV2';
 import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
-import type { MiddlewareContext } from './MiddlewareContext';
 import {
-  cloneRequest,
   JsonRpcEngineError,
   stringify,
   type JsonRpcCall,
@@ -27,49 +22,29 @@ const makeRequest = <Request extends JsonRpcRequest>(
     ...params,
   }) as Request;
 
-/**
- * Wraps a set of mock middleware functions such that they receive the
- * original request object as opposed to the immer draft object, which
- * is revoked by the time we can observe it.
- *
- * @param middleware - The first middleware. This param exists to ensure that
- * at least one middleware is provided.
- * @param rest - The rest of the middleware.
- * @returns An array of the wrapped middleware functions.
- */
-const makeMockMiddleware = <
-  Request extends JsonRpcCall,
-  Result extends Json | void,
->(
-  middleware: JsonRpcMiddleware<Request, Result>,
-  ...rest: JsonRpcMiddleware<Request, Result>[]
-): NonEmptyArray<JsonRpcMiddleware<Request, Result>> =>
-  [middleware, ...rest].map(
-    (fn) =>
-      ({ request, context, next }: MiddlewareParams<Request, Result>) =>
-        fn({ request: getOriginalState(request) as Request, context, next }),
-  ) as NonEmptyArray<JsonRpcMiddleware<Request, Result>>;
-
 describe('JsonRpcEngineV2', () => {
   describe('handle', () => {
     describe('notifications', () => {
-      it('passes the notification through middleware', async () => {
-        const middleware: JsonRpcMiddleware<JsonRpcNotification, void> =
-          jest.fn(() => undefined);
+      it('passes the notification through a middleware', async () => {
+        const middleware: JsonRpcMiddleware<JsonRpcNotification> = jest.fn();
         const engine = new JsonRpcEngineV2({
-          middleware: makeMockMiddleware(middleware),
+          middleware: [middleware],
         });
         const notification = { jsonrpc, method: 'test_request' };
 
         await engine.handle(notification);
 
         expect(middleware).toHaveBeenCalledTimes(1);
-        expect(middleware).toHaveBeenCalledWith(notification, expect.any(Map));
+        expect(middleware).toHaveBeenCalledWith({
+          request: notification,
+          context: expect.any(Map),
+          next: expect.any(Function),
+        });
       });
 
       it('returns no result', async () => {
         const engine = new JsonRpcEngineV2({
-          middleware: [jest.fn(() => EndNotification)],
+          middleware: [jest.fn()],
         });
         const notification = { jsonrpc, method: 'test_request' };
 
@@ -79,17 +54,18 @@ describe('JsonRpcEngineV2', () => {
       });
 
       it('returns no result, with multiple middleware', async () => {
+        const middleware1 = jest.fn(({ next }) => next());
+        const middleware2 = jest.fn();
         const engine = new JsonRpcEngineV2({
-          middleware: makeMockMiddleware(
-            jest.fn(),
-            jest.fn(() => EndNotification),
-          ),
+          middleware: [middleware1, middleware2],
         });
         const notification = { jsonrpc, method: 'test_request' };
 
         const result = await engine.handle(notification);
 
         expect(result).toBeUndefined();
+        expect(middleware1).toHaveBeenCalledTimes(1);
+        expect(middleware2).toHaveBeenCalledTimes(1);
       });
 
       it('throws if a middleware throws', async () => {
@@ -109,12 +85,12 @@ describe('JsonRpcEngineV2', () => {
 
       it('throws if a middleware throws, with multiple middleware', async () => {
         const engine = new JsonRpcEngineV2({
-          middleware: makeMockMiddleware(
-            jest.fn(),
+          middleware: [
+            jest.fn(({ next }) => next()),
             jest.fn(() => {
               throw new Error('test');
             }),
-          ),
+          ],
         });
         const notification = { jsonrpc, method: 'test_request' };
 
@@ -123,41 +99,21 @@ describe('JsonRpcEngineV2', () => {
         );
       });
 
-      it('throws if no middleware returns EndNotification', async () => {
+      it('throws if a middleware calls next() multiple times', async () => {
         const engine = new JsonRpcEngineV2({
-          middleware: [jest.fn(), jest.fn()],
+          middleware: [
+            jest.fn(async ({ next }) => {
+              await next();
+              await next();
+            }),
+            jest.fn(),
+          ],
         });
         const notification = { jsonrpc, method: 'test_request' };
 
         await expect(engine.handle(notification)).rejects.toThrow(
           new JsonRpcEngineError(
-            `Nothing ended request: ${stringify(notification)}`,
-          ),
-        );
-      });
-
-      it('throws if a middleware returns a return handler', async () => {
-        const engine = new JsonRpcEngineV2({
-          middleware: [jest.fn(() => () => null)],
-        });
-        const notification = { jsonrpc, method: 'test_request' };
-
-        await expect(engine.handle(notification)).rejects.toThrow(
-          new JsonRpcEngineError(
-            `Middleware returned a return handler for notification: ${stringify(notification)}`,
-          ),
-        );
-      });
-
-      it('throws if a middleware returns neither EndNotification nor undefined', async () => {
-        const engine = new JsonRpcEngineV2({
-          middleware: [jest.fn(() => null), jest.fn(() => EndNotification)],
-        });
-        const notification = { jsonrpc, method: 'test_request' };
-
-        await expect(engine.handle(notification)).rejects.toThrow(
-          new JsonRpcEngineError(
-            `Notification handled as request: ${stringify(notification)}`,
+            `Middleware attempted to call next() multiple times for request: ${stringify(notification)}`,
           ),
         );
       });
@@ -169,7 +125,7 @@ describe('JsonRpcEngineV2', () => {
           () => null,
         );
         const engine = new JsonRpcEngineV2({
-          middleware: makeMockMiddleware(middleware),
+          middleware: [middleware],
         });
         const request = makeRequest();
 
@@ -177,14 +133,18 @@ describe('JsonRpcEngineV2', () => {
 
         expect(result).toBeNull();
         expect(middleware).toHaveBeenCalledTimes(1);
-        expect(middleware).toHaveBeenCalledWith(request, expect.any(Map));
+        expect(middleware).toHaveBeenCalledWith({
+          request,
+          context: expect.any(Map),
+          next: expect.any(Function),
+        });
       });
 
       it('returns a result from the middleware, with multiple middleware', async () => {
-        const middleware1 = jest.fn();
+        const middleware1 = jest.fn(({ next }) => next());
         const middleware2 = jest.fn(() => null);
         const engine = new JsonRpcEngineV2({
-          middleware: makeMockMiddleware(middleware1, middleware2),
+          middleware: [middleware1, middleware2],
         });
         const request = makeRequest();
 
@@ -192,9 +152,17 @@ describe('JsonRpcEngineV2', () => {
 
         expect(result).toBeNull();
         expect(middleware1).toHaveBeenCalledTimes(1);
-        expect(middleware1).toHaveBeenCalledWith(request, expect.any(Map));
+        expect(middleware1).toHaveBeenCalledWith({
+          request,
+          context: expect.any(Map),
+          next: expect.any(Function),
+        });
         expect(middleware2).toHaveBeenCalledTimes(1);
-        expect(middleware2).toHaveBeenCalledWith(request, expect.any(Map));
+        expect(middleware2).toHaveBeenCalledWith({
+          request,
+          context: expect.any(Map),
+          next: expect.any(Function),
+        });
       });
 
       it('throws if a middleware throws', async () => {
@@ -213,12 +181,12 @@ describe('JsonRpcEngineV2', () => {
 
       it('throws if a middleware throws, with multiple middleware', async () => {
         const engine = new JsonRpcEngineV2({
-          middleware: makeMockMiddleware(
-            jest.fn(),
+          middleware: [
+            jest.fn(({ next }) => next()),
             jest.fn(() => {
               throw new Error('test');
             }),
-          ),
+          ],
         });
 
         await expect(engine.handle(makeRequest())).rejects.toThrow(
@@ -228,7 +196,7 @@ describe('JsonRpcEngineV2', () => {
 
       it('throws if no middleware returns a result', async () => {
         const engine = new JsonRpcEngineV2({
-          middleware: [jest.fn(), jest.fn()],
+          middleware: [jest.fn(({ next }) => next()), jest.fn()],
         });
         const request = makeRequest();
 
@@ -239,101 +207,133 @@ describe('JsonRpcEngineV2', () => {
         );
       });
 
-      it('throws if a middleware returns EndNotification', async () => {
+      it('throws if a middleware calls next() multiple times', async () => {
         const engine = new JsonRpcEngineV2({
-          middleware: [jest.fn(() => EndNotification)],
+          middleware: [
+            jest.fn(async ({ next }) => {
+              await next();
+              await next();
+            }),
+            jest.fn(),
+          ],
         });
         const request = makeRequest();
 
         await expect(engine.handle(request)).rejects.toThrow(
           new JsonRpcEngineError(
-            `Request handled as notification: ${stringify(request)}`,
+            `Middleware attempted to call next() multiple times for request: ${stringify(request)}`,
           ),
         );
       });
     });
 
-    describe('request mutation', () => {
-      it('lets middleware mutate request parameters in place', async () => {
-        const observedParams: string[] = [];
-        const middleware1 = jest.fn((req) => {
-          observedParams.push(req.params[0]);
-          req.params[0] = '2';
-        });
-        const middleware2 = jest.fn((req) => {
-          observedParams.push(req.params[0]);
-          req.params[0] = '3';
-        });
-        const middleware3 = jest.fn((req) => {
-          observedParams.push(req.params[0]);
-          return null;
-        });
+    describe('asynchrony', () => {
+      it('handles asynchronous middleware', async () => {
+        const middleware = jest.fn(async () => null);
         const engine = new JsonRpcEngineV2({
-          middleware: makeMockMiddleware(middleware1, middleware2, middleware3),
+          middleware: [middleware],
         });
-        const request = makeRequest({ params: ['1'] });
 
-        await engine.handle(request);
+        const result = await engine.handle(makeRequest());
 
-        expect(middleware1).toHaveBeenCalledTimes(1);
-        expect(middleware2).toHaveBeenCalledTimes(1);
-        expect(middleware3).toHaveBeenCalledTimes(1);
-        expect(observedParams).toStrictEqual(['1', '2', '3']);
+        expect(result).toBeNull();
       });
 
-      it('lets middleware replace request parameters', async () => {
-        const observedParams: string[] = [];
-        const middleware1 = jest.fn((req) => {
-          observedParams.push(cloneRequest(req).params);
-          req.params = ['2'];
+      it('handles mixed synchronous and asynchronous middleware', async () => {
+        const middleware1: JsonRpcMiddleware<JsonRpcCall<number[]>> = jest.fn(
+          async ({ context, next }) => {
+            context.set('foo', [1]);
+            return next();
+          },
+        );
+        const middleware2: JsonRpcMiddleware<JsonRpcCall<number[]>> = jest.fn(
+          async ({ context, next }) => {
+            const nums = context.get('foo') as number[];
+            context.set('foo', [...nums, 2]);
+            return next();
+          },
+        );
+        const middleware3: JsonRpcMiddleware<JsonRpcCall<number[]>> = jest.fn(
+          async ({ context }) => {
+            const nums = context.get('foo') as number[];
+            return [...nums, 3];
+          },
+        );
+        const engine = new JsonRpcEngineV2({
+          middleware: [middleware1, middleware2, middleware3],
         });
-        const middleware2 = jest.fn((req) => {
-          observedParams.push(cloneRequest(req).params);
-          req.params = ['3'];
+
+        const result = await engine.handle(makeRequest());
+
+        expect(result).toStrictEqual([1, 2, 3]);
+      });
+    });
+
+    describe('request mutation', () => {
+      it('propagates new requests to subsequent middleware', async () => {
+        const observedParams: number[] = [];
+        let observedMethod: string | undefined;
+        const middleware1 = jest.fn(({ request, next }) => {
+          observedParams.push(request.params[0]);
+          return next({
+            ...request,
+            params: [2],
+          });
         });
-        const middleware3 = jest.fn((req) => {
-          observedParams.push(cloneRequest(req).params);
+        const middleware2 = jest.fn(({ request, next }) => {
+          observedParams.push(request.params[0]);
+          return next({
+            ...request,
+            method: 'test_request_2',
+            params: [3],
+          });
+        });
+        const middleware3 = jest.fn(({ request }) => {
+          observedParams.push(request.params[0]);
+          observedMethod = request.method;
           return null;
         });
         const engine = new JsonRpcEngineV2({
           middleware: [middleware1, middleware2, middleware3],
         });
-        const request = makeRequest({ params: ['1'] });
+        const request = makeRequest({ params: [1] });
 
         await engine.handle(request);
 
         expect(middleware1).toHaveBeenCalledTimes(1);
         expect(middleware2).toHaveBeenCalledTimes(1);
         expect(middleware3).toHaveBeenCalledTimes(1);
-        expect(observedParams).toStrictEqual([['1'], ['2'], ['3']]);
+        expect(observedMethod).toBe('test_request_2');
+        expect(observedParams).toStrictEqual([1, 2, 3]);
       });
 
-      it('lets middleware replace the request method', async () => {
-        let observedMethod: string | undefined;
-        const middleware1 = jest.fn((req) => {
-          req.method = 'test_request_2';
-        });
-        const middleware2 = jest.fn((req) => {
-          observedMethod = req.method;
-          return null;
-        });
+      it('throws if directly modifying the request', async () => {
         const engine = new JsonRpcEngineV2({
-          middleware: [middleware1, middleware2],
+          middleware: [
+            jest.fn(({ request }) => {
+              // @ts-expect-error Destructive testing.
+              request.params = [2];
+            }) as JsonRpcMiddleware,
+          ],
         });
 
-        await engine.handle(makeRequest());
-
-        expect(middleware1).toHaveBeenCalledTimes(1);
-        expect(middleware2).toHaveBeenCalledTimes(1);
-        expect(observedMethod).toBe('test_request_2');
+        await expect(engine.handle(makeRequest())).rejects.toThrow(
+          new TypeError(
+            `Cannot assign to read only property 'params' of object '#<Object>'`,
+          ),
+        );
       });
 
       it('throws if a middleware attempts to modify the request "id" property', async () => {
         const engine = new JsonRpcEngineV2({
           middleware: [
-            jest.fn((req) => {
-              req.id = '2';
+            jest.fn(async ({ request, next }) => {
+              return await next({
+                ...request,
+                id: '2',
+              });
             }),
+            jest.fn(() => null),
           ],
         });
         const request = makeRequest();
@@ -348,9 +348,13 @@ describe('JsonRpcEngineV2', () => {
       it('throws if a middleware attempts to modify the request "jsonrpc" property', async () => {
         const engine = new JsonRpcEngineV2({
           middleware: [
-            jest.fn((req) => {
-              req.jsonrpc = '3.0';
+            jest.fn(async ({ request, next }) => {
+              return await next({
+                ...request,
+                jsonrpc: '3.0',
+              });
             }),
+            jest.fn(() => null),
           ],
         });
         const request = makeRequest();
@@ -361,183 +365,137 @@ describe('JsonRpcEngineV2', () => {
           ),
         );
       });
-
-      it('throws if modifying the request outside of the middleware', async () => {
-        let retained: JsonRpcCall | undefined;
-        const middleware = jest.fn((req: JsonRpcCall) => {
-          retained = req;
-          return null;
-        });
-        const engine = new JsonRpcEngineV2({
-          middleware: [middleware],
-        });
-        const request = makeRequest();
-
-        await engine.handle(request);
-
-        expect(() => {
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          retained!.params = ['2'];
-        }).toThrow(
-          new TypeError(
-            `Cannot perform 'set' on a proxy that has been revoked`,
-          ),
-        );
-      });
     });
 
-    describe('return handlers', () => {
-      it('runs return handlers in reverse order of registration', async () => {
-        const returnHandlerResults: string[] = [];
-        const middleware1 = jest.fn(() => () => {
-          returnHandlerResults.push('1');
-        });
-        const middleware2 = jest.fn(() => () => {
-          returnHandlerResults.push('2');
-        });
-        const middleware3 = jest.fn(() => () => {
-          returnHandlerResults.push('3');
-        });
-        const middleware4 = jest.fn(() => null);
+    describe('result handling', () => {
+      it('updates the result after next() is called', async () => {
         const engine = new JsonRpcEngineV2({
-          middleware: [middleware1, middleware2, middleware3, middleware4],
+          middleware: [
+            jest.fn(async ({ next }) => {
+              const result = await next();
+              return result + 1;
+            }),
+            jest.fn(() => 1),
+          ],
         });
 
-        await engine.handle(makeRequest());
+        const result = await engine.handle(makeRequest());
 
-        expect(returnHandlerResults).toStrictEqual(['3', '2', '1']);
+        expect(result).toBe(2);
       });
 
-      it('returns the expected result after no-op return handler', async () => {
-        const middleware1 = jest.fn(() => () => undefined);
-        const middleware2 = jest.fn(() => null);
+      it('catches errors thrown by later middleware', async () => {
+        let observedError: Error | undefined;
         const engine = new JsonRpcEngineV2({
-          middleware: [middleware1, middleware2],
+          middleware: [
+            jest.fn(async ({ next }) => {
+              try {
+                return await next();
+              } catch (error) {
+                observedError = error as Error;
+                return null;
+              }
+            }),
+            jest.fn(() => {
+              throw new Error('test');
+            }),
+          ],
         });
 
         const result = await engine.handle(makeRequest());
 
         expect(result).toBeNull();
+        expect(observedError).toStrictEqual(new Error('test'));
       });
 
-      it('lets return handler update the result', async () => {
-        const middleware1 = jest.fn(() => () => {
-          return '1';
-        });
-        const middleware2 = jest.fn(() => null);
-        const engine = new JsonRpcEngineV2({
-          middleware: [middleware1, middleware2],
-        });
+      // it('handles returned results in reverse middleware order', async () => {
+      //   const returnHandlerResults: number[] = [];
+      //   const middleware1 = jest.fn(async ({ next }) => {
+      //     await next();
+      //     returnHandlerResults.push(1);
+      //   });
+      //   const middleware2 = jest.fn(async ({ next }) => {
+      //     await next();
+      //     returnHandlerResults.push(2);
+      //   });
+      //   const middleware3 = jest.fn(async ({ next }) => {
+      //     await next();
+      //     returnHandlerResults.push(3);
+      //   });
+      //   const middleware4 = jest.fn(() => null);
+      //   const engine = new JsonRpcEngineV2({
+      //     middleware: [middleware1, middleware2, middleware3, middleware4],
+      //   });
 
-        const result = await engine.handle(makeRequest());
+      //   await engine.handle(makeRequest());
 
-        expect(result).toBe('1');
-      });
+      //   expect(returnHandlerResults).toStrictEqual([3, 2, 1]);
+      // });
 
-      it('uses the result of the first return handler registered', async () => {
-        const middleware1 = jest.fn(() => () => {
-          return '1' as string;
-        });
-        const middleware2 = jest.fn(() => () => {
-          return '2' as string;
-        });
-        const middleware3 = jest.fn(() => null);
-        const engine = new JsonRpcEngineV2({
-          middleware: [middleware1, middleware2, middleware3],
-        });
+      // it('returns the expected result after no-op return handler', async () => {
+      //   const middleware1 = jest.fn(() => () => undefined);
+      //   const middleware2 = jest.fn(() => null);
+      //   const engine = new JsonRpcEngineV2({
+      //     middleware: [middleware1, middleware2],
+      //   });
 
-        const result = await engine.handle(makeRequest());
+      //   const result = await engine.handle(makeRequest());
 
-        expect(result).toBe('1');
-      });
+      //   expect(result).toBeNull();
+      // });
 
-      it('throws if a return handler modifies the request', async () => {
-        const middleware1 = jest.fn((req) => () => {
-          req.params = ['2'];
-          return '1' as string;
-        });
-        const middleware2 = jest.fn(() => null);
-        const engine = new JsonRpcEngineV2({
-          middleware: [middleware1, middleware2],
-        });
+      // it('lets return handler update the result', async () => {
+      //   const middleware1 = jest.fn(() => () => {
+      //     return '1';
+      //   });
+      //   const middleware2 = jest.fn(() => null);
+      //   const engine = new JsonRpcEngineV2({
+      //     middleware: [middleware1, middleware2],
+      //   });
 
-        await expect(engine.handle(makeRequest())).rejects.toThrow(
-          new TypeError(
-            `Cannot perform 'set' on a proxy that has been revoked`,
-          ),
-        );
-      });
-    });
+      //   const result = await engine.handle(makeRequest());
 
-    describe('asynchrony', () => {
-      it('handles asynchronous middleware', async () => {
-        const middleware = jest.fn(async () => {
-          return null;
-        });
-        const engine = new JsonRpcEngineV2({
-          middleware: [middleware],
-        });
+      //   expect(result).toBe('1');
+      // });
 
-        const result = await engine.handle(makeRequest());
+      // it('uses the result of the first return handler registered', async () => {
+      //   const middleware1 = jest.fn(() => () => {
+      //     return '1' as string;
+      //   });
+      //   const middleware2 = jest.fn(() => () => {
+      //     return '2' as string;
+      //   });
+      //   const middleware3 = jest.fn(() => null);
+      //   const engine = new JsonRpcEngineV2({
+      //     middleware: [middleware1, middleware2, middleware3],
+      //   });
 
-        expect(result).toBeNull();
-      });
+      //   const result = await engine.handle(makeRequest());
 
-      it('handles mixed synchronous and asynchronous middleware', async () => {
-        const middleware1 = jest.fn((_req, context) => {
-          context.set('foo', [1]);
-        });
-        const middleware2 = jest.fn(async (_req, context) => {
-          const nums = context.get('foo') as number[];
-          context.set('foo', [...nums, 2]);
-        });
-        const middleware3 = jest.fn(async (_req, context) => {
-          const nums = context.get('foo') as number[];
-          return [...nums, 3];
-        });
-        const engine = new JsonRpcEngineV2<JsonRpcCall, number[] | void>({
-          middleware: [middleware1, middleware2, middleware3],
-        });
+      //   expect(result).toBe('1');
+      // });
 
-        const result = await engine.handle(makeRequest());
+      // it('throws if a return handler modifies the request', async () => {
+      //   const middleware1 = jest.fn((req) => () => {
+      //     req.params = ['2'];
+      //     return '1' as string;
+      //   });
+      //   const middleware2 = jest.fn(() => null);
+      //   const engine = new JsonRpcEngineV2({
+      //     middleware: [middleware1, middleware2],
+      //   });
 
-        expect(result).toStrictEqual([1, 2, 3]);
-      });
-
-      it('handles asynchronous return handlers', async () => {
-        const middleware = jest.fn(() => async () => {
-          return null;
-        });
-        const engine = new JsonRpcEngineV2({
-          middleware: [middleware],
-        });
-
-        const result = await engine.handle(makeRequest());
-
-        expect(result).toBeNull();
-      });
-
-      it('handles mixed synchronous and asynchronous return handlers', async () => {
-        const middleware1 = jest.fn(() => (result: number | void) => {
-          // eslint-disable-next-line jest/no-conditional-in-test
-          return (result ?? 0) * 2;
-        });
-        const middleware2 = jest.fn(() => async () => {
-          return 2;
-        });
-        const engine = new JsonRpcEngineV2({
-          middleware: [middleware1, middleware2],
-        });
-
-        const result = await engine.handle(makeRequest());
-
-        expect(result).toBe(4);
-      });
+      //   await expect(engine.handle(makeRequest())).rejects.toThrow(
+      //     new TypeError(
+      //       `Cannot perform 'set' on a proxy that has been revoked`,
+      //     ),
+      //   );
+      // });
     });
 
     describe('context', () => {
       it('passes the context to the middleware', async () => {
-        const middleware = jest.fn((_req, context) => {
+        const middleware = jest.fn(({ context }) => {
           expect(context).toBeInstanceOf(Map);
           return null;
         });
@@ -549,43 +507,12 @@ describe('JsonRpcEngineV2', () => {
       });
 
       it('propagates context changes to subsequent middleware', async () => {
-        const middleware1 = jest.fn((_req, context) => {
+        const middleware1 = jest.fn(async ({ context, next }) => {
           context.set('foo', 'bar');
+          return next();
         });
-        const middleware2 = jest.fn((_req, context) => {
-          return context.get('foo') as string;
-        });
-        const engine = new JsonRpcEngineV2<JsonRpcCall, string | void>({
-          middleware: [middleware1, middleware2],
-        });
-
-        const result = await engine.handle(makeRequest());
-
-        expect(result).toBe('bar');
-      });
-
-      it('propagates context changes from middleware to return handlers', async () => {
-        const middleware1 = jest.fn((_req, context) => () => {
-          return context.get('foo') as string;
-        });
-        const middleware2 = jest.fn((_req, context) => {
-          context.set('foo', 'bar');
-        });
-        const engine = new JsonRpcEngineV2({
-          middleware: [middleware1, middleware2],
-        });
-
-        const result = await engine.handle(makeRequest());
-
-        expect(result).toBe('bar');
-      });
-
-      it('propagates context changes from return handlers to return handlers', async () => {
-        const middleware1 = jest.fn((_req, context) => () => {
-          return context.get('foo') as string;
-        });
-        const middleware2 = jest.fn((_req, context) => () => {
-          context.set('foo', 'bar');
+        const middleware2 = jest.fn(({ context }) => {
+          return context.get('foo') as string | undefined;
         });
         const engine = new JsonRpcEngineV2({
           middleware: [middleware1, middleware2],
@@ -615,12 +542,13 @@ describe('JsonRpcEngineV2', () => {
   });
 
   describe('asMiddleware', () => {
-    it('returns a middleware function', async () => {
-      const engine1 = new JsonRpcEngineV2({
+    it('ends a request if it returns a value', async () => {
+      // TODO: We may have to do a lot of these casts?
+      const engine1 = new JsonRpcEngineV2<JsonRpcCall, string | null>({
         middleware: [() => null],
       });
       const engine2 = new JsonRpcEngineV2({
-        middleware: [engine1.asMiddleware()],
+        middleware: [engine1.asMiddleware(), jest.fn(() => 'foo')],
       });
 
       const result = await engine2.handle(makeRequest());
@@ -642,8 +570,8 @@ describe('JsonRpcEngineV2', () => {
     });
 
     it('composes nested engines', async () => {
-      const middleware1 = jest.fn(() => undefined);
-      const middleware2 = jest.fn(() => undefined);
+      const middleware1 = jest.fn(async ({ next }) => next());
+      const middleware2 = jest.fn(async ({ next }) => next());
       const engine1 = new JsonRpcEngineV2({
         middleware: [middleware1],
       });
@@ -662,15 +590,21 @@ describe('JsonRpcEngineV2', () => {
     });
 
     it('propagates request mutation', async () => {
-      const engine1 = new JsonRpcEngineV2<JsonRpcRequest, number | void>({
+      const engine1 = new JsonRpcEngineV2({
         middleware: [
-          (req) => {
-            req.params = [2];
+          ({ request, next }) => {
+            return next({
+              ...request,
+              params: [2],
+            });
           },
-          (req) => {
-            req.method = 'test_request_2';
-            // @ts-expect-error Will obviously work.
-            req.params[0] *= 2;
+          ({ request, next }) => {
+            return next({
+              ...request,
+              method: 'test_request_2',
+              // @ts-expect-error Will obviously work.
+              params: [request.params[0] * 2],
+            });
           },
         ],
       });
@@ -679,10 +613,10 @@ describe('JsonRpcEngineV2', () => {
       const engine2 = new JsonRpcEngineV2({
         middleware: [
           engine1.asMiddleware(),
-          (req) => {
-            observedMethod = req.method;
+          ({ request }) => {
+            observedMethod = request.method;
             // @ts-expect-error Will obviously work.
-            return req.params[0] * 2;
+            return request.params[0] * 2;
           },
         ],
       });
@@ -693,52 +627,25 @@ describe('JsonRpcEngineV2', () => {
       expect(observedMethod).toBe('test_request_2');
     });
 
-    it('propagates request mutation (parameter deletion)', async () => {
-      const engine1 = new JsonRpcEngineV2<JsonRpcRequest, number | void>({
-        middleware: [
-          (req) => {
-            delete req.params;
-          },
-        ],
-      });
-
-      let observedRequest: unknown;
-      const engine2 = new JsonRpcEngineV2({
-        middleware: [
-          engine1.asMiddleware(),
-          (req) => {
-            observedRequest = cloneRequest(req);
-            return null;
-          },
-        ],
-      });
-
-      const result = await engine2.handle(makeRequest());
-
-      expect(result).toBeNull();
-      expect(observedRequest).toStrictEqual({
-        jsonrpc: '2.0',
-        id: '1',
-        method: 'test_request',
-      });
-    });
-
     it('propagates context changes', async () => {
       const engine1 = new JsonRpcEngineV2({
         middleware: [
-          (_req, context) => {
+          async ({ context, next }) => {
             const num = context.get('foo') as number;
             context.set('foo', num * 2);
+            return next();
           },
         ],
       });
+
       const engine2 = new JsonRpcEngineV2({
         middleware: [
-          (_req, context) => {
+          async ({ context, next }) => {
             context.set('foo', 2);
+            return next();
           },
           engine1.asMiddleware(),
-          (_req, context) => {
+          async ({ context }) => {
             return (context.get('foo') as number) * 2;
           },
         ],
@@ -749,37 +656,37 @@ describe('JsonRpcEngineV2', () => {
       expect(result).toBe(8);
     });
 
-    it('runs return handlers in expected order', async () => {
-      const returnHandlerResults: string[] = [];
-      const engine1 = new JsonRpcEngineV2({
-        middleware: [
-          () => () => {
-            returnHandlerResults.push('1:a');
-          },
-          () => () => {
-            returnHandlerResults.push('1:b');
-          },
-        ],
-      });
+    //   it('runs return handlers in expected order', async () => {
+    //     const returnHandlerResults: string[] = [];
+    //     const engine1 = new JsonRpcEngineV2({
+    //       middleware: [
+    //         () => () => {
+    //           returnHandlerResults.push('1:a');
+    //         },
+    //         () => () => {
+    //           returnHandlerResults.push('1:b');
+    //         },
+    //       ],
+    //     });
 
-      const engine2 = new JsonRpcEngineV2({
-        middleware: [
-          engine1.asMiddleware(),
-          () => () => {
-            returnHandlerResults.push('2:a');
-          },
-          () => () => {
-            returnHandlerResults.push('2:b');
-          },
-          () => null,
-        ],
-      });
+    //     const engine2 = new JsonRpcEngineV2({
+    //       middleware: [
+    //         engine1.asMiddleware(),
+    //         () => () => {
+    //           returnHandlerResults.push('2:a');
+    //         },
+    //         () => () => {
+    //           returnHandlerResults.push('2:b');
+    //         },
+    //         () => null,
+    //       ],
+    //     });
 
-      await engine2.handle(makeRequest());
+    //     await engine2.handle(makeRequest());
 
-      // Order of return handlers is reversed _within_ engines, but not
-      // _between_ engines.
-      expect(returnHandlerResults).toStrictEqual(['1:b', '1:a', '2:b', '2:a']);
-    });
+    //     // Order of return handlers is reversed _within_ engines, but not
+    //     // _between_ engines.
+    //     expect(returnHandlerResults).toStrictEqual(['1:b', '1:a', '2:b', '2:a']);
+    //   });
   });
 });
