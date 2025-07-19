@@ -5,6 +5,8 @@ describe('@metamask/json-rpc-engine', () => {
     expect(Object.keys(allExports)).toMatchInlineSnapshot(`
       Array [
         "getUniqueId",
+        "isNotification",
+        "isRequest",
         "JsonRpcEngineError",
         "JsonRpcEngineV2",
       ]
