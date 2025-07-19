@@ -77,11 +77,9 @@
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@types/jest": "^27.4.1",
-    "@types/lodash": "^4.14.191",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "jest-it-up": "^2.0.2",
-    "lodash": "^4.17.21",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typescript": "~5.2.2"

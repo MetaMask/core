@@ -56,7 +56,7 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall, Result extends Json> {
     NonEmptyArray<JsonRpcMiddleware<Request, Result | void>>
   >;
 
-  #makeMiddlewareIterator = (): Iterator<
+  readonly #makeMiddlewareIterator = (): Iterator<
     JsonRpcMiddleware<Request, Result | void>
   > => this.#middleware[Symbol.iterator]();
 
