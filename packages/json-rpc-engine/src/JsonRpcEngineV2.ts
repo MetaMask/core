@@ -4,7 +4,7 @@ import type {
   JsonRpcNotification,
   NonEmptyArray,
 } from '@metamask/utils';
-import { freeze, produce } from 'immer';
+import deepFreeze from 'deep-freeze-strict';
 
 import {
   makeMiddlewareContext,
@@ -18,26 +18,28 @@ import {
 } from './utils';
 import type { JsonRpcCall } from './utils';
 
-export type Next<Result extends Json | void> = () => Promise<Result | void>;
+export type Next<Request extends JsonRpcCall, Result extends Json | void> = (
+  request?: Readonly<Request>,
+) => Promise<Result | void>;
 
 export type MiddlewareParams<
   Request extends JsonRpcCall,
   Result extends Json | void,
 > = {
-  request: Request;
+  request: Readonly<Request>;
   context: MiddlewareContext;
-  next: Next<Result>;
+  next: Next<Request, Result>;
 };
 
 export type JsonRpcMiddleware<
-  Request extends JsonRpcCall,
-  Result extends Json | void,
+  Request extends JsonRpcCall = JsonRpcCall,
+  Result extends Json | void = Json | void,
 > = (
   params: MiddlewareParams<Request, Result | void>,
 ) => Result | void | Promise<Result | void>;
 
 type Options<Request extends JsonRpcCall, Result extends Json> = {
-  middleware: NonEmptyArray<JsonRpcMiddleware<Request, Result>>;
+  middleware: NonEmptyArray<JsonRpcMiddleware<Request, Result | void>>;
 };
 
 /**
@@ -50,12 +52,12 @@ type Options<Request extends JsonRpcCall, Result extends Json> = {
  */
 export class JsonRpcEngineV2<Request extends JsonRpcCall, Result extends Json> {
   readonly #middleware: Readonly<
-    NonEmptyArray<JsonRpcMiddleware<Request, Result>>
+    NonEmptyArray<JsonRpcMiddleware<Request, Result | void>>
   >;
 
-  #makeMiddlewareIterator(): Iterator<JsonRpcMiddleware<Request, Result>> {
-    return this.#middleware[Symbol.iterator]();
-  }
+  #makeMiddlewareIterator = (): Iterator<
+    JsonRpcMiddleware<Request, Result | void>
+  > => this.#middleware[Symbol.iterator]();
 
   constructor({ middleware }: Options<Request, Result>) {
     this.#middleware = [...middleware];
@@ -78,7 +80,7 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall, Result extends Json> {
 
   async handle(request: Request): Promise<Result | void> {
     const isReq = isRequest(request);
-    const { result } = await this.#handle(freeze({ ...request }));
+    const { result } = await this.#handle(request);
 
     if (isReq && result === undefined) {
       throw new JsonRpcEngineError(
@@ -101,8 +103,8 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall, Result extends Json> {
   }
 
   /**
-   * Handle a JSON-RPC request. Throws if a middleware or return handler
-   * performs an invalid operation. Permits returning an `undefined` result.
+   * Handle a JSON-RPC request. Throws if a middleware performs an invalid
+   * operation. Permits returning an `undefined` result.
    *
    * @param originalRequest - The JSON-RPC request to handle.
    * @param context - The context to pass to the middleware.
@@ -115,48 +117,70 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall, Result extends Json> {
     result: Result | void;
     finalRequest: Readonly<Request>;
   }> {
+    deepFreeze(originalRequest);
+
+    let currentRequest = originalRequest;
     const middlewareIterator = this.#makeMiddlewareIterator();
-    const firstMiddleware: JsonRpcMiddleware<Request, Result> =
+    const firstMiddleware: JsonRpcMiddleware<Request, Result | void> =
       middlewareIterator.next().value;
 
-    let request = originalRequest;
+    const makeNext = (): Next<Request, Result> => {
+      let wasCalled = false;
 
-    const next: Next<Result> = async (): Promise<Result | void> => {
-      const { value: middleware, done } = middlewareIterator.next();
-      // Unavoidable forward reference
-      // eslint-disable-next-line @typescript-eslint/no-use-before-define
-      return done ? undefined : await runMiddleware(middleware);
+      const next = async (
+        request: Request = currentRequest,
+      ): Promise<Result | void> => {
+        if (wasCalled) {
+          throw new JsonRpcEngineError(
+            `Middleware attempted to call next() multiple times for request: ${stringify(request)}`,
+          );
+        }
+        wasCalled = true;
+
+        if (request !== currentRequest) {
+          this.#assertNextRequestValid(currentRequest, request);
+          currentRequest = deepFreeze(request);
+        }
+
+        const { value: middleware, done } = middlewareIterator.next();
+        return done
+          ? undefined
+          : await middleware({ request, context, next: makeNext() });
+      };
+      return next;
     };
 
-    const runMiddleware = async (
-      middleware: JsonRpcMiddleware<Request, Result>,
-    ): Promise<Result | void> => {
-      let nextResult: Result | void;
-      request = await updateRequest(request, async (draft) => {
-        nextResult = await middleware({
-          request: draft,
-          context,
-          next,
-        });
-      });
+    const result = await firstMiddleware({
+      request: originalRequest,
+      context,
+      next: makeNext(),
+    });
 
-      // @ts-expect-error - We happen to know that updateRequest awaits the
-      // callback, so we know that nextResult is not undefined.
-      return nextResult;
-    };
-
-    const result = await runMiddleware(firstMiddleware);
-
-    if (isNotification(request) && result !== undefined) {
+    if (isNotification(currentRequest) && result !== undefined) {
       throw new JsonRpcEngineError(
-        `Result returned for notification: ${stringify(request)}`,
+        `Result returned for notification: ${stringify(currentRequest)}`,
       );
     }
 
     return {
       result,
-      finalRequest: request,
+      finalRequest: currentRequest,
     };
+  }
+
+  #assertNextRequestValid(currentRequest: Request, nextRequest: Request): void {
+    if (nextRequest.jsonrpc !== currentRequest.jsonrpc) {
+      throw new JsonRpcEngineError(
+        `Middleware attempted to modify readonly property "jsonrpc" for request: ${stringify(currentRequest)}`,
+      );
+    }
+    // @ts-expect-error - "id" does not exist on notifications, but this will
+    // produce the desired behavior at runtime.
+    if (nextRequest.id !== currentRequest.id) {
+      throw new JsonRpcEngineError(
+        `Middleware attempted to modify readonly property "id" for request: ${stringify(currentRequest)}`,
+      );
+    }
   }
 
   /**
@@ -167,51 +191,7 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall, Result extends Json> {
   asMiddleware(): JsonRpcMiddleware<Request, Result> {
     return async ({ request, context, next }) => {
       const { result, finalRequest } = await this.#handle(request, context);
-
-      // Propagate any changes to the request to the original request.
-      request.method = finalRequest.method;
-      if ('params' in finalRequest) {
-        request.params = finalRequest.params;
-      } else {
-        delete request.params;
-      }
-
-      return result === undefined ? await next() : result;
+      return result === undefined ? await next(finalRequest) : result;
     };
   }
-}
-
-// Properties of a request that you're not allowed to modify.
-const readonlyProps = ['id', 'jsonrpc'] as const;
-
-/**
- * Update a request using `immer`. Middleware may update the `method` and
- * `params` properties, but not the `id` or `jsonrpc` properties. The request
- * object must be updated in place.
- *
- * @param request - The request to update.
- * @param recipe - The recipe function.
- * @returns The updated request.
- */
-async function updateRequest<Request extends JsonRpcCall>(
-  request: Request,
-  recipe: (request: Request) => Promise<void>,
-): Promise<Request> {
-  return produce(request, async (draft) => {
-    const draftProxy = new Proxy(draft, {
-      set(target, prop, value) {
-        if (readonlyProps.includes(prop as (typeof readonlyProps)[number])) {
-          throw new JsonRpcEngineError(
-            `Middleware attempted to modify readonly property "${String(prop)}" for request: ${stringify(request)}`,
-          );
-        }
-        return Reflect.set(target, prop, value);
-      },
-    });
-
-    // The Jest parser encounters "TS2589: Type instantiation is excessively
-    // deep and possibly infinite."
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return recipe(draftProxy as any);
-  });
 }
