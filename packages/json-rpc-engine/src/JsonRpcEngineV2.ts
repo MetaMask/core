@@ -1,8 +1,9 @@
-import type {
-  Json,
-  JsonRpcRequest,
-  JsonRpcNotification,
-  NonEmptyArray,
+import {
+  type Json,
+  type JsonRpcRequest,
+  type JsonRpcNotification,
+  type NonEmptyArray,
+  hasProperty,
 } from '@metamask/utils';
 import deepFreeze from 'deep-freeze-strict';
 
@@ -120,8 +121,9 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall, Result extends Json> {
     deepFreeze(originalRequest);
 
     let currentRequest = originalRequest;
-    let currentResult: Result | void;
-    const isNotif = isNotification(originalRequest);
+    // Either ESLint or TypeScript complains.
+    // eslint-disable-next-line no-undef-init
+    let currentResult: Result | void = undefined;
     const middlewareIterator = this.#makeMiddlewareIterator();
     const firstMiddleware: JsonRpcMiddleware<Request, Result | void> =
       middlewareIterator.next().value;
@@ -150,16 +152,13 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall, Result extends Json> {
         }
 
         const result = await middleware({ request, context, next: makeNext() });
-        this.#assertValidResult(result, currentRequest, isNotif);
+        currentResult = this.#processResult(
+          result,
+          currentResult,
+          currentRequest,
+        );
 
-        if (result !== currentResult) {
-          if (typeof result === 'object' && result !== null) {
-            deepFreeze(result);
-          }
-          currentResult = result;
-        }
-
-        return result;
+        return currentResult;
       };
       return next;
     };
@@ -169,24 +168,32 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall, Result extends Json> {
       context,
       next: makeNext(),
     });
-    this.#assertValidResult(result, currentRequest, isNotif);
+    currentResult = this.#processResult(result, currentResult, currentRequest);
 
     return {
-      result,
+      result: currentResult,
       finalRequest: currentRequest,
     };
   }
 
-  #assertValidResult(
+  #processResult(
     result: Result | void,
+    currentResult: Result | void,
     request: Request,
-    isNotif: boolean,
-  ): void {
-    if (isNotif && result !== undefined) {
+  ): Result | void {
+    if (isNotification(request) && result !== undefined) {
       throw new JsonRpcEngineError(
         `Result returned for notification: ${stringify(request)}`,
       );
     }
+
+    if (result !== undefined && result !== currentResult) {
+      if (typeof result === 'object' && result !== null) {
+        deepFreeze(result);
+      }
+      return result;
+    }
+    return currentResult;
   }
 
   #assertValidNextRequest(currentRequest: Request, nextRequest: Request): void {
@@ -195,9 +202,12 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall, Result extends Json> {
         `Middleware attempted to modify readonly property "jsonrpc" for request: ${stringify(currentRequest)}`,
       );
     }
-    // @ts-expect-error - "id" does not exist on notifications, but this will
-    // produce the desired behavior at runtime.
-    if (nextRequest.id !== currentRequest.id) {
+    if (
+      hasProperty(nextRequest, 'id') !== hasProperty(currentRequest, 'id') ||
+      // @ts-expect-error - "id" does not exist on notifications, but this will
+      // produce the desired behavior at runtime.
+      nextRequest.id !== currentRequest.id
+    ) {
       throw new JsonRpcEngineError(
         `Middleware attempted to modify readonly property "id" for request: ${stringify(currentRequest)}`,
       );

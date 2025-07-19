@@ -477,6 +477,21 @@ describe('JsonRpcEngineV2', () => {
         expect(result).toBeNull();
       });
 
+      it('returning undefined propagates previously defined result', async () => {
+        const engine = new JsonRpcEngineV2({
+          middleware: [
+            jest.fn(async ({ next }) => {
+              await next();
+            }),
+            jest.fn(() => null),
+          ],
+        });
+
+        const result = await engine.handle(makeRequest());
+
+        expect(result).toBeNull();
+      });
+
       it('catches errors thrown by later middleware', async () => {
         let observedError: Error | undefined;
         const engine = new JsonRpcEngineV2({
@@ -504,19 +519,16 @@ describe('JsonRpcEngineV2', () => {
       it('handles returned results in reverse middleware order', async () => {
         const returnHandlerResults: number[] = [];
         const middleware1 = jest.fn(async ({ next }) => {
-          const result = await next();
+          await next();
           returnHandlerResults.push(1);
-          return result;
         });
         const middleware2 = jest.fn(async ({ next }) => {
-          const result = await next();
+          await next();
           returnHandlerResults.push(2);
-          return result;
         });
         const middleware3 = jest.fn(async ({ next }) => {
-          const result = await next();
+          await next();
           returnHandlerResults.push(3);
-          return result;
         });
         const middleware4 = jest.fn(() => null);
         const engine = new JsonRpcEngineV2({
@@ -526,25 +538,6 @@ describe('JsonRpcEngineV2', () => {
         await engine.handle(makeRequest());
 
         expect(returnHandlerResults).toStrictEqual([3, 2, 1]);
-      });
-
-      it('throws if ultimately returning undefined', async () => {
-        const engine = new JsonRpcEngineV2({
-          middleware: [
-            jest.fn(async ({ next }) => {
-              // If you forget to return the result from next(), you are setting
-              // the result to undefined.
-              await next();
-            }),
-            jest.fn(() => null),
-          ],
-        });
-
-        await expect(engine.handle(makeRequest())).rejects.toThrow(
-          new JsonRpcEngineError(
-            `Nothing ended request: ${stringify(makeRequest())}`,
-          ),
-        );
       });
 
       it('throws if directly modifying the result', async () => {
@@ -703,14 +696,12 @@ describe('JsonRpcEngineV2', () => {
       const engine1 = new JsonRpcEngineV2({
         middleware: [
           async ({ next }) => {
-            const result = await next();
+            await next();
             returnHandlerResults.push('1:a');
-            return result;
           },
           async ({ next }) => {
-            const result = await next();
+            await next();
             returnHandlerResults.push('1:b');
-            return result;
           },
         ],
       });
@@ -719,14 +710,12 @@ describe('JsonRpcEngineV2', () => {
         middleware: [
           engine1.asMiddleware(),
           async ({ next }) => {
-            const result = await next();
+            await next();
             returnHandlerResults.push('2:a');
-            return result;
           },
           async ({ next }) => {
-            const result = await next();
+            await next();
             returnHandlerResults.push('2:b');
-            return result;
           },
           () => null,
         ],
