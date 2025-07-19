@@ -20,7 +20,7 @@ import type { JsonRpcCall } from './utils';
 
 export type Next<Request extends JsonRpcCall, Result extends Json | void> = (
   request?: Readonly<Request>,
-) => Promise<Result | void>;
+) => Promise<Readonly<Result> | void>;
 
 export type MiddlewareParams<
   Request extends JsonRpcCall,
@@ -36,7 +36,7 @@ export type JsonRpcMiddleware<
   Result extends Json | void = Json | void,
 > = (
   params: MiddlewareParams<Request, Result | void>,
-) => Result | void | Promise<Result | void>;
+) => Readonly<Result> | void | Promise<Readonly<Result> | void>;
 
 type Options<Request extends JsonRpcCall, Result extends Json> = {
   middleware: NonEmptyArray<JsonRpcMiddleware<Request, Result | void>>;
@@ -120,6 +120,8 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall, Result extends Json> {
     deepFreeze(originalRequest);
 
     let currentRequest = originalRequest;
+    let currentResult: Result | void;
+    const isNotif = isNotification(originalRequest);
     const middlewareIterator = this.#makeMiddlewareIterator();
     const firstMiddleware: JsonRpcMiddleware<Request, Result | void> =
       middlewareIterator.next().value;
@@ -138,14 +140,26 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall, Result extends Json> {
         wasCalled = true;
 
         if (request !== currentRequest) {
-          this.#assertNextRequestValid(currentRequest, request);
+          this.#assertValidNextRequest(currentRequest, request);
           currentRequest = deepFreeze(request);
         }
 
         const { value: middleware, done } = middlewareIterator.next();
-        return done
-          ? undefined
-          : await middleware({ request, context, next: makeNext() });
+        if (done) {
+          return undefined;
+        }
+
+        const result = await middleware({ request, context, next: makeNext() });
+        this.#assertValidResult(result, currentRequest, isNotif);
+
+        if (result !== currentResult) {
+          if (typeof result === 'object' && result !== null) {
+            deepFreeze(result);
+          }
+          currentResult = result;
+        }
+
+        return result;
       };
       return next;
     };
@@ -155,12 +169,7 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall, Result extends Json> {
       context,
       next: makeNext(),
     });
-
-    if (isNotification(currentRequest) && result !== undefined) {
-      throw new JsonRpcEngineError(
-        `Result returned for notification: ${stringify(currentRequest)}`,
-      );
-    }
+    this.#assertValidResult(result, currentRequest, isNotif);
 
     return {
       result,
@@ -168,7 +177,19 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall, Result extends Json> {
     };
   }
 
-  #assertNextRequestValid(currentRequest: Request, nextRequest: Request): void {
+  #assertValidResult(
+    result: Result | void,
+    request: Request,
+    isNotif: boolean,
+  ): void {
+    if (isNotif && result !== undefined) {
+      throw new JsonRpcEngineError(
+        `Result returned for notification: ${stringify(request)}`,
+      );
+    }
+  }
+
+  #assertValidNextRequest(currentRequest: Request, nextRequest: Request): void {
     if (nextRequest.jsonrpc !== currentRequest.jsonrpc) {
       throw new JsonRpcEngineError(
         `Middleware attempted to modify readonly property "jsonrpc" for request: ${stringify(currentRequest)}`,
