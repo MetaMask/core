@@ -2,12 +2,15 @@ import {
   BaseController,
   type RestrictedMessenger,
 } from '@metamask/base-controller';
-import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
+import {
+  isRequest,
+  type JsonRpcCall,
+  type JsonRpcMiddleware,
+} from '@metamask/json-rpc-engine/v2';
 import {
   type Json,
   type JsonRpcRequest,
   type JsonRpcParams,
-  type PendingJsonRpcResponse,
   hasProperty,
 } from '@metamask/utils';
 
@@ -55,9 +58,11 @@ export type PermissionHistory = Record<string, PermissionEntry>;
 
 /**
  *
- * Permission log controller state
- * @property permissionHistory - permission history
- * @property permissionActivityLog - permission activity logs
+ *Permission log controller state
+ *
+ *permissionHistory - permission history
+ *
+ * permissionActivityLog - permission activity logs
  */
 export type PermissionLogControllerState = {
   permissionHistory: PermissionHistory;
@@ -94,7 +99,7 @@ export class PermissionLogController extends BaseController<
   PermissionLogControllerState,
   PermissionLogControllerMessenger
 > {
-  #restrictedMethods: Set<string>;
+  readonly #restrictedMethods: Set<string>;
 
   constructor({
     messenger,
@@ -134,7 +139,7 @@ export class PermissionLogController extends BaseController<
     }
     const newEntries = {
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/naming-convention
+
       eth_accounts: {
         accounts: this.#getAccountToTimeMap(accounts, Date.now()),
       },
@@ -152,9 +157,10 @@ export class PermissionLogController extends BaseController<
    *
    * @returns The permissions log middleware.
    */
-  createMiddleware(): JsonRpcMiddleware<JsonRpcParams, Json> {
-    return (req: JsonRpcRequestWithOrigin, res, next) => {
-      const { origin, method } = req;
+  createMiddleware(): JsonRpcMiddleware {
+    return async ({ request, next, context }) => {
+      const origin = context.assertGet<string>('origin');
+      const { method } = request;
       const isInternal = method.startsWith(WALLET_PREFIX);
       const isEthRequestAccounts = method === 'eth_requestAccounts';
 
@@ -164,30 +170,31 @@ export class PermissionLogController extends BaseController<
           (isInternal || this.#restrictedMethods.has(method))) ||
         isEthRequestAccounts
       ) {
-        const activityEntry = this.#logRequest(req, isInternal);
+        const activityEntry = this.#logRequest(request, origin, isInternal);
 
-        const requestedMethods = this.#getRequestedMethods(req);
+        const requestedMethods = this.#getRequestedMethods(request);
 
-        // Call next with a return handler for capturing the response
-        next((cb) => {
+        if (isRequest(request)) {
+          const result = await next();
+
+          // Call next with a return handler for capturing the response
           const time = Date.now();
-          this.#logResponse(activityEntry, res, time);
+          this.#logResponse(activityEntry, result, time);
 
-          if (requestedMethods && !res.error && res.result && origin) {
+          if (requestedMethods && result && origin) {
             this.#logPermissionsHistory(
               requestedMethods,
               origin,
-              res.result,
+              result,
               time,
               isEthRequestAccounts,
             );
           }
-          cb();
-        });
-        return;
+        }
+        return undefined;
       }
 
-      next();
+      return next();
     };
   }
 
@@ -215,20 +222,22 @@ export class PermissionLogController extends BaseController<
    * Creates and commits an activity log entry, without response data.
    *
    * @param request - The request object.
+   * @param origin - The origin of the request.
    * @param isInternal - Whether the request is internal.
    * @returns new added activity entry
    */
   #logRequest(
-    request: JsonRpcRequestWithOrigin,
+    request: Readonly<JsonRpcCall>,
+    origin: string,
     isInternal: boolean,
   ): PermissionActivityLog {
     const activityEntry: PermissionActivityLog = {
-      id: request.id,
+      id: isRequest(request) ? request.id : null,
       method: request.method,
       methodType: isInternal
         ? LOG_METHOD_TYPES.internal
         : LOG_METHOD_TYPES.restricted,
-      origin: request.origin,
+      origin,
       requestTime: Date.now(),
       responseTime: null,
       success: null,
@@ -252,7 +261,7 @@ export class PermissionLogController extends BaseController<
    */
   #logResponse(
     entry: PermissionActivityLog,
-    response: PendingJsonRpcResponse,
+    response: Readonly<Json | void>,
     time: number,
   ) {
     if (!entry || !response) {
@@ -290,7 +299,7 @@ export class PermissionLogController extends BaseController<
   #logPermissionsHistory(
     requestedMethods: string[],
     origin: string,
-    result: Json,
+    result: Readonly<Json>,
     time: number,
     isEthRequestAccounts: boolean,
   ) {
@@ -401,7 +410,7 @@ export class PermissionLogController extends BaseController<
    * @param request - The request object.
    * @returns The names of the requested permissions.
    */
-  #getRequestedMethods(request: JsonRpcRequestWithOrigin): string[] | null {
+  #getRequestedMethods(request: Readonly<JsonRpcCall>): string[] | null {
     const { method, params } = request;
     if (method === 'eth_requestAccounts') {
       return ['eth_accounts'];
