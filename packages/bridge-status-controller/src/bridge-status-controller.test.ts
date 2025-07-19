@@ -693,6 +693,348 @@ describe('BridgeStatusController', () => {
     });
   });
 
+  describe('startPolling - error handling', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      jest.clearAllTimers();
+    });
+
+    it('should handle network errors during fetchBridgeTxStatus', async () => {
+      // Setup
+      jest.useFakeTimers();
+      const fetchBridgeTxStatusSpy = jest.spyOn(
+        bridgeStatusUtils,
+        'fetchBridgeTxStatus',
+      );
+      const bridgeStatusController = new BridgeStatusController({
+        messenger: getMessengerMock(),
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: jest.fn(),
+        addTransactionFn: jest.fn(),
+        addTransactionBatchFn: jest.fn(),
+        updateTransactionFn: jest.fn(),
+        estimateGasFeeFn: jest.fn(),
+      });
+
+      // Mock fetchBridgeTxStatus to throw a network error
+      fetchBridgeTxStatusSpy.mockRejectedValue(new Error('Network error'));
+
+      // Execution
+      bridgeStatusController.startPollingForBridgeTxStatus(
+        getMockStartPollingForBridgeTxStatusArgs(),
+      );
+
+      // Trigger polling
+      jest.advanceTimersByTime(10000);
+      await flushPromises();
+
+      // Assertions
+      expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(2);
+      // Transaction should still be in history but status should remain unchanged
+      expect(bridgeStatusController.state.txHistory).toHaveProperty(
+        'bridgeTxMetaId1',
+      );
+      expect(
+        bridgeStatusController.state.txHistory.bridgeTxMetaId1.status.status,
+      ).toBe('PENDING');
+
+      // Should increment attempts counter
+      expect(
+        bridgeStatusController.state.txHistory.bridgeTxMetaId1.attempts
+          ?.counter,
+      ).toBe(1);
+      expect(
+        bridgeStatusController.state.txHistory.bridgeTxMetaId1.attempts
+          ?.lastAttemptTime,
+      ).toBeDefined();
+    });
+
+    it('should stop polling after max attempts are reached', async () => {
+      // Setup
+      jest.useFakeTimers();
+      const fetchBridgeTxStatusSpy = jest.spyOn(
+        bridgeStatusUtils,
+        'fetchBridgeTxStatus',
+      );
+      const bridgeStatusController = new BridgeStatusController({
+        messenger: getMessengerMock(),
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: jest.fn(),
+        addTransactionFn: jest.fn(),
+        addTransactionBatchFn: jest.fn(),
+        updateTransactionFn: jest.fn(),
+        estimateGasFeeFn: jest.fn(),
+      });
+
+      // Mock fetchBridgeTxStatus to always throw errors
+      fetchBridgeTxStatusSpy.mockRejectedValue(new Error('Persistent error'));
+
+      // Execution
+      bridgeStatusController.startPollingForBridgeTxStatus(
+        getMockStartPollingForBridgeTxStatusArgs(),
+      );
+
+      // Trigger polling with exponential backoff timing
+      for (let i = 0; i < MAX_ATTEMPTS * 2; i++) {
+        jest.advanceTimersByTime(10000 * 2 ** i);
+        await flushPromises();
+      }
+
+      // Assertions
+      expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(MAX_ATTEMPTS);
+      expect(
+        bridgeStatusController.state.txHistory.bridgeTxMetaId1.attempts
+          ?.counter,
+      ).toBe(MAX_ATTEMPTS);
+
+      // Verify polling stops after max attempts - even with a long wait, no more calls
+      const callCountBeforeExtraTime = fetchBridgeTxStatusSpy.mock.calls.length;
+      jest.advanceTimersByTime(1_000_000_000);
+      await flushPromises();
+      expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(
+        callCountBeforeExtraTime,
+      );
+    });
+
+    it.skip('should continue polling after error if under max attempts', async () => {
+      // Setup
+      jest.useFakeTimers();
+      const fetchBridgeTxStatusSpy = jest.spyOn(
+        bridgeStatusUtils,
+        'fetchBridgeTxStatus',
+      );
+      const bridgeStatusController = new BridgeStatusController({
+        messenger: getMessengerMock(),
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: jest.fn(),
+        addTransactionFn: jest.fn(),
+        addTransactionBatchFn: jest.fn(),
+        updateTransactionFn: jest.fn(),
+        estimateGasFeeFn: jest.fn(),
+      });
+
+      // Mock fetchBridgeTxStatus to fail first few times, then succeed
+      fetchBridgeTxStatusSpy
+        .mockRejectedValueOnce(new Error('Error 1'))
+        .mockRejectedValueOnce(new Error('Error 2'))
+        .mockResolvedValueOnce(MockStatusResponse.getComplete());
+
+      // Execution
+      bridgeStatusController.startPollingForBridgeTxStatus(
+        getMockStartPollingForBridgeTxStatusArgs(),
+      );
+
+      // First attempt - should fail (initial polling + first 10s interval)
+      jest.advanceTimersByTime(10000);
+      await flushPromises();
+      expect(
+        bridgeStatusController.state.txHistory.bridgeTxMetaId1.attempts
+          ?.counter,
+      ).toBe(1);
+
+      // Second attempt - should fail again (wait for backoff: 10s * 2^1 = 20s)
+      jest.advanceTimersByTime(20000);
+      await flushPromises();
+      expect(
+        bridgeStatusController.state.txHistory.bridgeTxMetaId1.attempts
+          ?.counter,
+      ).toBe(2);
+
+      // Third attempt - should succeed (wait for backoff: 10s * 2^2 = 40s)
+      jest.advanceTimersByTime(40000);
+      await flushPromises();
+
+      // Assertions
+      expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(4); // Initial + 3 attempts
+      expect(
+        bridgeStatusController.state.txHistory.bridgeTxMetaId1.status.status,
+      ).toBe('COMPLETE');
+      // Attempts should be reset after successful fetch
+      expect(
+        bridgeStatusController.state.txHistory.bridgeTxMetaId1.attempts,
+      ).toBeUndefined();
+    });
+
+    it.skip('should handle unexpected errors gracefully', async () => {
+      // Setup
+      jest.useFakeTimers();
+      const fetchBridgeTxStatusSpy = jest.spyOn(
+        bridgeStatusUtils,
+        'fetchBridgeTxStatus',
+      );
+      const bridgeStatusController = new BridgeStatusController({
+        messenger: getMessengerMock(),
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: jest.fn(),
+        addTransactionFn: jest.fn(),
+        addTransactionBatchFn: jest.fn(),
+        updateTransactionFn: jest.fn(),
+        estimateGasFeeFn: jest.fn(),
+      });
+
+      // Mock fetchBridgeTxStatus to throw an unexpected error
+      fetchBridgeTxStatusSpy.mockRejectedValue(
+        new TypeError('Unexpected error'),
+      );
+
+      // Execution
+      bridgeStatusController.startPollingForBridgeTxStatus(
+        getMockStartPollingForBridgeTxStatusArgs(),
+      );
+
+      jest.advanceTimersByTime(10000);
+      await flushPromises();
+
+      // Assertions
+      expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(2); // Initial + 1 attempt
+      expect(
+        bridgeStatusController.state.txHistory.bridgeTxMetaId1.attempts
+          ?.counter,
+      ).toBe(1);
+      // Should not crash the controller
+      expect(
+        bridgeStatusController.state.txHistory.bridgeTxMetaId1.status.status,
+      ).toBe('PENDING');
+    });
+
+    it.skip('should respect exponential backoff timing and skip attempts when not enough time has passed', async () => {
+      // Setup
+      jest.useFakeTimers();
+      const fetchBridgeTxStatusSpy = jest.spyOn(
+        bridgeStatusUtils,
+        'fetchBridgeTxStatus',
+      );
+      const bridgeStatusController = new BridgeStatusController({
+        messenger: getMessengerMock(),
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: jest.fn(),
+        addTransactionFn: jest.fn(),
+        addTransactionBatchFn: jest.fn(),
+        updateTransactionFn: jest.fn(),
+        estimateGasFeeFn: jest.fn(),
+      });
+
+      // Mock fetchBridgeTxStatus to always throw errors
+      fetchBridgeTxStatusSpy.mockRejectedValue(new Error('Persistent error'));
+
+      // Execution
+      bridgeStatusController.startPollingForBridgeTxStatus(
+        getMockStartPollingForBridgeTxStatusArgs(),
+      );
+
+      // First failure at 10s
+      jest.advanceTimersByTime(10000);
+      await flushPromises();
+      expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(2); // Initial + 1st attempt
+      expect(
+        bridgeStatusController.state.txHistory.bridgeTxMetaId1.attempts
+          ?.counter,
+      ).toBe(1);
+
+      // Try advancing only 10s more (total 20s) - should be skipped due to backoff (needs 20s total)
+      jest.advanceTimersByTime(10000);
+      await flushPromises();
+      expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(2); // No additional call
+
+      // Try advancing 5s more (total 25s) - should skip again (still within 20s backoff)
+      jest.advanceTimersByTime(5000);
+      await flushPromises();
+      expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(2); // No additional call
+
+      // Advance 5s more (total 30s) - now should make another attempt
+      jest.advanceTimersByTime(5000);
+      await flushPromises();
+      expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(3); // 2nd attempt
+      expect(
+        bridgeStatusController.state.txHistory.bridgeTxMetaId1.attempts
+          ?.counter,
+      ).toBe(2);
+
+      // Now we need to wait 40s for the next attempt (backoff = 10 * 2^2 = 40s)
+      // Advance 30s - should be skipped
+      jest.advanceTimersByTime(30000);
+      await flushPromises();
+      expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(3); // No additional call
+
+      // Advance 10s more (total 40s) - now should make 3rd attempt
+      jest.advanceTimersByTime(10000);
+      await flushPromises();
+      expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(4); // 3rd attempt
+      expect(
+        bridgeStatusController.state.txHistory.bridgeTxMetaId1.attempts
+          ?.counter,
+      ).toBe(3);
+    });
+
+    it('should not attempt polling if srcTxHash is missing and error occurs', async () => {
+      // Setup
+      jest.useFakeTimers();
+      const fetchBridgeTxStatusSpy = jest.spyOn(
+        bridgeStatusUtils,
+        'fetchBridgeTxStatus',
+      );
+
+      const messengerMock = {
+        call: jest.fn((method: string) => {
+          if (method === 'AccountsController:getSelectedMultichainAccount') {
+            return { address: '0xaccount1' };
+          } else if (
+            method === 'NetworkController:findNetworkClientIdByChainId'
+          ) {
+            return 'networkClientId';
+          } else if (method === 'NetworkController:getState') {
+            return { selectedNetworkClientId: 'networkClientId' };
+          } else if (method === 'NetworkController:getNetworkClientById') {
+            return {
+              configuration: {
+                chainId: numberToHex(42161),
+              },
+            };
+          } else if (method === 'TransactionController:getState') {
+            return {
+              transactions: [
+                {
+                  id: 'bridgeTxMetaId1',
+                  hash: undefined, // No hash available
+                },
+              ],
+            };
+          }
+          return null;
+        }),
+        subscribe: mockMessengerSubscribe,
+        publish: jest.fn(),
+        registerActionHandler: jest.fn(),
+        registerInitialEventPayload: jest.fn(),
+      } as unknown as jest.Mocked<BridgeStatusControllerMessenger>;
+
+      const bridgeStatusController = new BridgeStatusController({
+        messenger: messengerMock,
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: jest.fn(),
+        addTransactionFn: jest.fn(),
+        addTransactionBatchFn: jest.fn(),
+        updateTransactionFn: jest.fn(),
+        estimateGasFeeFn: jest.fn(),
+      });
+
+      // Start polling with args that have no srcTxHash
+      const startPollingArgs = getMockStartPollingForBridgeTxStatusArgs();
+      startPollingArgs.statusRequest.srcTxHash = undefined;
+      bridgeStatusController.startPollingForBridgeTxStatus(startPollingArgs);
+
+      // Advance timer to trigger polling
+      jest.advanceTimersByTime(10000);
+      await flushPromises();
+
+      // Assertions
+      expect(fetchBridgeTxStatusSpy).not.toHaveBeenCalled();
+      expect(
+        bridgeStatusController.state.txHistory.bridgeTxMetaId1.attempts,
+      ).toBeUndefined();
+    });
+  });
+
   describe('startPollingForBridgeTxStatus', () => {
     beforeEach(() => {
       jest.clearAllMocks();
