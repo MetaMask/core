@@ -776,7 +776,7 @@ describe('BridgeStatusController', () => {
 
       // Trigger polling with exponential backoff timing
       for (let i = 0; i < MAX_ATTEMPTS * 2; i++) {
-        jest.advanceTimersByTime(10000 * 2 ** i);
+        jest.advanceTimersByTime(10000 ** i);
         await flushPromises();
       }
 
