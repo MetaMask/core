@@ -1722,9 +1722,6 @@ export type PublishBatchHookTransaction = {
 
   /** Signed transaction data to publish. */
   signedTx: Hex;
-
-  /** Type of the nested transaction. */
-  type?: TransactionType;
 };
 
 /**
