@@ -1810,7 +1810,10 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    */
   #isMaxKeyChainLengthError(error: unknown): boolean {
     if (error instanceof TOPRFError) {
-      return error.code === TOPRFErrorCode.MaxKeyChainLengthExceeded;
+      return (
+        error.code ===
+        (TOPRFErrorCode.MaxKeyChainLengthExceeded as typeof error.code)
+      );
     }
 
     return false;
