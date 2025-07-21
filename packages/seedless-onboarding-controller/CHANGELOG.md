@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.0]
+
+### Added
+
+- Added `getAccessToken` public method in the seedless-onboarding-controller. ([#6155](https://github.com/MetaMask/core/pull/6155))
+
+### Fixed
+
+- Retrieve `accessToken` from the encrypted vault if it's not available as an in-memory state. ([#6155](https://github.com/MetaMask/core/pull/6155))
+
 ## [2.3.0]
 
 ### Uncategorized
