@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [24.0.1]
+
 ### Changed
 
 - Requests to an RPC endpoint that returns a 502 response ("bad gateway") will now be retried ([#5923](https://github.com/MetaMask/core/pull/5923))
@@ -903,7 +905,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.0.1...HEAD
+[24.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.0.0...@metamask/network-controller@24.0.1
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.6.0...@metamask/network-controller@24.0.0
 [23.6.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.5.1...@metamask/network-controller@23.6.0
 [23.5.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.5.0...@metamask/network-controller@23.5.1
