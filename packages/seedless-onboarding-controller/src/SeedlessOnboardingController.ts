@@ -415,7 +415,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       const performBackup = async (): Promise<void> => {
         // verify the password and unlock the vault
         const { toprfEncryptionKey, toprfAuthKeyPair } =
-          await this.#unlockVaultAndGetBackupEncKey();
+          await this.#unlockVaultAndGetBackupEncKeyAndTokens();
 
         // encrypt and store the secret data
         await this.#encryptAndStoreSecretData({
@@ -456,7 +456,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       } else {
         this.#assertIsUnlocked();
         // verify the password and unlock the vault
-        const keysFromVault = await this.#unlockVaultAndGetBackupEncKey();
+        const keysFromVault =
+          await this.#unlockVaultAndGetBackupEncKeyAndTokens();
         encKey = keysFromVault.toprfEncryptionKey;
         pwEncKey = keysFromVault.toprfPwEncryptionKey;
         authKeyPair = keysFromVault.toprfAuthKeyPair;
@@ -636,7 +637,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         toprfPwEncryptionKey,
         toprfAuthKeyPair,
         revokeToken,
-      } = await this.#unlockVaultAndGetBackupEncKey(password);
+      } = await this.#unlockVaultAndGetBackupEncKeyAndTokens(password);
       this.#setUnlocked();
 
       if (revokeToken) {
@@ -773,7 +774,10 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         toprfEncryptionKey,
         toprfPwEncryptionKey,
         toprfAuthKeyPair,
-      } = await this.#unlockVaultAndGetBackupEncKey(undefined, vaultKey);
+      } = await this.#unlockVaultAndGetBackupEncKeyAndTokens(
+        undefined,
+        vaultKey,
+      );
       this.#setUnlocked();
 
       if (revokeToken) {
@@ -867,6 +871,34 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     );
   }
 
+  /**
+   * Get the access token from the state or the vault.
+   * If the access token is not in the state, it will be retrieved from the vault by decrypting it with the password.
+   *
+   * If both the access token and the vault are not available, an error will be thrown.
+   *
+   * @param password - The password to unlock the vault.
+   * @returns The access token.
+   */
+  async getAccessToken(password: string): Promise<string> {
+    const { accessToken, vault } = this.state;
+    if (accessToken) {
+      // if the access token is in the state, return it
+      return accessToken;
+    }
+
+    // otherwise, check the vault availability and decrypt the access token from the vault
+    if (!vault) {
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.InvalidAccessToken,
+      );
+    }
+
+    const { accessToken: accessTokenFromVault } =
+      await this.#unlockVaultAndGetBackupEncKeyAndTokens(password);
+    return accessTokenFromVault;
+  }
+
   #setUnlocked(): void {
     this.#isUnlocked = true;
   }
@@ -933,7 +965,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    */
   async storeKeyringEncryptionKey(keyringEncryptionKey: string) {
     const { toprfPwEncryptionKey: encKey } =
-      await this.#unlockVaultAndGetBackupEncKey();
+      await this.#unlockVaultAndGetBackupEncKeyAndTokens();
     await this.#storeKeyringEncryptionKey(encKey, keyringEncryptionKey);
   }
 
@@ -945,7 +977,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    */
   async loadKeyringEncryptionKey() {
     const { toprfPwEncryptionKey: encKey } =
-      await this.#unlockVaultAndGetBackupEncKey();
+      await this.#unlockVaultAndGetBackupEncKeyAndTokens();
     return await this.#loadKeyringEncryptionKey(encKey);
   }
 
@@ -1197,13 +1229,15 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @returns A promise that resolves to an object containing:
    * - toprfEncryptionKey: The decrypted TOPRF encryption key
    * - toprfAuthKeyPair: The decrypted TOPRF authentication key pair
+   * - revokeToken: The decrypted revoke token
+   * - accessToken: The decrypted access token
    * @throws {Error} If:
    * - The password is invalid or empty
    * - The vault is not initialized
    * - The password is incorrect (from encryptor.decrypt)
    * - The decrypted vault data is malformed
    */
-  async #unlockVaultAndGetBackupEncKey(
+  async #unlockVaultAndGetBackupEncKeyAndTokens(
     password?: string,
     encryptionKey?: string,
   ): Promise<{
@@ -1404,11 +1438,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   }): Promise<void> {
     this.#assertIsAuthenticatedUser(this.state);
 
-    if (!this.state.accessToken) {
-      throw new Error(
-        SeedlessOnboardingControllerErrorMessage.InvalidAccessToken,
-      );
-    }
+    const accessToken = await this.getAccessToken(password);
 
     this.#setUnlocked();
 
@@ -1424,7 +1454,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       toprfPwEncryptionKey,
       toprfAuthKeyPair,
       revokeToken: this.state.revokeToken,
-      accessToken: this.state.accessToken,
+      accessToken,
     });
 
     await this.#updateVault({

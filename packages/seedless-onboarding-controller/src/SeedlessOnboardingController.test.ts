@@ -4660,6 +4660,7 @@ describe('SeedlessOnboardingController', () => {
       });
     });
   });
+
   describe('fetchMetadataAccessCreds', () => {
     const createMockJWTToken = (exp: number) => {
       const payload = { exp };
@@ -4909,6 +4910,81 @@ describe('SeedlessOnboardingController', () => {
 
           const result = controller.checkAccessTokenExpired();
           expect(result).toBe(true);
+        },
+      );
+    });
+  });
+
+  describe('getAccessToken', () => {
+    const MOCK_PASSWORD = 'mock-password';
+
+    it('should return the access token from the state if it is available', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            accessToken,
+          }),
+        },
+        async ({ controller }) => {
+          const _accessToken = await controller.getAccessToken(MOCK_PASSWORD);
+          expect(_accessToken).toBe(controller.state.accessToken);
+        },
+      );
+    });
+
+    it('should return the access token from the vault if it is not available in the state', async () => {
+      const mockToprfEncryptor = createMockToprfEncryptor();
+
+      const MOCK_ENCRYPTION_KEY =
+        mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
+      const MOCK_PASSWORD_ENCRYPTION_KEY =
+        mockToprfEncryptor.derivePwEncKey(MOCK_PASSWORD);
+      const MOCK_AUTH_KEY_PAIR =
+        mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
+
+      const mockResult = await createMockVault(
+        MOCK_ENCRYPTION_KEY,
+        MOCK_PASSWORD_ENCRYPTION_KEY,
+        MOCK_AUTH_KEY_PAIR,
+        MOCK_PASSWORD,
+      );
+
+      const MOCK_VAULT = mockResult.encryptedMockVault;
+      const MOCK_VAULT_ENCRYPTION_KEY = mockResult.vaultEncryptionKey;
+      const MOCK_VAULT_ENCRYPTION_SALT = mockResult.vaultEncryptionSalt;
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withoutMockAccessToken: true,
+            vault: MOCK_VAULT,
+            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
+          }),
+        },
+        async ({ controller }) => {
+          const _accessToken = await controller.getAccessToken(MOCK_PASSWORD);
+          expect(_accessToken).toBe(controller.state.accessToken);
+        },
+      );
+    });
+
+    it('should throw error if access token is not available either in the state or the vault', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withoutMockAccessToken: true,
+          }),
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.getAccessToken(MOCK_PASSWORD),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.InvalidAccessToken,
+          );
         },
       );
     });
