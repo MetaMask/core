@@ -180,8 +180,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       this.submitTx.bind(this),
     );
     this.messagingSystem.registerActionHandler(
-      `${BRIDGE_STATUS_CONTROLLER_NAME}:resetAttempts`,
-      this.resetAttempts.bind(this),
+      `${BRIDGE_STATUS_CONTROLLER_NAME}:restartPollingForFailedAttempts`,
+      this.restartPollingForFailedAttempts.bind(this),
     );
 
     // Set interval
@@ -297,7 +297,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param identifier.txMetaId - The transaction meta ID
    * @param identifier.txHash - The transaction hash
    */
-  resetAttempts = (identifier: { txMetaId?: string; txHash?: string }) => {
+  restartPollingForFailedAttempts = (identifier: {
+    txMetaId?: string;
+    txHash?: string;
+  }) => {
     const { txMetaId, txHash } = identifier;
 
     if (!txMetaId && !txHash) {
@@ -354,6 +357,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     }
   };
 
+  /**
+   * Restart polling for txs that are not in a final state
+   * This is called during initialization
+   */
   readonly #restartPollingForIncompleteHistoryItems = () => {
     // Check for historyItems that do not have a status of complete and restart polling
     const { txHistory } = this.state;

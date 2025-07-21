@@ -2597,7 +2597,9 @@ describe('BridgeStatusController', () => {
         ).toBe(5);
 
         // Execute
-        controllerWithAttempts.resetAttempts({ txMetaId: 'bridgeTxMetaId1' });
+        controllerWithAttempts.restartPollingForFailedAttempts({
+          txMetaId: 'bridgeTxMetaId1',
+        });
 
         // Assert
         expect(
@@ -2635,7 +2637,9 @@ describe('BridgeStatusController', () => {
         ).toBe(3);
 
         // Execute
-        controllerWithAttempts.resetAttempts({ txHash: '0xsrcTxHash1' });
+        controllerWithAttempts.restartPollingForFailedAttempts({
+          txHash: '0xsrcTxHash1',
+        });
 
         // Assert
         expect(
@@ -2676,7 +2680,7 @@ describe('BridgeStatusController', () => {
         });
 
         // Execute with both identifiers - should use txMetaId (bridgeTxMetaId1)
-        controllerWithAttempts.resetAttempts({
+        controllerWithAttempts.restartPollingForFailedAttempts({
           txMetaId: 'bridgeTxMetaId1',
           txHash: '0xswapTxHash1',
         });
@@ -2736,7 +2740,7 @@ describe('BridgeStatusController', () => {
         ).toBe(MAX_ATTEMPTS + 1);
 
         // Execute resetAttempts - this should reset attempts and restart polling
-        controllerWithFailedAttempts.resetAttempts({
+        controllerWithFailedAttempts.restartPollingForFailedAttempts({
           txMetaId: 'bridgeTxMetaId1',
         });
 
@@ -2762,13 +2766,13 @@ describe('BridgeStatusController', () => {
     describe('error cases', () => {
       it('should throw error when no identifier is provided', () => {
         expect(() => {
-          bridgeStatusController.resetAttempts({});
+          bridgeStatusController.restartPollingForFailedAttempts({});
         }).toThrow('Either txMetaId or txHash must be provided');
       });
 
       it('should throw error when txMetaId is not found', () => {
         expect(() => {
-          bridgeStatusController.resetAttempts({
+          bridgeStatusController.restartPollingForFailedAttempts({
             txMetaId: 'nonexistentTxMetaId',
           });
         }).toThrow(
@@ -2778,7 +2782,7 @@ describe('BridgeStatusController', () => {
 
       it('should throw error when txHash is not found', () => {
         expect(() => {
-          bridgeStatusController.resetAttempts({
+          bridgeStatusController.restartPollingForFailedAttempts({
             txHash: '0xnonexistentTxHash',
           });
         }).toThrow(
@@ -2788,13 +2792,17 @@ describe('BridgeStatusController', () => {
 
       it('should throw error when txMetaId is empty string', () => {
         expect(() => {
-          bridgeStatusController.resetAttempts({ txMetaId: '' });
+          bridgeStatusController.restartPollingForFailedAttempts({
+            txMetaId: '',
+          });
         }).toThrow('Either txMetaId or txHash must be provided');
       });
 
       it('should throw error when txHash is empty string', () => {
         expect(() => {
-          bridgeStatusController.resetAttempts({ txHash: '' });
+          bridgeStatusController.restartPollingForFailedAttempts({
+            txHash: '',
+          });
         }).toThrow('Either txMetaId or txHash must be provided');
       });
     });
@@ -2829,7 +2837,9 @@ describe('BridgeStatusController', () => {
         });
 
         expect(() => {
-          controllerWithNoHash.resetAttempts({ txHash: '0xsomeHash' });
+          controllerWithNoHash.restartPollingForFailedAttempts({
+            txHash: '0xsomeHash',
+          });
         }).toThrow(
           'No bridge transaction history found for txHash: 0xsomeHash',
         );
@@ -2843,7 +2853,9 @@ describe('BridgeStatusController', () => {
 
         // Execute - should not throw error
         expect(() => {
-          bridgeStatusController.resetAttempts({ txMetaId: 'bridgeTxMetaId1' });
+          bridgeStatusController.restartPollingForFailedAttempts({
+            txMetaId: 'bridgeTxMetaId1',
+          });
         }).not.toThrow();
 
         // Assert - attempts should still be undefined

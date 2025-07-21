@@ -145,7 +145,7 @@ export enum BridgeStatusAction {
   GET_STATE = 'getState',
   RESET_STATE = 'resetState',
   SUBMIT_TX = 'submitTx',
-  RESET_ATTEMPTS = 'resetAttempts',
+  RESTART_POLLING_FOR_FAILED_ATTEMPTS = 'restartPollingForFailedAttempts',
 }
 
 export type TokenAmountValuesSerialized = {
@@ -241,8 +241,8 @@ export type BridgeStatusControllerResetStateAction =
 export type BridgeStatusControllerSubmitTxAction =
   BridgeStatusControllerAction<BridgeStatusAction.SUBMIT_TX>;
 
-export type BridgeStatusControllerResetAttemptsAction =
-  BridgeStatusControllerAction<BridgeStatusAction.RESET_ATTEMPTS>;
+export type BridgeStatusControllerRestartPollingForFailedAttemptsAction =
+  BridgeStatusControllerAction<BridgeStatusAction.RESTART_POLLING_FOR_FAILED_ATTEMPTS>;
 
 export type BridgeStatusControllerActions =
   | BridgeStatusControllerStartPollingForBridgeTxStatusAction
@@ -250,7 +250,7 @@ export type BridgeStatusControllerActions =
   | BridgeStatusControllerResetStateAction
   | BridgeStatusControllerGetStateAction
   | BridgeStatusControllerSubmitTxAction
-  | BridgeStatusControllerResetAttemptsAction;
+  | BridgeStatusControllerRestartPollingForFailedAttemptsAction;
 
 // Events
 export type BridgeStatusControllerStateChangeEvent = ControllerStateChangeEvent<
