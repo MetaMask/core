@@ -12,191 +12,398 @@ or
 
 ## Usage
 
-```js
-const { JsonRpcEngine } = require('@metamask/json-rpc-engine');
+> [!NOTE]
+> For the legacy `JsonRpcEngine`, see [its readme](./legacy/README.md).
 
-const engine = new JsonRpcEngine();
-```
+```ts
+import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine';
 
-Build a stack of JSON-RPC processors by pushing middleware to the engine.
-
-```js
-engine.push(function (req, res, next, end) {
-  res.result = 42;
-  end();
+const engine = new JsonRpcEngineV2({
+  // Create a stack of middleware and pass it to the engine:
+  middleware: [
+    ({ request, next }) => {
+      if (request.method === 'foo') {
+        return 'bar';
+      }
+      return next();
+    },
+    () => 42,
+  ],
 });
 ```
 
-Requests are handled asynchronously, stepping down the stack until complete.
+Requests are handled asynchronously, stepping down the middleware stack until complete.
 
-```js
-const request = { id: 1, jsonrpc: '2.0', method: 'hello' };
+```ts
+const request = { id: '1', jsonrpc: '2.0', method: 'hello' };
 
-engine.handle(request, function (err, response) {
-  // Do something with response.result, or handle response.error
-});
-
-// There is also a Promise signature
-const response = await engine.handle(request);
+try {
+  const result = await engine.handle(request);
+  // Do something with the result
+} catch (error) {
+  // Handle the error
+}
 ```
 
-Middleware have direct access to the request and response objects.
-They can let processing continue down the stack with `next()`, or complete the request with `end()`.
+### Middleware
 
-```js
-engine.push(function (req, res, next, end) {
-  if (req.skipCache) return next();
-  res.result = getResultFromCache(req);
-  end();
+Middleware functions can be sync or async.
+They receive a `MiddlewareParams` object containing:
+
+- `request`
+  - The JSON-RPC request or notification (readonly)
+- `context`
+  - A `Map` for passing data between middleware
+- `next`
+  - Function to call the next middleware in the stack
+
+Here's a basic example:
+
+```ts
+const engine = new JsonRpcEngineV2({
+  middleware: [
+    ({ next, context }) => {
+      context.set('foo', 'bar');
+      // Proceed to the next middleware
+      return next();
+    },
+    async ({ request, context }) => {
+      await doSomething(request, context.get('foo'));
+      // Return a result to end the request
+      return 42;
+    },
+  ],
 });
 ```
 
-By passing a _return handler_ to the `next` function, you can get a peek at the result before it returns.
+### Requests vs. notifications
 
-```js
-engine.push(function (req, res, next, end) {
-  next(function (cb) {
-    insertIntoCache(res, cb);
-  });
+JSON-RPC requests come in two flavors:
+
+- [Requests](https://www.jsonrpc.org/specification#request_object), i.e. request objects with an `id`
+- [Notifications](https://www.jsonrpc.org/specification#notification), i.e. request objects _without_ an `id`
+
+Requests must return a non-`undefined` result, or the engine will error:
+
+```ts
+const engine = new JsonRpcEngineV2({
+  middleware: [
+    () => {
+      if (Math.random() > 0.5) {
+        return 42;
+      }
+      return undefined;
+    },
+  ],
 });
+
+const request = { jsonrpc: '2.0', id: '1', method: 'hello' };
+
+try {
+  const result = await engine.handle(request);
+  console.log(result); // 42
+} catch (error) {
+  console.error(error); // Nothing ended request: { ... }
+}
 ```
 
-If you specify a `notificationHandler` when constructing the engine, JSON-RPC notifications passed to `handle()` will be handed off directly to this function without touching the middleware stack:
+Notifications, on the other hand, may only return `undefined`:
 
-```js
-const engine = new JsonRpcEngine({ notificationHandler });
-
-// A notification is defined as a JSON-RPC request without an `id` property.
+```ts
 const notification = { jsonrpc: '2.0', method: 'hello' };
 
-const response = await engine.handle(notification);
-console.log(typeof response); // 'undefined'
+try {
+  const result = await engine.handle(notification);
+  console.log(result); // undefined
+} catch (error) {
+  console.error(error); // Result returned for notification: { ... }
+}
 ```
 
-Engines can be nested by converting them to middleware using `JsonRpcEngine.asMiddleware()`:
+If your middleware may be passed both requests and notifications,
+use the `isRequest` or `isNotification` utilities to determine what to do:
 
-```js
-const engine = new JsonRpcEngine();
-const subengine = new JsonRpcEngine();
-engine.push(subengine.asMiddleware());
-```
+```ts
+import {
+  isRequest,
+  isNotification,
+  JsonRpcEngineV2,
+} from '@metamask/json-rpc-engine';
 
-### `async` Middleware
-
-If you require your middleware function to be `async`, use `createAsyncMiddleware`:
-
-```js
-const { createAsyncMiddleware } = require('@metamask/json-rpc-engine');
-
-let engine = new RpcEngine();
-engine.push(
-  createAsyncMiddleware(async (req, res, next) => {
-    res.result = 42;
-    next();
-  }),
-);
-```
-
-`async` middleware do not take an `end` callback.
-Instead, the request ends if the middleware returns without calling `next()`:
-
-```js
-engine.push(
-  createAsyncMiddleware(async (req, res, next) => {
-    res.result = 42;
-    /* The request will end when this returns */
-  }),
-);
-```
-
-The `next` callback of `async` middleware also don't take return handlers.
-Instead, you can `await next()`.
-When the execution of the middleware resumes, you can work with the response again.
-
-```js
-engine.push(
-  createAsyncMiddleware(async (req, res, next) => {
-    res.result = 42;
-    await next();
-    /* Your return handler logic goes here */
-    addToMetrics(res);
-  }),
-);
-```
-
-You can freely mix callback-based and `async` middleware:
-
-```js
-engine.push(function (req, res, next, end) {
-  if (!isCached(req)) {
-    return next((cb) => {
-      insertIntoCache(res, cb);
-    });
-  }
-  res.result = getResultFromCache(req);
-  end();
-});
-
-engine.push(
-  createAsyncMiddleware(async (req, res, next) => {
-    res.result = 42;
-    await next();
-    addToMetrics(res);
-  }),
-);
-```
-
-### Teardown
-
-If your middleware has teardown to perform, you can assign a method `destroy()` to your middleware function(s),
-and calling `JsonRpcEngine.destroy()` will call this method on each middleware that has it.
-A destroyed engine can no longer be used.
-
-```js
-const middleware = (req, res, next, end) => {
-  /* do something */
-};
-middleware.destroy = () => {
-  /* perform teardown */
-};
-
-const engine = new JsonRpcEngine();
-engine.push(middleware);
-
-/* perform work */
-
-// This will call middleware.destroy() and destroy the engine itself.
-engine.destroy();
-
-// Calling any public method on the middleware other than `destroy()` itself
-// will throw an error.
-engine.handle(req);
-```
-
-### Gotchas
-
-Handle errors via `end(err)`, _NOT_ `next(err)`.
-
-```js
-/* INCORRECT */
-engine.push(function (req, res, next, end) {
-  next(new Error());
-});
-
-/* CORRECT */
-engine.push(function (req, res, next, end) {
-  end(new Error());
+const engine = new JsonRpcEngineV2({
+  middleware: [
+    async ({ request, next }) => {
+      if (isRequest(request)) {
+        return 42;
+      }
+      return next();
+    },
+    ({ request }) => {
+      if (isNotification(request)) {
+        console.log(`Received notification: ${request.method}`);
+        return undefined;
+      }
+      return 'Hello, World!';
+    },
+  ],
 });
 ```
 
-However, `next()` will detect errors on the response object, and cause
-`end(res.error)` to be called.
+### Request modification
 
-```js
-engine.push(function (req, res, next, end) {
-  res.error = new Error();
-  next(); /* This will cause end(res.error) to be called. */
+The `request` object is immutable.
+Attempting to directly modify it will throw an error.
+Middleware can modify the `method` and `params` properties
+by passing a new request object to `next()`:
+
+```ts
+const engine = new JsonRpcEngineV2({
+  middleware: [
+    ({ request, next }) => {
+      // Modify the request for subsequent middleware
+      // The new request object will be deeply frozen
+      return next({
+        ...request,
+        method: 'modified_method',
+        params: [1, 2, 3],
+      });
+    },
+    ({ request }) => {
+      // This middleware receives the modified request
+      return request.params[0];
+    },
+  ],
 });
+```
+
+Modifying the `jsonrpc` or `id` properties is not allowed, and will cause
+an error:
+
+```ts
+const engine = new JsonRpcEngineV2({
+  middleware: [
+    ({ request, next }) => {
+      // Modifying either proeprty will cause an error
+      return next({
+        ...request,
+        jsonrpc: '3.0',
+        id: 'foo',
+      });
+    },
+    () => 42,
+  ],
+});
+```
+
+### Result handling
+
+Middleware can observe the result by awaiting `next()`:
+
+```ts
+const engine = new JsonRpcEngineV2({
+  middleware: [
+    async ({ request, next }) => {
+      const startTime = Date.now();
+      const result = await next();
+      const duration = Date.now() - startTime;
+
+      // Log the request duration
+      console.log(
+        `Request ${request.method} producing ${result} took ${duration}ms`,
+      );
+
+      // By returning undefined, the same result will be forwarded to earlier
+      // middleware awaiting next()
+    },
+    ({ request }) => {
+      return 'Hello, World!';
+    },
+  ],
+});
+```
+
+Like the `request`, the `result` is also immutable.
+Middleware can update the result by returning a new one.
+
+```ts
+const engine = new JsonRpcEngineV2({
+  middleware: [
+    async ({ request, next }) => {
+      const result = await next();
+
+      // Add metadata to the result
+      if (result && typeof result === 'object') {
+        // The new result will also be deeply frozen
+        return {
+          ...result,
+          metadata: {
+            processedAt: new Date().toISOString(),
+            requestId: request.id,
+          },
+        };
+      }
+
+      return result;
+    },
+    ({ request }) => {
+      // Initial result
+      return { message: 'Hello, World!' };
+    },
+  ],
+});
+
+const result = await engine.handle({
+  id: '1',
+  jsonrpc: '2.0',
+  method: 'hello',
+});
+console.log(result);
+// {
+//   message: 'Hello, World!',
+//   metadata: {
+//     processedAt: '2024-01-01T12:00:00.000Z',
+//     requestId: 1
+//   }
+// }
+```
+
+### Context sharing
+
+Use the `context` to share data between middleware:
+
+```ts
+const engine = new JsonRpcEngineV2({
+  middleware: [
+    async ({ context, next }) => {
+      context.set('user', { id: '123', name: 'Alice' });
+      return next();
+    },
+    async ({ context, next }) => {
+      // context.assertGet() throws if the value does not exist
+      // Use with caution: it does not otherwise perform any type checks.
+      const user = context.assertGet<{ id: string; name: string }>('user');
+      context.set('permissions', await getUserPermissions(user.id));
+      return next();
+    },
+    ({ context }) => {
+      const user = context.get('user');
+      const permissions = context.get('permissions');
+      return { user, permissions };
+    },
+  ],
+});
+```
+
+### Error handling
+
+Errors in middleware are propagated up the call stack:
+
+```ts
+const engine = new JsonRpcEngineV2({
+  middleware: [
+    ({ next }) => {
+      return next();
+    },
+    ({ request, next }) => {
+      if (request.method === 'restricted') {
+        throw new Error('Method not allowed');
+      }
+      return 'Success';
+    },
+  ],
+});
+
+try {
+  await engine.handle({ id: '1', jsonrpc: '2.0', method: 'restricted' });
+} catch (error) {
+  console.error('Request failed:', error.message);
+}
+```
+
+If your middleware awaits `next()`, it can handle errors using `try`/`catch`:
+
+```ts
+const engine = new JsonRpcEngineV2({
+  middleware: [
+    ({ request, next }) => {
+      try {
+        return await next();
+      } catch (error) {
+        console.error(`Request ${request.method} errored:`, error);
+        return 42;
+      }
+    },
+    ({ request }) => {
+      if (!isValid(request)) {
+        throw new Error('Invalid request');
+      }
+    },
+  ],
+});
+
+const result = await engine.handle({
+  id: '1',
+  jsonrpc: '2.0',
+  method: 'hello',
+});
+console.log('Result:', result);
+// Request hello errored: Error: Invalid request
+// Result: 42
+```
+
+### Engine composition
+
+Engines can be nested by converting them to middleware using `asMiddleware()`:
+
+```ts
+const subEngine = new JsonRpcEngineV2({
+  middleware: [
+    ({ request }) => {
+      return 'Sub-engine result';
+    },
+  ],
+});
+
+const mainEngine = new JsonRpcEngineV2({
+  middleware: [
+    subEngine.asMiddleware(),
+    ({ request, next }) => {
+      const subResult = await next();
+      return `Main engine processed: ${subResult}`;
+    },
+  ],
+});
+```
+
+Engines used as middleware may return `undefined` for requests, but only when
+used as middleware:
+
+```ts
+const loggingEngine = new JsonRpcEngineV2({
+  middleware: [
+    ({ request, next }) => {
+      console.log('Observed request:', request.method);
+    },
+  ],
+});
+
+const mainEngine = new JsonRpcEngineV2({
+  middleware: [
+    loggingEngine.asMiddleware(),
+    ({ request }) => {
+      return 'success';
+    },
+  ],
+});
+
+const request = { id: '1', jsonrpc: '2.0', method: 'hello' };
+const result = await mainEngine.handle(request);
+console.log('Result:', result);
+// Observed request: hello
+// Result: success
+
+// ATTN: This will throw "Nothing ended request"
+const result2 = await loggingEngine.handle(request):
 ```
 
 ## Contributing
