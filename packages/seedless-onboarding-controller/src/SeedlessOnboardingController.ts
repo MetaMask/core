@@ -18,6 +18,7 @@ import { managedNonce } from '@noble/ciphers/webcrypto';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { Mutex } from 'async-mutex';
 
+import { assertIsValidVaultData } from './assertions';
 import type { AuthConnection } from './constants';
 import {
   controllerName,
@@ -34,7 +35,6 @@ import type {
   SeedlessOnboardingControllerMessenger,
   SeedlessOnboardingControllerOptions,
   SeedlessOnboardingControllerState,
-  VaultData,
   AuthenticatedUserDetails,
   SocialBackupsMetadata,
   SRPBackedUpUserDetails,
@@ -631,10 +631,24 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    */
   async submitPassword(password: string): Promise<void> {
     return await this.#withControllerLock(async () => {
-      await this.#unlockVaultAndGetBackupEncKey(password);
+      const {
+        toprfEncryptionKey,
+        toprfPwEncryptionKey,
+        toprfAuthKeyPair,
+        revokeToken,
+      } = await this.#unlockVaultAndGetBackupEncKey(password);
       this.#setUnlocked();
-      // revoke and recyle refresh token after unlock to keep refresh token fresh, avoid malicious use of leaked refresh token
-      await this.revokeRefreshToken(password);
+
+      if (revokeToken) {
+        await this.#revokeRefreshTokenAndUpdateState(revokeToken);
+        // re-creating vault to persist the new revoke token
+        await this.#createNewVaultWithAuthData({
+          password,
+          rawToprfEncryptionKey: toprfEncryptionKey,
+          rawToprfPwEncryptionKey: toprfPwEncryptionKey,
+          rawToprfAuthKeyPair: toprfAuthKeyPair,
+        });
+      }
     });
   }
 
@@ -695,13 +709,16 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @description Unlock the controller with the latest global password.
    *
    * @param params - The parameters for unlocking the controller.
+   * @param params.maxKeyChainLength - The maximum chain length of the pwd encryption keys.
    * @param params.globalPassword - The latest global password.
    * @returns A promise that resolves to the success of the operation.
    */
   async submitGlobalPassword({
     globalPassword,
+    maxKeyChainLength = 5,
   }: {
     globalPassword: string;
+    maxKeyChainLength?: number;
   }): Promise<void> {
     return await this.#withControllerLock(async () => {
       return await this.#executeWithTokenRefresh(async () => {
@@ -709,6 +726,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         await this.#submitGlobalPassword({
           targetAuthPubKey: currentDeviceAuthPubKey,
           globalPassword,
+          maxKeyChainLength,
         });
       }, 'submitGlobalPassword');
     });
@@ -719,6 +737,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * password validity and unlock the controller.
    *
    * @param params - The parameters for submitting the global password.
+   * @param params.maxKeyChainLength - The maximum chain length of the pwd encryption keys.
    * @param params.targetAuthPubKey - The target public key of the keyring
    * encryption key to recover.
    * @param params.globalPassword - The latest global password.
@@ -728,9 +747,11 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   async #submitGlobalPassword({
     targetAuthPubKey,
     globalPassword,
+    maxKeyChainLength,
   }: {
     targetAuthPubKey: SEC1EncodedPublicKey;
     globalPassword: string;
+    maxKeyChainLength: number;
   }): Promise<void> {
     const { pwEncKey: curPwEncKey, authKeyPair: curAuthKeyPair } =
       await this.#recoverEncKey(globalPassword);
@@ -741,18 +762,39 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         targetAuthPubKey,
         curPwEncKey,
         curAuthKeyPair,
+        maxPwChainLength: maxKeyChainLength,
       });
       const { pwEncKey } = res;
       const vaultKey = await this.#loadSeedlessEncryptionKey(pwEncKey);
 
       // Unlock the controller
-      await this.#unlockVaultAndGetBackupEncKey(undefined, vaultKey);
+      const {
+        revokeToken,
+        toprfEncryptionKey,
+        toprfPwEncryptionKey,
+        toprfAuthKeyPair,
+      } = await this.#unlockVaultAndGetBackupEncKey(undefined, vaultKey);
       this.#setUnlocked();
-      // revoke and recyle refresh token after unlock to keep refresh token fresh, avoid malicious use of leaked refresh token
-      await this.revokeRefreshToken(globalPassword);
+
+      if (revokeToken) {
+        // revoke and recyle refresh token after unlock to keep refresh token fresh, avoid malicious use of leaked refresh token
+        await this.#revokeRefreshTokenAndUpdateState(revokeToken);
+        // re-creating vault to persist the new revoke token
+        await this.#createNewVaultWithAuthData({
+          password: globalPassword,
+          rawToprfEncryptionKey: toprfEncryptionKey,
+          rawToprfPwEncryptionKey: toprfPwEncryptionKey,
+          rawToprfAuthKeyPair: toprfAuthKeyPair,
+        });
+      }
     } catch (error) {
       if (this.#isTokenExpiredError(error)) {
         throw error;
+      }
+      if (this.#isMaxKeyChainLengthError(error)) {
+        throw new Error(
+          SeedlessOnboardingControllerErrorMessage.MaxKeyChainLengthExceeded,
+        );
       }
       throw PasswordSyncError.getInstance(error);
     }
@@ -1168,7 +1210,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     toprfEncryptionKey: Uint8Array;
     toprfPwEncryptionKey: Uint8Array;
     toprfAuthKeyPair: KeyPair;
-    revokeToken: string;
+    revokeToken?: string;
     accessToken: string;
   }> {
     return this.#withVaultLock(async () => {
@@ -1362,12 +1404,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   }): Promise<void> {
     this.#assertIsAuthenticatedUser(this.state);
 
-    if (!this.state.revokeToken) {
-      throw new Error(
-        SeedlessOnboardingControllerErrorMessage.InvalidRevokeToken,
-      );
-    }
-
     if (!this.state.accessToken) {
       throw new Error(
         SeedlessOnboardingControllerErrorMessage.InvalidAccessToken,
@@ -1523,7 +1559,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     toprfEncryptionKey: Uint8Array;
     toprfPwEncryptionKey: Uint8Array;
     toprfAuthKeyPair: KeyPair;
-    revokeToken: string;
+    revokeToken?: string;
     accessToken: string;
   } {
     if (typeof data !== 'string') {
@@ -1541,7 +1577,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       );
     }
 
-    this.#assertIsValidVaultData(parsedVaultData);
+    assertIsValidVaultData(parsedVaultData);
 
     const rawToprfEncryptionKey = base64ToBytes(
       parsedVaultData.toprfEncryptionKey,
@@ -1663,32 +1699,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   }
 
   /**
-   * Check if the provided value is a valid vault data.
-   *
-   * @param value - The value to check.
-   * @throws If the value is not a valid vault data.
-   */
-  #assertIsValidVaultData(value: unknown): asserts value is VaultData {
-    // value is not valid vault data if any of the following conditions are true:
-    if (
-      !value || // value is not defined
-      typeof value !== 'object' || // value is not an object
-      !('toprfEncryptionKey' in value) || // toprfEncryptionKey is not defined
-      typeof value.toprfEncryptionKey !== 'string' || // toprfEncryptionKey is not a string
-      !('toprfPwEncryptionKey' in value) || // toprfPwEncryptionKey is not defined
-      typeof value.toprfPwEncryptionKey !== 'string' || // toprfPwEncryptionKey is not a string
-      !('toprfAuthKeyPair' in value) || // toprfAuthKeyPair is not defined
-      typeof value.toprfAuthKeyPair !== 'string' || // toprfAuthKeyPair is not a string
-      !('revokeToken' in value) || // revokeToken is not defined
-      typeof value.revokeToken !== 'string' || // revokeToken is not a string
-      !('accessToken' in value) || // accessToken is not defined
-      typeof value.accessToken !== 'string' // accessToken is not a string
-    ) {
-      throw new Error(SeedlessOnboardingControllerErrorMessage.VaultDataError);
-    }
-  }
-
-  /**
    * Refresh expired nodeAuthTokens, accessToken, and metadataAccessToken using the stored refresh token.
    *
    * This method retrieves the refresh token from the vault and uses it to obtain
@@ -1727,20 +1737,12 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
 
   /**
    * Revoke the refresh token and get new refresh token and new revoke token.
-   * This method is to be called after unlock
+   * This method is to be called after user is authenticated.
    *
-   * @param password - The password to re-encrypt new token in the vault.
+   * @param revokeToken - The revoke token to use for revoking the refresh token.
    */
-  async revokeRefreshToken(password: string) {
-    this.#assertIsUnlocked();
+  async #revokeRefreshTokenAndUpdateState(revokeToken: string) {
     this.#assertIsAuthenticatedUser(this.state);
-    // get revoke token and backup encryption key from vault (should be unlocked already)
-    const {
-      revokeToken,
-      toprfEncryptionKey,
-      toprfPwEncryptionKey,
-      toprfAuthKeyPair,
-    } = await this.#unlockVaultAndGetBackupEncKey();
 
     const { newRevokeToken, newRefreshToken } = await this.#revokeRefreshToken({
       connection: this.state.authConnection,
@@ -1752,13 +1754,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       state.revokeToken = newRevokeToken;
       // set new refresh token to persist in state
       state.refreshToken = newRefreshToken;
-    });
-
-    await this.#createNewVaultWithAuthData({
-      password,
-      rawToprfEncryptionKey: toprfEncryptionKey,
-      rawToprfPwEncryptionKey: toprfPwEncryptionKey,
-      rawToprfAuthKeyPair: toprfAuthKeyPair,
     });
   }
 
@@ -1774,6 +1769,26 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     if (error instanceof TOPRFError) {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
       return error.code === TOPRFErrorCode.AuthTokenExpired;
+    }
+
+    return false;
+  }
+
+  /**
+   * Check if the provided error is a max key chain length error.
+   *
+   * This method checks if the error is a TOPRF error with MaxKeyChainLength code.
+   *
+   * @param error - The error to check.
+   * @returns True if the error indicates max key chain length has been exceeded, false otherwise.
+   */
+  #isMaxKeyChainLengthError(error: unknown): boolean {
+    if (error instanceof TOPRFError) {
+      // todo: update this when the error message to error code once toprf sdk is updated.
+      return (
+        error.message ===
+        'Could not fetch password. Exceeded maximum password chain length'
+      );
     }
 
     return false;
@@ -1800,7 +1815,13 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       const isNodeAuthTokenExpired = this.checkNodeAuthTokenExpired();
       const isMetadataAccessTokenExpired =
         this.checkMetadataAccessTokenExpired();
-      const isAccessTokenExpired = this.checkAccessTokenExpired();
+
+      // access token is only accessible when the vault is unlocked
+      // so skip the check if the vault is locked
+      let isAccessTokenExpired = false;
+      if (this.#isUnlocked) {
+        isAccessTokenExpired = this.checkAccessTokenExpired();
+      }
 
       if (
         isNodeAuthTokenExpired ||
@@ -1855,6 +1876,11 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     return decodedToken.exp < Date.now() / 1000;
   }
 
+  /**
+   * Check if the current metadata access token is expired.
+   *
+   * @returns True if the metadata access token is expired, false otherwise.
+   */
   public checkMetadataAccessTokenExpired(): boolean {
     try {
       this.#assertIsAuthenticatedUser(this.state);
@@ -1867,6 +1893,12 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     }
   }
 
+  /**
+   * Check if the current access token is expired.
+   * When the vault is locked, the access token is not accessible, so we return false.
+   *
+   * @returns True if the access token is expired, false otherwise.
+   */
   public checkAccessTokenExpired(): boolean {
     try {
       this.#assertIsAuthenticatedUser(this.state);

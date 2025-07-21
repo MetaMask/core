@@ -111,11 +111,12 @@ export const createMockInternalAccountOptions = (
   keyringIndex: number,
   keyringType: KeyringTypes,
   groupIndex: number,
-): Record<string, string> => {
+): Record<string, string | number> => {
   if (keyringType === KeyringTypes.hd) {
     return {
       entropySource: `mock-keyring-id-${keyringIndex}`,
       derivationPath: `m/44'/60'/0'/0/${groupIndex}`,
+      groupIndex,
     };
   }
 

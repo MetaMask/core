@@ -526,6 +526,166 @@ describe('MultichainAssetsRatesController', () => {
     expect(updateSpy).toHaveBeenCalled();
   });
 
+  describe('error handling in snap requests', () => {
+    it('handles JSON-RPC parameter validation errors gracefully', async () => {
+      const { controller, messenger } = setupController();
+
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const paramValidationError = new Error(
+        'Invalid request params: At path: conversions.0.from -- Expected a value of type `CaipAssetType`, but received: `"swift:0/test-asset"`.',
+      );
+
+      const snapHandler = jest.fn().mockRejectedValue(paramValidationError);
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        snapHandler,
+      );
+
+      await controller.updateAssetsRates();
+
+      // Should have logged the error with detailed context
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Snap request failed for onAssetsConversion:',
+        expect.objectContaining({
+          snapId: 'test-snap',
+          handler: 'onAssetsConversion',
+          message: expect.stringContaining('Invalid request params'),
+          params: expect.objectContaining({
+            conversions: expect.arrayContaining([
+              expect.objectContaining({
+                from: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+                to: 'swift:0/iso4217:USD',
+              }),
+            ]),
+          }),
+        }),
+      );
+
+      // Should not update state when snap request fails
+      expect(controller.state.conversionRates).toStrictEqual({});
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('handles generic snap request errors gracefully', async () => {
+      const { controller, messenger } = setupController();
+
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const genericError = new Error('Network timeout');
+
+      const snapHandler = jest.fn().mockRejectedValue(genericError);
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        snapHandler,
+      );
+
+      await controller.updateAssetsRates();
+
+      // Should have logged the error with detailed context
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Snap request failed for onAssetsConversion:',
+        expect.objectContaining({
+          snapId: 'test-snap',
+          handler: 'onAssetsConversion',
+          message: 'Network timeout',
+          params: expect.any(Object),
+        }),
+      );
+
+      // Should not update state when snap request fails
+      expect(controller.state.conversionRates).toStrictEqual({});
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('handles mixed success and failure scenarios', async () => {
+      const { controller, messenger } = setupController({
+        accountsAssets: [fakeNonEvmAccount, fakeEvmAccount2],
+      });
+
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      // Mock different responses for different calls
+      const snapHandler = jest
+        .fn()
+        .mockResolvedValueOnce(fakeAccountRates) // First call succeeds (onAssetsConversion)
+        .mockResolvedValueOnce({
+          marketData: {
+            'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+              'swift:0/iso4217:USD': fakeMarketData,
+            },
+          },
+        }) // Second call succeeds (onAssetsMarketData)
+        .mockRejectedValueOnce(new Error('Snap request failed')) // Third call fails (onAssetsConversion)
+        .mockResolvedValueOnce(null); // Fourth call returns null (onAssetsMarketData)
+
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        snapHandler,
+      );
+
+      await controller.updateAssetsRates();
+
+      // Should have logged the error for the failed request
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Snap request failed for onAssetsConversion:',
+        expect.objectContaining({
+          message: 'Snap request failed',
+        }),
+      );
+
+      // Should still update state for the successful request
+      expect(controller.state.conversionRates).toMatchObject({
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+          rate: '202.11',
+          conversionTime: 1738539923277,
+          currency: 'swift:0/iso4217:USD',
+          marketData: fakeMarketData,
+        },
+      });
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('handles market data request errors independently', async () => {
+      const { controller, messenger } = setupController();
+
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      // Mock onAssetsConversion to succeed but onAssetsMarketData to fail
+      const snapHandler = jest
+        .fn()
+        .mockResolvedValueOnce(fakeAccountRates) // onAssetsConversion succeeds
+        .mockRejectedValueOnce(new Error('Market data unavailable')); // onAssetsMarketData fails
+
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        snapHandler,
+      );
+
+      await controller.updateAssetsRates();
+
+      // Should have logged the market data error
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Snap request failed for onAssetsMarketData:',
+        expect.objectContaining({
+          message: 'Market data unavailable',
+        }),
+      );
+
+      // Should still update state with conversion rates (without market data)
+      expect(controller.state.conversionRates).toMatchObject({
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+          rate: '202.11',
+          conversionTime: 1738539923277,
+          currency: 'swift:0/iso4217:USD',
+        },
+      });
+
+      consoleErrorSpy.mockRestore();
+    });
+  });
+
   describe('fetchHistoricalPricesForAsset', () => {
     it('throws an error if call to snap fails', async () => {
       const testAsset = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501';

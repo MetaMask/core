@@ -32,6 +32,7 @@
     { "path": "./packages/json-rpc-middleware-stream" },
     { "path": "./packages/keyring-controller" },
     { "path": "./packages/message-manager" },
+    { "path": "./packages/messenger" },
     { "path": "./packages/multichain-api-middleware" },
     { "path": "./packages/multichain-network-controller" },
     { "path": "./packages/multichain-transactions-controller" },
