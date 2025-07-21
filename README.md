@@ -100,7 +100,7 @@ linkStyle default opacity:0.5
   eth_json_rpc_provider(["@metamask/eth-json-rpc-provider"]);
   foundryup(["@metamask/foundryup"]);
   gas_fee_controller(["@metamask/gas-fee-controller"]);
-  gator-permissions-controller(["@metamask/gator-permissions-controller"]);
+  gator_permissions_controller(["@metamask/gator-permissions-controller"]);
   json_rpc_engine(["@metamask/json-rpc-engine"]);
   json_rpc_middleware_stream(["@metamask/json-rpc-middleware-stream"]);
   keyring_controller(["@metamask/keyring-controller"]);

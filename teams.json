@@ -18,7 +18,7 @@
   "metamask/ens-controller": "team-confirmations",
   "metamask/eth-json-rpc-provider": "team-wallet-api-platform,team-wallet-framework",
   "metamask/gas-fee-controller": "team-confirmations",
-  "metamask/gator-permissions-controller": "team-readable-permissions",
+  "metamask/gator-permissions-controller": "team-delegation",
   "metamask/json-rpc-engine": "team-wallet-api-platform,team-wallet-framework",
   "metamask/json-rpc-middleware-stream": "team-wallet-api-platform,team-wallet-framework",
   "metamask/keyring-controller": "team-accounts",
