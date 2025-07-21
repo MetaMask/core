@@ -1,4 +1,3 @@
-import type { KeyringAccount } from '@metamask/keyring-api';
 import type { KeyringObject } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
