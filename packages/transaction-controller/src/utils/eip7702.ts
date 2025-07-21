@@ -131,16 +131,6 @@ export function generateEIP7702BatchTransaction(
       (param) => transaction[param] !== undefined,
     );
 
-    if (unsupported.length) {
-      const errorData = unsupported
-        .map((param) => `${param}: ${transaction[param]}`)
-        .join(', ');
-
-      throw new Error(
-        `EIP-7702 batch transactions do not support gas parameters per call - ${errorData}`,
-      );
-    }
-
     return [
       to ?? '0x0000000000000000000000000000000000000000',
       value ?? '0x0',

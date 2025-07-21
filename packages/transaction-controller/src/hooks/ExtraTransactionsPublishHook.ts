@@ -93,8 +93,8 @@ export class ExtraTransactionsPublishHook {
       }));
 
     const transactions: TransactionBatchSingleRequest[] = [
-      firstTransaction,
       ...extraTransactions,
+      firstTransaction,
     ];
 
     log('Adding transaction batch', {
@@ -107,9 +107,10 @@ export class ExtraTransactionsPublishHook {
       from,
       networkClientId,
       transactions,
-      disable7702: true,
-      disableHook: false,
+      disable7702: false,
+      disableHook: true,
       disableSequential: true,
+      requireApproval: false,
     });
 
     return resultPromise.promise;
