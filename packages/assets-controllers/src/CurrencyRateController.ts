@@ -95,7 +95,7 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
 
   private readonly includeUsdRate;
 
-  private readonly useExternalServices;
+  private readonly useExternalServices: () => boolean;
 
   /**
    * Creates a CurrencyRateController instance.
@@ -130,7 +130,7 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
       state: { ...defaultState, ...state },
     });
     this.includeUsdRate = includeUsdRate;
-    this.useExternalServices = useExternalServices();
+    this.useExternalServices = useExternalServices;
     this.setIntervalLength(interval);
     this.fetchMultiExchangeRate = fetchMultiExchangeRate;
   }
@@ -166,7 +166,7 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
   async updateExchangeRate(
     nativeCurrencies: (string | undefined)[],
   ): Promise<void> {
-    if (!this.useExternalServices) {
+    if (!this.useExternalServices()) {
       return;
     }
 

@@ -193,9 +193,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
   #isDetectionEnabledFromPreferences: boolean;
 
-  readonly #useTokenDetection: boolean;
+  readonly #useTokenDetection: () => boolean;
 
-  readonly #useExternalServices: boolean;
+  readonly #useExternalServices: () => boolean;
 
   #isDetectionEnabledForNetwork: boolean;
 
@@ -350,8 +350,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     this.#isUnlocked = isUnlocked;
 
     this.#accountsAPI.isAccountsAPIEnabled = useAccountsAPI;
-    this.#useTokenDetection = useTokenDetection();
-    this.#useExternalServices = useExternalServices();
+    this.#useTokenDetection = useTokenDetection;
+    this.#useExternalServices = useExternalServices;
     this.#accountsAPI.platform = platform;
 
     this.#registerEventListeners();
@@ -722,7 +722,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       return;
     }
 
-    if (!this.#useTokenDetection) {
+    if (!this.#useTokenDetection()) {
       return;
     }
 
@@ -730,7 +730,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     const clientNetworks = this.#getCorrectNetworkClientIdByChainId(chainIds);
 
     let supportedNetworks;
-    if (this.#accountsAPI.isAccountsAPIEnabled && this.#useExternalServices) {
+    if (this.#accountsAPI.isAccountsAPIEnabled && this.#useExternalServices()) {
       supportedNetworks = await this.#accountsAPI.getSupportedNetworks();
     }
     const { chainsToDetectUsingRpc, chainsToDetectUsingAccountAPI } =
