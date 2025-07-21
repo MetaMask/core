@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Removed usages of `NetworkController:getState` for GNS removal. Added mandatory `chainId` parameter to `executeLendingTokenApprove`, `executeLendingWithdraw`, `executeLendingDeposit`, `getLendingMarketDailyApysAndAverages` and `getLendingPositionHistory` methods. Added mandatory `selectedNetworkClientId` parameter to constructor. Added optional `chainId` parameter to `refreshPooledStakingVaultApyAverages`, `refreshPooledStakingVaultDailyApys`, `refreshPooledStakingVaultMetadata` and `refreshPooledStakes`. ([#6153](https://github.com/MetaMask/core/pull/6153))
+
 ## [3.0.0]
 
 ### Changed
