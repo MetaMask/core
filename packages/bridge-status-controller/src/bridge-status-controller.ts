@@ -580,6 +580,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           status.status === StatusTypes.FAILED
             ? Date.now()
             : undefined, // TODO make this more accurate by looking up dest txHash block time
+        attempts: undefined,
       };
 
       // No need to purge these on network change or account change, TransactionController does not purge either.
@@ -588,12 +589,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       // First stab at this will not stop polling when you are on a different account
       this.update((state) => {
         state.txHistory[bridgeTxMetaId] = newBridgeHistoryItem;
-      });
-
-      // Reset attempts counter on successful fetch
-      // A successful fetch does not mean the the tx is in a final state
-      this.update((state) => {
-        state.txHistory[bridgeTxMetaId].attempts = undefined;
       });
 
       const pollingToken = this.#pollingTokensByTxMetaId[bridgeTxMetaId];
