@@ -1,4 +1,3 @@
-import type { Json } from '@metamask/utils';
 import {
   hasProperty,
   type JsonRpcNotification as BaseJsonRpcNotification,
@@ -25,12 +24,12 @@ export const isNotification = <Params extends JsonRpcParams>(
 ): msg is JsonRpcNotification<Params> => !isRequest(msg);
 
 /**
- * JSON-stringifies a JSON value.
+ * JSON-stringifies a value.
  *
  * @param value - The value to stringify.
  * @returns The stringified value.
  */
-export function stringify(value: Json | Readonly<Json>): string {
+export function stringify(value: unknown): string {
   return JSON.stringify(value, null, 2);
 }
 
