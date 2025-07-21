@@ -3489,8 +3489,8 @@ describe('SeedlessOnboardingController', () => {
             .spyOn(toprfClient, 'recoverPwEncKey')
             .mockRejectedValueOnce(
               new TOPRFError(
-                1013,
-                'Could not fetch password. Exceeded maximum password chain length',
+                TOPRFErrorCode.MaxKeyChainLengthExceeded,
+                'Max key chain length exceeded',
               ),
             );
 
