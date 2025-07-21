@@ -415,7 +415,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       const performBackup = async (): Promise<void> => {
         // verify the password and unlock the vault
         const { toprfEncryptionKey, toprfAuthKeyPair } =
-          await this.#unlockVaultAndGetBackupEncKeyAndTokens();
+          await this.#unlockVaultAndGetVaultData();
 
         // encrypt and store the secret data
         await this.#encryptAndStoreSecretData({
@@ -457,7 +457,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         this.#assertIsUnlocked();
         // verify the password and unlock the vault
         const keysFromVault =
-          await this.#unlockVaultAndGetBackupEncKeyAndTokens();
+          await this.#unlockVaultAndGetVaultData();
         encKey = keysFromVault.toprfEncryptionKey;
         pwEncKey = keysFromVault.toprfPwEncryptionKey;
         authKeyPair = keysFromVault.toprfAuthKeyPair;
@@ -637,7 +637,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         toprfPwEncryptionKey,
         toprfAuthKeyPair,
         revokeToken,
-      } = await this.#unlockVaultAndGetBackupEncKeyAndTokens(password);
+      } = await this.#unlockVaultAndGetVaultData(password);
       this.#setUnlocked();
 
       if (revokeToken) {
@@ -774,7 +774,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         toprfEncryptionKey,
         toprfPwEncryptionKey,
         toprfAuthKeyPair,
-      } = await this.#unlockVaultAndGetBackupEncKeyAndTokens(
+      } = await this.#unlockVaultAndGetVaultData(
         undefined,
         vaultKey,
       );
@@ -895,7 +895,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     }
 
     const { accessToken: accessTokenFromVault } =
-      await this.#unlockVaultAndGetBackupEncKeyAndTokens(password);
+      await this.#unlockVaultAndGetVaultData(password);
     return accessTokenFromVault;
   }
 
@@ -965,7 +965,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    */
   async storeKeyringEncryptionKey(keyringEncryptionKey: string) {
     const { toprfPwEncryptionKey: encKey } =
-      await this.#unlockVaultAndGetBackupEncKeyAndTokens();
+      await this.#unlockVaultAndGetVaultData();
     await this.#storeKeyringEncryptionKey(encKey, keyringEncryptionKey);
   }
 
@@ -977,7 +977,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    */
   async loadKeyringEncryptionKey() {
     const { toprfPwEncryptionKey: encKey } =
-      await this.#unlockVaultAndGetBackupEncKeyAndTokens();
+      await this.#unlockVaultAndGetVaultData();
     return await this.#loadKeyringEncryptionKey(encKey);
   }
 
@@ -1237,7 +1237,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * - The password is incorrect (from encryptor.decrypt)
    * - The decrypted vault data is malformed
    */
-  async #unlockVaultAndGetBackupEncKeyAndTokens(
+  async #unlockVaultAndGetVaultData(
     password?: string,
     encryptionKey?: string,
   ): Promise<{
