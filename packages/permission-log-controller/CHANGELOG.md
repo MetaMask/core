@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: update accounts/snaps deps ([#5871](https://github.com/MetaMask/core/pull/5871))
+- feat: add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/core/pull/5301))
+
 ### Changed
 
 - **BREAKING:** Stop persisting `permissionActivityLog` state ([#6156](https://github.com/MetaMask/core/pull/6156))
