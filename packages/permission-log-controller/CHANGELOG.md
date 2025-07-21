@@ -9,16 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [4.0.0]
 
-### Uncategorized
-
-- chore: update accounts/snaps deps ([#5871](https://github.com/MetaMask/core/pull/5871))
-- feat: add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/core/pull/5301))
-
 ### Changed
 
 - **BREAKING:** Stop persisting `permissionActivityLog` state ([#6156](https://github.com/MetaMask/core/pull/6156))
   - This will require a migration to delete existing persisted state.
-- Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
+- Bump `@metamask/utils` from `^11.1.0` to `^11.4.2` ([#5301](https://github.com/MetaMask/core/pull/5301), [#6054](https://github.com/MetaMask/core/pull/6054))
 - Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
 
 ## [3.0.3]
