@@ -4915,27 +4915,11 @@ describe('SeedlessOnboardingController', () => {
     });
   });
 
-  describe('getAccessToken', () => {
+  describe('#getAccessToken', () => {
     const MOCK_PASSWORD = 'mock-password';
 
-    it('should return the access token from the state if it is available', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            accessToken,
-          }),
-        },
-        async ({ controller }) => {
-          const _accessToken = await controller.getAccessToken(MOCK_PASSWORD);
-          expect(_accessToken).toBe(controller.state.accessToken);
-        },
-      );
-    });
-
-    it('should return the access token from the vault if it is not available in the state', async () => {
+    it('should retrieve the access token from the vault if it is not available in the state', async () => {
       const mockToprfEncryptor = createMockToprfEncryptor();
-
       const MOCK_ENCRYPTION_KEY =
         mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
       const MOCK_PASSWORD_ENCRYPTION_KEY =
@@ -4964,9 +4948,36 @@ describe('SeedlessOnboardingController', () => {
             vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
           }),
         },
-        async ({ controller }) => {
-          const _accessToken = await controller.getAccessToken(MOCK_PASSWORD);
-          expect(_accessToken).toBe(controller.state.accessToken);
+        async ({ controller, toprfClient }) => {
+          // fetch and decrypt the secret data
+          mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
+
+          const mockSecretDataGet = handleMockSecretDataGet({
+            status: 200,
+            body: createMockSecretDataGetResponse(
+              [
+                {
+                  data: MOCK_SEED_PHRASE,
+                  type: SecretType.Mnemonic,
+                },
+                {
+                  data: MOCK_PRIVATE_KEY,
+                  type: SecretType.PrivateKey,
+                },
+              ],
+              MOCK_PASSWORD,
+            ),
+          });
+
+          const secretData = await controller.fetchAllSecretData(MOCK_PASSWORD);
+          expect(secretData).toBeDefined();
+          expect(secretData).toHaveLength(2);
+          expect(secretData[0].type).toStrictEqual(SecretType.Mnemonic);
+          expect(secretData[0].data).toStrictEqual(MOCK_SEED_PHRASE);
+          expect(secretData[1].type).toStrictEqual(SecretType.PrivateKey);
+          expect(secretData[1].data).toStrictEqual(MOCK_PRIVATE_KEY);
+
+          expect(mockSecretDataGet.isDone()).toBe(true);
         },
       );
     });
@@ -4979,12 +4990,34 @@ describe('SeedlessOnboardingController', () => {
             withoutMockAccessToken: true,
           }),
         },
-        async ({ controller }) => {
+        async ({ controller, toprfClient }) => {
+          // fetch and decrypt the secret data
+          mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
+
+          const mockSecretDataGet = handleMockSecretDataGet({
+            status: 200,
+            body: createMockSecretDataGetResponse(
+              [
+                {
+                  data: MOCK_SEED_PHRASE,
+                  type: SecretType.Mnemonic,
+                },
+                {
+                  data: MOCK_PRIVATE_KEY,
+                  type: SecretType.PrivateKey,
+                },
+              ],
+              MOCK_PASSWORD,
+            ),
+          });
+
           await expect(
-            controller.getAccessToken(MOCK_PASSWORD),
+            controller.fetchAllSecretData(MOCK_PASSWORD),
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.InvalidAccessToken,
           );
+
+          expect(mockSecretDataGet.isDone()).toBe(true);
         },
       );
     });
