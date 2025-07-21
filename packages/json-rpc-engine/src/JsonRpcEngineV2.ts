@@ -50,6 +50,20 @@ type Options<Request extends JsonRpcCall, Result extends Json> = {
  *
  * @template Request - The type of request to handle.
  * @template Result - The type of result to return.
+ *
+ * @example
+ * ```ts
+ * const engine = new JsonRpcEngineV2({
+ *   middleware,
+ * });
+ *
+ * try {
+ *   const result = await engine.handle(request);
+ *   // Handle result
+ * } catch (error) {
+ *   // Handle error
+ * }
+ * ```
  */
 export class JsonRpcEngineV2<Request extends JsonRpcCall, Result extends Json> {
   readonly #middleware: Readonly<

@@ -45,6 +45,27 @@ try {
 }
 ```
 
+Alternatively, pass the engine to a `JsonRpcServer`, which coerces raw request
+objects into well-formed requests, and handles error serialization:
+
+```ts
+const server = new JsonRpcServer({ engine, handleError });
+const request = { id: '1', jsonrpc: '2.0', method: 'hello' };
+
+// server.handle() never throws
+const response = await server.handle(request);
+if ('result' in response) {
+  // Handle result
+} else {
+  // Handle error
+}
+
+const notification = { id: '1', jsonrpc: '2.0', method: 'hello' };
+
+// Always returns undefined for notifications
+await server.handle(notification);
+```
+
 ### Middleware
 
 Middleware functions can be sync or async.
@@ -405,6 +426,40 @@ console.log('Result:', result);
 // ATTN: This will throw "Nothing ended request"
 const result2 = await loggingEngine.handle(request):
 ```
+
+### `JsonRpcServer`
+
+The `JsonRpcServer` wraps a `JsonRpcEngineV2` to provide JSON-RPC 2.0 compliance and error handling. It coerces raw request objects into well-formed requests and handles error serialization.
+
+```ts
+import { JsonRpcEngineV2, JsonRpcServer } from '@metamask/json-rpc-engine';
+
+const engine = new JsonRpcEngine({ middleware });
+
+const server = new JsonRpcServer({
+  engine,
+  handleError: (error) => console.error('Server error:', error),
+});
+
+// server.handle() never throws - all errors are handled by handleError
+const response = await server.handle({ id: '1', jsonrpc: '2.0', method: 'hello' });
+if ('result' in response) {
+  // Handle successful response
+} else {
+  // Handle error response
+}
+
+// Notifications return undefined
+const notification = { jsonrpc: '2.0', method: 'hello' };
+await server.handle(notification); // Returns undefined
+```
+
+The server accepts any object with a `method` property and validates JSON-RPC 2.0
+compliance.
+Errors occurring during request validation or processing (by the engine) are passed
+to `handleError`.
+Response objects are returned for requests but not notifications, and contain
+the `result` in case of success and `error` in case of failure.
 
 ## Contributing
 

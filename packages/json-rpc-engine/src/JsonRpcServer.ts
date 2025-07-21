@@ -21,6 +21,27 @@ type Options = {
 
 const jsonrpc = '2.0' as const;
 
+/**
+ * A JSON-RPC server that handles requests and notifications.
+ *
+ * Essentially wraps a {@link JsonRpcEngineV2} in order to create a conformant
+ * yet permissive JSON-RPC 2.0 server.
+ *
+ * @example
+ * ```ts
+ * const server = new JsonRpcServer({
+ *   engine,
+ *   handleError,
+ * });
+ *
+ * const response = await server.handle(request);
+ * if ('result' in response) {
+ *   // Handle result
+ * } else {
+ *   // Handle error
+ * }
+ * ```
+ */
 export class JsonRpcServer {
   readonly #engine: JsonRpcEngineV2<JsonRpcCall, Json>;
 
@@ -31,6 +52,19 @@ export class JsonRpcServer {
     this.#handleError = handleError;
   }
 
+  /**
+   * Handle an alleged JSON-RPC request. Permits any plain object with a `method`
+   * property, so long as any other JSON-RPC 2.0 properties are valid.
+   *
+   * This method never throws. All errors are handled by the instance's
+   * `handleError` callback. A response with a `result` or `error` property is
+   * returned unless the request is a notification, in which case `undefined`
+   * is returned.
+   *
+   * @param rawRequest - The raw request to handle.
+   * @returns The JSON-RPC response, or `undefined` if the request is a
+   * notification.
+   */
   async handle(rawRequest: unknown): Promise<JsonRpcResponse | undefined> {
     const [originalId, isRequest] = getOriginalId(rawRequest);
 
