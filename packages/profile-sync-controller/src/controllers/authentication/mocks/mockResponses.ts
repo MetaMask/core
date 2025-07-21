@@ -1,26 +1,31 @@
 import {
-  MOCK_NONCE_RESPONSE as SDK_MOCK_NONCE_RESPONSE,
+  NONCE_URL,
+  OIDC_TOKEN_URL,
+  PAIR_SOCIAL_IDENTIFIER,
+  SRP_LOGIN_URL,
+} from '../../../sdk/authentication-jwt-bearer/services';
+import {
   MOCK_JWT as SDK_MOCK_JWT,
-  MOCK_SRP_LOGIN_RESPONSE as SDK_MOCK_SRP_LOGIN_RESPONSE,
+  MOCK_NONCE_RESPONSE as SDK_MOCK_NONCE_RESPONSE,
   MOCK_OIDC_TOKEN_RESPONSE as SDK_MOCK_OIDC_TOKEN_RESPONSE,
-  MOCK_NONCE_URL,
-  MOCK_SRP_LOGIN_URL,
-  MOCK_OIDC_TOKEN_URL,
+  MOCK_SRP_LOGIN_RESPONSE as SDK_MOCK_SRP_LOGIN_RESPONSE,
 } from '../../../sdk/mocks/auth';
+import { Env } from '../../../shared/env';
 
 type MockResponse = {
   url: string;
   requestMethod: 'GET' | 'POST' | 'PUT';
   response: unknown;
+  statusCode?: number;
 };
 
 export const MOCK_NONCE_RESPONSE = SDK_MOCK_NONCE_RESPONSE;
 export const MOCK_NONCE = MOCK_NONCE_RESPONSE.nonce;
 export const MOCK_JWT = SDK_MOCK_JWT;
 
-export const getMockAuthNonceResponse = () => {
+export const getMockAuthNonceResponse = (env: Env = Env.PRD) => {
   return {
-    url: MOCK_NONCE_URL,
+    url: NONCE_URL(env),
     requestMethod: 'GET',
     response: (
       _?: unknown,
@@ -34,7 +39,7 @@ export const getMockAuthNonceResponse = () => {
 
       return {
         ...MOCK_NONCE_RESPONSE,
-        nonce: e2eIdentifier ?? MOCK_NONCE_RESPONSE.nonce,
+        nonce: e2eIdentifier ?? MOCK_NONCE,
         identifier: MOCK_NONCE_RESPONSE.identifier,
       };
     },
@@ -43,9 +48,9 @@ export const getMockAuthNonceResponse = () => {
 
 export const MOCK_LOGIN_RESPONSE = SDK_MOCK_SRP_LOGIN_RESPONSE;
 
-export const getMockAuthLoginResponse = () => {
+export const getMockAuthLoginResponse = (env: Env = Env.PRD) => {
   return {
-    url: MOCK_SRP_LOGIN_URL,
+    url: SRP_LOGIN_URL(env),
     requestMethod: 'POST',
     // In case this mock is used in an E2E test, we populate token, profile_id and identifier_id with the e2eIdentifier
     // to make it easier to segregate data in the test environment.
@@ -69,9 +74,9 @@ export const getMockAuthLoginResponse = () => {
 
 export const MOCK_OATH_TOKEN_RESPONSE = SDK_MOCK_OIDC_TOKEN_RESPONSE;
 
-export const getMockAuthAccessTokenResponse = () => {
+export const getMockAuthAccessTokenResponse = (env: Env = Env.PRD) => {
   return {
-    url: MOCK_OIDC_TOKEN_URL,
+    url: OIDC_TOKEN_URL(env),
     requestMethod: 'POST',
     response: (requestJsonBody?: string) => {
       // We end up setting the access token to the e2eIdentifier in the test environment
@@ -86,5 +91,16 @@ export const getMockAuthAccessTokenResponse = () => {
         access_token: e2eIdentifier ?? MOCK_OATH_TOKEN_RESPONSE.access_token,
       };
     },
+  } satisfies MockResponse;
+};
+
+export const getMockPairSocialTokenResponse = (env: Env = Env.PRD) => {
+  return {
+    url: PAIR_SOCIAL_IDENTIFIER(env),
+    requestMethod: 'POST',
+    response: () => {
+      return 'OK';
+    },
+    statusCode: 204,
   } satisfies MockResponse;
 };
