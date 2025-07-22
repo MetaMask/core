@@ -107,7 +107,6 @@ function getEarnControllerMessenger(
       'AccountsController:getSelectedAccount',
     ],
     allowedEvents: [
-      'NetworkController:stateChange',
       'NetworkController:networkDidChange',
       'AccountsController:selectedAccountChange',
       'TransactionController:transactionConfirmed',

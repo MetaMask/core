@@ -14,7 +14,6 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetSelectedNetworkClientAction,
   NetworkControllerNetworkDidChangeEvent,
-  NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
 import {
   EarnSdk,
@@ -244,7 +243,6 @@ export type EarnControllerEvents = EarnControllerStateChangeEvent;
  */
 export type AllowedEvents =
   | AccountsControllerSelectedAccountChangeEvent
-  | NetworkControllerStateChangeEvent
   | TransactionControllerTransactionConfirmedEvent
   | NetworkControllerNetworkDidChangeEvent;
 
