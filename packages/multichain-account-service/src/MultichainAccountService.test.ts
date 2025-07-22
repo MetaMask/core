@@ -1,8 +1,10 @@
 /* eslint-disable jsdoc/require-jsdoc */
+import type { Bip44Account } from '@metamask/account-api';
+import { isBip44Account } from '@metamask/account-api';
 import type { Messenger } from '@metamask/base-controller';
 import type { KeyringAccount } from '@metamask/keyring-api';
 import { EthAccountType, SolAccountType } from '@metamask/keyring-api';
-import type { KeyringObject } from '@metamask/keyring-controller';
+import { KeyringTypes, type KeyringObject } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import { MultichainAccountService } from './MultichainAccountService';
@@ -43,6 +45,7 @@ jest.mock('./providers/SolAccountProvider', () => {
 });
 
 type MockAccountProvider = {
+  accounts: InternalAccount[];
   getAccount: jest.Mock;
   getAccounts: jest.Mock;
   createAccounts: jest.Mock;
@@ -64,8 +67,20 @@ function mockAccountProvider<Provider>(
     .mocked(providerClass)
     .mockImplementation(() => mocks as unknown as Provider);
 
-  mocks.getAccounts.mockImplementation(() =>
-    accounts.filter((account) => account.type === type),
+  // You can mock this and all other mocks will re-use that list
+  // of accounts.
+  mocks.accounts = accounts;
+
+  const getAccounts = () =>
+    mocks.accounts.filter(
+      (account) => isBip44Account(account) && account.type === type,
+    );
+
+  mocks.getAccounts.mockImplementation(getAccounts);
+  mocks.getAccount.mockImplementation(
+    (id: Bip44Account<InternalAccount>['id']) =>
+      // Assuming this never fails.
+      getAccounts().find((account) => account.id === id),
   );
 }
 
@@ -91,12 +106,14 @@ function setup({
   const mocks: Mocks = {
     listMultichainAccounts: jest.fn(),
     EvmAccountProvider: {
+      accounts: [],
       getAccount: jest.fn(),
       getAccounts: jest.fn(),
       createAccounts: jest.fn(),
       discoverAndCreateAccounts: jest.fn(),
     },
     SolAccountProvider: {
+      accounts: [],
       getAccount: jest.fn(),
       getAccounts: jest.fn(),
       createAccounts: jest.fn(),
@@ -311,7 +328,7 @@ describe('MultichainAccountService', () => {
           .withGroupIndex(0)
           .get(),
       );
-      mocks.EvmAccountProvider.getAccounts.mockImplementation(() => accounts);
+      mocks.EvmAccountProvider.accounts = accounts;
       messenger.publish(
         'KeyringController:stateChange',
         {
@@ -327,6 +344,150 @@ describe('MultichainAccountService', () => {
           entropySource: MOCK_HD_KEYRING_2.metadata.id,
         }),
       ).toHaveLength(1);
+    });
+  });
+
+  describe('getMultichainAccountAndWallet', () => {
+    const entropy1 = 'entropy-1';
+    const entropy2 = 'entropy-2';
+
+    const account1 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+      .withId('mock-id-1')
+      .withEntropySource(entropy1)
+      .withGroupIndex(0)
+      .get();
+    const account2 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+      .withId('mock-id-2')
+      .withEntropySource(entropy1)
+      .withGroupIndex(1)
+      .get();
+    const account3 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+      .withId('mock-id-3')
+      .withEntropySource(entropy2)
+      .withGroupIndex(0)
+      .get();
+
+    const keyrings: KeyringObject[] = [
+      {
+        type: KeyringTypes.hd,
+        accounts: [account1.address, account2.address],
+        metadata: { id: entropy1, name: '' },
+      },
+      {
+        type: KeyringTypes.hd,
+        accounts: [account2.address],
+        metadata: { id: entropy2, name: '' },
+      },
+    ];
+
+    it('gets the wallet and multichain account for a given account ID', () => {
+      const accounts = [account1, account2, account3];
+      const { service } = setup({ accounts, keyrings });
+
+      const wallet1 = service.getMultichainAccountWallet(entropy1);
+      const wallet2 = service.getMultichainAccountWallet(entropy2);
+
+      const [multichainAccount1, multichainAccount2] =
+        wallet1.getMultichainAccounts();
+      const [multichainAccount3] = wallet2.getMultichainAccounts();
+
+      const walletAndMultichainAccount1 = service.getMultichainAccountAndWallet(
+        account1.id,
+      );
+      const walletAndMultichainAccount2 = service.getMultichainAccountAndWallet(
+        account2.id,
+      );
+      const walletAndMultichainAccount3 = service.getMultichainAccountAndWallet(
+        account3.id,
+      );
+
+      // NOTE: We use `toBe` here, cause we want to make sure we use the same
+      // references with `get*` service's methods.
+      expect(walletAndMultichainAccount1?.wallet).toBe(wallet1);
+      expect(walletAndMultichainAccount1?.multichainAccount).toBe(
+        multichainAccount1,
+      );
+
+      expect(walletAndMultichainAccount2?.wallet).toBe(wallet1);
+      expect(walletAndMultichainAccount2?.multichainAccount).toBe(
+        multichainAccount2,
+      );
+
+      expect(walletAndMultichainAccount3?.wallet).toBe(wallet2);
+      expect(walletAndMultichainAccount3?.multichainAccount).toBe(
+        multichainAccount3,
+      );
+    });
+
+    it('syncs the appropriate wallet and update reverse mapping on AccountsController:accountAdded', () => {
+      const accounts = [account1, account3]; // No `account2` for now.
+      const { service, messenger, mocks } = setup({ accounts, keyrings });
+
+      const wallet1 = service.getMultichainAccountWallet(entropy1);
+      expect(wallet1.getMultichainAccounts()).toHaveLength(1);
+
+      // Now we're adding `account2`.
+      mocks.EvmAccountProvider.accounts = [account1, account2];
+      messenger.publish('AccountsController:accountAdded', account2);
+      expect(wallet1.getMultichainAccounts()).toHaveLength(2);
+
+      const [multichainAccount1, multichainAccount2] =
+        wallet1.getMultichainAccounts();
+
+      const walletAndMultichainAccount1 = service.getMultichainAccountAndWallet(
+        account1.id,
+      );
+      const walletAndMultichainAccount2 = service.getMultichainAccountAndWallet(
+        account2.id,
+      );
+
+      // NOTE: We use `toBe` here, cause we want to make sure we use the same
+      // references with `get*` service's methods.
+      expect(walletAndMultichainAccount1?.wallet).toBe(wallet1);
+      expect(walletAndMultichainAccount1?.multichainAccount).toBe(
+        multichainAccount1,
+      );
+
+      expect(walletAndMultichainAccount2?.wallet).toBe(wallet1);
+      expect(walletAndMultichainAccount2?.multichainAccount).toBe(
+        multichainAccount2,
+      );
+    });
+
+    it('ignores non-BIP-44 accounts on AccountsController:accountAdded', () => {
+      const accounts = [account1];
+      const { service, messenger, mocks } = setup({ accounts, keyrings });
+
+      const wallet1 = service.getMultichainAccountWallet(entropy1);
+      const oldMultichainAccounts = wallet1.getMultichainAccounts();
+      expect(oldMultichainAccounts).toHaveLength(1);
+      expect(oldMultichainAccounts[0].getAccounts()).toHaveLength(1);
+
+      // Now we're publishing a new account that is not BIP-44 compatible.
+      messenger.publish('AccountsController:accountAdded', MOCK_SNAP_ACCOUNT_2);
+
+      const newMultichainAccounts = wallet1.getMultichainAccounts();
+      expect(newMultichainAccounts).toHaveLength(1);
+      expect(newMultichainAccounts[0].getAccounts()).toHaveLength(1);
+    });
+
+    it('syncs the appropriate wallet and update reverse mapping on AccountsController:accountRemoved', () => {
+      const accounts = [account1, account2];
+      const { service, messenger, mocks } = setup({ accounts, keyrings });
+
+      const wallet1 = service.getMultichainAccountWallet(entropy1);
+      expect(wallet1.getMultichainAccounts()).toHaveLength(2);
+
+      // Now we're removing `account2`.
+      mocks.EvmAccountProvider.accounts = [account1];
+      messenger.publish('AccountsController:accountRemoved', account2.id);
+      expect(wallet1.getMultichainAccounts()).toHaveLength(1);
+
+      const walletAndMultichainAccount2 = service.getMultichainAccountAndWallet(
+        account2.id,
+      );
+
+      expect(walletAndMultichainAccount2).toBeUndefined();
     });
   });
 });
