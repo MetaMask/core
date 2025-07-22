@@ -3703,17 +3703,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/keyring-internal-api@npm:^6.2.0":
-  version: 6.2.0
-  resolution: "@metamask/keyring-internal-api@npm:6.2.0"
-  dependencies:
-    "@metamask/keyring-api": "npm:^18.0.0"
-    "@metamask/keyring-utils": "npm:^3.0.0"
-    "@metamask/superstruct": "npm:^3.1.0"
-  checksum: 10/81d1d91528ab422cc99d78204a23e21fbc96c9d3ae9ebb2589a28a897b2968f9c576af22f18c3e36c6731e518e2bd890272d5a1ce4f5e42ebbc589594a170dd8
-  languageName: node
-  linkType: hard
-
 "@metamask/keyring-internal-api@npm:^7.0.0":
   version: 7.0.0
   resolution: "@metamask/keyring-internal-api@npm:7.0.0"
@@ -3927,25 +3916,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/multichain-network-controller@npm:^0.9.0":
-  version: 0.9.0
-  resolution: "@metamask/multichain-network-controller@npm:0.9.0"
-  dependencies:
-    "@metamask/base-controller": "npm:^8.0.1"
-    "@metamask/controller-utils": "npm:^11.10.0"
-    "@metamask/keyring-api": "npm:^18.0.0"
-    "@metamask/keyring-internal-api": "npm:^6.2.0"
-    "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/utils": "npm:^11.2.0"
-    "@solana/addresses": "npm:^2.0.0"
-    lodash: "npm:^4.17.21"
-  peerDependencies:
-    "@metamask/accounts-controller": ^31.0.0
-    "@metamask/network-controller": ^24.0.0
-  checksum: 10/159716657ab1091abc403ecb72f591141e679661b6e569cce51a48f820ac4c17b1beda310fbe6b14564e0c8237e625abb55d2cb381d2ad614ea1782749dc1088
-  languageName: node
-  linkType: hard
-
 "@metamask/multichain-transactions-controller@npm:^3.0.0, @metamask/multichain-transactions-controller@workspace:packages/multichain-transactions-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/multichain-transactions-controller@workspace:packages/multichain-transactions-controller"
@@ -3997,7 +3967,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/network-controller@npm:^24.0.0, @metamask/network-controller@npm:^24.0.1, @metamask/network-controller@workspace:packages/network-controller":
+"@metamask/network-controller@npm:^24.0.1, @metamask/network-controller@workspace:packages/network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/network-controller@workspace:packages/network-controller"
   dependencies:
@@ -4048,10 +4018,10 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.1"
-    "@metamask/controller-utils": "npm:^11.10.0"
+    "@metamask/controller-utils": "npm:^11.11.0"
     "@metamask/keyring-api": "npm:^18.0.0"
-    "@metamask/multichain-network-controller": "npm:^0.9.0"
-    "@metamask/network-controller": "npm:^24.0.0"
+    "@metamask/multichain-network-controller": "npm:^0.10.0"
+    "@metamask/network-controller": "npm:^24.0.1"
     "@metamask/utils": "npm:^11.2.0"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
@@ -4062,7 +4032,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
   peerDependencies:
-    "@metamask/multichain-network-controller": ^0.9.0
+    "@metamask/multichain-network-controller": ^0.10.0
     "@metamask/network-controller": ^24.0.0
   languageName: unknown
   linkType: soft
