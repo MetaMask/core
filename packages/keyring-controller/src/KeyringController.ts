@@ -2429,12 +2429,10 @@ export class KeyringController extends BaseController<
         key,
         serializedKeyrings,
       );
-      if (this.#encryptionKey.salt) {
-        // We need to include the salt used to derive
-        // the encryption key, to be able to derive it
-        // from password again.
-        encryptedVault.salt = this.#encryptionKey.salt;
-      }
+      // We need to include the salt used to derive
+      // the encryption key, to be able to derive it
+      // from password again.
+      encryptedVault.salt = this.#encryptionKey.salt;
       const updatedState: Partial<KeyringControllerState> = {
         vault: JSON.stringify(encryptedVault),
         encryptionKey: this.#encryptionKey.exported,
