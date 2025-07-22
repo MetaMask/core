@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [31.0.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.10.0` to `^11.11.0` ([#6069](https://github.com/MetaMask/core/pull/6069))
+  - This upgrade includes performance improvements to checksum hex address normalization
+- Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
+
 ## [31.0.0]
 
 ### Changed
@@ -534,7 +542,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@31.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@31.0.1...HEAD
+[31.0.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@31.0.0...@metamask/signature-controller@31.0.1
 [31.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@30.0.0...@metamask/signature-controller@31.0.0
 [30.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@29.0.0...@metamask/signature-controller@30.0.0
 [29.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@28.0.0...@metamask/signature-controller@29.0.0

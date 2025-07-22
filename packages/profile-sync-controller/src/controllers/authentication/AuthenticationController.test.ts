@@ -13,6 +13,7 @@ import {
 import type { LoginResponse } from '../../sdk';
 import { Platform } from '../../sdk';
 import { arrangeAuthAPIs } from '../../sdk/__fixtures__/auth';
+import { MOCK_USER_PROFILE_METAMETRICS_RESPONSE } from '../../sdk/mocks/auth';
 
 const MOCK_ENTROPY_SOURCE_IDS = [
   'MOCK_ENTROPY_SOURCE_ID',
@@ -431,6 +432,61 @@ describe('authentication/authentication-controller - getSessionProfile() tests',
   });
 });
 
+describe('authentication/authentication-controller - getUserProfileMetaMetrics() tests', () => {
+  it('should throw error if not logged in', async () => {
+    const metametrics = createMockAuthMetaMetrics();
+    const { messenger } = createMockAuthenticationMessenger();
+    const controller = new AuthenticationController({
+      messenger,
+      state: { isSignedIn: false },
+      metametrics,
+    });
+
+    await expect(controller.getUserProfileMetaMetrics()).rejects.toThrow(
+      expect.any(Error),
+    );
+  });
+
+  it('should return the profile MetaMetrics data', async () => {
+    const metametrics = createMockAuthMetaMetrics();
+    mockAuthenticationFlowEndpoints();
+
+    const { messenger } = createMockAuthenticationMessenger();
+    const originalState = mockSignedInState();
+    const controller = new AuthenticationController({
+      messenger,
+      state: originalState,
+      metametrics,
+    });
+
+    const result = await controller.getUserProfileMetaMetrics();
+    expect(result).toBeDefined();
+    expect(result).toStrictEqual(MOCK_USER_PROFILE_METAMETRICS_RESPONSE);
+  });
+
+  it('should throw error if wallet is locked', async () => {
+    const metametrics = createMockAuthMetaMetrics();
+    const { messenger, mockKeyringControllerGetState } =
+      createMockAuthenticationMessenger();
+
+    // Invalid/old state
+    const originalState = mockSignedInState();
+
+    // Mock wallet is locked
+    mockKeyringControllerGetState.mockReturnValue({ isUnlocked: false });
+
+    const controller = new AuthenticationController({
+      messenger,
+      state: originalState,
+      metametrics,
+    });
+
+    await expect(controller.getUserProfileMetaMetrics()).rejects.toThrow(
+      expect.any(Error),
+    );
+  });
+});
+
 describe('authentication/authentication-controller - isSignedIn() tests', () => {
   it('should return false if not logged in', () => {
     const metametrics = createMockAuthMetaMetrics();
@@ -548,23 +604,29 @@ function createMockAuthenticationMessenger() {
  * @returns mock auth endpoints
  */
 function mockAuthenticationFlowEndpoints(params?: {
-  endpointFail: 'nonce' | 'login' | 'token';
+  endpointFail: 'nonce' | 'login' | 'token' | 'metametrics';
 }) {
-  const { mockNonceUrl, mockOAuth2TokenUrl, mockSrpLoginUrl } = arrangeAuthAPIs(
-    {
-      mockNonceUrl:
-        params?.endpointFail === 'nonce' ? { status: 500 } : undefined,
-      mockSrpLoginUrl:
-        params?.endpointFail === 'login' ? { status: 500 } : undefined,
-      mockOAuth2TokenUrl:
-        params?.endpointFail === 'token' ? { status: 500 } : undefined,
-    },
-  );
+  const {
+    mockNonceUrl,
+    mockOAuth2TokenUrl,
+    mockSrpLoginUrl,
+    mockUserProfileMetaMetricsUrl,
+  } = arrangeAuthAPIs({
+    mockNonceUrl:
+      params?.endpointFail === 'nonce' ? { status: 500 } : undefined,
+    mockSrpLoginUrl:
+      params?.endpointFail === 'login' ? { status: 500 } : undefined,
+    mockOAuth2TokenUrl:
+      params?.endpointFail === 'token' ? { status: 500 } : undefined,
+    mockUserProfileMetaMetrics:
+      params?.endpointFail === 'metametrics' ? { status: 500 } : undefined,
+  });
 
   return {
     mockNonceUrl,
     mockOAuth2TokenUrl,
     mockSrpLoginUrl,
+    mockUserProfileMetaMetricsUrl,
   };
 }
 

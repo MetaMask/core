@@ -53,13 +53,13 @@ export { StatusTypes } from './types';
 export {
   AssetType,
   SortOrder,
-  ActionTypes,
   ChainId,
   RequestStatus,
   BridgeUserAction,
   BridgeBackgroundAction,
-  FeeType,
 } from './types';
+
+export { FeeType, ActionTypes, BridgeAssetSchema } from './utils/validators';
 
 export {
   ALLOWED_BRIDGE_CHAIN_IDS,

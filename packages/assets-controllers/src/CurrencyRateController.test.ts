@@ -572,4 +572,209 @@ describe('CurrencyRateController', () => {
 
     controller.destroy();
   });
+
+  describe('useExternalServices', () => {
+    it('should not fetch exchange rates when useExternalServices is false', async () => {
+      const fetchMultiExchangeRateStub = jest.fn();
+      const messenger = getRestrictedMessenger();
+      const controller = new CurrencyRateController({
+        useExternalServices: () => false,
+        fetchMultiExchangeRate: fetchMultiExchangeRateStub,
+        messenger,
+        state: { currentCurrency: 'usd' },
+      });
+
+      await controller.updateExchangeRate(['ETH']);
+
+      expect(fetchMultiExchangeRateStub).not.toHaveBeenCalled();
+      expect(controller.state.currencyRates).toStrictEqual({
+        ETH: {
+          conversionDate: 0,
+          conversionRate: 0,
+          usdConversionRate: null,
+        },
+      });
+
+      controller.destroy();
+    });
+
+    it('should not poll when useExternalServices is false', async () => {
+      const fetchMultiExchangeRateStub = jest.fn();
+      const messenger = getRestrictedMessenger();
+      const controller = new CurrencyRateController({
+        useExternalServices: () => false,
+        interval: 100,
+        fetchMultiExchangeRate: fetchMultiExchangeRateStub,
+        messenger,
+        state: { currentCurrency: 'usd' },
+      });
+
+      controller.startPolling({ nativeCurrencies: ['ETH'] });
+      await advanceTime({ clock, duration: 0 });
+
+      expect(fetchMultiExchangeRateStub).not.toHaveBeenCalled();
+
+      await advanceTime({ clock, duration: 100 });
+
+      expect(fetchMultiExchangeRateStub).not.toHaveBeenCalled();
+
+      controller.destroy();
+    });
+
+    it('should not fetch exchange rates when useExternalServices is false even with multiple currencies', async () => {
+      const fetchMultiExchangeRateStub = jest.fn();
+      const messenger = getRestrictedMessenger();
+      const controller = new CurrencyRateController({
+        useExternalServices: () => false,
+        fetchMultiExchangeRate: fetchMultiExchangeRateStub,
+        messenger,
+        state: { currentCurrency: 'eur' },
+      });
+
+      await controller.updateExchangeRate(['ETH', 'BTC', 'BNB']);
+
+      expect(fetchMultiExchangeRateStub).not.toHaveBeenCalled();
+      expect(controller.state.currencyRates).toStrictEqual({
+        ETH: {
+          conversionDate: 0,
+          conversionRate: 0,
+          usdConversionRate: null,
+        },
+      });
+
+      controller.destroy();
+    });
+
+    it('should not fetch exchange rates when useExternalServices is false even with testnet currencies', async () => {
+      const fetchMultiExchangeRateStub = jest.fn();
+      const messenger = getRestrictedMessenger();
+      const controller = new CurrencyRateController({
+        useExternalServices: () => false,
+        fetchMultiExchangeRate: fetchMultiExchangeRateStub,
+        messenger,
+        state: { currentCurrency: 'cad' },
+      });
+
+      await controller.updateExchangeRate(['SepoliaETH', 'GoerliETH']);
+
+      expect(fetchMultiExchangeRateStub).not.toHaveBeenCalled();
+      expect(controller.state.currencyRates).toStrictEqual({
+        ETH: {
+          conversionDate: 0,
+          conversionRate: 0,
+          usdConversionRate: null,
+        },
+      });
+
+      controller.destroy();
+    });
+
+    it('should not fetch exchange rates when useExternalServices is false even with includeUsdRate true', async () => {
+      const fetchMultiExchangeRateStub = jest.fn();
+      const messenger = getRestrictedMessenger();
+      const controller = new CurrencyRateController({
+        useExternalServices: () => false,
+        includeUsdRate: true,
+        fetchMultiExchangeRate: fetchMultiExchangeRateStub,
+        messenger,
+        state: { currentCurrency: 'jpy' },
+      });
+
+      await controller.updateExchangeRate(['ETH']);
+
+      expect(fetchMultiExchangeRateStub).not.toHaveBeenCalled();
+      expect(controller.state.currencyRates).toStrictEqual({
+        ETH: {
+          conversionDate: 0,
+          conversionRate: 0,
+          usdConversionRate: null,
+        },
+      });
+
+      controller.destroy();
+    });
+
+    it('should fetch exchange rates when useExternalServices is true (default behavior)', async () => {
+      jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+      const fetchMultiExchangeRateStub = jest
+        .fn()
+        .mockResolvedValue({ eth: { usd: 2000, eur: 1800 } });
+      const messenger = getRestrictedMessenger();
+      const controller = new CurrencyRateController({
+        useExternalServices: () => true,
+        fetchMultiExchangeRate: fetchMultiExchangeRateStub,
+        messenger,
+        state: { currentCurrency: 'eur' },
+      });
+
+      await controller.updateExchangeRate(['ETH']);
+
+      expect(fetchMultiExchangeRateStub).toHaveBeenCalledTimes(1);
+      expect(fetchMultiExchangeRateStub).toHaveBeenCalledWith(
+        'eur',
+        ['ETH'],
+        false,
+      );
+      expect(controller.state.currencyRates).toStrictEqual({
+        ETH: {
+          conversionDate: getStubbedDate() / 1000,
+          conversionRate: 1800,
+          usdConversionRate: 2000,
+        },
+      });
+
+      controller.destroy();
+    });
+
+    it('should default useExternalServices to true when not specified', async () => {
+      jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+      const fetchMultiExchangeRateStub = jest
+        .fn()
+        .mockResolvedValue({ eth: { usd: 2000, gbp: 1600 } });
+      const messenger = getRestrictedMessenger();
+      const controller = new CurrencyRateController({
+        fetchMultiExchangeRate: fetchMultiExchangeRateStub,
+        messenger,
+        state: { currentCurrency: 'gbp' },
+      });
+
+      await controller.updateExchangeRate(['ETH']);
+
+      expect(fetchMultiExchangeRateStub).toHaveBeenCalledTimes(1);
+      expect(fetchMultiExchangeRateStub).toHaveBeenCalledWith(
+        'gbp',
+        ['ETH'],
+        false,
+      );
+      expect(controller.state.currencyRates).toStrictEqual({
+        ETH: {
+          conversionDate: getStubbedDate() / 1000,
+          conversionRate: 1600,
+          usdConversionRate: 2000,
+        },
+      });
+
+      controller.destroy();
+    });
+
+    it('should not throw errors when useExternalServices is false even if fetchMultiExchangeRate would fail', async () => {
+      const fetchMultiExchangeRateStub = jest
+        .fn()
+        .mockRejectedValue(new Error('API Error'));
+      const messenger = getRestrictedMessenger();
+      const controller = new CurrencyRateController({
+        useExternalServices: () => false,
+        fetchMultiExchangeRate: fetchMultiExchangeRateStub,
+        messenger,
+        state: { currentCurrency: 'usd' },
+      });
+
+      // Should not throw an error
+      expect(await controller.updateExchangeRate(['ETH'])).toBeUndefined();
+
+      expect(fetchMultiExchangeRateStub).not.toHaveBeenCalled();
+
+      controller.destroy();
+    });
+  });
 });

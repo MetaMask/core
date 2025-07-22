@@ -3,6 +3,7 @@ export {
   REFRESH_INTERVAL_MS,
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
   BRIDGE_STATUS_CONTROLLER_NAME,
+  MAX_ATTEMPTS,
 } from './constants';
 
 export type {
@@ -10,12 +11,8 @@ export type {
   StatusRequest,
   StatusRequestDto,
   StatusRequestWithSrcTxHash,
-  Asset,
-  SrcChainStatus,
-  DestChainStatus,
   StatusResponse,
   RefuelStatusResponse,
-  RefuelData,
   BridgeHistoryItem,
   BridgeStatusControllerState,
   BridgeStatusControllerMessenger,
@@ -24,6 +21,7 @@ export type {
   BridgeStatusControllerStartPollingForBridgeTxStatusAction,
   BridgeStatusControllerWipeBridgeStatusAction,
   BridgeStatusControllerResetStateAction,
+  BridgeStatusControllerRestartPollingForFailedAttemptsAction,
   BridgeStatusControllerEvents,
   BridgeStatusControllerStateChangeEvent,
   StartPollingForBridgeTxStatusArgs,
@@ -32,7 +30,7 @@ export type {
   QuoteMetadataSerialized,
 } from './types';
 
-export { BridgeId, FeeType, ActionTypes, BridgeStatusAction } from './types';
+export { BridgeId, BridgeStatusAction } from './types';
 
 export { BridgeStatusController } from './bridge-status-controller';
 

@@ -1,7 +1,11 @@
-import { toHex, weiHexToGweiDec } from '@metamask/controller-utils';
+import {
+  convertHexToDecimal,
+  toHex,
+  weiHexToGweiDec,
+} from '@metamask/controller-utils';
 import { BigNumber } from 'bignumber.js';
 
-import { isNativeAddress } from './bridge';
+import { isNativeAddress, isSolanaChainId } from './bridge';
 import type {
   ExchangeRate,
   GenericQuoteRequest,
@@ -24,6 +28,18 @@ export const isValidQuoteRequest = (
   ];
   if (requireAmount) {
     stringFields.push('srcTokenAmount');
+  }
+  // If bridging and one of the chains is solana, require the dest wallet address
+  if (
+    partialRequest.destChainId &&
+    partialRequest.srcChainId &&
+    isSolanaChainId(partialRequest.destChainId) ===
+      !isSolanaChainId(partialRequest.srcChainId)
+  ) {
+    stringFields.push('destWalletAddress');
+    if (!partialRequest.destWalletAddress) {
+      return false;
+    }
   }
   const numberFields = [];
   // if slippage is defined, require it to be a number
@@ -110,10 +126,15 @@ export const calcSentAmount = (
   { srcTokenAmount, srcAsset, feeData }: Quote,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
-  const normalizedSentAmount = calcTokenAmount(
-    new BigNumber(srcTokenAmount).plus(feeData.metabridge.amount),
-    srcAsset.decimals,
+  // Find all fees that will be taken from the src token
+  const srcTokenFees = Object.values(feeData).filter(
+    (fee) => fee && fee.amount && fee.asset?.assetId === srcAsset.assetId,
   );
+  const sentAmount = srcTokenFees.reduce(
+    (acc, { amount }) => acc.plus(amount),
+    new BigNumber(srcTokenAmount),
+  );
+  const normalizedSentAmount = calcTokenAmount(sentAmount, srcAsset.decimals);
   return {
     amount: normalizedSentAmount.toString(),
     valueInCurrency: exchangeRate
@@ -126,21 +147,23 @@ export const calcSentAmount = (
 };
 
 export const calcRelayerFee = (
-  bridgeQuote: QuoteResponse,
+  { quote, trade }: QuoteResponse,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
-  const {
-    quote: { srcAsset, srcTokenAmount, feeData },
-    trade,
-  } = bridgeQuote;
-  const relayerFeeInNative = calcTokenAmount(
-    new BigNumber(trade.value || '0x0', 16).minus(
-      isNativeAddress(srcAsset.address)
-        ? new BigNumber(srcTokenAmount).plus(feeData.metabridge.amount)
-        : 0,
-    ),
-    18,
+  const relayerFeeAmount = new BigNumber(
+    convertHexToDecimal(trade.value || '0x0'),
   );
+  let relayerFeeInNative = calcTokenAmount(relayerFeeAmount, 18);
+
+  // Subtract srcAmount and other fees from trade value if srcAsset is native
+  if (isNativeAddress(quote.srcAsset.address)) {
+    const sentAmountInNative = calcSentAmount(quote, {
+      exchangeRate,
+      usdExchangeRate,
+    }).amount;
+    relayerFeeInNative = relayerFeeInNative.minus(sentAmountInNative);
+  }
+
   return {
     amount: relayerFeeInNative,
     valueInCurrency: exchangeRate
@@ -267,23 +290,63 @@ export const calcTotalMaxNetworkFee = (
   };
 };
 
+// Gas is included for some swap quotes and this is the value displayed in the client
+export const calcIncludedTxFees = (
+  { gasIncluded, srcAsset, feeData: { txFee } }: Quote,
+  srcTokenExchangeRate: ExchangeRate,
+  destTokenExchangeRate: ExchangeRate,
+) => {
+  if (!txFee || !gasIncluded) {
+    return null;
+  }
+  // Use exchange rate of the token that is being used to pay for the transaction
+  const { exchangeRate, usdExchangeRate } =
+    txFee.asset.assetId === srcAsset.assetId
+      ? srcTokenExchangeRate
+      : destTokenExchangeRate;
+  const normalizedTxFeeAmount = calcTokenAmount(
+    txFee.amount,
+    txFee.asset.decimals,
+  );
+
+  return {
+    amount: normalizedTxFeeAmount.toString(),
+    valueInCurrency: exchangeRate
+      ? normalizedTxFeeAmount.times(exchangeRate).toString()
+      : null,
+    usd: usdExchangeRate
+      ? normalizedTxFeeAmount.times(usdExchangeRate).toString()
+      : null,
+  };
+};
+
 export const calcAdjustedReturn = (
   toTokenAmount: ReturnType<typeof calcToAmount>,
   totalEstimatedNetworkFee: ReturnType<typeof calcTotalEstimatedNetworkFee>,
-) => ({
-  valueInCurrency:
-    toTokenAmount.valueInCurrency && totalEstimatedNetworkFee.valueInCurrency
-      ? new BigNumber(toTokenAmount.valueInCurrency)
-          .minus(totalEstimatedNetworkFee.valueInCurrency)
-          .toString()
-      : null,
-  usd:
-    toTokenAmount.usd && totalEstimatedNetworkFee.usd
-      ? new BigNumber(toTokenAmount.usd)
-          .minus(totalEstimatedNetworkFee.usd)
-          .toString()
-      : null,
-});
+  { feeData: { txFee }, destAsset: { assetId: destAssetId } }: Quote,
+) => {
+  // If gas is included and is taken from the dest token, don't subtract network fee from return
+  if (txFee?.asset?.assetId === destAssetId) {
+    return {
+      valueInCurrency: toTokenAmount.valueInCurrency,
+      usd: toTokenAmount.usd,
+    };
+  }
+  return {
+    valueInCurrency:
+      toTokenAmount.valueInCurrency && totalEstimatedNetworkFee.valueInCurrency
+        ? new BigNumber(toTokenAmount.valueInCurrency)
+            .minus(totalEstimatedNetworkFee.valueInCurrency)
+            .toString()
+        : null,
+    usd:
+      toTokenAmount.usd && totalEstimatedNetworkFee.usd
+        ? new BigNumber(toTokenAmount.usd)
+            .minus(totalEstimatedNetworkFee.usd)
+            .toString()
+        : null,
+  };
+};
 
 export const calcSwapRate = (sentAmount: string, destTokenAmount: string) =>
   new BigNumber(destTokenAmount).div(sentAmount).toString();

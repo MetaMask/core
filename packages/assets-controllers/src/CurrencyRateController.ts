@@ -95,6 +95,8 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
 
   private readonly includeUsdRate;
 
+  private readonly useExternalServices: () => boolean;
+
   /**
    * Creates a CurrencyRateController instance.
    *
@@ -103,11 +105,13 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
    * @param options.interval - The polling interval, in milliseconds.
    * @param options.messenger - A reference to the messaging system.
    * @param options.state - Initial state to set on this controller.
+   * @param options.useExternalServices - Feature Switch for using external services (default: true)
    * @param options.fetchMultiExchangeRate - Fetches the exchange rate from an external API. This option is primarily meant for use in unit tests.
    */
   constructor({
     includeUsdRate = false,
     interval = 180000,
+    useExternalServices = () => true,
     messenger,
     state,
     fetchMultiExchangeRate = defaultFetchMultiExchangeRate,
@@ -116,6 +120,7 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
     interval?: number;
     messenger: CurrencyRateMessenger;
     state?: Partial<CurrencyRateState>;
+    useExternalServices?: () => boolean;
     fetchMultiExchangeRate?: typeof defaultFetchMultiExchangeRate;
   }) {
     super({
@@ -125,6 +130,7 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
       state: { ...defaultState, ...state },
     });
     this.includeUsdRate = includeUsdRate;
+    this.useExternalServices = useExternalServices;
     this.setIntervalLength(interval);
     this.fetchMultiExchangeRate = fetchMultiExchangeRate;
   }
@@ -160,6 +166,10 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
   async updateExchangeRate(
     nativeCurrencies: (string | undefined)[],
   ): Promise<void> {
+    if (!this.useExternalServices()) {
+      return;
+    }
+
     const releaseLock = await this.mutex.acquire();
     try {
       const { currentCurrency } = this.state;
