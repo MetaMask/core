@@ -110,7 +110,7 @@ export class PermissionLogController extends BaseController<
           anonymous: false,
         },
         permissionActivityLog: {
-          persist: true,
+          persist: false,
           anonymous: false,
         },
       },

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.0]
+
+### Fixed
+
+- Retrieve `accessToken` from the encrypted vault if it's not available as an in-memory state. ([#6155](https://github.com/MetaMask/core/pull/6155))
+
 ## [2.3.0]
 
 ### Uncategorized
@@ -108,7 +114,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `checkIsPasswordOutdated`: Check if the password is current device is outdated, i.e. user changed password in another device.
     - `clearState`: Reset the state of the controller to the defaults.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@2.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@2.4.0...HEAD
+[2.4.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@2.3.0...@metamask/seedless-onboarding-controller@2.4.0
 [2.3.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@2.2.0...@metamask/seedless-onboarding-controller@2.3.0
 [2.2.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@2.1.0...@metamask/seedless-onboarding-controller@2.2.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@2.0.1...@metamask/seedless-onboarding-controller@2.1.0
