@@ -6,20 +6,8 @@ import type {
   TransactionParams,
 } from '@metamask/transaction-controller';
 
-export type Transaction = {
-  from: string;
-  to: string;
-  value: string;
-  data: string;
-  nonce: string;
-};
-
-export type CoverageStatus = 'success' | 'error';
-
-export type CoverageResult = {
-  txId: string;
-  status: CoverageStatus;
-};
+import { controllerName } from './constants';
+import type { CoverageResult, ShieldBackend } from './types';
 
 export type ShieldControllerState = {
   coverageResults: CoverageResult[];
@@ -35,11 +23,6 @@ function getDefaultShieldControllerState(): ShieldControllerState {
     coverageResults: [],
   };
 }
-
-/**
- * The name of the {@link ShieldController}.
- */
-const controllerName = 'ShieldController';
 
 export type ShieldControllerCheckCoverageAction = {
   type: `${typeof controllerName}:checkCoverage`;
@@ -98,6 +81,7 @@ const metadata = {
 export type ShieldControllerOptions = {
   messenger: ShieldControllerMessenger;
   state?: ShieldControllerState;
+  backend: ShieldBackend;
 };
 
 export class ShieldController extends BaseController<
@@ -105,8 +89,10 @@ export class ShieldController extends BaseController<
   ShieldControllerState,
   ShieldControllerMessenger
 > {
+  readonly #backend: ShieldBackend;
+
   constructor(options: ShieldControllerOptions) {
-    const { messenger, state } = options;
+    const { messenger, state, backend } = options;
     super({
       name: controllerName,
       metadata,
@@ -116,6 +102,8 @@ export class ShieldController extends BaseController<
         ...state,
       },
     });
+
+    this.#backend = backend;
   }
 
   start() {
@@ -131,13 +119,13 @@ export class ShieldController extends BaseController<
 
   async checkCoverage(txParams: TransactionParams): Promise<CoverageResult> {
     // Check subscription status
-    const subscriptionStatus = await this.checkSubscriptionStatus();
+    const subscriptionStatus = await this.#checkSubscriptionStatus();
     if (subscriptionStatus !== 'subscribed') {
       throw new Error('Not subscribed');
     }
 
     // Check coverage
-    const coverageResult = await this.fetchCoverageResult(txParams);
+    const coverageResult = await this.#fetchCoverageResult(txParams);
 
     // Publish coverage result
     this.messagingSystem.publish(
@@ -145,6 +133,19 @@ export class ShieldController extends BaseController<
       coverageResult,
     );
 
+    // Update state
+    this.update((draft) => {
+      draft.coverageResults.push(coverageResult);
+    });
+
     return coverageResult;
+  }
+
+  #checkSubscriptionStatus(): Promise<'subscribed' | 'not-subscribed'> {
+    return Promise.resolve('subscribed');
+  }
+
+  #fetchCoverageResult(txParams: TransactionParams): Promise<CoverageResult> {
+    return this.#backend.checkCoverage(txParams);
   }
 }
