@@ -11,10 +11,7 @@ import {
   type SnapKeyringAccountTransactionsUpdatedEvent,
   SnapKeyring,
 } from '@metamask/eth-snap-keyring';
-import type {
-  KeyringAccountEntropyOptions,
-  KeyringAccountOptions,
-} from '@metamask/keyring-api';
+import type { KeyringAccountEntropyOptions } from '@metamask/keyring-api';
 import {
   EthAccountType,
   EthMethod,
@@ -48,7 +45,6 @@ import {
   getEvmDerivationPathForIndex,
   getEvmGroupIndexFromAddressIndex,
   getUUIDFromAddressOfNormalAccount,
-  HdSnapKeyringAccountOptions,
   isHdKeyringType,
   isHdSnapKeyringAccount,
   isSimpleKeyringType,
