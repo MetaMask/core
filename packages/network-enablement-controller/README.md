@@ -25,7 +25,7 @@ const controller = new NetworkEnablementController({
   state: {
     enabledNetworkMap: {
       eip155: {
-        '0x1': true,  // Ethereum mainnet enabled
+        '0x1': true, // Ethereum mainnet enabled
         '0xa': false, // Optimism disabled
       },
       solana: {
