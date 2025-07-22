@@ -40,12 +40,15 @@ import type {
 import type { SnapId } from '@metamask/snaps-sdk';
 import { type CaipChainId, isCaipChainId } from '@metamask/utils';
 import type { WritableDraft } from 'immer/dist/internal.js';
+import { cloneDeep } from 'lodash';
 
 import type { MultichainNetworkControllerNetworkDidChangeEvent } from './types';
+import type { HdSnapKeyringAccount } from './utils';
 import {
   getEvmDerivationPathForIndex,
   getEvmGroupIndexFromAddressIndex,
   getUUIDFromAddressOfNormalAccount,
+  HdSnapKeyringAccountOptions,
   isHdKeyringType,
   isHdSnapKeyringAccount,
   isSimpleKeyringType,
@@ -1122,14 +1125,17 @@ export class AccountsController extends BaseController<
 
       // This might be undefined if the Snap deleted the account before
       // reaching that point.
-      const account = snapKeyring.getAccountByAddress(address);
+      let account = snapKeyring.getAccountByAddress(address);
       if (account) {
+        // We force the copy here, to avoid mutating the reference returned by the Snap keyring.
+        account = cloneDeep(account);
+
         // MIGRATION: To avoid any existing Snap account migration, we are
         // just "adding" the new typed options that we need for multichain
         // accounts. Ultimately, we would need a real Snap account migrations
         // (being handled by each Snaps).
         if (isHdSnapKeyringAccount(account)) {
-          const options: KeyringAccountOptions = {
+          const options: HdSnapKeyringAccount['options'] = {
             ...account.options,
             entropy: {
               type: KeyringAccountEntropyTypeOption.Mnemonic,
@@ -1138,11 +1144,8 @@ export class AccountsController extends BaseController<
               derivationPath: account.options.derivationPath,
             },
           };
-
-          // We need to type cast the `account` cause it's now typed as
-          // a "HD Snap account" which as very specific options (which
-          // are not typed the same way on `KeyringAccountOptions`.
-          (account as InternalAccount).options = options;
+          // Inject the new typed options to the internal account copy.
+          account.options = options;
         }
       }
 

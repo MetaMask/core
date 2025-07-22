@@ -2512,6 +2512,7 @@ __metadata:
     ethereum-cryptography: "npm:^2.1.2"
     immer: "npm:^9.0.6"
     jest: "npm:^27.5.1"
+    lodash: "npm:^4.17.21"
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
