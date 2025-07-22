@@ -156,32 +156,21 @@ describe('SamplePetnamesController', () => {
     });
 
     it('lowercases the given address before registering it to avoid duplicate entries', async () => {
-      await withController(
-        {
-          state: {
-            namesByChainIdAndAddress: {
-              '0x1': {
-                '0xaaaaaa': 'Account 1',
-              },
+      await withController(async ({ controller, unrestrictedMessenger }) => {
+        assignPetname({
+          controller,
+          messenger: unrestrictedMessenger,
+          args: ['0x1', '0xAAAAAA', 'Account 1'],
+        });
+
+        expect(controller.state).toStrictEqual({
+          namesByChainIdAndAddress: {
+            '0x1': {
+              '0xaaaaaa': 'Account 1',
             },
           },
-        },
-        async ({ controller, unrestrictedMessenger }) => {
-          assignPetname({
-            controller,
-            messenger: unrestrictedMessenger,
-            args: ['0x1', '0xAAAAAA', 'Account 1'],
-          });
-
-          expect(controller.state).toStrictEqual({
-            namesByChainIdAndAddress: {
-              '0x1': {
-                '0xaaaaaa': 'Account 1',
-              },
-            },
-          });
-        },
-      );
+        });
+      });
     });
   });
 });
