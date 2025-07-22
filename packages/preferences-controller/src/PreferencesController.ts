@@ -886,6 +886,175 @@ export class PreferencesController extends BaseController<
       state.smartAccountOptInForAccounts = accounts;
     });
   }
+
+  /**
+   * Sets the service worker keep alive preference (MV3 timestamp save)
+   *
+   * @param value - Whether to enable MV3 timestamp save
+   */
+  setServiceWorkerKeepAlivePreference(value: boolean): void {
+    this.update((state) => {
+      state.enableMV3TimestampSave = value;
+    });
+  }
+
+  /**
+   * A generic setter for any preference
+   *
+   * @param preference - The preference key to set
+   * @param value - The value to set
+   * @returns The updated preferences state
+   */
+  setPreference(preference: string, value: unknown): PreferencesState {
+    this.update((state) => {
+      // Type assertion is safe here as we control the preference keys
+      (state as Record<string, unknown>)[preference] = value;
+    });
+    return this.state;
+  }
+
+  // Additional setter methods for extension compatibility
+  setUseBlockie(useBlockie: boolean) {
+    this.update((state) => {
+      state.useBlockie = useBlockie;
+    });
+  }
+
+  setUsePhishDetect(usePhishDetect: boolean) {
+    this.update((state) => {
+      state.usePhishDetect = usePhishDetect;
+    });
+  }
+
+  setUseMultiAccountBalanceChecker(useMultiAccountBalanceChecker: boolean) {
+    this.update((state) => {
+      state.useMultiAccountBalanceChecker = useMultiAccountBalanceChecker;
+    });
+  }
+
+  setUse4ByteResolution(use4ByteResolution: boolean) {
+    this.update((state) => {
+      state.use4ByteResolution = use4ByteResolution;
+    });
+  }
+
+  setUseCurrencyRateCheck(useCurrencyRateCheck: boolean) {
+    this.update((state) => {
+      state.useCurrencyRateCheck = useCurrencyRateCheck;
+    });
+  }
+
+  setUseExternalNameSources(useExternalNameSources: boolean) {
+    this.update((state) => {
+      state.useExternalNameSources = useExternalNameSources;
+    });
+  }
+
+  setUseAddressBarEnsResolution(useAddressBarEnsResolution: boolean) {
+    this.update((state) => {
+      state.useAddressBarEnsResolution = useAddressBarEnsResolution;
+    });
+  }
+
+  setCurrentLocale(currentLocale: string) {
+    this.update((state) => {
+      state.currentLocale = currentLocale;
+    });
+  }
+
+  setDismissSeedBackUpReminder(dismissSeedBackUpReminder: boolean) {
+    this.update((state) => {
+      state.dismissSeedBackUpReminder = dismissSeedBackUpReminder;
+    });
+  }
+
+  setOverrideContentSecurityPolicyHeader(
+    overrideContentSecurityPolicyHeader: boolean,
+  ) {
+    this.update((state) => {
+      state.overrideContentSecurityPolicyHeader =
+        overrideContentSecurityPolicyHeader;
+    });
+  }
+
+  setAdvancedGasFee(advancedGasFee: Record<string, Record<string, string>>) {
+    this.update((state) => {
+      state.advancedGasFee = advancedGasFee;
+    });
+  }
+
+  setTheme(theme: string) {
+    this.update((state) => {
+      state.theme = theme;
+    });
+  }
+
+  setSnapsAddSnapAccountModalDismissed(
+    snapsAddSnapAccountModalDismissed: boolean,
+  ) {
+    this.update((state) => {
+      state.snapsAddSnapAccountModalDismissed =
+        snapsAddSnapAccountModalDismissed;
+    });
+  }
+
+  setManageInstitutionalWallets(manageInstitutionalWallets: boolean) {
+    this.update((state) => {
+      state.manageInstitutionalWallets = manageInstitutionalWallets;
+    });
+  }
+
+  setPasswordForgotten(forgottenPassword: boolean) {
+    this.update((state) => {
+      state.forgottenPassword = forgottenPassword;
+    });
+  }
+
+  getSelectedAddress(): string {
+    return this.state.selectedAddress;
+  }
+
+  getPreferences() {
+    const {
+      autoLockTimeLimit,
+      showExtensionInFullSizeView,
+      showFiatInTestnets,
+      showTestNetworks,
+      smartTransactionsOptInStatus,
+      tokenNetworkFilter,
+      showNativeTokenAsMainBalance,
+      showConfirmationAdvancedDetails,
+      privacyMode,
+    } = this.state;
+
+    return {
+      autoLockTimeLimit,
+      showExtensionInFullSizeView,
+      showFiatInTestnets,
+      showTestNetworks,
+      smartTransactionsOptInStatus,
+      tokenNetworkFilter,
+      showNativeTokenAsMainBalance,
+      showConfirmationAdvancedDetails,
+      privacyMode,
+    };
+  }
+
+  getIpfsGateway(): string {
+    return this.state.ipfsGateway;
+  }
+
+  setLedgerTransportPreference(ledgerTransportType: string) {
+    this.update((state) => {
+      state.ledgerTransportType = ledgerTransportType;
+    });
+  }
+
+  addKnownMethodData(fourBytePrefix: string, methodData: string) {
+    this.update((state) => {
+      state.knownMethodData[fourBytePrefix] = methodData;
+    });
+  }
 }
 
 export default PreferencesController;
