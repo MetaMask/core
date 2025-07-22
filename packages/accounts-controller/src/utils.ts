@@ -168,7 +168,8 @@ export function getEvmGroupIndexFromAddressIndex(
 }
 
 /**
- * HD keyring account for Snap accounts that handles non-EVM HD accounts.
+ * HD keyring account for Snap accounts that handles non-EVM HD accounts. (e.g the
+ * Solana Snap).
  */
 export const HdSnapKeyringAccountOptionsStruct = object({
   entropySource: string(),
