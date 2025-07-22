@@ -67,7 +67,7 @@ describe('SampleGasPricesController', () => {
             };
           }
 
-          throw new Error(`Unrecognized chain ID '${chainId}'`);
+          throw new Error(`Unrecognized chain ID '${givenChainId}'`);
         },
       );
       unrestrictedMessenger.registerActionHandler(
@@ -121,7 +121,7 @@ describe('SampleGasPricesController', () => {
           };
         }
 
-        throw new Error(`Unrecognized chain ID '${chainId}'`);
+        throw new Error(`Unrecognized chain ID '${givenChainId}'`);
       });
       unrestrictedMessenger.registerActionHandler(
         'SampleGasPricesService:fetchGasPrices',
@@ -205,7 +205,7 @@ describe('SampleGasPricesController', () => {
             };
           }
 
-          throw new Error(`Unrecognized chain ID '${chainId}'`);
+          throw new Error(`Unrecognized chain ID '${givenChainId}'`);
         },
       );
 
