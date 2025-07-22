@@ -43,8 +43,8 @@ import type { WritableDraft } from 'immer/dist/internal.js';
 
 import type { MultichainNetworkControllerNetworkDidChangeEvent } from './types';
 import {
-  getDerivationPathForIndex,
-  getGroupIndexFromAddressIndex,
+  getEvmDerivationPathForIndex,
+  getEvmGroupIndexFromAddressIndex,
   getUUIDFromAddressOfNormalAccount,
   isHdKeyringType,
   isHdSnapKeyringAccount,
@@ -652,7 +652,7 @@ export class AccountsController extends BaseController<
     let options: InternalAccount['options'] = {};
     if (isHdKeyringType(keyring.type)) {
       // We need to find the account index from its HD keyring.
-      const groupIndex = getGroupIndexFromAddressIndex(keyring, address);
+      const groupIndex = getEvmGroupIndexFromAddressIndex(keyring, address);
 
       // If for some reason, we cannot find this address, then the caller made a mistake
       // and it did not use the proper keyring object. For now, we do not fail and just
@@ -661,7 +661,7 @@ export class AccountsController extends BaseController<
         // NOTE: We are not using the `hdPath` from the associated keyring here and
         // getting the keyring instance here feels a bit overkill.
         // This will be naturally fixed once every keyring start using `KeyringAccount` and implement the keyring API.
-        const derivationPath = getDerivationPathForIndex(groupIndex);
+        const derivationPath = getEvmDerivationPathForIndex(groupIndex);
 
         // Those are "legacy options" and they were used before `KeyringAccount` added
         // support for type options. We keep those temporarily until we update everything

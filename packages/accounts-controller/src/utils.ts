@@ -119,23 +119,25 @@ export function isHdKeyringType(keyringType: KeyringTypes | string): boolean {
 }
 
 /**
- * Get the derivation path for the index of an account within a HD keyring.
+ * Get the derivation path for the index of an account within a EVM HD keyring.
  *
  * @param index - The account index.
  * @returns The derivation path.
  */
-export function getDerivationPathForIndex(index: number): string {
-  return `m/44'/60'/0'/0/${index}`;
+export function getEvmDerivationPathForIndex(index: number): string {
+  const purpose = '44';
+  const coinType = '60'; // Ethereum.
+  return `m/${purpose}'/${coinType}'/0'/0/${index}`;
 }
 
 /**
- * Get the group index from a keyring object (HD keyring only) and an address.
+ * Get the group index from a keyring object (EVM HD keyring only) and an address.
  *
  * @param keyring - The keyring object.
  * @param address - The address to match.
  * @returns The group index for that address, undefined if not able to match the address.
  */
-export function getGroupIndexFromAddressIndex(
+export function getEvmGroupIndexFromAddressIndex(
   keyring: KeyringObject,
   address: string,
 ): number | undefined {

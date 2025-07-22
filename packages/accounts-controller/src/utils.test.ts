@@ -1,7 +1,7 @@
 import type { KeyringObject } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 
-import { getGroupIndexFromAddressIndex, isNormalKeyringType } from './utils';
+import { getEvmGroupIndexFromAddressIndex, isNormalKeyringType } from './utils';
 
 describe('utils', () => {
   describe('isNormalKeyringType', () => {
@@ -29,13 +29,13 @@ describe('utils', () => {
     };
 
     it('returns the group index for a valid address', () => {
-      expect(getGroupIndexFromAddressIndex(keyring, keyring.accounts[0])).toBe(
+      expect(getEvmGroupIndexFromAddressIndex(keyring, keyring.accounts[0])).toBe(
         0,
       );
-      expect(getGroupIndexFromAddressIndex(keyring, keyring.accounts[1])).toBe(
+      expect(getEvmGroupIndexFromAddressIndex(keyring, keyring.accounts[1])).toBe(
         1,
       );
-      expect(getGroupIndexFromAddressIndex(keyring, keyring.accounts[2])).toBe(
+      expect(getEvmGroupIndexFromAddressIndex(keyring, keyring.accounts[2])).toBe(
         2,
       );
     });
@@ -50,7 +50,7 @@ describe('utils', () => {
         };
 
         expect(
-          getGroupIndexFromAddressIndex(badKeyring, keyring.accounts[0]),
+          getEvmGroupIndexFromAddressIndex(badKeyring, keyring.accounts[0]),
         ).toBeUndefined();
       }
     });
@@ -60,7 +60,7 @@ describe('utils', () => {
 
       const badAddress = '0xbad';
       expect(
-        getGroupIndexFromAddressIndex(keyring, badAddress),
+        getEvmGroupIndexFromAddressIndex(keyring, badAddress),
       ).toBeUndefined();
       expect(consoleSpy).toHaveBeenCalledWith(
         `! Unable to get group index for HD account: "${badAddress}"`,
