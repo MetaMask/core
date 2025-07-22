@@ -36,7 +36,7 @@ import { Mutex } from 'async-mutex';
 import type { MutexInterface } from 'async-mutex';
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
 import type { Patch } from 'immer';
-import { isEqual } from 'lodash';
+import { cloneDeep, isEqual } from 'lodash';
 // When generating a ULID within the same millisecond, monotonicFactory provides some guarantees regarding sort order.
 import { ulid } from 'ulid';
 
@@ -2769,16 +2769,13 @@ export class KeyringController extends BaseController<
   ): Promise<Result> {
     return this.#withControllerLock(async ({ releaseLock }) => {
       const currentSerializedKeyrings = await this.#getSerializedKeyrings();
-      const currentEncryptionKey = this.#encryptionKey?.exported;
-      const currentEncryptionSalt = this.#encryptionKey?.salt;
+      const currentEncryptionKey = cloneDeep(this.#encryptionKey);
 
       try {
         return await callback({ releaseLock });
       } catch (e) {
         // Keyrings and encryption credentials are restored to their previous state
-        if (currentEncryptionKey && currentEncryptionSalt) {
-          this.#useEncryptionKey(currentEncryptionKey, currentEncryptionSalt);
-        }
+        this.#encryptionKey = currentEncryptionKey;
         await this.#restoreSerializedKeyrings(currentSerializedKeyrings);
 
         throw e;
