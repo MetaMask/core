@@ -87,7 +87,7 @@ describe('SampleGasPricesService', () => {
       );
     });
 
-    it('resumes requests after the circuit break duration passes, ulttimately returning the API response if the request succeeds', async () => {
+    it('resumes requests after the circuit break duration passes, ultimately returning the API response if the request succeeds', async () => {
       const circuitBreakDuration = 5_000;
       nock('https://example.com/gas-prices')
         .get('/0x1.json')
