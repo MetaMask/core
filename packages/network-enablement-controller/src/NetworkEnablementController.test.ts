@@ -603,5 +603,20 @@ describe('NetworkEnablementController', () => {
         ][ChainId[BuiltInNetworkName.Mainnet]],
       ).toBe(true);
     });
+
+    it('should handle namespace for solana', () => {
+      const controller = new NetworkEnablementController({
+        messenger: messenger as NetworkEnablementControllerMessenger,
+      });
+
+      controller.setEnabledNetwork(
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+        false,
+      );
+
+      expect(
+        controller.isNetworkEnabled('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
+      ).toBe(true);
+    });
   });
 });

@@ -185,7 +185,7 @@ export class NetworkEnablementController extends BaseController<
   }
 
   /**
-   * Enables a network for the user.
+   * Enables or disables a network for the user.
    *
    * This method accepts either a Hex chain ID (for EVM networks) or a CAIP-2 chain ID
    * (for any blockchain network). The method will automatically convert Hex chain IDs
@@ -196,12 +196,13 @@ export class NetworkEnablementController extends BaseController<
    * When enabling a non-popular network, this method will disable all other networks
    * to ensure only one network is active at a time (exclusive mode).
    *
-   * @param chainId - The chain ID of the network to enable. Can be either:
+   * @param chainId - The chain ID of the network to enable or disable. Can be either:
    * - A Hex string (e.g., '0x1' for Ethereum mainnet) for EVM networks
    * - A CAIP-2 chain ID (e.g., 'eip155:1' for Ethereum mainnet, 'solana:mainnet' for Solana)
+   * @param enable - Whether to enable (true) or disable (false) the network. Defaults to true.
    */
-  setEnabledNetwork(chainId: Hex | CaipChainId): void {
-    this.#toggleNetwork(chainId, true);
+  setEnabledNetwork(chainId: Hex | CaipChainId, enable = true): void {
+    this.#toggleNetwork(chainId, enable);
   }
 
   /**
@@ -422,15 +423,9 @@ export class NetworkEnablementController extends BaseController<
    * @param caipId - The chain ID to check (can be Hex or CAIP-2 format)
    * @returns True if the network is popular, false otherwise
    */
-  #isPopularNetwork(caipId: CaipChainId | string): boolean {
-    if (isHexString(caipId)) {
-      return POPULAR_NETWORKS.includes(caipId);
-    }
-    const { namespace, reference } = parseCaipChainId(caipId);
-    if (namespace === (KnownCaipNamespace.Eip155 as string)) {
-      return POPULAR_NETWORKS.includes(toHex(reference));
-    }
-    return false;
+  #isPopularNetwork(caipId: CaipChainId): boolean {
+    const { reference } = parseCaipChainId(caipId);
+    return POPULAR_NETWORKS.includes(toHex(reference));
   }
 
   /**
@@ -460,7 +455,8 @@ export class NetworkEnablementController extends BaseController<
     // Don't disable the last remaining enabled network
     if (
       !enable &&
-      Object.values(selectAllEnabledNetworks(this.state)).flat().length <= 1
+      Object.values(selectAllEnabledNetworks(this.state)[namespace]).flat()
+        .length <= 1
     ) {
       return;
     }
