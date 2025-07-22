@@ -456,7 +456,7 @@ describe('MultichainAccountService', () => {
 
     it('ignores non-BIP-44 accounts on AccountsController:accountAdded', () => {
       const accounts = [account1];
-      const { service, messenger, mocks } = setup({ accounts, keyrings });
+      const { service, messenger } = setup({ accounts, keyrings });
 
       const wallet1 = service.getMultichainAccountWallet(entropy1);
       const oldMultichainAccounts = wallet1.getMultichainAccounts();
