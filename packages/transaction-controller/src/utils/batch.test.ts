@@ -932,50 +932,6 @@ describe('Batch Utils', () => {
           PUBLISH_BATCH_HOOK_PARAMS,
         );
       });
-      //   const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
-
-      //   addTransactionMock
-      //     .mockResolvedValueOnce({
-      //       transactionMeta: {
-      //         ...TRANSACTION_META_MOCK,
-      //         id: TRANSACTION_ID_MOCK,
-      //       },
-      //       result: Promise.resolve(''),
-      //     })
-      //     .mockResolvedValueOnce({
-      //       transactionMeta: {
-      //         ...TRANSACTION_META_MOCK,
-      //         id: TRANSACTION_ID_2_MOCK,
-      //       },
-      //       result: Promise.resolve(''),
-      //     });
-      //   addTransactionBatch({
-      //     ...request,
-      //     publishBatchHook,
-      //     request: {
-      //       ...request.request,
-      //       transactions: [
-      //         {
-      //           ...request.request.transactions[0],
-      //           type: TransactionType.swap,
-      //         },
-      //         {
-      //           ...request.request.transactions[1],
-      //           type: TransactionType.bridge,
-      //         },
-      //       ],
-      //       disable7702: true,
-      //     },
-      //   }).catch(() => {
-      //     // Intentionally empty
-      //   });
-
-      //   await flushPromises();
-
-      //   expect(addTransactionMock).toHaveBeenCalledTimes(2);
-      //   expect(addTransactionMock.mock.calls[0][1].type).toBe('swap');
-      //   expect(addTransactionMock.mock.calls[1][1].type).toBe('bridge');
-      // });
 
       it('resolves individual publish hooks with transaction hashes from publish batch hook', async () => {
         const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
