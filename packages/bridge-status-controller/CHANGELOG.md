@@ -9,12 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [36.1.0]
 
-### Uncategorized
-
-- chore: update bridge status changelog ([#6164](https://github.com/MetaMask/core/pull/6164))
-- Release/470.0.0 ([#6148](https://github.com/MetaMask/core/pull/6148))
-- Release/467.0.0 ([#6121](https://github.com/MetaMask/core/pull/6121))
-
 ### Added
 
 - Add `restartPollingForFailedAttempts` action to restart polling for txs that are not in a final state but have too many failed attempts ([#6149](https://github.com/MetaMask/core/pull/6149))
