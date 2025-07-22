@@ -141,6 +141,9 @@ export function getEvmGroupIndexFromAddressIndex(
   keyring: KeyringObject,
   address: string,
 ): number | undefined {
+  // TODO: Remove this function once EVM HD keyrings start using the new unified
+  // keyring API.
+
   // NOTE: We mostly put that logic in a separate function so we can easily add coverage
   // for (supposedly) unreachable code path.
 
