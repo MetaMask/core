@@ -4000,6 +4000,31 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metamask/network-enablement-controller@workspace:packages/network-enablement-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/network-enablement-controller@workspace:packages/network-enablement-controller"
+  dependencies:
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/base-controller": "npm:^8.0.1"
+    "@metamask/controller-utils": "npm:^11.10.0"
+    "@metamask/keyring-api": "npm:^18.0.0"
+    "@metamask/multichain-network-controller": "npm:^0.9.0"
+    "@metamask/network-controller": "npm:^24.0.0"
+    "@metamask/utils": "npm:^11.2.0"
+    "@types/jest": "npm:^27.4.1"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^27.5.1"
+    reselect: "npm:^5.1.1"
+    ts-jest: "npm:^27.1.4"
+    typedoc: "npm:^0.24.8"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.2.2"
+  peerDependencies:
+    "@metamask/multichain-network-controller": ^0.9.0
+    "@metamask/network-controller": ^24.0.0
+  languageName: unknown
+  linkType: soft
+
 "@metamask/nonce-tracker@npm:^6.0.0":
   version: 6.0.0
   resolution: "@metamask/nonce-tracker@npm:6.0.0"
