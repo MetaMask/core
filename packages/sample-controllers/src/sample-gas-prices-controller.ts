@@ -293,8 +293,8 @@ export class SampleGasPricesController extends BaseController<
     );
 
     if (chainId !== this.#selectedChainId) {
-      await this.updateGasPrices({ chainId });
       this.#selectedChainId = chainId;
+      await this.updateGasPrices({ chainId });
     }
   }
 }
