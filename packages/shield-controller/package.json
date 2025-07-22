@@ -40,11 +40,13 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^8.0.1"
+    "@metamask/base-controller": "^8.0.1",
+    "@metamask/utils": "^11.4.2"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.3.4",
     "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/transaction-controller": "^58.1.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
@@ -52,6 +54,9 @@
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.2.2"
+  },
+  "peerDependencies": {
+    "@metamask/transaction-controller": "^58.1.1"
   },
   "engines": {
     "node": "^18.18 || >=20"
