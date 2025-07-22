@@ -1,4 +1,3 @@
-import { SHARED_SALT } from './constants';
 import { byteArrayToBase64 } from './utils';
 
 type CachedEntry = {
@@ -42,31 +41,6 @@ export function getCachedKeyBySalt(
 
   return {
     salt,
-    base64Salt,
-    key: cachedKey,
-  };
-}
-
-/**
- * Gets the cached key that was generated without a salt, if it exists.
- * This is unique per hashed password.
- *
- * @param hashedPassword - hashed password for cache lookup
- * @returns the cached key
- */
-export function getCachedKeyGeneratedWithSharedSalt(
-  hashedPassword: string,
-): CachedEntry | undefined {
-  const cache = getPasswordCache(hashedPassword);
-  const base64Salt = byteArrayToBase64(SHARED_SALT);
-  const cachedKey = cache.get(base64Salt);
-
-  if (!cachedKey) {
-    return undefined;
-  }
-
-  return {
-    salt: SHARED_SALT,
     base64Salt,
     key: cachedKey,
   };
