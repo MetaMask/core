@@ -574,13 +574,9 @@ export class AccountsController extends BaseController<
           continue;
         }
 
+        // Get current index for this keyring (we use human indexing, so start at 1).
         const keyringAccountIndex =
-          keyringAccountIndexes.get(keyringTypeName) ?? 0;
-        if (keyringAccountIndex) {
-          keyringAccountIndexes.set(keyringTypeName, keyringAccountIndex + 1);
-        } else {
-          keyringAccountIndexes.set(keyringTypeName, 1);
-        }
+          keyringAccountIndexes.get(keyringTypeName) ?? 1;
 
         const existingAccount = existingInternalAccounts[internalAccount.id];
         internalAccounts[internalAccount.id] = {
@@ -592,11 +588,14 @@ export class AccountsController extends BaseController<
             // Re-use existing metadata if any.
             name:
               existingAccount?.metadata.name ??
-              `${keyringTypeName} ${keyringAccountIndex + 1}`,
+              `${keyringTypeName} ${keyringAccountIndex}`,
             importTime: existingAccount?.metadata.importTime ?? Date.now(),
             lastSelected: existingAccount?.metadata.lastSelected ?? 0,
           },
         };
+
+        // Increment the account index for this keyring.
+        keyringAccountIndexes.set(keyringTypeName, keyringAccountIndex + 1);
       }
     }
 
