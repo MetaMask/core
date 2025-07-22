@@ -12,6 +12,10 @@ The NetworkEnablementController tracks which networks are enabled/disabled for t
 npm install @metamask/network-enablement-controller
 ```
 
+```bash
+yarn add @metamask/network-enablement-controller
+```
+
 ## Usage
 
 ### Basic Controller Usage
