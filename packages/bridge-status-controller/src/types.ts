@@ -129,6 +129,14 @@ export type BridgeHistoryItem = {
   hasApprovalTx: boolean;
   approvalTxId?: string;
   isStxEnabled?: boolean;
+  /**
+   * Attempts tracking for exponential backoff on failed fetches.
+   * We track the number of attempts and the last attempt time for each txMetaId that has failed at least once
+   */
+  attempts?: {
+    counter: number;
+    lastAttemptTime: number; // timestamp in ms
+  };
 };
 
 export enum BridgeStatusAction {
@@ -137,6 +145,7 @@ export enum BridgeStatusAction {
   GET_STATE = 'getState',
   RESET_STATE = 'resetState',
   SUBMIT_TX = 'submitTx',
+  RESTART_POLLING_FOR_FAILED_ATTEMPTS = 'restartPollingForFailedAttempts',
 }
 
 export type TokenAmountValuesSerialized = {
@@ -232,12 +241,16 @@ export type BridgeStatusControllerResetStateAction =
 export type BridgeStatusControllerSubmitTxAction =
   BridgeStatusControllerAction<BridgeStatusAction.SUBMIT_TX>;
 
+export type BridgeStatusControllerRestartPollingForFailedAttemptsAction =
+  BridgeStatusControllerAction<BridgeStatusAction.RESTART_POLLING_FOR_FAILED_ATTEMPTS>;
+
 export type BridgeStatusControllerActions =
   | BridgeStatusControllerStartPollingForBridgeTxStatusAction
   | BridgeStatusControllerWipeBridgeStatusAction
   | BridgeStatusControllerResetStateAction
   | BridgeStatusControllerGetStateAction
-  | BridgeStatusControllerSubmitTxAction;
+  | BridgeStatusControllerSubmitTxAction
+  | BridgeStatusControllerRestartPollingForFailedAttemptsAction;
 
 // Events
 export type BridgeStatusControllerStateChangeEvent = ControllerStateChangeEvent<

@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/keyring-api` from `^18.0.0` to `^19.0.0` ([#6146](https://github.com/MetaMask/core/pull/6146))
 
+### Fixed
+
+- Don't poll indefinitely for bridge tx status if the tx is not found. Implement exponential backoff to prevent overwhelming the bridge API. ([#6149](https://github.com/MetaMask/core/pull/6149))
+
 ## [36.0.0]
 
 ### Changed

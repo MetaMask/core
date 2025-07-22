@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Preserve provided `type` in `transactions` when calling `addTransactionBatch` ([#6056](https://github.com/MetaMask/core/pull/6056))
+- Normalize transaction `data` to ensure case-insensitive detection ([#6102](https://github.com/MetaMask/core/pull/6102))
 
 ## [58.1.1]
 
