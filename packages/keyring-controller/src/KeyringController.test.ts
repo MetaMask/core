@@ -38,6 +38,7 @@ import {
 } from './KeyringController';
 import MockEncryptor, {
   MOCK_ENCRYPTION_KEY,
+  MOCK_ENCRYPTION_SALT,
   MOCK_KEY,
 } from '../tests/mocks/mockEncryptor';
 import { MockErc4337Keyring } from '../tests/mocks/mockErc4337Keyring';
@@ -2944,7 +2945,10 @@ describe('KeyringController', () => {
   describe('submitEncryptionKey', () => {
     it('should submit encryption key and decrypt', async () => {
       await withController(async ({ controller, initialState }) => {
-        await controller.submitEncryptionKey(MOCK_ENCRYPTION_KEY);
+        await controller.submitEncryptionKey(
+          MOCK_ENCRYPTION_KEY,
+          MOCK_ENCRYPTION_SALT,
+        );
         expect(controller.state).toStrictEqual(initialState);
       });
     });
@@ -2954,10 +2958,13 @@ describe('KeyringController', () => {
         {
           skipVaultCreation: true,
           state: {
-            vault: JSON.stringify({ data: '0x123', salt: 'my salt' }),
+            vault: JSON.stringify({
+              data: '0x123',
+              salt: MOCK_ENCRYPTION_SALT,
+            }),
             // @ts-expect-error we want to force the controller to have an
             // encryption salt equal to the one in the vault
-            encryptionSalt: 'my salt',
+            encryptionSalt: MOCK_ENCRYPTION_SALT,
           },
         },
         async ({ controller, encryptor }) => {
@@ -2968,7 +2975,10 @@ describe('KeyringController', () => {
             },
           ]);
 
-          await controller.submitEncryptionKey(MOCK_ENCRYPTION_KEY);
+          await controller.submitEncryptionKey(
+            MOCK_ENCRYPTION_KEY,
+            MOCK_ENCRYPTION_SALT,
+          );
 
           expect(controller.state.isUnlocked).toBe(true);
         },
@@ -2984,10 +2994,13 @@ describe('KeyringController', () => {
         {
           skipVaultCreation: true,
           state: {
-            vault: JSON.stringify({ data: '0x123', salt: 'my salt' }),
+            vault: JSON.stringify({
+              data: '0x123',
+              salt: MOCK_ENCRYPTION_SALT,
+            }),
             // @ts-expect-error we want to force the controller to have an
             // encryption salt equal to the one in the vault
-            encryptionSalt: 'my salt',
+            encryptionSalt: MOCK_ENCRYPTION_SALT,
           },
         },
         async ({ controller, encryptor }) => {
@@ -3000,7 +3013,10 @@ describe('KeyringController', () => {
             },
           ]);
 
-          await controller.submitEncryptionKey(MOCK_ENCRYPTION_KEY);
+          await controller.submitEncryptionKey(
+            MOCK_ENCRYPTION_KEY,
+            MOCK_ENCRYPTION_SALT,
+          );
 
           expect(controller.state.isUnlocked).toBe(true);
           expect(encryptWithKeySpy).toHaveBeenCalledWith('imported key', [
@@ -3028,7 +3044,10 @@ describe('KeyringController', () => {
         ]);
 
         await expect(
-          controller.submitEncryptionKey(MOCK_ENCRYPTION_KEY),
+          controller.submitEncryptionKey(
+            MOCK_ENCRYPTION_KEY,
+            MOCK_ENCRYPTION_SALT,
+          ),
         ).rejects.toThrow(KeyringControllerError.VaultDataError);
       });
     });
@@ -3040,8 +3059,30 @@ describe('KeyringController', () => {
             // @ts-expect-error we are testing the case of a user using
             // the wrong encryptionKey type
             12341234,
+            MOCK_ENCRYPTION_SALT,
           ),
         ).rejects.toThrow(KeyringControllerError.WrongEncryptionKeyType);
+      });
+    });
+
+    it('should throw error if encryptionSalt is of an unexpected type', async () => {
+      await withController(async ({ controller }) => {
+        await expect(
+          controller.submitEncryptionKey(
+            MOCK_ENCRYPTION_KEY,
+            // @ts-expect-error we are testing the case of a user using
+            // the wrong encryptionSalt type
+            12341234,
+          ),
+        ).rejects.toThrow(KeyringControllerError.WrongEncryptionKeyType);
+      });
+    });
+
+    it('should throw error if encryptionSalt is different from the one in the vault', async () => {
+      await withController(async ({ controller }) => {
+        await expect(
+          controller.submitEncryptionKey(MOCK_ENCRYPTION_KEY, '0x1234'),
+        ).rejects.toThrow(KeyringControllerError.ExpiredCredentials);
       });
     });
   });
@@ -4136,6 +4177,7 @@ describe('KeyringController', () => {
           // ..and unlocking it should add a new instance of QRKeyring
           await signProcessKeyringController.submitEncryptionKey(
             MOCK_ENCRYPTION_KEY,
+            MOCK_ENCRYPTION_SALT,
           );
           // We call `getQRKeyring` instead of `getOrAddQRKeyring` so that
           // we are able to test if the subscription to the internal QR keyring

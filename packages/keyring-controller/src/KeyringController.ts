@@ -1456,12 +1456,17 @@ export class KeyringController extends BaseController<
    * using the given encryption key and salt.
    *
    * @param encryptionKey - Key to unlock the keychain.
+   * @param encryptionSalt - Salt to unlock the keychain.
    * @returns Promise resolving when the operation completes.
    */
-  async submitEncryptionKey(encryptionKey: string): Promise<void> {
+  async submitEncryptionKey(
+    encryptionKey: string,
+    encryptionSalt: string,
+  ): Promise<void> {
     const { newMetadata } = await this.#withRollback(async () => {
       const result = await this.#unlockKeyrings({
         exportedEncryptionKey: encryptionKey,
+        encryptionKeySalt: encryptionSalt,
       });
       this.#setUnlocked();
       return result;
@@ -2180,6 +2185,11 @@ export class KeyringController extends BaseController<
       throw new TypeError(KeyringControllerError.WrongEncryptionKeyType);
     }
 
+    const { vault } = this.state;
+    if (vault && JSON.parse(vault).salt !== encryptionSalt) {
+      throw new Error(KeyringControllerError.ExpiredCredentials);
+    }
+
     this.#encryptionKey = {
       salt: encryptionSalt,
       exported: encryptionKey,
@@ -2339,6 +2349,7 @@ export class KeyringController extends BaseController<
         }
       | {
           exportedEncryptionKey: string;
+          encryptionKeySalt: string;
         },
   ): Promise<{
     keyrings: { keyring: EthKeyring; metadata: KeyringMetadata }[];
@@ -2348,15 +2359,13 @@ export class KeyringController extends BaseController<
       if (!this.state.vault) {
         throw new Error(KeyringControllerError.VaultError);
       }
-      const parsedEncryptedVault = JSON.parse(this.state.vault);
 
       if ('password' in credentials) {
         await this.#deriveEncryptionKey(credentials.password);
       } else {
-        const { exportedEncryptionKey } = credentials;
         this.#useEncryptionKey(
-          exportedEncryptionKey,
-          parsedEncryptedVault.salt,
+          credentials.exportedEncryptionKey,
+          credentials.encryptionKeySalt,
         );
       }
 
@@ -2365,6 +2374,7 @@ export class KeyringController extends BaseController<
         throw new Error(KeyringControllerError.MissingCredentials);
       }
 
+      const parsedEncryptedVault = JSON.parse(this.state.vault);
       const key = await this.#encryptor.importKey(encryptionKey);
       const vault = await this.#encryptor.decryptWithKey(
         key,
