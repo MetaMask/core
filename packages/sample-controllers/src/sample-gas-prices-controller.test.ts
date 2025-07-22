@@ -105,6 +105,66 @@ describe('SampleGasPricesController', () => {
       );
     });
 
+    it('does not fetch gas prices again if the selected network client ID changed but the selected chain ID did not', async () => {
+      const chainId = '0x42';
+      const unrestrictedMessenger = buildUnrestrictedMessenger();
+      const restrictedMessenger = buildRestrictedMessenger(
+        unrestrictedMessenger,
+      );
+      let i = 0;
+      const delays = [5000, 1000];
+      const fetchGasPrices = jest.fn(async (givenChainId) => {
+        // eslint-disable-next-line jest/no-conditional-in-test
+        if (givenChainId === chainId) {
+          jest.advanceTimersByTime(delays[i]);
+          i += 1;
+          return {
+            low: 5,
+            average: 10,
+            high: 15,
+          };
+        }
+
+        throw new Error(`Unrecognized chain ID '${givenChainId}'`);
+      });
+      unrestrictedMessenger.registerActionHandler(
+        'SampleGasPricesService:fetchGasPrices',
+        fetchGasPrices,
+      );
+      unrestrictedMessenger.registerActionHandler(
+        'NetworkController:getNetworkClientById',
+        buildMockGetNetworkClientById({
+          // @ts-expect-error We are not supplying a complete NetworkClient.
+          'AAAA-AAAA-AAAA-AAAA': {
+            chainId,
+          },
+          // @ts-expect-error We are not supplying a complete NetworkClient.
+          'BBBB-BBBB-BBBB-BBBB': {
+            chainId,
+          },
+        }),
+      );
+
+      await withController({ messenger: restrictedMessenger }, async () => {
+        unrestrictedMessenger.publish(
+          'NetworkController:stateChange',
+          // @ts-expect-error We are not supplying a complete NetworkState.
+          { selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA' },
+          [],
+        );
+        unrestrictedMessenger.publish(
+          'NetworkController:stateChange',
+          // @ts-expect-error We are not supplying a complete NetworkState.
+          { selectedNetworkClientId: 'BBBB-BBBB-BBBB-BBBB' },
+          [],
+        );
+        jest.runAllTimers();
+        await flushPromises();
+
+        expect(fetchGasPrices).toHaveBeenCalledTimes(1);
+      });
+    });
+
     it('does not fetch gas prices for the selected chain ID again if it has not changed', async () => {
       const chainId = '0x42';
       const unrestrictedMessenger = buildUnrestrictedMessenger();
