@@ -156,7 +156,9 @@ export function getEvmGroupIndexFromAddressIndex(
   // accounts are ordered, thus we can use their index to compute their
   // derivation path and group index.
   const groupIndex = keyring.accounts.findIndex(
-    (accountAddress) => accountAddress === address,
+    // NOTE: This is ok to use `toLowerCase` here, since we're only dealing
+    // with EVM addresses.
+    (accountAddress) => accountAddress.toLowerCase() === address.toLowerCase(),
   );
 
   // If for some reason, we cannot find this address, then the caller made a mistake
