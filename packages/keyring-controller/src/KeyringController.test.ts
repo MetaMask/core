@@ -90,7 +90,7 @@ describe('KeyringController', () => {
       ).not.toThrow();
     });
 
-    it('should throw error if cacheEncryptionKey is true and encryptor does not support key export', () => {
+    it('should throw error if encryptor does not support key export', () => {
       expect(
         () =>
           new KeyringController({

@@ -93,8 +93,7 @@ export type KeyringControllerState = {
   keyrings: KeyringObject[];
   /**
    * The encryption key derived from the password and used to encrypt
-   * the vault. This is only stored if the `cacheEncryptionKey` option
-   * is enabled.
+   * the vault.
    */
   encryptionKey?: string;
   /**
@@ -693,7 +692,6 @@ export class KeyringController extends BaseController<
    * @param options - Initial options used to configure this controller
    * @param options.encryptor - An optional object for defining encryption schemes.
    * @param options.keyringBuilders - Set a new name for account.
-   * @param options.cacheEncryptionKey - Whether to cache or not encryption key.
    * @param options.messenger - A restricted messenger.
    * @param options.state - Initial state to set on this controller.
    */
