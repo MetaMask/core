@@ -1,23 +1,13 @@
-export type MiddlewareContext = Readonly<
-  Map<string, unknown> & {
-    assertGet<Value>(key: string): Value;
+export class MiddlewareContext extends Map<string, unknown> {
+  constructor(entries?: Iterable<readonly [string, unknown]>) {
+    super(entries);
+    Object.freeze(this);
   }
->;
 
-export const makeMiddlewareContext = (): MiddlewareContext => {
-  const map = new Map<string, unknown>();
-  const assertGet = <Value>(key: string): Value => {
-    if (!map.has(key)) {
+  assertGet<Value>(key: string): Value {
+    if (!this.has(key)) {
       throw new Error(`Context key "${key}" not found`);
     }
-    return map.get(key) as Value;
-  };
-
-  Object.defineProperty(map, 'assertGet', {
-    value: assertGet,
-    writable: false,
-    enumerable: true,
-    configurable: false,
-  });
-  return Object.freeze(map) as MiddlewareContext;
-};
+    return this.get(key) as Value;
+  }
+}

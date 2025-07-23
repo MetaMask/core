@@ -7,10 +7,7 @@ import {
 } from '@metamask/utils';
 import deepFreeze from 'deep-freeze-strict';
 
-import {
-  makeMiddlewareContext,
-  type MiddlewareContext,
-} from './MiddlewareContext';
+import { MiddlewareContext } from './MiddlewareContext';
 import {
   isNotification,
   isRequest,
@@ -127,7 +124,7 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall, Result extends Json> {
    */
   async #handle(
     originalRequest: Request,
-    context: MiddlewareContext = makeMiddlewareContext(),
+    context: MiddlewareContext = new MiddlewareContext(),
   ): Promise<{
     result: Result | void;
     finalRequest: Readonly<Request>;
