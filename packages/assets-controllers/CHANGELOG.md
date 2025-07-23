@@ -9,12 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [73.0.0]
 
-### Uncategorized
-
-- Release/470.0.0 ([#6148](https://github.com/MetaMask/core/pull/6148))
-
 ### Changed
 
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` to `^32.0.0` ([#6171](https://github.com/MetaMask/core/pull/6171))
+- **BREAKING:** Bump peer dependency `@metamask/transaction-controller` to `^59.0.0` ([#6171](https://github.com/MetaMask/core/pull/6171))
 - Improved `TokenDetectionController` token handling flow ([#6012](https://github.com/MetaMask/core/pull/6012))
   - Detected tokens are now implicitly added directly to `allTokens` instead of being added to `allDetectedTokens` first
   - This simplifies the token import flow and improves performance by eliminating the manual UI import step

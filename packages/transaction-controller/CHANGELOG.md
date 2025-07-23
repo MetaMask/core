@@ -9,13 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [59.0.0]
 
-### Uncategorized
-
-- Release/470.0.0 ([#6148](https://github.com/MetaMask/core/pull/6148))
-
 ### Added
 
 - Add fallback to the sequential hook when `publishBatchHook` returns empty ([#6063](https://github.com/MetaMask/core/pull/6063))
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` to `^32.0.0` ([#6171](https://github.com/MetaMask/core/pull/6171))
 
 ### Fixed
 
