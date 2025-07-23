@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added an optional param, `passwordOutdatedCacheTTL` to the constructor params, so that the password cached ttl can be configurable. ((#6169)[https://github.com/MetaMask/core/pull/6169])
+- Exported `SecretMetadata` class from the controller. ((#6169)[https://github.com/MetaMask/core/pull/6169])
+
 ## [2.4.0]
 
 ### Fixed
