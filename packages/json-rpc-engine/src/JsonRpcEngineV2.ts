@@ -68,13 +68,15 @@ type Options<Request extends JsonRpcCall, Result extends Json> = {
  * ```
  */
 export class JsonRpcEngineV2<Request extends JsonRpcCall, Result extends Json> {
-  readonly #middleware: Readonly<
+  #middleware: Readonly<
     NonEmptyArray<JsonRpcMiddleware<Request, Result | void>>
   >;
 
   readonly #makeMiddlewareIterator = (): Iterator<
     JsonRpcMiddleware<Request, Result | void>
   > => this.#middleware[Symbol.iterator]();
+
+  #isDestroyed = false;
 
   constructor({ middleware }: Options<Request, Result>) {
     this.#middleware = [...middleware];
@@ -134,6 +136,8 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall, Result extends Json> {
     result: Result | void;
     request: Readonly<Request>;
   }> {
+    this.#assertIsNotDestroyed();
+
     deepFreeze(originalRequest);
 
     const state: RequestState<Request, Result> = {
@@ -260,6 +264,8 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall, Result extends Json> {
    * @returns The JSON-RPC middleware.
    */
   asMiddleware(): JsonRpcMiddleware<Request, Result> {
+    this.#assertIsNotDestroyed();
+
     return async ({ request, context, next }) => {
       const { result, request: finalRequest } = await this.#handle(
         request,
@@ -267,5 +273,37 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall, Result extends Json> {
       );
       return result === undefined ? await next(finalRequest) : result;
     };
+  }
+
+  /**
+   * Destroy the engine. Calls the `destroy()` method of any middleware that has
+   * one. Attempting to use the engine after destroying it will throw an error.
+   */
+  destroy(): void {
+    if (this.#isDestroyed) {
+      return;
+    }
+
+    this.#isDestroyed = true;
+    Promise.all(
+      this.#middleware.map(async (middleware) => {
+        if (
+          'destroy' in middleware &&
+          typeof middleware.destroy === 'function'
+        ) {
+          return middleware.destroy();
+        }
+        return undefined;
+      }),
+    ).catch((error) => {
+      console.error('Error destroying middleware:', error);
+    });
+    this.#middleware = [] as never;
+  }
+
+  #assertIsNotDestroyed(): void {
+    if (this.#isDestroyed) {
+      throw new JsonRpcEngineError('Engine is destroyed');
+    }
   }
 }

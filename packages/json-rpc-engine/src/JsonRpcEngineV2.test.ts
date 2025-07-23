@@ -1,4 +1,6 @@
 /* eslint-disable n/callback-return */ // next() is not a Node.js callback.
+import type { NonEmptyArray } from '@metamask/utils';
+
 import type { JsonRpcMiddleware } from './JsonRpcEngineV2';
 import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
 import {
@@ -716,6 +718,101 @@ describe('JsonRpcEngineV2', () => {
       // Order of result handling is reversed _within_ engines, but not
       // _between_ engines.
       expect(returnHandlerResults).toStrictEqual(['1:b', '1:a', '2:b', '2:a']);
+    });
+  });
+
+  describe('destroy', () => {
+    it('calls the destroy method of any middleware that has one', async () => {
+      const middleware = {
+        destroy: jest.fn(),
+      };
+      const engine = new JsonRpcEngineV2({
+        middleware: [middleware as unknown as JsonRpcMiddleware],
+      });
+
+      engine.destroy();
+
+      expect(middleware.destroy).toHaveBeenCalledTimes(1);
+    });
+
+    it('is idempotent', () => {
+      const middleware = {
+        destroy: jest.fn(),
+      };
+
+      const engine = new JsonRpcEngineV2({
+        middleware: [middleware as unknown as JsonRpcMiddleware],
+      });
+
+      engine.destroy();
+      engine.destroy();
+
+      expect(middleware.destroy).toHaveBeenCalledTimes(1);
+    });
+
+    it('causes handle() to throw after destroying the engine', async () => {
+      const engine = new JsonRpcEngineV2({
+        middleware: [() => null],
+      });
+
+      engine.destroy();
+
+      await expect(engine.handle(makeRequest())).rejects.toThrow(
+        new JsonRpcEngineError('Engine is destroyed'),
+      );
+    });
+
+    it('causes asMiddleware() to throw after destroying the engine', async () => {
+      const engine = new JsonRpcEngineV2({
+        middleware: [() => null],
+      });
+      engine.destroy();
+
+      expect(() => engine.asMiddleware()).toThrow(
+        new JsonRpcEngineError('Engine is destroyed'),
+      );
+    });
+
+    it('logs an error if a middleware throws when destroying', async () => {
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const middleware = {
+        destroy: jest.fn(() => {
+          throw new Error('test');
+        }),
+      };
+      const engine = new JsonRpcEngineV2({
+        middleware: [middleware as unknown as JsonRpcMiddleware],
+      });
+
+      engine.destroy();
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Error destroying middleware:',
+        new Error('test'),
+      );
+    });
+
+    it('calls the destroy() method of each middleware even if one throws', async () => {
+      const middleware1 = {
+        destroy: jest.fn(() => {
+          throw new Error('test');
+        }),
+      };
+      const middleware2 = {
+        destroy: jest.fn(),
+      };
+      const engine = new JsonRpcEngineV2({
+        middleware: [
+          middleware1,
+          middleware2,
+        ] as unknown as NonEmptyArray<JsonRpcMiddleware>,
+      });
+
+      engine.destroy();
+
+      expect(middleware1.destroy).toHaveBeenCalledTimes(1);
+      expect(middleware2.destroy).toHaveBeenCalledTimes(1);
     });
   });
 });
