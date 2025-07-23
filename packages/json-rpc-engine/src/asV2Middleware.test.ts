@@ -3,8 +3,8 @@ import type { Json, JsonRpcRequest } from '@metamask/utils';
 
 import { JsonRpcEngine } from '.';
 import { asV2Middleware } from './asV2Middleware';
-import { getExtraneousKeys, makeRequest } from '../../tests/utils';
-import { JsonRpcEngineV2 } from '../JsonRpcEngineV2';
+import { JsonRpcEngineV2 } from './v2/JsonRpcEngineV2';
+import { getExtraneousKeys, makeRequest } from '../tests/utils';
 
 describe('asV2Middleware', () => {
   it('converts a legacy engine to a v2 middleware', () => {

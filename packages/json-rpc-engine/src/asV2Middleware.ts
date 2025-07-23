@@ -17,10 +17,10 @@ import {
   propagateToContext,
   propagateToRequest,
   unserializeError,
-} from '../compatibility-utils';
+} from './v2/compatibility-utils';
 // JsonRpcEngineV2 is used in docs.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { JsonRpcMiddleware, JsonRpcEngineV2 } from '../JsonRpcEngineV2';
+import type { JsonRpcMiddleware, JsonRpcEngineV2 } from './v2/JsonRpcEngineV2';
 
 /**
  * Convert a legacy {@link JsonRpcEngine} into a {@link JsonRpcEngineV2} middleware.

@@ -1,5 +1,5 @@
 import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
-import { JsonRpcEngine } from '@metamask/json-rpc-engine/legacy';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type {
   Json,
   JsonRpcId,

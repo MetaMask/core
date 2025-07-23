@@ -19,7 +19,7 @@ import { isEqualCaseInsensitive } from '@metamask/controller-utils';
 import type {
   JsonRpcEngineEndCallback,
   JsonRpcEngineNextCallback,
-} from '@metamask/json-rpc-engine/legacy';
+} from '@metamask/json-rpc-engine';
 import type { NetworkController } from '@metamask/network-controller';
 import {
   invalidParams,

@@ -7,7 +7,7 @@ import {
 import type {
   AsyncJsonRpcEngineNextCallback,
   JsonRpcEngineEndCallback,
-} from '@metamask/json-rpc-engine/legacy';
+} from '@metamask/json-rpc-engine';
 import {
   type CaveatSpecificationConstraint,
   MethodNames,

@@ -10,7 +10,7 @@ import {
   type JsonRpcNotification,
   type JsonRpcRequest,
 } from './utils';
-import { makeRequest } from '../tests/utils';
+import { makeRequest } from '../../tests/utils';
 
 const jsonrpc = '2.0' as const;
 

@@ -8,9 +8,9 @@ import type {
 } from '@metamask/utils';
 import { hasProperty, isObject } from '@metamask/utils';
 
-import { getUniqueId } from './getUniqueId';
 import type { JsonRpcEngineV2 } from './JsonRpcEngineV2';
 import type { JsonRpcCall } from './utils';
+import { getUniqueId } from '../getUniqueId';
 
 type HandleError = (error: unknown) => void | Promise<void>;
 

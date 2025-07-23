@@ -1,4 +1,4 @@
-import { JsonRpcEngine } from '@metamask/json-rpc-engine/legacy';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 import {

@@ -13,10 +13,10 @@ or
 ## Usage
 
 > [!NOTE]
-> For the legacy `JsonRpcEngine`, see [its readme](./legacy/README.md).
+> For the legacy `JsonRpcEngine`, see [its readme](./src/README.md).
 
 ```ts
-import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine';
+import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 
 const engine = new JsonRpcEngineV2({
   // Create a stack of middleware and pass it to the engine:
@@ -149,7 +149,7 @@ import {
   isRequest,
   isNotification,
   JsonRpcEngineV2,
-} from '@metamask/json-rpc-engine';
+} from '@metamask/json-rpc-engine/v2';
 
 const engine = new JsonRpcEngineV2({
   middleware: [
@@ -432,7 +432,7 @@ const result2 = await loggingEngine.handle(request):
 The `JsonRpcServer` wraps a `JsonRpcEngineV2` to provide JSON-RPC 2.0 compliance and error handling. It coerces raw request objects into well-formed requests and handles error serialization.
 
 ```ts
-import { JsonRpcEngineV2, JsonRpcServer } from '@metamask/json-rpc-engine';
+import { JsonRpcEngineV2, JsonRpcServer } from '@metamask/json-rpc-engine/v2';
 
 const engine = new JsonRpcEngine({ middleware });
 

@@ -14,7 +14,7 @@ import {
 } from './BaseController';
 import { Messenger } from './Messenger';
 import type { RestrictedMessenger } from './RestrictedMessenger';
-import { JsonRpcEngine } from '../../json-rpc-engine/src/legacy';
+import { JsonRpcEngine } from '../../json-rpc-engine/src';
 
 export const countControllerName = 'CountController';
 

@@ -1,5 +1,5 @@
 import { Messenger } from '@metamask/base-controller';
-import { JsonRpcEngine } from '@metamask/json-rpc-engine/legacy';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type { JsonRpcResponse } from '@metamask/utils';
 
 import { SelectedNetworkControllerActionTypes } from '../src/SelectedNetworkController';

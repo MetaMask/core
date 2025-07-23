@@ -2,7 +2,7 @@ import { Caip25EndowmentPermissionName } from '@metamask/chain-agnostic-permissi
 import type {
   JsonRpcEngineNextCallback,
   JsonRpcEngineEndCallback,
-} from '@metamask/json-rpc-engine/legacy';
+} from '@metamask/json-rpc-engine';
 import {
   PermissionDoesNotExistError,
   UnrecognizedSubjectError,

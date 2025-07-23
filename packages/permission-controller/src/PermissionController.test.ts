@@ -6,7 +6,7 @@ import type {
 } from '@metamask/approval-controller';
 import { Messenger } from '@metamask/base-controller';
 import { isPlainObject } from '@metamask/controller-utils';
-import { JsonRpcEngine } from '@metamask/json-rpc-engine/legacy';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 import {
   assertIsJsonRpcFailure,

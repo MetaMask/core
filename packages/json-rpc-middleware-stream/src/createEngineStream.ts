@@ -1,4 +1,4 @@
-import type { JsonRpcEngine } from '@metamask/json-rpc-engine/legacy';
+import type { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type { JsonRpcRequest } from '@metamask/utils';
 import { Duplex } from 'readable-stream';
 

@@ -1,4 +1,4 @@
-import { JsonRpcEngine } from '@metamask/json-rpc-engine/legacy';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
 import { assertIsJsonRpcSuccess } from '@metamask/utils';
 

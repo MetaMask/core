@@ -1,5 +1,5 @@
 import { isPlainObject } from '@metamask/controller-utils';
-import type { JsonRpcEngineEndCallback } from '@metamask/json-rpc-engine/legacy';
+import type { JsonRpcEngineEndCallback } from '@metamask/json-rpc-engine';
 import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
 
 import { invalidParams } from '../errors';

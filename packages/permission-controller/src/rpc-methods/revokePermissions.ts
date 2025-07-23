@@ -1,4 +1,4 @@
-import type { JsonRpcEngineEndCallback } from '@metamask/json-rpc-engine/legacy';
+import type { JsonRpcEngineEndCallback } from '@metamask/json-rpc-engine';
 import {
   isNonEmptyArray,
   type Json,

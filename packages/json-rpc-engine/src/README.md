@@ -1,4 +1,4 @@
-# `@metamask/json-rpc-engine/legacy`
+# `JsonRpcEngine` (deprecated)
 
 The deprecated, original `JsonRpcEngine` implementation.
 

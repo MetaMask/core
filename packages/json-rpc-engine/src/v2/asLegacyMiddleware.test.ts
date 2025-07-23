@@ -8,8 +8,8 @@ import type {
 import { asLegacyMiddleware } from './asLegacyMiddleware';
 import type { JsonRpcMiddleware } from './JsonRpcEngineV2';
 import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
-import { JsonRpcEngine } from './legacy/JsonRpcEngine';
-import { getExtraneousKeys, makeRequest } from '../tests/utils';
+import { getExtraneousKeys, makeRequest } from '../../tests/utils';
+import { JsonRpcEngine } from '../JsonRpcEngine';
 
 describe('asLegacyMiddleware', () => {
   it('converts a v2 engine to a legacy middleware', () => {

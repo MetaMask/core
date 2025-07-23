@@ -1,5 +1,5 @@
 import { MultiChainOpenRPCDocument } from '@metamask/api-specs';
-import { createAsyncMiddleware } from '@metamask/json-rpc-engine/legacy';
+import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
 import { rpcErrors } from '@metamask/rpc-errors';
 import { isObject } from '@metamask/utils';
 import type { JsonRpcError, JsonRpcParams } from '@metamask/utils';

@@ -7,8 +7,8 @@ import {
   propagateToRequest,
 } from './compatibility-utils';
 import type { JsonRpcEngineV2 } from './JsonRpcEngineV2';
-import { createAsyncMiddleware } from './legacy';
-import type { JsonRpcMiddleware as LegacyMiddleware } from './legacy';
+import { createAsyncMiddleware } from '..';
+import type { JsonRpcMiddleware as LegacyMiddleware } from '..';
 
 /**
  * Convert a {@link JsonRpcEngineV2} into a legacy middleware.

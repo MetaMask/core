@@ -1,4 +1,4 @@
-import type { JsonRpcEngine } from '@metamask/json-rpc-engine/legacy';
+import type { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import { JsonRpcError } from '@metamask/rpc-errors';
 import SafeEventEmitter from '@metamask/safe-event-emitter';
 import type {

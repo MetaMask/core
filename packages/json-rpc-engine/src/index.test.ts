@@ -4,13 +4,12 @@ describe('@metamask/json-rpc-engine', () => {
   it('has expected JavaScript exports', () => {
     expect(Object.keys(allExports)).toMatchInlineSnapshot(`
       Array [
-        "asLegacyMiddleware",
-        "getUniqueId",
-        "JsonRpcServer",
-        "isNotification",
-        "isRequest",
-        "JsonRpcEngineError",
-        "JsonRpcEngineV2",
+        "asV2Middleware",
+        "createAsyncMiddleware",
+        "createScaffoldMiddleware",
+        "createIdRemapMiddleware",
+        "JsonRpcEngine",
+        "mergeMiddleware",
       ]
     `);
   });

@@ -1,7 +1,18 @@
-export { asLegacyMiddleware } from './asLegacyMiddleware';
-export { getUniqueId } from './getUniqueId';
-export * from './JsonRpcEngineV2';
-export { JsonRpcServer } from './JsonRpcServer';
-export type { MiddlewareContext } from './MiddlewareContext';
-export { isNotification, isRequest, JsonRpcEngineError } from './utils';
-export type { JsonRpcCall, JsonRpcNotification, JsonRpcRequest } from './utils';
+export { asV2Middleware } from './asV2Middleware';
+export type {
+  AsyncJsonRpcEngineNextCallback,
+  AsyncJsonrpcMiddleware,
+} from './createAsyncMiddleware';
+export { createAsyncMiddleware } from './createAsyncMiddleware';
+export { createScaffoldMiddleware } from './createScaffoldMiddleware';
+export { createIdRemapMiddleware } from './idRemapMiddleware';
+export type {
+  JsonRpcEngineCallbackError,
+  JsonRpcEngineReturnHandler,
+  JsonRpcEngineNextCallback,
+  JsonRpcEngineEndCallback,
+  JsonRpcMiddleware,
+  JsonRpcNotificationHandler,
+} from './JsonRpcEngine';
+export { JsonRpcEngine } from './JsonRpcEngine';
+export { mergeMiddleware } from './mergeMiddleware';

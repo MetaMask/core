@@ -22,8 +22,8 @@ import {
   createScaffoldMiddleware,
   JsonRpcEngine,
   mergeMiddleware,
-} from '@metamask/json-rpc-engine/legacy';
-import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine/legacy';
+} from '@metamask/json-rpc-engine';
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import type { Hex, Json, JsonRpcParams } from '@metamask/utils';
 
 import type { NetworkControllerMessenger } from './NetworkController';

@@ -1,4 +1,4 @@
-import { JsonRpcEngine } from '@metamask/json-rpc-engine/legacy';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import { providerErrors } from '@metamask/rpc-errors';
 
 import { providerFromEngine } from './provider-from-engine';

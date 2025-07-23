@@ -191,10 +191,10 @@
   "packages/gas-fee-controller/src/determineGasFeeCalculations.ts": {
     "jsdoc/tag-lines": 4
   },
-  "packages/json-rpc-engine/src/legacy/JsonRpcEngine.test.ts": {
+  "packages/json-rpc-engine/src/JsonRpcEngine.test.ts": {
     "jest/no-conditional-in-test": 2
   },
-  "packages/json-rpc-engine/src/legacy/JsonRpcEngine.ts": {
+  "packages/json-rpc-engine/src/JsonRpcEngine.ts": {
     "@typescript-eslint/prefer-promise-reject-errors": 2
   },
   "packages/json-rpc-middleware-stream/src/index.test.ts": {

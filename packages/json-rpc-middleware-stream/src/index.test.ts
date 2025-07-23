@@ -1,4 +1,4 @@
-import { JsonRpcEngine } from '@metamask/json-rpc-engine/legacy';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import PortStream from 'extension-port-stream';
 import type { Duplex } from 'stream';
 import type { Runtime } from 'webextension-polyfill-ts';
