@@ -33,6 +33,7 @@ import {
   BRIDGE_PROD_API_BASE_URL,
   BRIDGE_STATUS_CONTROLLER_NAME,
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
+  MAX_ATTEMPTS,
   REFRESH_INTERVAL_MS,
   TraceName,
 } from './constants';
@@ -48,6 +49,7 @@ import { BridgeClientId } from './types';
 import {
   fetchBridgeTxStatus,
   getStatusRequestWithSrcTxHash,
+  shouldSkipFetchDueToFetchFailures,
 } from './utils/bridge-status';
 import { getTxGasEstimates } from './utils/gas';
 import {
@@ -177,6 +179,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       `${BRIDGE_STATUS_CONTROLLER_NAME}:submitTx`,
       this.submitTx.bind(this),
     );
+    this.messagingSystem.registerActionHandler(
+      `${BRIDGE_STATUS_CONTROLLER_NAME}:restartPollingForFailedAttempts`,
+      this.restartPollingForFailedAttempts.bind(this),
+    );
 
     // Set interval
     this.setIntervalLength(REFRESH_INTERVAL_MS);
@@ -283,6 +289,78 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     }
   };
 
+  /**
+   * Resets the attempts counter for a bridge transaction history item
+   * and restarts polling if it was previously stopped due to max attempts
+   *
+   * @param identifier - Object containing either txMetaId or txHash to identify the history item
+   * @param identifier.txMetaId - The transaction meta ID
+   * @param identifier.txHash - The transaction hash
+   */
+  restartPollingForFailedAttempts = (identifier: {
+    txMetaId?: string;
+    txHash?: string;
+  }) => {
+    const { txMetaId, txHash } = identifier;
+
+    if (!txMetaId && !txHash) {
+      throw new Error('Either txMetaId or txHash must be provided');
+    }
+
+    // Find the history item by txMetaId or txHash
+    let targetTxMetaId: string | undefined;
+
+    if (txMetaId) {
+      // Direct lookup by txMetaId
+      if (this.state.txHistory[txMetaId]) {
+        targetTxMetaId = txMetaId;
+      }
+    } else if (txHash) {
+      // Search by txHash in status.srcChain.txHash
+      targetTxMetaId = Object.keys(this.state.txHistory).find(
+        (id) => this.state.txHistory[id].status.srcChain.txHash === txHash,
+      );
+    }
+
+    if (!targetTxMetaId) {
+      throw new Error(
+        `No bridge transaction history found for ${
+          txMetaId ? `txMetaId: ${txMetaId}` : `txHash: ${txHash}`
+        }`,
+      );
+    }
+
+    const historyItem = this.state.txHistory[targetTxMetaId];
+
+    // Reset the attempts counter
+    this.update((state) => {
+      if (targetTxMetaId) {
+        state.txHistory[targetTxMetaId].attempts = undefined;
+      }
+    });
+
+    // Restart polling if it was stopped and this is a bridge transaction
+    const isBridgeTx = isCrossChain(
+      historyItem.quote.srcChainId,
+      historyItem.quote.destChainId,
+    );
+
+    if (isBridgeTx) {
+      // Check if polling was stopped (no active polling token)
+      const existingPollingToken =
+        this.#pollingTokensByTxMetaId[targetTxMetaId];
+
+      if (!existingPollingToken) {
+        // Restart polling
+        this.#startPollingForTxId(targetTxMetaId);
+      }
+    }
+  };
+
+  /**
+   * Restart polling for txs that are not in a final state
+   * This is called during initialization
+   */
   readonly #restartPollingForIncompleteHistoryItems = () => {
     // Check for historyItems that do not have a status of complete and restart polling
     const { txHistory } = this.state;
@@ -310,6 +388,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     incompleteHistoryItems.forEach((historyItem) => {
       const bridgeTxMetaId = historyItem.txMetaId;
+      const shouldSkipFetch = shouldSkipFetchDueToFetchFailures(
+        historyItem.attempts,
+      );
+      if (shouldSkipFetch) {
+        return;
+      }
 
       // We manually call startPolling() here rather than go through startPollingForBridgeTxStatus()
       // because we don't want to overwrite the existing historyItem in state
@@ -393,6 +477,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   /**
+   * @deprecated For EVM/Solana swap/bridge txs we add tx to history in submitTx()
+   * For Solana swap/bridge we start polling in submitTx()
+   * For EVM bridge we listen for 'TransactionController:transactionConfirmed' and start polling there
+   * No clients currently call this, safe to remove in future versions
+   *
    * Adds tx to history and starts polling for the bridge tx status
    *
    * @param txHistoryMeta - The parameters for creating the history item
@@ -422,10 +511,51 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     return this.#getMultichainSelectedAccount()?.address ?? '';
   }
 
+  /**
+   * Handles the failure to fetch the bridge tx status
+   * We eventually stop polling for the tx if we fail too many times
+   * Failures (500 errors) can be due to:
+   * - The srcTxHash not being available immediately for STX
+   * - The srcTxHash being invalid for the chain. This case will never resolve so we stop polling for it to avoid hammering the Bridge API forever.
+   *
+   * @param bridgeTxMetaId - The txMetaId of the bridge tx
+   */
+  readonly #handleFetchFailure = (bridgeTxMetaId: string) => {
+    const { attempts } = this.state.txHistory[bridgeTxMetaId];
+
+    const newAttempts = attempts
+      ? {
+          counter: attempts.counter + 1,
+          lastAttemptTime: Date.now(),
+        }
+      : {
+          counter: 1,
+          lastAttemptTime: Date.now(),
+        };
+
+    // If we've failed too many times, stop polling for the tx
+    const pollingToken = this.#pollingTokensByTxMetaId[bridgeTxMetaId];
+    if (newAttempts.counter >= MAX_ATTEMPTS && pollingToken) {
+      this.stopPollingByPollingToken(pollingToken);
+      delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
+    }
+
+    // Update the attempts counter
+    this.update((state) => {
+      state.txHistory[bridgeTxMetaId].attempts = newAttempts;
+    });
+  };
+
   readonly #fetchBridgeTxStatus = async ({
     bridgeTxMetaId,
   }: FetchBridgeTxStatusArgs) => {
     const { txHistory } = this.state;
+
+    if (
+      shouldSkipFetchDueToFetchFailures(txHistory[bridgeTxMetaId]?.attempts)
+    ) {
+      return;
+    }
 
     try {
       // We try here because we receive 500 errors from Bridge API if we try to fetch immediately after submitting the source tx
@@ -457,6 +587,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           status.status === StatusTypes.FAILED
             ? Date.now()
             : undefined, // TODO make this more accurate by looking up dest txHash block time
+        attempts: undefined,
       };
 
       // No need to purge these on network change or account change, TransactionController does not purge either.
@@ -469,12 +600,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
       const pollingToken = this.#pollingTokensByTxMetaId[bridgeTxMetaId];
 
-      if (
-        (status.status === StatusTypes.COMPLETE ||
-          status.status === StatusTypes.FAILED) &&
-        pollingToken
-      ) {
+      const isFinalStatus =
+        status.status === StatusTypes.COMPLETE ||
+        status.status === StatusTypes.FAILED;
+
+      if (isFinalStatus && pollingToken) {
         this.stopPollingByPollingToken(pollingToken);
+        delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
 
         if (status.status === StatusTypes.COMPLETE) {
           this.#trackUnifiedSwapBridgeEvent(
@@ -491,6 +623,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       }
     } catch (e) {
       console.log('Failed to fetch bridge tx status', e);
+      this.#handleFetchFailure(bridgeTxMetaId);
     }
   };
 

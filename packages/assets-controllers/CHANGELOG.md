@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [73.0.0]
+
 ### Changed
 
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` to `^32.0.0` ([#6171](https://github.com/MetaMask/core/pull/6171))
+- **BREAKING:** Bump peer dependency `@metamask/transaction-controller` to `^59.0.0` ([#6171](https://github.com/MetaMask/core/pull/6171))
 - Improved `TokenDetectionController` token handling flow ([#6012](https://github.com/MetaMask/core/pull/6012))
   - Detected tokens are now implicitly added directly to `allTokens` instead of being added to `allDetectedTokens` first
   - This simplifies the token import flow and improves performance by eliminating the manual UI import step
@@ -1787,7 +1791,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@72.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@73.0.0...HEAD
+[73.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@72.0.0...@metamask/assets-controllers@73.0.0
 [72.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@71.0.0...@metamask/assets-controllers@72.0.0
 [71.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@70.0.1...@metamask/assets-controllers@71.0.0
 [70.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@70.0.0...@metamask/assets-controllers@70.0.1
