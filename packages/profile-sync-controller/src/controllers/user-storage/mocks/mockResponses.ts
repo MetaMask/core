@@ -27,12 +27,13 @@ export const getMockUserStorageEndpoint = (
   path:
     | UserStorageGenericPathWithFeatureAndKey
     | UserStorageGenericPathWithFeatureOnly,
+  env: Env = Env.PRD,
 ) => {
   if (path.split('.').length === 1) {
-    return `${getEnvUrls(Env.PRD).userStorageApiUrl}/api/v1/userstorage/${path}`;
+    return `${getEnvUrls(env).userStorageApiUrl}/api/v1/userstorage/${path}`;
   }
 
-  return `${getEnvUrls(Env.PRD).userStorageApiUrl}/api/v1/userstorage/${createEntryPath(
+  return `${getEnvUrls(env).userStorageApiUrl}/api/v1/userstorage/${createEntryPath(
     path as UserStorageGenericPathWithFeatureAndKey,
     MOCK_STORAGE_KEY,
   )}`;

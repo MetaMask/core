@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING** Automatically pair the SeedlessOnboarding profileID with the SRP based profileID ([#6048](https://github.com/MetaMask/core/pull/6048))
+  - this adds `@metamask/seedless-onboarding-controller` as a peer dependency and requires clients to change their initialization of the controllers to allow `SeedlessOnboardingControllerGetStateAction` as well as forward the build type to the `config.env` in the controller constructors.
+
 ## [21.0.0]
 
 ### Added

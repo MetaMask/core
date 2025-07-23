@@ -288,7 +288,7 @@ export type UserStorageControllerMessenger = RestrictedMessenger<
  *
  * NOTE:
  * - data stored on UserStorage is FULLY encrypted, with the only keys stored/managed on the client.
- * - No one can access this data unless they are have the SRP and are able to run the signing snap.
+ * - No one can access this data unless they have the SRP and are able to run the signing snap.
  */
 export default class UserStorageController extends BaseController<
   typeof controllerName,

@@ -6,6 +6,7 @@ import {
   MOCK_OIDC_TOKEN_RESPONSE,
   MOCK_OIDC_TOKEN_URL,
   MOCK_PAIR_IDENTIFIERS_URL,
+  MOCK_PAIR_SOCIAL_IDENTIFIER_URL,
   MOCK_PROFILE_METAMETRICS_URL,
   MOCK_SIWE_LOGIN_RESPONSE,
   MOCK_SIWE_LOGIN_URL,
@@ -51,6 +52,15 @@ export const handleMockPairIdentifiers = (mockReply?: MockReply) => {
   return mockPairIdentifiersEndpoint;
 };
 
+export const handleMockPairSocialIdentifier = (mockReply?: MockReply) => {
+  const reply = mockReply ?? { status: 200 };
+  const mockPairSocialIdentifierEndpoint = nock(MOCK_PAIR_SOCIAL_IDENTIFIER_URL)
+    .post('')
+    .reply(reply.status, reply.body);
+
+  return mockPairSocialIdentifierEndpoint;
+};
+
 export const handleMockSrpLogin = (mockReply?: MockReply) => {
   const reply = mockReply ?? { status: 200, body: MOCK_SRP_LOGIN_RESPONSE };
   const mockLoginEndpoint = nock(MOCK_SRP_LOGIN_URL)
@@ -91,6 +101,7 @@ export const arrangeAuthAPIs = (options?: {
   mockSrpLoginUrl?: MockReply;
   mockSiweLoginUrl?: MockReply;
   mockPairIdentifiers?: MockReply;
+  mockPairSocialIdentifier?: MockReply;
   mockUserProfileMetaMetrics?: MockReply;
 }) => {
   const mockNonceUrl = handleMockNonce(options?.mockNonceUrl);
@@ -99,6 +110,9 @@ export const arrangeAuthAPIs = (options?: {
   const mockSiweLoginUrl = handleMockSiweLogin(options?.mockSiweLoginUrl);
   const mockPairIdentifiersUrl = handleMockPairIdentifiers(
     options?.mockPairIdentifiers,
+  );
+  const mockPairSocialIdentifierUrl = handleMockPairSocialIdentifier(
+    options?.mockPairSocialIdentifier,
   );
   const mockUserProfileMetaMetricsUrl = handleMockUserProfileMetaMetrics(
     options?.mockUserProfileMetaMetrics,
@@ -110,6 +124,7 @@ export const arrangeAuthAPIs = (options?: {
     mockSrpLoginUrl,
     mockSiweLoginUrl,
     mockPairIdentifiersUrl,
+    mockPairSocialIdentifierUrl,
     mockUserProfileMetaMetricsUrl,
   };
 };

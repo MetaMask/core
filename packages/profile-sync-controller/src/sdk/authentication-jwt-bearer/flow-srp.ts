@@ -5,19 +5,20 @@ import {
   authorizeOIDC,
   getNonce,
   getUserProfileMetaMetrics,
+  PAIR_SOCIAL_IDENTIFIER,
 } from './services';
 import type {
   AuthConfig,
   AuthSigningOptions,
   AuthStorageOptions,
-  AuthType,
   IBaseAuth,
   LoginResponse,
   UserProfile,
   UserProfileMetaMetrics,
 } from './types';
+import { AuthType } from './types';
 import type { MetaMetricsAuth } from '../../shared/types/services';
-import { ValidationError } from '../errors';
+import { PairError, ValidationError } from '../errors';
 import { getMetaMaskProviderEIP6963 } from '../utils/eip-6963-metamask-provider';
 import {
   MESSAGE_SIGNING_SNAP,
@@ -211,5 +212,46 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     publicKey: string,
   ): `metamask:${string}:${string}` {
     return `metamask:${nonce}:${publicKey}` as const;
+  }
+
+  async pairSocialIdentifier(jwt: string): Promise<boolean> {
+    // The ENV this library uses must be in sync with the build type of the
+    // client since that dictates which web3auth auth server is in use.
+    const { env, platform } = this.#config;
+
+    // Exchange the social token with an access token
+    const tokenResponse = await authorizeOIDC(jwt, env, platform);
+
+    // Prepare the SRP signature
+    const identifier = await this.getIdentifier();
+    const n = await getNonce(identifier, env);
+    const raw = `metamask:${n.nonce}:${identifier}`;
+    const sig = await this.signMessage(raw);
+    const primaryIdentifierSignature = {
+      signature: sig,
+      raw_message: raw,
+      identifier_type: AuthType.SRP,
+      encrypted_storage_key: '', // Not yet part of this flow, so we leave it empty
+    };
+
+    const pairUrl = new URL(PAIR_SOCIAL_IDENTIFIER(env));
+
+    try {
+      const response = await fetch(pairUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${tokenResponse.accessToken}`,
+        },
+        body: JSON.stringify({ login: primaryIdentifierSignature }),
+      });
+
+      return response.ok;
+    } catch (e) {
+      /* istanbul ignore next */
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+      throw new PairError(`unable to pair identifiers: ${errorMessage}`);
+    }
   }
 }
