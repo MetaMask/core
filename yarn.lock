@@ -2443,14 +2443,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/account-api@npm:@metamask-previews/account-api@0.2.0-77f7003":
-  version: 0.2.0-77f7003
-  resolution: "@metamask-previews/account-api@npm:0.2.0-77f7003"
+"@metamask/account-api@npm:^0.3.0":
+  version: 0.3.0
+  resolution: "@metamask/account-api@npm:0.3.0"
   dependencies:
-    "@metamask/keyring-api": "npm:19.0.0"
-    "@metamask/keyring-utils": "npm:3.1.0"
+    "@metamask/keyring-api": "npm:^19.1.0"
+    "@metamask/keyring-utils": "npm:^3.1.0"
     "@metamask/superstruct": "npm:^3.1.0"
-  checksum: 10/d99b73fade3d0f4e4bd088c174e5a22cf2ab23c7f40a191b042c5b6a4510f15ef7e9e820db779cb4f5404041fb874ed75afa061213f7ca4d8fde44a2fa50f3f4
+  checksum: 10/883ccab53b08415f00fa6920d58f01a2ea4d052a6f007e855d1cfd3067f61de23edf304b8d19ea31fe753c225366095792942943e58da236a9589930a98ce3f1
   languageName: node
   linkType: hard
 
@@ -2458,7 +2458,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/account-tree-controller@workspace:packages/account-tree-controller"
   dependencies:
-    "@metamask/account-api": "npm:^0.2.0"
+    "@metamask/account-api": "npm:^0.3.0"
     "@metamask/accounts-controller": "npm:^32.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.1"
@@ -2478,7 +2478,7 @@ __metadata:
     typescript: "npm:~5.2.2"
     webextension-polyfill: "npm:^0.12.0"
   peerDependencies:
-    "@metamask/account-api": ^0.2.0
+    "@metamask/account-api": ^0.3.0
     "@metamask/accounts-controller": ^32.0.0
     "@metamask/keyring-controller": ^22.0.0
     "@metamask/providers": ^22.0.0
@@ -3643,7 +3643,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-api@npm:19.0.0, @metamask/keyring-api@npm:^19.0.0":
+"@metamask/keyring-api@npm:^19.0.0":
   version: 19.0.0
   resolution: "@metamask/keyring-api@npm:19.0.0"
   dependencies:
@@ -3652,6 +3652,18 @@ __metadata:
     "@metamask/utils": "npm:^11.1.0"
     bitcoin-address-validation: "npm:^2.2.3"
   checksum: 10/022087c57525296e1cd6e0f49493cd41ff49325c02cbd267e2cd24bbe714ad28d5b2672834d1f629c5379dfb17273888ae8473496fbf14d0f1730e5b854800ae
+  languageName: node
+  linkType: hard
+
+"@metamask/keyring-api@npm:^19.1.0":
+  version: 19.1.0
+  resolution: "@metamask/keyring-api@npm:19.1.0"
+  dependencies:
+    "@metamask/keyring-utils": "npm:^3.1.0"
+    "@metamask/superstruct": "npm:^3.1.0"
+    "@metamask/utils": "npm:^11.1.0"
+    bitcoin-address-validation: "npm:^2.2.3"
+  checksum: 10/2db4e6e1c0d7c6299b1bb74a5bef6a4b66111556b069dcf23d3dd9a328024da2c0b14ac350d606bc09cb677eb235a43f4a841d5cce850daba2526b4a44b00b3b
   languageName: node
   linkType: hard
 
@@ -3735,7 +3747,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-utils@npm:3.1.0, @metamask/keyring-utils@npm:^3.1.0":
+"@metamask/keyring-utils@npm:^3.1.0":
   version: 3.1.0
   resolution: "@metamask/keyring-utils@npm:3.1.0"
   dependencies:
@@ -3815,7 +3827,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/multichain-account-service@workspace:packages/multichain-account-service"
   dependencies:
-    "@metamask/account-api": "npm:^0.2.0"
+    "@metamask/account-api": "npm:^0.3.0"
     "@metamask/accounts-controller": "npm:^32.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.1"
@@ -3838,6 +3850,7 @@ __metadata:
     typescript: "npm:~5.2.2"
     webextension-polyfill: "npm:^0.12.0"
   peerDependencies:
+    "@metamask/account-api": ^0.3.0
     "@metamask/accounts-controller": ^32.0.0
     "@metamask/keyring-controller": ^22.0.0
     "@metamask/providers": ^22.0.0
