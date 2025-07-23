@@ -3643,19 +3643,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-api@npm:^19.0.0":
-  version: 19.0.0
-  resolution: "@metamask/keyring-api@npm:19.0.0"
-  dependencies:
-    "@metamask/keyring-utils": "npm:^3.1.0"
-    "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/utils": "npm:^11.1.0"
-    bitcoin-address-validation: "npm:^2.2.3"
-  checksum: 10/022087c57525296e1cd6e0f49493cd41ff49325c02cbd267e2cd24bbe714ad28d5b2672834d1f629c5379dfb17273888ae8473496fbf14d0f1730e5b854800ae
-  languageName: node
-  linkType: hard
-
-"@metamask/keyring-api@npm:^19.1.0":
+"@metamask/keyring-api@npm:^19.0.0, @metamask/keyring-api@npm:^19.1.0":
   version: 19.1.0
   resolution: "@metamask/keyring-api@npm:19.1.0"
   dependencies:
