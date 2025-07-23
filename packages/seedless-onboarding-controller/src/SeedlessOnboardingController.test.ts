@@ -393,7 +393,7 @@ function mockChangeEncKey(
  * @param newPassword - The new password.
  */
 async function mockChangePassword<EKey>(
-  controller: SeedlessOnboardingController<EKey>,
+  controller: SeedlessOnboardingController<EKey, KeyDerivationOptions>,
   toprfClient: ToprfSecureBackup,
   oldPassword: string,
   newPassword: string,
