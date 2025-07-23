@@ -15,7 +15,7 @@ import type { Hex } from '@metamask/utils';
  * controller's actions and events and to namespace the controller's state data
  * when composed with other controllers.
  */
-export const controllerName = 'SamplePetnamesController';
+export const CONTROLLER_NAME = 'SamplePetnamesController';
 
 // === STATE ===
 
@@ -44,62 +44,6 @@ const samplePetnamesControllerMetadata = {
   },
 } satisfies StateMetadata<SamplePetnamesControllerState>;
 
-// === MESSENGER ===
-
-/**
- * The action which can be used to retrieve the state of the
- * {@link SamplePetnamesController}.
- */
-export type SamplePetnamesControllerGetStateAction = ControllerGetStateAction<
-  typeof controllerName,
-  SamplePetnamesControllerState
->;
-
-/**
- * All actions that {@link SamplePetnamesController} registers, to be called
- * externally.
- */
-export type SamplePetnamesControllerActions =
-  SamplePetnamesControllerGetStateAction;
-
-/**
- * All actions that {@link SamplePetnamesController} calls internally.
- */
-type AllowedActions = never;
-
-/**
- * The event that {@link SamplePetnamesController} publishes when updating state.
- */
-export type SamplePetnamesControllerStateChangeEvent =
-  ControllerStateChangeEvent<
-    typeof controllerName,
-    SamplePetnamesControllerState
-  >;
-
-/**
- * All events that {@link SamplePetnamesController} publishes, to be subscribed to
- * externally.
- */
-export type SamplePetnamesControllerEvents =
-  SamplePetnamesControllerStateChangeEvent;
-
-/**
- * All events that {@link SamplePetnamesController} subscribes to internally.
- */
-type AllowedEvents = never;
-
-/**
- * The messenger which is restricted to actions and events accessed by
- * {@link SamplePetnamesController}.
- */
-export type SamplePetnamesControllerMessenger = RestrictedMessenger<
-  typeof controllerName,
-  SamplePetnamesControllerActions | AllowedActions,
-  SamplePetnamesControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
->;
-
 /**
  * Constructs the default {@link SamplePetnamesController} state. This allows
  * consumers to provide a partial state object when initializing the controller
@@ -108,17 +52,85 @@ export type SamplePetnamesControllerMessenger = RestrictedMessenger<
  *
  * @returns The default {@link SamplePetnamesController} state.
  */
-function getDefaultPetnamesControllerState(): SamplePetnamesControllerState {
+export function getDefaultPetnamesControllerState(): SamplePetnamesControllerState {
   return {
     namesByChainIdAndAddress: {},
   };
 }
 
+// === MESSENGER ===
+
+/**
+ * Retrieves the state of the {@link SamplePetnamesController}.
+ */
+export type SamplePetnamesControllerGetStateAction = ControllerGetStateAction<
+  typeof CONTROLLER_NAME,
+  SamplePetnamesControllerState
+>;
+
+/**
+ * Registers the given name with the given address (relative to the given
+ * chain).
+ *
+ * @param chainId - The chain ID that the address belongs to.
+ * @param address - The account address to name.
+ * @param name - The name to assign to the address.
+ */
+export type SamplePetnamesControllerAssignPetnameAction = {
+  type: `${typeof CONTROLLER_NAME}:assignPetname`;
+  handler: SamplePetnamesController['assignPetname'];
+};
+
+/**
+ * Actions that {@link SampleGasPricesMessenger} exposes to other consumers.
+ */
+export type SamplePetnamesControllerActions =
+  | SamplePetnamesControllerGetStateAction
+  | SamplePetnamesControllerAssignPetnameAction;
+
+/**
+ * Actions from other messengers that {@link SampleGasPricesMessenger} calls.
+ */
+type AllowedActions = never;
+
+/**
+ * Published when the state of {@link SamplePetnamesController} changes.
+ */
+export type SamplePetnamesControllerStateChangeEvent =
+  ControllerStateChangeEvent<
+    typeof CONTROLLER_NAME,
+    SamplePetnamesControllerState
+  >;
+
+/**
+ * Events that {@link SampleGasPricesMessenger} exposes to other consumers.
+ */
+export type SamplePetnamesControllerEvents =
+  SamplePetnamesControllerStateChangeEvent;
+
+/**
+ * Events from other messengers that {@link SampleGasPricesMessenger} subscribes
+ * to.
+ */
+type AllowedEvents = never;
+
+/**
+ * The messenger restricted to actions and events accessed by
+ * {@link SamplePetnamesController}.
+ */
+export type SamplePetnamesControllerMessenger = RestrictedMessenger<
+  typeof CONTROLLER_NAME,
+  SamplePetnamesControllerActions | AllowedActions,
+  SamplePetnamesControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
+>;
+
 // === CONTROLLER DEFINITION ===
 
 /**
- * `SamplePetnamesController` records user-provided nicknames for various addresses on
- * various chains.
+ * `SamplePetnamesController` records user-provided nicknames for various
+ * addresses on various chains.
  *
  * @example
  *
@@ -152,7 +164,7 @@ function getDefaultPetnamesControllerState(): SamplePetnamesControllerState {
  * ```
  */
 export class SamplePetnamesController extends BaseController<
-  typeof controllerName,
+  typeof CONTROLLER_NAME,
   SamplePetnamesControllerState,
   SamplePetnamesControllerMessenger
 > {
@@ -174,12 +186,17 @@ export class SamplePetnamesController extends BaseController<
     super({
       messenger,
       metadata: samplePetnamesControllerMetadata,
-      name: controllerName,
+      name: CONTROLLER_NAME,
       state: {
         ...getDefaultPetnamesControllerState(),
         ...state,
       },
     });
+
+    this.messagingSystem.registerActionHandler(
+      `${CONTROLLER_NAME}:assignPetname`,
+      this.assignPetname.bind(this),
+    );
   }
 
   /**
