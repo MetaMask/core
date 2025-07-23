@@ -2696,6 +2696,52 @@ describe('SeedlessOnboardingController', () => {
         },
       );
     });
+
+    it('should not call recoverEncKey when latestKeyIndex is provided and vault data is available', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          await mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            MOCK_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+
+          mockFetchAuthPubKey(
+            toprfClient,
+            base64ToBytes(controller.state.authPubKey as string),
+          );
+
+          const recoverEncKeySpy = jest.spyOn(toprfClient, 'recoverEncKey');
+
+          mockChangeEncKey(toprfClient, NEW_MOCK_PASSWORD);
+
+          const changeEncKeySpy = jest.spyOn(toprfClient, 'changeEncKey');
+
+          const LATEST_KEY_INDEX = 5;
+          await controller.changePassword(
+            NEW_MOCK_PASSWORD,
+            MOCK_PASSWORD,
+            LATEST_KEY_INDEX,
+          );
+          expect(recoverEncKeySpy).not.toHaveBeenCalled();
+
+          expect(changeEncKeySpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+              newKeyShareIndex: LATEST_KEY_INDEX,
+              newPassword: NEW_MOCK_PASSWORD,
+            }),
+          );
+        },
+      );
+    });
   });
 
   describe('clearState', () => {

@@ -495,9 +495,14 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    *
    * @param newPassword - The new password to update.
    * @param oldPassword - The old password to verify.
+   * @param latestKeyIndex - The key index of the latest key.
    * @returns A promise that resolves to the success of the operation.
    */
-  async changePassword(newPassword: string, oldPassword: string) {
+  async changePassword(
+    newPassword: string,
+    oldPassword: string,
+    latestKeyIndex?: number,
+  ) {
     return await this.#withControllerLock(async () => {
       this.#assertIsUnlocked();
       // verify the old password of the encrypted vault
@@ -524,6 +529,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         } = await this.#changeEncryptionKey({
           oldPassword,
           newPassword,
+          latestKeyIndex,
         });
 
         // update and encrypt the vault with new password
@@ -1117,24 +1123,39 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @param params - The function parameters.
    * @param params.oldPassword - The old password to verify.
    * @param params.newPassword - The new password to update.
+   * @param params.latestKeyIndex - The key index of the latest key.
    * @returns A promise that resolves to new encryption key and authentication key pair.
    */
   async #changeEncryptionKey({
     oldPassword,
     newPassword,
+    latestKeyIndex,
   }: {
     newPassword: string;
     oldPassword: string;
+    latestKeyIndex?: number;
   }) {
     this.#assertIsAuthenticatedUser(this.state);
     const { authConnectionId, groupedAuthConnectionId, userId } = this.state;
 
-    const {
-      encKey,
-      pwEncKey,
-      authKeyPair,
-      keyShareIndex: newKeyShareIndex,
-    } = await this.#recoverEncKey(oldPassword);
+    const { toprfEncryptionKey, toprfPwEncryptionKey, toprfAuthKeyPair } =
+      await this.#unlockVaultAndGetVaultData(oldPassword);
+    let encKey = toprfEncryptionKey;
+    let pwEncKey = toprfPwEncryptionKey;
+    let authKeyPair = toprfAuthKeyPair;
+    let newKeyShareIndex = latestKeyIndex;
+    if (!newKeyShareIndex || !encKey || !pwEncKey || !authKeyPair) {
+      const {
+        encKey: rehydratedEncKey,
+        pwEncKey: rehydratedPwEncKey,
+        authKeyPair: rehydratedAuthKeyPair,
+        keyShareIndex: rehydratedKeyShareIndex,
+      } = await this.#recoverEncKey(oldPassword);
+      encKey = rehydratedEncKey;
+      pwEncKey = rehydratedPwEncKey;
+      authKeyPair = rehydratedAuthKeyPair;
+      newKeyShareIndex = rehydratedKeyShareIndex;
+    }
 
     const result = await this.toprfClient.changeEncKey({
       nodeAuthTokens: this.state.nodeAuthTokens,
