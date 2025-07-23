@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release/470.0.0 ([#6148](https://github.com/MetaMask/core/pull/6148))
-- Release 456.0.0 ([#6064](https://github.com/MetaMask/core/pull/6064))
-
 ### Added
 
 - Use new typed `KeyringAccount.options` for BIP-44 compatible accounts ([#6122](https://github.com/MetaMask/core/pull/6122)), ([#6147](https://github.com/MetaMask/core/pull/6147))
