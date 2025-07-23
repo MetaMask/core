@@ -19,6 +19,8 @@ import { EvmAccountProvider } from './providers/EvmAccountProvider';
 import { SolAccountProvider } from './providers/SolAccountProvider';
 import type { MultichainAccountServiceMessenger } from './types';
 
+const serviceName = 'MultichainAccountService';
+
 /**
  * The options that {@link MultichainAccountService} takes.
  */
@@ -48,6 +50,11 @@ export class MultichainAccountService {
     MultichainAccountWalletId,
     MultichainAccountWallet<InternalAccount>
   >;
+
+  /**
+   * The name of the service.
+   */
+  name: typeof serviceName = serviceName;
 
   /**
    * Constructs a new MultichainAccountService.

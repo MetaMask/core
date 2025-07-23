@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Add missing `name` class field ([#6173](https://github.com/MetaMask/core/pull/6173))
+
 ## [0.2.0]
 
 ### Changed
