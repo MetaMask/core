@@ -442,7 +442,11 @@ const server = new JsonRpcServer({
 });
 
 // server.handle() never throws - all errors are handled by handleError
-const response = await server.handle({ id: '1', jsonrpc: '2.0', method: 'hello' });
+const response = await server.handle({
+  id: '1',
+  jsonrpc: '2.0',
+  method: 'hello',
+});
 if ('result' in response) {
   // Handle successful response
 } else {
