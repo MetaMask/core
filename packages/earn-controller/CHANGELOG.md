@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Added mandatory parameter `selectedNetworkClientId` to `EarnController` constructor ([#6153](https://github.com/MetaMask/core/pull/6153))
 - **BREAKING:** Added mandatory `chainId` parameter to `executeLendingTokenApprove`, `executeLendingWithdraw`, `executeLendingDeposit`, `getLendingMarketDailyApysAndAverages` and `getLendingPositionHistory` methods ([#6153](https://github.com/MetaMask/core/pull/6153))
-- **BREAKING:** Change `refreshPooledStakingVaultDailyApys` to accept an options object with `chainId`, `days`, and `order` properties instead of separate parameters ([#6153](https://github.com/MetaMask/core/pull/6153))
+- **BREAKING:** Changed `refreshPooledStakingVaultDailyApys` to accept an options object with `chainId`, `days`, and `order` properties, where `chainId` is a new option, instead of separate parameters `days` and `order` ([#6153](https://github.com/MetaMask/core/pull/6153))
 - Added optional `chainId` parameter to `refreshPooledStakingVaultApyAverages`, `refreshPooledStakingVaultMetadata` and `refreshPooledStakes` (defaults to Ethereum) ([#6153](https://github.com/MetaMask/core/pull/6153))
 
 ### Changed
