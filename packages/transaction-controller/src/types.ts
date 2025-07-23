@@ -228,7 +228,7 @@ export type TransactionMeta = {
   isExternalSign?: boolean;
 
   /**
-   * Whether the transaction is a transfer.
+   * Whether the transaction is an incoming token transfer.
    */
   isTransfer?: boolean;
 
@@ -442,6 +442,7 @@ export type TransactionMeta = {
    * Additional transfer information.
    */
   transferInformation?: {
+    amount?: string;
     contractAddress: string;
     decimals: number;
     symbol: string;
@@ -994,29 +995,14 @@ export interface RemoteTransactionSourceRequest {
   address: Hex;
 
   /**
-   * Cache to optimize fetching transactions.
-   */
-  cache: Record<string, unknown>;
-
-  /**
    * Whether to also include incoming token transfers.
    */
   includeTokenTransfers: boolean;
 
   /**
-   * Whether to initially query the entire transaction history.
-   */
-  queryEntireHistory: boolean;
-
-  /**
    * Additional tags to identify the source of the request.
    */
   tags?: string[];
-
-  /**
-   * Callback to update the cache.
-   */
-  updateCache(fn: (cache: Record<string, unknown>) => void): void;
 
   /**
    * Whether to also retrieve outgoing transactions.

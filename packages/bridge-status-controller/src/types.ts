@@ -14,11 +14,9 @@ import type {
   Quote,
   QuoteMetadata,
   QuoteResponse,
-  StatusTypes,
   TxData,
 } from '@metamask/bridge-controller';
 import type { GetGasFeeState } from '@metamask/gas-fee-controller';
-import type { MultichainTransactionsControllerTransactionConfirmedEvent } from '@metamask/multichain-transactions-controller';
 import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
@@ -26,6 +24,7 @@ import type {
 } from '@metamask/network-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+import type { Infer } from '@metamask/superstruct';
 import type {
   TransactionControllerGetStateAction,
   TransactionControllerTransactionConfirmedEvent,
@@ -35,6 +34,7 @@ import type {
 
 import type { BridgeStatusController } from './bridge-status-controller';
 import type { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
+import type { StatusResponseSchema } from './utils/validators';
 
 // All fields need to be types not interfaces, same with their children fields
 // o/w you get a type error
@@ -84,39 +84,6 @@ export type StatusRequestWithSrcTxHash = StatusRequest & {
   srcTxHash: string;
 };
 
-export type Asset = {
-  chainId: ChainId;
-  address: string;
-  symbol: string;
-  name: string;
-  decimals: number;
-  icon?: string | null;
-};
-
-export type SrcChainStatus = {
-  chainId: ChainId;
-  /**
-   * The txHash of the transaction on the source chain.
-   * This might be undefined for smart transactions (STX)
-   */
-  txHash?: string;
-  /**
-   * The atomic amount of the token sent minus fees on the source chain
-   */
-  amount?: string;
-  token?: Record<string, never> | Asset;
-};
-
-export type DestChainStatus = {
-  chainId: ChainId;
-  txHash?: string;
-  /**
-   * The atomic amount of the token received on the destination chain
-   */
-  amount?: string;
-  token?: Record<string, never> | Asset;
-};
-
 export enum BridgeId {
   HOP = 'hop',
   CELER = 'celer',
@@ -132,55 +99,13 @@ export enum BridgeId {
   MAYAN = 'mayan',
 }
 
-export enum FeeType {
-  METABRIDGE = 'metabridge',
-  REFUEL = 'refuel',
-}
-
-export type FeeData = {
-  amount: string;
-  asset: Asset;
-};
-
-export type Protocol = {
-  displayName?: string;
-  icon?: string;
-  name?: string; // for legacy quotes
-};
-
-export enum ActionTypes {
-  BRIDGE = 'bridge',
-  SWAP = 'swap',
-  REFUEL = 'refuel',
-}
-
-export type Step = {
-  action: ActionTypes;
-  srcChainId: ChainId;
-  destChainId?: ChainId;
-  srcAsset: Asset;
-  destAsset: Asset;
-  srcAmount: string;
-  destAmount: string;
-  protocol: Protocol;
-};
-
-export type StatusResponse = {
-  status: StatusTypes;
-  srcChain: SrcChainStatus;
-  destChain?: DestChainStatus;
-  bridge?: BridgeId;
-  isExpectedToken?: boolean;
-  isUnrecognizedRouterAddress?: boolean;
-  refuel?: RefuelStatusResponse;
-};
+export type StatusResponse = Infer<typeof StatusResponseSchema>;
 
 export type RefuelStatusResponse = object & StatusResponse;
 
-export type RefuelData = object & Step;
-
 export type BridgeHistoryItem = {
   txMetaId: string; // Need this to handle STX that might not have a txHash immediately
+  batchId?: string;
   quote: Quote;
   status: StatusResponse;
   startTime?: number; // timestamp in ms
@@ -189,12 +114,12 @@ export type BridgeHistoryItem = {
   completionTime?: number; // timestamp in ms
   pricingData?: {
     /**
-     * From QuoteMetadata.sentAmount.amount, the actual amount sent by user in non-atomic decimal form
+     * The actual amount sent by user in non-atomic decimal form
      */
-    amountSent: string;
-    amountSentInUsd?: string;
-    quotedGasInUsd?: string; // from QuoteMetadata.gasFee.usd
-    quotedReturnInUsd?: string; // from QuoteMetadata.toTokenAmount.usd
+    amountSent: QuoteMetadata['sentAmount']['amount'];
+    amountSentInUsd?: QuoteMetadata['sentAmount']['usd'];
+    quotedGasInUsd?: QuoteMetadata['gasFee']['usd'];
+    quotedReturnInUsd?: QuoteMetadata['toTokenAmount']['usd'];
     quotedRefuelSrcAmountInUsd?: string;
     quotedRefuelDestAmountInUsd?: string;
   };
@@ -204,6 +129,14 @@ export type BridgeHistoryItem = {
   hasApprovalTx: boolean;
   approvalTxId?: string;
   isStxEnabled?: boolean;
+  /**
+   * Attempts tracking for exponential backoff on failed fetches.
+   * We track the number of attempts and the last attempt time for each txMetaId that has failed at least once
+   */
+  attempts?: {
+    counter: number;
+    lastAttemptTime: number; // timestamp in ms
+  };
 };
 
 export enum BridgeStatusAction {
@@ -212,6 +145,7 @@ export enum BridgeStatusAction {
   GET_STATE = 'getState',
   RESET_STATE = 'resetState',
   SUBMIT_TX = 'submitTx',
+  RESTART_POLLING_FOR_FAILED_ATTEMPTS = 'restartPollingForFailedAttempts',
 }
 
 export type TokenAmountValuesSerialized = {
@@ -307,12 +241,16 @@ export type BridgeStatusControllerResetStateAction =
 export type BridgeStatusControllerSubmitTxAction =
   BridgeStatusControllerAction<BridgeStatusAction.SUBMIT_TX>;
 
+export type BridgeStatusControllerRestartPollingForFailedAttemptsAction =
+  BridgeStatusControllerAction<BridgeStatusAction.RESTART_POLLING_FOR_FAILED_ATTEMPTS>;
+
 export type BridgeStatusControllerActions =
   | BridgeStatusControllerStartPollingForBridgeTxStatusAction
   | BridgeStatusControllerWipeBridgeStatusAction
   | BridgeStatusControllerResetStateAction
   | BridgeStatusControllerGetStateAction
-  | BridgeStatusControllerSubmitTxAction;
+  | BridgeStatusControllerSubmitTxAction
+  | BridgeStatusControllerRestartPollingForFailedAttemptsAction;
 
 // Events
 export type BridgeStatusControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -335,6 +273,7 @@ type AllowedActions =
   | TransactionControllerGetStateAction
   | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>
   | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>
+  | BridgeControllerAction<BridgeBackgroundAction.STOP_POLLING_FOR_QUOTES>
   | GetGasFeeState
   | AccountsControllerGetAccountByAddressAction
   | RemoteFeatureFlagControllerGetStateAction;
@@ -343,7 +282,6 @@ type AllowedActions =
  * The external events available to the BridgeStatusController.
  */
 type AllowedEvents =
-  | MultichainTransactionsControllerTransactionConfirmedEvent
   | TransactionControllerTransactionFailedEvent
   | TransactionControllerTransactionConfirmedEvent;
 

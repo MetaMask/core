@@ -358,6 +358,7 @@ describe('BridgeController', function () {
       srcTokenAmount: '1000000000000000000',
       slippage: 0.5,
       walletAddress: '0x123',
+      destWalletAddress: 'SolanaWalletAddres1234',
     };
     const quoteRequest = {
       ...quoteParams,
@@ -677,6 +678,22 @@ describe('BridgeController', function () {
       expect.objectContaining({
         minimumBalanceForRentExemptionInLamports: '0',
         quotes: [],
+        quotesLoadingStatus: null,
+      }),
+    );
+
+    /*
+    Add destWalletAddress
+    */
+    await bridgeController.updateBridgeQuoteRequestParams(
+      { ...quoteParams, destWalletAddress: 'SolanaWalletAddres1234' },
+      metricsContext,
+    );
+    jest.advanceTimersByTime(2000);
+    expect(bridgeController.state).toStrictEqual(
+      expect.objectContaining({
+        minimumBalanceForRentExemptionInLamports: '0',
+        quotes: [],
         quotesLoadingStatus: RequestStatus.LOADING,
       }),
     );
@@ -703,7 +720,7 @@ describe('BridgeController', function () {
       messengerMock.call.mock.calls.filter(([action]) =>
         action.includes('SnapController'),
       ),
-    ).toHaveLength(8);
+    ).toHaveLength(9);
 
     /*
     Test min balance fetch failure
@@ -735,13 +752,13 @@ describe('BridgeController', function () {
       messengerMock.call.mock.calls.filter(([action]) =>
         action.includes('SnapController'),
       ),
-    ).toHaveLength(11);
+    ).toHaveLength(12);
     expect(
       messengerMock.call.mock.calls.filter(([action]) =>
         action.includes('SnapController'),
       ),
     ).toMatchSnapshot();
-    expect(consoleWarnSpy).toHaveBeenCalledTimes(4);
+    expect(consoleWarnSpy).toHaveBeenCalledTimes(5);
     expect(consoleWarnSpy).toHaveBeenCalledWith(
       'Failed to fetch asset exchange rates',
       new Error('Currency rate error'),
@@ -1053,6 +1070,46 @@ describe('BridgeController', function () {
           srcTokenAddress: '0x0000000000000000000000000000000000000000',
           walletAddress: undefined,
           destChainId: 10,
+          destTokenAddress: '0x123',
+        },
+        quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
+        quotesLastFetched: DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLastFetched,
+        quotesLoadingStatus:
+          DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLoadingStatus,
+      }),
+    );
+  });
+
+  it('updateBridgeQuoteRequestParams should not trigger quote polling if bridging to or from solana and destWalletAddress is undefined', async function () {
+    const stopAllPollingSpy = jest.spyOn(bridgeController, 'stopAllPolling');
+    const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
+    messengerMock.call.mockReturnValue({
+      address: '0x123',
+      provider: jest.fn(),
+    } as never);
+
+    await bridgeController.updateBridgeQuoteRequestParams(
+      {
+        srcChainId: 1,
+        destChainId: ChainId.SOLANA,
+        srcTokenAddress: '0x0000000000000000000000000000000000000000',
+        destTokenAddress: '0x123',
+        slippage: 0.5,
+      },
+      metricsContext,
+    );
+
+    expect(stopAllPollingSpy).toHaveBeenCalledTimes(1);
+    expect(startPollingSpy).not.toHaveBeenCalled();
+
+    expect(bridgeController.state).toStrictEqual(
+      expect.objectContaining({
+        quoteRequest: {
+          srcChainId: 1,
+          slippage: 0.5,
+          srcTokenAddress: '0x0000000000000000000000000000000000000000',
+          walletAddress: undefined,
+          destChainId: ChainId.SOLANA,
           destTokenAddress: '0x123',
         },
         quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
@@ -1537,6 +1594,7 @@ describe('BridgeController', function () {
         destTokenAddress: '0x0000000000000000000000000000000000000000',
         srcTokenAmount: '1000000',
         walletAddress: '0x123',
+        destWalletAddress: '0x5342',
         slippage: 0.5,
       };
 
@@ -1761,28 +1819,38 @@ describe('BridgeController', function () {
     });
 
     it('should track the Submitted event', () => {
-      bridgeController.trackUnifiedSwapBridgeEvent(
+      const controller = new BridgeController({
+        messenger: messengerMock,
+        getLayer1GasFee: getLayer1GasFeeMock,
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: mockFetchFn,
+        trackMetaMetricsFn,
+        state: {
+          quoteRequest: {
+            srcChainId: SolScope.Mainnet,
+            destChainId: '0xa',
+            srcTokenAddress: 'NATIVE',
+            destTokenAddress: '0x1234',
+            srcTokenAmount: '1000000',
+            walletAddress: '0x123',
+            slippage: 0.5,
+          },
+          quotes: mockBridgeQuotesSolErc20 as never,
+        },
+      });
+      controller.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.Submitted,
         {
-          provider: 'provider_bridge',
-          usd_quoted_gas: 0,
+          usd_quoted_gas: 1,
           gas_included: false,
-          quoted_time_minutes: 0,
-          usd_quoted_return: 0,
-          price_impact: 0,
-          chain_id_source: formatChainIdToCaip(1),
+          quoted_time_minutes: 2,
+          usd_quoted_return: 113,
+          provider: 'provider_bridge',
+          price_impact: 12,
           token_symbol_source: 'ETH',
-          token_address_source: getNativeAssetForChainId(1).assetId,
-          custom_slippage: true,
-          usd_amount_source: 100,
-          stx_enabled: false,
-          is_hardware_wallet: false,
-          swap_type: MetricsSwapType.CROSSCHAIN,
-          action_type: MetricsActionType.CROSSCHAIN_V1,
-          chain_id_destination: formatChainIdToCaip(10),
           token_symbol_destination: 'USDC',
-          token_address_destination: getNativeAssetForChainId(10).assetId,
-          security_warnings: [],
+          stx_enabled: false,
+          usd_amount_source: 100,
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -1858,6 +1926,47 @@ describe('BridgeController', function () {
           token_address_destination: getNativeAssetForChainId(ChainId.SOLANA)
             .assetId,
           security_warnings: [],
+        },
+      );
+      expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
+
+      expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
+    });
+
+    it('should track the Failed event before tx is submitted', () => {
+      const controller = new BridgeController({
+        messenger: messengerMock,
+        getLayer1GasFee: getLayer1GasFeeMock,
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: mockFetchFn,
+        trackMetaMetricsFn,
+        state: {
+          quoteRequest: {
+            srcChainId: SolScope.Mainnet,
+            destChainId: '1',
+            srcTokenAddress: 'NATIVE',
+            destTokenAddress: '0x1234',
+            srcTokenAmount: '1000000',
+            walletAddress: '0x123',
+            slippage: 0.5,
+          },
+          quotes: mockBridgeQuotesSolErc20 as never,
+        },
+      });
+      controller.trackUnifiedSwapBridgeEvent(
+        UnifiedSwapBridgeEventName.Failed,
+        {
+          error_message: 'Failed to submit tx',
+          usd_quoted_gas: 1,
+          gas_included: false,
+          quoted_time_minutes: 2,
+          usd_quoted_return: 113,
+          provider: 'provider_bridge',
+          price_impact: 12,
+          token_symbol_source: 'ETH',
+          token_symbol_destination: 'USDC',
+          stx_enabled: false,
+          usd_amount_source: 100,
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);

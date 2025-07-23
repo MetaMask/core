@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `groupIndex` to EVM HD account options ([#6122](https://github.com/MetaMask/core/pull/6122))
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/snaps-controllers` from `^12.0.0` to `^14.0.0` ([#6035](https://github.com/MetaMask/core/pull/6035))
+- Bump `@metamask/snaps-sdk` from `^7.1.0` to `^9.0.0` ([#6035](https://github.com/MetaMask/core/pull/6035))
+- Bump `@metamask/snaps-utils` from `^9.4.0` to `^11.0.0` ([#6035](https://github.com/MetaMask/core/pull/6035))
+- Bump `@metamask/keyring-api` from `^18.0.0` to `^19.0.0` ([#6146](https://github.com/MetaMask/core/pull/6146))
+- Bump `@metamask/keyring-internal-api` from `^6.2.0` to `^7.0.0` ([#6146](https://github.com/MetaMask/core/pull/6146))
+- Bump `@metamask/keyring-utils` from `^3.0.0` to `^3.1.0` ([#6146](https://github.com/MetaMask/core/pull/6146))
+- Bump `@metamask/eth-snap-keyring` from `^13.0.0` to `^14.0.0` ([#6146](https://github.com/MetaMask/core/pull/6146))
+- Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
+
+## [31.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/network-controller` to `^24.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+
 ## [30.0.0]
 
 ### Changed
@@ -549,7 +570,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@30.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@31.0.0...HEAD
+[31.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@30.0.0...@metamask/accounts-controller@31.0.0
 [30.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@29.0.1...@metamask/accounts-controller@30.0.0
 [29.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@29.0.0...@metamask/accounts-controller@29.0.1
 [29.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@28.0.0...@metamask/accounts-controller@29.0.0

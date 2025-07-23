@@ -5,8 +5,8 @@ import {
 } from './mockStorage';
 import { Env, getEnvUrls } from '../../../sdk';
 import type {
-  UserStoragePathWithFeatureAndKey,
-  UserStoragePathWithFeatureOnly,
+  UserStorageGenericPathWithFeatureAndKey,
+  UserStorageGenericPathWithFeatureOnly,
 } from '../../../shared/storage-schema';
 import {
   createEntryPath,
@@ -24,14 +24,16 @@ type MockResponse = {
 };
 
 export const getMockUserStorageEndpoint = (
-  path: UserStoragePathWithFeatureAndKey | UserStoragePathWithFeatureOnly,
+  path:
+    | UserStorageGenericPathWithFeatureAndKey
+    | UserStorageGenericPathWithFeatureOnly,
 ) => {
   if (path.split('.').length === 1) {
     return `${getEnvUrls(Env.PRD).userStorageApiUrl}/api/v1/userstorage/${path}`;
   }
 
   return `${getEnvUrls(Env.PRD).userStorageApiUrl}/api/v1/userstorage/${createEntryPath(
-    path as UserStoragePathWithFeatureAndKey,
+    path as UserStorageGenericPathWithFeatureAndKey,
     MOCK_STORAGE_KEY,
   )}`;
 };
@@ -79,7 +81,7 @@ export async function createMockAllFeatureEntriesResponse(
  * @returns mock GET API request. Can be used by e2e or unit mock servers
  */
 export async function getMockUserStorageGetResponse(
-  path: UserStoragePathWithFeatureAndKey = `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+  path: UserStorageGenericPathWithFeatureAndKey = `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
 ) {
   return {
     url: getMockUserStorageEndpoint(path),
@@ -96,7 +98,7 @@ export async function getMockUserStorageGetResponse(
  * @returns mock GET ALL API request. Can be used by e2e or unit mock servers
  */
 export async function getMockUserStorageAllFeatureEntriesResponse(
-  path: UserStoragePathWithFeatureOnly = USER_STORAGE_FEATURE_NAMES.notifications,
+  path: UserStorageGenericPathWithFeatureOnly = USER_STORAGE_FEATURE_NAMES.notifications,
   dataArr?: string[],
 ) {
   return {
@@ -107,7 +109,7 @@ export async function getMockUserStorageAllFeatureEntriesResponse(
 }
 
 export const getMockUserStoragePutResponse = (
-  path: UserStoragePathWithFeatureAndKey = `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+  path: UserStorageGenericPathWithFeatureAndKey = `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
 ) => {
   return {
     url: getMockUserStorageEndpoint(path),
@@ -117,7 +119,7 @@ export const getMockUserStoragePutResponse = (
 };
 
 export const getMockUserStorageBatchPutResponse = (
-  path: UserStoragePathWithFeatureOnly = USER_STORAGE_FEATURE_NAMES.notifications,
+  path: UserStorageGenericPathWithFeatureOnly = USER_STORAGE_FEATURE_NAMES.notifications,
 ) => {
   return {
     url: getMockUserStorageEndpoint(path),
@@ -127,7 +129,7 @@ export const getMockUserStorageBatchPutResponse = (
 };
 
 export const getMockUserStorageBatchDeleteResponse = (
-  path: UserStoragePathWithFeatureOnly = 'notifications',
+  path: UserStorageGenericPathWithFeatureOnly = USER_STORAGE_FEATURE_NAMES.notifications,
 ) => {
   return {
     url: getMockUserStorageEndpoint(path),
@@ -137,7 +139,7 @@ export const getMockUserStorageBatchDeleteResponse = (
 };
 
 export const deleteMockUserStorageResponse = (
-  path: UserStoragePathWithFeatureAndKey = `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+  path: UserStorageGenericPathWithFeatureAndKey = `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
 ) => {
   return {
     url: getMockUserStorageEndpoint(path),
@@ -147,7 +149,7 @@ export const deleteMockUserStorageResponse = (
 };
 
 export const deleteMockUserStorageAllFeatureEntriesResponse = (
-  path: UserStoragePathWithFeatureOnly = USER_STORAGE_FEATURE_NAMES.notifications,
+  path: UserStorageGenericPathWithFeatureOnly = USER_STORAGE_FEATURE_NAMES.notifications,
 ) => {
   return {
     url: getMockUserStorageEndpoint(path),

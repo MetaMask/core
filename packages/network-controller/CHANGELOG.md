@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [24.0.1]
+
+### Changed
+
+- Requests to an RPC endpoint that returns a 502 response ("bad gateway") will now be retried ([#5923](https://github.com/MetaMask/core/pull/5923))
+- All JSON-RPC errors that represent 4xx and 5xx responses from RPC endpoints now include the HTTP status code under `data.httpStatus` ([#5923](https://github.com/MetaMask/core/pull/5923))
+- 3xx responses from RPC endpoints are no longer treated as errors ([#5923](https://github.com/MetaMask/core/pull/5923))
+- Bump `@metamask/controller-utils` from `^11.10.0` to `^11.11.0` ([#6069](https://github.com/MetaMask/core/pull/6069))
+- Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
+
+### Fixed
+
+- If an RPC endpoint returns invalid/unparseable JSON, it is now represented as a JSON-RPC error with code -32700 (parse error) instead of -32603 (internal error) ([#5923](https://github.com/MetaMask/core/pull/5923))
+- If an RPC endpoint returns a 401 response, it is now represented as a JSON-RPC error with code -32006 (unauthorized) instead of -32603 (internal error) ([#5923](https://github.com/MetaMask/core/pull/5923))
+- If an RPC endpoint returns a 405 response, it is now represented as a JSON-RPC error with code -32080 (client error) instead of -32601 (method not found) ([#5923](https://github.com/MetaMask/core/pull/5923))
+- If an RPC endpoint returns a 402, 404, or 5xx response, it is now represented as a JSON-RPC error with code -32002 (resource unavailable error) instead of -32603 (internal error) ([#5923](https://github.com/MetaMask/core/pull/5923))
+- If an RPC endpoint returns a 4xx response besides 401, 402, 404, 405, or 429, it is now represented as a JSON-RPC error with code -32080 (client error) instead of -32603 (internal error) ([#5923](https://github.com/MetaMask/core/pull/5923))
+- Improve detection of partial JSON responses from RPC endpoints ([#5923](https://github.com/MetaMask/core/pull/5923))
+- Fix "Request cannot be constructed from a URL that includes credentials" error when using RPC endpoints with embedded credentials ([#6116](https://github.com/MetaMask/core/pull/6116))
+
+## [24.0.0]
+
+### Changed
+
+- **BREAKING:** Remove `@metamask/error-reporting-service@^1.0.0` as a direct dependency, add `^2.0.0` as a peer dependency ([#5970](https://github.com/MetaMask/core/pull/5970), [#5999](https://github.com/MetaMask/core/pull/5999))
+
 ## [23.6.0]
 
 ### Added
@@ -22,6 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** NetworkController messenger now requires the `ErrorReportingService:captureException` action to be allowed ([#5970](https://github.com/MetaMask/core/pull/5970))
+  - This change was originally missed when this release was created. It was added to the changelog afterward.
 - Block tracker errors will no longer be wrapped under "PollingBlockTracker - encountered an error while attempting to update latest block" ([#5860](https://github.com/MetaMask/core/pull/5860))
 - Bump dependencies ([#5867](https://github.com/MetaMask/core/pull/5867), [#5860](https://github.com/MetaMask/core/pull/5860))
   - Bump `@metamask/eth-block-tracker` to `^12.0.1`
@@ -877,7 +905,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.6.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.0.1...HEAD
+[24.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.0.0...@metamask/network-controller@24.0.1
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.6.0...@metamask/network-controller@24.0.0
 [23.6.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.5.1...@metamask/network-controller@23.6.0
 [23.5.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.5.0...@metamask/network-controller@23.5.1
 [23.5.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.4.0...@metamask/network-controller@23.5.0

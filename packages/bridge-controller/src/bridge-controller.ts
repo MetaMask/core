@@ -2,7 +2,7 @@ import type { BigNumber } from '@ethersproject/bignumber';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import type { StateMetadata } from '@metamask/base-controller';
-import type { ChainId, TraceCallback } from '@metamask/controller-utils';
+import type { TraceCallback } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
@@ -231,6 +231,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       `${BRIDGE_CONTROLLER_NAME}:trackUnifiedSwapBridgeEvent`,
       this.trackUnifiedSwapBridgeEvent.bind(this),
     );
+    this.messagingSystem.registerActionHandler(
+      `${BRIDGE_CONTROLLER_NAME}:stopPollingForQuotes`,
+      this.stopPollingForQuotes.bind(this),
+    );
   }
 
   _executePoll = async (pollingInput: BridgePollingInput) => {
@@ -413,9 +417,13 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     );
   };
 
-  resetState = () => {
+  stopPollingForQuotes = (reason?: string) => {
     this.stopAllPolling();
-    this.#abortController?.abort(RESET_STATE_ABORT_MESSAGE);
+    this.#abortController?.abort(reason);
+  };
+
+  resetState = () => {
+    this.stopPollingForQuotes(RESET_STATE_ABORT_MESSAGE);
 
     this.update((state) => {
       // Cannot do direct assignment to state, i.e. state = {... }, need to manually assign each field
@@ -576,7 +584,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     const l1GasFeePromises = Promise.allSettled(
       quotes.map(async (quoteResponse) => {
         const { quote, trade, approval } = quoteResponse;
-        const chainId = numberToHex(quote.srcChainId) as ChainId;
+        const chainId = numberToHex(quote.srcChainId);
 
         const getTxParams = (txData: TxData) => ({
           from: txData.from,
@@ -752,7 +760,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     'best_quote_provider' | 'price_impact'
   > => {
     return {
-      can_submit: Boolean(this.state.quoteRequest.insufficientBal), // TODO check if balance is sufficient for network fees
+      can_submit: !this.state.quoteRequest.insufficientBal, // TODO check if balance is sufficient for network fees
       quotes_count: this.state.quotes.length,
       quotes_list: this.state.quotes.map(({ quote }) =>
         formatProviderLabel(quote),
@@ -817,10 +825,19 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...this.#getRequestParams(),
           ...this.#getRequestMetadata(),
         };
-      // These are populated by BridgeStatusController
       case UnifiedSwapBridgeEventName.Submitted:
+      case UnifiedSwapBridgeEventName.Failed: {
+        // Populate the properties that the error occurred before the tx was submitted
+        return {
+          ...baseProperties,
+          ...this.#getRequestParams(),
+          ...this.#getRequestMetadata(),
+          ...this.#getQuoteFetchData(),
+          ...propertiesFromClient,
+        };
+      }
+      // These are populated by BridgeStatusController
       case UnifiedSwapBridgeEventName.Completed:
-      case UnifiedSwapBridgeEventName.Failed:
         return propertiesFromClient;
       case UnifiedSwapBridgeEventName.InputChanged:
       default:

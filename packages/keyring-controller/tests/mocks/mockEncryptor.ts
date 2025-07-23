@@ -1,71 +1,101 @@
+// Omitting jsdoc because mock is only internal and simple enough.
+/* eslint-disable jsdoc/require-jsdoc */
+
+import type {
+  DetailedDecryptResult,
+  DetailedEncryptionResult,
+  EncryptionResult,
+} from '@metamask/browser-passworder';
+import type { Json } from '@metamask/utils';
+import { isEqual } from 'lodash';
+
 import type { ExportableKeyEncryptor } from '../../src/KeyringController';
 
 export const PASSWORD = 'password123';
+export const SALT = 'salt';
 export const MOCK_ENCRYPTION_KEY = JSON.stringify({
-  alg: 'A256GCM',
-  ext: true,
-  k: 'wYmxkxOOFBDP6F6VuuYFcRt_Po-tSLFHCWVolsHs4VI',
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  key_ops: ['encrypt', 'decrypt'],
-  kty: 'oct',
+  password: PASSWORD,
+  salt: SALT,
 });
-export const MOCK_ENCRYPTION_SALT =
-  'HQ5sfhsb8XAQRJtD+UqcImT7Ve4n3YMagrh05YTOsjk=';
-export const MOCK_HARDCODED_KEY = 'key';
-export const MOCK_HEX = '0xabcdef0123456789';
-// eslint-disable-next-line no-restricted-globals
 export const MOCK_KEY = Buffer.alloc(32);
-const INVALID_PASSWORD_ERROR = 'Incorrect password.';
+
+export const DECRYPTION_ERROR = 'Decryption failed.';
+
+function deriveKey(password: string, salt: string) {
+  return {
+    password,
+    salt,
+  };
+}
 
 export default class MockEncryptor implements ExportableKeyEncryptor {
-  cacheVal?: string;
-
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async encrypt(password: string, dataObj: any) {
+  async encrypt(password: string, dataObj: Json): Promise<string> {
+    const salt = this.generateSalt();
+    const key = deriveKey(password, salt);
+    const result = await this.encryptWithKey(key, dataObj);
     return JSON.stringify({
-      ...(await this.encryptWithKey(password, dataObj)),
-      salt: this.generateSalt(),
+      ...result,
+      salt,
     });
   }
 
-  async decrypt(_password: string, _text: string) {
-    if (_password && _password !== PASSWORD) {
-      throw new Error(INVALID_PASSWORD_ERROR);
+  async decrypt(password: string, text: string): Promise<Json> {
+    const { salt } = JSON.parse(text);
+    const key = deriveKey(password, salt);
+    return await this.decryptWithKey(key, text);
+  }
+
+  async encryptWithDetail(
+    password: string,
+    dataObj: Json,
+    salt?: string,
+  ): Promise<DetailedEncryptionResult> {
+    const _salt = salt ?? this.generateSalt();
+    const key = deriveKey(password, _salt);
+    const result = await this.encryptWithKey(key, dataObj);
+    return {
+      vault: JSON.stringify({
+        ...result,
+        salt: _salt,
+      }),
+      exportedKeyString: JSON.stringify(key),
+    };
+  }
+
+  async decryptWithDetail(
+    password: string,
+    text: string,
+  ): Promise<DetailedDecryptResult> {
+    const { salt } = JSON.parse(text);
+    const key = deriveKey(password, salt);
+    return {
+      vault: await this.decryptWithKey(key, text),
+      salt,
+      exportedKeyString: JSON.stringify(key),
+    };
+  }
+
+  async encryptWithKey(key: unknown, dataObj: Json): Promise<EncryptionResult> {
+    const iv = generateIV();
+    return {
+      data: JSON.stringify({
+        tag: { key, iv },
+        value: dataObj,
+      }),
+      iv,
+    };
+  }
+
+  async decryptWithKey(key: unknown, ciphertext: string): Promise<Json> {
+    // This conditional assignment is required because sometimes the keyring
+    // controller passes in the parsed object instead of the string.
+    const ciphertextObj =
+      typeof ciphertext === 'string' ? JSON.parse(ciphertext) : ciphertext;
+    const data = JSON.parse(ciphertextObj.data);
+    if (!isEqual(data.tag, { key, iv: ciphertextObj.iv })) {
+      throw new Error(DECRYPTION_ERROR);
     }
-
-    return JSON.parse(this.cacheVal || '') ?? {};
-  }
-
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async encryptWithKey(_key: unknown, dataObj: any) {
-    this.cacheVal = JSON.stringify(dataObj);
-    return {
-      data: MOCK_HEX,
-      iv: 'anIv',
-    };
-  }
-
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async encryptWithDetail(key: string, dataObj: any) {
-    return {
-      vault: await this.encrypt(key, dataObj),
-      exportedKeyString: MOCK_ENCRYPTION_KEY,
-    };
-  }
-
-  async decryptWithDetail(key: string, text: string) {
-    return {
-      vault: await this.decrypt(key, text),
-      salt: MOCK_ENCRYPTION_SALT,
-      exportedKeyString: MOCK_ENCRYPTION_KEY,
-    };
-  }
-
-  async decryptWithKey(_key: unknown, _text: string) {
-    return JSON.parse(this.cacheVal || '') ?? {};
+    return data.value;
   }
 
   async keyFromPassword(_password: string, _salt?: string) {
@@ -84,11 +114,18 @@ export default class MockEncryptor implements ExportableKeyEncryptor {
     return _vault;
   }
 
+  generateSalt() {
+    return SALT;
+  }
+
   isVaultUpdated(_vault: string) {
     return true;
   }
+}
 
-  generateSalt() {
-    return MOCK_ENCRYPTION_SALT;
-  }
+function generateIV() {
+  // Generate random salt.
+
+  // return crypto.randomUUID();
+  return 'iv'; // TODO some tests rely on fixed iv, but wouldn't it be better to generate random value here?
 }

@@ -37,4 +37,5 @@ export enum KeyringControllerError {
   NoHdKeyring = 'KeyringController - No HD Keyring found',
   ControllerLockRequired = 'KeyringController - attempt to update vault during a non mutually exclusive operation',
   LastAccountInPrimaryKeyring = 'KeyringController - Last account in primary keyring cannot be removed',
+  EncryptionKeyNotSet = 'KeyringController - Encryption key not set',
 }

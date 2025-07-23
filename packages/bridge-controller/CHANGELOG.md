@@ -7,6 +7,83 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/keyring-api` from `^18.0.0` to `^19.0.0` ([#6146](https://github.com/MetaMask/core/pull/6146))
+
+## [36.1.0]
+
+### Changed
+
+- Include EVM assetIds in `isNativeAddress` util when checking whether an address string is a native token ([#6076](https://github.com/MetaMask/core/pull/6076))
+
+## [36.0.0]
+
+### Changed
+
+- Bump `@metamask/multichain-network-controller` from `^0.9.0` to `^0.10.0` ([#6114](https://github.com/MetaMask/core/pull/6114))
+- **BREAKING** Require `destWalletAddress` in `isValidQuoteRequest` if bridging to or from Solana ([#6091](https://github.com/MetaMask/core/pull/6091))
+- Bump `@metamask/assets-controllers` to `^72.0.0` ([#6120](https://github.com/MetaMask/core/pull/6120))
+
+## [35.0.0]
+
+### Added
+
+- Add an optional `isSingleSwapBridgeButtonEnabled` feature flag that indicates whether Swap and Bridge entrypoints should be combined ([#6078](https://github.com/MetaMask/core/pull/6078))
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/assets-controllers` from `^69.0.0` to `^71.0.0` ([#6061](https://github.com/MetaMask/core/pull/6061), [#6098](https://github.com/MetaMask/core/pull/6098))
+- **BREAKING:** Bump peer dependency `@metamask/snaps-controllers` from `^12.0.0` to `^14.0.0` ([#6035](https://github.com/MetaMask/core/pull/6035))
+- **BREAKING** Remove `isSnapConfirmationEnabled` feature flag from `ChainConfigurationSchema` validation ([#6077](https://github.com/MetaMask/core/pull/6077))
+- Bump `@metamask/controller-utils` from `^11.10.0` to `^11.11.0` ([#6069](https://github.com/MetaMask/core/pull/6069))
+- Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
+
+## [34.0.0]
+
+### Added
+
+- **BREAKING** Add a required `gasIncluded` quote request parameter to indicate whether the bridge-api should return gasless swap quotes. The clients need to pass in a Boolean value indicating whether the user is opted in to STX and if their current network has STX support ([#6030](https://github.com/MetaMask/core/pull/6030))
+- Add `gasIncluded` to QuoteResponse, which indicates whether the quote includes tx fees (gas-less) ([#6030](https://github.com/MetaMask/core/pull/6030))
+- Add `feeData.txFees` to QuoteResponse, which contains data about tx fees taken from either the source or destination asset ([#6030](https://github.com/MetaMask/core/pull/6030))
+- Add `includedTxFees` to QuoteMetadata, which clients can display as the included tx fee when displaying a gasless quote ([#6039](https://github.com/MetaMask/core/pull/6039))
+- Calculate and return value of `includedTxFees` ([#6039](https://github.com/MetaMask/core/pull/6039))
+
+### Changed
+
+- Consolidate validator and type definitions for `QuoteResponse`, `BridgeAsset` and `PlatformConfigSchema` so new response fields only need to be defined once ([#6030](https://github.com/MetaMask/core/pull/6030))
+- Add `txFees` to total sentAmount ([#6039](https://github.com/MetaMask/core/pull/6039))
+- When gas is included and is taken from the destination token amount, ignore network fees in `adjustedReturn` calculation ([#6039](https://github.com/MetaMask/core/pull/6039))
+
+### Fixed
+
+- Calculate EVM token exchange rates accurately in `selectExchangeRateByChainIdAndAddress` when the `marketData` conversion rate is in the native currency ([#6030](https://github.com/MetaMask/core/pull/6030))
+- Convert `trade.value` to decimal when calculating relayer fee ([#6039](https://github.com/MetaMask/core/pull/6039))
+- Revert QuoteResponse ChainId schema to expect a number instead of a string ([#6045](https://github.com/MetaMask/core/pull/6045))
+
+## [33.0.1]
+
+### Fixed
+
+- Set correct `can_submit` property on Unified SwapBridge events ([#5993](https://github.com/MetaMask/core/pull/5993))
+- Use activeQuote to populate default properties for Submitted and Failed events, if tx fails before being confirmed on chain ([#5993](https://github.com/MetaMask/core/pull/5993))
+
+## [33.0.0]
+
+### Added
+
+- Add `stopPollingForQuotes` handler that stops quote polling without resetting the bridge controller's state ([#5994](https://github.com/MetaMask/core/pull/5994))
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` to `^31.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+- **BREAKING:** Bump peer dependency `@metamask/assets-controller` to `^69.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+- **BREAKING:** Bump peer dependency `@metamask/network-controller` to `^24.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+- **BREAKING:** Bump peer dependency `@metamask/transaction-controller` to `^58.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+- Bump dependency `@metamask/gas-fee-controller` to `^24.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+- Bump dependency `@metamask/multichain-network-controller` to `^0.9.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+- Bump dependency `@metamask/polling-controller` to `^14.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+
 ## [32.2.0]
 
 ### Changed
@@ -355,7 +432,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@32.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@36.1.0...HEAD
+[36.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@36.0.0...@metamask/bridge-controller@36.1.0
+[36.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@35.0.0...@metamask/bridge-controller@36.0.0
+[35.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@34.0.0...@metamask/bridge-controller@35.0.0
+[34.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@33.0.1...@metamask/bridge-controller@34.0.0
+[33.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@33.0.0...@metamask/bridge-controller@33.0.1
+[33.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@32.2.0...@metamask/bridge-controller@33.0.0
 [32.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@32.1.2...@metamask/bridge-controller@32.2.0
 [32.1.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@32.1.1...@metamask/bridge-controller@32.1.2
 [32.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@32.1.0...@metamask/bridge-controller@32.1.1

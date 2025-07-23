@@ -53,13 +53,13 @@ export { StatusTypes } from './types';
 export {
   AssetType,
   SortOrder,
-  ActionTypes,
   ChainId,
   RequestStatus,
   BridgeUserAction,
   BridgeBackgroundAction,
-  FeeType,
 } from './types';
+
+export { FeeType, ActionTypes, BridgeAssetSchema } from './utils/validators';
 
 export {
   ALLOWED_BRIDGE_CHAIN_IDS,
@@ -93,6 +93,8 @@ export {
 
 export { SWAPS_API_V2_BASE_URL } from './constants/swaps';
 
+export { MetricsActionType, MetricsSwapType } from './utils/metrics/constants';
+
 export {
   getEthUsdtResetData,
   isEthUsdt,
@@ -117,6 +119,7 @@ export {
   formatChainIdToCaip,
   formatChainIdToHex,
   formatAddressToCaipReference,
+  formatAddressToAssetId,
 } from './utils/caip-formatters';
 
 export {

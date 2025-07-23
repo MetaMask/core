@@ -1,3 +1,4 @@
+import EthQuery from '@metamask/eth-query';
 import type { Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
@@ -7,8 +8,13 @@ import {
   updateTransactionGasEstimates,
 } from './GasFeePoller';
 import { flushPromises } from '../../../../tests/helpers';
+import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow';
 import type { TransactionControllerMessenger } from '../TransactionController';
-import type { GasFeeFlowResponse, Layer1GasFeeFlow } from '../types';
+import type {
+  GasFeeFlowResponse,
+  Layer1GasFeeFlow,
+  TransactionBatchMeta,
+} from '../types';
 import {
   GasFeeEstimateLevel,
   GasFeeEstimateType,
@@ -42,6 +48,23 @@ const TRANSACTION_META_MOCK: TransactionMeta = {
     from: '0x123',
     type: TransactionEnvelopeType.feeMarket,
   },
+};
+
+const TRANSACTION_BATCH_META_MOCK: TransactionBatchMeta = {
+  id: 'batch1',
+  chainId: CHAIN_ID_MOCK,
+  networkClientId: NETWORK_CLIENT_ID_MOCK,
+  status: TransactionStatus.unapproved,
+  transactions: [
+    {
+      gas: '0x5208',
+    },
+    {
+      gas: '0x5208',
+    },
+  ],
+  gas: '0x10000',
+  from: '0x123',
 };
 
 const FEE_MARKET_GAS_FEE_ESTIMATES_MOCK = {
@@ -93,6 +116,9 @@ describe('GasFeePoller', () => {
   let gasFeeFlowMock: jest.Mocked<GasFeeFlow>;
   let triggerOnStateChange: () => void;
   let getTransactionsMock: jest.MockedFunction<() => TransactionMeta[]>;
+  let getTransactionBatchesMock: jest.MockedFunction<
+    () => TransactionBatchMeta[]
+  >;
   const getTransactionLayer1GasFeeMock = jest.mocked(
     getTransactionLayer1GasFee,
   );
@@ -113,6 +139,11 @@ describe('GasFeePoller', () => {
     getTransactionsMock = jest.fn();
     getTransactionsMock.mockReturnValue([{ ...TRANSACTION_META_MOCK }]);
 
+    getTransactionBatchesMock = jest.fn();
+    getTransactionBatchesMock.mockReturnValue([
+      { ...TRANSACTION_BATCH_META_MOCK },
+    ]);
+
     getTransactionLayer1GasFeeMock.mockResolvedValue(LAYER1_GAS_FEE_MOCK);
 
     constructorOptions = {
@@ -120,6 +151,7 @@ describe('GasFeePoller', () => {
       gasFeeFlows: [gasFeeFlowMock],
       getGasFeeControllerEstimates: getGasFeeControllerEstimatesMock,
       getTransactions: getTransactionsMock,
+      getTransactionBatches: getTransactionBatchesMock,
       layer1GasFeeFlows: layer1GasFeeFlowsMock,
       messenger: messengerMock,
       onStateChange: (listener: () => void) => {
@@ -212,6 +244,7 @@ describe('GasFeePoller', () => {
 
         getTransactionsMock.mockReturnValueOnce([{ ...TRANSACTION_META_MOCK }]);
         getTransactionsMock.mockReturnValueOnce([]);
+        getTransactionBatchesMock.mockReturnValue([]);
 
         const gasFeePoller = new GasFeePoller(constructorOptions);
         gasFeePoller.hub.on('transaction-updated', listener);
@@ -244,6 +277,155 @@ describe('GasFeePoller', () => {
             },
             {
               ...TRANSACTION_META_MOCK,
+              chainId: '0x3',
+              networkClientId: 'networkClientId4',
+            },
+          ]);
+
+          new GasFeePoller(constructorOptions);
+
+          triggerOnStateChange();
+          await flushPromises();
+
+          expect(getGasFeeControllerEstimatesMock).toHaveBeenCalledTimes(4);
+          expect(getGasFeeControllerEstimatesMock).toHaveBeenCalledWith({
+            networkClientId: 'networkClientId1',
+          });
+          expect(getGasFeeControllerEstimatesMock).toHaveBeenCalledWith({
+            networkClientId: 'networkClientId2',
+          });
+          expect(getGasFeeControllerEstimatesMock).toHaveBeenCalledWith({
+            networkClientId: 'networkClientId4',
+          });
+          expect(getGasFeeControllerEstimatesMock).toHaveBeenCalledWith({
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          });
+        });
+      });
+    });
+
+    describe('if unapproved transaction batches', () => {
+      let getGasFeesMock: jest.Mock;
+      beforeEach(() => {
+        getGasFeesMock = jest.fn().mockResolvedValue({
+          estimates: FEE_MARKET_GAS_FEE_ESTIMATES_MOCK,
+        });
+        jest
+          .spyOn(DefaultGasFeeFlow.prototype, 'getGasFees')
+          .mockImplementation(getGasFeesMock);
+      });
+
+      it('emits batch updated event', async () => {
+        const listener = jest.fn();
+        getTransactionsMock.mockReturnValue([]);
+        const gasFeePoller = new GasFeePoller(constructorOptions);
+        gasFeePoller.hub.on('transaction-batch-updated', listener);
+
+        triggerOnStateChange();
+        await flushPromises();
+
+        expect(listener).toHaveBeenCalledTimes(1);
+        expect(listener).toHaveBeenCalledWith({
+          transactionBatchId: TRANSACTION_BATCH_META_MOCK.id,
+          gasFeeEstimates: GAS_FEE_FLOW_RESPONSE_MOCK.estimates,
+          gasFeeEstimatesLoaded: true,
+        });
+      });
+
+      it('calls gas fee flow for batches', async () => {
+        getGasFeeControllerEstimatesMock.mockResolvedValue({});
+
+        new GasFeePoller(constructorOptions);
+
+        triggerOnStateChange();
+        await flushPromises();
+
+        expect(gasFeeFlowMock.getGasFees).toHaveBeenCalledTimes(1);
+        expect(gasFeeFlowMock.getGasFees).toHaveBeenCalledWith({
+          ethQuery: expect.any(EthQuery),
+          gasFeeControllerData: expect.any(Object),
+          messenger: expect.any(Function),
+          transactionMeta: {
+            id: '1',
+            chainId: TRANSACTION_BATCH_META_MOCK.chainId,
+            networkClientId: TRANSACTION_BATCH_META_MOCK.networkClientId,
+            status: TRANSACTION_BATCH_META_MOCK.status,
+            time: expect.any(Number),
+            txParams: {
+              from: TRANSACTION_BATCH_META_MOCK.from,
+              type: TransactionEnvelopeType.feeMarket,
+            },
+          },
+        });
+      });
+
+      it('creates polling timeout for batches', async () => {
+        new GasFeePoller(constructorOptions);
+
+        triggerOnStateChange();
+        await flushPromises();
+
+        expect(jest.getTimerCount()).toBe(1);
+
+        jest.runOnlyPendingTimers();
+        await flushPromises();
+
+        expect(gasFeeFlowMock.getGasFees).toHaveBeenCalledTimes(2);
+      });
+
+      it('does not create additional polling timeout on subsequent state changes', async () => {
+        new GasFeePoller(constructorOptions);
+
+        triggerOnStateChange();
+        await flushPromises();
+
+        triggerOnStateChange();
+        await flushPromises();
+
+        expect(jest.getTimerCount()).toBe(1);
+      });
+
+      it('does nothing if no transaction batches', async () => {
+        const listener = jest.fn();
+
+        getTransactionsMock.mockReturnValue([]);
+        getTransactionBatchesMock.mockReturnValueOnce([
+          { ...TRANSACTION_BATCH_META_MOCK },
+        ]);
+        getTransactionBatchesMock.mockReturnValueOnce([]);
+
+        const gasFeePoller = new GasFeePoller(constructorOptions);
+        gasFeePoller.hub.on('transaction-batch-updated', listener);
+
+        triggerOnStateChange();
+        await flushPromises();
+
+        expect(listener).toHaveBeenCalledTimes(0);
+        expect(getGasFeeControllerEstimatesMock).toHaveBeenCalledTimes(0);
+        expect(gasFeeFlowMock.getGasFees).toHaveBeenCalledTimes(0);
+      });
+
+      describe('fetches GasFeeController data for batches', () => {
+        it('for each unique chain ID in batches', async () => {
+          getTransactionsMock.mockReturnValue([]);
+          getTransactionBatchesMock.mockReturnValue([
+            {
+              ...TRANSACTION_BATCH_META_MOCK,
+              chainId: '0x1',
+              networkClientId: 'networkClientId1',
+            },
+            {
+              ...TRANSACTION_BATCH_META_MOCK,
+              chainId: '0x2',
+              networkClientId: 'networkClientId2',
+            },
+            {
+              ...TRANSACTION_BATCH_META_MOCK,
+              chainId: '0x2',
+              networkClientId: 'networkClientId3',
+            },
+            {
+              ...TRANSACTION_BATCH_META_MOCK,
               chainId: '0x3',
               networkClientId: 'networkClientId4',
             },
@@ -348,6 +530,7 @@ describe('GasFeePoller', () => {
       await flushPromises();
 
       getTransactionsMock.mockReturnValue([]);
+      getTransactionBatchesMock.mockReturnValue([]);
 
       triggerOnStateChange();
       await flushPromises();

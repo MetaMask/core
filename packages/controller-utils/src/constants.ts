@@ -195,3 +195,43 @@ export const CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP: Record<
   [ChainId['linea-mainnet']]: BuiltInNetworkName.LineaMainnet,
   [ChainId.aurora]: BuiltInNetworkName.Aurora,
 };
+
+/**
+ * The number of milliseconds in a second.
+ */
+export const SECOND = 1000;
+
+/**
+ * The number of milliseconds in a second.
+ */
+export const SECONDS = SECOND;
+
+/**
+ * The number of milliseconds in a minute.
+ */
+export const MINUTE = SECONDS * 60;
+
+/**
+ * The number of milliseconds in a minute.
+ */
+export const MINUTES = MINUTE;
+
+/**
+ * The number of milliseconds in a hour.
+ */
+export const HOUR = MINUTES * 60;
+
+/**
+ * The number of milliseconds in a hour.
+ */
+export const HOURS = HOUR;
+
+/**
+ * The number of milliseconds in a day.
+ */
+export const DAY = HOURS * 24;
+
+/**
+ * The number of milliseconds in a day.
+ */
+export const DAYS = DAY;

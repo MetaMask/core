@@ -579,6 +579,20 @@ function assertIsValidPassword(password: unknown): asserts password is string {
 }
 
 /**
+ * Assert that the provided encryption key is a valid non-empty string.
+ *
+ * @param encryptionKey - The encryption key to check.
+ * @throws If the encryption key is not a valid string.
+ */
+function assertIsEncryptionKeySet(
+  encryptionKey: string | undefined,
+): asserts encryptionKey is string {
+  if (!encryptionKey) {
+    throw new Error(KeyringControllerError.EncryptionKeyNotSet);
+  }
+}
+
+/**
  * Checks if the provided value is a serialized keyrings array.
  *
  * @param array - The value to check.
@@ -1450,16 +1464,17 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Attempts to decrypt the current vault and load its keyrings,
-   * using the given encryption key and salt.
+   * Attempts to decrypt the current vault and load its keyrings, using the
+   * given encryption key and salt. The optional salt can be used to check for
+   * consistency with the vault salt.
    *
    * @param encryptionKey - Key to unlock the keychain.
-   * @param encryptionSalt - Salt to unlock the keychain.
+   * @param encryptionSalt - Optional salt to unlock the keychain.
    * @returns Promise resolving when the operation completes.
    */
   async submitEncryptionKey(
     encryptionKey: string,
-    encryptionSalt: string,
+    encryptionSalt?: string,
   ): Promise<void> {
     const { newMetadata } = await this.#withRollback(async () => {
       const result = await this.#unlockKeyrings({
@@ -1483,6 +1498,20 @@ export class KeyringController extends BaseController<
       // since the controller is already unlocked.
       console.error('Failed to update vault during login:', error);
     }
+  }
+
+  /**
+   * Exports the vault encryption key.
+   *
+   * @returns The vault encryption key.
+   */
+  async exportEncryptionKey(): Promise<string> {
+    this.#assertIsUnlocked();
+
+    return await this.#withControllerLock(async () => {
+      assertIsEncryptionKeySet(this.#encryptionKey?.exported);
+      return this.#encryptionKey.exported;
+    });
   }
 
   /**
@@ -2347,7 +2376,7 @@ export class KeyringController extends BaseController<
         }
       | {
           exportedEncryptionKey: string;
-          encryptionKeySalt: string;
+          encryptionKeySalt?: string;
         },
   ): Promise<{
     keyrings: { keyring: EthKeyring; metadata: KeyringMetadata }[];
@@ -2357,13 +2386,14 @@ export class KeyringController extends BaseController<
       if (!this.state.vault) {
         throw new Error(KeyringControllerError.VaultError);
       }
+      const parsedEncryptedVault = JSON.parse(this.state.vault);
 
       if ('password' in credentials) {
         await this.#deriveEncryptionKey(credentials.password);
       } else {
         this.#useEncryptionKey(
           credentials.exportedEncryptionKey,
-          credentials.encryptionKeySalt,
+          credentials.encryptionKeySalt || parsedEncryptedVault.salt,
         );
       }
 
@@ -2372,7 +2402,6 @@ export class KeyringController extends BaseController<
         throw new Error(KeyringControllerError.MissingCredentials);
       }
 
-      const parsedEncryptedVault = JSON.parse(this.state.vault);
       const key = await this.#encryptor.importKey(encryptionKey);
       const vault = await this.#encryptor.decryptWithKey(
         key,

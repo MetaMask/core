@@ -7,6 +7,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Improved `TokenDetectionController` token handling flow ([#6012](https://github.com/MetaMask/core/pull/6012))
+  - Detected tokens are now implicitly added directly to `allTokens` instead of being added to `allDetectedTokens` first
+  - This simplifies the token import flow and improves performance by eliminating the manual UI import step
+  - Enhanced `TokenDetectionController` to use direct RPC calls when basic functionality is disabled ([#6012](https://github.com/MetaMask/core/pull/6012))
+  - Token detection now falls back to direct RPC calls instead of API-based detection when basic functionality is turned off
+- Bump `@metamask/keyring-api` from `^18.0.0` to `^19.0.0` ([#6146](https://github.com/MetaMask/core/pull/6146))
+
+### Fixed
+
+- Fix `TokenDetectionController` to respect the detection toggle setting ([#6012](https://github.com/MetaMask/core/pull/6012))
+  - Token detection will no longer run when the detection toggle is disabled, even during user refresh operations
+- Improved `CurrencyRateController` behavior when basic functionality is disabled ([#6012](https://github.com/MetaMask/core/pull/6012))
+  - Disabled requests to CryptoCompare when basic functionality is turned off to avoid unnecessary API calls
+- Improve error handling in `MultichainAssetsRatesController` for Snap request failures ([#6104](https://github.com/MetaMask/core/pull/6104))
+  - Enhanced `#handleSnapRequest` method with detailed error logging and graceful failure recovery
+  - Added null safety checks to prevent crashes when Snap requests return null
+  - Controller now continues operation when individual Snap requests fail instead of crashing
+  - Added comprehensive unit tests covering various error scenarios including JSON-RPC errors and network failures
+
+## [72.0.0]
+
+### Changed
+
+- Update `NftController` to use properly exported `PhishingControllerBulkScanUrlsAction` type from `@metamask/phishing-controller` ([#6105](https://github.com/MetaMask/core/pull/6105))
+- Bump dev dependency `@metamask/phishing-controller` to `^13.1.0` ([#6120](https://github.com/MetaMask/core/pull/6120))
+
+## [71.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/phishing-controller` to `^13.0.0` ([#6098](https://github.com/MetaMask/core/pull/6098))
+
+## [70.0.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.10.0` to `^11.11.0` ([#6069](https://github.com/MetaMask/core/pull/6069))
+  - This upgrade includes performance improvements to checksum hex address normalization
+- Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
+
+## [70.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/snaps-controllers` from `^12.0.0` to `^14.0.0` ([#6035](https://github.com/MetaMask/core/pull/6035))
+- Update `MultichainAssetsRatesController` to use the new `onAssetsMarketData` handler in addition of `onAssetsConversion` to get marketData ([#6035](https://github.com/MetaMask/core/pull/6035))
+  - This change improves the handler interface for fetching asset market data from Snaps
+- Bump `@metamask/snaps-sdk` from `^7.1.0` to `^9.0.0` ([#6035](https://github.com/MetaMask/core/pull/6035))
+- Bump `@metamask/snaps-utils` from `^9.4.0` to `^11.0.0` ([#6035](https://github.com/MetaMask/core/pull/6035))
+
+## [69.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` to `^31.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+- **BREAKING:** Bump peer dependency `@metamask/network-controller` to `^24.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+- **BREAKING:** Bump peer dependency `@metamask/transaction-controller` to `^58.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+- Bump `@metamask/polling-controller` to `^14.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+
 ## [68.2.0]
 
 ### Added
@@ -1726,7 +1787,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@68.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@72.0.0...HEAD
+[72.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@71.0.0...@metamask/assets-controllers@72.0.0
+[71.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@70.0.1...@metamask/assets-controllers@71.0.0
+[70.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@70.0.0...@metamask/assets-controllers@70.0.1
+[70.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@69.0.0...@metamask/assets-controllers@70.0.0
+[69.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@68.2.0...@metamask/assets-controllers@69.0.0
 [68.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@68.1.0...@metamask/assets-controllers@68.2.0
 [68.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@68.0.0...@metamask/assets-controllers@68.1.0
 [68.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@67.0.0...@metamask/assets-controllers@68.0.0

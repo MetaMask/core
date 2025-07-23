@@ -148,6 +148,28 @@ export type SeedlessOnboardingControllerState =
        * This is temporarily stored in state during authentication and then persisted in the vault.
        */
       revokeToken?: string;
+
+      /**
+       * The encrypted seedless encryption key used to encrypt the seedless vault.
+       */
+      encryptedSeedlessEncryptionKey?: string;
+
+      /**
+       * The encrypted keyring encryption key used to encrypt the keyring vault.
+       */
+      encryptedKeyringEncryptionKey?: string;
+
+      /**
+       * The access token used for pairing with profile sync auth service and to access other services.
+       */
+      accessToken?: string;
+
+      /**
+       * The metadata access token used to access the metadata service.
+       *
+       * This token is used to access the metadata service before the vault is created or unlocked.
+       */
+      metadataAccessToken?: string;
     };
 
 // Actions
@@ -214,7 +236,11 @@ export type ToprfKeyDeriver = {
 export type RefreshJWTToken = (params: {
   connection: AuthConnection;
   refreshToken: string;
-}) => Promise<{ idTokens: string[] }>;
+}) => Promise<{
+  idTokens: string[];
+  accessToken: string;
+  metadataAccessToken: string;
+}>;
 
 export type RevokeRefreshToken = (params: {
   connection: AuthConnection;
@@ -302,13 +328,22 @@ export type VaultData = {
    */
   toprfEncryptionKey: string;
   /**
+   * The encryption key to encrypt the password.
+   */
+  toprfPwEncryptionKey: string;
+  /**
    * The authentication key pair to authenticate the TOPRF.
    */
   toprfAuthKeyPair: string;
   /**
    * The revoke token to revoke refresh token and get new refresh token and new revoke token.
+   * The revoke token may no longer be available after a large number of password changes. In this case, re-authentication is advised.
    */
-  revokeToken: string;
+  revokeToken?: string;
+  /**
+   * The access token used for pairing with profile sync auth service and to access other services.
+   */
+  accessToken: string;
 };
 
 export type SecretDataType = Uint8Array | string | number;
@@ -343,4 +378,27 @@ export type DecodedNodeAuthToken = {
   verifier_id: string;
   scope: string;
   signature: string;
+};
+
+export type DecodedBaseJWTToken = {
+  /**
+   * The expiration time of the token in seconds.
+   */
+  exp: number;
+  /**
+   * The issued at time of the token in seconds.
+   */
+  iat: number;
+  /**
+   * The audience of the token.
+   */
+  aud: string;
+  /**
+   * The issuer of the token.
+   */
+  iss: string;
+  /**
+   * The subject of the token.
+   */
+  sub: string;
 };
