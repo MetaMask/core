@@ -213,7 +213,7 @@ export class Messenger<
    * This will make the registered function available to call via the `call` method.
    *
    * @deprecated Do not call this directly, instead use the `delegate` method.
-   * @param actionType - The action type. This is a unqiue identifier for this action.
+   * @param actionType - The action type. This is a unique identifier for this action.
    * @param handler - The action handler. This function gets called when the `call` method is
    * invoked with the given action type.
    * @throws Will throw when a handler has been registered for this action type already.
@@ -270,7 +270,6 @@ export class Messenger<
    * @param actionType - The action type. This is a unique identifier for this action.
    * @template ActionType - A type union of Action type strings.
    */
-
   unregisterActionHandler<
     ActionType extends Action['type'] & NamespacedName<Namespace>,
   >(actionType: ActionType) {
