@@ -66,6 +66,29 @@ const notification = { id: '1', jsonrpc: '2.0', method: 'hello' };
 await server.handle(notification);
 ```
 
+### Legacy compatibility
+
+Use the `asLegacyMiddleware` function to use a `JsonRpcEngineV2` as a
+middleware in a legacy `JsonRpcEngine`:
+
+```ts
+import {
+  asLegacyMiddleware,
+  JsonRpcEngineV2,
+} from '@metamask/json-rpc-engine/v2';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+
+const legacyEngine = new JsonRpcEngine();
+
+const v2Engine = new JsonRpcEngineV2({
+  middleware: [
+    // ...
+  ],
+});
+
+legacyEngine.push(asLegacyMiddleware(v2Engine));
+```
+
 ### Middleware
 
 Middleware functions can be sync or async.

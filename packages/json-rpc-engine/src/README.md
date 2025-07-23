@@ -21,6 +21,23 @@ engine.push(function (req, res, next, end) {
 });
 ```
 
+### V2 compatibility
+
+Use the `asV2Middleware` function to use a `JsonRpcEngine` as a middleware in a
+`JsonRpcEngineV2`:
+
+```ts
+import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
+import { asV2Middleware, JsonRpcEngine } from '@metamask/json-rpc-engine';
+
+const legacyEngine = new JsonRpcEngine();
+legacyEngine.push(/* ... */);
+
+const v2Engine = new JsonRpcEngineV2({
+  middleware: [asV2Middleware(legacyEngine)],
+});
+```
+
 Requests are handled asynchronously, stepping down the stack until complete.
 
 ```js
