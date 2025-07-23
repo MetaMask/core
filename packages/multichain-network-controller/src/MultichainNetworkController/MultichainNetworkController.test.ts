@@ -1,5 +1,6 @@
 import { Messenger } from '@metamask/base-controller';
 import { InfuraNetworkType } from '@metamask/controller-utils';
+import type { AnyAccountType } from '@metamask/keyring-api';
 import {
   BtcScope,
   SolScope,
@@ -31,6 +32,11 @@ import {
   type MultichainNetworkControllerAllowedEvents,
   MULTICHAIN_NETWORK_CONTROLLER_NAME,
 } from '../types';
+
+type TestKeyringAccountType = Exclude<
+  KeyringAccountType,
+  `${AnyAccountType.Account}`
+>;
 
 /**
  * Creates a mock network service for testing.
@@ -189,19 +195,23 @@ function setupController({
     networkService: mockNetworkService ?? defaultNetworkService,
   });
 
-  const triggerSelectedAccountChange = (accountType: KeyringAccountType) => {
-    const mockAccountAddressByAccountType: Record<KeyringAccountType, string> =
-      {
-        [EthAccountType.Eoa]: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
-        [EthAccountType.Erc4337]: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
-        [SolAccountType.DataAccount]:
-          'So11111111111111111111111111111111111111112',
-        [BtcAccountType.P2pkh]: '1AXaVdPBb6zqrTMb6ebrBb9g3JmeAPGeCF',
-        [BtcAccountType.P2sh]: '3KQPirCGGbVyWJLGuWN6VPC7uLeiarYB7x',
-        [BtcAccountType.P2wpkh]: 'bc1q4degm5k044n9xv3ds7d8l6hfavydte6wn6sesw',
-        [BtcAccountType.P2tr]:
-          'bc1pxfxst7zrkw39vzh0pchq5ey0q7z6u739cudhz5vmg89wa4kyyp9qzrf5sp',
-      };
+  const triggerSelectedAccountChange = (
+    accountType: TestKeyringAccountType,
+  ) => {
+    const mockAccountAddressByAccountType: Record<
+      TestKeyringAccountType,
+      string
+    > = {
+      [EthAccountType.Eoa]: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
+      [EthAccountType.Erc4337]: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
+      [SolAccountType.DataAccount]:
+        'So11111111111111111111111111111111111111112',
+      [BtcAccountType.P2pkh]: '1AXaVdPBb6zqrTMb6ebrBb9g3JmeAPGeCF',
+      [BtcAccountType.P2sh]: '3KQPirCGGbVyWJLGuWN6VPC7uLeiarYB7x',
+      [BtcAccountType.P2wpkh]: 'bc1q4degm5k044n9xv3ds7d8l6hfavydte6wn6sesw',
+      [BtcAccountType.P2tr]:
+        'bc1pxfxst7zrkw39vzh0pchq5ey0q7z6u739cudhz5vmg89wa4kyyp9qzrf5sp',
+    };
     const mockAccountAddress = mockAccountAddressByAccountType[accountType];
 
     const mockAccount = createMockInternalAccount({
