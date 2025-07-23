@@ -23,6 +23,4 @@ module.exports = merge(baseConfig, {
       statements: 100,
     },
   },
-
-  coveragePathIgnorePatterns: ['constants.ts'],
 });
