@@ -36,6 +36,11 @@ export type JsonRpcMiddleware<
   params: MiddlewareParams<Request, Result | void>,
 ) => Readonly<Result> | void | Promise<Readonly<Result> | void>;
 
+type RequestState<Request extends JsonRpcCall, Result extends Json | void> = {
+  request: Request;
+  result: Result | void;
+};
+
 type Options<Request extends JsonRpcCall, Result extends Json> = {
   middleware: NonEmptyArray<JsonRpcMiddleware<Request, Result | void>>;
 };
@@ -127,23 +132,50 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall, Result extends Json> {
     context: MiddlewareContext = new MiddlewareContext(),
   ): Promise<{
     result: Result | void;
-    finalRequest: Readonly<Request>;
+    request: Readonly<Request>;
   }> {
     deepFreeze(originalRequest);
 
-    let currentRequest = originalRequest;
-    // Either ESLint or TypeScript complains.
-    // eslint-disable-next-line no-undef-init
-    let currentResult: Result | void = undefined;
+    const state: RequestState<Request, Result> = {
+      request: originalRequest,
+      result: undefined,
+    };
     const middlewareIterator = this.#makeMiddlewareIterator();
-    const firstMiddleware: JsonRpcMiddleware<Request, Result | void> =
-      middlewareIterator.next().value;
+    const firstMiddleware = middlewareIterator.next().value;
 
+    const makeNext = this.#makeNextFactory(middlewareIterator, state, context);
+
+    const result = await firstMiddleware({
+      request: originalRequest,
+      context,
+      next: makeNext(),
+    });
+    this.#updateResult(result, state);
+
+    return state;
+  }
+
+  /**
+   * Create a factory of `next()` functions for use with a particular request.
+   * The factory is recursive, and a new `next()` is created for each middleware
+   * invocation.
+   *
+   * @param middlewareIterator - The iterator of middleware for the current
+   * request.
+   * @param state - The current values of the request and result.
+   * @param context - The context to pass to the middleware.
+   * @returns The `next()` function factory.
+   */
+  #makeNextFactory(
+    middlewareIterator: Iterator<JsonRpcMiddleware<Request, Result | void>>,
+    state: RequestState<Request, Result>,
+    context: MiddlewareContext,
+  ): () => Next<Request, Result> {
     const makeNext = (): Next<Request, Result> => {
       let wasCalled = false;
 
       const next = async (
-        request: Request = currentRequest,
+        request: Request = state.request,
       ): Promise<Result | void> => {
         if (wasCalled) {
           throw new JsonRpcEngineError(
@@ -152,9 +184,9 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall, Result extends Json> {
         }
         wasCalled = true;
 
-        if (request !== currentRequest) {
-          this.#assertValidNextRequest(currentRequest, request);
-          currentRequest = deepFreeze(request);
+        if (request !== state.request) {
+          this.#assertValidNextRequest(state.request, request);
+          state.request = deepFreeze(request);
         }
 
         const { value: middleware, done } = middlewareIterator.next();
@@ -163,50 +195,47 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall, Result extends Json> {
         }
 
         const result = await middleware({ request, context, next: makeNext() });
-        currentResult = this.#processResult(
-          result,
-          currentResult,
-          currentRequest,
-        );
+        this.#updateResult(result, state);
 
-        return currentResult;
+        return state.result;
       };
       return next;
     };
 
-    const result = await firstMiddleware({
-      request: originalRequest,
-      context,
-      next: makeNext(),
-    });
-    currentResult = this.#processResult(result, currentResult, currentRequest);
-
-    return {
-      result: currentResult,
-      finalRequest: currentRequest,
-    };
+    return makeNext;
   }
 
-  #processResult(
+  /**
+   * Validate the result from a middleware and, if it's a new value, update the
+   * current result.
+   *
+   * @param result - The result from the middleware.
+   * @param state - The current values of the request and result.
+   */
+  #updateResult(
     result: Result | void,
-    currentResult: Result | void,
-    request: Request,
-  ): Result | void {
-    if (isNotification(request) && result !== undefined) {
+    state: RequestState<Request, Result>,
+  ): void {
+    if (isNotification(state.request) && result !== undefined) {
       throw new JsonRpcEngineError(
-        `Result returned for notification: ${stringify(request)}`,
+        `Result returned for notification: ${stringify(state.request)}`,
       );
     }
 
-    if (result !== undefined && result !== currentResult) {
+    if (result !== undefined && result !== state.result) {
       if (typeof result === 'object' && result !== null) {
         deepFreeze(result);
       }
-      return result;
+      state.result = result;
     }
-    return currentResult;
   }
 
+  /**
+   * Assert that a request modified by a middleware is valid.
+   *
+   * @param currentRequest - The current request.
+   * @param nextRequest - The next request.
+   */
   #assertValidNextRequest(currentRequest: Request, nextRequest: Request): void {
     if (nextRequest.jsonrpc !== currentRequest.jsonrpc) {
       throw new JsonRpcEngineError(
@@ -232,7 +261,10 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall, Result extends Json> {
    */
   asMiddleware(): JsonRpcMiddleware<Request, Result> {
     return async ({ request, context, next }) => {
-      const { result, finalRequest } = await this.#handle(request, context);
+      const { result, request: finalRequest } = await this.#handle(
+        request,
+        context,
+      );
       return result === undefined ? await next(finalRequest) : result;
     };
   }
