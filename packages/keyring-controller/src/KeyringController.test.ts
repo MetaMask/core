@@ -37,7 +37,6 @@ import {
   keyringBuilderFactory,
 } from './KeyringController';
 import MockEncryptor, {
-  DECRYPTION_ERROR,
   MOCK_ENCRYPTION_KEY,
   MOCK_KEY,
   SALT,
