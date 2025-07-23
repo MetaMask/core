@@ -4,6 +4,7 @@ describe('@metamask/json-rpc-engine', () => {
   it('has expected JavaScript exports', () => {
     expect(Object.keys(allExports)).toMatchInlineSnapshot(`
       Array [
+        "asLegacyMiddleware",
         "getUniqueId",
         "JsonRpcServer",
         "isNotification",

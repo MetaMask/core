@@ -109,7 +109,7 @@ export class JsonRpcServer {
     }
 
     const request: JsonRpcCall = {
-      jsonrpc: '2.0' as const,
+      jsonrpc,
       method: rawRequest.method,
     };
 

@@ -3602,6 +3602,7 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
     jest-it-up: "npm:^2.0.2"
+    rfdc: "npm:^1.4.1"
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typescript: "npm:~5.2.2"
@@ -13289,7 +13290,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"rfdc@npm:^1.3.0":
+"rfdc@npm:^1.3.0, rfdc@npm:^1.4.1":
   version: 1.4.1
   resolution: "rfdc@npm:1.4.1"
   checksum: 10/2f3d11d3d8929b4bfeefc9acb03aae90f971401de0add5ae6c5e38fec14f0405e6a4aad8fdb76344bfdd20c5193110e3750cbbd28ba86d73729d222b6cf4a729

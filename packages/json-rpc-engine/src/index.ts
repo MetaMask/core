@@ -1,3 +1,4 @@
+export { asLegacyMiddleware } from './asLegacyMiddleware';
 export { getUniqueId } from './getUniqueId';
 export * from './JsonRpcEngineV2';
 export { JsonRpcServer } from './JsonRpcServer';

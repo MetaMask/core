@@ -8,19 +8,9 @@ import {
   type JsonRpcNotification,
   type JsonRpcRequest,
 } from './utils';
+import { makeRequest } from '../tests/utils';
 
 const jsonrpc = '2.0' as const;
-
-const makeRequest = <Request extends JsonRpcRequest>(
-  params: Partial<Request> = {},
-): Request =>
-  ({
-    jsonrpc,
-    id: '1',
-    method: 'test_request',
-    params: [] as Request['params'],
-    ...params,
-  }) as Request;
 
 describe('JsonRpcEngineV2', () => {
   describe('handle', () => {
