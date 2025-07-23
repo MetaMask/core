@@ -2,6 +2,31 @@ import { SeedlessOnboardingControllerErrorMessage } from './constants';
 import type { VaultData } from './types';
 
 /**
+ * Check if the provided value is a valid password outdated cache.
+ *
+ * @param value - The value to check.
+ * @throws If the value is not a valid password outdated cache.
+ */
+export function assertIsPasswordOutdatedCacheValid(
+  value: unknown,
+): asserts value is number {
+  if (
+    (typeof value !== 'number' && typeof value !== 'string') ||
+    isNaN(Number(value))
+  ) {
+    throw new Error(
+      SeedlessOnboardingControllerErrorMessage.InvalidPasswordOutdatedCache,
+    );
+  }
+
+  if (Number(value) < 0) {
+    throw new Error(
+      SeedlessOnboardingControllerErrorMessage.InvalidPasswordOutdatedCache,
+    );
+  }
+}
+
+/**
  * Check if the provided value is a valid vault data.
  *
  * @param value - The value to check.
