@@ -317,9 +317,9 @@ export type SerializedKeyring = {
  */
 type CachedEncryptionKey = {
   /**
-   * The exported encryption key string.
+   * The serialized encryption key.
    */
-  exported: string;
+  serialized: string;
   /**
    * The salt used to derive the encryption key.
    */
@@ -390,12 +390,12 @@ export type ExportableKeyEncryptor<
   ) => Promise<encryptorUtils.EncryptionResult>;
   /**
    * Encrypts the given object with the given password, and returns the
-   * encryption result and the exported key string.
+   * encryption result and the serialized key string.
    *
    * @param password - The password to encrypt with.
    * @param object - The object to encrypt.
    * @param salt - The optional salt to use for encryption.
-   * @returns The encrypted string and the exported key string.
+   * @returns The encrypted string and the serialized key string.
    */
   encryptWithDetail: (
     password: string,
@@ -415,12 +415,12 @@ export type ExportableKeyEncryptor<
   ) => Promise<unknown>;
   /**
    * Decrypts the given encrypted string with the given password, and returns
-   * the decrypted object and the salt and exported key string used for
+   * the decrypted object and the salt and serialized key string used for
    * encryption.
    *
    * @param password - The password to decrypt with.
    * @param encryptedString - The encrypted string to decrypt.
-   * @returns The decrypted object and the salt and exported key string used for
+   * @returns The decrypted object and the salt and serialized key string used for
    * encryption.
    */
   decryptWithDetail: (
@@ -428,9 +428,9 @@ export type ExportableKeyEncryptor<
     encryptedString: string,
   ) => Promise<encryptorUtils.DetailedDecryptResult>;
   /**
-   * Generates an encryption key from exported key string.
+   * Generates an encryption key from a serialized key.
    *
-   * @param key - The exported key string.
+   * @param key - The serialized key string.
    * @returns The encryption key.
    */
   importKey: (key: string) => Promise<EncryptionKey>;
@@ -438,7 +438,7 @@ export type ExportableKeyEncryptor<
    * Exports the encryption key as a string.
    *
    * @param key - The encryption key to export.
-   * @returns The exported key string.
+   * @returns The serialized key string.
    */
   exportKey: (key: EncryptionKey) => Promise<string>;
   /**
@@ -1509,8 +1509,8 @@ export class KeyringController extends BaseController<
     this.#assertIsUnlocked();
 
     return await this.#withControllerLock(async () => {
-      assertIsEncryptionKeySet(this.#encryptionKey?.exported);
-      return this.#encryptionKey.exported;
+      assertIsEncryptionKeySet(this.#encryptionKey?.serialized);
+      return this.#encryptionKey.serialized;
     });
   }
 
@@ -2183,13 +2183,13 @@ export class KeyringController extends BaseController<
       salt = this.#encryptor.generateSalt();
     }
 
-    const exportedEncryptionKey = await this.#encryptor.exportKey(
+    const serializedEncryptionKey = await this.#encryptor.exportKey(
       await this.#encryptor.keyFromPassword(password, salt, true, keyMetadata),
     );
 
     this.#encryptionKey = {
       salt,
-      exported: exportedEncryptionKey,
+      serialized: serializedEncryptionKey,
     };
   }
 
@@ -2219,7 +2219,7 @@ export class KeyringController extends BaseController<
 
     this.#encryptionKey = {
       salt: encryptionSalt,
-      exported: encryptionKey,
+      serialized: encryptionKey,
     };
   }
 
@@ -2397,7 +2397,7 @@ export class KeyringController extends BaseController<
         );
       }
 
-      const encryptionKey = this.#encryptionKey?.exported;
+      const encryptionKey = this.#encryptionKey?.serialized;
       if (!encryptionKey) {
         throw new Error(KeyringControllerError.MissingCredentials);
       }
@@ -2451,7 +2451,9 @@ export class KeyringController extends BaseController<
         throw new Error(KeyringControllerError.NoHdKeyring);
       }
 
-      const key = await this.#encryptor.importKey(this.#encryptionKey.exported);
+      const key = await this.#encryptor.importKey(
+        this.#encryptionKey.serialized,
+      );
       const encryptedVault = await this.#encryptor.encryptWithKey(
         key,
         serializedKeyrings,
@@ -2462,7 +2464,7 @@ export class KeyringController extends BaseController<
       encryptedVault.salt = this.#encryptionKey.salt;
       const updatedState: Partial<KeyringControllerState> = {
         vault: JSON.stringify(encryptedVault),
-        encryptionKey: this.#encryptionKey.exported,
+        encryptionKey: this.#encryptionKey.serialized,
         encryptionSalt: this.#encryptionKey.salt,
       };
 
