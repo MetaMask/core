@@ -16,7 +16,7 @@ export function assertIsPasswordOutdatedCacheValid(
     );
   }
 
-  if (Number(value) < 0) {
+  if (value < 0 || isNaN(value) || !isFinite(value)) {
     throw new Error(
       SeedlessOnboardingControllerErrorMessage.InvalidPasswordOutdatedCache,
     );

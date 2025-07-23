@@ -218,4 +218,28 @@ describe('assertIsPasswordOutdatedCacheValid', () => {
       assertIsPasswordOutdatedCacheValid(1000);
     }).not.toThrow();
   });
+
+  it('should throw when value is NaN', () => {
+    expect(() => {
+      assertIsPasswordOutdatedCacheValid(NaN);
+    }).toThrow(
+      SeedlessOnboardingControllerErrorMessage.InvalidPasswordOutdatedCache,
+    );
+  });
+
+  it('should throw when value is Infinity', () => {
+    expect(() => {
+      assertIsPasswordOutdatedCacheValid(Infinity);
+    }).toThrow(
+      SeedlessOnboardingControllerErrorMessage.InvalidPasswordOutdatedCache,
+    );
+  });
+
+  it('should throw when value is -Infinity', () => {
+    expect(() => {
+      assertIsPasswordOutdatedCacheValid(-Infinity);
+    }).toThrow(
+      SeedlessOnboardingControllerErrorMessage.InvalidPasswordOutdatedCache,
+    );
+  });
 });
