@@ -540,7 +540,7 @@ export class EarnController extends BaseController<
    * Updates the vault metadata in the controller state including APY, capacity,
    * fee percentage, total assets, and vault address.
    *
-   * @param chainId - The chain id to refresh pooled staking vault metadata for (optional).
+   * @param [chainId] - The chain id to refresh pooled staking vault metadata for (optional).
    * @returns A promise that resolves when the vault metadata has been updated
    */
   async refreshPooledStakingVaultMetadata(
@@ -605,7 +605,7 @@ export class EarnController extends BaseController<
    * Refreshes pooled staking vault apy averages for the current chain.
    * Updates the pooled staking vault apy averages controller state.
    *
-   * @param chainId - The chain id to refresh pooled staking vault apy averages for (optional).
+   * @param [chainId] - The chain id to refresh pooled staking vault apy averages for (optional).
    * @returns A promise that resolves when the pooled staking vault apy averages have been updated.
    */
   async refreshPooledStakingVaultApyAverages(
