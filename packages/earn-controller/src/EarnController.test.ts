@@ -1212,7 +1212,11 @@ describe('EarnController', () => {
 
       it('refreshes vault daily apys with custom days', async () => {
         const { controller } = await setupController();
-        await controller.refreshPooledStakingVaultDailyApys(1, 180, 'desc');
+        await controller.refreshPooledStakingVaultDailyApys({
+          chainId: 1,
+          days: 180,
+          order: 'desc',
+        });
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultDailyApys,
@@ -1224,7 +1228,11 @@ describe('EarnController', () => {
 
       it('refreshes vault daily apys with ascending order', async () => {
         const { controller } = await setupController();
-        await controller.refreshPooledStakingVaultDailyApys(1, 365, 'asc');
+        await controller.refreshPooledStakingVaultDailyApys({
+          chainId: 1,
+          days: 365,
+          order: 'asc',
+        });
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultDailyApys,
@@ -1236,7 +1244,11 @@ describe('EarnController', () => {
 
       it('refreshes vault daily apys with custom days and ascending order', async () => {
         const { controller } = await setupController();
-        await controller.refreshPooledStakingVaultDailyApys(1, 180, 'asc');
+        await controller.refreshPooledStakingVaultDailyApys({
+          chainId: 1,
+          days: 180,
+          order: 'asc',
+        });
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultDailyApys,
@@ -1249,7 +1261,7 @@ describe('EarnController', () => {
       it("refreshes vault daily apys using Ethereum Mainnet fallback if pooled-staking doesn't support provided chainId", async () => {
         isSupportedPooledStakingChainMock.mockReturnValue(false);
         const { controller } = await setupController();
-        await controller.refreshPooledStakingVaultDailyApys(2);
+        await controller.refreshPooledStakingVaultDailyApys({ chainId: 2 });
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultDailyApys,
@@ -1262,7 +1274,9 @@ describe('EarnController', () => {
 
       it('refreshes vault daily apys using Ethereum Hoodi if it is the provided chainId', async () => {
         const { controller } = await setupController();
-        await controller.refreshPooledStakingVaultDailyApys(ChainId.HOODI);
+        await controller.refreshPooledStakingVaultDailyApys({
+          chainId: ChainId.HOODI,
+        });
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultDailyApys,

@@ -7,9 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Added mandatory parameter `selectedNetworkClientId` to `EarnController` constructor ([#6153](https://github.com/MetaMask/core/pull/6153))
+- **BREAKING:** Added mandatory `chainId` parameter to `executeLendingTokenApprove`, `executeLendingWithdraw`, `executeLendingDeposit`, `getLendingMarketDailyApysAndAverages` and `getLendingPositionHistory` methods ([#6153](https://github.com/MetaMask/core/pull/6153))
+- **BREAKING:** Change `refreshPooledStakingVaultDailyApys` to accept an options object with `chainId`, `days`, and `order` properties instead of separate parameters ([#6153](https://github.com/MetaMask/core/pull/6153))
+- Added optional `chainId` parameter to `refreshPooledStakingVaultApyAverages`, `refreshPooledStakingVaultMetadata` and `refreshPooledStakes` (defaults to Ethereum) ([#6153](https://github.com/MetaMask/core/pull/6153))
+
 ### Changed
 
-- **BREAKING:** Removed usages of `NetworkController:getState` for GNS removal. Added mandatory `chainId` parameter to `executeLendingTokenApprove`, `executeLendingWithdraw`, `executeLendingDeposit`, `getLendingMarketDailyApysAndAverages` and `getLendingPositionHistory` methods. Added mandatory `selectedNetworkClientId` parameter to constructor. Added optional `chainId` parameter to `refreshPooledStakingVaultApyAverages`, `refreshPooledStakingVaultDailyApys`, `refreshPooledStakingVaultMetadata` and `refreshPooledStakes`. ([#6153](https://github.com/MetaMask/core/pull/6153))
+- **BREAKING:** Removed usages of `NetworkController:getState` for GNS removal. Added optional `chainId` parameter to `refreshPooledStakingVaultApyAverages`, `refreshPooledStakingVaultDailyApys`, `refreshPooledStakingVaultMetadata` and `refreshPooledStakes`. ([#6153](https://github.com/MetaMask/core/pull/6153))
+- **BREAKING:** `EarnController` messenger must now allow `NetworkController:getSelectedNetworkClient` and `NetworkController:networkDidChange` and must not allow `NetworkController:getState` and `NetworkController:stateChange` ([#6153](https://github.com/MetaMask/core/pull/6153))
+- `refreshPooledStakingData` now refreshes for all supported chains, not just global chain ([#6153](https://github.com/MetaMask/core/pull/6153))
 
 ## [4.0.0]
 

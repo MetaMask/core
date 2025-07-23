@@ -4,6 +4,7 @@ import type {
   AccountsControllerSelectedAccountChangeEvent,
 } from '@metamask/accounts-controller';
 import type {
+  ControllerGetStateAction,
   ControllerStateChangeEvent,
   RestrictedMessenger,
   StateMetadata,
@@ -44,6 +45,7 @@ import type {
   RefreshLendingPositionsOptions,
   RefreshPooledStakesOptions,
   RefreshPooledStakingDataOptions,
+  RefreshPooledStakingVaultDailyApysOptions,
 } from './types';
 
 export const controllerName = 'EarnController';
@@ -218,6 +220,19 @@ export function getDefaultEarnControllerState(): EarnControllerState {
 // === MESSENGER ===
 
 /**
+ * The action which can be used to retrieve the state of the EarnController.
+ */
+export type EarnControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  EarnControllerState
+>;
+
+/**
+ * All actions that EarnController registers, to be called externally.
+ */
+export type EarnControllerActions = EarnControllerGetStateAction;
+
+/**
  * All actions that EarnController calls internally.
  */
 export type AllowedActions =
@@ -252,7 +267,7 @@ export type AllowedEvents =
  */
 export type EarnControllerMessenger = RestrictedMessenger<
   typeof controllerName,
-  AllowedActions,
+  EarnControllerActions | AllowedActions,
   EarnControllerEvents | AllowedEvents,
   AllowedActions['type'],
   AllowedEvents['type']
@@ -324,9 +339,10 @@ export class EarnController extends BaseController<
     this.messagingSystem.subscribe(
       'NetworkController:networkDidChange',
       (networkControllerState) => {
-        this.#initializeSDK(
-          networkControllerState.selectedNetworkClientId,
-        ).catch(console.error);
+        this.#selectedNetworkClientId =
+          networkControllerState.selectedNetworkClientId;
+
+        this.#initializeSDK(this.#selectedNetworkClientId).catch(console.error);
 
         // refresh pooled staking data
         this.refreshPooledStakingVaultMetadata().catch(console.error);
@@ -337,9 +353,6 @@ export class EarnController extends BaseController<
         // refresh lending data for all chains
         this.refreshLendingMarkets().catch(console.error);
         this.refreshLendingPositions().catch(console.error);
-
-        this.#selectedNetworkClientId =
-          networkControllerState.selectedNetworkClientId;
       },
     );
 
@@ -555,16 +568,17 @@ export class EarnController extends BaseController<
    * Refreshes pooled staking vault daily apys for the current chain.
    * Updates the pooled staking vault daily apys controller state.
    *
-   * @param chainId - The chain id to refresh pooled staking vault daily apys for (optional).
-   * @param days - The number of days to fetch pooled staking vault daily apys for (defaults to 365).
-   * @param order - The order in which to fetch pooled staking vault daily apys. Descending order fetches the latest N days (latest working backwards). Ascending order fetches the oldest N days (oldest working forwards) (defaults to 'desc').
+   * @param [options] - The options for refreshing pooled staking vault daily apys.
+   * @param [options.chainId] - The chain id to refresh pooled staking vault daily apys for (defaults to Ethereum).
+   * @param [options.days] - The number of days to fetch pooled staking vault daily apys for (defaults to 365).
+   * @param [options.order] - The order in which to fetch pooled staking vault daily apys. Descending order fetches the latest N days (latest working backwards). Ascending order fetches the oldest N days (oldest working forwards) (defaults to 'desc').
    * @returns A promise that resolves when the pooled staking vault daily apys have been updated.
    */
-  async refreshPooledStakingVaultDailyApys(
-    chainId: number = ChainId.ETHEREUM,
+  async refreshPooledStakingVaultDailyApys({
+    chainId = ChainId.ETHEREUM,
     days = 365,
-    order: 'asc' | 'desc' = 'desc',
-  ): Promise<void> {
+    order = 'desc',
+  }: RefreshPooledStakingVaultDailyApysOptions = {}): Promise<void> {
     const chainIdToUse = isSupportedPooledStakingChain(chainId)
       ? chainId
       : ChainId.ETHEREUM;
@@ -647,7 +661,7 @@ export class EarnController extends BaseController<
         this.refreshPooledStakingVaultMetadata(chainId).catch((error) => {
           errors.push(error);
         }),
-        this.refreshPooledStakingVaultDailyApys(chainId).catch((error) => {
+        this.refreshPooledStakingVaultDailyApys({ chainId }).catch((error) => {
           errors.push(error);
         }),
         this.refreshPooledStakingVaultApyAverages(chainId).catch((error) => {
@@ -781,7 +795,7 @@ export class EarnController extends BaseController<
    *
    * @param options - Optional arguments
    * @param [options.address] - The address to get lending position history for (optional).
-   * @param [options.chainId] - The chain id to get lending position history for.
+   * @param options.chainId - The chain id to get lending position history for.
    * @param [options.positionId] - The position id to get lending position history for.
    * @param [options.marketId] - The market id to get lending position history for.
    * @param [options.marketAddress] - The market address to get lending position history for.
@@ -827,7 +841,7 @@ export class EarnController extends BaseController<
    * Gets the lending market daily apys and averages for the current chain.
    *
    * @param options - Optional arguments
-   * @param [options.chainId] - The chain id to get lending market daily apys and averages for.
+   * @param options.chainId - The chain id to get lending market daily apys and averages for.
    * @param [options.protocol] - The protocol to get lending market daily apys and averages for.
    * @param [options.marketId] - The market id to get lending market daily apys and averages for.
    * @param [options.days] - The number of days to get lending market daily apys and averages for (optional).

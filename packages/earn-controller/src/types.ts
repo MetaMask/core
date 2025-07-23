@@ -11,7 +11,12 @@ export type RefreshPooledStakesOptions = {
 export type RefreshPooledStakingDataOptions = {
   resetCache?: boolean;
   address?: string;
+};
+
+export type RefreshPooledStakingVaultDailyApysOptions = {
   chainId?: number;
+  days?: number;
+  order?: 'asc' | 'desc';
 };
 
 export type RefreshLendingPositionsOptions = {
