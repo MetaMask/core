@@ -10,10 +10,7 @@ import type { VaultData } from './types';
 export function assertIsPasswordOutdatedCacheValid(
   value: unknown,
 ): asserts value is number {
-  if (
-    (typeof value !== 'number' && typeof value !== 'string') ||
-    isNaN(Number(value))
-  ) {
+  if (typeof value !== 'number') {
     throw new Error(
       SeedlessOnboardingControllerErrorMessage.InvalidPasswordOutdatedCache,
     );

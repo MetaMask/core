@@ -197,7 +197,7 @@ describe('assertIsValidVaultData', () => {
 });
 
 describe('assertIsPasswordOutdatedCacheValid', () => {
-  it('should throw when value is not a valid number or string', () => {
+  it('should throw when value is not a valid number', () => {
     expect(() => {
       assertIsPasswordOutdatedCacheValid(null);
     }).toThrow(
@@ -216,12 +216,6 @@ describe('assertIsPasswordOutdatedCacheValid', () => {
   it('should not throw when value is a valid number', () => {
     expect(() => {
       assertIsPasswordOutdatedCacheValid(1000);
-    }).not.toThrow();
-  });
-
-  it('should not throw when value is a valid string', () => {
-    expect(() => {
-      assertIsPasswordOutdatedCacheValid('1000');
     }).not.toThrow();
   });
 });
