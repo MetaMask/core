@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add multichain account/wallet syncs ([#6165](https://github.com/MetaMask/core/pull/6165))
+  - Those are getting sync'd during `AccountsController:account{Added,Removed}` events.
+
+### Changed
+
+- **BREAKING:** Add `@metamask/account-api` peer dependency ([#6115](https://github.com/MetaMask/core/pull/6115)), ([#6146](https://github.com/MetaMask/core/pull/6146))
+
 ## [0.2.1]
 
 ### Fixed
