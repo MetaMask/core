@@ -33,6 +33,7 @@ import {
   MULTICHAIN_NETWORK_CONTROLLER_NAME,
 } from '../types';
 
+// We exclude the generic account type, since it's used for testing purposes.
 type TestKeyringAccountType = Exclude<
   KeyringAccountType,
   `${AnyAccountType.Account}`
