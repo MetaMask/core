@@ -251,7 +251,7 @@ export class Messenger<
    * handlers
    */
   registerMethodActionHandlers<
-    MessengerClient extends { name: string },
+    MessengerClient extends { name: Namespace },
     MethodNames extends keyof MessengerClient & string,
   >(messengerClient: MessengerClient, methodNames: readonly MethodNames[]) {
     for (const methodName of methodNames) {
