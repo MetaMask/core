@@ -48,8 +48,8 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^8.0.1",
-    "@metamask/keyring-api": "^19.0.0",
-    "@metamask/keyring-internal-api": "^7.0.0",
+    "@metamask/keyring-api": "^19.1.0",
+    "@metamask/keyring-internal-api": "^7.1.0",
     "@metamask/keyring-snap-client": "^6.0.0",
     "@metamask/polling-controller": "^14.0.0",
     "@metamask/snaps-sdk": "^9.0.0",
