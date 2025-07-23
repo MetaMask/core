@@ -1469,17 +1469,17 @@ export class KeyringController extends BaseController<
    * consistency with the vault salt.
    *
    * @param encryptionKey - Key to unlock the keychain.
-   * @param encryptionSalt - Optional salt to unlock the keychain.
+   * @param keyDerivationSalt - Optional salt to unlock the keychain.
    * @returns Promise resolving when the operation completes.
    */
   async submitEncryptionKey(
     encryptionKey: string,
-    encryptionSalt?: string,
+    keyDerivationSalt?: string,
   ): Promise<void> {
     const { newMetadata } = await this.#withRollback(async () => {
       const result = await this.#unlockKeyrings({
-        exportedEncryptionKey: encryptionKey,
-        encryptionKeySalt: encryptionSalt,
+        encryptionKey,
+        keyDerivationSalt,
       });
       this.#setUnlocked();
       return result;
@@ -2194,31 +2194,30 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Use the provided encryption key and salt to set the
-   * encryptionKey instance variable. This method is used
-   * when the user provides an encryption key and salt
+   * Set the the `#encryptionKey` instance variable.
+   * This method is used when the user provides an encryption key and salt
    * to unlock the keychain, instead of using a password.
    *
    * @param encryptionKey - The encryption key to use.
-   * @param encryptionSalt - The salt to use for the encryption key.
+   * @param keyDerivationSalt - The salt to use for the encryption key.
    */
-  #useEncryptionKey(encryptionKey: string, encryptionSalt: string): void {
+  #setEncryptionKey(encryptionKey: string, keyDerivationSalt: string): void {
     this.#assertControllerMutexIsLocked();
 
     if (
       typeof encryptionKey !== 'string' ||
-      typeof encryptionSalt !== 'string'
+      typeof keyDerivationSalt !== 'string'
     ) {
       throw new TypeError(KeyringControllerError.WrongEncryptionKeyType);
     }
 
     const { vault } = this.state;
-    if (vault && JSON.parse(vault).salt !== encryptionSalt) {
+    if (vault && JSON.parse(vault).salt !== keyDerivationSalt) {
       throw new Error(KeyringControllerError.ExpiredCredentials);
     }
 
     this.#encryptionKey = {
-      salt: encryptionSalt,
+      salt: keyDerivationSalt,
       serialized: encryptionKey,
     };
   }
@@ -2375,8 +2374,8 @@ export class KeyringController extends BaseController<
           password: string;
         }
       | {
-          exportedEncryptionKey: string;
-          encryptionKeySalt?: string;
+          encryptionKey: string;
+          keyDerivationSalt?: string;
         },
   ): Promise<{
     keyrings: { keyring: EthKeyring; metadata: KeyringMetadata }[];
@@ -2391,9 +2390,9 @@ export class KeyringController extends BaseController<
       if ('password' in credentials) {
         await this.#deriveEncryptionKey(credentials.password);
       } else {
-        this.#useEncryptionKey(
-          credentials.exportedEncryptionKey,
-          credentials.encryptionKeySalt || parsedEncryptedVault.salt,
+        this.#setEncryptionKey(
+          credentials.encryptionKey,
+          credentials.keyDerivationSalt || parsedEncryptedVault.salt,
         );
       }
 
