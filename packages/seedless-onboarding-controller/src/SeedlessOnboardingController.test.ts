@@ -656,6 +656,29 @@ describe('SeedlessOnboardingController', () => {
         },
       );
     });
+
+    it('should throw an error if the password outdated cache TTL is not a valid number', () => {
+      const mockRefreshJWTToken = jest.fn().mockResolvedValue({
+        idTokens: ['newIdToken'],
+      });
+      const mockRevokeRefreshToken = jest.fn().mockResolvedValue({
+        newRevokeToken: 'newRevokeToken',
+        newRefreshToken: 'newRefreshToken',
+      });
+      const { messenger } = mockSeedlessOnboardingMessenger();
+
+      expect(() => {
+        new SeedlessOnboardingController({
+          messenger,
+          refreshJWTToken: mockRefreshJWTToken,
+          revokeRefreshToken: mockRevokeRefreshToken,
+          // @ts-expect-error - test invalid password outdated cache TTL
+          passwordOutdatedCacheTTL: 'Invalid Value',
+        });
+      }).toThrow(
+        SeedlessOnboardingControllerErrorMessage.InvalidPasswordOutdatedCache,
+      );
+    });
   });
 
   describe('authenticate', () => {
