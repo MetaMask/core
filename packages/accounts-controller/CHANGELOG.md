@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Allow extra `options` properties when detecting BIP-44 Snap account ([#6189](https://github.com/MetaMask/core/pull/6189))
+
 ## [32.0.0]
 
 ### Added
