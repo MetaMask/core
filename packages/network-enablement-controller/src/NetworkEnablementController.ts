@@ -20,7 +20,6 @@ import { selectAllEnabledNetworks } from './selectors';
 import { SolScope } from './types';
 import { deriveKeys, isOnlyNetworkEnabledInNamespace } from './utils';
 
-// Unique name for the controller
 const controllerName = 'NetworkEnablementController';
 
 /**
@@ -36,7 +35,7 @@ export type NetworksInfo = {
 /**
  * A map of enabled networks by namespace and chain id.
  */
-type EnabledMap = Record<CaipNamespace, Record<string, boolean>>;
+type EnabledMap = Record<CaipNamespace, Record<CaipChainId | Hex, boolean>>;
 
 // State shape for NetworkEnablementController
 export type NetworkEnablementControllerState = {
@@ -317,7 +316,7 @@ export class NetworkEnablementController extends BaseController<
       // If enabling a non-popular network, disable all networks in the same namespace
       if (enable && !this.#isPopularNetwork(caipId)) {
         Object.keys(s.enabledNetworkMap[namespace]).forEach((key) => {
-          s.enabledNetworkMap[namespace][key] = false;
+          s.enabledNetworkMap[namespace][key as CaipChainId | Hex] = false;
         });
       }
       s.enabledNetworkMap[namespace][storageKey] = enable;

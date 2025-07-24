@@ -27,7 +27,7 @@ export function deriveKeys(chainId: Hex | CaipChainId) {
     ? chainId
     : toEvmCaipChainId(chainId);
   const { namespace, reference } = parseCaipChainId(caipId);
-  let storageKey: string;
+  let storageKey: CaipChainId | Hex;
   if (namespace === (KnownCaipNamespace.Eip155 as string)) {
     storageKey = isHexString(chainId) ? chainId : toHex(reference);
   } else {
