@@ -657,7 +657,7 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
-    it('should throw an error if the password outdated cache TTL is not a valid number or string', () => {
+    it('should throw an error if the password outdated cache TTL is not a valid number', () => {
       const mockRefreshJWTToken = jest.fn().mockResolvedValue({
         idTokens: ['newIdToken'],
       });
