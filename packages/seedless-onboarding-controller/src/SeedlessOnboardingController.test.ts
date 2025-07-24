@@ -915,6 +915,27 @@ describe('SeedlessOnboardingController', () => {
         },
       );
     });
+
+    it('should throw FailedToFetchAuthPubKey error when fetchAuthPubKey fails', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          // Mock fetchAuthPubKey to reject with an error
+          jest
+            .spyOn(toprfClient, 'fetchAuthPubKey')
+            .mockRejectedValueOnce(new Error('Network error'));
+
+          await expect(controller.checkIsPasswordOutdated()).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.FailedToFetchAuthPubKey,
+          );
+        },
+      );
+    });
   });
 
   describe('createToprfKeyAndBackupSeedPhrase', () => {
@@ -2832,6 +2853,37 @@ describe('SeedlessOnboardingController', () => {
               oldAuthKeyPair: authKeyPair,
               newPassword: NEW_MOCK_PASSWORD,
             }),
+          );
+        },
+      );
+    });
+
+    it('should throw FailedToFetchAuthPubKey error when fetchAuthPubKey fails', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          await mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            MOCK_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+
+          // Mock fetchAuthPubKey to reject with an error
+          jest
+            .spyOn(toprfClient, 'fetchAuthPubKey')
+            .mockRejectedValueOnce(new Error('Network error'));
+
+          await expect(
+            controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.FailedToFetchAuthPubKey,
           );
         },
       );

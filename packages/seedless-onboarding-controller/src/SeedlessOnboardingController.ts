@@ -846,12 +846,19 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
 
       let globalAuthPubKey = options?.globalAuthPubKey;
       if (!globalAuthPubKey) {
-        const { authPubKey } = await this.toprfClient.fetchAuthPubKey({
-          nodeAuthTokens,
-          authConnectionId,
-          groupedAuthConnectionId,
-          userId,
-        });
+        const { authPubKey } = await this.toprfClient
+          .fetchAuthPubKey({
+            nodeAuthTokens,
+            authConnectionId,
+            groupedAuthConnectionId,
+            userId,
+          })
+          .catch((error) => {
+            log('Error fetching auth pub key', error);
+            throw new Error(
+              SeedlessOnboardingControllerErrorMessage.FailedToFetchAuthPubKey,
+            );
+          });
         globalAuthPubKey = authPubKey;
       }
 
@@ -1746,12 +1753,18 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       );
     }
 
-    const { authPubKey, keyIndex: latestKeyIndex } =
-      await this.toprfClient.fetchAuthPubKey({
+    const { authPubKey, keyIndex: latestKeyIndex } = await this.toprfClient
+      .fetchAuthPubKey({
         nodeAuthTokens,
         authConnectionId,
         groupedAuthConnectionId,
         userId,
+      })
+      .catch((error) => {
+        log('Error fetching auth pub key', error);
+        throw new Error(
+          SeedlessOnboardingControllerErrorMessage.FailedToFetchAuthPubKey,
+        );
       });
     const isPasswordOutdated = await this.checkIsPasswordOutdated({
       ...options,
