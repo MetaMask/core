@@ -774,6 +774,9 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
 
       // restore the current keyring encryption key with the new global password
       await this.storeKeyringEncryptionKey(keyringEncryptionKey);
+
+      // reset the password outdated cache after successful global password submission and state sync
+      this.#resetPasswordOutdatedCache();
     } catch (error) {
       if (this.#isTokenExpiredError(error)) {
         throw error;
