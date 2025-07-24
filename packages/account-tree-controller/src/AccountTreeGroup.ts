@@ -1,84 +1,90 @@
-import {
-  toAccountGroupId,
-  type AccountGroup,
-  type AccountGroupId,
-  type AccountWallet,
-} from '@metamask/account-api';
+import { type AccountGroup, type AccountGroupId } from '@metamask/account-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type { AccountId } from '@metamask/keyring-utils';
-import type { AccountTreeControllerMessenger } from 'src';
+import type {
+  AccountGroupObject,
+  AccountTreeControllerMessenger,
+  AccountTreeWallet,
+} from 'src';
 
 export const DEFAULT_ACCOUNT_GROUP_NAME: string = 'Default';
 
 /**
  * Account group coming from the {@link AccountTreeController}.
  */
-export type AccountTreeGroup = {
-  /**
-   * Account IDs for that account group.
-   */
-  getAccountIds(): AccountId[];
+export class AccountTreeGroup implements AccountGroup<InternalAccount> {
+  readonly #messenger: AccountTreeControllerMessenger;
 
-  /**
-   * Gets the default name for that account group.
-   */
-  getDefaultName(): string;
-} & AccountGroup<InternalAccount>;
+  readonly #group: AccountGroupObject;
 
-// This class is meant to be used internally by every rules. It exposes mutable operations
-// which should not leak outside of this package.
-export class MutableAccountTreeGroup implements AccountTreeGroup {
-  readonly id: AccountGroupId;
+  readonly #wallet: AccountTreeWallet;
 
-  readonly wallet: AccountWallet<InternalAccount>;
-
-  readonly messenger: AccountTreeControllerMessenger;
-
-  readonly #accounts: Set<AccountId>;
-
-  constructor(
-    messenger: AccountTreeControllerMessenger,
-    wallet: AccountWallet<InternalAccount>,
-    id: string,
-  ) {
-    this.id = toAccountGroupId(wallet.id, id);
-    this.wallet = wallet;
-    this.messenger = messenger;
-
-    this.#accounts = new Set();
+  constructor({
+    messenger,
+    wallet,
+    group,
+  }: {
+    messenger: AccountTreeControllerMessenger;
+    wallet: AccountTreeWallet;
+    group: AccountGroupObject;
+  }) {
+    this.#messenger = messenger;
+    this.#group = group;
+    this.#wallet = wallet;
   }
 
-  getAccountIds(): AccountId[] {
-    return Array.from(this.#accounts); // FIXME: Should we force the copy here?
+  get id(): AccountGroupId {
+    return this.#group.id;
+  }
+
+  get wallet(): AccountTreeWallet {
+    return this.#wallet;
+  }
+
+  get name(): string {
+    return this.#group.metadata.name;
+  }
+
+  getAccountIds(): InternalAccount['id'][] {
+    return this.#group.accounts;
+  }
+
+  getAccount(id: string): InternalAccount | undefined {
+    return this.#messenger.call('AccountsController:getAccount', id);
+  }
+
+  #getAccount(id: string): InternalAccount {
+    const account = this.getAccount(id);
+
+    if (!account) {
+      throw new Error(`Unable to get account with ID: "${id}"`);
+    }
+    return account;
   }
 
   getAccounts(): InternalAccount[] {
-    const accounts = [];
+    return this.#group.accounts.map((id) => this.#getAccount(id));
+  }
 
-    for (const id of this.#accounts) {
-      const account = this.getAccount(id);
+  getAnyAccount(): InternalAccount {
+    const accountIds = this.getAccountIds();
 
-      // FIXME: I'm really not sure we should skip those but... We could be
-      // "de-sync" with the AccountsController and might have some dangling
-      // account IDs.
-      if (!account) {
-        console.warn(`! Unable to get account: "${id}"`);
-        continue;
-      }
-      accounts.push(account);
+    if (accountIds.length === 0) {
+      throw new Error('Group contains no account');
     }
-    return accounts;
+
+    return this.#getAccount(accountIds[0]);
   }
 
-  getAccount(id: AccountId): InternalAccount | undefined {
-    return this.messenger.call('AccountsController:getAccount', id);
-  }
+  getOnlyAccount(): InternalAccount {
+    const accountIds = this.getAccountIds();
 
-  addAccount(account: InternalAccount) {
-    this.#accounts.add(account.id);
-  }
+    if (accountIds.length === 0) {
+      throw new Error('Group contains no account');
+    }
+    if (accountIds.length > 1) {
+      throw new Error('Group contains more than 1 account');
+    }
 
-  getDefaultName(): string {
-    return DEFAULT_ACCOUNT_GROUP_NAME;
+    return this.#getAccount(accountIds[0]);
   }
 }

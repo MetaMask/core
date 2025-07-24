@@ -1,4 +1,5 @@
 import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
+import { AccountWalletCategory } from '@metamask/account-api';
 import type {
   AccountId,
   AccountsControllerAccountAddedEvent,
@@ -13,24 +14,20 @@ import {
   type RestrictedMessenger,
   BaseController,
 } from '@metamask/base-controller';
-import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
+import type {
+  KeyringControllerGetStateAction,
+  KeyringControllerStateChangeEvent,
+} from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
+import type { AccountTreeGroup } from 'src';
 
-import type { AccountTreeWallet } from './AccountTreeWallet';
-import type { WalletRule } from './rules';
-import {
-  EntropySourceWalletRule,
-  SnapWalletRule,
-  KeyringWalletRule,
-} from './rules';
+import { AccountTreeWallet } from './AccountTreeWallet';
+import type { Rule } from './rules';
+import { EntropyRule, SnapRule, KeyringRule } from './rules';
+import type { AccountContext } from './types';
 
 const controllerName = 'AccountTreeController';
-
-type AccountReverseMapping = {
-  walletId: AccountWalletId;
-  groupId: AccountGroupId;
-};
 
 // Do not export this one, we just use it to have a common type interface between group and wallet metadata.
 type Metadata = {
@@ -50,6 +47,7 @@ export type AccountGroupObject = {
 
 export type AccountWalletObject = {
   id: AccountWalletId;
+  category: AccountWalletCategory;
   // Account groups OR Multichain accounts (once available).
   groups: {
     [groupId: AccountGroupId]: AccountGroupObject;
@@ -86,7 +84,8 @@ export type AccountTreeControllerStateChangeEvent = ControllerStateChangeEvent<
 
 export type AllowedEvents =
   | AccountsControllerAccountAddedEvent
-  | AccountsControllerAccountRemovedEvent;
+  | AccountsControllerAccountRemovedEvent
+  | KeyringControllerStateChangeEvent;
 
 export type AccountTreeControllerEvents = AccountTreeControllerStateChangeEvent;
 
@@ -124,9 +123,11 @@ export class AccountTreeController extends BaseController<
   AccountTreeControllerState,
   AccountTreeControllerMessenger
 > {
-  readonly #reverse: Map<AccountId, AccountReverseMapping>;
+  readonly #accountIdToContext: Map<AccountId, AccountContext>;
 
-  readonly #rules: WalletRule[];
+  readonly #rules: Rule[];
+
+  readonly #categoryToRule: Record<AccountWalletCategory, Rule>;
 
   readonly #wallets: Map<AccountWalletId, AccountTreeWallet>;
 
@@ -156,16 +157,21 @@ export class AccountTreeController extends BaseController<
     this.#wallets = new Map();
 
     // Reverse map to allow fast node access from an account ID.
-    this.#reverse = new Map();
+    this.#accountIdToContext = new Map();
 
     // Rules to apply to construct the wallets tree.
+    this.#categoryToRule = {
+      [AccountWalletCategory.Entropy]: new EntropyRule(this.messagingSystem),
+      [AccountWalletCategory.Snap]: new SnapRule(this.messagingSystem),
+      [AccountWalletCategory.Keyring]: new KeyringRule(this.messagingSystem),
+    } as const;
     this.#rules = [
       // 1. We group by entropy-source
-      new EntropySourceWalletRule(this.messagingSystem),
+      this.#categoryToRule[AccountWalletCategory.Entropy],
       // 2. We group by Snap ID
-      new SnapWalletRule(this.messagingSystem),
+      this.#categoryToRule[AccountWalletCategory.Snap],
       // 3. We group by wallet type (this rule cannot fail and will group all non-matching accounts)
-      new KeyringWalletRule(this.messagingSystem),
+      this.#categoryToRule[AccountWalletCategory.Keyring],
     ];
 
     this.messagingSystem.subscribe(
@@ -184,16 +190,53 @@ export class AccountTreeController extends BaseController<
   }
 
   init() {
-    const wallets = {};
+    const wallets: AccountTreeControllerState['accountTree']['wallets'] = {};
 
     // For now, we always re-compute all wallets, we do not re-use the existing state.
     for (const account of this.#listAccounts()) {
       this.#insert(wallets, account);
     }
 
+    // Once we have the account tree, we can compute the name.
+    for (const wallet of Object.values(wallets)) {
+      const walletInstance = this.getWallet(wallet.id);
+
+      if (walletInstance) {
+        if (wallet.metadata.name === '') {
+          this.#renameAccountWallet(walletInstance, wallet);
+        }
+
+        for (const group of Object.values(wallet.groups)) {
+          const groupInstance = walletInstance.getAccountGroup(group.id);
+
+          if (groupInstance) {
+            if (group.metadata.name === '') {
+              this.#renameAccountGroup(groupInstance, group);
+            }
+          }
+        }
+      }
+    }
+
     this.update((state) => {
       state.accountTree.wallets = wallets;
     });
+  }
+
+  #renameAccountWallet(
+    wallet: AccountTreeWallet,
+    walletObject: AccountWalletObject,
+  ) {
+    const rule = this.#categoryToRule[walletObject.category];
+    walletObject.metadata.name = rule.getDefaultAccountWalletName(wallet);
+  }
+
+  #renameAccountGroup(
+    group: AccountTreeGroup,
+    groupObject: AccountGroupObject,
+  ) {
+    const rule = this.#categoryToRule[group.wallet.category];
+    groupObject.metadata.name = rule.getDefaultAccountGroupName(group);
   }
 
   getWallet(id: AccountWalletId): AccountTreeWallet | undefined {
@@ -207,14 +250,39 @@ export class AccountTreeController extends BaseController<
   #handleAccountAdded(account: InternalAccount) {
     this.update((state) => {
       this.#insert(state.accountTree.wallets, account);
+
+      const context = this.#accountIdToContext.get(account.id);
+      if (context) {
+        const { walletId, groupId } = context;
+
+        const wallet = state.accountTree.wallets[walletId];
+        if (wallet) {
+          const walletInstance = this.getWallet(wallet.id);
+          if (walletInstance) {
+            if (wallet.metadata.name === '') {
+              this.#renameAccountWallet(walletInstance, wallet);
+            }
+
+            const group = wallet.groups[groupId];
+            if (group) {
+              const groupInstance = walletInstance.getAccountGroup(group.id);
+              if (groupInstance) {
+                if (group.metadata.name === '') {
+                  this.#renameAccountGroup(groupInstance, group);
+                }
+              }
+            }
+          }
+        }
+      }
     });
   }
 
   #handleAccountRemoved(accountId: AccountId) {
-    const found = this.#reverse.get(accountId);
+    const context = this.#accountIdToContext.get(accountId);
 
-    if (found) {
-      const { walletId, groupId } = found;
+    if (context) {
+      const { walletId, groupId } = context;
       this.update((state) => {
         const { accounts } =
           state.accountTree.wallets[walletId].groups[groupId];
@@ -228,7 +296,7 @@ export class AccountTreeController extends BaseController<
   }
 
   #insert(
-    wallets: { [walletId: AccountWalletId]: AccountWalletObject },
+    wallets: AccountTreeControllerState['accountTree']['wallets'],
     account: InternalAccount,
   ) {
     for (const rule of this.#rules) {
@@ -239,31 +307,44 @@ export class AccountTreeController extends BaseController<
         continue;
       }
 
-      const { wallet, group } = match;
-
-      // Update in-memory wallet/group instances.
-      this.#wallets.set(wallet.id, wallet);
+      const { walletId, groupId } = match;
 
       // Update controller's state.
-      if (!wallets[wallet.id]) {
-        wallets[wallet.id] = {
-          id: wallet.id,
-          groups: {
-            [group.id]: {
-              id: group.id,
-              accounts: [],
-              metadata: { name: group.getDefaultName() },
-            },
-          },
+      let wallet = wallets[walletId];
+      if (!wallet) {
+        wallets[walletId] = {
+          id: walletId,
+          category: rule.category,
+          groups: {},
           metadata: {
-            name: wallet.getDefaultName(),
+            name: '', // Will get updated later.
           },
         };
+        wallet = wallets[walletId];
       }
-      wallets[wallet.id].groups[group.id].accounts.push(account.id);
+
+      let group = wallet.groups[groupId];
+      if (!group) {
+        wallet.groups[groupId] = {
+          id: groupId,
+          accounts: [],
+          metadata: {
+            name: '', // Will get updated later.
+          },
+        };
+        group = wallet.groups[groupId];
+      }
+
+      group.accounts.push(account.id);
+
+      // Update in-memory wallet/group instances.
+      this.#wallets.set(
+        wallet.id,
+        new AccountTreeWallet({ messenger: this.messagingSystem, wallet }),
+      );
 
       // Update the reverse mapping for this account.
-      this.#reverse.set(account.id, {
+      this.#accountIdToContext.set(account.id, {
         walletId: wallet.id,
         groupId: group.id,
       });
