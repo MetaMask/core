@@ -1,6 +1,5 @@
 import { Messenger } from '@metamask/base-controller';
 import { BuiltInNetworkName, ChainId } from '@metamask/controller-utils';
-import { SolScope } from '@metamask/keyring-api';
 import { RpcEndpointType } from '@metamask/network-controller';
 import { KnownCaipNamespace } from '@metamask/utils';
 import { useFakeTimers } from 'sinon';
@@ -13,6 +12,7 @@ import type {
   AllowedActions,
   NetworkEnablementControllerMessenger,
 } from './NetworkEnablementController';
+import { SolScope } from './types';
 import { advanceTime } from '../../../tests/helpers';
 
 const setupController = ({

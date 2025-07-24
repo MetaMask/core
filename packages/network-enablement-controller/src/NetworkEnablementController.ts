@@ -5,7 +5,6 @@ import type {
   RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BuiltInNetworkName, ChainId, toHex } from '@metamask/controller-utils';
-import { SolScope } from '@metamask/keyring-api';
 import type { MultichainNetworkControllerGetStateAction } from '@metamask/multichain-network-controller';
 import type {
   NetworkControllerGetStateAction,
@@ -18,6 +17,7 @@ import { KnownCaipNamespace, parseCaipChainId } from '@metamask/utils';
 
 import { POPULAR_NETWORKS } from './constants';
 import { selectAllEnabledNetworks } from './selectors';
+import { SolScope } from './types';
 import { deriveKeys, isOnlyNetworkEnabledInNamespace } from './utils';
 
 const controllerName = 'NetworkEnablementController';
