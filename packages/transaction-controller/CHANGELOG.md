@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-- Preserve provided `origin` in `transactions` when calling `addTransactionBatch` ([#6056](https://github.com/MetaMask/core/pull/6178))
+- Preserve provided `origin` in `transactions` when calling `addTransactionBatch` ([#6178](https://github.com/MetaMask/core/pull/6178))
 
 ## [59.0.0]
 
