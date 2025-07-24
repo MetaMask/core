@@ -18,7 +18,10 @@ import { managedNonce } from '@noble/ciphers/webcrypto';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { Mutex } from 'async-mutex';
 
-import { assertIsValidVaultData } from './assertions';
+import {
+  assertIsPasswordOutdatedCacheValid,
+  assertIsValidVaultData,
+} from './assertions';
 import type { AuthConnection } from './constants';
 import {
   controllerName,
@@ -168,6 +171,11 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   #isUnlocked = false;
 
   /**
+   * The TTL of the password outdated cache in milliseconds.
+   */
+  readonly #passwordOutdatedCacheTTL: number;
+
+  /**
    * Creates a new SeedlessOnboardingController instance.
    *
    * @param options - The options for the SeedlessOnboardingController.
@@ -178,6 +186,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @param options.network - The network to be used for the Seedless Onboarding flow.
    * @param options.refreshJWTToken - A function to get a new jwt token using refresh token.
    * @param options.revokeRefreshToken - A function to revoke the refresh token.
+   * @param options.passwordOutdatedCacheTTL - The TTL of the password outdated cache in milliseconds.,
    */
   constructor({
     messenger,
@@ -187,6 +196,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     network = Web3AuthNetwork.Mainnet,
     refreshJWTToken,
     revokeRefreshToken,
+    passwordOutdatedCacheTTL = PASSWORD_OUTDATED_CACHE_TTL_MS,
   }: SeedlessOnboardingControllerOptions<EncryptionKey>) {
     super({
       name: controllerName,
@@ -198,7 +208,11 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       messenger,
     });
 
+    assertIsPasswordOutdatedCacheValid(passwordOutdatedCacheTTL);
+    this.#passwordOutdatedCacheTTL = passwordOutdatedCacheTTL;
+
     this.#vaultEncryptor = encryptor;
+
     this.toprfClient = new ToprfSecureBackup({
       network,
       keyDeriver: toprfKeyDeriver,
@@ -828,7 +842,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         const isCacheValid =
           passwordOutdatedCache &&
           now - passwordOutdatedCache.timestamp <
-            PASSWORD_OUTDATED_CACHE_TTL_MS;
+            this.#passwordOutdatedCacheTTL;
 
         if (isCacheValid) {
           return passwordOutdatedCache.isExpiredPwd;
