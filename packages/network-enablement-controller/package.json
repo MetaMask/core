@@ -62,6 +62,7 @@
   "dependencies": {
     "@metamask/base-controller": "^8.0.1",
     "@metamask/controller-utils": "^11.11.0",
+    "@metamask/keyring-api": "^19.0.0",
     "@metamask/utils": "^11.4.2",
     "reselect": "^5.1.1"
   },
