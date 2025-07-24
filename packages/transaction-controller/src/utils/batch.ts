@@ -407,12 +407,8 @@ async function addTransactionBatchWithHook(
     update,
   } = request;
 
-  const {
-    from,
-    networkClientId,
-    requireApproval,
-    transactions: nestedTransactions,
-  } = userRequest;
+  const { from, networkClientId, origin, requireApproval, transactions } =
+    userRequest;
 
   let resultCallbacks: AcceptResultCallbacks | undefined;
   let isSequentialBatchHook = false;
@@ -455,6 +451,10 @@ async function addTransactionBatchWithHook(
 
   let txBatchMeta: TransactionBatchMeta | undefined;
   const batchId = generateBatchId();
+  const nestedTransactions = transactions.map((tx) => ({
+    ...tx,
+    origin,
+  }));
   const transactionCount = nestedTransactions.length;
   const collectHook = new CollectPublishHook(transactionCount);
   try {
@@ -551,7 +551,7 @@ async function processTransactionWithHook(
   request: AddTransactionBatchRequest,
   txBatchMeta?: TransactionBatchMeta,
 ) {
-  const { existingTransaction, params, type } = nestedTransaction;
+  const { existingTransaction, origin, params, type } = nestedTransaction;
 
   const {
     addTransaction,
@@ -605,6 +605,7 @@ async function processTransactionWithHook(
       batchId,
       disableGasBuffer: true,
       networkClientId,
+      origin,
       publishHook,
       requireApproval: false,
       type,

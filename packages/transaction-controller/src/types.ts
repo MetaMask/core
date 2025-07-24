@@ -1585,6 +1585,9 @@ export type TransactionBatchSingleRequest = {
     signedTransaction: Hex;
   };
 
+  /** Origin of the nested transaction. */
+  origin?: string;
+
   /** Parameters of the single transaction. */
   params: BatchTransactionParams;
 
