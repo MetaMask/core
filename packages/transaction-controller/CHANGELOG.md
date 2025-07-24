@@ -7,9 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [59.0.0]
+
 ### Added
 
 - Add fallback to the sequential hook when `publishBatchHook` returns empty ([#6063](https://github.com/MetaMask/core/pull/6063))
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` to `^32.0.0` ([#6171](https://github.com/MetaMask/core/pull/6171))
+
+### Fixed
+
+- Preserve provided `type` in `transactions` when calling `addTransactionBatch` ([#6056](https://github.com/MetaMask/core/pull/6056))
+- Normalize transaction `data` to ensure case-insensitive detection ([#6102](https://github.com/MetaMask/core/pull/6102))
 
 ## [58.1.1]
 
@@ -1721,7 +1732,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@58.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@59.0.0...HEAD
+[59.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@58.1.1...@metamask/transaction-controller@59.0.0
 [58.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@58.1.0...@metamask/transaction-controller@58.1.1
 [58.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@58.0.0...@metamask/transaction-controller@58.1.0
 [58.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.4.0...@metamask/transaction-controller@58.0.0

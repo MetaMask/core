@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [32.0.0]
+
 ### Added
 
-- Add `groupIndex` to EVM HD account options ([#6122](https://github.com/MetaMask/core/pull/6122))
+- Use new typed `KeyringAccount.options` for BIP-44 compatible accounts ([#6122](https://github.com/MetaMask/core/pull/6122)), ([#6147](https://github.com/MetaMask/core/pull/6147))
 
 ### Changed
 
@@ -570,7 +572,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@31.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@32.0.0...HEAD
+[32.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@31.0.0...@metamask/accounts-controller@32.0.0
 [31.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@30.0.0...@metamask/accounts-controller@31.0.0
 [30.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@29.0.1...@metamask/accounts-controller@30.0.0
 [29.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@29.0.0...@metamask/accounts-controller@29.0.1
