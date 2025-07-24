@@ -5,7 +5,9 @@ export type {
   LendingPositionWithMarket,
   LendingPositionWithMarketReference,
   EarnControllerState,
+  EarnControllerGetStateAction,
   EarnControllerStateChangeEvent,
+  EarnControllerActions,
   EarnControllerEvents,
   EarnControllerMessenger,
 } from './EarnController';
