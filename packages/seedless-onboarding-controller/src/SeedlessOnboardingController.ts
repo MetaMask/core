@@ -18,7 +18,10 @@ import { managedNonce } from '@noble/ciphers/webcrypto';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { Mutex } from 'async-mutex';
 
-import { assertIsValidVaultData } from './assertions';
+import {
+  assertIsPasswordOutdatedCacheValid,
+  assertIsValidVaultData,
+} from './assertions';
 import type { AuthConnection } from './constants';
 import {
   controllerName,
@@ -168,6 +171,11 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   #isUnlocked = false;
 
   /**
+   * The TTL of the password outdated cache in milliseconds.
+   */
+  readonly #passwordOutdatedCacheTTL: number;
+
+  /**
    * Creates a new SeedlessOnboardingController instance.
    *
    * @param options - The options for the SeedlessOnboardingController.
@@ -178,6 +186,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @param options.network - The network to be used for the Seedless Onboarding flow.
    * @param options.refreshJWTToken - A function to get a new jwt token using refresh token.
    * @param options.revokeRefreshToken - A function to revoke the refresh token.
+   * @param options.passwordOutdatedCacheTTL - The TTL of the password outdated cache in milliseconds.,
    */
   constructor({
     messenger,
@@ -187,6 +196,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     network = Web3AuthNetwork.Mainnet,
     refreshJWTToken,
     revokeRefreshToken,
+    passwordOutdatedCacheTTL = PASSWORD_OUTDATED_CACHE_TTL_MS,
   }: SeedlessOnboardingControllerOptions<EncryptionKey>) {
     super({
       name: controllerName,
@@ -198,7 +208,11 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       messenger,
     });
 
+    assertIsPasswordOutdatedCacheValid(passwordOutdatedCacheTTL);
+    this.#passwordOutdatedCacheTTL = passwordOutdatedCacheTTL;
+
     this.#vaultEncryptor = encryptor;
+
     this.toprfClient = new ToprfSecureBackup({
       network,
       keyDeriver: toprfKeyDeriver,
@@ -504,7 +518,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       await this.verifyVaultPassword(oldPassword, {
         skipLock: true, // skip lock since we already have the lock
       });
-      await this.#assertPasswordInSync({
+
+      const { latestKeyIndex } = await this.#assertPasswordInSync({
         skipCache: true,
         skipLock: true, // skip lock since we already have the lock
       });
@@ -524,6 +539,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         } = await this.#changeEncryptionKey({
           oldPassword,
           newPassword,
+          latestKeyIndex,
         });
 
         // update and encrypt the vault with new password
@@ -804,6 +820,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @description Check if the current password is outdated compare to the global password.
    *
    * @param options - Optional options object.
+   * @param options.globalAuthPubKey - The global auth public key to compare with the current auth public key.
+   * If not provided, the global auth public key will be fetched from the backend.
    * @param options.skipCache - If true, bypass the cache and force a fresh check.
    * @param options.skipLock - Whether to skip the lock acquisition. (to prevent deadlock in case the caller already acquired the lock)
    * @returns A promise that resolves to true if the password is outdated, false otherwise.
@@ -811,6 +829,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   async checkIsPasswordOutdated(options?: {
     skipCache?: boolean;
     skipLock?: boolean;
+    globalAuthPubKey?: SEC1EncodedPublicKey;
   }): Promise<boolean> {
     const doCheckIsPasswordExpired = async () => {
       this.#assertIsAuthenticatedUser(this.state);
@@ -823,7 +842,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         const isCacheValid =
           passwordOutdatedCache &&
           now - passwordOutdatedCache.timestamp <
-            PASSWORD_OUTDATED_CACHE_TTL_MS;
+            this.#passwordOutdatedCacheTTL;
 
         if (isCacheValid) {
           return passwordOutdatedCache.isExpiredPwd;
@@ -839,13 +858,23 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
 
       const currentDeviceAuthPubKey = this.#recoverAuthPubKey();
 
-      const { authPubKey: globalAuthPubKey } =
-        await this.toprfClient.fetchAuthPubKey({
-          nodeAuthTokens,
-          authConnectionId,
-          groupedAuthConnectionId,
-          userId,
-        });
+      let globalAuthPubKey = options?.globalAuthPubKey;
+      if (!globalAuthPubKey) {
+        const { authPubKey } = await this.toprfClient
+          .fetchAuthPubKey({
+            nodeAuthTokens,
+            authConnectionId,
+            groupedAuthConnectionId,
+            userId,
+          })
+          .catch((error) => {
+            log('Error fetching auth pub key', error);
+            throw new Error(
+              SeedlessOnboardingControllerErrorMessage.FailedToFetchAuthPubKey,
+            );
+          });
+        globalAuthPubKey = authPubKey;
+      }
 
       // use noble lib to deserialize and compare curve point
       const isExpiredPwd = !secp256k1.ProjectivePoint.fromHex(
@@ -1117,25 +1146,39 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @param params - The function parameters.
    * @param params.oldPassword - The old password to verify.
    * @param params.newPassword - The new password to update.
+   * @param params.latestKeyIndex - The key index of the latest key.
    * @returns A promise that resolves to new encryption key and authentication key pair.
    */
   async #changeEncryptionKey({
     oldPassword,
     newPassword,
+    latestKeyIndex,
   }: {
     newPassword: string;
     oldPassword: string;
+    latestKeyIndex?: number;
   }) {
     this.#assertIsAuthenticatedUser(this.state);
     const { authConnectionId, groupedAuthConnectionId, userId } = this.state;
 
-    const {
-      encKey,
-      pwEncKey,
-      authKeyPair,
-      keyShareIndex: newKeyShareIndex,
-    } = await this.#recoverEncKey(oldPassword);
-
+    let encKey: Uint8Array;
+    let pwEncKey: Uint8Array;
+    let authKeyPair: KeyPair;
+    let globalKeyIndex = latestKeyIndex;
+    if (!globalKeyIndex) {
+      ({
+        encKey,
+        pwEncKey,
+        authKeyPair,
+        keyShareIndex: globalKeyIndex,
+      } = await this.#recoverEncKey(oldPassword));
+    } else {
+      ({
+        toprfEncryptionKey: encKey,
+        toprfPwEncryptionKey: pwEncKey,
+        toprfAuthKeyPair: authKeyPair,
+      } = await this.#unlockVaultAndGetVaultData(oldPassword));
+    }
     const result = await this.toprfClient.changeEncKey({
       nodeAuthTokens: this.state.nodeAuthTokens,
       authConnectionId,
@@ -1144,7 +1187,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       oldEncKey: encKey,
       oldPwEncKey: pwEncKey,
       oldAuthKeyPair: authKeyPair,
-      newKeyShareIndex,
+      newKeyShareIndex: globalKeyIndex,
       newPassword,
     });
     return result;
@@ -1704,18 +1747,51 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @param options - The options for asserting the password is in sync.
    * @param options.skipCache - Whether to skip the cache check.
    * @param options.skipLock - Whether to skip the lock acquisition. (to prevent deadlock in case the caller already acquired the lock)
+   * @returns The global auth public key and the latest key index.
    * @throws If the password is outdated.
    */
   async #assertPasswordInSync(options?: {
     skipCache?: boolean;
     skipLock?: boolean;
-  }): Promise<void> {
-    const isPasswordOutdated = await this.checkIsPasswordOutdated(options);
+  }): Promise<{
+    authPubKey: SEC1EncodedPublicKey;
+    latestKeyIndex: number;
+  }> {
+    const {
+      nodeAuthTokens,
+      authConnectionId,
+      groupedAuthConnectionId,
+      userId,
+    } = this.state;
+    if (!nodeAuthTokens || !authConnectionId || !userId) {
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.MissingAuthUserInfo,
+      );
+    }
+
+    const { authPubKey, keyIndex: latestKeyIndex } = await this.toprfClient
+      .fetchAuthPubKey({
+        nodeAuthTokens,
+        authConnectionId,
+        groupedAuthConnectionId,
+        userId,
+      })
+      .catch((error) => {
+        log('Error fetching auth pub key', error);
+        throw new Error(
+          SeedlessOnboardingControllerErrorMessage.FailedToFetchAuthPubKey,
+        );
+      });
+    const isPasswordOutdated = await this.checkIsPasswordOutdated({
+      ...options,
+      globalAuthPubKey: authPubKey,
+    });
     if (isPasswordOutdated) {
       throw new Error(
         SeedlessOnboardingControllerErrorMessage.OutdatedPassword,
       );
     }
+    return { authPubKey, latestKeyIndex };
   }
 
   #resetPasswordOutdatedCache(): void {
