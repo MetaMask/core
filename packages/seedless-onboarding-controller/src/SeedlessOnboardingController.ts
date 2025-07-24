@@ -1166,14 +1166,13 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       toprfPwEncryptionKey: pwEncKey,
       toprfAuthKeyPair: authKeyPair,
     } = await this.#unlockVaultAndGetVaultData(oldPassword);
-    let newKeyShareIndex = latestKeyIndex;
-
-    if (!newKeyShareIndex) {
+    let globalKeyIndex = latestKeyIndex;
+    if (!globalKeyIndex) {
       ({
         encKey,
         pwEncKey,
         authKeyPair,
-        keyShareIndex: newKeyShareIndex,
+        keyShareIndex: globalKeyIndex,
       } = await this.#recoverEncKey(oldPassword));
     }
 
@@ -1185,7 +1184,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       oldEncKey: encKey,
       oldPwEncKey: pwEncKey,
       oldAuthKeyPair: authKeyPair,
-      newKeyShareIndex,
+      newKeyShareIndex: globalKeyIndex,
       newPassword,
     });
     return result;
