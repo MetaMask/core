@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/keyring-api` from `^19.0.0` to `^19.1.0` ([#6175](https://github.com/MetaMask/core/pull/6175))
+- Bump `@metamask/keyring-internal-api` from `^7.0.0` to `^7.1.0` ([#6175](https://github.com/MetaMask/core/pull/6175))
+- Bump `@metamask/eth-snap-keyring` from `^14.0.0` to `^15.0.0` ([#6175](https://github.com/MetaMask/core/pull/6175))
+
 ## [32.0.0]
 
 ### Added
