@@ -60,8 +60,8 @@ export class MultichainAccountService {
   >;
 
   readonly #accountIdToContext: Map<
-    Bip44<InternalAccount>['id'],
-    AccountReverseMapping<Bip44Account<InternalAccount>>
+    Bip44Account<InternalAccount>['id'],
+    AccountContext<Bip44Account<InternalAccount>>
   >;
 
   /**
@@ -79,7 +79,7 @@ export class MultichainAccountService {
   constructor({ messenger }: MultichainAccountServiceOptions) {
     this.#messenger = messenger;
     this.#wallets = new Map();
-    this.#reverse = new Map();
+    this.#accountIdToContext = new Map();
     // TODO: Rely on keyring capabilities once the keyring API is used by all keyrings.
     this.#providers = [
       new EvmAccountProvider(this.#messenger),
@@ -112,7 +112,7 @@ export class MultichainAccountService {
     for (const wallet of this.#wallets.values()) {
       for (const multichainAccount of wallet.getMultichainAccounts()) {
         for (const account of multichainAccount.getAccounts()) {
-          this.#reverse.set(account.id, {
+          this.#accountIdToContext.set(account.id, {
             wallet,
             multichainAccount,
           });
@@ -150,7 +150,7 @@ export class MultichainAccountService {
       if (multichainAccount) {
         // Same here, this account should have been already grouped in that
         // multichain account.
-        this.#reverse.set(account.id, {
+        this.#accountIdToContext.set(account.id, {
           wallet,
           multichainAccount,
         });
@@ -160,7 +160,7 @@ export class MultichainAccountService {
 
   #handleOnAccountRemoved(id: InternalAccount['id']): void {
     // Force sync of the appropriate wallet if an account got removed.
-    const found = this.#reverse.get(id);
+    const found = this.#accountIdToContext.get(id);
     if (found) {
       const { wallet } = found;
 
@@ -168,7 +168,7 @@ export class MultichainAccountService {
     }
 
     // Safe to call delete even if the `id` was not referencing a BIP-44 account.
-    this.#reverse.delete(id);
+    this.#accountIdToContext.delete(id);
   }
 
   #setMultichainAccountWallets(keyrings: KeyringObject[]) {
@@ -217,8 +217,8 @@ export class MultichainAccountService {
    */
   getMultichainAccountAndWallet(
     id: InternalAccount['id'],
-  ): AccountReverseMapping<Bip44Account<InternalAccount>> | undefined {
-    return this.#reverse.get(id);
+  ): AccountContext<Bip44Account<InternalAccount>> | undefined {
+    return this.#accountIdToContext.get(id);
   }
 
   /**
