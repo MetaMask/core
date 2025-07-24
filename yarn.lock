@@ -3642,18 +3642,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-api@npm:^18.0.0":
-  version: 18.0.0
-  resolution: "@metamask/keyring-api@npm:18.0.0"
-  dependencies:
-    "@metamask/keyring-utils": "npm:^3.0.0"
-    "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/utils": "npm:^11.1.0"
-    bitcoin-address-validation: "npm:^2.2.3"
-  checksum: 10/11b4680399e9c3677637084b87d0da755bf3ceb35a060e7b4e8e697489d4ef117d97d80df6d9ca9fb75ee61f9cd225bc901028f6e43775e1ee683e4369ed4fdb
-  languageName: node
-  linkType: hard
-
 "@metamask/keyring-api@npm:^19.0.0":
   version: 19.0.0
   resolution: "@metamask/keyring-api@npm:19.0.0"
@@ -3706,17 +3694,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/keyring-internal-api@npm:^6.2.0":
-  version: 6.2.0
-  resolution: "@metamask/keyring-internal-api@npm:6.2.0"
-  dependencies:
-    "@metamask/keyring-api": "npm:^18.0.0"
-    "@metamask/keyring-utils": "npm:^3.0.0"
-    "@metamask/superstruct": "npm:^3.1.0"
-  checksum: 10/81d1d91528ab422cc99d78204a23e21fbc96c9d3ae9ebb2589a28a897b2968f9c576af22f18c3e36c6731e518e2bd890272d5a1ce4f5e42ebbc589594a170dd8
-  languageName: node
-  linkType: hard
-
 "@metamask/keyring-internal-api@npm:^7.0.0":
   version: 7.0.0
   resolution: "@metamask/keyring-internal-api@npm:7.0.0"
@@ -3757,7 +3734,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-utils@npm:^3.0.0, @metamask/keyring-utils@npm:^3.1.0":
+"@metamask/keyring-utils@npm:^3.1.0":
   version: 3.1.0
   resolution: "@metamask/keyring-utils@npm:3.1.0"
   dependencies:
@@ -3897,25 +3874,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/multichain-network-controller@npm:^0.10.0":
-  version: 0.10.0
-  resolution: "@metamask/multichain-network-controller@npm:0.10.0"
-  dependencies:
-    "@metamask/base-controller": "npm:^8.0.1"
-    "@metamask/controller-utils": "npm:^11.11.0"
-    "@metamask/keyring-api": "npm:^18.0.0"
-    "@metamask/keyring-internal-api": "npm:^6.2.0"
-    "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/utils": "npm:^11.4.2"
-    "@solana/addresses": "npm:^2.0.0"
-    lodash: "npm:^4.17.21"
-  peerDependencies:
-    "@metamask/accounts-controller": ^31.0.0
-    "@metamask/network-controller": ^24.0.0
-  checksum: 10/9c0fa358f34909e90f73b4b8d52a06948f122eeddc8b7b7e21cc3876d411d4784054dad2d756c0b24a5bacec0d0e79119b94d41abb65d6fac8d931c7cac414ba
-  languageName: node
-  linkType: hard
-
 "@metamask/multichain-network-controller@npm:^0.11.0, @metamask/multichain-network-controller@workspace:packages/multichain-network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/multichain-network-controller@workspace:packages/multichain-network-controller"
@@ -4052,7 +4010,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.1"
     "@metamask/controller-utils": "npm:^11.11.0"
-    "@metamask/multichain-network-controller": "npm:^0.10.0"
+    "@metamask/multichain-network-controller": "npm:^0.11.0"
     "@metamask/network-controller": "npm:^24.0.1"
     "@metamask/utils": "npm:^11.4.2"
     "@types/jest": "npm:^27.4.1"
@@ -4065,7 +4023,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
   peerDependencies:
-    "@metamask/multichain-network-controller": ^0.10.0
+    "@metamask/multichain-network-controller": ^0.11.0
     "@metamask/network-controller": ^24.0.0
   languageName: unknown
   linkType: soft
