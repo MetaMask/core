@@ -7,13 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- Renamed public method `submitGlobalPassword` to `submitGlobalPasswordAndSync`. ([#6180](https://github.com/MetaMask/core/pull/6180))
-
 ### Added
 
 - Added an optional parameter, `passwordOutdatedCacheTTL` to the constructor params and exported `SecretMetadata` class from the controller.([#6169](https://github.com/MetaMask/core/pull/6169))
+
+### Changed
+
+- Renamed public method `submitGlobalPassword` to `submitGlobalPasswordAndSync`. ([#6180](https://github.com/MetaMask/core/pull/6180))
 
 ### Removed
 
