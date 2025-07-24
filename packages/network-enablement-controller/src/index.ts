@@ -11,10 +11,9 @@ export type {
 export {
   selectEnabledNetworkMap,
   selectIsNetworkEnabled,
-  selectEnabledNetworksForNamespace,
+  createSelectorForEnabledNetworksForNamespace,
   selectAllEnabledNetworks,
   selectEnabledNetworksCount,
-  selectHasEnabledNetworksForNamespace,
   selectEnabledEvmNetworks,
   selectEnabledSolanaNetworks,
 } from './selectors';

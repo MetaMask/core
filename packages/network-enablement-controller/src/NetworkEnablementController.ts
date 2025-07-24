@@ -5,9 +5,7 @@ import type {
   RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BuiltInNetworkName, ChainId, toHex } from '@metamask/controller-utils';
-import { SolScope } from '@metamask/keyring-api';
 import type { MultichainNetworkControllerGetStateAction } from '@metamask/multichain-network-controller';
-import { toEvmCaipChainId } from '@metamask/multichain-network-controller';
 import type {
   NetworkControllerGetStateAction,
   NetworkControllerNetworkAddedEvent,
@@ -15,15 +13,12 @@ import type {
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
 import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
-import {
-  isCaipChainId,
-  isHexString,
-  KnownCaipNamespace,
-  parseCaipChainId,
-} from '@metamask/utils';
+import { KnownCaipNamespace, parseCaipChainId } from '@metamask/utils';
 
 import { POPULAR_NETWORKS } from './constants';
 import { selectAllEnabledNetworks } from './selectors';
+import { SolScope } from './types';
+import { deriveKeys, isOnlyNetworkEnabledInNamespace } from './utils';
 
 // Unique name for the controller
 const controllerName = 'NetworkEnablementController';
@@ -55,32 +50,26 @@ export type NetworkEnablementControllerGetStateAction =
   >;
 
 export type NetworkEnablementControllerSetEnabledNetworksAction = {
-  type: `${typeof controllerName}:setEnabledNetworks`;
-  handler: NetworkEnablementController['setEnabledNetwork'];
+  type: `${typeof controllerName}:enableNetwork`;
+  handler: NetworkEnablementController['enableNetwork'];
 };
 
 export type NetworkEnablementControllerDisableNetworkAction = {
   type: `${typeof controllerName}:disableNetwork`;
-  handler: NetworkEnablementController['setDisabledNetwork'];
-};
-
-export type NetworkEnablementControllerIsNetworkEnabledAction = {
-  type: `${typeof controllerName}:isNetworkEnabled`;
-  handler: NetworkEnablementController['isNetworkEnabled'];
+  handler: NetworkEnablementController['disableNetwork'];
 };
 
 /**
  * All actions that {@link NetworkEnablementController} calls internally.
  */
-type AllowedActions =
+export type AllowedActions =
   | NetworkControllerGetStateAction
   | MultichainNetworkControllerGetStateAction;
 
 export type NetworkEnablementControllerActions =
   | NetworkEnablementControllerGetStateAction
   | NetworkEnablementControllerSetEnabledNetworksAction
-  | NetworkEnablementControllerDisableNetworkAction
-  | NetworkEnablementControllerIsNetworkEnabledAction;
+  | NetworkEnablementControllerDisableNetworkAction;
 
 export type NetworkEnablementControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -94,7 +83,7 @@ export type NetworkEnablementControllerEvents =
 /**
  * All events that {@link NetworkEnablementController} subscribes to internally.
  */
-type AllowedEvents =
+export type AllowedEvents =
   | NetworkControllerNetworkAddedEvent
   | NetworkControllerNetworkRemovedEvent
   | NetworkControllerStateChangeEvent;
@@ -172,10 +161,7 @@ export class NetworkEnablementController extends BaseController<
       },
     });
 
-    this.messagingSystem = messenger;
-
     messenger.subscribe('NetworkController:networkAdded', ({ chainId }) => {
-      this.#ensureNetworkEntry(chainId, false);
       this.#toggleNetwork(chainId, true);
     });
 
@@ -199,10 +185,9 @@ export class NetworkEnablementController extends BaseController<
    * @param chainId - The chain ID of the network to enable or disable. Can be either:
    * - A Hex string (e.g., '0x1' for Ethereum mainnet) for EVM networks
    * - A CAIP-2 chain ID (e.g., 'eip155:1' for Ethereum mainnet, 'solana:mainnet' for Solana)
-   * @param enable - Whether to enable (true) or disable (false) the network. Defaults to true.
    */
-  setEnabledNetwork(chainId: Hex | CaipChainId, enable = true): void {
-    this.#toggleNetwork(chainId, enable);
+  enableNetwork(chainId: Hex | CaipChainId): void {
+    this.#toggleNetwork(chainId, true);
   }
 
   /**
@@ -219,58 +204,8 @@ export class NetworkEnablementController extends BaseController<
    * - A Hex string (e.g., '0x1' for Ethereum mainnet) for EVM networks
    * - A CAIP-2 chain ID (e.g., 'eip155:1' for Ethereum mainnet, 'solana:mainnet' for Solana)
    */
-  setDisabledNetwork(chainId: Hex | CaipChainId): void {
+  disableNetwork(chainId: Hex | CaipChainId): void {
     this.#toggleNetwork(chainId, false);
-  }
-
-  /**
-   * Checks if a network is currently enabled for the user.
-   *
-   * This method accepts either a Hex chain ID (for EVM networks) or a CAIP-2 chain ID
-   * (for any blockchain network). It returns false for unknown networks or if there's
-   * an error parsing the chain ID.
-   *
-   * @param chainId - The chain ID of the network to check. Can be either:
-   * - A Hex string (e.g., '0x1' for Ethereum mainnet) for EVM networks
-   * - A CAIP-2 chain ID (e.g., 'eip155:1' for Ethereum mainnet, 'solana:mainnet' for Solana)
-   * @returns True if the network is enabled, false otherwise.
-   */
-  isNetworkEnabled(chainId: Hex | CaipChainId): boolean {
-    try {
-      const { namespace, storageKey } = this.#deriveKeys(chainId);
-      return (
-        namespace in this.state.enabledNetworkMap &&
-        Boolean(this.state.enabledNetworkMap[namespace][storageKey])
-      );
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * Derives the namespace, storage key, and CAIP chain ID from a given chain ID.
-   *
-   * This internal method handles the conversion between different chain ID formats.
-   * For EVM networks, it converts Hex chain IDs to CAIP-2 format and determines
-   * the appropriate storage key. For non-EVM networks, it parses the CAIP-2 chain ID
-   * and uses the full chain ID as the storage key.
-   *
-   * @param chainId - The chain ID to derive keys from (Hex or CAIP-2 format)
-   * @returns An object containing namespace, storageKey, and caipId
-   * @throws Error if the chain ID cannot be parsed
-   */
-  #deriveKeys(chainId: Hex | CaipChainId) {
-    const caipId: CaipChainId = isCaipChainId(chainId)
-      ? chainId
-      : toEvmCaipChainId(chainId);
-    const { namespace, reference } = parseCaipChainId(caipId);
-    let storageKey: string;
-    if (namespace === (KnownCaipNamespace.Eip155 as string)) {
-      storageKey = isHexString(chainId) ? chainId : toHex(reference);
-    } else {
-      storageKey = caipId;
-    }
-    return { namespace, storageKey, caipId };
   }
 
   /**
@@ -303,7 +238,7 @@ export class NetworkEnablementController extends BaseController<
    * @param enable - Whether to enable the network by default (defaults to false)
    */
   #ensureNetworkEntry(chainId: Hex | CaipChainId, enable = false): void {
-    const { namespace, storageKey } = this.#deriveKeys(chainId);
+    const { namespace, storageKey } = deriveKeys(chainId);
     this.update((s) => {
       this.#ensureNamespaceBucket(s, namespace);
       if (!(storageKey in s.enabledNetworkMap[namespace])) {
@@ -321,96 +256,16 @@ export class NetworkEnablementController extends BaseController<
    * @param chainId - The chain ID to remove (Hex or CAIP-2 format)
    */
   #removeNetworkEntry(chainId: Hex | CaipChainId): void {
-    const { namespace, storageKey } = this.#deriveKeys(chainId);
-    if (this.#hasOneEnabled(this.state, namespace, chainId)) {
+    const { namespace, storageKey } = deriveKeys(chainId);
+    if (isOnlyNetworkEnabledInNamespace(this.state, namespace, chainId)) {
       return;
     }
 
     this.update((s) => {
       if (namespace in s.enabledNetworkMap) {
         delete s.enabledNetworkMap[namespace][storageKey];
-        if (Object.keys(s.enabledNetworkMap[namespace]).length === 0) {
-          delete s.enabledNetworkMap[namespace];
-        }
       }
     });
-  }
-
-  /**
-   * Checks if the specified network is the only enabled network in its namespace.
-   *
-   * This method is used to prevent unnecessary state updates when trying to enable
-   * a network that is already the only enabled network in its namespace.
-   *
-   * @param state - The current controller state
-   * @param namespace - The namespace to check
-   * @param chainIdToCheck - The chain ID to check if it's the only enabled network
-   * @returns True if the network is the only enabled network in the namespace, false otherwise
-   */
-  #hasOneEnabled(
-    state: NetworkEnablementControllerState,
-    namespace: CaipNamespace,
-    chainIdToCheck: Hex | CaipChainId,
-  ): boolean {
-    // Early return if namespace doesn't exist
-    if (!state.enabledNetworkMap[namespace]) {
-      return false;
-    }
-
-    // Parse the chain ID to get the storage key
-    const caipId = isCaipChainId(chainIdToCheck)
-      ? chainIdToCheck
-      : toEvmCaipChainId(chainIdToCheck);
-
-    const { namespace: parsedNamespace, storageKey: targetStorageKey } =
-      this.#deriveKeys(caipId);
-
-    // Early return if namespaces don't match
-    if (parsedNamespace !== namespace) {
-      return false;
-    }
-
-    const networks = state.enabledNetworkMap[namespace];
-
-    // Get all enabled networks in this namespace
-    const enabledNetworks = Object.entries(networks).filter(
-      ([_, enabled]) => enabled,
-    );
-
-    // Check if there's exactly one enabled network and it matches our target
-    if (enabledNetworks.length === 1) {
-      const [onlyEnabledKey] = enabledNetworks[0];
-      return onlyEnabledKey === targetStorageKey;
-    }
-
-    // Return false if there are zero or multiple enabled networks
-    return false;
-  }
-
-  /**
-   * Checks if a network is known to the system.
-   *
-   * This method verifies whether a network exists in the NetworkController or
-   * MultichainNetworkController configurations. It's used to prevent enabling
-   * unknown networks.
-   *
-   * @param caipId - The CAIP-2 chain ID to check
-   * @returns True if the network is known, false otherwise
-   */
-  #isKnownNetwork(caipId: CaipChainId): boolean {
-    const { namespace, reference } = parseCaipChainId(caipId);
-    if (namespace === (KnownCaipNamespace.Eip155 as string)) {
-      const { networkConfigurationsByChainId } = this.messagingSystem.call(
-        'NetworkController:getState',
-      );
-      return toHex(reference) in networkConfigurationsByChainId;
-    }
-    if (namespace === (KnownCaipNamespace.Solana as string)) {
-      const { multichainNetworkConfigurationsByChainId } =
-        this.messagingSystem.call('MultichainNetworkController:getState');
-      return caipId in multichainNetworkConfigurationsByChainId;
-    }
-    return false;
   }
 
   /**
@@ -445,37 +300,26 @@ export class NetworkEnablementController extends BaseController<
    * @param enable - True to enable the network, false to disable it
    */
   #toggleNetwork(chainId: Hex | CaipChainId, enable: boolean): void {
-    const { namespace, storageKey, caipId } = this.#deriveKeys(chainId);
+    const { namespace, storageKey, caipId } = deriveKeys(chainId);
 
-    // Ignore unknown networks
-    if (!this.#isKnownNetwork(caipId)) {
-      return;
-    }
-
-    // Don't disable the last remaining enabled network
+    // Don't update the last remaining enabled network
     if (
       !enable &&
       Object.values(selectAllEnabledNetworks(this.state)[namespace]).flat()
         .length <= 1
     ) {
-      return;
+      throw new Error('Cannot disable the last remaining enabled network');
     }
 
     this.update((s) => {
       // Ensure entry exists first
       this.#ensureNetworkEntry(chainId);
-
-      if (this.#hasOneEnabled(s, namespace, chainId)) {
-        return;
-      }
-
       // If enabling a non-popular network, disable all networks in the same namespace
       if (enable && !this.#isPopularNetwork(caipId)) {
         Object.keys(s.enabledNetworkMap[namespace]).forEach((key) => {
           s.enabledNetworkMap[namespace][key] = false;
         });
       }
-
       s.enabledNetworkMap[namespace][storageKey] = enable;
     });
   }

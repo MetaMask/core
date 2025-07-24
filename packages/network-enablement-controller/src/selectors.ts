@@ -45,22 +45,27 @@ export const selectIsNetworkEnabled = (chainId: Hex | CaipChainId) =>
       } else {
         storageKey = caipId;
       }
-      return Boolean(enabledNetworkMap[namespace]?.[storageKey]);
+      return (
+        namespace in enabledNetworkMap &&
+        storageKey in enabledNetworkMap[namespace]
+      );
     } catch {
       return false;
     }
   });
 
 /**
- * Selector to get all enabled networks for a specific namespace.
+ * Selector builder to get all enabled networks for a specific namespace.
  *
- * This selector returns an array of chain IDs (as strings) for all enabled networks
+ * The selector returned by this function returns an array of chain IDs (as strings) for all enabled networks
  * within the specified namespace (e.g., 'eip155' for EVM networks, 'solana' for Solana).
  *
  * @param namespace - The CAIP namespace to get enabled networks for (e.g., 'eip155', 'solana')
  * @returns A selector function that returns an array of chain ID strings for enabled networks in the namespace
  */
-export const selectEnabledNetworksForNamespace = (namespace: CaipNamespace) =>
+export const createSelectorForEnabledNetworksForNamespace = (
+  namespace: CaipNamespace,
+) =>
   createSelector(selectEnabledNetworkMap, (enabledNetworkMap) => {
     return Object.entries(enabledNetworkMap[namespace] ?? {})
       .filter(([, enabled]) => enabled)
@@ -98,26 +103,9 @@ export const selectAllEnabledNetworks = createSelector(
 export const selectEnabledNetworksCount = createSelector(
   selectAllEnabledNetworks,
   (allEnabledNetworks) => {
-    return Object.values(allEnabledNetworks).reduce(
-      (total, networks) => total + networks.length,
-      0,
-    );
+    return Object.values(allEnabledNetworks).flat().length;
   },
 );
-
-/**
- * Selector to check if any networks are enabled for a specific namespace.
- *
- * @param namespace - The CAIP namespace to check
- * @returns A selector function that returns true if any networks are enabled in the namespace
- */
-export const selectHasEnabledNetworksForNamespace = (
-  namespace: CaipNamespace,
-) =>
-  createSelector(
-    selectEnabledNetworksForNamespace(namespace),
-    (enabledNetworks) => enabledNetworks.length > 0,
-  );
 
 /**
  * Selector to get all enabled EVM networks.
@@ -127,7 +115,7 @@ export const selectHasEnabledNetworksForNamespace = (
  * @returns A selector function that returns an array of enabled EVM chain IDs
  */
 export const selectEnabledEvmNetworks = createSelector(
-  selectEnabledNetworksForNamespace(KnownCaipNamespace.Eip155),
+  createSelectorForEnabledNetworksForNamespace(KnownCaipNamespace.Eip155),
   (enabledEvmNetworks) => enabledEvmNetworks,
 );
 
@@ -139,6 +127,6 @@ export const selectEnabledEvmNetworks = createSelector(
  * @returns A selector function that returns an array of enabled Solana chain IDs
  */
 export const selectEnabledSolanaNetworks = createSelector(
-  selectEnabledNetworksForNamespace(KnownCaipNamespace.Solana),
+  createSelectorForEnabledNetworksForNamespace(KnownCaipNamespace.Solana),
   (enabledSolanaNetworks) => enabledSolanaNetworks,
 );
