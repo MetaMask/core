@@ -59,8 +59,8 @@ export class MultichainAccountService {
     MultichainAccountWallet<Bip44Account<InternalAccount>>
   >;
 
-  readonly #reverse: Map<
-    InternalAccount['id'],
+  readonly #accountIdToContext: Map<
+    Bip44<InternalAccount>['id'],
     AccountReverseMapping<Bip44Account<InternalAccount>>
   >;
 
