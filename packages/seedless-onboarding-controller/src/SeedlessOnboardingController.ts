@@ -1147,7 +1147,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     } = await this.#unlockVaultAndGetVaultData(oldPassword);
     let newKeyShareIndex = latestKeyIndex;
 
-    if (!newKeyShareIndex || !encKey || !pwEncKey || !authKeyPair) {
+    if (!newKeyShareIndex) {
       ({
         encKey,
         pwEncKey,
