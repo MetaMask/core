@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** `NetworkController:rpcEndpointDegraded` now includes an extra `error` property, which will be produced when exceeding the maximum number of retries for the request
+
 ## [24.0.1]
 
 ### Changed
