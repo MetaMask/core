@@ -13,7 +13,6 @@ import { BaseController } from '@metamask/base-controller';
 import { convertHexToDecimal, toHex } from '@metamask/controller-utils';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
-  NetworkControllerGetSelectedNetworkClientAction,
   NetworkControllerNetworkDidChangeEvent,
 } from '@metamask/network-controller';
 import {
@@ -237,7 +236,6 @@ export type EarnControllerActions = EarnControllerGetStateAction;
  */
 export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
-  | NetworkControllerGetSelectedNetworkClientAction
   | AccountsControllerGetSelectedAccountAction;
 
 /**
