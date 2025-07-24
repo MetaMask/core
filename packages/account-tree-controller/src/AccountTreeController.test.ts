@@ -2,6 +2,7 @@ import {
   AccountWalletCategory,
   toAccountWalletId,
   toDefaultAccountGroupId,
+  type AccountGroupId,
 } from '@metamask/account-api';
 import { Messenger } from '@metamask/base-controller';
 import {
@@ -173,10 +174,13 @@ function getAccountTreeControllerMessenger(
     allowedEvents: [
       'AccountsController:accountAdded',
       'AccountsController:accountRemoved',
+      'AccountsController:selectedAccountChange',
     ],
     allowedActions: [
       'AccountsController:listMultichainAccounts',
       'AccountsController:getAccount',
+      'AccountsController:getSelectedAccount',
+      'AccountsController:setSelectedAccount',
       'KeyringController:getState',
       'SnapController:get',
     ],
@@ -225,6 +229,20 @@ function setup({
     messenger.registerActionHandler(
       'AccountsController:listMultichainAccounts',
       () => accounts,
+    );
+  }
+
+  if (accounts) {
+    // Mock AccountsController:getSelectedAccount to return the first account
+    messenger.registerActionHandler(
+      'AccountsController:getSelectedAccount',
+      () => accounts[0] || MOCK_HD_ACCOUNT_1,
+    );
+
+    // Mock AccountsController:setSelectedAccount
+    messenger.registerActionHandler(
+      'AccountsController:setSelectedAccount',
+      jest.fn(),
     );
   }
 
@@ -349,6 +367,7 @@ describe('AccountTreeController', () => {
             },
           },
         },
+        selectedAccountGroup: expect.any(String), // Will be set to some group after init
       } as AccountTreeControllerState);
     });
 
@@ -519,6 +538,7 @@ describe('AccountTreeController', () => {
             },
           },
         },
+        selectedAccountGroup: expect.any(String), // Will be set after init
       } as AccountTreeControllerState);
     });
   });
@@ -570,6 +590,7 @@ describe('AccountTreeController', () => {
             },
           },
         },
+        selectedAccountGroup: expect.any(String), // Will be set after init
       } as AccountTreeControllerState);
     });
   });
@@ -704,6 +725,158 @@ describe('AccountTreeController', () => {
         `! Unable to get account: "${accountIds[0]}"`,
       );
       expect(accounts).toHaveLength(0); // None account could be resolved.
+    });
+  });
+
+  describe('selectedAccountGroup bidirectional synchronization', () => {
+    it('initializes selectedAccountGroup based on currently selected account', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+
+      expect(controller.getSelectedAccountGroup()).not.toBe('');
+    });
+
+    it('updates selectedAccountGroup when AccountsController selected account changes', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+      const initialGroup = controller.getSelectedAccountGroup();
+
+      messenger.publish(
+        'AccountsController:selectedAccountChange',
+        MOCK_HD_ACCOUNT_2,
+      );
+
+      const newGroup = controller.getSelectedAccountGroup();
+      expect(newGroup).not.toBe(initialGroup);
+    });
+
+    it('updates AccountsController selected account when selectedAccountGroup changes', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      const setSelectedAccountSpy = jest.spyOn(messenger, 'call');
+
+      controller.init();
+
+      const expectedWalletId2 = toAccountWalletId(
+        AccountWalletCategory.Entropy,
+        MOCK_HD_KEYRING_2.metadata.id,
+      );
+      const expectedGroupId2 = toDefaultAccountGroupId(expectedWalletId2);
+
+      controller.setSelectedAccountGroup(expectedGroupId2);
+
+      expect(setSelectedAccountSpy).toHaveBeenCalledWith(
+        'AccountsController:setSelectedAccount',
+        expect.any(String),
+      );
+    });
+
+    it('is idempotent - setting same selectedAccountGroup should not trigger AccountsController update', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      const setSelectedAccountSpy = jest.spyOn(messenger, 'call');
+
+      controller.init();
+
+      const expectedWalletId = toAccountWalletId(
+        AccountWalletCategory.Entropy,
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const expectedGroupId = toDefaultAccountGroupId(expectedWalletId);
+
+      expect(controller.getSelectedAccountGroup()).toBe(expectedGroupId);
+
+      setSelectedAccountSpy.mockClear();
+
+      const initialState = { ...controller.state };
+
+      controller.setSelectedAccountGroup(expectedGroupId);
+
+      expect(setSelectedAccountSpy).not.toHaveBeenCalledWith(
+        'AccountsController:setSelectedAccount',
+        expect.any(String),
+      );
+
+      expect(controller.state).toStrictEqual(initialState);
+      expect(controller.getSelectedAccountGroup()).toBe(expectedGroupId);
+    });
+
+    it('is idempotent - receiving selectedAccountChange for account in same group should not update state', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+
+      const expectedWalletId1 = toAccountWalletId(
+        AccountWalletCategory.Entropy,
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const expectedGroupId1 = toDefaultAccountGroupId(expectedWalletId1);
+
+      controller.setSelectedAccountGroup(expectedGroupId1);
+
+      const initialState = { ...controller.state };
+
+      messenger.publish(
+        'AccountsController:selectedAccountChange',
+        MOCK_HD_ACCOUNT_1,
+      );
+
+      expect(controller.state).toStrictEqual(initialState);
+      expect(controller.getSelectedAccountGroup()).toBe(expectedGroupId1);
+    });
+
+    it('throws error when trying to select non-existent group', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      expect(() => {
+        controller.setSelectedAccountGroup(
+          'non-existent-group-id' as AccountGroupId,
+        );
+      }).toThrow('No accounts found in group: non-existent-group-id');
+    });
+
+    it('handles AccountsController selectedAccountChange for account not in tree gracefully', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+      const initialGroup = controller.getSelectedAccountGroup();
+
+      const unknownAccount: InternalAccount = {
+        ...MOCK_HD_ACCOUNT_2,
+        id: 'unknown-account-id',
+      };
+
+      messenger.publish(
+        'AccountsController:selectedAccountChange',
+        unknownAccount,
+      );
+
+      expect(controller.getSelectedAccountGroup()).toBe(initialGroup);
     });
   });
 });
