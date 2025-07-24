@@ -161,7 +161,7 @@ export class NetworkEnablementController extends BaseController<
     });
 
     messenger.subscribe('NetworkController:networkAdded', ({ chainId }) => {
-      this.#toggleNetwork(chainId, true);
+      this.#onAddNetwork(chainId);
     });
 
     messenger.subscribe('NetworkController:networkRemoved', ({ chainId }) => {
@@ -186,7 +186,28 @@ export class NetworkEnablementController extends BaseController<
    * - A CAIP-2 chain ID (e.g., 'eip155:1' for Ethereum mainnet, 'solana:mainnet' for Solana)
    */
   enableNetwork(chainId: Hex | CaipChainId): void {
-    this.#toggleNetwork(chainId, true);
+    const { namespace, storageKey, caipId } = deriveKeys(chainId);
+
+    const isPopularNetwork = this.#checkIfPopularNetwork(caipId);
+
+    this.update((s) => {
+      // If enabling a non-popular network, disable all networks in the same namespace
+      if (!isPopularNetwork) {
+        // disable all networks in the same namespace
+        Object.keys(s.enabledNetworkMap[namespace]).forEach((key) => {
+          s.enabledNetworkMap[namespace][key as CaipChainId | Hex] = false;
+        });
+      } else {
+        // disable all custom networks
+        Object.keys(s.enabledNetworkMap[namespace]).forEach((key) => {
+          const { caipId: CaipChainId } = deriveKeys(key as CaipChainId);
+          if (!this.#checkIfPopularNetwork(CaipChainId)) {
+            s.enabledNetworkMap[namespace][key as CaipChainId | Hex] = false;
+          }
+        });
+      }
+      s.enabledNetworkMap[namespace][storageKey] = true;
+    });
   }
 
   /**
@@ -204,7 +225,15 @@ export class NetworkEnablementController extends BaseController<
    * - A CAIP-2 chain ID (e.g., 'eip155:1' for Ethereum mainnet, 'solana:mainnet' for Solana)
    */
   disableNetwork(chainId: Hex | CaipChainId): void {
-    this.#toggleNetwork(chainId, false);
+    const { namespace, storageKey } = deriveKeys(chainId);
+
+    if (isOnlyNetworkEnabledInNamespace(this.state, namespace, chainId)) {
+      throw new Error('Cannot disable the last remaining enabled network');
+    }
+
+    this.update((s) => {
+      s.enabledNetworkMap[namespace][storageKey] = false;
+    });
   }
 
   /**
@@ -227,26 +256,6 @@ export class NetworkEnablementController extends BaseController<
   }
 
   /**
-   * Ensures that a network entry exists in the state.
-   *
-   * This method creates a network entry in the enabledNetworkMap if it doesn't
-   * already exist. It's called when a new network is added to ensure the
-   * state structure is properly initialized.
-   *
-   * @param chainId - The chain ID to ensure has an entry (Hex or CAIP-2 format)
-   * @param enable - Whether to enable the network by default (defaults to false)
-   */
-  #ensureNetworkEntry(chainId: Hex | CaipChainId, enable = false): void {
-    const { namespace, storageKey } = deriveKeys(chainId);
-    this.update((s) => {
-      this.#ensureNamespaceBucket(s, namespace);
-      if (!(storageKey in s.enabledNetworkMap[namespace])) {
-        s.enabledNetworkMap[namespace][storageKey] = enable;
-      }
-    });
-  }
-
-  /**
    * Removes a network entry from the state.
    *
    * This method is called when a network is removed from the system. It cleans up
@@ -256,11 +265,14 @@ export class NetworkEnablementController extends BaseController<
    */
   #removeNetworkEntry(chainId: Hex | CaipChainId): void {
     const { namespace, storageKey } = deriveKeys(chainId);
-    if (isOnlyNetworkEnabledInNamespace(this.state, namespace, chainId)) {
-      return;
-    }
 
     this.update((s) => {
+      // fallback and enable ethereum mainnet
+      if (isOnlyNetworkEnabledInNamespace(this.state, namespace, chainId)) {
+        s.enabledNetworkMap[namespace][ChainId[BuiltInNetworkName.Mainnet]] =
+          true;
+      }
+
       if (namespace in s.enabledNetworkMap) {
         delete s.enabledNetworkMap[namespace][storageKey];
       }
@@ -277,49 +289,37 @@ export class NetworkEnablementController extends BaseController<
    * @param caipId - The chain ID to check (can be Hex or CAIP-2 format)
    * @returns True if the network is popular, false otherwise
    */
-  #isPopularNetwork(caipId: CaipChainId): boolean {
+  #checkIfPopularNetwork(caipId: CaipChainId): boolean {
     const { reference } = parseCaipChainId(caipId);
     return POPULAR_NETWORKS.includes(toHex(reference));
   }
 
   /**
-   * Toggles the enabled state of a network.
+   * Handles the addition of a new network to the controller.
    *
-   * This is the core method that handles enabling and disabling networks. It includes
-   * several safety checks and business logic:
-   * - Prevents enabling unknown networks
-   * - Prevents disabling the last remaining enabled network
-   * - Implements exclusive mode for non-popular networks
-   * - Ensures at least one network remains enabled
+   * This method is called when a network is added to the system. It automatically
+   * enables the new network and implements exclusive mode for non-popular networks.
+   * If the network already exists, no changes are made.
    *
-   * The method accepts either Hex or CAIP-2 chain IDs for flexibility and
-   * backward compatibility.
-   *
-   * @param chainId - The chain ID to toggle (Hex or CAIP-2 format)
-   * @param enable - True to enable the network, false to disable it
+   * @param chainId - The chain ID of the network being added (Hex or CAIP-2 format)
    */
-  #toggleNetwork(chainId: Hex | CaipChainId, enable: boolean): void {
+  #onAddNetwork(chainId: Hex | CaipChainId): void {
     const { namespace, storageKey, caipId } = deriveKeys(chainId);
 
-    // Don't update the last remaining enabled network
-    if (
-      !enable &&
-      Object.values(selectAllEnabledNetworks(this.state)[namespace]).flat()
-        .length <= 1
-    ) {
-      throw new Error('Cannot disable the last remaining enabled network');
-    }
-
     this.update((s) => {
-      // Ensure entry exists first
-      this.#ensureNetworkEntry(chainId);
-      // If enabling a non-popular network, disable all networks in the same namespace
-      if (enable && !this.#isPopularNetwork(caipId)) {
+      // Ensure the namespace bucket exists
+      this.#ensureNamespaceBucket(s, namespace);
+
+      // If adding a non-popular network, disable all other networks in the same namespace
+      // This implements exclusive mode where only one non-popular network can be active
+      if (!this.#checkIfPopularNetwork(caipId)) {
         Object.keys(s.enabledNetworkMap[namespace]).forEach((key) => {
           s.enabledNetworkMap[namespace][key as CaipChainId | Hex] = false;
         });
       }
-      s.enabledNetworkMap[namespace][storageKey] = enable;
+
+      // Add the new network as enabled
+      s.enabledNetworkMap[namespace][storageKey] = true;
     });
   }
 }

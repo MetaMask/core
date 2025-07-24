@@ -47,7 +47,8 @@ export const selectIsNetworkEnabled = (chainId: Hex | CaipChainId) =>
       }
       return (
         namespace in enabledNetworkMap &&
-        storageKey in enabledNetworkMap[namespace]
+        storageKey in enabledNetworkMap[namespace] &&
+        (enabledNetworkMap[namespace] as Record<string, boolean>)[storageKey]
       );
     } catch {
       return false;

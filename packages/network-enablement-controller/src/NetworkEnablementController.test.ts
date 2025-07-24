@@ -161,7 +161,7 @@ describe('NetworkEnablementController', () => {
     });
   });
 
-  it('does not remove the last enabled network', async () => {
+  it('does fallback to ethereum when removing the last enabled network', async () => {
     const { controller, messenger } = setupController();
 
     // disable all networks except linea
@@ -189,9 +189,8 @@ describe('NetworkEnablementController', () => {
     expect(controller.state).toStrictEqual({
       enabledNetworkMap: {
         [KnownCaipNamespace.Eip155]: {
-          [ChainId[BuiltInNetworkName.Mainnet]]: false,
+          [ChainId[BuiltInNetworkName.Mainnet]]: true,
           [ChainId[BuiltInNetworkName.BaseMainnet]]: false,
-          [ChainId[BuiltInNetworkName.LineaMainnet]]: true,
         },
         [KnownCaipNamespace.Solana]: {
           [SolScope.Mainnet]: true,
@@ -255,6 +254,44 @@ describe('NetworkEnablementController', () => {
           },
         ],
       });
+
+      await advanceTime({ clock, duration: 1 });
+
+      expect(controller.state).toStrictEqual({
+        enabledNetworkMap: {
+          [KnownCaipNamespace.Eip155]: {
+            [ChainId[BuiltInNetworkName.Mainnet]]: false,
+            [ChainId[BuiltInNetworkName.LineaMainnet]]: false,
+            [ChainId[BuiltInNetworkName.BaseMainnet]]: false,
+            '0x2': true,
+          },
+          [KnownCaipNamespace.Solana]: {
+            [SolScope.Mainnet]: true,
+          },
+        },
+      });
+
+      // Enable the popular network again
+      controller.enableNetwork(ChainId[BuiltInNetworkName.Mainnet]);
+      controller.enableNetwork(ChainId[BuiltInNetworkName.LineaMainnet]);
+      controller.enableNetwork(ChainId[BuiltInNetworkName.BaseMainnet]);
+
+      expect(controller.state).toStrictEqual({
+        enabledNetworkMap: {
+          [KnownCaipNamespace.Eip155]: {
+            [ChainId[BuiltInNetworkName.Mainnet]]: true,
+            [ChainId[BuiltInNetworkName.LineaMainnet]]: true,
+            [ChainId[BuiltInNetworkName.BaseMainnet]]: true,
+            '0x2': false,
+          },
+          [KnownCaipNamespace.Solana]: {
+            [SolScope.Mainnet]: true,
+          },
+        },
+      });
+
+      // Enable the non-popular network again
+      controller.enableNetwork('0x2');
 
       expect(controller.state).toStrictEqual({
         enabledNetworkMap: {
