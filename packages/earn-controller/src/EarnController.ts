@@ -13,7 +13,7 @@ import { BaseController } from '@metamask/base-controller';
 import { convertHexToDecimal, toHex } from '@metamask/controller-utils';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
-  NetworkControllerNetworkDidChangeEvent,
+  NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
 import {
   EarnSdk,
@@ -257,7 +257,7 @@ export type EarnControllerEvents = EarnControllerStateChangeEvent;
 export type AllowedEvents =
   | AccountsControllerSelectedAccountChangeEvent
   | TransactionControllerTransactionConfirmedEvent
-  | NetworkControllerNetworkDidChangeEvent;
+  | NetworkControllerStateChangeEvent;
 
 /**
  * The messenger which is restricted to actions and events accessed by
@@ -335,22 +335,27 @@ export class EarnController extends BaseController<
 
     // Listen for network changes
     this.messagingSystem.subscribe(
-      'NetworkController:networkDidChange',
+      'NetworkController:stateChange',
       (networkControllerState) => {
+        if (
+          networkControllerState.selectedNetworkClientId !==
+          this.#selectedNetworkClientId
+        ) {
+          this.#initializeSDK(
+            networkControllerState.selectedNetworkClientId,
+          ).catch(console.error);
+
+          this.refreshPooledStakingVaultMetadata().catch(console.error);
+          this.refreshPooledStakingVaultDailyApys().catch(console.error);
+          this.refreshPooledStakingVaultApyAverages().catch(console.error);
+          this.refreshPooledStakes().catch(console.error);
+
+          // refresh lending data for all chains
+          this.refreshLendingMarkets().catch(console.error);
+          this.refreshLendingPositions().catch(console.error);
+        }
         this.#selectedNetworkClientId =
           networkControllerState.selectedNetworkClientId;
-
-        this.#initializeSDK(this.#selectedNetworkClientId).catch(console.error);
-
-        // refresh pooled staking data
-        this.refreshPooledStakingVaultMetadata().catch(console.error);
-        this.refreshPooledStakingVaultDailyApys().catch(console.error);
-        this.refreshPooledStakingVaultApyAverages().catch(console.error);
-        this.refreshPooledStakes().catch(console.error);
-
-        // refresh lending data for all chains
-        this.refreshLendingMarkets().catch(console.error);
-        this.refreshLendingPositions().catch(console.error);
       },
     );
 
