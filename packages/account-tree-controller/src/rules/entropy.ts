@@ -8,15 +8,15 @@ import { isEvmAccountType } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { RuleMatch } from './rule';
-import { Rule } from './rule';
 import type {
   AccountTreeGroup,
   AccountTreeWallet,
   AccountTreeWalletEntropyOptions,
 } from '..';
+import type { AccountTreeRuleResult } from '../AccountTreeRule';
+import { AccountTreeRule } from '../AccountTreeRule';
 
-export class EntropyRule extends Rule {
+export class EntropyRule extends AccountTreeRule {
   readonly category = AccountWalletCategory.Entropy;
 
   getEntropySourceIndex(entropySource: string) {
@@ -27,7 +27,7 @@ export class EntropyRule extends Rule {
       .findIndex((keyring) => keyring.metadata.id === entropySource);
   }
 
-  match(account: InternalAccount): RuleMatch | undefined {
+  match(account: InternalAccount): AccountTreeRuleResult | undefined {
     if (!isBip44Account(account)) {
       return undefined;
     }
@@ -42,7 +42,7 @@ export class EntropyRule extends Rule {
     }
 
     const walletId = toMultichainAccountWalletId(account.options.entropy.id);
-    const wallet: RuleMatch['wallet'] = {
+    const wallet: AccountTreeRuleResult['wallet'] = {
       id: walletId,
       options: {
         type: AccountWalletCategory.Entropy,
@@ -53,7 +53,7 @@ export class EntropyRule extends Rule {
       },
     };
 
-    const group: RuleMatch['group'] = {
+    const group: AccountTreeRuleResult['group'] = {
       id: toMultichainAccountId(walletId, account.options.entropy.groupIndex),
     };
 

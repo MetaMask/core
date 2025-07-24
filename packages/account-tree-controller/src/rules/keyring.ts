@@ -6,13 +6,13 @@ import {
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { RuleMatch } from './rule';
-import { Rule } from './rule';
 import type {
   AccountTreeGroup,
   AccountTreeWallet,
   AccountTreeWalletKeyringOptions,
 } from '..';
+import type { AccountTreeRuleResult } from '../AccountTreeRule';
+import { AccountTreeRule } from '../AccountTreeRule';
 
 /**
  * Get wallet name from a keyring type.
@@ -55,14 +55,14 @@ export function getAccountWalletNameFromKeyringType(type: KeyringTypes) {
   }
 }
 
-export class KeyringRule extends Rule {
+export class KeyringRule extends AccountTreeRule {
   readonly category = AccountWalletCategory.Keyring;
 
-  match(account: InternalAccount): RuleMatch | undefined {
+  match(account: InternalAccount): AccountTreeRuleResult | undefined {
     // We assume that `type` is really a `KeyringTypes`.
     const type = account.metadata.keyring.type as KeyringTypes;
 
-    const wallet: RuleMatch['wallet'] = {
+    const wallet: AccountTreeRuleResult['wallet'] = {
       id: toAccountWalletId(this.category, type),
       options: {
         type: AccountWalletCategory.Keyring,
@@ -72,7 +72,7 @@ export class KeyringRule extends Rule {
       },
     };
 
-    const group: RuleMatch['group'] = {
+    const group: AccountTreeRuleResult['group'] = {
       id: toAccountGroupId(wallet.id, account.address),
     };
 

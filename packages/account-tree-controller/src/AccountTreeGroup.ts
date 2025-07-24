@@ -1,10 +1,11 @@
 import { type AccountGroup, type AccountGroupId } from '@metamask/account-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+
+import type { AccountTreeWallet } from './AccountTreeWallet';
 import type {
   AccountGroupObject,
   AccountTreeControllerMessenger,
-  AccountTreeWallet,
-} from 'src';
+} from './types';
 
 export const DEFAULT_ACCOUNT_GROUP_NAME: string = 'Default';
 

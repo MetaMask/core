@@ -1,97 +1,24 @@
 import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
 import { AccountWalletCategory } from '@metamask/account-api';
-import type {
-  AccountId,
-  AccountsControllerAccountAddedEvent,
-  AccountsControllerAccountRemovedEvent,
-  AccountsControllerGetAccountAction,
-  AccountsControllerListMultichainAccountsAction,
-} from '@metamask/accounts-controller';
+import type { AccountId } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
-import {
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
-  type RestrictedMessenger,
-  BaseController,
-} from '@metamask/base-controller';
-import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
+import { BaseController } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
 import type { AccountTreeGroup } from 'src';
 
+import type { AccountTreeRule } from './AccountTreeRule';
 import { AccountTreeWallet } from './AccountTreeWallet';
-import type { Rule } from './rules';
-import { EntropyRule, SnapRule, KeyringRule } from './rules';
-import type { AccountContext } from './types';
+import { EntropyRule } from './rules/entropy';
+import { KeyringRule } from './rules/keyring';
+import { SnapRule } from './rules/snap';
+import type {
+  AccountGroupObject,
+  AccountTreeControllerMessenger,
+  AccountTreeControllerState,
+  AccountWalletObject,
+} from './types';
 
-const controllerName = 'AccountTreeController';
-
-// Do not export this one, we just use it to have a common type interface between group and wallet metadata.
-type Metadata = {
-  name: string;
-};
-
-export type AccountWalletMetadata = Metadata;
-
-export type AccountGroupMetadata = Metadata;
-
-export type AccountGroupObject = {
-  id: AccountGroupId;
-  // Blockchain Accounts:
-  accounts: AccountId[];
-  metadata: AccountGroupMetadata;
-};
-
-export type AccountWalletObject = {
-  id: AccountWalletId;
-  category: AccountWalletCategory;
-  // Account groups OR Multichain accounts (once available).
-  groups: {
-    [groupId: AccountGroupId]: AccountGroupObject;
-  };
-  metadata: AccountWalletMetadata;
-};
-
-export type AccountTreeControllerState = {
-  accountTree: {
-    wallets: {
-      // Wallets:
-      [walletId: AccountWalletId]: AccountWalletObject;
-    };
-  };
-};
-
-export type AccountTreeControllerGetStateAction = ControllerGetStateAction<
-  typeof controllerName,
-  AccountTreeControllerState
->;
-
-export type AllowedActions =
-  | AccountsControllerGetAccountAction
-  | AccountsControllerListMultichainAccountsAction
-  | KeyringControllerGetStateAction
-  | SnapControllerGetSnap;
-
-export type AccountTreeControllerActions = never;
-
-export type AccountTreeControllerStateChangeEvent = ControllerStateChangeEvent<
-  typeof controllerName,
-  AccountTreeControllerState
->;
-
-export type AllowedEvents =
-  | AccountsControllerAccountAddedEvent
-  | AccountsControllerAccountRemovedEvent;
-
-export type AccountTreeControllerEvents = AccountTreeControllerStateChangeEvent;
-
-export type AccountTreeControllerMessenger = RestrictedMessenger<
-  typeof controllerName,
-  AccountTreeControllerActions | AllowedActions,
-  AccountTreeControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
->;
+export const controllerName = 'AccountTreeController';
 
 const accountTreeControllerMetadata: StateMetadata<AccountTreeControllerState> =
   {
@@ -114,6 +41,21 @@ export function getDefaultAccountTreeControllerState(): AccountTreeControllerSta
   };
 }
 
+/**
+ * Context for an account.
+ */
+export type AccountContext = {
+  /**
+   * Wallet ID associated to that account.
+   */
+  walletId: AccountWalletId;
+
+  /**
+   * Account group ID associated to that account.
+   */
+  groupId: AccountGroupId;
+};
+
 export class AccountTreeController extends BaseController<
   typeof controllerName,
   AccountTreeControllerState,
@@ -121,9 +63,9 @@ export class AccountTreeController extends BaseController<
 > {
   readonly #accountIdToContext: Map<AccountId, AccountContext>;
 
-  readonly #rules: Rule[];
+  readonly #rules: AccountTreeRule[];
 
-  readonly #categoryToRule: Record<AccountWalletCategory, Rule>;
+  readonly #categoryToRule: Record<AccountWalletCategory, AccountTreeRule>;
 
   readonly #wallets: Map<AccountWalletId, AccountTreeWallet>;
 
@@ -296,16 +238,16 @@ export class AccountTreeController extends BaseController<
     account: InternalAccount,
   ) {
     for (const rule of this.#rules) {
-      const match = rule.match(account);
+      const result = rule.match(account);
 
-      if (!match) {
+      if (!result) {
         // No match for that rule, we go to the next one.
         continue;
       }
 
       // Update controller's state.
-      const walletId = match.wallet.id;
-      const walletOptions = match.wallet.options;
+      const walletId = result.wallet.id;
+      const walletOptions = result.wallet.options;
       let wallet = wallets[walletId];
       if (!wallet) {
         wallets[walletId] = {
@@ -319,7 +261,7 @@ export class AccountTreeController extends BaseController<
         wallet = wallets[walletId];
       }
 
-      const groupId = match.group.id;
+      const groupId = result.group.id;
       let group = wallet.groups[groupId];
       if (!group) {
         wallet.groups[groupId] = {

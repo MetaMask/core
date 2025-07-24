@@ -13,8 +13,8 @@ import type {
   AccountTreeWalletSnapOptions,
 } from 'src/AccountTreeWallet';
 
-import type { RuleMatch } from './rule';
-import { Rule } from './rule';
+import type { AccountTreeRuleResult } from '../AccountTreeRule';
+import { AccountTreeRule } from '../AccountTreeRule';
 
 type SnapAccount<Account extends InternalAccount> = Account & {
   metadata: Account['metadata'] & {
@@ -24,7 +24,7 @@ type SnapAccount<Account extends InternalAccount> = Account & {
   };
 };
 
-export class SnapRule extends Rule {
+export class SnapRule extends AccountTreeRule {
   readonly category = AccountWalletCategory.Snap;
 
   isSnapAccount(
@@ -37,14 +37,14 @@ export class SnapRule extends Rule {
     );
   }
 
-  match(account: InternalAccount): RuleMatch | undefined {
+  match(account: InternalAccount): AccountTreeRuleResult | undefined {
     if (!this.isSnapAccount(account)) {
       return undefined;
     }
 
     const { id: snapId } = account.metadata.snap;
 
-    const wallet: RuleMatch['wallet'] = {
+    const wallet: AccountTreeRuleResult['wallet'] = {
       id: toAccountWalletId(this.category, snapId),
       options: {
         type: AccountWalletCategory.Snap,
@@ -54,7 +54,7 @@ export class SnapRule extends Rule {
       },
     };
 
-    const group: RuleMatch['group'] = {
+    const group: AccountTreeRuleResult['group'] = {
       id: toAccountGroupId(wallet.id, account.address),
     };
 

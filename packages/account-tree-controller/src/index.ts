@@ -9,7 +9,7 @@ export type {
   AccountWalletMetadata,
   AccountGroupObject,
   AccountGroupMetadata,
-} from './AccountTreeController';
+} from './types';
 export {
   AccountTreeController,
   getDefaultAccountTreeControllerState,
