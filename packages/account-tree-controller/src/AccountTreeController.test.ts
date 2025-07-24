@@ -199,7 +199,6 @@ function getAccountTreeControllerMessenger(
   return messenger.getRestricted({
     name: 'AccountTreeController',
     allowedEvents: [
-      'KeyringController:stateChange',
       'AccountsController:accountAdded',
       'AccountsController:accountRemoved',
     ],
@@ -289,7 +288,7 @@ function setup({
   if (keyrings) {
     mocks.KeyringController.getState.mockImplementation(() => ({
       isUnlocked: true,
-      keyrings,
+      keyrings: mocks.KeyringController.keyrings,
     }));
     messenger.registerActionHandler(
       'KeyringController:getState',
@@ -722,14 +721,6 @@ describe('AccountTreeController', () => {
 
       mocks.KeyringController.keyrings = [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2];
       mocks.AccountsController.accounts = [mockHdAccount1, mockHdAccount2];
-      messenger.publish(
-        'KeyringController:stateChange',
-        {
-          isUnlocked: true,
-          keyrings: mocks.KeyringController.keyrings,
-        },
-        [],
-      );
       messenger.publish('AccountsController:accountAdded', mockHdAccount2);
 
       const walletId1 = toMultichainAccountWalletId(

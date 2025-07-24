@@ -14,10 +14,7 @@ import {
   type RestrictedMessenger,
   BaseController,
 } from '@metamask/base-controller';
-import type {
-  KeyringControllerGetStateAction,
-  KeyringControllerStateChangeEvent,
-} from '@metamask/keyring-controller';
+import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
 import type { AccountTreeGroup } from 'src';
@@ -84,8 +81,7 @@ export type AccountTreeControllerStateChangeEvent = ControllerStateChangeEvent<
 
 export type AllowedEvents =
   | AccountsControllerAccountAddedEvent
-  | AccountsControllerAccountRemovedEvent
-  | KeyringControllerStateChangeEvent;
+  | AccountsControllerAccountRemovedEvent;
 
 export type AccountTreeControllerEvents = AccountTreeControllerStateChangeEvent;
 

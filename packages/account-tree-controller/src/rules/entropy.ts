@@ -5,54 +5,23 @@ import {
   toMultichainAccountId,
   toMultichainAccountWalletId,
 } from '@metamask/account-api';
-import { isEvmAccountType, type EntropySourceId } from '@metamask/keyring-api';
-import type { KeyringControllerState } from '@metamask/keyring-controller';
+import { isEvmAccountType } from '@metamask/keyring-api';
+import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import { Rule } from './rule';
 import type { AccountTreeGroup, AccountTreeWallet } from '..';
-import type { AccountTreeControllerMessenger } from '../AccountTreeController';
 import type { AccountContext } from '../types';
-
-/**
- * Select keyrings from keyring controller state.
- *
- * @param state - The keyring controller state.
- * @returns The keyrings.
- */
-function selectKeyringControllerKeyrings(state: KeyringControllerState) {
-  return state.keyrings;
-}
 
 export class EntropyRule extends Rule {
   readonly category = AccountWalletCategory.Entropy;
 
-  readonly #entropySourcesToIndex: Map<EntropySourceId, number>;
+  getEntropySourceIndex(entropySource: string) {
+    const { keyrings } = this.messenger.call('KeyringController:getState');
 
-  constructor(messenger: AccountTreeControllerMessenger) {
-    super(messenger);
-
-    this.#entropySourcesToIndex = new Map();
-    this.#syncEntropySources();
-  }
-
-  #syncEntropySources() {
-    this.#entropySourcesToIndex.clear();
-
-    const state = this.messenger.call('KeyringController:getState');
-    state.keyrings.forEach((keyring, index) =>
-      this.#entropySourcesToIndex.set(keyring.metadata.id, index),
-    );
-
-    this.messenger.subscribe(
-      'KeyringController:stateChange',
-      (keyrings) => {
-        keyrings.forEach((keyring, index) =>
-          this.#entropySourcesToIndex.set(keyring.metadata.id, index),
-        );
-      },
-      selectKeyringControllerKeyrings,
-    );
+    return keyrings
+      .filter((keyring) => keyring.type === (KeyringTypes.hd as string))
+      .findIndex((keyring) => keyring.metadata.id === entropySource);
   }
 
   match(account: InternalAccount): AccountContext | undefined {
@@ -61,8 +30,8 @@ export class EntropyRule extends Rule {
     }
 
     const entropySource = account.options.entropy.id;
-    const entropySourceIndex = this.#entropySourcesToIndex.get(entropySource);
-    if (entropySourceIndex === undefined) {
+    const entropySourceIndex = this.getEntropySourceIndex(entropySource);
+    if (entropySourceIndex === -1) {
       console.warn(
         `! Found an unknown entropy ID: "${entropySource}", account "${account.id}" won't be grouped by entropy.`,
       );
@@ -87,7 +56,7 @@ export class EntropyRule extends Rule {
     const account = wallet.getAnyAccount() as Bip44Account<InternalAccount>;
 
     const entropySource = account.options.entropy.id;
-    const entropySourceIndex = this.#entropySourcesToIndex.get(
+    const entropySourceIndex = this.getEntropySourceIndex(
       entropySource,
     ) as number; // This has to be defined, we checked it during the `match` above.
 
