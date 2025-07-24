@@ -285,19 +285,23 @@ function mockcreateLocalKey(toprfClient: ToprfSecureBackup, password: string) {
  *
  * @param toprfClient - The ToprfSecureBackup instance.
  * @param authPubKey - The mock authPubKey.
+ * @param keyIndex - The key index.
  *
  * @returns The mock fetchAuthPubKey result.
  */
 function mockFetchAuthPubKey(
   toprfClient: ToprfSecureBackup,
   authPubKey: SEC1EncodedPublicKey = base64ToBytes(MOCK_AUTH_PUB_KEY),
+  keyIndex: number = 1,
 ): FetchAuthPubKeyResult {
   jest.spyOn(toprfClient, 'fetchAuthPubKey').mockResolvedValue({
     authPubKey,
+    keyIndex,
   });
 
   return {
     authPubKey,
+    keyIndex,
   };
 }
 
@@ -930,6 +934,27 @@ describe('SeedlessOnboardingController', () => {
         async ({ controller }) => {
           await expect(controller.checkIsPasswordOutdated()).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.InsufficientAuthToken,
+          );
+        },
+      );
+    });
+
+    it('should throw FailedToFetchAuthPubKey error when fetchAuthPubKey fails', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          // Mock fetchAuthPubKey to reject with an error
+          jest
+            .spyOn(toprfClient, 'fetchAuthPubKey')
+            .mockRejectedValueOnce(new Error('Network error'));
+
+          await expect(controller.checkIsPasswordOutdated()).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.FailedToFetchAuthPubKey,
           );
         },
       );
@@ -2715,6 +2740,173 @@ describe('SeedlessOnboardingController', () => {
             controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.FailedToChangePassword,
+          );
+        },
+      );
+    });
+
+    it('should not call recoverEncKey when vault data is available and keyIndex is returned from fetchAuthPubKey', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          await mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            MOCK_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+
+          const LATEST_KEY_INDEX = 5;
+
+          // Mock fetchAuthPubKey to return a specific key index
+          mockFetchAuthPubKey(
+            toprfClient,
+            base64ToBytes(controller.state.authPubKey as string),
+            LATEST_KEY_INDEX,
+          );
+
+          const recoverEncKeySpy = jest.spyOn(toprfClient, 'recoverEncKey');
+
+          mockChangeEncKey(toprfClient, NEW_MOCK_PASSWORD);
+
+          const changeEncKeySpy = jest.spyOn(toprfClient, 'changeEncKey');
+
+          // Call changePassword (now without keyIndex parameter)
+          await controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD);
+
+          // Verify that recoverEncKey was NOT called since vault data is available and key index is provided
+          expect(recoverEncKeySpy).not.toHaveBeenCalled();
+
+          // Verify that changeEncKey was called with the fetched key index
+          expect(changeEncKeySpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+              newKeyShareIndex: LATEST_KEY_INDEX,
+              newPassword: NEW_MOCK_PASSWORD,
+            }),
+          );
+        },
+      );
+    });
+
+    it('should throw error when authentication info is missing for assertPasswordInSync', async () => {
+      await withController(
+        {
+          state: {
+            // Create a state with vault but missing auth info
+            vault: JSON.stringify({ mockVault: 'data' }),
+            authPubKey: MOCK_AUTH_PUB_KEY,
+            socialBackupsMetadata: [],
+            // Intentionally missing nodeAuthTokens, authConnectionId, userId
+          },
+        },
+        async ({ controller, baseMessenger, encryptor }) => {
+          // Mock the encryptor to pass verifyVaultPassword
+          jest
+            .spyOn(encryptor, 'decrypt')
+            .mockResolvedValueOnce('mock decrypted data');
+
+          // unlock the controller
+          baseMessenger.publish('KeyringController:unlock');
+          await new Promise((resolve) => setTimeout(resolve, 100));
+
+          await expect(
+            controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.MissingAuthUserInfo,
+          );
+        },
+      );
+    });
+
+    it('should call recoverEncKey when keyIndex is missing', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          await mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            MOCK_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+
+          // Mock fetchAuthPubKey to return falsy keyIndex (simulating missing latestKeyIndex)
+          // This will cause newKeyShareIndex to be falsy, triggering the recovery path
+          jest.spyOn(toprfClient, 'fetchAuthPubKey').mockResolvedValueOnce({
+            authPubKey: base64ToBytes(controller.state.authPubKey as string),
+            keyIndex: 0, // This is falsy and will trigger the recovery path
+          });
+
+          const recoverEncKeySpy = jest.spyOn(toprfClient, 'recoverEncKey');
+          const { encKey, pwEncKey, authKeyPair } = mockRecoverEncKey(
+            toprfClient,
+            MOCK_PASSWORD,
+          );
+
+          mockChangeEncKey(toprfClient, NEW_MOCK_PASSWORD);
+
+          const changeEncKeySpy = jest.spyOn(toprfClient, 'changeEncKey');
+
+          // Call changePassword
+          await controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD);
+
+          // Verify that recoverEncKey was called due to missing keyIndex
+          expect(recoverEncKeySpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+              password: MOCK_PASSWORD,
+            }),
+          );
+
+          // Verify that changeEncKey was called with recovered data
+          expect(changeEncKeySpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+              oldEncKey: encKey,
+              oldPwEncKey: pwEncKey,
+              oldAuthKeyPair: authKeyPair,
+              newPassword: NEW_MOCK_PASSWORD,
+            }),
+          );
+        },
+      );
+    });
+
+    it('should throw FailedToFetchAuthPubKey error when fetchAuthPubKey fails', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          await mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            MOCK_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+
+          // Mock fetchAuthPubKey to reject with an error
+          jest
+            .spyOn(toprfClient, 'fetchAuthPubKey')
+            .mockRejectedValueOnce(new Error('Network error'));
+
+          await expect(
+            controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.FailedToFetchAuthPubKey,
           );
         },
       );
