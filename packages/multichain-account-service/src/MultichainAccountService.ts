@@ -41,7 +41,7 @@ function selectKeyringControllerKeyrings(state: KeyringControllerState) {
 }
 
 /** Reverse mapping object used to map account IDs and their wallet/multichain account. */
-type AccountReverseMapping<Account extends Bip44Account<KeyringAccount>> = {
+type AccountContext<Account extends Bip44Account<KeyringAccount>> = {
   wallet: MultichainAccountWallet<Account>;
   multichainAccount: MultichainAccount<Account>;
 };
