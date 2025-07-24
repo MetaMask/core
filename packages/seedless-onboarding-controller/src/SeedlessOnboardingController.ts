@@ -692,7 +692,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @param params.globalPassword - The latest global password.
    * @returns A promise that resolves to the success of the operation.
    */
-  async submitGlobalPassword({
+  async submitGlobalPasswordAndSync({
     globalPassword,
     maxKeyChainLength = 5,
   }: {
@@ -702,12 +702,12 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     return await this.#withControllerLock(async () => {
       return await this.#executeWithTokenRefresh(async () => {
         const currentDeviceAuthPubKey = this.#recoverAuthPubKey();
-        await this.#submitGlobalPassword({
+        await this.#submitGlobalPasswordAndSync({
           targetAuthPubKey: currentDeviceAuthPubKey,
           globalPassword,
           maxKeyChainLength,
         });
-      }, 'submitGlobalPassword');
+      }, 'submitGlobalPasswordAndSync');
     });
   }
 
@@ -723,7 +723,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @returns A promise that resolves to the keyring encryption key
    * corresponding to the current authPubKey in state.
    */
-  async #submitGlobalPassword({
+  async #submitGlobalPasswordAndSync({
     targetAuthPubKey,
     globalPassword,
     maxKeyChainLength,

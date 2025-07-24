@@ -3316,7 +3316,7 @@ describe('SeedlessOnboardingController', () => {
 
           controller.setLocked();
 
-          await controller.submitGlobalPassword({
+          await controller.submitGlobalPasswordAndSync({
             globalPassword: GLOBAL_PASSWORD,
           });
 
@@ -3484,7 +3484,7 @@ describe('SeedlessOnboardingController', () => {
 
           controller.setLocked();
 
-          await controller.submitGlobalPassword({
+          await controller.submitGlobalPasswordAndSync({
             globalPassword: GLOBAL_PASSWORD,
           });
 
@@ -3529,7 +3529,7 @@ describe('SeedlessOnboardingController', () => {
           });
 
           await expect(
-            controller.submitGlobalPassword({
+            controller.submitGlobalPasswordAndSync({
               globalPassword: GLOBAL_PASSWORD,
             }),
           ).rejects.toThrow(
@@ -3546,7 +3546,7 @@ describe('SeedlessOnboardingController', () => {
         },
         async ({ controller }) => {
           await expect(
-            controller.submitGlobalPassword({
+            controller.submitGlobalPasswordAndSync({
               globalPassword: GLOBAL_PASSWORD,
             }),
           ).rejects.toThrow(
@@ -3575,7 +3575,7 @@ describe('SeedlessOnboardingController', () => {
             );
 
           await expect(
-            controller.submitGlobalPassword({
+            controller.submitGlobalPasswordAndSync({
               globalPassword: GLOBAL_PASSWORD,
             }),
           ).rejects.toStrictEqual(
@@ -3619,7 +3619,7 @@ describe('SeedlessOnboardingController', () => {
             );
 
           await expect(
-            controller.submitGlobalPassword({
+            controller.submitGlobalPasswordAndSync({
               globalPassword: GLOBAL_PASSWORD,
             }),
           ).rejects.toStrictEqual(
@@ -3658,7 +3658,7 @@ describe('SeedlessOnboardingController', () => {
             .mockRejectedValueOnce(new Error('Unknown error'));
 
           await expect(
-            controller.submitGlobalPassword({
+            controller.submitGlobalPasswordAndSync({
               globalPassword: GLOBAL_PASSWORD,
             }),
           ).rejects.toStrictEqual(
@@ -3705,7 +3705,7 @@ describe('SeedlessOnboardingController', () => {
             );
 
           await expect(
-            controller.submitGlobalPassword({
+            controller.submitGlobalPasswordAndSync({
               globalPassword: GLOBAL_PASSWORD,
             }),
           ).rejects.toThrow(
@@ -4296,7 +4296,7 @@ describe('SeedlessOnboardingController', () => {
               isNewUser: false,
             });
 
-            await controller.submitGlobalPassword({
+            await controller.submitGlobalPasswordAndSync({
               globalPassword: MOCK_PASSWORD,
             });
 
@@ -4465,7 +4465,7 @@ describe('SeedlessOnboardingController', () => {
               .mockResolvedValue();
 
             await expect(
-              controller.submitGlobalPassword({
+              controller.submitGlobalPasswordAndSync({
                 globalPassword: MOCK_PASSWORD,
               }),
             ).rejects.toThrow(Error);
