@@ -739,18 +739,21 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     } = await this.#recoverEncKey(globalPassword);
 
     try {
-      // Recover vault encryption key.
-      const { pwEncKey } = await this.toprfClient.recoverPwEncKey({
-        targetAuthPubKey,
-        curPwEncKey: latestPwEncKey,
-        curAuthKeyPair: latestAuthKeyPair,
-        maxPwChainLength: maxKeyChainLength,
-      });
-      const vaultKey = await this.#loadSeedlessEncryptionKey(pwEncKey);
-      const keyringEncryptionKey =
-        await this.#loadKeyringEncryptionKey(pwEncKey);
+      // Recover current device's vault encryption key with the latest global password
+      const { pwEncKey: currentDevicePwEncKey } =
+        await this.toprfClient.recoverPwEncKey({
+          targetAuthPubKey,
+          curPwEncKey: latestPwEncKey,
+          curAuthKeyPair: latestAuthKeyPair,
+          maxPwChainLength: maxKeyChainLength,
+        });
+      // recover the vault encryption key and keyring encryption key with the current device's pwEncKey
+      const [vaultKey, keyringEncryptionKey] = await Promise.all([
+        this.#loadSeedlessEncryptionKey(currentDevicePwEncKey),
+        this.#loadKeyringEncryptionKey(currentDevicePwEncKey),
+      ]);
 
-      // Unlock the controller
+      // Unlock the controller and vault
       const { revokeToken } = await this.#unlockVaultAndGetVaultData(
         undefined,
         vaultKey,
@@ -768,6 +771,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         rawToprfPwEncryptionKey: latestPwEncKey,
         rawToprfAuthKeyPair: latestAuthKeyPair,
       });
+
+      // restore the current keyring encryption key with the new global password
       await this.storeKeyringEncryptionKey(keyringEncryptionKey);
     } catch (error) {
       if (this.#isTokenExpiredError(error)) {
