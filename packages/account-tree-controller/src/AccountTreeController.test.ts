@@ -856,29 +856,6 @@ describe('AccountTreeController', () => {
       expect(group).toBeDefined();
       expect(group?.id).toStrictEqual(groupId);
     });
-
-    it('throws if there is no group', () => {
-      const messenger = getAccountTreeControllerMessenger();
-
-      const wallet = new AccountTreeWallet({
-        messenger,
-        wallet: {
-          id: toAccountWalletId(
-            AccountWalletCategory.Keyring,
-            KeyringTypes.simple,
-          ),
-          category: AccountWalletCategory.Keyring,
-          groups: {},
-          metadata: {
-            name: '',
-          },
-        },
-      });
-
-      expect(() => wallet.getAnyAccount()).toThrow(
-        'Wallet contains no account group',
-      );
-    });
   });
 
   describe('AccountTreeGroup', () => {
@@ -944,6 +921,12 @@ describe('AccountTreeController', () => {
             name: '',
           },
         },
+        options: {
+          type: AccountWalletCategory.Keyring,
+          keyring: {
+            type: KeyringTypes.hd,
+          },
+        },
       });
       const group = new AccountTreeGroup({
         messenger,
@@ -957,7 +940,6 @@ describe('AccountTreeController', () => {
         },
       });
 
-      expect(() => group.getAnyAccount()).toThrow('Group contains no account');
       expect(() => group.getOnlyAccount()).toThrow('Group contains no account');
     });
 
@@ -975,6 +957,12 @@ describe('AccountTreeController', () => {
           groups: {},
           metadata: {
             name: '',
+          },
+        },
+        options: {
+          type: AccountWalletCategory.Keyring,
+          keyring: {
+            type: KeyringTypes.hd,
           },
         },
       });

@@ -303,9 +303,9 @@ export class AccountTreeController extends BaseController<
         continue;
       }
 
-      const { walletId, groupId } = match;
-
       // Update controller's state.
+      const walletId = match.wallet.id;
+      const walletOptions = match.wallet.options;
       let wallet = wallets[walletId];
       if (!wallet) {
         wallets[walletId] = {
@@ -319,6 +319,7 @@ export class AccountTreeController extends BaseController<
         wallet = wallets[walletId];
       }
 
+      const groupId = match.group.id;
       let group = wallet.groups[groupId];
       if (!group) {
         wallet.groups[groupId] = {
@@ -336,7 +337,11 @@ export class AccountTreeController extends BaseController<
       // Update in-memory wallet/group instances.
       this.#wallets.set(
         wallet.id,
-        new AccountTreeWallet({ messenger: this.messagingSystem, wallet }),
+        new AccountTreeWallet({
+          messenger: this.messagingSystem,
+          wallet,
+          options: walletOptions,
+        }),
       );
 
       // Update the reverse mapping for this account.

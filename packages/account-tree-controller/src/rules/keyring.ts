@@ -5,10 +5,14 @@ import {
 } from '@metamask/account-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type { AccountContext } from 'src/types';
 
+import type { RuleMatch } from './rule';
 import { Rule } from './rule';
-import type { AccountTreeGroup, AccountTreeWallet } from '..';
+import type {
+  AccountTreeGroup,
+  AccountTreeWallet,
+  AccountTreeWalletKeyringOptions,
+} from '..';
 
 /**
  * Get wallet name from a keyring type.
@@ -54,37 +58,41 @@ export function getAccountWalletNameFromKeyringType(type: KeyringTypes) {
 export class KeyringRule extends Rule {
   readonly category = AccountWalletCategory.Keyring;
 
-  match(account: InternalAccount): AccountContext | undefined {
+  match(account: InternalAccount): RuleMatch | undefined {
     // We assume that `type` is really a `KeyringTypes`.
     const type = account.metadata.keyring.type as KeyringTypes;
 
-    const walletId = toAccountWalletId(this.category, type);
-    const groupId = toAccountGroupId(walletId, account.address);
+    const wallet: RuleMatch['wallet'] = {
+      id: toAccountWalletId(this.category, type),
+      options: {
+        type: AccountWalletCategory.Keyring,
+        keyring: {
+          type,
+        },
+      },
+    };
+
+    const group: RuleMatch['group'] = {
+      id: toAccountGroupId(wallet.id, account.address),
+    };
 
     // This rule cannot fail.
     return {
-      walletId,
-      groupId,
+      wallet,
+      group,
     };
   }
 
   getDefaultAccountWalletName(wallet: AccountTreeWallet): string {
-    // Precondition: This method is invoked only if there was a match for
-    // this rule.
-    const account = wallet.getAnyAccount();
+    // Precondition: We assume the AccountTreeController will always use
+    // the proper wallet instance.
+    const options = wallet.options as AccountTreeWalletKeyringOptions;
 
-    return getAccountWalletNameFromKeyringType(
-      account.metadata.keyring.type as KeyringTypes,
-    );
+    return getAccountWalletNameFromKeyringType(options.keyring.type);
   }
 
   getDefaultAccountGroupName(group: AccountTreeGroup): string {
-    // Precondition: This method is invoked only if there was a match for
-    // this rule. Also, each of those account groups should contain
-    // only 1 account.
-    const account = group.getOnlyAccount();
-
-    // We only have 1 account for this kind of rule.
-    return account.metadata.name;
+    // Precondition: This account group should contain only 1 account.
+    return group.getOnlyAccount().metadata.name;
   }
 }

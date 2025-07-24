@@ -65,16 +65,6 @@ export class AccountTreeGroup implements AccountGroup<InternalAccount> {
     return this.#group.accounts.map((id) => this.#getAccount(id));
   }
 
-  getAnyAccount(): InternalAccount {
-    const accountIds = this.getAccountIds();
-
-    if (accountIds.length === 0) {
-      throw new Error('Group contains no account');
-    }
-
-    return this.#getAccount(accountIds[0]);
-  }
-
   getOnlyAccount(): InternalAccount {
     const accountIds = this.getAccountIds();
 

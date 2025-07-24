@@ -3,11 +3,53 @@ import type {
   AccountWalletId,
 } from '@metamask/account-api';
 import { type AccountGroupId, type AccountWallet } from '@metamask/account-api';
+import type { EntropySourceId } from '@metamask/keyring-api';
+import type { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { SnapId } from '@metamask/snaps-sdk';
 
 import type { AccountWalletObject } from './AccountTreeController';
 import { type AccountTreeControllerMessenger } from './AccountTreeController';
 import { AccountTreeGroup } from './AccountTreeGroup';
+
+/**
+ * Account wallet options for the "entropy" wallet category.
+ */
+export type AccountTreeWalletEntropyOptions = {
+  type: AccountWalletCategory.Entropy;
+  entropy: {
+    id: EntropySourceId;
+    index: number;
+  };
+};
+
+/**
+ * Account wallet options for the "snap" wallet category.
+ */
+export type AccountTreeWalletSnapOptions = {
+  type: AccountWalletCategory.Snap;
+  snap: {
+    id: SnapId;
+  };
+};
+
+/**
+ * Account wallet options for the "keyring" wallet category.
+ */
+export type AccountTreeWalletKeyringOptions = {
+  type: AccountWalletCategory.Keyring;
+  keyring: {
+    type: KeyringTypes;
+  };
+};
+
+/**
+ * Account wallet options for the "keyring" wallet category.
+ */
+export type AccountTreeWalletOptions =
+  | AccountTreeWalletEntropyOptions
+  | AccountTreeWalletSnapOptions
+  | AccountTreeWalletKeyringOptions;
 
 /**
  * Account wallet coming from the {@link AccountTreeController}.
@@ -17,17 +59,22 @@ export class AccountTreeWallet implements AccountWallet<InternalAccount> {
 
   readonly #wallet: AccountWalletObject;
 
+  readonly #options: AccountTreeWalletOptions;
+
   readonly #groups: Map<AccountGroupId, AccountTreeGroup>;
 
   constructor({
     messenger,
     wallet,
+    options,
   }: {
     messenger: AccountTreeControllerMessenger;
     wallet: AccountWalletObject;
+    options: AccountTreeWalletOptions;
   }) {
     this.#messenger = messenger;
     this.#wallet = wallet;
+    this.#options = options;
     this.#groups = new Map();
 
     for (const [groupId, group] of Object.entries(this.#wallet.groups)) {
@@ -48,6 +95,10 @@ export class AccountTreeWallet implements AccountWallet<InternalAccount> {
 
   get category(): AccountWalletCategory {
     return this.#wallet.category;
+  }
+
+  get options(): AccountTreeWalletOptions {
+    return this.#options;
   }
 
   get name(): string {
@@ -71,26 +122,5 @@ export class AccountTreeWallet implements AccountWallet<InternalAccount> {
    */
   getAccountGroups(): AccountTreeGroup[] {
     return Array.from(this.#groups.values());
-  }
-
-  /**
-   * Gets any underlying account.
-   *
-   * This can be useful if the accounts from this wallet have been grouped some
-   * common criteria, so you expect some commonly defined information on any of
-   * those accounts.
-   *
-   * @throws If the wallet has no account group (which should not be possible).
-   * @returns Any account that share the same information based on the grouping
-   * rule that has been used.
-   */
-  getAnyAccount(): InternalAccount {
-    if (this.#groups.size === 0) {
-      throw new Error('Wallet contains no account group');
-    }
-
-    // It cannot be `undefined`, we checked the size before.
-    const group = this.#groups.values().next().value as AccountTreeGroup;
-    return group.getAnyAccount();
   }
 }

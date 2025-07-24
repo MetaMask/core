@@ -3,7 +3,17 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { AccountTreeGroup, AccountTreeWallet } from '..';
 import type { AccountTreeControllerMessenger } from '../AccountTreeController';
-import type { AccountContext } from '../types';
+import type { AccountTreeWalletOptions } from '../AccountTreeWallet';
+
+export type RuleMatch = {
+  wallet: {
+    id: AccountTreeWallet['id'];
+    options: AccountTreeWalletOptions;
+  };
+  group: {
+    id: AccountTreeGroup['id'];
+  };
+};
 
 export abstract class Rule {
   abstract readonly category: AccountWalletCategory;
@@ -28,7 +38,7 @@ export abstract class Rule {
    * @returns A {@link RuleMatch} if this account is part of that rule/wallet, returns
    * `undefined` otherwise.
    */
-  abstract match(account: InternalAccount): AccountContext | undefined;
+  abstract match(account: InternalAccount): RuleMatch | undefined;
 
   /**
    * Gets default name for a wallet.

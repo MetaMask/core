@@ -14,5 +14,11 @@ export {
   AccountTreeController,
   getDefaultAccountTreeControllerState,
 } from './AccountTreeController';
-export type { AccountTreeWallet } from './AccountTreeWallet';
+export type {
+  AccountTreeWallet,
+  AccountTreeWalletOptions,
+  AccountTreeWalletKeyringOptions,
+  AccountTreeWalletEntropyOptions,
+  AccountTreeWalletSnapOptions,
+} from './AccountTreeWallet';
 export type { AccountTreeGroup } from './AccountTreeGroup';

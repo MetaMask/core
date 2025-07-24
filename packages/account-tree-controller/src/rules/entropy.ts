@@ -1,4 +1,3 @@
-import type { Bip44Account } from '@metamask/account-api';
 import {
   AccountWalletCategory,
   isBip44Account,
@@ -9,9 +8,13 @@ import { isEvmAccountType } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
+import type { RuleMatch } from './rule';
 import { Rule } from './rule';
-import type { AccountTreeGroup, AccountTreeWallet } from '..';
-import type { AccountContext } from '../types';
+import type {
+  AccountTreeGroup,
+  AccountTreeWallet,
+  AccountTreeWalletEntropyOptions,
+} from '..';
 
 export class EntropyRule extends Rule {
   readonly category = AccountWalletCategory.Entropy;
@@ -24,7 +27,7 @@ export class EntropyRule extends Rule {
       .findIndex((keyring) => keyring.metadata.id === entropySource);
   }
 
-  match(account: InternalAccount): AccountContext | undefined {
+  match(account: InternalAccount): RuleMatch | undefined {
     if (!isBip44Account(account)) {
       return undefined;
     }
@@ -39,28 +42,33 @@ export class EntropyRule extends Rule {
     }
 
     const walletId = toMultichainAccountWalletId(account.options.entropy.id);
-    const groupId = toMultichainAccountId(
-      walletId,
-      account.options.entropy.groupIndex,
-    );
+    const wallet: RuleMatch['wallet'] = {
+      id: walletId,
+      options: {
+        type: AccountWalletCategory.Entropy,
+        entropy: {
+          id: entropySource,
+          index: entropySourceIndex,
+        },
+      },
+    };
+
+    const group: RuleMatch['group'] = {
+      id: toMultichainAccountId(walletId, account.options.entropy.groupIndex),
+    };
 
     return {
-      walletId,
-      groupId,
+      wallet,
+      group,
     };
   }
 
   getDefaultAccountWalletName(wallet: AccountTreeWallet): string {
-    // Precondition: This method is invoked only if there was a match for
-    // a BIP-44 account, so we can type-cast here.
-    const account = wallet.getAnyAccount() as Bip44Account<InternalAccount>;
+    // Precondition: We assume the AccountTreeController will always use
+    // the proper wallet instance.
+    const options = wallet.options as AccountTreeWalletEntropyOptions;
 
-    const entropySource = account.options.entropy.id;
-    const entropySourceIndex = this.getEntropySourceIndex(
-      entropySource,
-    ) as number; // This has to be defined, we checked it during the `match` above.
-
-    return `Wallet ${entropySourceIndex + 1}`; // Use human indexing (starts at 1).
+    return `Wallet ${options.entropy.index + 1}`; // Use human indexing (starts at 1).
   }
 
   getDefaultAccountGroupName(group: AccountTreeGroup): string {
