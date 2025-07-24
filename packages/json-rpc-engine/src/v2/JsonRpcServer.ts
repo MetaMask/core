@@ -12,7 +12,7 @@ import type { JsonRpcEngineV2 } from './JsonRpcEngineV2';
 import type { JsonRpcCall } from './utils';
 import { getUniqueId } from '../getUniqueId';
 
-type HandleError = (error: unknown) => void | Promise<void>;
+type HandleError = (error: unknown) => void;
 
 type Options = {
   engine: JsonRpcEngineV2<JsonRpcCall, Json>;
@@ -81,7 +81,7 @@ export class JsonRpcServer {
         };
       }
     } catch (error) {
-      await this.#handleError(error);
+      this.#handleError(error);
 
       if (isRequest) {
         return {
