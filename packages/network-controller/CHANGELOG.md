@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `NetworkController:rpcEndpointDegraded` now includes an extra `error` property, which will be produced when exceeding the maximum number of retries for the request
+- **BREAKING:** The object in the `NetworkController:rpcEndpointDegraded` event payload now includes an `error` property, which can be used to access the error produced by the last request when the maximum number of retries is exceeded ([???](https://github.com/MetaMask/core/pull/6054))
 
 ## [24.0.1]
 
