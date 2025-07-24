@@ -10,10 +10,6 @@ import {
   type MultichainAccount,
 } from '@metamask/account-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
-import type {
-  KeyringControllerState,
-  KeyringObject,
-} from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
@@ -29,16 +25,6 @@ const serviceName = 'MultichainAccountService';
 type MultichainAccountServiceOptions = {
   messenger: MultichainAccountServiceMessenger;
 };
-
-/**
- * Select keyrings from keyring controller state.
- *
- * @param state - The keyring controller state.
- * @returns The keyrings.
- */
-function selectKeyringControllerKeyrings(state: KeyringControllerState) {
-  return state.keyrings;
-}
 
 /** Reverse mapping object used to map account IDs and their wallet/multichain account. */
 type AccountContext<Account extends Bip44Account<KeyringAccount>> = {
@@ -92,30 +78,29 @@ export class MultichainAccountService {
    * multichain accounts and wallets.
    */
   init(): void {
-    // Gather all entropy sources first.
-    const state = this.#messenger.call('KeyringController:getState');
-    this.#setMultichainAccountWallets(state.keyrings);
+    // Create initial wallets.
+    const { keyrings } = this.#messenger.call('KeyringController:getState');
+    for (const keyring of keyrings) {
+      if (keyring.type === (KeyringTypes.hd as string)) {
+        // Only HD keyrings have an entropy source/SRP.
+        const entropySource = keyring.metadata.id;
 
-    this.#messenger.subscribe(
-      'KeyringController:stateChange',
-      (keyrings) => {
-        this.#setMultichainAccountWallets(keyrings);
-      },
-      selectKeyringControllerKeyrings,
-    );
+        // This will automatically "associate" all multichain accounts for that wallet
+        // (based on the accounts owned by each account providers).
+        const wallet = new MultichainAccountWallet({
+          entropySource,
+          providers: this.#providers,
+        });
+        this.#wallets.set(wallet.id, wallet);
 
-    // Reverse mapping between account ID and their multichain wallet/account:
-    // QUESTION: Should we move the reverse mapping logic to the
-    // `MultichainAccount{,Wallet}` implementation instead? For now they do not
-    // store any accounts and they heavily rely on the `AccountProvider`s, which
-    // makes it hard to implement it there...
-    for (const wallet of this.#wallets.values()) {
-      for (const multichainAccount of wallet.getMultichainAccounts()) {
-        for (const account of multichainAccount.getAccounts()) {
-          this.#accountIdToContext.set(account.id, {
-            wallet,
-            multichainAccount,
-          });
+        // Reverse mapping between account ID and their multichain wallet/account:
+        for (const multichainAccount of wallet.getMultichainAccounts()) {
+          for (const account of multichainAccount.getAccounts()) {
+            this.#accountIdToContext.set(account.id, {
+              wallet,
+              multichainAccount,
+            });
+          }
         }
       }
     }
@@ -134,27 +119,54 @@ export class MultichainAccountService {
       return;
     }
 
-    const wallet = this.#wallets.get(
+    let sync = true;
+
+    let wallet = this.#wallets.get(
       toMultichainAccountWalletId(account.options.entropy.id),
     );
-    if (wallet) {
-      // This new account might be a new multichain account, and the wallet might not
-      // know it yet, so we need to force-sync here.
-      wallet.sync();
+    if (!wallet) {
+      // That's a new wallet.
+      wallet = new MultichainAccountWallet({
+        entropySource: account.options.entropy.id,
+        providers: this.#providers,
+      });
+      this.#wallets.set(wallet.id, wallet);
 
-      // We should always have a wallet here, since we are refreshing that
-      // list when any keyring's states got changed.
-      const multichainAccount = wallet.getMultichainAccount(
+      // If that's a new wallet wallet. There's nothing to "force-sync".
+      sync = false;
+    }
+
+    let multichainAccount = wallet.getMultichainAccount(
+      account.options.entropy.groupIndex,
+    );
+    if (!multichainAccount) {
+      // This new account is a new multichain account, let the wallet know
+      // it has to re-sync with its providers.
+      if (sync) {
+        wallet.sync();
+      }
+
+      multichainAccount = wallet.getMultichainAccount(
         account.options.entropy.groupIndex,
       );
-      if (multichainAccount) {
-        // Same here, this account should have been already grouped in that
-        // multichain account.
-        this.#accountIdToContext.set(account.id, {
-          wallet,
-          multichainAccount,
-        });
+
+      // If that's a new multichain account. There's nothing to "force-sync".
+      sync = false;
+    }
+
+    // We have to check against `undefined` in case `getMultichainAccount` is
+    // not able to find this multichain account (which should not be possible...)
+    if (multichainAccount) {
+      if (sync) {
+        multichainAccount.sync();
       }
+
+      // Same here, this account should have been already grouped in that
+      // multichain account.
+      this.#accountIdToContext.set(account.id, {
+        wallet,
+        multichainAccount,
+      });
     }
   }
 
@@ -169,29 +181,6 @@ export class MultichainAccountService {
 
     // Safe to call delete even if the `id` was not referencing a BIP-44 account.
     this.#accountIdToContext.delete(id);
-  }
-
-  #setMultichainAccountWallets(keyrings: KeyringObject[]) {
-    for (const keyring of keyrings) {
-      if (keyring.type === (KeyringTypes.hd as string)) {
-        // Only HD keyrings have an entropy source/SRP.
-        const entropySource = keyring.metadata.id;
-
-        // Do not re-create wallets if they exists. Even if a keyrings got new accounts, this
-        // will be handled by the `*AccountProvider`s which are always in-sync with their
-        // keyrings and controllers (like the `AccountsController`).
-        if (!this.#wallets.has(toMultichainAccountWalletId(entropySource))) {
-          // This will automatically "associate" all multichain accounts for that wallet
-          // (based on the accounts owned by each account providers).
-          const wallet = new MultichainAccountWallet({
-            entropySource,
-            providers: this.#providers,
-          });
-
-          this.#wallets.set(wallet.id, wallet);
-        }
-      }
-    }
   }
 
   #getWallet(
