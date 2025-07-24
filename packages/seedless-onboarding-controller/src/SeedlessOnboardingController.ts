@@ -1161,11 +1161,9 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     this.#assertIsAuthenticatedUser(this.state);
     const { authConnectionId, groupedAuthConnectionId, userId } = this.state;
 
-    let {
-      toprfEncryptionKey: encKey,
-      toprfPwEncryptionKey: pwEncKey,
-      toprfAuthKeyPair: authKeyPair,
-    } = await this.#unlockVaultAndGetVaultData(oldPassword);
+    let encKey: Uint8Array;
+    let pwEncKey: Uint8Array;
+    let authKeyPair: KeyPair;
     let globalKeyIndex = latestKeyIndex;
     if (!globalKeyIndex) {
       ({
@@ -1174,8 +1172,13 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         authKeyPair,
         keyShareIndex: globalKeyIndex,
       } = await this.#recoverEncKey(oldPassword));
+    } else {
+      ({
+        toprfEncryptionKey: encKey,
+        toprfPwEncryptionKey: pwEncKey,
+        toprfAuthKeyPair: authKeyPair,
+      } = await this.#unlockVaultAndGetVaultData(oldPassword));
     }
-
     const result = await this.toprfClient.changeEncKey({
       nodeAuthTokens: this.state.nodeAuthTokens,
       authConnectionId,
