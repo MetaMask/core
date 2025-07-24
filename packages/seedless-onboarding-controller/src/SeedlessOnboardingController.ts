@@ -654,16 +654,27 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         revokeToken,
       } = await this.#unlockVaultAndGetVaultData(password);
       this.#setUnlocked();
-
+      await this.#createNewVaultWithAuthData({
+        password,
+        rawToprfEncryptionKey: toprfEncryptionKey,
+        rawToprfPwEncryptionKey: toprfPwEncryptionKey,
+        rawToprfAuthKeyPair: toprfAuthKeyPair,
+      });
       if (revokeToken) {
-        await this.#revokeRefreshTokenAndUpdateState(revokeToken);
-        // re-creating vault to persist the new revoke token
-        await this.#createNewVaultWithAuthData({
-          password,
-          rawToprfEncryptionKey: toprfEncryptionKey,
-          rawToprfPwEncryptionKey: toprfPwEncryptionKey,
-          rawToprfAuthKeyPair: toprfAuthKeyPair,
-        });
+        // this call is not critical for unlocking, so we can do it in the background without await.
+        this.#revokeRefreshTokenAndUpdateState(revokeToken)
+          .then(() => {
+            // re-creating vault to persist the new revoke token
+            return this.#createNewVaultWithAuthData({
+              password,
+              rawToprfEncryptionKey: toprfEncryptionKey,
+              rawToprfPwEncryptionKey: toprfPwEncryptionKey,
+              rawToprfAuthKeyPair: toprfAuthKeyPair,
+            });
+          })
+          .catch((error) => {
+            log('Error revoking refresh token', error);
+          });
       }
     });
   }
@@ -786,22 +797,34 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       // Unlock the controller
       const {
         revokeToken,
-        toprfEncryptionKey,
-        toprfPwEncryptionKey,
-        toprfAuthKeyPair,
+        toprfEncryptionKey: latestEncKey,
+        toprfPwEncryptionKey: latestPwEncKey,
+        toprfAuthKeyPair: latestAuthKeyPair,
       } = await this.#unlockVaultAndGetVaultData(undefined, vaultKey);
       this.#setUnlocked();
-
+      await this.#createNewVaultWithAuthData({
+        password: globalPassword,
+        rawToprfEncryptionKey: latestEncKey,
+        rawToprfPwEncryptionKey: latestPwEncKey,
+        rawToprfAuthKeyPair: latestAuthKeyPair,
+      });
       if (revokeToken) {
-        // revoke and recyle refresh token after unlock to keep refresh token fresh, avoid malicious use of leaked refresh token
-        await this.#revokeRefreshTokenAndUpdateState(revokeToken);
-        // re-creating vault to persist the new revoke token
-        await this.#createNewVaultWithAuthData({
-          password: globalPassword,
-          rawToprfEncryptionKey: toprfEncryptionKey,
-          rawToprfPwEncryptionKey: toprfPwEncryptionKey,
-          rawToprfAuthKeyPair: toprfAuthKeyPair,
-        });
+        // // revoke and recyle refresh token after unlock to keep refresh token fresh, avoid malicious use of leaked refresh token
+        // // this call is not critical for unlocking, so we can do it in the background without await.
+        this.#revokeRefreshTokenAndUpdateState(revokeToken)
+          .then(() => {
+            // re-creating vault to persist the new revoke token.
+            // TODO: Optimize this function such that updates to vault wont require re-creating the vault.
+            return this.#createNewVaultWithAuthData({
+              password: globalPassword,
+              rawToprfEncryptionKey: latestEncKey,
+              rawToprfPwEncryptionKey: latestPwEncKey,
+              rawToprfAuthKeyPair: latestAuthKeyPair,
+            });
+          })
+          .catch((error) => {
+            log('Error revoking refresh token', error);
+          });
       }
     } catch (error) {
       if (this.#isTokenExpiredError(error)) {
