@@ -16,7 +16,6 @@ import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
 import { KnownCaipNamespace, parseCaipChainId } from '@metamask/utils';
 
 import { POPULAR_NETWORKS } from './constants';
-import { selectAllEnabledNetworks } from './selectors';
 import { SolScope } from './types';
 import { deriveKeys, isOnlyNetworkEnabledInNamespace } from './utils';
 
