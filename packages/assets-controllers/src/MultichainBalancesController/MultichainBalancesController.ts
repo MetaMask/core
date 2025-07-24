@@ -29,6 +29,9 @@ import type {
   MultichainAssetsControllerGetStateAction,
   MultichainAssetsControllerAccountAssetListUpdatedEvent,
 } from '../MultichainAssetsController';
+import type {
+  AccountActivityServiceBalanceUpdatedEvent,
+} from '@metamask/backend-platform';
 
 const controllerName = 'MultichainBalancesController';
 
@@ -104,7 +107,8 @@ type AllowedEvents =
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent
   | AccountsControllerAccountBalancesUpdatesEvent
-  | MultichainAssetsControllerAccountAssetListUpdatedEvent;
+  | MultichainAssetsControllerAccountAssetListUpdatedEvent
+  | AccountActivityServiceBalanceUpdatedEvent;
 /**
  * Messenger type for the MultichainBalancesController.
  */
@@ -185,6 +189,19 @@ export class MultichainBalancesController extends BaseController<
         await this.#handleOnAccountAssetListUpdated(newAccountAssets);
       },
     );
+
+    // Subscribe to AccountActivityService balance updates
+    try {
+      this.messagingSystem.subscribe(
+        'AccountActivityService:balanceUpdated',
+        (balances: AccountBalancesUpdatedEventPayload) => {
+          this.#handleOnAccountBalancesUpdated(balances);
+        },
+      );
+    } catch (error) {
+      // AccountActivityService might not be available in all environments
+      console.log('AccountActivityService not available for balance updates:', error);
+    }
   }
 
   /**

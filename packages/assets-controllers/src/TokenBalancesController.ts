@@ -41,6 +41,10 @@ import type {
   TokensControllerState,
   TokensControllerStateChangeEvent,
 } from './TokensController';
+import type {
+  AccountActivityServiceBalanceUpdatedEvent,
+} from '@metamask/backend-platform';
+import type { AccountBalancesUpdatedEventPayload } from '@metamask/keyring-api';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -104,7 +108,8 @@ export type AllowedEvents =
   | TokensControllerStateChangeEvent
   | PreferencesControllerStateChangeEvent
   | NetworkControllerStateChangeEvent
-  | KeyringControllerAccountRemovedEvent;
+  | KeyringControllerAccountRemovedEvent
+  | AccountActivityServiceBalanceUpdatedEvent;
 
 export type TokenBalancesControllerMessenger = RestrictedMessenger<
   typeof controllerName,
@@ -202,6 +207,18 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
       'KeyringController:accountRemoved',
       (accountAddress: string) => this.#handleOnAccountRemoved(accountAddress),
     );
+
+    // Subscribe to AccountActivityService balance updates for EVM networks
+    try {
+      this.messagingSystem.subscribe(
+        'AccountActivityService:balanceUpdated',
+        (balances: AccountBalancesUpdatedEventPayload) =>
+          this.#handleAccountActivityBalanceUpdated(balances),
+      );
+    } catch (error) {
+      // AccountActivityService might not be available in all environments
+      console.log('AccountActivityService not available for EVM token balance updates:', error);
+    }
   }
 
   /**
@@ -302,6 +319,71 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
 
     this.update((state) => {
       delete state.tokenBalances[accountAddress as `0x${string}`];
+    });
+  }
+
+  /**
+   * Handles balance updates received from the AccountActivityService for EVM networks.
+   * Converts account IDs to addresses and updates token balances accordingly.
+   *
+   * @param balanceUpdate - The balance update from AccountActivityService containing new balances.
+   */
+  #handleAccountActivityBalanceUpdated(
+    balanceUpdate: AccountBalancesUpdatedEventPayload,
+  ): void {
+    // Convert account IDs to addresses first
+    const addressBalances: Record<string, Record<string, { unit: string; amount: string }>> = {};
+    
+    for (const [accountId, assetBalances] of Object.entries(balanceUpdate.balances)) {
+      let accountAddress: string;
+      
+      if (accountId.startsWith('0x')) {
+        // Already an address
+        accountAddress = accountId;
+      } else {
+        // Convert account ID to address
+        try {
+          const accounts = this.messagingSystem.call('AccountsController:listAccounts');
+          const account = accounts.find(acc => acc.id === accountId);
+          if (!account) {
+            continue;
+          }
+          accountAddress = account.address;
+        } catch (error) {
+          continue;
+        }
+      }
+      
+      // Only process valid EVM addresses
+      if (isStrictHexString(accountAddress.toLowerCase()) && isValidHexAddress(accountAddress)) {
+        addressBalances[accountAddress] = assetBalances;
+      }
+    }
+    
+    // Update state with address-based balances
+    this.update((state) => {
+      for (const [accountAddress, assetBalances] of Object.entries(addressBalances)) {
+        const address = accountAddress as Hex;
+        
+        // Initialize account if needed
+        if (!state.tokenBalances[address]) {
+          state.tokenBalances[address] = {};
+        }
+
+        // Process each EVM asset
+        for (const [assetType, balance] of Object.entries(assetBalances)) {
+          const evmERC20AssetMatch = assetType.match(/^eip155:(\d+)\/erc20:(0x[a-fA-F0-9]{40})$/i);
+          
+          if (evmERC20AssetMatch) {
+            const chainId = `0x${parseInt(evmERC20AssetMatch[1], 10).toString(16)}` as Hex;
+            const tokenAddress = evmERC20AssetMatch[2] as Hex;
+            
+            // Initialize chain and token if needed
+            ((state.tokenBalances[address] ??= {})[chainId] ??= {})[tokenAddress] = 
+              `0x${parseInt(balance.amount, 10).toString(16)}` as Hex;
+          }
+        }
+      }
     });
   }
 
