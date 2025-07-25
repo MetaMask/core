@@ -253,8 +253,8 @@ export class AccountTreeController extends BaseController<
       }
     }
 
-    // Default to the first wallet, first group in case of errors.
-    return Object.values(Object.values(wallets)[0]?.groups ?? {})[0]?.id ?? '';
+    // Default to the first non-empty group in case of errors.
+    return this.#findFirstNonEmptyGroup(wallets);
   }
 
   getWallet(id: AccountWalletId): AccountTreeWallet | undefined {
@@ -281,23 +281,24 @@ export class AccountTreeController extends BaseController<
       this.#reverse.delete(accountId);
 
       this.update((state) => {
-        const group = state.accountTree.wallets[walletId].groups[groupId];
-        const { accounts } = group;
+        const accounts =
+          state.accountTree.wallets[walletId]?.groups[groupId]?.accounts;
 
-        const index = accounts.indexOf(accountId);
-        if (index !== -1) {
-          accounts.splice(index, 1);
-        }
+        if (accounts) {
+          const index = accounts.indexOf(accountId);
+          if (index !== -1) {
+            accounts.splice(index, 1);
 
-        // Check if we need to update selectedAccountGroup
-        if (
-          state.accountTree.selectedAccountGroup === groupId &&
-          accounts.length === 0
-        ) {
-          // The currently selected group is now empty, find a new group to select
-          state.accountTree.selectedAccountGroup = this.#findFirstNonEmptyGroup(
-            state.accountTree.wallets,
-          );
+            // Check if we need to update selectedAccountGroup after removal
+            if (
+              state.accountTree.selectedAccountGroup === groupId &&
+              accounts.length === 0
+            ) {
+              // The currently selected group is now empty, find a new group to select
+              state.accountTree.selectedAccountGroup =
+                this.#findFirstNonEmptyGroup(state.accountTree.wallets);
+            }
+          }
         }
       });
     }
@@ -425,19 +426,13 @@ export class AccountTreeController extends BaseController<
   /**
    * Gets the first account ID in the specified group.
    *
-   * @param accountGroupId - The account group ID.
+   * @param groupId - The account group ID.
    * @returns The first account ID in the group, or undefined if no accounts found.
    */
-  #getFirstAccountInGroup(
-    accountGroupId: AccountGroupId,
-  ): AccountId | undefined {
-    for (const wallet of Object.values(
-      this.state.accountTree.wallets,
-    ) as AccountWalletObject[]) {
-      if (Object.hasOwnProperty.call(wallet.groups, accountGroupId)) {
-        const group = (wallet.groups as Record<string, AccountGroupObject>)[
-          accountGroupId
-        ];
+  #getFirstAccountInGroup(groupId: AccountGroupId): AccountId | undefined {
+    for (const wallet of Object.values(this.state.accountTree.wallets)) {
+      if (wallet.groups[groupId]) {
+        const group = wallet.groups[groupId];
         if (group && group.accounts.length > 0) {
           return group.accounts[0];
         }

@@ -1062,5 +1062,58 @@ describe('AccountTreeController', () => {
       // Should fall back to empty string when no groups have accounts
       expect(controller.getSelectedAccountGroup()).toBe('');
     });
+
+    it('handles removal gracefully when account is not found in reverse mapping', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+      const initialState = { ...controller.state };
+
+      // Try to remove an account that was never added
+      const unknownAccountId = 'unknown-account-id';
+      messenger.publish('AccountsController:accountRemoved', unknownAccountId);
+
+      // State should remain unchanged
+      expect(controller.state).toStrictEqual(initialState);
+    });
+
+    it('handles edge cases gracefully in account removal', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      expect(() => {
+        messenger.publish(
+          'AccountsController:accountRemoved',
+          'non-existent-account',
+        );
+      }).not.toThrow();
+
+      expect(controller.getSelectedAccountGroup()).not.toBe('');
+    });
+
+    it('verifies defensive programming handles undefined accounts gracefully', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      expect(() => {
+        messenger.publish(
+          'AccountsController:accountRemoved',
+          'definitely-not-a-real-account-id',
+        );
+      }).not.toThrow();
+
+      expect(controller.getSelectedAccountGroup()).not.toBe('');
+    });
   });
 });
