@@ -1,0 +1,1 @@
+export { ShieldController } from './ShieldController';
