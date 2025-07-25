@@ -292,6 +292,8 @@ export type UpdateNetworkFields = Omit<NetworkConfiguration, 'rpcEndpoints'> & {
  * @param object - The object.
  * @returns The keys of an object, typed according to the type of the object
  * itself.
+ * @deprecated Please use `getKnownPropertyNames` from `@metamask/utils`
+ * instead.
  */
 export function knownKeysOf<K extends PropertyKey>(
   // TODO: Replace `any` with type
