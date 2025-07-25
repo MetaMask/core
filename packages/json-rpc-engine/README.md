@@ -27,7 +27,7 @@ const engine = new JsonRpcEngineV2({
       }
       return next();
     },
-    () => 42,
+    () => 'world',
   ],
 });
 ```
@@ -60,7 +60,7 @@ if ('result' in response) {
   // Handle error
 }
 
-const notification = { id: '1', jsonrpc: '2.0', method: 'hello' };
+const notification = { jsonrpc: '2.0', method: 'hello' };
 
 // Always returns undefined for notifications
 await server.handle(notification);
