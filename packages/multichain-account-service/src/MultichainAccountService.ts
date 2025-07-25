@@ -17,7 +17,7 @@ import { EvmAccountProvider } from './providers/EvmAccountProvider';
 import { SolAccountProvider } from './providers/SolAccountProvider';
 import type { MultichainAccountServiceMessenger } from './types';
 
-const serviceName = 'MultichainAccountService';
+export const serviceName = 'MultichainAccountService';
 
 /**
  * The options that {@link MultichainAccountService} takes.
@@ -71,6 +71,23 @@ export class MultichainAccountService {
       new EvmAccountProvider(this.#messenger),
       new SolAccountProvider(this.#messenger),
     ];
+
+    this.#messenger.registerActionHandler(
+      'MultichainAccountService:getMultichainAccount',
+      (...args) => this.getMultichainAccount(...args),
+    );
+    this.#messenger.registerActionHandler(
+      'MultichainAccountService:getMultichainAccounts',
+      (...args) => this.getMultichainAccounts(...args),
+    );
+    this.#messenger.registerActionHandler(
+      'MultichainAccountService:getMultichainAccountWallet',
+      (...args) => this.getMultichainAccountWallet(...args),
+    );
+    this.#messenger.registerActionHandler(
+      'MultichainAccountService:getMultichainAccountWallets',
+      (...args) => this.getMultichainAccountWallets(...args),
+    );
   }
 
   /**
@@ -213,14 +230,28 @@ export class MultichainAccountService {
   /**
    * Gets a reference to the multichain account wallet matching this entropy source.
    *
-   * @param entropySource - The entropy source of the multichain account.
+   * @param options - Options.
+   * @param options.entropySource - The entropy source of the multichain account.
    * @throws If none multichain account match this entropy.
    * @returns A reference to the multichain account wallet.
    */
-  getMultichainAccountWallet(
-    entropySource: EntropySourceId,
-  ): MultichainAccountWallet<Bip44Account<InternalAccount>> {
+  getMultichainAccountWallet({
+    entropySource,
+  }: {
+    entropySource: EntropySourceId;
+  }): MultichainAccountWallet<Bip44Account<InternalAccount>> {
     return this.#getWallet(entropySource);
+  }
+
+  /**
+   * Gets an array of all multichain account wallets.
+   *
+   * @returns An array of all multichain account wallets.
+   */
+  getMultichainAccountWallets(): MultichainAccountWallet<
+    Bip44Account<InternalAccount>
+  >[] {
+    return Array.from(this.#wallets.values());
   }
 
   /**
