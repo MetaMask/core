@@ -10,7 +10,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type {
   AccountGroupObject,
-  AccountTreeWalletEntropyOptions,
+  AccountWalletEntropyMetadata,
   AccountWalletObject,
 } from '..';
 import type { AccountTreeRuleResult } from '../AccountTreeRule';
@@ -67,7 +67,7 @@ export class EntropyRule extends AccountTreeRule {
   getDefaultAccountWalletName(wallet: AccountWalletObject): string {
     // Precondition: We assume the AccountTreeController will always use
     // the proper wallet instance.
-    const options = wallet.metadata as AccountTreeWalletEntropyOptions;
+    const options = wallet.metadata as AccountWalletEntropyMetadata;
 
     return `Wallet ${options.entropy.index + 1}`; // Use human indexing (starts at 1).
   }
