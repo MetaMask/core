@@ -20,6 +20,24 @@ const makeEngine = () => {
 };
 
 describe('JsonRpcServer', () => {
+  it('can be constructed with an engine', () => {
+    const server = new JsonRpcServer({
+      engine: makeEngine(),
+      handleError: () => undefined,
+    });
+
+    expect(server).toBeDefined();
+  });
+
+  it('can be constructed with middleware', () => {
+    const server = new JsonRpcServer({
+      middleware: [() => null],
+      handleError: () => undefined,
+    });
+
+    expect(server).toBeDefined();
+  });
+
   it('handles a request', async () => {
     const server = new JsonRpcServer({
       engine: makeEngine(),

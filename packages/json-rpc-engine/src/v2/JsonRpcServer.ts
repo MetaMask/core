@@ -5,19 +5,27 @@ import type {
   JsonRpcParams,
   JsonRpcRequest,
   JsonRpcResponse,
+  NonEmptyArray,
 } from '@metamask/utils';
 import { hasProperty, isObject } from '@metamask/utils';
 
-import type { JsonRpcEngineV2 } from './JsonRpcEngineV2';
+import type { JsonRpcMiddleware } from './JsonRpcEngineV2';
+import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
 import type { JsonRpcCall } from './utils';
 import { getUniqueId } from '../getUniqueId';
 
 type HandleError = (error: unknown) => void;
 
 type Options = {
-  engine: JsonRpcEngineV2<JsonRpcCall, Json>;
   handleError: HandleError;
-};
+} & (
+  | {
+      engine: JsonRpcEngineV2<JsonRpcCall, Json>;
+    }
+  | {
+      middleware: NonEmptyArray<JsonRpcMiddleware<JsonRpcCall, Json>>;
+    }
+);
 
 const jsonrpc = '2.0' as const;
 
@@ -47,9 +55,14 @@ export class JsonRpcServer {
 
   readonly #handleError: HandleError;
 
-  constructor({ engine, handleError }: Options) {
-    this.#engine = engine;
-    this.#handleError = handleError;
+  constructor(options: Options) {
+    this.#handleError = options.handleError;
+
+    if ('engine' in options) {
+      this.#engine = options.engine;
+    } else {
+      this.#engine = new JsonRpcEngineV2({ middleware: options.middleware });
+    }
   }
 
   /**
