@@ -41,9 +41,9 @@ export type AutoManagedNetworkClient<
   configuration: Configuration;
   provider: ProxyWithAccessibleTarget<Provider>;
   blockTracker: ProxyWithAccessibleTarget<BlockTracker>;
-  destroy: () => void;
-  enableRpcFailover: () => void;
-  disableRpcFailover: () => void;
+  destroy: () => Promise<void>;
+  enableRpcFailover: () => Promise<void>;
+  disableRpcFailover: () => Promise<void>;
 };
 
 /**
@@ -194,21 +194,21 @@ export function createAutoManagedNetworkClient<
     },
   }) as ProxyWithAccessibleTarget<typeof UNINITIALIZED_TARGET & BlockTracker>; // Type assertion: We can treat the proxy as though it's a block tracker.
 
-  const destroy = () => {
-    // TODO: Await this promise.
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    networkClient?.destroy();
+  const destroy = async () => {
+    if (networkClient) {
+      await networkClient.destroy();
+    }
   };
 
-  const enableRpcFailover = () => {
+  const enableRpcFailover = async () => {
     isRpcFailoverEnabled = true;
-    destroy();
+    await destroy();
     networkClient = undefined;
   };
 
-  const disableRpcFailover = () => {
+  const disableRpcFailover = async () => {
     isRpcFailoverEnabled = false;
-    destroy();
+    await destroy();
     networkClient = undefined;
   };
 

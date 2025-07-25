@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** The `removeNetwork`, `enableRpcFailover`, and `disableRpcFailover` methods on `NetworkController` must now be awaited ([#????](https://github.com/MetaMask/core/pull/????))
+- **BREAKING:** The `NetworkController:removeNetwork` messenger action must now be awaited ([#????](https://github.com/MetaMask/core/pull/????))
+- **BREAKING:** The `enableRpcFailover`, `disableRpcFailover`, and `destroy` methods on all network clients must now be awaited ([#????](https://github.com/MetaMask/core/pull/????))
+
 ## [24.0.1]
 
 ### Changed

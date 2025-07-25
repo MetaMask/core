@@ -1298,8 +1298,8 @@ export class NetworkController extends BaseController<
    * configured with failover URLs, then traffic will automatically be diverted
    * to them if those RPC endpoints are unavailable.
    */
-  enableRpcFailover() {
-    this.#updateRpcFailoverEnabled(true);
+  async enableRpcFailover() {
+    await this.#updateRpcFailoverEnabled(true);
   }
 
   /**
@@ -1307,8 +1307,8 @@ export class NetworkController extends BaseController<
    * are configured with failover URLs, then traffic will not automatically be
    * diverted to them if those RPC endpoints are unavailable.
    */
-  disableRpcFailover() {
-    this.#updateRpcFailoverEnabled(false);
+  async disableRpcFailover() {
+    await this.#updateRpcFailoverEnabled(false);
   }
 
   /**
@@ -1321,7 +1321,7 @@ export class NetworkController extends BaseController<
    * @param newIsRpcFailoverEnabled - Whether or not to enable or disable the
    * RPC failover functionality.
    */
-  #updateRpcFailoverEnabled(newIsRpcFailoverEnabled: boolean) {
+  async #updateRpcFailoverEnabled(newIsRpcFailoverEnabled: boolean) {
     if (this.#isRpcFailoverEnabled === newIsRpcFailoverEnabled) {
       return;
     }
@@ -1332,21 +1332,23 @@ export class NetworkController extends BaseController<
     for (const networkClientsById of Object.values(
       autoManagedNetworkClientRegistry,
     )) {
-      for (const networkClientId of Object.keys(networkClientsById)) {
-        // Type assertion: We can assume that `networkClientId` is valid here.
-        const networkClient =
-          networkClientsById[
-            networkClientId as keyof typeof networkClientsById
-          ];
-        if (
-          networkClient.configuration.failoverRpcUrls &&
-          networkClient.configuration.failoverRpcUrls.length > 0
-        ) {
-          newIsRpcFailoverEnabled
-            ? networkClient.enableRpcFailover()
-            : networkClient.disableRpcFailover();
-        }
-      }
+      await Promise.all(
+        Object.keys(networkClientsById).map(async (networkClientId) => {
+          // Type assertion: We can assume that `networkClientId` is valid here.
+          const networkClient =
+            networkClientsById[
+              networkClientId as keyof typeof networkClientsById
+            ];
+          if (
+            networkClient.configuration.failoverRpcUrls &&
+            networkClient.configuration.failoverRpcUrls.length > 0
+          ) {
+            newIsRpcFailoverEnabled
+              ? await networkClient.enableRpcFailover()
+              : await networkClient.disableRpcFailover();
+          }
+        }),
+      );
     }
 
     this.#isRpcFailoverEnabled = newIsRpcFailoverEnabled;
@@ -2281,7 +2283,7 @@ export class NetworkController extends BaseController<
       });
     }
 
-    this.#unregisterNetworkClientsAsNeeded({
+    await this.#unregisterNetworkClientsAsNeeded({
       networkClientOperations,
       autoManagedNetworkClientRegistry,
     });
@@ -2298,7 +2300,7 @@ export class NetworkController extends BaseController<
    * or if the currently selected network is being removed.
    * @see {@link NetworkConfiguration}
    */
-  removeNetwork(chainId: Hex) {
+  async removeNetwork(chainId: Hex) {
     const existingNetworkConfiguration =
       this.state.networkConfigurationsByChainId[chainId];
 
@@ -2328,7 +2330,7 @@ export class NetworkController extends BaseController<
         };
       });
 
-    this.#unregisterNetworkClientsAsNeeded({
+    await this.#unregisterNetworkClientsAsNeeded({
       networkClientOperations,
       autoManagedNetworkClientRegistry,
     });
@@ -2759,7 +2761,7 @@ export class NetworkController extends BaseController<
    * @param args.autoManagedNetworkClientRegistry - The network client registry
    * to update.
    */
-  #unregisterNetworkClientsAsNeeded({
+  async #unregisterNetworkClientsAsNeeded({
     networkClientOperations,
     autoManagedNetworkClientRegistry,
   }: {
@@ -2789,15 +2791,17 @@ export class NetworkController extends BaseController<
           ),
       );
 
-    for (const rpcEndpoint of removedRpcEndpoints) {
-      const networkClient = this.getNetworkClientById(
-        rpcEndpoint.networkClientId,
-      );
-      networkClient.destroy();
-      delete autoManagedNetworkClientRegistry[networkClient.configuration.type][
-        rpcEndpoint.networkClientId
-      ];
-    }
+    await Promise.all(
+      removedRpcEndpoints.map(async (rpcEndpoint) => {
+        const networkClient = this.getNetworkClientById(
+          rpcEndpoint.networkClientId,
+        );
+        await networkClient.destroy();
+        delete autoManagedNetworkClientRegistry[
+          networkClient.configuration.type
+        ][rpcEndpoint.networkClientId];
+      }),
+    );
   }
 
   /**

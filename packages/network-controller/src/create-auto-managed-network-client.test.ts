@@ -237,7 +237,7 @@ describe('createAutoManagedNetworkClient', () => {
             method: 'test_method',
             params: [],
           });
-          autoManagedNetworkClient.enableRpcFailover();
+          await autoManagedNetworkClient.enableRpcFailover();
           await provider.request({
             id: 1,
             jsonrpc: '2.0',
@@ -305,7 +305,7 @@ describe('createAutoManagedNetworkClient', () => {
             method: 'test_method',
             params: [],
           });
-          autoManagedNetworkClient.disableRpcFailover();
+          await autoManagedNetworkClient.disableRpcFailover();
           await provider.request({
             id: 1,
             jsonrpc: '2.0',
@@ -526,7 +526,7 @@ describe('createAutoManagedNetworkClient', () => {
           await new Promise((resolve) => {
             blockTracker.once('latest', resolve);
           });
-          autoManagedNetworkClient.enableRpcFailover();
+          await autoManagedNetworkClient.enableRpcFailover();
           await new Promise((resolve) => {
             blockTracker.once('latest', resolve);
           });
@@ -588,7 +588,7 @@ describe('createAutoManagedNetworkClient', () => {
           await new Promise((resolve) => {
             blockTracker.once('latest', resolve);
           });
-          autoManagedNetworkClient.disableRpcFailover();
+          await autoManagedNetworkClient.disableRpcFailover();
           await new Promise((resolve) => {
             blockTracker.once('latest', resolve);
           });
@@ -611,7 +611,7 @@ describe('createAutoManagedNetworkClient', () => {
       });
     });
 
-    it('destroys the block tracker when destroyed', () => {
+    it('destroys the block tracker when destroyed', async () => {
       mockNetwork({
         networkClientConfiguration,
         mocks: [
@@ -640,7 +640,7 @@ describe('createAutoManagedNetworkClient', () => {
         // do nothing
       });
 
-      destroy();
+      await destroy();
 
       expect(blockTracker.isRunning()).toBe(false);
     });

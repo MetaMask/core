@@ -789,7 +789,7 @@ describe('NetworkController', () => {
                 return autoManagedNetworkClient;
               });
 
-            controller.enableRpcFailover();
+            await controller.enableRpcFailover();
 
             expect(autoManagedNetworkClients).toHaveLength(3);
             expect(
@@ -865,7 +865,7 @@ describe('NetworkController', () => {
                 return autoManagedNetworkClient;
               });
 
-            controller.enableRpcFailover();
+            await controller.enableRpcFailover();
 
             expect(autoManagedNetworkClients).toHaveLength(0);
           },
@@ -934,7 +934,7 @@ describe('NetworkController', () => {
                 return autoManagedNetworkClient;
               });
 
-            controller.disableRpcFailover();
+            await controller.disableRpcFailover();
 
             expect(autoManagedNetworkClients).toHaveLength(3);
             expect(
@@ -1010,7 +1010,7 @@ describe('NetworkController', () => {
                 return autoManagedNetworkClient;
               });
 
-            controller.disableRpcFailover();
+            await controller.disableRpcFailover();
 
             expect(autoManagedNetworkClients).toHaveLength(0);
           },
@@ -12469,8 +12469,8 @@ describe('NetworkController', () => {
 
   describe('removeNetwork', () => {
     it('throws if the given chain ID does not refer to an existing network configuration', async () => {
-      await withController(({ controller }) => {
-        expect(() => controller.removeNetwork('0x1337')).toThrow(
+      await withController(async ({ controller }) => {
+        await expect(() => controller.removeNetwork('0x1337')).rejects.toThrow(
           new Error("Cannot find network configuration for chain '0x1337'"),
         );
       });
@@ -12492,10 +12492,10 @@ describe('NetworkController', () => {
             },
           },
         },
-        ({ controller }) => {
-          expect(() => controller.removeNetwork('0x1337')).toThrow(
-            'Cannot remove the currently selected network',
-          );
+        async ({ controller }) => {
+          await expect(() =>
+            controller.removeNetwork('0x1337'),
+          ).rejects.toThrow('Cannot remove the currently selected network');
         },
       );
     });
@@ -12523,12 +12523,12 @@ describe('NetworkController', () => {
                 },
               },
             },
-            ({ controller }) => {
+            async ({ controller }) => {
               expect(
                 controller.state.networkConfigurationsByChainId,
               ).toHaveProperty(infuraChainId);
 
-              controller.removeNetwork(infuraChainId);
+              await controller.removeNetwork(infuraChainId);
 
               expect(
                 controller.state.networkConfigurationsByChainId,
@@ -12569,7 +12569,7 @@ describe('NetworkController', () => {
                 },
               },
             },
-            ({ controller }) => {
+            async ({ controller }) => {
               const existingNetworkClient1 =
                 controller.getNetworkClientById(infuraNetworkType);
               const destroySpy1 = jest.spyOn(existingNetworkClient1, 'destroy');
@@ -12578,7 +12578,7 @@ describe('NetworkController', () => {
               );
               const destroySpy2 = jest.spyOn(existingNetworkClient2, 'destroy');
 
-              controller.removeNetwork(infuraChainId);
+              await controller.removeNetwork(infuraChainId);
 
               expect(destroySpy1).toHaveBeenCalled();
               expect(destroySpy2).toHaveBeenCalled();
@@ -12610,12 +12610,12 @@ describe('NetworkController', () => {
               },
             },
           },
-          ({ controller }) => {
+          async ({ controller }) => {
             expect(
               controller.state.networkConfigurationsByChainId,
             ).toHaveProperty('0x1337');
 
-            controller.removeNetwork('0x1337');
+            await controller.removeNetwork('0x1337');
 
             expect(
               controller.state.networkConfigurationsByChainId,
@@ -12650,7 +12650,7 @@ describe('NetworkController', () => {
               },
             },
           },
-          ({ controller }) => {
+          async ({ controller }) => {
             const existingNetworkClient1 = controller.getNetworkClientById(
               'AAAA-AAAA-AAAA-AAAA',
             );
@@ -12660,7 +12660,7 @@ describe('NetworkController', () => {
             );
             const destroySpy2 = jest.spyOn(existingNetworkClient2, 'destroy');
 
-            controller.removeNetwork('0x1337');
+            await controller.removeNetwork('0x1337');
 
             expect(destroySpy1).toHaveBeenCalled();
             expect(destroySpy2).toHaveBeenCalled();
@@ -12688,8 +12688,9 @@ describe('NetworkController', () => {
               },
             },
           },
-          ({ controller, messenger }) => {
-            messenger.call('NetworkController:removeNetwork', '0x1337');
+          async ({ controller, messenger }) => {
+            await messenger.call('NetworkController:removeNetwork', '0x1337');
+
             expect(
               controller.state.networkConfigurationsByChainId,
             ).not.toHaveProperty('0x1337');
@@ -12711,14 +12712,14 @@ describe('NetworkController', () => {
               },
             },
           },
-          ({ controller, messenger }) => {
+          async ({ controller, messenger }) => {
             const networkRemovedListener = jest.fn();
             messenger.subscribe(
               'NetworkController:networkRemoved',
               networkRemovedListener,
             );
 
-            controller.removeNetwork('0x1337');
+            await controller.removeNetwork('0x1337');
 
             expect(networkRemovedListener).toHaveBeenCalledWith(networkConfig);
           },
@@ -15232,7 +15233,7 @@ function buildFakeClient(
     },
     provider,
     blockTracker: new FakeBlockTracker({ provider }),
-    destroy: () => {
+    destroy: async () => {
       // do nothing
     },
   };

@@ -117,7 +117,7 @@ function buildFakeNetworkClient({
     configuration,
     provider,
     blockTracker: new FakeBlockTracker({ provider }),
-    destroy: () => {
+    destroy: async () => {
       // do nothing
     },
   };

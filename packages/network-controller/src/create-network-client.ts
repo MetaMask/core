@@ -46,7 +46,7 @@ export type NetworkClient = {
   configuration: NetworkClientConfiguration;
   provider: Provider;
   blockTracker: BlockTracker;
-  destroy: () => void;
+  destroy: () => Promise<void>;
 };
 
 /**
@@ -163,10 +163,8 @@ export function createNetworkClient({
 
   const provider = providerFromEngine(engine);
 
-  const destroy = () => {
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    blockTracker.destroy();
+  const destroy = async () => {
+    await blockTracker.destroy();
   };
 
   return { configuration, provider, blockTracker, destroy };
