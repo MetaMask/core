@@ -4904,7 +4904,7 @@ describe('SeedlessOnboardingController', () => {
     });
   });
 
-  describe('revokeRefreshTokenAndUpdateVault', () => {
+  describe('revokeRefreshToken', () => {
     const MOCK_PASSWORD = 'mock-password';
     const CURRENT_REVOKE_TOKEN = 'current-revoke-token';
     const NEW_REVOKE_TOKEN = 'new-revoke-token';
@@ -4956,7 +4956,7 @@ describe('SeedlessOnboardingController', () => {
 
           const encryptorSpy = jest.spyOn(encryptor, 'encryptWithDetail');
 
-          await controller.revokeRefreshTokenAndUpdateVault(MOCK_PASSWORD);
+          await controller.revokeRefreshToken(MOCK_PASSWORD);
 
           // Verify that revokeRefreshToken was called with correct parameters
           expect(mockRevokeRefreshToken).toHaveBeenCalledWith({
@@ -5011,7 +5011,7 @@ describe('SeedlessOnboardingController', () => {
         },
         async ({ controller }) => {
           await expect(
-            controller.revokeRefreshTokenAndUpdateVault(MOCK_PASSWORD),
+            controller.revokeRefreshToken(MOCK_PASSWORD),
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.InvalidRevokeToken,
           );
@@ -5037,7 +5037,7 @@ describe('SeedlessOnboardingController', () => {
           );
 
           await expect(
-            controller.revokeRefreshTokenAndUpdateVault(MOCK_PASSWORD),
+            controller.revokeRefreshToken(MOCK_PASSWORD),
           ).rejects.toThrow('Failed to revoke refresh token');
 
           expect(mockRevokeRefreshToken).toHaveBeenCalledWith({
@@ -5065,7 +5065,7 @@ describe('SeedlessOnboardingController', () => {
             .mockRejectedValueOnce(new Error('Failed to decrypt vault'));
 
           await expect(
-            controller.revokeRefreshTokenAndUpdateVault(MOCK_PASSWORD),
+            controller.revokeRefreshToken(MOCK_PASSWORD),
           ).rejects.toThrow('Failed to decrypt vault');
         },
       );
@@ -5094,7 +5094,7 @@ describe('SeedlessOnboardingController', () => {
             .mockRejectedValueOnce(new Error('Failed to encrypt vault'));
 
           await expect(
-            controller.revokeRefreshTokenAndUpdateVault(MOCK_PASSWORD),
+            controller.revokeRefreshToken(MOCK_PASSWORD),
           ).rejects.toThrow('Failed to encrypt vault');
 
           expect(mockRevokeRefreshToken).toHaveBeenCalled();

@@ -1815,13 +1815,14 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   }
 
   /**
-   * Revoke the refresh token and get new refresh token and new revoke token.
+   * Revoke the refresh token and get new refresh token and new revoke token
+   * and also updates the vault with the new revoke token.
    * This method is to be called after user is authenticated.
    *
    * @param password - The password to encrypt the vault.
    * @returns A Promise that resolves to void.
    */
-  async revokeRefreshTokenAndUpdateVault(password: string) {
+  async revokeRefreshToken(password: string) {
     return await this.#withControllerLock(async () => {
       this.#assertIsAuthenticatedUser(this.state);
       const { vaultEncryptionKey } = this.state;
