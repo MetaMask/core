@@ -30,6 +30,23 @@ import {
 import { DEFAULT_ACCOUNT_GROUP_NAME } from './AccountTreeGroup';
 import { getAccountWalletNameFromKeyringType } from './rules/KeyringWalletRule';
 
+// Local mock of EMPTY_ACCOUNT to avoid circular dependency
+const EMPTY_ACCOUNT_MOCK: InternalAccount = {
+  id: '',
+  address: '',
+  options: {},
+  methods: [],
+  type: EthAccountType.Eoa,
+  scopes: [EthScope.Eoa],
+  metadata: {
+    name: '',
+    keyring: {
+      type: '',
+    },
+    importTime: 0,
+  },
+};
+
 const ETH_EOA_METHODS = [
   EthMethod.PersonalSign,
   EthMethod.Sign,
@@ -877,6 +894,86 @@ describe('AccountTreeController', () => {
       );
 
       expect(controller.getSelectedAccountGroup()).toBe(initialGroup);
+    });
+
+    it('falls back to first wallet first group when AccountsController returns EMPTY_ACCOUNT', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      // Unregister existing handler and register new one BEFORE init
+      messenger.unregisterActionHandler(
+        'AccountsController:getSelectedAccount',
+      );
+      messenger.registerActionHandler(
+        'AccountsController:getSelectedAccount',
+        () => EMPTY_ACCOUNT_MOCK,
+      );
+
+      controller.init();
+
+      // Should fall back to first wallet's first group
+      const expectedWalletId1 = toAccountWalletId(
+        AccountWalletCategory.Entropy,
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const expectedGroupId1 = toDefaultAccountGroupId(expectedWalletId1);
+
+      expect(controller.getSelectedAccountGroup()).toBe(expectedGroupId1);
+    });
+
+    it('falls back to first wallet first group when selected account is not in tree', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      // Mock getSelectedAccount to return an account not in the tree BEFORE init
+      const unknownAccount: InternalAccount = {
+        ...MOCK_HD_ACCOUNT_1,
+        id: 'unknown-account-id',
+      };
+
+      messenger.unregisterActionHandler(
+        'AccountsController:getSelectedAccount',
+      );
+      messenger.registerActionHandler(
+        'AccountsController:getSelectedAccount',
+        () => unknownAccount,
+      );
+
+      controller.init();
+
+      // Should fall back to first wallet's first group
+      const expectedWalletId1 = toAccountWalletId(
+        AccountWalletCategory.Entropy,
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const expectedGroupId1 = toDefaultAccountGroupId(expectedWalletId1);
+
+      expect(controller.getSelectedAccountGroup()).toBe(expectedGroupId1);
+    });
+
+    it('returns empty string when no wallets exist and getSelectedAccount returns EMPTY_ACCOUNT', () => {
+      const { controller, messenger } = setup({
+        accounts: [],
+        keyrings: [],
+      });
+
+      // Mock getSelectedAccount to return EMPTY_ACCOUNT_MOCK (id is '') BEFORE init
+      messenger.unregisterActionHandler(
+        'AccountsController:getSelectedAccount',
+      );
+      messenger.registerActionHandler(
+        'AccountsController:getSelectedAccount',
+        () => EMPTY_ACCOUNT_MOCK,
+      );
+
+      controller.init();
+
+      // Should return empty string when no wallets exist
+      expect(controller.getSelectedAccountGroup()).toBe('');
     });
   });
 });

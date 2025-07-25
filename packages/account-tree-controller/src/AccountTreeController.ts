@@ -218,7 +218,7 @@ export class AccountTreeController extends BaseController<
   }
 
   init() {
-    const wallets = {};
+    const wallets: { [walletId: AccountWalletId]: AccountWalletObject } = {};
 
     // For now, we always re-compute all wallets, we do not re-use the existing state.
     for (const account of this.#listAccounts()) {
@@ -227,16 +227,24 @@ export class AccountTreeController extends BaseController<
 
     this.update((state) => {
       state.accountTree.wallets = wallets;
-    });
 
-    // Initialize selectedAccountGroup based on currently selected account
-    this.#initializeSelectedAccountGroup();
+      if (state.selectedAccountGroup === '') {
+        // No group is selected yet, re-sync with the AccountsController.
+        state.selectedAccountGroup =
+          this.#getDefaultSelectedAccountGroup(wallets);
+      }
+    });
   }
 
   /**
    * Initializes the selectedAccountGroup based on the currently selected account from AccountsController.
+   *
+   * @param wallets - Wallets object to use for fallback logic
+   * @returns The default selected account group ID or empty string if none selected.
    */
-  #initializeSelectedAccountGroup(): void {
+  #getDefaultSelectedAccountGroup(wallets: {
+    [walletId: AccountWalletId]: AccountWalletObject;
+  }): AccountGroupId | '' {
     const selectedAccount = this.messagingSystem.call(
       'AccountsController:getSelectedAccount',
     );
@@ -244,11 +252,13 @@ export class AccountTreeController extends BaseController<
       const accountMapping = this.#reverse.get(selectedAccount.id);
       if (accountMapping) {
         const { groupId } = accountMapping;
-        this.update((state) => {
-          state.selectedAccountGroup = groupId;
-        });
+
+        return groupId;
       }
     }
+
+    // Default to the first wallet, first group in case of errors.
+    return Object.values(Object.values(wallets)[0]?.groups ?? {})[0]?.id ?? '';
   }
 
   getWallet(id: AccountWalletId): AccountTreeWallet | undefined {
