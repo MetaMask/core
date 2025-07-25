@@ -9,7 +9,6 @@ import {
   toAccountWalletId,
   toMultichainAccountId,
   toMultichainAccountWalletId,
-  toDefaultAccountGroupId,
   type AccountGroupId,
 } from '@metamask/account-api';
 import { Messenger } from '@metamask/base-controller';
@@ -732,6 +731,7 @@ describe('AccountTreeController', () => {
       );
       expect(controller.state).toStrictEqual({
         accountTree: {
+          selectedAccountGroup: walletId1Group,
           wallets: {
             [walletId1]: {
               id: walletId1,
@@ -1165,11 +1165,13 @@ describe('AccountTreeController', () => {
 
       controller.init();
 
-      const expectedWalletId2 = toAccountWalletId(
-        AccountWalletCategory.Entropy,
+      const expectedWalletId2 = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_2.metadata.id,
       );
-      const expectedGroupId2 = toDefaultAccountGroupId(expectedWalletId2);
+      const expectedGroupId2 = toMultichainAccountId(
+        expectedWalletId2,
+        MOCK_HD_ACCOUNT_2.options.entropy.groupIndex,
+      );
 
       controller.setSelectedAccountGroup(expectedGroupId2);
 
@@ -1189,11 +1191,13 @@ describe('AccountTreeController', () => {
 
       controller.init();
 
-      const expectedWalletId = toAccountWalletId(
-        AccountWalletCategory.Entropy,
+      const expectedWalletId = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_1.metadata.id,
       );
-      const expectedGroupId = toDefaultAccountGroupId(expectedWalletId);
+      const expectedGroupId = toMultichainAccountId(
+        expectedWalletId,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
 
       expect(controller.getSelectedAccountGroup()).toBe(expectedGroupId);
 
@@ -1220,11 +1224,13 @@ describe('AccountTreeController', () => {
 
       controller.init();
 
-      const expectedWalletId1 = toAccountWalletId(
-        AccountWalletCategory.Entropy,
+      const expectedWalletId1 = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_1.metadata.id,
       );
-      const expectedGroupId1 = toDefaultAccountGroupId(expectedWalletId1);
+      const expectedGroupId1 = toMultichainAccountId(
+        expectedWalletId1,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
 
       controller.setSelectedAccountGroup(expectedGroupId1);
 
@@ -1294,11 +1300,13 @@ describe('AccountTreeController', () => {
       controller.init();
 
       // Should fall back to first wallet's first group
-      const expectedWalletId1 = toAccountWalletId(
-        AccountWalletCategory.Entropy,
+      const expectedWalletId1 = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_1.metadata.id,
       );
-      const expectedGroupId1 = toDefaultAccountGroupId(expectedWalletId1);
+      const expectedGroupId1 = toMultichainAccountId(
+        expectedWalletId1,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
 
       expect(controller.getSelectedAccountGroup()).toBe(expectedGroupId1);
     });
@@ -1326,11 +1334,13 @@ describe('AccountTreeController', () => {
       controller.init();
 
       // Should fall back to first wallet's first group
-      const expectedWalletId1 = toAccountWalletId(
-        AccountWalletCategory.Entropy,
+      const expectedWalletId1 = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_1.metadata.id,
       );
-      const expectedGroupId1 = toDefaultAccountGroupId(expectedWalletId1);
+      const expectedGroupId1 = toMultichainAccountId(
+        expectedWalletId1,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
 
       expect(controller.getSelectedAccountGroup()).toBe(expectedGroupId1);
     });
@@ -1367,11 +1377,13 @@ describe('AccountTreeController', () => {
       controller.init();
 
       // Select the first group explicitly
-      const expectedWalletId1 = toAccountWalletId(
-        AccountWalletCategory.Entropy,
+      const expectedWalletId1 = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_1.metadata.id,
       );
-      const expectedGroupId1 = toDefaultAccountGroupId(expectedWalletId1);
+      const expectedGroupId1 = toMultichainAccountId(
+        expectedWalletId1,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
       controller.setSelectedAccountGroup(expectedGroupId1);
 
       const initialSelectedGroup = controller.getSelectedAccountGroup();
@@ -1402,18 +1414,22 @@ describe('AccountTreeController', () => {
       controller.init();
 
       // Select the first group
-      const expectedWalletId1 = toAccountWalletId(
-        AccountWalletCategory.Entropy,
+      const expectedWalletId1 = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_1.metadata.id,
       );
-      const expectedGroupId1 = toDefaultAccountGroupId(expectedWalletId1);
+      const expectedGroupId1 = toMultichainAccountId(
+        expectedWalletId1,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
       controller.setSelectedAccountGroup(expectedGroupId1);
 
-      const expectedWalletId2 = toAccountWalletId(
-        AccountWalletCategory.Entropy,
+      const expectedWalletId2 = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_2.metadata.id,
       );
-      const expectedGroupId2 = toDefaultAccountGroupId(expectedWalletId2);
+      const expectedGroupId2 = toMultichainAccountId(
+        expectedWalletId2,
+        MOCK_HD_ACCOUNT_2.options.entropy.groupIndex,
+      );
 
       // Remove the account from the selected group - tests true branch and findFirstNonEmptyGroup finding a group
       messenger.publish(
