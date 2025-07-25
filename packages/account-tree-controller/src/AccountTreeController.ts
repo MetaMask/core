@@ -280,13 +280,25 @@ export class AccountTreeController extends BaseController<
 
     if (found) {
       const { walletId, groupId } = found;
+
+      // Clean up the reverse mapping to prevent memory leaks
+      this.#reverse.delete(accountId);
+
       this.update((state) => {
-        const { accounts } =
-          state.accountTree.wallets[walletId].groups[groupId];
+        const group = state.accountTree.wallets[walletId].groups[groupId];
+        const { accounts } = group;
 
         const index = accounts.indexOf(accountId);
         if (index !== -1) {
           accounts.splice(index, 1);
+        }
+
+        // Check if we need to update selectedAccountGroup
+        if (state.selectedAccountGroup === groupId && accounts.length === 0) {
+          // The currently selected group is now empty, find a new group to select
+          state.selectedAccountGroup = this.#findFirstNonEmptyGroup(
+            state.accountTree.wallets,
+          );
         }
       });
     }
@@ -433,6 +445,25 @@ export class AccountTreeController extends BaseController<
       }
     }
     return undefined;
+  }
+
+  /**
+   * Finds the first non-empty group in the given wallets object.
+   *
+   * @param wallets - The wallets object to search.
+   * @returns The ID of the first non-empty group, or an empty string if no groups are found.
+   */
+  #findFirstNonEmptyGroup(wallets: {
+    [walletId: AccountWalletId]: AccountWalletObject;
+  }): AccountGroupId | '' {
+    for (const wallet of Object.values(wallets)) {
+      for (const group of Object.values(wallet.groups)) {
+        if (group.accounts.length > 0) {
+          return group.id;
+        }
+      }
+    }
+    return '';
   }
 
   /**

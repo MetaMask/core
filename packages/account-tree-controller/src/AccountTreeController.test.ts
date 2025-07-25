@@ -3,6 +3,7 @@ import {
   toAccountWalletId,
   toDefaultAccountGroupId,
   type AccountGroupId,
+  type AccountWalletId,
 } from '@metamask/account-api';
 import { Messenger } from '@metamask/base-controller';
 import {
@@ -973,6 +974,93 @@ describe('AccountTreeController', () => {
       controller.init();
 
       // Should return empty string when no wallets exist
+      expect(controller.getSelectedAccountGroup()).toBe('');
+    });
+  });
+
+  describe('account removal and memory management', () => {
+    it('cleans up reverse mapping and does not change selectedAccountGroup when removing from non-selected group', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+
+      // Select the first group explicitly
+      const expectedWalletId1 = toAccountWalletId(
+        AccountWalletCategory.Entropy,
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const expectedGroupId1 = toDefaultAccountGroupId(expectedWalletId1);
+      controller.setSelectedAccountGroup(expectedGroupId1);
+
+      const initialSelectedGroup = controller.getSelectedAccountGroup();
+
+      // Remove account from the second group (not selected) - tests false branch and reverse cleanup
+      messenger.publish(
+        'AccountsController:accountRemoved',
+        MOCK_HD_ACCOUNT_2.id,
+      );
+
+      // selectedAccountGroup should remain unchanged (tests false branch of if condition)
+      expect(controller.getSelectedAccountGroup()).toBe(initialSelectedGroup);
+
+      // Test that subsequent selectedAccountChange for removed account is handled gracefully (indirect test of reverse cleanup)
+      messenger.publish(
+        'AccountsController:selectedAccountChange',
+        MOCK_HD_ACCOUNT_2,
+      );
+      expect(controller.getSelectedAccountGroup()).toBe(initialSelectedGroup);
+    });
+
+    it('updates selectedAccountGroup when last account in selected group is removed and other groups exist', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+
+      // Select the first group
+      const expectedWalletId1 = toAccountWalletId(
+        AccountWalletCategory.Entropy,
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const expectedGroupId1 = toDefaultAccountGroupId(expectedWalletId1);
+      controller.setSelectedAccountGroup(expectedGroupId1);
+
+      const expectedWalletId2 = toAccountWalletId(
+        AccountWalletCategory.Entropy,
+        MOCK_HD_KEYRING_2.metadata.id,
+      );
+      const expectedGroupId2 = toDefaultAccountGroupId(expectedWalletId2);
+
+      // Remove the account from the selected group - tests true branch and findFirstNonEmptyGroup finding a group
+      messenger.publish(
+        'AccountsController:accountRemoved',
+        MOCK_HD_ACCOUNT_1.id,
+      );
+
+      // Should automatically switch to the remaining group (tests findFirstNonEmptyGroup returning a group)
+      expect(controller.getSelectedAccountGroup()).toBe(expectedGroupId2);
+    });
+
+    it('sets selectedAccountGroup to empty when no non-empty groups exist', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      // Remove the only account - tests findFirstNonEmptyGroup returning empty string
+      messenger.publish(
+        'AccountsController:accountRemoved',
+        MOCK_HD_ACCOUNT_1.id,
+      );
+
+      // Should fall back to empty string when no groups have accounts
       expect(controller.getSelectedAccountGroup()).toBe('');
     });
   });
