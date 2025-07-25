@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add multichain account/wallet syncs ([#6165](https://github.com/MetaMask/core/pull/6165))
   - Those are getting sync'd during `AccountsController:account{Added,Removed}` events.
+- Add actions `MultichainAccountService:getMultichain{Account,Accounts,AccountWallet,AccountWallets}` ([#6193](https://github.com/MetaMask/core/pull/6193))
 
 ### Changed
 
