@@ -647,15 +647,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    */
   async submitPassword(password: string): Promise<void> {
     return await this.#withControllerLock(async () => {
-      const { toprfEncryptionKey, toprfPwEncryptionKey, toprfAuthKeyPair } =
-        await this.#unlockVaultAndGetVaultData(password);
+      await this.#unlockVaultAndGetVaultData(password);
       this.#setUnlocked();
-      await this.#createNewVaultWithAuthData({
-        password,
-        rawToprfEncryptionKey: toprfEncryptionKey,
-        rawToprfPwEncryptionKey: toprfPwEncryptionKey,
-        rawToprfAuthKeyPair: toprfAuthKeyPair,
-      });
     });
   }
 
@@ -1832,56 +1825,33 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     return await this.#withControllerLock(async () => {
       this.#assertIsAuthenticatedUser(this.state);
       const { vaultEncryptionKey } = this.state;
-
       const {
         toprfEncryptionKey: rawToprfEncryptionKey,
         toprfPwEncryptionKey: rawToprfPwEncryptionKey,
         toprfAuthKeyPair: rawToprfAuthKeyPair,
         revokeToken,
       } = await this.#unlockVaultAndGetVaultData(password, vaultEncryptionKey);
-      this.#setUnlocked();
       if (!revokeToken) {
         throw new Error(
           SeedlessOnboardingControllerErrorMessage.InvalidRevokeToken,
         );
       }
-
       const { newRevokeToken, newRefreshToken } =
         await this.#revokeRefreshToken({
           connection: this.state.authConnection,
           revokeToken,
         });
-      const accessToken = this.#getAccessToken(password);
-      const { toprfEncryptionKey, toprfPwEncryptionKey, toprfAuthKeyPair } =
-        this.#serializeKeyData(
-          rawToprfEncryptionKey,
-          rawToprfPwEncryptionKey,
-          rawToprfAuthKeyPair,
-        );
-      const serializedVaultData = JSON.stringify({
-        toprfEncryptionKey,
-        toprfPwEncryptionKey,
-        toprfAuthKeyPair,
-        revokeToken: newRevokeToken,
-        accessToken,
-      });
-
-      // this function acquires the vault lock
-      await this.#updateVault({
-        password,
-        serializedVaultData,
-        pwEncKey: rawToprfPwEncryptionKey,
-      });
-
-      // update the authPubKey in the state
-      this.#persistAuthPubKey({
-        authPubKey: rawToprfAuthKeyPair.pk,
-      });
       this.update((state) => {
         // set new revoke token in state temporarily for persisting in vault
         state.revokeToken = newRevokeToken;
         // set new refresh token to persist in state
         state.refreshToken = newRefreshToken;
+      });
+      await this.#createNewVaultWithAuthData({
+        password,
+        rawToprfEncryptionKey,
+        rawToprfPwEncryptionKey,
+        rawToprfAuthKeyPair,
       });
     });
   }
