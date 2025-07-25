@@ -13,8 +13,6 @@ export class MockToprfEncryptorDecryptor {
 
   readonly #HKDF_KEYRING_ENCRYPTION_KEY_INFO = 'keyring-encryption-key';
 
-  readonly #HKDF_SEEDLESS_ENCRYPTION_KEY_INFO = 'seedless-encryption-key';
-
   readonly #HKDF_AUTH_KEY_INFO = 'authentication-key';
 
   encrypt(key: Uint8Array, data: Uint8Array): string {

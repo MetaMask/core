@@ -3742,7 +3742,6 @@ describe('SeedlessOnboardingController', () => {
     let initialAuthKeyPair: KeyPair; // Store initial keypair for vault creation
     let initialEncKey: Uint8Array; // Store initial encKey for vault creation
     let initialPwEncKey: Uint8Array; // Store initial pwEncKey for vault creation
-    let initialSeedlessEncKey: Uint8Array; // Store initial seedlessEncKey for vault creation
     let initialEncryptedSeedlessEncryptionKey: Uint8Array; // Store initial encryptedSeedlessEncryptionKey for vault creation
 
     // Generate initial keys and vault state before tests run
@@ -3751,8 +3750,6 @@ describe('SeedlessOnboardingController', () => {
       initialEncKey = mockToprfEncryptor.deriveEncKey(OLD_PASSWORD);
       initialPwEncKey = mockToprfEncryptor.derivePwEncKey(OLD_PASSWORD);
       initialAuthKeyPair = mockToprfEncryptor.deriveAuthKeyPair(OLD_PASSWORD);
-      initialSeedlessEncKey =
-        mockToprfEncryptor.deriveSeedlessEncKey(OLD_PASSWORD);
       INITIAL_AUTH_PUB_KEY = bytesToBase64(initialAuthKeyPair.pk);
 
       const mockResult = await createMockVault(
@@ -3762,21 +3759,20 @@ describe('SeedlessOnboardingController', () => {
         OLD_PASSWORD,
       );
 
-      initialSeedlessEncKey =
-        mockToprfEncryptor.deriveSeedlessEncKey(OLD_PASSWORD);
-
-      const aes = managedNonce(gcm)(mockResult.pwEncKey);
-      initialEncryptedSeedlessEncryptionKey = aes.encrypt(
-        initialSeedlessEncKey,
-      );
       MOCK_VAULT = mockResult.encryptedMockVault;
       MOCK_VAULT_ENCRYPTION_KEY = mockResult.vaultEncryptionKey;
       MOCK_VAULT_ENCRYPTION_SALT = mockResult.vaultEncryptionSalt;
+
+      const aes = managedNonce(gcm)(initialPwEncKey);
+      initialEncryptedSeedlessEncryptionKey = aes.encrypt(
+        utf8ToBytes(MOCK_VAULT_ENCRYPTION_KEY),
+      );
     });
 
     // Remove beforeEach as setup is done in beforeAll now
 
     it('should successfully sync the latest global password', async () => {
+      const b64EncKey = bytesToBase64(initialEncryptedSeedlessEncryptionKey);
       await withController(
         {
           // Pass the pre-generated state values
@@ -3787,9 +3783,7 @@ describe('SeedlessOnboardingController', () => {
             vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
             vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
             withMockAuthPubKey: true,
-            encryptedSeedlessEncryptionKey: bytesToBase64(
-              initialEncryptedSeedlessEncryptionKey,
-            ),
+            encryptedSeedlessEncryptionKey: b64EncKey,
           }),
         },
         async ({ controller, toprfClient, encryptor }) => {
@@ -4695,8 +4689,6 @@ describe('SeedlessOnboardingController', () => {
       let initialAuthKeyPair: KeyPair; // Store initial keypair for vault creation
       let initialEncKey: Uint8Array; // Store initial encKey for vault creation
       let initialPwEncKey: Uint8Array; // Store initial pwEncKey for vault creation
-      let initialEncryptedKeyringEncryptionKey: Uint8Array; // Store initial encKey for vault creation
-      let initialSeedlessEncKey: Uint8Array; // Store initial seedlessEncKey for vault creation
       let initialEncryptedSeedlessEncryptionKey: Uint8Array; // Store initial encryptedSeedlessEncryptionKey for vault creation
       // Generate initial keys and vault state before tests run
       beforeAll(async () => {
@@ -4707,8 +4699,6 @@ describe('SeedlessOnboardingController', () => {
         initialAuthKeyPair =
           mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
         INITIAL_AUTH_PUB_KEY = bytesToBase64(initialAuthKeyPair.pk);
-        initialSeedlessEncKey =
-          mockToprfEncryptor.deriveSeedlessEncKey(MOCK_PASSWORD);
 
         const mockResult = await createMockVault(
           initialEncKey,
@@ -4717,15 +4707,13 @@ describe('SeedlessOnboardingController', () => {
           MOCK_PASSWORD,
         );
 
-        const aes = managedNonce(gcm)(mockResult.pwEncKey);
-        initialEncryptedSeedlessEncryptionKey = aes.encrypt(
-          initialSeedlessEncKey,
-        );
         MOCK_VAULT = mockResult.encryptedMockVault;
         MOCK_VAULT_ENCRYPTION_KEY = mockResult.vaultEncryptionKey;
         MOCK_VAULT_ENCRYPTION_SALT = mockResult.vaultEncryptionSalt;
-        initialEncryptedKeyringEncryptionKey =
-          mockResult.encryptedKeyringEncryptionKey;
+        const aes = managedNonce(gcm)(mockResult.pwEncKey);
+        initialEncryptedSeedlessEncryptionKey = aes.encrypt(
+          utf8ToBytes(MOCK_VAULT_ENCRYPTION_KEY),
+        );
       });
 
       it('should retry after refreshing expired tokens', async () => {
@@ -4738,9 +4726,6 @@ describe('SeedlessOnboardingController', () => {
               vault: MOCK_VAULT,
               vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
               vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
-              encryptedKeyringEncryptionKey: bytesToBase64(
-                initialEncryptedKeyringEncryptionKey,
-              ),
               encryptedSeedlessEncryptionKey: bytesToBase64(
                 initialEncryptedSeedlessEncryptionKey,
               ),
