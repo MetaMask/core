@@ -9,9 +9,9 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type {
-  AccountTreeGroup,
-  AccountTreeWallet,
+  AccountGroupObject,
   AccountTreeWalletEntropyOptions,
+  AccountWalletObject,
 } from '..';
 import type { AccountTreeRuleResult } from '../AccountTreeRule';
 import { AccountTreeRule } from '../AccountTreeRule';
@@ -44,10 +44,11 @@ export class EntropyRule extends AccountTreeRule {
     const walletId = toMultichainAccountWalletId(account.options.entropy.id);
     const wallet: AccountTreeRuleResult['wallet'] = {
       id: walletId,
-      options: {
+      metadata: {
         type: AccountWalletCategory.Entropy,
         entropy: {
           id: entropySource,
+          // QUESTION: Should we re-compute the index everytime instead?
           index: entropySourceIndex,
         },
       },
@@ -63,17 +64,17 @@ export class EntropyRule extends AccountTreeRule {
     };
   }
 
-  getDefaultAccountWalletName(wallet: AccountTreeWallet): string {
+  getDefaultAccountWalletName(wallet: AccountWalletObject): string {
     // Precondition: We assume the AccountTreeController will always use
     // the proper wallet instance.
-    const options = wallet.options as AccountTreeWalletEntropyOptions;
+    const options = wallet.metadata as AccountTreeWalletEntropyOptions;
 
     return `Wallet ${options.entropy.index + 1}`; // Use human indexing (starts at 1).
   }
 
-  getDefaultAccountGroupName(group: AccountTreeGroup): string {
+  getDefaultAccountGroupName(group: AccountGroupObject): string {
     // EVM account name has a highest priority.
-    const accounts = group.getAccounts();
+    const accounts = this.getAccountsFrom(group);
     const evmAccount = accounts.find((account) =>
       isEvmAccountType(account.type),
     );

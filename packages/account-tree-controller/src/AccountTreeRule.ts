@@ -2,13 +2,17 @@ import type { AccountWalletCategory } from '@metamask/account-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { AccountTreeGroup, AccountTreeWallet } from '.';
-import type { AccountTreeWalletOptions } from './AccountTreeWallet';
-import type { AccountTreeControllerMessenger } from './types';
+import type {
+  AccountGroupObject,
+  AccountTreeControllerMessenger,
+  AccountWalletCategoryMetadata,
+  AccountWalletObject,
+} from './types';
 
 export type AccountTreeRuleResult = {
   wallet: {
     id: AccountTreeWallet['id'];
-    options: AccountTreeWalletOptions;
+    metadata: AccountWalletCategoryMetadata;
   };
   group: {
     id: AccountTreeGroup['id'];
@@ -47,7 +51,7 @@ export abstract class AccountTreeRule {
    * @param context - Rule context.
    * @returns The default name for that wallet.
    */
-  abstract getDefaultAccountWalletName(wallet: AccountTreeWallet): string;
+  abstract getDefaultAccountWalletName(wallet: AccountWalletObject): string;
 
   /**
    * Gets default name for a group.
@@ -56,5 +60,31 @@ export abstract class AccountTreeRule {
    * @param context - Rule context.
    * @returns The default name for that group.
    */
-  abstract getDefaultAccountGroupName(group: AccountTreeGroup): string;
+  abstract getDefaultAccountGroupName(group: AccountGroupObject): string;
+
+  #getAccount(id: string): InternalAccount {
+    const account = this.messenger.call('AccountsController:getAccount', id);
+
+    if (!account) {
+      throw new Error(`Unable to get account with ID: "${id}"`);
+    }
+    return account;
+  }
+
+  getAccountsFrom(group: AccountGroupObject): InternalAccount[] {
+    return group.accounts.map((id) => this.#getAccount(id));
+  }
+
+  getOnlyAccountFrom(group: AccountGroupObject): InternalAccount {
+    const accountIds = group.accounts;
+
+    if (accountIds.length === 0) {
+      throw new Error('Group contains no account');
+    }
+    if (accountIds.length > 1) {
+      throw new Error('Group contains more than 1 account');
+    }
+
+    return this.#getAccount(accountIds[0]);
+  }
 }

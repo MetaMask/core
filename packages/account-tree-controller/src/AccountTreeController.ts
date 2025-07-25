@@ -4,7 +4,6 @@ import type { AccountId } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type { AccountTreeGroup } from 'src';
 
 import type { AccountTreeRule } from './AccountTreeRule';
 import { AccountTreeWallet } from './AccountTreeWallet';
@@ -12,8 +11,10 @@ import { EntropyRule } from './rules/entropy';
 import { KeyringRule } from './rules/keyring';
 import { SnapRule } from './rules/snap';
 import type {
+  AccountGroupObject,
   AccountTreeControllerMessenger,
   AccountTreeControllerState,
+  AccountWalletObject,
 } from './types';
 
 export const controllerName = 'AccountTreeController';
@@ -65,8 +66,6 @@ export class AccountTreeController extends BaseController<
 
   readonly #categoryToRule: Record<AccountWalletCategory, AccountTreeRule>;
 
-  readonly #wallets: Map<AccountWalletId, AccountTreeWallet>;
-
   /**
    * Constructor for AccountTreeController.
    *
@@ -90,7 +89,6 @@ export class AccountTreeController extends BaseController<
         ...state,
       },
     });
-    this.#wallets = new Map();
 
     // Reverse map to allow fast node access from an account ID.
     this.#accountIdToContext = new Map();
@@ -134,15 +132,11 @@ export class AccountTreeController extends BaseController<
     }
 
     // Once we have the account tree, we can compute the name.
-    for (const wallet of this.#wallets.values()) {
-      if (wallet.name === '') {
-        this.#renameAccountWallet(wallet);
-      }
+    for (const wallet of Object.values(wallets)) {
+      this.#renameAccountWalletIfNeeded(wallet);
 
-      for (const group of wallet.getAccountGroups()) {
-        if (group.name === '') {
-          this.#renameAccountGroup(group);
-        }
+      for (const group of Object.values(wallet.groups)) {
+        this.#renameAccountGroupIfNeeded(wallet, group);
       }
     }
 
@@ -151,62 +145,59 @@ export class AccountTreeController extends BaseController<
     });
   }
 
-  #renameAccountWallet(wallet: AccountTreeWallet) {
+  #renameAccountWalletIfNeeded(wallet: AccountWalletObject) {
+    if (wallet.metadata.name) {
+      return;
+    }
+
     const rule = this.#categoryToRule[wallet.category];
-    wallet.object.metadata.name = rule.getDefaultAccountWalletName(wallet);
+    wallet.metadata.name = rule.getDefaultAccountWalletName(wallet);
   }
 
-  #renameAccountGroup(group: AccountTreeGroup) {
-    const rule = this.#categoryToRule[group.wallet.category];
-    group.object.metadata.name = rule.getDefaultAccountGroupName(group);
-  }
-
-  getAccountWalletAndGroup(id: AccountId): {
-    wallet: AccountTreeWallet;
-    group: AccountTreeGroup;
-  } {
-    const context = this.#accountIdToContext.get(id);
-    if (!context) {
-      throw new Error('Unable to get account context');
+  #renameAccountGroupIfNeeded(
+    wallet: AccountWalletObject,
+    group: AccountGroupObject,
+  ) {
+    if (group.metadata.name) {
+      return;
     }
 
-    const { walletId, groupId } = context;
-
-    const wallet = this.getAccountWalletOrThrow(walletId);
-    const group = wallet.getAccountGroupOrThrow(groupId);
-
-    return { wallet, group };
+    const rule = this.#categoryToRule[wallet.category];
+    group.metadata.name = rule.getDefaultAccountGroupName(group);
   }
 
-  getAccountWallet(id: AccountWalletId): AccountTreeWallet | undefined {
-    return this.#wallets.get(id);
-  }
-
-  getAccountWalletOrThrow(id: AccountWalletId): AccountTreeWallet {
-    const wallet = this.getAccountWallet(id);
+  getAccountWallet(walletId: AccountWalletId): AccountTreeWallet | undefined {
+    const wallet = this.state.accountTree.wallets[walletId];
     if (!wallet) {
-      throw new Error('Unable to get account wallet');
+      return undefined;
     }
 
-    return wallet;
+    return new AccountTreeWallet({ messenger: this.messagingSystem, wallet });
   }
 
   getAccountWallets(): AccountTreeWallet[] {
-    return Array.from(this.#wallets.values());
+    return Object.values(this.state.accountTree.wallets).map((wallet) => {
+      return new AccountTreeWallet({ messenger: this.messagingSystem, wallet });
+    });
   }
 
   #handleAccountAdded(account: InternalAccount) {
     this.update((state) => {
       this.#insert(state.accountTree.wallets, account);
 
-      // Even if this method can throw, it
-      const { wallet, group } = this.getAccountWalletAndGroup(account.id);
-      if (wallet.name === '') {
-        this.#renameAccountWallet(wallet);
-      }
+      const context = this.#accountIdToContext.get(account.id);
+      if (context) {
+        const { walletId, groupId } = context;
 
-      if (group.name === '') {
-        this.#renameAccountGroup(group);
+        const wallet = state.accountTree.wallets[walletId];
+        if (wallet) {
+          this.#renameAccountWalletIfNeeded(wallet);
+
+          const group = wallet.groups[groupId];
+          if (group) {
+            this.#renameAccountGroupIfNeeded(wallet, group);
+          }
+        }
       }
     });
   }
@@ -242,7 +233,6 @@ export class AccountTreeController extends BaseController<
 
       // Update controller's state.
       const walletId = result.wallet.id;
-      const walletOptions = result.wallet.options;
       let wallet = wallets[walletId];
       if (!wallet) {
         wallets[walletId] = {
@@ -251,6 +241,7 @@ export class AccountTreeController extends BaseController<
           groups: {},
           metadata: {
             name: '', // Will get updated later.
+            ...result.wallet.metadata,
           },
         };
         wallet = wallets[walletId];
@@ -270,16 +261,6 @@ export class AccountTreeController extends BaseController<
       }
 
       group.accounts.push(account.id);
-
-      // Update in-memory wallet/group instances.
-      this.#wallets.set(
-        wallet.id,
-        new AccountTreeWallet({
-          messenger: this.messagingSystem,
-          wallet,
-          options: walletOptions,
-        }),
-      );
 
       // Update the reverse mapping for this account.
       this.#accountIdToContext.set(account.id, {

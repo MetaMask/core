@@ -12,14 +12,58 @@ import {
   type ControllerStateChangeEvent,
   type RestrictedMessenger,
 } from '@metamask/base-controller';
-import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
+import type { EntropySourceId } from '@metamask/keyring-api';
+import type {
+  KeyringControllerGetStateAction,
+  KeyringTypes,
+} from '@metamask/keyring-controller';
 import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
+import type { SnapId } from '@metamask/snaps-sdk';
 
 import type { controllerName } from './AccountTreeController';
 
+/**
+ * Account wallet metadata for the "entropy" wallet category.
+ */
+export type AccountWalletEntropyMetadata = {
+  type: AccountWalletCategory.Entropy;
+  entropy: {
+    id: EntropySourceId;
+    index: number;
+  };
+};
+
+/**
+ * Account wallet metadata for the "snap" wallet category.
+ */
+export type AccountWalletSnapMetadata = {
+  type: AccountWalletCategory.Snap;
+  snap: {
+    id: SnapId;
+  };
+};
+
+/**
+ * Account wallet metadata for the "keyring" wallet category.
+ */
+export type AccountWalletKeyringMetadata = {
+  type: AccountWalletCategory.Keyring;
+  keyring: {
+    type: KeyringTypes;
+  };
+};
+
+/**
+ * Account wallet metadata for the "keyring" wallet category.
+ */
+export type AccountWalletCategoryMetadata =
+  | AccountWalletEntropyMetadata
+  | AccountWalletSnapMetadata
+  | AccountWalletKeyringMetadata;
+
 export type AccountWalletMetadata = {
   name: string;
-};
+} & AccountWalletCategoryMetadata;
 
 export type AccountGroupMetadata = {
   name: string;

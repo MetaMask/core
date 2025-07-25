@@ -7,11 +7,11 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { stripSnapPrefix } from '@metamask/snaps-utils';
-import type { AccountTreeGroup } from 'src/AccountTreeGroup';
 import type {
-  AccountTreeWallet,
-  AccountTreeWalletSnapOptions,
-} from 'src/AccountTreeWallet';
+  AccountGroupObject,
+  AccountWalletObject,
+  AccountWalletSnapMetadata,
+} from 'src/types';
 
 import type { AccountTreeRuleResult } from '../AccountTreeRule';
 import { AccountTreeRule } from '../AccountTreeRule';
@@ -46,7 +46,7 @@ export class SnapRule extends AccountTreeRule {
 
     const wallet: AccountTreeRuleResult['wallet'] = {
       id: toAccountWalletId(this.category, snapId),
-      options: {
+      metadata: {
         type: AccountWalletCategory.Snap,
         snap: {
           id: snapId,
@@ -64,23 +64,23 @@ export class SnapRule extends AccountTreeRule {
     };
   }
 
-  getDefaultAccountWalletName(wallet: AccountTreeWallet): string {
+  getDefaultAccountWalletName(wallet: AccountWalletObject): string {
     // Precondition: We assume the AccountTreeController will always use
     // the proper wallet instance.
-    const options = wallet.options as AccountTreeWalletSnapOptions;
+    const metadata = wallet.metadata as AccountWalletSnapMetadata;
 
-    const snap = this.messenger.call('SnapController:get', options.snap.id);
+    const snap = this.messenger.call('SnapController:get', metadata.snap.id);
     const snapName = snap
       ? // TODO: Handle localization here, but that's a "client thing", so we don't have a `core` controller
         // to refer to.
         snap.manifest.proposedName
-      : stripSnapPrefix(options.snap.id);
+      : stripSnapPrefix(metadata.snap.id);
 
     return snapName;
   }
 
-  getDefaultAccountGroupName(group: AccountTreeGroup): string {
+  getDefaultAccountGroupName(group: AccountGroupObject): string {
     // Precondition: This account group should contain only 1 account.
-    return group.getOnlyAccount().metadata.name;
+    return this.getOnlyAccountFrom(group).metadata.name;
   }
 }

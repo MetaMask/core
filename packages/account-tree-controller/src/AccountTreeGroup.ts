@@ -45,15 +45,6 @@ export class AccountTreeGroup implements AccountGroup<InternalAccount> {
     return this.#group.metadata.name;
   }
 
-  /**
-   * Returns a reference to the state object.
-   *
-   * @returns A reference to the wallet state object.
-   */
-  get object(): AccountGroupObject {
-    return this.#group;
-  }
-
   getAccountIds(): InternalAccount['id'][] {
     return this.#group.accounts;
   }

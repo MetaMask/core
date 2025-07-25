@@ -27,6 +27,7 @@ import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controlle
 import { AccountTreeController } from './AccountTreeController';
 import { AccountTreeGroup } from './AccountTreeGroup';
 import { AccountTreeWallet } from './AccountTreeWallet';
+import { EntropyRule } from './rules/entropy';
 import { getAccountWalletNameFromKeyringType } from './rules/keyring';
 import {
   type AccountTreeControllerMessenger,
@@ -336,7 +337,7 @@ describe('AccountTreeController', () => {
         'SnapController:get',
         () =>
           // TODO: Update this to avoid the unknown cast if possible.
-          MOCK_SNAP_1 as unknown as ReturnType<
+          MOCK_SNAP_2 as unknown as ReturnType<
             SnapControllerGetSnap['handler']
           >,
       );
@@ -390,7 +391,14 @@ describe('AccountTreeController', () => {
                   },
                 },
               },
-              metadata: { name: 'Wallet 1' },
+              metadata: {
+                name: 'Wallet 1',
+                type: AccountWalletCategory.Entropy,
+                entropy: {
+                  id: MOCK_HD_KEYRING_1.metadata.id,
+                  index: 0,
+                },
+              },
             },
             [expectedWalletId2]: {
               category: AccountWalletCategory.Entropy,
@@ -411,7 +419,14 @@ describe('AccountTreeController', () => {
                   },
                 },
               },
-              metadata: { name: 'Wallet 2' },
+              metadata: {
+                name: 'Wallet 2',
+                type: AccountWalletCategory.Entropy,
+                entropy: {
+                  id: MOCK_HD_KEYRING_2.metadata.id,
+                  index: 1,
+                },
+              },
             },
             [expectedSnapWalletId]: {
               category: AccountWalletCategory.Snap,
@@ -425,7 +440,13 @@ describe('AccountTreeController', () => {
                   },
                 },
               },
-              metadata: { name: MOCK_SNAP_1.manifest.proposedName },
+              metadata: {
+                name: MOCK_SNAP_2.manifest.proposedName,
+                type: AccountWalletCategory.Snap,
+                snap: {
+                  id: MOCK_SNAP_2.id,
+                },
+              },
             },
             [expectedKeyringWalletId]: {
               category: AccountWalletCategory.Keyring,
@@ -443,6 +464,10 @@ describe('AccountTreeController', () => {
                 name: getAccountWalletNameFromKeyringType(
                   MOCK_HARDWARE_ACCOUNT_1.metadata.keyring.type as KeyringTypes,
                 ),
+                type: AccountWalletCategory.Keyring,
+                keyring: {
+                  type: KeyringTypes.ledger,
+                },
               },
             },
           },
@@ -560,34 +585,6 @@ describe('AccountTreeController', () => {
     });
   });
 
-  describe('getAccountWalletAndGroup', () => {
-    it('gets the associated wallet and group for a given account', () => {
-      const { controller } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
-        keyrings: [],
-      });
-
-      controller.init();
-
-      expect(() =>
-        controller.getAccountWalletAndGroup(MOCK_HD_ACCOUNT_1.id),
-      ).not.toThrow();
-    });
-
-    it('throws if it cannot get associated wallet and group for a given account', () => {
-      const { controller } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1],
-        keyrings: [],
-      });
-
-      controller.init();
-
-      expect(() =>
-        controller.getAccountWalletAndGroup(MOCK_HD_ACCOUNT_2.id),
-      ).toThrow('Unable to get account context');
-    });
-  });
-
   describe('on AccountsController:accountRemoved', () => {
     it('removes an account from the tree', () => {
       // 2 accounts that share the same entropy source (thus, same wallet).
@@ -644,7 +641,14 @@ describe('AccountTreeController', () => {
                   accounts: [mockHdAccount2.id], // HD account 1 got removed.
                 },
               },
-              metadata: { name: 'Wallet 1' },
+              metadata: {
+                name: 'Wallet 1',
+                type: AccountWalletCategory.Entropy,
+                entropy: {
+                  id: MOCK_HD_KEYRING_1.metadata.id,
+                  index: 0,
+                },
+              },
             },
           },
         },
@@ -708,7 +712,14 @@ describe('AccountTreeController', () => {
                   accounts: [mockHdAccount1.id, mockHdAccount2.id], // HD account 2 got added.
                 },
               },
-              metadata: { name: 'Wallet 1' },
+              metadata: {
+                name: 'Wallet 1',
+                type: AccountWalletCategory.Entropy,
+                entropy: {
+                  id: MOCK_HD_KEYRING_1.metadata.id,
+                  index: 0,
+                },
+              },
             },
           },
         },
@@ -779,7 +790,14 @@ describe('AccountTreeController', () => {
                   accounts: [mockHdAccount1.id],
                 },
               },
-              metadata: { name: 'Wallet 1' },
+              metadata: {
+                name: 'Wallet 1',
+                type: AccountWalletCategory.Entropy,
+                entropy: {
+                  id: MOCK_HD_KEYRING_1.metadata.id,
+                  index: 0,
+                },
+              },
             },
             [walletId2]: {
               // New wallet automatically added.
@@ -792,7 +810,14 @@ describe('AccountTreeController', () => {
                   accounts: [mockHdAccount2.id],
                 },
               },
-              metadata: { name: 'Wallet 2' },
+              metadata: {
+                name: 'Wallet 2',
+                type: AccountWalletCategory.Entropy,
+                entropy: {
+                  id: MOCK_HD_KEYRING_2.metadata.id,
+                  index: 1,
+                },
+              },
             },
           },
         },
@@ -814,11 +839,9 @@ describe('AccountTreeController', () => {
       );
       const wallet = controller.getAccountWallet(walletId);
       expect(wallet).toBeDefined();
-
-      expect(() => controller.getAccountWalletOrThrow(walletId)).not.toThrow();
     });
 
-    it('gets undefined is wallet ID is not matching any wallet', () => {
+    it('gets undefined is wallet ID if not matching any wallet', () => {
       const { controller } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
         keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
@@ -829,10 +852,6 @@ describe('AccountTreeController', () => {
 
       const wallet = controller.getAccountWallet(badGroupId);
       expect(wallet).toBeUndefined();
-
-      expect(() => controller.getAccountWalletOrThrow(badGroupId)).toThrow(
-        'Unable to get account wallet',
-      );
     });
   });
 
@@ -863,6 +882,7 @@ describe('AccountTreeController', () => {
       const wallet = wallets[0];
       expect(wallet.id).toBeDefined();
       expect(wallet.name).toBeDefined();
+      expect(wallet.category).toBeDefined();
 
       const groups = wallet.getAccountGroups();
       expect(groups).toHaveLength(1);
@@ -962,6 +982,48 @@ describe('AccountTreeController', () => {
       );
     });
 
+    it('gets the only account from a group', () => {
+      const rootMessenger = getRootMessenger();
+      const messenger = getAccountTreeControllerMessenger(rootMessenger);
+
+      const account = MOCK_HD_ACCOUNT_1;
+      const wallet = new AccountTreeWallet({
+        messenger,
+        wallet: {
+          id: toAccountWalletId(
+            AccountWalletCategory.Keyring,
+            KeyringTypes.simple,
+          ),
+          category: AccountWalletCategory.Keyring,
+          groups: {},
+          metadata: {
+            name: '',
+            type: AccountWalletCategory.Keyring,
+            keyring: {
+              type: KeyringTypes.simple,
+            },
+          },
+        },
+      });
+      const group = new AccountTreeGroup({
+        messenger,
+        wallet,
+        group: {
+          id: toAccountGroupId(wallet.id, 'bad'),
+          accounts: [account.id],
+          metadata: {
+            name: '',
+          },
+        },
+      });
+
+      rootMessenger.registerActionHandler(
+        'AccountsController:getAccount',
+        () => account,
+      );
+      expect(group.getOnlyAccount()).toBe(account);
+    });
+
     it('throws if the group has no account', () => {
       const messenger = getAccountTreeControllerMessenger();
 
@@ -976,12 +1038,10 @@ describe('AccountTreeController', () => {
           groups: {},
           metadata: {
             name: '',
-          },
-        },
-        options: {
-          type: AccountWalletCategory.Keyring,
-          keyring: {
-            type: KeyringTypes.hd,
+            type: AccountWalletCategory.Keyring,
+            keyring: {
+              type: KeyringTypes.simple,
+            },
           },
         },
       });
@@ -1014,12 +1074,10 @@ describe('AccountTreeController', () => {
           groups: {},
           metadata: {
             name: '',
-          },
-        },
-        options: {
-          type: AccountWalletCategory.Keyring,
-          keyring: {
-            type: KeyringTypes.hd,
+            type: AccountWalletCategory.Keyring,
+            keyring: {
+              type: KeyringTypes.simple,
+            },
           },
         },
       });
@@ -1028,7 +1086,7 @@ describe('AccountTreeController', () => {
         wallet,
         group: {
           id: toAccountGroupId(wallet.id, 'bad'),
-          accounts: ['mock-id-1', 'mock-id-2'],
+          accounts: [MOCK_HD_ACCOUNT_1.id, MOCK_HD_ACCOUNT_2.id],
           metadata: {
             name: '',
           },
@@ -1039,5 +1097,75 @@ describe('AccountTreeController', () => {
         'Group contains more than 1 account',
       );
     });
+  });
+});
+
+describe('AccountTreeRule', () => {
+  const account = MOCK_HD_ACCOUNT_1;
+  const group = {
+    id: toAccountGroupId(
+      toAccountWalletId(AccountWalletCategory.Entropy, 'test'),
+      'test',
+    ),
+    accounts: [account.id],
+    metadata: {
+      name: '',
+    },
+  };
+
+  const setupRule = () => {
+    const messenger = getRootMessenger();
+
+    return {
+      rule: new EntropyRule(getAccountTreeControllerMessenger(messenger)),
+      messenger,
+    };
+  };
+
+  it('gets accounts from a group', () => {
+    const { messenger, rule } = setupRule();
+
+    messenger.registerActionHandler(
+      'AccountsController:getAccount',
+      () => MOCK_HD_ACCOUNT_1,
+    );
+
+    expect(rule.getOnlyAccountFrom(group)).toStrictEqual(MOCK_HD_ACCOUNT_1);
+    expect(rule.getAccountsFrom(group)).toStrictEqual([MOCK_HD_ACCOUNT_1]);
+  });
+
+  it('throws if it cannot get account', () => {
+    const { messenger, rule } = setupRule();
+
+    messenger.registerActionHandler(
+      'AccountsController:getAccount',
+      () => undefined,
+    );
+
+    expect(() => rule.getOnlyAccountFrom(group)).toThrow(
+      `Unable to get account with ID: "${account.id}"`,
+    );
+  });
+
+  it('throws if there is not enough account', () => {
+    const { rule } = setupRule();
+
+    expect(() =>
+      rule.getOnlyAccountFrom({
+        ...group,
+        accounts: [],
+      }),
+    ).toThrow('Group contains no account');
+  });
+
+  it('throws if there is too many accounts', () => {
+    const { rule } = setupRule();
+
+    expect(() =>
+      rule.getOnlyAccountFrom({
+        ...group,
+        accounts: [MOCK_HD_ACCOUNT_1.id, MOCK_HD_ACCOUNT_2.id],
+      }),
+    ).toThrow('Group contains more than 1 account');
   });
 });

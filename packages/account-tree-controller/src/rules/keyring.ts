@@ -5,12 +5,12 @@ import {
 } from '@metamask/account-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-
 import type {
-  AccountTreeGroup,
-  AccountTreeWallet,
-  AccountTreeWalletKeyringOptions,
-} from '..';
+  AccountGroupObject,
+  AccountWalletKeyringMetadata,
+} from 'src/types';
+
+import type { AccountWalletObject } from '..';
 import type { AccountTreeRuleResult } from '../AccountTreeRule';
 import { AccountTreeRule } from '../AccountTreeRule';
 
@@ -64,7 +64,7 @@ export class KeyringRule extends AccountTreeRule {
 
     const wallet: AccountTreeRuleResult['wallet'] = {
       id: toAccountWalletId(this.category, type),
-      options: {
+      metadata: {
         type: AccountWalletCategory.Keyring,
         keyring: {
           type,
@@ -83,16 +83,16 @@ export class KeyringRule extends AccountTreeRule {
     };
   }
 
-  getDefaultAccountWalletName(wallet: AccountTreeWallet): string {
+  getDefaultAccountWalletName(wallet: AccountWalletObject): string {
     // Precondition: We assume the AccountTreeController will always use
     // the proper wallet instance.
-    const options = wallet.options as AccountTreeWalletKeyringOptions;
+    const metadata = wallet.metadata as AccountWalletKeyringMetadata;
 
-    return getAccountWalletNameFromKeyringType(options.keyring.type);
+    return getAccountWalletNameFromKeyringType(metadata.keyring.type);
   }
 
-  getDefaultAccountGroupName(group: AccountTreeGroup): string {
+  getDefaultAccountGroupName(group: AccountGroupObject): string {
     // Precondition: This account group should contain only 1 account.
-    return group.getOnlyAccount().metadata.name;
+    return this.getOnlyAccountFrom(group).metadata.name;
   }
 }
