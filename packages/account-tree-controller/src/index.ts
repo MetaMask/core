@@ -2,6 +2,8 @@ export type {
   AccountTreeControllerState,
   AccountTreeControllerGetStateAction,
   AccountTreeControllerActions,
+  AccountTreeControllerSetSelectedAccountGroupAction,
+  AccountTreeControllerGetSelectedAccountGroupAction,
   AccountTreeControllerStateChangeEvent,
   AccountTreeControllerEvents,
   AccountTreeControllerMessenger,

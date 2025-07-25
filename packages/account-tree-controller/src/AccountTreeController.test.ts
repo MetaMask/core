@@ -2,6 +2,7 @@ import {
   AccountWalletCategory,
   toAccountWalletId,
   toDefaultAccountGroupId,
+  type AccountGroupId,
 } from '@metamask/account-api';
 import { Messenger } from '@metamask/base-controller';
 import {
@@ -28,6 +29,23 @@ import {
 } from './AccountTreeController';
 import { DEFAULT_ACCOUNT_GROUP_NAME } from './AccountTreeGroup';
 import { getAccountWalletNameFromKeyringType } from './rules/KeyringWalletRule';
+
+// Local mock of EMPTY_ACCOUNT to avoid circular dependency
+const EMPTY_ACCOUNT_MOCK: InternalAccount = {
+  id: '',
+  address: '',
+  options: {},
+  methods: [],
+  type: EthAccountType.Eoa,
+  scopes: [EthScope.Eoa],
+  metadata: {
+    name: '',
+    keyring: {
+      type: '',
+    },
+    importTime: 0,
+  },
+};
 
 const ETH_EOA_METHODS = [
   EthMethod.PersonalSign,
@@ -173,10 +191,13 @@ function getAccountTreeControllerMessenger(
     allowedEvents: [
       'AccountsController:accountAdded',
       'AccountsController:accountRemoved',
+      'AccountsController:selectedAccountChange',
     ],
     allowedActions: [
       'AccountsController:listMultichainAccounts',
       'AccountsController:getAccount',
+      'AccountsController:getSelectedAccount',
+      'AccountsController:setSelectedAccount',
       'KeyringController:getState',
       'SnapController:get',
     ],
@@ -225,6 +246,20 @@ function setup({
     messenger.registerActionHandler(
       'AccountsController:listMultichainAccounts',
       () => accounts,
+    );
+  }
+
+  if (accounts) {
+    // Mock AccountsController:getSelectedAccount to return the first account
+    messenger.registerActionHandler(
+      'AccountsController:getSelectedAccount',
+      () => accounts[0] || MOCK_HD_ACCOUNT_1,
+    );
+
+    // Mock AccountsController:setSelectedAccount
+    messenger.registerActionHandler(
+      'AccountsController:setSelectedAccount',
+      jest.fn(),
     );
   }
 
@@ -348,6 +383,7 @@ describe('AccountTreeController', () => {
               },
             },
           },
+          selectedAccountGroup: expect.any(String), // Will be set to some group after init
         },
       } as AccountTreeControllerState);
     });
@@ -518,6 +554,7 @@ describe('AccountTreeController', () => {
               metadata: { name: 'Wallet 1' },
             },
           },
+          selectedAccountGroup: expect.any(String), // Will be set after init
         },
       } as AccountTreeControllerState);
     });
@@ -569,6 +606,7 @@ describe('AccountTreeController', () => {
               metadata: { name: 'Wallet 1' },
             },
           },
+          selectedAccountGroup: expect.any(String), // Will be set after init
         },
       } as AccountTreeControllerState);
     });
@@ -704,6 +742,360 @@ describe('AccountTreeController', () => {
         `! Unable to get account: "${accountIds[0]}"`,
       );
       expect(accounts).toHaveLength(0); // None account could be resolved.
+    });
+  });
+
+  describe('selectedAccountGroup bidirectional synchronization', () => {
+    it('initializes selectedAccountGroup based on currently selected account', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+
+      expect(controller.getSelectedAccountGroup()).not.toBe('');
+    });
+
+    it('updates selectedAccountGroup when AccountsController selected account changes', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+      const initialGroup = controller.getSelectedAccountGroup();
+
+      messenger.publish(
+        'AccountsController:selectedAccountChange',
+        MOCK_HD_ACCOUNT_2,
+      );
+
+      const newGroup = controller.getSelectedAccountGroup();
+      expect(newGroup).not.toBe(initialGroup);
+    });
+
+    it('updates AccountsController selected account when selectedAccountGroup changes', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      const setSelectedAccountSpy = jest.spyOn(messenger, 'call');
+
+      controller.init();
+
+      const expectedWalletId2 = toAccountWalletId(
+        AccountWalletCategory.Entropy,
+        MOCK_HD_KEYRING_2.metadata.id,
+      );
+      const expectedGroupId2 = toDefaultAccountGroupId(expectedWalletId2);
+
+      controller.setSelectedAccountGroup(expectedGroupId2);
+
+      expect(setSelectedAccountSpy).toHaveBeenCalledWith(
+        'AccountsController:setSelectedAccount',
+        expect.any(String),
+      );
+    });
+
+    it('is idempotent - setting same selectedAccountGroup should not trigger AccountsController update', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      const setSelectedAccountSpy = jest.spyOn(messenger, 'call');
+
+      controller.init();
+
+      const expectedWalletId = toAccountWalletId(
+        AccountWalletCategory.Entropy,
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const expectedGroupId = toDefaultAccountGroupId(expectedWalletId);
+
+      expect(controller.getSelectedAccountGroup()).toBe(expectedGroupId);
+
+      setSelectedAccountSpy.mockClear();
+
+      const initialState = { ...controller.state };
+
+      controller.setSelectedAccountGroup(expectedGroupId);
+
+      expect(setSelectedAccountSpy).not.toHaveBeenCalledWith(
+        'AccountsController:setSelectedAccount',
+        expect.any(String),
+      );
+
+      expect(controller.state).toStrictEqual(initialState);
+      expect(controller.getSelectedAccountGroup()).toBe(expectedGroupId);
+    });
+
+    it('is idempotent - receiving selectedAccountChange for account in same group should not update state', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+
+      const expectedWalletId1 = toAccountWalletId(
+        AccountWalletCategory.Entropy,
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const expectedGroupId1 = toDefaultAccountGroupId(expectedWalletId1);
+
+      controller.setSelectedAccountGroup(expectedGroupId1);
+
+      const initialState = { ...controller.state };
+
+      messenger.publish(
+        'AccountsController:selectedAccountChange',
+        MOCK_HD_ACCOUNT_1,
+      );
+
+      expect(controller.state).toStrictEqual(initialState);
+      expect(controller.getSelectedAccountGroup()).toBe(expectedGroupId1);
+    });
+
+    it('throws error when trying to select non-existent group', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      expect(() => {
+        controller.setSelectedAccountGroup(
+          'non-existent-group-id' as AccountGroupId,
+        );
+      }).toThrow('No accounts found in group: non-existent-group-id');
+    });
+
+    it('handles AccountsController selectedAccountChange for account not in tree gracefully', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+      const initialGroup = controller.getSelectedAccountGroup();
+
+      const unknownAccount: InternalAccount = {
+        ...MOCK_HD_ACCOUNT_2,
+        id: 'unknown-account-id',
+      };
+
+      messenger.publish(
+        'AccountsController:selectedAccountChange',
+        unknownAccount,
+      );
+
+      expect(controller.getSelectedAccountGroup()).toBe(initialGroup);
+    });
+
+    it('falls back to first wallet first group when AccountsController returns EMPTY_ACCOUNT', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      // Unregister existing handler and register new one BEFORE init
+      messenger.unregisterActionHandler(
+        'AccountsController:getSelectedAccount',
+      );
+      messenger.registerActionHandler(
+        'AccountsController:getSelectedAccount',
+        () => EMPTY_ACCOUNT_MOCK,
+      );
+
+      controller.init();
+
+      // Should fall back to first wallet's first group
+      const expectedWalletId1 = toAccountWalletId(
+        AccountWalletCategory.Entropy,
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const expectedGroupId1 = toDefaultAccountGroupId(expectedWalletId1);
+
+      expect(controller.getSelectedAccountGroup()).toBe(expectedGroupId1);
+    });
+
+    it('falls back to first wallet first group when selected account is not in tree', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      // Mock getSelectedAccount to return an account not in the tree BEFORE init
+      const unknownAccount: InternalAccount = {
+        ...MOCK_HD_ACCOUNT_1,
+        id: 'unknown-account-id',
+      };
+
+      messenger.unregisterActionHandler(
+        'AccountsController:getSelectedAccount',
+      );
+      messenger.registerActionHandler(
+        'AccountsController:getSelectedAccount',
+        () => unknownAccount,
+      );
+
+      controller.init();
+
+      // Should fall back to first wallet's first group
+      const expectedWalletId1 = toAccountWalletId(
+        AccountWalletCategory.Entropy,
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const expectedGroupId1 = toDefaultAccountGroupId(expectedWalletId1);
+
+      expect(controller.getSelectedAccountGroup()).toBe(expectedGroupId1);
+    });
+
+    it('returns empty string when no wallets exist and getSelectedAccount returns EMPTY_ACCOUNT', () => {
+      const { controller, messenger } = setup({
+        accounts: [],
+        keyrings: [],
+      });
+
+      // Mock getSelectedAccount to return EMPTY_ACCOUNT_MOCK (id is '') BEFORE init
+      messenger.unregisterActionHandler(
+        'AccountsController:getSelectedAccount',
+      );
+      messenger.registerActionHandler(
+        'AccountsController:getSelectedAccount',
+        () => EMPTY_ACCOUNT_MOCK,
+      );
+
+      controller.init();
+
+      // Should return empty string when no wallets exist
+      expect(controller.getSelectedAccountGroup()).toBe('');
+    });
+  });
+
+  describe('account removal and memory management', () => {
+    it('cleans up reverse mapping and does not change selectedAccountGroup when removing from non-selected group', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+
+      // Select the first group explicitly
+      const expectedWalletId1 = toAccountWalletId(
+        AccountWalletCategory.Entropy,
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const expectedGroupId1 = toDefaultAccountGroupId(expectedWalletId1);
+      controller.setSelectedAccountGroup(expectedGroupId1);
+
+      const initialSelectedGroup = controller.getSelectedAccountGroup();
+
+      // Remove account from the second group (not selected) - tests false branch and reverse cleanup
+      messenger.publish(
+        'AccountsController:accountRemoved',
+        MOCK_HD_ACCOUNT_2.id,
+      );
+
+      // selectedAccountGroup should remain unchanged (tests false branch of if condition)
+      expect(controller.getSelectedAccountGroup()).toBe(initialSelectedGroup);
+
+      // Test that subsequent selectedAccountChange for removed account is handled gracefully (indirect test of reverse cleanup)
+      messenger.publish(
+        'AccountsController:selectedAccountChange',
+        MOCK_HD_ACCOUNT_2,
+      );
+      expect(controller.getSelectedAccountGroup()).toBe(initialSelectedGroup);
+    });
+
+    it('updates selectedAccountGroup when last account in selected group is removed and other groups exist', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+
+      // Select the first group
+      const expectedWalletId1 = toAccountWalletId(
+        AccountWalletCategory.Entropy,
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const expectedGroupId1 = toDefaultAccountGroupId(expectedWalletId1);
+      controller.setSelectedAccountGroup(expectedGroupId1);
+
+      const expectedWalletId2 = toAccountWalletId(
+        AccountWalletCategory.Entropy,
+        MOCK_HD_KEYRING_2.metadata.id,
+      );
+      const expectedGroupId2 = toDefaultAccountGroupId(expectedWalletId2);
+
+      // Remove the account from the selected group - tests true branch and findFirstNonEmptyGroup finding a group
+      messenger.publish(
+        'AccountsController:accountRemoved',
+        MOCK_HD_ACCOUNT_1.id,
+      );
+
+      // Should automatically switch to the remaining group (tests findFirstNonEmptyGroup returning a group)
+      expect(controller.getSelectedAccountGroup()).toBe(expectedGroupId2);
+    });
+
+    it('sets selectedAccountGroup to empty when no non-empty groups exist', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      // Remove the only account - tests findFirstNonEmptyGroup returning empty string
+      messenger.publish(
+        'AccountsController:accountRemoved',
+        MOCK_HD_ACCOUNT_1.id,
+      );
+
+      // Should fall back to empty string when no groups have accounts
+      expect(controller.getSelectedAccountGroup()).toBe('');
+    });
+
+    it('handles removal gracefully when account is not found in reverse mapping', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+      const initialState = { ...controller.state };
+
+      // Try to remove an account that was never added
+      const unknownAccountId = 'unknown-account-id';
+      messenger.publish('AccountsController:accountRemoved', unknownAccountId);
+
+      // State should remain unchanged
+      expect(controller.state).toStrictEqual(initialState);
+    });
+
+    it('handles edge cases gracefully in account removal', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      expect(() => {
+        messenger.publish(
+          'AccountsController:accountRemoved',
+          'non-existent-account',
+        );
+      }).not.toThrow();
+
+      expect(controller.getSelectedAccountGroup()).not.toBe('');
     });
   });
 });
