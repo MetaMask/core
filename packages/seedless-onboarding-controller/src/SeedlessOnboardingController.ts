@@ -768,18 +768,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       const vaultKey = await this.#loadSeedlessEncryptionKey(pwEncKey);
 
       // Unlock the controller
-      const {
-        toprfEncryptionKey: latestEncKey,
-        toprfPwEncryptionKey: latestPwEncKey,
-        toprfAuthKeyPair: latestAuthKeyPair,
-      } = await this.#unlockVaultAndGetVaultData(undefined, vaultKey);
+      await this.#unlockVaultAndGetVaultData(undefined, vaultKey);
       this.#setUnlocked();
-      await this.#createNewVaultWithAuthData({
-        password: globalPassword,
-        rawToprfEncryptionKey: latestEncKey,
-        rawToprfPwEncryptionKey: latestPwEncKey,
-        rawToprfAuthKeyPair: latestAuthKeyPair,
-      });
     } catch (error) {
       if (this.#isTokenExpiredError(error)) {
         throw error;
