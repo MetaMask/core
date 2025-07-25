@@ -290,7 +290,7 @@ function makeRpcCall<Result>(
     debug('[makeRpcCall] making request', request);
     ethQuery.sendAsync<JsonRpcParams, Result>(request, (error, result) => {
       debug('[makeRpcCall > ethQuery handler] error', error, 'result', result);
-      if (error !== undefined) {
+      if (error) {
         // We are simply promisifying EthQuery.sendAsync.
         // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
         reject(error);
