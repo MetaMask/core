@@ -30,6 +30,6 @@ export function decodeJWTToken(token: string): DecodedBaseJWTToken {
   const payload = parts[1];
   // Add padding if needed for base64 decoding
   const paddedPayload = payload + '='.repeat((4 - (payload.length % 4)) % 4);
-  const decoded = JSON.parse(Buffer.from(paddedPayload, 'base64').toString());
+  const decoded = JSON.parse(bytesToUtf8(base64ToBytes(paddedPayload)));
   return decoded as DecodedBaseJWTToken;
 }

@@ -1,6 +1,6 @@
 export const controllerName = 'SeedlessOnboardingController';
 
-export const PASSWORD_OUTDATED_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+export const PASSWORD_OUTDATED_CACHE_TTL_MS = 10_000; // 10 seconds
 
 export enum Web3AuthNetwork {
   Mainnet = 'sapphire_mainnet',
@@ -57,4 +57,7 @@ export enum SeedlessOnboardingControllerErrorMessage {
   EncryptedKeyringEncryptionKeyNotSet = `${controllerName} - Encrypted keyring encryption key is not set`,
   EncryptedSeedlessEncryptionKeyNotSet = `${controllerName} - Encrypted seedless encryption key is not set`,
   VaultEncryptionKeyUndefined = `${controllerName} - Vault encryption key is not available`,
+  MaxKeyChainLengthExceeded = `${controllerName} - Max key chain length exceeded`,
+  FailedToFetchAuthPubKey = `${controllerName} - Failed to fetch latest auth pub key`,
+  InvalidPasswordOutdatedCache = `${controllerName} - Invalid password outdated cache provided.`,
 }

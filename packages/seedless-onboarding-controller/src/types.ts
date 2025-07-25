@@ -298,6 +298,13 @@ export type SeedlessOnboardingControllerOptions<EncryptionKey> = {
    * @default Web3AuthNetwork.Mainnet
    */
   network?: Web3AuthNetwork;
+
+  /**
+   * The TTL of the password outdated cache in milliseconds.
+   *
+   * @default PASSWORD_OUTDATED_CACHE_TTL_MS
+   */
+  passwordOutdatedCacheTTL?: number;
 };
 
 /**
@@ -334,8 +341,9 @@ export type VaultData = {
   toprfAuthKeyPair: string;
   /**
    * The revoke token to revoke refresh token and get new refresh token and new revoke token.
+   * The revoke token may no longer be available after a large number of password changes. In this case, re-authentication is advised.
    */
-  revokeToken: string;
+  revokeToken?: string;
   /**
    * The access token used for pairing with profile sync auth service and to access other services.
    */

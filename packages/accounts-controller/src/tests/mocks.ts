@@ -5,8 +5,14 @@ import {
   EthMethod,
   EthScope,
   BtcScope,
+  KeyringAccountEntropyTypeOption,
 } from '@metamask/keyring-api';
-import type { CaipChainId, KeyringAccountType } from '@metamask/keyring-api';
+import type {
+  CaipChainId,
+  KeyringAccount,
+  KeyringAccountEntropyMnemonicOptions,
+  KeyringAccountType,
+} from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { v4 } from 'uuid';
@@ -111,11 +117,22 @@ export const createMockInternalAccountOptions = (
   keyringIndex: number,
   keyringType: KeyringTypes,
   groupIndex: number,
-): Record<string, string> => {
+): KeyringAccount['options'] => {
   if (keyringType === KeyringTypes.hd) {
+    const entropySource = `mock-keyring-id-${keyringIndex}`;
+    const derivationPath = `m/44'/60'/0'/0/${groupIndex}`;
+
     return {
-      entropySource: `mock-keyring-id-${keyringIndex}`,
-      derivationPath: `m/44'/60'/0'/0/${groupIndex}`,
+      entropySource,
+      derivationPath,
+      groupIndex,
+      // New `KeyringAccount` typed options:
+      entropy: {
+        type: KeyringAccountEntropyTypeOption.Mnemonic,
+        id: entropySource,
+        derivationPath,
+        groupIndex,
+      } as KeyringAccountEntropyMnemonicOptions,
     };
   }
 

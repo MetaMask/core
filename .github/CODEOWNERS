@@ -7,9 +7,10 @@
 /.github/                            @MetaMask/core-platform
 
 ## Accounts Team
-/packages/accounts-controller        @MetaMask/accounts-engineers
+/packages/accounts-controller                @MetaMask/accounts-engineers
 /packages/multichain-transactions-controller @MetaMask/accounts-engineers
-/packages/account-tree-controller @MetaMask/accounts-engineers
+/packages/multichain-account-service         @MetaMask/accounts-engineers
+/packages/account-tree-controller            @MetaMask/accounts-engineers
 
 ## Assets Team
 /packages/assets-controllers         @MetaMask/metamask-assets
@@ -66,6 +67,7 @@
 /packages/composable-controller        @MetaMask/core-platform
 /packages/controller-utils             @MetaMask/core-platform
 /packages/error-reporting-service      @MetaMask/core-platform
+/packages/messenger                    @MetaMask/core-platform
 /packages/sample-controllers           @MetaMask/core-platform
 /packages/polling-controller           @MetaMask/core-platform
 /packages/preferences-controller       @MetaMask/core-platform
@@ -122,6 +124,8 @@
 /packages/logging-controller/CHANGELOG.md         @MetaMask/confirmations @MetaMask/core-platform
 /packages/message-manager/package.json            @MetaMask/confirmations @MetaMask/core-platform
 /packages/message-manager/CHANGELOG.md            @MetaMask/confirmations @MetaMask/core-platform
+/packages/multichain-account-service/package.json @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/multichain-account-service/CHANGELOG.md @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/multichain-api-middleware/package.json  @MetaMask/wallet-api-platform-engineers @MetaMask/core-platform
 /packages/multichain-api-middleware/CHANGELOG.md  @MetaMask/wallet-api-platform-engineers @MetaMask/core-platform
 /packages/name-controller/package.json            @MetaMask/confirmations @MetaMask/core-platform

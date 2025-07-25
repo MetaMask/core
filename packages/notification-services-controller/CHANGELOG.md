@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.0.0]
+
+### Added
+
+- Add `BASE` chain to notification UI config in `ui/constants.ts` ([#6124](https://github.com/MetaMask/core/pull/6124))
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/profile-sync-controller` to `^22.0.0` ([#6171](https://github.com/MetaMask/core/pull/6171))
+- Update push notification utility `getChainSymbol` in `get-notification-message.ts` to use UI constants ([#6124](https://github.com/MetaMask/core/pull/6124))
+
+### Removed
+
+- **BREAKING:** Cleanup old config/constants ([#6124](https://github.com/MetaMask/core/pull/6124))
+  - Remove `NOTIFICATION_CHAINS` constant from `notification-schema.ts`
+  - Remove `CHAIN_SYMBOLS` constant from `notification-schema.ts`
+  - Remove `SUPPORTED_CHAINS` constant from `notification-schema.ts`
+  - Remove `Trigger` type from `notification-schema.ts`
+  - Remove `TRIGGERS` constant from `notification-schema.ts`
+
 ## [14.0.0]
 
 ### Changed
@@ -493,7 +513,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@14.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@15.0.0...HEAD
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@14.0.0...@metamask/notification-services-controller@15.0.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@13.0.0...@metamask/notification-services-controller@14.0.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@12.0.1...@metamask/notification-services-controller@13.0.0
 [12.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@12.0.0...@metamask/notification-services-controller@12.0.1
