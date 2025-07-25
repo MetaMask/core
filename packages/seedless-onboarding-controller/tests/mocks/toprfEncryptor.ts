@@ -11,8 +11,6 @@ export class MockToprfEncryptorDecryptor {
 
   readonly #HKDF_PASSWORD_ENCRYPTION_KEY_INFO = 'password-encryption-key';
 
-  readonly #HKDF_SEEDLESS_ENCRYPTION_KEY_INFO = 'seedless-encryption-key';
-
   readonly #HKDF_AUTH_KEY_INFO = 'authentication-key';
 
   encrypt(key: Uint8Array, data: Uint8Array): string {
@@ -48,18 +46,6 @@ export class MockToprfEncryptorDecryptor {
       seed,
       undefined,
       this.#HKDF_PASSWORD_ENCRYPTION_KEY_INFO,
-      32,
-    );
-    return key;
-  }
-
-  deriveSeedlessEncKey(password: string): Uint8Array {
-    const seed = sha256(password);
-    const key = hkdf(
-      sha256,
-      seed,
-      undefined,
-      this.#HKDF_SEEDLESS_ENCRYPTION_KEY_INFO,
       32,
     );
     return key;

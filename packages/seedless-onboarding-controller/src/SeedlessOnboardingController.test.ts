@@ -259,8 +259,6 @@ function mockcreateLocalKey(toprfClient: ToprfSecureBackup, password: string) {
 
   const encKey = mockToprfEncryptor.deriveEncKey(password);
   const pwEncKey = mockToprfEncryptor.derivePwEncKey(password);
-  const seedlessEncKey = mockToprfEncryptor.deriveSeedlessEncKey(password);
-
   const authKeyPair = mockToprfEncryptor.deriveAuthKeyPair(password);
   const oprfKey = BigInt(0);
   const seed = stringToBytes(password);
@@ -279,7 +277,6 @@ function mockcreateLocalKey(toprfClient: ToprfSecureBackup, password: string) {
     authKeyPair,
     oprfKey,
     seed,
-    seedlessEncKey,
   };
 }
 
