@@ -250,8 +250,8 @@ export class AccountTreeController extends BaseController<
       const { walletId, groupId } = context;
 
       this.update((state) => {
-        const { accounts } =
-          state.accountTree.wallets[walletId].groups[groupId];
+        const accounts =
+          state.accountTree.wallets[walletId]?.groups[groupId]?.accounts;
 
         if (accounts) {
           const index = accounts.indexOf(accountId);
