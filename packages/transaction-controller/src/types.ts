@@ -1556,6 +1556,9 @@ export type BatchTransactionParams = {
   /** Address of the target contract or EOA. */
   to?: Hex;
 
+  /** Type of the transaction. */
+  type?: TransactionType;
+
   /** Native balance to transfer with the transaction. */
   value?: Hex;
 };
