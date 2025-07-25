@@ -88,9 +88,13 @@ export class ExtraTransactionsPublishHook {
     };
 
     const extraTransactions: TransactionBatchSingleRequest[] =
-      this.#transactions.map((transaction) => ({
-        params: transaction,
-      }));
+      this.#transactions.map((transaction) => {
+        const { type, ...rest } = transaction;
+        return {
+          params: rest,
+          type,
+        };
+      });
 
     const transactions: TransactionBatchSingleRequest[] = [
       firstTransaction,

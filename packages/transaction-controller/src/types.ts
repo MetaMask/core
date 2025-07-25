@@ -171,6 +171,11 @@ export type TransactionMeta = {
   estimateUsed?: string;
 
   /**
+   * The fiat value of the transaction to be used to passed metrics.
+   */
+  fiatValue?: string;
+
+  /**
    * The chosen amount which will be the same as the originally proposed token
    * amount if the user does not edit the  amount or will be a custom token
    * amount set by the user.
@@ -1556,6 +1561,9 @@ export type BatchTransactionParams = {
   /** Address of the target contract or EOA. */
   to?: Hex;
 
+  /** Type of the transaction. */
+  type?: TransactionType;
+
   /** Native balance to transfer with the transaction. */
   value?: Hex;
 };
@@ -1584,6 +1592,12 @@ export type TransactionBatchSingleRequest = {
     /** Signed transaction data. */
     signedTransaction: Hex;
   };
+
+  /** Fiat value of the nested transaction. */
+  fiatValue?: string;
+
+  /** Origin of the nested transaction. */
+  origin?: string;
 
   /** Parameters of the single transaction. */
   params: BatchTransactionParams;

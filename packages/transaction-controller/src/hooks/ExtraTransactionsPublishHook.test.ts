@@ -4,6 +4,7 @@ import type {
   TransactionController,
   TransactionMeta,
 } from '..';
+import { TransactionType } from '../types';
 
 const SIGNED_TRANSACTION_MOCK = '0xffe';
 const TRANSACTION_HASH_MOCK = '0xeee';
@@ -15,6 +16,7 @@ const BATCH_TRANSACTION_PARAMS_MOCK: BatchTransactionParams = {
   maxPriorityFeePerGas: '0xab3',
   to: '0x456',
   value: '0x789',
+  type: TransactionType.gasPayment,
 };
 
 const BATCH_TRANSACTION_PARAMS_2_MOCK: BatchTransactionParams = {
@@ -24,6 +26,7 @@ const BATCH_TRANSACTION_PARAMS_2_MOCK: BatchTransactionParams = {
   maxPriorityFeePerGas: '0xab6',
   to: '0x654',
   value: '0x987',
+  type: TransactionType.swap,
 };
 
 const TRANSACTION_META_MOCK = {
@@ -60,6 +63,16 @@ describe('ExtraTransactionsPublishHook', () => {
       // Intentionally empty
     });
 
+    const {
+      type: expectedFirstBatchTransactionType,
+      ...expectedFirstBatchTransactionParams
+    } = BATCH_TRANSACTION_PARAMS_MOCK;
+
+    const {
+      type: expectedSecondBatchTransactionType,
+      ...expectedSecondBatchTransactionParams
+    } = BATCH_TRANSACTION_PARAMS_2_MOCK;
+
     expect(addTransactionBatch).toHaveBeenCalledTimes(1);
     expect(addTransactionBatch).toHaveBeenCalledWith({
       from: TRANSACTION_META_MOCK.txParams.from,
@@ -82,10 +95,12 @@ describe('ExtraTransactionsPublishHook', () => {
           },
         },
         {
-          params: BATCH_TRANSACTION_PARAMS_MOCK,
+          params: expectedFirstBatchTransactionParams,
+          type: expectedFirstBatchTransactionType,
         },
         {
-          params: BATCH_TRANSACTION_PARAMS_2_MOCK,
+          params: expectedSecondBatchTransactionParams,
+          type: expectedSecondBatchTransactionType,
         },
       ],
       disable7702: true,
@@ -121,6 +136,10 @@ describe('ExtraTransactionsPublishHook', () => {
         ?.onPublish;
 
     onPublish?.({ transactionHash: TRANSACTION_HASH_MOCK });
+
+    expect(addTransactionBatch.mock.calls[0][0].transactions[1].type).toBe(
+      TransactionType.gasPayment,
+    );
 
     expect(await hookPromise).toStrictEqual({
       transactionHash: TRANSACTION_HASH_MOCK,
