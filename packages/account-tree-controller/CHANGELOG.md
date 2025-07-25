@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.7.0]
 
-### Uncategorized
-
-- feat(multichain-account-service): re-sync multichain account and wallets on account events ([#6165](https://github.com/MetaMask/core/pull/6165))
-
 ### Added
 
 - Add BIP-44/multichain accounts support ([#6185](https://github.com/MetaMask/core/pull/6185))
@@ -20,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Bump peer dependency `@metamask/account-api` from `^0.2.0` to `^0.3.0` ([#6165](https://github.com/MetaMask/core/pull/6165))
 - Add `selectedAccountGroup` state and bidirectional synchronization with `AccountsController` ([#6186](https://github.com/MetaMask/core/pull/6186))
   - New `getSelectedAccountGroup()` and `setSelectedAccountGroup()` methods.
   - Automatic synchronization when selected account changes in AccountsController.
