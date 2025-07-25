@@ -685,43 +685,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   }
 
   /**
-   * Sync the latest global password to the controller.
-   * reset vault with latest globalPassword,
-   * persist the latest global password authPubKey
-   *
-   * @param params - The parameters for syncing the latest global password.
-   * @param params.globalPassword - The latest global password.
-   * @returns A promise that resolves to the success of the operation.
-   */
-  async syncLatestGlobalPassword({
-    globalPassword,
-  }: {
-    globalPassword: string;
-  }) {
-    return await this.#withControllerLock(async () => {
-      this.#assertIsUnlocked();
-      const doSyncPassword = async () => {
-        // update vault with latest globalPassword
-        const { encKey, pwEncKey, authKeyPair } =
-          await this.#recoverEncKey(globalPassword);
-        // update and encrypt the vault with new password
-        await this.#createNewVaultWithAuthData({
-          password: globalPassword,
-          rawToprfEncryptionKey: encKey,
-          rawToprfPwEncryptionKey: pwEncKey,
-          rawToprfAuthKeyPair: authKeyPair,
-        });
-
-        this.#resetPasswordOutdatedCache();
-      };
-      return await this.#executeWithTokenRefresh(
-        doSyncPassword,
-        'syncLatestGlobalPassword',
-      );
-    });
-  }
-
-  /**
    * @description Unlock the controller with the latest global password.
    *
    * @param params - The parameters for unlocking the controller.
@@ -729,7 +692,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @param params.globalPassword - The latest global password.
    * @returns A promise that resolves to the success of the operation.
    */
-  async submitGlobalPassword({
+  async submitGlobalPasswordAndSync({
     globalPassword,
     maxKeyChainLength = 5,
   }: {
@@ -739,12 +702,12 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     return await this.#withControllerLock(async () => {
       return await this.#executeWithTokenRefresh(async () => {
         const currentDeviceAuthPubKey = this.#recoverAuthPubKey();
-        await this.#submitGlobalPassword({
+        await this.#submitGlobalPasswordAndSync({
           targetAuthPubKey: currentDeviceAuthPubKey,
           globalPassword,
           maxKeyChainLength,
         });
-      }, 'submitGlobalPassword');
+      }, 'submitGlobalPasswordAndSync');
     });
   }
 
@@ -760,7 +723,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @returns A promise that resolves to the keyring encryption key
    * corresponding to the current authPubKey in state.
    */
-  async #submitGlobalPassword({
+  async #submitGlobalPasswordAndSync({
     targetAuthPubKey,
     globalPassword,
     maxKeyChainLength,
@@ -769,40 +732,51 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     globalPassword: string;
     maxKeyChainLength: number;
   }): Promise<void> {
-    const { pwEncKey: curPwEncKey, authKeyPair: curAuthKeyPair } =
-      await this.#recoverEncKey(globalPassword);
+    const {
+      pwEncKey: latestPwEncKey,
+      authKeyPair: latestAuthKeyPair,
+      encKey: latestEncKey,
+    } = await this.#recoverEncKey(globalPassword);
 
     try {
-      // Recover vault encryption key.
-      const res = await this.toprfClient.recoverPwEncKey({
-        targetAuthPubKey,
-        curPwEncKey,
-        curAuthKeyPair,
-        maxPwChainLength: maxKeyChainLength,
-      });
-      const { pwEncKey } = res;
-      const vaultKey = await this.#loadSeedlessEncryptionKey(pwEncKey);
+      // Recover current device's vault encryption key with the latest global password
+      const { pwEncKey: currentDevicePwEncKey } =
+        await this.toprfClient.recoverPwEncKey({
+          targetAuthPubKey,
+          curPwEncKey: latestPwEncKey,
+          curAuthKeyPair: latestAuthKeyPair,
+          maxPwChainLength: maxKeyChainLength,
+        });
+      // recover the vault encryption key and keyring encryption key with the current device's pwEncKey
+      const [vaultKey, keyringEncryptionKey] = await Promise.all([
+        this.#loadSeedlessEncryptionKey(currentDevicePwEncKey),
+        this.#loadKeyringEncryptionKey(currentDevicePwEncKey),
+      ]);
 
-      // Unlock the controller
-      const {
-        revokeToken,
-        toprfEncryptionKey,
-        toprfPwEncryptionKey,
-        toprfAuthKeyPair,
-      } = await this.#unlockVaultAndGetVaultData(undefined, vaultKey);
+      // Unlock the controller and vault
+      const { revokeToken } = await this.#unlockVaultAndGetVaultData(
+        undefined,
+        vaultKey,
+      );
       this.#setUnlocked();
 
       if (revokeToken) {
         // revoke and recyle refresh token after unlock to keep refresh token fresh, avoid malicious use of leaked refresh token
         await this.#revokeRefreshTokenAndUpdateState(revokeToken);
-        // re-creating vault to persist the new revoke token
-        await this.#createNewVaultWithAuthData({
-          password: globalPassword,
-          rawToprfEncryptionKey: toprfEncryptionKey,
-          rawToprfPwEncryptionKey: toprfPwEncryptionKey,
-          rawToprfAuthKeyPair: toprfAuthKeyPair,
-        });
       }
+      // re-creating vault to persist the new revoke token
+      await this.#createNewVaultWithAuthData({
+        password: globalPassword,
+        rawToprfEncryptionKey: latestEncKey,
+        rawToprfPwEncryptionKey: latestPwEncKey,
+        rawToprfAuthKeyPair: latestAuthKeyPair,
+      });
+
+      // restore the current keyring encryption key with the new global password
+      await this.storeKeyringEncryptionKey(keyringEncryptionKey);
+
+      // reset the password outdated cache after successful global password submission and state sync
+      this.#resetPasswordOutdatedCache();
     } catch (error) {
       if (this.#isTokenExpiredError(error)) {
         throw error;
