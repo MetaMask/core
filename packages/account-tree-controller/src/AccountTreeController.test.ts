@@ -383,8 +383,8 @@ describe('AccountTreeController', () => {
               },
             },
           },
+          selectedAccountGroup: expect.any(String), // Will be set to some group after init
         },
-        selectedAccountGroup: expect.any(String), // Will be set to some group after init
       } as AccountTreeControllerState);
     });
 
@@ -554,8 +554,8 @@ describe('AccountTreeController', () => {
               metadata: { name: 'Wallet 1' },
             },
           },
+          selectedAccountGroup: expect.any(String), // Will be set after init
         },
-        selectedAccountGroup: expect.any(String), // Will be set after init
       } as AccountTreeControllerState);
     });
   });
@@ -606,8 +606,8 @@ describe('AccountTreeController', () => {
               metadata: { name: 'Wallet 1' },
             },
           },
+          selectedAccountGroup: expect.any(String), // Will be set after init
         },
-        selectedAccountGroup: expect.any(String), // Will be set after init
       } as AccountTreeControllerState);
     });
   });

@@ -66,8 +66,8 @@ export type AccountTreeControllerState = {
       // Wallets:
       [walletId: AccountWalletId]: AccountWalletObject;
     };
+    selectedAccountGroup: AccountGroupId | '';
   };
-  selectedAccountGroup: AccountGroupId | '';
 };
 
 export type AccountTreeControllerGetStateAction = ControllerGetStateAction<
@@ -124,10 +124,6 @@ const accountTreeControllerMetadata: StateMetadata<AccountTreeControllerState> =
       persist: false, // We do re-recompute this state everytime.
       anonymous: false,
     },
-    selectedAccountGroup: {
-      persist: true,
-      anonymous: false,
-    },
   };
 
 /**
@@ -139,8 +135,8 @@ export function getDefaultAccountTreeControllerState(): AccountTreeControllerSta
   return {
     accountTree: {
       wallets: {},
+      selectedAccountGroup: '',
     },
-    selectedAccountGroup: '',
   };
 }
 
@@ -228,9 +224,9 @@ export class AccountTreeController extends BaseController<
     this.update((state) => {
       state.accountTree.wallets = wallets;
 
-      if (state.selectedAccountGroup === '') {
+      if (state.accountTree.selectedAccountGroup === '') {
         // No group is selected yet, re-sync with the AccountsController.
-        state.selectedAccountGroup =
+        state.accountTree.selectedAccountGroup =
           this.#getDefaultSelectedAccountGroup(wallets);
       }
     });
@@ -294,9 +290,12 @@ export class AccountTreeController extends BaseController<
         }
 
         // Check if we need to update selectedAccountGroup
-        if (state.selectedAccountGroup === groupId && accounts.length === 0) {
+        if (
+          state.accountTree.selectedAccountGroup === groupId &&
+          accounts.length === 0
+        ) {
           // The currently selected group is now empty, find a new group to select
-          state.selectedAccountGroup = this.#findFirstNonEmptyGroup(
+          state.accountTree.selectedAccountGroup = this.#findFirstNonEmptyGroup(
             state.accountTree.wallets,
           );
         }
@@ -361,7 +360,7 @@ export class AccountTreeController extends BaseController<
    * @returns The selected account group ID or empty string if none selected.
    */
   getSelectedAccountGroup(): AccountGroupId | '' {
-    return this.state.selectedAccountGroup;
+    return this.state.accountTree.selectedAccountGroup;
   }
 
   /**
@@ -370,7 +369,7 @@ export class AccountTreeController extends BaseController<
    * @param accountGroupId - The account group ID to select.
    */
   setSelectedAccountGroup(accountGroupId: AccountGroupId): void {
-    const currentSelectedGroup = this.state.selectedAccountGroup;
+    const currentSelectedGroup = this.state.accountTree.selectedAccountGroup;
 
     // Idempotent check - if the same group is already selected, do nothing
     if (currentSelectedGroup === accountGroupId) {
@@ -385,7 +384,7 @@ export class AccountTreeController extends BaseController<
 
     // Update our state first
     this.update((state) => {
-      state.selectedAccountGroup = accountGroupId;
+      state.accountTree.selectedAccountGroup = accountGroupId;
     });
 
     // Update AccountsController - this will trigger selectedAccountChange event,
@@ -410,7 +409,7 @@ export class AccountTreeController extends BaseController<
     }
 
     const { groupId } = accountMapping;
-    const currentSelectedGroup = this.state.selectedAccountGroup;
+    const currentSelectedGroup = this.state.accountTree.selectedAccountGroup;
 
     // Idempotent check - if the same group is already selected, do nothing
     if (currentSelectedGroup === groupId) {
@@ -419,7 +418,7 @@ export class AccountTreeController extends BaseController<
 
     // Update selectedAccountGroup to match the selected account
     this.update((state) => {
-      state.selectedAccountGroup = groupId;
+      state.accountTree.selectedAccountGroup = groupId;
     });
   }
 
