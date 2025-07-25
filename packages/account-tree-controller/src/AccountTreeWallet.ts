@@ -8,9 +8,9 @@ import type { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 
-import type { AccountWalletObject } from './AccountTreeController';
-import { type AccountTreeControllerMessenger } from './AccountTreeController';
 import { AccountTreeGroup } from './AccountTreeGroup';
+import type { AccountWalletObject } from './types';
+import { type AccountTreeControllerMessenger } from './types';
 
 /**
  * Account wallet options for the "entropy" wallet category.

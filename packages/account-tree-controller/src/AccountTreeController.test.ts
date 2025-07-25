@@ -23,18 +23,18 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
 
+import { AccountTreeController } from './AccountTreeController';
+import { AccountTreeGroup } from './AccountTreeGroup';
+import { AccountTreeWallet } from './AccountTreeWallet';
+import { getAccountWalletNameFromKeyringType } from './rules/keyring';
 import {
-  AccountTreeController,
   type AccountTreeControllerMessenger,
   type AccountTreeControllerActions,
   type AccountTreeControllerEvents,
   type AccountTreeControllerState,
   type AllowedActions,
   type AllowedEvents,
-} from './AccountTreeController';
-import { AccountTreeGroup } from './AccountTreeGroup';
-import { AccountTreeWallet } from './AccountTreeWallet';
-import { getAccountWalletNameFromKeyringType } from './rules/keyring';
+} from './types';
 
 const ETH_EOA_METHODS = [
   EthMethod.PersonalSign,
