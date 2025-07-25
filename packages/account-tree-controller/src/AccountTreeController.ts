@@ -4,7 +4,10 @@ import type {
   AccountsControllerAccountAddedEvent,
   AccountsControllerAccountRemovedEvent,
   AccountsControllerGetAccountAction,
+  AccountsControllerGetSelectedAccountAction,
   AccountsControllerListMultichainAccountsAction,
+  AccountsControllerSelectedAccountChangeEvent,
+  AccountsControllerSetSelectedAccountAction,
 } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
 import {
@@ -63,6 +66,7 @@ export type AccountTreeControllerState = {
       // Wallets:
       [walletId: AccountWalletId]: AccountWalletObject;
     };
+    selectedAccountGroup: AccountGroupId | '';
   };
 };
 
@@ -71,13 +75,28 @@ export type AccountTreeControllerGetStateAction = ControllerGetStateAction<
   AccountTreeControllerState
 >;
 
+export type AccountTreeControllerSetSelectedAccountGroupAction = {
+  type: `${typeof controllerName}:setSelectedAccountGroup`;
+  handler: AccountTreeController['setSelectedAccountGroup'];
+};
+
+export type AccountTreeControllerGetSelectedAccountGroupAction = {
+  type: `${typeof controllerName}:getSelectedAccountGroup`;
+  handler: AccountTreeController['getSelectedAccountGroup'];
+};
+
 export type AllowedActions =
   | AccountsControllerGetAccountAction
+  | AccountsControllerGetSelectedAccountAction
   | AccountsControllerListMultichainAccountsAction
+  | AccountsControllerSetSelectedAccountAction
   | KeyringControllerGetStateAction
   | SnapControllerGetSnap;
 
-export type AccountTreeControllerActions = never;
+export type AccountTreeControllerActions =
+  | AccountTreeControllerGetStateAction
+  | AccountTreeControllerSetSelectedAccountGroupAction
+  | AccountTreeControllerGetSelectedAccountGroupAction;
 
 export type AccountTreeControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -86,7 +105,8 @@ export type AccountTreeControllerStateChangeEvent = ControllerStateChangeEvent<
 
 export type AllowedEvents =
   | AccountsControllerAccountAddedEvent
-  | AccountsControllerAccountRemovedEvent;
+  | AccountsControllerAccountRemovedEvent
+  | AccountsControllerSelectedAccountChangeEvent;
 
 export type AccountTreeControllerEvents = AccountTreeControllerStateChangeEvent;
 
@@ -115,6 +135,7 @@ export function getDefaultAccountTreeControllerState(): AccountTreeControllerSta
   return {
     accountTree: {
       wallets: {},
+      selectedAccountGroup: '',
     },
   };
 }
@@ -181,10 +202,19 @@ export class AccountTreeController extends BaseController<
         this.#handleAccountRemoved(accountId);
       },
     );
+
+    this.messagingSystem.subscribe(
+      'AccountsController:selectedAccountChange',
+      (account) => {
+        this.#handleSelectedAccountChange(account);
+      },
+    );
+
+    this.#registerMessageHandlers();
   }
 
   init() {
-    const wallets = {};
+    const wallets: { [walletId: AccountWalletId]: AccountWalletObject } = {};
 
     // For now, we always re-compute all wallets, we do not re-use the existing state.
     for (const account of this.#listAccounts()) {
@@ -193,7 +223,38 @@ export class AccountTreeController extends BaseController<
 
     this.update((state) => {
       state.accountTree.wallets = wallets;
+
+      if (state.accountTree.selectedAccountGroup === '') {
+        // No group is selected yet, re-sync with the AccountsController.
+        state.accountTree.selectedAccountGroup =
+          this.#getDefaultSelectedAccountGroup(wallets);
+      }
     });
+  }
+
+  /**
+   * Initializes the selectedAccountGroup based on the currently selected account from AccountsController.
+   *
+   * @param wallets - Wallets object to use for fallback logic
+   * @returns The default selected account group ID or empty string if none selected.
+   */
+  #getDefaultSelectedAccountGroup(wallets: {
+    [walletId: AccountWalletId]: AccountWalletObject;
+  }): AccountGroupId | '' {
+    const selectedAccount = this.messagingSystem.call(
+      'AccountsController:getSelectedAccount',
+    );
+    if (selectedAccount && selectedAccount.id) {
+      const accountMapping = this.#reverse.get(selectedAccount.id);
+      if (accountMapping) {
+        const { groupId } = accountMapping;
+
+        return groupId;
+      }
+    }
+
+    // Default to the first non-empty group in case of errors.
+    return this.#findFirstNonEmptyGroup(wallets);
   }
 
   getWallet(id: AccountWalletId): AccountTreeWallet | undefined {
@@ -215,13 +276,29 @@ export class AccountTreeController extends BaseController<
 
     if (found) {
       const { walletId, groupId } = found;
-      this.update((state) => {
-        const { accounts } =
-          state.accountTree.wallets[walletId].groups[groupId];
 
-        const index = accounts.indexOf(accountId);
-        if (index !== -1) {
-          accounts.splice(index, 1);
+      // Clean up the reverse mapping to prevent memory leaks
+      this.#reverse.delete(accountId);
+
+      this.update((state) => {
+        const accounts =
+          state.accountTree.wallets[walletId]?.groups[groupId]?.accounts;
+
+        if (accounts) {
+          const index = accounts.indexOf(accountId);
+          if (index !== -1) {
+            accounts.splice(index, 1);
+
+            // Check if we need to update selectedAccountGroup after removal
+            if (
+              state.accountTree.selectedAccountGroup === groupId &&
+              accounts.length === 0
+            ) {
+              // The currently selected group is now empty, find a new group to select
+              state.accountTree.selectedAccountGroup =
+                this.#findFirstNonEmptyGroup(state.accountTree.wallets);
+            }
+          }
         }
       });
     }
@@ -275,6 +352,126 @@ export class AccountTreeController extends BaseController<
   #listAccounts(): InternalAccount[] {
     return this.messagingSystem.call(
       'AccountsController:listMultichainAccounts',
+    );
+  }
+
+  /**
+   * Gets the currently selected account group ID.
+   *
+   * @returns The selected account group ID or empty string if none selected.
+   */
+  getSelectedAccountGroup(): AccountGroupId | '' {
+    return this.state.accountTree.selectedAccountGroup;
+  }
+
+  /**
+   * Sets the selected account group and updates the AccountsController selectedAccount accordingly.
+   *
+   * @param groupId - The account group ID to select.
+   */
+  setSelectedAccountGroup(groupId: AccountGroupId): void {
+    const currentSelectedGroup = this.state.accountTree.selectedAccountGroup;
+
+    // Idempotent check - if the same group is already selected, do nothing
+    if (currentSelectedGroup === groupId) {
+      return;
+    }
+
+    // Find the first account in this group to select
+    const accountToSelect = this.#getFirstAccountInGroup(groupId);
+    if (!accountToSelect) {
+      throw new Error(`No accounts found in group: ${groupId}`);
+    }
+
+    // Update our state first
+    this.update((state) => {
+      state.accountTree.selectedAccountGroup = groupId;
+    });
+
+    // Update AccountsController - this will trigger selectedAccountChange event,
+    // but our handler is idempotent so it won't cause infinite loop
+    this.messagingSystem.call(
+      'AccountsController:setSelectedAccount',
+      accountToSelect,
+    );
+  }
+
+  /**
+   * Handles selected account change from AccountsController.
+   * Updates selectedAccountGroup to match the selected account.
+   *
+   * @param account - The newly selected account.
+   */
+  #handleSelectedAccountChange(account: InternalAccount): void {
+    const accountMapping = this.#reverse.get(account.id);
+    if (!accountMapping) {
+      // Account not in tree yet, might be during initialization
+      return;
+    }
+
+    const { groupId } = accountMapping;
+    const currentSelectedGroup = this.state.accountTree.selectedAccountGroup;
+
+    // Idempotent check - if the same group is already selected, do nothing
+    if (currentSelectedGroup === groupId) {
+      return;
+    }
+
+    // Update selectedAccountGroup to match the selected account
+    this.update((state) => {
+      state.accountTree.selectedAccountGroup = groupId;
+    });
+  }
+
+  /**
+   * Gets the first account ID in the specified group.
+   *
+   * @param groupId - The account group ID.
+   * @returns The first account ID in the group, or undefined if no accounts found.
+   */
+  #getFirstAccountInGroup(groupId: AccountGroupId): AccountId | undefined {
+    for (const wallet of Object.values(this.state.accountTree.wallets)) {
+      if (wallet.groups[groupId]) {
+        const group = wallet.groups[groupId];
+        if (group && group.accounts.length > 0) {
+          return group.accounts[0];
+        }
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Finds the first non-empty group in the given wallets object.
+   *
+   * @param wallets - The wallets object to search.
+   * @returns The ID of the first non-empty group, or an empty string if no groups are found.
+   */
+  #findFirstNonEmptyGroup(wallets: {
+    [walletId: AccountWalletId]: AccountWalletObject;
+  }): AccountGroupId | '' {
+    for (const wallet of Object.values(wallets)) {
+      for (const group of Object.values(wallet.groups)) {
+        if (group.accounts.length > 0) {
+          return group.id;
+        }
+      }
+    }
+    return '';
+  }
+
+  /**
+   * Registers message handlers for the AccountTreeController.
+   */
+  #registerMessageHandlers(): void {
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:getSelectedAccountGroup`,
+      this.getSelectedAccountGroup.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:setSelectedAccountGroup`,
+      this.setSelectedAccountGroup.bind(this),
     );
   }
 }
