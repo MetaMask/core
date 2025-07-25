@@ -647,24 +647,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    */
   async submitPassword(password: string): Promise<void> {
     return await this.#withControllerLock(async () => {
-      const {
-        toprfEncryptionKey,
-        toprfPwEncryptionKey,
-        toprfAuthKeyPair,
-        revokeToken,
-      } = await this.#unlockVaultAndGetVaultData(password);
+      await this.#unlockVaultAndGetVaultData(password);
       this.#setUnlocked();
-
-      if (revokeToken) {
-        await this.#revokeRefreshTokenAndUpdateState(revokeToken);
-        // re-creating vault to persist the new revoke token
-        await this.#createNewVaultWithAuthData({
-          password,
-          rawToprfEncryptionKey: toprfEncryptionKey,
-          rawToprfPwEncryptionKey: toprfPwEncryptionKey,
-          rawToprfAuthKeyPair: toprfAuthKeyPair,
-        });
-      }
     });
   }
 
@@ -784,25 +768,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       const vaultKey = await this.#loadSeedlessEncryptionKey(pwEncKey);
 
       // Unlock the controller
-      const {
-        revokeToken,
-        toprfEncryptionKey,
-        toprfPwEncryptionKey,
-        toprfAuthKeyPair,
-      } = await this.#unlockVaultAndGetVaultData(undefined, vaultKey);
+      await this.#unlockVaultAndGetVaultData(undefined, vaultKey);
       this.#setUnlocked();
-
-      if (revokeToken) {
-        // revoke and recyle refresh token after unlock to keep refresh token fresh, avoid malicious use of leaked refresh token
-        await this.#revokeRefreshTokenAndUpdateState(revokeToken);
-        // re-creating vault to persist the new revoke token
-        await this.#createNewVaultWithAuthData({
-          password: globalPassword,
-          rawToprfEncryptionKey: toprfEncryptionKey,
-          rawToprfPwEncryptionKey: toprfPwEncryptionKey,
-          rawToprfAuthKeyPair: toprfAuthKeyPair,
-        });
-      }
     } catch (error) {
       if (this.#isTokenExpiredError(error)) {
         throw error;
@@ -1838,24 +1805,45 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   }
 
   /**
-   * Revoke the refresh token and get new refresh token and new revoke token.
+   * Revoke the refresh token and get new refresh token and new revoke token
+   * and also updates the vault with the new revoke token.
    * This method is to be called after user is authenticated.
    *
-   * @param revokeToken - The revoke token to use for revoking the refresh token.
+   * @param password - The password to encrypt the vault.
+   * @returns A Promise that resolves to void.
    */
-  async #revokeRefreshTokenAndUpdateState(revokeToken: string) {
-    this.#assertIsAuthenticatedUser(this.state);
-
-    const { newRevokeToken, newRefreshToken } = await this.#revokeRefreshToken({
-      connection: this.state.authConnection,
-      revokeToken,
-    });
-
-    this.update((state) => {
-      // set new revoke token in state temporarily for persisting in vault
-      state.revokeToken = newRevokeToken;
-      // set new refresh token to persist in state
-      state.refreshToken = newRefreshToken;
+  async revokeRefreshToken(password: string) {
+    return await this.#withControllerLock(async () => {
+      this.#assertIsAuthenticatedUser(this.state);
+      const { vaultEncryptionKey } = this.state;
+      const {
+        toprfEncryptionKey: rawToprfEncryptionKey,
+        toprfPwEncryptionKey: rawToprfPwEncryptionKey,
+        toprfAuthKeyPair: rawToprfAuthKeyPair,
+        revokeToken,
+      } = await this.#unlockVaultAndGetVaultData(password, vaultEncryptionKey);
+      if (!revokeToken) {
+        throw new Error(
+          SeedlessOnboardingControllerErrorMessage.InvalidRevokeToken,
+        );
+      }
+      const { newRevokeToken, newRefreshToken } =
+        await this.#revokeRefreshToken({
+          connection: this.state.authConnection,
+          revokeToken,
+        });
+      this.update((state) => {
+        // set new revoke token in state temporarily for persisting in vault
+        state.revokeToken = newRevokeToken;
+        // set new refresh token to persist in state
+        state.refreshToken = newRefreshToken;
+      });
+      await this.#createNewVaultWithAuthData({
+        password,
+        rawToprfEncryptionKey,
+        rawToprfPwEncryptionKey,
+        rawToprfAuthKeyPair,
+      });
     });
   }
 
