@@ -8,7 +8,6 @@ import type {
 import {
   type AllowedActions,
   type AllowedEvents,
-  type ShieldControllerMessenger,
 } from '../../src/ShieldController';
 
 /**
@@ -21,7 +20,7 @@ export function createMockMessenger() {
   >();
   const messenger = baseMessenger.getRestricted({
     name: controllerName,
-    allowedActions: [],
+    allowedActions: ['SubscriptionController:checkSubscriptionStatus'],
     allowedEvents: ['TransactionController:unapprovedTransactionAdded'],
   });
 

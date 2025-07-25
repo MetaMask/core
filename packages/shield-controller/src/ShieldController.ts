@@ -7,6 +7,8 @@ import type {
 } from '@metamask/transaction-controller';
 
 import { controllerName } from './constants';
+import { projectLogger as log } from './logger';
+import type { SubscriptionControllerCheckSubscriptionStatusAction } from './mock';
 import type { CoverageResult, ShieldBackend } from './types';
 
 export type ShieldControllerState = {
@@ -48,7 +50,8 @@ export type ShieldControllerEvents =
 /**
  * The external actions available to the ShieldController.
  */
-export type AllowedActions = never;
+export type AllowedActions =
+  SubscriptionControllerCheckSubscriptionStatusAction;
 
 /**
  * The external events available to the ShieldController.
@@ -109,11 +112,12 @@ export class ShieldController extends BaseController<
   start() {
     this.messagingSystem.subscribe(
       'TransactionController:unapprovedTransactionAdded',
-      this.handleUnapprovedTransactionAdded.bind(this),
+      this.#handleUnapprovedTransactionAdded.bind(this),
     );
   }
 
-  async handleUnapprovedTransactionAdded(transactionMeta: TransactionMeta) {
+  async #handleUnapprovedTransactionAdded(transactionMeta: TransactionMeta) {
+    log('Transaction added', transactionMeta);
     await this.checkCoverage(transactionMeta.txParams);
   }
 
@@ -142,7 +146,10 @@ export class ShieldController extends BaseController<
   }
 
   #checkSubscriptionStatus(): Promise<'subscribed' | 'not-subscribed'> {
-    return Promise.resolve('subscribed');
+    return this.messagingSystem.call(
+      'SubscriptionController:checkSubscriptionStatus',
+      'Shield',
+    );
   }
 
   #fetchCoverageResult(txParams: TransactionParams): Promise<CoverageResult> {
