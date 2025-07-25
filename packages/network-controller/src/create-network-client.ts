@@ -111,10 +111,18 @@ export function createNetworkClient({
       error,
     });
   });
-  rpcServiceChain.onDegraded(({ endpointUrl }) => {
+  rpcServiceChain.onDegraded(({ endpointUrl, ...rest }) => {
+    let error: unknown;
+    if ('error' in rest) {
+      error = rest.error;
+    } else if ('value' in rest) {
+      error = rest.value;
+    }
+
     messenger.publish('NetworkController:rpcEndpointDegraded', {
       chainId: configuration.chainId,
       endpointUrl,
+      error,
     });
   });
   rpcServiceChain.onRetry(({ endpointUrl, attempt }) => {

@@ -14,6 +14,7 @@ import {
 import type {
   CircuitBreakerPolicy,
   Event as CockatielEvent,
+  FailureReason,
   IBackoffFactory,
   IPolicy,
   Policy,
@@ -95,7 +96,7 @@ export type ServicePolicy = IPolicy & {
    * never succeeds before the retry policy gives up and before the maximum
    * number of consecutive failures has been reached.
    */
-  onDegraded: CockatielEvent<void>;
+  onDegraded: CockatielEvent<FailureReason<unknown> | void>;
   /**
    * A function which will be called by the retry policy each time the service
    * fails and the policy kicks off a timer to re-run the service. This is
@@ -229,10 +230,11 @@ export function createServicePolicy(
   });
   const onBreak = circuitBreakerPolicy.onBreak.bind(circuitBreakerPolicy);
 
-  const onDegradedEventEmitter = new CockatielEventEmitter<void>();
-  retryPolicy.onGiveUp(() => {
+  const onDegradedEventEmitter =
+    new CockatielEventEmitter<FailureReason<unknown> | void>();
+  retryPolicy.onGiveUp((data) => {
     if (circuitBreakerPolicy.state === CircuitState.Closed) {
-      onDegradedEventEmitter.emit();
+      onDegradedEventEmitter.emit(data);
     }
   });
   retryPolicy.onSuccess(({ duration }) => {

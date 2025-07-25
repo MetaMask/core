@@ -361,8 +361,8 @@ export class RpcService implements AbstractRpcService {
       { endpointUrl: string }
     >,
   ) {
-    return this.#policy.onDegraded(() => {
-      listener({ endpointUrl: this.endpointUrl.toString() });
+    return this.#policy.onDegraded((data) => {
+      listener({ ...(data ?? {}), endpointUrl: this.endpointUrl.toString() });
     });
   }
 
