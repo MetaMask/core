@@ -1,16 +1,6 @@
 import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
 import { AccountWalletCategory } from '@metamask/account-api';
 import type { AccountId } from '@metamask/accounts-controller';
-import type {
-  AccountId,
-  AccountsControllerAccountAddedEvent,
-  AccountsControllerAccountRemovedEvent,
-  AccountsControllerGetAccountAction,
-  AccountsControllerGetSelectedAccountAction,
-  AccountsControllerListMultichainAccountsAction,
-  AccountsControllerSelectedAccountChangeEvent,
-  AccountsControllerSetSelectedAccountAction,
-} from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -28,95 +18,6 @@ import type {
 } from './types';
 
 export const controllerName = 'AccountTreeController';
-
-type AccountReverseMapping = {
-  walletId: AccountWalletId;
-  groupId: AccountGroupId;
-};
-
-// Do not export this one, we just use it to have a common type interface between group and wallet metadata.
-type Metadata = {
-  name: string;
-};
-
-export type AccountWalletMetadata = Metadata;
-
-export type AccountGroupMetadata = Metadata;
-
-export type AccountGroupObject = {
-  id: AccountGroupId;
-  // Blockchain Accounts:
-  accounts: AccountId[];
-  metadata: AccountGroupMetadata;
-};
-
-export type AccountWalletObject = {
-  id: AccountWalletId;
-  // Account groups OR Multichain accounts (once available).
-  groups: {
-    [groupId: AccountGroupId]: AccountGroupObject;
-  };
-  metadata: AccountWalletMetadata;
-};
-
-export type AccountTreeControllerState = {
-  accountTree: {
-    wallets: {
-      // Wallets:
-      [walletId: AccountWalletId]: AccountWalletObject;
-    };
-    selectedAccountGroup: AccountGroupId | '';
-  };
-};
-
-export type AccountTreeControllerGetStateAction = ControllerGetStateAction<
-  typeof controllerName,
-  AccountTreeControllerState
->;
-
-export type AccountTreeControllerSetSelectedAccountGroupAction = {
-  type: `${typeof controllerName}:setSelectedAccountGroup`;
-  handler: AccountTreeController['setSelectedAccountGroup'];
-};
-
-export type AccountTreeControllerGetSelectedAccountGroupAction = {
-  type: `${typeof controllerName}:getSelectedAccountGroup`;
-  handler: AccountTreeController['getSelectedAccountGroup'];
-};
-
-export type AllowedActions =
-  | AccountsControllerGetAccountAction
-  | AccountsControllerGetSelectedAccountAction
-  | AccountsControllerListMultichainAccountsAction
-  | AccountsControllerSetSelectedAccountAction
-  | KeyringControllerGetStateAction
-  | SnapControllerGetSnap;
-
-export type AccountTreeControllerActions =
-  | AccountTreeControllerGetStateAction
-  | AccountTreeControllerSetSelectedAccountGroupAction
-  | AccountTreeControllerGetSelectedAccountGroupAction;
-
-export type AccountTreeControllerStateChangeEvent = ControllerStateChangeEvent<
-  typeof controllerName,
-  AccountTreeControllerState
->;
-
-export type AllowedEvents =
-  | AccountsControllerAccountAddedEvent
-  | AccountsControllerAccountRemovedEvent
-  | AccountsControllerSelectedAccountChangeEvent;
-
-export type AccountTreeControllerEvents = AccountTreeControllerStateChangeEvent;
-
-export type AccountTreeControllerMessenger = RestrictedMessenger<
-  typeof controllerName,
-  AccountTreeControllerActions | AllowedActions,
-  AccountTreeControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
->;
->>>>>>> main
 
 const accountTreeControllerMetadata: StateMetadata<AccountTreeControllerState> =
   {
@@ -273,7 +174,7 @@ export class AccountTreeController extends BaseController<
       'AccountsController:getSelectedAccount',
     );
     if (selectedAccount && selectedAccount.id) {
-      const accountMapping = this.#reverse.get(selectedAccount.id);
+      const accountMapping = this.#accountIdToContext.get(selectedAccount.id);
       if (accountMapping) {
         const { groupId } = accountMapping;
 
@@ -283,10 +184,6 @@ export class AccountTreeController extends BaseController<
 
     // Default to the first non-empty group in case of errors.
     return this.#findFirstNonEmptyGroup(wallets);
-  }
-
-  getWallet(id: AccountWalletId): AccountTreeWallet | undefined {
-    return this.#wallets.get(id);
   }
 
   #renameAccountWalletIfNeeded(wallet: AccountWalletObject) {
@@ -485,7 +382,7 @@ export class AccountTreeController extends BaseController<
    * @param account - The newly selected account.
    */
   #handleSelectedAccountChange(account: InternalAccount): void {
-    const accountMapping = this.#reverse.get(account.id);
+    const accountMapping = this.#accountIdToContext.get(account.id);
     if (!accountMapping) {
       // Account not in tree yet, might be during initialization
       return;

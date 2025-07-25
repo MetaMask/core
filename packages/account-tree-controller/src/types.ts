@@ -5,7 +5,10 @@ import type {
   AccountsControllerAccountAddedEvent,
   AccountsControllerAccountRemovedEvent,
   AccountsControllerGetAccountAction,
+  AccountsControllerGetSelectedAccountAction,
   AccountsControllerListMultichainAccountsAction,
+  AccountsControllerSelectedAccountChangeEvent,
+  AccountsControllerSetSelectedAccountAction,
 } from '@metamask/accounts-controller';
 import {
   type ControllerGetStateAction,
@@ -20,7 +23,10 @@ import type {
 import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 
-import type { controllerName } from './AccountTreeController';
+import type {
+  AccountTreeController,
+  controllerName,
+} from './AccountTreeController';
 
 /**
  * Account wallet metadata for the "entropy" wallet category.
@@ -91,6 +97,7 @@ export type AccountTreeControllerState = {
       // Wallets:
       [walletId: AccountWalletId]: AccountWalletObject;
     };
+    selectedAccountGroup: AccountGroupId | '';
   };
 };
 
@@ -99,13 +106,28 @@ export type AccountTreeControllerGetStateAction = ControllerGetStateAction<
   AccountTreeControllerState
 >;
 
+export type AccountTreeControllerSetSelectedAccountGroupAction = {
+  type: `${typeof controllerName}:setSelectedAccountGroup`;
+  handler: AccountTreeController['setSelectedAccountGroup'];
+};
+
+export type AccountTreeControllerGetSelectedAccountGroupAction = {
+  type: `${typeof controllerName}:getSelectedAccountGroup`;
+  handler: AccountTreeController['getSelectedAccountGroup'];
+};
+
 export type AllowedActions =
   | AccountsControllerGetAccountAction
+  | AccountsControllerGetSelectedAccountAction
   | AccountsControllerListMultichainAccountsAction
+  | AccountsControllerSetSelectedAccountAction
   | KeyringControllerGetStateAction
   | SnapControllerGetSnap;
 
-export type AccountTreeControllerActions = never;
+export type AccountTreeControllerActions =
+  | AccountTreeControllerGetStateAction
+  | AccountTreeControllerSetSelectedAccountGroupAction
+  | AccountTreeControllerGetSelectedAccountGroupAction;
 
 export type AccountTreeControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -114,7 +136,8 @@ export type AccountTreeControllerStateChangeEvent = ControllerStateChangeEvent<
 
 export type AllowedEvents =
   | AccountsControllerAccountAddedEvent
-  | AccountsControllerAccountRemovedEvent;
+  | AccountsControllerAccountRemovedEvent
+  | AccountsControllerSelectedAccountChangeEvent;
 
 export type AccountTreeControllerEvents = AccountTreeControllerStateChangeEvent;
 
