@@ -1132,6 +1132,7 @@ export class TransactionController extends BaseController<
       batchId?: Hex;
       deviceConfirmedOn?: WalletDevice;
       disableGasBuffer?: boolean;
+      fiatValue?: string;
       method?: string;
       nestedTransactions?: NestedTransactionMetadata[];
       networkClientId: NetworkClientId;
@@ -1155,6 +1156,7 @@ export class TransactionController extends BaseController<
       batchId,
       deviceConfirmedOn,
       disableGasBuffer,
+      fiatValue,
       method,
       nestedTransactions,
       networkClientId,
@@ -1251,6 +1253,7 @@ export class TransactionController extends BaseController<
           delegationAddress,
           deviceConfirmedOn,
           disableGasBuffer,
+          fiatValue,
           id: random(),
           isFirstTimeInteraction: undefined,
           nestedTransactions,

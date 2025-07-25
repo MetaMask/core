@@ -171,6 +171,11 @@ export type TransactionMeta = {
   estimateUsed?: string;
 
   /**
+   * The fiat value of the transaction to be used to passed metrics.
+   */
+  fiatValue?: string;
+
+  /**
    * The chosen amount which will be the same as the originally proposed token
    * amount if the user does not edit the  amount or will be a custom token
    * amount set by the user.
