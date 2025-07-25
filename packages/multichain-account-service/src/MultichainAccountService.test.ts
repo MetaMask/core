@@ -350,8 +350,12 @@ describe('MultichainAccountService', () => {
       const accounts = [account1, account2, account3];
       const { service } = setup({ accounts, keyrings });
 
-      const wallet1 = service.getMultichainAccountWallet(entropy1);
-      const wallet2 = service.getMultichainAccountWallet(entropy2);
+      const wallet1 = service.getMultichainAccountWallet({
+        entropySource: entropy1,
+      });
+      const wallet2 = service.getMultichainAccountWallet({
+        entropySource: entropy2,
+      });
 
       const [multichainAccount1, multichainAccount2] =
         wallet1.getMultichainAccounts();
@@ -389,7 +393,9 @@ describe('MultichainAccountService', () => {
       const accounts = [account1, account3]; // No `account2` for now.
       const { service, messenger, mocks } = setup({ accounts, keyrings });
 
-      const wallet1 = service.getMultichainAccountWallet(entropy1);
+      const wallet1 = service.getMultichainAccountWallet({
+        entropySource: entropy1,
+      });
       expect(wallet1.getMultichainAccounts()).toHaveLength(1);
 
       // Now we're adding `account2`.
@@ -428,7 +434,9 @@ describe('MultichainAccountService', () => {
       const accounts = [account1]; // No `otherAccount1` for now.
       const { service, messenger, mocks } = setup({ accounts, keyrings });
 
-      const wallet1 = service.getMultichainAccountWallet(entropy1);
+      const wallet1 = service.getMultichainAccountWallet({
+        entropySource: entropy1,
+      });
       expect(wallet1.getMultichainAccounts()).toHaveLength(1);
 
       // Now we're adding `account2`.
@@ -466,19 +474,23 @@ describe('MultichainAccountService', () => {
         keyrings: [keyring1],
       });
 
-      const wallet1 = service.getMultichainAccountWallet(entropy1);
+      const wallet1 = service.getMultichainAccountWallet({
+        entropySource: entropy1,
+      });
       expect(wallet1.getMultichainAccounts()).toHaveLength(2);
 
       // No wallet 2 yet.
-      expect(() => service.getMultichainAccountWallet(entropy2)).toThrow(
-        'Unknown wallet, no wallet matching this entropy source',
-      );
+      expect(() =>
+        service.getMultichainAccountWallet({ entropySource: entropy2 }),
+      ).toThrow('Unknown wallet, no wallet matching this entropy source');
 
       // Now we're adding `account3`.
       mocks.KeyringController.keyrings = [keyring1, keyring2];
       mocks.EvmAccountProvider.accounts = [account1, account2, account3];
       messenger.publish('AccountsController:accountAdded', account3);
-      const wallet2 = service.getMultichainAccountWallet(entropy2);
+      const wallet2 = service.getMultichainAccountWallet({
+        entropySource: entropy2,
+      });
       expect(wallet2).toBeDefined();
       expect(wallet2.getMultichainAccounts()).toHaveLength(1);
 
@@ -500,7 +512,9 @@ describe('MultichainAccountService', () => {
       const accounts = [account1];
       const { service, messenger } = setup({ accounts, keyrings });
 
-      const wallet1 = service.getMultichainAccountWallet(entropy1);
+      const wallet1 = service.getMultichainAccountWallet({
+        entropySource: entropy1,
+      });
       const oldMultichainAccounts = wallet1.getMultichainAccounts();
       expect(oldMultichainAccounts).toHaveLength(1);
       expect(oldMultichainAccounts[0].getAccounts()).toHaveLength(1);
@@ -517,7 +531,9 @@ describe('MultichainAccountService', () => {
       const accounts = [account1, account2];
       const { service, messenger, mocks } = setup({ accounts, keyrings });
 
-      const wallet1 = service.getMultichainAccountWallet(entropy1);
+      const wallet1 = service.getMultichainAccountWallet({
+        entropySource: entropy1,
+      });
       expect(wallet1.getMultichainAccounts()).toHaveLength(2);
 
       // Now we're removing `account2`.
@@ -530,6 +546,51 @@ describe('MultichainAccountService', () => {
       );
 
       expect(walletAndMultichainAccount2).toBeUndefined();
+    });
+  });
+
+  describe('actions', () => {
+    it('gets a multichain account with MultichainAccountService:getMultichainAccount', () => {
+      const accounts = [MOCK_HD_ACCOUNT_1];
+      const { messenger } = setup({ accounts });
+
+      const multichainAccount = messenger.call(
+        'MultichainAccountService:getMultichainAccount',
+        { entropySource: MOCK_HD_KEYRING_1.metadata.id, groupIndex: 0 },
+      );
+      expect(multichainAccount).toBeDefined();
+    });
+
+    it('gets multichain accounts with MultichainAccountService:getMultichainAccounts', () => {
+      const accounts = [MOCK_HD_ACCOUNT_1];
+      const { messenger } = setup({ accounts });
+
+      const multichainAccounts = messenger.call(
+        'MultichainAccountService:getMultichainAccounts',
+        { entropySource: MOCK_HD_KEYRING_1.metadata.id },
+      );
+      expect(multichainAccounts.length).toBeGreaterThan(0);
+    });
+
+    it('gets multichain account wallet with MultichainAccountService:getMultichainAccountWallet', () => {
+      const accounts = [MOCK_HD_ACCOUNT_1];
+      const { messenger } = setup({ accounts });
+
+      const wallet = messenger.call(
+        'MultichainAccountService:getMultichainAccountWallet',
+        { entropySource: MOCK_HD_KEYRING_1.metadata.id },
+      );
+      expect(wallet).toBeDefined();
+    });
+
+    it('gets multichain account wallet with MultichainAccountService:getMultichainAccountWallets', () => {
+      const accounts = [MOCK_HD_ACCOUNT_1];
+      const { messenger } = setup({ accounts });
+
+      const wallets = messenger.call(
+        'MultichainAccountService:getMultichainAccountWallets',
+      );
+      expect(wallets.length).toBeGreaterThan(0);
     });
   });
 });
