@@ -3,7 +3,6 @@ import {
   toAccountWalletId,
   toDefaultAccountGroupId,
   type AccountGroupId,
-  type AccountWalletId,
 } from '@metamask/account-api';
 import { Messenger } from '@metamask/base-controller';
 import {
