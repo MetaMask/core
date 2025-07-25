@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Deprecated
+
+- Deprecate `knownKeysOf` ([#6196](https://github.com/MetaMask/core/pull/6196))
+  - Use `getKnownPropertyNames` from `@metamask/utils` instead.
+
 ## [24.0.1]
 
 ### Changed
