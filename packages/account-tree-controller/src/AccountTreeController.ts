@@ -150,7 +150,7 @@ export class AccountTreeController extends BaseController<
       return;
     }
 
-    const rule = this.#categoryToRule[wallet.category];
+    const rule = this.#categoryToRule[wallet.metadata.type];
     wallet.metadata.name = rule.getDefaultAccountWalletName(wallet);
   }
 
@@ -162,7 +162,7 @@ export class AccountTreeController extends BaseController<
       return;
     }
 
-    const rule = this.#categoryToRule[wallet.category];
+    const rule = this.#categoryToRule[wallet.metadata.type];
     group.metadata.name = rule.getDefaultAccountGroupName(group);
   }
 
@@ -237,7 +237,6 @@ export class AccountTreeController extends BaseController<
       if (!wallet) {
         wallets[walletId] = {
           id: walletId,
-          category: rule.category,
           groups: {},
           metadata: {
             name: '', // Will get updated later.

@@ -78,7 +78,6 @@ export type AccountGroupObject = {
 
 export type AccountWalletObject = {
   id: AccountWalletId;
-  category: AccountWalletCategory;
   // Account groups OR Multichain accounts (once available).
   groups: {
     [groupId: AccountGroupId]: AccountGroupObject;

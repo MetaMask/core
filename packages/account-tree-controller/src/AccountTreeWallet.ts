@@ -47,7 +47,7 @@ export class AccountTreeWallet implements AccountWallet<InternalAccount> {
   }
 
   get category(): AccountWalletCategory {
-    return this.#wallet.category;
+    return this.#wallet.metadata.type;
   }
 
   get name(): string {

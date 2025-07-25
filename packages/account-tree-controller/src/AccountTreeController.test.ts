@@ -380,7 +380,6 @@ describe('AccountTreeController', () => {
         accountTree: {
           wallets: {
             [expectedWalletId1]: {
-              category: AccountWalletCategory.Entropy,
               id: expectedWalletId1,
               groups: {
                 [expectedWalletId1Group]: {
@@ -401,7 +400,6 @@ describe('AccountTreeController', () => {
               },
             },
             [expectedWalletId2]: {
-              category: AccountWalletCategory.Entropy,
               id: expectedWalletId2,
               groups: {
                 [expectedWalletId2Group1]: {
@@ -429,7 +427,6 @@ describe('AccountTreeController', () => {
               },
             },
             [expectedSnapWalletId]: {
-              category: AccountWalletCategory.Snap,
               id: expectedSnapWalletId,
               groups: {
                 [expectedSnapWalletIdGroup]: {
@@ -449,7 +446,6 @@ describe('AccountTreeController', () => {
               },
             },
             [expectedKeyringWalletId]: {
-              category: AccountWalletCategory.Keyring,
               id: expectedKeyringWalletId,
               groups: {
                 [expectedKeyringWalletIdGroup]: {
@@ -632,7 +628,6 @@ describe('AccountTreeController', () => {
         accountTree: {
           wallets: {
             [walletId1]: {
-              category: AccountWalletCategory.Entropy,
               id: walletId1,
               groups: {
                 [walletId1Group]: {
@@ -703,7 +698,6 @@ describe('AccountTreeController', () => {
         accountTree: {
           wallets: {
             [walletId1]: {
-              category: AccountWalletCategory.Entropy,
               id: walletId1,
               groups: {
                 [walletId1Group]: {
@@ -781,7 +775,6 @@ describe('AccountTreeController', () => {
         accountTree: {
           wallets: {
             [walletId1]: {
-              category: AccountWalletCategory.Entropy,
               id: walletId1,
               groups: {
                 [walletId1Group]: {
@@ -801,7 +794,6 @@ describe('AccountTreeController', () => {
             },
             [walletId2]: {
               // New wallet automatically added.
-              category: AccountWalletCategory.Entropy,
               id: walletId2,
               groups: {
                 [walletId2Group]: {
@@ -994,7 +986,6 @@ describe('AccountTreeController', () => {
             AccountWalletCategory.Keyring,
             KeyringTypes.simple,
           ),
-          category: AccountWalletCategory.Keyring,
           groups: {},
           metadata: {
             name: '',
@@ -1034,7 +1025,6 @@ describe('AccountTreeController', () => {
             AccountWalletCategory.Keyring,
             KeyringTypes.simple,
           ),
-          category: AccountWalletCategory.Keyring,
           groups: {},
           metadata: {
             name: '',
@@ -1070,7 +1060,6 @@ describe('AccountTreeController', () => {
             AccountWalletCategory.Keyring,
             KeyringTypes.simple,
           ),
-          category: AccountWalletCategory.Keyring,
           groups: {},
           metadata: {
             name: '',
