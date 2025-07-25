@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat(multichain-account-service): re-sync multichain account and wallets on account events ([#6165](https://github.com/MetaMask/core/pull/6165))
-
 ## [0.11.0]
 
 ### Changed
