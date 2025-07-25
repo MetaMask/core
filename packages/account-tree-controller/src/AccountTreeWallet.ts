@@ -1,89 +1,91 @@
-import {
-  toAccountGroupId,
-  toAccountWalletId,
-  DEFAULT_ACCOUNT_GROUP_UNIQUE_ID,
-  type AccountGroupId,
-  type AccountWallet,
-  type AccountWalletCategory,
-  type AccountWalletId,
+import type {
+  AccountWalletCategory,
+  AccountWalletId,
 } from '@metamask/account-api';
+import { type AccountGroupId, type AccountWallet } from '@metamask/account-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import { type AccountTreeControllerMessenger } from './AccountTreeController';
-import type { AccountTreeGroup } from './AccountTreeGroup';
-import { MutableAccountTreeGroup } from './AccountTreeGroup';
+import { AccountTreeGroup } from './AccountTreeGroup';
+import type { AccountWalletObject } from './types';
+import { type AccountTreeControllerMessenger } from './types';
 
 /**
  * Account wallet coming from the {@link AccountTreeController}.
  */
-export type AccountTreeWallet = {
+export class AccountTreeWallet implements AccountWallet<InternalAccount> {
+  readonly #wallet: AccountWalletObject;
+
+  protected messenger: AccountTreeControllerMessenger;
+
+  protected groups: Map<AccountGroupId, AccountTreeGroup>;
+
+  constructor({
+    messenger,
+    wallet,
+  }: {
+    messenger: AccountTreeControllerMessenger;
+    wallet: AccountWalletObject;
+  }) {
+    this.messenger = messenger;
+    this.#wallet = wallet;
+    this.groups = new Map();
+
+    for (const [groupId, group] of Object.entries(this.#wallet.groups)) {
+      this.groups.set(
+        groupId as AccountGroupId,
+        new AccountTreeGroup({
+          messenger: this.messenger,
+          wallet: this,
+          group,
+        }),
+      );
+    }
+  }
+
+  get id(): AccountWalletId {
+    return this.#wallet.id;
+  }
+
+  get category(): AccountWalletCategory {
+    return this.#wallet.metadata.type;
+  }
+
+  get name(): string {
+    return this.#wallet.metadata.name;
+  }
+
   /**
    * Gets account tree group for a given ID.
    *
+   * @param groupId - Group ID.
+   * @returns Account tree group, or undefined if not found.
+   */
+  getAccountGroup(groupId: AccountGroupId): AccountTreeGroup | undefined {
+    return this.groups.get(groupId);
+  }
+
+  /**
+   * Gets account tree group for a given ID.
+   *
+   * @param groupId - Group ID.
+   * @throws If the account group is not found.
    * @returns Account tree group.
    */
-  getAccountGroup(groupId: AccountGroupId): AccountTreeGroup | undefined;
+  getAccountGroupOrThrow(groupId: AccountGroupId): AccountTreeGroup {
+    const group = this.getAccountGroup(groupId);
+    if (!group) {
+      throw new Error('Unable to get account group');
+    }
+
+    return group;
+  }
 
   /**
    * Gets all account tree groups.
    *
    * @returns Account tree groups.
    */
-  getAccountGroups(): AccountTreeGroup[];
-
-  /**
-   * Gets the default name for that account wallet.
-   */
-  getDefaultName(): string;
-} & AccountWallet<InternalAccount>;
-
-// This class is meant to be used internally by every rules. It exposes mutable operations
-// which should not leak outside of this package.
-export abstract class MutableAccountTreeWallet implements AccountTreeWallet {
-  readonly id: AccountWalletId;
-
-  readonly category: AccountWalletCategory;
-
-  readonly messenger: AccountTreeControllerMessenger;
-
-  readonly #groups: Map<AccountGroupId, MutableAccountTreeGroup>;
-
-  constructor(
-    messenger: AccountTreeControllerMessenger,
-    category: AccountWalletCategory,
-    id: string,
-  ) {
-    this.id = toAccountWalletId(category, id);
-    this.category = category;
-    this.messenger = messenger;
-
-    this.#groups = new Map();
-  }
-
-  getAccountGroup(groupId: AccountGroupId): AccountTreeGroup | undefined {
-    return this.#groups.get(groupId);
-  }
-
   getAccountGroups(): AccountTreeGroup[] {
-    return Array.from(this.#groups.values()); // TODO: Should we avoid the copy here?
+    return Array.from(this.groups.values());
   }
-
-  // NOTE: This method SHOULD BE overriden if a rule need to group things differently.
-  addAccount(account: InternalAccount): MutableAccountTreeGroup {
-    const id = DEFAULT_ACCOUNT_GROUP_UNIQUE_ID;
-
-    // Use a single-group by default.
-    let group = this.#groups.get(toAccountGroupId(this.id, id));
-    if (!group) {
-      // We create the account group and attach it to this wallet.
-      group = new MutableAccountTreeGroup(this.messenger, this, id);
-      this.#groups.set(group.id, group);
-    }
-
-    group.addAccount(account);
-
-    return group;
-  }
-
-  abstract getDefaultName(): string;
 }

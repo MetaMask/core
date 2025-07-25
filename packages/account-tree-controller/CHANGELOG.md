@@ -9,10 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add BIP-44/multichain accounts support ([#6185](https://github.com/MetaMask/core/pull/6185))
+  - Those are being attached to the `entropy` wallet category.
+
+### Changed
+
 - Add `selectedAccountGroup` state and bidirectional synchronization with `AccountsController` ([#6186](https://github.com/MetaMask/core/pull/6186))
   - New `getSelectedAccountGroup()` and `setSelectedAccountGroup()` methods.
   - Automatic synchronization when selected account changes in AccountsController.
   - New action types `AccountTreeControllerGetSelectedAccountGroupAction` and `AccountTreeControllerSetSelectedAccountGroupAction`.
+- Now use one account group per account for `snap` and `keyring` wallet categories ([#6185](https://github.com/MetaMask/core/pull/6185))
+  - We used to group all accounts under the `'default'` group, but we now compute the group ID using the address of each accounts.
+- Compute account group name based on their underlying account. ([#6185](https://github.com/MetaMask/core/pull/6185))
+  - This replaces the previous `'Default'` name for groups.
 
 ## [0.6.0]
 

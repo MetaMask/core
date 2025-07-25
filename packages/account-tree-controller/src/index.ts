@@ -9,9 +9,13 @@ export type {
   AccountTreeControllerMessenger,
   AccountWalletObject,
   AccountWalletMetadata,
+  AccountWalletCategoryMetadata,
+  AccountWalletEntropyMetadata,
+  AccountWalletKeyringMetadata,
+  AccountWalletSnapMetadata,
   AccountGroupObject,
   AccountGroupMetadata,
-} from './AccountTreeController';
+} from './types';
 export {
   AccountTreeController,
   getDefaultAccountTreeControllerState,
