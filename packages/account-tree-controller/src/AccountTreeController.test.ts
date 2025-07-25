@@ -1543,7 +1543,7 @@ describe('AccountTreeRule', () => {
     );
   });
 
-  it('throws if there is not enough account', () => {
+  it('throws if there is not enough accounts', () => {
     const { rule } = setupRule();
 
     expect(() =>
