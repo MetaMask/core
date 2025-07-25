@@ -367,25 +367,25 @@ export class AccountTreeController extends BaseController<
   /**
    * Sets the selected account group and updates the AccountsController selectedAccount accordingly.
    *
-   * @param accountGroupId - The account group ID to select.
+   * @param groupId - The account group ID to select.
    */
-  setSelectedAccountGroup(accountGroupId: AccountGroupId): void {
+  setSelectedAccountGroup(groupId: AccountGroupId): void {
     const currentSelectedGroup = this.state.accountTree.selectedAccountGroup;
 
     // Idempotent check - if the same group is already selected, do nothing
-    if (currentSelectedGroup === accountGroupId) {
+    if (currentSelectedGroup === groupId) {
       return;
     }
 
     // Find the first account in this group to select
-    const accountToSelect = this.#getFirstAccountInGroup(accountGroupId);
+    const accountToSelect = this.#getFirstAccountInGroup(groupId);
     if (!accountToSelect) {
-      throw new Error(`No accounts found in group: ${accountGroupId}`);
+      throw new Error(`No accounts found in group: ${groupId}`);
     }
 
     // Update our state first
     this.update((state) => {
-      state.accountTree.selectedAccountGroup = accountGroupId;
+      state.accountTree.selectedAccountGroup = groupId;
     });
 
     // Update AccountsController - this will trigger selectedAccountChange event,

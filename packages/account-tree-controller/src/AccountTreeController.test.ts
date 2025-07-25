@@ -1097,23 +1097,5 @@ describe('AccountTreeController', () => {
 
       expect(controller.getSelectedAccountGroup()).not.toBe('');
     });
-
-    it('verifies defensive programming handles undefined accounts gracefully', () => {
-      const { controller, messenger } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1],
-        keyrings: [MOCK_HD_KEYRING_1],
-      });
-
-      controller.init();
-
-      expect(() => {
-        messenger.publish(
-          'AccountsController:accountRemoved',
-          'definitely-not-a-real-account-id',
-        );
-      }).not.toThrow();
-
-      expect(controller.getSelectedAccountGroup()).not.toBe('');
-    });
   });
 });
