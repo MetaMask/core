@@ -90,6 +90,10 @@ const v2Engine = new JsonRpcEngineV2({
 legacyEngine.push(asLegacyMiddleware(v2Engine));
 ```
 
+In keeping with the conventions of the legacy engine, non-JSON-RPC string properties of the `context` will be
+copied over to the request once the V2 engine is done with the request. _Note that any symbol keys of the `context`
+will **not** be copied over._
+
 ### Middleware
 
 Middleware functions can be sync or async.

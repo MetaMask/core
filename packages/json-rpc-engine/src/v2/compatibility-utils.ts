@@ -53,7 +53,7 @@ export function fromLegacyRequest<Request extends JsonRpcRequest>(
  * @param req - The legacy request to make a context from.
  * @returns The middleware context.
  */
-export function makeContext<Request extends Record<string, unknown>>(
+export function makeContext<Request extends Record<string | symbol, unknown>>(
   req: Request,
 ): MiddlewareContext {
   const context = new MiddlewareContext();
@@ -62,10 +62,12 @@ export function makeContext<Request extends Record<string, unknown>>(
 }
 
 /**
- * Copies non-JSON-RPC properties from the request to the context.
+ * Copies non-JSON-RPC string properties from the request to the context.
  *
  * For compatibility with our problematic practice of appending non-standard
  * fields to requests for inter-middleware communication in the legacy engine.
+ *
+ * **ATTN:** Only string properties are copied.
  *
  * @param req - The request to propagate the context from.
  * @param context - The context to propagate to.
@@ -82,10 +84,12 @@ export function propagateToContext(
 }
 
 /**
- * Copies non-JSON-RPC properties from the context to the request.
+ * Copies non-JSON-RPC string properties from the context to the request.
  *
  * For compatibility with our problematic practice of appending non-standard
  * fields to requests for inter-middleware communication in the legacy engine.
+ *
+ * **ATTN:** Only string properties are copied.
  *
  * @param req - The request to propagate the context to.
  * @param context - The context to propagate from.
@@ -95,7 +99,11 @@ export function propagateToRequest(
   context: MiddlewareContext,
 ) {
   Array.from(context.keys())
-    .filter((key) => !requestProps.includes(key))
+    .filter(
+      ((key) => typeof key === 'string' && !requestProps.includes(key)) as (
+        value: unknown,
+      ) => value is string,
+    )
     .forEach((key) => {
       req[key] = context.get(key);
     });

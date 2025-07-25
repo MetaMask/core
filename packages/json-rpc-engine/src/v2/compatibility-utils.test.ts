@@ -221,7 +221,7 @@ describe('compatibility-utils', () => {
   });
 
   describe('propagateToRequest', () => {
-    it('copies non-JSON-RPC properties from context to request', () => {
+    it('copies non-JSON-RPC string properties from context to request', () => {
       const request = {
         jsonrpc,
         method: 'test_method',
@@ -241,6 +241,28 @@ describe('compatibility-utils', () => {
         id: 42,
         extraProp: 'value',
         anotherProp: { nested: true },
+      });
+    });
+
+    it('does not copy non-string properties from context to request', () => {
+      const request = {
+        jsonrpc,
+        method: 'test_method',
+        params: [1],
+        id: 42,
+      };
+      const context = new MiddlewareContext();
+      context.set('extraProp', 'value');
+      context.set(Symbol('anotherProp'), { nested: true });
+
+      propagateToRequest(request, context);
+
+      expect(request).toStrictEqual({
+        jsonrpc,
+        method: 'test_method',
+        params: [1],
+        id: 42,
+        extraProp: 'value',
       });
     });
 
