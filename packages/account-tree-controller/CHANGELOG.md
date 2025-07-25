@@ -10,9 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `selectedAccountGroup` state and bidirectional synchronization with AccountsController ([#6186](https://github.com/MetaMask/core/pull/6186))
-  - New `getSelectedAccountGroup()` and `setSelectedAccountGroup()` methods
-  - Automatic synchronization when selected account changes in AccountsController
-  - New action types `AccountTreeControllerGetSelectedAccountGroupAction` and `AccountTreeControllerSetSelectedAccountGroupAction`
+  - New `getSelectedAccountGroup()` and `setSelectedAccountGroup()` methods.
+  - Automatic synchronization when selected account changes in AccountsController.
+  - New action types `AccountTreeControllerGetSelectedAccountGroupAction` and `AccountTreeControllerSetSelectedAccountGroupAction`.
 
 ## [0.6.0]
 
