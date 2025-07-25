@@ -21,13 +21,14 @@ import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 const engine = new JsonRpcEngineV2({
   // Create a stack of middleware and pass it to the engine:
   middleware: [
-    ({ request, next }) => {
-      if (request.method === 'foo') {
-        return 'bar';
+    ({ request, next, context }) => {
+      if (request.method === 'hello') {
+        context.set('hello', 'world');
+        return next();
       }
-      return next();
+      return null;
     },
-    () => 'world',
+    ({ context }) => context.get('hello'),
   ],
 });
 ```
