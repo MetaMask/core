@@ -1,4 +1,5 @@
 import type {
+  AccountWalletId,
   Bip44Account,
   MultichainAccountWalletId,
 } from '@metamask/account-api';
@@ -559,6 +560,34 @@ describe('AccountTreeController', () => {
     });
   });
 
+  describe('getAccountWalletAndGroup', () => {
+    it('gets the associated wallet and group for a given account', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [],
+      });
+
+      controller.init();
+
+      expect(() =>
+        controller.getAccountWalletAndGroup(MOCK_HD_ACCOUNT_1.id),
+      ).not.toThrow();
+    });
+
+    it('throws if it cannot get associated wallet and group for a given account', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [],
+      });
+
+      controller.init();
+
+      expect(() =>
+        controller.getAccountWalletAndGroup(MOCK_HD_ACCOUNT_2.id),
+      ).toThrow('Unable to get account context');
+    });
+  });
+
   describe('on AccountsController:accountRemoved', () => {
     it('removes an account from the tree', () => {
       // 2 accounts that share the same entropy source (thus, same wallet).
@@ -771,7 +800,7 @@ describe('AccountTreeController', () => {
     });
   });
 
-  describe('getWallet', () => {
+  describe('getAccountWallet/getAccountWalletOrThrow', () => {
     it('gets a wallet using its ID', () => {
       const { controller } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
@@ -783,8 +812,10 @@ describe('AccountTreeController', () => {
         AccountWalletCategory.Entropy,
         MOCK_HD_KEYRING_1.metadata.id,
       );
-      const wallet = controller.getWallet(walletId);
+      const wallet = controller.getAccountWallet(walletId);
       expect(wallet).toBeDefined();
+
+      expect(() => controller.getAccountWalletOrThrow(walletId)).not.toThrow();
     });
 
     it('gets undefined is wallet ID is not matching any wallet', () => {
@@ -794,12 +825,18 @@ describe('AccountTreeController', () => {
       });
       controller.init();
 
-      const wallet = controller.getWallet('entropy:unknown');
+      const badGroupId: AccountWalletId = 'entropy:unknown';
+
+      const wallet = controller.getAccountWallet(badGroupId);
       expect(wallet).toBeUndefined();
+
+      expect(() => controller.getAccountWalletOrThrow(badGroupId)).toThrow(
+        'Unable to get account wallet',
+      );
     });
   });
 
-  describe('getWallets', () => {
+  describe('getAccountWallets', () => {
     it('gets all wallets', () => {
       const { controller } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
@@ -807,7 +844,7 @@ describe('AccountTreeController', () => {
       });
       controller.init();
 
-      const wallets = controller.getWallets();
+      const wallets = controller.getAccountWallets();
       expect(wallets).toHaveLength(2);
     });
   });
@@ -820,7 +857,7 @@ describe('AccountTreeController', () => {
       });
       controller.init();
 
-      const wallets = controller.getWallets();
+      const wallets = controller.getAccountWallets();
       expect(wallets).toHaveLength(1);
 
       const wallet = wallets[0];
@@ -844,7 +881,7 @@ describe('AccountTreeController', () => {
       });
       controller.init();
 
-      const wallets = controller.getWallets();
+      const wallets = controller.getAccountWallets();
       expect(wallets).toHaveLength(1);
 
       const wallet = wallets[0];
@@ -852,9 +889,29 @@ describe('AccountTreeController', () => {
         wallet.id as MultichainAccountWalletId,
         MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
       );
+
       const group = wallet.getAccountGroup(groupId);
       expect(group).toBeDefined();
       expect(group?.id).toStrictEqual(groupId);
+
+      expect(() => wallet.getAccountGroupOrThrow(groupId)).not.toThrow();
+    });
+
+    it('throws if it cannot get an account group', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      controller.init();
+
+      const wallets = controller.getAccountWallets();
+      expect(wallets).toHaveLength(1);
+
+      const wallet = wallets[0];
+      const groupId = toAccountGroupId(wallet.id, 'bad-id');
+      expect(() => wallet.getAccountGroupOrThrow(groupId)).toThrow(
+        'Unable to get account group',
+      );
     });
   });
 
@@ -866,7 +923,7 @@ describe('AccountTreeController', () => {
       });
       controller.init();
 
-      const wallets = controller.getWallets();
+      const wallets = controller.getAccountWallets();
       expect(wallets).toHaveLength(1);
 
       const wallet = wallets[0];
@@ -891,7 +948,7 @@ describe('AccountTreeController', () => {
       });
       controller.init();
 
-      const wallets = controller.getWallets();
+      const wallets = controller.getAccountWallets();
       const wallet = wallets[0];
       const groups = wallet.getAccountGroups();
       const group = groups[0];

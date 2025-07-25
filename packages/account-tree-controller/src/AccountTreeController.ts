@@ -12,10 +12,8 @@ import { EntropyRule } from './rules/entropy';
 import { KeyringRule } from './rules/keyring';
 import { SnapRule } from './rules/snap';
 import type {
-  AccountGroupObject,
   AccountTreeControllerMessenger,
   AccountTreeControllerState,
-  AccountWalletObject,
 } from './types';
 
 export const controllerName = 'AccountTreeController';
@@ -136,22 +134,14 @@ export class AccountTreeController extends BaseController<
     }
 
     // Once we have the account tree, we can compute the name.
-    for (const wallet of Object.values(wallets)) {
-      const walletInstance = this.getWallet(wallet.id);
+    for (const wallet of this.#wallets.values()) {
+      if (wallet.name === '') {
+        this.#renameAccountWallet(wallet);
+      }
 
-      if (walletInstance) {
-        if (wallet.metadata.name === '') {
-          this.#renameAccountWallet(walletInstance, wallet);
-        }
-
-        for (const group of Object.values(wallet.groups)) {
-          const groupInstance = walletInstance.getAccountGroup(group.id);
-
-          if (groupInstance) {
-            if (group.metadata.name === '') {
-              this.#renameAccountGroup(groupInstance, group);
-            }
-          }
+      for (const group of wallet.getAccountGroups()) {
+        if (group.name === '') {
+          this.#renameAccountGroup(group);
         }
       }
     }
@@ -161,27 +151,47 @@ export class AccountTreeController extends BaseController<
     });
   }
 
-  #renameAccountWallet(
-    wallet: AccountTreeWallet,
-    walletObject: AccountWalletObject,
-  ) {
-    const rule = this.#categoryToRule[walletObject.category];
-    walletObject.metadata.name = rule.getDefaultAccountWalletName(wallet);
+  #renameAccountWallet(wallet: AccountTreeWallet) {
+    const rule = this.#categoryToRule[wallet.category];
+    wallet.object.metadata.name = rule.getDefaultAccountWalletName(wallet);
   }
 
-  #renameAccountGroup(
-    group: AccountTreeGroup,
-    groupObject: AccountGroupObject,
-  ) {
+  #renameAccountGroup(group: AccountTreeGroup) {
     const rule = this.#categoryToRule[group.wallet.category];
-    groupObject.metadata.name = rule.getDefaultAccountGroupName(group);
+    group.object.metadata.name = rule.getDefaultAccountGroupName(group);
   }
 
-  getWallet(id: AccountWalletId): AccountTreeWallet | undefined {
+  getAccountWalletAndGroup(id: AccountId): {
+    wallet: AccountTreeWallet;
+    group: AccountTreeGroup;
+  } {
+    const context = this.#accountIdToContext.get(id);
+    if (!context) {
+      throw new Error('Unable to get account context');
+    }
+
+    const { walletId, groupId } = context;
+
+    const wallet = this.getAccountWalletOrThrow(walletId);
+    const group = wallet.getAccountGroupOrThrow(groupId);
+
+    return { wallet, group };
+  }
+
+  getAccountWallet(id: AccountWalletId): AccountTreeWallet | undefined {
     return this.#wallets.get(id);
   }
 
-  getWallets(): AccountTreeWallet[] {
+  getAccountWalletOrThrow(id: AccountWalletId): AccountTreeWallet {
+    const wallet = this.getAccountWallet(id);
+    if (!wallet) {
+      throw new Error('Unable to get account wallet');
+    }
+
+    return wallet;
+  }
+
+  getAccountWallets(): AccountTreeWallet[] {
     return Array.from(this.#wallets.values());
   }
 
@@ -189,29 +199,14 @@ export class AccountTreeController extends BaseController<
     this.update((state) => {
       this.#insert(state.accountTree.wallets, account);
 
-      const context = this.#accountIdToContext.get(account.id);
-      if (context) {
-        const { walletId, groupId } = context;
+      // Even if this method can throw, it
+      const { wallet, group } = this.getAccountWalletAndGroup(account.id);
+      if (wallet.name === '') {
+        this.#renameAccountWallet(wallet);
+      }
 
-        const wallet = state.accountTree.wallets[walletId];
-        if (wallet) {
-          const walletInstance = this.getWallet(wallet.id);
-          if (walletInstance) {
-            if (wallet.metadata.name === '') {
-              this.#renameAccountWallet(walletInstance, wallet);
-            }
-
-            const group = wallet.groups[groupId];
-            if (group) {
-              const groupInstance = walletInstance.getAccountGroup(group.id);
-              if (groupInstance) {
-                if (group.metadata.name === '') {
-                  this.#renameAccountGroup(groupInstance, group);
-                }
-              }
-            }
-          }
-        }
+      if (group.name === '') {
+        this.#renameAccountGroup(group);
       }
     });
   }

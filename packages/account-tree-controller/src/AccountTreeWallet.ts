@@ -106,13 +106,38 @@ export class AccountTreeWallet implements AccountWallet<InternalAccount> {
   }
 
   /**
+   * Returns a reference to the state object.
+   *
+   * @returns A reference to the wallet state object.
+   */
+  get object(): AccountWalletObject {
+    return this.#wallet;
+  }
+
+  /**
    * Gets account tree group for a given ID.
    *
    * @param groupId - Group ID.
-   * @returns Account tree group.
+   * @returns Account tree group, or undefined if not found.
    */
   getAccountGroup(groupId: AccountGroupId): AccountTreeGroup | undefined {
     return this.#groups.get(groupId);
+  }
+
+  /**
+   * Gets account tree group for a given ID.
+   *
+   * @param groupId - Group ID.
+   * @throws If the account group is not found.
+   * @returns Account tree group.
+   */
+  getAccountGroupOrThrow(groupId: AccountGroupId): AccountTreeGroup {
+    const group = this.getAccountGroup(groupId);
+    if (!group) {
+      throw new Error('Unable to get account group');
+    }
+
+    return group;
   }
 
   /**
