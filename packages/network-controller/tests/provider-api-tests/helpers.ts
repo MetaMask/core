@@ -4,10 +4,11 @@ import { BUILT_IN_NETWORKS } from '@metamask/controller-utils';
 import type { BlockTracker } from '@metamask/eth-block-tracker';
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import EthQuery from '@metamask/eth-query';
-import type { Hex } from '@metamask/utils';
-import nock from 'nock';
+import type { Hex, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
+import nock, { isDone as nockIsDone } from 'nock';
 import type { Scope as NockScope } from 'nock';
-import * as sinon from 'sinon';
+import sinon from 'sinon';
+import type { SinonFakeTimers } from 'sinon';
 
 import { createNetworkClient } from '../../src/create-network-client';
 import type { NetworkControllerOptions } from '../../src/NetworkController';
@@ -46,14 +47,12 @@ const DEFAULT_LATEST_BLOCK_NUMBER = '0x42';
  *
  * @param args - The arguments that `console.log` takes.
  */
-// TODO: Replace `any` with type
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function debug(...args: any) {
-  /* eslint-disable-next-line n/no-process-env */
+const debug: typeof console.log = (...args) => {
+  // eslint-disable-next-line n/no-process-env
   if (process.env.DEBUG_PROVIDER_TESTS === '1') {
     console.log(...args);
   }
-}
+};
 
 /**
  * Builds a Nock scope object for mocking provider requests.
@@ -72,25 +71,31 @@ function buildScopeForMockingRequests(
   });
 }
 
-// TODO: Replace `any` with type
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type MockRequest = { method: string; params?: any[] };
-type Response = {
+export type MockRequest = Omit<JsonRpcRequest, 'id' | 'jsonrpc'>;
+type Response<Result> = {
   id?: number | string;
   jsonrpc?: '2.0';
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  error?: any;
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  result?: any;
+  error?: unknown;
+  result?: Result;
   httpStatus?: number;
 };
-export type MockResponse = { body: JSONRPCResponse | string } | Response;
-type CurriedMockRpcCallOptions = {
+export type MockResponse<Result> =
+  | { body: JSONRPCResponse | string }
+  | Response<Result>;
+
+type MockRpcCallOptions<Result> = {
+  /*
+   * A nock scope (a set of mocked requests scoped to a certain base URL).
+   */
+  nockScope: nock.Scope;
+  /**
+   * The request.
+   */
   request: MockRequest;
-  // The response data.
-  response?: MockResponse;
+  /*
+   * The response data.
+   */
+  response?: MockResponse<Result>;
   /**
    * An error to throw while making the request.
    * Takes precedence over `response`.
@@ -107,11 +112,6 @@ type CurriedMockRpcCallOptions = {
    */
   times?: number;
 };
-
-type MockRpcCallOptions = {
-  // A nock scope (a set of mocked requests scoped to a certain base URL).
-  nockScope: nock.Scope;
-} & CurriedMockRpcCallOptions;
 
 type MockRpcCallResult = nock.Interceptor | nock.Scope;
 
@@ -137,14 +137,14 @@ type MockRpcCallResult = nock.Interceptor | nock.Scope;
  * made.
  * @returns The nock scope.
  */
-function mockRpcCall({
+function mockRpcCall<Result>({
   nockScope,
   request,
   response,
   error,
   delay,
   times,
-}: MockRpcCallOptions): MockRpcCallResult {
+}: MockRpcCallOptions<Result>): MockRpcCallResult {
   // eth-query always passes `params`, so even if we don't supply this property,
   // for consistency with makeRpcCall, assume that the `body` contains it
   const { method, params = [], ...rest } = request;
@@ -198,18 +198,16 @@ function mockRpcCall({
   if (error !== undefined) {
     return nockRequest.replyWithError(error);
   } else if (completeResponse !== undefined) {
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return nockRequest.reply(httpStatus, (_, requestBody: any) => {
+    return nockRequest.reply(httpStatus, (_, requestBody) => {
       if (typeof completeResponse === 'string') {
         return completeResponse;
       }
 
       if (response !== undefined && !('body' in response)) {
-        if (response.id === undefined) {
-          completeResponse.id = requestBody.id;
-        } else {
+        if (response.id !== undefined) {
           completeResponse.id = response.id;
+        } else if (typeof requestBody === 'object' && 'id' in requestBody) {
+          completeResponse.id = requestBody.id;
         }
       }
       debug('Nock returning Response', completeResponse);
@@ -228,7 +226,7 @@ type MockBlockTrackerRequestOptions = {
    * The block number that the block tracker should report, as a 0x-prefixed hex
    * string.
    */
-  blockNumber: string;
+  blockNumber?: string;
 };
 
 /**
@@ -264,9 +262,7 @@ async function mockAllBlockTrackerRequests({
   nockScope,
   blockNumber = DEFAULT_LATEST_BLOCK_NUMBER,
 }: MockBlockTrackerRequestOptions) {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/await-thenable
-  const result = await mockRpcCall({
+  const result = mockRpcCall({
     nockScope,
     request: { method: 'eth_blockNumber', params: [] },
     response: { result: blockNumber },
@@ -286,16 +282,22 @@ async function mockAllBlockTrackerRequests({
  * response if it is successful or rejects with the error from the JSON-RPC
  * response otherwise.
  */
-function makeRpcCall(ethQuery: EthQuery, request: MockRequest) {
+function makeRpcCall<Result>(
+  ethQuery: EthQuery,
+  request: MockRequest,
+): Promise<Result> {
   return new Promise((resolve, reject) => {
     debug('[makeRpcCall] making request', request);
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ethQuery.sendAsync(request, (error: any, result: any) => {
+    ethQuery.sendAsync<JsonRpcParams, Result>(request, (error, result) => {
       debug('[makeRpcCall > ethQuery handler] error', error, 'result', result);
       if (error) {
+        // We are simply promisifying EthQuery.sendAsync.
+        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
         reject(error);
       } else {
+        // @ts-expect-error A successful JSON-RPC response can't be `undefined`,
+        // but we handle this specially in the middleware, so we need to be able
+        // to test for it
         resolve(result);
       }
     });
@@ -319,13 +321,15 @@ export type MockOptions = {
 };
 
 export type MockCommunications = {
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  mockNextBlockTrackerRequest: (options?: any) => void;
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  mockAllBlockTrackerRequests: (options?: any) => void;
-  mockRpcCall: (options: CurriedMockRpcCallOptions) => MockRpcCallResult;
+  mockNextBlockTrackerRequest: (
+    options?: Omit<MockBlockTrackerRequestOptions, 'nockScope'>,
+  ) => void;
+  mockAllBlockTrackerRequests: (
+    options: Omit<MockBlockTrackerRequestOptions, 'nockScope'>,
+  ) => void;
+  mockRpcCall: <Result>(
+    options: Omit<MockRpcCallOptions<Result>, 'nockScope'>,
+  ) => MockRpcCallResult;
   rpcUrl: string;
   infuraNetwork: InfuraNetworkType;
 };
@@ -355,23 +359,18 @@ export async function withMockedCommunications(
 ) {
   const rpcUrl =
     providerType === 'infura'
-      ? // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-        `https://${infuraNetwork}.infura.io`
+      ? `https://${infuraNetwork}.infura.io`
       : customRpcUrl;
   const nockScope = buildScopeForMockingRequests(rpcUrl, expectedHeaders);
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const curriedMockNextBlockTrackerRequest = (localOptions: any) =>
-    mockNextBlockTrackerRequest({ nockScope, ...localOptions });
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const curriedMockAllBlockTrackerRequests = (localOptions: any) =>
-    mockAllBlockTrackerRequests({ nockScope, ...localOptions });
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const curriedMockRpcCall = (localOptions: any) =>
-    mockRpcCall({ nockScope, ...localOptions });
+  const curriedMockNextBlockTrackerRequest = (
+    options?: Omit<MockBlockTrackerRequestOptions, 'nockScope'>,
+  ) => mockNextBlockTrackerRequest({ nockScope, ...options });
+  const curriedMockAllBlockTrackerRequests = (
+    options: Omit<MockBlockTrackerRequestOptions, 'nockScope'>,
+  ) => mockAllBlockTrackerRequests({ nockScope, ...options });
+  const curriedMockRpcCall = <Result>(
+    options: Omit<MockRpcCallOptions<Result>, 'nockScope'>,
+  ) => mockRpcCall({ nockScope, ...options });
 
   const comms = {
     mockNextBlockTrackerRequest: curriedMockNextBlockTrackerRequest,
@@ -384,7 +383,7 @@ export async function withMockedCommunications(
   try {
     return await fn(comms);
   } finally {
-    nock.isDone();
+    nockIsDone();
   }
 }
 
@@ -392,12 +391,8 @@ type MockNetworkClient = {
   blockTracker: BlockTracker;
   provider: SafeEventEmitterProvider;
   clock: sinon.SinonFakeTimers;
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  makeRpcCall: (request: MockRequest) => Promise<any>;
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  makeRpcCallsInSeries: (requests: MockRequest[]) => Promise<any[]>;
+  makeRpcCall: <Result>(request: MockRequest) => Promise<Result>;
+  makeRpcCallsInSeries: (requests: MockRequest[]) => Promise<unknown[]>;
   messenger: RootMessenger;
   chainId: Hex;
   rpcUrl: string;
@@ -420,21 +415,17 @@ type MockNetworkClient = {
  * `setTimeout` handler.
  * @returns The given promise.
  */
-export async function waitForPromiseToBeFulfilledAfterRunningAllTimers(
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  promise: any,
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  clock: any,
+export async function waitForPromiseToBeFulfilledAfterRunningAllTimers<Result>(
+  promise: Promise<Result>,
+  clock: SinonFakeTimers,
 ) {
   let hasPromiseBeenFulfilled = false;
   let numTimesClockHasBeenAdvanced = 0;
 
+  // Unsure why this rule is getting triggered.
+  // eslint-disable-next-line promise/catch-or-return
   promise
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .catch((error: any) => {
+    .catch((error: unknown) => {
       // This is used to silence Node.js warnings about the rejection
       // being handled asynchronously. The error is handled later when
       // `promise` is awaited, but we log it here anyway in case it gets
@@ -481,7 +472,7 @@ export async function waitForPromiseToBeFulfilledAfterRunningAllTimers(
  * interaction with the network client.
  * @returns The return value of the given function.
  */
-export async function withNetworkClient(
+export async function withNetworkClient<Result>(
   {
     providerType,
     failoverRpcUrls = [],
@@ -494,9 +485,7 @@ export async function withNetworkClient(
     messenger = buildRootMessenger(),
     isRpcFailoverEnabled = false,
   }: MockOptions,
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  fn: (client: MockNetworkClient) => Promise<any>,
+  fn: (client: MockNetworkClient) => Promise<Result>,
 ) {
   // Faking timers ends up doing two things:
   // 1. Halting the block tracker (which depends on `setTimeout` to periodically
@@ -553,8 +542,8 @@ export async function withNetworkClient(
   const { provider, blockTracker } = networkClient;
 
   const ethQuery = new EthQuery(provider);
-  const curriedMakeRpcCall = (request: MockRequest) =>
-    makeRpcCall(ethQuery, request);
+  const curriedMakeRpcCall = <RequestResult>(request: MockRequest) =>
+    makeRpcCall<RequestResult>(ethQuery, request);
   const makeRpcCallsInSeries = async (requests: MockRequest[]) => {
     const responses: unknown[] = [];
     for (const request of requests) {
@@ -585,9 +574,7 @@ export async function withNetworkClient(
 
 type BuildMockParamsOptions = {
   // The block parameter value to set.
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  blockParam: any;
+  blockParam: string | undefined;
   // The index of the block parameter.
   blockParamIndex: number;
 };
@@ -599,7 +586,7 @@ type BuildMockParamsOptions = {
  * block parameter index determines the number of parameters to generate.
  *
  * The block parameter can be set to a custom value. If no value is given, it
- * is set as undefined.
+ * will be removed at the given index.
  *
  * @param args - Arguments.
  * @param args.blockParamIndex - The index of the block parameter.
@@ -609,10 +596,13 @@ type BuildMockParamsOptions = {
 export function buildMockParams({
   blockParam,
   blockParamIndex,
-}: BuildMockParamsOptions) {
+}: BuildMockParamsOptions): string[] {
   const params = new Array(blockParamIndex).fill('some value');
-  params[blockParamIndex] = blockParam;
-
+  if (blockParam === undefined) {
+    params.splice(blockParamIndex, 1);
+  } else {
+    params[blockParamIndex] = blockParam;
+  }
   return params;
 }
 
@@ -629,13 +619,16 @@ export function buildMockParams({
  * @returns The updated request object.
  */
 export function buildRequestWithReplacedBlockParam(
-  { method, params = [] }: MockRequest,
+  request: MockRequest,
   blockParamIndex: number,
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  blockParam: any,
+  blockParam: string,
 ) {
-  const updatedParams = params.slice();
-  updatedParams[blockParamIndex] = blockParam;
-  return { method, params: updatedParams };
+  if (Array.isArray(request.params)) {
+    const { method, params = [] } = request;
+    const updatedParams = params.slice();
+    updatedParams[blockParamIndex] = blockParam;
+    return { method, params: updatedParams };
+  }
+
+  return request;
 }

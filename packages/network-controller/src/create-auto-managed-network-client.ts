@@ -51,8 +51,6 @@ export type AutoManagedNetworkClient<
  * This is impossible when using the Proxy API, as the target object has to be
  * something, so this object represents that "something".
  */
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
 const UNINITIALIZED_TARGET = { __UNINITIALIZED__: true };
 
 /**
@@ -119,9 +117,11 @@ export function createAutoManagedNetworkClient<
   };
 
   const providerProxy = new Proxy(UNINITIALIZED_TARGET, {
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    get(_target: any, propertyName: PropertyKey, receiver: unknown) {
+    get(
+      _target: typeof UNINITIALIZED_TARGET,
+      propertyName: PropertyKey,
+      receiver: ProxyWithAccessibleTarget<Provider>,
+    ) {
       if (propertyName === REFLECTIVE_PROPERTY_NAME) {
         return networkClient?.provider;
       }
@@ -129,19 +129,14 @@ export function createAutoManagedNetworkClient<
       const { provider } = ensureNetworkClientCreated();
 
       if (propertyName in provider) {
-        // Typecast: We know that `[propertyName]` is a propertyName on
-        // `provider`.
+        // Type assertion: We are checking that the provider has the property.
         const value = provider[propertyName as keyof typeof provider];
         if (typeof value === 'function') {
-          // Ensure that the method on the provider is called with `this` as
-          // the target, *not* the proxy (which happens by default) —
-          // this allows private properties to be accessed
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return function (this: unknown, ...args: any[]) {
-            // @ts-expect-error We don't care that `this` may not be compatible
-            // with the signature of the method being called, as technically
-            // it can be anything.
+          // Since this is a method, ensure that it is called with the provider
+          // as `this`, *not* the proxy (which happens by default). This allows
+          // the method to access the provider's private properties.
+          return function (this: unknown, ...args: unknown[]) {
+            // @ts-expect-error We are forcing `this` on an unbound `value`.
             return value.apply(this === receiver ? provider : this, args);
           };
         }
@@ -151,65 +146,57 @@ export function createAutoManagedNetworkClient<
       return undefined;
     },
 
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    has(_target: any, propertyName: PropertyKey) {
+    has(_target: typeof UNINITIALIZED_TARGET, propertyName: PropertyKey) {
       if (propertyName === REFLECTIVE_PROPERTY_NAME) {
         return true;
       }
       const { provider } = ensureNetworkClientCreated();
       return propertyName in provider;
     },
-  });
+  }) as ProxyWithAccessibleTarget<typeof UNINITIALIZED_TARGET & Provider>; // Type assertion: We can treat the proxy as though it's a provider.
 
-  const blockTrackerProxy: ProxyWithAccessibleTarget<BlockTracker> = new Proxy(
-    UNINITIALIZED_TARGET,
-    {
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      get(_target: any, propertyName: PropertyKey, receiver: unknown) {
-        if (propertyName === REFLECTIVE_PROPERTY_NAME) {
-          return networkClient?.blockTracker;
+  const blockTrackerProxy = new Proxy(UNINITIALIZED_TARGET, {
+    get(
+      _target: typeof UNINITIALIZED_TARGET,
+      propertyName: PropertyKey,
+      receiver: ProxyWithAccessibleTarget<BlockTracker>,
+    ) {
+      if (propertyName === REFLECTIVE_PROPERTY_NAME) {
+        return networkClient?.blockTracker;
+      }
+
+      const { blockTracker } = ensureNetworkClientCreated();
+
+      if (propertyName in blockTracker) {
+        // Type assertion: We are checking that the block tracker has the property.
+        const value = blockTracker[propertyName as keyof typeof blockTracker];
+        if (typeof value === 'function') {
+          // Since this is a method, ensure that it is called with the block
+          // tracker as `this`, *not* the proxy (which happens by default). This
+          // allows the method to access the block tracker's private properties.
+          return function (this: unknown, ...args: unknown[]) {
+            // @ts-expect-error We are forcing `this` on an unbound `value`.
+            return value.apply(this === receiver ? blockTracker : this, args);
+          };
         }
+        return value;
+      }
 
-        const { blockTracker } = ensureNetworkClientCreated();
-
-        if (propertyName in blockTracker) {
-          // Typecast: We know that `[propertyName]` is a propertyName on
-          // `provider`.
-          const value = blockTracker[propertyName as keyof typeof blockTracker];
-          if (typeof value === 'function') {
-            // Ensure that the method on the provider is called with `this` as
-            // the target, *not* the proxy (which happens by default) —
-            // this allows private properties to be accessed
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            return function (this: unknown, ...args: any[]) {
-              // @ts-expect-error We don't care that `this` may not be
-              // compatible with the signature of the method being called, as
-              // technically it can be anything.
-              return value.apply(this === receiver ? blockTracker : this, args);
-            };
-          }
-          return value;
-        }
-
-        return undefined;
-      },
-
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      has(_target: any, propertyName: PropertyKey) {
-        if (propertyName === REFLECTIVE_PROPERTY_NAME) {
-          return true;
-        }
-        const { blockTracker } = ensureNetworkClientCreated();
-        return propertyName in blockTracker;
-      },
+      return undefined;
     },
-  );
+
+    has(_target: typeof UNINITIALIZED_TARGET, propertyName: PropertyKey) {
+      if (propertyName === REFLECTIVE_PROPERTY_NAME) {
+        return true;
+      }
+      const { blockTracker } = ensureNetworkClientCreated();
+      return propertyName in blockTracker;
+    },
+  }) as ProxyWithAccessibleTarget<typeof UNINITIALIZED_TARGET & BlockTracker>; // Type assertion: We can treat the proxy as though it's a block tracker.
 
   const destroy = () => {
+    // TODO: Await this promise.
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     networkClient?.destroy();
   };
 
