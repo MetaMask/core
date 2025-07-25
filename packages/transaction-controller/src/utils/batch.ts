@@ -556,7 +556,8 @@ async function processTransactionWithHook(
   request: AddTransactionBatchRequest,
   txBatchMeta?: TransactionBatchMeta,
 ) {
-  const { existingTransaction, origin, params, type } = nestedTransaction;
+  const { existingTransaction, fiatValue, origin, params, type } =
+    nestedTransaction;
 
   const {
     addTransaction,
@@ -609,6 +610,7 @@ async function processTransactionWithHook(
     {
       batchId,
       disableGasBuffer: true,
+      fiatValue,
       networkClientId,
       origin,
       publishHook,

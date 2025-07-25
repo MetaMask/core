@@ -1593,6 +1593,9 @@ export type TransactionBatchSingleRequest = {
     signedTransaction: Hex;
   };
 
+  /** Fiat value of the nested transaction. */
+  fiatValue?: string;
+
   /** Origin of the nested transaction. */
   origin?: string;
 
