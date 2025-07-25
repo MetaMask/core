@@ -207,6 +207,7 @@ export class AccountTreeController extends BaseController<
 
     if (context) {
       const { walletId, groupId } = context;
+
       this.update((state) => {
         const { accounts } =
           state.accountTree.wallets[walletId].groups[groupId];
@@ -216,6 +217,9 @@ export class AccountTreeController extends BaseController<
           accounts.splice(index, 1);
         }
       });
+
+      // Clear reverse-mapping for that account.
+      this.#accountIdToContext.delete(accountId);
     }
   }
 
