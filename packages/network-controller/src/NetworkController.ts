@@ -1830,27 +1830,15 @@ export class NetworkController extends BaseController<
    * @returns A promise that either resolves to the block header or null if
    * there is no latest block, or rejects with an error.
    */
-  #getLatestBlock(networkClientId: NetworkClientId): Promise<Block> {
+  async #getLatestBlock(networkClientId: NetworkClientId): Promise<Block> {
     if (networkClientId === undefined) {
       networkClientId = this.state.selectedNetworkClientId;
     }
 
-    const networkClient = this.getNetworkClientById(networkClientId);
-    const ethQuery = new EthQuery(networkClient.provider);
-
-    return new Promise((resolve, reject) => {
-      ethQuery.sendAsync<['latest', false], Block>(
-        { method: 'eth_getBlockByNumber', params: ['latest', false] },
-        (error, block) => {
-          if (block) {
-            resolve(block);
-          } else {
-            // We are essentially promisifying this call.
-            // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
-            reject(error);
-          }
-        },
-      );
+    const { provider } = this.getNetworkClientById(networkClientId);
+    return await provider.request({
+      method: 'eth_getBlockByNumber',
+      params: ['latest', false],
     });
   }
 
