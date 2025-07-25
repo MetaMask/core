@@ -1,4 +1,6 @@
 import type {
+  AccountsControllerAccountAddedEvent,
+  AccountsControllerAccountRemovedEvent,
   AccountsControllerGetAccountAction,
   AccountsControllerGetAccountByAddressAction,
   AccountsControllerListMultichainAccountsAction,
@@ -38,7 +40,10 @@ export type AllowedActions =
  * All events published by other modules that {@link MultichainAccountService}
  * subscribes to.
  */
-export type AllowedEvents = KeyringControllerStateChangeEvent;
+export type AllowedEvents =
+  | KeyringControllerStateChangeEvent
+  | AccountsControllerAccountAddedEvent
+  | AccountsControllerAccountRemovedEvent;
 
 /**
  * The messenger restricted to actions and events that
