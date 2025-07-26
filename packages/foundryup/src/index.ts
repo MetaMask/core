@@ -143,8 +143,9 @@ export async function installBinaries(
     // clean up any existing files or symlinks
     await unlink(path).catch(noop);
     try {
+      await copyFile(target, path);
       // create new symlink
-      await symlink(target, path);
+      // await symlink(target, path);
     } catch (e) {
       if (!(isCodedError(e) && ['EPERM', 'EXDEV'].includes(e.code))) {
         throw e;
