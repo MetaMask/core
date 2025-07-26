@@ -67,7 +67,8 @@ export function makeContext<Request extends Record<string | symbol, unknown>>(
  * For compatibility with our problematic practice of appending non-standard
  * fields to requests for inter-middleware communication in the legacy engine.
  *
- * **ATTN:** Only string properties are copied.
+ * **ATTN:** Only string properties that do not already exist in the context
+ * are copied.
  *
  * @param req - The request to propagate the context from.
  * @param context - The context to propagate to.
@@ -77,7 +78,12 @@ export function propagateToContext(
   context: MiddlewareContext,
 ) {
   Object.keys(req)
-    .filter((key) => !requestProps.includes(key))
+    .filter(
+      (key) =>
+        typeof key === 'string' &&
+        !requestProps.includes(key) &&
+        !context.has(key),
+    )
     .forEach((key) => {
       context.set(key, req[key]);
     });

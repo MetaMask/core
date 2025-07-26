@@ -102,7 +102,7 @@ They receive a `MiddlewareParams` object containing:
 - `request`
   - The JSON-RPC request or notification (readonly)
 - `context`
-  - A `Map` for passing data between middleware
+  - An append-only `Map` for passing data between middleware
 - `next`
   - Function to call the next middleware in the stack
 
@@ -339,6 +339,27 @@ const engine = new JsonRpcEngineV2({
       const permissions = context.get('permissions');
       return { user, permissions };
     },
+  ],
+});
+```
+
+The `context` accepts symbol and string keys. To prevent accidental naming collisions,
+it is append-only with deletions.
+If you need to modify a context value over multiple middleware, use an array or object:
+
+```ts
+const engine = new JsonRpcEngineV2({
+  middleware: [
+    async ({ context, next }) => {
+      context.set('user', { id: '123', name: 'Alice' });
+      return next();
+    },
+    async ({ context, next }) => {
+      const user = context.assertGet<{ id: string; name: string }>('user');
+      user.name = 'Bob';
+      return next();
+    },
+    // ...
   ],
 });
 ```

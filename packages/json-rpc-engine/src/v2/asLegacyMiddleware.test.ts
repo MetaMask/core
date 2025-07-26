@@ -134,7 +134,7 @@ describe('asLegacyMiddleware', () => {
 
       expect(Array.from(context.keys())).toStrictEqual(['value']);
 
-      context.set('value', 2);
+      context.set('newValue', 2);
       return next();
     }) as JsonRpcMiddleware<JsonRpcRequest, Json>);
 
@@ -150,10 +150,10 @@ describe('asLegacyMiddleware', () => {
     legacyEngine.push(asLegacyMiddleware(v2Engine));
     legacyEngine.push((req, res, _next, end) => {
       observedContextValues.push(
-        (req as Record<string, unknown>).value as number,
+        (req as Record<string, unknown>).newValue as number,
       );
 
-      expect(getExtraneousKeys(req)).toStrictEqual(['value']);
+      expect(getExtraneousKeys(req)).toStrictEqual(['value', 'newValue']);
 
       res.result = null;
       end();

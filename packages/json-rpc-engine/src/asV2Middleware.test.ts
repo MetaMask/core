@@ -85,7 +85,7 @@ describe('asV2Middleware', () => {
 
       expect(getExtraneousKeys(req)).toStrictEqual(['value']);
 
-      req.value = 2;
+      req.newValue = 2;
       next();
     });
     legacyEngine.push(legacyMiddleware);
@@ -98,9 +98,12 @@ describe('asV2Middleware', () => {
         },
         asV2Middleware(legacyEngine),
         ({ context }) => {
-          observedContextValues.push(context.assertGet<number>('value'));
+          observedContextValues.push(context.assertGet<number>('newValue'));
 
-          expect(Array.from(context.keys())).toStrictEqual(['value']);
+          expect(Array.from(context.keys())).toStrictEqual([
+            'value',
+            'newValue',
+          ]);
 
           return null;
         },

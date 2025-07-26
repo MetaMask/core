@@ -317,8 +317,8 @@ describe('JsonRpcEngineV2', () => {
         );
         const middleware2: JsonRpcMiddleware<JsonRpcCall<number[]>> = jest.fn(
           ({ context, next }) => {
-            const nums = context.get('foo') as number[];
-            context.set('foo', [...nums, 2]);
+            const nums = context.assertGet<number[]>('foo');
+            nums.push(2);
             return next();
           },
         );
@@ -658,8 +658,9 @@ describe('JsonRpcEngineV2', () => {
       const engine1 = new JsonRpcEngineV2({
         middleware: [
           async ({ context, next }) => {
-            const num = context.get('foo') as number;
-            context.set('foo', num * 2);
+            const nums = context.assertGet<number[]>('foo');
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            nums[0]! *= 2;
             return next();
           },
         ],
@@ -668,12 +669,13 @@ describe('JsonRpcEngineV2', () => {
       const engine2 = new JsonRpcEngineV2({
         middleware: [
           async ({ context, next }) => {
-            context.set('foo', 2);
+            context.set('foo', [2]);
             return next();
           },
           engine1.asMiddleware(),
           async ({ context }) => {
-            return (context.get('foo') as number) * 2;
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            return context.assertGet<number[]>('foo')[0]! * 2;
           },
         ],
       });

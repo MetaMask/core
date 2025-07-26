@@ -38,8 +38,9 @@ const v2Engine = new JsonRpcEngineV2({
 });
 ```
 
-Any non-JSON-RPC string properties on the request object will be copied over to the V2 engine's `context` object
-once the legacy engine is done with the request.
+Non-JSON-RPC string properties on the request object will be copied over to the V2 engine's `context` object
+once the legacy engine is done with the request, _unless_ they already exist on the `context`, in which case
+they will be ignored.
 
 ### Middleware
 

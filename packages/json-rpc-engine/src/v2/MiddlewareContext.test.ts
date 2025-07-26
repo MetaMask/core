@@ -40,4 +40,12 @@ describe('MiddlewareContext', () => {
     context.set(symbol, 'value');
     expect(context.assertGet(symbol)).toBe('value');
   });
+
+  it('throws if setting an already set key', () => {
+    const context = new MiddlewareContext();
+    context.set('test', 'value');
+    expect(() => context.set('test', 'value')).toThrow(
+      `MiddlewareContext key "test" already exists`,
+    );
+  });
 });
