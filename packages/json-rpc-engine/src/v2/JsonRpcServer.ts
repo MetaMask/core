@@ -20,7 +20,7 @@ type Options = {
   handleError?: HandleError;
 } & (
   | {
-      engine: JsonRpcEngineV2<JsonRpcCall, Json>;
+      engine: JsonRpcEngineV2;
     }
   | {
       middleware: NonEmptyArray<JsonRpcMiddleware<JsonRpcCall, Json>>;
@@ -51,7 +51,7 @@ const jsonrpc = '2.0' as const;
  * ```
  */
 export class JsonRpcServer {
-  readonly #engine: JsonRpcEngineV2<JsonRpcCall, Json>;
+  readonly #engine: JsonRpcEngineV2;
 
   readonly #handleError?: HandleError | undefined;
 

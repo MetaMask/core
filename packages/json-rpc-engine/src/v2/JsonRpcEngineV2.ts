@@ -71,7 +71,10 @@ type HandleOptions = {
  * }
  * ```
  */
-export class JsonRpcEngineV2<Request extends JsonRpcCall, Result extends Json> {
+export class JsonRpcEngineV2<
+  Request extends JsonRpcCall = JsonRpcCall,
+  Result extends Json = Json,
+> {
   #middleware: Readonly<
     NonEmptyArray<JsonRpcMiddleware<Request, Result | void>>
   >;
