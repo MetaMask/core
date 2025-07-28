@@ -3,6 +3,7 @@ import type { NonEmptyArray } from '@metamask/utils';
 
 import type { JsonRpcMiddleware } from './JsonRpcEngineV2';
 import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
+import { MiddlewareContext } from './MiddlewareContext';
 import {
   JsonRpcEngineError,
   stringify,
@@ -277,6 +278,20 @@ describe('JsonRpcEngineV2', () => {
         });
 
         const result = await engine.handle(makeRequest());
+
+        expect(result).toBe('bar');
+      });
+
+      it('accepts an initial context', async () => {
+        const initialContext = new MiddlewareContext();
+        initialContext.set('foo', 'bar');
+        const engine = new JsonRpcEngineV2({
+          middleware: [({ context }) => context.assertGet<string>('foo')],
+        });
+
+        const result = await engine.handle(makeRequest(), {
+          context: initialContext,
+        });
 
         expect(result).toBe('bar');
       });
@@ -564,7 +579,27 @@ describe('JsonRpcEngineV2', () => {
 
       expect(result).toBeNull();
       expect(handleSpy).toHaveBeenCalledTimes(1);
-      expect(handleSpy).toHaveBeenCalledWith(request);
+      expect(handleSpy).toHaveBeenCalledWith(request, undefined);
+    });
+
+    it(`proxies to 'handle()' (with context)`, async () => {
+      const initialContext = new MiddlewareContext();
+      initialContext.set('foo', 'bar');
+      const engine = new JsonRpcEngineV2({
+        middleware: [({ context }) => context.assertGet<string>('foo')],
+      });
+      const handleSpy = jest.spyOn(engine, 'handle');
+      const request = makeRequest();
+
+      const result = await engine.handleAny(request, {
+        context: initialContext,
+      });
+
+      expect(result).toBe('bar');
+      expect(handleSpy).toHaveBeenCalledTimes(1);
+      expect(handleSpy).toHaveBeenCalledWith(request, {
+        context: initialContext,
+      });
     });
   });
 

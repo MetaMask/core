@@ -45,6 +45,10 @@ type Options<Request extends JsonRpcCall, Result extends Json> = {
   middleware: NonEmptyArray<JsonRpcMiddleware<Request, Result | void>>;
 };
 
+type HandleOptions = {
+  context?: MiddlewareContext;
+};
+
 /**
  * A JSON-RPC request and response processor.
  *
@@ -86,20 +90,33 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall, Result extends Json> {
    * Handle a JSON-RPC request. A result will be returned.
    *
    * @param request - The JSON-RPC request to handle.
+   * @param options - The options for the handle operation.
+   * @param options.context - The context to pass to the middleware.
    * @returns The JSON-RPC response.
    */
-  async handle(request: Request & JsonRpcRequest): Promise<Result>;
+  async handle(
+    request: Request & JsonRpcRequest,
+    options?: HandleOptions,
+  ): Promise<Result>;
 
   /**
    * Handle a JSON-RPC notification. No result will be returned.
    *
    * @param notification - The JSON-RPC notification to handle.
+   * @param options - The options for the handle operation.
+   * @param options.context - The context to pass to the middleware.
    */
-  async handle(notification: Request & JsonRpcNotification): Promise<void>;
+  async handle(
+    notification: Request & JsonRpcNotification,
+    options?: HandleOptions,
+  ): Promise<void>;
 
-  async handle(request: Request): Promise<Result | void> {
+  async handle(
+    request: Request,
+    { context }: HandleOptions = {},
+  ): Promise<Result | void> {
     const isReq = isRequest(request);
-    const { result } = await this.#handle(request);
+    const { result } = await this.#handle(request, context);
 
     if (isReq && result === undefined) {
       throw new JsonRpcEngineError(
@@ -115,10 +132,15 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall, Result extends Json> {
    * Handle a JSON-RPC call. A response will be returned if the call is a request.
    *
    * @param request - The JSON-RPC call to handle.
+   * @param options - The options for the handle operation.
+   * @param options.context - The context to pass to the middleware.
    * @returns The JSON-RPC response, if any.
    */
-  async handleAny(request: JsonRpcCall & Request): Promise<Result | void> {
-    return this.handle(request);
+  async handleAny(
+    request: JsonRpcCall & Request,
+    options?: HandleOptions,
+  ): Promise<Result | void> {
+    return this.handle(request, options);
   }
 
   /**
