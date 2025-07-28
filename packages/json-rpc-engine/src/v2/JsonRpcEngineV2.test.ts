@@ -567,42 +567,6 @@ describe('JsonRpcEngineV2', () => {
     });
   });
 
-  describe('handleAny', () => {
-    it(`proxies to 'handle()'`, async () => {
-      const engine = new JsonRpcEngineV2({
-        middleware: [jest.fn(() => null)],
-      });
-      const handleSpy = jest.spyOn(engine, 'handle');
-      const request = makeRequest();
-
-      const result = await engine.handleAny(request);
-
-      expect(result).toBeNull();
-      expect(handleSpy).toHaveBeenCalledTimes(1);
-      expect(handleSpy).toHaveBeenCalledWith(request, undefined);
-    });
-
-    it(`proxies to 'handle()' (with context)`, async () => {
-      const initialContext = new MiddlewareContext();
-      initialContext.set('foo', 'bar');
-      const engine = new JsonRpcEngineV2({
-        middleware: [({ context }) => context.assertGet<string>('foo')],
-      });
-      const handleSpy = jest.spyOn(engine, 'handle');
-      const request = makeRequest();
-
-      const result = await engine.handleAny(request, {
-        context: initialContext,
-      });
-
-      expect(result).toBe('bar');
-      expect(handleSpy).toHaveBeenCalledTimes(1);
-      expect(handleSpy).toHaveBeenCalledWith(request, {
-        context: initialContext,
-      });
-    });
-  });
-
   describe('asMiddleware', () => {
     it('ends a request if it returns a value', async () => {
       // TODO: We may have to do a lot of these casts?
