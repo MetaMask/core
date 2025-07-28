@@ -556,8 +556,7 @@ async function processTransactionWithHook(
   request: AddTransactionBatchRequest,
   txBatchMeta?: TransactionBatchMeta,
 ) {
-  const { existingTransaction, fiatValue, origin, params, type } =
-    nestedTransaction;
+  const { existingTransaction, fiatValue, params, type } = nestedTransaction;
 
   const {
     addTransaction,
@@ -566,7 +565,7 @@ async function processTransactionWithHook(
     updateTransaction,
   } = request;
 
-  const { from, networkClientId } = userRequest;
+  const { from, networkClientId, origin } = userRequest;
 
   if (existingTransaction) {
     const { id, onPublish, signedTransaction } = existingTransaction;

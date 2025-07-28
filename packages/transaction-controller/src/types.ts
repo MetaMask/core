@@ -52,7 +52,7 @@ export type TransactionMeta = {
   /**
    * Additional transactions that must also be submitted in a batch.
    */
-  batchTransactions?: BatchTransactionParams[];
+  batchTransactions?: NestedTransactionMetadata[];
 
   /**
    * Number of the block where the transaction has been included.
@@ -1561,9 +1561,6 @@ export type BatchTransactionParams = {
   /** Address of the target contract or EOA. */
   to?: Hex;
 
-  /** Type of the transaction. */
-  type?: TransactionType;
-
   /** Native balance to transfer with the transaction. */
   value?: Hex;
 };
@@ -1595,9 +1592,6 @@ export type TransactionBatchSingleRequest = {
 
   /** Fiat value of the nested transaction. */
   fiatValue?: string;
-
-  /** Origin of the nested transaction. */
-  origin?: string;
 
   /** Parameters of the single transaction. */
   params: BatchTransactionParams;
