@@ -818,12 +818,14 @@ describe('Batch Utils', () => {
             maxPriorityFeePerGas: MAX_PRIORITY_FEE_PER_GAS_MOCK,
           },
           {
+            assetsFiatValues: undefined,
             batchId: expect.any(String),
             disableGasBuffer: true,
             networkClientId: NETWORK_CLIENT_ID_MOCK,
             origin: ORIGIN_MOCK,
             publishHook: expect.any(Function),
             requireApproval: false,
+            type: undefined,
           },
         );
       });

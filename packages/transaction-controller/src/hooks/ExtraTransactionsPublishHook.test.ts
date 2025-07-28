@@ -1,6 +1,6 @@
 import { ExtraTransactionsPublishHook } from './ExtraTransactionsPublishHook';
 import type {
-  BatchTransactionParams,
+  NestedTransactionMetadata,
   TransactionController,
   TransactionMeta,
 } from '..';
@@ -9,7 +9,7 @@ import { TransactionType } from '../types';
 const SIGNED_TRANSACTION_MOCK = '0xffe';
 const TRANSACTION_HASH_MOCK = '0xeee';
 
-const BATCH_TRANSACTION_PARAMS_MOCK: BatchTransactionParams = {
+const BATCH_TRANSACTION_PARAMS_MOCK: NestedTransactionMetadata = {
   data: '0x123',
   gas: '0xab1',
   maxFeePerGas: '0xab2',
@@ -19,7 +19,7 @@ const BATCH_TRANSACTION_PARAMS_MOCK: BatchTransactionParams = {
   type: TransactionType.gasPayment,
 };
 
-const BATCH_TRANSACTION_PARAMS_2_MOCK: BatchTransactionParams = {
+const BATCH_TRANSACTION_PARAMS_2_MOCK: NestedTransactionMetadata = {
   data: '0x321',
   gas: '0xab4',
   maxFeePerGas: '0xab5',

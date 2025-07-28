@@ -173,7 +173,7 @@ export type TransactionMeta = {
   /**
    * The fiat value of the transaction to be used to passed metrics.
    */
-  fiatValue?: string;
+  assetsFiatValues?: AssetFiatValues;
 
   /**
    * The chosen amount which will be the same as the originally proposed token
@@ -1575,6 +1575,9 @@ export type NestedTransactionMetadata = BatchTransactionParams & {
  * Specification for a single transaction within a batch request.
  */
 export type TransactionBatchSingleRequest = {
+  /** The total fiat values of the transaction, to support client metrics. */
+  assetsFiatValues?: AssetFiatValues;
+
   /** Data if the transaction already exists. */
   existingTransaction?: {
     /** ID of the existing transaction. */
@@ -1590,11 +1593,8 @@ export type TransactionBatchSingleRequest = {
     signedTransaction: Hex;
   };
 
-  /** Fiat value of the nested transaction. */
-  fiatValue?: string;
-
   /** Parameters of the single transaction. */
-  params: BatchTransactionParams;
+  params: NestedTransactionMetadata;
 
   /** Type of the transaction. */
   type?: TransactionType;
@@ -1885,3 +1885,18 @@ export type BeforeSignHook = (request: {
     }
   | undefined
 >;
+
+/**
+ * The total fiat values of the transaction, to support client metrics.
+ */
+export type AssetFiatValues = {
+  /**
+   * The fiat value of the receiving asset.
+   */
+  receiving?: string;
+
+  /**
+   * The fiat value of the sending asset.
+   */
+  sending?: string;
+};

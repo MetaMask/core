@@ -1511,8 +1511,11 @@ describe('TransactionController', () => {
           to: ACCOUNT_MOCK,
         },
         {
+          assetsFiatValues: {
+            sending: '100',
+            receiving: '50',
+          },
           deviceConfirmedOn: mockDeviceConfirmedOn,
-          fiatValue: '100',
           origin: mockOrigin,
           securityAlertResponse: mockSecurityAlertResponse,
           sendFlowHistory: mockSendFlowHistory,
@@ -1526,7 +1529,10 @@ describe('TransactionController', () => {
 
       expect(updateSwapsTransactionMock).toHaveBeenCalledTimes(1);
       expect(transactionMeta.txParams.from).toBe(ACCOUNT_MOCK);
-      expect(transactionMeta.fiatValue).toBe('100');
+      expect(transactionMeta.assetsFiatValues).toStrictEqual({
+        sending: '100',
+        receiving: '50',
+      });
       expect(transactionMeta.chainId).toBe(MOCK_NETWORK.chainId);
       expect(transactionMeta.deviceConfirmedOn).toBe(mockDeviceConfirmedOn);
       expect(transactionMeta.origin).toBe(mockOrigin);
@@ -1719,13 +1725,13 @@ describe('TransactionController', () => {
 
       const expectedInitialSnapshot = {
         actionId: undefined,
+        assetsFiatValues: undefined,
         batchId: undefined,
         chainId: expect.any(String),
         dappSuggestedGasFees: undefined,
         delegationAddress: undefined,
         deviceConfirmedOn: undefined,
         disableGasBuffer: undefined,
-        fiatValue: undefined,
         id: expect.any(String),
         isFirstTimeInteraction: undefined,
         nestedTransactions: undefined,

@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `fiatValue` property on `addTransaction` options ([#6178](https://github.com/MetaMask/core/pull/6178))
+- Add `assetsFiatValues` property on `addTransaction` options ([#6178](https://github.com/MetaMask/core/pull/6178))
+  - `assetsFiatValues.sending` is total fiat value of sent assets
+  - `assetsFiatValues.receiving` is total fiat value of recieved assets
 
 ### Fixed
 

@@ -88,6 +88,7 @@ import {
 import { ExtraTransactionsPublishHook } from './hooks/ExtraTransactionsPublishHook';
 import { projectLogger as log } from './logger';
 import type {
+  AssetFiatValues,
   DappSuggestedGasFees,
   Layer1GasFeeFlow,
   SavedGasFees,
@@ -1107,10 +1108,10 @@ export class TransactionController extends BaseController<
    * @param txParams - Standard parameters for an Ethereum transaction.
    * @param options - Additional options to control how the transaction is added.
    * @param options.actionId - Unique ID to prevent duplicate requests.
+   * @param options.assetsFiatValues - The fiat values of the assets in the transaction.
    * @param options.batchId - A custom ID for the batch this transaction belongs to.
    * @param options.deviceConfirmedOn - An enum to indicate what device confirmed the transaction.
    * @param options.disableGasBuffer - Whether to disable the gas estimation buffer.
-   * @param options.fiatValue - The fiat value of the transaction to be used to passed metrics.
    * @param options.method - RPC method that requested the transaction.
    * @param options.nestedTransactions - Params for any nested transactions encoded in the data.
    * @param options.origin - The origin of the transaction request, such as a dApp hostname.
@@ -1129,11 +1130,11 @@ export class TransactionController extends BaseController<
   async addTransaction(
     txParams: TransactionParams,
     options: {
+      assetsFiatValues?: AssetFiatValues;
       actionId?: string;
       batchId?: Hex;
       deviceConfirmedOn?: WalletDevice;
       disableGasBuffer?: boolean;
-      fiatValue?: string;
       method?: string;
       nestedTransactions?: NestedTransactionMetadata[];
       networkClientId: NetworkClientId;
@@ -1154,10 +1155,10 @@ export class TransactionController extends BaseController<
 
     const {
       actionId,
+      assetsFiatValues,
       batchId,
       deviceConfirmedOn,
       disableGasBuffer,
-      fiatValue,
       method,
       nestedTransactions,
       networkClientId,
@@ -1248,13 +1249,13 @@ export class TransactionController extends BaseController<
       : {
           // Add actionId to txMeta to check if same actionId is seen again
           actionId,
+          assetsFiatValues,
           batchId,
           chainId,
           dappSuggestedGasFees,
           delegationAddress,
           deviceConfirmedOn,
           disableGasBuffer,
-          fiatValue,
           id: random(),
           isFirstTimeInteraction: undefined,
           nestedTransactions,

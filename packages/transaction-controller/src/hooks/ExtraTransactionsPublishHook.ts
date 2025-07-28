@@ -8,6 +8,7 @@ import type { TransactionController } from '..';
 import { projectLogger } from '../logger';
 import type {
   BatchTransactionParams,
+  NestedTransactionMetadata,
   PublishHook,
   PublishHookResult,
   TransactionBatchSingleRequest,
@@ -26,14 +27,14 @@ const log = createModuleLogger(
 export class ExtraTransactionsPublishHook {
   readonly #addTransactionBatch: TransactionController['addTransactionBatch'];
 
-  readonly #transactions: BatchTransactionParams[];
+  readonly #transactions: NestedTransactionMetadata[];
 
   constructor({
     addTransactionBatch,
     transactions,
   }: {
     addTransactionBatch: TransactionController['addTransactionBatch'];
-    transactions: BatchTransactionParams[];
+    transactions: NestedTransactionMetadata[];
   }) {
     this.#addTransactionBatch = addTransactionBatch;
     this.#transactions = transactions;
