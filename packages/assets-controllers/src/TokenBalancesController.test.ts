@@ -533,17 +533,12 @@ describe('TokenBalancesController', () => {
 
     const { controller, messenger, updateSpy } = setupController({ tokens });
 
-    // Set up multi account balances as enabled from the start to avoid triggering refresh
-    // Reset the mock to return the correct state
-    messenger.registerActionHandler(
-      'PreferencesController:getState',
-      jest
-        .fn()
-        .mockImplementation(() => ({ isMultiAccountBalancesEnabled: true })),
+    // Enable multi account balances
+    messenger.publish(
+      'PreferencesController:stateChange',
+      { isMultiAccountBalancesEnabled: true } as PreferencesState,
+      [],
     );
-
-    // Manually update the controller's internal state to match
-    (controller as any).#queryMultipleAccounts = true;
 
     const balance1 = 100;
     const balance2 = 200;
