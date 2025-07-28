@@ -1,12 +1,12 @@
-import type { TransactionParams } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 
 export type CoverageResult = {
   txId: string;
   status: CoverageStatus;
 };
 
-export type CoverageStatus = 'success' | 'error';
+export type CoverageStatus = 'covered' | 'malicious' | 'unsupported';
 
 export type ShieldBackend = {
-  checkCoverage: (txParams: TransactionParams) => Promise<CoverageResult>;
+  checkCoverage: (txMeta: TransactionMeta) => Promise<CoverageResult>;
 };

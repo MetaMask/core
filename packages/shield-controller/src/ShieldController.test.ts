@@ -48,7 +48,7 @@ describe('ShieldController', () => {
       txMeta,
     );
     expect(await coverageResultReceived).toBeUndefined();
-    expect(backend.checkCoverage).toHaveBeenCalledWith(txMeta.txParams);
+    expect(backend.checkCoverage).toHaveBeenCalledWith(txMeta);
   });
 
   it('should not fetch coverage if user is not subscribed', async () => {
@@ -57,7 +57,7 @@ describe('ShieldController', () => {
       Promise.resolve('not-subscribed'),
     );
     const txMeta = generateMockTxMeta();
-    await expect(controller.checkCoverage(txMeta.txParams)).rejects.toThrow(
+    await expect(controller.checkCoverage(txMeta)).rejects.toThrow(
       'Not subscribed',
     );
     expect(backend.checkCoverage).not.toHaveBeenCalled();

@@ -83,7 +83,7 @@ const metadata = {
 
 export type ShieldControllerOptions = {
   messenger: ShieldControllerMessenger;
-  state?: ShieldControllerState;
+  state?: Partial<ShieldControllerState>;
   backend: ShieldBackend;
 };
 
@@ -118,10 +118,10 @@ export class ShieldController extends BaseController<
 
   async #handleUnapprovedTransactionAdded(transactionMeta: TransactionMeta) {
     log('Transaction added', transactionMeta);
-    await this.checkCoverage(transactionMeta.txParams);
+    await this.checkCoverage(transactionMeta);
   }
 
-  async checkCoverage(txParams: TransactionParams): Promise<CoverageResult> {
+  async checkCoverage(txMeta: TransactionMeta): Promise<CoverageResult> {
     // Check subscription status
     const subscriptionStatus = await this.#checkSubscriptionStatus();
     if (subscriptionStatus !== 'subscribed') {
@@ -129,7 +129,7 @@ export class ShieldController extends BaseController<
     }
 
     // Check coverage
-    const coverageResult = await this.#fetchCoverageResult(txParams);
+    const coverageResult = await this.#fetchCoverageResult(txMeta);
 
     // Publish coverage result
     this.messagingSystem.publish(
@@ -152,7 +152,7 @@ export class ShieldController extends BaseController<
     );
   }
 
-  #fetchCoverageResult(txParams: TransactionParams): Promise<CoverageResult> {
-    return this.#backend.checkCoverage(txParams);
+  #fetchCoverageResult(txMeta: TransactionMeta): Promise<CoverageResult> {
+    return this.#backend.checkCoverage(txMeta);
   }
 }
