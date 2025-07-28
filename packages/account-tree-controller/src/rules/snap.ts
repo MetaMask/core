@@ -13,8 +13,8 @@ import type {
   AccountWalletSnapMetadata,
 } from 'src/types';
 
-import type { AccountTreeRuleResult } from '../AccountTreeRule';
-import { AccountTreeRule } from '../AccountTreeRule';
+import type { AccountTreeRuleResult } from '../rule';
+import { AccountTreeRule } from '../rule';
 
 type SnapAccount<Account extends InternalAccount> = Account & {
   metadata: Account['metadata'] & {

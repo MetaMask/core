@@ -26,8 +26,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
 
 import { AccountTreeController } from './AccountTreeController';
-import { AccountTreeGroup } from './AccountTreeGroup';
-import { AccountTreeWallet } from './AccountTreeWallet';
+import { AccountTreeGroup } from './group';
 import { EntropyRule } from './rules/entropy';
 import { getAccountWalletNameFromKeyringType } from './rules/keyring';
 import {
@@ -38,6 +37,7 @@ import {
   type AllowedActions,
   type AllowedEvents,
 } from './types';
+import { AccountTreeWallet } from './wallet';
 
 // Local mock of EMPTY_ACCOUNT to avoid circular dependency
 const EMPTY_ACCOUNT_MOCK: InternalAccount = {

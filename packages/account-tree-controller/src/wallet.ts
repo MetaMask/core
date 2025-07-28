@@ -5,7 +5,7 @@ import type {
 import { type AccountGroupId, type AccountWallet } from '@metamask/account-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import { AccountTreeGroup } from './AccountTreeGroup';
+import { AccountTreeGroup } from './group';
 import type { AccountWalletObject } from './types';
 import { type AccountTreeControllerMessenger } from './types';
 

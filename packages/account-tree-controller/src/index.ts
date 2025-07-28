@@ -20,5 +20,5 @@ export {
   AccountTreeController,
   getDefaultAccountTreeControllerState,
 } from './AccountTreeController';
-export type { AccountTreeWallet } from './AccountTreeWallet';
-export type { AccountTreeGroup } from './AccountTreeGroup';
+export type { AccountTreeWallet } from './wallet';
+export type { AccountTreeGroup } from './group';

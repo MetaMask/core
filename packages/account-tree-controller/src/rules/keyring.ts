@@ -11,8 +11,8 @@ import type {
 } from 'src/types';
 
 import type { AccountWalletObject } from '..';
-import type { AccountTreeRuleResult } from '../AccountTreeRule';
-import { AccountTreeRule } from '../AccountTreeRule';
+import type { AccountTreeRuleResult } from '../rule';
+import { AccountTreeRule } from '../rule';
 
 /**
  * Get wallet name from a keyring type.

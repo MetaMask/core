@@ -13,8 +13,8 @@ import type {
   AccountWalletEntropyMetadata,
   AccountWalletObject,
 } from '..';
-import type { AccountTreeRuleResult } from '../AccountTreeRule';
-import { AccountTreeRule } from '../AccountTreeRule';
+import type { AccountTreeRuleResult } from '../rule';
+import { AccountTreeRule } from '../rule';
 
 export class EntropyRule extends AccountTreeRule {
   readonly category = AccountWalletCategory.Entropy;
