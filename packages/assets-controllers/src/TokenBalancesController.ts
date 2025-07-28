@@ -456,7 +456,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
   /**
    * Ensures that the block tracker has the latest block data before performing multicall operations.
    * This is a temporary fix to ensure that the block number is up to date.
-   * 
+   *
    * @param chainId - The chain id to update block data for.
    */
   async #ensureFreshBlockData(chainId: Hex): Promise<void> {

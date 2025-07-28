@@ -661,9 +661,7 @@ describe('TokenBalancesController', () => {
       { success: true, value: new BN(balance3) },
     ]);
 
-
     await controller._executePoll({ chainId });
-
 
     expect(controller.state.tokenBalances).toStrictEqual({
       [account1]: {
