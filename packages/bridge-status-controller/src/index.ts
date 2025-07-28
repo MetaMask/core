@@ -3,6 +3,7 @@ export {
   REFRESH_INTERVAL_MS,
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
   BRIDGE_STATUS_CONTROLLER_NAME,
+  MAX_ATTEMPTS,
 } from './constants';
 
 export type {
@@ -20,6 +21,7 @@ export type {
   BridgeStatusControllerStartPollingForBridgeTxStatusAction,
   BridgeStatusControllerWipeBridgeStatusAction,
   BridgeStatusControllerResetStateAction,
+  BridgeStatusControllerRestartPollingForFailedAttemptsAction,
   BridgeStatusControllerEvents,
   BridgeStatusControllerStateChangeEvent,
   StartPollingForBridgeTxStatusArgs,

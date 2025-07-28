@@ -49,7 +49,7 @@
   "dependencies": {
     "@metamask/api-specs": "^0.14.0",
     "@metamask/controller-utils": "^11.11.0",
-    "@metamask/network-controller": "^24.0.0",
+    "@metamask/network-controller": "^24.0.1",
     "@metamask/permission-controller": "^11.0.6",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/utils": "^11.4.2",
@@ -57,7 +57,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-internal-api": "^6.2.0",
+    "@metamask/keyring-internal-api": "^7.0.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",

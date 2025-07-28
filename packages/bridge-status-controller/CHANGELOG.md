@@ -7,8 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [37.0.0]
+
 ### Changed
 
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` to `^32.0.0` ([#6171](https://github.com/MetaMask/core/pull/6171))
+- **BREAKING:** Bump peer dependency `@metamask/bridge-controller` to `^37.0.0` ([#6171](https://github.com/MetaMask/core/pull/6171))
+- **BREAKING:** Bump peer dependency `@metamask/transaction-controller` to `^59.0.0` ([#6171](https://github.com/MetaMask/core/pull/6171)), ([#6027](https://github.com/MetaMask/core/pull/6027))
+
+## [36.1.0]
+
+### Added
+
+- Add `restartPollingForFailedAttempts` action to restart polling for txs that are not in a final state but have too many failed attempts ([#6149](https://github.com/MetaMask/core/pull/6149))
+
+### Changed
+
+- Bump `@metamask/keyring-api` from `^18.0.0` to `^19.0.0` ([#6146](https://github.com/MetaMask/core/pull/6146))
+
+### Fixed
+
+- Don't poll indefinitely for bridge tx status if the tx is not found. Implement exponential backoff to prevent overwhelming the bridge API. ([#6149](https://github.com/MetaMask/core/pull/6149))
+
+## [36.0.0]
+
+### Changed
+
+- Bump `@metamask/bridge-controller` to `^36.0.0` ([#6120](https://github.com/MetaMask/core/pull/6120))
+
+## [35.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/bridge-controller` to `^35.0.0` ([#6098](https://github.com/MetaMask/core/pull/6098))
 - **BREAKING** Submit Solana transactions using `onClientRequest` RPC call by default, which hides the Snap confirmation page from clients. Clients will need to remove conditional redirect the the confirmation page on tx submission ([#6077](https://github.com/MetaMask/core/pull/6077))
 - Bump `@metamask/controller-utils` from `^11.10.0` to `^11.11.0` ([#6069](https://github.com/MetaMask/core/pull/6069))
 - Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
@@ -402,7 +433,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@34.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@37.0.0...HEAD
+[37.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@36.1.0...@metamask/bridge-status-controller@37.0.0
+[36.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@36.0.0...@metamask/bridge-status-controller@36.1.0
+[36.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@35.0.0...@metamask/bridge-status-controller@36.0.0
+[35.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@34.0.0...@metamask/bridge-status-controller@35.0.0
 [34.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@33.0.0...@metamask/bridge-status-controller@34.0.0
 [33.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@32.0.0...@metamask/bridge-status-controller@33.0.0
 [32.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@31.0.0...@metamask/bridge-status-controller@32.0.0

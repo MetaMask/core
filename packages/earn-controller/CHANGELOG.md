@@ -7,8 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0]
+
 ### Changed
 
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` to `^32.0.0` ([#6171](https://github.com/MetaMask/core/pull/6171))
+
+## [3.0.0]
+
+### Changed
+
+- **BREAKING:** Removed `chainId` parameter from `refreshPooledStakingVaultMetadata`, `refreshPooledStakingVaultDailyApys`, `refreshPooledStakingVaultApyAverages`, and `refreshPooledStakes` methods. ([#6106](https://github.com/MetaMask/core/pull/6106))
 - Bump `@metamask/controller-utils` from `^11.10.0` to `^11.11.0` ([#6069](https://github.com/MetaMask/core/pull/6069))
 
 ## [2.0.1]
@@ -223,7 +232,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@2.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@3.0.0...@metamask/earn-controller@4.0.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@2.0.1...@metamask/earn-controller@3.0.0
 [2.0.1]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@2.0.0...@metamask/earn-controller@2.0.1
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@1.1.1...@metamask/earn-controller@2.0.0
 [1.1.1]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@1.1.0...@metamask/earn-controller@1.1.1

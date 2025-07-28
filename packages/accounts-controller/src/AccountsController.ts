@@ -11,12 +11,15 @@ import {
   type SnapKeyringAccountTransactionsUpdatedEvent,
   SnapKeyring,
 } from '@metamask/eth-snap-keyring';
+import type { KeyringAccountEntropyOptions } from '@metamask/keyring-api';
 import {
   EthAccountType,
   EthMethod,
   EthScope,
   isEvmAccountType,
+  KeyringAccountEntropyTypeOption,
 } from '@metamask/keyring-api';
+import type { KeyringObject } from '@metamask/keyring-controller';
 import {
   type KeyringControllerState,
   type KeyringControllerGetKeyringsByTypeAction,
@@ -34,13 +37,18 @@ import type {
 import type { SnapId } from '@metamask/snaps-sdk';
 import { type CaipChainId, isCaipChainId } from '@metamask/utils';
 import type { WritableDraft } from 'immer/dist/internal.js';
+import { cloneDeep } from 'lodash';
 
 import type { MultichainNetworkControllerNetworkDidChangeEvent } from './types';
+import type { HdSnapKeyringAccount } from './utils';
 import {
-  getDerivationPathForIndex,
+  getEvmDerivationPathForIndex,
+  getEvmGroupIndexFromAddressIndex,
   getUUIDFromAddressOfNormalAccount,
   isHdKeyringType,
-  isNormalKeyringType,
+  isHdSnapKeyringAccount,
+  isSimpleKeyringType,
+  isSnapKeyringType,
   keyringTypeToName,
 } from './utils';
 
@@ -540,58 +548,59 @@ export class AccountsController extends BaseController<
    * @returns A Promise that resolves when the accounts have been updated.
    */
   async updateAccounts(): Promise<void> {
-    const snapAccounts = await this.#listSnapAccounts();
-    const normalAccounts = await this.#listNormalAccounts();
+    const keyringAccountIndexes = new Map<string, number>();
 
-    // keyring type map.
-    const keyringTypes = new Map<string, number>();
-    const previousAccounts = this.state.internalAccounts.accounts;
+    const existingInternalAccounts = this.state.internalAccounts.accounts;
+    const internalAccounts: AccountsControllerState['internalAccounts']['accounts'] =
+      {};
 
-    const accounts: Record<string, InternalAccount> = [
-      ...normalAccounts,
-      ...snapAccounts,
-    ].reduce(
-      (internalAccountMap, internalAccount) => {
-        const keyringTypeName = keyringTypeToName(
-          internalAccount.metadata.keyring.type,
+    const { keyrings } = this.messagingSystem.call(
+      'KeyringController:getState',
+    );
+    for (const keyring of keyrings) {
+      const keyringTypeName = keyringTypeToName(keyring.type);
+
+      for (const address of keyring.accounts) {
+        const internalAccount = this.#getInternalAccountFromAddressAndType(
+          address,
+          keyring,
         );
-        const keyringAccountIndex = keyringTypes.get(keyringTypeName) ?? 0;
-        if (keyringAccountIndex) {
-          keyringTypes.set(keyringTypeName, keyringAccountIndex + 1);
-        } else {
-          keyringTypes.set(keyringTypeName, 1);
+
+        // This should never really happen, but if for some reason we're not
+        // able to get the Snap keyring reference, this would return an
+        // undefined account.
+        // So we just skip it, even though, this should not really happen.
+        if (!internalAccount) {
+          continue;
         }
 
-        const existingAccount = previousAccounts[internalAccount.id];
+        // Get current index for this keyring (we use human indexing, so start at 1).
+        const keyringAccountIndex =
+          keyringAccountIndexes.get(keyringTypeName) ?? 1;
 
-        internalAccountMap[internalAccount.id] = {
+        const existingAccount = existingInternalAccounts[internalAccount.id];
+        internalAccounts[internalAccount.id] = {
           ...internalAccount,
 
           metadata: {
             ...internalAccount.metadata,
+
+            // Re-use existing metadata if any.
             name:
-              this.#populateExistingMetadata(existingAccount?.id, 'name') ??
-              `${keyringTypeName} ${keyringAccountIndex + 1}`,
-            importTime:
-              this.#populateExistingMetadata(
-                existingAccount?.id,
-                'importTime',
-              ) ?? Date.now(),
-            lastSelected:
-              this.#populateExistingMetadata(
-                existingAccount?.id,
-                'lastSelected',
-              ) ?? 0,
+              existingAccount?.metadata.name ??
+              `${keyringTypeName} ${keyringAccountIndex}`,
+            importTime: existingAccount?.metadata.importTime ?? Date.now(),
+            lastSelected: existingAccount?.metadata.lastSelected ?? 0,
           },
         };
 
-        return internalAccountMap;
-      },
-      {} as Record<string, InternalAccount>,
-    );
+        // Increment the account index for this keyring.
+        keyringAccountIndexes.set(keyringTypeName, keyringAccountIndex + 1);
+      }
+    }
 
     this.#update((state) => {
-      state.internalAccounts.accounts = accounts;
+      state.internalAccounts.accounts = internalAccounts;
     });
   }
 
@@ -609,20 +618,79 @@ export class AccountsController extends BaseController<
   }
 
   /**
-   * Generates an internal account for a non-Snap account.
+   * Gets an internal account representation for a non-Snap account.
    *
    * @param address - The address of the account.
-   * @param type - The type of the account.
+   * @param keyring - The keyring object of the account.
    * @returns The generated internal account.
    */
-  #generateInternalAccountForNonSnapAccount(
+  #getInternalAccountForNonSnapAccount(
     address: string,
-    type: string,
+    keyring: KeyringObject,
   ): InternalAccount {
+    const id = getUUIDFromAddressOfNormalAccount(address);
+
+    // We might have an account for this ID already, so we'll just re-use
+    // the same metadata
+    const account = this.getAccount(id);
+    const metadata: InternalAccount['metadata'] = {
+      name: account?.metadata.name ?? '',
+      ...(account?.metadata.nameLastUpdatedAt
+        ? {
+            nameLastUpdatedAt: account?.metadata.nameLastUpdatedAt,
+          }
+        : {}),
+      importTime: account?.metadata.importTime ?? Date.now(),
+      lastSelected: account?.metadata.lastSelected ?? 0,
+      keyring: {
+        type: keyring.type,
+      },
+    };
+
+    let options: InternalAccount['options'] = {};
+    if (isHdKeyringType(keyring.type)) {
+      // We need to find the account index from its HD keyring.
+      const groupIndex = getEvmGroupIndexFromAddressIndex(keyring, address);
+
+      // If for some reason, we cannot find this address, then the caller made a mistake
+      // and it did not use the proper keyring object. For now, we do not fail and just
+      // consider this account as "simple account".
+      if (groupIndex !== undefined) {
+        // NOTE: We are not using the `hdPath` from the associated keyring here and
+        // getting the keyring instance here feels a bit overkill.
+        // This will be naturally fixed once every keyring start using `KeyringAccount` and implement the keyring API.
+        const derivationPath = getEvmDerivationPathForIndex(groupIndex);
+
+        // Those are "legacy options" and they were used before `KeyringAccount` added
+        // support for type options. We keep those temporarily until we update everything
+        // to use the new typed options.
+        const legacyOptions = {
+          entropySource: keyring.metadata.id,
+          derivationPath,
+          groupIndex,
+        };
+
+        // New typed entropy options. This is required for multichain accounts.
+        const entropyOptions: { entropy: KeyringAccountEntropyOptions } = {
+          entropy: {
+            type: KeyringAccountEntropyTypeOption.Mnemonic,
+            id: keyring.metadata.id,
+            derivationPath,
+            groupIndex,
+          },
+        };
+
+        options = {
+          ...legacyOptions,
+          ...entropyOptions,
+        };
+      }
+    }
+
     return {
-      id: getUUIDFromAddressOfNormalAccount(address),
+      id,
       address,
-      options: {},
+      options,
       methods: [
         EthMethod.PersonalSign,
         EthMethod.Sign,
@@ -633,13 +701,7 @@ export class AccountsController extends BaseController<
       ],
       scopes: [EthScope.Eoa],
       type: EthAccountType.Eoa,
-      metadata: {
-        name: '',
-        importTime: Date.now(),
-        keyring: {
-          type,
-        },
-      },
+      metadata,
     };
   }
 
@@ -657,93 +719,6 @@ export class AccountsController extends BaseController<
     // Snap keyring is not available until the first account is created in the keyring
     // controller, so this might be undefined.
     return snapKeyring as SnapKeyring | undefined;
-  }
-
-  /**
-   * Returns a list of internal accounts created using the SnapKeyring.
-   *
-   * @returns A promise that resolves to an array of InternalAccount objects.
-   */
-  async #listSnapAccounts(): Promise<InternalAccount[]> {
-    const keyring = this.#getSnapKeyring();
-
-    if (!keyring) {
-      return [];
-    }
-
-    return keyring.listAccounts();
-  }
-
-  /**
-   * Returns a list of normal accounts.
-   * Note: listNormalAccounts is a temporary method until the keyrings all implement the InternalAccount interface.
-   * Once all keyrings implement the InternalAccount interface, this method can be removed and getAccounts can be used instead.
-   *
-   * @returns A Promise that resolves to an array of InternalAccount objects.
-   */
-  async #listNormalAccounts(): Promise<InternalAccount[]> {
-    const internalAccounts: InternalAccount[] = [];
-    const { keyrings } = this.messagingSystem.call(
-      'KeyringController:getState',
-    );
-
-    for (const keyring of keyrings) {
-      const keyringType = keyring.type;
-      if (!isNormalKeyringType(keyringType as KeyringTypes)) {
-        // We only consider "normal accounts" here, so keep looping
-        continue;
-      }
-
-      for (const [accountIndex, address] of keyring.accounts.entries()) {
-        const id = getUUIDFromAddressOfNormalAccount(address);
-
-        let options = {};
-
-        if (isHdKeyringType(keyring.type as KeyringTypes)) {
-          options = {
-            entropySource: keyring.metadata.id,
-            // NOTE: We are not using the `hdPath` from the associated keyring here and
-            // getting the keyring instance here feels a bit overkill.
-            // This will be naturally fixed once every keyring start using `KeyringAccount` and implement the keyring API.
-            derivationPath: getDerivationPathForIndex(accountIndex),
-          };
-        }
-
-        const nameLastUpdatedAt = this.#populateExistingMetadata(
-          id,
-          'nameLastUpdatedAt',
-        );
-
-        internalAccounts.push({
-          id,
-          address,
-          options,
-          methods: [
-            EthMethod.PersonalSign,
-            EthMethod.Sign,
-            EthMethod.SignTransaction,
-            EthMethod.SignTypedDataV1,
-            EthMethod.SignTypedDataV3,
-            EthMethod.SignTypedDataV4,
-          ],
-          scopes: [EthScope.Eoa],
-          type: EthAccountType.Eoa,
-          metadata: {
-            name: this.#populateExistingMetadata(id, 'name') ?? '',
-            ...(nameLastUpdatedAt && { nameLastUpdatedAt }),
-            importTime:
-              this.#populateExistingMetadata(id, 'importTime') ?? Date.now(),
-            lastSelected:
-              this.#populateExistingMetadata(id, 'lastSelected') ?? 0,
-            keyring: {
-              type: keyringType,
-            },
-          },
-        });
-      }
-    }
-
-    return internalAccounts;
   }
 
   /**
@@ -789,8 +764,7 @@ export class AccountsController extends BaseController<
         previous: {} as Record<string, InternalAccount>,
         added: [] as {
           address: string;
-          type: string;
-          options: InternalAccount['options'];
+          keyring: KeyringObject;
         }[],
         updated: [] as InternalAccount[],
         removed: [] as InternalAccount[],
@@ -804,7 +778,7 @@ export class AccountsController extends BaseController<
     // Gets the patch object based on the keyring type (since Snap accounts and other accounts
     // are handled differently).
     const patchOf = (type: string) => {
-      if (type === KeyringTypes.snap) {
+      if (isSnapKeyringType(type)) {
         return patches.snap;
       }
       return patches.normal;
@@ -835,12 +809,7 @@ export class AccountsController extends BaseController<
           // Otherwise, that's a new account.
           patch.added.push({
             address,
-            type: keyring.type,
-            // Automatically injects `entropySource` for HD accounts only.
-            options:
-              keyring.type === KeyringTypes.hd
-                ? { entropySource: keyring.metadata.id }
-                : {},
+            keyring,
           });
         }
 
@@ -879,7 +848,7 @@ export class AccountsController extends BaseController<
         for (const added of patch.added) {
           const account = this.#getInternalAccountFromAddressAndType(
             added.address,
-            added.type,
+            added.keyring,
           );
 
           if (account) {
@@ -906,10 +875,6 @@ export class AccountsController extends BaseController<
                 name,
                 importTime: Date.now(),
                 lastSelected,
-              },
-              options: {
-                ...account.options,
-                ...added.options,
               },
             };
 
@@ -1042,13 +1007,10 @@ export class AccountsController extends BaseController<
       (internalAccount) => {
         // We do consider `hd` and `simple` keyrings to be of same type. So we check those 2 types
         // to group those accounts together!
-        if (
-          keyringType === KeyringTypes.hd ||
-          keyringType === KeyringTypes.simple
-        ) {
+        if (isHdKeyringType(keyringType) || isSimpleKeyringType(keyringType)) {
           return (
-            internalAccount.metadata.keyring.type === KeyringTypes.hd ||
-            internalAccount.metadata.keyring.type === KeyringTypes.simple
+            isHdKeyringType(internalAccount.metadata.keyring.type) ||
+            isSimpleKeyringType(internalAccount.metadata.keyring.type)
           );
         }
 
@@ -1141,27 +1103,51 @@ export class AccountsController extends BaseController<
    * If the account is a Snap Keyring account, retrieves the account from the keyring and adds it to the controller.
    *
    * @param address - The address of the new account.
-   * @param type - The keyring type of the new account.
+   * @param keyring - The keyring object of that new account.
    * @returns The newly generated/retrieved internal account.
    */
   #getInternalAccountFromAddressAndType(
     address: string,
-    type: string,
+    keyring: KeyringObject,
   ): InternalAccount | undefined {
-    if (type === KeyringTypes.snap) {
-      const keyring = this.#getSnapKeyring();
+    if (isSnapKeyringType(keyring.type)) {
+      const snapKeyring = this.#getSnapKeyring();
 
       // We need the Snap keyring to retrieve the account from its address.
-      if (!keyring) {
+      if (!snapKeyring) {
         return undefined;
       }
 
       // This might be undefined if the Snap deleted the account before
       // reaching that point.
-      return keyring.getAccountByAddress(address);
+      let account = snapKeyring.getAccountByAddress(address);
+      if (account) {
+        // We force the copy here, to avoid mutating the reference returned by the Snap keyring.
+        account = cloneDeep(account);
+
+        // MIGRATION: To avoid any existing Snap account migration, we are
+        // just "adding" the new typed options that we need for multichain
+        // accounts. Ultimately, we would need a real Snap account migrations
+        // (being handled by each Snaps).
+        if (isHdSnapKeyringAccount(account)) {
+          const options: HdSnapKeyringAccount['options'] = {
+            ...account.options,
+            entropy: {
+              type: KeyringAccountEntropyTypeOption.Mnemonic,
+              id: account.options.entropySource,
+              groupIndex: account.options.index,
+              derivationPath: account.options.derivationPath,
+            },
+          };
+          // Inject the new typed options to the internal account copy.
+          account.options = options;
+        }
+      }
+
+      return account;
     }
 
-    return this.#generateInternalAccountForNonSnapAccount(address, type);
+    return this.#getInternalAccountForNonSnapAccount(address, keyring);
   }
 
   /**
@@ -1192,24 +1178,6 @@ export class AccountsController extends BaseController<
     });
 
     // DO NOT publish AccountsController:setSelectedAccount to prevent circular listener loops
-  }
-
-  /**
-   * Retrieves the value of a specific metadata key for an existing account.
-   *
-   * @param accountId - The ID of the account.
-   * @param metadataKey - The key of the metadata to retrieve.
-   * @param account - The account object to retrieve the metadata key from.
-   * @returns The value of the specified metadata key, or undefined if the account or metadata key does not exist.
-   */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  #populateExistingMetadata<T extends keyof InternalAccount['metadata']>(
-    accountId: string,
-    metadataKey: T,
-    account?: InternalAccount,
-  ): InternalAccount['metadata'][T] | undefined {
-    const internalAccount = account ?? this.getAccount(accountId);
-    return internalAccount ? internalAccount.metadata[metadataKey] : undefined;
   }
 
   /**

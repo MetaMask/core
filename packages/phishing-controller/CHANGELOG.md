@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.1.0]
+
+### Added
+
+- Add proper action registration for `bulkScanUrls` method as `PhishingControllerBulkScanUrlsAction` ([#6105](https://github.com/MetaMask/core/pull/6105))
+- Export `PhishingControllerBulkScanUrlsAction` type for external use ([#6105](https://github.com/MetaMask/core/pull/6105))
+
+## [13.0.0]
+
 ### Added
 
 - Exports `UrlScanCacheEntry` ([#6095](https://github.com/MetaMask/core/pull/6095))
@@ -385,7 +394,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.6.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@13.1.0...HEAD
+[13.1.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@13.0.0...@metamask/phishing-controller@13.1.0
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.6.0...@metamask/phishing-controller@13.0.0
 [12.6.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.5.0...@metamask/phishing-controller@12.6.0
 [12.5.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.4.1...@metamask/phishing-controller@12.5.0
 [12.4.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.4.0...@metamask/phishing-controller@12.4.1

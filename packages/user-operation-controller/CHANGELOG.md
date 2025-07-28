@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [38.0.0]
+
 ### Changed
 
+- **BREAKING:** Bump peer dependency `@metamask/transaction-controller` to `^59.0.0` ([#6171](https://github.com/MetaMask/core/pull/6171)), ([#6027](https://github.com/MetaMask/core/pull/6027))
 - Bump `@metamask/controller-utils` from `^11.10.0` to `^11.11.0` ([#6069](https://github.com/MetaMask/core/pull/6069))
 - Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
 
@@ -433,7 +436,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#3749](https://github.com/MetaMask/core/pull/3749))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@37.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@38.0.0...HEAD
+[38.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@37.0.0...@metamask/user-operation-controller@38.0.0
 [37.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@36.0.0...@metamask/user-operation-controller@37.0.0
 [36.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@35.0.0...@metamask/user-operation-controller@36.0.0
 [35.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@34.0.0...@metamask/user-operation-controller@35.0.0
