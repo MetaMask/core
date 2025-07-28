@@ -1,3 +1,4 @@
+import { isBip44Account } from '@metamask/account-api';
 import type { EntropySourceId } from '@metamask/keyring-api';
 import {
   EthAccountType,
@@ -10,8 +11,6 @@ import {
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-
-import { isBip44Account } from '../providers/BaseAccountProvider';
 
 const ETH_EOA_METHODS = [
   EthMethod.PersonalSign,
@@ -168,6 +167,11 @@ export class MockAccountBuilder {
 
   static from(account: InternalAccount): MockAccountBuilder {
     return new MockAccountBuilder(account);
+  }
+
+  withId(id: InternalAccount['id']) {
+    this.#account.id = id;
+    return this;
   }
 
   withEntropySource(entropySource: EntropySourceId) {

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Improved `AccountTrackerController` RPC performance by batching addresses using a multicall contract ([#6099](https://github.com/MetaMask/core/pull/6099))
+  - Fallbacks to single address RPC calls on chains that do not have a multicall contract.
+- Improved `AssetsContractController` RPC performance by batching addresses using a multicall contract ([#6099](https://github.com/MetaMask/core/pull/6099))
+  - Fallbacks to single address RPC calls on chains that do not have a multicall contract.
+
+### Fixed
+
+- Fix `TokenBalancesController` to force block number update to avoid stale cached balances ([#6197](https://github.com/MetaMask/core/pull/6197))
+
 ## [73.0.0]
 
 ### Changed
