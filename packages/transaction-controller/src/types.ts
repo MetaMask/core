@@ -35,6 +35,11 @@ export type TransactionMeta = {
   approvalTxId?: string;
 
   /**
+   * The fiat value of the transaction to be used to passed metrics.
+   */
+  assetsFiatValues?: AssetFiatValues;
+
+  /**
    * Unique ID to prevent duplicate requests.
    */
   actionId?: string;
@@ -169,11 +174,6 @@ export type TransactionMeta = {
    * Which estimate level was used
    */
   estimateUsed?: string;
-
-  /**
-   * The fiat value of the transaction to be used to passed metrics.
-   */
-  assetsFiatValues?: AssetFiatValues;
 
   /**
    * The chosen amount which will be the same as the originally proposed token

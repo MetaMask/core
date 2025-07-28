@@ -1130,8 +1130,8 @@ export class TransactionController extends BaseController<
   async addTransaction(
     txParams: TransactionParams,
     options: {
-      assetsFiatValues?: AssetFiatValues;
       actionId?: string;
+      assetsFiatValues?: AssetFiatValues;
       batchId?: Hex;
       deviceConfirmedOn?: WalletDevice;
       disableGasBuffer?: boolean;
