@@ -17,7 +17,7 @@ import { getUniqueId } from '../getUniqueId';
 type HandleError = (error: unknown) => void;
 
 type Options = {
-  handleError: HandleError;
+  handleError?: HandleError;
 } & (
   | {
       engine: JsonRpcEngineV2<JsonRpcCall, Json>;
@@ -53,8 +53,20 @@ const jsonrpc = '2.0' as const;
 export class JsonRpcServer {
   readonly #engine: JsonRpcEngineV2<JsonRpcCall, Json>;
 
-  readonly #handleError: HandleError;
+  readonly #handleError?: HandleError | undefined;
 
+  /**
+   * Construct a new JSON-RPC server.
+   *
+   * @param options - The options for the server.
+   * @param options.handleError - The callback to handle errors thrown by the
+   * engine. Errors always result in a failed response object, containing a
+   * JSON-RPC 2.0 serialized version of the original error.
+   * @param options.engine - The engine to use. Mutually exclusive with
+   * `middleware`.
+   * @param options.middleware - The middleware to use. Mutually exclusive with
+   * `engine`.
+   */
   constructor(options: Options) {
     this.#handleError = options.handleError;
 
@@ -94,7 +106,7 @@ export class JsonRpcServer {
         };
       }
     } catch (error) {
-      this.#handleError(error);
+      this.#handleError?.(error);
 
       if (isRequest) {
         return {

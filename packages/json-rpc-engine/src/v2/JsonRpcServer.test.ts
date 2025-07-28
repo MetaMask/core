@@ -160,6 +160,28 @@ describe('JsonRpcServer', () => {
     expect(handleError).toHaveBeenCalledWith(new Error('Unknown method'));
   });
 
+  it('returns a failed request when handleError is not provided', async () => {
+    const server = new JsonRpcServer({
+      engine: makeEngine(),
+    });
+
+    const response = await server.handle({
+      jsonrpc,
+      id: 1,
+      method: 'unknown',
+    });
+
+    expect(response).toStrictEqual({
+      jsonrpc,
+      id: 1,
+      error: {
+        code: -32603,
+        message: 'Unknown method',
+        data: { cause: expect.any(Object) },
+      },
+    });
+  });
+
   it('calls handleError for a failed notification', async () => {
     const handleError = jest.fn();
     const server = new JsonRpcServer({
