@@ -17,16 +17,6 @@
   "packages/assets-controllers/src/AccountTrackerController.test.ts": {
     "import-x/namespace": 2
   },
-  "packages/assets-controllers/src/AccountTrackerController.ts": {
-    "jsdoc/check-tag-names": 5
-  },
-  "packages/assets-controllers/src/AssetsContractController.test.ts": {
-    "import-x/order": 3
-  },
-  "packages/assets-controllers/src/AssetsContractController.ts": {
-    "jsdoc/check-tag-names": 2,
-    "jsdoc/tag-lines": 1
-  },
   "packages/assets-controllers/src/CurrencyRateController.test.ts": {
     "import-x/order": 1,
     "jest/no-conditional-in-test": 1
