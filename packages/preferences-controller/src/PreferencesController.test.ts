@@ -49,6 +49,12 @@ describe('PreferencesController', () => {
       },
       privacyMode: false,
       dismissSmartAccountSuggestionEnabled: false,
+      currentLocale: 'en',
+      theme: 'auto',
+      useBlockie: false,
+      currentCurrency: 'USD',
+      showNativeTokenAsMainBalance: false,
+      hideZeroBalanceTokens: false,
     });
   });
 
@@ -571,6 +577,48 @@ describe('PreferencesController', () => {
     expect(controller.state.smartAccountOptInForAccounts).toHaveLength(0);
     controller.setSmartAccountOptInForAccounts(['0x1', '0x2']);
     expect(controller.state.smartAccountOptInForAccounts[0]).toBe('0x1');
+  });
+
+  it('should set currentLocale', () => {
+    const controller = setupPreferencesController();
+    expect(controller.state.currentLocale).toBe('en');
+    controller.setCurrentLocale('es');
+    expect(controller.state.currentLocale).toBe('es');
+  });
+
+  it('should set theme', () => {
+    const controller = setupPreferencesController();
+    expect(controller.state.theme).toBe('auto');
+    controller.setTheme('dark');
+    expect(controller.state.theme).toBe('dark');
+  });
+
+  it('should set useBlockie', () => {
+    const controller = setupPreferencesController();
+    expect(controller.state.useBlockie).toBe(false);
+    controller.setUseBlockie(true);
+    expect(controller.state.useBlockie).toBe(true);
+  });
+
+  it('should set currentCurrency', () => {
+    const controller = setupPreferencesController();
+    expect(controller.state.currentCurrency).toBe('USD');
+    controller.setCurrentCurrency('EUR');
+    expect(controller.state.currentCurrency).toBe('EUR');
+  });
+
+  it('should set showNativeTokenAsMainBalance', () => {
+    const controller = setupPreferencesController();
+    expect(controller.state.showNativeTokenAsMainBalance).toBe(false);
+    controller.setShowNativeTokenAsMainBalance(true);
+    expect(controller.state.showNativeTokenAsMainBalance).toBe(true);
+  });
+
+  it('should set hideZeroBalanceTokens', () => {
+    const controller = setupPreferencesController();
+    expect(controller.state.hideZeroBalanceTokens).toBe(false);
+    controller.setHideZeroBalanceTokens(true);
+    expect(controller.state.hideZeroBalanceTokens).toBe(true);
   });
 });
 
