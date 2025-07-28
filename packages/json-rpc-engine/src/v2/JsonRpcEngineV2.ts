@@ -126,23 +126,6 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall, Result extends Json> {
     return result;
   }
 
-  // This exists because a JsonRpcCall overload of handle() cannot coexist with
-  // the other overloads due to type union / overload shenanigans.
-  /**
-   * Handle a JSON-RPC call. A response will be returned if the call is a request.
-   *
-   * @param request - The JSON-RPC call to handle.
-   * @param options - The options for the handle operation.
-   * @param options.context - The context to pass to the middleware.
-   * @returns The JSON-RPC response, if any.
-   */
-  async handleAny(
-    request: JsonRpcCall & Request,
-    options?: HandleOptions,
-  ): Promise<Result | void> {
-    return this.handle(request, options);
-  }
-
   /**
    * Handle a JSON-RPC request. Throws if a middleware performs an invalid
    * operation. Permits returning an `undefined` result.

@@ -2,6 +2,7 @@ import { rpcErrors, serializeError } from '@metamask/rpc-errors';
 import type {
   Json,
   JsonRpcId,
+  JsonRpcNotification,
   JsonRpcParams,
   JsonRpcRequest,
   JsonRpcResponse,
@@ -91,24 +92,26 @@ export class JsonRpcServer {
    * notification.
    */
   async handle(rawRequest: unknown): Promise<JsonRpcResponse | undefined> {
-    const [originalId, isRequest] = getOriginalId(rawRequest);
-
-    try {
-      const request = this.#coerceRequest(rawRequest, isRequest);
-      const result = await this.#engine.handleAny(request);
-
-      if (isRequest) {
+    if (hasId(rawRequest)) {
+      const originalId = rawRequest.id;
+      try {
+        if (!isValidId(originalId)) {
+          throw rpcErrors.invalidRequest({
+            data: {
+              request: rawRequest,
+            },
+          });
+        }
+        const request = this.#coerceRequest(rawRequest);
+        const result = await this.#engine.handle(request);
         return {
           jsonrpc,
-          id: originalId as JsonRpcId,
+          id: originalId,
           // The result is guaranteed to be Json by the engine.
-          result: result as Json,
+          result,
         };
-      }
-    } catch (error) {
-      this.#handleError?.(error);
-
-      if (isRequest) {
+      } catch (error) {
+        this.#handleError?.(error);
         return {
           jsonrpc,
           // Remap the original id to the error response, regardless of its
@@ -121,10 +124,28 @@ export class JsonRpcServer {
         };
       }
     }
+
+    try {
+      const notification = this.#coerceNotification(rawRequest);
+      await this.#engine.handle(notification);
+    } catch (error) {
+      this.#handleError?.(error);
+    }
     return undefined;
   }
 
-  #coerceRequest(rawRequest: unknown, isRequest: boolean): JsonRpcCall {
+  #coerceNotification(rawRequest: unknown): JsonRpcNotification {
+    return this.#coerceJsonRpcCall(rawRequest);
+  }
+
+  #coerceRequest(rawRequest: { id: unknown }): JsonRpcRequest {
+    return {
+      id: getUniqueId(),
+      ...this.#coerceJsonRpcCall(rawRequest),
+    };
+  }
+
+  #coerceJsonRpcCall(rawRequest: unknown): JsonRpcCall {
     if (!isMinimalRequest(rawRequest)) {
       throw rpcErrors.invalidRequest({
         data: {
@@ -141,11 +162,6 @@ export class JsonRpcServer {
     if (hasProperty(rawRequest, 'params')) {
       request.params = rawRequest.params as JsonRpcParams;
     }
-
-    if (isRequest) {
-      (request as JsonRpcRequest).id = getUniqueId();
-    }
-
     return request;
   }
 }
@@ -190,16 +206,21 @@ function hasValidParams(
 }
 
 /**
- * Get the original id from a request.
+ * Check whether a given JSON-RPC message has an ID.
  *
- * @param rawRequest - The request to get the original id from.
- * @returns The original id and a boolean indicating if the request is a request
- * (as opposed to a notification).
+ * @param rpcCall - The JSON-RPC message.
+ * @returns `true` if the request has an ID, `false` otherwise.
  */
-function getOriginalId(rawRequest: unknown): [unknown, boolean] {
-  if (isObject(rawRequest) && hasProperty(rawRequest, 'id')) {
-    return [rawRequest.id, true];
-  }
+function hasId(rpcCall: unknown): rpcCall is { id: unknown } {
+  return isObject(rpcCall) && hasProperty(rpcCall, 'id');
+}
 
-  return [undefined, false];
+/**
+ * Check whether the given ID is a valid JSON-RPC request ID.
+ *
+ * @param id - The ID to check.
+ * @returns `true` if it is a valid id, `false` otherwise.
+ */
+function isValidId(id: unknown): id is string | number | null {
+  return id === null || ['string', 'number'].includes(typeof id);
 }
