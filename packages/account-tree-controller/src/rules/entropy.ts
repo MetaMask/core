@@ -8,13 +8,13 @@ import { isEvmAccountType } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type {
-  AccountGroupObject,
-  AccountWalletEntropyMetadata,
-  AccountWalletObject,
-} from '..';
+import type { AccountGroupObject } from '../group';
 import type { AccountTreeRuleResult } from '../rule';
 import { AccountTreeRule } from '../rule';
+import type {
+  AccountWalletEntropyMetadata,
+  AccountWalletObject,
+} from '../wallet';
 
 export class EntropyRule extends AccountTreeRule {
   readonly category = AccountWalletCategory.Entropy;

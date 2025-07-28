@@ -5,16 +5,16 @@ import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
+import type { AccountGroupObject } from './group';
 import type { AccountTreeRule } from './rule';
 import { EntropyRule } from './rules/entropy';
 import { KeyringRule } from './rules/keyring';
 import { SnapRule } from './rules/snap';
 import type {
-  AccountGroupObject,
   AccountTreeControllerMessenger,
   AccountTreeControllerState,
-  AccountWalletObject,
 } from './types';
+import type { AccountWalletObject } from './wallet';
 import { AccountTreeWallet } from './wallet';
 
 export const controllerName = 'AccountTreeController';

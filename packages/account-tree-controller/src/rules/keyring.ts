@@ -5,14 +5,12 @@ import {
 } from '@metamask/account-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type {
-  AccountGroupObject,
-  AccountWalletKeyringMetadata,
-} from 'src/types';
 
 import type { AccountWalletObject } from '..';
+import type { AccountGroupObject } from '../group';
 import type { AccountTreeRuleResult } from '../rule';
 import { AccountTreeRule } from '../rule';
+import type { AccountWalletKeyringMetadata } from '../wallet';
 
 /**
  * Get wallet name from a keyring type.

@@ -1,13 +1,22 @@
 import { type AccountGroup, type AccountGroupId } from '@metamask/account-api';
+import type { AccountId } from '@metamask/accounts-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type {
-  AccountGroupObject,
-  AccountTreeControllerMessenger,
-} from './types';
+import type { AccountTreeControllerMessenger } from './types';
 import type { AccountTreeWallet } from './wallet';
 
 export const DEFAULT_ACCOUNT_GROUP_NAME: string = 'Default';
+
+export type AccountGroupMetadata = {
+  name: string;
+};
+
+export type AccountGroupObject = {
+  id: AccountGroupId;
+  // Blockchain Accounts:
+  accounts: AccountId[];
+  metadata: AccountGroupMetadata;
+};
 
 /**
  * Account group coming from the {@link AccountTreeController}.

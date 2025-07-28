@@ -1,4 +1,13 @@
 export type {
+  AccountWalletObject,
+  AccountWalletMetadata,
+  AccountWalletCategoryMetadata,
+  AccountWalletEntropyMetadata,
+  AccountWalletKeyringMetadata,
+  AccountWalletSnapMetadata,
+} from './wallet';
+
+export type {
   AccountTreeControllerState,
   AccountTreeControllerGetStateAction,
   AccountTreeControllerActions,
@@ -7,15 +16,9 @@ export type {
   AccountTreeControllerStateChangeEvent,
   AccountTreeControllerEvents,
   AccountTreeControllerMessenger,
-  AccountWalletObject,
-  AccountWalletMetadata,
-  AccountWalletCategoryMetadata,
-  AccountWalletEntropyMetadata,
-  AccountWalletKeyringMetadata,
-  AccountWalletSnapMetadata,
-  AccountGroupObject,
-  AccountGroupMetadata,
 } from './types';
+
+export type { AccountGroupObject, AccountGroupMetadata } from './group';
 export {
   AccountTreeController,
   getDefaultAccountTreeControllerState,

@@ -2,12 +2,12 @@ import type { AccountWalletCategory } from '@metamask/account-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { AccountTreeGroup, AccountTreeWallet } from '.';
+import type { AccountGroupObject } from './group';
+import type { AccountTreeControllerMessenger } from './types';
 import type {
-  AccountGroupObject,
-  AccountTreeControllerMessenger,
   AccountWalletCategoryMetadata,
   AccountWalletObject,
-} from './types';
+} from './wallet';
 
 export type AccountTreeRuleResult = {
   wallet: {

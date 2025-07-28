@@ -7,14 +7,11 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { stripSnapPrefix } from '@metamask/snaps-utils';
-import type {
-  AccountGroupObject,
-  AccountWalletObject,
-  AccountWalletSnapMetadata,
-} from 'src/types';
 
+import type { AccountGroupObject } from '../group';
 import type { AccountTreeRuleResult } from '../rule';
 import { AccountTreeRule } from '../rule';
+import type { AccountWalletObject, AccountWalletSnapMetadata } from '../wallet';
 
 type SnapAccount<Account extends InternalAccount> = Account & {
   metadata: Account['metadata'] & {
