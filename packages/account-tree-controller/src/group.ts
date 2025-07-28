@@ -7,10 +7,16 @@ import type { AccountTreeWallet } from './wallet';
 
 export const DEFAULT_ACCOUNT_GROUP_NAME: string = 'Default';
 
+/**
+ * Account group metadata.
+ */
 export type AccountGroupMetadata = {
   name: string;
 };
 
+/**
+ * Account group object.
+ */
 export type AccountGroupObject = {
   id: AccountGroupId;
   // Blockchain Accounts:

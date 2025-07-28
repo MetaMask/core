@@ -51,13 +51,19 @@ export type AccountWalletCategoryMetadata =
   | AccountWalletSnapMetadata
   | AccountWalletKeyringMetadata;
 
+/**
+ * Account wallet metadata.
+ */
 export type AccountWalletMetadata = {
   name: string;
 } & AccountWalletCategoryMetadata;
 
+/**
+ * Account wallet object.
+ */
 export type AccountWalletObject = {
   id: AccountWalletId;
-  // Account groups OR Multichain accounts (once available).
+  // Account groups OR Multichain accounts.
   groups: {
     [groupId: AccountGroupId]: AccountGroupObject;
   };
