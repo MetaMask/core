@@ -1,4 +1,6 @@
 import type {
+  AccountsControllerAccountAddedEvent,
+  AccountsControllerAccountRemovedEvent,
   AccountsControllerGetAccountAction,
   AccountsControllerGetAccountByAddressAction,
   AccountsControllerListMultichainAccountsAction,
@@ -11,11 +13,41 @@ import type {
 } from '@metamask/keyring-controller';
 import type { HandleSnapRequest as SnapControllerHandleSnapRequestAction } from '@metamask/snaps-controllers';
 
+import type {
+  MultichainAccountService,
+  serviceName,
+} from './MultichainAccountService';
+
+export type MultichainAccountServiceGetMultichainAccountAction = {
+  type: `${typeof serviceName}:getMultichainAccount`;
+  handler: MultichainAccountService['getMultichainAccount'];
+};
+
+export type MultichainAccountServiceGetMultichainAccountsAction = {
+  type: `${typeof serviceName}:getMultichainAccounts`;
+  handler: MultichainAccountService['getMultichainAccounts'];
+};
+
+export type MultichainAccountServiceGetMultichainAccountWalletAction = {
+  type: `${typeof serviceName}:getMultichainAccountWallet`;
+  handler: MultichainAccountService['getMultichainAccountWallet'];
+};
+
+export type MultichainAccountServiceGetMultichainAccountWalletsAction = {
+  type: `${typeof serviceName}:getMultichainAccountWallets`;
+  handler: MultichainAccountService['getMultichainAccountWallets'];
+};
+
 /**
  * All actions that {@link MultichainAccountService} registers so that other
  * modules can call them.
  */
-export type MultichainAccountServiceActions = never;
+export type MultichainAccountServiceActions =
+  | MultichainAccountServiceGetMultichainAccountAction
+  | MultichainAccountServiceGetMultichainAccountsAction
+  | MultichainAccountServiceGetMultichainAccountWalletAction
+  | MultichainAccountServiceGetMultichainAccountWalletsAction;
+
 /**
  * All events that {@link MultichainAccountService} publishes so that other modules
  * can subscribe to them.
@@ -38,7 +70,10 @@ export type AllowedActions =
  * All events published by other modules that {@link MultichainAccountService}
  * subscribes to.
  */
-export type AllowedEvents = KeyringControllerStateChangeEvent;
+export type AllowedEvents =
+  | KeyringControllerStateChangeEvent
+  | AccountsControllerAccountAddedEvent
+  | AccountsControllerAccountRemovedEvent;
 
 /**
  * The messenger restricted to actions and events that

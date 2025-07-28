@@ -1,6 +1,6 @@
 {
   "name": "@metamask/bridge-status-controller",
-  "version": "36.0.0",
+  "version": "37.0.0",
   "description": "Manages bridge-related status fetching functionality for MetaMask",
   "keywords": [
     "MetaMask",
@@ -57,13 +57,13 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@metamask/accounts-controller": "^31.0.0",
+    "@metamask/accounts-controller": "^32.0.1",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/bridge-controller": "^36.1.0",
+    "@metamask/bridge-controller": "^37.0.0",
     "@metamask/gas-fee-controller": "^24.0.0",
     "@metamask/network-controller": "^24.0.1",
     "@metamask/snaps-controllers": "^14.0.1",
-    "@metamask/transaction-controller": "^58.1.1",
+    "@metamask/transaction-controller": "^59.0.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
@@ -76,12 +76,12 @@
     "typescript": "~5.2.2"
   },
   "peerDependencies": {
-    "@metamask/accounts-controller": "^31.0.0",
-    "@metamask/bridge-controller": "^36.0.0",
+    "@metamask/accounts-controller": "^32.0.0",
+    "@metamask/bridge-controller": "^37.0.0",
     "@metamask/gas-fee-controller": "^24.0.0",
     "@metamask/network-controller": "^24.0.0",
     "@metamask/snaps-controllers": "^14.0.0",
-    "@metamask/transaction-controller": "^58.0.0"
+    "@metamask/transaction-controller": "^59.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

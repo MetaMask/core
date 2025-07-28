@@ -301,6 +301,13 @@ export type SeedlessOnboardingControllerOptions<
    * @default Web3AuthNetwork.Mainnet
    */
   network?: Web3AuthNetwork;
+
+  /**
+   * The TTL of the password outdated cache in milliseconds.
+   *
+   * @default PASSWORD_OUTDATED_CACHE_TTL_MS
+   */
+  passwordOutdatedCacheTTL?: number;
 };
 
 /**
