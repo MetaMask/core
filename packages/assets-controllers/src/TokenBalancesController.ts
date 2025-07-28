@@ -448,13 +448,28 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
       arguments: [accountAddress],
     }));
 
+    console.log('calls .....');
+
+    await this.#ensureFreshBlockData(chainId);
+
+    console.log('calls after ensureFreshBlockData .....', calls);
+
+    return multicallOrFallback(calls, chainId, provider);
+  }
+
+  /**
+   * Ensures that the block tracker has the latest block data before performing multicall operations.
+   * This is a temporary fix to ensure that the block number is up to date.
+   * 
+   * @param chainId - The chain id to update block data for.
+   */
+  async #ensureFreshBlockData(chainId: Hex): Promise<void> {
     // Force fresh block data before multicall
     // TODO: This is a temporary fix to ensure that the block number is up to date.
     // We should remove this once we have a better solution for this on the block tracker controller.
     const networkClient = this.#getNetworkClient(chainId);
+    console.log('networkClient .....', networkClient);
     await networkClient.blockTracker.checkForLatestBlock?.();
-
-    return multicallOrFallback(calls, chainId, provider);
   }
 
   /**

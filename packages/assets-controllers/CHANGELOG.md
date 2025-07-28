@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix `TokenBalancesController` to force block number update to avoid stale cached balances
+
 ## [73.0.0]
 
 ### Changed
