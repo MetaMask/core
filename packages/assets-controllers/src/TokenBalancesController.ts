@@ -431,8 +431,13 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
     // Force fresh block data before multicall
     // TODO: This is a temporary fix to ensure that the block number is up to date.
     // We should remove this once we have a better solution for this on the block tracker controller.
-    const networkClient = this.#getNetworkClient(chainId);
-    await networkClient.blockTracker.checkForLatestBlock?.();
+    try {
+      const networkClient = this.#getNetworkClient(chainId);
+      await networkClient.blockTracker?.checkForLatestBlock?.();
+    } catch (error) {
+      // If block tracker update fails, log the error but don't block the balance update
+      console.warn('Failed to update block tracker:', error);
+    }
   }
 
   /**
