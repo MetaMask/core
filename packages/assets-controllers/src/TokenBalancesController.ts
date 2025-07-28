@@ -448,11 +448,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
       arguments: [accountAddress],
     }));
 
-    console.log('calls .....');
-
     await this.#ensureFreshBlockData(chainId);
-
-    console.log('calls after ensureFreshBlockData .....', calls);
 
     return multicallOrFallback(calls, chainId, provider);
   }
@@ -468,7 +464,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
     // TODO: This is a temporary fix to ensure that the block number is up to date.
     // We should remove this once we have a better solution for this on the block tracker controller.
     const networkClient = this.#getNetworkClient(chainId);
-    console.log('networkClient .....', networkClient);
     await networkClient.blockTracker.checkForLatestBlock?.();
   }
 
