@@ -822,7 +822,7 @@ export class AccountsController extends BaseController<
     // over all previous known accounts and check against the keyring addresses.
     for (const patch of [patches.snap, patches.normal]) {
       for (const [address, account] of Object.entries(patch.previous)) {
-        // If a previous address is not part of the new addesses, then it got removed.
+        // If a previous address is not part of the new addresses, then it got removed.
         if (!addresses.has(address)) {
           patch.removed.push(account);
         }
@@ -1000,7 +1000,7 @@ export class AccountsController extends BaseController<
    *
    * @param keyringType - The type of keyring.
    * @param accounts - Accounts to filter by keyring type.
-   * @returns The list of accounts associcated with this keyring type.
+   * @returns The list of accounts associated with this keyring type.
    */
   #getAccountsByKeyringType(keyringType: string, accounts?: InternalAccount[]) {
     return (accounts ?? this.listMultichainAccounts()).filter(
