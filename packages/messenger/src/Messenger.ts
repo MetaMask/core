@@ -96,6 +96,9 @@ export type NotNamespacedBy<
 export type NamespacedName<Namespace extends string = string> =
   `${Namespace}:${string}`;
 
+type StripNamespace<Namespaced extends NamespacedName> =
+  Namespaced extends `${string}:${infer Name}` ? Name : never;
+
 /**
  * A messenger that actions and/or events can be delegated to.
  *
@@ -105,11 +108,7 @@ type DelegatedMessenger<
   Action extends ActionConstraint,
   Event extends EventConstraint,
 > = Pick<
-  // The type is brooadened to all actions/events because some messenger methods are contravarient
-  // over this type (`registerDelegatedActionHandler` and `publishDelegated` for example). If this
-  // type is narrowed to just the delegated actions/events, the types for event payload and action
-  // parameters would not be wide enough.
-  Messenger<string, Action | ActionConstraint, Event | EventConstraint>,
+  Messenger<string, Action, Event>,
   | '_internalPublishDelegated'
   | '_internalRegisterDelegatedActionHandler'
   | '_internalRegisterDelegatedInitialEventPayload'
@@ -236,8 +235,8 @@ export class Messenger<
    */
   registerMethodActionHandlers<
     MessengerClient extends { name: Namespace },
-    MethodNames extends keyof MessengerClient & string,
-  >(messengerClient: MessengerClient, methodNames: readonly MethodNames[]) {
+    MethodName extends keyof MessengerClient & StripNamespace<Action['type']>,
+  >(messengerClient: MessengerClient, methodNames: readonly MethodName[]) {
     for (const methodName of methodNames) {
       const method = messengerClient[methodName];
       if (typeof method === 'function') {
@@ -736,10 +735,7 @@ export class Messenger<
    */
   _internalRegisterDelegatedActionHandler<ActionType extends Action['type']>(
     actionType: ActionType,
-    // Using wider `ActionConstraint` type here rather than `Action` because the `Action` type is
-    // contravariant over the handler parameter type. Using `Action` would lead to a type error
-    // here because the messenger we've delegated to supports _additional_ actions.
-    handler: ActionHandler<ActionConstraint, ActionType>,
+    handler: ActionHandler<Action, ActionType>,
   ) {
     this.#registerActionHandler(actionType, handler);
   }
