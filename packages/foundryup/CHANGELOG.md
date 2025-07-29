@@ -9,14 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.1]
 
-### Uncategorized
-
-- fix: make anvil symlink relative ([#6202](https://github.com/MetaMask/core/pull/6202))
-- chore: rename node:fs.d.ts to node_fs.d.ts ([#6201](https://github.com/MetaMask/core/pull/6201))
-
 ### Fixed
 
-- fix: make anvil symlink relative (#6202)
+- fix: make anvil symlink relative ([#6202](https://github.com/MetaMask/core/pull/6202))
 
 ## [1.0.0]
 
