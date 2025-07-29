@@ -771,6 +771,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   readonly #handleApprovalTx = async (
     isBridgeTx: boolean,
     quoteResponse: QuoteResponse<string | TxData> & QuoteMetadata,
+    requireApproval?: boolean,
   ): Promise<TransactionMeta | undefined> => {
     const { approval } = quoteResponse;
 
@@ -783,6 +784,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             ? TransactionType.bridgeApproval
             : TransactionType.swapApproval,
           trade: approval,
+          requireApproval,
         });
 
         await handleLineaDelay(quoteResponse);
@@ -1081,6 +1083,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           const approvalTxMeta = await this.#handleApprovalTx(
             isBridgeTx,
             quoteResponse,
+            requireApproval,
           );
           approvalTxId = approvalTxMeta?.id;
           return await this.#handleEvmTransaction({
