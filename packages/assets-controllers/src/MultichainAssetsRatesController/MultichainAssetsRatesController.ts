@@ -344,7 +344,6 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
   ): Promise<
     Record<string, UnifiedAssetConversion & { currency: CaipAssetType }>
   > {
-    console.log('#getUpdatedRatesFor', account, assets);
     // Do not attempt to retrieve rates from Snap if there are no assets
     if (!assets.length) {
       return {};
