@@ -73,6 +73,7 @@
     "immer": "^9.0.6",
     "lodash": "^4.17.21",
     "multiformats": "^13.1.0",
+    "reselect": "^5.1.0",
     "single-call-balance-checker-abi": "^1.0.0",
     "uuid": "^8.3.2"
   },
@@ -110,6 +111,7 @@
     "@metamask/accounts-controller": "^32.0.0",
     "@metamask/approval-controller": "^7.0.0",
     "@metamask/keyring-controller": "^22.0.0",
+    "@metamask/multichain-account-service": "^1.0.0",
     "@metamask/network-controller": "^24.0.0",
     "@metamask/permission-controller": "^11.0.0",
     "@metamask/phishing-controller": "^13.0.0",
