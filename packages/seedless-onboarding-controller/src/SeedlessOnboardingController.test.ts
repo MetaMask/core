@@ -3694,7 +3694,6 @@ describe('SeedlessOnboardingController', () => {
     const GLOBAL_PASSWORD = 'new-global-password';
     let MOCK_VAULT: string;
     let MOCK_VAULT_ENCRYPTION_KEY: string;
-    let MOCK_VAULT_ENCRYPTION_SALT: string;
     let INITIAL_AUTH_PUB_KEY: string;
     let initialAuthKeyPair: KeyPair; // Store initial keypair for vault creation
     let initialEncKey: Uint8Array; // Store initial encKey for vault creation
@@ -4194,7 +4193,6 @@ describe('SeedlessOnboardingController', () => {
       const GLOBAL_PASSWORD = 'new-global-password';
       let MOCK_VAULT: string;
       let MOCK_VAULT_ENCRYPTION_KEY: string;
-      let MOCK_VAULT_ENCRYPTION_SALT: string;
       let INITIAL_AUTH_PUB_KEY: string;
       let initialAuthKeyPair: KeyPair; // Store initial keypair for vault creation
       let initialEncKey: Uint8Array; // Store initial encKey for vault creation
@@ -4626,7 +4624,6 @@ describe('SeedlessOnboardingController', () => {
       // const GLOBAL_PASSWORD = 'new-global-password';
       let MOCK_VAULT: string;
       let MOCK_VAULT_ENCRYPTION_KEY: string;
-      let MOCK_VAULT_ENCRYPTION_SALT: string;
       let INITIAL_AUTH_PUB_KEY: string;
       let initialAuthKeyPair: KeyPair; // Store initial keypair for vault creation
       let initialEncKey: Uint8Array; // Store initial encKey for vault creation
