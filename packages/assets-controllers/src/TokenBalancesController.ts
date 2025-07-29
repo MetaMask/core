@@ -422,6 +422,20 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
   }
 
   /**
+   * Ensures that the block tracker has the latest block data before performing multicall operations.
+   * This is a temporary fix to ensure that the block number is up to date.
+   *
+   * @param chainId - The chain id to update block data for.
+   */
+  async #ensureFreshBlockData(chainId: Hex): Promise<void> {
+    // Force fresh block data before multicall
+    // TODO: This is a temporary fix to ensure that the block number is up to date.
+    // We should remove this once we have a better solution for this on the block tracker controller.
+    const networkClient = this.#getNetworkClient(chainId);
+    await networkClient.blockTracker?.checkForLatestBlock?.();
+  }
+
+  /**
    * Internal util: run `balanceOf` for an arbitrary set of account/token pairs.
    *
    * @param params - The parameters for the balance fetch.
@@ -447,6 +461,8 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
       functionSignature: 'balanceOf(address)',
       arguments: [accountAddress],
     }));
+
+    await this.#ensureFreshBlockData(chainId);
 
     return multicallOrFallback(calls, chainId, provider);
   }
