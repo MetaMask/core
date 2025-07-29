@@ -18,6 +18,33 @@ import type {
 } from './constants';
 
 /**
+ * The structure of the data which is serialized and stored in the vault.
+ */
+export type VaultData = {
+  /**
+   * The encryption key to encrypt the seed phrase.
+   */
+  toprfEncryptionKey: string;
+  /**
+   * The encryption key to encrypt the password.
+   */
+  toprfPwEncryptionKey: string;
+  /**
+   * The authentication key pair to authenticate the TOPRF.
+   */
+  toprfAuthKeyPair: string;
+  /**
+   * The revoke token to revoke refresh token and get new refresh token and new revoke token.
+   * The revoke token may no longer be available after a large number of password changes. In this case, re-authentication is advised.
+   */
+  revokeToken?: string;
+  /**
+   * The access token used for pairing with profile sync auth service and to access other services.
+   */
+  accessToken: string;
+};
+
+/**
  * The backup state of the secret data.
  * Each secret data added/restored will be stored in the state locally.
  *
@@ -108,7 +135,8 @@ export type RecoveryErrorData = {
 // State
 export type SeedlessOnboardingControllerState =
   Partial<AuthenticatedUserDetails> &
-    Partial<SRPBackedUpUserDetails> & {
+    Partial<SRPBackedUpUserDetails> &
+    Partial<VaultData> & {
       /**
        * Encrypted array of serialized keyrings data.
        */
@@ -126,11 +154,6 @@ export type SeedlessOnboardingControllerState =
        * the vault.
        */
       vaultEncryptionKey?: string;
-
-      /**
-       * The salt used to derive the encryption key from the password.
-       */
-      vaultEncryptionSalt?: string;
 
       /**
        * Cache for checkIsPasswordOutdated result and timestamp.
@@ -326,37 +349,6 @@ export type MutuallyExclusiveCallback<Result> = ({
 }: {
   releaseLock: MutexInterface.Releaser;
 }) => Promise<Result>;
-
-/**
- * The structure of the data which is serialized and stored in the vault.
- */
-export type VaultData = {
-  /**
-   * The node auth tokens from OAuth User authentication after the Social login.
-   */
-  authTokens: NodeAuthTokens;
-  /**
-   * The encryption key to encrypt the seed phrase.
-   */
-  toprfEncryptionKey: string;
-  /**
-   * The encryption key to encrypt the password.
-   */
-  toprfPwEncryptionKey: string;
-  /**
-   * The authentication key pair to authenticate the TOPRF.
-   */
-  toprfAuthKeyPair: string;
-  /**
-   * The revoke token to revoke refresh token and get new refresh token and new revoke token.
-   * The revoke token may no longer be available after a large number of password changes. In this case, re-authentication is advised.
-   */
-  revokeToken?: string;
-  /**
-   * The access token used for pairing with profile sync auth service and to access other services.
-   */
-  accessToken: string;
-};
 
 export type SecretDataType = Uint8Array | string | number;
 

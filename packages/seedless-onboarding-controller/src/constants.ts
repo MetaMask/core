@@ -26,6 +26,7 @@ export enum SecretMetadataVersion {
 
 export enum SeedlessOnboardingControllerErrorMessage {
   ControllerLocked = `${controllerName} - The operation cannot be completed while the controller is locked.`,
+  VaultLocked = `${controllerName} - The vault is locked. Please unlock the vault first.`,
   AuthenticationError = `${controllerName} - Authentication error`,
   MissingAuthUserInfo = `${controllerName} - Missing authenticated user information`,
   FailedToPersistOprfKey = `${controllerName} - Failed to persist OPRF key`,
@@ -35,7 +36,6 @@ export enum SeedlessOnboardingControllerErrorMessage {
   InvalidRevokeToken = `${controllerName} - Invalid revoke token`,
   InvalidAccessToken = `${controllerName} - Invalid access token`,
   InvalidMetadataAccessToken = `${controllerName} - Invalid metadata access token`,
-  MissingCredentials = `${controllerName} - Cannot unlock vault without password and encryption key`,
   ExpiredCredentials = `${controllerName} - Encryption key and salt provided are expired`,
   InvalidEmptyPassword = `${controllerName} - Password cannot be empty.`,
   WrongPasswordType = `${controllerName} - Password must be of type string.`,

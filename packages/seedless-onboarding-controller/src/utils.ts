@@ -1,4 +1,10 @@
-import { base64ToBytes } from '@metamask/utils';
+import type { KeyPair } from '@metamask/toprf-secure-backup';
+import {
+  base64ToBytes,
+  bigIntToHex,
+  bytesToBase64,
+  hexToBigInt,
+} from '@metamask/utils';
 import { bytesToUtf8 } from '@noble/ciphers/utils';
 
 import type { DecodedBaseJWTToken, DecodedNodeAuthToken } from './types';
@@ -32,4 +38,31 @@ export function decodeJWTToken(token: string): DecodedBaseJWTToken {
   const paddedPayload = payload + '='.repeat((4 - (payload.length % 4)) % 4);
   const decoded = JSON.parse(bytesToUtf8(base64ToBytes(paddedPayload)));
   return decoded as DecodedBaseJWTToken;
+}
+
+/**
+ * Serialize the TOPRF authentication key pair to JSON string.
+ *
+ * @param authKeyPair - The authentication key pair to serialize.
+ * @returns The serialized authentication key pair.
+ */
+export function serializeAuthKeyPair(authKeyPair: KeyPair): string {
+  return JSON.stringify({
+    publicKey: bytesToBase64(authKeyPair.pk),
+    privateKey: bigIntToHex(authKeyPair.sk),
+  });
+}
+
+/**
+ * Deserialize the TOPRF authentication key pair from JSON string.
+ *
+ * @param authKeyPair - The authentication key pair to deserialize.
+ * @returns The deserialized authentication key pair.
+ */
+export function deserializAuthKeyPair(authKeyPair: string): KeyPair {
+  const { publicKey, privateKey } = JSON.parse(authKeyPair);
+  return {
+    pk: base64ToBytes(publicKey),
+    sk: hexToBigInt(privateKey),
+  };
 }
