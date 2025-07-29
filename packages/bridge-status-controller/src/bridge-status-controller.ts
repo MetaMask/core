@@ -1086,6 +1086,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             requireApproval,
           );
           approvalTxId = approvalTxMeta?.id;
+
+          if (requireApproval) {
+            const mobileHardwareWalletDelay = new Promise((resolve) =>
+              setTimeout(resolve, 1000),
+            );
+            await mobileHardwareWalletDelay;
+          }
+
           return await this.#handleEvmTransaction({
             transactionType: isBridgeTx
               ? TransactionType.bridge
