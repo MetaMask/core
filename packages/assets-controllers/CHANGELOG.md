@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
 - Fixed an issue where attempting to fetch asset conversions for accounts without assets would crash the snap ([#6207](https://github.com/MetaMask/core/pull/6207))
 
 ## [73.0.1]
