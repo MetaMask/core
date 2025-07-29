@@ -15,5 +15,6 @@ export type {
   GatorPermissionsControllerActionsEvents,
   AllowedEvents,
   GatorPermissionsControllerStateChangeEvent,
+  GatorPermissionsControllerConfig,
 } from './GatorPermissionsController';
 export type * from './types';
