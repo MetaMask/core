@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Prevent incorrect `simpleSend` classification when contract code lookup fails ([#6206](https://github.com/MetaMask/core/pull/6206))
+
 ## [59.0.0]
 
 ### Added
