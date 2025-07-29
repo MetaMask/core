@@ -1255,8 +1255,10 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   }
 
   /**
-   * Unlocks the encrypted vault using the provided password and returns the decrypted vault data.
+   * Unlocks the encrypted vault using the provided password or encryption key and returns the decrypted vault data.
    * This method ensures thread-safety by using a mutex lock when accessing the vault.
+   *
+   * Successfully unlocking the vault will update the controller state with the decrypted vault data.
    *
    * @param params - The parameters for unlocking the vault.
    * @param params.password - The optional password to unlock the vault.

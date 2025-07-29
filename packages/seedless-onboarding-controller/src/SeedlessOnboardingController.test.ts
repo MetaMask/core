@@ -465,7 +465,6 @@ async function createMockVault(
   return {
     encryptedMockVault,
     vaultEncryptionKey: exportedKeyString,
-    vaultEncryptionSalt: JSON.parse(encryptedMockVault).salt,
     revokeToken: mockRevokeToken,
     accessToken: mockAccessToken,
     encryptedKeyringEncryptionKey,
@@ -511,7 +510,6 @@ async function decryptVault(vault: string, password: string) {
  * @param options.authPubKey - The mock authPubKey.
  * @param options.vault - The mock vault data.
  * @param options.vaultEncryptionKey - The mock vault encryption key.
- * @param options.vaultEncryptionSalt - The mock vault encryption salt.
  * @param options.encryptedKeyringEncryptionKey - The mock encrypted keyring encryption key.
  * @param options.withoutMockAccessToken - Whether to skip the accessToken in authenticated user state.
  * @param options.metadataAccessToken - The mock metadata access token.
@@ -530,7 +528,6 @@ function getMockInitialControllerState(options?: {
   authPubKey?: string;
   vault?: string;
   vaultEncryptionKey?: string;
-  vaultEncryptionSalt?: string;
   encryptedKeyringEncryptionKey?: string;
   encryptedSeedlessEncryptionKey?: string;
   metadataAccessToken?: string;
@@ -1362,7 +1359,6 @@ describe('SeedlessOnboardingController', () => {
     };
     let MOCK_VAULT = '';
     let MOCK_VAULT_ENCRYPTION_KEY = '';
-    let MOCK_VAULT_ENCRYPTION_SALT = '';
 
     beforeEach(async () => {
       const mockToprfEncryptor = createMockToprfEncryptor();
@@ -1383,7 +1379,6 @@ describe('SeedlessOnboardingController', () => {
 
       MOCK_VAULT = mockResult.encryptedMockVault;
       MOCK_VAULT_ENCRYPTION_KEY = mockResult.vaultEncryptionKey;
-      MOCK_VAULT_ENCRYPTION_SALT = mockResult.vaultEncryptionSalt;
     });
 
     it('should throw an error if the controller is locked', async () => {
@@ -1410,7 +1405,6 @@ describe('SeedlessOnboardingController', () => {
             withMockAuthPubKey: true,
             vault: MOCK_VAULT,
             vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
           }),
         },
         async ({ controller, toprfClient }) => {
@@ -1448,7 +1442,6 @@ describe('SeedlessOnboardingController', () => {
             withMockAuthPubKey: true,
             vault: MOCK_VAULT,
             vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
           }),
         },
         async ({ controller, toprfClient }) => {
@@ -1532,7 +1525,6 @@ describe('SeedlessOnboardingController', () => {
             withMockAuthPubKey: true,
             vault: MOCK_VAULT,
             vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
           }),
         },
         async ({ controller, toprfClient }) => {
@@ -1600,7 +1592,6 @@ describe('SeedlessOnboardingController', () => {
             authPubKey: MOCK_AUTH_PUB_KEY_OUTDATED,
             vault: MOCK_VAULT,
             vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
           }),
         },
         async ({ controller, toprfClient }) => {
@@ -1629,7 +1620,6 @@ describe('SeedlessOnboardingController', () => {
             withMockAuthPubKey: true,
             vault: MOCK_VAULT,
             vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
           }),
         },
         async ({ controller, toprfClient }) => {
@@ -1863,7 +1853,6 @@ describe('SeedlessOnboardingController', () => {
 
       const MOCK_VAULT = mockResult.encryptedMockVault;
       const MOCK_VAULT_ENCRYPTION_KEY = mockResult.vaultEncryptionKey;
-      const MOCK_VAULT_ENCRYPTION_SALT = mockResult.vaultEncryptionSalt;
 
       await withController(
         {
@@ -1871,7 +1860,6 @@ describe('SeedlessOnboardingController', () => {
             withMockAuthenticatedUser: true,
             vault: MOCK_VAULT,
             vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
           }),
         },
         async ({ controller }) => {
@@ -2215,7 +2203,6 @@ describe('SeedlessOnboardingController', () => {
     const MOCK_PASSWORD = 'mock-password';
     let MOCK_VAULT: string;
     let MOCK_VAULT_ENCRYPTION_KEY: string;
-    let MOCK_VAULT_ENCRYPTION_SALT: string;
 
     beforeEach(async () => {
       const mockToprfEncryptor = createMockToprfEncryptor();
@@ -2236,7 +2223,6 @@ describe('SeedlessOnboardingController', () => {
 
       MOCK_VAULT = mockResult.encryptedMockVault;
       MOCK_VAULT_ENCRYPTION_KEY = mockResult.vaultEncryptionKey;
-      MOCK_VAULT_ENCRYPTION_SALT = mockResult.vaultEncryptionSalt;
     });
 
     it('should be able to update the backup metadata state', async () => {
@@ -2246,7 +2232,6 @@ describe('SeedlessOnboardingController', () => {
             withMockAuthenticatedUser: true,
             vault: MOCK_VAULT,
             vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
           }),
         },
         async ({ controller }) => {
@@ -2276,7 +2261,6 @@ describe('SeedlessOnboardingController', () => {
             withMockAuthenticatedUser: true,
             vault: MOCK_VAULT,
             vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
           }),
         },
         async ({ controller }) => {
@@ -2319,7 +2303,6 @@ describe('SeedlessOnboardingController', () => {
             withMockAuthenticatedUser: true,
             vault: MOCK_VAULT,
             vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
           }),
         },
         async ({ controller }) => {
@@ -3735,7 +3718,6 @@ describe('SeedlessOnboardingController', () => {
 
       MOCK_VAULT = mockResult.encryptedMockVault;
       MOCK_VAULT_ENCRYPTION_KEY = mockResult.vaultEncryptionKey;
-      MOCK_VAULT_ENCRYPTION_SALT = mockResult.vaultEncryptionSalt;
 
       const aes = managedNonce(gcm)(initialPwEncKey);
       initialEncryptedSeedlessEncryptionKey = aes.encrypt(
@@ -3755,7 +3737,6 @@ describe('SeedlessOnboardingController', () => {
             authPubKey: INITIAL_AUTH_PUB_KEY, // Use the base64 encoded key
             vault: MOCK_VAULT,
             vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
             withMockAuthPubKey: true,
             encryptedSeedlessEncryptionKey: b64EncKey,
           }),
@@ -3855,7 +3836,6 @@ describe('SeedlessOnboardingController', () => {
             authPubKey: INITIAL_AUTH_PUB_KEY,
             vault: MOCK_VAULT,
             vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
           }),
         },
         async ({ controller, toprfClient }) => {
@@ -3891,7 +3871,6 @@ describe('SeedlessOnboardingController', () => {
         authPubKey: INITIAL_AUTH_PUB_KEY,
         vault: MOCK_VAULT,
         vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-        vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
       });
       delete state.revokeToken;
       delete state.accessToken;
@@ -4238,7 +4217,6 @@ describe('SeedlessOnboardingController', () => {
 
         MOCK_VAULT = mockResult.encryptedMockVault;
         MOCK_VAULT_ENCRYPTION_KEY = mockResult.vaultEncryptionKey;
-        MOCK_VAULT_ENCRYPTION_SALT = mockResult.vaultEncryptionSalt;
       });
 
       it('should retry syncLatestGlobalPassword after refreshing expired tokens', async () => {
@@ -4249,7 +4227,6 @@ describe('SeedlessOnboardingController', () => {
               authPubKey: INITIAL_AUTH_PUB_KEY,
               vault: MOCK_VAULT,
               vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-              vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
             }),
           },
           async ({
@@ -4339,7 +4316,6 @@ describe('SeedlessOnboardingController', () => {
               authPubKey: INITIAL_AUTH_PUB_KEY,
               vault: MOCK_VAULT,
               vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-              vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
             }),
           },
           async ({ controller, toprfClient, mockRefreshJWTToken }) => {
@@ -4383,7 +4359,6 @@ describe('SeedlessOnboardingController', () => {
               authPubKey: INITIAL_AUTH_PUB_KEY,
               vault: MOCK_VAULT,
               vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-              vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
             }),
           },
           async ({ controller, toprfClient, mockRefreshJWTToken }) => {
@@ -4427,7 +4402,7 @@ describe('SeedlessOnboardingController', () => {
           mockToprfEncryptor.derivePwEncKey(MOCK_PASSWORD);
         const MOCK_AUTH_KEY_PAIR =
           mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
-        const { encryptedMockVault, vaultEncryptionKey, vaultEncryptionSalt } =
+        const { encryptedMockVault, vaultEncryptionKey } =
           await createMockVault(
             MOCK_ENCRYPTION_KEY,
             MOCK_PW_ENCRYPTION_KEY,
@@ -4442,7 +4417,6 @@ describe('SeedlessOnboardingController', () => {
               withMockAuthPubKey: true,
               vault: encryptedMockVault,
               vaultEncryptionKey,
-              vaultEncryptionSalt,
             }),
           },
           async ({ controller, toprfClient, mockRefreshJWTToken }) => {
@@ -4677,7 +4651,6 @@ describe('SeedlessOnboardingController', () => {
 
         MOCK_VAULT = mockResult.encryptedMockVault;
         MOCK_VAULT_ENCRYPTION_KEY = mockResult.vaultEncryptionKey;
-        MOCK_VAULT_ENCRYPTION_SALT = mockResult.vaultEncryptionSalt;
         const aes = managedNonce(gcm)(mockResult.pwEncKey);
         initialEncryptedSeedlessEncryptionKey = aes.encrypt(
           utf8ToBytes(MOCK_VAULT_ENCRYPTION_KEY),
@@ -4693,7 +4666,6 @@ describe('SeedlessOnboardingController', () => {
               authPubKey: INITIAL_AUTH_PUB_KEY,
               vault: MOCK_VAULT,
               vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-              vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
               encryptedSeedlessEncryptionKey: bytesToBase64(
                 initialEncryptedSeedlessEncryptionKey,
               ),
@@ -4747,7 +4719,7 @@ describe('SeedlessOnboardingController', () => {
           mockToprfEncryptor.derivePwEncKey(MOCK_PASSWORD);
         const MOCK_AUTH_KEY_PAIR =
           mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
-        const { encryptedMockVault, vaultEncryptionKey, vaultEncryptionSalt } =
+        const { encryptedMockVault, vaultEncryptionKey } =
           await createMockVault(
             MOCK_ENCRYPTION_KEY,
             MOCK_PW_ENCRYPTION_KEY,
@@ -4761,7 +4733,6 @@ describe('SeedlessOnboardingController', () => {
               withMockAuthenticatedUser: true,
               vault: encryptedMockVault,
               vaultEncryptionKey,
-              vaultEncryptionSalt,
             }),
           },
           async ({ controller, toprfClient, mockRefreshJWTToken }) => {
@@ -4879,7 +4850,6 @@ describe('SeedlessOnboardingController', () => {
     const NEW_REFRESH_TOKEN = 'new-refresh-token';
     let MOCK_VAULT: string;
     let MOCK_VAULT_ENCRYPTION_KEY: string;
-    let MOCK_VAULT_ENCRYPTION_SALT: string;
 
     beforeEach(async () => {
       const mockToprfEncryptor = createMockToprfEncryptor();
@@ -4901,7 +4871,6 @@ describe('SeedlessOnboardingController', () => {
 
       MOCK_VAULT = mockResult.encryptedMockVault;
       MOCK_VAULT_ENCRYPTION_KEY = mockResult.vaultEncryptionKey;
-      MOCK_VAULT_ENCRYPTION_SALT = mockResult.vaultEncryptionSalt;
     });
 
     it('should successfully revoke refresh token and update vault', async () => {
@@ -4912,7 +4881,6 @@ describe('SeedlessOnboardingController', () => {
             withMockAuthPubKey: true,
             vault: MOCK_VAULT,
             vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
           }),
         },
         async ({ controller, mockRevokeRefreshToken, encryptor }) => {
@@ -4971,7 +4939,6 @@ describe('SeedlessOnboardingController', () => {
             withMockAuthPubKey: true,
             vault: encryptedMockVault,
             vaultEncryptionKey: exportedKeyString,
-            vaultEncryptionSalt: JSON.parse(encryptedMockVault).salt,
           }),
         },
         async ({ controller }) => {
@@ -4992,7 +4959,6 @@ describe('SeedlessOnboardingController', () => {
             withMockAuthPubKey: true,
             vault: MOCK_VAULT,
             vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
           }),
         },
         async ({ controller, mockRevokeRefreshToken }) => {
@@ -5020,7 +4986,6 @@ describe('SeedlessOnboardingController', () => {
             withMockAuthPubKey: true,
             vault: MOCK_VAULT,
             vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
           }),
         },
         async ({ controller, encryptor }) => {
@@ -5043,7 +5008,6 @@ describe('SeedlessOnboardingController', () => {
             withMockAuthPubKey: true,
             vault: MOCK_VAULT,
             vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
           }),
         },
         async ({ controller, mockRevokeRefreshToken, encryptor }) => {
@@ -5343,7 +5307,6 @@ describe('SeedlessOnboardingController', () => {
 
       const MOCK_VAULT = mockResult.encryptedMockVault;
       const MOCK_VAULT_ENCRYPTION_KEY = mockResult.vaultEncryptionKey;
-      const MOCK_VAULT_ENCRYPTION_SALT = mockResult.vaultEncryptionSalt;
 
       await withController(
         {
@@ -5352,7 +5315,6 @@ describe('SeedlessOnboardingController', () => {
             withoutMockAccessToken: true,
             vault: MOCK_VAULT,
             vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
           }),
         },
         async ({ controller, toprfClient }) => {
