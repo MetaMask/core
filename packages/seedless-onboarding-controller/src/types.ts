@@ -183,6 +183,10 @@ export type SeedlessOnboardingControllerActions =
 
 export type AllowedActions = never;
 
+export type SeedlessOnboardingControllerAllowedActions =
+  | SeedlessOnboardingControllerActions
+  | AllowedActions;
+
 // Events
 export type SeedlessOnboardingControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -196,11 +200,15 @@ export type AllowedEvents =
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent;
 
+export type SeedlessOnboardingControllerAllowedEvents =
+  | SeedlessOnboardingControllerEvents
+  | AllowedEvents;
+
 // Messenger
 export type SeedlessOnboardingControllerMessenger = RestrictedMessenger<
   typeof controllerName,
-  SeedlessOnboardingControllerActions | AllowedActions,
-  SeedlessOnboardingControllerEvents | AllowedEvents,
+  SeedlessOnboardingControllerAllowedActions,
+  SeedlessOnboardingControllerAllowedEvents,
   AllowedActions['type'],
   AllowedEvents['type']
 >;
