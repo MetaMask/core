@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Defaults to the EVM account from a group when using `setSelectedAccountGroup` ([#6208](https://github.com/MetaMask/core/pull/6208))
+  - In case no EVM accounts are found in a group (which should not be possible), it will defaults to the first account of that group.
+
 ## [0.7.0]
 
 ### Added
