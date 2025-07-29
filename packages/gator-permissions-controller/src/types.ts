@@ -197,9 +197,8 @@ export type PermissionResponse<
 };
 
 /**
- * Represents a sanitized version of the PermissionResponse type that is exposed in the gator-permissions-controller package.
- * The some fields have been removed from the types exposed in the gator-permissions-controller package,
- * but the field is still present in profile sync.
+ * Represents a sanitized version of the PermissionResponse type.
+ * Some fields have been removed but the fields are still present in profile sync.
  *
  * @template Signer - The type of the signer provided, either an AccountSigner or WalletSigner.
  * @template Permission - The type of the permission provided.
@@ -227,8 +226,7 @@ export type StoredGatorPermission<
 };
 
 /**
- * Represents a sanitized version of the StoredGatorPermission type. Some fields have been removed from the types exposed in the gator-permissions-controller package,
- * but the fields are still present in profile sync.
+ * Represents a sanitized version of the StoredGatorPermission type. Some fields have been removed but the fields are still present in profile sync.
  *
  * @template Signer - The type of the signer provided, either an AccountSigner or WalletSigner.
  * @template Permission - The type of the permission provided.

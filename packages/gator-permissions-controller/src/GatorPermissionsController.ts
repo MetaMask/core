@@ -279,9 +279,7 @@ export default class GatorPermissionsController extends BaseController<
               GatorPermissionsSnapRpcMethod.PermissionProviderGetGrantedPermissions,
           },
         },
-      )) as Promise<
-        StoredGatorPermission<SignerParam, PermissionTypes>[] | null
-      >;
+      )) as StoredGatorPermission<SignerParam, PermissionTypes>[] | null;
 
       return response;
     } catch (error) {
@@ -320,8 +318,6 @@ export default class GatorPermissionsController extends BaseController<
    *
    * @param storedGatorPermissions - An array of stored gator permissions.
    * @returns The gator permissions map.
-   * @throws {SignerTypeNotSupportedError} If signer type is not account.
-   * @throws {Error} If permission type is invalid.
    */
   #categorizePermissionsDataByTypeAndChainId(
     storedGatorPermissions:
