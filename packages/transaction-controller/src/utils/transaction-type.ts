@@ -9,8 +9,11 @@ import {
 } from '@metamask/metamask-eth-abis';
 
 import { DELEGATION_PREFIX } from './eip7702';
+import { createModuleLogger, projectLogger } from '../logger';
 import type { InferTransactionTypeResult, TransactionParams } from '../types';
 import { TransactionType } from '../types';
+
+const log = createModuleLogger(projectLogger, 'transaction-type');
 
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 
@@ -40,15 +43,17 @@ export async function determineTransactionType(
 
   let getCodeResponse;
   let isContractAddress = Boolean(data?.length);
+  let hasReadAddressAsContractFailed: boolean = false;
 
   if (ethQuery) {
     const response = await readAddressAsContract(ethQuery, to);
 
     getCodeResponse = response.contractCode;
     isContractAddress = response.isContractAddress;
+    hasReadAddressAsContractFailed = Boolean(response.error);
   }
 
-  if (!isContractAddress) {
+  if (!isContractAddress && !hasReadAddressAsContractFailed) {
     return { type: TransactionType.simpleSend, getCodeResponse };
   }
 
@@ -131,20 +136,23 @@ async function readAddressAsContract(
 ): Promise<{
   contractCode: string | null;
   isContractAddress: boolean;
+  error: Error | null;
 }> {
   let contractCode;
   try {
     contractCode = await query(ethQuery, 'getCode', [address]);
-    // Not used
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error) {
-    contractCode = null;
+    log(`Error reading contract code for address ${address}:`, error);
+    return {
+      contractCode: null,
+      isContractAddress: false,
+      error: error as Error,
+    };
   }
 
-  const isContractAddress = contractCode
-    ? contractCode !== '0x' &&
-      contractCode !== '0x0' &&
-      !contractCode.startsWith(DELEGATION_PREFIX)
-    : false;
-  return { contractCode, isContractAddress };
+  const isContractAddress =
+    contractCode !== '0x' &&
+    contractCode !== '0x0' &&
+    !contractCode.startsWith(DELEGATION_PREFIX);
+  return { contractCode, isContractAddress, error: null };
 }
