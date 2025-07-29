@@ -1,40 +1,45 @@
-import { createModuleLogger } from '@metamask/utils';
-
-import { projectLogger } from './logger';
-import type { GatorPermissionsList } from './types';
-
-const log = createModuleLogger(projectLogger, 'utils');
+import { GatorPermissionsMapSerializationError } from './errors';
+import { utilsLog } from './logger';
+import type { GatorPermissionsMap } from './types';
 
 /**
- * Serializes a gator permissions list to a string.
+ * Serializes a gator permissions map to a string.
  *
- * @param gatorPermissionsList - The gator permissions list to serialize.
- * @returns The serialized gator permissions list.
+ * @param gatorPermissionsMap - The gator permissions map to serialize.
+ * @returns The serialized gator permissions map.
  */
-export function serializeGatorPermissionsList(
-  gatorPermissionsList: GatorPermissionsList,
+export function serializeGatorPermissionsMap(
+  gatorPermissionsMap: GatorPermissionsMap,
 ): string {
   try {
-    return JSON.stringify(gatorPermissionsList);
+    return JSON.stringify(gatorPermissionsMap);
   } catch (error) {
-    log('Failed to serialize gator permissions list', error);
-    throw error;
+    utilsLog('Failed to serialize gator permissions map', error);
+    throw new GatorPermissionsMapSerializationError({
+      cause: error as Error,
+      message: 'Failed to serialize gator permissions map',
+      data: gatorPermissionsMap,
+    });
   }
 }
 
 /**
- * Deserializes a gator permissions list from a string.
+ * Deserializes a gator permissions map from a string.
  *
- * @param gatorPermissionsList - The gator permissions list to deserialize.
- * @returns The deserialized gator permissions list.
+ * @param gatorPermissionsMap - The gator permissions map to deserialize.
+ * @returns The deserialized gator permissions map.
  */
-export function deserializeGatorPermissionsList(
-  gatorPermissionsList: string,
-): GatorPermissionsList {
+export function deserializeGatorPermissionsMap(
+  gatorPermissionsMap: string,
+): GatorPermissionsMap {
   try {
-    return JSON.parse(gatorPermissionsList);
+    return JSON.parse(gatorPermissionsMap);
   } catch (error) {
-    log('Failed to deserialize gator permissions list', error);
-    throw error;
+    utilsLog('Failed to deserialize gator permissions map', error);
+    throw new GatorPermissionsMapSerializationError({
+      cause: error as Error,
+      message: 'Failed to deserialize gator permissions map',
+      data: gatorPermissionsMap,
+    });
   }
 }

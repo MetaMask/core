@@ -1,7 +1,7 @@
 export { default as GatorPermissionsController } from './GatorPermissionsController';
 export {
-  serializeGatorPermissionsList,
-  deserializeGatorPermissionsList,
+  serializeGatorPermissionsMap,
+  deserializeGatorPermissionsMap,
 } from './utils';
 export type {
   GatorPermissionsControllerState,

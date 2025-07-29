@@ -8,21 +8,24 @@ import { BaseController } from '@metamask/base-controller';
 import type { HandleSnapRequest, HasSnap } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
-import { createModuleLogger } from '@metamask/utils';
 
-import { projectLogger } from './logger';
-import type {
-  GatorPermissionsList,
-  NativeTokenStreamPermission,
-  NativeTokenPeriodicPermission,
-  Erc20TokenStreamPermission,
-  PermissionTypes,
-  SignerParam,
-  StoredGatorPermission,
+import {
+  GatorPermissionsFetchError,
+  GatorPermissionsNotEnabledError,
+  GatorPermissionsProviderError,
+} from './errors';
+import { controllerLog } from './logger';
+import type { StoredGatorPermissionSanitized } from './types';
+import {
+  GatorPermissionsSnapRpcMethod,
+  type GatorPermissionsMap,
+  type PermissionTypes,
+  type SignerParam,
+  type StoredGatorPermission,
 } from './types';
 import {
-  deserializeGatorPermissionsList,
-  serializeGatorPermissionsList,
+  deserializeGatorPermissionsMap,
+  serializeGatorPermissionsMap,
 } from './utils';
 
 // Unique name for the controller
@@ -31,17 +34,6 @@ const controllerName = 'GatorPermissionsController';
 // Default value for the gator permissions provider snap id
 const defaultGatorPermissionsProviderSnapId =
   '@metamask/gator-permissions-snap' as SnapId;
-
-// Logger for the controller
-const log = createModuleLogger(projectLogger, 'GatorPermissionsController');
-
-// Enum for the RPC methods of the gator permissions provider snap
-enum GatorPermissionsSnapRpcMethod {
-  /**
-   * This method is used by the metamask to request a permissions provider to get granted permissions for all sites.
-   */
-  PermissionProviderGetGrantedPermissions = 'permissionsProvider_getGrantedPermissions',
-}
 
 /**
  * State shape for GatorPermissionsController
@@ -53,9 +45,9 @@ export type GatorPermissionsControllerState = {
   isGatorPermissionsEnabled: boolean;
 
   /**
-   * JSON serialized object containing gator permissions fetched from profile sync indexed by permission type
+   * JSON serialized object containing gator permissions fetched from profile sync
    */
-  gatorPermissionsListStringify: string;
+  gatorPermissionsMapSerialized: string;
 
   /**
    * Flag that indicates that fetching permissions is in progress
@@ -69,9 +61,9 @@ const metadata: StateMetadata<GatorPermissionsControllerState> = {
     persist: true,
     anonymous: false,
   },
-  gatorPermissionsListStringify: {
+  gatorPermissionsMapSerialized: {
     persist: true,
-    anonymous: true,
+    anonymous: false,
   },
   isFetchingGatorPermissions: {
     persist: false,
@@ -79,16 +71,18 @@ const metadata: StateMetadata<GatorPermissionsControllerState> = {
   },
 };
 
-const defaultGatorPermissionsList: GatorPermissionsList = {
+const defaultGatorPermissionsMap: GatorPermissionsMap = {
   'native-token-stream': {},
   'native-token-periodic': {},
   'erc20-token-stream': {},
+  'erc20-token-periodic': {},
+  other: {},
 };
 
 export const defaultState: GatorPermissionsControllerState = {
   isGatorPermissionsEnabled: false,
-  gatorPermissionsListStringify: serializeGatorPermissionsList(
-    defaultGatorPermissionsList,
+  gatorPermissionsMapSerialized: serializeGatorPermissionsMap(
+    defaultGatorPermissionsMap,
   ),
   isFetchingGatorPermissions: false,
 };
@@ -252,32 +246,12 @@ export default class GatorPermissionsController extends BaseController<
   /**
    * Asserts that the gator permissions are enabled.
    *
-   * @throws {Error} If the gator permissions are not enabled.
+   * @throws {GatorPermissionsNotEnabledError} If the gator permissions are not enabled.
    */
   #assertGatorPermissionsEnabled() {
     if (!this.state.isGatorPermissionsEnabled) {
-      throw new Error('Gator permissions are not enabled');
+      throw new GatorPermissionsNotEnabledError();
     }
-  }
-
-  /**
-   * Gets the categorized gator permissions list from the state.
-   *
-   * @returns The categorized gator permissions list.
-   */
-  get gatorPermissionsList(): GatorPermissionsList {
-    return deserializeGatorPermissionsList(
-      this.state.gatorPermissionsListStringify,
-    );
-  }
-
-  /**
-   * Gets the gator permissions provider snap id that is used to fetch gator permissions.
-   *
-   * @returns The gator permissions provider snap id.
-   */
-  get permissionsProviderSnapId(): SnapId {
-    return this.gatorPermissionsProviderSnapId;
   }
 
   /**
@@ -292,129 +266,173 @@ export default class GatorPermissionsController extends BaseController<
   }: {
     snapId: SnapId;
   }): Promise<StoredGatorPermission<SignerParam, PermissionTypes>[] | null> {
-    return this.messagingSystem.call('SnapController:handleRequest', {
-      snapId,
-      origin: 'metamask',
-      handler: HandlerType.OnRpcRequest,
-      request: {
-        jsonrpc: '2.0',
+    try {
+      const response = (await this.messagingSystem.call(
+        'SnapController:handleRequest',
+        {
+          snapId,
+          origin: 'metamask',
+          handler: HandlerType.OnRpcRequest,
+          request: {
+            jsonrpc: '2.0',
+            method:
+              GatorPermissionsSnapRpcMethod.PermissionProviderGetGrantedPermissions,
+          },
+        },
+      )) as Promise<
+        StoredGatorPermission<SignerParam, PermissionTypes>[] | null
+      >;
+
+      return response;
+    } catch (error) {
+      controllerLog(
+        'Failed to handle snap request to gator permissions provider',
+        error,
+      );
+      throw new GatorPermissionsProviderError({
         method:
           GatorPermissionsSnapRpcMethod.PermissionProviderGetGrantedPermissions,
-      },
-    }) as Promise<StoredGatorPermission<SignerParam, PermissionTypes>[] | null>;
+        cause: error as Error,
+      });
+    }
+  }
+
+  /**
+   * Sanitizes a stored gator permission by removing the fields that are not expose to MetaMask client.
+   *
+   * @param storedGatorPermission - The stored gator permission to sanitize.
+   * @returns The sanitized stored gator permission.
+   */
+  #sanitizeStoredGatorPermission(
+    storedGatorPermission: StoredGatorPermission<SignerParam, PermissionTypes>,
+  ): StoredGatorPermissionSanitized<SignerParam, PermissionTypes> {
+    const { permissionResponse } = storedGatorPermission;
+    const { isAdjustmentAllowed, accountMeta, signer, ...rest } =
+      permissionResponse;
+    return {
+      ...storedGatorPermission,
+      permissionResponse: { ...rest },
+    };
   }
 
   /**
    * Categorizes stored gator permissions by type and chainId.
    *
    * @param storedGatorPermissions - An array of stored gator permissions.
-   * @returns Parsed and categorized permissions list.
+   * @returns The gator permissions map.
+   * @throws {SignerTypeNotSupportedError} If signer type is not account.
    * @throws {Error} If permission type is invalid.
    */
   #categorizePermissionsDataByTypeAndChainId(
     storedGatorPermissions:
       | StoredGatorPermission<SignerParam, PermissionTypes>[]
       | null,
-  ): GatorPermissionsList {
+  ): GatorPermissionsMap {
     if (!storedGatorPermissions) {
-      return defaultGatorPermissionsList;
+      return defaultGatorPermissionsMap;
     }
 
     return storedGatorPermissions.reduce(
-      (gatorPermissionsList, storedGatorPermission) => {
+      (gatorPermissionsMap, storedGatorPermission) => {
         const { permissionResponse } = storedGatorPermission;
         const permissionType = permissionResponse.permission.type;
         const { chainId } = permissionResponse;
 
-        if (permissionResponse.signer.type !== 'account') {
-          throw new Error(
-            'Invalid permission signer type. Only account signer is supported',
-          );
-        }
+        const sanitizedStoredGatorPermission =
+          this.#sanitizeStoredGatorPermission(storedGatorPermission);
 
         switch (permissionType) {
           case 'native-token-stream':
-            if (!gatorPermissionsList['native-token-stream'][chainId]) {
-              gatorPermissionsList['native-token-stream'][chainId] = [];
-            }
-            gatorPermissionsList['native-token-stream'][chainId].push(
-              storedGatorPermission as StoredGatorPermission<
-                SignerParam,
-                NativeTokenStreamPermission
-              >,
-            );
-            break;
           case 'native-token-periodic':
-            if (!gatorPermissionsList['native-token-periodic'][chainId]) {
-              gatorPermissionsList['native-token-periodic'][chainId] = [];
-            }
-            gatorPermissionsList['native-token-periodic'][chainId].push(
-              storedGatorPermission as StoredGatorPermission<
-                SignerParam,
-                NativeTokenPeriodicPermission
-              >,
-            );
-            break;
           case 'erc20-token-stream':
-            if (!gatorPermissionsList['erc20-token-stream'][chainId]) {
-              gatorPermissionsList['erc20-token-stream'][chainId] = [];
+          case 'erc20-token-periodic':
+            if (!gatorPermissionsMap[permissionType][chainId]) {
+              gatorPermissionsMap[permissionType][chainId] = [];
             }
-            gatorPermissionsList['erc20-token-stream'][chainId].push(
-              storedGatorPermission as StoredGatorPermission<
+
+            (
+              gatorPermissionsMap[permissionType][
+                chainId
+              ] as StoredGatorPermissionSanitized<
                 SignerParam,
-                Erc20TokenStreamPermission
-              >,
-            );
+                PermissionTypes
+              >[]
+            ).push(sanitizedStoredGatorPermission);
             break;
           default:
-            throw new Error(
-              `Unsupported permission type: ${permissionType as string}`,
-            );
+            if (!gatorPermissionsMap.other[chainId]) {
+              gatorPermissionsMap.other[chainId] = [];
+            }
+
+            (
+              gatorPermissionsMap.other[
+                chainId
+              ] as StoredGatorPermissionSanitized<
+                SignerParam,
+                PermissionTypes
+              >[]
+            ).push(sanitizedStoredGatorPermission);
+            break;
         }
 
-        return gatorPermissionsList;
+        return gatorPermissionsMap;
       },
       {
         'native-token-stream': {},
         'native-token-periodic': {},
         'erc20-token-stream': {},
-      } as GatorPermissionsList,
+        'erc20-token-periodic': {},
+        other: {},
+      } as GatorPermissionsMap,
     );
   }
 
   /**
-   * Enables gator permissions for the user.
-   * This method ensures that the user is authenticated and enables the feature.
+   * Gets the gator permissions map from the state.
    *
-   * @throws {Error} If there is an error during the process of enabling permissions.
+   * @returns The gator permissions map.
+   */
+  get gatorPermissionsMap(): GatorPermissionsMap {
+    return deserializeGatorPermissionsMap(
+      this.state.gatorPermissionsMapSerialized,
+    );
+  }
+
+  /**
+   * Gets the gator permissions provider snap id that is used to fetch gator permissions.
+   *
+   * @returns The gator permissions provider snap id.
+   */
+  get permissionsProviderSnapId(): SnapId {
+    return this.gatorPermissionsProviderSnapId;
+  }
+
+  /**
+   * Enables gator permissions for the user.
    */
   public async enableGatorPermissions() {
     this.#setIsGatorPermissionsEnabled(true);
   }
 
   /**
-   * Disables gator permissions for the user.
-   * This method clears the permissions list and disables the feature.
-   *
-   * @throws {Error} If there is an error during the process.
+   * Clears the gator permissions map and disables the feature.
    */
   public async disableGatorPermissions() {
     this.update((state) => {
       state.isGatorPermissionsEnabled = false;
-      state.gatorPermissionsListStringify = serializeGatorPermissionsList(
-        defaultGatorPermissionsList,
+      state.gatorPermissionsMapSerialized = serializeGatorPermissionsMap(
+        defaultGatorPermissionsMap,
       );
     });
   }
 
   /**
-   * Fetches the list of gator permissions from profile sync and updates the state.
-   * This is the main method that reads data from profile sync and caches it.
+   * Fetches the gator permissions from profile sync and updates the state.
    *
-   * @returns A promise that resolves to the list of permissions.
-   * @throws {Error} Throws an error if unauthenticated or from other operations.
+   * @returns A promise that resolves to the gator permissions map.
+   * @throws {GatorPermissionsFetchError} If the gator permissions fetch fails.
    */
-  public async fetchAndUpdateGatorPermissions(): Promise<GatorPermissionsList> {
+  public async fetchAndUpdateGatorPermissions(): Promise<GatorPermissionsMap> {
     try {
       this.#setIsFetchingGatorPermissions(true);
       this.#assertGatorPermissionsEnabled();
@@ -424,18 +442,21 @@ export default class GatorPermissionsController extends BaseController<
           snapId: this.gatorPermissionsProviderSnapId,
         });
 
-      const gatorPermissionsList =
+      const gatorPermissionsMap =
         this.#categorizePermissionsDataByTypeAndChainId(permissionsData);
 
       this.update((state) => {
-        state.gatorPermissionsListStringify =
-          serializeGatorPermissionsList(gatorPermissionsList);
+        state.gatorPermissionsMapSerialized =
+          serializeGatorPermissionsMap(gatorPermissionsMap);
       });
 
-      return gatorPermissionsList;
+      return gatorPermissionsMap;
     } catch (error) {
-      log('Failed to fetch gator permissions', error);
-      throw error;
+      controllerLog('Failed to fetch gator permissions', error);
+      throw new GatorPermissionsFetchError({
+        message: 'Failed to fetch gator permissions',
+        cause: error as Error,
+      });
     } finally {
       this.#setIsFetchingGatorPermissions(false);
     }

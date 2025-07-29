@@ -1,59 +1,60 @@
+import type { GatorPermissionsMap } from './types';
 import {
-  deserializeGatorPermissionsList,
-  serializeGatorPermissionsList,
+  deserializeGatorPermissionsMap,
+  serializeGatorPermissionsMap,
 } from './utils';
 
-describe('utils - serializeGatorPermissionsList() tests', () => {
+const defaultGatorPermissionsMap: GatorPermissionsMap = {
+  'native-token-stream': {},
+  'native-token-periodic': {},
+  'erc20-token-stream': {},
+  'erc20-token-periodic': {},
+  other: {},
+};
+
+describe('utils - serializeGatorPermissionsMap() tests', () => {
   it('serializes a gator permissions list to a string', () => {
-    const gatorPermissionsList = {
-      'native-token-stream': {},
-      'native-token-periodic': {},
-      'erc20-token-stream': {},
-    };
+    const serializedGatorPermissionsMap = serializeGatorPermissionsMap(
+      defaultGatorPermissionsMap,
+    );
 
-    const serializedGatorPermissionsList =
-      serializeGatorPermissionsList(gatorPermissionsList);
-
-    expect(serializedGatorPermissionsList).toStrictEqual(
-      JSON.stringify(gatorPermissionsList),
+    expect(serializedGatorPermissionsMap).toStrictEqual(
+      JSON.stringify(defaultGatorPermissionsMap),
     );
   });
 
   it('throws an error when serialization fails', () => {
-    // Create a valid GatorPermissionsList structure but with circular reference
-    const gatorPermissionsList = {
+    // Create a valid GatorPermissionsMap structure but with circular reference
+    const gatorPermissionsMap = {
       'native-token-stream': {},
       'native-token-periodic': {},
       'erc20-token-stream': {},
+      'erc20-token-periodic': {},
+      other: {},
     };
 
     // Add circular reference to cause JSON.stringify to fail
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (gatorPermissionsList as any).circular = gatorPermissionsList;
+    (gatorPermissionsMap as any).circular = gatorPermissionsMap;
 
     expect(() => {
-      serializeGatorPermissionsList(gatorPermissionsList);
-    }).toThrow('Converting circular structure to JSON');
+      serializeGatorPermissionsMap(gatorPermissionsMap);
+    }).toThrow('Failed to serialize gator permissions map');
   });
 });
 
-describe('utils - deserializeGatorPermissionsList() tests', () => {
+describe('utils - deserializeGatorPermissionsMap() tests', () => {
   it('deserializes a gator permissions list from a string', () => {
-    const gatorPermissionsList = {
-      'native-token-stream': {},
-      'native-token-periodic': {},
-      'erc20-token-stream': {},
-    };
-
-    const serializedGatorPermissionsList =
-      serializeGatorPermissionsList(gatorPermissionsList);
-
-    const deserializedGatorPermissionsList = deserializeGatorPermissionsList(
-      serializedGatorPermissionsList,
+    const serializedGatorPermissionsMap = serializeGatorPermissionsMap(
+      defaultGatorPermissionsMap,
     );
 
-    expect(deserializedGatorPermissionsList).toStrictEqual(
-      gatorPermissionsList,
+    const deserializedGatorPermissionsMap = deserializeGatorPermissionsMap(
+      serializedGatorPermissionsMap,
+    );
+
+    expect(deserializedGatorPermissionsMap).toStrictEqual(
+      defaultGatorPermissionsMap,
     );
   });
 
@@ -61,7 +62,7 @@ describe('utils - deserializeGatorPermissionsList() tests', () => {
     const invalidJson = '{"invalid": json}';
 
     expect(() => {
-      deserializeGatorPermissionsList(invalidJson);
-    }).toThrow('Unexpected token');
+      deserializeGatorPermissionsMap(invalidJson);
+    }).toThrow('Failed to deserialize gator permissions map');
   });
 });

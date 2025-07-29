@@ -1,5 +1,25 @@
 import type { Hex } from '@metamask/utils';
 
+/**
+ * Enum for the error codes of the gator permissions controller.
+ */
+export enum GatorPermissionsControllerErrorCode {
+  GatorPermissionsFetchError = 'gator-permissions-fetch-error',
+  GatorPermissionsNotEnabled = 'gator-permissions-not-enabled',
+  GatorPermissionsProviderError = 'gator-permissions-provider-error',
+  GatorPermissionsMapSerializationError = 'gator-permissions-map-serialization-error',
+}
+
+/**
+ * Enum for the RPC methods of the gator permissions provider snap.
+ */
+export enum GatorPermissionsSnapRpcMethod {
+  /**
+   * This method is used by the metamask to request a permissions provider to get granted permissions for all sites.
+   */
+  PermissionProviderGetGrantedPermissions = 'permissionsProvider_getGrantedPermissions',
+}
+
 type BasePermission = {
   type: string;
 
@@ -51,13 +71,30 @@ export type Erc20TokenStreamPermission = BasePermission & {
   };
 };
 
+export type Erc20TokenPeriodicPermission = BasePermission & {
+  type: 'erc20-token-periodic';
+  data: MetaMaskBasePermissionData & {
+    periodAmount: Hex;
+    periodDuration: number;
+    startTime: number;
+    tokenAddress: Hex;
+  };
+};
+
+export type CustomPermission = BasePermission & {
+  type: 'custom';
+  data: MetaMaskBasePermissionData & Record<string, unknown>;
+};
+
 /**
  * Represents the type of the ERC-7715 permissions that can be granted.
  */
 export type PermissionTypes =
   | NativeTokenStreamPermission
   | NativeTokenPeriodicPermission
-  | Erc20TokenStreamPermission;
+  | Erc20TokenStreamPermission
+  | Erc20TokenPeriodicPermission
+  | CustomPermission;
 
 /**
  * Represents an ERC-7715 account signer type.
@@ -87,8 +124,8 @@ export type SignerParam = AccountSigner | WalletSigner;
  * @template Permission - The type of the permission provided.
  */
 export type PermissionRequest<
-  Signer extends SignerParam,
-  Permission extends PermissionTypes,
+  TSigner extends SignerParam,
+  TPermission extends PermissionTypes,
 > = {
   /**
    * hex-encoding of uint256 defined the chain with EIP-155
@@ -115,12 +152,12 @@ export type PermissionRequest<
   /**
    * An account that is associated with the recipient of the granted 7715 permission or alternatively the wallet will manage the session.
    */
-  signer: Signer;
+  signer: TSigner;
 
   /**
    * Defines the allowed behavior the signer can do on behalf of the account.
    */
-  permission: Permission;
+  permission: TPermission;
 };
 
 /**
@@ -130,9 +167,9 @@ export type PermissionRequest<
  * @template Permission - The type of the permission provided.
  */
 export type PermissionResponse<
-  Signer extends SignerParam,
-  Permission extends PermissionTypes,
-> = PermissionRequest<Signer, Permission> & {
+  TSigner extends SignerParam,
+  TPermission extends PermissionTypes,
+> = PermissionRequest<TSigner, TPermission> & {
   /**
    * Is a catch-all to identify a permission for revoking permissions or submitting
    * Defined in ERC-7710.
@@ -160,58 +197,101 @@ export type PermissionResponse<
 };
 
 /**
+ * Represents a sanitized version of the PermissionResponse type that is exposed in the gator-permissions-controller package.
+ * The some fields have been removed from the types exposed in the gator-permissions-controller package,
+ * but the field is still present in profile sync.
+ *
+ * @template Signer - The type of the signer provided, either an AccountSigner or WalletSigner.
+ * @template Permission - The type of the permission provided.
+ */
+export type PermissionResponseSanitized<
+  TSigner extends SignerParam,
+  TPermission extends PermissionTypes,
+> = Omit<
+  PermissionResponse<TSigner, TPermission>,
+  'isAdjustmentAllowed' | 'accountMeta' | 'signer'
+>;
+
+/**
  * Represents a gator ERC-7715 granted(ie. signed by an user account) permission entry that is stored in profile sync.
  *
  * @template Signer - The type of the signer provided, either an AccountSigner or WalletSigner.
  * @template Permission - The type of the permission provided
  */
 export type StoredGatorPermission<
-  Signer extends SignerParam,
-  Permission extends PermissionTypes,
+  TSigner extends SignerParam,
+  TPermission extends PermissionTypes,
 > = {
-  permissionResponse: PermissionResponse<Signer, Permission>;
+  permissionResponse: PermissionResponse<TSigner, TPermission>;
   siteOrigin: string;
 };
 
 /**
- * Represents a list of gator permissions filtered by permission type and chainId.
+ * Represents a sanitized version of the StoredGatorPermission type. Some fields have been removed from the types exposed in the gator-permissions-controller package,
+ * but the fields are still present in profile sync.
+ *
+ * @template Signer - The type of the signer provided, either an AccountSigner or WalletSigner.
+ * @template Permission - The type of the permission provided.
  */
-export type GatorPermissionsList = {
+export type StoredGatorPermissionSanitized<
+  TSigner extends SignerParam,
+  TPermission extends PermissionTypes,
+> = {
+  permissionResponse: PermissionResponseSanitized<TSigner, TPermission>;
+  siteOrigin: string;
+};
+
+/**
+ * Represents a map of gator permissions by chainId and permission type.
+ */
+export type GatorPermissionsMap = {
   'native-token-stream': {
-    [chainId: Hex]: StoredGatorPermission<
+    [chainId: Hex]: StoredGatorPermissionSanitized<
       SignerParam,
       NativeTokenStreamPermission
     >[];
   };
   'native-token-periodic': {
-    [chainId: Hex]: StoredGatorPermission<
+    [chainId: Hex]: StoredGatorPermissionSanitized<
       SignerParam,
       NativeTokenPeriodicPermission
     >[];
   };
   'erc20-token-stream': {
-    [chainId: Hex]: StoredGatorPermission<
+    [chainId: Hex]: StoredGatorPermissionSanitized<
       SignerParam,
       Erc20TokenStreamPermission
+    >[];
+  };
+  'erc20-token-periodic': {
+    [chainId: Hex]: StoredGatorPermissionSanitized<
+      SignerParam,
+      Erc20TokenPeriodicPermission
+    >[];
+  };
+  other: {
+    [chainId: Hex]: StoredGatorPermissionSanitized<
+      SignerParam,
+      CustomPermission
     >[];
   };
 };
 
 /**
- * Represents the supported permission type(e.g. 'native-token-stream', 'native-token-periodic', 'erc20-token-stream') of the gator permissions list.
+ * Represents the supported permission type(e.g. 'native-token-stream', 'native-token-periodic', 'erc20-token-stream', 'erc20-token-periodic') of the gator permissions map.
  */
-export type SupportedGatorPermissionType = keyof GatorPermissionsList;
+export type SupportedGatorPermissionType = keyof GatorPermissionsMap;
 
 /**
- * Represents a list of gator permissions filtered by permission type.(ie, a record of gator permissions by permission type with chainId as the key)
+ * Represents a map of gator permissions for a given permission type with key of chainId. The value being an array of gator permissions for that chainId.
  */
-export type GatorPermissionsListByPermissionType<
-  PermissionType extends SupportedGatorPermissionType,
-> = GatorPermissionsList[PermissionType];
+export type GatorPermissionsMapByPermissionType<
+  TPermissionType extends SupportedGatorPermissionType,
+> = GatorPermissionsMap[TPermissionType];
 
 /**
- * Represents a list of gator permissions filtered by permission type and chainId.(ie, a array of gator permissions for a given chainId and permission type)
+ * Represents an array of gator permissions for a given permission type and chainId.
  */
-export type GatorPermissionsListItemsByPermissionTypeAndChainId<
-  PermissionType extends SupportedGatorPermissionType,
-> = GatorPermissionsList[PermissionType][Hex];
+export type GatorPermissionsListByPermissionTypeAndChainId<
+  TPermissionType extends SupportedGatorPermissionType,
+> = GatorPermissionsMap[TPermissionType][Hex];
