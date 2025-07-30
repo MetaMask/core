@@ -207,3 +207,11 @@ export type {
   DeFiPositionsControllerMessenger,
 } from './DeFiPositionsController/DeFiPositionsController';
 export type { GroupedDeFiPositions } from './DeFiPositionsController/group-defi-positions';
+export type {
+  AccountGroupBalance,
+  AccountGroupBalanceParams,
+} from './selectors';
+export {
+  selectBalancesByAccountGroup,
+  assetsControllersSelectors,
+} from './selectors';
