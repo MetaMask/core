@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add new utility functions for efficient balance fetching using Multicall3 ([#6212](https://github.com/MetaMask/core/pull/6212))
+  - Added `aggregate3` function for direct access to Multicall3's aggregate3 method with individual failure handling
+  - Added `getTokenBalancesForMultipleAddresses` function to efficiently batch ERC20 and native token balance queries for multiple addresses
+  - Supports up to 300 calls per batch with automatic fallback to individual calls on unsupported chains
+  - Returns organized balance data as nested maps for easy consumption by client applications
+
 ### Changed
 
 - Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
