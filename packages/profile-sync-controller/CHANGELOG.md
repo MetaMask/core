@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Rename `AuthenticationController:getUserProfileMetaMetrics` to `AuthenticationController:getUserProfileLineage` ([]())
+- **BREAKING:** Rename `AuthenticationController:getUserProfileMetaMetrics` to `AuthenticationController:getUserProfileLineage` ([#6211](https://github.com/MetaMask/core/pull/6211))
   - Rename API endpoint from `/api/v2/profile/metametrics` to `/api/v2/profile/lineage`
 
 ## [22.0.0]
