@@ -1,11 +1,27 @@
 import {
   isBip44Account,
-  type AccountProvider,
+  type AccountProvider as AccountProviderDefinition,
   type Bip44Account,
 } from '@metamask/account-api';
+import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
+import type {
+  KeyringMetadata,
+  KeyringSelector,
+} from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { MultichainAccountServiceMessenger } from '../types';
+
+export type AccountProvider<Account extends KeyringAccount> =
+  AccountProviderDefinition<Account> & {
+    createAccounts({
+      entropySource,
+      groupIndex,
+    }: {
+      entropySource: EntropySourceId;
+      groupIndex: number;
+    }): Promise<Account['id'][]>;
+  };
 
 export abstract class BaseAccountProvider
   implements AccountProvider<Bip44Account<InternalAccount>>
@@ -54,5 +70,36 @@ export abstract class BaseAccountProvider
     return found;
   }
 
+  protected async withKeyring<SelectedKeyring, CallbackResult = void>(
+    selector: KeyringSelector,
+    operation: ({
+      keyring,
+      metadata,
+    }: {
+      keyring: SelectedKeyring;
+      metadata: KeyringMetadata;
+    }) => Promise<CallbackResult>,
+  ): Promise<CallbackResult> {
+    const result = await this.messenger.call(
+      'KeyringController:withKeyring',
+      selector,
+      ({ keyring, metadata }) =>
+        operation({
+          keyring: keyring as SelectedKeyring,
+          metadata,
+        }),
+    );
+
+    return result as CallbackResult;
+  }
+
   abstract isAccountCompatible(account: Bip44Account<InternalAccount>): boolean;
+
+  abstract createAccounts({
+    entropySource,
+    groupIndex,
+  }: {
+    entropySource: EntropySourceId;
+    groupIndex: number;
+  }): Promise<Bip44Account<InternalAccount>['id'][]>;
 }

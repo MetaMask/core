@@ -1,6 +1,5 @@
 import type {
   MultichainAccountWalletId,
-  AccountProvider,
   Bip44Account,
 } from '@metamask/account-api';
 import {
@@ -13,6 +12,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
+import type { AccountProvider } from './providers/BaseAccountProvider';
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
 import { SolAccountProvider } from './providers/SolAccountProvider';
 import type { MultichainAccountServiceMessenger } from './types';
@@ -295,5 +295,22 @@ export class MultichainAccountService {
     entropySource: EntropySourceId;
   }): MultichainAccountGroup<Bip44Account<InternalAccount>>[] {
     return this.#getWallet(entropySource).getMultichainAccountGroups();
+  }
+
+  /**
+   * Creates the next multichain account group.
+   *
+   * @param options - Options.
+   * @param options.entropySource - The wallet's entropy source.
+   * @returns The next multichain account group.
+   */
+  async createNextMultichainAccountGroup({
+    entropySource,
+  }: {
+    entropySource: EntropySourceId;
+  }): Promise<MultichainAccountGroup<Bip44Account<InternalAccount>>> {
+    return await this.#getWallet(
+      entropySource,
+    ).createNextMultichainAccountGroup();
   }
 }

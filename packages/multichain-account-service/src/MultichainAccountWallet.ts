@@ -4,7 +4,6 @@ import type {
   MultichainAccountWallet as MultichainAccountWalletDefinition,
 } from '@metamask/account-api';
 import type { AccountGroupId } from '@metamask/account-api';
-import type { AccountProvider } from '@metamask/account-api';
 import {
   getGroupIndexFromMultichainAccountId as getGroupIndexFromMultichainAccountGroupId,
   isMultichainAccountGroupId,
@@ -18,6 +17,7 @@ import {
 } from '@metamask/keyring-api';
 
 import { MultichainAccountGroup } from './MultichainAccountGroup';
+import type { AccountProvider } from './providers/BaseAccountProvider';
 
 /**
  * A multichain account wallet that holds multiple multichain accounts (one multichain account per
@@ -172,5 +172,61 @@ export class MultichainAccountWallet<
    */
   getMultichainAccountGroups(): MultichainAccountGroup<Account>[] {
     return Array.from(this.#accounts.values()); // TODO: Prevent copy here.
+  }
+
+  /**
+   * Gets next group index for this wallet.
+   *
+   * @returns The next group index of this wallet.
+   */
+  getNextGroupIndex(): number {
+    // Assuming we cannot have indexes gaps.
+    return this.#accounts.size; // No +1 here, group indexes starts at 0.
+  }
+
+  #createMultichainAccountGroup(
+    groupIndex: number,
+  ): MultichainAccountGroup<Account> {
+    const multichainAccount = new MultichainAccountGroup({
+      wallet: this,
+      providers: this.#providers,
+      groupIndex,
+    });
+
+    // Register the account to our internal map.
+    this.#accounts.set(groupIndex, multichainAccount);
+
+    return multichainAccount;
+  }
+
+  async createMultichainAccountGroup(
+    groupIndex: number,
+  ): Promise<MultichainAccountGroup<Account>> {
+    const nextGroupIndex = this.getNextGroupIndex();
+    if (groupIndex > nextGroupIndex) {
+      throw new Error(
+        `You cannot use a group index that is higher than the next available one: expected <=${nextGroupIndex}, got ${groupIndex}`,
+      );
+    }
+
+    // TODO: Make this parallel.
+    for (const provider of this.#providers) {
+      // FIXME: What to do if any provider fails to create accounts?
+      await provider.createAccounts({
+        entropySource: this.#entropySource,
+        groupIndex,
+      });
+    }
+
+    // Re-create and "refresh" the multichain account (we assume all account creations are
+    // idempotent, so we should get the same accounts and potentially some new accounts (if
+    // some account providers decide to return more of them this time).
+    return this.#createMultichainAccountGroup(groupIndex);
+  }
+
+  async createNextMultichainAccountGroup(): Promise<
+    MultichainAccountGroup<Account>
+  > {
+    return this.createMultichainAccountGroup(this.getNextGroupIndex());
   }
 }
