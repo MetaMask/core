@@ -358,8 +358,8 @@ describe('MultichainAccountService', () => {
       });
 
       const [multichainAccount1, multichainAccount2] =
-        wallet1.getMultichainAccounts();
-      const [multichainAccount3] = wallet2.getMultichainAccounts();
+        wallet1.getMultichainAccountGroups();
+      const [multichainAccount3] = wallet2.getMultichainAccountGroups();
 
       const walletAndMultichainAccount1 = service.getMultichainAccountAndWallet(
         account1.id,
@@ -396,15 +396,15 @@ describe('MultichainAccountService', () => {
       const wallet1 = service.getMultichainAccountWallet({
         entropySource: entropy1,
       });
-      expect(wallet1.getMultichainAccounts()).toHaveLength(1);
+      expect(wallet1.getMultichainAccountGroups()).toHaveLength(1);
 
       // Now we're adding `account2`.
       mocks.EvmAccountProvider.accounts = [account1, account2];
       messenger.publish('AccountsController:accountAdded', account2);
-      expect(wallet1.getMultichainAccounts()).toHaveLength(2);
+      expect(wallet1.getMultichainAccountGroups()).toHaveLength(2);
 
       const [multichainAccount1, multichainAccount2] =
-        wallet1.getMultichainAccounts();
+        wallet1.getMultichainAccountGroups();
 
       const walletAndMultichainAccount1 = service.getMultichainAccountAndWallet(
         account1.id,
@@ -437,16 +437,16 @@ describe('MultichainAccountService', () => {
       const wallet1 = service.getMultichainAccountWallet({
         entropySource: entropy1,
       });
-      expect(wallet1.getMultichainAccounts()).toHaveLength(1);
+      expect(wallet1.getMultichainAccountGroups()).toHaveLength(1);
 
       // Now we're adding `account2`.
       mocks.EvmAccountProvider.accounts = [account1, otherAccount1];
       messenger.publish('AccountsController:accountAdded', otherAccount1);
       // Still 1, that's the same multichain account, but a new "blockchain
       // account" got added.
-      expect(wallet1.getMultichainAccounts()).toHaveLength(1);
+      expect(wallet1.getMultichainAccountGroups()).toHaveLength(1);
 
-      const [multichainAccount1] = wallet1.getMultichainAccounts();
+      const [multichainAccount1] = wallet1.getMultichainAccountGroups();
 
       const walletAndMultichainAccount1 = service.getMultichainAccountAndWallet(
         account1.id,
@@ -477,7 +477,7 @@ describe('MultichainAccountService', () => {
       const wallet1 = service.getMultichainAccountWallet({
         entropySource: entropy1,
       });
-      expect(wallet1.getMultichainAccounts()).toHaveLength(2);
+      expect(wallet1.getMultichainAccountGroups()).toHaveLength(2);
 
       // No wallet 2 yet.
       expect(() =>
@@ -492,9 +492,9 @@ describe('MultichainAccountService', () => {
         entropySource: entropy2,
       });
       expect(wallet2).toBeDefined();
-      expect(wallet2.getMultichainAccounts()).toHaveLength(1);
+      expect(wallet2.getMultichainAccountGroups()).toHaveLength(1);
 
-      const [multichainAccount3] = wallet2.getMultichainAccounts();
+      const [multichainAccount3] = wallet2.getMultichainAccountGroups();
 
       const walletAndMultichainAccount3 = service.getMultichainAccountAndWallet(
         account3.id,
@@ -515,14 +515,14 @@ describe('MultichainAccountService', () => {
       const wallet1 = service.getMultichainAccountWallet({
         entropySource: entropy1,
       });
-      const oldMultichainAccounts = wallet1.getMultichainAccounts();
+      const oldMultichainAccounts = wallet1.getMultichainAccountGroups();
       expect(oldMultichainAccounts).toHaveLength(1);
       expect(oldMultichainAccounts[0].getAccounts()).toHaveLength(1);
 
       // Now we're publishing a new account that is not BIP-44 compatible.
       messenger.publish('AccountsController:accountAdded', MOCK_SNAP_ACCOUNT_2);
 
-      const newMultichainAccounts = wallet1.getMultichainAccounts();
+      const newMultichainAccounts = wallet1.getMultichainAccountGroups();
       expect(newMultichainAccounts).toHaveLength(1);
       expect(newMultichainAccounts[0].getAccounts()).toHaveLength(1);
     });
@@ -534,12 +534,12 @@ describe('MultichainAccountService', () => {
       const wallet1 = service.getMultichainAccountWallet({
         entropySource: entropy1,
       });
-      expect(wallet1.getMultichainAccounts()).toHaveLength(2);
+      expect(wallet1.getMultichainAccountGroups()).toHaveLength(2);
 
       // Now we're removing `account2`.
       mocks.EvmAccountProvider.accounts = [account1];
       messenger.publish('AccountsController:accountRemoved', account2.id);
-      expect(wallet1.getMultichainAccounts()).toHaveLength(1);
+      expect(wallet1.getMultichainAccountGroups()).toHaveLength(1);
 
       const walletAndMultichainAccount2 = service.getMultichainAccountAndWallet(
         account2.id,

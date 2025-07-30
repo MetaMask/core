@@ -2443,14 +2443,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/account-api@npm:^0.5.0":
-  version: 0.5.0
-  resolution: "@metamask/account-api@npm:0.5.0"
+"@metamask/account-api@npm:@metamask-previews/account-api@0.5.0-0e28ac0":
+  version: 0.5.0-0e28ac0
+  resolution: "@metamask-previews/account-api@npm:0.5.0-0e28ac0"
   dependencies:
-    "@metamask/keyring-api": "npm:^19.1.0"
-    "@metamask/keyring-utils": "npm:^3.1.0"
+    "@metamask/keyring-api": "npm:19.1.0"
+    "@metamask/keyring-utils": "npm:3.1.0"
     "@metamask/superstruct": "npm:^3.1.0"
-  checksum: 10/22f8a472ca9e1b3b6f0fb574e48d4dd54c837bafb9095cbd96c84fe277d7af8125074297a37f21e38e40a8e28fa020f637c61b84255af7e4a5bc086d0ab13ce9
+  checksum: 10/4cc0bf710d1483054290ddada118ffc2da0e442eb99f09470ddc93e77495c5a395499d4b19f9efe9c73192640b7ddceb4f919b6800d4ff7f9590d25f4d19547c
   languageName: node
   linkType: hard
 
@@ -3643,7 +3643,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-api@npm:^19.0.0, @metamask/keyring-api@npm:^19.1.0":
+"@metamask/keyring-api@npm:19.1.0, @metamask/keyring-api@npm:^19.0.0":
   version: 19.1.0
   resolution: "@metamask/keyring-api@npm:19.1.0"
   dependencies:
@@ -3735,7 +3735,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-utils@npm:^3.1.0":
+"@metamask/keyring-utils@npm:3.1.0, @metamask/keyring-utils@npm:^3.1.0":
   version: 3.1.0
   resolution: "@metamask/keyring-utils@npm:3.1.0"
   dependencies:
@@ -3824,6 +3824,7 @@ __metadata:
     "@metamask/keyring-controller": "npm:^22.1.0"
     "@metamask/keyring-internal-api": "npm:^7.0.0"
     "@metamask/keyring-snap-client": "npm:^6.0.0"
+    "@metamask/keyring-utils": "npm:^3.1.0"
     "@metamask/providers": "npm:^22.1.0"
     "@metamask/snaps-controllers": "npm:^14.0.1"
     "@metamask/snaps-sdk": "npm:^9.0.0"
