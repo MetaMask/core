@@ -363,22 +363,28 @@ export async function syncInternalAccountsWithUserStorage(
       );
 
       if (userStorageAccountsToBeDeleted.length) {
-        await getUserStorageControllerInstance().performBatchDeleteStorage(
-          USER_STORAGE_FEATURE_NAMES.accounts,
-          userStorageAccountsToBeDeleted.map((account) => account.a),
-          entropySourceId,
-        );
-        erroneousSituationsFound = true;
-        onAccountSyncErroneousSituation?.(
-          'An account was present in the user storage accounts list but was not found in the internal accounts list after the sync',
-          {
-            userStorageAccountsToBeDeleted,
-            internalAccountsList,
-            refreshedInternalAccountsList,
-            internalAccountsToBeSavedToUserStorage,
-            userStorageAccountsList,
-          },
-        );
+        if (
+          !getUserStorageControllerInstance().getIsMultichainAccountSyncingEnabled()
+        ) {
+          // If multichain account syncing is enabled, we do not push account syncing V1 data anymore.
+          // AccountTreeController handles proper multichain account syncing
+          await getUserStorageControllerInstance().performBatchDeleteStorage(
+            USER_STORAGE_FEATURE_NAMES.accounts,
+            userStorageAccountsToBeDeleted.map((account) => account.a),
+            entropySourceId,
+          );
+          erroneousSituationsFound = true;
+          onAccountSyncErroneousSituation?.(
+            'An account was present in the user storage accounts list but was not found in the internal accounts list after the sync',
+            {
+              userStorageAccountsToBeDeleted,
+              internalAccountsList,
+              refreshedInternalAccountsList,
+              internalAccountsToBeSavedToUserStorage,
+              userStorageAccountsList,
+            },
+          );
+        }
       }
 
       if (erroneousSituationsFound) {

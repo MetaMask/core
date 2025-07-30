@@ -545,6 +545,28 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
       expect(mockAPI.mockEndpointBatchDeleteUserStorage.isDone()).toBe(true);
     });
 
+    it('does not delete the bogus accounts from user storage if multichain account syncing is enabled', async () => {
+      const { options, mockAPI, entropySourceIds } =
+        await arrangeMocksForBogusAccounts();
+
+      jest
+        .spyOn(
+          options.getUserStorageControllerInstance(),
+          'getIsMultichainAccountSyncingEnabled',
+        )
+        .mockReturnValue(true);
+
+      await AccountSyncingControllerIntegrationModule.syncInternalAccountsWithUserStorage(
+        {},
+        options,
+        entropySourceIds[0],
+      );
+
+      expect(mockAPI.mockEndpointGetUserStorage.isDone()).toBe(true);
+      expect(mockAPI.mockEndpointBatchUpsertUserStorage.isDone()).toBe(false);
+      expect(mockAPI.mockEndpointBatchDeleteUserStorage.isDone()).toBe(false);
+    });
+
     describe('Fires the onAccountSyncErroneousSituation callback on erroneous situations', () => {
       it('and logs if the final state is incorrect', async () => {
         const onAccountSyncErroneousSituation = jest.fn();
