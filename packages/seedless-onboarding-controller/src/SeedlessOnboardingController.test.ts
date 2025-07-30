@@ -2131,22 +2131,6 @@ describe('SeedlessOnboardingController', () => {
         },
       );
     });
-
-    it('should throw an error if the password is of wrong type and the vault is locked.', async () => {
-      await withController(
-        {
-          state: {
-            vault: 'MOCK_VAULT',
-          },
-        },
-        async ({ controller }) => {
-          // @ts-expect-error intentional test case
-          await expect(controller.submitPassword(undefined)).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.VaultEncryptionKeyUndefined,
-          );
-        },
-      );
-    });
   });
 
   describe('verifyVaultPassword', () => {
