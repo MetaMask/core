@@ -2,11 +2,14 @@ import type {
   AccountGroupType,
   AccountWalletType,
 } from '@metamask/account-api';
+import type {
+  AccountGroupIdOf,
+  AccountWalletIdOf,
+} from '@metamask/account-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { AccountGroupObject, AccountGroupObjectOf } from './group';
 import type { AccountTreeControllerMessenger } from './types';
-import type { AccountGroupIdOf, AccountWalletIdOf } from './typing';
 import type { AccountWalletObjectOf } from './wallet';
 
 export type RuleResult<

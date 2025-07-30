@@ -5,7 +5,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { AccountWalletObjectOf } from 'src/wallet';
 
 import { BaseRule, type Rule, type RuleResult } from '../rule';
-import { toAccountGroupId, toAccountWalletId } from '../typing';
+import { toAccountGroupId, toAccountWalletId } from '@metamask/account-api';
 
 /**
  * Get wallet name from a keyring type.
