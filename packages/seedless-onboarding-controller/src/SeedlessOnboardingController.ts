@@ -49,7 +49,7 @@ import type {
 import {
   decodeJWTToken,
   decodeNodeAuthToken,
-  deserializAuthKeyPair,
+  deserializeAuthKeyPair,
   serializeAuthKeyPair,
 } from './utils';
 
@@ -451,7 +451,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           data,
           type,
           encKey: base64ToBytes(toprfEncryptionKey),
-          authKeyPair: deserializAuthKeyPair(toprfAuthKeyPair),
+          authKeyPair: deserializeAuthKeyPair(toprfAuthKeyPair),
           options,
         });
       };
@@ -490,7 +490,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
 
         encKey = base64ToBytes(toprfEncryptionKey);
         pwEncKey = base64ToBytes(toprfPwEncryptionKey);
-        authKeyPair = deserializAuthKeyPair(toprfAuthKeyPair);
+        authKeyPair = deserializeAuthKeyPair(toprfAuthKeyPair);
       }
 
       const performFetch = async (): Promise<SecretMetadata[]> => {
@@ -1251,7 +1251,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         this.state;
       encKey = base64ToBytes(toprfEncryptionKey);
       pwEncKey = base64ToBytes(toprfPwEncryptionKey);
-      authKeyPair = deserializAuthKeyPair(toprfAuthKeyPair);
+      authKeyPair = deserializeAuthKeyPair(toprfAuthKeyPair);
     }
     const result = await this.toprfClient.changeEncKey({
       nodeAuthTokens: this.state.nodeAuthTokens,
@@ -1667,7 +1667,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     const rawToprfPwEncryptionKey = base64ToBytes(
       parsedVaultData.toprfPwEncryptionKey,
     );
-    const rawToprfAuthKeyPair = deserializAuthKeyPair(
+    const rawToprfAuthKeyPair = deserializeAuthKeyPair(
       parsedVaultData.toprfAuthKeyPair,
     );
 

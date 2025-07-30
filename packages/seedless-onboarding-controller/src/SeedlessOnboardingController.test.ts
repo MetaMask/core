@@ -47,7 +47,7 @@ import type {
   SeedlessOnboardingControllerState,
   VaultEncryptor,
 } from './types';
-import { deserializAuthKeyPair, serializeAuthKeyPair } from './utils';
+import { deserializeAuthKeyPair, serializeAuthKeyPair } from './utils';
 import { mockSeedlessOnboardingMessenger } from '../tests/__fixtures__/mockMessenger';
 import {
   handleMockSecretDataGet,
@@ -490,7 +490,7 @@ async function decryptVault(vault: string, password: string) {
   const toprfEncryptionKey = base64ToBytes(
     deserializedVault.toprfEncryptionKey,
   );
-  const toprfAuthKeyPair = deserializAuthKeyPair(
+  const toprfAuthKeyPair = deserializeAuthKeyPair(
     deserializedVault.toprfAuthKeyPair,
   );
 

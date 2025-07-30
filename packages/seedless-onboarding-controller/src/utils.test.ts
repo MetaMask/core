@@ -7,7 +7,7 @@ import {
   decodeNodeAuthToken,
   decodeJWTToken,
   serializeAuthKeyPair,
-  deserializAuthKeyPair,
+  deserializeAuthKeyPair,
 } from './utils';
 
 describe('utils', () => {
@@ -198,7 +198,7 @@ describe('utils', () => {
   describe('deserializAuthKeyPair', () => {
     it('should deserialize the authentication key pair correctly', () => {
       const serialized = '{"publicKey":"AQID","privateKey":"0x7b"}';
-      const deserialized = deserializAuthKeyPair(serialized);
+      const deserialized = deserializeAuthKeyPair(serialized);
       expect(deserialized).toStrictEqual({
         pk: new Uint8Array([1, 2, 3]),
         sk: BigInt(123),

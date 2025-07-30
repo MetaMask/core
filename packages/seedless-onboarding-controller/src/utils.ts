@@ -59,7 +59,7 @@ export function serializeAuthKeyPair(authKeyPair: KeyPair): string {
  * @param authKeyPair - The authentication key pair to deserialize.
  * @returns The deserialized authentication key pair.
  */
-export function deserializAuthKeyPair(authKeyPair: string): KeyPair {
+export function deserializeAuthKeyPair(authKeyPair: string): KeyPair {
   const { publicKey, privateKey } = JSON.parse(authKeyPair);
   return {
     pk: base64ToBytes(publicKey),
