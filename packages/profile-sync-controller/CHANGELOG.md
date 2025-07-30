@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [23.0.0]
 
-### Uncategorized
-
-- Release/479.0.0 ([#6194](https://github.com/MetaMask/core/pull/6194))
-
 ### Changed
 
 - **BREAKING:** Rename `AuthenticationController:getUserProfileMetaMetrics` to `AuthenticationController:getUserProfileLineage` ([#6211](https://github.com/MetaMask/core/pull/6211))
