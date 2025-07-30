@@ -340,21 +340,19 @@ export async function syncInternalAccountsWithUserStorage(
       // Save the internal accounts list to the user storage
       if (internalAccountsToBeSavedToUserStorage.length) {
         if (
-          getUserStorageControllerInstance().getIsMultichainAccountSyncingEnabled()
+          !getUserStorageControllerInstance().getIsMultichainAccountSyncingEnabled()
         ) {
           // If multichain account syncing is enabled, we do not push account syncing V1 data anymore.
           // AccountTreeController handles proper multichain account syncing
-          return;
+          await getUserStorageControllerInstance().performBatchSetStorage(
+            USER_STORAGE_FEATURE_NAMES.accounts,
+            internalAccountsToBeSavedToUserStorage.map((account) => [
+              account.address,
+              JSON.stringify(mapInternalAccountToUserStorageAccount(account)),
+            ]),
+            entropySourceId,
+          );
         }
-
-        await getUserStorageControllerInstance().performBatchSetStorage(
-          USER_STORAGE_FEATURE_NAMES.accounts,
-          internalAccountsToBeSavedToUserStorage.map((account) => [
-            account.address,
-            JSON.stringify(mapInternalAccountToUserStorageAccount(account)),
-          ]),
-          entropySourceId,
-        );
       }
 
       // In case we have corrupted user storage with accounts that don't exist in the internal accounts list
