@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `group.type` tag ([#6214](https://github.com/MetaMask/core/pull/6214))
+  - This `type` can be used as a tag to strongly-type (tagged-union) the `AccountGroupObject`.
+- Add `group.metadata` metadata object ([#6214](https://github.com/MetaMask/core/pull/6214))
+  - Given the `group.type` you will now have access to specific metadata information (e.g. `groupIndex` for multichain account groups)
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/account-api` from `^0.3.0` to `^0.5.0` ([#6214](https://github.com/MetaMask/core/pull/6214))
+- **BREAKING:** Move `wallet.metadata.type` tag to `wallet` node ([#6214](https://github.com/MetaMask/core/pull/6214))
+  - This `type` can be used as a tag to strongly-type (tagged-union) the `AccountWalletObject`.
+
 ## [0.7.0]
 
 ### Added
