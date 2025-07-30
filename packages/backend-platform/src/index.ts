@@ -56,6 +56,7 @@ export type {
   AccountActivityServiceBalanceUpdatedEvent,
   AccountActivityServiceSubscriptionErrorEvent,
   AccountActivityServiceMessenger,
+  IncomingBalanceUpdate,
 } from './account-activity-service';
 
 export {

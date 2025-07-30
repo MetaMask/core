@@ -9,20 +9,12 @@
 
 import type { RestrictedMessenger } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { hexToBytes } from '@metamask/utils';
-import { sha256 } from 'ethereum-cryptography/sha256';
-import { v4 as uuid } from 'uuid';
-import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { hexToBytes } from '@metamask/utils';
-import { sha256 } from 'ethereum-cryptography/sha256';
-import { v4 as uuid } from 'uuid';
 import type { 
   WebSocketService,
   WebSocketService,
 } from './websocket-service';
 import type { 
   Transaction,
-  AccountBalancesUpdatedEventPayload,
 } from './types';
 
 const SERVICE_NAME = 'AccountActivityService';
@@ -51,7 +43,7 @@ export type AccountActivityServiceOptions = {
 /**
  * Incoming balance update format that doesn't match keyring-api format
  */
-type IncomingBalanceUpdate = {
+export type IncomingBalanceUpdate = {
   address: string;
   asset: {
     fungible: boolean;
@@ -69,54 +61,7 @@ type IncomingTransactionWithBalanceUpdate = {
   postBalances: IncomingBalanceUpdate[];
 };
 
-/**
- * Generates a deterministic UUID from an Ethereum address.
- * This matches the AccountsController's getUUIDFromAddressOfNormalAccount function.
- * 
- * @param address - The Ethereum address to generate the UUID from.
- * @returns The generated UUID.
- */
-function getAccountIdFromAddress(address: string): string {
-  const v4Options = {
-    random: sha256(hexToBytes(address)).slice(0, 16),
-  };
-  return uuid(v4Options);
-}
 
-/**
- * Incoming balance update format that doesn't match keyring-api format
- */
-type IncomingBalanceUpdate = {
-  address: string;
-  asset: {
-    fungible: boolean;
-    type: string; // CAIP format like "eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
-    unit: string;
-    amount: string;
-  };
-};
-
-/**
- * Transaction with balance update in the incoming format
- */
-type IncomingTransactionWithBalanceUpdate = {
-  tx: Transaction;
-  postBalances: IncomingBalanceUpdate[];
-};
-
-/**
- * Generates a deterministic UUID from an Ethereum address.
- * This matches the AccountsController's getUUIDFromAddressOfNormalAccount function.
- * 
- * @param address - The Ethereum address to generate the UUID from.
- * @returns The generated UUID.
- */
-function getAccountIdFromAddress(address: string): string {
-  const v4Options = {
-    random: sha256(hexToBytes(address)).slice(0, 16),
-  };
-  return uuid(v4Options);
-}
 
 // Action types for the messaging system
 export type AccountActivityServiceSubscribeAccountsAction = {
@@ -169,8 +114,7 @@ export type AccountActivityServiceTransactionUpdatedEvent = {
 
 export type AccountActivityServiceBalanceUpdatedEvent = {
   type: `AccountActivityService:balanceUpdated`;
-  type: `AccountActivityService:balanceUpdated`;
-  payload: [AccountBalancesUpdatedEventPayload];
+  payload: [IncomingBalanceUpdate[]];
 };
 
 export type AccountActivityServiceSubscriptionErrorEvent = {
@@ -439,90 +383,29 @@ export class AccountActivityService {
     );
   }
 
-  /**
-   * Transform incoming balance updates to AccountBalancesUpdatedEventPayload format
-   * 
-   * Converts from array format:
-   * [{ address: "0x123...", asset: { type: "eip155:8453/erc20:0x...", unit: "USDC", amount: "1000" } }]
-   * 
-   * To keyring-api format:
-   * { balances: { "account-uuid": { "eip155:8453/erc20:0x...": { unit: "USDC", amount: "1000" } } } }
-   */
-  #transformBalancesToKeyringFormat(incomingBalances: IncomingBalanceUpdate[]): AccountBalancesUpdatedEventPayload {
-    const balances: Record<string, Record<string, { unit: string; amount: string }>> = {};
-    
-    // Group balance updates by account ID (not address)
-    for (const balance of incomingBalances) {
-      // Validate required fields
-      if (!balance.address || !balance.asset?.type || !balance.asset?.unit || balance.asset?.amount === undefined) {
-        console.warn('Skipping invalid balance update:', balance);
-        continue;
-      }
-      
-      // Get the proper account ID from the AccountsController
-      let accountId: string;
-      try {
-        const account = this.#messenger.call('AccountsController:getAccountByAddress', balance.address);
-        if (account) {
-          // Use the actual account ID from the AccountsController
-          accountId = account.id;
-        } else {
-          // Fall back to generating UUID from address (for accounts not yet in controller)
-          accountId = getAccountIdFromAddress(balance.address);
-          console.warn(`Account not found in AccountsController for address ${balance.address}, using generated UUID: ${accountId}`);
-        }
-      } catch (error) {
-        // Fall back to generating UUID from address if AccountsController is not available
-        accountId = getAccountIdFromAddress(balance.address);
-        console.warn(`Failed to get account from AccountsController for address ${balance.address}, using generated UUID: ${accountId}`, error);
-      }
-      
-      const assetType = balance.asset.type as `${string}:${string}/${string}:${string}`;
-      
-      // Initialize account balances if not exists
-      if (!balances[accountId]) {
-        balances[accountId] = {};
-      }
-      
-      // Add the balance for this asset
-      balances[accountId][assetType] = {
-        unit: balance.asset.unit,
-        amount: balance.asset.amount,
-      };
-    }
-    
-    return { balances };
-  }
+
 
   /**
    * Handle account activity updates (transactions + balance changes)
-   * Supports both keyring-api format and incoming array format
+   * Publishes postBalances directly without transformation
    * 
-   * @example Incoming array format transformation:
+   * @example Direct balance publishing:
    * Input: { tx: {...}, postBalances: [{ address: "0x123", asset: { type: "eip155:8453/erc20:0x...", unit: "USDC", amount: "1000" } }] }
-   * Output: { balances: { "account-uuid": { "eip155:8453/erc20:0x...": { unit: "USDC", amount: "1000" } } } }
-   * 
-   * Note: Addresses are converted to proper account UUIDs using AccountsController or deterministic generation.
-   * Supports both keyring-api format and incoming array format
-   * 
-   * @example Incoming array format transformation:
-   * Input: { tx: {...}, postBalances: [{ address: "0x123", asset: { type: "eip155:8453/erc20:0x...", unit: "USDC", amount: "1000" } }] }
-   * Output: { balances: { "account-uuid": { "eip155:8453/erc20:0x...": { unit: "USDC", amount: "1000" } } } }
-   * 
-   * Note: Addresses are converted to proper account UUIDs using AccountsController or deterministic generation.
+   * Output: postBalances array published directly
    */
   #handleAccountActivityUpdate(payload: IncomingTransactionWithBalanceUpdate): void {
     try {
       const { tx, postBalances } = payload;
       
+      console.log('AccountActivityService: Handling account activity update with balances:', postBalances);
+      
       // Process transaction update
       this.#messenger.publish(`AccountActivityService:transactionUpdated`, tx);
       
-      // Transform balance updates     
-      const keyringBalances = this.#transformBalancesToKeyringFormat(postBalances);
-      
-      // Process balance updates
-      this.#messenger.publish(`AccountActivityService:balanceUpdated`, keyringBalances);
+      // Publish balance updates directly without transformation
+      console.log('AccountActivityService: Publishing balance update event...');
+      this.#messenger.publish(`AccountActivityService:balanceUpdated`, postBalances);
+      console.log('AccountActivityService: Balance update event published successfully');
     } catch (error) {
       console.error('Error handling account activity update:', error);
       console.error('Payload that caused error:', payload);

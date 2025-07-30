@@ -43,8 +43,8 @@ import type {
 } from './TokensController';
 import type {
   AccountActivityServiceBalanceUpdatedEvent,
+  IncomingBalanceUpdate,
 } from '@metamask/backend-platform';
-import type { AccountBalancesUpdatedEventPayload } from '@metamask/keyring-api';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -210,11 +210,15 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
 
     // Subscribe to AccountActivityService balance updates for EVM networks
     try {
+      console.log('TokenBalancesController: Attempting to subscribe to AccountActivityService:balanceUpdated...');
       this.messagingSystem.subscribe(
         'AccountActivityService:balanceUpdated',
-        (balances: AccountBalancesUpdatedEventPayload) =>
-          this.#handleAccountActivityBalanceUpdated(balances),
+        (balances: IncomingBalanceUpdate[]) => {
+          console.log('TokenBalancesController: Received AccountActivityService:balanceUpdated event!');
+          this.#handleAccountActivityBalanceUpdated(balances);
+        },
       );
+      console.log('TokenBalancesController: Successfully subscribed to AccountActivityService:balanceUpdated');
     } catch (error) {
       // AccountActivityService might not be available in all environments
       console.log('AccountActivityService not available for EVM token balance updates:', error);
@@ -324,67 +328,120 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
 
   /**
    * Handles balance updates received from the AccountActivityService for EVM networks.
-   * Converts account IDs to addresses and updates token balances accordingly.
+   * Processes IncomingBalanceUpdate[] directly and updates token balances accordingly.
    *
-   * @param balanceUpdate - The balance update from AccountActivityService containing new balances.
+   * @param balanceUpdates - The balance updates from AccountActivityService containing new balances.
    */
   #handleAccountActivityBalanceUpdated(
-    balanceUpdate: AccountBalancesUpdatedEventPayload,
+    balanceUpdates: IncomingBalanceUpdate[],
   ): void {
-    // Convert account IDs to addresses first
-    const addressBalances: Record<string, Record<string, { unit: string; amount: string }>> = {};
+    console.log('TokenBalancesController: Received balance updates:', JSON.stringify(balanceUpdates, null, 2));
     
-    for (const [accountId, assetBalances] of Object.entries(balanceUpdate.balances)) {
-      let accountAddress: string;
-      
-      if (accountId.startsWith('0x')) {
-        // Already an address
-        accountAddress = accountId;
-      } else {
-        // Convert account ID to address
-        try {
-          const accounts = this.messagingSystem.call('AccountsController:listAccounts');
-          const account = accounts.find(acc => acc.id === accountId);
-          if (!account) {
-            continue;
-          }
-          accountAddress = account.address;
-        } catch (error) {
-          continue;
-        }
+    const currentTokenBalances = this.state.tokenBalances;
+    const updatesWithChanges: Array<{
+      address: Hex;
+      chainId: Hex;
+      tokenAddress: Hex;
+      oldBalance: Hex;
+      newBalance: Hex;
+      hasChanged: boolean;
+    }> = [];
+
+    // Process and detect changes
+    for (const balance of balanceUpdates) {
+      // Validate required fields
+      if (!balance.address || !balance.asset?.type || !balance.asset?.unit || balance.asset?.amount === undefined) {
+        console.warn('Skipping invalid balance update:', balance);
+        continue;
       }
+
+      const accountAddress = balance.address;
       
       // Only process valid EVM addresses
-      if (isStrictHexString(accountAddress.toLowerCase()) && isValidHexAddress(accountAddress)) {
-        addressBalances[accountAddress] = assetBalances;
+      if (!isStrictHexString(accountAddress.toLowerCase()) || !isValidHexAddress(accountAddress)) {
+        continue;
+      }
+
+      const address = accountAddress.toLowerCase() as Hex;
+
+      // Process EVM ERC20 assets
+      const evmERC20AssetMatch = balance.asset.type.match(/^eip155:(\d+)\/erc20:(0x[a-fA-F0-9]{40})$/i);
+      
+      if (evmERC20AssetMatch) {
+        const chainId = `0x${parseInt(evmERC20AssetMatch[1], 10).toString(16)}` as Hex;
+        const tokenAddress = evmERC20AssetMatch[2] as Hex;
+        
+        // Convert balance to hex format (matching existing behavior)
+        const newBalance = `0x${parseInt(balance.asset.amount, 10).toString(16)}` as Hex;
+        
+        // Check if balance has changed
+        const currentBalance = currentTokenBalances?.[address]?.[chainId]?.[tokenAddress];
+        const hasChanged = currentBalance !== newBalance;
+
+        console.log(`TokenBalancesController: Processing balance update:`, {
+          address,
+          chainId,
+          tokenAddress,
+          rawAmount: balance.asset.amount,
+          oldBalance: currentBalance,
+          newBalance,
+          currentBalance,
+          hasChanged
+        });
+
+        // Debug the state structure
+        console.log(`TokenBalancesController: Current state structure for ${address}:`, {
+          hasAccount: !!currentTokenBalances[address],
+          accountKeys: currentTokenBalances[address] ? Object.keys(currentTokenBalances[address]) : 'none',
+          hasChain: !!(currentTokenBalances[address]?.[chainId]),
+          chainKeys: currentTokenBalances[address]?.[chainId] ? Object.keys(currentTokenBalances[address][chainId]) : 'none',
+          hasToken: !!(currentTokenBalances[address]?.[chainId]?.[tokenAddress]),
+          fullState: JSON.stringify(currentTokenBalances, null, 2)
+        });
+
+        updatesWithChanges.push({
+          address,
+          chainId,
+          tokenAddress,
+          oldBalance: currentBalance,
+          newBalance,
+          hasChanged,
+        });
+      } else {
+        console.log(`TokenBalancesController: Asset type did not match ERC20 pattern:`, balance.asset.type);
       }
     }
-    
-    // Update state with address-based balances
-    this.update((state) => {
-      for (const [accountAddress, assetBalances] of Object.entries(addressBalances)) {
-        const address = accountAddress as Hex;
-        
-        // Initialize account if needed
-        if (!state.tokenBalances[address]) {
-          state.tokenBalances[address] = {};
-        }
 
-        // Process each EVM asset
-        for (const [assetType, balance] of Object.entries(assetBalances)) {
-          const evmERC20AssetMatch = assetType.match(/^eip155:(\d+)\/erc20:(0x[a-fA-F0-9]{40})$/i);
-          
-          if (evmERC20AssetMatch) {
-            const chainId = `0x${parseInt(evmERC20AssetMatch[1], 10).toString(16)}` as Hex;
-            const tokenAddress = evmERC20AssetMatch[2] as Hex;
-            
-            // Initialize chain and token if needed
-            ((state.tokenBalances[address] ??= {})[chainId] ??= {})[tokenAddress] = 
-              `0x${parseInt(balance.amount, 10).toString(16)}` as Hex;
+    // Only update if there are actual changes
+    const changedUpdates = updatesWithChanges.filter(update => update.hasChanged);
+    if (changedUpdates.length > 0) {
+      console.log(`TokenBalancesController: Updating ${changedUpdates.length} changed balances:`, 
+        changedUpdates.map(u => ({
+          address: u.address,
+          chainId: u.chainId,
+          token: u.tokenAddress,
+          oldBalance: u.oldBalance,
+          newBalance: u.newBalance
+        }))
+      );
+      
+      this.update((state) => {
+        for (const update of changedUpdates) {
+          // Ensure nested structure exists
+          if (!state.tokenBalances[update.address]) {
+            state.tokenBalances[update.address] = {};
           }
+          if (!state.tokenBalances[update.address][update.chainId]) {
+            state.tokenBalances[update.address][update.chainId] = {};
+          }
+          
+          // Update the balance
+          state.tokenBalances[update.address][update.chainId][update.tokenAddress] = update.newBalance;
         }
-      }
-    });
+      });
+    } else {
+      console.log('TokenBalancesController: No balance changes detected, skipping state update');
+    }
   }
 
   /**
