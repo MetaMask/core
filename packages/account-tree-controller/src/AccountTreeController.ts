@@ -3,6 +3,7 @@ import { AccountWalletCategory } from '@metamask/account-api';
 import type { AccountId } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { AccountTreeRule } from './AccountTreeRule';
@@ -182,8 +183,8 @@ export class AccountTreeController extends BaseController<
       }
     }
 
-    // Default to the first non-empty group in case of errors.
-    return this.#findFirstNonEmptyGroup(wallets);
+    // Default to the default group in case of errors.
+    return this.#getDefaultAccountGroupId(wallets);
   }
 
   #renameAccountWalletIfNeeded(wallet: AccountWalletObject) {
@@ -265,7 +266,7 @@ export class AccountTreeController extends BaseController<
             ) {
               // The currently selected group is now empty, find a new group to select
               state.accountTree.selectedAccountGroup =
-                this.#findFirstNonEmptyGroup(state.accountTree.wallets);
+                this.#getDefaultAccountGroupId(state.accountTree.wallets);
             }
           }
         }
@@ -357,7 +358,7 @@ export class AccountTreeController extends BaseController<
     }
 
     // Find the first account in this group to select
-    const accountToSelect = this.#getFirstAccountInGroup(groupId);
+    const accountToSelect = this.#getDefaultAccountFromAccountGroupId(groupId);
     if (!accountToSelect) {
       throw new Error(`No accounts found in group: ${groupId}`);
     }
@@ -403,40 +404,90 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
-   * Gets the first account ID in the specified group.
+   * Gets account group.
+   *
+   * @param groupId - The account group ID.
+   * @returns The account group or undefined if not found.
+   */
+  #getAccountGroup(groupId: AccountGroupId): AccountGroupObject | undefined {
+    const found = Object.values(this.state.accountTree.wallets).find(
+      (wallet) => wallet.groups[groupId] !== undefined,
+    );
+
+    return found?.groups[groupId];
+  }
+
+  /**
+   * Gets the default account for specified group.
    *
    * @param groupId - The account group ID.
    * @returns The first account ID in the group, or undefined if no accounts found.
    */
-  #getFirstAccountInGroup(groupId: AccountGroupId): AccountId | undefined {
-    for (const wallet of Object.values(this.state.accountTree.wallets)) {
-      if (wallet.groups[groupId]) {
-        const group = wallet.groups[groupId];
-        if (group && group.accounts.length > 0) {
-          return group.accounts[0];
+  #getDefaultAccountFromAccountGroupId(
+    groupId: AccountGroupId,
+  ): AccountId | undefined {
+    const group = this.#getAccountGroup(groupId);
+
+    if (group) {
+      let candidate;
+      for (const id of group.accounts) {
+        const account = this.messagingSystem.call(
+          'AccountsController:getAccount',
+          id,
+        );
+
+        if (!candidate) {
+          candidate = id;
+        }
+        if (account && isEvmAccountType(account.type)) {
+          // EVM accounts have a higher priority, so if we find any, we just
+          // use that account!
+          return account.id;
         }
       }
+
+      return candidate;
     }
+
     return undefined;
   }
 
   /**
-   * Finds the first non-empty group in the given wallets object.
+   * Gets the default group id, which is either, the first non-empty group that contains an EVM account or
+   * just the first non-empty group with any accounts.
    *
    * @param wallets - The wallets object to search.
    * @returns The ID of the first non-empty group, or an empty string if no groups are found.
    */
-  #findFirstNonEmptyGroup(wallets: {
+  #getDefaultAccountGroupId(wallets: {
     [walletId: AccountWalletId]: AccountWalletObject;
   }): AccountGroupId | '' {
+    let candidate: AccountGroupId | '' = '';
+
     for (const wallet of Object.values(wallets)) {
       for (const group of Object.values(wallet.groups)) {
-        if (group.accounts.length > 0) {
-          return group.id;
+        // We only update the candidate with the first non-empty group, but still
+        // try to find a group that contains an EVM account (the `candidate` is
+        // our fallback).
+        if (candidate === '' && group.accounts.length > 0) {
+          candidate = group.id;
+        }
+
+        for (const id of group.accounts) {
+          const account = this.messagingSystem.call(
+            'AccountsController:getAccount',
+            id,
+          );
+
+          if (account && isEvmAccountType(account.type)) {
+            // EVM accounts have a higher priority, so if we find any, we just
+            // use that group!
+            return group.id;
+          }
         }
       }
     }
-    return '';
+    return candidate;
   }
 
   /**

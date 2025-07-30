@@ -9,7 +9,7 @@ import {
 import type {
   UserProfile,
   Pair,
-  UserProfileMetaMetrics,
+  UserProfileLineage,
 } from './authentication-jwt-bearer/types';
 import { AuthType } from './authentication-jwt-bearer/types';
 import { PairError, UnsupportedAuthTypeError } from './errors';
@@ -76,8 +76,8 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
     return await this.#sdk.getIdentifier(entropySourceId);
   }
 
-  async getUserProfileMetaMetrics(): Promise<UserProfileMetaMetrics> {
-    return await this.#sdk.getUserProfileMetaMetrics();
+  async getUserProfileLineage(): Promise<UserProfileLineage> {
+    return await this.#sdk.getUserProfileLineage();
   }
 
   async signMessage(

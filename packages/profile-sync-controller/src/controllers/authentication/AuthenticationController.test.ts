@@ -13,7 +13,7 @@ import {
 import type { LoginResponse } from '../../sdk';
 import { Platform } from '../../sdk';
 import { arrangeAuthAPIs } from '../../sdk/__fixtures__/auth';
-import { MOCK_USER_PROFILE_METAMETRICS_RESPONSE } from '../../sdk/mocks/auth';
+import { MOCK_USER_PROFILE_LINEAGE_RESPONSE } from '../../sdk/mocks/auth';
 
 const MOCK_ENTROPY_SOURCE_IDS = [
   'MOCK_ENTROPY_SOURCE_ID',
@@ -442,7 +442,7 @@ describe('authentication/authentication-controller - getUserProfileMetaMetrics()
       metametrics,
     });
 
-    await expect(controller.getUserProfileMetaMetrics()).rejects.toThrow(
+    await expect(controller.getUserProfileLineage()).rejects.toThrow(
       expect.any(Error),
     );
   });
@@ -459,9 +459,9 @@ describe('authentication/authentication-controller - getUserProfileMetaMetrics()
       metametrics,
     });
 
-    const result = await controller.getUserProfileMetaMetrics();
+    const result = await controller.getUserProfileLineage();
     expect(result).toBeDefined();
-    expect(result).toStrictEqual(MOCK_USER_PROFILE_METAMETRICS_RESPONSE);
+    expect(result).toStrictEqual(MOCK_USER_PROFILE_LINEAGE_RESPONSE);
   });
 
   it('should throw error if wallet is locked', async () => {
@@ -481,7 +481,7 @@ describe('authentication/authentication-controller - getUserProfileMetaMetrics()
       metametrics,
     });
 
-    await expect(controller.getUserProfileMetaMetrics()).rejects.toThrow(
+    await expect(controller.getUserProfileLineage()).rejects.toThrow(
       expect.any(Error),
     );
   });
@@ -604,13 +604,13 @@ function createMockAuthenticationMessenger() {
  * @returns mock auth endpoints
  */
 function mockAuthenticationFlowEndpoints(params?: {
-  endpointFail: 'nonce' | 'login' | 'token' | 'metametrics';
+  endpointFail: 'nonce' | 'login' | 'token' | 'lineage';
 }) {
   const {
     mockNonceUrl,
     mockOAuth2TokenUrl,
     mockSrpLoginUrl,
-    mockUserProfileMetaMetricsUrl,
+    mockUserProfileLineageUrl,
   } = arrangeAuthAPIs({
     mockNonceUrl:
       params?.endpointFail === 'nonce' ? { status: 500 } : undefined,
@@ -618,15 +618,15 @@ function mockAuthenticationFlowEndpoints(params?: {
       params?.endpointFail === 'login' ? { status: 500 } : undefined,
     mockOAuth2TokenUrl:
       params?.endpointFail === 'token' ? { status: 500 } : undefined,
-    mockUserProfileMetaMetrics:
-      params?.endpointFail === 'metametrics' ? { status: 500 } : undefined,
+    mockUserProfileLineageUrl:
+      params?.endpointFail === 'lineage' ? { status: 500 } : undefined,
   });
 
   return {
     mockNonceUrl,
     mockOAuth2TokenUrl,
     mockSrpLoginUrl,
-    mockUserProfileMetaMetricsUrl,
+    mockUserProfileLineageUrl,
   };
 }
 
