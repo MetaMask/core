@@ -1,7 +1,11 @@
 import { KnownCaipNamespace } from '@metamask/utils';
 
 import type { NetworkEnablementControllerState } from './NetworkEnablementController';
-import { deriveKeys, isOnlyNetworkEnabledInNamespace } from './utils';
+import {
+  deriveKeys,
+  isOnlyNetworkEnabledInNamespace,
+  isPopularNetwork,
+} from './utils';
 
 describe('Utils', () => {
   describe('deriveKeys', () => {
@@ -12,7 +16,7 @@ describe('Utils', () => {
         expect(result).toStrictEqual({
           namespace: 'eip155',
           storageKey: '0x1',
-          caipId: 'eip155:1',
+          caipChainId: 'eip155:1',
           reference: '1',
         });
       });
@@ -23,7 +27,7 @@ describe('Utils', () => {
         expect(result).toStrictEqual({
           namespace: 'eip155',
           storageKey: '0x1',
-          caipId: 'eip155:1',
+          caipChainId: 'eip155:1',
           reference: '1',
         });
       });
@@ -34,7 +38,7 @@ describe('Utils', () => {
         expect(result).toStrictEqual({
           namespace: 'eip155',
           storageKey: '0xa4b1',
-          caipId: 'eip155:42161',
+          caipChainId: 'eip155:42161',
           reference: '42161',
         });
       });
@@ -47,7 +51,7 @@ describe('Utils', () => {
         expect(result).toStrictEqual({
           namespace: 'solana',
           storageKey: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
-          caipId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+          caipChainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
           reference: '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
         });
       });
@@ -58,7 +62,7 @@ describe('Utils', () => {
         expect(result).toStrictEqual({
           namespace: 'bip122',
           storageKey: 'bip122:000000000019d6689c085ae165831e93',
-          caipId: 'bip122:000000000019d6689c085ae165831e93',
+          caipChainId: 'bip122:000000000019d6689c085ae165831e93',
           reference: '000000000019d6689c085ae165831e93',
         });
       });
@@ -82,11 +86,8 @@ describe('Utils', () => {
           },
         });
 
-        const result = isOnlyNetworkEnabledInNamespace(
-          state,
-          KnownCaipNamespace.Eip155,
-          '0x1',
-        );
+        const derivedKeys = deriveKeys('0x1');
+        const result = isOnlyNetworkEnabledInNamespace(state, derivedKeys);
 
         expect(result).toBe(true);
       });
@@ -100,11 +101,8 @@ describe('Utils', () => {
           },
         });
 
-        const result = isOnlyNetworkEnabledInNamespace(
-          state,
-          KnownCaipNamespace.Eip155,
-          'eip155:1',
-        );
+        const derivedKeys = deriveKeys('eip155:1');
+        const result = isOnlyNetworkEnabledInNamespace(state, derivedKeys);
 
         expect(result).toBe(true);
       });
@@ -118,11 +116,8 @@ describe('Utils', () => {
           },
         });
 
-        const result = isOnlyNetworkEnabledInNamespace(
-          state,
-          KnownCaipNamespace.Eip155,
-          '0x1',
-        );
+        const derivedKeys = deriveKeys('0x1');
+        const result = isOnlyNetworkEnabledInNamespace(state, derivedKeys);
 
         expect(result).toBe(false);
       });
@@ -136,11 +131,8 @@ describe('Utils', () => {
           },
         });
 
-        const result = isOnlyNetworkEnabledInNamespace(
-          state,
-          KnownCaipNamespace.Eip155,
-          '0x1',
-        );
+        const derivedKeys = deriveKeys('0x1');
+        const result = isOnlyNetworkEnabledInNamespace(state, derivedKeys);
 
         expect(result).toBe(false);
       });
@@ -154,11 +146,8 @@ describe('Utils', () => {
           },
         });
 
-        const result = isOnlyNetworkEnabledInNamespace(
-          state,
-          KnownCaipNamespace.Eip155,
-          '0x1',
-        );
+        const derivedKeys = deriveKeys('0x1');
+        const result = isOnlyNetworkEnabledInNamespace(state, derivedKeys);
 
         expect(result).toBe(false);
       });
@@ -173,11 +162,10 @@ describe('Utils', () => {
           },
         });
 
-        const result = isOnlyNetworkEnabledInNamespace(
-          state,
-          KnownCaipNamespace.Solana,
+        const derivedKeys = deriveKeys(
           'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
         );
+        const result = isOnlyNetworkEnabledInNamespace(state, derivedKeys);
 
         expect(result).toBe(true);
       });
@@ -190,11 +178,10 @@ describe('Utils', () => {
           },
         });
 
-        const result = isOnlyNetworkEnabledInNamespace(
-          state,
-          KnownCaipNamespace.Solana,
+        const derivedKeys = deriveKeys(
           'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
         );
+        const result = isOnlyNetworkEnabledInNamespace(state, derivedKeys);
 
         expect(result).toBe(false);
       });
@@ -207,104 +194,98 @@ describe('Utils', () => {
           },
         });
 
-        const result = isOnlyNetworkEnabledInNamespace(
-          state,
-          KnownCaipNamespace.Solana,
+        const derivedKeys = deriveKeys(
           'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
         );
+        const result = isOnlyNetworkEnabledInNamespace(state, derivedKeys);
+
+        expect(result).toBe(false);
+      });
+
+      it('returns false when target network is not the only enabled one', () => {
+        const state = createMockState({
+          [KnownCaipNamespace.Solana]: {
+            'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': false,
+            'solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z': true,
+          },
+        });
+
+        const derivedKeys = deriveKeys(
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+        );
+        const result = isOnlyNetworkEnabledInNamespace(state, derivedKeys);
 
         expect(result).toBe(false);
       });
     });
 
-    describe('edge cases', () => {
-      it('returns false when namespace does not exist in state', () => {
-        const state = createMockState({
-          [KnownCaipNamespace.Eip155]: {
-            '0x1': true,
-          },
-        });
-
-        const result = isOnlyNetworkEnabledInNamespace(
-          state,
-          KnownCaipNamespace.Solana,
-          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
-        );
-
-        expect(result).toBe(false);
-      });
-
-      it('returns false when chain ID namespace does not match provided namespace', () => {
-        const state = createMockState({
-          [KnownCaipNamespace.Eip155]: {
-            '0x1': true,
-          },
-          [KnownCaipNamespace.Solana]: {
-            'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': true,
-          },
-        });
-
-        // Trying to check EVM chain ID against Solana namespace
-        const result = isOnlyNetworkEnabledInNamespace(
-          state,
-          KnownCaipNamespace.Solana,
-          '0x1',
-        );
-
-        expect(result).toBe(false);
-      });
-
-      it('returns false when enabledNetworkMap is empty', () => {
+    describe('Non-existent namespace scenarios', () => {
+      it('returns false when namespace does not exist', () => {
         const state = createMockState({});
 
-        const result = isOnlyNetworkEnabledInNamespace(
-          state,
-          KnownCaipNamespace.Eip155,
-          '0x1',
-        );
+        const derivedKeys = deriveKeys('0x1');
+        const result = isOnlyNetworkEnabledInNamespace(state, derivedKeys);
 
         expect(result).toBe(false);
       });
 
-      it('returns false when namespace exists but has no networks', () => {
+      it('returns false when namespace exists but is empty', () => {
         const state = createMockState({
           [KnownCaipNamespace.Eip155]: {},
         });
 
-        const result = isOnlyNetworkEnabledInNamespace(
-          state,
-          KnownCaipNamespace.Eip155,
-          '0x1',
-        );
+        const derivedKeys = deriveKeys('0x1');
+        const result = isOnlyNetworkEnabledInNamespace(state, derivedKeys);
 
         expect(result).toBe(false);
       });
     });
 
-    describe('hex to CAIP ID conversion matching', () => {
-      it('matches hex chain ID to equivalent CAIP format correctly', () => {
+    describe('Cross-format compatibility', () => {
+      it('should return consistent results for hex and CAIP formats of the same network', () => {
         const state = createMockState({
           [KnownCaipNamespace.Eip155]: {
-            '0xa4b1': true, // Arbitrum One
-            '0x1': false,
+            '0x1': true,
+            '0xa': false,
+            '0xa4b1': false,
           },
         });
 
-        // Both should match the same network (Arbitrum One)
-        const hexResult = isOnlyNetworkEnabledInNamespace(
-          state,
-          KnownCaipNamespace.Eip155,
-          '0xa4b1',
-        );
-        const caipResult = isOnlyNetworkEnabledInNamespace(
-          state,
-          KnownCaipNamespace.Eip155,
-          'eip155:42161',
-        );
+        const hexKeys = deriveKeys('0x1');
+        const hexResult = isOnlyNetworkEnabledInNamespace(state, hexKeys);
+
+        const caipKeys = deriveKeys('eip155:1');
+        const caipResult = isOnlyNetworkEnabledInNamespace(state, caipKeys);
 
         expect(hexResult).toBe(true);
         expect(caipResult).toBe(true);
+        expect(hexResult).toBe(caipResult);
       });
+    });
+  });
+
+  describe('isPopularNetwork', () => {
+    it('returns true for popular EVM networks', () => {
+      // Test with Ethereum mainnet (chain ID 1)
+      expect(isPopularNetwork('1')).toBe(true);
+
+      // Test with Polygon mainnet (chain ID 137)
+      expect(isPopularNetwork('137')).toBe(true);
+    });
+
+    it('returns false for non-popular EVM networks', () => {
+      // Test with a custom/test network
+      expect(isPopularNetwork('999999')).toBe(false);
+    });
+
+    it('returns false for non-decimal references (like Bitcoin hashes)', () => {
+      // Test with Bitcoin block hash reference
+      expect(isPopularNetwork('000000000019d6689c085ae165831e93')).toBe(false);
+    });
+
+    it('returns false for invalid references', () => {
+      // Test with completely invalid reference
+      expect(isPopularNetwork('invalid-reference')).toBe(false);
     });
   });
 });

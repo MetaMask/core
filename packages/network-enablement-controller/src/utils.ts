@@ -8,7 +8,18 @@ import {
   parseCaipChainId,
 } from '@metamask/utils';
 
+import { POPULAR_NETWORKS } from './constants';
 import type { NetworkEnablementControllerState } from './NetworkEnablementController';
+
+/**
+ * Represents the parsed keys derived from a chain ID.
+ */
+export type DerivedKeys = {
+  namespace: CaipNamespace;
+  storageKey: Hex | CaipChainId;
+  caipChainId: CaipChainId;
+  reference: string;
+};
 
 /**
  * Derives the namespace, storage key, and CAIP chain ID from a given chain ID.
@@ -22,18 +33,19 @@ import type { NetworkEnablementControllerState } from './NetworkEnablementContro
  * @returns An object containing namespace, storageKey, and caipId
  * @throws Error if the chain ID cannot be parsed
  */
-export function deriveKeys(chainId: Hex | CaipChainId) {
-  const caipId: CaipChainId = isCaipChainId(chainId)
+export function deriveKeys(chainId: Hex | CaipChainId): DerivedKeys {
+  const caipChainId = isCaipChainId(chainId)
     ? chainId
     : toEvmCaipChainId(chainId);
-  const { namespace, reference } = parseCaipChainId(caipId);
-  let storageKey: CaipChainId | Hex;
+
+  const { namespace, reference } = parseCaipChainId(caipChainId);
+  let storageKey;
   if (namespace === (KnownCaipNamespace.Eip155 as string)) {
     storageKey = isHexString(chainId) ? chainId : toHex(reference);
   } else {
-    storageKey = caipId;
+    storageKey = caipChainId;
   }
-  return { namespace, storageKey, caipId, reference };
+  return { namespace, storageKey, caipChainId, reference };
 }
 
 /**
@@ -43,30 +55,17 @@ export function deriveKeys(chainId: Hex | CaipChainId) {
  * This method is used to prevent the last network in a namespace from being removed.
  *
  * @param state - The current controller state
- * @param namespace - The namespace to check
- * @param chainIdToCheck - The chain ID to check if it's the only enabled network
+ * @param derivedKeys - The parsed keys object containing namespace and storageKey
  * @returns True if the network is the only enabled network in the namespace, false otherwise
  */
 export function isOnlyNetworkEnabledInNamespace(
   state: NetworkEnablementControllerState,
-  namespace: CaipNamespace,
-  chainIdToCheck: Hex | CaipChainId,
+  derivedKeys: DerivedKeys,
 ): boolean {
+  const { namespace, storageKey } = derivedKeys;
+
   // Early return if namespace doesn't exist
   if (!state.enabledNetworkMap[namespace]) {
-    return false;
-  }
-
-  // Parse the chain ID to get the storage key
-  const caipId = isCaipChainId(chainIdToCheck)
-    ? chainIdToCheck
-    : toEvmCaipChainId(chainIdToCheck);
-
-  const { namespace: parsedNamespace, storageKey: targetStorageKey } =
-    deriveKeys(caipId);
-
-  // Early return if namespaces don't match
-  if (parsedNamespace !== namespace) {
     return false;
   }
 
@@ -80,9 +79,25 @@ export function isOnlyNetworkEnabledInNamespace(
   // Check if there's exactly one enabled network and it matches our target
   if (enabledNetworks.length === 1) {
     const [onlyEnabledKey] = enabledNetworks[0];
-    return onlyEnabledKey === targetStorageKey;
+    return onlyEnabledKey === storageKey;
   }
 
   // Return false if there are zero or multiple enabled networks
   return false;
+}
+
+/**
+ * Checks if a network is considered popular based on its reference.
+ *
+ * @param reference - The network reference (typically the chain ID reference part)
+ * @returns True if the network is popular, false otherwise
+ */
+export function isPopularNetwork(reference: string): boolean {
+  try {
+    return POPULAR_NETWORKS.includes(toHex(reference));
+  } catch {
+    // If toHex fails (e.g., for non-decimal references like Bitcoin hashes),
+    // the network is not popular
+    return false;
+  }
 }

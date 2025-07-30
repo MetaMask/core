@@ -4,7 +4,7 @@ import type {
   ControllerStateChangeEvent,
   RestrictedMessenger,
 } from '@metamask/base-controller';
-import { BuiltInNetworkName, ChainId, toHex } from '@metamask/controller-utils';
+import { BuiltInNetworkName, ChainId } from '@metamask/controller-utils';
 import type { MultichainNetworkControllerGetStateAction } from '@metamask/multichain-network-controller';
 import type {
   NetworkControllerGetStateAction,
@@ -13,11 +13,14 @@ import type {
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
 import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
-import { KnownCaipNamespace, parseCaipChainId } from '@metamask/utils';
+import { KnownCaipNamespace } from '@metamask/utils';
 
-import { POPULAR_NETWORKS } from './constants';
 import { SolScope } from './types';
-import { deriveKeys, isOnlyNetworkEnabledInNamespace } from './utils';
+import {
+  deriveKeys,
+  isOnlyNetworkEnabledInNamespace,
+  isPopularNetwork,
+} from './utils';
 
 const controllerName = 'NetworkEnablementController';
 
@@ -32,7 +35,9 @@ export type NetworksInfo = {
 };
 
 /**
- * A map of enabled networks by namespace and chain id.
+ * A map of enabled networks by CAIP namespace and chain ID.
+ * For EIP-155 networks, the keys are Hex chain IDs.
+ * For other networks, the keys are CAIP chain IDs.
  */
 type EnabledMap = Record<CaipNamespace, Record<CaipChainId | Hex, boolean>>;
 
@@ -185,13 +190,19 @@ export class NetworkEnablementController extends BaseController<
    * - A CAIP-2 chain ID (e.g., 'eip155:1' for Ethereum mainnet, 'solana:mainnet' for Solana)
    */
   enableNetwork(chainId: Hex | CaipChainId): void {
-    const { namespace, storageKey, caipId } = deriveKeys(chainId);
+    const { namespace, storageKey, reference } = deriveKeys(chainId);
 
-    const isPopularNetwork = this.#checkIfPopularNetwork(caipId);
+    const isPopular = isPopularNetwork(reference);
 
     this.update((s) => {
+      // if the namespace bucket does not exist, return
+      // new nemespace are added only when a new network is added
+      if (!s.enabledNetworkMap[namespace]) {
+        return;
+      }
+
       // If enabling a non-popular network, disable all networks in the same namespace
-      if (!isPopularNetwork) {
+      if (!isPopular) {
         // disable all networks in the same namespace
         Object.keys(s.enabledNetworkMap[namespace]).forEach((key) => {
           s.enabledNetworkMap[namespace][key as CaipChainId | Hex] = false;
@@ -199,8 +210,8 @@ export class NetworkEnablementController extends BaseController<
       } else {
         // disable all custom networks
         Object.keys(s.enabledNetworkMap[namespace]).forEach((key) => {
-          const { caipId: CaipChainId } = deriveKeys(key as CaipChainId);
-          if (!this.#checkIfPopularNetwork(CaipChainId)) {
+          const { reference: keyReference } = deriveKeys(key as CaipChainId);
+          if (!isPopularNetwork(keyReference)) {
             s.enabledNetworkMap[namespace][key as CaipChainId | Hex] = false;
           }
         });
@@ -224,9 +235,10 @@ export class NetworkEnablementController extends BaseController<
    * - A CAIP-2 chain ID (e.g., 'eip155:1' for Ethereum mainnet, 'solana:mainnet' for Solana)
    */
   disableNetwork(chainId: Hex | CaipChainId): void {
-    const { namespace, storageKey } = deriveKeys(chainId);
+    const derivedKeys = deriveKeys(chainId);
+    const { namespace, storageKey } = derivedKeys;
 
-    if (isOnlyNetworkEnabledInNamespace(this.state, namespace, chainId)) {
+    if (isOnlyNetworkEnabledInNamespace(this.state, derivedKeys)) {
       throw new Error('Cannot disable the last remaining enabled network');
     }
 
@@ -263,11 +275,12 @@ export class NetworkEnablementController extends BaseController<
    * @param chainId - The chain ID to remove (Hex or CAIP-2 format)
    */
   #removeNetworkEntry(chainId: Hex | CaipChainId): void {
-    const { namespace, storageKey } = deriveKeys(chainId);
+    const derivedKeys = deriveKeys(chainId);
+    const { namespace, storageKey } = derivedKeys;
 
     this.update((s) => {
       // fallback and enable ethereum mainnet
-      if (isOnlyNetworkEnabledInNamespace(this.state, namespace, chainId)) {
+      if (isOnlyNetworkEnabledInNamespace(this.state, derivedKeys)) {
         s.enabledNetworkMap[namespace][ChainId[BuiltInNetworkName.Mainnet]] =
           true;
       }
@@ -276,21 +289,6 @@ export class NetworkEnablementController extends BaseController<
         delete s.enabledNetworkMap[namespace][storageKey];
       }
     });
-  }
-
-  /**
-   * Checks if a network is considered a popular network.
-   *
-   * Popular networks are predefined networks that are commonly used and trusted.
-   * When enabling a non-popular network, the system switches to exclusive mode
-   * (only one network enabled at a time).
-   *
-   * @param caipId - The chain ID to check (can be Hex or CAIP-2 format)
-   * @returns True if the network is popular, false otherwise
-   */
-  #checkIfPopularNetwork(caipId: CaipChainId): boolean {
-    const { reference } = parseCaipChainId(caipId);
-    return POPULAR_NETWORKS.includes(toHex(reference));
   }
 
   /**
@@ -303,7 +301,7 @@ export class NetworkEnablementController extends BaseController<
    * @param chainId - The chain ID of the network being added (Hex or CAIP-2 format)
    */
   #onAddNetwork(chainId: Hex | CaipChainId): void {
-    const { namespace, storageKey, caipId } = deriveKeys(chainId);
+    const { namespace, storageKey, reference } = deriveKeys(chainId);
 
     this.update((s) => {
       // Ensure the namespace bucket exists
@@ -311,7 +309,7 @@ export class NetworkEnablementController extends BaseController<
 
       // If adding a non-popular network, disable all other networks in the same namespace
       // This implements exclusive mode where only one non-popular network can be active
-      if (!this.#checkIfPopularNetwork(caipId)) {
+      if (!isPopularNetwork(reference)) {
         Object.keys(s.enabledNetworkMap[namespace]).forEach((key) => {
           s.enabledNetworkMap[namespace][key as CaipChainId | Hex] = false;
         });

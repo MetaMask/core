@@ -1,14 +1,9 @@
-import { toHex } from '@metamask/controller-utils';
-import { toEvmCaipChainId } from '@metamask/multichain-network-controller';
 import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
-import {
-  isHexString,
-  parseCaipChainId,
-  KnownCaipNamespace,
-} from '@metamask/utils';
+import { KnownCaipNamespace } from '@metamask/utils';
 import { createSelector } from 'reselect';
 
 import type { NetworkEnablementControllerState } from './NetworkEnablementController';
+import { deriveKeys } from './utils';
 
 /**
  * Base selector to get the enabled network map from the controller state.
@@ -32,27 +27,13 @@ export const selectEnabledNetworkMap = (
  */
 export const selectIsNetworkEnabled = (chainId: Hex | CaipChainId) =>
   createSelector(selectEnabledNetworkMap, (enabledNetworkMap) => {
-    try {
-      const caipId: CaipChainId = isHexString(chainId)
-        ? toEvmCaipChainId(chainId as Hex)
-        : (chainId as CaipChainId);
-      const { namespace, reference } = parseCaipChainId(caipId);
-      let storageKey: string;
-      if (namespace === (KnownCaipNamespace.Eip155 as string)) {
-        storageKey = isHexString(chainId)
-          ? (chainId as string)
-          : toHex(reference);
-      } else {
-        storageKey = caipId;
-      }
-      return (
-        namespace in enabledNetworkMap &&
-        storageKey in enabledNetworkMap[namespace] &&
-        (enabledNetworkMap[namespace] as Record<string, boolean>)[storageKey]
-      );
-    } catch {
-      return false;
-    }
+    const { namespace, storageKey } = deriveKeys(chainId);
+
+    return (
+      namespace in enabledNetworkMap &&
+      storageKey in enabledNetworkMap[namespace] &&
+      enabledNetworkMap[namespace][storageKey]
+    );
   });
 
 /**
@@ -86,7 +67,7 @@ export const selectAllEnabledNetworks = createSelector(
   (enabledNetworkMap) => {
     return (Object.keys(enabledNetworkMap) as CaipNamespace[]).reduce(
       (acc, ns) => {
-        acc[ns] = Object.entries(enabledNetworkMap[ns] ?? {})
+        acc[ns] = Object.entries(enabledNetworkMap[ns])
           .filter(([, enabled]) => enabled)
           .map(([id]) => id);
         return acc;

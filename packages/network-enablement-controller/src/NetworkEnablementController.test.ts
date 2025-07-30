@@ -320,9 +320,59 @@ describe('NetworkEnablementController', () => {
     it('handles enabling a network that is not added', () => {
       const { controller } = setupController();
 
-      expect(() =>
-        controller.enableNetwork('bip122:000000000019d6689c085ae165831e93'),
-      ).toThrow('Invalid character');
+      controller.enableNetwork('bip122:000000000019d6689c085ae165831e93');
+
+      expect(controller.state).toStrictEqual({
+        enabledNetworkMap: {
+          [KnownCaipNamespace.Eip155]: {
+            [ChainId[BuiltInNetworkName.Mainnet]]: true,
+            [ChainId[BuiltInNetworkName.LineaMainnet]]: true,
+            [ChainId[BuiltInNetworkName.BaseMainnet]]: true,
+          },
+          [KnownCaipNamespace.Solana]: {
+            [SolScope.Mainnet]: true,
+          },
+        },
+      });
+    });
+
+    it('handle no namespace bucket', async () => {
+      const { controller, messenger } = setupController();
+
+      // add new network with no namespace bucket
+      messenger.publish('NetworkController:networkAdded', {
+        // @ts-expect-error Intentionally passing an invalid chain ID
+        chainId: 'bip122:000000000019d6689c085ae165831e93',
+        blockExplorerUrls: [],
+        defaultRpcEndpointIndex: 0,
+        name: 'Bitcoin',
+        nativeCurrency: 'BTC',
+        rpcEndpoints: [
+          {
+            url: 'https://api.blockcypher.com/v1/btc/main',
+            networkClientId: 'id',
+            type: RpcEndpointType.Custom,
+          },
+        ],
+      });
+
+      await advanceTime({ clock, duration: 1 });
+
+      expect(controller.state).toStrictEqual({
+        enabledNetworkMap: {
+          [KnownCaipNamespace.Eip155]: {
+            [ChainId[BuiltInNetworkName.Mainnet]]: true,
+            [ChainId[BuiltInNetworkName.LineaMainnet]]: true,
+            [ChainId[BuiltInNetworkName.BaseMainnet]]: true,
+          },
+          [KnownCaipNamespace.Solana]: {
+            [SolScope.Mainnet]: true,
+          },
+          [KnownCaipNamespace.Bip122]: {
+            'bip122:000000000019d6689c085ae165831e93': true,
+          },
+        },
+      });
     });
   });
 
