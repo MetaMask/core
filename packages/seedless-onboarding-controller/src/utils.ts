@@ -48,8 +48,8 @@ export function decodeJWTToken(token: string): DecodedBaseJWTToken {
  */
 export function serializeAuthKeyPair(authKeyPair: KeyPair): string {
   return JSON.stringify({
-    publicKey: bytesToBase64(authKeyPair.pk),
-    privateKey: bigIntToHex(authKeyPair.sk),
+    pk: bytesToBase64(authKeyPair.pk),
+    sk: bigIntToHex(authKeyPair.sk),
   });
 }
 
@@ -60,9 +60,9 @@ export function serializeAuthKeyPair(authKeyPair: KeyPair): string {
  * @returns The deserialized authentication key pair.
  */
 export function deserializeAuthKeyPair(authKeyPair: string): KeyPair {
-  const { publicKey, privateKey } = JSON.parse(authKeyPair);
+  const { pk, sk } = JSON.parse(authKeyPair);
   return {
-    pk: base64ToBytes(publicKey),
-    sk: hexToBigInt(privateKey),
+    pk: base64ToBytes(pk),
+    sk: hexToBigInt(sk),
   };
 }

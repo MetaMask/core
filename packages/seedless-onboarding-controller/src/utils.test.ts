@@ -191,13 +191,13 @@ describe('utils', () => {
 
       const serialized = serializeAuthKeyPair(authKeyPair);
 
-      expect(serialized).toBe('{"publicKey":"AQID","privateKey":"0x7b"}');
+      expect(serialized).toBe('{"pk":"AQID","sk":"0x7b"}');
     });
   });
 
   describe('deserializAuthKeyPair', () => {
     it('should deserialize the authentication key pair correctly', () => {
-      const serialized = '{"publicKey":"AQID","privateKey":"0x7b"}';
+      const serialized = '{"pk":"AQID","sk":"0x7b"}';
       const deserialized = deserializeAuthKeyPair(serialized);
       expect(deserialized).toStrictEqual({
         pk: new Uint8Array([1, 2, 3]),
