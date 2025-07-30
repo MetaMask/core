@@ -29,6 +29,10 @@ import type {
   MultichainAssetsControllerGetStateAction,
   MultichainAssetsControllerAccountAssetListUpdatedEvent,
 } from '../MultichainAssetsController';
+import type {
+  AccountActivityServiceBalanceUpdatedEvent,
+  IncomingBalanceUpdate,
+} from '@metamask/backend-platform';
 
 const controllerName = 'MultichainBalancesController';
 
@@ -104,7 +108,8 @@ type AllowedEvents =
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent
   | AccountsControllerAccountBalancesUpdatesEvent
-  | MultichainAssetsControllerAccountAssetListUpdatedEvent;
+  | MultichainAssetsControllerAccountAssetListUpdatedEvent
+  | AccountActivityServiceBalanceUpdatedEvent;
 /**
  * Messenger type for the MultichainBalancesController.
  */
@@ -185,6 +190,19 @@ export class MultichainBalancesController extends BaseController<
         await this.#handleOnAccountAssetListUpdated(newAccountAssets);
       },
     );
+
+    // Subscribe to AccountActivityService balance updates
+    try {
+      this.messagingSystem.subscribe(
+        'AccountActivityService:balanceUpdated',
+        (balances: IncomingBalanceUpdate[]) => {
+          this.#handleOnAccountActivityBalancesUpdated(balances);
+        },
+      );
+    } catch (error) {
+      // AccountActivityService might not be available in all environments
+      console.log('AccountActivityService not available for balance updates:', error);
+    }
   }
 
   /**
@@ -381,6 +399,49 @@ export class MultichainBalancesController extends BaseController<
           }
         },
       );
+    });
+  }
+
+  /**
+   * Handles balance updates received from the AccountActivityService.
+   * Converts IncomingBalanceUpdate[] format to the controller's format.
+   *
+   * @param balanceUpdates - The balance updates from AccountActivityService.
+   */
+  #handleOnAccountActivityBalancesUpdated(
+    balanceUpdates: IncomingBalanceUpdate[],
+  ): void {
+    this.update((state: Draft<MultichainBalancesControllerState>) => {
+      for (const balance of balanceUpdates) {
+        // Validate required fields
+        if (!balance.address || !balance.asset?.type || !balance.asset?.unit || balance.asset?.amount === undefined) {
+          console.warn('Skipping invalid balance update:', balance);
+          continue;
+        }
+
+        // Try to find the account ID from the address
+        let accountId: string | undefined;
+        const accounts = this.#listMultichainAccounts();
+        const account = accounts.find(acc => acc.address.toLowerCase() === balance.address.toLowerCase());
+        
+        if (account) {
+          accountId = account.id;
+        } else {
+          // Skip if we can't find the account
+          continue;
+        }
+
+        // Initialize account balances if needed
+        if (!state.balances[accountId]) {
+          state.balances[accountId] = {};
+        }
+
+        // Add the balance for this asset
+        state.balances[accountId][balance.asset.type] = {
+          unit: balance.asset.unit,
+          amount: balance.asset.amount,
+        };
+      }
     });
   }
 

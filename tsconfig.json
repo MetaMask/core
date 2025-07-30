@@ -13,6 +13,7 @@
     { "path": "./packages/app-metadata-controller" },
     { "path": "./packages/approval-controller" },
     { "path": "./packages/assets-controllers" },
+    { "path": "./packages/backend-platform" },
     { "path": "./packages/base-controller" },
     { "path": "./packages/bridge-controller" },
     { "path": "./packages/bridge-status-controller" },
