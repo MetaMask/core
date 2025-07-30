@@ -304,6 +304,7 @@ export class WebSocketService {
   #reconnectAttempts = 0;
   #reconnectTimer: NodeJS.Timeout | null = null;
   #lastDisconnectTime: number | null = null;
+  #manualDisconnectPreserveSession: boolean = false; // Track if manual disconnect should preserve session
 
   // Track the current connection promise to handle concurrent connection attempts
   #connectionPromise: Promise<void> | null = null;
@@ -465,6 +466,10 @@ export class WebSocketService {
    * Establishes WebSocket connection
    */
   async connect(): Promise<void> {
+    console.log('🔥 WebSocket connect() called, current state:', this.#state);
+    // Reset any manual disconnect flags
+    this.#manualDisconnectPreserveSession = false;
+    
     // If already connected, return immediately
     if (this.#state === WebSocketState.CONNECTED) {
       console.log(`Connect called but already connected - skipping`);
@@ -517,6 +522,10 @@ export class WebSocketService {
     }
 
     console.log(`Manual disconnect initiated - closing WebSocket connection`);
+    
+    // Track if this manual disconnect should preserve session
+    this.#manualDisconnectPreserveSession = !clearSession;
+    
     this.#setState(WebSocketState.DISCONNECTING);
     this.#clearTimers();
     this.#rejectPendingRequests(new Error('WebSocket disconnected'));
@@ -1050,10 +1059,15 @@ export class WebSocketService {
     console.log('Setting up WebSocket event handlers for operational phase');
 
     this.#ws.onmessage = (event: any) => {
+      console.log('🔥 WebSocket onmessage received:', event.data);
       // Fast path: Optimized parsing for mobile real-time performance
       const message = this.#parseMessage(event.data);
+      console.log('🔥 WebSocket parsed message:', message);
       if (message) {
+        console.log('🔥 WebSocket calling handleMessage with:', message);
         this.#handleMessage(message);
+      } else {
+        console.log('🔥 WebSocket message parsing failed for:', event.data);
       }
       // Note: Parse errors are silently ignored for mobile performance
     };
@@ -1143,10 +1157,21 @@ export class WebSocketService {
       const notificationMessage = message as ServerNotificationMessage;
       const subscriptionId = notificationMessage.subscriptionId;
       
+      console.log('🔥 WebSocket handling server notification:', {
+        subscriptionId,
+        channel: notificationMessage.channel,
+        hasData: hasData,
+        subscriptionsCount: this.#subscriptions.size
+      });
+      
       // Fast path: Direct callback routing (zero-allocation lookup)
-      this.#subscriptions.forEach(namespaceSubscriptions => {
+      let callbackFound = false;
+      this.#subscriptions.forEach((namespaceSubscriptions, namespace) => {
+        console.log(`🔥 WebSocket checking namespace '${namespace}' with ${namespaceSubscriptions.size} subscriptions`);
         const subscription = namespaceSubscriptions.get(subscriptionId);
         if (subscription) {
+          callbackFound = true;
+          console.log('🔥 WebSocket found subscription callback, executing...');
           const callback = subscription.callback;
           // Development: Full error handling
           if (process.env.NODE_ENV === 'development') {
@@ -1161,6 +1186,11 @@ export class WebSocketService {
           }
         }
       });
+      
+      if (!callbackFound) {
+        console.log(`🔥 WebSocket no subscription callback found for subscriptionId: ${subscriptionId}`);
+      }
+      
       return;
     }
   }
@@ -1194,8 +1224,9 @@ export class WebSocketService {
     console.log(`WebSocket closed: ${event.code} - ${closeReason} (reason: ${event.reason || 'none'}) - current state: ${this.#state}`);
 
     if (this.#state === WebSocketState.DISCONNECTING) {
-      // Manual disconnect - sessionId was already cleared in disconnect()
+      // Manual disconnect - sessionId was already cleared in disconnect() if clearSession=true
       this.#setState(WebSocketState.DISCONNECTED);
+      this.#manualDisconnectPreserveSession = false; // Reset flag
       // Note: Event system removed - use direct service integration
       return;
     }
@@ -1203,6 +1234,13 @@ export class WebSocketService {
     // For unexpected disconnects, keep sessionId for reconnection
     // First, always update the state to reflect that we're disconnected
     this.#setState(WebSocketState.DISCONNECTED);
+    
+    // Check if this was a manual disconnect that should preserve session
+    if (this.#manualDisconnectPreserveSession && event.code === 1000) {
+      console.log(`🌙 Manual disconnect with session preservation - keeping session: ${this.#sessionId || 'none'}`);
+      this.#manualDisconnectPreserveSession = false; // Reset flag
+      return;
+    }
     
     // Check if we should attempt reconnection based on close code
     const shouldReconnect = this.#shouldReconnectOnClose(event.code);
@@ -1225,6 +1263,9 @@ export class WebSocketService {
       this.#lastError = `Non-recoverable close code: ${event.code} - ${closeReason}`;
       // Note: Event system removed - use direct service integration
     }
+    
+    // Reset the manual disconnect flag in all cases
+    this.#manualDisconnectPreserveSession = false;
   }
 
   /**
