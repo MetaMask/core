@@ -98,6 +98,31 @@ describe('user-storage/account-syncing/controller-integration - saveInternalAcco
 
     expect(mockPerformBatchSetStorage).not.toHaveBeenCalled();
   });
+
+  it('does not save internal accounts to user storage if multichain account syncing is enabled', async () => {
+    const { controller, options, entropySourceIds } = await arrangeMocks();
+
+    jest
+      .spyOn(controller, 'getIsMultichainAccountSyncingEnabled')
+      .mockReturnValue(true);
+
+    const mockPerformBatchSetStorage = jest
+      .spyOn(controller, 'performBatchSetStorage')
+      .mockImplementation(() => Promise.resolve());
+
+    jest
+      .spyOn(AccountSyncingUtils, 'getInternalAccountsList')
+      .mockResolvedValue(
+        MOCK_INTERNAL_ACCOUNTS.ALL as unknown as InternalAccount[],
+      );
+
+    await AccountSyncingControllerIntegrationModule.saveInternalAccountsListToUserStorage(
+      options,
+      entropySourceIds[0],
+    );
+
+    expect(mockPerformBatchSetStorage).not.toHaveBeenCalled();
+  });
 });
 
 describe('user-storage/account-syncing/controller-integration - syncInternalAccountsWithUserStorage() tests', () => {
@@ -293,6 +318,47 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
       numberOfAddedAccounts,
     );
     expect(mockAPI.mockEndpointBatchDeleteUserStorage.isDone()).toBe(true);
+  });
+
+  it('never saves accounts in the user storage if multichain account syncing is enabled', async () => {
+    const { options, entropySourceIds, controller } = await arrangeMocks({
+      messengerMockOptions: {
+        accounts: {
+          accountsList:
+            MOCK_INTERNAL_ACCOUNTS.ONE as unknown as InternalAccount[],
+        },
+      },
+    });
+
+    options.getUserStorageControllerInstance = () => controller;
+    jest
+      .spyOn(controller, 'getIsMultichainAccountSyncingEnabled')
+      .mockReturnValue(true);
+
+    const mockAPI = {
+      mockEndpointGetUserStorage:
+        await mockEndpointGetUserStorageAllFeatureEntries(
+          USER_STORAGE_FEATURE_NAMES.accounts,
+          {
+            status: 200,
+            body: await createMockUserStorageEntries([]),
+          },
+        ),
+      mockEndpointBatchUpsertUserStorage: mockEndpointBatchUpsertUserStorage(
+        USER_STORAGE_FEATURE_NAMES.accounts,
+      ),
+    };
+
+    await AccountSyncingControllerIntegrationModule.syncInternalAccountsWithUserStorage(
+      {},
+      options,
+      entropySourceIds[0],
+    );
+
+    mockAPI.mockEndpointGetUserStorage.done();
+
+    expect(mockAPI.mockEndpointGetUserStorage.isDone()).toBe(true);
+    expect(mockAPI.mockEndpointBatchUpsertUserStorage.isDone()).toBe(false);
   });
 
   it('manages multi-SRP accounts correctly', async () => {
@@ -1168,6 +1234,27 @@ describe('user-storage/account-syncing/controller-integration - saveInternalAcco
     expect(mockAPI.mockEndpointUpsertUserStorage.isDone()).toBe(true);
   });
 
+  it('does not save an internal account to user storage if multichain account syncing is enabled', async () => {
+    const { options, controller } = await arrangeMocks();
+
+    jest
+      .spyOn(controller, 'getIsMultichainAccountSyncingEnabled')
+      .mockReturnValue(true);
+
+    const mockAPI = {
+      mockEndpointUpsertUserStorage: mockEndpointUpsertUserStorage(
+        `${USER_STORAGE_FEATURE_NAMES.accounts}.${MOCK_INTERNAL_ACCOUNTS.ONE[0].address}`,
+      ),
+    };
+
+    await AccountSyncingControllerIntegrationModule.saveInternalAccountToUserStorage(
+      MOCK_INTERNAL_ACCOUNTS.ONE[0] as unknown as InternalAccount,
+      options,
+    );
+
+    expect(mockAPI.mockEndpointUpsertUserStorage.isDone()).toBe(false);
+  });
+
   it('rejects if api call fails', async () => {
     const { options } = await arrangeMocks();
 
@@ -1257,6 +1344,36 @@ describe('user-storage/account-syncing/controller-integration - saveInternalAcco
 
       messengerMocks.baseMessenger.publish(
         'AccountsController:accountRenamed',
+        MOCK_INTERNAL_ACCOUNTS.ONE[0] as unknown as InternalAccount,
+      );
+
+      expect(mockSaveInternalAccountToUserStorage).not.toHaveBeenCalled();
+    });
+
+    it('does not save an internal account to user storage when the AccountsController:accountRenamed or AccountsController:accountAdded event are fired and multichain account syncing is enabled', async () => {
+      const { messengerMocks, controller } = await arrangeMocksForAccounts();
+
+      // We need to sync at least once before we listen for other controller events
+      await controller.setHasAccountSyncingSyncedAtLeastOnce(true);
+
+      jest
+        .spyOn(controller, 'getIsMultichainAccountSyncingEnabled')
+        .mockReturnValue(true);
+
+      const mockSaveInternalAccountToUserStorage = jest
+        .spyOn(
+          AccountSyncingControllerIntegrationModule,
+          'saveInternalAccountToUserStorage',
+        )
+        .mockImplementation();
+
+      messengerMocks.baseMessenger.publish(
+        'AccountsController:accountRenamed',
+        MOCK_INTERNAL_ACCOUNTS.ONE[0] as unknown as InternalAccount,
+      );
+
+      messengerMocks.baseMessenger.publish(
+        'AccountsController:accountAdded',
         MOCK_INTERNAL_ACCOUNTS.ONE[0] as unknown as InternalAccount,
       );
 

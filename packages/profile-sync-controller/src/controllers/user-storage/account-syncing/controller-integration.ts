@@ -31,6 +31,14 @@ export async function saveInternalAccountToUserStorage(
     const { getUserStorageControllerInstance } = options;
 
     if (
+      getUserStorageControllerInstance().getIsMultichainAccountSyncingEnabled()
+    ) {
+      // If multichain account syncing is enabled, we do not push account syncing V1 data anymore.
+      // AccountTreeController handles proper multichain account syncing
+      return;
+    }
+
+    if (
       !canPerformAccountSyncing(options) ||
       internalAccount.metadata.keyring.type !== String(KeyringTypes.hd) // sync only EVM accounts until we support multichain accounts
     ) {
@@ -85,6 +93,13 @@ export async function saveInternalAccountsListToUserStorage(
   entropySourceId: string,
 ): Promise<void> {
   const { getUserStorageControllerInstance } = options;
+  if (
+    getUserStorageControllerInstance().getIsMultichainAccountSyncingEnabled()
+  ) {
+    // If multichain account syncing is enabled, we do not push account syncing V1 data anymore.
+    // AccountTreeController handles proper multichain account syncing
+    return;
+  }
 
   const internalAccountsList = await getInternalAccountsList(
     options,
@@ -324,6 +339,14 @@ export async function syncInternalAccountsWithUserStorage(
 
       // Save the internal accounts list to the user storage
       if (internalAccountsToBeSavedToUserStorage.length) {
+        if (
+          getUserStorageControllerInstance().getIsMultichainAccountSyncingEnabled()
+        ) {
+          // If multichain account syncing is enabled, we do not push account syncing V1 data anymore.
+          // AccountTreeController handles proper multichain account syncing
+          return;
+        }
+
         await getUserStorageControllerInstance().performBatchSetStorage(
           USER_STORAGE_FEATURE_NAMES.accounts,
           internalAccountsToBeSavedToUserStorage.map((account) => [
