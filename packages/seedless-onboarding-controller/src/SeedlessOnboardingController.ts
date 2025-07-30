@@ -1708,8 +1708,11 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       !value ||
       typeof value !== 'object' ||
       !('toprfEncryptionKey' in value) ||
+      typeof value.toprfEncryptionKey !== 'string' ||
       !('toprfPwEncryptionKey' in value) ||
-      !('toprfAuthKeyPair' in value)
+      typeof value.toprfPwEncryptionKey !== 'string' ||
+      !('toprfAuthKeyPair' in value) ||
+      typeof value.toprfAuthKeyPair !== 'string'
     ) {
       throw new Error(SeedlessOnboardingControllerErrorMessage.VaultLocked);
     }
