@@ -18,6 +18,7 @@ import {
   EthScope,
   KeyringAccountEntropyTypeOption,
   SolAccountType,
+  SolMethod,
   SolScope,
 } from '@metamask/keyring-api';
 import type { KeyringObject } from '@metamask/keyring-controller';
@@ -152,7 +153,7 @@ const MOCK_SNAP_ACCOUNT_1: Bip44Account<InternalAccount> = {
       derivationPath: '',
     },
   },
-  methods: [...ETH_EOA_METHODS],
+  methods: [...Object.values(SolMethod)],
   type: SolAccountType.DataAccount,
   scopes: [SolScope.Mainnet],
   metadata: {
@@ -1155,7 +1156,7 @@ describe('AccountTreeController', () => {
       expect(newGroup).not.toBe(initialGroup);
     });
 
-    it('updates AccountsController selected account when selectedAccountGroup changes', () => {
+    it('updates AccountsController selected account (with EVM account) when selectedAccountGroup changes', () => {
       const { controller, messenger } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
         keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
@@ -1178,6 +1179,46 @@ describe('AccountTreeController', () => {
       expect(setSelectedAccountSpy).toHaveBeenCalledWith(
         'AccountsController:setSelectedAccount',
         expect.any(String),
+      );
+    });
+
+    it('updates AccountsController selected account (with non-EVM account) when selectedAccountGroup changes', () => {
+      const nonEvmAccount2 = {
+        ...MOCK_SNAP_ACCOUNT_1,
+        options: {
+          ...MOCK_SNAP_ACCOUNT_1.options,
+          entropy: {
+            ...MOCK_SNAP_ACCOUNT_1.options.entropy,
+            id: MOCK_HD_KEYRING_2.metadata.id, // Wallet 2.
+            groupIndex: 0, // Account 1
+          },
+        },
+      } as const;
+      const { controller, messenger } = setup({
+        accounts: [
+          MOCK_HD_ACCOUNT_1,
+          nonEvmAccount2, // Wallet 2 > Account 1.
+        ],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      const setSelectedAccountSpy = jest.spyOn(messenger, 'call');
+
+      controller.init();
+
+      const expectedWalletId2 = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_2.metadata.id,
+      );
+      const expectedGroupId2 = toMultichainAccountId(
+        expectedWalletId2,
+        nonEvmAccount2.options.entropy.groupIndex,
+      );
+
+      controller.setSelectedAccountGroup(expectedGroupId2);
+
+      expect(setSelectedAccountSpy).toHaveBeenLastCalledWith(
+        'AccountsController:setSelectedAccount',
+        nonEvmAccount2.id,
       );
     });
 
