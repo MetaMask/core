@@ -1,27 +1,84 @@
-import type { AccountWalletCategory } from '@metamask/account-api';
+import type {
+  AccountGroupType,
+  AccountWalletType,
+} from '@metamask/account-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { AccountTreeGroup, AccountTreeWallet } from '.';
-import type { AccountGroupObject } from './group';
+import type { AccountGroupObject, AccountGroupObjectOf } from './group';
 import type { AccountTreeControllerMessenger } from './types';
-import type {
-  AccountWalletCategoryMetadata,
-  AccountWalletObject,
-} from './wallet';
+import type { AccountGroupIdOf, AccountWalletIdOf } from './typing';
+import type { AccountWalletObjectOf } from './wallet';
 
-export type AccountTreeRuleResult = {
+export type RuleResult<
+  WalletType extends AccountWalletType,
+  GroupType extends AccountGroupType,
+> = {
   wallet: {
-    id: AccountTreeWallet['id'];
-    metadata: AccountWalletCategoryMetadata;
+    type: WalletType;
+    id: AccountWalletIdOf<WalletType>;
+    // Omit `name` since it will get computed after the tree is built.
+    metadata: Omit<AccountWalletObjectOf<WalletType>['metadata'], 'name'>;
   };
   group: {
-    id: AccountTreeGroup['id'];
+    type: GroupType;
+    id: AccountGroupIdOf<WalletType>;
+    // Omit `name` since it will get computed after the tree is built.
+    metadata: Omit<AccountGroupObjectOf<GroupType>['metadata'], 'name'>;
   };
 };
 
-export abstract class AccountTreeRule {
-  abstract readonly category: AccountWalletCategory;
+export type Rule<
+  WalletType extends AccountWalletType,
+  GroupType extends AccountGroupType,
+> = {
+  /**
+   * Account wallet type for this rule.
+   */
+  readonly walletType: WalletType;
 
+  /**
+   * Account group type for this rule.
+   */
+  readonly groupType: GroupType;
+
+  /**
+   * Applies the rule and check if the account matches.
+   *
+   * If the account matches, then the rule will return a {@link RuleResult} which means
+   * this account needs to be grouped within a wallet associated with this rule.
+   *
+   * If a wallet already exists for this account (based on {@link RuleResult}) then
+   * the account will be added to that wallet instance into its proper group (different for
+   * every wallets).
+   *
+   * @param account - The account to match.
+   * @returns A {@link RuleResult} if this account is part of that rule/wallet, returns
+   * `undefined` otherwise.
+   */
+  match(
+    account: InternalAccount,
+  ): RuleResult<WalletType, GroupType> | undefined;
+
+  /**
+   * Gets default name for a wallet.
+   *
+   * @param wallet - Wallet associated to this rule.
+   * @returns The default name for that wallet.
+   */
+  getDefaultAccountWalletName(
+    wallet: AccountWalletObjectOf<WalletType>,
+  ): string;
+
+  /**
+   * Gets default name for a group.
+   *
+   * @param group - Group associated to this rule.
+   * @returns The default name for that group.
+   */
+  getDefaultAccountGroupName(group: AccountGroupObjectOf<GroupType>): string;
+};
+
+export class BaseRule {
   protected readonly messenger: AccountTreeControllerMessenger;
 
   constructor(messenger: AccountTreeControllerMessenger) {
@@ -29,62 +86,18 @@ export abstract class AccountTreeRule {
   }
 
   /**
-   * Applies the rule and check if the account matches.
-   *
-   * If the account matches, then the rule will return a {@link AccountTreeRuleResult} which means
-   * this account needs to be grouped within a wallet associated with this rule.
-   *
-   * If a wallet already exists for this account (based on {@link AccountTreeRuleResult}) then
-   * the account will be added to that wallet instance into its proper group (different for
-   * every wallets).
-   *
-   * @param account - The account to match.
-   * @returns A {@link AccountTreeRuleResult} if this account is part of that rule/wallet, returns
-   * `undefined` otherwise.
-   */
-  abstract match(account: InternalAccount): AccountTreeRuleResult | undefined;
-
-  /**
-   * Gets default name for a wallet.
-   *
-   * @param wallet - Wallet associated to this rule.
-   * @param context - Rule context.
-   * @returns The default name for that wallet.
-   */
-  abstract getDefaultAccountWalletName(wallet: AccountWalletObject): string;
-
-  /**
    * Gets default name for a group.
    *
    * @param group - Group associated to this rule.
-   * @param context - Rule context.
    * @returns The default name for that group.
    */
-  abstract getDefaultAccountGroupName(group: AccountGroupObject): string;
+  getDefaultAccountGroupName(group: AccountGroupObject): string {
+    const account = this.messenger.call(
+      'AccountsController:getAccount',
+      // Type-wise, we are guaranteed to always have at least 1 account.
+      group.accounts[0],
+    );
 
-  #getAccount(id: string): InternalAccount {
-    const account = this.messenger.call('AccountsController:getAccount', id);
-
-    if (!account) {
-      throw new Error(`Unable to get account with ID: "${id}"`);
-    }
-    return account;
-  }
-
-  getAccountsFrom(group: AccountGroupObject): InternalAccount[] {
-    return group.accounts.map((id) => this.#getAccount(id));
-  }
-
-  getOnlyAccountFrom(group: AccountGroupObject): InternalAccount {
-    const accountIds = group.accounts;
-
-    if (accountIds.length === 0) {
-      throw new Error('Group contains no account');
-    }
-    if (accountIds.length > 1) {
-      throw new Error('Group contains more than 1 account');
-    }
-
-    return this.#getAccount(accountIds[0]);
+    return account?.metadata.name ?? ''; // Not sure what fallback name to use here..
   }
 }

@@ -1,4 +1,8 @@
-import { type AccountGroup, type AccountGroupId } from '@metamask/account-api';
+import type {
+  AccountGroupType,
+  MultichainAccountId,
+} from '@metamask/account-api';
+import type { AccountGroup, AccountGroupId } from '@metamask/account-api';
 import type { AccountId } from '@metamask/accounts-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
@@ -8,21 +12,68 @@ import type { AccountTreeWallet } from './wallet';
 export const DEFAULT_ACCOUNT_GROUP_NAME: string = 'Default';
 
 /**
- * Account group metadata.
+ * Type constraint for a {@link AccountGroupObject}. If one of its union-members
+ * does not match this contraint, {@link AccountGroupObject} will resolve
+ * to `never`.
  */
-export type AccountGroupMetadata = {
-  name: string;
+type IsAccountGroupObject<
+  Type extends {
+    type: AccountGroupType;
+    id: AccountGroupId;
+    accounts: AccountId[];
+    metadata: {
+      name: string;
+    };
+  },
+> = Type;
+
+/**
+ * Multichain-account group object.
+ */
+export type AccountGroupMultichainAccountObject = {
+  type: AccountGroupType.MultichainAccount;
+  id: MultichainAccountId;
+  // Blockchain Accounts (at least 1 account per multichain-accounts):
+  accounts: [AccountId, ...AccountId[]];
+  metadata: {
+    name: string;
+    entropy: {
+      groupIndex: number;
+    };
+  };
+};
+
+/**
+ * Multichain-account group object.
+ */
+export type AccountGroupSingleAccountObject = {
+  type: AccountGroupType.SingleAccount;
+  id: AccountGroupId;
+  // Blockchain Accounts (1 account per group):
+  accounts: [AccountId];
+  metadata: {
+    name: string;
+  };
 };
 
 /**
  * Account group object.
  */
-export type AccountGroupObject = {
-  id: AccountGroupId;
-  // Blockchain Accounts:
-  accounts: AccountId[];
-  metadata: AccountGroupMetadata;
-};
+export type AccountGroupObject = IsAccountGroupObject<
+  AccountGroupMultichainAccountObject | AccountGroupSingleAccountObject
+>;
+
+export type AccountGroupObjectOf<GroupType extends AccountGroupType> = Extract<
+  | {
+      type: AccountGroupType.MultichainAccount;
+      object: AccountGroupMultichainAccountObject;
+    }
+  | {
+      type: AccountGroupType.SingleAccount;
+      object: AccountGroupSingleAccountObject;
+    },
+  { type: GroupType }
+>['object'];
 
 /**
  * Account group coming from the {@link AccountTreeController}.
@@ -56,11 +107,15 @@ export class AccountTreeGroup implements AccountGroup<InternalAccount> {
     return this.#wallet;
   }
 
+  get type(): AccountGroupType {
+    return this.#group.type;
+  }
+
   get name(): string {
     return this.#group.metadata.name;
   }
 
-  getAccountIds(): InternalAccount['id'][] {
+  getAccountIds(): [InternalAccount['id'], ...InternalAccount['id'][]] {
     return this.#group.accounts;
   }
 
@@ -84,13 +139,11 @@ export class AccountTreeGroup implements AccountGroup<InternalAccount> {
   getOnlyAccount(): InternalAccount {
     const accountIds = this.getAccountIds();
 
-    if (accountIds.length === 0) {
-      throw new Error('Group contains no account');
-    }
     if (accountIds.length > 1) {
       throw new Error('Group contains more than 1 account');
     }
 
+    // A group always have at least one account.
     return this.#getAccount(accountIds[0]);
   }
 }

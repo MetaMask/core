@@ -1,16 +1,11 @@
-import {
-  AccountWalletCategory,
-  toAccountGroupId,
-  toAccountWalletId,
-} from '@metamask/account-api';
+import { AccountGroupType } from '@metamask/account-api';
+import { AccountWalletType } from '@metamask/account-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { AccountWalletObjectOf } from 'src/wallet';
 
-import type { AccountWalletObject } from '..';
-import type { AccountGroupObject } from '../group';
-import type { AccountTreeRuleResult } from '../rule';
-import { AccountTreeRule } from '../rule';
-import type { AccountWalletKeyringMetadata } from '../wallet';
+import { BaseRule, type Rule, type RuleResult } from '../rule';
+import { toAccountGroupId, toAccountWalletId } from '../typing';
 
 /**
  * Get wallet name from a keyring type.
@@ -53,44 +48,46 @@ export function getAccountWalletNameFromKeyringType(type: KeyringTypes) {
   }
 }
 
-export class KeyringRule extends AccountTreeRule {
-  readonly category = AccountWalletCategory.Keyring;
+export class KeyringRule
+  extends BaseRule
+  implements Rule<AccountWalletType.Keyring, AccountGroupType.SingleAccount>
+{
+  readonly walletType = AccountWalletType.Keyring;
 
-  match(account: InternalAccount): AccountTreeRuleResult | undefined {
+  readonly groupType = AccountGroupType.SingleAccount;
+
+  match(
+    account: InternalAccount,
+    // No `| undefined` return type for this rule, as it cannot fail.
+  ): RuleResult<AccountWalletType.Keyring, AccountGroupType.SingleAccount> {
     // We assume that `type` is really a `KeyringTypes`.
-    const type = account.metadata.keyring.type as KeyringTypes;
+    const keyringType = account.metadata.keyring.type as KeyringTypes;
 
-    const wallet: AccountTreeRuleResult['wallet'] = {
-      id: toAccountWalletId(this.category, type),
-      metadata: {
-        type: AccountWalletCategory.Keyring,
-        keyring: {
-          type,
+    const walletId = toAccountWalletId(this.walletType, keyringType);
+    const groupId = toAccountGroupId(walletId, account.address);
+
+    return {
+      wallet: {
+        type: this.walletType,
+        id: walletId,
+        metadata: {
+          keyring: {
+            type: keyringType,
+          },
         },
       },
-    };
 
-    const group: AccountTreeRuleResult['group'] = {
-      id: toAccountGroupId(wallet.id, account.address),
-    };
-
-    // This rule cannot fail.
-    return {
-      wallet,
-      group,
+      group: {
+        type: this.groupType,
+        id: groupId,
+        metadata: {},
+      },
     };
   }
 
-  getDefaultAccountWalletName(wallet: AccountWalletObject): string {
-    // Precondition: We assume the AccountTreeController will always use
-    // the proper wallet instance.
-    const metadata = wallet.metadata as AccountWalletKeyringMetadata;
-
-    return getAccountWalletNameFromKeyringType(metadata.keyring.type);
-  }
-
-  getDefaultAccountGroupName(group: AccountGroupObject): string {
-    // Precondition: This account group should contain only 1 account.
-    return this.getOnlyAccountFrom(group).metadata.name;
+  getDefaultAccountWalletName(
+    wallet: AccountWalletObjectOf<AccountWalletType.Keyring>,
+  ): string {
+    return getAccountWalletNameFromKeyringType(wallet.metadata.keyring.type);
   }
 }

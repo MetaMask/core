@@ -1,6 +1,7 @@
 import type {
-  AccountWalletCategory,
+  AccountWalletType,
   AccountWalletId,
+  MultichainAccountWalletId,
 } from '@metamask/account-api';
 import { type AccountGroupId, type AccountWallet } from '@metamask/account-api';
 import type { EntropySourceId } from '@metamask/keyring-api';
@@ -8,67 +9,104 @@ import type { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 
-import type { AccountGroupObject } from './group';
+import type {
+  AccountGroupMultichainAccountObject,
+  AccountGroupObject,
+  AccountGroupSingleAccountObject,
+} from './group';
 import { AccountTreeGroup } from './group';
 import { type AccountTreeControllerMessenger } from './types';
 
 /**
- * Account wallet metadata for the "entropy" wallet category.
+ * Type constraint for a {@link AccountGroupObject}. If one of its union-members
+ * does not match this contraint, {@link AccountGroupObject} will resolve
+ * to `never`.
  */
-export type AccountWalletEntropyMetadata = {
-  type: AccountWalletCategory.Entropy;
-  entropy: {
-    id: EntropySourceId;
-    index: number;
-  };
-};
+type IsAccountWalletObject<
+  Type extends {
+    type: AccountWalletType;
+    id: AccountWalletId;
+    groups: {
+      [groupId: AccountGroupId]: AccountGroupObject;
+    };
+    metadata: {
+      name: string;
+    };
+  },
+> = Type;
 
 /**
- * Account wallet metadata for the "snap" wallet category.
+ * Account wallet object for the "entropy" wallet category.
  */
-export type AccountWalletSnapMetadata = {
-  type: AccountWalletCategory.Snap;
-  snap: {
-    id: SnapId;
-  };
-};
-
-/**
- * Account wallet metadata for the "keyring" wallet category.
- */
-export type AccountWalletKeyringMetadata = {
-  type: AccountWalletCategory.Keyring;
-  keyring: {
-    type: KeyringTypes;
-  };
-};
-
-/**
- * Account wallet metadata for the "keyring" wallet category.
- */
-export type AccountWalletCategoryMetadata =
-  | AccountWalletEntropyMetadata
-  | AccountWalletSnapMetadata
-  | AccountWalletKeyringMetadata;
-
-/**
- * Account wallet metadata.
- */
-export type AccountWalletMetadata = {
-  name: string;
-} & AccountWalletCategoryMetadata;
-
-/**
- * Account wallet object.
- */
-export type AccountWalletObject = {
-  id: AccountWalletId;
-  // Account groups OR Multichain accounts.
+export type AccountWalletEntropyObject = {
+  type: AccountWalletType.Entropy;
+  id: MultichainAccountWalletId;
   groups: {
-    [groupId: AccountGroupId]: AccountGroupObject;
+    // NOTE: Using `MultichainAccountId` instead of `AccountGroupId` would introduce
+    // some type problems when using a group ID as an `AccountGroupId` directly. This
+    // would require some up-cast to a `MultichainAccountId` which could be considered
+    // unsafe... So we keep it as a `AccountGroupId` for now.
+    [groupId: AccountGroupId]: AccountGroupMultichainAccountObject;
   };
-  metadata: AccountWalletMetadata;
+  metadata: {
+    name: string;
+    entropy: {
+      id: EntropySourceId;
+      index: number;
+    };
+  };
 };
+
+/**
+ * Account wallet object for the "snap" wallet category.
+ */
+export type AccountWalletSnapObject = {
+  type: AccountWalletType.Snap;
+  id: AccountWalletId;
+  groups: {
+    [groupId: AccountGroupId]: AccountGroupSingleAccountObject;
+  };
+  metadata: {
+    name: string;
+    snap: {
+      id: SnapId;
+    };
+  };
+};
+
+/**
+ * Account wallet object for the "keyring" wallet category.
+ */
+export type AccountWalletKeyringObject = {
+  type: AccountWalletType.Keyring;
+  id: AccountWalletId;
+  groups: {
+    [groupId: AccountGroupId]: AccountGroupSingleAccountObject;
+  };
+  metadata: {
+    name: string;
+    keyring: {
+      type: KeyringTypes;
+    };
+  };
+};
+
+/**
+ * Account wallet metadata for the "keyring" wallet category.
+ */
+export type AccountWalletObject = IsAccountWalletObject<
+  | AccountWalletEntropyObject
+  | AccountWalletSnapObject
+  | AccountWalletKeyringObject
+>;
+
+export type AccountWalletObjectOf<WalletType extends AccountWalletType> =
+  Extract<
+    | { type: AccountWalletType.Entropy; object: AccountWalletEntropyObject }
+    | { type: AccountWalletType.Keyring; object: AccountWalletKeyringObject }
+    | { type: AccountWalletType.Snap; object: AccountWalletSnapObject },
+    { type: WalletType }
+  >['object'];
 
 /**
  * Account wallet coming from the {@link AccountTreeController}.
@@ -107,8 +145,8 @@ export class AccountTreeWallet implements AccountWallet<InternalAccount> {
     return this.#wallet.id;
   }
 
-  get category(): AccountWalletCategory {
-    return this.#wallet.metadata.type;
+  get type(): AccountWalletType {
+    return this.#wallet.type;
   }
 
   get name(): string {

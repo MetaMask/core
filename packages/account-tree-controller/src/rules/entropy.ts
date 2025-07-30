@@ -1,5 +1,6 @@
 import {
-  AccountWalletCategory,
+  AccountGroupType,
+  AccountWalletType,
   isBip44Account,
   toMultichainAccountId,
   toMultichainAccountWalletId,
@@ -8,16 +9,17 @@ import { isEvmAccountType } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { AccountGroupObject } from '../group';
-import type { AccountTreeRuleResult } from '../rule';
-import { AccountTreeRule } from '../rule';
-import type {
-  AccountWalletEntropyMetadata,
-  AccountWalletObject,
-} from '../wallet';
+import type { AccountGroupObjectOf } from '../group';
+import { BaseRule, type Rule, type RuleResult } from '../rule';
+import type { AccountWalletObjectOf } from '../wallet';
 
-export class EntropyRule extends AccountTreeRule {
-  readonly category = AccountWalletCategory.Entropy;
+export class EntropyRule
+  extends BaseRule
+  implements Rule<AccountWalletType.Entropy, AccountGroupType.MultichainAccount>
+{
+  readonly walletType = AccountWalletType.Entropy;
+
+  readonly groupType = AccountGroupType.MultichainAccount;
 
   getEntropySourceIndex(entropySource: string) {
     const { keyrings } = this.messenger.call('KeyringController:getState');
@@ -27,7 +29,11 @@ export class EntropyRule extends AccountTreeRule {
       .findIndex((keyring) => keyring.metadata.id === entropySource);
   }
 
-  match(account: InternalAccount): AccountTreeRuleResult | undefined {
+  match(
+    account: InternalAccount,
+  ):
+    | RuleResult<AccountWalletType.Entropy, AccountGroupType.MultichainAccount>
+    | undefined {
     if (!isBip44Account(account)) {
       return undefined;
     }
@@ -41,49 +47,60 @@ export class EntropyRule extends AccountTreeRule {
       return undefined;
     }
 
-    const walletId = toMultichainAccountWalletId(account.options.entropy.id);
-    const wallet: AccountTreeRuleResult['wallet'] = {
-      id: walletId,
-      metadata: {
-        type: AccountWalletCategory.Entropy,
-        entropy: {
-          id: entropySource,
-          // QUESTION: Should we re-compute the index everytime instead?
-          index: entropySourceIndex,
+    const walletId = toMultichainAccountWalletId(entropySource);
+    const groupId = toMultichainAccountId(
+      walletId,
+      account.options.entropy.groupIndex,
+    );
+
+    return {
+      wallet: {
+        type: this.walletType,
+        id: walletId,
+        metadata: {
+          entropy: {
+            id: entropySource,
+            // QUESTION: Should we re-compute the index everytime instead?
+            index: entropySourceIndex,
+          },
+        },
+      },
+
+      group: {
+        type: this.groupType,
+        id: groupId,
+        metadata: {
+          entropy: {
+            groupIndex: account.options.entropy.groupIndex,
+          },
         },
       },
     };
-
-    const group: AccountTreeRuleResult['group'] = {
-      id: toMultichainAccountId(walletId, account.options.entropy.groupIndex),
-    };
-
-    return {
-      wallet,
-      group,
-    };
   }
 
-  getDefaultAccountWalletName(wallet: AccountWalletObject): string {
-    // Precondition: We assume the AccountTreeController will always use
-    // the proper wallet instance.
-    const options = wallet.metadata as AccountWalletEntropyMetadata;
-
-    return `Wallet ${options.entropy.index + 1}`; // Use human indexing (starts at 1).
+  getDefaultAccountWalletName(
+    wallet: AccountWalletObjectOf<AccountWalletType.Entropy>,
+  ): string {
+    return `Wallet ${wallet.metadata.entropy.index + 1}`; // Use human indexing (starts at 1).
   }
 
-  getDefaultAccountGroupName(group: AccountGroupObject): string {
-    // EVM account name has a highest priority.
-    const accounts = this.getAccountsFrom(group);
-    const evmAccount = accounts.find((account) =>
-      isEvmAccountType(account.type),
-    );
-    if (evmAccount) {
-      return evmAccount.metadata.name;
+  getDefaultAccountGroupName(
+    group: AccountGroupObjectOf<AccountGroupType.MultichainAccount>,
+  ): string {
+    let candidate = '';
+    for (const id of group.accounts) {
+      const account = this.messenger.call('AccountsController:getAccount', id);
+
+      if (account) {
+        candidate = account.metadata.name;
+
+        // EVM account name has a highest priority.
+        if (isEvmAccountType(account.type)) {
+          return account.metadata.name;
+        }
+      }
     }
 
-    // We should always have an account, since this function will be called only
-    // if an account got a match.
-    return accounts[0].metadata.name;
+    return candidate;
   }
 }
