@@ -604,7 +604,6 @@ export class AccountsController extends BaseController<
     }
 
     this.#update((state) => {
-      // @ts-expect-error "Type instantiation is excessively deep"
       state.internalAccounts.accounts = internalAccounts;
     });
   }
