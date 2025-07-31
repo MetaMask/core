@@ -118,9 +118,12 @@ export class ShieldController extends BaseController<
     this.messagingSystem.subscribe(
       'TransactionController:unapprovedTransactionAdded',
       (txMeta: TransactionMeta) => {
-        this.#handleUnapprovedTransactionAdded(txMeta).catch((error) => {
-          log('Error in transaction handler:', error);
-        });
+        this.#handleUnapprovedTransactionAdded(txMeta).catch(
+          // istanbul ignore next
+          (error) => {
+            log('Error in transaction handler:', error);
+          },
+        );
       },
     );
   }
@@ -156,14 +159,19 @@ export class ShieldController extends BaseController<
   #addCoverageResult(txId: string, coverageResult: CoverageResult) {
     // Read state
     let coverageResultEntry = this.state.coverageResults[txId];
-
-    // Update state
     if (!coverageResultEntry) {
       coverageResultEntry = {
         results: [],
       };
+    } else {
+      // Clone object to avoid mutation
+      coverageResultEntry = {
+        ...coverageResultEntry,
+        results: [...coverageResultEntry.results],
+      };
     }
 
+    // Update state
     if (coverageResultEntry.results.length >= this.#coverageHistoryLimit) {
       coverageResultEntry.results.pop();
     }

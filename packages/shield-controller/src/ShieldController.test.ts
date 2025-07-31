@@ -6,8 +6,15 @@ import { generateMockTxMeta } from '../tests/txUtils';
 
 /**
  *
+ * @param options - The options for setup.
+ * @param options.coverageHistoryLimit - The coverage history limit.
+ * @returns Objects that have been created for testing.
  */
-function setup() {
+function setup({
+  coverageHistoryLimit,
+}: {
+  coverageHistoryLimit?: number;
+} = {}) {
   const backend = createMockBackend();
   const { messenger, baseMessenger } = createMockMessenger();
 
@@ -22,6 +29,7 @@ function setup() {
 
   const controller = new ShieldController({
     backend,
+    coverageHistoryLimit,
     messenger,
   });
   controller.start();
@@ -53,5 +61,16 @@ describe('ShieldController', () => {
       await authenticationController.getBearerToken(),
       txMeta,
     );
+  });
+
+  it('should purge coverage history when the limit is exceeded', async () => {
+    const { controller } = setup({
+      coverageHistoryLimit: 1,
+    });
+    const txMeta = generateMockTxMeta();
+    await controller.checkCoverage(txMeta);
+    await controller.checkCoverage(txMeta);
+    expect(controller.state.coverageResults).toHaveProperty(txMeta.id);
+    expect(controller.state.coverageResults[txMeta.id].results).toHaveLength(1);
   });
 });
