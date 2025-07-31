@@ -271,8 +271,12 @@ describe('MultichainAccountWallet', () => {
   });
 
   describe('createNextMultichainAccountGroup', () => {
-    it('creates the next multichain account group', async () => {
+    it('creates the next multichain account group (with multiple providers)', async () => {
       const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      const mockSolAccount = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
         .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
         .withGroupIndex(0)
         .get();
@@ -280,7 +284,7 @@ describe('MultichainAccountWallet', () => {
       const { wallet, providers } = setup({
         accounts: [
           [mockEvmAccount], // EVM provider.
-          [], // Solana provider.
+          [mockSolAccount], // Solana provider.
         ],
       });
 
@@ -288,7 +292,7 @@ describe('MultichainAccountWallet', () => {
         .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
         .withGroupIndex(1)
         .get();
-      const mockNextSolAccount = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
+      const mockNextSolAccount = MockAccountBuilder.from(mockSolAccount)
         .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
         .withGroupIndex(1)
         .withUuid() // Required by KeyringClient.
