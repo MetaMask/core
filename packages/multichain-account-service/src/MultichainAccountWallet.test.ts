@@ -215,8 +215,6 @@ describe('MultichainAccountWallet', () => {
     it('creates a multichain account group for a given index', async () => {
       const groupIndex = 1;
 
-      // Used to build the initial wallet with 1 multichain account (for
-      // group index 0)!
       const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
         .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
         .withGroupIndex(0)
@@ -225,16 +223,16 @@ describe('MultichainAccountWallet', () => {
       const { wallet, providers } = setup({
         accounts: [[mockEvmAccount]], // 1 provider
       });
-      const mockNextEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+
+      const [provider] = providers;
+      const mockNextEvmAccount = MockAccountBuilder.from(mockEvmAccount)
         .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
         .withGroupIndex(groupIndex)
         .get();
-
-      const [provider] = providers;
       // 1. Create the accounts for the new index and returns their IDs.
       provider.createAccounts.mockResolvedValueOnce([mockNextEvmAccount.id]);
-      // 2. When the adapter creates a new multichain account, it will query all
-      // accounts for this given index (so similar to the one we just created).
+      // 2. When the wallet creates a new multichain account group, it will query
+      // all accounts for this given index (so similar to the one we just created).
       provider.getAccounts.mockReturnValueOnce([mockNextEvmAccount]);
       // 3. Required when we call `getAccounts` (below) on the multichain account.
       provider.getAccount.mockReturnValueOnce(mockNextEvmAccount);
@@ -275,8 +273,6 @@ describe('MultichainAccountWallet', () => {
 
   describe('createNextMultichainAccountGroup', () => {
     it('creates the next multichain account group', async () => {
-      // Used to build the initial wallet with 1 multichain account (for
-      // group index 0)!
       const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
         .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
         .withGroupIndex(0)
@@ -289,8 +285,7 @@ describe('MultichainAccountWallet', () => {
         ],
       });
 
-      // Before creating the next multichain account, we need to mock some actions:
-      const mockNextEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_2)
+      const mockNextEvmAccount = MockAccountBuilder.from(mockEvmAccount)
         .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
         .withGroupIndex(1)
         .get();
@@ -306,14 +301,10 @@ describe('MultichainAccountWallet', () => {
         [evmAccountProvider, mockNextEvmAccount],
         [solAccountProvider, mockNextSolAccount],
       ] as const) {
-        // 1. Create the accounts for the new index and returns their IDs.
         mockAccountProvider.createAccounts.mockResolvedValueOnce([
           mockNextAccount.id,
         ]);
-        // 2. When the adapter creates a new multichain account, it will query all
-        // accounts for this given index (so similar to the one we just created).
         mockAccountProvider.getAccounts.mockReturnValueOnce([mockNextAccount]);
-        // 3. Required when we call `getAccounts` (below) on the multichain account.
         mockAccountProvider.getAccount.mockReturnValueOnce(mockNextAccount);
       }
 

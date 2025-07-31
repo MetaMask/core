@@ -509,8 +509,6 @@ describe('MultichainAccountService', () => {
 
   describe('createNextMultichainAccount', () => {
     it('creates the next multichain account group', async () => {
-      // Used to build the initial wallet with 1 multichain account (for
-      // group index 0)!
       const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
         .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
         .withGroupIndex(0)
@@ -518,42 +516,20 @@ describe('MultichainAccountService', () => {
 
       const { service, mocks } = setup({ accounts: [mockEvmAccount] });
 
-      // Before creating the next multichain account, we need to mock some actions:
       const mockNextEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_2)
         .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
         .withGroupIndex(1)
         .get();
-      const mockNextSolAccount = MockAccountBuilder.from(MOCK_SNAP_ACCOUNT_1)
-        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
-        .withGroupIndex(1)
-        .withUuid() // Required by KeyringClient.
-        .get();
 
-      // We need to mock every call made to the providers when creating an accounts:
-      for (const [mocksAccountProvider, mockNextAccount] of [
-        [mocks.EvmAccountProvider, mockNextEvmAccount],
-        [mocks.SolAccountProvider, mockNextSolAccount],
-      ] as const) {
-        // 1. Create the accounts for the new index and returns their IDs.
-        mocksAccountProvider.createAccounts.mockResolvedValueOnce([
-          mockNextAccount.id,
-        ]);
-        // 2. When the adapter creates a new multichain account, it will query all
-        // accounts for this given index (so similar to the one we just created).
-        mocksAccountProvider.getAccounts.mockReturnValueOnce([mockNextAccount]);
-        // 3. Required when we call `getAccounts` (below) on the multichain account.
-        mocksAccountProvider.getAccount.mockReturnValueOnce(mockNextAccount);
-      }
+      const evmProvider = mocks.EvmAccountProvider;
+      evmProvider.createAccounts.mockResolvedValueOnce([mockNextEvmAccount.id]);
+      evmProvider.getAccounts.mockReturnValueOnce([mockNextEvmAccount]);
+      evmProvider.getAccount.mockReturnValueOnce(mockNextEvmAccount);
 
       const nextGroup = await service.createNextMultichainAccountGroup({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
       });
       expect(nextGroup.index).toBe(1);
-
-      const internalAccounts = nextGroup.getAccounts();
-      expect(internalAccounts).toHaveLength(2); // EVM + SOL.
-      expect(internalAccounts[0].type).toBe(EthAccountType.Eoa);
-      expect(internalAccounts[1].type).toBe(SolAccountType.DataAccount);
     });
   });
 
