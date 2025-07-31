@@ -25,6 +25,14 @@ const accountTreeControllerMetadata: StateMetadata<AccountTreeControllerState> =
       persist: false, // We do re-recompute this state everytime.
       anonymous: false,
     },
+    accountGroupsMetadata: {
+      persist: true, // Persist user customizations for groups
+      anonymous: false,
+    },
+    accountWalletsMetadata: {
+      persist: true, // Persist user customizations for wallets
+      anonymous: false,
+    },
   };
 
 /**
@@ -38,6 +46,8 @@ export function getDefaultAccountTreeControllerState(): AccountTreeControllerSta
       wallets: {},
       selectedAccountGroup: '',
     },
+    accountGroupsMetadata: {},
+    accountWalletsMetadata: {},
   };
 }
 
@@ -167,10 +177,19 @@ export class AccountTreeController extends BaseController<
   }
 
   #renameAccountWalletIfNeeded(wallet: AccountWalletObject) {
+    // Check if we have a custom name in persistent metadata first
+    const persistedMetadata = this.state.accountWalletsMetadata[wallet.id];
+    if (persistedMetadata?.name) {
+      wallet.metadata.name = persistedMetadata.name;
+      return;
+    }
+
+    // If wallet already has a name (from rules), keep it
     if (wallet.metadata.name) {
       return;
     }
 
+    // Generate default name based on wallet type
     if (wallet.type === AccountWalletType.Entropy) {
       wallet.metadata.name =
         this.#getEntropyRule().getDefaultAccountWalletName(wallet);
@@ -187,10 +206,19 @@ export class AccountTreeController extends BaseController<
     wallet: AccountWalletObject,
     group: AccountGroupObject,
   ) {
+    // Check if we have a custom name in persistent metadata first
+    const persistedMetadata = this.state.accountGroupsMetadata[group.id];
+    if (persistedMetadata?.name) {
+      group.metadata.name = persistedMetadata.name;
+      return;
+    }
+
+    // If group already has a name (from rules), keep it
     if (group.metadata.name) {
       return;
     }
 
+    // Generate default name based on wallet type
     if (wallet.type === AccountWalletType.Entropy) {
       group.metadata.name = this.#getEntropyRule().getDefaultAccountGroupName(
         // Get the group from the wallet, to get the proper type inference.
@@ -514,6 +542,95 @@ export class AccountTreeController extends BaseController<
       }
     }
     return candidate;
+  }
+
+  /**
+   * Sets a custom name for an account group.
+   *
+   * @param groupId - The account group ID.
+   * @param name - The custom name to set.
+   */
+  setAccountGroupName(groupId: AccountGroupId, name: string): void {
+    this.update((state) => {
+      state.accountGroupsMetadata[groupId] = {
+        ...state.accountGroupsMetadata[groupId],
+        name,
+        lastUpdatedAt: Date.now(),
+      };
+    });
+
+    // Rebuild tree to apply the new name
+    this.init();
+  }
+
+  /**
+   * Sets a custom name for an account wallet.
+   *
+   * @param walletId - The account wallet ID.
+   * @param name - The custom name to set.
+   */
+  setAccountWalletName(walletId: AccountWalletId, name: string): void {
+    this.update((state) => {
+      state.accountWalletsMetadata[walletId] = {
+        ...state.accountWalletsMetadata[walletId],
+        name,
+        lastUpdatedAt: Date.now(),
+      };
+    });
+
+    // Rebuild tree to apply the new name
+    this.init();
+  }
+
+  /**
+   * Toggles the pinned state of an account group.
+   *
+   * @param groupId - The account group ID.
+   * @param pinned - Whether the group should be pinned.
+   */
+  setAccountGroupPinned(groupId: AccountGroupId, pinned: boolean): void {
+    this.update((state) => {
+      state.accountGroupsMetadata[groupId] = {
+        ...state.accountGroupsMetadata[groupId],
+        pinned,
+        lastUpdatedAt: Date.now(),
+      };
+    });
+  }
+
+  /**
+   * Toggles the hidden state of an account group.
+   *
+   * @param groupId - The account group ID.
+   * @param hidden - Whether the group should be hidden.
+   */
+  setAccountGroupHidden(groupId: AccountGroupId, hidden: boolean): void {
+    this.update((state) => {
+      state.accountGroupsMetadata[groupId] = {
+        ...state.accountGroupsMetadata[groupId],
+        hidden,
+        lastUpdatedAt: Date.now(),
+      };
+    });
+  }
+
+  /**
+   * Toggles the collapsed state of an account wallet.
+   *
+   * @param walletId - The account wallet ID.
+   * @param collapsed - Whether the wallet should be collapsed.
+   */
+  setAccountWalletCollapsed(
+    walletId: AccountWalletId,
+    collapsed: boolean,
+  ): void {
+    this.update((state) => {
+      state.accountWalletsMetadata[walletId] = {
+        ...state.accountWalletsMetadata[walletId],
+        collapsed,
+        lastUpdatedAt: Date.now(),
+      };
+    });
   }
 
   /**

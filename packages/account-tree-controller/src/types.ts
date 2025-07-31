@@ -22,6 +22,34 @@ import type {
 } from './AccountTreeController';
 import type { AccountWalletObject } from './wallet';
 
+/**
+ * Metadata for persisting account group customizations.
+ * This includes user customizations like names, UI states, and sync timestamps.
+ */
+export type AccountGroupMetadata = {
+  /** Custom name set by user, overrides default naming logic */
+  name?: string;
+  /** Whether this group is pinned in the UI */
+  pinned?: boolean;
+  /** Whether this group is hidden in the UI */
+  hidden?: boolean;
+  /** Timestamp of last metadata update for sync conflict resolution */
+  lastUpdatedAt?: number;
+};
+
+/**
+ * Metadata for persisting account wallet customizations.
+ * This includes user customizations like names, UI states, and sync timestamps.
+ */
+export type AccountWalletMetadata = {
+  /** Custom name set by user, overrides default naming logic */
+  name?: string;
+  /** Whether this wallet is collapsed in the UI */
+  collapsed?: boolean;
+  /** Timestamp of last metadata update for sync conflict resolution */
+  lastUpdatedAt?: number;
+};
+
 export type AccountTreeControllerState = {
   accountTree: {
     wallets: {
@@ -30,6 +58,10 @@ export type AccountTreeControllerState = {
     };
     selectedAccountGroup: AccountGroupId | '';
   };
+  /** Persistent metadata for account groups (names, pinning, hiding, sync timestamps) */
+  accountGroupsMetadata: Record<AccountGroupId, AccountGroupMetadata>;
+  /** Persistent metadata for account wallets (names, collapsing, sync timestamps) */
+  accountWalletsMetadata: Record<AccountWalletId, AccountWalletMetadata>;
 };
 
 export type AccountTreeControllerGetStateAction = ControllerGetStateAction<
