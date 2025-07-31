@@ -428,6 +428,10 @@ export class AccountsController extends BaseController<
   setSelectedAccount(accountId: string): void {
     const account = this.getAccountExpect(accountId);
 
+    if (this.state.internalAccounts.selectedAccount === account.id) {
+      return;
+    }
+
     this.#update((state) => {
       const { internalAccounts } = state;
 
@@ -600,6 +604,7 @@ export class AccountsController extends BaseController<
     }
 
     this.#update((state) => {
+      // @ts-expect-error "Type instantiation is excessively deep"
       state.internalAccounts.accounts = internalAccounts;
     });
   }
