@@ -1,8 +1,6 @@
 /* eslint-disable jsdoc/require-jsdoc */
-import type { Bip44Account } from '@metamask/account-api';
-import { isBip44Account } from '@metamask/account-api';
+
 import type { Messenger } from '@metamask/base-controller';
-import type { KeyringAccount } from '@metamask/keyring-api';
 import { EthAccountType, SolAccountType } from '@metamask/keyring-api';
 import { KeyringTypes, type KeyringObject } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -10,6 +8,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { MultichainAccountService } from './MultichainAccountService';
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
 import { SolAccountProvider } from './providers/SolAccountProvider';
+import type { MockAccountProvider } from './tests';
 import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,
@@ -21,13 +20,13 @@ import {
   MOCK_SNAP_ACCOUNT_1,
   MOCK_SNAP_ACCOUNT_2,
   MockAccountBuilder,
+  mockAccountProvider,
 } from './tests';
 import type {
   AllowedActions,
   AllowedEvents,
   MultichainAccountServiceActions,
   MultichainAccountServiceEvents,
-  MultichainAccountServiceMessenger,
 } from './types';
 
 // Mock providers.
@@ -44,13 +43,6 @@ jest.mock('./providers/SolAccountProvider', () => {
   };
 });
 
-type MockAccountProvider = {
-  accounts: InternalAccount[];
-  getAccount: jest.Mock;
-  getAccounts: jest.Mock;
-  createAccounts: jest.Mock;
-  discoverAndCreateAccounts: jest.Mock;
-};
 type Mocks = {
   KeyringController: {
     keyrings: KeyringObject[];
@@ -62,33 +54,6 @@ type Mocks = {
   EvmAccountProvider: MockAccountProvider;
   SolAccountProvider: MockAccountProvider;
 };
-
-function mockAccountProvider<Provider>(
-  providerClass: new (messenger: MultichainAccountServiceMessenger) => Provider,
-  mocks: MockAccountProvider,
-  accounts: InternalAccount[],
-  type: KeyringAccount['type'],
-) {
-  jest
-    .mocked(providerClass)
-    .mockImplementation(() => mocks as unknown as Provider);
-
-  // You can mock this and all other mocks will re-use that list
-  // of accounts.
-  mocks.accounts = accounts;
-
-  const getAccounts = () =>
-    mocks.accounts.filter(
-      (account) => isBip44Account(account) && account.type === type,
-    );
-
-  mocks.getAccounts.mockImplementation(getAccounts);
-  mocks.getAccount.mockImplementation(
-    (id: Bip44Account<InternalAccount>['id']) =>
-      // Assuming this never fails.
-      getAccounts().find((account) => account.id === id),
-  );
-}
 
 function setup({
   messenger = getRootMessenger(),
@@ -441,8 +406,9 @@ describe('MultichainAccountService', () => {
       const walletAndMultichainAccount1 = service.getAccountContext(
         account1.id,
       );
-      const walletAndMultichainOtherAccount1 =
-        service.getAccountContext(otherAccount1.id);
+      const walletAndMultichainOtherAccount1 = service.getAccountContext(
+        otherAccount1.id,
+      );
 
       // NOTE: We use `toBe` here, cause we want to make sure we use the same
       // references with `get*` service's methods.
