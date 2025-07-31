@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export `MultichainAccountWallet` and `MultichainAccountGroup` types ([#6220](https://github.com/MetaMask/core/pull/6220))
+
 ### Changed
 
 - **BREAKING:** Bump peer dependency `@metamask/account-api` from `^0.3.0` to `^0.6.0` ([#6214](https://github.com/MetaMask/core/pull/6214)), ([#6216](https://github.com/MetaMask/core/pull/6216))
