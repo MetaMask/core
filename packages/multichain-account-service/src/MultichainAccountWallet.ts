@@ -8,6 +8,7 @@ import type { AccountProvider } from '@metamask/account-api';
 import {
   getGroupIndexFromMultichainAccountId as getGroupIndexFromMultichainAccountGroupId,
   isMultichainAccountGroupId,
+  toMultichainAccountWalletId,
 } from '@metamask/account-api';
 import { toDefaultAccountGroupId } from '@metamask/account-api';
 import { AccountWalletType } from '@metamask/account-api';
@@ -172,16 +173,4 @@ export class MultichainAccountWallet<
   getMultichainAccountGroups(): MultichainAccountGroup<Account>[] {
     return Array.from(this.#accounts.values()); // TODO: Prevent copy here.
   }
-}
-
-/**
- * Gets the multichain account wallet ID from its entropy source.
- *
- * @param entropySource - Entropy source ID of that wallet.
- * @returns The multichain account wallet ID.
- */
-export function toMultichainAccountWalletId(
-  entropySource: EntropySourceId,
-): MultichainAccountWalletId {
-  return `${AccountWalletType.Entropy}:${entropySource}`;
 }
