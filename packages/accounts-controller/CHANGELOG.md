@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Stop updating `selectedAccount` unnecesarily ([#6218](https://github.com/MetaMask/core/pull/6218))
+
 ## [32.0.1]
 
 ### Fixed
