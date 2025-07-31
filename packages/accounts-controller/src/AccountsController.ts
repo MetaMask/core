@@ -1171,6 +1171,10 @@ export class AccountsController extends BaseController<
       accountId = lastSelectedEvmAccount.id;
     }
 
+    if (this.state.internalAccounts.selectedAccount === accountId) {
+      return;
+    }
+
     this.update((currentState) => {
       currentState.internalAccounts.accounts[accountId].metadata.lastSelected =
         Date.now();
