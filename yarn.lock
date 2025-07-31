@@ -2399,6 +2399,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@lavamoat/aa@npm:^4.3.3":
+  version: 4.3.3
+  resolution: "@lavamoat/aa@npm:4.3.3"
+  dependencies:
+    resolve: "npm:1.22.10"
+  bin:
+    lavamoat-ls: src/cli.js
+  checksum: 10/a1051478a59efd3fc032c955369b1dada86148d192a5cccb0c08140f697b96c5211a93a77f5bddf8254b98e60d8f0759cf961000a59b910673db14c0ac0237ae
+  languageName: node
+  linkType: hard
+
 "@lavamoat/allow-scripts@npm:^3.0.4":
   version: 3.2.0
   resolution: "@lavamoat/allow-scripts@npm:3.2.0"
@@ -2413,6 +2424,22 @@ __metadata:
   bin:
     allow-scripts: src/cli.js
   checksum: 10/21afb11ce25c0b2c9763bfb8f1127bb89f304ed83f64e00955c4d3007216a0ee553b777359e9ded874c61b3d7fa8d19ff8a35881cd3816985adab4d6b58bcb07
+  languageName: node
+  linkType: hard
+
+"@lavamoat/allow-scripts@npm:^3.3.4":
+  version: 3.3.4
+  resolution: "@lavamoat/allow-scripts@npm:3.3.4"
+  dependencies:
+    "@lavamoat/aa": "npm:^4.3.3"
+    "@npmcli/run-script": "npm:8.1.0"
+    bin-links: "npm:4.0.4"
+    npm-normalize-package-bin: "npm:3.0.1"
+    type-fest: "npm:4.41.0"
+    yargs: "npm:17.7.2"
+  bin:
+    allow-scripts: src/cli.js
+  checksum: 10/762d6169c79296c63425fdd1a2d1154b2e36d9ac8248d96ceb8235091ea45913c717bb7b35eabdf50a090c8d2f0c4bf39bc2c636c6ef59c825074784f4cf5b60
   languageName: node
   linkType: hard
 
@@ -4436,6 +4463,30 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metamask/shield-controller@workspace:packages/shield-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/shield-controller@workspace:packages/shield-controller"
+  dependencies:
+    "@lavamoat/allow-scripts": "npm:^3.3.4"
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/base-controller": "npm:^8.0.1"
+    "@metamask/profile-sync-controller": "npm:^21.0.0"
+    "@metamask/transaction-controller": "npm:^58.1.1"
+    "@metamask/utils": "npm:^11.4.2"
+    "@ts-bridge/cli": "npm:^0.6.3"
+    "@types/jest": "npm:^27.4.1"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^27.5.1"
+    ts-jest: "npm:^27.1.4"
+    typedoc: "npm:^0.24.8"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.2.2"
+    uuid: "npm:^8.3.2"
+  peerDependencies:
+    "@metamask/transaction-controller": ^58.1.1
+  languageName: unknown
+  linkType: soft
+
 "@metamask/signature-controller@workspace:packages/signature-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/signature-controller@workspace:packages/signature-controller"
@@ -5441,6 +5492,23 @@ __metadata:
     ts-bridge: ./dist/index.js
     tsbridge: ./dist/index.js
   checksum: 10/1cbb8fbfc7f58b804553ab9bc06b689b409d4cdd0f1e960a0ea87971ec7885b5ee2a86cb192d955c7d3611afcadb960e7dfee66aeca60f798a70e7f97aa969c3
+  languageName: node
+  linkType: hard
+
+"@ts-bridge/cli@npm:^0.6.3":
+  version: 0.6.3
+  resolution: "@ts-bridge/cli@npm:0.6.3"
+  dependencies:
+    "@ts-bridge/resolver": "npm:^0.2.0"
+    chalk: "npm:^5.3.0"
+    cjs-module-lexer: "npm:^1.3.1"
+    yargs: "npm:^17.7.2"
+  peerDependencies:
+    typescript: ">=4.8.0"
+  bin:
+    ts-bridge: ./dist/index.js
+    tsbridge: ./dist/index.js
+  checksum: 10/01cba56ff0f097ca0ef15b79cff80a6be07b7f237e7153f63f7a9acf911583d0a410385fa1711d7b14e3a5e95fed63310b6a743700e7ecc0dd3a2d97a0df75b3
   languageName: node
   linkType: hard
 
@@ -10358,6 +10426,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"is-core-module@npm:^2.16.0":
+  version: 2.16.1
+  resolution: "is-core-module@npm:2.16.1"
+  dependencies:
+    hasown: "npm:^2.0.2"
+  checksum: 10/452b2c2fb7f889cbbf7e54609ef92cf6c24637c568acc7e63d166812a0fb365ae8a504c333a29add8bdb1686704068caa7f4e4b639b650dde4f00a038b8941fb
+  languageName: node
+  linkType: hard
+
 "is-docker@npm:^3.0.0":
   version: 3.0.0
   resolution: "is-docker@npm:3.0.0"
@@ -13230,6 +13307,19 @@ __metadata:
   languageName: node
   linkType: hard
 
+"resolve@npm:1.22.10":
+  version: 1.22.10
+  resolution: "resolve@npm:1.22.10"
+  dependencies:
+    is-core-module: "npm:^2.16.0"
+    path-parse: "npm:^1.0.7"
+    supports-preserve-symlinks-flag: "npm:^1.0.0"
+  bin:
+    resolve: bin/resolve
+  checksum: 10/0a398b44da5c05e6e421d70108822c327675febb880eebe905587628de401854c61d5df02866ff34fc4cb1173a51c9f0e84a94702738df3611a62e2acdc68181
+  languageName: node
+  linkType: hard
+
 "resolve@npm:1.22.8, resolve@npm:^1.20.0, resolve@npm:^1.22.3, resolve@npm:^1.22.4":
   version: 1.22.8
   resolution: "resolve@npm:1.22.8"
@@ -13240,6 +13330,19 @@ __metadata:
   bin:
     resolve: bin/resolve
   checksum: 10/c473506ee01eb45cbcfefb68652ae5759e092e6b0fb64547feadf9736a6394f258fbc6f88e00c5ca36d5477fbb65388b272432a3600fa223062e54333c156753
+  languageName: node
+  linkType: hard
+
+"resolve@patch:resolve@npm%3A1.22.10#optional!builtin<compat/resolve>":
+  version: 1.22.10
+  resolution: "resolve@patch:resolve@npm%3A1.22.10#optional!builtin<compat/resolve>::version=1.22.10&hash=c3c19d"
+  dependencies:
+    is-core-module: "npm:^2.16.0"
+    path-parse: "npm:^1.0.7"
+    supports-preserve-symlinks-flag: "npm:^1.0.0"
+  bin:
+    resolve: bin/resolve
+  checksum: 10/d4d878bfe3702d215ea23e75e0e9caf99468e3db76f5ca100d27ebdc527366fee3877e54bce7d47cc72ca8952fc2782a070d238bfa79a550eeb0082384c3b81a
   languageName: node
   linkType: hard
 
@@ -14391,6 +14494,13 @@ __metadata:
   version: 4.1.0
   resolution: "type-detect@npm:4.1.0"
   checksum: 10/e363bf0352427a79301f26a7795a27718624c49c576965076624eb5495d87515030b207217845f7018093adcbe169b2d119bb9b7f1a31a92bfbb1ab9639ca8dd
+  languageName: node
+  linkType: hard
+
+"type-fest@npm:4.41.0":
+  version: 4.41.0
+  resolution: "type-fest@npm:4.41.0"
+  checksum: 10/617ace794ac0893c2986912d28b3065ad1afb484cad59297835a0807dc63286c39e8675d65f7de08fafa339afcb8fe06a36e9a188b9857756ae1e92ee8bda212
   languageName: node
   linkType: hard
 

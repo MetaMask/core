@@ -1,0 +1,93 @@
+import { ShieldController } from './ShieldController';
+import { createAuthenticationControllerMock } from '../tests/mocks/authenticationController';
+import { createMockBackend } from '../tests/mocks/backend';
+import { createMockMessenger } from '../tests/mocks/messenger';
+import { generateMockTxMeta } from '../tests/txUtils';
+
+/**
+ *
+ * @param options - The options for setup.
+ * @param options.coverageHistoryLimit - The coverage history limit.
+ * @returns Objects that have been created for testing.
+ */
+function setup({
+  coverageHistoryLimit,
+}: {
+  coverageHistoryLimit?: number;
+} = {}) {
+  const backend = createMockBackend();
+  const { messenger, baseMessenger } = createMockMessenger();
+
+  const authenticationControllerMessenger = baseMessenger.getRestricted({
+    name: 'AuthenticationController',
+    allowedActions: [],
+    allowedEvents: [],
+  });
+  const authenticationController = createAuthenticationControllerMock(
+    authenticationControllerMessenger,
+  );
+
+  const controller = new ShieldController({
+    backend,
+    coverageHistoryLimit,
+    messenger,
+  });
+  controller.start();
+  return {
+    controller,
+    messenger,
+    baseMessenger,
+    backend,
+    authenticationController,
+  };
+}
+
+describe('ShieldController', () => {
+  it('should trigger checkCoverage when a new transaction is added', async () => {
+    const { baseMessenger, backend, authenticationController } = setup();
+    const txMeta = generateMockTxMeta();
+    const coverageResultReceived = new Promise<void>((resolve) => {
+      baseMessenger.subscribe(
+        'ShieldController:coverageResultReceived',
+        (_coverageResult) => resolve(),
+      );
+    });
+    baseMessenger.publish(
+      'TransactionController:unapprovedTransactionAdded',
+      txMeta,
+    );
+    expect(await coverageResultReceived).toBeUndefined();
+    expect(backend.checkCoverage).toHaveBeenCalledWith(
+      await authenticationController.getBearerToken(),
+      txMeta,
+    );
+  });
+
+  it('should purge coverage history when the limit is exceeded', async () => {
+    const { controller } = setup({
+      coverageHistoryLimit: 1,
+    });
+    const txMeta = generateMockTxMeta();
+    await controller.checkCoverage(txMeta);
+    await controller.checkCoverage(txMeta);
+    expect(controller.state.coverageResults).toHaveProperty(txMeta.id);
+    expect(controller.state.coverageResults[txMeta.id].results).toHaveLength(1);
+  });
+
+  it('should check coverage when a transaction is simulated', async () => {
+    const { baseMessenger, backend, authenticationController } = setup();
+    const txMeta = generateMockTxMeta();
+    const coverageResultReceived = new Promise<void>((resolve) => {
+      baseMessenger.subscribe(
+        'ShieldController:coverageResultReceived',
+        (_coverageResult) => resolve(),
+      );
+    });
+    baseMessenger.publish('TransactionController:transactionSimulated', txMeta);
+    expect(await coverageResultReceived).toBeUndefined();
+    expect(backend.checkCoverage).toHaveBeenCalledWith(
+      await authenticationController.getBearerToken(),
+      txMeta,
+    );
+  });
+});
