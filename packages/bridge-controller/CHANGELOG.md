@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [37.1.0]
 
-### Uncategorized
-
-- Release/480.0.0 ([#6198](https://github.com/MetaMask/core/pull/6198))
-- Release/479.0.0 ([#6194](https://github.com/MetaMask/core/pull/6194))
-
 ### Added
 
 - Add schema for the new price impact threshold feature flag to the types for PlatformConfigSchema ([#6223](https://github.com/MetaMask/core/pull/6223))
