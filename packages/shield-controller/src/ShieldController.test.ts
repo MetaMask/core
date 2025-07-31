@@ -73,4 +73,21 @@ describe('ShieldController', () => {
     expect(controller.state.coverageResults).toHaveProperty(txMeta.id);
     expect(controller.state.coverageResults[txMeta.id].results).toHaveLength(1);
   });
+
+  it('should check coverage when a transaction is simulated', async () => {
+    const { baseMessenger, backend, authenticationController } = setup();
+    const txMeta = generateMockTxMeta();
+    const coverageResultReceived = new Promise<void>((resolve) => {
+      baseMessenger.subscribe(
+        'ShieldController:coverageResultReceived',
+        (_coverageResult) => resolve(),
+      );
+    });
+    baseMessenger.publish('TransactionController:transactionSimulated', txMeta);
+    expect(await coverageResultReceived).toBeUndefined();
+    expect(backend.checkCoverage).toHaveBeenCalledWith(
+      await authenticationController.getBearerToken(),
+      txMeta,
+    );
+  });
 });

@@ -2,6 +2,7 @@ import { BaseController } from '@metamask/base-controller';
 import type { RestrictedMessenger } from '@metamask/base-controller';
 import type { AuthenticationControllerGetBearerToken } from '@metamask/profile-sync-controller/auth';
 import type {
+  TransactionControllerTransactionSimulatedEvent,
   TransactionControllerUnapprovedTransactionAddedEvent,
   TransactionMeta,
 } from '@metamask/transaction-controller';
@@ -58,7 +59,8 @@ export type AllowedActions = AuthenticationControllerGetBearerToken;
  * The external events available to the ShieldController.
  */
 export type AllowedEvents =
-  TransactionControllerUnapprovedTransactionAddedEvent;
+  | TransactionControllerUnapprovedTransactionAddedEvent
+  | TransactionControllerTransactionSimulatedEvent;
 
 /**
  * The messenger of the {@link ShieldController}.
@@ -126,10 +128,27 @@ export class ShieldController extends BaseController<
         );
       },
     );
+
+    this.messagingSystem.subscribe(
+      'TransactionController:transactionSimulated',
+      (txMeta: TransactionMeta) => {
+        this.#handleTransactionSimulated(txMeta).catch(
+          // istanbul ignore next
+          (error) => {
+            log('Error in transaction handler:', error);
+          },
+        );
+      },
+    );
   }
 
   async #handleUnapprovedTransactionAdded(transactionMeta: TransactionMeta) {
     log('Transaction added', transactionMeta);
+    await this.checkCoverage(transactionMeta);
+  }
+
+  async #handleTransactionSimulated(transactionMeta: TransactionMeta) {
+    log('Transaction simulated', transactionMeta);
     await this.checkCoverage(transactionMeta);
   }
 
