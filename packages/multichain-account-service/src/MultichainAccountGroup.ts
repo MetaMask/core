@@ -83,16 +83,16 @@ export class MultichainAccountGroup<
   }
 
   /**
-   * Gets the multichain account ID.
+   * Gets the multichain account group ID.
    *
-   * @returns The multichain account ID.
+   * @returns The multichain account group ID.
    */
   get id(): MultichainAccountGroupId {
     return this.#id;
   }
 
   /**
-   * Gets the multichain account type.
+   * Gets the multichain account group type.
    *
    * @returns The multichain account type.
    */

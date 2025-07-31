@@ -2,9 +2,9 @@ export type {
   MultichainAccountServiceActions,
   MultichainAccountServiceEvents,
   MultichainAccountServiceMessenger,
-  MultichainAccountServiceGetMultichainAccountAction,
+  MultichainAccountServiceGetMultichainAccountGroupAction,
   MultichainAccountServiceGetMultichainAccountWalletAction,
   MultichainAccountServiceGetMultichainAccountWalletsAction,
-  MultichainAccountServiceGetMultichainAccountsAction,
+  MultichainAccountServiceGetMultichainAccountGroupsAction,
 } from './types';
 export { MultichainAccountService } from './MultichainAccountService';

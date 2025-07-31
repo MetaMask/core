@@ -73,12 +73,12 @@ export class MultichainAccountService {
     ];
 
     this.#messenger.registerActionHandler(
-      'MultichainAccountService:getMultichainAccount',
-      (...args) => this.getMultichainAccount(...args),
+      'MultichainAccountService:getMultichainAccountGroup',
+      (...args) => this.getMultichainAccountGroup(...args),
     );
     this.#messenger.registerActionHandler(
-      'MultichainAccountService:getMultichainAccounts',
-      (...args) => this.getMultichainAccounts(...args),
+      'MultichainAccountService:getMultichainAccountGroups',
+      (...args) => this.getMultichainAccountGroups(...args),
     );
     this.#messenger.registerActionHandler(
       'MultichainAccountService:getMultichainAccountWallet',
@@ -215,13 +215,13 @@ export class MultichainAccountService {
   }
 
   /**
-   * Gets a reference to the wallet and multichain account for a given account ID.
+   * Gets the account's context which contains its multichain wallet and
+   * multichain account group references.
    *
    * @param id - Account ID.
-   * @returns An object with references to the wallet and multichain account associated for
-   * that account ID, or undefined if this account ID is not part of any.
+   * @returns The account context if any, undefined otherwise.
    */
-  getMultichainAccountAndWallet(
+  getAccountContext(
     id: InternalAccount['id'],
   ): AccountContext<Bip44Account<InternalAccount>> | undefined {
     return this.#accountIdToContext.get(id);
@@ -255,7 +255,8 @@ export class MultichainAccountService {
   }
 
   /**
-   * Gets a reference to the multichain account matching this entropy source and group index.
+   * Gets a reference to the multichain account group matching this entropy source
+   * and a group index.
    *
    * @param options - Options.
    * @param options.entropySource - The entropy source of the multichain account.
@@ -263,7 +264,7 @@ export class MultichainAccountService {
    * @throws If none multichain account match this entropy source and group index.
    * @returns A reference to the multichain account.
    */
-  getMultichainAccount({
+  getMultichainAccountGroup({
     entropySource,
     groupIndex,
   }: {
@@ -281,14 +282,14 @@ export class MultichainAccountService {
   }
 
   /**
-   * Gets all multichain accounts for a given entropy source.
+   * Gets all multichain account groups for a given entropy source.
    *
    * @param options - Options.
    * @param options.entropySource - The entropy source to query.
    * @throws If no multichain accounts match this entropy source.
    * @returns A list of all multichain accounts.
    */
-  getMultichainAccounts({
+  getMultichainAccountGroups({
     entropySource,
   }: {
     entropySource: EntropySourceId;
