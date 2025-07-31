@@ -6,6 +6,7 @@ import type {
   PermissionValidatorConstraint,
   PermissionConstraint,
   EndowmentCaveatSpecificationConstraint,
+  PermissionController,
 } from '@metamask/permission-controller';
 import {
   CaveatMutatorOperation,
@@ -20,10 +21,17 @@ import {
   type Hex,
   type NonEmptyArray,
 } from '@metamask/utils';
-import { cloneDeep, isEqual } from 'lodash';
+import { cloneDeep, isEqual, pick } from 'lodash';
 
-import { setNonSCACaipAccountIdsInCaip25CaveatValue } from './operators/caip-permission-operator-accounts';
-import { setChainIdsInCaip25CaveatValue } from './operators/caip-permission-operator-permittedChains';
+import { CaveatTypes, PermissionKeys } from './constants';
+import {
+  setEthAccounts,
+  setNonSCACaipAccountIdsInCaip25CaveatValue,
+} from './operators/caip-permission-operator-accounts';
+import {
+  setChainIdsInCaip25CaveatValue,
+  setPermittedEthChainIds,
+} from './operators/caip-permission-operator-permittedChains';
 import { assertIsInternalScopesObject } from './scope/assert';
 import {
   isSupportedAccount,
@@ -541,21 +549,181 @@ export const generateCaip25Caveat = (
 export function getCaip25CaveatFromPermission(caip25Permission?: {
   caveats: (
     | {
-        type: string;
-        value: unknown;
-      }
+      type: string;
+      value: unknown;
+    }
     | {
-        type: typeof Caip25CaveatType;
-        value: Caip25CaveatValue;
-      }
+      type: typeof Caip25CaveatType;
+      value: Caip25CaveatValue;
+    }
   )[];
 }) {
   return caip25Permission?.caveats.find(
     (caveat) => caveat.type === (Caip25CaveatType as string),
   ) as
     | {
-        type: typeof Caip25CaveatType;
-        value: Caip25CaveatValue;
-      }
+      type: typeof Caip25CaveatType;
+      value: Caip25CaveatValue;
+    }
     | undefined;
 }
+
+/**
+ * Requests user approval for the CAIP-25 permission for the specified origin
+ * and returns a granted permissions object.
+ *
+ * @param requestedPermissions - The legacy permissions to request approval for.
+ * @param requestedPermissions.caveats - //FIXME: update this
+ * @returns the approved permissions object.
+ */
+export const getCaip25PermissionFromLegacyPermissions =
+  (requestedPermissions?: {
+    [PermissionKeys.eth_accounts]?: {
+      caveats?: {
+        type: keyof typeof CaveatTypes;
+        value: Hex[];
+      }[];
+    };
+    [PermissionKeys.permittedChains]?: {
+      caveats?: {
+        type: keyof typeof CaveatTypes;
+        value: Hex[];
+      }[];
+    };
+  }) => {
+    const permissions = pick(requestedPermissions, [
+      PermissionKeys.eth_accounts,
+      PermissionKeys.permittedChains,
+    ]);
+
+    if (!permissions[PermissionKeys.eth_accounts]) {
+      permissions[PermissionKeys.eth_accounts] = {};
+    }
+
+    if (!permissions[PermissionKeys.permittedChains]) {
+      permissions[PermissionKeys.permittedChains] = {};
+    }
+
+    const requestedAccounts =
+      permissions[PermissionKeys.eth_accounts]?.caveats?.find(
+        (caveat) => caveat.type === CaveatTypes.restrictReturnedAccounts,
+      )?.value ?? [];
+
+    const requestedChains =
+      permissions[PermissionKeys.permittedChains]?.caveats?.find(
+        (caveat) => caveat.type === CaveatTypes.restrictNetworkSwitching,
+      )?.value ?? [];
+
+    const newCaveatValue = {
+      requiredScopes: {},
+      optionalScopes: {
+        'wallet:eip155': {
+          accounts: [],
+        },
+      },
+      sessionProperties: {},
+      isMultichainOrigin: false,
+    };
+
+    const caveatValueWithChains = setPermittedEthChainIds(
+      newCaveatValue,
+      requestedChains,
+    );
+
+    const caveatValueWithAccountsAndChains = setEthAccounts(
+      caveatValueWithChains,
+      requestedAccounts,
+    );
+
+    return {
+      [Caip25EndowmentPermissionName]: {
+        caveats: [
+          {
+            type: Caip25CaveatType,
+            value: caveatValueWithAccountsAndChains,
+          },
+        ],
+      },
+    };
+  };
+
+/**
+ * Requests incremental permittedChains permission for the specified origin.
+ * and updates the existing CAIP-25 permission.
+ * Allows for granting without prompting for user approval which
+ * would be used as part of flows like `wallet_addEthereumChain`
+ * requests where the addition of the network and the permitting
+ * of the chain are combined into one approval.
+ *
+ * @param options - The options object
+ * @param options.origin - The origin to request approval for.
+ * @param options.chainId - The chainId to add to the existing permittedChains.
+ * @param options.autoApprove - If the chain should be granted without prompting for user approval.
+ * @param options.metadata - Request data for the approval.
+ * @param options.metadata.options - // FIXME: document
+ * @param options.hooks - // FIXME: document
+ * @param options.hooks.requestPermissionsIncremental - // FIXME: document
+ * @param options.hooks.grantPermissionsIncremental - // FIXME: document
+ */
+export const requestPermittedChainsPermissionIncremental = async ({
+  origin,
+  chainId,
+  autoApprove,
+  hooks,
+  metadata,
+}: {
+  origin: string;
+  chainId: Hex;
+  autoApprove: boolean;
+  hooks: {
+    requestPermissionsIncremental: () => Promise<void>; // FIXME: type properly
+    grantPermissionsIncremental: () => void; // FIXME: type properly
+  };
+  metadata?: { options: Record<string, Json> };
+}) => {
+  const caveatValueWithChains = setPermittedEthChainIds(
+    {
+      requiredScopes: {},
+      optionalScopes: {},
+      sessionProperties: {},
+      isMultichainOrigin: false,
+    },
+    [chainId],
+  );
+
+  if (!autoApprove) {
+    let options;
+    if (metadata) {
+      options = { metadata };
+    }
+    await hooks.requestPermissionsIncremental(
+      { origin },
+      {
+        [Caip25EndowmentPermissionName]: {
+          caveats: [
+            {
+              type: Caip25CaveatType,
+              value: caveatValueWithChains,
+            },
+          ],
+        },
+      },
+      options,
+    );
+    return;
+  }
+
+  await hooks.grantPermissionsIncremental({
+    subject: { origin },
+    approvedPermissions: {
+      [Caip25EndowmentPermissionName]: {
+        caveats: [
+          {
+            type: Caip25CaveatType,
+            value: caveatValueWithChains,
+          },
+        ],
+      },
+    },
+  });
+};
