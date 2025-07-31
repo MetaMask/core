@@ -26,11 +26,11 @@ const accountTreeControllerMetadata: StateMetadata<AccountTreeControllerState> =
       anonymous: false,
     },
     accountGroupsMetadata: {
-      persist: true, // Persist user customizations for groups
+      persist: true,
       anonymous: false,
     },
     accountWalletsMetadata: {
-      persist: true, // Persist user customizations for wallets
+      persist: true,
       anonymous: false,
     },
   };
@@ -177,19 +177,16 @@ export class AccountTreeController extends BaseController<
   }
 
   #renameAccountWalletIfNeeded(wallet: AccountWalletObject) {
-    // Check if we have a custom name in persistent metadata first
     const persistedMetadata = this.state.accountWalletsMetadata[wallet.id];
     if (persistedMetadata?.name) {
       wallet.metadata.name = persistedMetadata.name;
       return;
     }
 
-    // If wallet already has a name (from rules), keep it
     if (wallet.metadata.name) {
       return;
     }
 
-    // Generate default name based on wallet type
     if (wallet.type === AccountWalletType.Entropy) {
       wallet.metadata.name =
         this.#getEntropyRule().getDefaultAccountWalletName(wallet);
@@ -206,19 +203,16 @@ export class AccountTreeController extends BaseController<
     wallet: AccountWalletObject,
     group: AccountGroupObject,
   ) {
-    // Check if we have a custom name in persistent metadata first
     const persistedMetadata = this.state.accountGroupsMetadata[group.id];
     if (persistedMetadata?.name) {
       group.metadata.name = persistedMetadata.name;
       return;
     }
 
-    // If group already has a name (from rules), keep it
     if (group.metadata.name) {
       return;
     }
 
-    // Generate default name based on wallet type
     if (wallet.type === AccountWalletType.Entropy) {
       group.metadata.name = this.#getEntropyRule().getDefaultAccountGroupName(
         // Get the group from the wallet, to get the proper type inference.
