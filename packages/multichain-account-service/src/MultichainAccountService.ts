@@ -88,6 +88,10 @@ export class MultichainAccountService {
       'MultichainAccountService:getMultichainAccountWallets',
       (...args) => this.getMultichainAccountWallets(...args),
     );
+    this.#messenger.registerActionHandler(
+      'MultichainAccountService:createNextMultichainAccountGroup',
+      (...args) => this.createNextMultichainAccountGroup(...args),
+    );
   }
 
   /**
