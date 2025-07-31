@@ -8,7 +8,7 @@ import {
   AccountWalletType,
   toAccountGroupId,
   toAccountWalletId,
-  toMultichainAccountId,
+  toMultichainAccountGroupId,
   toMultichainAccountWalletId,
   type AccountGroupId,
 } from '@metamask/account-api';
@@ -383,18 +383,18 @@ describe('AccountTreeController', () => {
       const expectedWalletId1 = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_1.metadata.id,
       );
-      const expectedWalletId1Group = toMultichainAccountId(
+      const expectedWalletId1Group = toMultichainAccountGroupId(
         expectedWalletId1,
         MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
       );
       const expectedWalletId2 = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_2.metadata.id,
       );
-      const expectedWalletId2Group1 = toMultichainAccountId(
+      const expectedWalletId2Group1 = toMultichainAccountGroupId(
         expectedWalletId2,
         MOCK_HD_ACCOUNT_2.options.entropy.groupIndex,
       );
-      const expectedWalletId2Group2 = toMultichainAccountId(
+      const expectedWalletId2Group2 = toMultichainAccountGroupId(
         expectedWalletId2,
         MOCK_SNAP_ACCOUNT_1.options.entropy.groupIndex,
       );
@@ -563,7 +563,7 @@ describe('AccountTreeController', () => {
       const expectedWalletId = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_2.metadata.id,
       );
-      const expectedGroupId = toMultichainAccountId(
+      const expectedGroupId = toMultichainAccountGroupId(
         expectedWalletId,
         mockSnapAccountWithEntropy.options.entropy.groupIndex,
       );
@@ -675,7 +675,7 @@ describe('AccountTreeController', () => {
       const walletId1 = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_1.metadata.id,
       );
-      const walletId1Group = toMultichainAccountId(
+      const walletId1Group = toMultichainAccountGroupId(
         walletId1,
         mockHdAccount1.options.entropy.groupIndex,
       );
@@ -752,7 +752,7 @@ describe('AccountTreeController', () => {
       const walletId1 = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_1.metadata.id,
       );
-      const walletId1Group = toMultichainAccountId(
+      const walletId1Group = toMultichainAccountGroupId(
         walletId1,
         mockHdAccount1.options.entropy.groupIndex,
       );
@@ -829,14 +829,14 @@ describe('AccountTreeController', () => {
       const walletId1 = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_1.metadata.id,
       );
-      const walletId1Group = toMultichainAccountId(
+      const walletId1Group = toMultichainAccountGroupId(
         walletId1,
         mockHdAccount1.options.entropy.groupIndex,
       );
       const walletId2 = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_2.metadata.id,
       );
-      const walletId2Group = toMultichainAccountId(
+      const walletId2Group = toMultichainAccountGroupId(
         walletId2,
         mockHdAccount2.options.entropy.groupIndex,
       );
@@ -961,7 +961,7 @@ describe('AccountTreeController', () => {
       const groups = wallet.getAccountGroups();
       expect(groups).toHaveLength(1);
       expect(groups[0].id).toStrictEqual(
-        toMultichainAccountId(
+        toMultichainAccountGroupId(
           wallet.id as MultichainAccountWalletId,
           MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
         ),
@@ -979,7 +979,7 @@ describe('AccountTreeController', () => {
       expect(wallets).toHaveLength(1);
 
       const wallet = wallets[0];
-      const groupId = toMultichainAccountId(
+      const groupId = toMultichainAccountGroupId(
         wallet.id as MultichainAccountWalletId,
         MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
       );
@@ -1178,7 +1178,7 @@ describe('AccountTreeController', () => {
       const expectedWalletId2 = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_2.metadata.id,
       );
-      const expectedGroupId2 = toMultichainAccountId(
+      const expectedGroupId2 = toMultichainAccountGroupId(
         expectedWalletId2,
         MOCK_HD_ACCOUNT_2.options.entropy.groupIndex,
       );
@@ -1218,7 +1218,7 @@ describe('AccountTreeController', () => {
       const expectedWalletId2 = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_2.metadata.id,
       );
-      const expectedGroupId2 = toMultichainAccountId(
+      const expectedGroupId2 = toMultichainAccountGroupId(
         expectedWalletId2,
         nonEvmAccount2.options.entropy.groupIndex,
       );
@@ -1244,7 +1244,7 @@ describe('AccountTreeController', () => {
       const expectedWalletId = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_1.metadata.id,
       );
-      const expectedGroupId = toMultichainAccountId(
+      const expectedGroupId = toMultichainAccountGroupId(
         expectedWalletId,
         MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
       );
@@ -1277,7 +1277,7 @@ describe('AccountTreeController', () => {
       const expectedWalletId1 = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_1.metadata.id,
       );
-      const expectedGroupId1 = toMultichainAccountId(
+      const expectedGroupId1 = toMultichainAccountGroupId(
         expectedWalletId1,
         MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
       );
@@ -1353,7 +1353,7 @@ describe('AccountTreeController', () => {
       const expectedWalletId1 = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_1.metadata.id,
       );
-      const expectedGroupId1 = toMultichainAccountId(
+      const expectedGroupId1 = toMultichainAccountGroupId(
         expectedWalletId1,
         MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
       );
@@ -1387,7 +1387,7 @@ describe('AccountTreeController', () => {
       const expectedWalletId1 = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_1.metadata.id,
       );
-      const expectedGroupId1 = toMultichainAccountId(
+      const expectedGroupId1 = toMultichainAccountGroupId(
         expectedWalletId1,
         MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
       );
@@ -1430,7 +1430,7 @@ describe('AccountTreeController', () => {
       const expectedWalletId1 = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_1.metadata.id,
       );
-      const expectedGroupId1 = toMultichainAccountId(
+      const expectedGroupId1 = toMultichainAccountGroupId(
         expectedWalletId1,
         MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
       );
@@ -1467,7 +1467,7 @@ describe('AccountTreeController', () => {
       const expectedWalletId1 = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_1.metadata.id,
       );
-      const expectedGroupId1 = toMultichainAccountId(
+      const expectedGroupId1 = toMultichainAccountGroupId(
         expectedWalletId1,
         MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
       );
@@ -1476,7 +1476,7 @@ describe('AccountTreeController', () => {
       const expectedWalletId2 = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_2.metadata.id,
       );
-      const expectedGroupId2 = toMultichainAccountId(
+      const expectedGroupId2 = toMultichainAccountGroupId(
         expectedWalletId2,
         MOCK_HD_ACCOUNT_2.options.entropy.groupIndex,
       );
@@ -1557,7 +1557,7 @@ describe('AccountTreeController', () => {
       );
 
       const group: AccountGroupObject = {
-        id: toMultichainAccountId(
+        id: toMultichainAccountGroupId(
           toMultichainAccountWalletId('test'),
           MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
         ),

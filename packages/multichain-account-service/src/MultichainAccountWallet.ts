@@ -6,7 +6,7 @@ import type {
 import type { AccountGroupId } from '@metamask/account-api';
 import type { AccountProvider } from '@metamask/account-api';
 import {
-  getGroupIndexFromMultichainAccountId,
+  getGroupIndexFromMultichainAccountId as getGroupIndexFromMultichainAccountGroupId,
   isMultichainAccountGroupId,
 } from '@metamask/account-api';
 import { toDefaultAccountGroupId } from '@metamask/account-api';
@@ -139,7 +139,7 @@ export class MultichainAccountWallet<
       return undefined;
     }
 
-    const groupIndex = getGroupIndexFromMultichainAccountId(id);
+    const groupIndex = getGroupIndexFromMultichainAccountGroupId(id);
     return this.#accounts.get(groupIndex);
   }
 

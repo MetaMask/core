@@ -1,6 +1,6 @@
 import type {
   AccountGroupType,
-  MultichainAccountId,
+  MultichainAccountGroupId,
 } from '@metamask/account-api';
 import type { AccountGroup, AccountGroupId } from '@metamask/account-api';
 import type { AccountId } from '@metamask/accounts-controller';
@@ -32,7 +32,7 @@ type IsAccountGroupObject<
  */
 export type AccountGroupMultichainAccountObject = {
   type: AccountGroupType.MultichainAccount;
-  id: MultichainAccountId;
+  id: MultichainAccountGroupId;
   // Blockchain Accounts (at least 1 account per multichain-accounts):
   accounts: [AccountId, ...AccountId[]];
   metadata: {
