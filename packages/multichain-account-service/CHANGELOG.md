@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add multichain account group creation support ([#6222](https://github.com/MetaMask/core/pull/6222))
+  - This also includes the new action `MultichainAccountService:createNextMultichainAccount`.
 - Export `MultichainAccountWallet` and `MultichainAccountGroup` types ([#6220](https://github.com/MetaMask/core/pull/6220))
 
 ### Changed
