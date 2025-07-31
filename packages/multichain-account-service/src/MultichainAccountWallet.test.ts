@@ -7,18 +7,27 @@ import {
   toMultichainAccountGroupId,
   toMultichainAccountWalletId,
 } from '@metamask/account-api';
-import type { EntropySourceId } from '@metamask/keyring-api';
+import {
+  EthAccountType,
+  SolAccountType,
+  type EntropySourceId,
+} from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import { MultichainAccountWallet } from './MultichainAccountWallet';
 import type { MockAccountProvider } from './tests';
 import {
+  MOCK_HD_ACCOUNT_1,
+  MOCK_HD_ACCOUNT_2,
+  MOCK_HD_KEYRING_1,
   MOCK_SNAP_ACCOUNT_2,
+  MOCK_SOL_ACCOUNT_1,
   MOCK_WALLET_1_BTC_P2TR_ACCOUNT,
   MOCK_WALLET_1_BTC_P2WPKH_ACCOUNT,
   MOCK_WALLET_1_ENTROPY_SOURCE,
   MOCK_WALLET_1_EVM_ACCOUNT,
   MOCK_WALLET_1_SOL_ACCOUNT,
+  MockAccountBuilder,
   setupAccountProvider,
 } from './tests';
 
@@ -199,6 +208,111 @@ describe('MultichainAccountWallet', () => {
       // We should not have any multichain account anymore.
       wallet.sync();
       expect(wallet.getMultichainAccountGroups()).toHaveLength(0);
+    });
+  });
+
+  describe('createMultichainAccountGroup', () => {
+    it('creates a multichain account group for a given index', async () => {
+      const groupIndex = 1;
+
+      // Used to build the initial wallet with 1 multichain account (for
+      // group index 0)!
+      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+
+      const { wallet, providers } = setup({
+        accounts: [[mockEvmAccount]], // 1 provider
+      });
+      const mockNextEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(groupIndex)
+        .get();
+
+      const [provider] = providers;
+      // 1. Create the accounts for the new index and returns their IDs.
+      provider.createAccounts.mockResolvedValueOnce([mockNextEvmAccount.id]);
+      // 2. When the adapter creates a new multichain account, it will query all
+      // accounts for this given index (so similar to the one we just created).
+      provider.getAccounts.mockReturnValueOnce([mockNextEvmAccount]);
+      // 3. Required when we call `getAccounts` (below) on the multichain account.
+      provider.getAccount.mockReturnValueOnce(mockNextEvmAccount);
+
+      const specificGroup =
+        await wallet.createMultichainAccountGroup(groupIndex);
+      expect(specificGroup.index).toBe(groupIndex);
+
+      const internalAccounts = specificGroup.getAccounts();
+      expect(internalAccounts).toHaveLength(1);
+      expect(internalAccounts[0].type).toBe(EthAccountType.Eoa);
+    });
+
+    it('fails to create an account beyond the next index', async () => {
+      const { wallet } = setup({
+        accounts: [[MOCK_HD_ACCOUNT_1]],
+      });
+
+      const groupIndex = 10;
+      await expect(
+        wallet.createMultichainAccountGroup(groupIndex),
+      ).rejects.toThrow(
+        `You cannot use a group index that is higher than the next available one: expected <=1, got ${groupIndex}`,
+      );
+    });
+  });
+
+  describe('createNextMultichainAccountGroup', () => {
+    it('creates the next multichain account group', async () => {
+      // Used to build the initial wallet with 1 multichain account (for
+      // group index 0)!
+      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+
+      const { wallet, providers } = setup({
+        accounts: [
+          [mockEvmAccount], // EVM provider.
+          [], // Solana provider.
+        ],
+      });
+
+      // Before creating the next multichain account, we need to mock some actions:
+      const mockNextEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_2)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(1)
+        .get();
+      const mockNextSolAccount = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(1)
+        .withUuid() // Required by KeyringClient.
+        .get();
+
+      // We need to mock every call made to the providers when creating an accounts:
+      const [evmAccountProvider, solAccountProvider] = providers;
+      for (const [mockAccountProvider, mockNextAccount] of [
+        [evmAccountProvider, mockNextEvmAccount],
+        [solAccountProvider, mockNextSolAccount],
+      ] as const) {
+        // 1. Create the accounts for the new index and returns their IDs.
+        mockAccountProvider.createAccounts.mockResolvedValueOnce([
+          mockNextAccount.id,
+        ]);
+        // 2. When the adapter creates a new multichain account, it will query all
+        // accounts for this given index (so similar to the one we just created).
+        mockAccountProvider.getAccounts.mockReturnValueOnce([mockNextAccount]);
+        // 3. Required when we call `getAccounts` (below) on the multichain account.
+        mockAccountProvider.getAccount.mockReturnValueOnce(mockNextAccount);
+      }
+
+      const nextGroup = await wallet.createNextMultichainAccountGroup();
+      expect(nextGroup.index).toBe(1);
+
+      const internalAccounts = nextGroup.getAccounts();
+      expect(internalAccounts).toHaveLength(2); // EVM + SOL.
+      expect(internalAccounts[0].type).toBe(EthAccountType.Eoa);
+      expect(internalAccounts[1].type).toBe(SolAccountType.DataAccount);
     });
   });
 });
