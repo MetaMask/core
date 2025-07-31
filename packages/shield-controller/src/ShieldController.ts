@@ -12,7 +12,10 @@ import type { SubscriptionControllerCheckSubscriptionStatusAction } from './mock
 import type { CoverageResult, ShieldBackend } from './types';
 
 export type ShieldControllerState = {
-  coverageResults: CoverageResult[];
+  coverageResults: Record<
+    string, // txId
+    { results: CoverageResult[] } // history of coverage results, latest first
+  >;
 };
 
 /**
@@ -22,7 +25,7 @@ export type ShieldControllerState = {
  */
 function getDefaultShieldControllerState(): ShieldControllerState {
   return {
-    coverageResults: [],
+    coverageResults: {},
   };
 }
 
@@ -86,6 +89,7 @@ export type ShieldControllerOptions = {
   messenger: ShieldControllerMessenger;
   state?: Partial<ShieldControllerState>;
   backend: ShieldBackend;
+  coverageHistoryLimit?: number;
 };
 
 export class ShieldController extends BaseController<
@@ -95,8 +99,10 @@ export class ShieldController extends BaseController<
 > {
   readonly #backend: ShieldBackend;
 
+  readonly #coverageHistoryLimit: number;
+
   constructor(options: ShieldControllerOptions) {
-    const { messenger, state, backend } = options;
+    const { messenger, state, backend, coverageHistoryLimit = 10 } = options;
     super({
       name: controllerName,
       metadata,
@@ -108,6 +114,7 @@ export class ShieldController extends BaseController<
     });
 
     this.#backend = backend;
+    this.#coverageHistoryLimit = coverageHistoryLimit;
   }
 
   start() {
@@ -143,14 +150,13 @@ export class ShieldController extends BaseController<
     );
 
     // Update state
-    this.update((draft) => {
-      draft.coverageResults.push(coverageResult);
-    });
+    this.#addCoverageResult(txMeta.id, coverageResult);
 
     return coverageResult;
   }
 
   #checkSubscriptionStatus(): Promise<'subscribed' | 'not-subscribed'> {
+    // return Promise.resolve('subscribed');
     return this.messagingSystem.call(
       'SubscriptionController:checkSubscriptionStatus',
       'Shield',
@@ -162,5 +168,27 @@ export class ShieldController extends BaseController<
       'AuthenticationController:getBearerToken',
     );
     return this.#backend.checkCoverage(accessToken, txMeta);
+  }
+
+  #addCoverageResult(txId: string, coverageResult: CoverageResult) {
+    // Read state
+    let coverageResultEntry = this.state.coverageResults[txId];
+
+    // Update state
+    if (!coverageResultEntry) {
+      coverageResultEntry = {
+        results: [],
+      };
+    }
+
+    if (coverageResultEntry.results.length >= this.#coverageHistoryLimit) {
+      coverageResultEntry.results.pop();
+    }
+    coverageResultEntry.results.unshift(coverageResult);
+
+    // Write state
+    this.update((draft) => {
+      draft.coverageResults[txId] = coverageResultEntry;
+    });
   }
 }
