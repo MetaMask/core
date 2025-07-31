@@ -1,3 +1,4 @@
+import { isBip44Account } from '@metamask/account-api';
 import type { Messenger } from '@metamask/base-controller';
 import type { SnapKeyring } from '@metamask/eth-snap-keyring';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
@@ -21,7 +22,6 @@ import type {
   MultichainAccountServiceActions,
   MultichainAccountServiceEvents,
 } from '../types';
-import { isBip44Account } from '@metamask/account-api';
 
 class MockSolanaKeyring {
   readonly type = 'MockSolanaKeyring';
