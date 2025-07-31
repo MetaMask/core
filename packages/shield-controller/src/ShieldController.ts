@@ -1,9 +1,9 @@
 import { BaseController } from '@metamask/base-controller';
 import type { RestrictedMessenger } from '@metamask/base-controller';
+import type { AuthenticationControllerGetBearerToken } from '@metamask/profile-sync-controller/auth';
 import type {
   TransactionControllerUnapprovedTransactionAddedEvent,
   TransactionMeta,
-  TransactionParams,
 } from '@metamask/transaction-controller';
 
 import { controllerName } from './constants';
@@ -51,7 +51,8 @@ export type ShieldControllerEvents =
  * The external actions available to the ShieldController.
  */
 export type AllowedActions =
-  SubscriptionControllerCheckSubscriptionStatusAction;
+  | SubscriptionControllerCheckSubscriptionStatusAction
+  | AuthenticationControllerGetBearerToken;
 
 /**
  * The external events available to the ShieldController.
@@ -112,7 +113,11 @@ export class ShieldController extends BaseController<
   start() {
     this.messagingSystem.subscribe(
       'TransactionController:unapprovedTransactionAdded',
-      this.#handleUnapprovedTransactionAdded.bind(this),
+      (txMeta: TransactionMeta) => {
+        this.#handleUnapprovedTransactionAdded(txMeta).catch((error) => {
+          log('Error in transaction handler:', error);
+        });
+      },
     );
   }
 
@@ -152,7 +157,10 @@ export class ShieldController extends BaseController<
     );
   }
 
-  #fetchCoverageResult(txMeta: TransactionMeta): Promise<CoverageResult> {
-    return this.#backend.checkCoverage(txMeta);
+  async #fetchCoverageResult(txMeta: TransactionMeta): Promise<CoverageResult> {
+    const accessToken = await this.messagingSystem.call(
+      'AuthenticationController:getBearerToken',
+    );
+    return this.#backend.checkCoverage(accessToken, txMeta);
   }
 }

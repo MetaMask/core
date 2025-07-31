@@ -8,5 +8,8 @@ export type CoverageResult = {
 export type CoverageStatus = 'covered' | 'malicious' | 'unsupported';
 
 export type ShieldBackend = {
-  checkCoverage: (txMeta: TransactionMeta) => Promise<CoverageResult>;
+  checkCoverage: (
+    accessToken: string,
+    txMeta: TransactionMeta,
+  ) => Promise<CoverageResult>;
 };
