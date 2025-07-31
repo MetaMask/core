@@ -18,7 +18,6 @@ import { MultichainAccountWallet } from './MultichainAccountWallet';
 import type { MockAccountProvider } from './tests';
 import {
   MOCK_HD_ACCOUNT_1,
-  MOCK_HD_ACCOUNT_2,
   MOCK_HD_KEYRING_1,
   MOCK_SNAP_ACCOUNT_2,
   MOCK_SOL_ACCOUNT_1,
