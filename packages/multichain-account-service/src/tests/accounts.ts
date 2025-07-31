@@ -258,3 +258,30 @@ export class MockAccountBuilder {
     return this.#account;
   }
 }
+
+export const MOCK_WALLET_1_ENTROPY_SOURCE = MOCK_ENTROPY_SOURCE_1;
+
+export const MOCK_WALLET_1_EVM_ACCOUNT = MockAccountBuilder.from(
+  MOCK_HD_ACCOUNT_1,
+)
+  .withEntropySource(MOCK_WALLET_1_ENTROPY_SOURCE)
+  .withGroupIndex(0)
+  .get();
+export const MOCK_WALLET_1_SOL_ACCOUNT = MockAccountBuilder.from(
+  MOCK_SOL_ACCOUNT_1,
+)
+  .withEntropySource(MOCK_WALLET_1_ENTROPY_SOURCE)
+  .withGroupIndex(0)
+  .get();
+export const MOCK_WALLET_1_BTC_P2WPKH_ACCOUNT = MockAccountBuilder.from(
+  MOCK_BTC_P2WPKH_ACCOUNT_1,
+)
+  .withEntropySource(MOCK_WALLET_1_ENTROPY_SOURCE)
+  .withGroupIndex(0)
+  .get();
+export const MOCK_WALLET_1_BTC_P2TR_ACCOUNT = MockAccountBuilder.from(
+  MOCK_BTC_P2TR_ACCOUNT_1,
+)
+  .withEntropySource(MOCK_WALLET_1_ENTROPY_SOURCE)
+  .withGroupIndex(0)
+  .get();

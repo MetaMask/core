@@ -2,7 +2,6 @@
 import type { AccountSelector, Bip44Account } from '@metamask/account-api';
 import {
   AccountGroupType,
-  isBip44Account,
   toMultichainAccountGroupId,
   toMultichainAccountWalletId,
 } from '@metamask/account-api';
@@ -21,65 +20,14 @@ import { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
 import type { MockAccountProvider } from './tests';
 import {
-  MOCK_ENTROPY_SOURCE_1,
-  MOCK_HD_ACCOUNT_1,
-  MOCK_SOL_ACCOUNT_1,
   MOCK_SNAP_ACCOUNT_2,
-  MOCK_BTC_P2WPKH_ACCOUNT_1,
-  MOCK_BTC_P2TR_ACCOUNT_1,
-  MockAccountBuilder,
+  MOCK_WALLET_1_BTC_P2TR_ACCOUNT,
+  MOCK_WALLET_1_BTC_P2WPKH_ACCOUNT,
+  MOCK_WALLET_1_ENTROPY_SOURCE,
+  MOCK_WALLET_1_EVM_ACCOUNT,
+  MOCK_WALLET_1_SOL_ACCOUNT,
+  setupAccountProvider,
 } from './tests';
-
-const MOCK_WALLET_1_ENTROPY_SOURCE = MOCK_ENTROPY_SOURCE_1;
-
-const MOCK_WALLET_1_EVM_ACCOUNT = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
-  .withEntropySource(MOCK_WALLET_1_ENTROPY_SOURCE)
-  .withGroupIndex(0)
-  .get();
-const MOCK_WALLET_1_SOL_ACCOUNT = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
-  .withEntropySource(MOCK_WALLET_1_ENTROPY_SOURCE)
-  .withGroupIndex(0)
-  .get();
-const MOCK_WALLET_1_BTC_P2WPKH_ACCOUNT = MockAccountBuilder.from(
-  MOCK_BTC_P2WPKH_ACCOUNT_1,
-)
-  .withEntropySource(MOCK_WALLET_1_ENTROPY_SOURCE)
-  .withGroupIndex(0)
-  .get();
-const MOCK_WALLET_1_BTC_P2TR_ACCOUNT = MockAccountBuilder.from(
-  MOCK_BTC_P2TR_ACCOUNT_1,
-)
-  .withEntropySource(MOCK_WALLET_1_ENTROPY_SOURCE)
-  .withGroupIndex(0)
-  .get();
-
-function setupAccountProvider(
-  accounts: InternalAccount[],
-): MockAccountProvider {
-  const mocks: MockAccountProvider = {
-    accounts: [],
-    getAccount: jest.fn(),
-    getAccounts: jest.fn(),
-    createAccounts: jest.fn(),
-    discoverAndCreateAccounts: jest.fn(),
-  };
-
-  // You can mock this and all other mocks will re-use that list
-  // of accounts.
-  mocks.accounts = accounts;
-
-  const getAccounts = () =>
-    mocks.accounts.filter((account) => isBip44Account(account));
-
-  mocks.getAccounts.mockImplementation(getAccounts);
-  mocks.getAccount.mockImplementation(
-    (id: Bip44Account<InternalAccount>['id']) =>
-      // Assuming this never fails.
-      getAccounts().find((account) => account.id === id),
-  );
-
-  return mocks;
-}
 
 function setup({
   groupIndex = 0,
@@ -97,7 +45,9 @@ function setup({
   group: MultichainAccountGroup<Bip44Account<InternalAccount>>;
   providers: MockAccountProvider[];
 } {
-  const providers = accounts.map(setupAccountProvider);
+  const providers = accounts.map((providerAccounts) => {
+    return setupAccountProvider({ accounts: providerAccounts });
+  });
 
   const wallet = new MultichainAccountWallet<Bip44Account<InternalAccount>>({
     providers,

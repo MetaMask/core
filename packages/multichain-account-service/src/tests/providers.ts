@@ -2,10 +2,7 @@
 
 import type { Bip44Account } from '@metamask/account-api';
 import { isBip44Account } from '@metamask/account-api';
-import type { KeyringAccount } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-
-import type { MultichainAccountServiceMessenger } from '../types';
 
 export type MockAccountProvider = {
   accounts: InternalAccount[];
@@ -15,23 +12,34 @@ export type MockAccountProvider = {
   discoverAndCreateAccounts: jest.Mock;
 };
 
-export function mockAccountProvider<Provider>(
-  providerClass: new (messenger: MultichainAccountServiceMessenger) => Provider,
-  mocks: MockAccountProvider,
-  accounts: InternalAccount[],
-  type?: KeyringAccount['type'],
-) {
-  jest
-    .mocked(providerClass)
-    .mockImplementation(() => mocks as unknown as Provider);
+export function makeMockAccountProvider(
+  accounts: InternalAccount[] = [],
+): MockAccountProvider {
+  return {
+    accounts,
+    getAccount: jest.fn(),
+    getAccounts: jest.fn(),
+    createAccounts: jest.fn(),
+    discoverAndCreateAccounts: jest.fn(),
+  };
+}
 
+export function setupAccountProvider({
+  accounts,
+  mocks = makeMockAccountProvider(),
+  filter = () => true,
+}: {
+  mocks?: MockAccountProvider;
+  accounts: InternalAccount[];
+  filter?: (account: InternalAccount) => boolean;
+}): MockAccountProvider {
   // You can mock this and all other mocks will re-use that list
   // of accounts.
   mocks.accounts = accounts;
 
   const getAccounts = () =>
     mocks.accounts.filter(
-      (account) => isBip44Account(account) && type && account.type === type,
+      (account) => isBip44Account(account) && filter(account),
     );
 
   mocks.getAccounts.mockImplementation(getAccounts);
@@ -40,4 +48,6 @@ export function mockAccountProvider<Provider>(
       // Assuming this never fails.
       getAccounts().find((account) => account.id === id),
   );
+
+  return mocks;
 }

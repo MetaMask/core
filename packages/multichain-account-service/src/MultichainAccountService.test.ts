@@ -1,6 +1,7 @@
 /* eslint-disable jsdoc/require-jsdoc */
 
 import type { Messenger } from '@metamask/base-controller';
+import type { KeyringAccount } from '@metamask/keyring-api';
 import { EthAccountType, SolAccountType } from '@metamask/keyring-api';
 import { KeyringTypes, type KeyringObject } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -12,6 +13,7 @@ import type { MockAccountProvider } from './tests';
 import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,
+  makeMockAccountProvider,
   MOCK_HARDWARE_ACCOUNT_1,
   MOCK_HD_ACCOUNT_1,
   MOCK_HD_ACCOUNT_2,
@@ -20,13 +22,14 @@ import {
   MOCK_SNAP_ACCOUNT_1,
   MOCK_SNAP_ACCOUNT_2,
   MockAccountBuilder,
-  mockAccountProvider,
+  setupAccountProvider,
 } from './tests';
 import type {
   AllowedActions,
   AllowedEvents,
   MultichainAccountServiceActions,
   MultichainAccountServiceEvents,
+  MultichainAccountServiceMessenger,
 } from './types';
 
 // Mock providers.
@@ -55,6 +58,23 @@ type Mocks = {
   SolAccountProvider: MockAccountProvider;
 };
 
+function mockAccountProvider<Provider>(
+  providerClass: new (messenger: MultichainAccountServiceMessenger) => Provider,
+  mocks: MockAccountProvider,
+  accounts: InternalAccount[],
+  type: KeyringAccount['type'],
+) {
+  jest
+    .mocked(providerClass)
+    .mockImplementation(() => mocks as unknown as Provider);
+
+  setupAccountProvider({
+    mocks,
+    accounts,
+    filter: (account) => account.type === type,
+  });
+}
+
 function setup({
   messenger = getRootMessenger(),
   keyrings = [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
@@ -82,20 +102,8 @@ function setup({
     AccountsController: {
       listMultichainAccounts: jest.fn(),
     },
-    EvmAccountProvider: {
-      accounts: [],
-      getAccount: jest.fn(),
-      getAccounts: jest.fn(),
-      createAccounts: jest.fn(),
-      discoverAndCreateAccounts: jest.fn(),
-    },
-    SolAccountProvider: {
-      accounts: [],
-      getAccount: jest.fn(),
-      getAccounts: jest.fn(),
-      createAccounts: jest.fn(),
-      discoverAndCreateAccounts: jest.fn(),
-    },
+    EvmAccountProvider: makeMockAccountProvider(),
+    SolAccountProvider: makeMockAccountProvider(),
   };
 
   mocks.KeyringController.getState.mockImplementation(() => ({
