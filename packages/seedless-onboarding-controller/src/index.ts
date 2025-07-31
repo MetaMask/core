@@ -12,6 +12,8 @@ export type {
   SeedlessOnboardingControllerStateChangeEvent,
   SeedlessOnboardingControllerActions,
   SeedlessOnboardingControllerEvents,
+  SeedlessOnboardingControllerAllowedEvents,
+  SeedlessOnboardingControllerAllowedActions,
   ToprfKeyDeriver,
   RecoveryErrorData,
 } from './types';
