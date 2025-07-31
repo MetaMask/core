@@ -2,7 +2,7 @@ import {
   AccountGroupType,
   AccountWalletType,
   isBip44Account,
-  toMultichainAccountId,
+  toMultichainAccountGroupId,
   toMultichainAccountWalletId,
 } from '@metamask/account-api';
 import { isEvmAccountType } from '@metamask/keyring-api';
@@ -48,7 +48,7 @@ export class EntropyRule
     }
 
     const walletId = toMultichainAccountWalletId(entropySource);
-    const groupId = toMultichainAccountId(
+    const groupId = toMultichainAccountGroupId(
       walletId,
       account.options.entropy.groupIndex,
     );

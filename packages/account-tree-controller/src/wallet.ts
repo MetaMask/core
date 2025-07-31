@@ -42,9 +42,9 @@ export type AccountWalletEntropyObject = {
   type: AccountWalletType.Entropy;
   id: MultichainAccountWalletId;
   groups: {
-    // NOTE: Using `MultichainAccountId` instead of `AccountGroupId` would introduce
+    // NOTE: Using `MultichainAccountGroupId` instead of `AccountGroupId` would introduce
     // some type problems when using a group ID as an `AccountGroupId` directly. This
-    // would require some up-cast to a `MultichainAccountId` which could be considered
+    // would require some up-cast to a `MultichainAccountGroupId` which could be considered
     // unsafe... So we keep it as a `AccountGroupId` for now.
     [groupId: AccountGroupId]: AccountGroupMultichainAccountObject;
   };
