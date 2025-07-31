@@ -8,7 +8,6 @@ import type {
 
 import { controllerName } from './constants';
 import { projectLogger as log } from './logger';
-import type { SubscriptionControllerCheckSubscriptionStatusAction } from './mock';
 import type { CoverageResult, ShieldBackend } from './types';
 
 export type ShieldControllerState = {
@@ -53,9 +52,7 @@ export type ShieldControllerEvents =
 /**
  * The external actions available to the ShieldController.
  */
-export type AllowedActions =
-  | SubscriptionControllerCheckSubscriptionStatusAction
-  | AuthenticationControllerGetBearerToken;
+export type AllowedActions = AuthenticationControllerGetBearerToken;
 
 /**
  * The external events available to the ShieldController.
@@ -134,12 +131,6 @@ export class ShieldController extends BaseController<
   }
 
   async checkCoverage(txMeta: TransactionMeta): Promise<CoverageResult> {
-    // Check subscription status
-    const subscriptionStatus = await this.#checkSubscriptionStatus();
-    if (subscriptionStatus !== 'subscribed') {
-      throw new Error('Not subscribed');
-    }
-
     // Check coverage
     const coverageResult = await this.#fetchCoverageResult(txMeta);
 
@@ -153,14 +144,6 @@ export class ShieldController extends BaseController<
     this.#addCoverageResult(txMeta.id, coverageResult);
 
     return coverageResult;
-  }
-
-  #checkSubscriptionStatus(): Promise<'subscribed' | 'not-subscribed'> {
-    // return Promise.resolve('subscribed');
-    return this.messagingSystem.call(
-      'SubscriptionController:checkSubscriptionStatus',
-      'Shield',
-    );
   }
 
   async #fetchCoverageResult(txMeta: TransactionMeta): Promise<CoverageResult> {

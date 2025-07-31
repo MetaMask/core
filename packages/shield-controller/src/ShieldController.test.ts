@@ -2,7 +2,6 @@ import { ShieldController } from './ShieldController';
 import { createAuthenticationControllerMock } from '../tests/mocks/authenticationController';
 import { createMockBackend } from '../tests/mocks/backend';
 import { createMockMessenger } from '../tests/mocks/messenger';
-import { createSubscriptionControllerMock } from '../tests/mocks/subscriptionController';
 import { generateMockTxMeta } from '../tests/txUtils';
 
 /**
@@ -11,15 +10,6 @@ import { generateMockTxMeta } from '../tests/txUtils';
 function setup() {
   const backend = createMockBackend();
   const { messenger, baseMessenger } = createMockMessenger();
-
-  const subscriptionControllerMessenger = baseMessenger.getRestricted({
-    name: 'SubscriptionController',
-    allowedActions: [],
-    allowedEvents: [],
-  });
-  const subscriptionController = createSubscriptionControllerMock(
-    subscriptionControllerMessenger,
-  );
 
   const authenticationControllerMessenger = baseMessenger.getRestricted({
     name: 'AuthenticationController',
@@ -40,7 +30,6 @@ function setup() {
     messenger,
     baseMessenger,
     backend,
-    subscriptionController,
     authenticationController,
   };
 }
@@ -64,17 +53,5 @@ describe('ShieldController', () => {
       await authenticationController.getBearerToken(),
       txMeta,
     );
-  });
-
-  it('should not fetch coverage if user is not subscribed', async () => {
-    const { controller, backend, subscriptionController } = setup();
-    subscriptionController.checkSubscriptionStatus.mockResolvedValueOnce(
-      Promise.resolve('not-subscribed'),
-    );
-    const txMeta = generateMockTxMeta();
-    await expect(controller.checkCoverage(txMeta)).rejects.toThrow(
-      'Not subscribed',
-    );
-    expect(backend.checkCoverage).not.toHaveBeenCalled();
   });
 });
