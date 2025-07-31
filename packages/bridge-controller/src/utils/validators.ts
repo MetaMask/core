@@ -94,7 +94,7 @@ export const PriceImpactThresholdSchema = type({
  * This is the schema for the feature flags response from the RemoteFeatureFlagController
  */
 export const PlatformConfigSchema = type({
-  priceImpactThreshold: PriceImpactThresholdSchema,
+  priceImpactThreshold: optional(PriceImpactThresholdSchema),
   minimumVersion: string(),
   refreshRate: number(),
   maxRefreshCount: number(),
