@@ -248,6 +248,17 @@ describe('MultichainAccountWallet', () => {
       expect(internalAccounts[0].type).toBe(EthAccountType.Eoa);
     });
 
+    it('returns the same reference when re-creating using the same index', async () => {
+      const { wallet } = setup({
+        accounts: [[MOCK_HD_ACCOUNT_1]],
+      });
+
+      const group = wallet.getMultichainAccountGroup(0);
+      const newGroup = await wallet.createMultichainAccountGroup(0);
+
+      expect(newGroup).toBe(group);
+    });
+
     it('fails to create an account beyond the next index', async () => {
       const { wallet } = setup({
         accounts: [[MOCK_HD_ACCOUNT_1]],

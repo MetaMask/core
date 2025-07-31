@@ -209,6 +209,15 @@ export class MultichainAccountWallet<
       );
     }
 
+    const group = this.getMultichainAccountGroup(groupIndex);
+    if (group) {
+      // If the group already exists, we just `sync` it and returns the same
+      // reference.
+      group.sync();
+
+      return group;
+    }
+
     // TODO: Make this parallel.
     for (const provider of this.#providers) {
       // FIXME: What to do if any provider fails to create accounts?
