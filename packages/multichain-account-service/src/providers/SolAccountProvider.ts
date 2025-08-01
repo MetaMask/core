@@ -1,7 +1,10 @@
 import { type Bip44Account } from '@metamask/account-api';
 import type { SnapKeyring } from '@metamask/eth-snap-keyring';
 import type { EntropySourceId } from '@metamask/keyring-api';
-import { KeyringAccountEntropyTypeOption, SolAccountType } from '@metamask/keyring-api';
+import {
+  KeyringAccountEntropyTypeOption,
+  SolAccountType,
+} from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
