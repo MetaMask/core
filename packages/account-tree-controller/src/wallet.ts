@@ -15,7 +15,10 @@ import type {
   AccountGroupSingleAccountObject,
 } from './group';
 import { AccountTreeGroup } from './group';
-import { type AccountTreeControllerMessenger } from './types';
+import {
+  type AccountTreeControllerMessenger,
+  type AccountWalletTreeMetadata,
+} from './types';
 
 /**
  * Type constraint for a {@link AccountGroupObject}. If one of its union-members
@@ -29,9 +32,7 @@ type IsAccountWalletObject<
     groups: {
       [groupId: AccountGroupId]: AccountGroupObject;
     };
-    metadata: {
-      name: string;
-    };
+    metadata: AccountWalletTreeMetadata;
   },
 > = Type;
 
@@ -48,8 +49,7 @@ export type AccountWalletEntropyObject = {
     // unsafe... So we keep it as a `AccountGroupId` for now.
     [groupId: AccountGroupId]: AccountGroupMultichainAccountObject;
   };
-  metadata: {
-    name: string;
+  metadata: AccountWalletTreeMetadata & {
     entropy: {
       id: EntropySourceId;
       index: number;
@@ -66,8 +66,7 @@ export type AccountWalletSnapObject = {
   groups: {
     [groupId: AccountGroupId]: AccountGroupSingleAccountObject;
   };
-  metadata: {
-    name: string;
+  metadata: AccountWalletTreeMetadata & {
     snap: {
       id: SnapId;
     };
@@ -83,8 +82,7 @@ export type AccountWalletKeyringObject = {
   groups: {
     [groupId: AccountGroupId]: AccountGroupSingleAccountObject;
   };
-  metadata: {
-    name: string;
+  metadata: AccountWalletTreeMetadata & {
     keyring: {
       type: KeyringTypes;
     };

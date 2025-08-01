@@ -1111,6 +1111,8 @@ describe('AccountTreeController', () => {
           accounts: [account.id],
           metadata: {
             name: '',
+            pinned: false,
+            hidden: false,
           },
         },
       });
@@ -1151,6 +1153,8 @@ describe('AccountTreeController', () => {
           ],
           metadata: {
             name: '',
+            pinned: false,
+            hidden: false,
           },
         },
       });

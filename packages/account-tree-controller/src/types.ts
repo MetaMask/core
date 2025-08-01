@@ -31,9 +31,22 @@ export type UpdatableField<T> = {
 };
 
 /**
+ * Type utility to extract value from UpdatableField or return field as-is.
+ */
+export type ToValue<Field> =
+  Field extends UpdatableField<unknown> ? Field['value'] : Field;
+
+/**
+ * Type utility to extract plain values from an object with UpdatableField properties.
+ */
+export type ExtractValues<ObjectValue extends Record<string, unknown>> = {
+  [Key in keyof ObjectValue]: ToValue<ObjectValue[Key]>;
+};
+
+/**
  * Persisted metadata for account groups (stored in controller state for persistence/sync).
  */
-export type AccountGroupMetadata = {
+export type AccountGroupPersistedMetadata = {
   /** Custom name set by user, overrides default naming logic */
   name?: UpdatableField<string>;
   /** Whether this group is pinned in the UI */
@@ -45,10 +58,41 @@ export type AccountGroupMetadata = {
 /**
  * Persisted metadata for account wallets (stored in controller state for persistence/sync).
  */
-export type AccountWalletMetadata = {
+export type AccountWalletPersistedMetadata = {
   /** Custom name set by user, overrides default naming logic */
   name?: UpdatableField<string>;
 };
+
+/**
+ * Tree metadata for account groups (plain values with required properties for tree objects).
+ */
+export type AccountGroupTreeMetadata = {
+  /** Group name (required in tree objects) */
+  name: string;
+  /** Whether this group is pinned in the UI */
+  pinned: boolean;
+  /** Whether this group is hidden in the UI */
+  hidden: boolean;
+};
+
+/**
+ * Tree metadata for account wallets (plain values with required properties for tree objects).
+ */
+export type AccountWalletTreeMetadata = {
+  /** Wallet name (required in tree objects) */
+  name: string;
+};
+
+// Backward compatibility aliases
+/**
+ * @deprecated Use AccountGroupPersistedMetadata instead
+ */
+export type AccountGroupMetadata = AccountGroupPersistedMetadata;
+
+/**
+ * @deprecated Use AccountWalletPersistedMetadata instead
+ */
+export type AccountWalletMetadata = AccountWalletPersistedMetadata;
 
 export type AccountTreeControllerState = {
   accountTree: {
@@ -59,9 +103,12 @@ export type AccountTreeControllerState = {
     selectedAccountGroup: AccountGroupId | '';
   };
   /** Persistent metadata for account groups (names, pinning, hiding, sync timestamps) */
-  accountGroupsMetadata: Record<AccountGroupId, AccountGroupMetadata>;
-  /** Persistent metadata for account wallets (names, collapsing, sync timestamps) */
-  accountWalletsMetadata: Record<AccountWalletId, AccountWalletMetadata>;
+  accountGroupsMetadata: Record<AccountGroupId, AccountGroupPersistedMetadata>;
+  /** Persistent metadata for account wallets (names, sync timestamps) */
+  accountWalletsMetadata: Record<
+    AccountWalletId,
+    AccountWalletPersistedMetadata
+  >;
 };
 
 export type AccountTreeControllerGetStateAction = ControllerGetStateAction<
