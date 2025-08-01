@@ -1980,29 +1980,6 @@ describe('requestPermittedChainsPermissionIncremental', () => {
     );
   });
 
-  it('throws error when isSnapId is defined and returns true', async () => {
-    const mockIsSnapId = jest.fn().mockReturnValue(true);
-
-    await expect(() =>
-      requestPermittedChainsPermissionIncremental({
-        origin: 'npm:snap',
-        chainId: '0x1',
-        autoApprove: false,
-        hooks: {
-          requestPermissionsIncremental: mockRequestPermissionsIncremental,
-          grantPermissionsIncremental: mockGrantPermissionsIncremental,
-          isSnapId: mockIsSnapId,
-        },
-      }),
-    ).rejects.toThrow(
-      'Cannot request permittedChains permission for Snaps with origin "npm:snap"',
-    );
-
-    expect(mockIsSnapId).toHaveBeenCalledWith('npm:snap');
-
-    expect(mockRequestPermissionsIncremental).not.toHaveBeenCalled();
-  });
-
   it('does not throw error when isSnapId is undefined', async () => {
     mockRequestPermissionsIncremental.mockResolvedValue([
       {},
@@ -2392,59 +2369,6 @@ describe('getCaip25PermissionFromLegacyPermissions', () => {
                   },
                   'wallet:eip155': {
                     accounts: ['wallet:eip155:0xdeadbeef'],
-                  },
-                },
-                isMultichainOrigin: false,
-                sessionProperties: {},
-              },
-            },
-          ],
-        },
-      }),
-    );
-  });
-
-  it('deletes permittedChains permission when isSnapId is defined and returns true', () => {
-    const mockIsSnapId = jest.fn().mockReturnValue(true);
-
-    const permissions = getCaip25PermissionFromLegacyPermissions(
-      'npm:snap',
-      {
-        [PermissionKeys.eth_accounts]: {
-          caveats: [
-            {
-              type: CaveatTypes.restrictReturnedAccounts,
-              value: ['0x0000000000000000000000000000000000000001'],
-            },
-          ],
-        },
-        [PermissionKeys.permittedChains]: {
-          caveats: [
-            {
-              type: CaveatTypes.restrictNetworkSwitching,
-              value: ['0x64'],
-            },
-          ],
-        },
-      },
-      mockIsSnapId,
-    );
-
-    expect(mockIsSnapId).toHaveBeenCalledWith('npm:snap');
-
-    expect(permissions).toStrictEqual(
-      expect.objectContaining({
-        [Caip25EndowmentPermissionName]: {
-          caveats: [
-            {
-              type: Caip25CaveatType,
-              value: {
-                requiredScopes: {},
-                optionalScopes: {
-                  'wallet:eip155': {
-                    accounts: [
-                      'wallet:eip155:0x0000000000000000000000000000000000000001',
-                    ],
                   },
                 },
                 isMultichainOrigin: false,

@@ -576,10 +576,6 @@ export function getCaip25CaveatFromPermission(caip25Permission?: {
  * @param requestedPermissions.caveats - The legacy caveats processed by the function.
  * - `restrictReturnedAccounts`: Restricts which Ethereum accounts can be accessed
  * - `restrictNetworkSwitching`: Restricts which blockchain networks can be used
- * @param isSnapId - Optional function to check if the origin is a valid snap ID.
- * This function is a type guard that narrows the type to `SnapId` if it returns `true`.
- * If provided, it will be used to conditionally apply snap-specific logic.
- * If undefined, snap-specific logic will not be applied.
  * @returns The converted CAIP-25 permission object.
  */
 export const getCaip25PermissionFromLegacyPermissions = (
@@ -598,7 +594,6 @@ export const getCaip25PermissionFromLegacyPermissions = (
       }[];
     };
   },
-  isSnapId?: (value: string) => boolean,
 ) => {
   const permissions = pick(requestedPermissions, [
     PermissionKeys.eth_accounts,
@@ -611,10 +606,6 @@ export const getCaip25PermissionFromLegacyPermissions = (
 
   if (!permissions[PermissionKeys.permittedChains]) {
     permissions[PermissionKeys.permittedChains] = {};
-  }
-
-  if (isSnapId?.(origin)) {
-    delete permissions[PermissionKeys.permittedChains];
   }
 
   const requestedAccounts =
@@ -640,7 +631,7 @@ export const getCaip25PermissionFromLegacyPermissions = (
 
   const caveatValueWithChains = setPermittedEthChainIds(
     newCaveatValue,
-    isSnapId?.(origin) ? [] : requestedChains,
+    requestedChains,
   );
 
   const caveatValueWithAccountsAndChains = setEthAccounts(
@@ -679,10 +670,6 @@ export const getCaip25PermissionFromLegacyPermissions = (
  * Incremental permission requests allow the caller to replace existing and/or add brand new permissions and caveats for the specified subject.
  * @param options.hooks.grantPermissionsIncremental - Incrementally grants approved permissions to the specified subject without prompting for user approval.
  * Every permission and caveat is stringently validated and an error is thrown if validation fails.
- * @param options.hooks.isSnapId - Optional function to check if the origin is a valid snap ID.
- * This function is a type guard that narrows the type to `SnapId` if it returns `true`.
- * If provided, it will be used to conditionally apply snap-specific logic.
- * If undefined, snap-specific logic will not be applied.
  */
 export const requestPermittedChainsPermissionIncremental = async ({
   origin,
@@ -717,15 +704,9 @@ export const requestPermittedChainsPermissionIncremental = async ({
       >;
       requestData?: Record<string, unknown>;
     }) => Partial<Record<string, unknown>>;
-    isSnapId?: (value: string) => boolean;
   };
   metadata?: { options: Record<string, Json> };
 }) => {
-  if (hooks.isSnapId?.(origin)) {
-    throw new Error(
-      `Cannot request permittedChains permission for Snaps with origin "${origin}"`,
-    );
-  }
   const caveatValueWithChains = setPermittedEthChainIds(
     {
       requiredScopes: {},
