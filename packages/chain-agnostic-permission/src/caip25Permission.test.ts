@@ -1988,7 +1988,7 @@ describe('getCaip25PermissionFromLegacyPermissions', () => {
     );
   });
 
-  it('returns approval from the PermissionsControllerr for eth_accounts and permittedChains when only permittedChains is specified in params and origin is not snapId', async () => {
+  it('returns approval from the PermissionsController for eth_accounts and permittedChains when only permittedChains is specified in params and origin is not snapId', async () => {
     const permissions = getCaip25PermissionFromLegacyPermissions('test.com', {
       [PermissionKeys.permittedChains]: {
         caveats: [
