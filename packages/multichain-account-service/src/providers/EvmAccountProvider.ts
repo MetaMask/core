@@ -8,7 +8,10 @@ import type {
 } from '@metamask/keyring-internal-api';
 import type { Hex } from '@metamask/utils';
 
-import { BaseAccountProvider } from './BaseAccountProvider';
+import {
+  assertIsBip44Account,
+  BaseAccountProvider,
+} from './BaseAccountProvider';
 
 /**
  * Asserts an internal account exists.
@@ -66,7 +69,15 @@ export class EvmAccountProvider extends BaseAccountProvider {
 
     // We MUST have the associated internal account.
     assertInternalAccountExists(account);
+    assertIsBip44Account(account);
 
-    return [account.id];
+    return [account];
+  }
+
+  async discoverAndCreateAccounts(_: {
+    entropySource: EntropySourceId;
+    groupIndex: number;
+  }) {
+    return []; // TODO: Implement account discovery.
   }
 }

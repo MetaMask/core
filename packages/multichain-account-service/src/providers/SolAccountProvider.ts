@@ -1,4 +1,4 @@
-import type { Bip44Account } from '@metamask/account-api';
+import { type Bip44Account } from '@metamask/account-api';
 import type { SnapKeyring } from '@metamask/eth-snap-keyring';
 import type { EntropySourceId } from '@metamask/keyring-api';
 import { SolAccountType } from '@metamask/keyring-api';
@@ -6,7 +6,10 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 
-import { BaseAccountProvider } from './BaseAccountProvider';
+import {
+  assertIsBip44Account,
+  BaseAccountProvider,
+} from './BaseAccountProvider';
 
 export class SolAccountProvider extends BaseAccountProvider {
   static SOLANA_SNAP_ID = 'npm:@metamask/solana-wallet-snap' as SnapId;
@@ -36,7 +39,7 @@ export class SolAccountProvider extends BaseAccountProvider {
     );
 
     // Create account without any confirmation nor selecting it.
-    const keyringAccount = await createAccount(
+    const account = await createAccount(
       SolAccountProvider.SOLANA_SNAP_ID,
       opts,
       {
@@ -46,7 +49,9 @@ export class SolAccountProvider extends BaseAccountProvider {
       },
     );
 
-    return keyringAccount.id;
+    assertIsBip44Account(account);
+
+    return account;
   }
 
   async createAccounts({
@@ -58,11 +63,18 @@ export class SolAccountProvider extends BaseAccountProvider {
   }) {
     // TODO: Use the new keyring API `createAccounts` method with the "bip-44:derive-index"
     // type once ready.
-    const id = await this.#createAccount({
+    const account = await this.#createAccount({
       entropySource,
       derivationPath: `m/44'/501'/${groupIndex}'/0'`,
     });
 
-    return [id];
+    return [account];
+  }
+
+  async discoverAndCreateAccounts(_: {
+    entropySource: EntropySourceId;
+    groupIndex: number;
+  }) {
+    return []; // TODO: Implement account discovery.
   }
 }

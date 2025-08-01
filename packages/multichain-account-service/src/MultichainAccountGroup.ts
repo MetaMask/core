@@ -1,16 +1,16 @@
-import type { Bip44Account } from '@metamask/account-api';
-import type { AccountSelector } from '@metamask/account-api';
 import { AccountGroupType } from '@metamask/account-api';
 import {
   toMultichainAccountGroupId,
   type MultichainAccountGroupId,
   type MultichainAccountGroup as MultichainAccountGroupDefinition,
 } from '@metamask/account-api';
+import type { Bip44Account } from '@metamask/account-api';
+import type { AccountSelector } from '@metamask/account-api';
+import type { AccountProvider } from '@metamask/account-api';
 import { type KeyringAccount } from '@metamask/keyring-api';
 import { isScopeEqualToAny } from '@metamask/keyring-utils';
 
 import type { MultichainAccountWallet } from './MultichainAccountWallet';
-import type { AccountProvider } from './providers/BaseAccountProvider';
 
 /**
  * A multichain account group that holds multiple accounts.

@@ -1,23 +1,23 @@
+import {
+  getGroupIndexFromMultichainAccountGroupId,
+  isMultichainAccountGroupId,
+  toMultichainAccountWalletId,
+} from '@metamask/account-api';
+import { toDefaultAccountGroupId } from '@metamask/account-api';
+import { AccountWalletType } from '@metamask/account-api';
 import type {
   Bip44Account,
   MultichainAccountWalletId,
   MultichainAccountWallet as MultichainAccountWalletDefinition,
 } from '@metamask/account-api';
 import type { AccountGroupId } from '@metamask/account-api';
-import {
-  getGroupIndexFromMultichainAccountId as getGroupIndexFromMultichainAccountGroupId,
-  isMultichainAccountGroupId,
-  toMultichainAccountWalletId,
-} from '@metamask/account-api';
-import { toDefaultAccountGroupId } from '@metamask/account-api';
-import { AccountWalletType } from '@metamask/account-api';
+import type { AccountProvider } from '@metamask/account-api';
 import {
   type EntropySourceId,
   type KeyringAccount,
 } from '@metamask/keyring-api';
 
 import { MultichainAccountGroup } from './MultichainAccountGroup';
-import type { AccountProvider } from './providers/BaseAccountProvider';
 
 /**
  * A multichain account wallet that holds multiple multichain accounts (one multichain account per

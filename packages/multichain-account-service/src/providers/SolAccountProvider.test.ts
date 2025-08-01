@@ -213,6 +213,39 @@ describe('SolAccountProvider', () => {
       groupIndex: 0,
     });
     expect(newAccounts).toHaveLength(1);
-    expect(newAccounts[0]).toStrictEqual(MOCK_SOL_ACCOUNT_1.id);
+    expect(newAccounts[0]).toStrictEqual(MOCK_SOL_ACCOUNT_1);
+  });
+
+  it('throws if the created account is not BIP-44 compatible', async () => {
+    const accounts = [MOCK_SOL_ACCOUNT_1];
+    const { provider, mocks } = setup({
+      accounts,
+    });
+
+    mocks.keyring.createAccount.mockResolvedValue({
+      ...MOCK_SOL_ACCOUNT_1,
+      options: {}, // No options, so it cannot be BIP-44 compatible.
+    });
+
+    await expect(
+      provider.createAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      }),
+    ).rejects.toThrow('Created account is not BIP-44 compatible');
+  });
+
+  it('discover accounts', async () => {
+    const { provider } = setup({
+      accounts: [], // No accounts by defaults, so we can discover them
+    });
+
+    // TODO: Update this once we really implement the account discovery.
+    expect(
+      await provider.discoverAndCreateAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      }),
+    ).toStrictEqual([]);
   });
 });

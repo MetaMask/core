@@ -1,6 +1,6 @@
 import {
   isBip44Account,
-  type AccountProvider as AccountProviderDefinition,
+  type AccountProvider,
   type Bip44Account,
 } from '@metamask/account-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
@@ -8,23 +8,25 @@ import type {
   KeyringMetadata,
   KeyringSelector,
 } from '@metamask/keyring-controller';
-import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { MultichainAccountServiceMessenger } from '../types';
 
-export type AccountProvider<Account extends KeyringAccount> =
-  AccountProviderDefinition<Account> & {
-    createAccounts({
-      entropySource,
-      groupIndex,
-    }: {
-      entropySource: EntropySourceId;
-      groupIndex: number;
-    }): Promise<Account['id'][]>;
-  };
+/**
+ * Asserts a keyring account is BIP-44 compatible.
+ *
+ * @param account - Keyring account to check.
+ * @throws If the keyring account is not compatible.
+ */
+export function assertIsBip44Account(
+  account: KeyringAccount,
+): asserts account is Bip44Account<KeyringAccount> {
+  if (!isBip44Account(account)) {
+    throw new Error('Created account is not BIP-44 compatible');
+  }
+}
 
 export abstract class BaseAccountProvider
-  implements AccountProvider<Bip44Account<InternalAccount>>
+  implements AccountProvider<Bip44Account<KeyringAccount>>
 {
   protected readonly messenger: MultichainAccountServiceMessenger;
 
@@ -33,9 +35,9 @@ export abstract class BaseAccountProvider
   }
 
   #getAccounts(
-    filter: (account: InternalAccount) => boolean = () => true,
-  ): Bip44Account<InternalAccount>[] {
-    const accounts: Bip44Account<InternalAccount>[] = [];
+    filter: (account: KeyringAccount) => boolean = () => true,
+  ): Bip44Account<KeyringAccount>[] {
+    const accounts: Bip44Account<KeyringAccount>[] = [];
 
     for (const account of this.messenger.call(
       // NOTE: Even though the name is misleading, this only fetches all internal
@@ -55,11 +57,11 @@ export abstract class BaseAccountProvider
     return accounts;
   }
 
-  getAccounts(): Bip44Account<InternalAccount>[] {
+  getAccounts(): Bip44Account<KeyringAccount>[] {
     return this.#getAccounts();
   }
 
-  getAccount(id: InternalAccount['id']): Bip44Account<InternalAccount> {
+  getAccount(id: KeyringAccount['id']): Bip44Account<KeyringAccount> {
     // TODO: Maybe just use a proper find for faster lookup?
     const [found] = this.#getAccounts((account) => account.id === id);
 
@@ -93,7 +95,7 @@ export abstract class BaseAccountProvider
     return result as CallbackResult;
   }
 
-  abstract isAccountCompatible(account: Bip44Account<InternalAccount>): boolean;
+  abstract isAccountCompatible(account: Bip44Account<KeyringAccount>): boolean;
 
   abstract createAccounts({
     entropySource,
@@ -101,5 +103,13 @@ export abstract class BaseAccountProvider
   }: {
     entropySource: EntropySourceId;
     groupIndex: number;
-  }): Promise<Bip44Account<InternalAccount>['id'][]>;
+  }): Promise<Bip44Account<KeyringAccount>[]>;
+
+  abstract discoverAndCreateAccounts({
+    entropySource,
+    groupIndex,
+  }: {
+    entropySource: EntropySourceId;
+    groupIndex: number;
+  }): Promise<Bip44Account<KeyringAccount>[]>;
 }

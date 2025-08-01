@@ -91,7 +91,7 @@ function setup({
   >;
   keyring: MockEthKeyring;
   mocks: {
-    getAccountsByAddress: jest.Mock;
+    getAccountByAddress: jest.Mock;
   };
 } {
   const keyring = new MockEthKeyring(accounts);
@@ -125,7 +125,7 @@ function setup({
     messenger,
     keyring,
     mocks: {
-      getAccountsByAddress: mockGetAccountByAddress,
+      getAccountByAddress: mockGetAccountByAddress,
     },
   };
 }
@@ -172,7 +172,26 @@ describe('EvmAccountProvider', () => {
       groupIndex: 0,
     });
     expect(newAccounts).toHaveLength(1);
-    expect(newAccounts[0]).toStrictEqual(MOCK_HD_ACCOUNT_1.id);
+    expect(newAccounts[0]).toStrictEqual(MOCK_HD_ACCOUNT_1);
+  });
+
+  it('throws if the created account is not BIP-44 compatible', async () => {
+    const accounts = [MOCK_HD_ACCOUNT_1];
+    const { provider, mocks } = setup({
+      accounts,
+    });
+
+    mocks.getAccountByAddress.mockReturnValue({
+      ...MOCK_HD_ACCOUNT_1,
+      options: {}, // No options, so it cannot be BIP-44 compatible.
+    });
+
+    await expect(
+      provider.createAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      }),
+    ).rejects.toThrow('Created account is not BIP-44 compatible');
   });
 
   it('throws when trying to create gaps', async () => {
@@ -194,7 +213,7 @@ describe('EvmAccountProvider', () => {
     });
 
     // Simulate an account not found.
-    mocks.getAccountsByAddress.mockImplementation(() => undefined);
+    mocks.getAccountByAddress.mockImplementation(() => undefined);
 
     await expect(
       provider.createAccounts({
@@ -202,5 +221,19 @@ describe('EvmAccountProvider', () => {
         groupIndex: 1,
       }),
     ).rejects.toThrow('Internal account does not exist');
+  });
+
+  it('discover accounts', async () => {
+    const { provider } = setup({
+      accounts: [], // No accounts by defaults, so we can discover them
+    });
+
+    // TODO: Update this once we really implement the account discovery.
+    expect(
+      await provider.discoverAndCreateAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      }),
+    ).toStrictEqual([]);
   });
 });
